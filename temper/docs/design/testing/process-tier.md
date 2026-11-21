@@ -477,7 +477,13 @@
   in reverse. Its stories: a task on each worker, on the box's binary
   and on the deployment's binaries (../protocol/cluster.md, 6); a
   worker lost, killed mid-run; a worker hung, stopped past the grace and
-  continued; a worker started later, and one restarted; and a mixed
+  continued; a worker started later, and one restarted; a worker stopped
+  as its unit does (`KillMode=mixed`: the termination signal to the
+  worker alone, the kill only past the stop timeout its printed stop
+  bound gives), with a stray termination signal to its run's agent,
+  while the run's LLM answer is held, its turn then committed and its
+  attempt interrupted with no try spent before the worker exits 0
+  (`../draft/worker-restarts.md`, 9, test 8); and a mixed
   document refused, exit 1. Each story's referee is the tier's: what the
   engine records, read through the client (the forge's state, from the
   fake forge's API, once

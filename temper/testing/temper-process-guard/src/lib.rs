@@ -10,7 +10,8 @@ use std::process::{Child, Command};
 use std::time::Duration;
 
 #[cfg(target_os = "linux")]
-mod executable_read;
+#[doc(hidden)]
+pub mod executable_read;
 
 pub const WITHIN: skein_lib::Duration = skein_lib::Duration::from_secs(60);
 

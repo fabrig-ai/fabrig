@@ -228,6 +228,20 @@ pub(super) fn encode_owner_run_end(value: jig_client::contract::RunEnd, out: &mu
             out.object_end();
         }
         jig_client::contract::RunEnd::Refused => out.string(b"refused"),
+        jig_client::contract::RunEnd::Suspended { worker, why } => {
+            out.object_start();
+            out.key(b"suspended");
+            out.object_start();
+            out.key(b"worker");
+            out.unsigned(u64::from(*worker));
+            out.key(b"why");
+            out.string(match why {
+                jig_client::contract::SuspendWhy::Stopped => b"stopped",
+                jig_client::contract::SuspendWhy::Restarted => b"restarted",
+            });
+            out.object_end();
+            out.object_end();
+        }
     }
 }
 
@@ -317,6 +331,22 @@ mod tests {
             expected.put(name.as_bytes()).expect("wire name");
             expected.put(b"}}").expect("end");
             assert_eq!(encoded.finish().as_ref(), expected.as_slice());
+        }
+    }
+    #[test]
+    fn suspended_runs_encode_the_worker_and_cause_under_suspended() {
+        for (why, expected) in [
+            (c::SuspendWhy::Stopped, br#"{"suspended":{"worker":2,"why":"stopped"}}"#.as_slice()),
+            (c::SuspendWhy::Restarted, br#"{"suspended":{"worker":2,"why":"restarted"}}"#),
+        ] {
+            let end = c::RunEnd::Suspended { worker: 2, why };
+            let limits = Limits { depth: 8, length: 256 };
+            let mut budget = super::super::Cut { room: 0, left: 0, turn: None, subject: false, digest: None };
+            let mut measured = Encoder::measure(&limits);
+            super::encode_owner_run_end(end, &mut measured, &mut budget);
+            let mut out = Encoder::write(measured.measured().unwrap(), &limits);
+            super::encode_owner_run_end(end, &mut out, &mut budget);
+            assert_eq!(out.finish().as_ref(), expected);
         }
     }
 }

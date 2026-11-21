@@ -173,6 +173,8 @@ fn other_read_flags_are_not_watch_arguments() {
     }
     for (words, at) in [
         (&["chat", "show", "41", "--until", "changed"][..], 1),
+        (&["goal", "show", "820", "--until", "changed"][..], 1),
+        (&["goal", "show", "820", "--since", "0011223344556677"][..], 1),
         (&["task", "activity", "41", "--until", "changed"], 1),
         (&["task", "turn", "41", "3.7", "--until", "changed"], 2),
     ] {

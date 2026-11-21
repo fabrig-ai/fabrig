@@ -639,4 +639,20 @@ pub struct WorkerState {
     pub withdrawn: bool,
     pub linked: bool,
     pub since: Option<Wall>,
+    pub pause: WorkerPause,
+}
+
+/// Client names for the channel pause (domain/engine/workers.md, 5–6).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum WorkerPauseMode {
+    Resume,
+    Pause,
+    Drain,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum WorkerPause {
+    Taking,
+    Paused,
+    Draining,
+    Drained,
 }

@@ -12,6 +12,7 @@ use skein_lib::{List, Map, Wall, bytes::copy_of};
 use skein_ui::{Builder, Role, Run, State as UiState, phrases::Hole};
 use temper_client_domain::{
     Address, Domain,
+    forge::findings,
     pages::{
         Act, delegation,
         goal::{self, Counts, Fallback},
@@ -51,6 +52,8 @@ pub(crate) fn main(
                         chat: goal.requester_chat(root.pages().me(root.client())),
                         counts: goal.counts(task, ended),
                         state: goal.state(task, ended, !bands.is_empty()),
+                        reds: &goal.reds,
+                        reds_cut: goal.reds_cut,
                     };
                     shown.header(b, words, bindings, times);
                     super::task::amendment(b, root, words, bindings);
@@ -242,6 +245,8 @@ struct Page<'a> {
     chat: Option<u64>,
     counts: Counts,
     state: State,
+    reds: &'a [temper_client_protocol_wire::v1::FindingRow],
+    reds_cut: bool,
 }
 impl Page<'_> {
     fn header(&self, b: &mut Builder, words: &Words, bindings: &mut Bindings, times: &mut Times) {
@@ -343,6 +348,7 @@ impl Page<'_> {
         let landing = goal::landing(self.state, self.task, self.task.chip.details.details.ended_at, self.counts);
         facts(b, &landing_words(words, times, landing));
         b.close();
+        self.reds(b, words);
         section(b, Word::GoalHowTitle, words);
         let way = if goal::holds_branch(self.task) { Word::GoalLandWhole } else { Word::GoalTaskByTask };
         let asks = if goal::always_asks(self.task.spec.specification.words.bytes.bytes()) {
@@ -366,6 +372,37 @@ impl Page<'_> {
             }
             b.close();
             b.close();
+        }
+        b.close();
+    }
+
+    fn reds(&self, b: &mut Builder, words: &Words) {
+        if self.reds.is_empty() {
+            return;
+        }
+        section(b, Word::GoalRedsTitle, words);
+        for row in self.reds {
+            b.open(Role::Paragraph);
+            b.style(look::GOAL_LINE);
+            if row.cleared.is_none() {
+                b.style(look::GOAL_LINE_NEEDS);
+            }
+            b.text(
+                Run::Plain,
+                &words.say(
+                    Word::GoalRedLine,
+                    &[
+                        Hole::Number(u64::from(self.task.project)),
+                        Hole::Number(u64::from(row.number)),
+                        Hole::Name(crate::common::chat::row_title(&row.title)),
+                        Hole::Name(finding_stands(words, findings::stands(row))),
+                    ],
+                ),
+            );
+            b.close();
+        }
+        if self.reds_cut {
+            facts(b, &words.say(Word::GoalMoreReds, &[]));
         }
         b.close();
     }
@@ -676,6 +713,19 @@ impl<'a> Delegates<'a> {
                 words.say(Word::GoalDoneAt, &[Hole::Name(at)]).trim_ascii().into()
             }
         }
+    }
+}
+
+fn finding_stands(words: &Words, stands: findings::Stands) -> Box<[u8]> {
+    match stands {
+        findings::Stands::Cleared { tier, run } => {
+            words.say(Word::GoalRedCleared, &[Hole::Name(tier), Hole::Number(run)])
+        }
+        findings::Stands::Waiting => words.say(Word::GoalRedWaiting, &[]),
+        findings::Stands::Repairing(Some(goal)) => words.say(Word::GoalRedRepairingGoal, &[Hole::Number(goal)]),
+        findings::Stands::Repairing(None) => words.say(Word::GoalRedRepairing, &[]),
+        findings::Stands::Backlog => words.say(Word::GoalRedBacklog, &[]),
+        findings::Stands::Dropped(reason) => words.say(Word::GoalRedDropped, &[Hole::Name(reason)]),
     }
 }
 

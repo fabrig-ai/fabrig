@@ -76,6 +76,8 @@ pub enum Observation {
     HostLong { operation: smith_domain::Operation, span: skein_lib::Duration },
     /// The host received the end of the long operation.
     HostLongDone,
+    /// The agent left a termination signal to its host.
+    HostSignalled { signal: smith_host_domain::parent::Signal, from: Option<u32> },
     /// A named message ended refused at the agent ingress.
     HostMessageRefused { name: Token, reason: smith_host_domain::MessageRefusal },
     /// The host received a numbered durable transcript body.
@@ -351,6 +353,9 @@ impl Peer {
                 host::Received::Message { message: smith_host_domain::Up::Long { operation, span } } => {
                     output.push(Observation::HostLong { operation, span });
                 }
+                host::Received::Message { message: smith_host_domain::Up::Signalled { signal, from } } => {
+                    output.push(Observation::HostSignalled { signal, from });
+                }
                 host::Received::Message { message: smith_host_domain::Up::LongDone } => {
                     output.push(Observation::HostLongDone);
                 }
@@ -520,7 +525,7 @@ fn channel_limits(bodies: smith_channel::Limits) -> skein_channel::Limits {
         skip: 4096,
         output_bytes: largest.checked_add(8).expect("frame fits"),
         output_frames: 4,
-        kinds: u32::try_from(smith_channel::V12.len()).expect("channel kinds fit"),
+        kinds: u32::try_from(smith_channel::V13.len()).expect("channel kinds fit"),
     }
 }
 
@@ -915,6 +920,21 @@ impl World {
                 .send_waiting(read, skein_lib::Token::new(6), &mut self.agent.agent_events, &mut self.agent.below)
                 .expect("bounded waiting");
         }
+    }
+
+    /// Try to leave a termination signal to the admitted host.
+    pub fn agent_signalled(&mut self, signal: smith_channel::Signal, from: Option<u32>) -> bool {
+        if let Half::Agent(agent) = &mut self.agent.half {
+            return agent
+                .send_signalled(
+                    smith_channel::Signalled { signal, from },
+                    Token::new(31),
+                    &mut self.agent.agent_events,
+                    &mut self.agent.below,
+                )
+                .is_ok();
+        }
+        false
     }
 
     /// Tell the host that checks begin with this progress extension.

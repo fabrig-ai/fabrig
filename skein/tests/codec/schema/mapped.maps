@@ -1,0 +1,41 @@
+# Every maps form belongs to this fixture, not to the record's wire.
+records crate::mapped_records
+use d = crate::mapped_domain
+use c = skein_codec::convert
+use own = crate::mapped_domain
+by hand crate::mapped_domain
+context crate::mapped_domain::Context
+
+record Reference stands for id
+record Label stands for text via c::text
+record Item = d::Item { code = number }
+record Empty = d::Empty
+record Shared {
+    count = total via own::positive
+}
+record Checked by hand
+enum HandChoice by hand
+enum Event = d::Event {
+    idle
+    inline
+    alternate { count = other }
+    item tuple boxed
+    unboxed_item tuple
+    label tuple
+    old_name = Renamed
+    checked tuple
+}
+record Packet = d::Packet {
+    when = changed via c::wall
+    caption via c::text
+    maybe via c::wall
+    times via c::wall slice
+    labels slice
+    items slice
+    padding slice
+    primary boxed
+    optional_items slice
+    optional_primary boxed
+}
+record Root by hand
+enum LongChoice = d::LongChoice

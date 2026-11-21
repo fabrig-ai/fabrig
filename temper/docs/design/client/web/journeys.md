@@ -1,76 +1,68 @@
 # Journeys
 
-Provisional, 2026-10-26. A journey is a walk through the
-browser's client (`README.md`) recorded on a fresh `temper box
---fake-backends`, or on any deployment with real accounts and redacted (3.5), then replayed
-natively through the shipped host and printed as the client's own pages,
-linked so that the same clicks walk them. The look is tuned on those
-pages, and main's are kept current by one writer (`../journey-writer.md`). They are not the mockups' journeys
-(`mockups/README.md`, 4), which are worlds walked in the mockups.
-The TUI's journeys are `../tui/journeys.md`'s, sharing this document's
-file (3.2), redaction (`journey-redaction.md`) and last scan (3.7). Section 2 is the host on native, 3 the recording, 4 its replay, 5 the
-print, 6 the tests, 7 editing the look, 8 a recording gone stale, 9 the
-journeys, 10 what is open.
+A journey is its `walk`: what a person does and where a page is
+printed (`../journey-walks.md`, 2). The browser's journeys live under
+`journeys/`, the TUI's under `../tui/journeys/`. Their pages are the
+clients' own, printed in one process by `temper-client-walk`, and main's
+pages have one writer (`../journey-writer.md`). A person's recording is
+separate: `temper-client-journeys print FILE OUT` prints it outside the
+repository's journeys.
+
+Section 2 is the native host; 3 a person's recording; 4 its replay and
+proof; 5 the programs, directories and printed pages; 6 the tests; 7 the
+look; 8 a walk on a box; 9 the browser's journeys; 10 what is open.
 
 ## 1. In one page
 
-- **temper is the source of truth** for what it draws (the user,
-  10-26). A page a journey records looks as its print does:
-  `temper.css` over skein's sheet, tuned on the print. The mockups are
-  reconciled to it gradually, and stay the design of what is not built
-  yet (`mockups/README.md`, 1; `look.md`).
-- **One seam, the host's.** The browser shell gives its host each
-  report of a turn and carries out what the host asks back. The
-  recorder keeps what crosses that seam; the replay gives it back to
-  the same host, built natively (section 2).
-- **Recorded in a browser,** in a bundle built for it alone, on a fresh
-  box, fake or real (3.5): the facts the host starts from, then turn by
-  turn the clocks, each report and what the host asked after it, each act as the
-  event the view makes of it, never its control's words or place, and a
-  mark for each page the person saw (section 3).
-- **Replayed, it must ask what it asked,** and a control on the page
-  must give each recorded event. A client that asks otherwise would be
-  answered what it never asked: the journey is stale, and is recorded
-  again (sections 4 and 8). The view may rename, restyle or move a
-  control and the journey holds. The first replay proves itself against
-  the live page's prints.
-- **Recorded again by a command** while its acts hold: `again NAME`
-  walks them on a fresh fake box in headless Chromium, as the browser
-  tier drives it, and adds the result; no person walks it (8.1), and on
-  main the journeys' writer alone runs it. A
-  journey that starts past the first page says how to reach it in a
-  setup file beside its recording (8.2).
-- **Printed as static pages** by `temper-client-journeys`, under
-  `docs/design/client/web/journeys/`: a page per mark, one tag per line, the
-  acted control leading to the next page, the shell's stylesheets
-  linked from the checkout, then an empty `overlay.css`; beside them the
-  journey's `../README.md`, its description. No browser, no box, the same
-  bytes every time (section 5).
-- **Kept current by one writer:** after each landing, `pages` walks
-  again each stale journey and reprints them all, offered as a change of
-  its own. No other change commits a recording, a page or a file
-  printed beside them, and no test holds them (`../journey-writer.md`).
-- **The look is tuned on the print:** rules in the overlay, markup in
-  place, each request a commit on the person's branch `look-requests`,
-  kept on `main` by `scripts/look-refresh.sh` and never landed. A
-  landing that carries a request's name moves it into the shell's
-  stylesheets and the view, and compares by a reprint (section 7).
-- **Fake, or real and redacted.** A recording keeps what the page was
-  given as it was, but the sign-in, which no saved file holds (3.1). On
-  a real deployment `add` first takes out what must not be
-  committed, proves the rest, and writes nothing until a last scan has
-  passed; the scan knows what it knows, and the person reads the pages
-  for the rest (`journeys.md`, 3.5 and `journey-redaction.md` and `journeys.md`, 3.7 to 3.8).
+- **A journey is its walk and README,** with `scripts.json` where it has
+  its own model scripts. A change edits these sources as it edits a
+  test: a control renamed changes the walks that name it. A wire or look
+  change needs no change to a walk (`../journey-walks.md`, 2).
+- **One walk, three places to run it:**
+  - **In a world,** the playground's composition on skein's simulator,
+    with the shipped clients and fake model and forge. The browser's
+    page is the native host's (section 2). No box, browser, terminal or
+    network starts; the simulator owns the time and schedule, so the
+    same tree prints the same bytes (`../journey-walks.md`, 4).
+  - **On a box,** through the drive session, with a browser, after
+    landing and outside every plan, for what a browser alone shows
+    (section 8).
+  - **By hand on a deployment,** with the recorder: a person's file,
+    never committed, printed into OUT by the build that recorded it
+    (sections 3 and 4).
+- **Main's pages are the writer's alone.** After each landing,
+  `temper-client-walk pages` prints the tip; the writer offers the
+  differing files as a change of their own, with `Printed: COMMIT`.
+  Until that change lands, the pages are the last print's, not a test's
+  verdict on the tip (`../journey-writer.md`, 4).
+- **A goal compares by a print into scratch,**
+  `temper-client-walk print --out DIR`, against the request's own pages.
+  It commits no page and no recording (section 7).
+- **No test depends on main's pages.** Tests make their own walks and
+  recordings, and none walks main's journeys to their end (section 6).
+- **temper draws the truth of the look.** `temper.css` over skein's
+  sheet is tuned on the prints, then compared in a browser after
+  landing. The mockups remain the design of what is not built
+  (`mockups/README.md`, 1; `look.md`). The gallery supplies states no
+  journey reaches (`gallery.md`).
+- **A recording keeps the host's seam,** not a walk's control names:
+  the start's facts, reports and asks, clocks and deadlines, events and
+  marked HTML. Its replay must ask what it asked, and the proof must
+  draw what it drew. `print FILE OUT` redacts before proving and scans
+  before writing; the person reads its pages for what the scan cannot
+  know (`journey-redaction.md`; sections 3 and 4).
 
 ## 2. The host on native
 
 - **A library on every target.** `temper-client-shell-web` is a
   `cdylib` and an `rlib`. Its `host`, `limits` and `records` modules
-  build for native as for `wasm32-unknown-unknown`, their dependencies
-  no longer under the wasm target; `lib`'s start, the DOM and the
+  build for native as for `wasm32-unknown-unknown`, with their
+  dependencies available on native; `lib`'s start, the DOM and the
   platform's parts stay wasm-only, as do `wasm-bindgen` and `web-sys`.
-  `tests/host.rs` uses the library instead of including the modules by
-  path. The replay runs this host, never a copy.
+  The native host has library tests in `src/host_tests.rs` and the
+  recording's seam tests in `tests/suite/host.rs` (section 6).
+  Both the world's walk and a recording's replay run this host, never a
+  copy.
 - **The `journey` module** (the file, the recorder, the replay) builds
   on every target, the shipped bundle's among them; the redaction's and
   the last scan's shared code, which the TUI's journeys use too, is
@@ -78,30 +70,28 @@ journeys, 10 what is open.
 - **The seam** is `host::Host`'s, and the shell's turn and the replay
   call it alike:
   - `clocks(now, wall)`, at the turn's start, as today;
-  - `report(&mut self, report: Report) -> Duties`: one report given,
-    and what the host asks after it. `Report` is `Start`, `Due`,
-    `Act { node, act }`, `Place { path }`, `Heard(Heard)` (a fetch's
-    report, through jig's `adapter::fetched`) and
-    `Carried { reports, writes }` (skein's `transport::Carried`).
-    `Duties` holds the `asked` (jig's `adapter::Asked`), the `writes`
-    to answer, and the address to `navigate` to, to `replace` with, or
-    to `show`, with whether it replaces. What `Shell::turn` does
-    between a report and the platform today, `duties()` and the
-    `navigate`, `replace` and `show` fields, moves behind it;
+  - `report(&mut self, report: Report) -> Duties`: one report given and
+    what the host asks after it. Reports include `Start`, `Due`,
+    `Act { node, act }`, `Place { path }`, `Returned { path }`,
+    `TabRefused`, `Copied`, `Heard` (a fetch's report, through jig's
+    adapter), and `Carried` (the small store's reports and write count).
+    The host also takes `Push` and `Screen`; those reports are not
+    recorded. The recorded duties are the tab's open, point and close,
+    copy, jig's adapter's asks, the write count and the address to
+    navigate to, replace with or show (3.2);
   - `draw(&mut self, page, ops)`: the turn's patches applied to the
-    page, and its links' hrefs set (`README.md`, 2.3), as the turn's
-    end does today;
+    page, with the links' hrefs set (`README.md`, 2.3);
   - `deadline(&self)`, as today.
 - **The page's look** (`Look` with `look::NAMES` and `look::ELEMENTS`,
   the prefix `temper`) is one function of the host module's,
   `page(bounds, primary) -> Page<'static>`, which the shell's start and
   the replay call.
 - **An act's event,** `Host::event_of(&self, node, act) ->
-  Option<Event>`, the event the view makes of an act on a node, without
-  giving it: `temper_client_view::event(&View, node, act)` reads the
+  Option<Event>`, taking `act` by value: the event the view makes on a
+  node, without giving it. `temper_client_view::event(&View, node, act)` reads the
   view and changes nothing, so that the recorder and the replay may ask
   it of any node. The host's own act gives what it returns. With the view's tree, `Host::tree(&self) ->
-  &Tree`, it is where an act is read and its node found again (3.3).
+  &Tree`, it is where an act is read and its node found for replay (3.3).
 
 ## 3. The recording
 
@@ -112,13 +102,13 @@ journeys, 10 what is open.
   `temper-record` meta, which `--record` asks of the deployment, runs
   the recorder (`README.md`, 2.1 and 2.2); without either, the same
   bundle records nothing and installs no key. The recorder needs no
-  other setting: the journeys tool gives `internal-loopback-navigation=1`
-  beside it, as its fake box's sign-in's tab needs (8.1). The recorder
-  adds nothing to the page: no node, no style, no request. The public
+  other setting. It adds nothing to the page: no node, no style, no request. The public
   pages (`public.md`) start no shell, and record nothing.
 - **What it hears:** in `Shell::turn`, beside the host, the start's
-  facts once, then each turn's clocks, each report given to
-  `Host::report` with the duties it returned, and the turn's deadline.
+  facts once, then the recorded turns' clocks, reports given to
+  `Host::report` and the duties it returned, and each turn's deadline.
+  `Push` and `Screen` reports have no recording record; 3.2 lists what
+  the recorder keeps.
   It keeps them in memory as the file's lines (3.2), through
   `journey::Recorder`, which is platform-independent and wraps the
   seam: `Recorder::report(host, page, report) -> Duties` gives the
@@ -134,48 +124,47 @@ journeys, 10 what is open.
   then, closed by an end mark of the page as drawn, through the
   browser's download, as `journey.recording`, from a link never added to
   the document. The recorder goes on after a save, so that each save is
-  a whole recording and a later one holds more; the person saves once,
-  at the walk's end, and `again` saves as it goes (8.1). A key's turn that gives the host nothing, a save's, is not
-  kept.
-- **One load of the page.** A recording starts with the page, at the
-  printed link's first page, and is whole at each save. A sign-in is no
+  a whole recording and a later one holds more. The person saves at the
+  end of what they want to show. A key's turn that gives the host
+  nothing, a save's, is not kept.
+- **One load of the page.** A recording starts at that load's path and
+  is whole at each save. A sign-in is no
   departure: the recording goes on through it and its end, the tab's
   address kept as its answer's is. A departure, a forge's or an
-  authorization's, ends it: when a report's duties ask to `navigate` or `replace`, the
+  authorization's, ends it: when a report's duties depart
+  (`navigate`, `replace` or reload), the
   recorder keeps them, marks the end as the page is drawn then, and
   saves, before the shell carries the departure out; the rest of that
   turn is not kept, and the recorder keeps nothing more. A reload starts
-  a new recording, and so does the page's load on a return from a
-  departure, when the page records again (`README.md`, 2.1).
+  a new recording, and so does a return from a departure when the new
+  load enables the recorder (`README.md`, 2.1).
 - **No sign-in in the file.** Each save, Alt+Shift+S's and the one
   before a departure, writes the recording with two of `journey-redaction.md`'s originals
-  replaced as `add` replaces them, an `x` a byte, in every field and in
+  replaced as `print` replaces them, an `x` a byte, in every field and in
   a stream's joined records alike: the *link*, the `secret` record's
   value, and the *stored*, each `stored` record's value and each `save`
   of the stream's record, a `Kept`'s head standing. So a saved
   recording is never a sign-in. Nothing else is replaced: a typed
   value, such as a key pasted into the page, and what agents wrote stay
-  for `add`, whose redaction and last scan are unchanged (`journey-redaction.md`, `journeys.md`, 3.7); on
+  for `print`'s redaction and last scan (`journey-redaction.md`; 3.7); on
   a real deployment, as on a real box, the person types no key (3.5). A
   recording whose streams don't decode (`journey-redaction.md`) is written with those two
   replaced in every field and every `heard piece` all `x`s, its size
-  kept: no such recording can be added, and none is a sign-in. The
+  kept: no such recording can pass `print`, and none is a sign-in. The
   memory keeps the originals, so the recording goes on as it is, and
   the replacement is `journey::saved(recording: &[u8]) -> Box<[u8]>`, a
   pure function of the recording's bytes, which the shell's save calls
   on `Recorder::save`'s or `Recorder::end`'s file before the download,
   and the host's tests call alike; those two still give the recording
   as kept.
-- **Bounded:** the recording in memory keeps at most
-  `limits::RECORDING_BYTES` (`README.md`, 2.1, `limits`). The start's
-  facts are kept whole. A report, act or mark whose lines would take
-  the recording past the bound is not kept: the recorder ends as at a
-  departure, keeping the end mark of the page as drawn then, the one
-  line kept past the bound, and keeps nothing more, while the host goes
-  on as before. A save then gives what it kept, Alt+Shift+S's and a
-  departure's alike. A tab that records for as long as it is open, as
-  every tab of a deployment serving `--record` does, keeps its first
-  64 MiB; a reload starts a new recording.
+- **Bounded:** `limits::RECORDING_BYTES`, 64 MiB, bounds the recorder's
+  admission of report, act and mark calls (`README.md`, 2.1, `limits`).
+  The start's facts are kept whole. A call whose pending lines,
+  including its turn prefix, would take the file past the bound is not
+  kept: the recorder writes an end mark of the page as drawn then and
+  keeps no more. The turn's deadline and the closing end mark are not
+  part of that admission size check. The host goes on as before. A
+  later save gives what was kept; a reload starts a new recording.
 
 ### 3.2 The file
 
@@ -190,48 +179,61 @@ comment, no blank.
 | `journey` | `2`, the format's version | the first line |
 | `seed` | the platform's seed | the start's facts, in this order |
 | `clocks` | now and wall, in nanoseconds | |
-| `fixed` | none | on a fixed start (`../journey-clock.md`, 4.2) |
 | `primary` | `control` or `meta` | |
+| `zone` | signed decimal offset in minutes | after `primary`, omitted when zero; the reader defaults to zero |
 | `ways` | the `temper-sign-in` meta's content, the page's origin | when the page has the meta |
-| `forge` | a `temper-forge-sign-in` meta's content | one per meta, in order |
+| `forge` | a forge sign-in meta's content | one per fact, in order; an off fact has the prefix `off ` |
 | `path` | the address's path and query | |
 | `secret` | the printed link's secret | when the address held one |
 | `stored` | a small-store record's key and value | one per record read at start |
 | `turn` | now and wall | each turn's clocks |
-| `start`, `due`, `place`, `heard`, `carried`, `act`, `copied` | the report | each report, in its turn's order |
-| `exchange`, `pieces`, `open`, `close`, `save`, `erase`, `writes`, `navigate`, `replace`, `show`, `copy` | what the host asked | after its report, in order |
+| `start`, `due`, `place`, `returned`, `tab-refused`, `heard`, `carried`, `act`, `copied` | the report | each recorded report, in its turn's order |
+| `tab-open`, `tab-point`, `tab-close`, `copy`, `exchange`, `pieces`, `open`, `close`, `save`, `erase`, `writes`, `navigate`, `replace`, `show` | what the host asked | after its report, in order, the tab's duties before copy and transport |
 | `deadline` | nanoseconds, or `none` | each turn's end |
 | `mark` | the live page's html | before its act, or at the key, in a turn of its own (`turn`, `mark`, `deadline`) |
 | `end` | the live page's html | the last line |
 
-- **The reports:** `place PATH`; `heard answered EXCHANGE STATUS BODY`,
+The recorder writes `journey 2`; the replay reads version 2 alone,
+refusing another version. Each line ends in a newline, including the
+last. The start's facts must be in the table's order; `end` occurs once,
+last. The record codec is `journey/line.rs`, the start's reader
+`journey/replay.rs`, in `temper-client-shell-web`.
+
+- **The reports:** `start`; `due`; `place PATH`; `returned PATH`;
+  `tab-refused`; `heard answered EXCHANGE STATUS BODY`,
   `heard begun EXCHANGE STATUS`, `heard part EXCHANGE BYTES`,
   `heard done EXCHANGE`, `heard failed EXCHANGE`, `heard opened`, `heard refused STATUS`,
   `heard piece BYTES`, `heard ended`; `carried WRITES`, then one line
   per carried report, `written KEY`, `unwritten KEY` or `lost
-  EXCHANGE`; `act ACT [VALUE] EVENT NAME` (3.3); `copied TOKEN
+  EXCHANGE`; `act ACT [VALUE|EDGE] EVENT NAME` (3.3); `copied TOKEN
   done|refused|failed`.
-- **The asks:** `exchange ID BOUND METHOD PATH BODY`, then its headers
+- **The asks:** `tab-open WORDS`; `tab-point TO`; `tab-close`;
+  `copy TOKEN WORDS`; `exchange ID BOUND METHOD PATH BODY`, then its headers
   as `NAME VALUE` pairs on the same line; `pieces ID BOUND PIECE METHOD PATH BODY`,
   then its headers as `exchange`'s are; `open PIECE PATH` and its
   headers; `close`; `save KEY VALUE`; `erase KEY`; `writes N`, when not
-  zero; `navigate TO`; `replace TO`; `show PATH push|replace`; `copy
-  TOKEN WORDS`, whose words a redaction replaces as it does a `navigate`'s.
-- **A committed recording's marks hold no html:** `add` drops it once
-  the first replay has proved itself (4.3).
+  zero; `navigate TO`; `replace TO`; `show PATH push|replace`.
+  Copy words are redacted as navigation addresses are.
+- **The marks:** a saved file holds HTML in each `mark` and `end`.
+  The codec also reads a bare `mark` or `end`; the proof refuses one
+  without a live print. Successful proof drops that HTML from its
+  in-memory records before the printing replay (4.3). No recording is
+  written by `print`.
 
 ### 3.3 An act's event
 
 - **The act** is skein-ui's: `press`, `submit`, `toggle`, `input` with
-  its value, or `drawing` with its bytes.
+  its value, `drawing` with its bytes, or `near head|foot`, the log
+  part's report as it approaches an edge.
 - **Its event** is the one the view makes of it, read through
   `Host::event_of` before the act is given: for a press, the client's
   action, such as a `Go` to an address, in the domain's own names. It is
   kept as the domain `Event`'s Debug print, compact, as bytes, which the
   replay compares and nothing parses. Not the control's role, words or
   place, so that the view may rename, restyle or move it and the
-  recording holds; a change to the domain's names, or to how Rust prints
-  them, stales it (section 8).
+  recording can still replay. A change to the domain's names or to how
+  Rust prints them can make it unreadable to the replay. A walk's
+  controls are different: role, exact accessible name and order (8.2).
 - **The control's accessible name follows,** for a reader: the node's
   name, or else its subtree's text, as skein's fake person reads it. It
   is never checked.
@@ -240,7 +242,7 @@ comment, no blank.
 - The welcome's "Set up temper" is kept as `act press "Act { action:
   Pages(Go { address: ... }) }" "Set up temper"`; a typed secret's event
   shows its length alone (`AccountKey { value: Secret { len: 12 } }`),
-  its value being the act's until `add` takes it out (`journeys.md`, 3.5, `journey-redaction.md`).
+  its value being the act's until `print` takes it out (`journey-redaction.md`).
 
 ### 3.4 Marks
 
@@ -251,40 +253,44 @@ comment, no blank.
   `Page::html()`, for the first replay's proof.
 - **Typing marks nothing.** An `input` act is recorded and replayed but
   marks no page: a printed field takes typing as the live one does
-  (5.3), and the next act's mark shows what was typed.
+  (5.3), and the next act's mark shows what was typed. A `near` report
+  also keeps no mark. These are the recorder's rules; a walk prints
+  only its explicit `web mark` lines (`../journey-walks.md`, 2.4).
 - **The page's own state:** skein's page draws one state that its host
   never hears of, an open menu (`Role::Menu`), and a mark taken with
-  one open fails the first replay's proof. temper's rail draws two such
-  menus, and no journey opens one (on a page that is no project's, its
-  banner's "Menu" is a disclosure, the browser's own); a journey that
-  does will need the page's events recorded too (section 10).
+  one open fails the first replay's proof. A recording that needs this
+  state needs the page's events recorded too (section 10).
 
-### 3.5 Fake, or real and redacted
+### 3.5 A person's file
 
-A recording is made on a fresh `temper box --fake-backends`, started
-as the help's `box` page starts one on fake backends (`temper help
-box`), its printed sign-in link opened in the browser, and keeps what
-the page was given as it was: the printed link's secret, the box's printed command, a
-typed value, the fakes' loopback addresses, all of them the fake box's
-dummies, spent or gone with the box.
+A person records by hand on a deployment or a box of their own, with
+fake backends or real accounts. A fresh `temper box --fake-backends`
+starts as the help's `box` page describes (`temper help box`); its
+printed sign-in link opens the browser. Any deployment can record by
+`internal-record=1` or `--record` (3.1), serving its own bundle: no
+separate recording bundle is needed.
 
-Or by hand on any deployment with real accounts, a fresh box or one
-that lives on, where a few things are hard to show without real models
-(section 9 names such a journey real). It serves its own bundle, which
-records by the page's setting or meta (3.1): no recording bundle is
-built, since the internal settings replaced the bundle's features
-(`../../draft/cli.md`, 6). The page is opened with
-`internal-record=1` added to its address, or the deployment serves
-with `--record` (`README.md`, 2.2). The person uses public
-repositories and writes nothing private into the chats: the model's
-words are kept as they were given, and what agents wrote may stay in a
-recording. A saved file holds no sign-in (3.1); `add` redacts every
-recording alike, fake or real (`journey-redaction.md`).
+A recording keeps what the page was given, including the model's words
+and what agents wrote. On real accounts the person uses public
+repositories and writes nothing private into chats. The saved browser
+file holds no link sign-in or stored credential (3.1); typed values
+still need care. `print FILE OUT` redacts every file alike, fake or
+real (`journey-redaction.md`), and no recording is committed. The
+person's pages may be drawn on wherever OUT is, as a hand-made page's
+may (`look-requests.md`, 2).
+
+A file belongs to the build that recorded it: the host's events, wire
+and saved marks are that build's. Print it with that build. The tool
+refuses a different layout by name (5.1), not by trying to turn it into
+a journey of main's.
 
 ### 3.7 The last scan
 
-Before anything is written, `add` scans what it would write, and what
-the replay drew on the way.
+Before any page is written, `print FILE OUT` scans the redacted
+records, the pages the proof draws and the documents to be printed.
+The record scan comes before the proof; the drawn-page scan runs at
+each turn's end during it; the printed-page scan follows the printing
+replay (4.3).
 
 - **Where it looks:** every field of each line, a stream's records
   decoded and its other text among them; each run's text and its
@@ -305,7 +311,7 @@ the replay drew on the way.
     `[A-Za-z0-9._~%+/-]`;
   - *a refresh token:* `refresh_token`, up to four of `"`, `\`, `:`, `=`
     and spaces, then at least 8 of `[A-Za-z0-9._~%+/-]`.
-- **A value of `x`s alone is a placeholder,** and passes.
+- **A value of `x`s alone is a redacted value,** and passes.
 - **A key inside a word is none:** `sk-` after two bytes of
   `[A-Za-z0-9_-]` (`task-pages`) doesn't match. One such byte may be a
   field's length prefix, which reads as a letter or a digit: a 51-byte
@@ -313,22 +319,21 @@ the replay drew on the way.
 - **A refusal** names the record and the kind, never the bytes:
   the line and its record's kind, and where in it (a field, a stream's
   record, a run's text) or the turn or page that drew it. Nothing is
-  written, a journey of that name stands as it was, and no temporary file
-  is made. An original is taken out by `add`, so a refusal of one is a
-  split or a fault; a shape is taken out by a `--redact`, and `add` run
-  again.
+  written. An original is taken out by `print`, so a refusal of one is
+  a split or a fault; a shape within one field can be taken out by a
+  `--redact` before another print.
 
 ### 3.8 What is left to the person
 
 The scan's shapes aren't all a secret could be. `--help` says so, and
-`add` says it again after its counts. Stated here so that a person knows
+`print` repeats the caution after its counts and destination. Stated here so that a person knows
 before they record:
 
 - **Any other private text** (a name, a host, a token of another shape)
-  stands unless a `--redact` names it: read the pages before committing.
+  stands unless a `--redact` names it: read the pages before sharing.
 - **Split across deliveries:** a run's text or a writing call's input is
   seen, joined, and refused, but not replaced: a `--redact` can't reach
-  it, and the journey is walked again. Text split over any other records
+  it. A person must make a recording that leaves that text out. Text split over any other records
   is seen only where a page draws it whole at some turn's end; if none
   does, it isn't seen.
 - **Part of a secret** isn't sought: a key's last four on a page, or an
@@ -337,15 +342,16 @@ before they record:
   field, say. No client exchange compresses what it carries.
 - **A value the client reshapes** before it carries it isn't found whole.
   A GitHub App's key has its armour's line breaks restored, so its
-  exchange is stale and the recording refused: such a step stays out of
-  a real journey.
+  exchange no longer matches and the file is refused. Such a step
+  cannot be printed from that file.
 - **A `stored` request:** a request's `Kept` record, in flight at a
-  reload, doesn't read as `x`s, so the replay goes stale and the
-  recording is refused: reload a settled page.
+  reload, doesn't read as `x`s, so the replay fails and the file is
+  refused: reload a settled page.
 - **What the person holds:** the saved FILE keeps every original but
   the browser's link and stored (3.1), a typed value among them, so it
-  stays out of the repository and goes once it is added; a `--redact
-  TEXT` stands in the shell's history.
+  stays out of the repository and goes once it is printed; a
+  `--redact TEXT` stands in the shell's history. The printed pages stay
+  outside the repository's journeys too (5.1).
 
 ## 4. Replay
 
@@ -366,107 +372,163 @@ and, for an act's mark, every node on it that gives the act's event.
   answers are to those requests: a client that asks otherwise (a new
   read, another request's bytes, another deadline) would be answered
   what it never asked.
-- **Stale** is where the replay stops: at the first duty or deadline
-  that differs, a departure or a tab's open, point or close, asked or not
-  asked, among them, or at an
-  act whose event no control on the page gives. It names the turn, the
-  recorded line and what the host asked instead.
+- **The replay stops** at the first duty or deadline that differs, a
+  departure or a tab's open, point or close among them, or at an act
+  whose event no control gives. `print` names the turn, recorded line
+  and the recorded and asked record kinds, never their bytes (4.3).
+  This is a refusal of a person's file, not a state of main's journeys.
 - **Patches are not compared:** they are what the print shows.
 
 ### 4.3 The first replay's proof
 
-`add` replays the redacted recording (`journey-redaction.md`) with its redacted live
-prints: at each mark the replay's `Page::html()` is the recorded one,
-or the recording is refused, naming the mark and the first byte that
-differs. Such a replay is not faithful, and the defect is fixed in the
-seam or the replay, never recorded around. Once every mark matches, the
-live prints are dropped, and the recording takes its placeholders and
-replays again (`../journey-placeholders.md`, 4.1): the print is that
-replay's.
+`print FILE OUT` checks the layout and redacts the saved recording
+(`journey-redaction.md`). It scans the redacted records (3.7), then
+replays them with their redacted live prints: at each mark the replay's
+`Page::html()` must be the saved HTML. A missing live print is refused;
+a different one names the mark and the first byte that differs. A
+replay that does not draw the saved page is not faithful. The defect
+is fixed in the seam, redaction or replay, never hidden in the proof.
 
-A refusal of `add`'s names the turn, the line and each record's kind:
-never a line's text, which may hold what the redaction missed. The
-reprint names them whole (5.1), its recordings having passed the scan.
+During that proof the drawn page at each turn's end is scanned too.
+Once every mark matches, the saved HTML is dropped from the in-memory
+records. Those records are replayed to make the print; no replacement
+of varying facts follows the proof. Each printed document is scanned,
+then the pages and their assets are written. No redacted recording is
+written. All proof and scan refusals occur before output is written.
+An I/O failure during writing may leave partial output.
+
+A refusal names position and kind alone: a turn and line, a mark and
+byte, a record's kind or a scan's kind of secret, never the record's
+text, which could hold what redaction missed. The tool's safe refusal
+is shared by its library and command.
 
 ## 5. The print
 
-### 5.1 The program
+### 5.1 The programs
 
-`temper-client-journeys` (`bin/temper-client-journeys`), an internal binary
-whose crate is `crates/temper-client-journeys-tool`, beside the gallery
-(`gallery.md`; `../../testing/tools.md`, 3–4):
+**Walks:** `temper-client-walk`, `temper/bin/temper-client-walk` with
+`crates/temper-client-walk-tool`, reads the checkout's walks and prints
+them in a world (`../journey-walks.md`, 5):
 
-- `cargo run -p temper-client-journeys -- add [--redact TEXT]... NAME
-  FILE` takes a saved recording as the journey NAME, replacing one of
-  that name, redacts it (`journey-redaction.md`), proves it (4.3), normalises it, scans it
-  (3.7) and prints it, in memory until the scan has passed. A NAME is
-  `[a-z][a-z0-9-]*`. `normalise` gives the committed recordings their
-  placeholders (`../journey-placeholders.md`, 4.3).
-- `cargo run -p temper-client-journeys -- add --help` says what `add` takes
-  out and what it leaves to the person (3.8).
-- `cargo run -p temper-client-journeys` reprints every journey from its
-  recording. A stale one is named with its turn and line, its print
-  left as it was, and the program exits 1 once the others are printed.
-- `cargo run -p temper-client-journeys -- again NAME` records the
-  journey NAME again while its acts hold (8.1).
-- `cargo run -p temper-client-journeys -- pages [--prepared DIR]
-  [--within DURATION]` is the journeys' writer's: `again` for each stale
-  journey, then the reprint; `pages --check` names each journey fresh or
-  stale and writes nothing (`../journey-writer.md`, 3).
-- `add` and the reprint read no configuration, environment, clock or
-  network, and start no server; `again` alone does, and `pages` through
-  it. Its paths are its manifest's, as the gallery's are.
+- `temper-client-walk print [--out DIR] [NAME]...` prints the named
+  journeys in the order given, or all: the browser's in name order,
+  then the TUI's. Without DIR it names a new scratch directory under
+  the platform's temporary directory. DIR is laid out from the
+  repository root down, including `temper/`, each page's stylesheets
+  and their relative assets copied to their paths, so pages open as
+  from the checkout. A DIR inside either journeys root is refused,
+  including through a symbolic link.
+- `temper-client-walk pages` prints in place, for the writer alone
+  (`../journey-writer.md`, 4). A successful walk writes only differing
+  bytes and removes numbered pages past its marks; a stopped walk
+  leaves its journey's files as they were. No change but the writer's
+  commits those files.
+- Both commands print a line per journey, `printed NAME`, `fresh NAME`
+  (`pages` alone, no byte differed), or `stopped NAME: WHY`, naming the
+  journey, file line and what it sought. `print` ends with `printed
+  into DIR`. Exit 0 means all printed, 1 a stopped walk after the
+  others print, 2 usage, 3 an I/O failure with output as left. A NAME
+  is `[a-z][a-z0-9-]*`, looked up in the browser's root first.
 
-### 5.2 What it writes
+**A person's recording:** `temper-client-journeys`,
+`temper/bin/temper-client-journeys` with
+`crates/temper-client-journeys-tool`:
 
-Under `docs/design/client/web/journeys/`:
+- `temper-client-journeys print [--redact TEXT]... FILE OUT` reads FILE,
+  checks its layout, redacts and scans its records, proves the replay,
+  prints and scans the pages, and only then writes them under OUT
+  (3.7 and 4.3). It never puts a recording in the repository.
+- **OUT is outside both journeys roots:** an OUT at or under either
+  `temper/docs/design/client/web/journeys/` or
+  `temper/docs/design/client/tui/journeys/` is usage, exit 2, before
+  FILE is read. Existing prefixes and symbolic links are resolved
+  before this check. No output directory is made by the check.
+- **Layout:** for a browser file the first stream opening's `version`
+  query, where present and readable as a number, must name this build's
+  `jig-client-wire` version. A TUI file's layout check compares its
+  recorded temper build with this build (`../tui/journeys.md`, 6.1). A
+  different layout is refused by the recorded and reading layout's
+  names, asking for the build that recorded it; it writes nothing.
+- **Where it prints:** OUT is laid out from the repository root down,
+  with the same relative assets as the walk's print. The browser's
+  pages go under `OUT/temper/docs/design/client/web/journeys/NAME/`,
+  NAME the file name's part before its first dot where it is a valid
+  name, otherwise `recorded`. Numbered HTML there is replaced whole;
+  other files are kept. No README or recording is made.
+- **Its report:** counts of link, stored, typed and given originals and
+  places replaced, then `printed NAME into OUT`, then the caution of
+  3.8. TUI counts include approval, credential and bearer. A refusal
+  exits 1; malformed arguments exit 2. An empty `--redact` TEXT or one
+  starting `--` is usage, so it cannot be named. `print --help` says
+  what is taken out and what is left to the person.
 
-- **A journey's directory,** `NAME/`: its `recording`; its
-  `../README.md`, the journey's description, what it walks and what each
-  mark shows, and its `setup`, when it has one (8.2), which `add` and the
-  reprint leave as they find them; and a page for each mark, `01.html`
-  onwards, in the marks' order, replaced whole at each print.
-- **Beside the journeys:** `skein-ui.css`, skein-ui-bundle's own
-  (`skein_ui_bundle::STYLESHEET`, skein's `ui/web/README.md`, section 10), and
-  `journey.js`, the program's, both written at each print; and
-  `overlay.css`, the person's, made empty when missing and never written
-  otherwise.
-- **The writer's:** on main, the recordings, the pages, `skein-ui.css`
-  and `journey.js` are written by the journeys' writer alone; a README,
-  a setup and the overlay are sources (`../journey-writer.md`, 2). A
-  stale journey keeps its pages until the writer walks it again
-  (section 8).
+**Driving a box:** `temper-client-journeys drive`, `journey walk NAME`
+and `recipe` are the drive session's and recipes' commands (`../drive.md`,
+2; `../recipe.md`, 5). Section 8 is the browser's part of a journey on
+that session. They print no page of main's.
+
+### 5.2 A journey's directory
+
+Under `temper/docs/design/client/web/journeys/NAME/`:
+
+- **Sources:** `walk`, version 2 (`../journey-walks.md`, 2),
+  `README.md`, what it walks and what each page shows, and `scripts.json`
+  where it has its own fake-model scripts. These are all a change
+  writes of a journey.
+- **Pages:** one per explicit mark, `01.html` onwards in mark order,
+  the writer's alone. A successful print replaces the numbered set
+  whole: fewer marks leave fewer files. A stopped walk prints none of
+  its marks. No recording is a source or proof of these pages.
+- **Beside the journeys:** `skein-ui.css`, skein-ui-bundle's sheet
+  (`skein_ui_bundle::STYLESHEET`; skein's `ui/web/README.md`, 10),
+  `journey.js`, and `overlay.css`. At the TUI's root the corresponding
+  files are `theme.css`, `tui-journey.js` and `overlay.css`. The files
+  printed beside pages are the writer's alone
+  (`../journey-writer.md`, 2). The overlay is empty on main; on a
+  person's request branch it holds the requested rules (section 7).
+  A print makes it empty where missing and preserves one present.
+
+`temper-client-walk pages` removes a recording left in a successfully
+printed directory. A person's `print FILE OUT` uses the output shape
+of this section, not its source files or main's writer: OUT remains
+the person's.
 
 ### 5.3 A page
 
 - **The host's page at its mark:** `Page::html()` with its root the
   document's `#app` and its dialogs `open`, under the shell's title,
-  the main heading then "temper", as the gallery prints a state
-  (`gallery.md`, 1).
+  normally the main heading then "temper", as the gallery prints a
+  state (`gallery.md`, 1). Home's title uses "Home" and the welcome's
+  "Welcome · first run", rather than their changing headlines.
 - **The document:** `<!doctype html>`, `html` with `lang="en"`; in its
   head the charset, the viewport, the title, the four stylesheets and
   `../journey.js`; in its body the page.
 - **For a diff:** one tag per line, the break inside the tag before its
   `>`, so that nothing drawn gains a space; and no `data-node`, whose
   numbers follow the order the nodes appeared in, not what they are;
-  skein-ui's ids are numbered afresh (`../journey-placeholders.md`, 5).
+  skein-ui's generated ids are numbered afresh on each page (below).
   skein's `dom::print` escapes `<`, `>`, `"` and `&` in text and
   attribute values alike, so the tags of `Page::html()` are found
   exactly.
-- **Linked:** each control on a mark's page of which the view makes the
-  act's event carries the next page's name,
-  `data-journey-next="02.html"`, and, for an act other than a press, the
-  act, `data-journey-act="submit"` or `"toggle"`: the act on any of them
-  would have led there. `journey.js` follows a press's on a click, a
-  submit's on its form's submit (Enter in its field), and a toggle's on
-  its change; a click into a field to type in it never follows. Any other press, link or submit shows a note that the journey
-  goes no further there, as the mockups' acts that lead to no drawn
-  state do. What the browser does alone works as on the live page:
-  hover, focus, a disclosure, typing, a narrower window.
+- **Linked by the walk's act:** the first `web press`, `submit` or
+  `toggle` after a mark and before the next one finds its control on
+  the marked tree by role, exact name and order. If it is there, that
+  control leads to the next page (`../journey-walks.md`, 2.4); a control
+  revealed only by typing or another act is not on the marked page.
+  A recording's print instead links every control on the marked page
+  that gives the following act's event (4.1).
+- **The link's attributes:** `data-journey-next="02.html"` and, for an
+  act other than a press, `data-journey-act="submit"` or `"toggle"`.
+  `journey.js` follows a press on a click, a submit on the form's
+  submit (Enter in its field), and a toggle on its change. Clicking
+  into a field to type never follows. Another press, link or submit
+  shows a note that the journey goes no further there. The browser's
+  own hover, focus, disclosure, typing and narrower window work as on
+  the live page.
 - **Its neighbours:** each page names the pages before and after it in
   its head (`<link rel="prev">`, `<link rel="next">`), and `journey.js`
   follows them on `p` and `n` outside a field. A page whose mark had no
-  act, the mark key's, leads on by these alone.
+  linked act, including its last mark, leads on by these alone.
 - **The stylesheets,** by paths relative to the page:
   `../skein-ui.css`, then `temper.css` and `task-pages.css` from
   `crates/temper-client-shell-web/` in the checkout, in
@@ -474,6 +536,17 @@ Under `docs/design/client/web/journeys/`:
   stylesheets and their `files/` as they are, so `temper.css`'s images
   and fonts resolve beside it in the checkout as in the bundle, and a
   change to it shows on the next reload, with no print.
+
+**Generated ids:** skein-ui-web makes ids from a node's number,
+`skein-ui-WORD-N`, for parts such as `menu`, `options`, `option`,
+`label`, `description` and `state`, and `skein-ui-fade-N-I` for a gradient.
+The node numbers follow construction order, not what the page draws.
+`temper-client-walk-lines`' `print::numbered_ids` renumbers each WORD's
+distinct numbers from 1 by their first appearance in that page's HTML.
+Every occurrence takes that number, whether an `id`, an `aria-`
+reference or a `url(#...)`; the gradient's final `-I` stays. Each page
+starts its own numbering; other bytes stand. This applies to both a
+walk's and a recording's print, not to their inputs.
 
 ### 5.4 Opening them
 
@@ -485,77 +558,96 @@ them the same:
 
 ```sh
 python3 -m http.server 8766
-# http://localhost:8766/docs/design/client/web/journeys/
+# http://localhost:8766/temper/docs/design/client/web/journeys/
 ```
 
 ## 6. Its tests
 
-- **The seam, in `temper-client-shell-web`,** natively, in the host's
-  world of `tests/host.rs` (the platform's reports given by the test):
-  a walk recorded by `journey::Recorder` and replayed; the file's lines
-  read back to the records written, each escape among them, and another
-  version unreadable; stale at a changed ask, a changed deadline and an
-  event no control gives; a control's recorded name changed, holding;
-  an act with no event, kept nowhere; and the proof refusing a mark
-  whose html differs.
-- **The print, in `crates/temper-client-journeys-tool`'s own tests,** on
-  walks they record in the host's world: printed, redacted and printed
-  again, the same pages; a reprint keeps a journey's README. No test
-  replays, reprints or compares a recording or a page of main's
-  (`../journey-writer.md`, 7).
-- **No request lands as it is:** the delivery check refuses a nonempty
-  `overlay.css` (`../journey-writer.md`, 5), and the tests fail while it
-  holds a byte, and for a journey whose `../README.md` is missing or
-  empty (section 7).
-- **The links by act,** in the print's unit tests: a press's control,
-  a submit's field and a toggle's box, each with its attributes.
-- **`again`'s walk, natively,** in the journey module's tests and the
-  host's world, with no browser: a recording's walk read as its steps
-  (each typed act one, a drawing and a moving key mark refused); a save
-  replayed to its end finding the control of a step's event by its
-  role, name and order; a still page told from a moving one by two
-  saves, an exchange or a write in flight among them; and the check
-  refusing a new walk whose acts, values, events or key marks differ.
-- **A setup, natively,** in the journey module's tests and
-  `crates/temper-client-journeys-tool`'s own: a setup's lines read back, each
-  record among them, and another version, a line out of its place, a second `reload`
-  and an unknown role each unreadable; `after` joining a named setup's
-  steps without its `reload`, and a chain of two, a missing name and a
-  name of its own refused; and every committed setup read.
-- **`again`'s browser half has no story of its own,** as the recorder's
-  keys have none: its first run, a journey recorded again, proves it,
-  and skein's browser tier proves the kit's letter with Alt and its
-  downloads (skein's `testing/browser.md`, section 9). No default test starts a
-  browser or a box.
-- **The recording bundle stays built:** the gate's browser-target
-  check builds the shell, recorder and all, as the bundle holds it.
-- **The recorder's keys and download** have no browser story: the first
-  journey's recording proves them, and the browser tier proves only
-  what a browser alone shows (`testing.md`). That a save
-  leaves the recording going on is the recorder's, tested natively: two
-  saves of one walk, the first a whole recording that the second
-  extends.
-- **The redaction, natively:** each kind of original (`journey-redaction.md`) in each place
-  it can appear: a plain field, a piece's base64, split across two pieces
-  at every byte, and a URL's query, each failing first. The host's world
-  walks a typed key, pressed, through `add`'s steps, so that its digest
-  and its stream's name go and the replay holds. A walk of several
-  marks, redacted, replays as it stands. Test data is fake, a token's shape built
-  in the test from pieces. No test reaches a real host or account.
-- **The scan, natively:** each shape in each place, a run's text split
-  across deliveries among them; a length prefix of every byte before a
-  key; and what must pass: `x`s, `task-` words, `code_challenge=`, and
-  a walk recorded in the host's world, with its pages.
-- **The binary's table,** in `bin/temper-client-journeys`' suite: help,
-  version, the internal commands' pages and argument refusals, with no build
-  or child started (`../../testing/tools.md`, 6). Its `arguments` and
-  `refusals` process tests live there too; the library and look-refresh
-  script tests stay in `crates/temper-client-journeys-tool`.
-- **The refusal, as a process:** no original's bytes on stdout or stderr,
-  a failed proof's among them, and nothing written on any path; in the
-  print's tests, a refused `add` leaves its root as it was.
-- **Their cost:** within their layers' budgets as they stand; no fuzzy
-  test.
+The focused suites keep their own fixtures. No test's verdict depends
+on main's pages or a recording there, and no test walks main's journeys
+to their end. Main's walks are the writer's after-landing work
+(`../journey-writer.md`, 7). The relevant package and binary names:
+
+| Package | Test binary | What it holds |
+|---|---|---|
+| `temper-client-shell-web` | library (`--lib`) | native host and recorder, file codec, browser redaction and last scan |
+| `temper-client-shell-web` | `suite` | host-world recordings, replay and proof, redacted sign-in and typed-key walks |
+| `temper-client-redaction` | library (`--lib`) | shared originals and forms, framed replacement and secret shapes |
+| `temper-client-walk-lines` | library (`--lib`) | line and walk readers, chains and both page printers |
+| `temper-client-walk-world` | library (`--lib`) | marked-tree links, scripts, box peer and forge sign-in |
+| `temper-client-walk-tool` | `suite` | walks made by the tests, executed in a world and printed into scratch |
+| `temper-client-walk` | `suite` | binary table: help, version and argument refusals |
+| `temper-client-journeys-tool` | library (`--lib`) | recorded fixtures printed and refused safely; source descriptions and empty overlays; drive and journey session machines |
+| `temper-client-journeys-tool` | `suite` | recorded-file admission and output assets; writer and look-refresh scripts in temporary repositories |
+| `temper-client-journeys` | `suite` | binary table and process arguments, redaction report, layout and safe refusals |
+
+- **The host's seam:** `journey::Recorder` records a walk made in the
+  native host's world and `Replay` replays it (`temper-client-shell-web`,
+  `suite`, `tests/suite/host.rs`). Every record reads back in the library,
+  including escapes, zone, return, tab and pieced-exchange records;
+  another recording version is refused. A changed ask, deadline or
+  event stops the replay; a changed readable control name does not.
+  Marks whose HTML differs fail the proof. A save keeps no turn of its
+  own; two saves are whole files, the second extending the first;
+  saving removes sign-in originals without changing memory or typed
+  values. Bound tests admit a report or mark whole or end the file,
+  and keep the start whole (`journey/tests.rs` and its `saving` tests
+  in the web shell).
+- **The shared grammar and printers:** `walk 2` is exact, file line
+  numbers survive skipped empty lines, a cycle, missing parent or
+  ninth ancestor is refused, and another client's mark is refused in
+  the journey or an ancestor. A page's acted control links by press,
+  submit or toggle, neighbours are named, dialogs open, and generated
+  ids and all references follow first appearance, independently per
+  page (`temper-client-walk-lines`, `walk` and `print` tests). The
+  `temper-client-walk-world` library's `walk` tests hold the exact
+  role, name, order and lead on the marked tree, including a control
+  absent there that typing later reveals.
+- **The world's print:** repeatable bytes, scripts joined along the
+  chain, parent marks omitted, reload and sign-in,
+  owned-forge progress and the chat's draft goal. A stopped walk leaves
+  its files while others print. Fewer marks remove excess pages; a
+  fresh `pages` changes no byte or modification time. Output assets
+  resolve, and a destination inside either root is refused, including
+  through links (`temper-client-walk-tool`, `suite`).
+- **A person's print:** redaction takes link and given text out while
+  preserving the replay's pages. Record, drawn and printed secret
+  hits are refused. A failed proof has only safe record kinds in its
+  refusal. Admission tests check layout refusal before proof, output
+  untouched on refusal and resolving assets on success
+  (`temper-client-journeys-tool`, library and `suite`).
+- **Redaction and scan:** fake originals in plain fields, framed
+  fields, URL and Debug forms, streams decoded after joining pieces,
+  splits across pieces and digests. Typed heads stay in their own acts.
+  Scan tests join run text and writing-call input by offsets, reject
+  each secret shape and pass `x`s, `task-` words and
+  `code_challenge=`. No test needs a real host or account
+  (`temper-client-shell-web`, library and `suite`;
+  `temper-client-redaction`, library).
+- **The drive's journey mode:** keeps the fresh link's page, takes marks
+  without keeping them, returns screenshots in width order and then
+  text, finds a text area as a `textbox`, starts the TUI without implied
+  approval and walks a chain without ancestor marks. Session tests are
+  native machines, not walks of main's journeys
+  (`temper-client-journeys-tool`, library).
+- **The scripts and sources:** `suite` in
+  `temper-client-journeys-tool` tests refresh by `Printed:`, waiting for
+  an open writer change, refusing writes outside its set and offering
+  written additions and deletions together. Its library tests require
+  a nonempty README for each directory with a walk and an empty
+  overlay at both roots. The delivery check refuses written files
+  beside source changes (`../journey-writer.md`, 5).
+- **The process's refusal:** `temper-client-journeys`, `suite`, checks
+  no original bytes escape, including a failed proof; the refusal
+  tests compare the immediate listings of the journeys root and the
+  tool crate. They do not trace every possible write. The library and
+  admission tests hold their own output trees unchanged on refusal.
+
+The recorder's key listener and download are the wasm shell's. Native
+saves test the recorder beneath them; the browser kit holds the keys'
+and downloads' browser mechanics (skein's `testing/browser.md`, 9).
+The shell with its recorder builds for the browser target. Browser
+walks belong after landing, not to a plan (`testing.md`).
 
 ## 7. Editing the look
 
@@ -590,10 +682,10 @@ check are `look-requests.md`, sections 1 to 7. The journeys' side:
   then, for each request, whether it was kept or
   dropped and by which commit. Nothing is built on the branch, so
   moving it breaks no one, and its one name leaves no copies behind. A
-  conflict is a line of a request's that `main` reprinted since: the
+  conflict is a line of a request's that main's writer printed since: the
   script stops with the rebase in progress, naming the request; the
   person settles it and finishes the rebase (`git rebase --continue`),
-  then runs the script again, which refuses while a rebase is in
+  then invokes the script, which refuses while a rebase is in
   progress. It takes the TUI's branch, `tui-requests` (`../tui/journeys.md`,
   10), alike, with that branch's lease, requests and push; any other
   branch is refused.
@@ -602,300 +694,120 @@ check are `look-requests.md`, sections 1 to 7. The journeys' side:
   `main`'s overlay stays empty.
 - **The landing** moves the overlay's rules into `temper.css` or
   `task-pages.css` and the markup's changes into the view, for every
-  state, then compares by a reprint in its own tree and commits no page
-  (`look-requests.md`, 3). Its own commits carry
+  state, then compares `temper-client-walk print --out DIR` in its own
+  tree with the request's pages, read from the request's commit, equal
+  where their facts agree. It needs no box and commits no page
+  (`look-requests.md`, 3; `../journey-writer.md`, 6). Its own commits carry
   the request's trailer, never the request's commit itself. The account
   and what done means are `look-requests.md`, 5; the render comparison
   follows landing on main (`look-requests.md`, 4).
 
-## 8. A recording gone stale
+## 8. On a box
 
-A recording goes stale only when the client's exchange with the engine
-changes, or what the client can do on a page (an event no control
-gives); never for a change to the view or the look alone, which a
-reprint carries, since its acts are events, not controls.
+The browser's part of a journey can run through the drive session on
+a box or deployment (`../drive.md`, 2 and 3.2). This is after-landing
+work, outside every plan, for the rendered look and what only real
+programs show. It writes no page of main's.
 
-- **While its acts hold,** `again NAME` records it again (8.1), run on
-  main by the journeys' writer after the landing that staled it
-  (`../journey-writer.md`, 3). No person or goal walks it.
-- **A real journey** (section 9) is never walked by `again`, which starts
-  fake boxes alone: its person records it again by hand (3.5).
-- **A setup that no longer walks** (a control renamed before the reload)
-  stops `again`, naming its line; it is edited, in the change that
-  renamed it, and no recording changes for it (8.2).
-- **When the walk itself changes** (a step gone, another added), the
-  journey is walked anew in a browser on a fresh fake box (3.5), from
-  its `../README.md` and the change that moved it, then added (`add NAME
-  FILE`) by the writer's runner (`../journey-writer.md`, 2). The README
-  changes with the change that moved it, and its new pages are read as new.
-- **`again`'s walks** match but where real processes decide
-  (`../journey-clock.md`, 5).
+`temper-client-journeys journey walk NAME --bin DIR [--bundle DIR]
+--scratch DIR [--strict] [--ports LIST] [--widths LIST]
+[--deployment DIR]` reads the journey's version-2 chain and gives it
+to one drive session in journey mode. Its scratch must hold neither
+`config/` nor `data/`; session writes must not overlap either journeys
+root. The chain's scripts and lines run root first, ancestor marks
+omitted, without resets inserted between journeys. The first failing
+line ends the session. Answers name the journey and its file line;
+exit 0 ends with `walked NAME`, 5 with `stopped at NAME:N: WHY`.
+Session failures retain the session's exit statuses (`../drive.md`, 2).
+Nothing is built by this command.
 
-### 8.1 Again
+`temper-client-journeys drive --journey` takes the same journey lines
+interactively, under the session's ordinary options.
+`--widths LIST` belongs to journey mode alone; `--journey --ctl` is
+refused. A recipe's session keeps its own rules (`../recipe.md`), not
+journey mode's lack of implied steps.
 
-`again --prepared DIR NAME` uses prebuilt `temper-box`, `fake-claude`,
-`temper-client` for TUI, and `bundle/index.html` in DIR. It builds nothing
-and creates its fresh private scratch directory beneath DIR. An optional
-`cache` subdirectory supplies pinned downloads. Without it, the
-recorder builds its inputs in a fresh private scratch
-directory, `temper-journey-PID-N`, under the platform's
-temporary directory: Rust's `std::env::temp_dir()`, which is `TMPDIR`
-where that is set. Nothing in the recorder names `/tmp`, so a host
-whose `/tmp` is held in memory points `TMPDIR` elsewhere; its tests
-take the same temporary directory, each in its own directory.
+### 8.1 The walk's browser lines on a live page
 
-`cargo run -p temper-client-journeys -- again NAME`, in
-`crates/temper-client-journeys-tool`. Its walk's logic is the journey module's,
-beside the recorder and the replay, natively and without io: it takes each save's
-bytes and answers what to do next. The program reads the saves from the
-person's downloads and drives the box and the browser, as ordinary Rust
-over skein's harness.
+- **No implied root load:** the session opens the fresh sign-in link and
+  waits for the client's main region. In journey mode it stays on the
+  page that link opened; a line needing another address says
+  `web reload PATH`.
+- **The lines are the walk's,** `web press`, `submit`, `toggle`,
+  `input`, `see`, `reload` and `mark` (`../journey-walks.md`, 2.2).
+  An act waits for its control; `see` waits for text; `reload` loads
+  the path and query on the session's origin and waits for main.
+  Their bounds are the session's, 60 seconds (`../drive.md`, 3.2).
+- **`web mark` is a look,** not a saved page: screenshots at each width
+  of `--widths`, in the given order, then the page's accessible text,
+  as the browser kit reads it. No widths means text alone. Screenshots
+  go under the session's `looks/`; the viewport is restored after each.
+  A mark is not kept among the session's lines. Each screenshot and the
+  text snapshot use the session's look bound, 10 seconds.
+- **The browser and its bounds are the session's.** Chromium comes from
+  `SKEIN_TEST_CHROMIUM`; the binaries, bundle, scratch, page trouble
+  reports and cleanup follow `../drive.md`, 2. A mark does not set up
+  another browser or change the session into a recording printer.
 
-- **The walk** is the journey's recording read as its steps, in order:
-  each person's act, with its value and event, each key's mark, and the end.
-  An `input` is a step (typing is given an act at a time, so that the new
-  walk asks what the old one asked after each). A `near` act is the page
-  part's report, no step: a page reading by itself reads again on the new
-  walk. It keeps no print mark before it, as an `input` keeps none, but
-  still counts as a report when deciding whether the page is still or a
-  key's mark caught it moving. Replay gives it as recorded (section 4). A
-  `drawing` act is no person's to give, and, without `fixed` (3.2), a
-  key's mark that caught the page moving (a report but a due within half
-  a second after it)
-  is no state a still page shows: such a journey is refused before
-  anything starts, and walked anew.
-- **A fresh fake box** (3.5) on `again`'s fixed start
-  (`../journey-clock.md`, 4.4): `temper box --fake-backends`, built from
-  the checkout with the bundle (`scripts/bundle.sh`), its printed link
-  opened with the page's recording settings (3.1), running a copy of the built binary and its fake-claude,
-  every directory fresh in the scratch one.
-- **Headless Chromium, as the browser tier drives it** (`testing.md`
-  ): skein's browser kit through the fake person's browser face and
-  harness (skein's `ui/web/testing.md`, 2), Chromium from
-  `SKEIN_TEST_CHROMIUM`, the person's downloads into the scratch
-  directory.
-- **The client first:** a page's load comes before the client in it
-  starts, so the first save waits for the client's main region, which
-  it draws once its recorder hears the keys.
-- **Each step once the page is still.** A save (Alt+Shift+S) is the walk
-  so far, a whole recording. The page is still when a save half a second
-  after another (a second, before a key's mark) holds no report the other
-  lacks but dues, no exchange asked but not heard, and no write asked but
-  not carried. A page not still within 30 seconds stops `again`, naming
-  the step. Then:
-  - **an act:** the still save is replayed natively to its end
-    (section 4); the first node outside a menu (`Role::Menu`, which no
-    journey opens, 3.4) of which the view makes the step's event names
-    its control by its role, its accessible name and its order,
-    from 0, among the page's controls with both, and the face finds that
-    control on the live page (the fake person's n-th match, skein's
-    `ui/README.md` 14.1) and acts on it as a person: a press, a submit, a
-    toggle, or the field's value selected and the act's value typed;
-  - **a key's mark:** Alt+Shift+M; its two saves are three seconds apart, since a fake box's set up pauses for over a second;
-  - **the end:** the still save is the new recording.
+### 8.2 Finding a control
 
-  A step whose event no control gives, in a still save, within 10
-  seconds stops `again`: its acts no longer hold.
-- **The check, then `add`:** the new recording's walk is the old one's,
-  both normalised (`../journey-placeholders.md`, 4.2), the same acts with their values and events in order and the key marks
-  in their places, or `again` refuses, naming the first step that
-  differs, and the journey is walked anew. The page may change between
-  a still save and the act given; an act that then lands on a control
-  making another event fails the check, and one that makes the same
-  event is the same act. Then `add NAME FILE`, its first replay proving
-  it (4.3), its README left as it was.
-- **What it reads and starts:** the environment's Chromium, the clock
-  and the loopback network; the box and Chromium, both stopped at its
-  end, its scratch directory removed unless it failed, which it then
-  names with what failed.
+A walk finds a control as a person finds it: by role, exact accessible
+name and order from 0 among controls with both, never by an event.
+The drive session uses skein's fake person's n-th match (skein's
+`ui/README.md`, 14.1). The world's walker uses the same lookup
+(`../journey-walks.md`, 4.2).
 
-### 8.2 A setup
+A role is a word of skein's roles, lowercase: `button`, `link`,
+`textbox`, `checkbox`. In journey mode `textbox` finds a text field or
+a text area, by its exact accessible name. Omitted ORDER is 0.
 
-A journey whose recording starts past the first page has an optional file,
-`setup`, beside its `recording`: what the person did on the fresh box before
-the reload where the recording starts. `again` walks it first, by itself, and
-the journey is then recorded as 8.1 has it. No setup, and `again` starts
-at the printed link's first page, as 8.1 has it.
-
-Text, one record per line, as the recording's (3.2): its kind first, then its
-fields, each after one space, a word bare, bytes in double quotes.
-
-| Record | Fields | What `again` does |
-|---|---|---|
-| `setup` | `1`, the format's version | the first line |
-| `after` | a journey's name | the second line, or absent: that journey's steps come first, without its `reload`; the journey it names has no `after`, and isn't this one |
-| `press`, `submit`, `toggle` | a role, a control's accessible name, then its order from 0, when it isn't 0 | finds that control on the live page and acts as a person does (8.1) |
-| `input` | a role, a name, a value, then its order, when it isn't 0 | the field's value selected and the value typed |
-| `see` | text | waits until the page shows the text |
-| `reload` | a path and query | once, last of the steps: loads that address on the box's origin; the recording starts there, as any load starts one (3.1) |
-| `mark` | a key mark's number in the walk from 1, text | after `reload`, in order, one to a mark: at that step of the walk, waits until the page shows the text, then goes on as 8.1 |
-
-- **By role and name,** as a person finds a control, and never an event:
-  nothing before the reload reaches the recording, which proves nothing of
-  it. A role is a word of skein's roles, lowercase: `button`, `link`,
-  `textbox`, `checkbox`.
-- **Shared, once:** `project-landing`'s setup walks a fresh box to Home in
-  Hello, and `chat-draft`'s is `after project-landing`, what it waits for
-  on Home, and its own `reload`. `welcome-set-up` walks the welcome's
-  part in a world (`../journey-walks.md`, 6).
-- **Why a mark waits:** the page may stand still for seconds while a fake
-  model's turn goes on, and two saves a second apart can't tell that
-  from settled, where the person could (8.1). A `mark` names what the
-  person waited for. A key mark with none falls as 8.1 has it.
-- **Its bounds:** a step of a setup not done within 60 seconds stops `again`,
-  naming its line and what it sought; a `mark`'s text not shown within 30
-  seconds stops it, naming the mark.
-- **A longer run than a test's:** `again` sets the harness's horizon (skein's
-  `ui/web/testing.md`, 2) to ten minutes, since each of its steps has its own bound
-  and a walk like `chat-draft`'s holds more than forty seconds of saves. It
-  is a person's command and in no tier; every test keeps the harness's forty.
-- **No secret:** a setup is committed as it stands, and `add`'s scan doesn't
-  read it. A step that needs a secret is no fake box's.
+An act is given as a person gives it: press, submit or toggle;
+`web input ROLE NAME VALUE [ORDER]` selects the field's value and types
+VALUE. No event from a saved file is sought and no control is inferred
+from a recording. A rename changes the walk's source line in the same
+change, as a test's words change with the control.
 
 ## 9. The journeys
 
 | Name | The walk | Its pages |
 |---|---|---|
-| `welcome-set-up` | version-2 `walk` in one process on the playground's composition, signed in by the printed link at `/welcome`, the box's part played by the world's box's peer (`../journey-walks.md`, 4.4 and 6), no `temper box`: the welcome marked, "Set up temper" pressed, the Forge step marked, Forgejo's "Run on this machine" pressed, its sheet marked with the sample chosen, its "Run on this machine" pressed, which makes the forge and sets it up (`../pages/README.md`), then the Model step marked as the peer reports fetching, preparing and starting, and once the forge is connected as temper and `work/hello` made | `01.html`, the welcome, leading to `02.html`, the Forge step's choices, leading to `03.html`, Forgejo's sheet, leading to `04.html` to `06.html`, the Model step with the set up's steps under way, fetching at the peer's first figure, preparing and starting, then `07.html`, the Model step with Forgejo on this machine connected as temper and `work/hello` made; its `welcome-set-up/README.md` describes the world's pages |
-| `welcome-playground` | version-2 `walk` in one process on the playground's composition, signed in by the printed link at `/welcome` (`../journey-walks.md`, 4 and 6), no `temper box`: the welcome seen and marked, "Try the playground" pressed, the banner and New chat seen, then marked | `01.html`, the welcome under its top bar, its "Try the playground" leading to `02.html`, New chat in Demo with `playground/widget`, the banner above main, the three suggested requests and composer, model `fake`; the rail offers New change, no Away, and Deployment says "a forge is setting up"; no Chat/Split/Draft switch or plan-or-key choices at this mark; its `welcome-playground/README.md` describes the world's pages |
-| `project-landing` | version-2 `walk` in one process on the playground's composition, signed in by the printed link at `/welcome`, the forge at `127.0.0.1:10002`, the box's part played by the world's box's peer and the sign-in's tab by the world's tab (`../journey-walks.md`, 4 and 6), no `temper box`: Forgejo run on this machine with the sample, `work/hello`; "Continue with ChatGPT" pressed, its tab carried to the fake issuer and back, so that the welcome moves on to Ready by itself; Ready's "Create your project" pressed, which creates Hello and adopts `work/hello`; once Home says "work/hello is in Hello", `/projects/1` reloaded, "Hello is ready." seen and marked | `01.html`, Home in Hello with "Hello is ready.", the ChatGPT plan, Forgejo with `work/hello`'s link at `127.0.0.1:10002`, "work/hello is in Hello" and To begin's one step left, "Tell temper how you work", and the rail's "Home" and "Ask temper" alone while To begin shows; its `project-landing/README.md` describes the world's page |
-| `chat-draft` | version-2 `walk`, `after project-landing`, with its `scripts.json`, in one process on the playground's composition (`../journey-walks.md`, 4 and 6): `/projects/1/settings` reloaded and "Chats can write drafts" seen on, as a fresh project has it; a new chat started from Chats with "Let us design Away mode." and its scripted reply marked; Split chosen and the empty pane's "Write it up from this chat" pressed (`../pages/chat/document.md`, 1), the fake model's document seen and marked; Chat chosen, "Add what happens to a running goal." sent and the second revision's turn marked; Split, then Draft, each marked; "Start goal…" pressed and its sheet marked; the sheet's "Start goal" pressed and the goal's page marked once its report is drawn; its "Draft" link pressed and the chat marked | `01.html`, the chat after its first reply; `02.html`, Split with the document's first revision; `03.html`, Chat after the second turn; `04.html` and `05.html`, Split and Draft at the second revision, "Start goal…" offered; `06.html`, the Start goal sheet; `07.html`, the goal's page with its report and its Draft link (`../../domain/agent/agents.md`, 3; `../pages/README.md`); `08.html`, the chat that link returns to; its `chat-draft/README.md` describes the world's pages |
+| `welcome-set-up` | its `walk`: welcome marked, Set up temper, Forge choices marked, Run on this machine's sheet marked, Run pressed, then marks at fetching, preparing, starting and connected; the world's box peer plays the box's side | `01.html` welcome; `02.html` Forge choices; `03.html` the sheet; `04.html` to `07.html` Model with the progress and connected Forgejo. Its [README](journeys/welcome-set-up/README.md) describes each mark. |
+| `welcome-playground` | its `walk`: welcome seen and marked, Try the playground pressed, the banner and New chat seen and marked | `01.html` welcome; `02.html` the playground's New chat. Its [README](journeys/welcome-playground/README.md) describes both marks. |
+| `project-landing` | its `walk`: Forgejo run with the sample, Continue with ChatGPT, Create your project, Home seen, `/projects/1` reloaded, "Hello is ready." seen and marked; the world's tab plays sign-in | `01.html` Home in Hello, with its model plan, forge and To begin. Its [README](journeys/project-landing/README.md) describes the mark. |
+| `chat-draft` | its `walk`, `after project-landing`, and `scripts.json`: settings seen with drafts on, a chat started, Split's Write it up from this chat, a follow-up, Chat/Split/Draft, Start goal's sheet, the landed goal's report and Draft back to the chat | `01.html` Chat's first reply; `02.html` Split's first revision; `03.html` Chat's second turn; `04.html` and `05.html` Split and Draft's second revision; `06.html` Start goal; `07.html` the goal report; `08.html` the chat. Its [README](journeys/chat-draft/README.md) describes each mark. |
 
-A journey recorded on a real box says so in its walk here, as `real`,
-and in its `../README.md`; none is yet (3.5).
+Each row is its directory's `walk`, `README.md` and, for `chat-draft`,
+`scripts.json`: sources read by the world's walker. The pages column
+names what its marks print, not a promise that main already holds that
+print. Main's pages follow from the writer's run (`../journey-writer.md`,
+4); a new walk needs no page to land.
 
-The `configure-chat-draft` request's hand-made `configure-chat/02.html`
-through `04.html` and its README are not journeys to reprint or land
-(section 7). Its document pane and modes are shared with `chat-draft`;
-Ask temper's proposal states, Start over and the rail strip are also
-drawn by the gallery (`gallery.md`, 2). Its drawing and figure are a flow
-(`skein/docs/design/ui/markdown.md`, 1), drawn in the client; the gallery measures
-no box, so a print shows its fallback.
-The `configure-temper-own-way` request's hand-made `configure-own-way/`
-pages are not journeys to reprint or land either; what they draw, the
-card and the stock reference beside the page, the request
-`ask-temper-ways` replaces.
+**Requests for other states** need not become journeys. The gallery
+(`gallery.md`, 2) draws Ask temper's ways and approvals, closing a chat,
+Models and accounts, forge connection and repository selection, the
+chat terminal and the night look. Hand-made request pages remain
+references, read from their request commits with their overlays; none
+is a source for main's pages (section 7).
 
-The `ask-temper-ways` request's hand-made `ask-temper-ways/01.html`
-through `04.html` are not journeys to reprint or land (section 7): no
-journey reaches the ways, and the gallery draws them and the states its
-message names in words (`gallery.md`, 2, the `ask-ways-*` states).
-So are the `ways-shown` request's hand-made `ways-shown/review-*.html`
-and `approve-*.html`, from a browser recording: the gallery draws their
-states, `ask-first-run`, `ask-ways-menu`, `ask-ways-approve` and
-`ask-ways-approve-menu`, and How work runs' `how` and `how-menu`.
+- `configure-chat-draft`'s document pane and modes are shared with
+  `chat-draft`; the journey's source chooses Split and writes up from
+  its chat (`../pages/chat/document.md`, 1). A flow's fallback in the
+  gallery does not prove its measured rendered look.
+- `chat-work`'s gallery states draw a conversation read by log edges,
+  with no Older control (`../pages/chat/conversation.md`, 2). A world's
+  mark is not a browser measurement of further history.
+- `connect-flows`' hand-made pages and its CSS and script are not part
+  of a journey's print. Its Accounts, Models, Forges and Add repositories
+  states are drawn through the shipped view in the gallery; the
+  request's two undrawn sheet entry paths are `sheet-from-home` and
+  `sheet-from-chats` (`../forge/family.md`, 3).
+- The `forge-steps` request's fetching and preparing pages draw Model's
+  Each step. The gallery's fetching, fetching-bytes and preparing
+  states show the words in the welcome and Forges, while
+  `welcome-set-up`'s walk marks the world's box peer's progress.
 
-The `bundle-loading` request's hand-made `bundle-loading/01.html` through
-`04.html` are not journeys to reprint or land (section 7): they draw the
-placeholder before the client starts (`look.md`).
-
-The hand-made `chat-work/01.html` through `04.html` are the look request's,
-not journeys to reprint or land (section 7). The gallery's isolated
-`chat-work-*` states draw their conversation and their additional states
-through the view (`gallery.md`, 2). Their summary follows the first
-appearance of a tool, so settings precedes docs where it was called first.
-The conversation is read by its log's edges (`../pages/chat/conversation.md`, 2), with no
-Older control. `chat-draft`'s return to the chat holds its first activity
-page until browser measures read more. The remaining live text and the
-terminal and browser coverage departures are tracked in
-`../../draft/chat-reading.status.md`, sections 3 and 5, and a numbered
-list's look in `look.status.md`.
-
-The `close-chat` request's hand-made `close-chat/01.html` through `03.html`
-are not journeys to reprint or land (section 7). Their states are the gallery's
-`chat-closing`, `chat-closing-work` and `chat-closed` (`gallery.md`, 2).
-The other confirmations and failures use the same sheet (`../README.md`, 3.6);
-their gallery states include Start over, Close, Accept, Reject and
-Release, with its uncertain pair. These add no recorded journey or page.
-
-The `model-picker` request's hand-made `model-picker/01.html` through
-`07.html` are not recorded journeys to reprint or land (section 7). Its
-Settings, Models page is drawn by the gallery's `models`, `models-add`,
-`models-off`, `models-added`, `models-member` and `models-one-account`
-states (`gallery.md`, 2). The account in `model-catalogue-2/models-proof`'s
-last commit names each page 07 change and Settings overlay rule. The render
-comparison at 1440, 1280, 1000 and 420 px and its screenshots follow landing,
-owned by temper/ui (`look-requests.md`, 4).
-
-The `chat-title` request's `chat-title/01.html` is a recorded chat with its
-heading changed by hand, not a journey to reprint or land (section 7). No
-recorded journey has a first prompt past its first sentence, so no print
-changes with it; the view's table holds the states its message names in
-words (`../pages/README.md`, *A chat's heading is short*). temper/ui's render
-check follows landing (`look-requests.md`, 4).
-
-The `connect-flows` request’s hand-made pages 01–23 are not journeys to
-reprint or land (section 7). They draw Accounts, model connection,
-Forges, forge connection and Settings’ “Add repositories” sheet, including
-search, empty, copy and failed-copy states. The gallery draws these through
-the shipped view (`gallery.md`, 2), and the two entry paths into the sheet
-the request left undrawn, as `sheet-from-home` and `sheet-from-chats`
-(`../forge/family.md`, 3). No request page, `connect.css` or
-`adopt.js` is part of the print. The welcome’s existing recordings still
-replay and reprint; the Settings sheet browser stories compile within the
-plan. temper/ui compares the request with main after landing, at the
-widths and open states in `look-requests.md`, 4.
-
-The `chat-terminal` requests' hand-made `chat-terminal/01.html` through
-`06.html`, their `terminal.css`, `terminal.js` and `fonts/`, are not
-journeys to reprint or land (section 7): page 01 is a recorded chat with
-">_", and 02 to 06 the terminal over it. The gallery's `chat-terminal-*`
-states draw them through the view, and the states their messages name in
-words (`gallery.md`, 2). The fonts are the bundle's (`look.md`).
-`chat-draft`'s pages reprint with ">_" in their bar. temper/ui compares
-the requests with main after landing (`look-requests.md`, 4).
-
-The `ask-temper-start` request's hand-made `ask-temper-start/01.html` and
-`02.html` are not journeys to reprint or land (section 7): a new project's
-Home, whose "Start" and rail's "Ask temper" open Ask temper's page, and that
-page before a first message, as `ui-ask-m1` landed them (`../pages/README.md`,
-*To begin* and *Ask temper's page*). The request adds nothing to them; its
-account matches each state with what main draws, through the gallery's
-Home and `ask` states (`gallery.md`, 2). The `to-begin-two-steps` request
-draws its two steps and its rail over those pages; `project-landing`'s
-`01.html` reprints with them, and the gallery's `home-begin-*` states draw
-the states its message names in words.
-
-The `night-mode` request's hand-made `night-mode/01.html` to `03.html` and
-its `night.js` are not journeys to reprint or land (section 7): the landing,
-Ask temper as "Start" opens it, and `chat-draft`'s Split, under the night
-look, with the switch at the rail's foot. The gallery's `night-*` states draw
-those three pages through the view (`gallery.md`, 2); every journey's
-print draws the switch, unpressed, since no recording keeps a night look.
-temper/ui compares the three requests with main after landing
-(`look-requests.md`, 4).
-
-The requests of 2026-11-12, `welcome-top`, `forgejo-link`, `ask-opening`,
-`switcher-links`, `chat-path`, `no-terminal-button` and `chat-bar`, drew
-hand-made pages, a directory each, from the gallery and from recordings of a
-box built at `a9e804e340`: not journeys to reprint or land (section 7). Each
-landing removes its request's directory and its overlay rules, and the
-render check reads them from the request's own commit (`look-requests.md`,
-4). `welcome-set-up` and `welcome-playground` reprint with the welcome's bar
-of the brand, the steps, the link region and the night switch last
-(`night-switch-top`), and Welcome's box line under its cards; the prints
-that draw the rail reprint with the switcher's phone-only links' look token; `welcome-playground`'s `NewChat` reprints with
-its path naming no project, no ">_" and the view group in the bar. The
-states the messages name in words are the gallery's (`gallery.md`, 2).
-`chat-bar` removes "+ Draft", which `chat-draft`'s recorded walk pressed
-(`Pages(AddDraft)` in Chat), so its replay would go stale (4.2) and a plan
-walks no journey anew (`look-requests.md`, 3; the user, 2026-11-12):
-`chat-draft` is a walk in a world instead, by section 9's table, its
-pages the writer's (`../journey-walks.md`, 6).
-
-Milestone R4 of `../../draft/page-round-trips.md` holds Work to its budget,
-which changes which requests the pages send and when (`../README.md`, 3.4;
-`../pages/work.md`, 1, *Its budget*), so a recorded exchange goes stale
-by it (4.2). `welcome-playground` and `project-landing` print in a world,
-where nothing recorded is compared (`../journey-walks.md`, 6).
-
-The `forge-steps` request's hand-made `forge-steps/fetching-before.html`,
-`fetching-after.html`, `preparing-before.html` and `preparing-after.html`
-are not journeys to reprint or land (section 7). They draw Model's
-"Each step" while Forgejo fetches or prepares: its steps name Forgejo
-alone, with no version (`../forge/deployment.md`, *Setting up, in the row*).
-The gallery's fetching, fetching-bytes and preparing states draw those
-words in the welcome and Forges. No overlay rule changes.
+Print comparisons establish no rendered equality. The outstanding
+render comparisons belong to section 10 and `look-requests.md`, 4.
 
 ## 10. Open questions
 
@@ -903,7 +815,7 @@ words in the welcome and Forges. No overlay rule changes.
   after pages with main after landing at 1440, 1000 and 420 px, with
   "Each step" open (`look-requests.md`, 4), including the figure in
   megabytes, a failed fetch, the Forge row's live list and a phone.
-  Default: the gallery's welcome and Forges setup states and reprinted
+  Default: the gallery's welcome and Forges setup states and printed
   journeys; compilation and print checks establish no rendered equality.
   The source step's likely wrapping remains the user's look question
   (`../forge/deployment.md`, 1). Findings are filed back under the request.
@@ -916,7 +828,7 @@ words in the welcome and Forges. No overlay rule changes.
   Ask temper's opening on every tab, the switcher at 761 px and at 760, and
   a chat's bar and status line at rest, working, waiting on delegates,
   paused, held and ended, in Chat, Split and Draft with and without a
-  draft. Default: gallery states and reprinted journeys; print equality
+  draft. Default: gallery states and printed journeys; print equality
   establishes no rendered equality. Findings are filed back, and repairs
   carry the request's trailer.
 
@@ -930,8 +842,8 @@ words in the welcome and Forges. No overlay rule changes.
   the last step or a skip. Check Ask temper's three phone tabs with its
   composer above, the switch in the folded rail open and closed and at
   a phone's chat bar, and shadows against the day values (`look.md`
-  ). Default: replayed prints and hand-made
-  gallery inputs, with no recording of a night choice; print equality
+  ). Default: world prints and hand-made
+  gallery inputs, with no walk selecting the night look; print equality
   establishes no rendered equality. Findings are filed back, and repairs
   carry the request's trailer.
 
@@ -941,7 +853,7 @@ words in the welcome and Forges. No overlay rule changes.
   (`look-requests.md`, section 4). Include the rail's "Ask
   temper" row and the phone's "Ask" tab where the page shows navigation;
   a phone chat hides that navigation (`look.md`). Default:
-  fake-box recordings and their replayed prints; print equality
+  world prints; print equality
   establishes no rendered equality.
 
 - **The chat terminal's comparison** (9): temper/ui compares all four
@@ -949,7 +861,7 @@ words in the welcome and Forges. No overlay rule changes.
   the shipped view after landing, at 1440, 1000 and 420 px, with menus
   and disclosures open (`look-requests.md`, sections 4 and 5;
   `README.md`, section 3). Default: the nine gallery states and
-  reprinted `chat-draft` and `welcome-playground` pages; they establish
+  printed `chat-draft` and `welcome-playground` pages; they establish
   no rendered equality. Real-key checks remain `../README.md`, section
   5's work, distinct from journey replay.
 
@@ -964,7 +876,7 @@ words in the welcome and Forges. No overlay rule changes.
 - **The Models page's comparison** (9): temper/ui compares `model-picker`'s
   hand-made page 07 with the gallery's Models states after landing, with
   screenshots at 1440, 1280, 1000 and 420 px
-  (`look-requests.md`, section 4). Default: reprinted journeys and
+  (`look-requests.md`, section 4). Default: printed journeys and
   gallery states; print equality establishes no rendered equality.
 
 - **The flow's rendered look** (9): temper/ui checks a flow in a chat
@@ -978,44 +890,23 @@ words in the welcome and Forges. No overlay rule changes.
   gallery and journey print checks establish no rendered equality;
   screenshots and any findings belong to that comparison.
 
-- **The fresh project's draft flow on a real box** (9, `chat-draft`):
-  a person's recording alongside the fake-model journey, including finding
-  the goal from its chat and the project's bar (`../README.md`, section 5).
-  Default: the fake-model recording starts with drafts on; a real recording
-  remains the person's, as 3.5 requires.
-
-- **Typing:** whether every act marks its page; the design marks
-  none for an `input` (3.4), since a page per keystroke would make a
-  walk of typing. The user's word.
 - **The gallery's states,** set from hand-written worlds: whether each
-  moves to a journey once the fake box reaches it, its answers then the
-  engine's own (`gallery.md`). Ready and Model's forge done
-  can, `project-landing`'s walk reaching a fake box's Forgejo connected, so
-  that fewer states are hand-made (`look-requests.md`, 8); Model's
-  forge failed waits on a fake box whose set up can fail. The two
-  fetching states can, `welcome-set-up`'s walk in a world marking the
-  Model step at the box's peer's first figure (`../journey-walks.md`,
-  4.4 and 6); the fake box still fetches nothing a walk sees
-  (`../../protocol/setup/README.md`, section 9).
+  becomes a journey once the walk's world reaches it, with the engine's
+  own answers (`gallery.md`). The world's box peer plays fetching,
+  preparing, starting and connected for `welcome-set-up`
+  (`../journey-walks.md`, 4.4); a failed owned-forge start needs a peer
+  that can report that failure.
 - **A render-check command:** in `temper-client-journeys`, taking a
   request's name. Default: each landing's own script
   (`look-requests.md`, 4 and 8).
 - **The page's own state at a mark** (3.4): where a journey meets a
   skein menu, the page's events would be recorded and replayed beside
   the host's reports.
-- **A tab in a setup** (8.2): `project-landing`'s setup presses "Continue with
-  ChatGPT", and the tab it opens stays beside the page. The next step's find
-  brings the page to the front (skein's `testing/browser.md`, section 6), so a tab
-  takes no step of its own; a record for one joins 8.2's table only if one
-  needs a step. Default: none.
 - **Later, if wanted:** the one-tag-per-line print as skein-ui-web's,
   for another application's journeys.
-- **What a real journey leaves out** (3.8): a token split across a run's
-  deliveries is refused and not replaced, and a value the client reshapes
-  goes stale, so a walk that meets either is walked again without it.
-  Whether `add` takes them out waits for a recording that can't be walked
-  without them.
-- **The recorded box:** the stream's credential is a loopback session of
-  a box the person stops; whether `add` also asks them to stop it.
-- **Usage and spend figures** the page was given stay as they were, on a
-  real journey too; whether they should.
+- **What a person's file cannot print** (3.8): a token split across a
+  run's deliveries is refused but not replaced, and a value the client
+  reshapes can fail replay. Replacing these waits for a recording
+  that needs them and a replacement that can preserve the proof.
+- **Usage and spend figures** the page was given stay as they were in
+  a person's print; whether they should.

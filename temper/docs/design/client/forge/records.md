@@ -570,7 +570,16 @@
   engine started (jig's `protocol/client/sign-in.md`, `LinkSignedIn`):
   the clients' component's memory alone, as `app` is the forge domain's, so
   false after a restart; the engine delivers the document again when it
-  turns true. A TUI in front of a box reads it for its welcome's "Signed in
+  turns true. After `linked`, `full`, the forge connector's tables full
+  past their report bound (`../../protocol/README.md`, 6.3), at most 2,
+  each `FullTable`: its `table`, `FullKind` (outbox or read admission),
+  `since`, the wall time it filled in nanoseconds (u64), and `words`, the
+  holders' words after the engine's line's `AGE: ` (at most 1,024
+  bytes); empty while none is, the forge domain's memory alone, so empty
+  after a restart until a table fills again; the engine delivers the
+  document again as one is added, its words change or it goes. A field
+  added to a versioned record moves the client wire's version
+  (`../../draft/redeploys.md`). A TUI in front of a box reads it for its welcome's "Signed in
   as the owner" (`../tui/box.md`). The read of the forges, the
   tools' `forge list` (`../ctl/areas.md`, area 6), is the watch's first
   document. Text prints `host: HOST`, and JSON carries `host` unchanged
@@ -613,37 +622,65 @@
   `reach_from`.
 - **A project's findings, the subject `findings`:** of the project's
   scope, for a party with a role there; on the wire `Watching`'s
-  `findings`, `FindingsSubject { project, state, mine }`, `state` an
-  option of `new`, `routed`, `backlog` or `dropped`, `mine` whether only
-  the reader's (`../../domain/areas.md`, section 5). The root makes its
+  `findings`, `FindingsSubject { project, filter }`, `filter` a
+  `FindingsFilter`: `triage`, `FindingsTriage { state, mine }`, `state`
+  an option of `new`, `routed`, `backlog` or `dropped`, `mine` whether
+  only the reader's (`../../domain/areas.md`, section 5); or `goal`, a
+  `FindingsGoal { goal }`, or `milestone`, a `FindingsMilestone {
+  milestone }`, a u64 each, the findings whose blame names that goal or a
+  goal of that milestone, in every state
+  (`../../domain/red-findings.md`, section 10). An enum's case carries a
+  record, as `HolderTask` does, hence the two of one field. The root makes its
   document, since holders read the core (`../../domain/areas.md`,
   section 4). Its document, `Findings`: `project`; `rows`, at most 128,
   newest first, each `FindingRow { number, kind, severity, area, state,
-  title, holder, at, why, hander }`, `holder` a `Holder`, `at` when it was
+  title, holder, at, why, hander, goal, reason, cleared }`, `holder` a
+  `Holder`, `at` when it was
   filed, `why` the last hand-off's, option, and `hander` who made that
   hand-off, a task or a party as `filer` is, option, present with `why`
-  (`../../domain/findings.md`, 2; `../pages/needs-you.md`, 1); `areas`, at most 16, each
+  (`../../domain/findings.md`, 2; `../pages/needs-you.md`, 1); `goal`,
+  option, the task it was routed to; `reason`, option, a drop's, text
+  of 400; `cleared`, option, a `FindingClearing { tier, run, at }`, the
+  tier, its signature's source, bytes of 64, the run that cleared it
+  and when (`../../domain/red-findings.md`, section 6); `areas`, at most 16, each
   `AreaRow { name, words, owner, holder }`, `owner` an `AreaOwner` (`../../protocol/configuration/settings.md`, 2) and
   `holder` an option of `Holder`, none where its owner does not stand;
   `triager`, its owner, option, and its holder; and `cut`, whether rows
   were left out. Marked at each committed decision that writes one of
-  the project's findings or saves its kind 12 or 13; a holder that
-  stops standing shows at the next mark. *Needs you watches it* with
-  `mine` and `state` `new` for each project the person is in
-  (`../pages/needs-you.md`, 1).
+  the project's findings or saves its kind 12 or 13, and a goal's or a
+  milestone's filter where the written finding's blame names it, before
+  the write or after (`../../domain/red-findings.md`, section 10); a
+  holder that stops standing shows at the next mark. *Needs you watches
+  it* with `triage`, `mine` and `state` `new`, for each project the
+  person is in (`../pages/needs-you.md`, 1); *a goal's page* with
+  `goal` (`../pages/goal.md`, section 2).
 - **One finding, the read `Finding`:** `FindingRead { project, number }`,
   in the project's scope by a party with a role there. Its answer,
   `FindingAnswer`: its `FindingRow`, its `body`, its `filer`, a task or a
-  party, its `goal`, option, the task it was routed to, and its
-  `reason`, option, a drop's; or `no_finding`.
+  party, and its `blame`, option, a `FindingBlame { strength, landings
+  }`, `strength` a `BlameStrength`, `owned`, `suspected` or `unblamed`
+  (the record's `none`), `landings`, at most 256, oldest first, each
+  `BlamedLanding { commit, goals }`, `commit` fixed 32 as `BlamedGate`'s
+  commits, `goals`, at most 64, each `BlamedGoal { goal, milestone,
+  person }`, the last two options (`../../domain/red-findings.md`,
+  section 3); or `no_finding`. Its routed goal and drop's reason are its
+  row's.
 - **A milestone's totals, the read `Milestone`:** `MilestoneRead {
   project, task }`, in the project's scope by a party with a role
   there. Its answer, `MilestoneAnswer`: `totals`, a `MilestoneTotals`,
   `task`, `done`, `failed`, `closed` and `live` (u32 each), `ended`,
   option, a wall, `last_landing`, option, a `MilestoneLanding`, `at`, a
-  wall, `goal` and `change`, and `spent` (u64); or `not_milestone`
-  (`../../domain/milestones.md`, section 7). It moves `CLIENT_VERSION`
-  by one.
+  wall, `goal` and `change`, `spent` (u64), and `reds` (u32), its goals'
+  uncleared red findings (`../../domain/red-findings.md`, section 10);
+  or `not_milestone` (`../../domain/milestones.md`, section 7). A
+  milestone's part carries the same `MilestoneTotals` (`parts.md`, 3).
+  It moves `CLIENT_VERSION` by one.
+- **Reds on goals and milestones** (`../../domain/red-findings.md`,
+  section 10): the `findings` subject's `filter`, `FindingRow`'s
+  `goal`, `reason` and `cleared`, `FindingAnswer`'s `blame` and
+  `MilestoneTotals`' `reds` come together in the client's next layout,
+  which moves `CLIENT_VERSION` by one, with no bridge
+  (`../../draft/redeploys.md`, section 8).
 - **A person's facts, the subject `dismissed`:** of the party's own
   scope (jig's `client/domain/contract/README.md`, 5.5), with no fields, its
   window unused; on the wire `Watching`'s `dismissed`. One subject for

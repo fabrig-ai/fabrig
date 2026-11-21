@@ -240,6 +240,11 @@ pub enum NoteChange {
     )
 )]
 pub enum Ask {
+    /// Pause, drain or resume a linked worker (domain/engine/workers.md, 5).
+    PauseWorker {
+        worker: u32,
+        mode: jig_domain_link::PauseMode,
+    },
     /// Conclude a gathering (jig/docs/design/domain/tasks/gatherings.md, 3).
     Conclude {
         project: u32,
@@ -535,7 +540,10 @@ impl Ask {
             | Self::Withdraw { project, .. } => AskFamily::Project(*project),
             Self::Application { scope, .. } => AskFamily::Application(*scope),
             Self::Restore { .. } => AskFamily::Restore,
-            Self::MakeProject { .. } | Self::ChangeSettings { .. } | Self::MoveToNewest { .. } => AskFamily::Deployment,
+            Self::PauseWorker { .. }
+            | Self::MakeProject { .. }
+            | Self::ChangeSettings { .. }
+            | Self::MoveToNewest { .. } => AskFamily::Deployment,
             Self::AccountSignIn { .. } | Self::AccountSignOut { .. } | Self::AccountChange { .. } => AskFamily::Account,
             Self::Lift { .. } => AskFamily::Lift,
             Self::MarkSeen { .. } => AskFamily::Seen,
@@ -561,6 +569,7 @@ impl Ask {
             | Self::MakeProject { .. }
             | Self::ChangeSettings { .. }
             | Self::MoveToNewest { .. }
+            | Self::PauseWorker { .. }
             | Self::SetPool { .. }
             | Self::DecideEscalation { .. }
             | Self::DecideProposal { .. }
@@ -680,6 +689,9 @@ pub enum OutcomeFamily {
 /// final outcomes with the parent's task decision. (domain/people/acts.md, section 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Outcome {
+    WorkerPauseAsked {
+        worker: u32,
+    },
     /// The gathering keeps its concluding word.
     Concluded {
         task: u64,
@@ -1531,6 +1543,7 @@ impl Outcome {
             | Self::AccountLoginAsked { .. }
             | Self::AccountProgramDeclared { .. }
             | Self::AccountReading { .. }
+            | Self::WorkerPauseAsked { .. }
             | Self::AccountChanged
             | Self::AccountMovingOut { .. }
             | Self::AccountFinishing { .. }
@@ -1586,6 +1599,7 @@ impl Outcome {
             | Self::AccountLoginAsked { .. }
             | Self::AccountProgramDeclared { .. }
             | Self::AccountReading { .. }
+            | Self::WorkerPauseAsked { .. }
             | Self::AccountChanged
             | Self::AccountMovingOut { .. }
             | Self::AccountFinishing { .. }

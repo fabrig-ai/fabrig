@@ -213,6 +213,7 @@ pub(crate) fn party_kind(value: &w::PartyKind) -> c::PartyKind {
 
 pub(crate) fn outcome(value: &w::Outcome, limits: &Limits) -> Result<c::Outcome, w::Problem> {
     Ok(match value {
+        w::Outcome::WorkerPauseAsked(value) => c::Outcome::WorkerPauseAsked { worker: value.worker },
         w::Outcome::Restored(value) => restore_outcome_restored(value)?,
         w::Outcome::Account(value) => c::Outcome::Account(match &value.answer {
             w::AccountAnswer::Reading(row) => c::AccountAnswer::Reading { count: row.count },
@@ -502,6 +503,7 @@ pub(crate) fn refusal(value: &w::Refusal, limits: &Limits) -> Result<c::Refusal,
         w::Refusal::LiveTasks(value) => c::Refusal::LiveTasks { tasks: value.tasks.clone(), more: value.more },
         w::Refusal::Circle(value) => c::Refusal::Circle { tasks: value.tasks.clone(), cut: value.cut },
         w::Refusal::Kept(value) => c::Refusal::Kept { pending: value.pending.clone() },
+        w::Refusal::Unlinked(value) => c::Refusal::Unlinked { worker: value.worker },
         w::Refusal::Concluded(value) => c::Refusal::Concluded { at: Wall::from_nanos(value.at) },
         w::Refusal::Dependency(value) => c::Refusal::Dependency {
             dependency: value.dependency,

@@ -5,6 +5,69 @@ use jig_domain_people as domain;
 use skein_lib::Wall;
 
 #[test]
+fn retained_account_digests_require_thirty_two_bytes() {
+    use crate::people_v17 as wire;
+    use wire::Record;
+
+    let limits = super::people_limits();
+    for (change, path) in [
+        (
+            wire::AccountChange::AddKey(wire::AccountChangeAddKey {
+                provider: 3,
+                join: None,
+                digest: Box::new([7; 31]),
+            }),
+            wire::paths::ACCOUNT_CHANGE_ADD_KEY_DIGEST,
+        ),
+        (
+            wire::AccountChange::ReplaceKey(wire::AccountChangeReplaceKey { source: 2, digest: Box::new([7; 31]) }),
+            wire::paths::ACCOUNT_CHANGE_REPLACE_KEY_DIGEST,
+        ),
+        (
+            wire::AccountChange::MoveIn(wire::AccountChangeMoveIn { digest: Box::new([7; 31]) }),
+            wire::paths::ACCOUNT_CHANGE_MOVE_IN_DIGEST,
+        ),
+        (
+            wire::AccountChange::FinishSignIn(wire::AccountChangeFinishSignIn { source: 2, digest: Box::new([7; 31]) }),
+            wire::paths::ACCOUNT_CHANGE_FINISH_SIGN_IN_DIGEST,
+        ),
+    ] {
+        let ask = wire::Ask::AccountChange(wire::AskAccountChange { holder: wire::AccountHolder::Own, change });
+        let bytes = ask.encode(&limits).expect("short digests fit the record's byte ceiling");
+        let ask = wire::Ask::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("bounded record");
+        assert_eq!(
+            crate::codec::people::decode_ask(ask, &limits),
+            Err(wire::Problem { path, reason: skein_codec::Reason::Bound })
+        );
+    }
+}
+
+#[test]
+fn retained_program_declarations_check_source_name_spelling() {
+    use crate::people_v17 as wire;
+    use wire::Record;
+
+    let limits = super::people_limits();
+    let ask = wire::Ask::AccountChange(wire::AskAccountChange {
+        holder: wire::AccountHolder::Own,
+        change: wire::AccountChange::DeclareProgram(wire::AccountChangeDeclareProgram {
+            provider: 3,
+            join: None,
+            name: Box::from(b"not valid".as_slice()),
+        }),
+    });
+    let bytes = ask.encode(&limits).expect("spelling is not a wire bound");
+    let ask = wire::Ask::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("bounded record");
+    assert_eq!(
+        crate::codec::people::decode_ask(ask, &limits),
+        Err(wire::Problem {
+            path: wire::paths::ACCOUNT_CHANGE_DECLARE_PROGRAM_NAME,
+            reason: skein_codec::Reason::Malformed
+        }),
+    );
+}
+
+#[test]
 fn account_move_asks_read_back_with_their_numbers_and_digest() {
     for change in [
         domain::AccountChange::ReadLists { provider: u32::MAX },

@@ -93,6 +93,7 @@ Design documents:
 - [`data/codec/layouts.md`](data/codec/layouts.status.md)
 - [`data/codec/command.md`](data/codec/command.status.md)
 - [`data/codec/bridges.md`](data/codec/bridges.status.md)
+- [`data/codec/maps.md`](data/codec/maps.status.md)
 - [`data/deflate.md`](data/deflate.status.md)
 - [`data/json.md`](data/json.status.md)
 - [`data/kv.md`](data/kv.status.md)

@@ -29,9 +29,14 @@ fn a_cleared_finding_is_not_in_its_triagers_mine_document() {
     let (driver, _) = seeded(AreaOwner::Party(1));
     assert_eq!(engine::finding_holder(&driver.root, 1, None), forge::Holder::Party(1));
     for state in [None, Some(forge::FindingState::New)] {
-        let mine = engine::findings_document(&driver.root, 1, 1, state, true);
+        let mine = engine::findings_document(&driver.root, 1, 1, forge::FindingsFilter::Triage { state, mine: true });
         assert_eq!(mine.rows.iter().map(|row| row.number).collect::<Vec<_>>(), [2]);
-        assert_eq!(engine::findings_document(&driver.root, 1, 1, state, false).rows.len(), 2);
+        assert_eq!(
+            engine::findings_document(&driver.root, 1, 1, forge::FindingsFilter::Triage { state, mine: false })
+                .rows
+                .len(),
+            2
+        );
     }
 }
 

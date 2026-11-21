@@ -66,6 +66,7 @@ this design.
 | layouts and derived plans | `skein-codec` | a value type's layout, and the plan that converts a value from one layout to another as it is read | [data/codec/layouts.md](data/codec/layouts.md) |
 | the patch command | `skein-codegen` | keeping a crate's patches, generated files and drift check | [data/codec/command.md](data/codec/command.md) |
 | bridges | `skein-codec`, `skein-codegen` | a wire's reverses, its floor and breaking declarations, and the bridge that translates a record between the versions a build speaks | [data/codec/bridges.md](data/codec/bridges.md) |
+| translation from maps | `skein-codegen`, `skein-codec` | a family's maps file, the translation between its records and the domain's types generated from it, and the shared converters | [data/codec/maps.md](data/codec/maps.md) |
 | TLS | `skein-tls` | the TLS client, a stream over rustls's unbuffered connection, with ring | [net/tls.md](net/tls.md) |
 | Web Push | `skein-push` | a push message sealed for a browser's subscription and signed with the service's VAPID key, and its answer read | [net/push.md](net/push.md) |
 | the link | `skein-link` | one socket and its optional TLS, under a protocol layer's HTTP clients: the handshake, a body's upload, a bounded close that sends `close_notify` | [net/link.md](net/link.md) |

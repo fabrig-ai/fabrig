@@ -212,6 +212,7 @@ pub(crate) fn activation(
         | End::FailedWithReason { .. }
         | End::Refused
         | End::RefusedWithReason { .. }
+        | End::Suspended(_)
         | End::Recheck => true,
     };
     let kept = crate::run::ends::kept(domain, number);
@@ -278,6 +279,7 @@ pub(crate) fn activation(
         | End::FailedWithReason { .. }
         | End::Refused
         | End::RefusedWithReason { .. }
+        | End::Suspended(_)
         | End::Recheck => {}
     }
     let result_admitted = match &admitted_end {
@@ -292,6 +294,7 @@ pub(crate) fn activation(
         | End::FailedWithReason { .. }
         | End::Refused
         | End::RefusedWithReason { .. }
+        | End::Suspended(_)
         | End::Recheck => false,
     };
     post(domain, environment, number, cumulative, spent, out);
@@ -319,6 +322,7 @@ pub(crate) fn activation(
             | End::FailedWithReason { .. }
             | End::Refused
             | End::RefusedWithReason { .. }
+            | End::Suspended(_)
             | End::Recheck,
             _,
         ) => {}

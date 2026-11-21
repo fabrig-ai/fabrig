@@ -120,6 +120,7 @@ impl World {
                     worker: 0,
                     channel: Token::new(7),
                     hello: Hello {
+                        fresh: false,
                         reads_usage: true,
                         jobs: Box::default(),
                         bounds: jig_test_profile::fixtures::bounds(),
@@ -162,6 +163,7 @@ impl World {
                 worker: 0,
                 channel: Token::new(0),
                 hello: Hello {
+                    fresh: false,
                     reads_usage: true,
                     jobs: Box::default(),
                     bounds: jig_test_profile::fixtures::bounds(),
@@ -251,6 +253,7 @@ impl World {
             stop_deliveries: Vec::new(),
             commits: Vec::new(),
             list_reads: Vec::new(),
+            worker_pauses: Vec::new(),
             usage_reads: Vec::new(),
             projections: Vec::new(),
             hold_projection_settlements: false,

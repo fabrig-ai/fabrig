@@ -38,6 +38,10 @@ impl World {
             chunk: limits.chunk,
         }
     }
+    #[must_use]
+    pub fn retime(&mut self, timers: jig_protocol_engine_workers::Timers) -> bool {
+        self.component.retime(timers)
+    }
     pub fn connect(&mut self, peer: ScriptedPeer) -> Token {
         let connection = Token::new(self.next);
         self.next += 1;
@@ -88,7 +92,8 @@ impl World {
                     self.net(connection).gone = true;
                     self.component.down(self.now, Event::Gone { connection }, &mut self.out);
                 }
-                Request::Told { .. }
+                Request::Unpaused { .. }
+                | Request::Told { .. }
                 | Request::Unsent { .. }
                 | Request::Hello { .. }
                 | Request::Up { .. }

@@ -186,6 +186,10 @@ pub enum Moved {
 /// A durable request refusal and all facts needed to show it.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Refusal {
+    /// The named worker has no admitted channel (domain/engine/workers.md, 5).
+    Unlinked {
+        worker: u32,
+    },
     /// No delegate joins a concluded gathering (domain/tasks/gatherings.md, 3).
     Concluded {
         at: Wall,

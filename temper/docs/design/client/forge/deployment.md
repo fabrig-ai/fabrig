@@ -619,6 +619,14 @@ says:
   pause for its rate, and until when; its outbox, the effects waiting
   and those uncertain, being looked for; and when each repository's
   webhooks were last heard.
+- **A full table,** the forge connector's and so every forge's, comes
+  first, above the forges' rows: while the forges' document carries one
+  full past its report bound (`../../protocol/README.md`, 6.3), a line
+  for it, "The forge's outbox is full for AGE: WORDS" or "The forge's
+  read admission is full for AGE: WORDS", WORDS the document's, the
+  service's line's after `AGE: `, and AGE from its `since` by the
+  client's clock in 6.3's words, kept current as the page is, with no
+  act. Gone with its table's free place.
 
 Its actions, each a request of the forge's family (`../engine.md`
 ), offered by kind, mode, setup and state. The engine domain decides

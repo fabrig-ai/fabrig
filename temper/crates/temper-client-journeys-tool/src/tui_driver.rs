@@ -8,20 +8,8 @@ use std::{
     path::Path,
 };
 pub(crate) mod terminal;
-/// The TUI takes the walk's start (temper/docs/design/client/journey-clock.md, 4.4).
+/// Isolated terminal settings (client/drive.md, 5).
 pub(crate) fn environment(
-    given: &[crate::EnvironmentEntry],
-    scratch: &Path,
-) -> Result<Vec<(OsString, OsString)>, std::env::JoinPathsError> {
-    let mut environment = unfixed_environment(given, scratch)?;
-    let name = temper_shell::environment::INTERNAL_FIXED_START.name;
-    environment.retain(|(key, _)| key != name);
-    environment.push((name.into(), crate::again::FIXED_START.into()));
-    Ok(environment)
-}
-
-/// Isolated terminal settings without choosing a fixed start (client/drive.md, 5).
-pub(crate) fn unfixed_environment(
     given: &[crate::EnvironmentEntry],
     scratch: &Path,
 ) -> Result<Vec<(OsString, OsString)>, std::env::JoinPathsError> {
@@ -109,4 +97,61 @@ pub(crate) fn replaced(path: &Path, earlier: Option<&File>) -> io::Result<Option
     let mut bytes = Vec::new();
     file.read_to_end(&mut bytes)?;
     Ok(Some(bytes))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use skein_lib::Queue;
+    use skein_scratch::Scratch;
+    use skein_ui_screen_terminal::Decoder;
+    use std::fs;
+    #[test]
+    fn walk_keys_are_terminal_bytes() {
+        let cases: &[(Key, &[u8])] = &[
+            (Key::Enter, b"\r"),
+            (Key::Tab, b"\t"),
+            (Key::BackTab, b"\x1b[Z"),
+            (Key::Backspace, b"\x7f"),
+            (Key::Delete, b"\x1b[3~"),
+            (Key::Up, b"\x1b[A"),
+            (Key::Down, b"\x1b[B"),
+            (Key::Right, b"\x1b[C"),
+            (Key::Left, b"\x1b[D"),
+            (Key::Home, b"\x1b[H"),
+            (Key::End, b"\x1b[F"),
+            (Key::PageUp, b"\x1b[5~"),
+            (Key::PageDown, b"\x1b[6~"),
+            (Key::Escape, b"\x1b"),
+            (Key::Char('a'), b"a"),
+            (Key::Char('λ'), "λ".as_bytes()),
+            (Key::Control(b'c'), b"\x03"),
+            (Key::Alt('M'), b"\x1bM"),
+            (Key::Alt('S'), b"\x1bS"),
+            (Key::Paste(b"one\ntwo".as_slice().into()), b"\x1b[200~one\ntwo\x1b[201~"),
+        ];
+        for (key, expected) in cases {
+            let bytes = key_bytes(key);
+            assert_eq!(bytes, *expected, "{key:?}");
+            let mut decoder = Decoder::new(100);
+            let mut keys = Queue::with_capacity(2);
+            decoder.read(&bytes, &mut keys);
+            assert_eq!(keys.pop().as_ref(), Some(key), "decoder sees {key:?}");
+            assert!(keys.is_empty());
+        }
+    }
+
+    #[test]
+    fn a_save_is_a_replacement_even_when_its_bytes_are_unchanged() {
+        let scratch = Scratch::new("tui-again-save");
+        let path = scratch.path().join("recording-20261115T090032Z");
+        assert!(replaced(&path, None).expect("no first save").is_none());
+        fs::write(&path, b"same save").expect("first save");
+        let earlier = File::open(&path).expect("hold earlier inode");
+        assert!(replaced(&path, Some(&earlier)).expect("unchanged file").is_none());
+        let next = scratch.path().join("next");
+        fs::write(&next, b"same save").expect("next save");
+        fs::rename(next, &path).expect("replace save");
+        assert_eq!(replaced(&path, Some(&earlier)).expect("replacement"), Some(b"same save".to_vec()));
+    }
 }

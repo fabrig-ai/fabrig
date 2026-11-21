@@ -598,6 +598,7 @@ testing/skein-json-kit          what a second crate takes of the JSON world: the
 testing/skein-http-kit          the HTTP world's reference reader
 testing/skein-tls-kit           the TLS world's certificates, in-memory server, byte driver and step meter, over tests/tls/fixtures
 testing/skein-llm-kit           the LLM world's wire fixtures and its faces of skein's fake LLM
+testing/skein-fake-peers-kit    shared peer configurations and simulated socket helpers
 testing/skein-forge-kit         the forge machine world's machine, peers, pipes and joint world, and its GitHub face
 testing/skein-forge-connection-fixtures the forge connection's fixtures for the machine world's hand, a copy of the crate's step tests' own (../forge/connection.md, 10; ../../foundation/cli.md, 3)
 testing/skein-codegen           the codec generator, run by a consumer's tests (codec.md)
@@ -656,23 +657,25 @@ examples/ui/*                   the UI example: its view, its browser shell and 
 
 **A world's library is its own.** No package, whichever tree it's in, depends on a package under `skein/tests/`: what a second crate needs from a world lives in a kit under `testing/` (../../foundation/testing-strategy.md, 7), and the world's own suite reads it through its library, which re-exports the kit. No `#[path]` under `skein/` reaches outside its package. `tests/boundary/tests/skein_worlds.rs` holds both, for `skein/` alone: it doesn't read the worlds under smith's and temper's `tests/`, and packages still depend on those. It reads the sources in one walk (`tools/crates/design.md`, 3): git lists the tracked Rust sources once and each is read once, the `#[path]` rule taking those under `skein/` and the seam's rule (../forge/connection.md, 10) every one, and a source both rules parse is parsed once. A source git doesn't track is in neither rule.
 
-No crate under `crates/` has a `tests/` directory: its step tests are
-in `src/`, and whatever drives it from outside is a crate under `tests/`,
-named by its path. The fakes in `crates/` follow it too: the forge domain's memory test,
-the peers' tests and the checkout's are crates under `tests/`, and the
-protocol layer's fixtures are in its `src/tests/`. Such a crate is ordinary Rust (../../foundation/programming-model.md,
-10.2): what its test binaries share is its library, in `src/` (the
-simulator's harness and its scripted exchange, a backend of the suite,
-the naive functions lib is compared with, a machine's world and,
-through the kit it re-exports, the reference parser it is checked against),
+`crates/*` keeps step tests in `src/`, not `tests/`; outside tests are
+crates under `tests/`, named by path. Fakes follow this too: the forge
+domain's memory test, the peers' tests and the checkout's are there;
+protocol fixtures are in `src/tests/`. A test crate is ordinary Rust
+(../../foundation/programming-model.md, 10.2). Its binaries share its
+`src/` library: the simulator's harness and scripted exchange, a suite
+backend, lib's naive comparisons, a machine's world and, through its
+re-exported kit, the reference parser it is checked against,
 and its tests share the `suite` binary: focused modules under
-`tests/suite/`, seeded sweeps under `tests/suite/fuzzy/`.
+`tests/suite/`, seeded sweeps under `tests/suite/fuzzy/`. Mixed binaries split within their package:
+`tests/<layer>/main.rs` holds tests that replay at their highest layer;
+`suite` keeps real tests. Module paths and `fuzzy::` stay
+(`tools/tiers/layers.md`, 6.1).
 `tests/clippy.toml` bans what would
 make a run unrepeatable: hash maps with a random seed, the system clocks,
 threads. Each backend of the conformance suite is implemented beside the
 tests that run the suite against it. The global allocator a binary
 declares covers the whole binary; memory modules are `tests/suite/memory.rs`, and `tests/suite/fuzzy/memory.rs` for a sweep
-under scenario ceilings (../../foundation/testing-strategy.md, 8). A suite that checks
+under scenario ceilings (../../foundation/testing-strategy.md, 8). Each binary that checks
 memory declares the counting allocator once. `Memory` selects whether a
 world meters its processes; a simulated world checking memory meters
 every iteration.

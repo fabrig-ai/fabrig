@@ -416,7 +416,8 @@ impl Core {
     ) -> authority::Answer {
         let Some(current) = self.tasks.run_context(context.task) else { return authority::Answer::Wait };
         let numbers = translate::authority_numbers(current.numbers);
-        let authority = translate::tasks_authority(&current.authority);
+        let mut authority = translate::tasks_authority(&current.authority);
+        authority.budget.deadline = self.tasks.deadline(current.task, now);
         let budget = authority::run_spend(self.authority.rules(), &authority, numbers);
         let Ok(choice) = self.run_choice(context.task) else { return authority::Answer::Wait };
         let mut accounts = List::with_capacity(tasks::MODELS);

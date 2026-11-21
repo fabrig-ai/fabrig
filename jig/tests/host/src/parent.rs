@@ -177,6 +177,7 @@ struct Agent {
     wake: u64,
     /// Names its calls.
     calls: u64,
+    drained: bool,
 }
 
 #[derive(Debug)]
@@ -285,7 +286,7 @@ impl Parent {
     /// Takes the host's request `request`, which is for the parent.
     pub fn take(&mut self, request: Request) -> Vec<Out> {
         match request {
-            Request::Asked { .. } | Request::Up(LinkUp::Ask { .. }) => {
+            Request::Paused { .. } | Request::Asked { .. } | Request::Up(LinkUp::Ask { .. }) => {
                 unreachable!("the script does not make application asks")
             }
             Request::Job(jig_domain_host::ToJob::Run { owner, workspace, .. }) => self.run_job(owner, workspace),
@@ -314,7 +315,11 @@ impl Parent {
             }
             Request::Agent(ToAgent::Message { agent, .. }) => self.deliver(agent),
             Request::Agent(ToAgent::Answer { agent, call: _, answer: _ }) => self.reply(agent),
-            Request::Agent(ToAgent::Drain { agent } | ToAgent::Cancel { agent }) => self.stop(agent),
+            Request::Agent(ToAgent::Drain { agent }) => {
+                self.agents.get_mut(&agent).expect("a drain is for a started agent").drained = true;
+                Vec::new()
+            }
+            Request::Agent(ToAgent::Cancel { agent }) => self.stop(agent),
             Request::DeliverJob { owner, workspace, .. }
             | Request::DeliverUnchecked { owner, workspace }
             | Request::Deliver { owner, workspace, .. } => self.delivery(owner, workspace),
@@ -322,8 +327,10 @@ impl Parent {
             Request::Release { workspace } => self.release(workspace),
             Request::Agent(ToAgent::Grant { .. } | ToAgent::Renewals { .. }) => Vec::new(),
             Request::Up(
-                LinkUp::UsageRead { .. }
-                | LinkUp::ListRead { .. }
+                LinkUp::ListRead { .. }
+                // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too.
+                | LinkUp::Paused { .. }
+                | LinkUp::UsageRead { .. }
                 | LinkUp::Draining
                 | LinkUp::Logins { .. }
                 | LinkUp::SignedOut { .. }
@@ -353,6 +360,9 @@ impl Parent {
             return Vec::new();
         }
         let phase = entry.phase;
+        if entry.drained && matches!(phase, Phase::Working { .. } | Phase::Waiting { .. }) {
+            return self.say(agent, Finish::Failed { failure: RunFailure::Cancelled, model: None });
+        }
         match phase {
             Phase::Working { steps: 0 } => self.fate(agent),
             Phase::Working { steps } => self.act(agent, steps - 1),
@@ -414,7 +424,7 @@ impl Parent {
         let after = self.script.start.draw(&mut self.rng);
         if self.rng.chance(self.script.unstarted) {
             self.tally.unstarted += 1;
-            let entry = Agent { owner, fate, phase: Phase::Gone, wake: 0, calls: 0 };
+            let entry = Agent { owner, fate, phase: Phase::Gone, wake: 0, calls: 0, drained: false };
             self.agents.insert(agent, entry);
             return vec![host(
                 after,
@@ -422,7 +432,7 @@ impl Parent {
             )];
         }
         let steps = u32::try_from(self.rng.below(u64::from(self.script.steps) + 1)).expect("fits");
-        let entry = Agent { owner, fate, phase: Phase::Working { steps }, wake: 0, calls: 0 };
+        let entry = Agent { owner, fate, phase: Phase::Working { steps }, wake: 0, calls: 0, drained: false };
         self.agents.insert(agent, entry);
         let mut out = vec![
             host(after, Event::Agent(FromAgent::Decoded { owner, contract: 1 })),

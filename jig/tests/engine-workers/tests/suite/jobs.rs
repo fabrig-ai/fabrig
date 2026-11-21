@@ -6,7 +6,7 @@ use jig_protocol_worker_wire as wire;
 use jig_protocol_worker_wire::Record;
 use skein_lib::{Duration, List, Reader, Secret, Token, Writer};
 
-fn codec() -> wire::v19::Limits {
+fn codec() -> wire::v21::Limits {
     wire::sizes::limits(&fixtures::SIZES).expect("codec")
 }
 pub(super) fn assignment(channel: Token) -> Event {

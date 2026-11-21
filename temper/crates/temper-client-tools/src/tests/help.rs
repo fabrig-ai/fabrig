@@ -20,6 +20,7 @@ const GOLDENS: &[(Option<u8>, &str)] = &[
     (Some(66), "help_repository_copy"),
     (Some(jig::rows::PROJECT_AMEND_AT), "help_project_amend"),
     (Some(jig::rows::GOAL_START_AT), "help_goal_start"),
+    (Some(jig::rows::GOAL_SHOW_AT), "help_goal_show"),
     (Some(jig::rows::ROLE_START_AT), "help_role_start"),
     (Some(jig::rows::ROLE_LIST_AT), "help_role_list"),
     (Some(jig::rows::ROLE_SHOW_AT), "help_role_show"),
@@ -60,6 +61,9 @@ const GOLDENS: &[(Option<u8>, &str)] = &[
     (Some(jig::rows::WORKER_ADD_AT), "help_worker_add"),
     (Some(jig::rows::WORKER_PLACES_AT), "help_worker_places"),
     (Some(jig::rows::WORKER_REMOVE_AT), "help_worker_remove"),
+    (Some(jig::rows::WORKER_PAUSE_AT), "help_worker_pause"),
+    (Some(jig::rows::WORKER_DRAIN_AT), "help_worker_drain"),
+    (Some(jig::rows::WORKER_RESUME_AT), "help_worker_resume"),
 ];
 #[test]
 fn the_help_is_the_page_ctl_then_the_tools() {
@@ -523,6 +527,12 @@ fn the_playground_push_and_deployment_references_are_what_the_table_renders() {
     reference_matches(b"push", b"ctl-push");
     reference_matches(b"deployment", b"ctl-deployment");
 }
+mod reference {
+    #[test]
+    fn the_reference_documents_match_the_table() {
+        super::reference_matches(b"worker", b"ctl-worker");
+    }
+}
 fn reference_matches(group_name: &[u8], page_name: &[u8]) {
     let mut group = None;
     for candidate in table::GROUPS {
@@ -560,6 +570,7 @@ fn the_proposal_reference_is_what_the_table_renders() {
 #[test]
 fn the_goal_reference_is_what_the_table_renders() {
     reference_matches(b"goal", b"ctl-goal");
+    reference_matches(b"finding", b"ctl-finding");
     reference_matches(b"role", b"ctl-role");
     reference_matches(b"milestone", b"ctl-milestone");
 }

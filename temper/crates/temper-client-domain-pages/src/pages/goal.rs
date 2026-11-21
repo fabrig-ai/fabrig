@@ -1,10 +1,11 @@
 //! A goal's reads and pure page facts (temper/docs/design/client/pages/goal.md, 2).
 mod specification;
 use super::{Request, delegation, goals, report, task};
-use crate::owner::Owner;
+use crate::{Limits, forge, owner::Owner};
 use alloc::boxed::Box;
-use jig_client::{Client, Handle, Readable, Readout, Told, contract as c};
+use jig_client::{Client, Handle, Latest, Readable, Readout, Told, contract as c};
 use skein_lib::{Queue, Time, Wall, bytes};
+use temper_client_protocol_wire::v1 as w;
 
 /// A goal's direct delegates, cancelled ones left out.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -17,12 +18,16 @@ pub struct Counts {
 #[derive(Debug)]
 #[expect(
     clippy::partial_pub_fields,
-    reason = "the view reads the report and line; read bookkeeping belongs to the page"
+    reason = "the view reads the report, line and reds; read bookkeeping belongs to the page"
 )]
 pub struct Goal {
     pub report: Option<report::Report>,
     pub line: Option<c::TaskLine>,
     pub draft: (Option<Box<[u8]>>, Option<u64>),
+    pub reds: Box<[w::FindingRow]>,
+    pub reds_cut: bool,
+    findings_handle: Option<Handle>,
+    forge_limits: forge::Limits,
     requester: Option<super::inbox::TaskRead>,
     specification: Option<specification::Specification>,
     spec_revision: c::Revision,
@@ -42,7 +47,17 @@ pub struct Goal {
     ended_group: bool,
 }
 impl Goal {
-    pub(super) fn new(task: &c::Task, text_bound: u32, next: &mut u64, out: &mut Queue<Request>) -> Self {
+    pub(super) fn new(task: &c::Task, limits: &Limits, next: &mut u64, out: &mut Queue<Request>) -> Self {
+        let text_bound = limits.client.domain.long_text;
+        let findings_handle =
+            if let Some(subject) = forge::findings::goal_watching(task.project, task.chip.task, &limits.forge) {
+                let handle = handle(*next);
+                *next = next.checked_add(1).expect("goal handles fit");
+                out.push(Request::Client(jig_client::Event::Watch { handle, subject }));
+                Some(handle)
+            } else {
+                None
+            };
         let report_handle = handle(*next);
         *next = next.checked_add(1).expect("goal handles fit");
         let line_handle = handle(*next);
@@ -55,6 +70,10 @@ impl Goal {
             text_bound,
             report: None,
             line: None,
+            reds: Box::default(),
+            reds_cut: false,
+            findings_handle,
+            forge_limits: limits.forge,
             report_handle,
             line_handle,
             project: task.project,
@@ -140,6 +159,17 @@ impl Goal {
             return true;
         }
         match told {
+            Told::Changed { handle } if Some(*handle) == self.findings_handle => {
+                if let Some(document) = client.document(*handle)
+                    && let Some(Latest::Family(record)) = document.latest
+                    && let Some(document) = forge::findings::document(record, &self.forge_limits)
+                    && document.project == self.project
+                {
+                    self.reds = forge::findings::uncleared_first(document.rows.as_slice());
+                    self.reds_cut = document.cut;
+                }
+                true
+            }
             Told::Page { handle, page } if *handle == self.report_handle => {
                 if let Some(at) = self.reporting.take() {
                     self.report_at = Some(at);
@@ -210,6 +240,9 @@ impl Goal {
         }
         if let Some(requester) = &self.requester {
             requester.leave(out);
+        }
+        if let Some(handle) = self.findings_handle {
+            out.push(Request::Client(jig_client::Event::Unwatch { handle }));
         }
         for handle in [self.report_handle, self.line_handle] {
             out.push(Request::Client(jig_client::Event::Unwatch { handle }));

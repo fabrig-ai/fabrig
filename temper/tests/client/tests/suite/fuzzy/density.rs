@@ -915,7 +915,7 @@ fn generate(seed: u64) -> World {
     world.drain();
     world.family(
         forge::forges::watch(&limits.forge),
-        wire::forges(&w::Forges { forges: List::with_capacity(0), linked: false }),
+        wire::forges(&w::Forges { forges: List::with_capacity(0), full: List::with_capacity(0), linked: false }),
     );
     world.dismissals();
     world.entries = (10..=13).map(|task| entry(task, world.project_of(task))).collect();

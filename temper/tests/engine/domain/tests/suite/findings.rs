@@ -207,7 +207,9 @@ fn watch(driver: &mut Driver, state: Option<forge::FindingState>, mine: bool) {
         subject: Watched::Application {
             scope: people::ApplicationScope::Project(1),
             connector: 0,
-            subject: Token::new(forge::findings_subject(1, state, mine)),
+            subject: Token::new(
+                forge::findings_subject(1, forge::FindingsFilter::Triage { state, mine }).expect("triage key"),
+            ),
         },
         window: Window { rows: 128, after: None },
     }));

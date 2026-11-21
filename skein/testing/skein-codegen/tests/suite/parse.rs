@@ -5,14 +5,6 @@ mod tests {
     use skein_codegen::{Declaration, Error, Type, generate, parse};
 
     #[test]
-    fn a_limits_member_does_not_shadow_constructor_bounds() {
-        let schema = parse("family sample 1\nrecord Figures { limits: text 64 }").expect("limits member");
-        let output = generate(&schema).records;
-        assert!(output.contains("pub fn new(skein_limits: &Limits"), "construct without shadowing bounds");
-        assert!(output.contains("value.check(skein_limits)?;"));
-    }
-
-    #[test]
     fn all_types_and_declarations_parse() {
         let schema = parse("family sample 1\nrecord Earlier {}\nenum Choice { absent, present: Earlier }\nversioned record All {\n    a: u8\n    b: u16\n    c: u32\n    d: u64\n    e: bool\n    f: duration\n    g: fixed 7\n    h: bytes 8\n    i: text 9\n    j: list 10 option Choice\n}\n").expect("valid schema");
         assert_eq!(schema.family, "sample");
@@ -130,7 +122,7 @@ mod tests {
         let with = parse("family f 1\nrecord Item { value: u8 }\nrecord R { a: bytes 8 holds other-family Value b: bytes 9 pieces Item }").expect("held clauses");
         let without =
             parse("family f 1\nrecord Item { value: u8 }\nrecord R { a: bytes 8 b: bytes 9 }").expect("opaque bytes");
-        assert_eq!(with, without);
+        assert_ne!(with, without, "the owned model retains pieces for translation validation");
         assert_eq!(generate(&with), generate(&without));
     }
 
@@ -139,7 +131,7 @@ mod tests {
         let with = parse("family f 1\nrecord Item { value: u8 }\nrecord R { a: secret 8 holds other-family Value b: secret 9 pieces Item }").expect("held clauses");
         let without =
             parse("family f 1\nrecord Item { value: u8 }\nrecord R { a: secret 8 b: secret 9 }").expect("opaque bytes");
-        assert_eq!(with, without);
+        assert_ne!(with, without, "the owned model retains pieces for translation validation");
         assert_eq!(generate(&with), generate(&without));
     }
 

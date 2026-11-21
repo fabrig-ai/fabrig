@@ -873,6 +873,7 @@ fn untooled_root(named_worker: bool) -> d::Domain {
         )
         .unwrap();
         doc.worker_settings = List::from_boxed(Box::new([c::WorkerState {
+            pause: c::WorkerPause::Taking,
             number: 2,
             name: Box::from(b"box-2".as_slice()),
             places: 1,
@@ -1053,3 +1054,51 @@ fn an_offered_display_name_is_used_on_the_line() {
 }
 
 use super::fixtures::choice::{accounts, line_facts};
+
+#[test]
+fn a_worker_wait_names_the_worker_and_window_without_offering_account_repairs() {
+    for (named_worker, worker) in [(false, "worker 2"), (true, "worker box-2")] {
+        let root = untooled_root(named_worker);
+        for w in [fixtures::words(), fixtures::browser_words()] {
+            let until = skein_lib::Wall::from_nanos(63_600_000_000_000);
+            let wait = c::TaskRunWait::Worker { worker: 2, until };
+            let expected = format!("Waiting for {worker} to return, until 17:40");
+            let mut b = Builder::new(&fixtures::tree_limits());
+            b.open(Role::Page);
+            crate::choice::waiting(
+                &mut b,
+                &root,
+                &waiting_task(Some(wait)),
+                &w,
+                &mut crate::bindings::Bindings::new(32),
+                &mut crate::words::Times::new(until),
+            );
+            b.close();
+            let tree = b.finish();
+            assert!(
+                fixtures::find(&tree, Role::Paragraph, expected.as_bytes()).is_some(),
+                "{}",
+                String::from_utf8_lossy(&fixtures::text(&tree))
+            );
+            assert_eq!(crate::choice::wait_why(&root, &w, &wait).as_ref(), expected.as_bytes());
+            assert!(!tree.nodes().iter().any(|node| node.role == Role::Button || node.role == Role::Link));
+            assert!(!crate::choice::wait_settles(&wait));
+            for (word, expected) in [
+                (crate::words::Word::RunSuspendedStopped, format!("Run 4 suspended: {worker} stopped")),
+                (crate::words::Word::RunSuspendedRestarted, format!("Run 4 suspended: {worker} restarted without it")),
+            ] {
+                assert_eq!(
+                    w.say(
+                        word,
+                        &[
+                            skein_ui::phrases::Hole::Number(4),
+                            skein_ui::phrases::Hole::Name(crate::choice::run_worker(Some(&root), &w, 2))
+                        ]
+                    )
+                    .as_ref(),
+                    expected.as_bytes()
+                );
+            }
+        }
+    }
+}

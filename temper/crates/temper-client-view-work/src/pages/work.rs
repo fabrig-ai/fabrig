@@ -274,7 +274,7 @@ fn section(b: &mut Builder, words: &Words, word: Word, count: u32, quiet: Option
     }
 }
 
-fn card_view(
+pub(crate) fn card_view(
     b: &mut Builder,
     root: &Domain,
     words: &Words,

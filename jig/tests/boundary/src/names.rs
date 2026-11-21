@@ -282,7 +282,7 @@ pub(super) fn scan(path: &Path, source: &str, words: &[String], names: bool) -> 
                     prefix.chars().next_back().is_none_or(|ch| !(ch.is_alphanumeric() || ch == '_'))
                 }))
                 || (name == "typed"
-                    && path.ends_with("crates/jig-client-protocol-wire/schema/client-v40.schema")
+                    && path.ends_with("crates/jig-client-protocol-wire/schema/client-v42.schema")
                     && source[..start].ends_with("enum ApprovalKind { listener, returned, ")
                     && source[index..].starts_with(" }"));
             if !foreign_ip
@@ -352,7 +352,7 @@ fn approval_input_bound_keeps_its_contract_name_only_in_the_wire_module() {
 
 #[test]
 fn approval_kind_keeps_only_its_contract_member_name() {
-    let schema = "crates/jig-client-protocol-wire/schema/client-v40.schema";
+    let schema = "crates/jig-client-protocol-wire/schema/client-v42.schema";
     let declaration = "enum ApprovalKind { listener, returned, typed }";
     for (site, source, rejected) in [
         ("fixture/source.rs", "ApprovalKind::Typed", false),

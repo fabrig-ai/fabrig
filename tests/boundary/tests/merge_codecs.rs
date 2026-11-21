@@ -37,9 +37,18 @@ fn the_merge_list_reproduces_every_generated_codec() {
         assert!(previous.is_none_or(|path| path < module), "{module}: sorted, unique module paths");
         previous = Some(module);
         listed.insert(module.to_owned());
-        let schemas: Vec<_> = paths.collect();
+        let mut schemas: Vec<_> = paths.collect();
+        let maps = if schemas
+            .last()
+            .is_some_and(|path| Path::new(path).extension().is_some_and(|extension| extension == "maps"))
+        {
+            let path = schemas.pop().expect("last maps path");
+            assert!(relative(path), "{path}: repository-relative maps path");
+            Some(fs::read_to_string(root.join(path)).unwrap_or_else(|why| panic!("{path}: {why}")))
+        } else {
+            None
+        };
         let first = schemas.first().expect("each module lists at least one schema text");
-        let schema_path = root.join(first);
         let stem = Path::new(first).file_stem().expect("schema stem").to_str().expect("UTF-8 stem");
         let (stem, _) = stem.rsplit_once("-v").expect("schema version suffix");
         assert_eq!(
@@ -52,11 +61,12 @@ fn the_merge_list_reproduces_every_generated_codec() {
             source.push_str(&fs::read_to_string(root.join(schema)).unwrap_or_else(|why| panic!("{schema}: {why}")));
         }
         let schema = skein_codegen::parse(&source).unwrap_or_else(|why| panic!("{module}: {why:?}"));
-        let form = skein_codegen::form_of(schema_path.parent().expect("schema directory"), &schema.family)
-            .expect("family form readable");
-        let generated = skein_codegen::generate_as(&schema, form);
+        let generated = match maps {
+            Some(maps) => skein_codegen::translate(&schema, &maps).unwrap_or_else(|why| panic!("{module}: {why}")),
+            None => skein_codegen::generate(&schema).records,
+        };
         let committed = fs::read_to_string(root.join(module)).unwrap_or_else(|why| panic!("{module}: {why}"));
-        assert!(generated.records == committed, "{module}: listed schema texts do not reproduce committed module");
+        assert!(generated == committed, "{module}: listed schema texts do not reproduce committed module");
     }
     assert_eq!(listed, tracked, "the list names every tracked skein-codegen module and nothing else");
 }

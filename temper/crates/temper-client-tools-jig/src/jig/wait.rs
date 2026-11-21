@@ -18,6 +18,7 @@ pub(crate) struct Wait {
     pub(crate) until: Option<Condition>,
     since: Option<Digest>,
     first: Option<Digest>,
+    deadline: Time,
     me: bool,
     stage: Stage,
     name: &'static [u8],
@@ -45,7 +46,7 @@ struct TaskDocument {
 }
 impl Wait {
     fn answers(&self, digest: Digest, holds: Option<bool>) -> bool {
-        let verdict = match self.until {
+        let verdict = match &self.until {
             Some(_) => Some(holds == Some(true)),
             None => None,
         };
@@ -98,7 +99,7 @@ fn start_wait(
         Some(Condition::Replied)
     } else {
         match argument(row, &called.call, b"until") {
-            Some(Value::Condition(until)) => Some(*until),
+            Some(Value::Condition(until)) => Some(until.clone()),
             _ => None,
         }
     };
@@ -115,12 +116,13 @@ fn start_wait(
     let wait = Wait {
         called,
         handle,
-        until,
         since,
         first: None,
+        deadline,
         me: until == Some(Condition::WaitingOnMe)
             || until == Some(Condition::Replied)
             || (subject == c::Subject::Accounts && me.deployment_role == Some(c::HeldRole::Owner)),
+        until,
         stage: Stage::Watching,
         name,
         talk,
@@ -150,6 +152,7 @@ fn watch(
     Some(match subject {
         Subject::Me => (c::Subject::Me, b"me"),
         Subject::Accounts => (c::Subject::Accounts, b"accounts"),
+        Subject::Workers => (c::Subject::Deployment, b"workers"),
         Subject::Inbox => (c::Subject::Inbox { window }, b"inbox"),
         Subject::Task(task) => (c::Subject::Task { task: *task }, b"task"),
         Subject::Tree(task) => (c::Subject::Tree { task: *task, window }, b"tree"),
@@ -223,6 +226,10 @@ fn changed(runner: &mut Runner, client: &Client, env: &Env<Limits>, number: u32,
     if !watching(wait) {
         return;
     }
+    if env.now > wait.deadline {
+        complete(runner, client, env, number, Err(b"timeout"), out);
+        return;
+    }
     let Some(document) = client.document(wait.handle) else { return };
     if document.state != State::Live && document.state != State::Ended {
         return;
@@ -242,10 +249,10 @@ fn changed(runner: &mut Runner, client: &Client, env: &Env<Limits>, number: u32,
         let Some(part) = Part::delivery(delivery) else { return };
         digest::part(&part, &env.limits)
     };
-    let holds = match wait.until {
+    let holds = match &wait.until {
         Some(Condition::Changed) => Some(wait.first.is_some() && met(wait.since, wait.first, digest, None)),
         Some(until) => conditions::holds(
-            &until,
+            until,
             &Facts { subject: latest, me: live_me(client, Handle { asker: runner.asker, number: 0 }) },
         ),
         None => None,
@@ -529,7 +536,7 @@ fn terminal_page(
             }
             let latest = Latest::Jig(c::Delivery::Task(Box::new(task.clone())));
             let met = conditions::holds(
-                &wait.until.expect("finishing condition"),
+                wait.until.as_ref().expect("finishing condition"),
                 &Facts { subject: &latest, me: live_me(client, runner.me()) },
             ) == Some(true);
             let Latest::Jig(delivery) = latest else { unreachable!("jig task read") };

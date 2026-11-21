@@ -100,7 +100,12 @@ impl<A: crate::Application> Engine<A> {
         ask: &Ask,
         wall: Wall,
     ) -> core::result::Result<(Answer, Vec<crate::Change>), Invalid> {
-        if let Ask::ReadLists { .. } | Ask::ChangeSettings(_) | Ask::MoveToNewest(_) | Ask::Restore { .. } = ask {
+        if let Ask::ReadLists { .. }
+        | Ask::ChangeSettings(_)
+        | Ask::PauseWorker { .. }
+        | Ask::MoveToNewest(_)
+        | Ask::Restore { .. } = ask
+        {
             let held = self.truth.frames.get(&party).and_then(|me| me.deployment_role);
             if !matches!(ask, Ask::Restore { .. } | Ask::ReadLists { .. })
                 && held != Some(jig_client_domain::contract::HeldRole::Owner)
@@ -363,6 +368,7 @@ impl<A: crate::Application> Engine<A> {
             | Ask::ReadLists { .. }
             | Ask::ChangeModel(_)
             | Ask::ChangeSettings(_)
+            | Ask::PauseWorker { .. }
             | Ask::MoveToNewest(_)
             | Ask::Restore { .. }
             | Ask::MakeProject { .. }
@@ -431,6 +437,7 @@ impl<A: crate::Application> Engine<A> {
                 | Ask::ReadLists { .. }
                 | Ask::ChangeModel(_)
                 | Ask::ChangeSettings(_)
+                | Ask::PauseWorker { .. }
                 | Ask::MoveToNewest(_)
                 | Ask::Restore { .. }
                 | Ask::MakeProject { .. }
@@ -529,6 +536,7 @@ impl<A: crate::Application> Engine<A> {
             | Ask::ReadLists { .. }
             | Ask::ChangeModel(_)
             | Ask::ChangeSettings(_)
+            | Ask::PauseWorker { .. }
             | Ask::MoveToNewest(_)
             | Ask::Restore { .. }
             | Ask::MakeProject { .. }
@@ -672,6 +680,7 @@ fn target(ask: &Ask) -> Option<Target> {
         | Ask::ReadLists { .. }
         | Ask::ChangeModel(_)
         | Ask::ChangeSettings(_)
+        | Ask::PauseWorker { .. }
         | Ask::MoveToNewest(_)
         | Ask::Restore { .. }
         | Ask::MakeProject { .. }

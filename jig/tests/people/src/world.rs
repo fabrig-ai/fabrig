@@ -643,6 +643,7 @@ impl World {
                         | Ask::Rename { .. }
                         | Ask::MakeProject { .. }
                         | Ask::ChangeSettings { .. }
+                        | Ask::PauseWorker { .. }
                         | Ask::MoveToNewest { .. }
                         | Ask::ChangePolicy { .. }
                         | Ask::SetPool { .. }
@@ -1071,6 +1072,7 @@ impl World {
                                         | Ask::Rename { .. }
                                         | Ask::MakeProject { .. }
                                         | Ask::ChangeSettings { .. }
+                                        | Ask::PauseWorker { .. }
                                         | Ask::MoveToNewest { .. }
                                         | Ask::ChangePolicy { .. }
                                         | Ask::SetPool { .. }
@@ -1102,6 +1104,7 @@ impl World {
                             | Ask::Rename { .. }
                             | Ask::MakeProject { .. }
                             | Ask::ChangeSettings { .. }
+                            | Ask::PauseWorker { .. }
                             | Ask::MoveToNewest { .. }
                             | Ask::ChangePolicy { .. }
                             | Ask::SetPool { .. }

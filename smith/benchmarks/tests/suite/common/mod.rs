@@ -1,4 +1,4 @@
-pub use smith_bench_fixtures::events;
+pub use smith_bench_fixtures::common::*;
 
 #[cfg(target_os = "linux")]
 use std::path::Path;
@@ -42,51 +42,3 @@ pub fn unexecuted_arm(directory: &Path, repository: &Path) -> smith_bench::arm::
     std::fs::write(path.join("arm.json"), serde_json::to_vec(&arm).expect("manifest")).expect("fixture manifest");
     smith_bench::arm::read_build(&path.join("smith")).expect("manifest verification")
 }
-
-#[must_use]
-pub fn calibration(task: &smith_bench::Task) -> smith_bench::Calibration {
-    use sha2::{Digest, Sha256};
-    smith_bench::Calibration {
-        binary: "a".repeat(40),
-        binary_sha256: "b".repeat(64),
-        date: "2026-10-14".into(),
-        summary: "summaries/calibration.json".into(),
-        attempts: 10,
-        passes: (1..=10).map(|index| format!("recorded-run/{index:02}")).collect(),
-        deviations: vec![],
-        control: "c".repeat(40),
-        failed_before: vec!["control-run/01".into()],
-        prompt_sha256: format!("{:x}", Sha256::digest(task.prompt.as_bytes())),
-        seed_sha256: task.seed_sha256.clone(),
-        checks_sha256: task.checks_sha256().expect("checks digest"),
-    }
-}
-
-#[must_use]
-pub fn task(name: &str) -> smith_bench::Task {
-    let root = repository();
-    smith_bench::check_task(&root.join("tasks").join(name).join("task.toml"), &root.join("../docs/design"))
-        .expect("authored task and frozen seed")
-}
-
-#[must_use]
-pub fn repository() -> std::path::PathBuf {
-    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-}
-
-#[must_use]
-pub fn attempt() -> smith_bench::AttemptResult {
-    smith_bench::read_result(&repository().join("tests/recorded/results/attempt.json")).expect("recorded attempt")
-}
-
-mod observe;
-pub use observe::{captured, observe};
-
-pub use smith_bench_fixtures::request::request;
-
-pub mod edit;
-
-pub use smith_bench_fixtures::json;
-
-mod tool;
-pub use tool::tool_pair;

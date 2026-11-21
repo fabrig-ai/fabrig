@@ -1,0 +1,11 @@
+worker drain WORKER
+  WORKER (worker): a worker name: ASCII letters, digits, -, _ or ., starting with a letter or digit, at most 128 bytes; required. The live worker's name
+Ask a linked worker to take no new work and drain
+Prints: `worker WORKER: asked to drain`, then `worker list --until drained:WORKER`
+--json: the record pause_worker.
+Key: none.
+Each run stops at its turn's end; what is left is cut at the worker's
+drain bound. A drained worker stays linked and takes nothing until
+worker resume or its stop, which then finds nothing to drain.
+An older build is kept from new work but not drained.
+An ask is no settings change: no key, no revision, no retry.

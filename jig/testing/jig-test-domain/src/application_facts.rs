@@ -4,7 +4,8 @@ use jig_test_connector::application_core as application;
 
 pub(super) fn refusal(value: people::Refusal) -> application::Refusal {
     match value {
-        people::Refusal::Concluded { .. }
+        people::Refusal::Unlinked { .. }
+        | people::Refusal::Concluded { .. }
         | people::Refusal::Forgotten { .. }
         | people::Refusal::Judged { .. }
         | people::Refusal::NotWellFormed { why: people::Malformed::Name(_), .. }

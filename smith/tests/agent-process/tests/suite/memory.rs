@@ -37,6 +37,7 @@ fn full_context() -> Box<[u8]> {
 fn maximum_run_context_and_provider_completion_fit_each_process_at_every_iteration() {
     let mut context = World::new(7, &full_context());
     context.signal();
+    context.cancel_after_signal();
     context.check_memory();
     assert!(context.settle());
     assert!(context.observed().iter().any(|frame| frame.kind == 0x0106), "full context was admitted, not refused");

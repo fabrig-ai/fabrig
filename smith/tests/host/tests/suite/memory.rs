@@ -136,6 +136,7 @@ impl Measured {
                 Output::Parent(_)
                 | Output::Process(
                     process::Request::Read { .. }
+                    | process::Request::CloseChannel { .. }
                     | process::Request::Signal { .. }
                     | process::Request::Wait { .. }
                     | process::Request::Reap { .. },
@@ -363,7 +364,8 @@ fn delivery_replies_and_shutdown_rights_stay_priced() {
     measured.fire(5);
     measured.fire(15);
     measured.fire(17);
-    measured.cleanup(owner, 2, false);
+    // Termination now retains the cancel send terminal as well as both signal terminals.
+    measured.cleanup(owner, 2, true);
     assert_eq!(measured.domain.agents(), 1);
     measured.step(
         Input::Parent(parent::Event::Answer {

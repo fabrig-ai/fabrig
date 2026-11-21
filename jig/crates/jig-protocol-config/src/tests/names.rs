@@ -28,6 +28,30 @@ fn each_line_is_within_its_bound() {
 }
 
 #[test]
+fn live_limits_are_exactly_those_read_at_each_use() {
+    use names::Applies;
+    let live = [
+        "hub.accounts",
+        "hub.event_bytes",
+        "hub.turn_queue_bytes",
+        "link.backoff_ms",
+        "link.busy_ms",
+        "link.ceiling_ms",
+        "link.handshake_ms",
+        "link.hello_ms",
+        "link.proved_ms",
+        "link.stall_ms",
+    ];
+    for row in &names::NAMES {
+        let expected = if live.contains(&row.name) { Applies::Live } else { Applies::NextStart };
+        assert_eq!(row.applies, expected, "{}", row.name);
+    }
+    for name in live {
+        assert_eq!(names::find(name.as_bytes()).expect("live name exists").applies, Applies::Live);
+    }
+}
+
+#[test]
 fn an_unknown_name_is_refused() {
     let stock = crate::stock();
     for name in [

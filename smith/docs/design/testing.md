@@ -784,14 +784,21 @@ tests/local-process              simulated world: the local host and its peers
 tests/real                       the real loop
 tests/fake-claude                smith-fake-claude: the fake program a program backend runs (section 4)
 tests/transcript-patches         the transcript patches' fixture family (protocol/transcript.md, section 12)
-tests/*/tests/suite/             a world's focused tests: one suite binary per world
+tests/machine/tests/simulated/   machine seam checks and fake-kernel stories: step + simulated
+tests/machine/tests/suite/       real file io, jobs and synchronous rg children
+tests/fake-claude/tests/simulated/ encodings and the hosted fake: step + simulated
+tests/fake-claude/tests/suite/    the fake executables, real files and signals
+tests/*/tests/suite/             a world's focused tests, apart from its split binaries
 tests/*/tests/suite/fuzzy/       its fuzzy tests
 tests/end-to-end/end_to_end.rs   end to end against fakes: a package target, with its modules beside it
 tests/end-to-end/live.rs         the live suite: a package target
-tests/end-to-end/live_configuration.rs  the live configuration's focused checks: a package target
-tests/end-to-end/support/        their shared setup
+tests/end-to-end/live_configuration.rs  real credential-file controls and the shipped smith check
+tests/step/                      offline configuration controls: the step package target
+testing/smith-end-to-end-kit/     their shared setup, compiled once
 testing/<crate>-fixtures         a crate's fixtures for other crates' tests and its own integration tests
 benchmarks/                      smith-bench, the benchmark harness (benchmarks.md)
+benchmarks/tests/step/           offline harness checks and recorded parsers
+benchmarks/tests/suite/          scratch files, real clocks, git and replay command processes
 ```
 
 - **A crate's fixtures** (skein/docs/foundation/cli.md, 3): the small

@@ -161,6 +161,26 @@ as every change's does (`settings.md`, 2).
   worker (`fleet.md`), since its next opening is refused.
 - **Up or down is its link's,** as the fleet keeps it: up while it has
   an admitted channel, down once that channel is lost.
+- **Paused, drained and taking again** (temper's
+  `draft/worker-restarts.md`, section 2). An owner asks a linked worker
+  to take no new work, to drain, or to take work again:
+
+  ```rust
+  // jig_client_domain::contract, and its twin in the core's asks
+  pub enum WorkerPauseMode { Resume, Pause, Drain } // the client's names for jig_domain_link::PauseMode
+  pub enum Ask { /* ... */ PauseWorker { worker: u32, mode: WorkerPauseMode } } // worker: its setting's number
+  ```
+
+  It is no settings change: no revision, no key, nothing stored, and
+  asked again it is asked again, the last ask standing. The core hands
+  it to the fleet, which asks the worker's channel and stops placing on
+  it (`fleet.md`, *A paused worker leaves placement too*;
+  `../../protocol/channel/pause.md`). It is answered at once: accepted
+  once the fleet has it, or refused, *unlinked*, when the fleet holds no
+  admitted channel of that worker, or *not theirs*, as any act an owner
+  alone may make. What the worker does next is read from the deployment
+  document (6). Its restart ends its pause: its next channel starts
+  taking.
 
 ## 6. What a client reads
 
@@ -177,9 +197,19 @@ as every change's does (`settings.md`, 2).
       pub withdrawn: bool,
       pub linked: bool,        // the fleet holds an admitted channel of it, draining or not
       pub since: Option<Wall>, // linked: that channel's admission; else its last channel's loss
+      pub pause: WorkerPause,  // that channel's pause (5); taking when not linked
   }
+  pub enum WorkerPause { Taking, Paused, Draining, Drained }
   pub struct Deployment { /* ... */ pub worker_settings: List<WorkerState> }
   ```
+
+  `pause` is the worker's last word on its channel (`fleet.md`), but
+  *paused* where the fleet was asked to pause or drain it and the
+  worker has said nothing since, or still says taking: so a worker whose
+  version cannot hear the ask reads *paused*, as the fleet places
+  nothing on it, and never *draining*. `WorkerPause` is the client's
+  projection of `jig_domain_link::PauseState`, kept because the
+  client's contract names no domain crate.
 
   `since` is none for a worker no channel of which was admitted since
   the engine started: the fleet keeps it in memory, per worker, and a
@@ -205,6 +235,10 @@ as every change's does (`settings.md`, 2).
 - **The worker channel's wire** keeps its version: its credential and
   its reasons are as they were, and only the reason a refused name is
   given changes (4).
+- **The pause** (5) moves the client wire again, unbridged, for
+  `Ask::PauseWorker`, its refusals and `WorkerState.pause`; and the
+  worker channel's wire to 19, bridged (`../../protocol/channel/pause.md`,
+  2).
 - **The engine's document:** `engine.hosts.workers` is refused by name,
   "workers are settings in the store", as `engine.charters` is
   (`../../protocol/configuration.md`, section 3), and no digest file is

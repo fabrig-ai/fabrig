@@ -5,32 +5,16 @@ use skein_codec::Record;
 use skein_forge::api as d;
 use skein_lib::{List, Reader, Writer};
 pub(super) fn encode_permission(value: d::Permission) -> w::Permission {
-    match value {
-        d::Permission::None => w::Permission::None,
-        d::Permission::Read => w::Permission::Read,
-        d::Permission::Write => w::Permission::Write,
-        d::Permission::Admin => w::Permission::Admin,
-    }
+    crate::generated::store::permission_to_record(&value, &super::Context::UNBOUNDED).expect(super::FITS)
 }
 pub(super) fn decode_permission(value: w::Permission) -> d::Permission {
-    match value {
-        w::Permission::None => d::Permission::None,
-        w::Permission::Read => d::Permission::Read,
-        w::Permission::Write => d::Permission::Write,
-        w::Permission::Admin => d::Permission::Admin,
-    }
+    crate::generated::store::permission_to_domain(value, &super::Context::UNBOUNDED).expect(super::FITS)
 }
 fn encode_branch_creation(value: d::BranchCreation) -> w::BranchCreation {
-    match value {
-        d::BranchCreation::Created => w::BranchCreation::Created,
-        d::BranchCreation::Exists => w::BranchCreation::Exists,
-    }
+    crate::generated::store::branch_creation_to_record(&value, &super::Context::UNBOUNDED).expect(super::FITS)
 }
 fn decode_branch_creation(value: w::BranchCreation) -> d::BranchCreation {
-    match value {
-        w::BranchCreation::Created => d::BranchCreation::Created,
-        w::BranchCreation::Exists => d::BranchCreation::Exists,
-    }
+    crate::generated::store::branch_creation_to_domain(value, &super::Context::UNBOUNDED).expect(super::FITS)
 }
 fn encode_reviewers(values: &[u64]) -> List<u64> {
     let mut result = List::with_capacity(u32::try_from(values.len()).expect("admitted count"));
@@ -87,19 +71,16 @@ pub(super) fn decode_pull(value: w::Pull) -> d::Pull {
     }
 }
 fn encode_step(value: &d::Step) -> w::Step {
-    w::Step { number: value.number, name: value.name.clone() }
+    crate::generated::store::step_to_record(value, &super::Context::UNBOUNDED).expect(super::FITS)
 }
 fn decode_step(value: w::Step) -> d::Step {
-    let w::Step { number, name } = value;
-    d::Step { number, name }
+    crate::generated::store::step_to_domain(value, &super::Context::UNBOUNDED).expect(super::FITS)
 }
 pub(super) fn encode_job_attempt(value: &d::JobAttempt) -> w::JobAttempt {
-    let d::JobAttempt { head, run, job, attempt } = value;
-    w::JobAttempt { head: *head, run: *run, job: *job, attempt: *attempt }
+    crate::generated::store::job_attempt_to_record(value, &super::Context::UNBOUNDED).expect(super::FITS)
 }
 pub(super) fn decode_job_attempt(value: w::JobAttempt) -> d::JobAttempt {
-    let w::JobAttempt { head, run, job, attempt } = value;
-    d::JobAttempt { head, run, job, attempt }
+    crate::generated::store::job_attempt_to_domain(value, &super::Context::UNBOUNDED).expect(super::FITS)
 }
 pub(super) fn encode(value: &d::Answer) -> w::Answer {
     match value {
@@ -574,12 +555,7 @@ fn encode_collaborators_answer(collaborators: &[d::Collaborator], more: bool) ->
 }
 
 fn directory_entry(value: &d::Entry) -> w::DirectoryEntry {
-    let kind = match value.kind {
-        d::EntryKind::File => w::DirectoryKind::File,
-        d::EntryKind::Directory => w::DirectoryKind::Directory,
-        d::EntryKind::Submodule => w::DirectoryKind::Submodule,
-    };
-    w::DirectoryEntry { name: value.name.clone(), kind }
+    crate::generated::store::directory_entry_to_record(value, &super::Context::UNBOUNDED).expect(super::FITS)
 }
 fn encode_directory(values: &[d::Entry]) -> Box<[u8]> {
     let mut size = 0_usize;
@@ -618,12 +594,40 @@ fn decode_directory(bytes: &[u8], bounds: &Bounds, mut room: u32) -> Result<Box<
             .checked_add(width)
             .ok_or(Undecodable::Malformed)?;
         room = room.checked_sub(charge).ok_or(Undecodable::Malformed)?;
-        let kind = match kind {
-            w::DirectoryKind::File => d::EntryKind::File,
-            w::DirectoryKind::Directory => d::EntryKind::Directory,
-            w::DirectoryKind::Submodule => d::EntryKind::Submodule,
-        };
+        let kind =
+            crate::generated::store::directory_kind_to_domain(kind, &super::Context::UNBOUNDED).expect(super::FITS);
         values.push(d::Entry { name, kind }).or(Err(Undecodable::Malformed))?;
     }
     Err(Undecodable::Malformed)
+}
+
+/// Owner-shaped `Protection` (skein/docs/design/data/codec/maps.md, 3.3).
+pub fn protection_to_record(
+    value: &skein_forge::api::Protection,
+    _context: &super::Context,
+) -> Result<w::Protection, w::Problem> {
+    Ok(encode_protection(value))
+}
+pub fn protection_to_domain(
+    value: w::Protection,
+    context: &super::Context,
+) -> Result<skein_forge::api::Protection, w::Problem> {
+    decode_protection(value, context.bounds())
+        .or(Err(w::paths::PROTECTION_BRANCH.problem(skein_codec::Reason::Malformed)))
+}
+
+/// Owner-shaped `Pull` (skein/docs/design/data/codec/maps.md, 3.3).
+pub fn pull_to_record(value: &skein_forge::api::Pull, _context: &super::Context) -> Result<w::Pull, w::Problem> {
+    Ok(encode_pull(value))
+}
+pub fn pull_to_domain(value: w::Pull, _context: &super::Context) -> Result<skein_forge::api::Pull, w::Problem> {
+    Ok(decode_pull(value))
+}
+
+/// Owner-shaped `Answer` (skein/docs/design/data/codec/maps.md, 3.3).
+pub fn answer_to_record(value: &d::Answer, _context: &super::Context) -> Result<w::Answer, w::Problem> {
+    Ok(encode(value))
+}
+pub fn answer_to_domain(value: w::Answer, context: &super::Context) -> Result<d::Answer, w::Problem> {
+    decode(value, context.bounds()).or(Err(w::paths::ANSWER_TAG.problem(skein_codec::Reason::Malformed)))
 }

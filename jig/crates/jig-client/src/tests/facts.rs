@@ -370,6 +370,10 @@ fn run_wait_status_only_replaces_an_unplaced_starting_chat() {
         (TaskRunWait::Account { account: None, source: None, why: TaskWaitWhy::Empty }, RunWaitKind::Account),
         (TaskRunWait::Credential, RunWaitKind::Credential),
         (TaskRunWait::Host, RunWaitKind::Host),
+        (
+            TaskRunWait::Worker { worker: 2, until: skein_lib::Wall::from_nanos(37) },
+            RunWaitKind::Worker { worker: 2, until: skein_lib::Wall::from_nanos(37) },
+        ),
     ] {
         for row in &rows() {
             let chip = facts_chip(row.phase.clone(), row.work.clone());

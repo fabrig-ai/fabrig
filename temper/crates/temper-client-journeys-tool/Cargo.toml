@@ -11,6 +11,7 @@ name = "suite"
 path = "tests/suite/main.rs"
 
 [dependencies]
+jig-client-protocol-wire.workspace = true
 temper-config-shell.workspace = true
 temper-engine-service-startup.workspace = true
 temper-worker-service.workspace = true
@@ -38,7 +39,6 @@ skein-forge.workspace = true
 skein-ui-screen.workspace = true
 skein-ui-web.workspace = true
 temper-client-journeys-kit.workspace = true
-jig-client-protocol-wire.workspace = true
 jig-client-shell-web.workspace = true
 jig-client-test-records.workspace = true
 serde_json.workspace = true

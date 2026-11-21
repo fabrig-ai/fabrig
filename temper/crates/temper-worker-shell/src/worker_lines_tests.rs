@@ -242,12 +242,62 @@ fn worker_aborted_words_and_exit_keep_their_behavior() {
 }
 
 #[test]
+fn worker_figures_notes_print_each_part_on_one_bounded_line() {
+    use jig_protocol_worker_wire::Limit;
+    use temper_worker_service::worker_alone::Note;
+    let figure = |name: &str, value| Limit { name: name.as_bytes().into(), value };
+    assert_eq!(
+        worker_note_words(
+            BINARY,
+            Note::FiguresTaken {
+                figures: Box::new([
+                    figure("checkout.remote_timeout_ms", 600_000),
+                    figure("checkout.local_timeout_ms", 20_000)
+                ]),
+            },
+        ),
+        "the engine's figures changed; taken live: checkout.remote_timeout_ms 600000, checkout.local_timeout_ms 20000\n"
+    );
+    assert_eq!(
+        worker_note_words(
+            BINARY,
+            Note::FiguresWaiting {
+                figures: Box::new([
+                    figure("hub.turn_bytes", 2_097_152),
+                    figure("places", 5),
+                    figure("agents.profile.declared.tool_payload", 63_000),
+                    figure("link.ping_ms", 20_000),
+                    figure("link.silence_ms", 60_000),
+                    figure("io.output", 1024),
+                    figure("checkout.repositories", 2),
+                    figure("checkout.workspaces", 5),
+                    figure("git_component.operations", 5),
+                    figure("hub.inbox", 2),
+                ]),
+            },
+        ),
+        concat!(
+            "the engine's figures changed; at this worker's next start: hub.turn_bytes 2097152, places 5, ",
+            "agents.profile.declared.tool_payload 63000, link.ping_ms 20000, link.silence_ms 60000, ",
+            "io.output 1024, checkout.repositories 2, checkout.workspaces 5, and 2 more\n",
+        )
+    );
+    assert_eq!(
+        worker_note_words(
+            BINARY,
+            Note::FiguresRefused { problem: b"the engine's figures: git_component.stdout_bytes 1024: 1024 bytes, short of checkout.conflicts * (checkout.path_bytes + 1), 70000 bytes".as_slice().into() },
+        ),
+        concat!(
+            "the engine's figures changed; not taken live: the engine's figures: git_component.stdout_bytes 1024: ",
+            "1024 bytes, short of checkout.conflicts * (checkout.path_bytes + 1), 70000 bytes; ",
+            "they apply at this worker's next start\n",
+        )
+    );
+}
+
+#[test]
 fn worker_link_notes_print_each_address_and_refusal_exactly() {
     use temper_worker_service::{Refusal, worker_alone::Note};
-    assert_eq!(
-        worker_note_words("temper-worker", Note::FiguresChanged),
-        "the engine's figures changed; they apply at this worker's next start\n"
-    );
     for (address, printed) in
         [(([127, 0, 0, 1], 7100).into(), "127.0.0.1:7100"), (([0, 0, 0, 0, 0, 0, 0, 1], 7100).into(), "[::1]:7100")]
     {
@@ -364,10 +414,58 @@ fn job_stderr_forms_escape_and_bound_their_why() {
     }
 }
 
+fn pause_line(state: jig_domain_link::PauseState) -> String {
+    worker_note_words(BINARY, worker::Note::Paused { state, drain: skein_lib::Duration::from_secs(180) })
+}
+
+#[test]
+fn pause_words_say_no_new_run_or_job_as_the_engine_asked() {
+    assert_eq!(
+        pause_line(jig_domain_link::PauseState::Paused),
+        "temper-worker worker: paused: no new run or job, as the engine asked\n"
+    );
+}
+
+#[test]
+fn drain_words_name_the_stock_bound_from_the_engine_ask() {
+    assert_eq!(
+        pause_line(jig_domain_link::PauseState::Draining),
+        "temper-worker worker: draining: each run stops at its turn's end, the rest cut in 180 s, as the engine asked\n"
+    );
+}
+
+#[test]
+fn drained_words_say_a_stop_now_loses_nothing() {
+    assert_eq!(
+        pause_line(jig_domain_link::PauseState::Drained),
+        "temper-worker worker: drained: no run or job left; a stop now loses nothing\n"
+    );
+}
+
+#[test]
+fn resume_words_say_taking_work_again_as_the_engine_asked() {
+    assert_eq!(
+        pause_line(jig_domain_link::PauseState::Taking),
+        "temper-worker worker: taking work again, as the engine asked\n"
+    );
+}
+
 #[test]
 fn restart_words_name_how_long_runs_are_kept_after_loss() {
     assert_eq!(
         worker_note_words("custom", worker::Note::Restarting { keep: skein_lib::Duration::from_millis(1_200_000) }),
         "custom worker: the engine said it restarts: runs kept up to 1200000 ms after the link drops\n"
     );
+}
+
+#[test]
+fn an_agents_signal_line_leaves_its_stop_to_the_worker() {
+    for (from, sender) in [(Some(42), "pid 42"), (None, "an unknown sender")] {
+        assert_eq!(
+            worker_note_words(BINARY, worker::Note::AgentSignalled { run: 7, attempt: 2, signal: "SIGTERM", from }),
+            format!(
+                "{BINARY} worker: run 7 attempt 2: its agent heard SIGTERM from {sender}; its stop is the worker's\n"
+            )
+        );
+    }
 }

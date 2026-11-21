@@ -118,6 +118,29 @@ impl Domain {
         self.worker_names.get(worker)
     }
 
+    /// The admitted channel of a worker position, including a paused channel.
+    #[must_use]
+    pub fn worker_channel(&self, worker: u32) -> Option<Token> {
+        for (_, id) in &self.tokens {
+            let channel = self.channels.get(*id).expect("named channel");
+            if channel.worker == Some(worker) {
+                return Some(channel.token);
+            }
+        }
+        None
+    }
+
+    /// The document's pause is taking when this worker is not linked (workers.md, 6).
+    #[must_use]
+    pub fn worker_pause(&self, worker: u32) -> jig_domain_link::PauseState {
+        match self.worker_channel(worker) {
+            Some(token) => {
+                self.channels.get(*self.tokens.get(&token).expect("named channel")).expect("named channel").pause()
+            }
+            None => jig_domain_link::PauseState::Taking,
+        }
+    }
+
     /// Link observations survive channel retirement, not an engine restart (workers.md, 6).
     #[must_use]
     pub fn worker_link(&self, name: &[u8]) -> (bool, Option<skein_lib::Wall>) {
@@ -169,6 +192,8 @@ impl Domain {
                 slots: limits.engine_slots,
                 draining: false,
                 shutting_down: false,
+                pause_mode: jig_domain_link::PauseMode::Resume,
+                pause_state: jig_domain_link::PauseState::Taking,
                 mismatched: false,
                 untranslated: List::uncapped(),
                 untooled: Map::uncapped(),
@@ -257,6 +282,7 @@ impl Domain {
     }
 
     /// Read-only bounded placement over this run's requirements, preserving affinity.
+    /// `worker`, when present, restricts it to that worker's position (executors.md, 6.4).
     #[must_use]
     pub fn probe(
         &self,
@@ -265,8 +291,9 @@ impl Domain {
         version: crate::Version,
         models: &[crate::ModelNeed],
         excluded: &[Token],
+        worker: Option<u32>,
     ) -> Option<crate::PlacementConstraint> {
-        channel::probe(self, workstream, kinds, version, models, excluded)
+        channel::probe(self, workstream, kinds, version, models, excluded, worker)
     }
 
     /// Latest observed refusal of an allowed kind, while no admitted, connected,
@@ -284,7 +311,10 @@ impl Domain {
                     EngineHello::Expected | EngineHello::Heard => false,
                 },
             };
-            if admitted && kinds.allows(host.kind) && !(host.draining || host.shutting_down || host.mismatched) {
+            if admitted
+                && kinds.allows(host.kind)
+                && !(host.draining || host.shutting_down || host.paused() || host.mismatched)
+            {
                 return None;
             }
         }
@@ -322,7 +352,13 @@ impl Domain {
                     EngineHello::Expected | EngineHello::Heard => false,
                 },
             };
-            if !admitted || !kinds.allows(host.kind) || host.draining || host.shutting_down || host.mismatched {
+            if !admitted
+                || !kinds.allows(host.kind)
+                || host.draining
+                || host.shutting_down
+                || host.paused()
+                || host.mismatched
+            {
                 continue;
             }
             crate::needs::version_shortfall(&self.needs, version, &host.evidence)?;
@@ -360,6 +396,12 @@ impl Domain {
     #[must_use]
     pub fn placement_available(&self, placement: crate::PlacementConstraint) -> bool {
         channel::constrained(self, placement, crate::Kinds::Both).is_some()
+    }
+    /// Worker position of a connected channel; engine hosts have none.
+    #[must_use]
+    pub fn channel_worker(&self, channel: Token) -> Option<u32> {
+        let id = *self.tokens.get(&channel)?;
+        self.channels.get(id)?.worker
     }
     /// Last sign-out results on this current channel, independent of login checks.
     #[must_use]
@@ -562,6 +604,8 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                 channel::mismatch(domain, id);
             }
         }
+        Event::PauseWorker { worker, mode } => channel::pause(domain, worker, mode, out),
+        Event::Paused { channel, state } => channel::paused(domain, channel, state),
         Event::Draining { channel } => channel::draining(domain, channel),
         Event::Untooled { run, channel, source } => crate::untooled::record(domain, run, channel, source),
         Event::Needs(needs) => {
@@ -605,7 +649,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Relay { channel, run, attempt, call } => {
             call::relay(domain, env, channel, run, attempt, call, out);
         }
-        Event::Adopt { reply_to, run, attempt, kept, kind, worked, holds, grants } => match kind {
+        Event::Adopt { reply_to, run, attempt, kept, kind, worked, holds, grants, worker } => match kind {
             HostKind::Engine => {
                 if worked {
                     out.push(Request::Lost { to: reply_to, run, attempt });
@@ -614,13 +658,13 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                 }
             }
             HostKind::Worker => {
-                if attempt::adopt(domain, env, reply_to, run, attempt, kept, out) {
+                if attempt::adopt(domain, env, reply_to, run, attempt, (kept, worker), out) {
                     crate::grants::keep(domain, env, run, attempt, &holds, &grants, out);
                 }
             }
         },
-        Event::Cross { reply_to, run, attempt, worked } => {
-            attempt::cross(domain, env, reply_to, run, attempt, worked, out);
+        Event::Cross { reply_to, run, attempt, worked, worker } => {
+            attempt::cross(domain, env, reply_to, run, attempt, (worked, worker), out);
         }
         Event::Cancel { run, attempt } => attempt::cancel(domain, run, attempt, out),
         Event::Interrupt { run, attempt } => attempt::interrupt(domain, run, attempt, out),

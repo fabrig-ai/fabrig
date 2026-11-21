@@ -241,7 +241,7 @@ fn amount(word: &[u8]) -> Option<u64> {
     }
     number(word)?.checked_mul(100)
 }
-fn worker_name(name: &[u8]) -> bool {
+pub(crate) fn worker_name(name: &[u8]) -> bool {
     let Some(first) = name.first() else { return false };
     if !first.is_ascii_alphanumeric() {
         return false;
@@ -279,6 +279,7 @@ fn hex(word: &[u8]) -> Option<Box<[u8]>> {
     }
     Some(out.finish())
 }
+#[expect(clippy::too_many_lines, reason = "value dispatch keeps named worker conditions beside the other conditions")]
 pub(crate) fn encode(table: &[&Tool], kind: Kind, value: &Value) -> Result<Box<[u8]>, Unwritten> {
     Ok(match value {
         Value::Number(n) if kind == Kind::Amount => {
@@ -360,6 +361,14 @@ pub(crate) fn encode(table: &[&Tool], kind: Kind, value: &Value) -> Result<Box<[
                 Condition::WaitingOnMe => b"waiting-on-me",
                 Condition::Held => b"held",
                 Condition::Replied => b"replied",
+                Condition::Drained(name) | Condition::Paused(name) => {
+                    let prefix: &[u8] = if let Condition::Drained(_) = condition { b"drained:" } else { b"paused:" };
+                    let mut out =
+                        Writer::new(name.len().checked_add(prefix.len()).ok_or(Unwritten::Overflow(Overflow))?);
+                    written(out.put(prefix))?;
+                    written(out.put(name))?;
+                    return Ok(out.finish());
+                }
                 Condition::Phase(phase) => {
                     let word = subject::phase_word(*phase);
                     let mut out = Writer::new(word.len().checked_add(6).ok_or(Unwritten::Overflow(Overflow))?);

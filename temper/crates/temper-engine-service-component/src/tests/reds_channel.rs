@@ -95,6 +95,7 @@ impl Channel {
             worker_read: None,
             cannot_send: None,
             hello: Some(jig_domain_link::Hello {
+                fresh: false,
                 reads_usage: true,
                 jobs: Box::new([]),
                 slots: 1,
@@ -151,6 +152,7 @@ impl Channel {
                     | engine::Request::Lost { .. }
                     | engine::Request::Ended { .. }
                     | engine::Request::FiguresTaken { .. }
+                    | engine::Request::Unpaused { .. }
                     | engine::Request::Told { .. }
                     | engine::Request::Closed) => panic!("engine channel: {other:?}"),
                 }

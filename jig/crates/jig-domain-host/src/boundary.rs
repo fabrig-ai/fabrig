@@ -55,6 +55,8 @@ pub enum Event {
     /// The root asks the hub to drain (domain/hosts/hub.md, 7): admit no more
     /// work and ask live runs to stop at their turn's end. Jobs run on.
     Drain,
+    /// The root's link-drain bound passed; cancel what remains without shutting down.
+    DrainPassed,
     /// From the top level: cancel every run hosted now, for `reason` (lost
     /// contact with the engine past its grace, or shutdown). The runs are
     /// cancelled one at a time, from the ready list. A root shutting down
@@ -98,6 +100,10 @@ pub enum Event {
 /// host -> parent
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    /// The link pause changed; the root times a drain independently of shutdown.
+    Paused {
+        state: jig_domain_link::PauseState,
+    },
     Asked {
         run: Token,
         attempt: Token,
@@ -674,6 +680,7 @@ impl Event {
                 | crate::LinkDown::Relayed { .. }
                 | crate::LinkDown::TurnKept { .. }
                 | crate::LinkDown::Acknowledge { .. }
+                | crate::LinkDown::Pause { .. }
                 | crate::LinkDown::Cancel { .. }
                 | crate::LinkDown::Grant { .. } => false,
             },
@@ -685,6 +692,7 @@ impl Event {
             | Event::SourceLost
             | Event::RelayCancelled { .. }
             | Event::Drain
+            | Event::DrainPassed
             | Event::CancelAll { .. }
             | Event::Prepared { .. }
             | Event::Unprepared { .. }

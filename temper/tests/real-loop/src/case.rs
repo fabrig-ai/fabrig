@@ -420,6 +420,9 @@ pub fn fixture_4_6() -> forge::Fixture {
         configure: |value, agent, forge| {
             (fixture_placed().configure)(value, agent, forge);
             value["world_settings"]["landing"]["projects"] = json!([]);
+            // This question-retention story keeps ws away until the retry ends.
+            // A zero restart window permits that retry on the other workers (executors.md, 6.4).
+            value.jig_over("fleet.restart_wait_ms", 0);
             // The retry path is the same, only its wait is short; the backoff is not what this story tests.
             value.jig_over("tasks.retries.agent.base_ms", 1);
             landing::admit(value);

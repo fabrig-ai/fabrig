@@ -135,6 +135,7 @@ pub fn client_sent(request: &ClientRequest) -> Option<Sent> {
                 | w::Ask::ReadLists(_)
                 | w::Ask::ChangeModel(_)
                 | w::Ask::ChangeSettings(_)
+                | w::Ask::PauseWorker(_)
                 | w::Ask::MoveToNewest(_)
                 | w::Ask::Restore(_)
                 | w::Ask::MakeProject(_)

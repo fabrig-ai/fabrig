@@ -4,6 +4,9 @@
 
 - **Not yet:** 3, *From a landed draft*: no landed draft opens the sheet,
   and no `started` is sent [in flight: change 664].
+- **Not yet:** 2: the page watches no `findings` filtered by its goal and
+  draws no "Reds after landing" [in flight: change 10365].
+- **Not yet:** 2: no `findings::stands` [in flight: change 10355].
 - **Departs:** 3: a party whose `me` gives the project no creating bound still
   sees a chat's "Start goal…" (`temper-client-view`'s `pages/chat_sheet.rs`, `bar`),
   and a press opens nothing (`pages/start_goal.rs`, `open`;

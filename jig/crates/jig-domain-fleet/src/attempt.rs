@@ -131,6 +131,8 @@ pub(crate) struct Attempt {
     pub(crate) kept: u32,
     /// Last lost channel, if this engine observed it; restored adoptions do not invent one.
     pub(crate) lost_host: Option<Token>,
+    /// Worker position retained across channel loss or restored from the claim's proof.
+    pub(crate) worker: Option<u32>,
     pub(crate) progress: Option<crate::Observation>,
     /// The parent's conversation state references for an assignment.
     pub(crate) assignment: Assignment,
@@ -181,7 +183,7 @@ pub(crate) enum State {
     Stray { at: Where, until: Option<Time> },
     /// A stray's answer, kept for its adoption until `until`, as a stray
     /// waits: its worker keeps it, and its slot.
-    Kept { answer: Answer, payload: Token, at: Where, until: Option<Time> },
+    Kept { answer: Answer, payload: Token, worker: Option<u32>, at: Where, until: Option<Time> },
     /// Cancelled for good, replaced or not adopted in time: whatever comes
     /// for it is dropped. It holds its run's next attempt back while a
     /// worker may host it.
@@ -343,7 +345,7 @@ pub(crate) fn start_job(
 ) {
     let Names { run, attempt } = names;
     let accepted = if restoring {
-        adopt(domain, env, to, run, attempt, 0, out)
+        adopt(domain, env, to, run, attempt, (0, None), out)
     } else {
         start(
             domain,
@@ -369,7 +371,7 @@ pub(crate) fn adopt(
     to: ReplyTo,
     run: Token,
     attempt: Token,
-    kept: u32,
+    (kept, worker): (u32, Option<u32>),
     out: &mut Queue<Request>,
 ) -> bool {
     let names = Names { run, attempt };
@@ -389,7 +391,9 @@ pub(crate) fn adopt(
             State::Adopted { to, until },
         );
         let id = *domain.names.get(&(run, attempt)).expect("inserted above");
-        domain.attempts.get_mut(id).expect("inserted above").kept = kept;
+        let entry = domain.attempts.get_mut(id).expect("inserted above");
+        entry.kept = kept;
+        entry.worker = worker;
         hold(domain, env, run, attempt);
         return true;
     };
@@ -427,7 +431,9 @@ pub(crate) fn adopt(
             &mut domain.facts,
             out,
         ),
-        State::Kept { answer, payload, at, until: _ } => handed(to, answer, payload, at, names, &mut domain.facts, out),
+        State::Kept { answer, payload, worker, at, until: _ } => {
+            handed(to, answer, payload, worker, at, names, &mut domain.facts, out)
+        }
         State::Waiting { .. }
         | State::Adopted { .. }
         | State::Claimed { .. }
@@ -492,7 +498,7 @@ pub(crate) fn cross(
     to: ReplyTo,
     run: Token,
     attempt: Token,
-    worked: bool,
+    (worked, position): (bool, Option<u32>),
     out: &mut Queue<Request>,
 ) {
     let names = Names { run, attempt };
@@ -511,6 +517,8 @@ pub(crate) fn cross(
             Assignment { turns: Token::new(0), answered: Token::new(0) },
             State::Crossed { to, at, listed: false, worked },
         );
+        let id = *domain.names.get(&(run, attempt)).expect("inserted above");
+        domain.attempts.get_mut(id).expect("inserted above").worker = position;
         hold(domain, env, run, attempt);
         return;
     };
@@ -541,7 +549,7 @@ pub(crate) fn cross(
             again(at, false, names, &domain.channels, out);
             State::Crossed { to, at, listed: true, worked }
         }
-        State::Kept { answer: _, payload, at, until: _ } => {
+        State::Kept { answer: _, payload, worker: _, at, until: _ } => {
             let state = forgotten(payload, at, names, &domain.channels, &mut domain.facts, out);
             let _closed = presumed(to, names, &mut domain.facts, out);
             state
@@ -580,7 +588,7 @@ pub(crate) fn cancel(domain: &mut Domain, run: Token, attempt: Token, out: &mut 
         State::Handed { at } => State::Handed { at },
         State::Acknowledged { until } => State::Acknowledged { until },
         State::Stray { at, until: _ } => fenced(at, names, &domain.channels, &mut domain.facts, out),
-        State::Kept { answer: _, payload, at, until: _ } => {
+        State::Kept { answer: _, payload, worker: _, at, until: _ } => {
             forgotten(payload, at, names, &domain.channels, &mut domain.facts, out)
         }
         State::Fenced { at } => State::Fenced { at },
@@ -736,7 +744,7 @@ pub(crate) fn listed(
         State::Handed { at: _ } => State::Handed { at: on },
         State::Acknowledged { until: _ } => acknowledged(channel, names, &domain.channels, out),
         State::Stray { at: _, until } => State::Stray { at: on, until },
-        State::Kept { answer, payload, at: _, until } => State::Kept { answer, payload, at: on, until },
+        State::Kept { answer, payload, worker, at: _, until } => State::Kept { answer, payload, worker, at: on, until },
         State::Fenced { at: _ } => {
             again(on, answered, names, &domain.channels, out);
             State::Fenced { at: on }
@@ -784,6 +792,7 @@ pub(crate) fn answer(
         return;
     };
     let on = Where::On(from);
+    let worker = domain.channels.get(from).expect("answering channel in contact").worker;
     let entry = domain.attempts.get_mut(id).expect("a named attempt is tracked");
     let before = implied(&entry.state);
     let state = mem::replace(&mut entry.state, State::Closed);
@@ -802,7 +811,7 @@ pub(crate) fn answer(
             | Answer::Failed { .. }
             | Answer::Invalid
             | Answer::Version
-            | Answer::Untranslated => handed(to, answer, payload, on, names, &mut domain.facts, out),
+            | Answer::Untranslated => handed(to, answer, payload, worker, on, names, &mut domain.facts, out),
         },
         State::Claimed { claiming, at: _ } => match answer {
             Answer::Busy => {
@@ -815,7 +824,7 @@ pub(crate) fn answer(
             | Answer::Failed { .. }
             | Answer::Invalid
             | Answer::Version
-            | Answer::Untranslated => handed(claiming.to, answer, payload, on, names, &mut domain.facts, out),
+            | Answer::Untranslated => handed(claiming.to, answer, payload, worker, on, names, &mut domain.facts, out),
         },
         State::Cancelled { to, at: _ } => match answer {
             Answer::Busy => {
@@ -827,7 +836,7 @@ pub(crate) fn answer(
             | Answer::Failed { .. }
             | Answer::Invalid
             | Answer::Version
-            | Answer::Untranslated => handed(to, answer, payload, on, names, &mut domain.facts, out),
+            | Answer::Untranslated => handed(to, answer, payload, worker, on, names, &mut domain.facts, out),
         },
         State::Crossed { to, .. } => {
             out.push(Request::Acknowledge { channel, run, attempt });
@@ -838,10 +847,10 @@ pub(crate) fn answer(
             resent(payload, &mut domain.facts, out);
             State::Handed { at }
         }
-        State::Stray { at: _, until } => State::Kept { answer, payload, at: on, until },
-        State::Kept { answer: kept, payload: held, at, until } => {
+        State::Stray { at: _, until } => State::Kept { answer, payload, worker, at: on, until },
+        State::Kept { answer: kept, payload: held, worker, at, until } => {
             resent(payload, &mut domain.facts, out);
-            State::Kept { answer: kept, payload: held, at, until }
+            State::Kept { answer: kept, payload: held, worker, at, until }
         }
         // Acknowledged by the parent, or fenced off: its worker forgets it.
         State::Acknowledged { until: _ } | State::Fenced { at: _ } => {
@@ -866,9 +875,10 @@ pub(crate) fn answer(
 }
 
 /// Its worker's channel was lost: the attempt `id` is kept until `until`.
-pub(crate) fn adrift(domain: &mut Domain, id: Id<Attempt>, channel: Token, until: Time) {
+pub(crate) fn adrift(domain: &mut Domain, id: Id<Attempt>, channel: Token, worker: Option<u32>, until: Time) {
     let entry = domain.attempts.get_mut(id).expect("an attempt on a worker is tracked");
     entry.lost_host = Some(channel);
+    entry.worker = worker;
     let before = implied(&entry.state);
     let state = mem::replace(&mut entry.state, State::Closed);
     let until = domain.restart_holds.get(&id).copied().unwrap_or(until).max(until);
@@ -879,13 +889,44 @@ pub(crate) fn adrift(domain: &mut Domain, id: Id<Attempt>, channel: Token, until
         State::Crossed { to, at: _, listed, worked } => State::Crossed { to, at, listed, worked },
         State::Handed { at: _ } => State::Handed { at },
         State::Stray { at: _, until } => State::Stray { at, until },
-        State::Kept { answer, payload, at: _, until } => State::Kept { answer, payload, at, until },
+        State::Kept { answer, payload, worker, at: _, until } => State::Kept { answer, payload, worker, at, until },
         State::Fenced { at: _ } => State::Fenced { at },
         State::Waiting { .. } | State::Adopted { .. } | State::Acknowledged { .. } | State::Closed => {
             unreachable!("only an attempt on a worker takes its slot")
         }
     };
     follow(domain, id, before);
+}
+
+/// A new process proves its worker's unlisted claims gone, even under a restart hold.
+pub(crate) fn restarted(domain: &mut Domain, worker: u32, out: &mut Queue<Request>) {
+    let mut missing = List::with_capacity(domain.claims);
+    for (_, &id) in &domain.names {
+        let entry = domain.attempts.get(id).expect("named attempt");
+        let state = implied(&entry.state);
+        if entry.worker == Some(worker) && state.claim && state.held && state.on.is_none() {
+            missing.push(id).expect("at most one entry per claim");
+        }
+    }
+    for &id in &missing {
+        let entry = domain.attempts.get_mut(id).expect("unlisted claim");
+        let before = implied(&entry.state);
+        let to = match mem::replace(&mut entry.state, State::Closed) {
+            State::Adopted { to, .. }
+            | State::Claimed { claiming: Claiming { to, .. }, .. }
+            | State::Cancelled { to, .. }
+            | State::Crossed { to, .. } => to,
+            State::Waiting { .. }
+            | State::Handed { .. }
+            | State::Acknowledged { .. }
+            | State::Stray { .. }
+            | State::Kept { .. }
+            | State::Fenced { .. }
+            | State::Closed => unreachable!("selected an adrift claim"),
+        };
+        out.push(Request::Suspended { to, run: entry.run, attempt: entry.token, worker });
+        follow(domain, id, before);
+    }
 }
 
 /// The alarm of the attempt `id`: the grace of its lost channel, or of its
@@ -908,7 +949,7 @@ pub(crate) fn expire(domain: &mut Domain, id: Id<Attempt>, out: &mut Queue<Reque
             }
         }
         State::Stray { at, until: Some(_) } => fenced(at, names, &domain.channels, &mut domain.facts, out),
-        State::Kept { answer: _, payload, at, until: Some(_) } => {
+        State::Kept { answer: _, payload, worker: _, at, until: Some(_) } => {
             forgotten(payload, at, names, &domain.channels, &mut domain.facts, out)
         }
         State::Acknowledged { until: _ } | State::Fenced { at: Where::Adrift { .. } } => State::Closed,
@@ -952,8 +993,8 @@ pub(crate) fn loaded(domain: &mut Domain, env: &Env<Limits>) {
         let state = mem::replace(&mut entry.state, State::Closed);
         entry.state = match state {
             State::Stray { at: on, until: _ } => State::Stray { at: on, until: Some(at) },
-            State::Kept { answer, payload, at: on, until: _ } => {
-                State::Kept { answer, payload, at: on, until: Some(at) }
+            State::Kept { answer, payload, worker, at: on, until: _ } => {
+                State::Kept { answer, payload, worker, at: on, until: Some(at) }
             }
             State::Waiting { .. }
             | State::Adopted { .. }
@@ -1206,17 +1247,19 @@ fn refused(payload: Token, facts: &mut Lossy<Fact>, out: &mut Queue<Request>) {
 
 /// The answer goes to the parent, ending its call; its worker keeps it until
 /// the parent acknowledges it, unless it is a refusal, which keeps nothing.
+#[expect(clippy::too_many_arguments, reason = "the terminal carries its answering worker with the retained payload")]
 fn handed(
     to: ReplyTo,
     answer: Answer,
     payload: Token,
+    worker: Option<u32>,
     at: Where,
     names: Names,
     facts: &mut Lossy<Fact>,
     out: &mut Queue<Request>,
 ) -> State {
     facts.push(Fact::Answered { answer });
-    out.push(Request::Answered { to, run: names.run, attempt: names.attempt, answer, payload });
+    out.push(Request::Answered { to, run: names.run, attempt: names.attempt, answer, payload, worker });
     match answer {
         Answer::Invalid | Answer::Version | Answer::Untranslated => State::Closed,
         Answer::Ended | Answer::Parked | Answer::Failed { .. } => State::Handed { at },
@@ -1340,6 +1383,7 @@ fn insert(domain: &mut Domain, run: Token, attempt: Token, listed: bool, assignm
         listed,
         kept: 0,
         lost_host: None,
+        worker: None,
         progress: None,
         placement: None,
         grants: List::with_capacity(0),

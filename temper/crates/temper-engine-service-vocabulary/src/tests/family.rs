@@ -1137,6 +1137,7 @@ fn forge_row(
 }
 fn configured_forge_rows() -> forge::Forges {
     forge::Forges {
+        full: Box::new([]),
         rows: Box::new([
             forge::Row {
                 starts_with: forge::StartsWith::Repository,
@@ -1205,7 +1206,8 @@ fn a_row_s_fetched_reaches_the_wire() {
             forge::Offer::Offered,
         );
         row.fetched = Some(forge::SetUpFetched { binary, done: 10, total });
-        let bytes = family::forges(forge::Forges { rows: Box::new([row]) }, false, &w::CEILINGS).unwrap();
+        let bytes =
+            family::forges(forge::Forges { full: Box::new([]), rows: Box::new([row]) }, false, &w::CEILINGS).unwrap();
         let rows = wire::decode_forges(&bytes, &w::CEILINGS).unwrap();
         let w::Connection::SettingUp(setup) = &rows.forges.get(0).unwrap().connection else { panic!("setting up") };
         assert_eq!(&setup.step, &Some(w::SetUpStep::Fetch));
@@ -1383,7 +1385,7 @@ fn setup_and_first_repository_states_translate_without_losing_fields() {
             forge::Offer::NotOffered,
         );
         row.first = Some(first);
-        let value = forge::Forges { rows: Box::new([row]) };
+        let value = forge::Forges { full: Box::new([]), rows: Box::new([row]) };
         let bytes = family::forges(value, false, &w::CEILINGS).unwrap();
         let rows = wire::decode_forges(&bytes, &w::CEILINGS).unwrap().forges;
         let first = rows.get(0).unwrap().first.as_ref().unwrap();
@@ -1581,6 +1583,7 @@ fn install_without_a_back_is_admitted() {
 fn installations_and_the_last_connect_end_encode_unchanged() {
     let bytes = family::forges(
         forge::Forges {
+            full: Box::new([]),
             rows: Box::new([forge::Row {
                 starts_with: forge::StartsWith::Repository,
                 makings: Box::new([]),
@@ -1655,6 +1658,7 @@ fn owned_details_fit_their_bounds_and_an_overlong_field_drops_only_the_details()
         (64, Some(64), 513, false),
     ] {
         let value = forge::Forges {
+            full: Box::new([]),
             rows: Box::new([forge::Row {
                 starts_with: forge::StartsWith::Repository,
                 makings: Box::new([]),
@@ -2712,7 +2716,8 @@ fn forge_rows_encode_the_makings_and_all_their_states() {
             copying: true,
             state,
         }]);
-        let bytes = family::forges(forge::Forges { rows: Box::new([row]) }, false, &w::CEILINGS).unwrap();
+        let bytes =
+            family::forges(forge::Forges { full: Box::new([]), rows: Box::new([row]) }, false, &w::CEILINGS).unwrap();
         let forges = wire::decode_forges(&bytes, &w::CEILINGS).unwrap();
         let making = forges.forges.get(0).unwrap().makings.get(0).unwrap();
         assert_eq!((making.org.as_ref(), making.name.as_ref()), (b"work".as_slice(), b"copied".as_slice()));
@@ -4369,8 +4374,18 @@ fn finding_row_pair() -> (forge::FindingRow, w::FindingRow) {
             at: skein_lib::Wall::from_nanos(91),
             why: Some(b"owns boot".as_slice().into()),
             hander: Some(forge::Filer::Task(42)),
+            goal: Some(820),
+            reason: Some(b"duplicate".as_slice().into()),
+            cleared: Some(forge::FindingClearing {
+                tier: b"slow".as_slice().into(),
+                run: 17,
+                at: skein_lib::Wall::from_nanos(19),
+            }),
         },
         w::FindingRow {
+            goal: Some(820),
+            reason: Some(b"duplicate".as_slice().into()),
+            cleared: Some(w::FindingClearing { tier: b"slow".as_slice().into(), run: 17, at: 19 }),
             number: 27,
             kind: w::FindingKind::Red,
             severity: w::Severity::Medium,
@@ -4395,7 +4410,10 @@ fn findings_watches_are_project_scoped_and_documents_keep_the_rows() {
     ] {
         for mine in [false, true] {
             let watching = w::Watching {
-                watch: w::Watch::Findings(w::FindingsSubject { project: 3, state: state.clone(), mine }),
+                watch: w::Watch::Findings(w::FindingsSubject {
+                    project: 3,
+                    filter: w::FindingsFilter::Triage(w::FindingsTriage { state: state.clone(), mine }),
+                }),
             };
             let root::Event::Party(root::PartyInput::Watch { watcher, sign_in, subject, window }) =
                 away_family(watch_exchange(wire::FORGE, wire::CLIENT_VERSION, wire::watching(&watching)))
@@ -4411,10 +4429,38 @@ fn findings_watches_are_project_scoped_and_documents_keep_the_rows() {
                 jig_domain_core::documents::Watched::Application {
                     scope: people::ApplicationScope::Project(3),
                     connector: wire::FORGE,
-                    subject: Token::new(forge::findings_subject(3, expected_state, mine))
+                    subject: Token::new(
+                        forge::findings_subject(3, forge::FindingsFilter::Triage { state: expected_state, mine })
+                            .unwrap()
+                    )
                 }
             );
         }
+    }
+    for (filter, expected_key) in [
+        (w::FindingsFilter::Goal(w::FindingsGoal { goal: 820 }), (1_u64 << 62_u32) | (1 << 41_u32) | 0x0334),
+        (
+            w::FindingsFilter::Milestone(w::FindingsMilestone { milestone: 812 }),
+            (1_u64 << 62_u32) | (1 << 42_u32) | 0x032c,
+        ),
+        (w::FindingsFilter::Goal(w::FindingsGoal { goal: 1 << 41 }), u64::MAX),
+        (w::FindingsFilter::Milestone(w::FindingsMilestone { milestone: u64::MAX }), u64::MAX),
+    ] {
+        let subject = w::FindingsSubject { project: 3, filter };
+        let watching = w::Watching { watch: w::Watch::Findings(subject) };
+        let root::Event::Party(root::PartyInput::Watch { subject, .. }) =
+            away_family(watch_exchange(wire::FORGE, wire::CLIENT_VERSION, wire::watching(&watching)))
+        else {
+            panic!("findings watch")
+        };
+        assert_eq!(
+            subject,
+            jig_domain_core::documents::Watched::Application {
+                scope: people::ApplicationScope::Project(3),
+                connector: wire::FORGE,
+                subject: Token::new(expected_key)
+            }
+        );
     }
     let (row, expected_row) = finding_row_pair();
     let document = forge::Findings {
@@ -4457,6 +4503,31 @@ fn findings_watches_are_project_scoped_and_documents_keep_the_rows() {
 #[path = "milestones.rs"]
 mod milestones;
 
+fn finding_blame_pair(
+    strength: Option<forge::BlameStrength>,
+) -> (Option<forge::FindingBlame>, Option<w::FindingBlame>) {
+    let Some(strength) = strength else { return (None, None) };
+    let expected_strength = match strength {
+        forge::BlameStrength::Owned => w::BlameStrength::Owned,
+        forge::BlameStrength::Suspected => w::BlameStrength::Suspected,
+        forge::BlameStrength::Unblamed => w::BlameStrength::Unblamed,
+    };
+    let mut landings = List::with_capacity(2);
+    let mut expected_landings = List::with_capacity(2);
+    for (commit, goal, milestone, person) in [([1; 32], 820, Some(812), Some(4)), ([2; 32], 821, None, None)] {
+        landings
+            .push(forge::BlamedLanding { commit, goals: Box::new([forge::BlamedGoal { goal, milestone, person }]) })
+            .unwrap();
+        let mut goals = List::with_capacity(1);
+        goals.push(w::BlamedGoal { goal, milestone, person }).unwrap();
+        expected_landings.push(w::BlamedLanding { commit, goals }).unwrap();
+    }
+    (
+        Some(forge::FindingBlame { strength, landings: landings.into_boxed() }),
+        Some(w::FindingBlame { strength: expected_strength, landings: expected_landings }),
+    )
+}
+
 #[test]
 fn finding_reads_keep_their_scope_detail_and_absence() {
     let reading = w::Reading { read: w::Read::Finding(w::FindingRead { project: 7, number: 27 }) };
@@ -4481,15 +4552,20 @@ fn finding_reads_keep_their_scope_detail_and_absence() {
         (forge::Filer::Task(51), w::Filer::Task(w::HolderTask { number: 51 })),
         (forge::Filer::Party(19), w::Filer::Party(w::HolderParty { number: 19 })),
     ] {
-        for (goal, reason) in [(None, None), (Some(51), Some(repeated(b'r', 400)))] {
+        for strength in [
+            None,
+            Some(forge::BlameStrength::Owned),
+            Some(forge::BlameStrength::Suspected),
+            Some(forge::BlameStrength::Unblamed),
+        ] {
             let (row, expected_row) = finding_row_pair();
+            let (blame, expected_blame) = finding_blame_pair(strength);
             let bytes = family::forge_read(
                 root::ForgeReadAnswer::Finding(Some(forge::FindingAnswer {
                     row,
                     body: repeated(b'b', 4096),
                     filer,
-                    goal,
-                    reason: reason.clone(),
+                    blame,
                 })),
                 b"",
                 &w::CEILINGS,
@@ -4497,16 +4573,15 @@ fn finding_reads_keep_their_scope_detail_and_absence() {
             .unwrap();
             let answer = wire::decode_finding_answer(&bytes, &w::CEILINGS).unwrap();
             let w::FindingResult::Finding(detail) = &answer.result else { panic!("finding detail") };
-            assert_eq!(&detail.goal, &goal);
+            assert_eq!(detail.row.goal, Some(820));
             assert_eq!(
                 answer.result,
-                w::FindingResult::Finding(w::FindingDetail {
+                w::FindingResult::Finding(Box::new(w::FindingDetail {
                     row: expected_row,
                     body: repeated(b'b', 4096),
                     filer: expected.clone(),
-                    goal,
-                    reason
-                })
+                    blame: expected_blame,
+                }))
             );
         }
     }
@@ -5082,4 +5157,31 @@ fn an_opened_panel_carries_its_source_and_taking_step() {
         }
     }
     assert_eq!(decoded_panel(panel(), &crate::forges::Forges::with_capacity(0)).source, None);
+}
+
+#[test]
+fn full_tables_reach_the_client_wire_with_their_wall_and_words() {
+    let words = b"2 of 2, held by entry 7 (task 1), entry 9 (task 2)".as_slice();
+    let full = Box::new([
+        forge::FullTable { table: forge::FullKind::Outbox, since: 17, words: words.into() },
+        forge::FullTable {
+            table: forge::FullKind::ReadAdmission,
+            since: 19,
+            words: b"2 of 2, held by pull 12 of work/hello, a write of work/hello".as_slice().into(),
+        },
+    ]);
+    let bytes = family::forges(forge::Forges { rows: Box::new([]), full }, true, &w::CEILINGS).unwrap();
+    let document = wire::decode_forges(&bytes, &w::CEILINGS).unwrap();
+    assert!(document.linked);
+    assert_eq!(
+        document.full.as_slice(),
+        &[
+            w::FullTable { table: w::FullKind::Outbox, since: 17, words: words.into() },
+            w::FullTable {
+                table: w::FullKind::ReadAdmission,
+                since: 19,
+                words: b"2 of 2, held by pull 12 of work/hello, a write of work/hello".as_slice().into()
+            },
+        ]
+    );
 }

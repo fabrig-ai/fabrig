@@ -33,6 +33,89 @@ fn running_with_save(save: Box<[u8]>) -> Machine {
     m
 }
 #[test]
+fn journey_tui_sees_and_marks_without_implied_approval_even_after_stop() {
+    let mut m = journey_ready();
+    for _ in 0..2 {
+        assert!(matches!(line(&mut m, r#"tui see "then press Approve.""#).as_slice(), [Action::StartTui { .. }]));
+        assert!(matches!(step(&mut m, Event::TuiReady).as_slice(), [Action::SaveTui]));
+        let actions = step(&mut m, Event::TuiSaved(saves().1));
+        assert!(matches!(actions.as_slice(), [Action::Keep(_), Action::Answer(_)]), "no browser approval: {actions:?}");
+        assert_eq!(answer(&actions).print(), "ok\n");
+        assert!(matches!(line(&mut m, "tui mark").as_slice(), [Action::SaveTui]));
+        let actions = step(&mut m, Event::TuiSaved(saves().1));
+        assert!(matches!(actions.as_slice(), [Action::Answer(_)]), "mark is not kept");
+        assert!(answer(&actions).failed.is_none());
+        assert_eq!(answer(&actions).shown.len(), 24);
+        assert!(answer(&actions).shown.iter().any(|row| row.contains("then press Approve.")));
+        assert!(matches!(line(&mut m, "tui stop").as_slice(), [Action::StopTui]));
+        assert_eq!(answer(&step(&mut m, Event::TuiStopped)).print(), "ok\n");
+    }
+}
+
+#[test]
+fn journey_tui_approve_is_a_kept_line_on_a_new_or_running_tui() {
+    let mut m = journey_ready();
+    let back = b"http://127.0.0.1:9/projects/3?tab=home";
+    for fresh in [true, false] {
+        let actions = line(&mut m, "tui approve");
+        if fresh {
+            assert!(matches!(actions.as_slice(), [Action::StartTui { .. }]));
+            assert!(matches!(step(&mut m, Event::TuiReady).as_slice(), [Action::SaveTui]));
+        } else {
+            assert!(matches!(actions.as_slice(), [Action::SaveTui]));
+        }
+        assert!(step(&mut m, Event::TuiSaved(saves().0)).is_empty(), "wait for browse");
+        assert!(matches!(m.step(Event::Deadline, Time::from_nanos(50_000_000)).as_slice(), [Action::SaveTui]));
+        assert!(matches!(step(&mut m, Event::TuiSaved(saves().1)).as_slice(), [Action::BrowserAddress]));
+        assert!(
+            matches!(step(&mut m, Event::BrowserAddress(back.as_slice().into())).as_slice(), [Action::Open(url)] if url.as_ref() == b"http://127.0.0.1:9/terminal?code=WDJB-MJHT")
+        );
+        assert!(
+            matches!(step(&mut m, Event::FaceDone(Ok(()))).as_slice(), [Action::Find(find)] if *find == Find::exactly_named(Role::Button, b"Approve"))
+        );
+        assert!(matches!(
+            step(&mut m, Event::Found(Some(NodeId(5)))).as_slice(),
+            [Action::Perform(Doing::Act { node: NodeId(5), act: Act::Press })]
+        ));
+        assert!(
+            matches!(step(&mut m, Event::FaceDone(Ok(()))).as_slice(), [Action::Open(url)] if url.as_ref() == back)
+        );
+        let actions = step(&mut m, Event::FaceDone(Ok(())));
+        assert!(
+            matches!(actions.as_slice(), [Action::Keep(bytes), Action::Answer(_)] if bytes.as_ref() == b"tui approve")
+        );
+        assert_eq!(answer(&actions).print(), "ok\n");
+    }
+}
+
+#[test]
+fn journey_tui_approval_has_one_thirty_second_bound_and_returns_on_failure() {
+    // Startup, saves, and the browser's actions share one bound.
+    let mut m = journey_ready();
+    line(&mut m, "tui approve");
+    m.step(Event::TuiReady, Time::from_nanos(5_000_000_000));
+    m.step(Event::TuiSaved(saves().1), Time::from_nanos(6_000_000_000));
+    let back = b"http://127.0.0.1:9/projects/3";
+    m.step(Event::BrowserAddress(back.as_slice().into()), Time::from_nanos(7_000_000_000));
+    m.step(Event::FaceDone(Ok(())), Time::from_nanos(8_000_000_000));
+    m.step(Event::Found(None), Time::from_nanos(9_000_000_000));
+    let actions = m.step(Event::Deadline, Time::from_nanos(30_000_000_000));
+    assert!(actions.iter().any(|action| matches!(action, Action::Open(url) if url.as_ref() == back)), "{actions:?}");
+    assert!(!actions.iter().any(|action| matches!(action, Action::Answer(_))), "answer after returning");
+    let actions = step(&mut m, Event::FaceDone(Ok(())));
+    let why = answer(&actions).failed.as_deref().expect("approval timed out");
+    assert!(why.contains("tui approve") && why.contains("button Approve"), "{why}");
+    assert!(actions.iter().any(|action| matches!(action, Action::Keep(bytes) if bytes.as_ref() == b"tui approve")));
+    assert!(m.ready());
+    line(&mut m, "tui approve");
+    step(&mut m, Event::TuiReady);
+    step(&mut m, Event::TuiSaved(saves().0));
+    m.step(Event::TuiSaved(saves().0), Time::from_nanos(29_999_999_999));
+    let actions = m.step(Event::Deadline, Time::from_nanos(30_000_000_000));
+    assert!(answer(&actions).failed.as_deref().expect("no browse").contains("browse an address"));
+}
+
+#[test]
 fn journey_lines_fail_unkept_without_starting_a_tui() {
     for mut m in [ready(), running(), ctl_ready()] {
         let was_running = m.tui_running;

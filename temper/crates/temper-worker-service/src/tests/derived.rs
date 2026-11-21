@@ -150,7 +150,7 @@ fn output_carrier() {
     let mut worker = fixtures::worker_settings();
     worker.jig.limits = Some(config::stock());
     let mut sources = STOCK;
-    let zero = wire::v19::Limits {
+    let zero = wire::v21::Limits {
         turn_body: 0,
         turn_refused: worker.jig.limits.as_ref().expect("worker limits").core.tasks.run_inbox,
         ..wire::CEILINGS

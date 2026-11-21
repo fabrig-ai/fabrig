@@ -10,8 +10,8 @@ use smith_channel::Record;
 use smith_host_domain::channel;
 
 use smith_channel::kind::{
-    ACCOUNT_REFUSED, ADMITTED, ANSWER, CALL, FACT, LIMITED, LIVE, LONG, LONG_DONE, MESSAGE_REFUSED, TURN, UNAUTHORIZED,
-    USAGE, WAITING, WITHDRAW,
+    ACCOUNT_REFUSED, ADMITTED, ANSWER, CALL, FACT, LIMITED, LIVE, LONG, LONG_DONE, MESSAGE_REFUSED, SIGNALLED, TURN,
+    UNAUTHORIZED, USAGE, WAITING, WITHDRAW,
 };
 
 /// What a refusal says of a record it could not take: its order, its call, or its kind.
@@ -35,6 +35,7 @@ pub(super) fn refusal_text(kind: u16, error: Error) -> &'static [u8] {
         WITHDRAW => b"invalid withdrawal",
         TURN => b"invalid turn",
         WAITING => b"invalid waiting record",
+        SIGNALLED => b"invalid signal notice",
         LONG | LONG_DONE => b"invalid long operation",
         UNAUTHORIZED | LIMITED | ACCOUNT_REFUSED | USAGE => b"invalid account notice",
         FACT => b"invalid fact",
@@ -59,6 +60,7 @@ impl Component {
                     WITHDRAW => return self.withdraw(&body),
                     TURN => self.turn(&body)?,
                     WAITING => self.waiting(&body)?,
+                    SIGNALLED => self.signalled(&body)?,
                     LONG => self.long(&body)?,
                     LONG_DONE => self.long_done(&body)?,
                     UNAUTHORIZED | LIMITED | ACCOUNT_REFUSED | USAGE => {
@@ -150,6 +152,18 @@ impl Component {
             // Crossing the host's answer settles the withdrawal without spending its read.
             None => None,
         })
+    }
+
+    fn signalled(&self, body: &[u8]) -> Result<Received, Error> {
+        let record = match smith_channel::Signalled::decode(&self.bodies, &mut Reader::new(body)) {
+            Ok(record) => record,
+            Err(problem) => return Err(Error::Body(problem)),
+        };
+        let signal = match record.signal {
+            smith_channel::Signal::Interrupt => smith_host_domain::parent::Signal::Interrupt,
+            smith_channel::Signal::Terminate => smith_host_domain::parent::Signal::Terminate,
+        };
+        Ok(Received::Message { message: channel::Up::Signalled { signal, from: record.from } })
     }
 
     fn waiting(&self, body: &[u8]) -> Result<Received, Error> {

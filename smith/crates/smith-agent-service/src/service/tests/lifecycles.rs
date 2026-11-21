@@ -63,9 +63,9 @@ fn the_first_failure_stands_in_every_phase() {
 #[test]
 fn a_failure_before_the_answer_leaves_the_run_live() {
     let mut service = admitted(19);
-    service.stages.mark_failed(Failure::Send);
+    channel_event(&mut service.stages, &mut service.frame, channel::Heard::WriteFailed);
     teardown::follow(&mut service.stages, Some(&service.frame));
-    assert_eq!(service.stages.teardown, Teardown::Live { failure: Some(Failure::Send) });
+    assert_eq!(service.stages.teardown, Teardown::Live { failure: Some(Failure::WriteFailed) });
     assert!(service.stages.io_requests.is_empty());
     assert!(!service.stages.llm.closed());
     assert_eq!(done(&service), None);

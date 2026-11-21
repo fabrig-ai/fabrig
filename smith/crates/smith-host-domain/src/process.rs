@@ -66,6 +66,8 @@ pub enum Request {
     },
     /// Demand one record; exactly one Received/Malformed/Hangup.
     Read { owner: Token, process: Token },
+    /// Close the channel when a cancel cannot be written; pending reads and sends settle normally.
+    CloseChannel { owner: Token, process: Token },
     /// Signal every process-tree member; exactly one Signalled.
     Signal { owner: Token, process: Token, signal: Signal },
     /// Wait for main process exit; exactly one Exited.

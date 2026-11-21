@@ -989,7 +989,11 @@ fn welcome_read(rows: &[w::ForgeRow], linked: bool, model: Option<c::Accounts>, 
                     record: jig_client::Family {
                         family: wire::FORGE,
                         version: wire::CLIENT_VERSION,
-                        bytes: wire::forges(&w::Forges { forges: List::from_boxed(rows.into()), linked }),
+                        bytes: wire::forges(&w::Forges {
+                            forges: List::from_boxed(rows.into()),
+                            full: List::with_capacity(0),
+                            linked,
+                        }),
                     },
                 }
             }

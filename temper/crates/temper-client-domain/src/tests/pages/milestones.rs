@@ -11,7 +11,7 @@ use crate::{
     Address, GoalsFilter, WorkFilter,
     pages::{
         Request,
-        milestones::{self, Count, Headline, Mark, MilestoneRead, Milestones, Segment, State},
+        milestones::{self, Count, Headline, HeadlineCase, Mark, MilestoneRead, Milestones, Segment, State},
     },
 };
 use jig_client::{Down, Readable, Readout, Told, Up, Watchable, contract as c};
@@ -110,7 +110,7 @@ fn closed(task: u64) -> c::TaskLine {
     )
 }
 fn totals(done: u32, failed: u32, live: u32) -> w::MilestoneTotals {
-    w::MilestoneTotals { task: M, done, failed, live, closed: 50, ended: None, last_landing: None, spent: 0 }
+    w::MilestoneTotals { task: M, done, failed, live, closed: 50, ended: None, last_landing: None, spent: 0, reds: 0 }
 }
 fn page(rows: &[c::TaskLine], more: bool) -> Readout {
     page_at(rows, more, 0)
@@ -870,9 +870,21 @@ fn milestone_words_count_state_strip_and_headline_use_the_first_matching_rule() 
     assert_eq!(milestones::state(&milestone, &goals, Some(&counts), true), State::Ended);
     assert_eq!(
         milestones::headline(&milestone, &goals, Some(&counts), true),
-        Headline::Ended { count: Count { done: 7, total: 10 }, failed: 1, first: Some(5) }
+        Headline {
+            case: HeadlineCase::Ended { count: Count { done: 7, total: 10 }, failed: 1, first: Some(5) },
+            reds: 0
+        }
     );
-    let all = totals(8, 0, 0);
+    assert_eq!(
+        milestones::headline(&milestone, &goals, None, true),
+        Headline { case: HeadlineCase::Count(Count { done: 2, total: 5 }), reds: 0 }
+    );
+    let mut all = totals(8, 0, 0);
+    all.reds = 2;
+    assert_eq!(
+        milestones::headline(&milestone, &goals, Some(&all), false),
+        Headline { case: HeadlineCase::Complete(Count { done: 8, total: 8 }), reds: 2 }
+    );
     assert_eq!(milestones::state(&milestone, &goals, Some(&all), false), State::Complete);
     milestone = closed(M);
     assert_eq!(milestones::state(&milestone, &goals, Some(&all), true), State::Closed);
@@ -1070,6 +1082,7 @@ fn a_milestone_page_keeps_its_document_totals_ended_rows_and_line_until_answers(
         ended: None,
         last_landing: None,
         spent: 0,
+        reds: 0,
     };
     let totals = w::MilestoneAnswer { result: w::MilestoneResult::Totals(totals) };
     answer(

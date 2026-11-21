@@ -6,9 +6,9 @@ use skein_lib::{List, Time};
 impl Engine {
     #[must_use]
     pub fn pending(&self, now: Time) -> diagnostics::Engine {
-        let active = self.store.opened || self.end.is_some();
-        let effects = self.store.host.mark_durable() || self.end.is_some();
-        let secrets_ready = self.end.is_none() && self.store.host.mark_durable();
+        let active = self.store.opened || self.end.is_some() || crate::stop::closing(self);
+        let effects = crate::stop::marked(self) || self.end.is_some() || crate::stop::closing(self);
+        let secrets_ready = self.end.is_none() && crate::stop::marked(self);
         let next_deadline = self.next_deadline();
         let mut events = List::with_capacity(self.events.len());
         for event in &self.events {

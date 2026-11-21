@@ -208,7 +208,7 @@ fn assign_runtime(
         refused(&assignment, Refusal::Busy, &runtime, out);
         return;
     }
-    let Hub { hosted, names, facts, shut, .. } = domain;
+    let Hub { hosted, names, facts, shut, pause, .. } = domain;
     // An assignment that can never fit is invalid, room or not: busy invites a
     // retry.
     if let Err(invalid) = assignment::check(&assignment, &env.limits) {
@@ -218,7 +218,11 @@ fn assign_runtime(
     // A slot whose run has answered is not free until the engine has the
     // answer.
     let taken = hosted.len();
-    if *shut || taken >= env.limits.slots || names.contains_key(&assignment.run) {
+    if *shut
+        || *pause != jig_domain_link::PauseState::Taking
+        || taken >= env.limits.slots
+        || names.contains_key(&assignment.run)
+    {
         refused(&assignment, Refusal::Busy, &runtime, out);
         return;
     }
@@ -427,12 +431,7 @@ pub(crate) fn drain(domain: &mut Hub, out: &mut Queue<Request>) {
 }
 
 pub(crate) fn cancel_all(domain: &mut Hub, reason: Reason) {
-    let Hub { names, ready, shut, .. } = domain;
-    match reason {
-        // A host shutting down takes no more work.
-        Reason::Shutdown => *shut = true,
-        Reason::Engine | Reason::Contact => {}
-    }
+    let Hub { names, ready, .. } = domain;
     for (_, id) in names.iter() {
         if !ready.contains_key(id) {
             let earlier = ready.insert(*id, reason).expect("room on the ready list for every run");
@@ -715,14 +714,17 @@ pub(crate) fn yielded(domain: &mut Hub, owner: Token, out: &mut Queue<Request>) 
 }
 
 pub(crate) fn finish_run(domain: &mut Hub, env: &Env<Limits>, owner: Token, finish: Finish, out: &mut Queue<Request>) {
-    let Hub { hosted, calls, .. } = domain;
+    let Hub { hosted, calls, shut, .. } = domain;
     let id = Id::<Hosted>::from_token(owner);
     let entry = hosted.get_mut(id).expect("a run lives until its agent has gone");
     let state = mem::replace(&mut entry.state, State::Closed);
     entry.state = match state {
         State::Active { workspace, agent } | State::Waiting { workspace, agent } => {
-            let cancelled =
-                if entry.drained { Failure::Cancelled(Reason::Shutdown) } else { Failure::Run(RunFailure::Cancelled) };
+            let cancelled = if *shut || entry.drained {
+                Failure::Cancelled(Reason::Shutdown)
+            } else {
+                Failure::Run(RunFailure::Cancelled)
+            };
             let ending = said(finish, cancelled, &env.limits);
             leave(entry.run, entry.attempt, &entry.relays, calls, out);
             out.push(Request::Agent(crate::ToAgent::Cancel { agent }));
@@ -756,13 +758,14 @@ pub(crate) fn faulted(
     fault: AgentFailure,
     out: &mut Queue<Request>,
 ) {
-    let Hub { hosted, calls, .. } = domain;
+    let Hub { hosted, calls, shut, .. } = domain;
     let id = Id::<Hosted>::from_token(owner);
     let entry = hosted.get_mut(id).expect("a run lives until its agent has gone");
     let state = mem::replace(&mut entry.state, State::Closed);
     entry.state = match state {
         State::Active { workspace, agent } | State::Waiting { workspace, agent } => {
-            let ending = RunEnding::Stopped { failure: Failure::Agent(fault), detail: Box::new([]) };
+            let failure = if *shut { Failure::Cancelled(Reason::Shutdown) } else { Failure::Agent(fault) };
+            let ending = RunEnding::Stopped { failure, detail: Box::new([]) };
             leave(entry.run, entry.attempt, &entry.relays, calls, out);
             out.push(Request::Agent(crate::ToAgent::Cancel { agent }));
             State::Stopping { workspace, agent, ending, gone: false }
@@ -782,7 +785,7 @@ pub(crate) fn faulted(
 }
 
 pub(crate) fn gone(domain: &mut Hub, env: &Env<Limits>, owner: Token, detail: Box<[u8]>, out: &mut Queue<Request>) {
-    let Hub { hosted, calls, facts, .. } = domain;
+    let Hub { hosted, calls, facts, shut, .. } = domain;
     let id = Id::<Hosted>::from_token(owner);
     let entry = hosted.get_mut(id).expect("a run lives until its agent has gone");
     let detail = tail(detail, &env.limits);
@@ -801,7 +804,9 @@ pub(crate) fn gone(domain: &mut Hub, env: &Env<Limits>, owner: Token, detail: Bo
         }
         // It exited without saying how its run finishes.
         State::Active { workspace, agent } | State::Waiting { workspace, agent } => {
-            let ending = RunEnding::Failed { failure: Failure::Agent(AgentFailure::Exited), detail, model: None };
+            let failure =
+                if *shut { Failure::Cancelled(Reason::Shutdown) } else { Failure::Agent(AgentFailure::Exited) };
+            let ending = RunEnding::Failed { failure, detail, model: None };
             leave(entry.run, entry.attempt, &entry.relays, calls, out);
             State::Stopping { workspace, agent, ending, gone: true }
         }

@@ -616,7 +616,7 @@ fn the_github_rows_external_web_link_has_its_address_and_noopener() {
                 ended_stop: None,
             })
             .expect("one forge");
-        let mut host = fixture_forges(Some(&w::Forges { forges, linked: false }));
+        let mut host = fixture_forges(Some(&w::Forges { forges, full: List::with_capacity(0), linked: false }));
         host.went(b"/forges");
         let mut page = skein_ui_web::page::Page::new(
             skein_ui_web::Look {

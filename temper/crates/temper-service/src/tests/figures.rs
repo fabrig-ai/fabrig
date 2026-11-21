@@ -148,7 +148,10 @@ fn an_engine_alone_refuses_application_environment() {
     assert_eq!(startup::lines(&found).as_ref(), b"application.environment: unknown member\n");
 }
 #[test]
-fn in_process_opening_is_quiet_until_the_engines_figures_change() {
+#[expect(clippy::disallowed_methods, reason = "ordinary fixture code edits one named figures scalar")]
+fn the_box_worker_takes_live_figures_and_waits_for_its_next_start_for_places() {
+    use crate::worker_alone::Note;
+    use jig_protocol_worker_wire::Limit;
     let document = fixtures::stock_document();
     let directories = jig_protocol_config::Directories::working();
     let files = fixtures::stock_files();
@@ -199,9 +202,17 @@ fn in_process_opening_is_quiet_until_the_engines_figures_change() {
     worker.link(fixtures::NOW, jig_protocol_worker_link::Request::Figures { figures: opening.clone() });
     assert_eq!(worker.notes().pop(), None);
     let mut changed = opening;
-    changed.places = changed.places.checked_add(1).unwrap();
+    changed.places = 5;
+    let timeout = changed.limits.iter_mut().find(|row| row.name.as_ref() == b"checkout.remote_timeout_ms").unwrap();
+    timeout.value = 600_000;
+    let timeout = timeout.clone();
 
+    worker.link(fixtures::NOW, jig_protocol_worker_link::Request::Figures { figures: changed.clone() });
+    assert_eq!(worker.notes().pop(), Some(Note::FiguresTaken { figures: Box::new([timeout]) }));
+    assert_eq!(
+        worker.notes().pop(),
+        Some(Note::FiguresWaiting { figures: Box::new([Limit { name: b"places".as_slice().into(), value: 5 }]) }),
+    );
     worker.link(fixtures::NOW, jig_protocol_worker_link::Request::Figures { figures: changed });
-    assert_eq!(worker.notes().pop(), Some(crate::worker_alone::Note::FiguresChanged));
     assert_eq!(worker.notes().pop(), None);
 }

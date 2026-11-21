@@ -1,7 +1,7 @@
 //! A resumed start fitted to its room (jig/docs/design/protocol/channel/README.md, 11).
 use super::fixtures::{self, SIZES_LARGE, SIZES_ONE_SLOT, repeated};
 use crate::fit::{Fitted, cut_words, fit};
-use crate::v19::Record;
+use crate::v21::Record;
 use crate::{self as wire, sizes};
 use skein_lib::List;
 

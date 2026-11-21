@@ -69,7 +69,6 @@ fn merge_job_attempt_history_names_worker_failures_before_the_retry_and_then_don
         (host::JobFailure::Unstarted, h::JobOutcome::Failed { class: h::JobFailure::Unstarted }),
         (host::JobFailure::Cancelled(host::Reason::Engine), h::JobOutcome::Cancelled),
         (host::JobFailure::Cancelled(host::Reason::Contact), h::JobOutcome::Lost),
-        (host::JobFailure::Cancelled(host::Reason::Shutdown), h::JobOutcome::Lost),
     ] {
         let (mut world, task, head, base) =
             pushed_change_in(world(false, true, true).with_merge_job(COMMAND), true, GOAL);
@@ -100,6 +99,61 @@ fn merge_job_attempt_history_names_worker_failures_before_the_retry_and_then_don
         assert_eq!(got[3].what, h::What::JobEnded { job: h::Job::Merge, outcome: h::JobOutcome::Done });
         world.close();
     }
+}
+
+#[test]
+fn a_suspended_merge_job_records_no_failure_before_its_returned_attempt_succeeds() {
+    let (mut world, task, head, base) = pushed_change_in(world(false, true, true).with_merge_job(COMMAND), true, GOAL);
+    let first = next_job(&mut world, task, false);
+    world.send(protocol::up(CHANNEL, host::LinkUp::Draining, engine::Parts::none()));
+    failed(&mut world, &first, host::JobFailure::Cancelled(host::Reason::Shutdown));
+    world.advance_ticks(40);
+    let attempt = world
+        .store
+        .rows
+        .values()
+        .find_map(|record| match record {
+            Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Attempt(row)))
+                if row.task == first.run.raw() && row.attempt == first.attempt.raw() =>
+            {
+                Some(row)
+            }
+            _ => None,
+        })
+        .expect("ended job attempt");
+    assert_eq!(attempt.end, Some(tasks::EndKind::Suspended { worker: 1, why: tasks::SuspendWhy::Stopped }));
+    let got = events(&world, task);
+    assert!(
+        !got.iter().any(|event| matches!(event.what, h::What::JobEnded { .. })),
+        "a suspended attempt adds no failed job history: {got:?}"
+    );
+    assert_eq!(got[0].what, h::What::Job { job: h::Job::Merge, task: first.run.raw() });
+    assert_eq!(live_task(&world, first.run.raw()).tries, tasks::Tries::NONE);
+    let returned = Token::new(8);
+    let owner = world.assigned[0].clone();
+    world.send(protocol::lost(CHANNEL));
+    world.send(protocol::hello_slots(
+        returned,
+        2,
+        Box::new([protocol::hosting(owner.task, owner.attempt, jig_domain_link::Phase::Active)]),
+    ));
+    let retry = next_job(&mut world, task, false);
+    assert_eq!(retry.run, first.run);
+    assert!(retry.attempt.raw() > first.attempt.raw());
+    let merged = push_merge(&mut world, task, head, base);
+    let event = world.protocol.answer_job(
+        returned,
+        retry.run.raw(),
+        retry.attempt.raw(),
+        host::JobEnding::Finished { result: RESULT.into(), work: host::Work { left: None, saved: None } },
+    );
+    world.send(event);
+    landed(&mut world, task, merged);
+    let got = events(&world, task);
+    assert_eq!(got.len(), 3, "two claims and only the successful ending: {got:?}");
+    assert_eq!(got[1].what, h::What::Job { job: h::Job::Merge, task: retry.run.raw() });
+    assert_eq!(got[2].what, h::What::JobEnded { job: h::Job::Merge, outcome: h::JobOutcome::Done });
+    world.close();
 }
 
 #[test]

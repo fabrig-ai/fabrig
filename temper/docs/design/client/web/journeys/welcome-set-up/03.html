@@ -68,14 +68,14 @@
 >Where your code lives: you tell temper what you want, agents push and land code.</span
 ></p
 ><div class="temper-flow-choices"
-><section aria-label="Forgejo" class="temper-flow-card temper-flow-choice"
-><h2 aria-label="Forgejo"
+><section aria-label="Local" class="temper-flow-card temper-flow-choice"
+><h2 aria-label="Local"
 ><span
->Forgejo</span
+>Local</span
 ></h2
-><p aria-label="A forge of your own: temper starts it on this machine and manages it. You can import existing repositories into it, from GitHub or elsewhere."
+><p aria-label="A forge of your own: temper starts Forgejo on this machine and manages it. You can import existing repositories into it, from GitHub or elsewhere."
 ><span
->A forge of your own: temper starts it on this machine and manages it. You can import existing repositories into it, from GitHub or elsewhere.</span
+>A forge of your own: temper starts Forgejo on this machine and manages it. You can import existing repositories into it, from GitHub or elsewhere.</span
 ></p
 ><p aria-label="Here · about a minute" class="temper-flow-muted"
 ><span
@@ -97,16 +97,67 @@
 ><span
 >Your repositories on GitHub. temper makes its own App there; you choose the account and the repositories it may use.</span
 ></p
-><p aria-label="In this tab, on GitHub · about two minutes" class="temper-flow-muted"
+><p aria-label="In a new tab, on GitHub · about two minutes" class="temper-flow-muted"
 ><span
->In this tab, on GitHub · about two minutes</span
+>In a new tab, on GitHub · about two minutes</span
 ></p
 ><button type="button" class="temper-flow-secondary"
 >Connect GitHub</button
 ></section
 ></div
+><dialog open aria-label="Local forge" class="temper-welcome-sheet"
+><div class="temper-welcome-sheet-head"
+><h2 aria-label="Local forge"
+><span
+>Local forge</span
+></h2
+><p aria-label="temper starts Forgejo here and connects to it; you connect your model meanwhile."
+><span
+>temper starts Forgejo here and connects to it; you connect your model meanwhile.</span
+></p
+></div
+><fieldset role="radiogroup" aria-label="Start it with" class="temper-welcome-start"
+><legend role="heading" aria-label="Start it with" class="temper-welcome-legend"
+><span
+>Start it with</span
+></legend
+><div class="temper-welcome-option"
+><input type="radio" checked="" id="skein-ui-label-1"
+><label for="skein-ui-label-1"
+>A sample project</label
+><p aria-label="A short shell script with tests and CI. Use it to explore temper’s features."
+><span
+>A short shell script with tests and CI. Use it to explore temper’s features.</span
+></p
+></div
+><div class="temper-welcome-option"
+><input type="radio" id="skein-ui-label-2"
+><label for="skein-ui-label-2"
+>Copies of public repositories</label
+><p aria-label="Copied into your local forge from GitHub or another git host, to play around with. Nothing is sent back."
+><span
+>Copied into your local forge from GitHub or another git host, to play around with. Nothing is sent back.</span
+></p
+></div
+><div class="temper-welcome-option"
+><input type="radio" id="skein-ui-label-3"
+><label for="skein-ui-label-3"
+>Nothing for now</label
+><p aria-label="Your first project opens with no repository. Make or copy one later from temper’s UI, or adopt one you push yourself."
+><span
+>Your first project opens with no repository. Make or copy one later from temper’s UI, or adopt one you push yourself.</span
+></p
+></div
+></fieldset
+><div class="temper-welcome-sheet-foot"
+><button type="button" aria-keyshortcuts="Escape"
+>Cancel</button
+><button data-journey-next="04.html" type="button" class="temper-flow-primary"
+>Run on this machine</button
+></div
+></dialog
 ><div class="temper-welcome-foot"
-><a aria-label="‹ Back" class="temper-flow-quiet" href="/welcome"
+><a aria-label="‹ Back" class="temper-flow-quiet" href="/welcome?at=forge"
 ><span
 >‹ Back</span
 ></a

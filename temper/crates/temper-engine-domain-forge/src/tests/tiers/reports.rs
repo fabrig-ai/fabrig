@@ -99,7 +99,10 @@ fn failed_rerun() -> Domain {
     d
 }
 fn report_error(d: &mut Domain, error: api::Error) -> Box<[Request]> {
-    d.tier_ops.reads.insert(READ, crate::tiers::Read { tier: (REPO, TIER.into()), baseline: false }).unwrap();
+    d.tier_ops
+        .reads
+        .insert(READ, crate::tiers::Read { tier: (REPO, TIER.into()), baseline: false, job_state: false })
+        .unwrap();
     let mut out = Queue::uncapped();
     crate::tiers::answered(d, &env(), READ, Err(error), &mut out);
     collect(out)

@@ -133,7 +133,7 @@ fn inbox_conditions_use_their_supplied_counts() {
         (Condition::Updates, f::EMPTY, f::ONE_NEED, true),
     ] {
         for subject in [f::inbox_counts(needs, updates), f::owner_inbox_counts(needs, updates)] {
-            assert_eq!(f::holds(condition, &subject, None), Some(expected), "{condition:?}/{needs}/{updates}");
+            assert_eq!(f::holds(condition.clone(), &subject, None), Some(expected), "{condition:?}/{needs}/{updates}");
         }
     }
 }
@@ -159,7 +159,7 @@ fn a_condition_waits_for_each_document_it_reads_to_be_live() {
         (Condition::Waiting, &task),
         (Condition::Updates, &task),
     ] {
-        assert_eq!(f::holds(condition, subject, None), None, "{condition:?}");
+        assert_eq!(f::holds(condition.clone(), subject, None), None, "{condition:?}");
     }
 }
 

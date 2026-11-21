@@ -288,6 +288,7 @@ fn request(ask: &people::Ask) -> Option<(Act, Subject)> {
         people::Ask::Restore { .. }
         | people::Ask::Lift { .. }
         | people::Ask::ChangeSettings { .. }
+        | people::Ask::PauseWorker { .. }
         | people::Ask::MoveToNewest { .. }
         | people::Ask::MakeProject { .. }
         | people::Ask::Compound { .. }

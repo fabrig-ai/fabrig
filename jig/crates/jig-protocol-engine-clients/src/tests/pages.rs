@@ -653,3 +653,63 @@ fn run_beginnings_carry_each_fresh_cause_to_the_decoded_client_page() {
         );
     }
 }
+
+#[test]
+fn suspended_attempts_cross_activity_and_history_bytes_without_becoming_refused() {
+    use jig_client_domain::contract as c;
+    use jig_domain_core_vocabulary::documents as d;
+    use jig_domain_tasks as t;
+    use skein_lib::{List, Reader, Wall};
+    let limits = fixtures::wire_limits();
+    let client_limits = fixtures::client_limits();
+    for (why, expected) in
+        [(t::SuspendWhy::Stopped, c::SuspendWhy::Stopped), (t::SuspendWhy::Restarted, c::SuspendWhy::Restarted)]
+    {
+        let end = t::EndKind::Suspended { worker: 2, why };
+        let expected = c::RunEnd::Suspended { worker: 2, why: expected };
+        let rows = List::from_boxed(Box::new([reads::PageRow::Activity {
+            line: t::ActivityLine {
+                task: 7,
+                position: 13,
+                at: Wall::from_nanos(37),
+                line: t::Line::RunEnded { attempt: 4, end, spent: 19 },
+            },
+            turn: None,
+        }]));
+        let w::ReadValue::Activity(record) = activity(&fixtures::page(rows), &limits).unwrap() else {
+            panic!("activity")
+        };
+        let bytes = record.encode(&limits).unwrap();
+        let record = w::ActivityPage::decode(&limits, &mut Reader::new(&bytes)).unwrap();
+        let decoded = jig_client_protocol_link::translate::pages::activity_page(record, &client_limits).unwrap();
+        assert_eq!(
+            decoded.rows.get(0).unwrap().source.line,
+            c::Activity::RunEnded { attempt: 4, end: expected, spent: 19 }
+        );
+        let rows = List::from_boxed(Box::new([reads::PageRow::Attempt(d::AttemptLine {
+            task: 7,
+            attempt: 4,
+            claimed: Some(Wall::from_nanos(14)),
+            started: Some(Wall::from_nanos(15)),
+            ended: Some(Wall::from_nanos(37)),
+            end: Some(end),
+            phases: Some(3),
+        })]));
+        let w::ReadValue::History(record) = pages::page(
+            &fixtures::models(),
+            &reads::Read::History { task: 7, subtree: false, from: None },
+            &fixtures::page(rows),
+            &crate::Private::none(),
+            &limits,
+        )
+        .unwrap() else {
+            panic!("history")
+        };
+        let bytes = record.encode(&limits).unwrap();
+        let record = w::HistoryPage::decode(&limits, &mut Reader::new(&bytes)).unwrap();
+        let decoded = jig_client_protocol_link::translate::pages::history_page(record, &client_limits).unwrap();
+        let c::HistoryRow::Attempt(row) = decoded.rows.get(0).unwrap() else { panic!("attempt") };
+        assert_eq!(row.end, Some(expected));
+        assert_eq!((row.task, row.attempt, row.ended), (7, 4, Some(Wall::from_nanos(37))));
+    }
+}

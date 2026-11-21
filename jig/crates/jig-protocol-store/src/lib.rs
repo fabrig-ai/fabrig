@@ -24,6 +24,11 @@ pub mod ended;
 mod file_handles;
 pub mod format;
 mod generations;
+/// Generated store translations (skein/docs/design/data/codec/maps.md, 4).
+#[rustfmt::skip]
+pub mod generated {
+    pub mod openings;
+}
 mod gets;
 pub mod host;
 pub mod intervals;

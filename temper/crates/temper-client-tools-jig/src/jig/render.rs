@@ -24,6 +24,7 @@ use skein_lib::Writer;
 #[derive(Clone, Copy, Debug)]
 pub enum Part<'a> {
     Me(&'a contract::Me),
+    Workers(&'a contract::Deployment),
     Inbox(&'a contract::Inbox),
     InboxPage(&'a contract::InboxPage),
     Tasks(&'a contract::Tasks),
@@ -75,11 +76,11 @@ impl<'a> Part<'a> {
 
             Delivery::Run(value) => Some(Self::Run(value)),
             Delivery::RunState(value) => Some(Self::RunState(value)),
+            Delivery::Deployment(value) => Some(Self::Workers(value)),
             Delivery::Project(_)
             | Delivery::Proposal(_)
             | Delivery::Chips(_)
             | Delivery::Settings(_)
-            | Delivery::Deployment(_)
             | Delivery::Terminal(_)
             | Delivery::Accounts(_) => None,
         }
@@ -224,6 +225,7 @@ impl Part<'_> {
             Self::TaskPage(value) => value.live.len(),
 
             Self::Tree(value) => value.rows.len(),
+            Self::Workers(value) => value.worker_settings.len(),
             Self::Me(_) | Self::Task(_) | Self::Run(_) | Self::RunState(_) => 1,
         };
         usize::try_from(rows).expect("row count fits")
@@ -237,7 +239,7 @@ impl Part<'_> {
             Self::Tasks(value) => value.more,
             Self::TaskPage(value) => value.live_after.is_some(),
             Self::Tree(value) => value.next.is_some(),
-            Self::Me(_) | Self::Task(_) | Self::Run(_) | Self::RunState(_) => false,
+            Self::Me(_) | Self::Workers(_) | Self::Task(_) | Self::Run(_) | Self::RunState(_) => false,
         }
     }
 }
@@ -245,6 +247,10 @@ impl Part<'_> {
 pub trait Parts: core::fmt::Debug {
     /// Supplemental application reads use the same retained read set and call identity.
     fn extra_read(&self, _reading: &crate::jig::runner::reads::Reading) -> Option<(u32, jig_client::Readable)> {
+        None
+    }
+    /// Supplemental watches are read once and retained as family pages at their first delivery.
+    fn extra_watch(&self, _reading: &crate::jig::runner::reads::Reading) -> Option<(u32, jig_client::Watchable)> {
         None
     }
     /// A host renders its own joined record before the generic document dispatch.

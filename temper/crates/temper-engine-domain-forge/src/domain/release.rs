@@ -307,7 +307,9 @@ fn outputs(
             | Request::Reachable { .. }
             | Request::CarriedUnused { .. }
             | Request::EraseCarried { .. }
+            | Request::MilestoneMarked { .. }
             | Request::Marked { .. }
+            | Request::FullTableFact { .. }
             | Request::MarkedForges
             | Request::ApplicationPart { .. }
             | Request::ApplicationDone { .. }

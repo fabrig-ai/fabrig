@@ -18,6 +18,8 @@ pub struct Options {
     pub scripts: Vec<PathBuf>,
     pub strict: bool,
     pub ctl: bool,
+    pub journey: bool,
+    pub widths: Vec<u32>,
     pub ports: Option<String>,
     pub files: Option<PathBuf>,
 }
@@ -27,12 +29,23 @@ impl Options {
         let mut scripts = vec![];
         let mut strict = false;
         let mut ctl = false;
+        let mut journey = false;
+        let mut widths = None;
         let mut ports = None;
         let mut files = None;
         let mut deployment = None;
         let mut args = arguments.iter();
         while let Some(argument) = args.next() {
             let target = match argument.as_ref() {
+                b"--journey" if !journey => {
+                    journey = true;
+                    continue;
+                }
+                b"--widths" if widths.is_none() => {
+                    let value = args.next().ok_or("missing --widths LIST")?;
+                    widths = Some(parse_widths(&String::from_utf8_lossy(value))?);
+                    continue;
+                }
                 b"--ctl" if !ctl => {
                     ctl = true;
                     continue;
@@ -64,6 +77,7 @@ impl Options {
             }
             *target = Some(path_arg(&mut args, &format!("{} DIR", String::from_utf8_lossy(argument)))?);
         }
+        validate_journey(journey, ctl, widths.is_some())?;
         let bin = bin.ok_or("missing --bin DIR")?;
         if deployment.is_some() {
             if ports.is_none() {
@@ -80,10 +94,39 @@ impl Options {
             scripts,
             strict,
             ctl,
+            journey,
+            widths: widths.unwrap_or_default(),
             ports,
             files,
         })
     }
+}
+fn validate_journey(journey: bool, ctl: bool, widths: bool) -> Result<(), String> {
+    if journey && ctl {
+        return Err("--journey cannot be used with --ctl".into());
+    }
+    if widths && !journey {
+        return Err("--widths requires --journey".into());
+    }
+    Ok(())
+}
+fn parse_widths(list: &str) -> Result<Vec<u32>, String> {
+    let why = || format!("--widths {list}: expected distinct widths from 320 to 3840, joined by commas");
+    let values = list
+        .split(',')
+        .map(|word| {
+            if word.is_empty() || !word.bytes().all(|byte| byte.is_ascii_digit()) {
+                return Err(why());
+            }
+            word.parse::<u32>().map_err(|_| why())
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    if values.iter().any(|width| !(320..=3840).contains(width))
+        || values.iter().collect::<std::collections::BTreeSet<_>>().len() != values.len()
+    {
+        return Err(why());
+    }
+    Ok(values)
 }
 pub(super) fn parse_ports(list: &str) -> Result<[u16; 9], String> {
     let why = || format!("--ports {list}: expected nine distinct nonzero ports");
@@ -177,7 +220,7 @@ impl Plan {
         if let Some(display) = &self.tui_display {
             given.push((b"DISPLAY".as_slice().into(), display.as_bytes().into()));
         }
-        let mut environment = crate::tui_driver::unfixed_environment(&given, &self.options.scratch.join("session"))
+        let mut environment = crate::tui_driver::environment(&given, &self.options.scratch.join("session"))
             .map_err(|why| format!("cannot build TUI environment: {why}"))?;
         for (name, value) in &mut environment {
             if ["XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_DATA_HOME"].iter().any(|key| name == key) {
@@ -251,6 +294,10 @@ pub(super) fn check_destinations(program: &Program, scratch: &Path) -> Result<()
     Ok(())
 }
 pub(super) fn prepare(mut options: Options, environment: &[EnvironmentEntry]) -> Result<Plan, String> {
+    validate_journey(options.journey, options.ctl, !options.widths.is_empty())?;
+    if !options.widths.is_empty() {
+        parse_widths(&options.widths.iter().map(u32::to_string).collect::<Vec<_>>().join(","))?;
+    }
     if let Some(files) = &mut options.files {
         *files = absolute(files)?;
         if !files.is_dir() {

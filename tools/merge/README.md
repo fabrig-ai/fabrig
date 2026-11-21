@@ -17,16 +17,19 @@ and stages only that output. An unavailable or failed generator restores the
 conflicted bytes and leaves the index unmerged, as does invalid output.
 
 The codec rule reads `tools/merge/codecs.txt`: one row per module, its
-repository-relative path followed by its schema texts in command order,
-space-separated, sorted by module path; `#` starts a comment. Only listed
-modules can run. The list and the module's schema texts must be present and
-unconflicted, as must its owner's `schema/lean` mark where it exists, beside
-its first schema text. The command reads that merged mark to select the form.
+repository-relative path followed by its schema texts in command order and,
+for a translation module, its maps file last
+(skein/docs/design/data/codec/maps.md, 7), space-separated, sorted by module
+path; `#` starts a comment. Only listed modules can run. The list and the
+module's schema texts and maps file must be present and unconflicted. The
+command writes lean records for every family, or, given a maps file, the
+family's translation.
 Any conflict under `skein/testing/skein-codegen/` or
-`skein/crates/skein-codec/` leaves every listed module unbuilt. Deleted or
+`skein/crates/skein-codec/`, the translation's generator and shared converters
+included, leaves every listed module unbuilt. Deleted or
 renamed modules stay for the resolution, and both sides must be regular files.
 For each eligible conflict it builds and runs only the generator's command:
-`cargo run -p skein-codegen --bin skein-codegen -- <schema>... <out-dir>`,
+`cargo run -p skein-codegen --bin skein-codegen -- <schema>... [<maps>] <out-dir>`,
 with the recording rule's environment. It never runs the family's drift test,
 which would build the conflicted codec crates. Arguments come only from the
 list, never the conflicted module's contents. A missing or conflicted list
@@ -72,4 +75,9 @@ Baseline recounts require Python's standard library and git; recording and
 codec regeneration also require the generators' build tools and dependencies.
 
 Run the scratch-repository tests with
-`python3 -I -B tools/merge/test_merge.py`.
+`python3 -I -B tools/merge/test_merge.py`, a gate item
+(`.config/gate/README.md`) and a check of each delivery that changes the job
+(tools/pre-pr/design.md, 4). Its codec tests stub cargo, but for one that
+runs the real `skein-codegen` on skein's fixture family `mapped`: two clean
+edits, to its schema and to its maps file, conflict in its translation module,
+and the job settles it.

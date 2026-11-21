@@ -113,7 +113,7 @@ there: a sign-in that expires opens the screen, which asks again
   there, and the file is read.
 - **Never shown:** the file's secret is never drawn, logged or kept in
   the TUI's state; a recording keeps it in the person's private file, and
-  `add` redacts it (`../journeys.md`, section 5).
+  `temper-client-journeys print` redacts it (`../journeys.md`, section 5).
 
 ## 3. At a name
 
@@ -359,7 +359,7 @@ approving browser brings and hands it to the root.
 - **Never shown:** the grant is never drawn, logged or kept: the run
   hands it up in the request's target, and the host gives it to the
   root, which gives it to `jig-client` for the take. A recording keeps
-  it in the person's private file, and `add` redacts it
+  it in the person's private file, and `temper-client-journeys print` redacts it
   (`../journeys.md`, section 5).
 - **Its tests:** the host's: the grant's request with its own `Host`
   takes the sign-in by the grant and is answered the redirect; a wrong

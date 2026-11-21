@@ -390,6 +390,8 @@ pub enum Warning {
     reason = "typed process payloads are owned directly and priced by the request queue"
 )]
 pub enum Request {
+    /// An operator log line, owing no terminal and changing no run state.
+    Log { text: Box<[u8]> },
     /// Open or hold the terminal input demand.
     Input { reading: Reading },
     /// A typed local host notice for the terminal to render.

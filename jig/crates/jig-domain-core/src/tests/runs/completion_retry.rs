@@ -112,6 +112,7 @@ fn has_watch_end(out: &[Request]) -> bool {
                 | Held::ReadUsage { .. }
                 | Held::ReadList { .. }
                 | Held::Sources { .. }
+                | Held::PauseWorker { .. }
                 | Held::CheckSource { .. }
                 | Held::SignOutSource { .. }
                 | Held::SourceSignedOut { .. }

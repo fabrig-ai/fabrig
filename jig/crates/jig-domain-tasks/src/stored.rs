@@ -336,7 +336,7 @@ pub(crate) fn restored(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<R
                 let changed = row.phase != next;
                 row.phase = next;
                 let due = row.phase == Phase::Active(Active::Due);
-                if changed {
+                if changed || row.suspension.is_some() {
                     publish(domain, env, number, out);
                 }
                 if due {

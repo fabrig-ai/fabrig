@@ -1,4 +1,4 @@
-family temper-client-wire 41
+family temper-client-wire 44
 
 # The role, as temper-engine-domain-forge's Role, in its order.
 enum Role { owned, adopted, fork, context }
@@ -129,17 +129,26 @@ enum FindingKind { qa, flake, red, review, feedback }
 enum Severity { low, medium, high }
 record FileFinding { project: u32 kind: FindingKind severity: Severity area: option text 32 title: text 200 body: text 4096 }
 enum FindingState { new, routed, backlog, dropped }
-record FindingsSubject { project: u32 state: option FindingState mine: bool }
+record FindingsTriage { state: option FindingState mine: bool }
+record FindingsGoal { goal: u64 }
+record FindingsMilestone { milestone: u64 }
+enum FindingsFilter { triage: FindingsTriage, goal: FindingsGoal, milestone: FindingsMilestone }
+record FindingsSubject { project: u32 filter: FindingsFilter }
 enum Holder { task: HolderTask, party: HolderParty, role: HolderRole }
 record FindingNotYours { holder: Holder }
 enum Filer { task: HolderTask, party: HolderParty }
-record FindingRow { number: u32 kind: FindingKind severity: Severity area: option text 32 state: FindingState title: text 200 holder: Holder at: u64 why: option text 200 hander: option Filer }
-record FindingDetail { row: FindingRow body: text 4096 filer: Filer goal: option u64 reason: option text 400 }
+record FindingClearing { tier: bytes 64 run: u64 at: u64 }
+record FindingRow { number: u32 kind: FindingKind severity: Severity area: option text 32 state: FindingState title: text 200 holder: Holder at: u64 why: option text 200 hander: option Filer goal: option u64 reason: option text 400 cleared: option FindingClearing }
+enum BlameStrength { owned, suspected, unblamed }
+record BlamedGoal { goal: u64 milestone: option u64 person: option u64 }
+record BlamedLanding { commit: fixed 32 goals: list 64 BlamedGoal }
+record FindingBlame { strength: BlameStrength landings: list 256 BlamedLanding }
+record FindingDetail { row: FindingRow body: text 4096 filer: Filer blame: option FindingBlame }
 enum Triage { route: FindingRoute, backlog, drop: FindingDrop }
 record TriageFinding { project: u32 number: u32 act: Triage }
 enum FindingRefusal { no_area: FindingAreas, full: FindingsFull, not_yours: FindingNotYours, no_finding, no_goal, ended, words: FindingWords }
 record FindingRefused { reason: FindingRefusal }
-enum FindingResult { finding: FindingDetail, no_finding }
+enum FindingResult { finding: boxed FindingDetail, no_finding }
 versioned record FindingAnswer { result: FindingResult }
 record TierHoldAct { reason: bytes 1024 }
 enum TierAct { hold: TierHoldAct, release }
@@ -206,7 +215,9 @@ enum MakingState { waiting, making, made: MakingMade, adopting: MakingMade, fail
 record RepositoryMaking { org: bytes 1024 name: bytes 1024 from: MakeFrom into: option MakeInto state: MakingState }
 enum StartsWith { repository, copies: CopyAddresses, nothing }
 record ForgeRow { number: u16 host: bytes 2048 kind: Kind mode: Mode connection: Connection offer: Offer first: option FirstRepository starts_with: StartsWith installations: list 64 Installation ended: option ConnectStopped app: option AppWay web: option bytes 2048 repositories: list 16 Adoption owned: option OwnedForge admin: bool ended_stop: option AdminStop read_only: bool makings: list 64 RepositoryMaking }
-versioned record Forges { forges: list 16 ForgeRow linked: bool }
+enum FullKind { outbox, read_admission }
+record FullTable { table: FullKind since: u64 words: bytes 1024 }
+versioned record Forges { forges: list 16 ForgeRow linked: bool full: list 2 FullTable }
 
 # The forge's reads (temper/docs/design/client/forge/served.md).
 record SettingRead { kind: u32 scope: u32 number: u32 }
@@ -323,7 +334,7 @@ versioned record HistoryAnswer { result: HistoryReply }
 # A milestone's totals (temper/docs/design/domain/milestones.md, 7).
 record MilestoneRead { project: u32 task: u64 }
 record MilestoneLanding { at: u64 goal: u64 change: u64 }
-record MilestoneTotals { task: u64 done: u32 failed: u32 closed: u32 live: u32 ended: option u64 last_landing: option MilestoneLanding spent: u64 }
+record MilestoneTotals { task: u64 done: u32 failed: u32 closed: u32 live: u32 ended: option u64 last_landing: option MilestoneLanding spent: u64 reds: u32 }
 record GoalReport { headline: bytes 512 at: u64 }
 versioned record GoalPart { report: option GoalReport milestone: option u64 }
 versioned record ChatPart { document: option bytes 512 }
@@ -336,7 +347,7 @@ versioned record MilestoneAnswer { result: MilestoneResult }
 record LimitsRead { after: option bytes 64 }
 enum LimitKind { jig, temper }
 enum LimitUnit { count, bytes, milliseconds }
-enum LimitApplies { at_once, next_start }
+enum LimitApplies { at_once, next_start, live }
 record LimitSetting { kind: LimitKind value: u64 reason: text 120 }
 record LimitRow { name: bytes 64 line: text 120 unit: LimitUnit stock: option u64 setting: option LimitSetting in_force: option u64 applies: LimitApplies waiting: bool left_out: bool held: option u64 }
 versioned record LimitsAnswer { rows: list 32 LimitRow next: option bytes 64 revision: u32 }

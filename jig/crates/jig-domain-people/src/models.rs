@@ -125,6 +125,7 @@ pub fn remap_models(ask: &mut Ask, moved: &[u64; 64]) {
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
+        | Ask::PauseWorker { .. }
         | Ask::MoveToNewest { .. }
         | Ask::MarkSeen { .. }
         | Ask::Application { .. }
@@ -221,6 +222,7 @@ fn selectors(ask: &Ask) -> Selectors {
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
+        | Ask::PauseWorker { .. }
         | Ask::MoveToNewest { .. }
         | Ask::MarkSeen { .. }
         | Ask::Application { .. }

@@ -415,7 +415,7 @@ fn forges_rows(numbers: &[u16], connection: &v1::Connection) -> v1::Forges {
             })
             .expect("row capacity");
     }
-    v1::Forges { forges, linked: false }
+    v1::Forges { forges, full: List::with_capacity(0), linked: false }
 }
 
 #[test]
@@ -446,7 +446,7 @@ fn each_forge_offer_round_trips() {
         forges.push(row).expect("three rows");
     }
     for linked in [false, true] {
-        let record = v1::Forges { forges: forges.clone(), linked };
+        let record = v1::Forges { forges: forges.clone(), full: List::with_capacity(0), linked };
         let bytes = crate::forges(&record);
         let decoded = crate::decode_forges(&bytes, &limits).expect("forges decode");
         assert_eq!(decoded.linked, linked);
@@ -545,7 +545,7 @@ fn forge_fields_refuse_one_past_their_bounds_on_construction_and_decode() {
         };
         let mut forges = List::with_capacity(1);
         forges.push(row).expect("one row");
-        let record = v1::Forges { forges, linked: false };
+        let record = v1::Forges { forges, full: List::with_capacity(0), linked: false };
         assert_eq!(crate::decode_forges(&crate::forges(&record), &limits), None);
     }
 }
@@ -603,6 +603,7 @@ fn forges_refuse_seventeen_rows_unsorted_rows_and_duplicate_numbers() {
     }
     row.write(&v1::CEILINGS, &mut writer).expect("extra row bytes");
     writer.put(&[u8::from(at.linked)]).expect("linked");
+    writer.put(&0_u32.to_be_bytes()).expect("no full tables");
     assert_eq!(crate::decode_forges(&writer.finish(), &limits), None);
     for numbers in [&[2, 1][..], &[1, 1][..]] {
         let record = forges_rows(numbers, &v1::Connection::NotSetUp);
@@ -662,7 +663,7 @@ fn forge_login_and_stop_reason_round_trip_at_schema_ceilings() {
                     };
                     let mut forges = List::with_capacity(1);
                     forges.push(row).expect("one forge");
-                    let record = v1::Forges { forges, linked: false };
+                    let record = v1::Forges { forges, full: List::with_capacity(0), linked: false };
                     assert_eq!(crate::decode_forges(&crate::forges(&record), &limits), Some(record));
                 }
             }
@@ -1521,7 +1522,7 @@ fn repository_makings_round_trip_at_the_bound_and_refuse_one_more() {
         if let Ok(row) = row {
             let mut rows = List::with_capacity(1);
             rows.push(row).unwrap();
-            let record = v1::Forges { forges: rows, linked: false };
+            let record = v1::Forges { forges: rows, full: List::with_capacity(0), linked: false };
             let encoded = crate::forges(&record);
             assert_eq!(crate::decode_forges(&encoded, &limits), Some(record));
             let mut smaller = limits;
@@ -1668,7 +1669,7 @@ fn setup_first_choices_round_trip_in_requests_and_rows() {
         };
         let mut rows = List::with_capacity(1);
         rows.push(row).unwrap();
-        let record = v1::Forges { forges: rows, linked: false };
+        let record = v1::Forges { forges: rows, full: List::with_capacity(0), linked: false };
         assert_eq!(crate::decode_forges(&crate::forges(&record), &limits), Some(record));
     }
 }

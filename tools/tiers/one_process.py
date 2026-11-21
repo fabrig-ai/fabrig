@@ -5,6 +5,7 @@ The files crossing the summary boundary follow
  temper/docs/plan/inproc-fixes/notes/contracts.md, 1.
 """
 import contextlib
+import errno
 import fnmatch
 import functools
 import hashlib
@@ -13,12 +14,15 @@ import json
 import math
 import os
 from pathlib import Path
+import platform
 import re
 import runpy
 import selectors
 import shutil
 import signal
+import socket
 import statistics
+import struct
 import subprocess
 import sys
 import tempfile
@@ -36,6 +40,53 @@ TERM_GRACE_S = 10.0
 WALL_GRACE_S = 15.0
 LEAK_S = 0.1
 EVENT = 'tiers-one-process: '
+
+# Loaded before the lanes fork (tools/tiers/design.md, 11.4, Instructions).
+try:
+    import ctypes
+    SYSCALL = ctypes.CDLL(None, use_errno=True).syscall
+    SYSCALL.restype = ctypes.c_long
+    PERF_EVENT_OPEN = {'x86_64': 298, 'aarch64': 241}.get(platform.machine())
+except ImportError:
+    PERF_EVENT_OPEN = None
+
+
+def perf_event_open(attr, pid, cpu, group_fd, flags):
+    fd = SYSCALL(PERF_EVENT_OPEN, attr, pid, cpu, group_fd, flags)
+    if fd == -1:
+        error = ctypes.get_errno()
+        raise OSError(error, os.strerror(error))
+    return fd
+
+
+def instruction_attr(*, enable_on_exec):
+    flags = (1 << 0) | (1 << 1) | (1 << 5) | (1 << 6)
+    if enable_on_exec:
+        flags |= 1 << 12
+    return struct.pack('=IIQQQQQIIQ', 0, 64, 1, 0, 0, 3, flags, 0, 0, 0)
+
+
+def counting(paranoid=Path('/proc/sys/kernel/perf_event_paranoid')):
+    """Decide once before a suite, in design.md, 11.4's order."""
+    try:
+        text = paranoid.read_text()
+    except OSError as error:
+        return dict(counted=False, why=f'no counter: cannot read {paranoid}: {error}')
+    try:
+        level = int(text)
+    except ValueError:
+        return dict(counted=False, why=f'no counter: {paranoid} holds no integer')
+    if level > 2:
+        return dict(counted=False, why=f'kernel.perf_event_paranoid is {level}, past 2')
+    if PERF_EVENT_OPEN is None:
+        return dict(counted=False, why=f'no counter: no perf_event_open on {platform.machine()}')
+    try:
+        fd = perf_event_open(instruction_attr(enable_on_exec=False), 0, -1, -1, 8)
+        os.close(fd)
+    except OSError as error:
+        why = 'perf_event_open refused' if error.errno in (errno.EACCES, errno.EPERM) else 'no counter: perf_event_open'
+        return dict(counted=False, why=f'{why}: {error}')
+    return dict(counted=True, why=None)
 
 
 def default_lanes():
@@ -606,7 +657,12 @@ def split_jobs(plan, lanes):
                     size += length
             if ordinary:
                 jobs.append(dict(binary=binary, tests=ordinary, kind='tests', diagnostic=None))
-    return sorted(jobs, key=job_order)
+    jobs.sort(key=job_order)
+    if repair := plan.get('repair_case'):
+        binary, name = repair
+        jobs.sort(key=lambda job: not (job['binary']['binary_id'] == binary
+                                      and any(test['name'] == name for test in job['tests'])))
+    return jobs
 
 
 def job_order(job):
@@ -620,7 +676,7 @@ def emit(kind, **fields):
 
 class BinaryProcess:
     """One owned child, reaped only by wait4 (design.md, 11.4 and 11.6)."""
-    def __init__(self, job, index, selector):
+    def __init__(self, job, index, selector, *, count=False):
         self.job, self.index = job, index
         self.output = bytearray()
         self.log = bytearray()
@@ -631,6 +687,7 @@ class BinaryProcess:
         self.reaped_at = None
         self.open_fds = set()
         self.cancelled_at = None
+        self.counter = None
         names = b'|'.join(re.escape(test['name'].encode()) for test in job['tests'])
         self.announcement = re.compile(rb'(?m)^test (' + names + rb') \.\.\. ')
         # Libtest opens its logfile close-on-exec. A named pipe lets it do so
@@ -643,6 +700,16 @@ class BinaryProcess:
         output_read, output_write = os.pipe()
         binary = job['binary']
         self.start = time.monotonic()
+        sockets = socket.socketpair(socket.AF_UNIX, socket.SOCK_DGRAM) if count else None
+
+        def open_counter():
+            # Nothing may escape preexec_fn: a refused counter must not fail exec.
+            try:
+                fd = perf_event_open(instruction_attr(enable_on_exec=True), 0, -1, -1, 8)
+                socket.send_fds(sockets[1], [b'c'], [fd])
+            except BaseException:
+                pass
+
         try:
             self.child = subprocess.Popen(
                 [binary['path'], '--exact', '--nocapture', '--test-threads=1', '--include-ignored',
@@ -650,7 +717,17 @@ class BinaryProcess:
                  *(['--logfile', str(logfile)] if job['kind'] != 'empty' else []),
                  *[t['name'] for t in job['tests']]],
                 cwd=binary['cwd'], env=binary['env'], stdin=subprocess.DEVNULL,
-                stdout=output_write, stderr=subprocess.STDOUT, process_group=0)
+                stdout=output_write, stderr=subprocess.STDOUT, process_group=0,
+                preexec_fn=open_counter if count else None)
+            if sockets is not None:
+                sockets[0].setblocking(False)
+                try:
+                    _, descriptors, _, _ = socket.recv_fds(sockets[0], 1, 1)
+                    if descriptors:
+                        self.counter, = descriptors
+                        os.set_inheritable(self.counter, False)
+                except OSError:
+                    pass
         except BaseException:
             os.close(read)
             os.close(self.log_writer)
@@ -659,6 +736,9 @@ class BinaryProcess:
             raise
         finally:
             os.close(output_write)
+            if sockets is not None:
+                for end in sockets:
+                    end.close()
         self.pid = self.child.pid
         for fd, kind in ((output_read, 'output'), (read, 'log')):
             os.set_blocking(fd, False)
@@ -741,6 +821,26 @@ class BinaryProcess:
             self.usage = usage
             self.reaped_at = time.monotonic()
 
+    def close_counter(self):
+        if self.counter is not None:
+            os.close(self.counter)
+            self.counter = None
+
+    def instructions(self):
+        if self.counter is None:
+            return None
+        try:
+            data = os.read(self.counter, 24)
+            if len(data) == 24:
+                count, enabled, running = struct.unpack('=QQQ', data)
+                if running == enabled:
+                    return count
+        except OSError:
+            pass
+        finally:
+            self.close_counter()
+        return None
+
     def settle(self, selector, leaked):
         self.completed()
         code = os.waitstatus_to_exitcode(self.status)
@@ -772,13 +872,14 @@ class BinaryProcess:
                 last = self.done[announced[-1]]
                 self.finish(last['test_name'], 'crashed', last['wall_s'],
                             (last['output'] or '') + f'\nprocess ended with status {code}', announced[:-1])
+        instructions = self.instructions()
         signal_group(self.child, signal.SIGKILL)
         for fd in list(self.open_fds):
             self.close(fd, selector)
         self.log_directory.cleanup()
         record = dict(binary_id=self.job['binary']['binary_id'], kind=self.job['kind'], tests=announced,
                       tree=self.job['binary']['tree'], layer=self.job['binary']['layer'],
-                      user_s=self.usage.ru_utime, system_s=self.usage.ru_stime,
+                      instructions=instructions, user_s=self.usage.ru_utime, system_s=self.usage.ru_stime,
                       wall_s=self.reaped_at - self.start, start_s=self.start,
                       exit_code=code if code >= 0 else None, signal=-code if code < 0 else None, leaked=leaked)
         if self.job['kind'] == 'reference':
@@ -801,6 +902,9 @@ def lanes(plan):
     previous = signal.signal(signal.SIGTERM, terminate)
     emit('lanes', lanes=count, session=os.getsid(0))
     try:
+        decision = counting() if plan.get('count', False) else None
+        if decision is not None:
+            emit('counting', **decision)
         with selectors.DefaultSelector() as selector:
             while jobs or active:
                 now = time.monotonic()
@@ -829,7 +933,10 @@ def lanes(plan):
                             break
                     if candidate is None:
                         break
-                    child = BinaryProcess(jobs.pop(candidate), processes, selector)
+                    job = jobs.pop(candidate)
+                    child = BinaryProcess(job, processes, selector,
+                                          count=bool(decision and decision['counted']
+                                                     and job['kind'] in ('tests', 'fresh', 'alone')))
                     processes += 1
                     first = child.start if first is None else first
                     active.append(child)
@@ -866,6 +973,7 @@ def lanes(plan):
     finally:
         for child in active:
             signal_group(child.child, signal.SIGKILL)
+            child.close_counter()
             if child.status is None:
                 _, status, _ = os.wait4(child.pid, 0)
                 child.child.returncode = os.waitstatus_to_exitcode(status)
@@ -987,7 +1095,17 @@ def listed_plan(command, env, profile, limits, config, walls, layers, picks=None
             for binary, suite in listing['rust-suites'].items() if suite.get('status') == 'listed'}
     plan = make_plan(listing, metadata, env, cargo, profile, overrides, default_filter,
                      caller_filter or picks is not None, groups, settings, table)
-    return plan, prefix, no_tests, output
+    return plan, prefix, no_tests, output, metadata['workspace_root']
+
+
+def checkout_commit(root, env):
+    try:
+        result = subprocess.run(['git', 'rev-parse', '--verify', 'HEAD'], cwd=root, env=env,
+                                stdin=subprocess.DEVNULL, capture_output=True, text=True)
+    except OSError:
+        return None
+    commit = result.stdout.strip()
+    return commit if result.returncode == 0 and re.fullmatch(r'(?:[0-9a-f]{40}|[0-9a-f]{64})', commit) else None
 
 
 def run(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None,
@@ -998,8 +1116,19 @@ def run(command, env, directory, profile, limits, config=Path('.config/nextest.t
         raise ValueError('run directory must be empty')
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
     directory.chmod(0o700)
-    plan, prefix, no_tests, output = listed_plan(command, env, profile, limits, config, walls, layers)
-    execute_plan(plan, prefix, env, directory, limits, no_tests=no_tests, output=output, ledger=ledger)
+    env = env.copy()
+    repair = env.pop('TIERS_PRE_PR_REPAIR_CASE', None)
+    plan, prefix, no_tests, output, root = listed_plan(command, env, profile, limits, config, walls, layers)
+    if repair is not None:
+        binary, name = json.loads(repair)
+        if not any(b['binary_id'] == binary and any(t['name'] == name for t in b['tests'])
+                   for b in plan['binaries']):
+            (directory / 'repair-case-missing').touch()
+            raise ValueError('repair case absent from focused listing')
+        plan['repair_case'] = [binary, name]
+    plan['count'] = True
+    execute_plan(plan, prefix, env, directory, limits, no_tests=no_tests, output=output, ledger=ledger,
+                 commit=checkout_commit(root, env))
 
 
 def alone_at_base(head_directory, command, env, directory, config=Path('.config/nextest.toml'),
@@ -1036,7 +1165,7 @@ def alone_at_base(head_directory, command, env, directory, config=Path('.config/
         if selections:
             found = {binary for binaries in packages.values() for binary in binaries}
             found_picks = [pick for pick in picks if pick[0] in found]
-            plan, prefix, _, output = listed_plan(command, env, profile, {}, config, None, layers, found_picks,
+            plan, prefix, _, output, _ = listed_plan(command, env, profile, {}, config, None, layers, found_picks,
                                                   metadata=metadata, selections=selections)
         names = {(binary['binary_id'], test['name']) for binary in plan['binaries'] for test in binary['tests']}
         present = {pick for pick in picks if pick[:2] in names}
@@ -1097,7 +1226,7 @@ def reference_plan(plan, picks, first_start=None):
     Binaries stay once in the plan, not repeated with each test's job. The lanes
     make its jobs, which get neither a fresh process nor an alone diagnostic.
     """
-    return dict(plan, reference_picks=sorted(picks), first_start=first_start)
+    return dict(plan, reference_picks=sorted(picks), first_start=first_start, count=False)
 
 
 def again_plan(run_directory, binary_id, names):
@@ -1115,7 +1244,7 @@ def again_plan(run_directory, binary_id, names):
         if name not in selected:
             raise ValueError(f'test not selected in plan: {binary_id} {name}')
     return dict(plan, binaries=[dict(binary, tests=[selected[name] for name in sorted(names)])],
-                lanes=1, single_process=True, alone_diagnostics=False, layers=[], workspace=[])
+                lanes=1, single_process=True, alone_diagnostics=False, layers=[], workspace=[], count=False)
 
 
 def again(plan, prefix, env, directory):
@@ -1139,7 +1268,7 @@ def again(plan, prefix, env, directory):
 
 
 def execute_plan(plan, prefix, env, directory, limits, *, no_tests='fail', output=None, keep_times=True, ledger=None,
-                 junit=True, at_base=False):
+                 junit=True, at_base=False, commit=None):
     """Collect the lanes' events into the run directory (design.md, 11.8)."""
     profile = plan['profile']
     output = bytearray() if output is None else output
@@ -1151,7 +1280,7 @@ def execute_plan(plan, prefix, env, directory, limits, *, no_tests='fail', outpu
     plan = dict(plan, wall_hard_s=limits.get(profile, {}).get('wall_hard_s'))
     save(directory / 'plan.json', plan)
     selected = 0 if 'reference_picks' in plan else sum(len(binary['tests']) for binary in plan['binaries'])
-    results = dict(profile=profile, selected=selected, no_tests=no_tests, cancelled=None,
+    results = dict(profile=profile, selected=selected, no_tests=no_tests, cancelled=None, counting=None, commit=commit,
                    processes=[], tests=[], unobserved=[], references=[], layers=plan['layers'], workspace=plan['workspace'])
     tests, reference_tests = {}, {}
     picks = plan.get('reference_picks', [])
@@ -1208,6 +1337,10 @@ def execute_plan(plan, prefix, env, directory, limits, *, no_tests='fail', outpu
         kind = item['event']
         if kind == 'lanes':
             lane_count = item['lanes']
+        elif kind == 'counting':
+            results['counting'] = dict(counted=item['counted'], why=item['why'])
+            if not item['counted']:
+                forward(f"tiers: not counting instructions: {item['why']}\n")
         elif kind == 'start':
             starts[item['index']] = item['start_s']
             active.add(item['index'])

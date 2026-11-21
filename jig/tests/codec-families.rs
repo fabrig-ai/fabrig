@@ -1,5 +1,5 @@
 //! Each jig codec's records and pinned constructs (skein's data/codec/README.md, 6).
-use skein_codegen::{form_of, generate_as, unpinned, values};
+use skein_codegen::{generate, translate, unpinned, values};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
@@ -13,6 +13,9 @@ pub struct Family {
     pub text: &'static str,
     /// Record code under `codec_root`, then glue under `root`.
     pub generated: &'static [&'static str],
+    pub maps: Option<&'static str>,
+    /// Translation module relative to the tree.
+    pub translation: Option<&'static str>,
 }
 
 pub const FAMILIES: &[Family] = &[
@@ -22,6 +25,8 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-protocol-engine-clients",
         codec_root: "crates/jig-protocol-engine-clients-codec",
         generated: &["src/generated/cursor.rs"],
+        maps: None,
+        translation: None,
     },
     Family {
         name: "client",
@@ -29,6 +34,8 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-client-protocol-wire",
         codec_root: "crates/jig-client-protocol-wire",
         generated: &["src/generated/client.rs"],
+        maps: None,
+        translation: None,
     },
     Family {
         name: "view records",
@@ -36,6 +43,8 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-client-view",
         codec_root: "crates/jig-client-view-codec",
         generated: &["src/generated/records.rs"],
+        maps: None,
+        translation: None,
     },
     Family {
         name: "ops client",
@@ -43,6 +52,8 @@ pub const FAMILIES: &[Family] = &[
         root: "examples/ops/client-protocol-wire",
         codec_root: "examples/ops/client-protocol-wire",
         generated: &["src/generated/ops_client.rs"],
+        maps: None,
+        translation: None,
     },
     Family {
         name: "test client",
@@ -50,6 +61,8 @@ pub const FAMILIES: &[Family] = &[
         root: "testing/jig-client-test-protocol-wire",
         codec_root: "testing/jig-client-test-protocol-wire-codec",
         generated: &["src/generated/test_client.rs"],
+        maps: None,
+        translation: None,
     },
     Family {
         name: "component",
@@ -57,6 +70,8 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-families",
         generated: &["src/generated/component.rs"],
+        maps: Some(include_str!("../crates/jig-protocol-store/schema/component.maps")),
+        translation: Some("crates/jig-protocol-store-records/src/generated/component.rs"),
     },
     Family {
         name: "core",
@@ -64,6 +79,8 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-core",
         generated: &["src/generated/core.rs"],
+        maps: Some(include_str!("../crates/jig-protocol-store/schema/core.maps")),
+        translation: Some("crates/jig-protocol-store-records/src/generated/core.rs"),
     },
     Family {
         name: "tasks",
@@ -71,6 +88,8 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-tasks",
         generated: &["src/generated/tasks.rs"],
+        maps: Some(include_str!("../crates/jig-protocol-store/schema/tasks.maps")),
+        translation: Some("crates/jig-protocol-store-records/src/generated/tasks.rs"),
     },
     Family {
         name: "people",
@@ -78,6 +97,8 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-people",
         generated: &["src/generated/people.rs"],
+        maps: Some(include_str!("../crates/jig-protocol-store/schema/people.maps")),
+        translation: Some("crates/jig-protocol-store-records/src/generated/people.rs"),
     },
     Family {
         name: "registry",
@@ -85,6 +106,8 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-families",
         generated: &["src/generated/registry.rs"],
+        maps: None,
+        translation: None,
     },
     Family {
         name: "openings",
@@ -92,6 +115,8 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-families",
         generated: &["src/generated/openings.rs"],
+        maps: Some(include_str!("../crates/jig-protocol-store/schema/openings.maps")),
+        translation: Some("crates/jig-protocol-store/src/generated/openings.rs"),
     },
     Family {
         name: "notes",
@@ -99,6 +124,8 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-families",
         generated: &["src/generated/notes.rs"],
+        maps: Some(include_str!("../crates/jig-protocol-store/schema/notes.maps")),
+        translation: Some("crates/jig-protocol-store-records/src/generated/notes.rs"),
     },
     Family {
         name: "accounts",
@@ -106,6 +133,8 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-families",
         generated: &["src/generated/accounts.rs"],
+        maps: Some(include_str!("../crates/jig-protocol-store/schema/accounts.maps")),
+        translation: Some("crates/jig-protocol-store-records/src/generated/accounts.rs"),
     },
     Family {
         name: "settings",
@@ -113,6 +142,8 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-settings",
         generated: &["src/generated/settings.rs"],
+        maps: Some(include_str!("../crates/jig-protocol-store/schema/settings.maps")),
+        translation: Some("crates/jig-protocol-store-records/src/generated/settings.rs"),
     },
     Family {
         name: "secrets",
@@ -120,6 +151,8 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-families",
         generated: &["src/generated/secrets.rs"],
+        maps: None,
+        translation: None,
     },
     Family {
         name: "test connector",
@@ -127,6 +160,8 @@ pub const FAMILIES: &[Family] = &[
         root: "testing/jig-test-store",
         codec_root: "testing/jig-test-store-codec",
         generated: &["src/generated/test_connector.rs"],
+        maps: None,
+        translation: None,
     },
     Family {
         name: "worker wire",
@@ -134,6 +169,8 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-protocol-worker-wire",
         codec_root: "crates/jig-protocol-worker-wire",
         generated: &["src/generated/worker_wire.rs"],
+        maps: None,
+        translation: None,
     },
     Family {
         name: "accounts moved",
@@ -141,6 +178,8 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-protocol-accounts",
         codec_root: "crates/jig-protocol-accounts-codec",
         generated: &["src/generated/moved.rs"],
+        maps: None,
+        translation: None,
     },
     Family {
         name: "public",
@@ -148,6 +187,8 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-client-protocol-wire",
         codec_root: "crates/jig-client-protocol-wire",
         generated: &["src/generated/public.rs"],
+        maps: None,
+        translation: None,
     },
 ];
 
@@ -163,8 +204,7 @@ pub fn check() {
         let unpinned = unpinned(source).expect("schema valid");
         assert!(unpinned.is_empty(), "{}: unpinned constructs: {unpinned:?}", family.name);
         let schema = &values(source).schema;
-        let form = form_of(&root.join("schema"), &schema.family).expect("family form readable");
-        let output = generate_as(schema, form);
+        let output = generate(schema);
         if family.name == "client" {
             client_layout(&root, source, write, again);
         }
@@ -176,6 +216,19 @@ pub fn check() {
             .extend(family.generated.iter().skip(1).map(|path| root.join(path)));
         inventories.entry(codec_root.join("src/generated")).or_default().insert(code.clone());
         check_text(&code, &output.records, write, again);
+        match (family.maps, family.translation) {
+            (Some(maps), Some(path)) => {
+                let code = tree.join(path);
+                let output = translate(schema, maps).expect("maps valid");
+                inventories
+                    .entry(code.parent().expect("translation parent").to_path_buf())
+                    .or_default()
+                    .insert(code.clone());
+                check_text(&code, &output, write, again);
+            }
+            (None, None) => {}
+            (Some(_), None) | (None, Some(_)) => panic!("{}: maps and translation belong together", family.name),
+        }
     }
     for (directory, expected) in inventories {
         assert_eq!(entries(&directory), expected, "{}: generated inventory", directory.display());

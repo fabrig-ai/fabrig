@@ -62,6 +62,43 @@ fn reconnect_after(world: &mut World, span: Duration) {
     world.connect_pending();
     assert!(world.records().last().expect("new channel").iter().any(|record| record.kind == 0x0100));
 }
+fn last_fresh(world: &World) -> bool {
+    use wire::Record;
+    let records = world.records();
+    let hello = records
+        .last()
+        .expect("channel")
+        .iter()
+        .find(|record| record.kind == wire::Kind::Hello.number())
+        .expect("hello sent");
+    wire::Hello::decode(&fixtures::codec(), &mut skein_lib::Reader::new(&hello.body)).expect("hello").fresh
+}
+
+#[test]
+fn hellos_stay_fresh_through_refusal_and_loss_until_sources_admits_one() {
+    let mut world = world();
+    world.script_root();
+    assert!(last_fresh(&world));
+    world.play(
+        skein_channel::control_frame(
+            &skein_channel::Control::Refuse { reason: wire::Reason::NotAdmitted.code(), text: Box::new([]) },
+            &fixtures::channel_limits(),
+        )
+        .expect("hello refused"),
+    );
+    reconnect_after(&mut world, Duration::from_secs(1));
+    assert!(last_fresh(&world), "refusal is not admission");
+    world.lose_channel();
+    reconnect_after(&mut world, Duration::from_secs(1));
+    assert!(last_fresh(&world), "loss before sources is not admission");
+    world.play(sources());
+    for _ in 0..2 {
+        world.lose_channel();
+        reconnect_after(&mut world, Duration::from_secs(1));
+        assert!(!last_fresh(&world), "each later hello belongs to the admitted process");
+    }
+}
+
 #[test]
 fn refused_hellos_leave_the_grace_running_from_the_first_loss() {
     let mut world = world();

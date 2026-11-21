@@ -675,11 +675,10 @@ pub fn to_root(
                     w::Watch::Findings(subject) => jig_domain_core::documents::Watched::Application {
                         scope: jig_domain_people::ApplicationScope::Project(subject.project),
                         connector: wire::FORGE,
-                        subject: Token::new(forge::findings_subject(
-                            subject.project,
-                            findings::state(subject.state.as_ref()),
-                            subject.mine,
-                        )),
+                        subject: Token::new(
+                            forge::findings_subject(subject.project, findings::filter(&subject.filter))
+                                .unwrap_or(u64::MAX),
+                        ),
                     },
                     w::Watch::Decided(subject) => jig_domain_core::documents::Watched::Application {
                         scope: jig_domain_people::ApplicationScope::Project(subject.project),
@@ -1242,7 +1241,15 @@ pub fn forges(value: forge::Forges, linked: bool, limits: &w::Limits) -> Option<
     for row in value.rows {
         forges.push(forge_row(row, limits)?).ok()?;
     }
-    (w::Forges { forges, linked }).encode(limits).ok()
+    let mut full = List::with_capacity(2);
+    for row in value.full {
+        let table = match row.table {
+            forge::FullKind::Outbox => w::FullKind::Outbox,
+            forge::FullKind::ReadAdmission => w::FullKind::ReadAdmission,
+        };
+        full.push(w::FullTable { table, since: row.since, words: row.words }).ok()?;
+    }
+    (w::Forges { forges, full, linked }).encode(limits).ok()
 }
 fn forge_row(row: forge::Row, limits: &w::Limits) -> Option<w::ForgeRow> {
     let ended = match row.ended {

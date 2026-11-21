@@ -734,6 +734,9 @@ impl HostIo {
                     host_events.push(host::Input::Process(host::process::Event::Unsent { owner }));
                 }
             }
+            host::process::Request::CloseChannel { .. } => {
+                self.child.process_mut().close_channel(&mut self.io_requests);
+            }
             host::process::Request::Signal { owner, signal, .. } => {
                 let (signal, reason) = match signal {
                     host::Signal::Terminate => (kernel::Signal::Terminate, kernel::Reason::Unknown),

@@ -192,7 +192,12 @@ fn a_payload_is_handed_out_and_its_decoded_answer_is_routed() {
     let Request::Core(core::Event::Fleet(fleet::Event::Answer { payload, .. })) = out.pop().expect("answer") else {
         panic!("fleet answer")
     };
-    step(&mut link, Time::ZERO, Event::AnswerPayload { run: RUN, attempt: ATTEMPT, payload }, &mut out);
+    step(
+        &mut link,
+        Time::ZERO,
+        Event::AnswerPayload { run: RUN, attempt: ATTEMPT, payload, worker: None, window: skein_lib::Duration::ZERO },
+        &mut out,
+    );
     let Request::ReadResult { payload: handed, outcome } = out.pop().expect("protocol hand-out") else {
         panic!("opaque result")
     };
@@ -412,7 +417,12 @@ fn a_jobs_answer_reaches_the_core_as_its_end() {
             panic!("fleet answer")
         };
         assert_eq!(kind, answer);
-        step(&mut link, Time::ZERO, Event::AnswerPayload { run, attempt, payload }, &mut out);
+        step(
+            &mut link,
+            Time::ZERO,
+            Event::AnswerPayload { run, attempt, payload, worker: None, window: skein_lib::Duration::ZERO },
+            &mut out,
+        );
         let Request::Core(core::Event::AnswerPayload { run, attempt, cumulative, end: ended, read, refused, .. }) =
             out.pop().unwrap()
         else {
@@ -429,10 +439,16 @@ fn a_jobs_answer_reaches_the_core_as_its_end() {
 /// jig/docs/design/domain/hosts/hub.md, 6: worker cancellations interrupt agent attempts.
 #[test]
 fn worker_cancellations_interrupt_agents_but_not_engine_cancellations() {
-    for (reason, expected) in [
-        (host::Reason::Contact, tasks::End::Recheck),
-        (host::Reason::Shutdown, tasks::End::Recheck),
-        (host::Reason::Engine, tasks::End::Failed(tasks::Class::Agent)),
+    let window = Duration::from_secs(17);
+    for (reason, worker, expected) in [
+        (host::Reason::Contact, Some(1), tasks::End::Recheck),
+        (host::Reason::Shutdown, None, tasks::End::Recheck),
+        (
+            host::Reason::Shutdown,
+            Some(1),
+            tasks::End::Suspended(tasks::Suspended { worker: 2, why: tasks::SuspendWhy::Stopped, window }),
+        ),
+        (host::Reason::Engine, Some(1), tasks::End::Failed(tasks::Class::Agent)),
     ] {
         let ending = host::Ending::Failed {
             failure: host::Failure::Cancelled(reason),
@@ -440,7 +456,30 @@ fn worker_cancellations_interrupt_agents_but_not_engine_cancellations() {
             work: host::Work { left: None, saved: Some(Token::new(99)) },
             model: None,
         };
-        assert_eq!(payload::ending(&ending), expected);
+        assert_eq!(payload::ending(&ending, worker, window), expected);
+        let mut link = link();
+        let Some(core::Event::Fleet(fleet::Event::Answer { payload, .. })) = up(
+            &mut link,
+            CHANNEL,
+            host::LinkUp::Answer {
+                run: RUN,
+                attempt: ATTEMPT,
+                answer: host::RunAnswer { turns: 0, spent: 0, read: None, refused: Box::new([]), ending },
+            },
+        ) else {
+            panic!("retained worker answer")
+        };
+        let mut out = Queue::uncapped();
+        step(
+            &mut link,
+            Time::ZERO,
+            Event::AnswerPayload { run: RUN, attempt: ATTEMPT, payload, worker, window },
+            &mut out,
+        );
+        let Some(Request::Core(core::Event::AnswerPayload { end, .. })) = out.pop() else {
+            panic!("translated answer")
+        };
+        assert_eq!(end, expected);
     }
 }
 
@@ -463,14 +502,19 @@ fn job_failures_keep_their_contract_classes() {
     ] {
         let ending =
             host::JobEnding::Failed { failure, detail: Box::new([]), work: host::Work { left: None, saved: None } };
-        assert_eq!(payload::job_end(&ending), tasks::End::Failed(expected));
+        assert_eq!(payload::job_end(&ending, None, skein_lib::Duration::ZERO), tasks::End::Failed(expected));
     }
     let shutdown = host::JobEnding::Failed {
         failure: F::Cancelled(R::Shutdown),
         detail: b"interrupted".as_slice().into(),
         work: host::Work { left: None, saved: None },
     };
-    assert_eq!(payload::job_end(&shutdown), tasks::End::Recheck);
+    assert_eq!(payload::job_end(&shutdown, None, Duration::ZERO), tasks::End::Recheck);
+    let window = Duration::from_secs(19);
+    assert_eq!(
+        payload::job_end(&shutdown, Some(1), window),
+        tasks::End::Suspended(tasks::Suspended { worker: 2, why: tasks::SuspendWhy::Stopped, window })
+    );
 }
 
 /// jig/docs/design/domain/engine/executors.md, 5: a terminal frees retained job bytes, including a lost claim's.
@@ -515,12 +559,16 @@ fn core_now_translates_the_links_six_outputs_without_changing_fields() {
         panic!("turn payload event")
     };
     assert_eq!((run, attempt, turn, body), (RUN, ATTEMPT, TURN, PAYLOAD));
-    let Event::AnswerPayload { run, attempt, payload } =
-        now(core::LinkNow::AnswerPayload { run: RUN, attempt: ATTEMPT, payload: PAYLOAD })
-    else {
+    let Event::AnswerPayload { run, attempt, payload, worker, window } = now(core::LinkNow::AnswerPayload {
+        run: RUN,
+        attempt: ATTEMPT,
+        payload: PAYLOAD,
+        worker: Some(1),
+        window: Duration::from_secs(23),
+    }) else {
         panic!("answer payload event")
     };
-    assert_eq!((run, attempt, payload), (RUN, ATTEMPT, PAYLOAD));
+    assert_eq!((run, attempt, payload, worker, window), (RUN, ATTEMPT, PAYLOAD, Some(1), Duration::from_secs(23)));
     let Event::AcceptedTurn { payload, task, attempt, turn, accepted } = now(core::LinkNow::AcceptedTurn {
         payload: PAYLOAD,
         task: RUN.raw(),
@@ -625,7 +673,7 @@ fn a_refused_start_is_transient_permanent_or_busy() {
         ),
     ];
     for (ending, expected_end, expected) in endings {
-        assert_eq!(payload::ending(&ending), expected_end, "{ending:?}");
+        assert_eq!(payload::ending(&ending, None, skein_lib::Duration::ZERO), expected_end, "{ending:?}");
         let mut link = link();
         let event = up(
             &mut link,
@@ -653,7 +701,7 @@ fn an_invalid_starts_reason_keeps_its_words() {
             why: Box::from(why.as_slice()),
         }));
         assert_eq!(
-            payload::ending(&ending),
+            payload::ending(&ending, None, skein_lib::Duration::ZERO),
             tasks::End::FailedWithReason { class: tasks::Class::Permanent, reason: Box::from(why.as_slice()) }
         );
     }
@@ -675,7 +723,8 @@ fn an_invalid_starts_reason_keeps_a_marked_utf8_head() {
             cause: host::StartCause::Other,
             why: why.into_bytes().into_boxed_slice(),
         }));
-        let tasks::End::FailedWithReason { class, reason } = payload::ending(&ending) else {
+        let tasks::End::FailedWithReason { class, reason } = payload::ending(&ending, None, skein_lib::Duration::ZERO)
+        else {
             panic!("invalid start carries its reason");
         };
         assert_eq!(class, tasks::Class::Permanent);
@@ -692,7 +741,7 @@ fn an_invalid_starts_non_utf8_reason_reads_as_text() {
         why: b"assignment: \xff cannot encode".as_slice().into(),
     }));
     assert_eq!(
-        payload::ending(&ending),
+        payload::ending(&ending, None, skein_lib::Duration::ZERO),
         tasks::End::FailedWithReason {
             class: tasks::Class::Permanent,
             reason: b"assignment: ? cannot encode".as_slice().into(),
@@ -713,7 +762,7 @@ fn a_failed_jobs_cause_is_carried_to_its_task() {
             work: host::Work { left: None, saved: None },
         };
         assert_eq!(
-            payload::job_end(&ending),
+            payload::job_end(&ending, None, skein_lib::Duration::ZERO),
             tasks::End::FailedWithReason { class: tasks::Class::Transient, reason: reason.into() }
         );
     }
@@ -737,7 +786,7 @@ fn a_runs_transient_preparation_is_infrastructure_with_its_detail() {
             work: host::Work { left: None, saved: None },
             model: None,
         };
-        assert_eq!(payload::ending(&ending), expected);
+        assert_eq!(payload::ending(&ending, None, skein_lib::Duration::ZERO), expected);
     }
     let ending = host::Ending::Failed {
         failure: host::Failure::Unprepared(host::Preparation::Permanent { resource: None }),
@@ -745,14 +794,14 @@ fn a_runs_transient_preparation_is_infrastructure_with_its_detail() {
         work: host::Work { left: None, saved: None },
         model: None,
     };
-    assert_eq!(payload::ending(&ending), tasks::End::Failed(tasks::Class::Permanent));
+    assert_eq!(payload::ending(&ending, None, skein_lib::Duration::ZERO), tasks::End::Failed(tasks::Class::Permanent));
     let ending = host::JobEnding::Failed {
         failure: host::JobFailure::Unprepared(host::Preparation::Transient),
         detail: Box::from(b"fetch: TimedOut".as_slice()),
         work: host::Work { left: None, saved: None },
     };
     assert_eq!(
-        payload::job_end(&ending),
+        payload::job_end(&ending, None, skein_lib::Duration::ZERO),
         tasks::End::FailedWithReason {
             class: tasks::Class::Infrastructure,
             reason: Box::from(b"fetch: TimedOut".as_slice()),
@@ -771,7 +820,7 @@ fn a_version_refusal_pauses_with_its_reason_and_keeps_history_usable() {
     let end = tasks::End::RefusedWithReason {
         reason: b"version mismatch: smith-charter 5, the worker reads 4..4".as_slice().into(),
     };
-    assert_eq!(payload::ending(&ending), end);
+    assert_eq!(payload::ending(&ending, None, skein_lib::Duration::ZERO), end);
     assert!(!payload::unusable_history(&ending));
     let mut link = link();
     let mut out = Queue::uncapped();
@@ -792,7 +841,12 @@ fn a_version_refusal_pauses_with_its_reason_and_keeps_history_usable() {
         panic!("fleet answer")
     };
     assert_eq!(answer, fleet::Answer::Version);
-    step(&mut link, Time::ZERO, Event::AnswerPayload { run: RUN, attempt: ATTEMPT, payload }, &mut out);
+    step(
+        &mut link,
+        Time::ZERO,
+        Event::AnswerPayload { run: RUN, attempt: ATTEMPT, payload, worker: None, window: skein_lib::Duration::ZERO },
+        &mut out,
+    );
     let Request::Core(core::Event::AnswerPayload { end: actual, unusable_history, .. }) = out.pop().unwrap() else {
         panic!("task terminal")
     };
@@ -806,8 +860,8 @@ fn untranslated_runs_and_jobs_keep_a_retry_reason_on_the_usual_answer_route() {
     let run = host::Ending::Refused(host::Refusal::Untranslated(mismatch.clone()));
     let job = host::JobEnding::Refused(host::JobRefusal::Untranslated(mismatch.clone()));
     let end = tasks::End::RefusedWithReason { reason: mismatch.reason() };
-    assert_eq!(payload::ending(&run), end);
-    assert_eq!(payload::job_end(&job), end);
+    assert_eq!(payload::ending(&run, None, Duration::ZERO), end);
+    assert_eq!(payload::job_end(&job, None, Duration::ZERO), end);
     assert!(!payload::unusable_history(&run));
     for up in [
         host::LinkUp::Answer {
@@ -824,7 +878,18 @@ fn untranslated_runs_and_jobs_keep_a_retry_reason_on_the_usual_answer_route() {
             panic!("fleet answer")
         };
         assert_eq!(answer, fleet::Answer::Untranslated);
-        step(&mut link, Time::ZERO, Event::AnswerPayload { run: RUN, attempt: ATTEMPT, payload }, &mut out);
+        step(
+            &mut link,
+            Time::ZERO,
+            Event::AnswerPayload {
+                run: RUN,
+                attempt: ATTEMPT,
+                payload,
+                worker: None,
+                window: skein_lib::Duration::ZERO,
+            },
+            &mut out,
+        );
         let Request::Core(core::Event::AnswerPayload { end: actual, .. }) = out.pop().unwrap() else {
             panic!("task terminal")
         };
@@ -840,7 +905,7 @@ fn an_untooled_failure_keeps_its_tag_on_the_usual_answer_route() {
         work: host::Work { left: None, saved: None },
         model: None,
     };
-    assert_eq!(payload::ending(&ending), tasks::End::Refused);
+    assert_eq!(payload::ending(&ending, None, skein_lib::Duration::ZERO), tasks::End::Refused);
     let mut link = link();
     let mut out = Queue::uncapped();
     step(
@@ -859,7 +924,12 @@ fn an_untooled_failure_keeps_its_tag_on_the_usual_answer_route() {
     let Request::Core(core::Event::Fleet(fleet::Event::Answer { payload, .. })) = out.pop().unwrap() else {
         panic!("fleet answer")
     };
-    step(&mut link, Time::ZERO, Event::AnswerPayload { run: RUN, attempt: ATTEMPT, payload }, &mut out);
+    step(
+        &mut link,
+        Time::ZERO,
+        Event::AnswerPayload { run: RUN, attempt: ATTEMPT, payload, worker: None, window: skein_lib::Duration::ZERO },
+        &mut out,
+    );
     let Request::Core(core::Event::AnswerPayload { end, untooled, unusable_history, .. }) = out.pop().unwrap() else {
         panic!("task terminal")
     };
@@ -884,7 +954,7 @@ fn an_unsent_models_refusal_names_the_run_hold() {
         }),
     };
     assert_eq!(
-        payload::ending(&ending),
+        payload::ending(&ending, None, skein_lib::Duration::ZERO),
         tasks::End::FailedWithReason {
             class: tasks::Class::Run,
             reason: b"anthropic-api claude-opus-5-5: invalid, unsent: empty-message".as_slice().into(),
@@ -924,7 +994,10 @@ fn a_named_model_failure_classes_only_its_unsent_outages_as_infrastructure() {
                 refusal: None,
             }),
         };
-        assert_eq!(payload::ending(&ending), tasks::End::FailedWithReason { class, reason: words.into() });
+        assert_eq!(
+            payload::ending(&ending, None, skein_lib::Duration::ZERO),
+            tasks::End::FailedWithReason { class, reason: words.into() }
+        );
     }
     let mut ending = host::Ending::Failed {
         failure: host::Failure::Run(host::RunFailure::Model),
@@ -932,7 +1005,7 @@ fn a_named_model_failure_classes_only_its_unsent_outages_as_infrastructure() {
         work: host::Work { left: None, saved: None },
         model: None,
     };
-    assert_eq!(payload::ending(&ending), tasks::End::Failed(tasks::Class::Run));
+    assert_eq!(payload::ending(&ending, None, skein_lib::Duration::ZERO), tasks::End::Failed(tasks::Class::Run));
     // A call beside another failure cannot reclassify it or replace its reason.
     for failure in [
         host::Failure::Unprepared(host::Preparation::Transient),
@@ -948,7 +1021,7 @@ fn a_named_model_failure_classes_only_its_unsent_outages_as_infrastructure() {
         let host::Ending::Failed { failure: value, model, .. } = &mut ending else { unreachable!() };
         *value = failure;
         *model = None;
-        let expected = payload::ending(&ending);
+        let expected = payload::ending(&ending, None, skein_lib::Duration::ZERO);
         let host::Ending::Failed { model, .. } = &mut ending else { unreachable!() };
         *model = Some(host::ModelFailure {
             endpoint: b"anthropic".as_slice().into(),
@@ -958,7 +1031,7 @@ fn a_named_model_failure_classes_only_its_unsent_outages_as_infrastructure() {
             status: None,
             refusal: None,
         });
-        assert_eq!(payload::ending(&ending), expected, "{failure:?}");
+        assert_eq!(payload::ending(&ending, None, skein_lib::Duration::ZERO), expected, "{failure:?}");
     }
 }
 
@@ -1050,4 +1123,19 @@ fn the_engines_own_hub_routes_application_asks_and_answers_by_number() {
     assert!(root.is_empty());
     assert!(out.is_empty());
     assert_eq!(link.payload_count(), 0, "a read keeps no payload for commitment");
+}
+
+#[test]
+fn a_workers_pause_word_reaches_the_fleet_on_its_channel() {
+    use jig_domain_link::PauseState;
+    let mut link = link();
+    link.connect(CHANNEL);
+    for state in [PauseState::Taking, PauseState::Paused, PauseState::Draining, PauseState::Drained] {
+        let Some(core::Event::Fleet(fleet::Event::Paused { channel, state: heard })) =
+            up(&mut link, CHANNEL, host::LinkUp::Paused { state })
+        else {
+            panic!("the worker's word reaches the fleet")
+        };
+        assert_eq!((channel, heard), (CHANNEL, state));
+    }
 }

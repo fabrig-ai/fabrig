@@ -86,6 +86,7 @@ pub fn edit(before: &Ask, field: Field, bytes: Box<[u8]>, text: u32) -> Option<A
         | Ask::ReadLists { .. }
         | Ask::ChangeModel(_)
         | Ask::ChangeSettings(_)
+        | Ask::PauseWorker { .. }
         | Ask::MoveToNewest(_)
         | Ask::Restore { .. }
         | Ask::MakeProject { .. }
@@ -563,6 +564,7 @@ fn policy_request(ask: &Ask) -> Option<&PolicyEdit> {
         | Ask::ReadLists { .. }
         | Ask::ChangeModel(_)
         | Ask::ChangeSettings(_)
+        | Ask::PauseWorker { .. }
         | Ask::MoveToNewest(_)
         | Ask::Restore { .. }
         | Ask::MakeProject { .. }
@@ -660,6 +662,7 @@ fn holdings_request(ask: &Ask) -> Option<&skein_lib::List<jig_client::contract::
         | Ask::ReadLists { .. }
         | Ask::ChangeModel(_)
         | Ask::ChangeSettings(_)
+        | Ask::PauseWorker { .. }
         | Ask::MoveToNewest(_)
         | Ask::Restore { .. }
         | Ask::MakeProject { .. }
@@ -702,6 +705,7 @@ fn pool_request(ask: &Ask) -> bool {
         | Ask::ReadLists { .. }
         | Ask::ChangeModel(_)
         | Ask::ChangeSettings(_)
+        | Ask::PauseWorker { .. }
         | Ask::MoveToNewest(_)
         | Ask::Restore { .. }
         | Ask::MakeProject { .. }
@@ -744,6 +748,7 @@ fn service_request(ask: &Ask) -> Option<(&jig_client::contract::Text, jig_client
         | Ask::ReadLists { .. }
         | Ask::ChangeModel(_)
         | Ask::ChangeSettings(_)
+        | Ask::PauseWorker { .. }
         | Ask::MoveToNewest(_)
         | Ask::Restore { .. }
         | Ask::MakeProject { .. }
@@ -1187,6 +1192,7 @@ fn render_request(b: &mut Builder, ask: &Ask, words: &Words, text_limit: u32, ro
         | Ask::ReadLists { .. }
         | Ask::ChangeModel(_)
         | Ask::ChangeSettings(_)
+        | Ask::PauseWorker { .. }
         | Ask::MoveToNewest(_)
         | Ask::Restore { .. }
         | Ask::MakeProject { .. }

@@ -79,6 +79,10 @@ pub enum AnswerOn {
 /// Every jig request, without keys owned by the root table.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Ask {
+    PauseWorker {
+        worker: u32,
+        mode: super::WorkerPauseMode,
+    },
     /// Conclude a gathering (jig/docs/design/domain/tasks/gatherings.md, 3).
     Conclude {
         project: u32,
@@ -286,6 +290,9 @@ pub enum AskAccountHolder {
 /// The durable result of one ask.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Outcome {
+    WorkerPauseAsked {
+        worker: u32,
+    },
     Account(super::AccountAnswer),
     /// A restore proposed for review (domain/engine/settings.md, 10).
     Restored {
