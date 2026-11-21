@@ -1,12 +1,17 @@
 # checks: status
 
-2026-11-20. Where the tree's code lags or departs from [checks.md](checks.md).
+2026-11-21. Where the tree's code lags or departs from [checks.md](checks.md).
 
 - **Not yet:** 6.1: no adapter is built: `temper-engine-inspect` and
   `temper-worker-inspect` don't exist, and no world calls the shared
-  checks. 6.2: no temper world keeps a fault ledger, draws from the
-  seed's streams or sweeps with configured faults and exclusions, and no
-  check holds the 3.3 failure table.
+  checks. 6.2: no temper world but the engine's forge world keeps a
+  fault ledger, draws from the seed's streams or sweeps with configured
+  faults and exclusions, and no check holds the 3.3 failure table's rows
+  for runs.
+- **Not yet:** 6.2: the engine's forge world keeps no fault ledger and
+  draws from no streams [in flight: change 11617].
+- **Not yet:** 6.2: no check holds the 3.3 failure table's rows for
+  gates [in flight: change 11598].
 
 - **Departs:** 1: eighteen named real-loop stories remain in the fuzzy
   suite: sixteen scripted stories (fourteen reference-case stories,
