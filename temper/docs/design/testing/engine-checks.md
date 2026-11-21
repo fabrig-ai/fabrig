@@ -31,10 +31,11 @@ engine's in full.
   `Ends`: each goal a scenario names ends, is held with words naming its
   fault, or keeps going untouched, within a bound in simulated minutes and
   in steps; and after every restart the engine opens within a bound.
-- **Open problems** (section 5): thirteen ignored scenarios, named as the
+- **Open problems** (section 5): twelve ignored scenarios, named as the
   draft's section 7 names them, each ignored with the work that fixes it,
   and an exclusion for each that every engine sweep drawing its fault
-  takes.
+  takes. P124's first scenario is its fix's own active test, not one of
+  them.
 - **Out:** jig's, the worker's and smith's adapters and checks; the fault
   families (the draft, section 4); the settings tests and the store check
   (the draft, 3.6 and 3.7), whose call the settings goal adds to the kit's
@@ -304,7 +305,6 @@ wants of that symptom.
 
 | Problem | Scenario | Package | Fixed by |
 |---|---|---|---|
-| P124 | `cancelled_landing_frees_its_write_entries` | `temper-engine-forge-world` | landing train |
 | P124 | `a_change_waiting_for_room_has_a_bound` | `temper-engine-forge-world` | bounded waits |
 | P88 | `a_refused_release_is_accounted` | `temper-engine-forge-world` | landing train |
 | P90 | `a_refused_close_of_an_open_pull_holds_with_words` | `temper-engine-forge-world` | landing train |
@@ -318,6 +318,12 @@ wants of that symptom.
 | P113 | `a_change_waits_on_another_goal` | `temper-engine-domain-world` | bounded waits |
 | P63 residual | `a_stored_charter_is_checked_at_start` | `temper-engine-domain-world` | bounded waits |
 
+- **P124's first scenario,** `cancelled_landing_frees_its_write_entries`
+  (a landing cancelled while its gate's dispatch is in flight withdraws
+  its write entries), is the active test of its fix, the goal *A
+  cancelled landing gives back its forge write slots*: this design writes
+  no ignored copy of it and no exclusion for it (the milestone,
+  2026-11-21).
 - **P124's bound:** no design gives a wait for room a bound
   (`../domain/forge/room.md`, 4). Its second scenario holds the change to
   its stall (`../domain/forge/change/stalls.md`, 1), which bounds every
@@ -358,7 +364,6 @@ names otherwise, here, in its own change.
 
 | Scenario | Fault | When |
 |---|---|---|
-| `cancelled_landing_frees_its_write_entries` | `parties` / `cancel a landing` | `a gate's dispatch in flight` |
 | `a_change_waiting_for_room_has_a_bound` | `bounds` / `forge write entries full` | `a change waiting for room past its stall` |
 | `a_refused_release_is_accounted` | `forge` / `a write refused` | `a task's release under way` |
 | `a_refused_close_of_an_open_pull_holds_with_words` | `forge` / `a close refused` | `the pull request still open` |
@@ -377,6 +382,12 @@ names otherwise, here, in its own change.
   through `exclude`. A sweep of today's that draws one, and whose checks
   find it, becomes a `Sweep` configuring the fault it draws, takes
   `exclude`, and asks `leaves_out` before the draw.
+- **P124's first combination** (`parties` / `cancel a landing`, while `a
+  gate's dispatch in flight`) has no exclusion here. Should its fix not
+  have landed when the goal adding the workloads' sweeps lands, that goal
+  leaves the combination out of its sweeps by name, the fix as its work,
+  and removes the exclusion once the fix lands (the milestone,
+  2026-11-21).
 - **An existing story whose check finds one of these problems** moves off
   its combination where what it tests holds without it; otherwise it is
   ignored as that problem's scenario is, its reason naming the same work
