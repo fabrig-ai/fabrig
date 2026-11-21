@@ -883,6 +883,7 @@ pub fn moved_to_domain(record: crate::core_v6::Moved, context: &crate::codec::Vi
 }
 
 // Maps line 106: CallPart.
+#[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
 pub fn call_part_to_record(value: &jig_domain_core_vocabulary::CallPart, context: &crate::codec::View) -> Result<crate::core_v6::CallPart, crate::core_v6::Problem> {
     match value {
         jig_domain_core_vocabulary::CallPart::Again { task: field_000000, required: field_000001 } => Ok(crate::core_v6::CallPart::Again(crate::core_v6::CallPartAgain {
@@ -1063,6 +1064,7 @@ pub fn call_part_to_record(value: &jig_domain_core_vocabulary::CallPart, context
 }
 
 // Maps line 106: CallPart.
+#[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
 pub fn call_part_to_domain(record: crate::core_v6::CallPart, context: &crate::codec::View) -> Result<jig_domain_core_vocabulary::CallPart, crate::core_v6::Problem> {
     match record {
         crate::core_v6::CallPart::Again(held) => {
