@@ -484,7 +484,7 @@ fn fresh_reads(domain: &mut Domain, env: &Env<Limits>) {
         forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic },
         &mut out,
     );
-    forge::step(&mut domain.forge, &e, forge::Event::ReadAfresh, &mut out);
+    forge::step(&mut domain.forge, &e, forge::Event::CatchUp, &mut out);
     for _ in 0..env.limits.forge.client.pending {
         forge::resume(&mut domain.forge, &e, &mut out);
         while let Some(request) = out.pop() {

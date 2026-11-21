@@ -5429,6 +5429,10 @@ pub(crate) fn effect_ask(
                 domain.work.push(Work::Forge(forge::Event::Unnamed { task }));
             }
         }
+        jig_domain_core::effects::connector::Ask::CatchUp => {
+            assert_eq!(number, domain.config.forge_connector, "configured forge connector");
+            domain.work.push(Work::Forge(forge::Event::CatchUp));
+        }
         jig_domain_core::effects::connector::Ask::Names { .. }
         | jig_domain_core::effects::connector::Ask::Hold { .. }
         | jig_domain_core::effects::connector::Ask::ReleaseHold { .. }
@@ -5449,9 +5453,7 @@ pub(crate) fn effect_ask(
         | jig_domain_core::effects::connector::Ask::Prepare { .. }
         | jig_domain_core::effects::connector::Ask::Left { .. }
         | jig_domain_core::effects::connector::Ask::Adopt { .. }
-        | jig_domain_core::effects::connector::Ask::Restore { .. }
-        | jig_domain_core::effects::connector::Ask::ReadAfresh
-        | jig_domain_core::effects::connector::Ask::SettleOutbox => unreachable!("core effect handoff"),
+        | jig_domain_core::effects::connector::Ask::Restore { .. } => unreachable!("core effect handoff"),
         ask @ (jig_domain_core::effects::connector::Ask::JudgeSettings { .. }
         | jig_domain_core::effects::connector::Ask::RestoreSettings { .. }
         | jig_domain_core::effects::connector::Ask::ForgetReplaced { .. }

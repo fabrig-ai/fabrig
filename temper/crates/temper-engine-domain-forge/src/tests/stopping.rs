@@ -5,8 +5,8 @@ fn sent() -> (Domain, Token) {
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     outputs(&mut d, Event::Enqueue { entry: status(1, 7) });
     outputs(&mut d, Event::Committed { entry: 1 });
     let (call, _) = next_call(&mut d);

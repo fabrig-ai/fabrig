@@ -371,7 +371,7 @@ fn a_pushed_change_is_recovered_before_its_worker_reports_the_head() {
     world.restart(true, true);
     for _ in 0..200 {
         world.tick();
-        if world.root.ready() {
+        if world.root.caught_up(0) {
             break;
         }
     }

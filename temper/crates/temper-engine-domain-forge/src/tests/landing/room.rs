@@ -12,8 +12,8 @@ fn full(kind: &str) -> Domain {
     let mut d = landing_fixture();
     fixtures::connect(&mut d);
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     d.changes.get_mut(&fixtures::CHANGE).unwrap().change.state =
         temper_engine_domain_forge_change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
     let mut row = merge_landing_row(false);
@@ -321,8 +321,30 @@ fn landing_room_places_restart_in_order_without_a_saved_decision() {
         outputs(&mut d, Event::Restore { record: Stored::Entry { entry: row.entry.clone(), held: true } });
     }
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
+    for _ in 0..32_u32 {
+        if d.fresh_reads_in() {
+            break;
+        }
+        let (call, op) = fixtures::next_call(&mut d);
+        let answer = match op {
+            Op::Read(Read::Branch { branch }) if branch.as_ref() == b"temper/1/l61" => Err(Error::Missing),
+            Op::Read(Read::Branch { branch }) => {
+                Ok(Answer::Commit(if branch.as_ref() == b"main" { fixtures::BASE } else { fixtures::HEAD }))
+            }
+            Op::Read(Read::Pull { .. }) => Ok(Answer::Pull(fixtures::open_pull())),
+            Op::Read(Read::PullFor { .. }) => Err(Error::Missing),
+            Op::Read(Read::Commits { .. }) => Ok(Answer::Commits { commits: Box::new([]), more: false }),
+            Op::Read(Read::Reviews { .. }) => Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }),
+            Op::Read(Read::Items { .. }) => {
+                Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now })
+            }
+            other @ (Op::Read(_) | Op::Write(_)) => panic!("restart fresh read: {other:?}"),
+        };
+        fixtures::answer(&mut d, call, answer);
+    }
+    assert!(d.fresh_reads_in(), "the room is judged after the fresh pass");
     assert_eq!(room::reserved(&d), 0);
     assert_eq!(d.landing(TASK).unwrap().room, Some(1));
     assert_eq!(d.change(OTHER).unwrap().room, Some(2));

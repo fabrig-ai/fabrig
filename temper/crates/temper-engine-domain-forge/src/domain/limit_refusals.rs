@@ -6,7 +6,7 @@ fn finishing(follow: bool) -> Queue<Request> {
     let (mut d, mut row) = crate::tests::follow_check::configured();
     fixtures::connect(&mut d);
     crate::tests::outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    crate::tests::outputs(&mut d, Event::ReadAfresh);
+    crate::tests::outputs(&mut d, Event::CatchUp);
     for _ in 0..env().limits.client.pending {
         if fresh_reads_in(&d) {
             break;

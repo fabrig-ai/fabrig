@@ -302,7 +302,7 @@ pub enum OutboxOutcome {
     },
 }
 
-/// The connector's place in the core-owned restart order.
+/// Restoration and the two halves of a connector's catching up.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum RestartStage {
     Restored,
@@ -515,6 +515,5 @@ pub enum Ask {
     Restore {
         owner: Token,
     },
-    ReadAfresh,
-    SettleOutbox,
+    CatchUp,
 }

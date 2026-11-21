@@ -371,10 +371,6 @@ fn cold_restart_loads_every_child_before_opening_decisions() {
             Phase::Switch,
             Phase::Wires,
             Phase::AdoptRuns,
-            Phase::ReadAfresh { connector: 1 },
-            Phase::ReadAfresh { connector: 2 },
-            Phase::SettleOutbox { connector: 1 },
-            Phase::SettleOutbox { connector: 2 },
             Phase::Open,
         ]
     );

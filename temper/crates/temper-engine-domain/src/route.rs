@@ -555,7 +555,6 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                 route_core_requests(domain, env, decision, output);
                 if phase == core::start::Phase::Open && domain.start_phase().is_none() {
                     domain.opened = true;
-                    forge_route::limit_holds::restart(domain);
                     // Open admits task control; a later resume takes the first due task.
                     trials::restarted(domain);
                 }
@@ -881,7 +880,7 @@ fn forge_event(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, 
     // Task saves keep the projection current during a gather and at merge
     // judgement. Refresh restored projections before reads start, and the
     // subject at each change step (gates.md, 1, Valid at a spec revision).
-    if let forge::Event::ReadAfresh = &event {
+    if let forge::Event::CatchUp = &event {
         for task in domain.forge.change_tasks() {
             if let Some(row) = domain.core.tasks.task(task) {
                 domain.forge.refresh_spec_revision(task, row.revisions.spec, &mut out);

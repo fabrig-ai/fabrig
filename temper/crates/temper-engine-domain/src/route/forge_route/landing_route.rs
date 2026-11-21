@@ -147,7 +147,7 @@ fn member(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<landing::Memb
 /// restart work has settled. One queued decision is committed before judging again
 /// so neither a train nor the live-row bound can be reserved twice (landing.md, 9).
 pub(crate) fn form_landings(domain: &mut Domain, env: &Env<Limits>) -> bool {
-    if domain.forge.landing_held() {
+    if !domain.forge.fresh_reads_in() || domain.forge.landing_held() {
         return false;
     }
     forget_empty_trains(domain, env);

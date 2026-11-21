@@ -1085,8 +1085,6 @@ fn start_phase(phase: jig_domain_core::start::Phase) -> String {
         Phase::Wires => "wires".into(),
         Phase::Switch => "store switch".into(),
         Phase::AdoptRuns => "run adoption".into(),
-        Phase::ReadAfresh { connector } => format!("connector {connector} refresh"),
-        Phase::SettleOutbox { connector } => format!("connector {connector} outbox settlement"),
         Phase::Open => "opening decisions".into(),
     }
 }

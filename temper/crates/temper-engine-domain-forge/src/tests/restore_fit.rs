@@ -557,8 +557,7 @@ fn references_refuse_before_mutation_and_first_failure_stops_recovery() {
     for event in [
         Event::Restore { record: row(RecordKind::Binding, 1) },
         Event::Restored { clock: skein_forge_client::RecoveryClock::Wall },
-        Event::ReadAfresh,
-        Event::SettleOutbox,
+        Event::CatchUp,
         Event::Settle,
     ] {
         assert!(outputs(&mut d, event).is_empty());

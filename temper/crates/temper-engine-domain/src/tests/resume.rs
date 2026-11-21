@@ -599,7 +599,7 @@ fn cold() -> (Domain, Env<Limits>) {
     (domain, Env { now: Time::ZERO, wall: Wall::EPOCH, limits })
 }
 
-const START_PHASES: [jig_domain_core::start::Phase; 11] = {
+const START_PHASES: [jig_domain_core::start::Phase; 9] = {
     use jig_domain_core::start::Phase;
     [
         Phase::LoadCore,
@@ -610,8 +610,6 @@ const START_PHASES: [jig_domain_core::start::Phase; 11] = {
         Phase::Switch,
         Phase::Wires,
         Phase::AdoptRuns,
-        Phase::ReadAfresh { connector: 0 },
-        Phase::SettleOutbox { connector: 0 },
         Phase::Open,
     ]
 };

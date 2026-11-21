@@ -81,7 +81,7 @@ fn fresh_reads(d: &mut Domain, tip: api::Commit) {
 fn configured(branch: Option<&[u8]>) -> Domain {
     let mut d = restoring(branch);
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
+    outputs(&mut d, Event::CatchUp);
     d
 }
 pub(super) fn row(d: &Domain) -> &TierRow {
@@ -389,7 +389,7 @@ fn baseline_reads_past_a_stale_head_at_start_and_restart() {
         }
         assert_eq!(requests(&collect(out)).len(), 0);
         assert!(row(&d).baseline.is_none(), "a restored head is not a baseline");
-        assert_eq!(requests(&outputs(&mut d, Event::ReadAfresh)).len(), 0);
+        assert_eq!(requests(&outputs(&mut d, Event::CatchUp)).len(), 0);
         assert_eq!(d.tier_ops.reads.len(), 1);
         let out = baseline_answer(&mut d, Ok(api::Answer::Commit(NEXT_TIP)));
         assert_eq!(requests(&out).len(), 0);
@@ -431,7 +431,7 @@ fn a_missing_baseline_branch_waits_for_its_next_move() {
     let mut out = Queue::uncapped();
     crate::tiers::start_due(&mut d, &env(), REPO, &mut out);
     assert_eq!(requests(&collect(out)).len(), 0);
-    assert_eq!(requests(&outputs(&mut d, Event::ReadAfresh)).len(), 0);
+    assert_eq!(requests(&outputs(&mut d, Event::CatchUp)).len(), 0);
     let out = baseline_answer(&mut d, Err(api::Error::Missing));
     assert_eq!(requests(&out).len(), 0);
     assert!(row(&d).baseline.is_none());
@@ -448,7 +448,7 @@ fn a_baseline_waits_for_another_tier_read() {
     let mut d = restoring(None);
     d.tier_ops.reads.insert(READ, crate::tiers::Read { tier: (REPO, TIER.into()), baseline: false }).unwrap();
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    assert_eq!(requests(&outputs(&mut d, Event::ReadAfresh)).len(), 0);
+    assert_eq!(requests(&outputs(&mut d, Event::CatchUp)).len(), 0);
     assert_eq!(d.tier_ops.reads.len(), 1, "wait for the occupied read slot");
     assert!(row(&d).baseline.is_none());
     let mut out = Queue::uncapped();
@@ -691,7 +691,7 @@ fn a_missing_workflow_in_the_saved_flight_keeps_its_words_after_restart() {
     let mut cold = restoring(None);
     outputs(&mut cold, Event::Restore { record: Stored::Tier(saved) });
     outputs(&mut cold, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut cold, Event::ReadAfresh);
+    outputs(&mut cold, Event::CatchUp);
     fresh_reads(&mut cold, BASE);
     let out = settled_step(&mut cold, RELEASE + 3, false);
     let kind = b"workflow tier.yml not found at 0404040404040404040404040404040404040404040404040404040404040404";
@@ -752,7 +752,7 @@ fn cold_restart_follows_a_run_without_dispatching_it_again() {
     let mut cold = restoring(None);
     outputs(&mut cold, Event::Restore { record: Stored::Tier(saved.clone()) });
     outputs(&mut cold, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut cold, Event::ReadAfresh);
+    outputs(&mut cold, Event::CatchUp);
     fixtures::answer_next(&mut cold, Ok(api::Answer::Commit(BASE)));
     answer(&mut cold, api::Answer::Run(run));
     let out = finish(&mut cold);
@@ -1237,7 +1237,7 @@ fn restart_spends_tier_waits_and_wakes_their_tasks() {
     outputs(&mut d, Event::Restore { record: Stored::Tier(saved) });
     d.wait_tier(&env(), TIER_TASK, None);
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    let out = outputs(&mut d, Event::ReadAfresh);
+    let out = outputs(&mut d, Event::CatchUp);
     assert!(out.contains(&Request::WakeProcedure { task: TIER_TASK }));
     assert_eq!(d.next_wall_deadline(), None);
 }
@@ -1285,7 +1285,7 @@ fn tier_definitions_pin_landing_and_explicit_branch_bytes() {
 fn goal_tiers_start_no_run_without_a_held_goal_branch() {
     let mut d = restoring_following(Follows::Goals);
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    let out = outputs(&mut d, Event::ReadAfresh);
+    let out = outputs(&mut d, Event::CatchUp);
     assert_eq!(requests(&out).len(), 0);
     assert!(crate::tiers::watched(&d).is_empty());
     for branch in [b"main".as_slice(), b"temper/1/g1"] {

@@ -155,7 +155,7 @@ fn a_missing_rerun_report_records_why_before_retrying() {
     let mut cold = restoring(None);
     outputs(&mut cold, Event::Restore { record: Stored::Tier(saved) });
     outputs(&mut cold, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut cold, Event::ReadAfresh);
+    outputs(&mut cold, Event::CatchUp);
     fresh_reads(&mut cold, BASE);
     let words = cold.tier_execution_words(TIER_TASK).unwrap();
     assert!(skein_lib::bytes::find(&words, reason).is_some());
@@ -415,7 +415,7 @@ fn whole_names_survive_a_probe_and_restart() {
     let mut cold = restoring(None);
     outputs(&mut cold, Event::Restore { record: Stored::Tier(row(&d).clone()) });
     outputs(&mut cold, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut cold, Event::ReadAfresh);
+    outputs(&mut cold, Event::CatchUp);
     fresh_reads(&mut cold, BASE);
     assert_eq!(row(&cold).many, names);
     send(&mut cold, PROBE_OPEN);
@@ -466,7 +466,7 @@ fn a_failed_part_reads_its_report_after_restart() {
     let mut cold = restoring(None);
     outputs(&mut cold, Event::Restore { record: Stored::Tier(row(&d).clone()) });
     outputs(&mut cold, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut cold, Event::ReadAfresh);
+    outputs(&mut cold, Event::CatchUp);
     fresh_reads(&mut cold, BASE);
     report(&mut cold, FAILURES, false);
     assert_eq!(row(&cold).record.run.as_ref().unwrap().part, p::Part::Rerun { failed: tests() });
@@ -486,7 +486,7 @@ fn selected_rerun_and_probe_flights_survive_restart() {
         let mut cold = restoring(None);
         outputs(&mut cold, Event::Restore { record: Stored::Tier(saved.clone()) });
         outputs(&mut cold, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        outputs(&mut cold, Event::ReadAfresh);
+        outputs(&mut cold, Event::CatchUp);
         fresh_reads(&mut cold, BASE);
         let follow = cold.tier_ops.follows.get(&(REPO, TIER.into())).unwrap();
         assert_eq!(follow.commit, if probe { NEXT_TIP } else { LAST_TIP });

@@ -198,6 +198,7 @@ pub struct World {
     pub restore_ranges: Vec<core::RestoreRange>,
     pub census_ended: u32,
     pub hold_restart_reads: bool,
+    restart_reads: std::collections::BTreeSet<u16>,
     /// Withhold requested whole store pages during a real cold restore.
     pub hold_restore_pages: bool,
     pub hold_switch: bool,
@@ -226,7 +227,6 @@ pub struct World {
     pub observer: crate::conformance::Observer,
     heap: crate::conformance::Heap,
     restoring: Option<(core::start::Phase, usize)>,
-    restart_reads: std::collections::BTreeMap<u16, core::start::Phase>,
     pub events: VecDeque<root::Event>,
     limits: root::Limits,
     /// Pause at a selected transaction boundary, with its traffic retained.

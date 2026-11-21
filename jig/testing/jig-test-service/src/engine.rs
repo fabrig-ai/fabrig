@@ -24,7 +24,6 @@ pub struct Engine {
     pub(crate) systems: [System; 2],
     pub(crate) end: Option<End>,
     pub(crate) begin: bool,
-    pub(crate) restart_reads: Option<(u16, u32)>,
     pub(crate) drain: Option<stop::Drain>,
     pub(super) blocked: bool,
     held: Queue<root::Event>,
@@ -71,7 +70,6 @@ impl Engine {
             systems,
             end: None,
             begin: true,
-            restart_reads: None,
             drain: None,
             blocked: false,
             held: Queue::uncapped(),
@@ -230,9 +228,7 @@ impl Engine {
                 | Phase::Switch
                 | Phase::Wires,
             ) => true,
-            Some(Phase::AdoptRuns | Phase::ReadAfresh { .. } | Phase::SettleOutbox { .. } | Phase::Open) | None => {
-                false
-            }
+            Some(Phase::AdoptRuns | Phase::Open) | None => false,
         };
         if !loading {
             return self.events.pop();
@@ -452,7 +448,6 @@ fn release(engine: &mut Engine) {
         } else {
             empty = 0;
         }
-        route::count_restart_reads(engine);
         for _ in 0..engine.requests.len() {
             let request = engine.requests.pop().expect("bounded root output");
             route::request(engine, request);

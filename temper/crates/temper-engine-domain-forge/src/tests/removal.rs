@@ -31,8 +31,8 @@ fn kept(mode: Mode) -> Domain {
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Forge(record(1, mode)) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     d
 }
 
@@ -384,8 +384,8 @@ fn removal_retires_waiting_reads_and_keeps_watches_from_returning() {
         },
     );
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     fixtures::answer_next(&mut d, Err(skein_forge::api::Error::NotConnected));
     remove(&mut d, 1, Some(PartyRole::Owner));
     outputs(&mut d, Event::Names { task: 7, resources: Box::new([name.clone()]) });

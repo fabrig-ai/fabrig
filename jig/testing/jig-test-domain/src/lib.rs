@@ -715,13 +715,9 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
             continue;
         };
         match next {
-            Work::ConnectorRestartDone { number } => match domain.core.start_phase() {
-                Some(phase @ core::start::Phase::SettleOutbox { connector }) => {
-                    assert_eq!(connector, number, "the selected connector settles");
-                    work.push(Work::Start(StartInput::Done(phase)));
-                }
-                Some(_) | None => unreachable!("connector completion belongs to SettleOutbox"),
-            },
+            Work::ConnectorRestartDone { number } => {
+                domain.core.catch_up_done(number, core::effects::connector::RestartStage::Settled);
+            }
             Work::Start(input) => {
                 if let StartInput::Done(phase @ core::start::Phase::RestoreConnector { connector: number }) = input
                     && domain.settings_connectors.contains(&number)
@@ -911,27 +907,6 @@ fn start_action(
             Phase::AdoptRuns => {
                 work.push(Work::Start(StartInput::Done(phase)));
             }
-            Phase::ReadAfresh { connector: number } => {
-                let mut reads = false;
-                for resource in 1..=env.limits.connector.resources {
-                    let Some(spec) = numbered(domain, number).specification_resource(u64::from(resource)) else {
-                        break;
-                    };
-                    let resource_path = spec.path.clone();
-                    work.push(Work::Connector {
-                        number,
-                        event: connector::Event::Restart(connector::RestartStep::FreshRead { resource: resource_path }),
-                    });
-                    reads = true;
-                }
-                if !reads {
-                    work.push(Work::Start(StartInput::Done(phase)));
-                }
-            }
-            Phase::SettleOutbox { connector: number } => work.push(Work::Connector {
-                number,
-                event: connector::Event::Restart(connector::RestartStep::SettleOutbox),
-            }),
         },
         Action::Commit(continuation) => {
             if domain.core.start_phase() == Some(Phase::Wires) {
@@ -950,10 +925,6 @@ fn start_action(
 }
 
 impl Domain {
-    fn starting(&self) -> Option<core::start::Phase> {
-        self.core.start_phase()
-    }
-
     fn start_stopped(&self) -> bool {
         self.start_page_failure.is_some() || self.core.start_failure().is_some()
     }
@@ -1134,21 +1105,12 @@ fn resume_restart_outbox(domain: &mut Domain, env: &Env<Limits>) -> bool {
     if !domain.journal.idle() {
         return false;
     }
-    let number = match domain.starting() {
-        Some(core::start::Phase::SettleOutbox { connector }) => connector,
-        Some(
-            core::start::Phase::LoadCore
-            | core::start::Phase::LoadInbox
-            | core::start::Phase::RestoreConnector { .. }
-            | core::start::Phase::Link
-            | core::start::Phase::Sweep
-            | core::start::Phase::Switch
-            | core::start::Phase::Wires
-            | core::start::Phase::AdoptRuns
-            | core::start::Phase::ReadAfresh { .. }
-            | core::start::Phase::Open,
-        )
-        | None => return false,
+    let number = if connector::restart_ready(&domain.first, &env.with(env.limits.connector)) {
+        1
+    } else if connector::restart_ready(&domain.second, &env.with(env.limits.connector)) {
+        2
+    } else {
+        return false;
     };
     decide(
         domain,
@@ -1220,13 +1182,9 @@ pub fn start_record(domain: &mut Domain, env: &Env<Limits>, record: Record) {
         Phase::Sweep | Phase::LoadInbox | Phase::LoadCore | Phase::RestoreConnector { .. } => {
             restore_row(domain, env, record)
         }
-        Phase::Link
-        | Phase::Switch
-        | Phase::Wires
-        | Phase::AdoptRuns
-        | Phase::ReadAfresh { .. }
-        | Phase::SettleOutbox { .. }
-        | Phase::Open => unreachable!("phase loads no rows"),
+        Phase::Link | Phase::Switch | Phase::Wires | Phase::AdoptRuns | Phase::Open => {
+            unreachable!("phase loads no rows")
+        }
     };
     assert!(fits || domain.start_failure().is_some(), "the start's row entrance refuses with a start failure");
 }
@@ -1335,6 +1293,7 @@ fn restore_connector(domain: &mut Domain, env: &Env<Limits>, number: u16, record
             | connector::Request::News { .. }
             | connector::Request::Save { .. }
             | connector::Request::Erase { .. }
+            | connector::Request::ReadAfreshDone
             | connector::Request::RestartDone
             | connector::Request::ApplicationDone { .. }
             | connector::Request::ApplicationAgain { .. }

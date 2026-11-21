@@ -21,7 +21,7 @@ impl Domain {
                 wall_deadline(crate::route::forge_route::landing_refusal_deadline(self, env), env.now, env.wall),
             );
         }
-        if self.ready() || self.settling.active() || crate::restart::connector_restarting(self) {
+        if self.ready() || self.settling.active() {
             next = earliest(next, self.forge.next_deadline());
             next = earliest(next, wall_deadline(self.forge.next_wall_deadline(), env.now, env.wall));
         }

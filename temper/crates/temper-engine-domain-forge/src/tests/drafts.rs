@@ -11,8 +11,8 @@ fn setup() -> Domain {
     let mut d = fixtures::connected_domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     d
 }
 fn row(path: &[u8]) -> LandedDraft {

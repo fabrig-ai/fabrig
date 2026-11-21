@@ -2497,6 +2497,8 @@ dependencies = [
 name = "jig-test-connector-world"
 version = "0.0.0"
 dependencies = [
+ "jig-core-kit",
+ "jig-domain-core",
  "jig-test-connector",
  "jig-test-connector-kit",
  "jig-test-store",

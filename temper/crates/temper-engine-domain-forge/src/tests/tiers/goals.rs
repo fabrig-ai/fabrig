@@ -41,7 +41,7 @@ fn configured(span_value: Option<Duration>) -> Domain {
     let mut d = restoring_following(Follows::Goals);
     span(&mut d, span_value);
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
+    outputs(&mut d, Event::CatchUp);
     hold(&mut d, GOAL, BRANCH);
     moved(&mut d, &env(), BRANCH, None, BASE);
     d
@@ -405,7 +405,7 @@ fn restart_resumes_the_goal_run_and_tells_once() {
         outputs(&mut cold, Event::Restore { record: Stored::Subscription(subscriber.clone()) });
     }
     outputs(&mut cold, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    let out = outputs(&mut cold, Event::ReadAfresh);
+    let out = outputs(&mut cold, Event::CatchUp);
     assert_eq!(requests(&out).len(), 0);
     assert_eq!(row(&cold).goal, Some(GOAL));
     assert!(cold.tier_ops.follows.contains_key(&(REPO, TIER.into())));
@@ -421,7 +421,7 @@ fn restart_resumes_the_goal_run_and_tells_once() {
     outputs(&mut again, Event::Restore { record: Stored::Tier(row(&cold).clone()) });
     hold(&mut again, GOAL, BRANCH);
     outputs(&mut again, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    assert_eq!(news(&outputs(&mut again, Event::ReadAfresh)).len(), 0);
+    assert_eq!(news(&outputs(&mut again, Event::CatchUp)).len(), 0);
     assert!(row(&again).record.run.is_none());
 }
 
@@ -448,7 +448,7 @@ fn restart_keeps_pending_span_deadlines_for_goal_and_main_tiers() {
             hold(&mut cold, GOAL, BRANCH);
         }
         outputs(&mut cold, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        let out = outputs(&mut cold, Event::ReadAfresh);
+        let out = outputs(&mut cold, Event::CatchUp);
         assert_eq!(requests(&out).len(), 0);
         assert_eq!(crate::tiers::deadline(&cold), Some(later().now));
         fresh_reads(&mut cold, LAST_TIP);

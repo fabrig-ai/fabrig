@@ -162,6 +162,13 @@ impl BranchRead {
     pub(crate) const NEW: Self = Self { at: None, due: false, present: false, producer: change::Status::Unknown };
 }
 
+/// Keep an offered step while it waits for restart observations (forge/catching-up.md, 4).
+#[derive(Hash, Debug)]
+enum FreshStep {
+    Gather(Box<PendingStep>),
+    Verified { merge: skein_forge::api::Commit, heard: Box<change::Heard> },
+}
+
 struct StepInput {
     task: u64,
     entry: u64,
@@ -286,6 +293,7 @@ pub struct Domain {
     restart_fresh: Option<bool>,
     /// Restored procedures and entries awaiting their restart observations (forge/catching-up.md, 4).
     fresh_waits: Set<u64>,
+    fresh_steps: Map<u64, FreshStep>,
     entry_looks: Set<u64>,
     pub(crate) fresh_branches: Set<Name>,
     pub(crate) sequence: u64,
@@ -1013,6 +1021,7 @@ impl Domain {
                     .checked_add(l.repositories.checked_mul(l.tiers.tiers).expect("tier waiters"))
                     .expect("restart waiters"),
             ),
+            fresh_steps: Map::with_capacity(l.changes),
             entry_looks: Set::with_capacity(l.entries),
             fresh_branches: Set::with_capacity(l.client.resources),
             sequence: 0,
@@ -2399,8 +2408,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::Client(event) => child(d, env, event, out),
         Event::Restore { record } => restore(d, env, record),
         Event::Restored { clock } => restored(d, env, clock, out),
-        Event::ReadAfresh => read_afresh(d, env, out),
-        Event::SettleOutbox => settle_outbox(d, env, out),
+        Event::CatchUp => read_afresh(d, env, out),
     }
     release::first_page(d, env, out);
     if d.retire_pending {
@@ -4767,6 +4775,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
     }
     let StepInput { task, entry, mut heard, gates, queue_repair_active, kept, merge_job, pending: dependencies } =
         input;
+    d.fresh_steps.remove(&task);
     if kept
         && let Some(row) = d.changes.get_mut(&task)
         && row.change.owns_turn
@@ -5001,7 +5010,10 @@ fn step_verified(
     heard: change::Heard,
     out: &mut Queue<Request>,
 ) {
-    if wait_fresh(d, task) {
+    if !fresh_reads_in(d) {
+        d.fresh_steps
+            .insert(task, FreshStep::Verified { merge, heard: Box::new(heard) })
+            .expect("one parked step per change");
         return;
     }
     let mut row = d.changes.get(&task).expect("known landed change").clone();
@@ -5987,7 +5999,8 @@ fn change_standing(d: &Domain, row: &ChangeRow, pending: &PendingStep) -> change
 
 #[expect(clippy::too_many_lines, reason = "one coherent snapshot records a green repair ending before stepping onward")]
 fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out: &mut Queue<Request>) {
-    if wait_fresh(d, pending.task) {
+    if !fresh_reads_in(d) {
+        d.fresh_steps.insert(pending.task, FreshStep::Gather(Box::new(pending))).expect("one parked step per change");
         return;
     }
     pending.progress = List::uncapped();
@@ -7899,6 +7912,8 @@ fn release_pull(d: &mut Domain, env: &Env<Limits>, row: &mut ReleaseRow, entry: 
 
 /// The panel outlives its task, but never its task's live state (domain/forge/change/gates.md, 1).
 fn end_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
+    d.fresh_steps.remove(&task);
+    d.fresh_waits.remove(&task);
     crate::room::leave(d, crate::room::Waiter::Change(task));
     connection_wait::take(d, task);
     let merge = recorded_merge(d, task);
@@ -10115,6 +10130,19 @@ fn read_afresh_complete(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Reque
         d.restart_fresh = None;
         emit(out, Request::RestartDone { stage: RestartStage::ReadAfresh });
         read_session::fresh(d, env);
+        let capacity = d.fresh_steps.capacity();
+        let mut steps = core::mem::replace(&mut d.fresh_steps, Map::with_capacity(capacity));
+        while let Some((&task, _)) = steps.first() {
+            let step = steps.remove(&task).expect("collected parked step");
+            d.fresh_waits.remove(&task);
+            if d.stopping {
+                continue;
+            }
+            match step {
+                FreshStep::Gather(pending) => decide_step(d, env, *pending, out),
+                FreshStep::Verified { merge, heard } => step_verified(d, env, task, merge, *heard, out),
+            }
+        }
         let capacity = d.fresh_waits.capacity();
         let waiting = core::mem::replace(&mut d.fresh_waits, Set::with_capacity(capacity));
         for task in &waiting {
@@ -10123,12 +10151,21 @@ fn read_afresh_complete(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Reque
         crate::tiers::fresh(d, env, out);
         crate::follows::fresh(d, out);
         d.fresh_branches = Set::with_capacity(d.fresh_branches.capacity());
+        settle_outbox(d, env, out);
     }
 }
 
 /// The restart's fresh reads are in (temper/docs/design/domain/forge/catching-up.md, 2).
 pub(crate) fn fresh_reads_in(d: &Domain) -> bool {
     d.restore_phase != RestorePhase::Restoring && d.restart_fresh.is_none()
+}
+
+impl Domain {
+    /// Whether decisions on restored forge facts may proceed.
+    #[must_use]
+    pub fn fresh_reads_in(&self) -> bool {
+        fresh_reads_in(self)
+    }
 }
 
 fn wake_once(out: &mut Queue<Request>, task: u64) {

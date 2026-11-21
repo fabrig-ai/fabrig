@@ -1819,9 +1819,8 @@ impl World {
                 }
                 top::Request::RestartDone { stage } => {
                     restart = match stage {
-                        top::RestartStage::Restored => Some(top::Event::ReadAfresh),
-                        top::RestartStage::ReadAfresh => Some(top::Event::SettleOutbox),
-                        top::RestartStage::Settled => None,
+                        top::RestartStage::Restored => Some(top::Event::CatchUp),
+                        top::RestartStage::ReadAfresh | top::RestartStage::Settled => None,
                     };
                     self.seen.push(top::Request::RestartDone { stage }).expect("world output capacity");
                 }

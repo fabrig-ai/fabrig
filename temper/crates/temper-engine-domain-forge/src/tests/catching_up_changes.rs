@@ -27,7 +27,7 @@ fn watched(d: &mut Domain, branch: &[u8], commit: api::Commit) {
 fn begin(d: &mut Domain, e: &Env<Limits>) -> Queue<Request> {
     let mut out = Queue::uncapped();
     step(d, e, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic }, &mut out);
-    step(d, e, Event::ReadAfresh, &mut out);
+    step(d, e, Event::CatchUp, &mut out);
     out
 }
 fn requests(mut out: Queue<Request>) -> Box<[Request]> {
@@ -85,11 +85,10 @@ fn verified_changes_wait_for_fresh_reads_and_use_the_fresh_head() {
     assert!(d.reds.is_empty());
     assert_eq!(d.change(CHANGE).unwrap().change.gate_failures.as_ref(), &[c::GateFailure { number: 7, count: 1 }]);
     let fresh = answered(&mut d, &env(), call, FRESH);
-    fresh_wake(&fresh, CHANGE);
+    assert!(fresh.contains(&Request::RestartDone { stage: RestartStage::ReadAfresh }));
     assert!(domain::fresh_reads_in(&d));
-    let after = outputs(&mut d, fixtures::change_step());
     assert_eq!(
-        decisions(&after),
+        decisions(&fresh),
         [c::Decision::Wait {
             until: Some(Wall::from_nanos(env().wall.as_nanos() + Duration::from_secs(7200).as_nanos()))
         }]
@@ -132,8 +131,10 @@ fn taking_read_stalls_count_from_the_fresh_reads_not_the_restored_since() {
         );
         assert!(!matches!(d.change(CHANGE).unwrap().change.state, c::State::Held { .. }));
         let fresh = answered(&mut d, &e, call, HEAD);
+        assert!(fresh.contains(&Request::RestartDone { stage: RestartStage::ReadAfresh }));
+        assert!(!fresh.contains(&Request::WakeProcedure { task: CHANGE }), "the gather is already open");
         if started_before {
-            fresh_wake(&fresh, CHANGE);
+            assert_eq!(d.steps.len(), 1, "the in-flight gather keeps its entry and read");
         }
         if !started_before {
             step(&mut d, &e, fixtures::change_step(), &mut out);
@@ -502,9 +503,9 @@ fn moved_branch_facts_wait_and_compare_against_the_fresh_confirmed_head() {
         assert!(decisions(&before).is_empty(), "{before:?}");
         assert_eq!(d.change(CHANGE).unwrap().change.state, c::State::Checking { head: HEAD });
         let fresh = answered(&mut d, &env(), fresh_call, HEAD);
-        fresh_wake(&fresh, CHANGE);
-        let after = change_at_head(&mut d, FRESH);
-        assert_eq!(decisions(&after).contains(&c::Decision::Hold(c::Hold::BranchMoved)), still_moved, "{after:?}");
+        assert!(fresh.contains(&Request::RestartDone { stage: RestartStage::ReadAfresh }));
+        assert!(!fresh.contains(&Request::WakeProcedure { task: CHANGE }), "the completed gather resumes in place");
+        assert_eq!(decisions(&fresh).contains(&c::Decision::Hold(c::Hold::BranchMoved)), still_moved, "{fresh:?}");
         if !still_moved {
             assert_eq!(d.change(CHANGE).unwrap().change.last_head, Some(FRESH));
         }

@@ -218,7 +218,7 @@ impl Engine {
     pub(crate) fn start_runtime(&self) -> bool {
         use jig_domain_core::start::Phase;
         match self.domain.start_phase() {
-            Some(Phase::AdoptRuns | Phase::ReadAfresh { .. } | Phase::SettleOutbox { .. } | Phase::Open) => true,
+            Some(Phase::AdoptRuns | Phase::Open) => true,
             Some(
                 Phase::LoadCore
                 | Phase::LoadInbox

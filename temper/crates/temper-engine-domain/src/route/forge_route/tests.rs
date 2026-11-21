@@ -2036,6 +2036,22 @@ fn procedure_root_with_limits(mut limits: super::Limits) -> (super::Domain, skei
     (domain, env)
 }
 
+fn fresh_procedure_forge(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>) {
+    // Finish the fixture's empty fresh pass before supplying its procedure facts.
+    for event in [
+        super::forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic },
+        super::forge::Event::CatchUp,
+    ] {
+        super::forge::step(
+            &mut domain.forge,
+            &super::super::environment_forge(env),
+            event,
+            &mut skein_lib::Queue::uncapped(),
+        );
+    }
+    assert!(domain.forge.fresh_reads_in());
+}
+
 fn forge_request(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>, request: super::forge::Request) {
     let mut out = skein_lib::Queue::uncapped();
     out.push(request);
@@ -4898,6 +4914,7 @@ fn train_root(joined: bool) -> (super::Domain, skein_lib::Env<super::Limits>) {
     limits.tasks.project_tasks = 16;
     limits.people.inbox_tasks = 32;
     let (mut domain, mut env) = procedure_root_with_limits(limits);
+    fresh_procedure_forge(&mut domain, &env);
     env.limits.tasks.batch = 2;
     env.limits.tasks.batch_bytes = 16_384;
     let (fixture, _, task) = crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: 2 });

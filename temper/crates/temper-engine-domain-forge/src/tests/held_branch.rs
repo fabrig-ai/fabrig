@@ -39,8 +39,8 @@ fn held_by_name(holder: Option<u64>, resource: Name) -> Domain {
     let mut d = fixtures::connected_domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     if let Some(task) = holder {
         outputs(&mut d, Event::Hold { entry: 0, task, resource: resource.clone(), from: None });
         if resource == name() {
@@ -692,7 +692,7 @@ fn prepares_deferred_rebase_is_rebuilt_after_restart() {
             }
             assert_eq!(restored.restore_fit_failure(), None);
             outputs(&mut restored, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-            outputs(&mut restored, Event::ReadAfresh);
+            outputs(&mut restored, Event::CatchUp);
             // The keep's unchanged first read cannot rediscover drift on its own.
             let (call, op) = fixtures::next_call(&mut restored);
             assert_eq!(
@@ -1220,8 +1220,8 @@ fn a_restored_design_writer_survives_until_loss_and_its_fresh_read_detects_rewri
         );
         outputs(&mut d, Event::Restore { record: Stored::Names { task: GOAL, resources: Box::new([name()]) } });
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        outputs(&mut d, Event::ReadAfresh);
-        outputs(&mut d, Event::SettleOutbox);
+        outputs(&mut d, Event::CatchUp);
+
         fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
         assert_eq!(d.hold(&name()).unwrap(), &hold);
         design_move(&mut d, 7, true);

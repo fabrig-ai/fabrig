@@ -55,7 +55,6 @@ pub(crate) fn pause(d: &mut Domain, task: u64) {
 }
 
 pub(super) fn refresh(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep) {
-    super::wait_fresh(d, pending.task);
     let Some(row) = d.changes.get(&pending.task) else { return };
     let mut exempt = !super::fresh_reads_in(d)
         || row.room.is_some()

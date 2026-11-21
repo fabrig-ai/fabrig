@@ -233,8 +233,8 @@ fn the_connectors_own_reads_are_outside_the_roots_range() {
     row.effect = temper_engine_domain_forge_change::EffectResult::None;
     outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     fixtures::step_change(&mut d);
     assert!(d.project_landing(
         5,
@@ -541,10 +541,13 @@ fn an_outbox_entry_waits_for_its_commit() {
         &[Request::RestartDone { stage: RestartStage::Restored }],
     );
     assert_eq!(
-        outputs(&mut d, Event::ReadAfresh).as_ref(),
-        &[Request::RestartDone { stage: RestartStage::ReadAfresh }],
+        outputs(&mut d, Event::CatchUp).as_ref(),
+        &[
+            Request::RestartDone { stage: RestartStage::ReadAfresh },
+            Request::RestartDone { stage: RestartStage::Settled }
+        ],
     );
-    assert_eq!(outputs(&mut d, Event::SettleOutbox).as_ref(), &[Request::RestartDone { stage: RestartStage::Settled }],);
+
     let entry = status(11, 7);
     assert_eq!(
         outputs(&mut d, Event::Enqueue { entry: entry.clone() }).as_ref(),
@@ -909,7 +912,7 @@ fn restored_ci_subscriptions_are_read_in_the_fresh_step_and_delay_its_completion
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic }).as_ref(),
         &[Request::RestartDone { stage: RestartStage::Restored }]
     );
-    let fresh = outputs(&mut d, Event::ReadAfresh);
+    let fresh = outputs(&mut d, Event::CatchUp);
     assert!(fresh.is_empty(), "the subscription read is scheduled before completion");
     let calls = ready(&mut d);
     let Request::Call { call, op: skein_forge::api::Op::Read(skein_forge::api::Read::Checks { commit }), .. } =
@@ -974,12 +977,12 @@ fn ci_reads_retry_and_a_forge_answer_refreshes_only_its_subscriptions() {
         );
     }
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
+    outputs(&mut d, Event::CatchUp);
     for _ in 0_u32..3 {
         let (call, _) = fixtures::next_at(&mut d, &env);
         fixtures::answer_at(&mut d, &env, call, Ok(fixtures::checks(skein_forge::api::Check::Pending)));
     }
-    outputs(&mut d, Event::SettleOutbox);
+
     outputs(
         &mut d,
         Event::Hint {
@@ -1047,7 +1050,7 @@ fn ci_recovery_rereads_an_older_checks_snapshot_after_it_finishes() {
         );
     }
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
+    outputs(&mut d, Event::CatchUp);
     let (failed, failed_op) = fixtures::next_at(&mut d, &env);
     let (older, older_op) = fixtures::next_at(&mut d, &env);
     fixtures::answer_at(&mut d, &env, failed, Err(Error::Unavailable));
@@ -1337,8 +1340,8 @@ fn held_restored() -> Domain {
 fn held_creation() -> Domain {
     let mut d = held_restored();
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     d
 }
 
@@ -1350,11 +1353,14 @@ fn a_held_effect_survives_a_restart_out_of_the_clients_outbox() {
         &[Request::RestartDone { stage: RestartStage::Restored }]
     );
     assert_eq!(
-        outputs(&mut d, Event::ReadAfresh).as_ref(),
-        &[Request::RestartDone { stage: RestartStage::ReadAfresh }]
+        outputs(&mut d, Event::CatchUp).as_ref(),
+        &[
+            Request::RestartDone { stage: RestartStage::ReadAfresh },
+            Request::RestartDone { stage: RestartStage::Settled }
+        ]
     );
     // Nothing is looked for: the client never had the held entry.
-    assert_eq!(outputs(&mut d, Event::SettleOutbox).as_ref(), &[Request::RestartDone { stage: RestartStage::Settled }]);
+
     assert!(ready(&mut d).is_empty());
     let mut limits = LIMITS;
     limits.entries = 1;
@@ -1492,8 +1498,8 @@ fn four_writers() -> Domain {
         );
     }
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     d
 }
 
@@ -1572,8 +1578,8 @@ fn a_lost_writer_uses_reverse_ancestry_for_its_reread() {
             },
         );
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        outputs(&mut d, Event::ReadAfresh);
-        outputs(&mut d, Event::SettleOutbox);
+        outputs(&mut d, Event::CatchUp);
+
         outputs(&mut d, Event::Lost { task: 9, attempt: 1 });
         fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
         let (call, op) = fixtures::next_call(&mut d);
@@ -1612,8 +1618,8 @@ fn a_release_waits_for_its_lost_writers_reread_even_after_restart() {
             let mut d = domain();
             outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
             outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-            outputs(&mut d, Event::ReadAfresh);
-            outputs(&mut d, Event::SettleOutbox);
+            outputs(&mut d, Event::CatchUp);
+
             let name = run_branch(b"7");
             outputs(&mut d, Event::Hold { entry: 0, task: 7, resource: name.clone(), from: None });
             outputs(
@@ -1645,7 +1651,7 @@ fn a_release_waits_for_its_lost_writers_reread_even_after_restart() {
                     }
                 }
                 outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-                outputs(&mut d, Event::ReadAfresh);
+                outputs(&mut d, Event::CatchUp);
                 (call, _) = fixtures::next_call(&mut d);
             }
             let error = if refused { skein_forge::api::Error::Refused } else { skein_forge::api::Error::Missing };
@@ -1692,8 +1698,8 @@ fn restarted_lost_writer() -> Domain {
         },
     );
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     d
 }
 
@@ -1702,8 +1708,8 @@ fn a_failed_goals_lost_writer_reports_its_read_failure() {
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     let name = run_branch(b"7");
     outputs(&mut d, Event::Hold { entry: 0, task: 7, resource: name.clone(), from: None });
     outputs(
@@ -1735,8 +1741,8 @@ fn a_task_can_claim_its_own_stale_writer() {
         let mut d = domain();
         outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        outputs(&mut d, Event::ReadAfresh);
-        outputs(&mut d, Event::SettleOutbox);
+        outputs(&mut d, Event::CatchUp);
+
         let name = run_branch(b"7");
         outputs(&mut d, Event::Hold { entry: 0, task: 7, resource: name.clone(), from: None });
         outputs(
@@ -1878,8 +1884,8 @@ fn a_superseded_lost_reread_records_only_its_undrifted_delegates_head() {
             );
         }
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        outputs(&mut d, Event::ReadAfresh);
-        outputs(&mut d, Event::SettleOutbox);
+        outputs(&mut d, Event::CatchUp);
+
         outputs(&mut d, Event::Lost { task: 9, attempt: 1 });
         let (mut call, _) = fixtures::next_call(&mut d);
         if comparing {
@@ -3523,8 +3529,8 @@ fn an_open_write_with_an_empty_title_uses_the_default() {
     row.change.state = temper_engine_domain_forge_change::State::Opening { requested: false };
     outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     fixtures::missing_pull(&mut d);
     let built = fixtures::finish_missing(&mut d);
     let mut entry = None;

@@ -212,8 +212,8 @@ fn change_room_places_restart_without_the_decision_that_waited() {
         outputs(&mut d, Event::Restore { record: Stored::Entry { entry: entry.entry.clone(), held: true } });
     }
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     for (task, place) in [(FIRST, 1), (SECOND, 2)] {
         let saved = d.change(task).unwrap();
         assert_eq!(saved.room, Some(place));

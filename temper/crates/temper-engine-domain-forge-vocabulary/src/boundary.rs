@@ -2728,10 +2728,8 @@ pub enum Event {
     Restored {
         clock: skein_forge_client::RecoveryClock,
     },
-    /// Read the system's live resources before procedures step.
-    ReadAfresh,
-    /// Look for each restored uncertain entry before procedures step.
-    SettleOutbox,
+    /// Read afresh and settle the restored outbox while the engine serves.
+    CatchUp,
     /// A connected Forgejo's Check found the user its tokens answer as: the connector keeps its
     /// login as the record's bot (protocol/forge/engine.md, 2).
     BotLogin {

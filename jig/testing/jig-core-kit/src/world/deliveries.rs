@@ -157,12 +157,8 @@ impl World {
                 call: connector::SystemRequest::ReadFact { resource, observed },
             } => {
                 let call = connector::SystemRequest::ReadFact { resource, observed };
-                if let Some(phase @ core::start::Phase::ReadAfresh { connector }) = self.domain.start_phase() {
-                    assert_eq!(connector, number);
-                    if self.restart_steps.last() != Some(&phase) {
-                        self.restart_steps.push(phase);
-                    }
-                    self.restart_reads.insert(number, phase);
+                if !self.domain.core_mut().caught_up(number) {
+                    self.restart_reads.insert(number);
                 }
                 self.pending_reads.push((number, call));
             }

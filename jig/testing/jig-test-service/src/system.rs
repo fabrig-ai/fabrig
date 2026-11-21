@@ -1,5 +1,4 @@
 //! The test application's fault-free system, answered in memory (service.md, 7).
-use alloc::boxed::Box;
 use jig_test_connector::{
     ApplyResult, Effect, Fact, Form, Key, Looked, Origin, Path, Recovery, SystemEvent, SystemRequest,
 };
@@ -18,13 +17,6 @@ pub struct System {
 }
 
 impl System {
-    pub(crate) fn paths(&self) -> Box<[Path]> {
-        let mut paths = skein_lib::List::with_capacity(self.values.len());
-        for (path, _) in &self.values {
-            paths.push(path.clone()).expect("system resource count");
-        }
-        paths.into_boxed()
-    }
     #[must_use]
     pub fn new(resources: u32, made: u32) -> Self {
         Self { values: Map::with_capacity(resources), keyed: Map::with_capacity(made) }

@@ -321,7 +321,7 @@ fn restart_repeats_unfinished_reads_and_tells_once() {
         outputs(&mut cold, Event::Restore { record: Stored::Subscription(subscriber.clone()) });
     }
     outputs(&mut cold, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    let wake = outputs(&mut cold, Event::ReadAfresh);
+    let wake = outputs(&mut cold, Event::CatchUp);
     assert!(wake.contains(&Request::WakeProcedure { task: TIER_TASK }));
     fresh_reads(&mut cold, BASE);
     let waiting = settled_step(&mut cold, RELEASE + 1, false);

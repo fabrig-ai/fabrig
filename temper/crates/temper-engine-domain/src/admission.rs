@@ -182,7 +182,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::Client(_)
             | forge::Event::Restore { .. }
             | forge::Event::Restored { .. }
-            | forge::Event::ReadAfresh
+            | forge::Event::CatchUp
             | forge::Event::ProducedTitle { .. }
             | forge::Event::Follow { .. }
             | forge::Event::FollowChangeAmended { .. }
@@ -191,8 +191,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::JobHistory { .. }
             | forge::Event::SetupPerson { .. }
             | forge::Event::PlaceChosen { .. }
-            | forge::Event::Milestone { .. }
-            | forge::Event::SettleOutbox => true,
+            | forge::Event::Milestone { .. } => true,
         },
     }
 }
