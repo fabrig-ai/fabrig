@@ -1,0 +1,21 @@
+records crate::notes_v1
+use n = jig_domain_notes
+use s = skein_codec::convert
+by hand crate::codec::notes
+context crate::notes_v1::Limits
+
+record Segment stands for bytes
+enum Last = n::Last { exact tuple, open tuple }
+record Pattern by hand
+record Project
+record Goal
+record Resources
+record Party
+enum Scope = n::Scope
+record Task
+enum Author = n::Author
+record Reference stands for task
+record Entry = n::Entry { changed via s::wall }
+record Line = n::Line
+enum Value = n::Record { entry tuple, line tuple }
+record Row by hand
