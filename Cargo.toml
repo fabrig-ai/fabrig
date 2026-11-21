@@ -125,6 +125,7 @@ members = [
     "smith/testing/smith-agent-profile-fixtures",
     "smith/testing/smith-agent-document-fixtures",
     "smith/testing/smith-bench-fixtures",
+    "smith/testing/smith-end-to-end-kit",
     "smith/testing/smith-domain-tools-fixtures",
     "smith/testing/smith-domain-run-fixtures",
     "smith/testing/smith-domain-session-fixtures",

@@ -1,9 +1,9 @@
 //! Successive jobs on simulated time and pipes (smith/docs/design/protocol/agent.md, 2).
 
-use super::jobs::{done, far, read, spawn};
 use skein_lib::{Duration, Time, Token};
 use smith_domain::tools;
 use smith_machine_world::World;
+use smith_machine_world::job_requests::{done, far, read, spawn};
 use smith_protocol_machine::{FromDomain, ToDomain};
 
 // The real jobs fixtures retain eight bytes at each end, or four for overflow.

@@ -46,9 +46,13 @@ pub fn fake_claude_beside(smith: &Path) -> Result<PathBuf, String> {
     Ok(path)
 }
 
+/// A shipped binary or one of its scripted peers in the harness's loop.
 pub enum Process {
+    /// The shipped binary, observed only from outside.
     Binary(Box<Binary>),
+    /// A scripted terminal, browser or fake peer.
     Script(Proc),
+    /// The sample host that starts the shipped agent.
     Sample(Box<smith_hosts_world::HostService>),
 }
 impl Delegate for Process {
@@ -484,7 +488,8 @@ fn check_trace_resolved(
     Ok(records)
 }
 
-pub(crate) struct Settling {
+/// Shipped-process settlement and its outside-observation deadline.
+pub struct Settling {
     finding: Option<String>,
     poll: Time,
     next_act: Option<Time>,
@@ -497,7 +502,9 @@ pub(crate) struct Settling {
     trace: Option<(PathBuf, bool)>,
 }
 impl Settling {
-    pub(crate) fn new(now: Time, deadline: Time) -> Self {
+    /// Begin settlement with the caller's clock and absolute deadline.
+    #[must_use]
+    pub fn new(now: Time, deadline: Time) -> Self {
         Self {
             finding: None,
             poll: now,
@@ -779,7 +786,7 @@ pub mod login;
 
 pub mod sample_host;
 
-pub(crate) mod window;
+pub mod window;
 
 pub mod provider_login;
 

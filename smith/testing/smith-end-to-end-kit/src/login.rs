@@ -72,7 +72,8 @@ impl Referee<Process> for LoginJudge {
     }
 }
 
-pub(crate) fn sign_in_url(stderr: &[u8]) -> Option<Vec<u8>> {
+#[must_use]
+pub fn sign_in_url(stderr: &[u8]) -> Option<Vec<u8>> {
     stderr
         .split_inclusive(|byte| *byte == b'\n')
         .find_map(|line| line.strip_suffix(b"\n").and_then(|line| line.strip_prefix(b"Sign in: ")).map(Vec::from))

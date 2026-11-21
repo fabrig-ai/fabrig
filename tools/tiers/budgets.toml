@@ -169,6 +169,24 @@ cpu_s = 2
 [gate.default.smith.end-to-end]
 cpu_s = 21
 
+[[gate.default.moves]]
+from = "smith.end-to-end"
+to = "smith.step"
+cpu_s = 1.4
+why = "smith-bench's offline harness checks and smith's offline configuration controls left their end-to-end binaries for step binaries (tools/tiers/layers.md, 6.1)."
+
+[[gate.default.moves]]
+from = "smith.end-to-end"
+to = "smith.simulated"
+cpu_s = 2.1
+why = "smith-fake-claude's encodings and hosted fake left their end-to-end binary for a simulated binary (tools/tiers/layers.md, 6.1)."
+
+[[gate.default.moves]]
+from = "smith.real-loop"
+to = "smith.simulated"
+cpu_s = 0.1
+why = "smith-machine-world's machine seams and fake-kernel stories left their real-loop binary for a simulated binary (tools/tiers/layers.md, 6.1)."
+
 [gate.default.jig]
 ideal_s = 30
 
@@ -374,6 +392,18 @@ cpu_s = 2
 
 [gate.fuzzy.smith.end-to-end]
 cpu_s = 3
+
+[[gate.fuzzy.moves]]
+from = "smith.end-to-end"
+to = "smith.step"
+cpu_s = 1.5
+why = "smith-bench's recorded parser sweeps left their end-to-end binary for a step binary (tools/tiers/layers.md, 6.1)."
+
+[[gate.fuzzy.moves]]
+from = "smith.real-loop"
+to = "smith.simulated"
+cpu_s = 0.4
+why = "smith-machine-world's seeded machine seams and fake-kernel stories left their real-loop binary for a simulated binary (tools/tiers/layers.md, 6.1)."
 
 [gate.fuzzy.jig]
 ideal_s = 120

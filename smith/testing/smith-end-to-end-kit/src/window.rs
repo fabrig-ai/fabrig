@@ -7,14 +7,20 @@ use skein_world::Referee;
 use smith_local_process_world::process::Proc;
 
 /// How long non-program shipped-binary worlds may take to settle.
-pub(crate) const WORLD_PATIENCE: Duration = Duration::from_secs(2);
+pub const WORLD_PATIENCE: Duration = Duration::from_secs(2);
 
+/// Which outside terminal or program observation the story keeps.
 #[derive(Clone, Copy)]
-pub(crate) enum Story {
+pub enum Story {
+    /// No terminal-specific observation.
     None,
+    /// Keep the person's terminal modes unchanged.
     Modes,
+    /// Observe a changed terminal width.
     Resize,
+    /// Observe the program account's startup check.
     ProgramCheck,
+    /// Observe the program account's run.
     ProgramRun,
 }
 
@@ -186,7 +192,9 @@ impl Referee<Process> for Judge {
 }
 
 impl Story {
-    pub(crate) fn budget(self, sign_in: bool) -> Duration {
+    /// The settlement patience for this story and sign-in path.
+    #[must_use]
+    pub fn budget(self, sign_in: bool) -> Duration {
         match self {
             // Widths are this story's subject, so its referee uses the world's
             // patience (skein/docs/foundation/testing-strategy.md, 2.9).

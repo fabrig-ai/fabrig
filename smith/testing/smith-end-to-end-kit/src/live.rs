@@ -46,6 +46,10 @@ pub struct Environment {
 
 impl Environment {
     #[must_use]
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "a test harness selects its explicitly guarded live account environment"
+    )]
     pub fn load(accounts: &[&str]) -> Self {
         let root = root(std::env::var_os("SMITH_LIVE").as_deref()).unwrap_or_else(|message| panic!("{message}"));
         let root = smith_bench::guard::write_path(&root).expect("guarded $SMITH_LIVE");
@@ -150,11 +154,11 @@ pub fn refresh_report(
     format!("record before: {}; after: {}", facts(before), facts(after))
 }
 
-pub(crate) fn root(value: Option<&std::ffi::OsStr>) -> Result<PathBuf, &'static str> {
+pub fn root(value: Option<&std::ffi::OsStr>) -> Result<PathBuf, &'static str> {
     value.filter(|value| !value.is_empty()).map(PathBuf::from).ok_or("$SMITH_LIVE unset")
 }
 
-pub(crate) fn setup(root: &Path, account: &str, key: bool) -> Result<(), &'static str> {
+pub fn setup(root: &Path, account: &str, key: bool) -> Result<(), &'static str> {
     let (path, message) = match account {
         "chatgpt" => ("tokens/chatgpt", CHATGPT),
         "claude" => ("programs/claude", CLAUDE),
@@ -194,6 +198,7 @@ pub fn rendered(account: &str) -> serde_json::Value {
 
 /// Public command settings shared by live stories and their offline controls.
 #[must_use]
+#[expect(clippy::disallowed_methods, reason = "a test harness passes its program lookup path to the child")]
 pub fn arguments(account: &str, directory: &Path, change: bool, push: bool) -> Vec<std::ffi::OsString> {
     let mut arguments = vec![
         "exec".into(),
