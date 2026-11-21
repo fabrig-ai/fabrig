@@ -25,6 +25,7 @@ pub enum Usage {
     Rows { tool: u8, form: u8, argument: u8 },
     Long { tool: u8, form: u8, argument: u8 },
     Many { tool: u8, form: u8, argument: u8 },
+    Together { tool: u8, form: u8, first: u8, second: u8 },
     Stdin,
     Key,
     KeyName { tool: u8 },
@@ -44,7 +45,8 @@ impl Usage {
             | Self::Long { tool: t, form: f, .. }
             | Self::Missing { tool: t, form: f, .. }
             | Self::Twice { tool: t, form: f, .. }
-            | Self::Many { tool: t, form: f, .. } => {
+            | Self::Many { tool: t, form: f, .. }
+            | Self::Together { tool: t, form: f, .. } => {
                 *t = tool;
                 *f = form;
             }

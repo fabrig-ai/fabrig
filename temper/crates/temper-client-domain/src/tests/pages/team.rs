@@ -372,9 +372,10 @@ fn page(f: &mut Reads, event: Event) -> Effects {
                     &temper_client_protocol_wire::v1::CEILINGS,
                 )
                 .unwrap();
-                if let temper_client_protocol_wire::v1::Watch::Findings(findings) = &watching.watch {
-                    assert!(!findings.mine);
-                    assert_eq!(findings.state, Some(temper_client_protocol_wire::v1::FindingState::New));
+                if let temper_client_protocol_wire::v1::Watch::Findings(findings) = watching.watch {
+                    let w::FindingsFilter::Triage(filter) = &findings.filter else { panic!("triage watch") };
+                    assert!(!filter.mine);
+                    assert_eq!(filter.state, Some(temper_client_protocol_wire::v1::FindingState::New));
                     let findings = findings.clone();
                     let opened = client(f, jig_client::Event::Watch { handle, subject });
                     f.findings.push((handle, opened_token(&opened), findings)).unwrap();

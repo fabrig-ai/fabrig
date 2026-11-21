@@ -487,6 +487,7 @@ Design documents:
 - [`client/box-binary.md`](client/box-binary.status.md)
 - [`client/ctl/README.md`](client/ctl/README.status.md)
 - [`client/ctl/areas.md`](client/ctl/areas.status.md)
+- [`client/ctl/findings.md`](client/ctl/findings.status.md)
 - [`client/ctl/milestones.md`](client/ctl/milestones.status.md)
 - [`client/ctl/results.md`](client/ctl/results.status.md)
 - [`client/ctl/testing.md`](client/ctl/testing.status.md)

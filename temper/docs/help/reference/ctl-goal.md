@@ -2,7 +2,7 @@
 
 Kind: reference
 
-Goals: start one from a project template.
+Goals: start one from a project template, or read one and its reds after landing.
 
 ## goal start
 
@@ -44,4 +44,18 @@ Refused model flags name value and bound; nothing made.
 Within bounds: created; past but proposable: proposed (exit 0);
 not offered or past ceilings, nothing sent (exit 1).
 task show TASK --until replied.
+```
+
+## goal show
+
+```
+goal show TASK
+  TASK (task): a number; required. The goal's task number
+Read a goal and its reds after landing
+Prints: The task's document, then reds after landing, uncleared first, and where each stands
+--json: the record goal_show.
+Key: none.
+Reads the task, then its project's findings blamed on it, once.
+A task that is not a goal has no reds. A cut is marked.
+--since and --until are not taken. --json prints task, reds with stands, and cut.
 ```

@@ -41,7 +41,12 @@ an open need on it, whether it has a report, and its direct delegates' total.
     out; done, the ended rows that ended done;
   - its needs: the inbox's `Inbox`, `Filter { project, goal: Some(task) }`,
     opened once the document says the task is tracked and running inside the
-    goal's page, its cards the page's as Needs you's are (`../README.md`, 3.6).
+    goal's page, its cards the page's as Needs you's are (`../README.md`, 3.6);
+  - its reds after landing: the forge's subject `findings` with the filter
+    `goal`, the task (`../forge/records.md`, *A project's findings*), watched
+    once the document says the task is tracked, live or ended, and closed
+    as the page is left, as its other reads are; its rows are the findings
+    blamed on the goal (`../../domain/red-findings.md`, section 10).
 - **The header,** `header.goal-head`:
   - `p.meta.mono`, items separated by `<span>·</span>`: `<b>TITLE</b>`,
     the goal's whole first line, since this is its own page; `S`'s
@@ -138,6 +143,18 @@ an open need on it, whether it has a report, and its direct delegates' total.
     task lands on its own once checked." A goal branch is a resource of the task
     whose path ends in the name `temper/<root>/g<root>`, `../../domain/forge/branches.md`,
     1's. The mock's "last updated from main" is not drawn: no read says it.
+  - **Reds after landing** (`.section-title`), drawn only while its
+    `findings` watch has delivered rows: the findings blamed on the goal,
+    the uncleared first, each group newest first, each a `p.task-line`:
+    `P/N`, its title cut past 80 characters as a task's is, then " · "
+    and where it stands, in `../../domain/red-findings.md`, section
+    10's words, `findings::stands`: "2/14 3 tests fail in nightly since
+    S7 landed · waiting for triage", "2/9 1 test fails in nightly since
+    S7 landed · cleared by nightly run 412". An uncleared one's line has
+    the class `state-needs`, a cleared one's none. While the document is
+    cut, "More of its reds are not shown." as `.facts`. Nothing of the
+    goal's own state, header or landing changes: a done goal owing reds
+    is still done.
   - **How it runs,** `p.facts`: the way, "Plan, tasks, land whole" with a goal
     branch, "Task by task" without, then " · always asks you" when the
     goal’s words hold the exact line `Asks: always`, otherwise " · asks as the
@@ -156,10 +173,11 @@ an open need on it, whether it has a report, and its direct delegates' total.
   pure and the domain's: `Draft: PATH` and `Chat: T4`.
 - **Where it is decided:** the domain's `pages/goal.rs` holds what the page
   reads and decides, pure where it can be: its counts, its headline's case, a
-  task's line, its landing's case, `draft_of`. The view words and lays them out.
+  task's line, its landing's case, `draft_of`, its reds' order and where each
+  stands. The view words and lays them out.
 - **The terminal:** the view is shared and the page keeps its meaning. The
   regions print in order: the header, the needs, "Report", "Tasks", "Landing",
-  "How it runs", "Decided by the goal", the composer. The bar prints by its
+  "Reds after landing", "How it runs", "Decided by the goal", the composer. The bar prints by its
   name, "6 landed of 9"; the disclosure's rows print under it.
 - **Not drawn,** the mock's: "earlier reports"; the goal's budget as money;
   reordering a goal; and every part of the page as it was ("Task details", the

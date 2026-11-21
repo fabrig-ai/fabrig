@@ -242,6 +242,7 @@ impl Project {
                     ended: ended.then_some(RECENT),
                     last_landing: None,
                     spent: 31,
+                    reds: 0,
                 };
                 milestone.parts = List::from_boxed(Box::new([temper_fixtures::milestones::part(
                     ended.then_some(Wall::from_nanos(RECENT)),

@@ -2981,6 +2981,10 @@ pub enum Request {
     },
     /// The deployment's forges document changed.
     MarkedForges,
+    /// A finding's blame changed a milestone's parts (domain/red-findings.md, 10).
+    MilestoneMarked {
+        task: u64,
+    },
     /// Changed panel subjects, bounded by `MARKED` (domain/root.md, 9).
     Marked {
         tasks: Box<[u64]>,

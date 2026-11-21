@@ -1,6 +1,8 @@
 //! Findings on the forge family (temper/docs/design/client/forge/records.md).
 use super::{Limits, wire_limits};
+use alloc::boxed::Box;
 use jig_client::{Ask, Family, Watchable, contract as c};
+use skein_lib::{List, bytes};
 use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
@@ -20,13 +22,67 @@ pub fn watch(project: u32, limits: &Limits) -> Option<Watchable> {
 #[must_use]
 pub fn watching(project: u32, state: Option<w::FindingState>, mine: bool, limits: &Limits) -> Option<Watchable> {
     let bounds = wire_limits(limits)?;
-    let subject = w::FindingsSubject { project, state, mine };
+    let filter = w::FindingsFilter::Triage(w::FindingsTriage { state, mine });
+    filtered_watching(project, filter, &bounds)
+}
+
+/// The findings blamed on a goal, in every state, cleared or not.
+#[must_use]
+pub fn goal_watching(project: u32, goal: u64, limits: &Limits) -> Option<Watchable> {
+    let bounds = wire_limits(limits)?;
+    let filter = w::FindingsFilter::Goal(w::FindingsGoal { goal });
+    filtered_watching(project, filter, &bounds)
+}
+
+fn filtered_watching(project: u32, filter: w::FindingsFilter, bounds: &w::Limits) -> Option<Watchable> {
+    let subject = w::FindingsSubject { project, filter };
     let watching = w::Watching { watch: w::Watch::Findings(subject) };
     Some(Watchable::Family {
         scope: c::Scope::Project(project),
         window: c::Window { rows: 0, after: None },
-        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: watching.encode(&bounds).ok()? },
+        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: watching.encode(bounds).ok()? },
     })
+}
+
+/// Where a finding stands (temper/docs/design/domain/red-findings.md, 10).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Stands {
+    Cleared { tier: Box<[u8]>, run: u64 },
+    Waiting,
+    Repairing(Option<u64>),
+    Backlog,
+    Dropped(Box<[u8]>),
+}
+
+/// Clearing takes precedence over the triage state.
+#[must_use]
+pub fn stands(row: &w::FindingRow) -> Stands {
+    if let Some(cleared) = &row.cleared {
+        return Stands::Cleared { tier: bytes::copy_of(&cleared.tier), run: cleared.run };
+    }
+    match row.state {
+        w::FindingState::New => Stands::Waiting,
+        w::FindingState::Routed => Stands::Repairing(row.goal),
+        w::FindingState::Backlog => Stands::Backlog,
+        w::FindingState::Dropped => Stands::Dropped(match &row.reason {
+            Some(reason) => reason.clone(),
+            None => Box::default(),
+        }),
+    }
+}
+
+/// Uncleared findings first, keeping the subject's order within each group.
+#[must_use]
+pub fn uncleared_first(rows: &[w::FindingRow]) -> Box<[w::FindingRow]> {
+    let mut ordered = List::uncapped();
+    for cleared in [false, true] {
+        for row in rows {
+            if row.cleared.is_some() == cleared {
+                ordered.push(row.clone()).expect("the findings subject's rows fit a list");
+            }
+        }
+    }
+    ordered.into_boxed()
 }
 
 #[must_use]
@@ -60,3 +116,7 @@ pub fn outcome(outcome: &jig_client::Outcome, limits: Limits) -> Option<w::Outco
     }
     Some(answer.outcome.clone())
 }
+
+#[cfg(test)]
+#[path = "../tests/findings.rs"]
+mod tests;
