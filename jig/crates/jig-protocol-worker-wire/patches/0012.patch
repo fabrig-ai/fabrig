@@ -1,0 +1,14 @@
+patch 1
+owner jig 12
+
+family jig-worker-wire 21 to 22
+add PartKind
+add Part
+add PartKept
+add PartBusy
+add KeptPart
+add Assignment.parts bytes 134217728 0x
+add FromWorker.part
+add FromEngine.part_kept
+add FromEngine.part_busy
+down written Assignment

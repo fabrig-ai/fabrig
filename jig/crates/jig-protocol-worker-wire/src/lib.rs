@@ -7,14 +7,14 @@ extern crate alloc;
 
 /// The current family schema text (skein/docs/design/data/codec/README.md, section 6).
 #[expect(clippy::disallowed_macros, reason = "the owner embeds its current schema text once")]
-pub const SCHEMA: &str = include_str!("../schema/worker-wire-v21.schema");
+pub const SCHEMA: &str = include_str!("../schema/worker-wire-v22.schema");
 
 use alloc::boxed::Box;
 use skein_lib::Token;
 
 #[rustfmt::skip]
 #[path = "generated/worker_wire.rs"]
-pub mod v21;
+pub mod v22;
 mod application;
 mod kinds;
 mod spoken;
@@ -28,33 +28,35 @@ pub use loss::Loss;
 pub mod sizes;
 
 pub mod fit;
+pub mod parts;
+pub use v22::{PartBusy, PartKept, PartKind, KeptPart};
 
 #[cfg(test)]
 mod tests;
 
-pub use v21::Record;
+pub use v22::Record;
 
-pub use v21::{ModelEvidence, ModelFailure, ModelFailureKind};
+pub use v22::{ModelEvidence, ModelFailure, ModelFailureKind};
 
 pub use kinds::{
     KINDS, Kind, KindRule, Overflow, schema, schema_and_spoken, schema_for, schema_for_prepared, terms_gap,
 };
-pub use v21::Restarting;
-pub use v21::{
+pub use v22::Restarting;
+pub use v22::{
     AccountRefused, AgentFailure, AgentFailureValue, Answer, Bound, Call, CancelReason, CancelReasonValue, Count,
     CountKind, Ended, Ending, Exceeded, Fact, FactValue, Failed, Failure, Invalid, InvalidStart, InvalidValue, Limited,
     LimitedAccount, Long, MessageRefusal, Mismatch, Operation, Parked, PhaseValue, Preparation, PreparationValue,
     Refusal, RefusalValue, Refused, RefusedAccount, Resource, RunFailure, RunFailureValue, StartCause, Turn,
     Unauthorized, Work,
 };
-pub use v21::{
+pub use v22::{
     Acknowledge, AnsweredCall, ApplicationValue, Assignment, Cancel, CredentialValue, DeliveryAnswer, DeliveryOutcome,
     Grant, GrantValue, Granted, HostAnswer, Inbound, Message, ProgramValue, RelayAnswer, RelayText, Relayed, Scheme,
     SettledAnswer, TurnBusy, TurnKept, Workspace,
 };
-pub use v21::{AgreedWire, Draining};
-pub use v21::{Bounds, CEILINGS, Credential, EndpointBound, Hello, Hosting, Phase, Wire};
-pub use v21::{Pause, PauseMode, PauseState, Paused};
+pub use v22::{AgreedWire, Draining};
+pub use v22::{Bounds, CEILINGS, Credential, EndpointBound, Hello, Hosting, Phase, Wire};
+pub use v22::{Pause, PauseMode, PauseState, Paused};
 
 /// An application's opaque bytes under the token its vocabulary names.
 #[derive(PartialEq, Eq, Debug)]
@@ -108,20 +110,20 @@ impl Reason {
     }
 }
 
-pub use v21::{
+pub use v22::{
     Check, Login, LoginOtherwise, LoginState, Logins, ProgramSource, SignOut, SignOutResult, SignedOut, SourceFailed,
     SourceFailure, Sources,
 };
 
-pub use v21::{InputCall, LiveAsk, LiveKind, Piece};
+pub use v22::{InputCall, LiveAsk, LiveKind, Piece};
 
 // Jobs use the worker channel's own records (jig/docs/design/protocol/channel/records.md, 4).
-pub use v21::{
+pub use v22::{
     DeliveryOutcomeValue, Job, JobAnswer, JobBound, JobEnding, JobFailed, JobFailure, JobFinished, JobInvalid,
     JobInvalidStart, JobInvalidValue, JobRefusal, JobRefusalValue,
 };
 
-pub use v21::{ListFailed, ListFailureValue, ListOutcome, ListRead, ListRefused, ListRow, ListedRows, ReadList};
+pub use v22::{ListFailed, ListFailureValue, ListOutcome, ListRead, ListRefused, ListRow, ListedRows, ReadList};
 
 /// This crate's spoken family and layout (protocol/channel/wires.md, 2).
 pub mod wire {
@@ -129,7 +131,7 @@ pub mod wire {
     pub const FAMILY: &str = "jig-worker-wire";
 
     /// The version named by the current schema's header.
-    pub const VERSION: u16 = crate::v21::VERSION;
+    pub const VERSION: u16 = crate::v22::VERSION;
 
     /// The lowest version this build speaks.
     pub const FLOOR: u16 = crate::patches::kept::jig_worker_wire::FLOOR;
@@ -162,8 +164,8 @@ pub mod wire {
     }
 }
 
-pub use v21::{Ask, AskAnswer, AskBytes, Asked};
+pub use v22::{Ask, AskAnswer, AskBytes, Asked};
 
-pub use v21::{AgentEndpoint, Agents, EndpointLimits, Figures, Header, Limit, Opening, Oversized, Tls, Transport};
+pub use v22::{AgentEndpoint, Agents, EndpointLimits, Figures, Header, Limit, Opening, Oversized, Tls, Transport};
 
-pub use v21::{ReadUsage, Usage, UsageOutcome, UsageRead, UsageWindow, UsageWindows};
+pub use v22::{ReadUsage, Usage, UsageOutcome, UsageRead, UsageWindow, UsageWindows};

@@ -1,12 +1,12 @@
 use super::fixtures;
-use crate::v21::Record;
+use crate::v22::Record;
 use crate::{Hello, Reason};
 use alloc::boxed::Box;
 use skein_channel::{Direction, Role, Term};
 use skein_lib::{Duration, List, Reader};
 
 // Hello151 + fresh1 + endpoint count4 + 64 identities of4 + jobs count4 + two bounds of20.
-const HELLO_MAX: u32 = 151 + 1 + 4 + crate::v21::CEILINGS.bounds_program_endpoints * 4 + 4 + 2 * 20;
+const HELLO_MAX: u32 = 151 + 1 + 4 + crate::v22::CEILINGS.bounds_program_endpoints * 4 + 4 + 2 * 20;
 fn hello_schema() -> skein_channel::Schema {
     crate::schema(&fixtures::LIMITS).expect("small schema")
 }
@@ -86,7 +86,7 @@ fn hello_through_bytes(hello: &Hello) -> Hello {
 
 #[test]
 fn assignment_charter_path_names_the_schema_field() {
-    let name: Option<&str> = crate::v21::name(crate::v21::paths::ASSIGNMENT_CHARTER);
+    let name: Option<&str> = crate::v22::name(crate::v22::paths::ASSIGNMENT_CHARTER);
     assert_eq!(name, Some("Assignment.charter"));
 }
 
@@ -204,8 +204,8 @@ fn a_hello_past_the_endpoint_ceiling_is_refused_at_its_bound() {
         (at_cap, Ok(ENDPOINT_CAP)),
         (
             past_cap,
-            Err(crate::v21::Problem {
-                path: crate::v21::paths::BOUNDS_PROGRAM_ENDPOINTS,
+            Err(crate::v22::Problem {
+                path: crate::v22::paths::BOUNDS_PROGRAM_ENDPOINTS,
                 reason: skein_codec::Reason::Bound,
             }),
         ),
@@ -383,7 +383,7 @@ fn a_failed_answer_keeps_the_limited_or_refused_account_it_turned_on() {
     assert_eq!(refused.account, 7);
 }
 
-pub(super) fn through_bytes<T: Record<Limits = crate::v21::Limits>>(value: &T) -> T {
+pub(super) fn through_bytes<T: Record<Limits = crate::v22::Limits>>(value: &T) -> T {
     let bytes = value.encode(&fixtures::LIMITS).expect("notice within limits");
     T::decode(&fixtures::LIMITS, &mut Reader::new(&bytes)).expect("notice within limits")
 }

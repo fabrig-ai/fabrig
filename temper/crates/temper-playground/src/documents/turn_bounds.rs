@@ -50,7 +50,7 @@ pub fn apply(configuration: &mut super::Configuration, turn: u32) {
     configuration.derive_places();
 }
 fn output(turn: u64, inbox: u32, initial: u32) -> u64 {
-    use jig_protocol_worker_wire::v21;
+    use jig_protocol_worker_wire::v22;
     let bodies =
         v21::Limits { turn_body: u32::try_from(turn).expect("turn body"), turn_refused: inbox, ..v21::CEILINGS };
     let frame = v21::Turn::encoded_bound(&bodies).expect("turn frame") + 8;

@@ -227,7 +227,7 @@ fn down(record: jig_domain_host::LinkDown) -> translate::Down {
     };
     translated.expect("complete output")
 }
-fn codec() -> jig_protocol_worker_wire::v21::Limits {
+fn codec() -> jig_protocol_worker_wire::v22::Limits {
     jig_protocol_worker_wire::sizes::limits(&fixtures::SIZES).expect("small codec")
 }
 fn assignment_output() -> jig_domain_host::LinkDown {
@@ -285,7 +285,7 @@ fn a_transcript_past_its_bound_including_lengths_drops_the_assignment() {
             reason: None,
             figure: Some(13),
             bound: Some(12),
-            ceiling: Some(u64::from(jig_protocol_worker_wire::v21::CEILINGS.assignment_transcript)),
+            ceiling: Some(u64::from(jig_protocol_worker_wire::v22::CEILINGS.assignment_transcript)),
         }
     );
 }
@@ -301,7 +301,7 @@ fn a_charter_past_its_bound_names_its_bytes_limit_and_ceiling() {
             reason: None,
             figure: Some(7),
             bound: Some(6),
-            ceiling: Some(u64::from(jig_protocol_worker_wire::v21::CEILINGS.assignment_charter))
+            ceiling: Some(u64::from(jig_protocol_worker_wire::v22::CEILINGS.assignment_charter))
         }
     );
     limits.assignment_charter = 7;
@@ -322,7 +322,7 @@ fn an_encoding_refusal_keeps_its_codec_path_and_reason() {
         .frame(&codec())
         .expect_err("not UTF-8"),
         Unencoded {
-            field: jig_protocol_worker_wire::v21::name(jig_protocol_worker_wire::v21::paths::MESSAGE_WORDS)
+            field: jig_protocol_worker_wire::v22::name(jig_protocol_worker_wire::v22::paths::MESSAGE_WORDS)
                 .expect("generated path"),
             reason: Some(skein_codec::Reason::Utf8),
             figure: None,
@@ -343,7 +343,7 @@ fn a_full_list_names_its_count_limit_and_ceiling() {
             reason: None,
             figure: Some(1),
             bound: Some(0),
-            ceiling: Some(u64::from(jig_protocol_worker_wire::v21::CEILINGS.assignment_messages))
+            ceiling: Some(u64::from(jig_protocol_worker_wire::v22::CEILINGS.assignment_messages))
         }
     );
 }

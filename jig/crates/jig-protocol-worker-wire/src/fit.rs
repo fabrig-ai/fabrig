@@ -1,9 +1,9 @@
 //! A resumed start's committed calls fitted to a room (jig/docs/design/protocol/channel/README.md, 8 and 10).
-use crate::v21::Record;
+use crate::v22::Record;
 use alloc::boxed::Box;
 use skein_lib::{Decimal, List, Writer};
 
-use crate::v21;
+use crate::v22;
 
 /// What fitting did to an assignment.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -33,40 +33,68 @@ pub fn cut_words(bytes: u32) -> Box<[u8]> {
     writer.finish()
 }
 
-fn saving(answer: &v21::SettledAnswer) -> u32 {
+fn saving(answer: &v22::SettledAnswer) -> u32 {
     match answer {
-        v21::SettledAnswer::Host(host) => {
+        v22::SettledAnswer::Host(host) => {
             let bytes = u32::try_from(host.body.len()).expect("the body's ceiling fits u32");
             bytes.saturating_sub(cut_length(bytes))
         }
-        v21::SettledAnswer::Delivery(_) => 0,
+        v22::SettledAnswer::Delivery(_) => 0,
     }
 }
 
-fn cut_call(call: v21::AnsweredCall) -> v21::AnsweredCall {
+fn cut_call(call: v22::AnsweredCall) -> v22::AnsweredCall {
     let mut parts = call;
     parts.answer = match parts.answer {
-        v21::SettledAnswer::Host(host) => {
+        v22::SettledAnswer::Host(host) => {
             let mut host = host;
             let bytes = u32::try_from(host.body.len()).expect("the body's ceiling fits u32");
             host.body = cut_words(bytes);
 
-            v21::SettledAnswer::Host(host)
+            v22::SettledAnswer::Host(host)
         }
-        v21::SettledAnswer::Delivery(delivery) => v21::SettledAnswer::Delivery(delivery),
+        v22::SettledAnswer::Delivery(delivery) => v22::SettledAnswer::Delivery(delivery),
     };
     parts
 }
 
 /// `assignment` with its committed calls fitted to `room`, a frame's bytes.
 pub fn fit(
-    assignment: v21::Assignment,
-    limits: &v21::Limits,
+    mut assignment: v22::Assignment,
+    limits: &v22::Limits,
     room: u32,
-) -> Result<(v21::Assignment, Fitted), v21::Problem> {
+) -> Result<(v22::Assignment, Fitted), v22::Problem> {
     let mut bytes = u64::from(assignment.measure(limits)?).checked_add(8).expect("a u32 body and its header fit u64");
     if bytes <= u64::from(room) {
         return Ok((assignment, Fitted::Whole));
+    }
+
+    let mut parts = crate::parts::decode(&assignment.parts, limits)?;
+    for _ in 0..parts.len() {
+        let mut last = None;
+        for part in &parts {
+            if part.thread != 0 {
+                last = Some(last.unwrap_or(0_u32).max(part.call));
+            }
+        }
+        let Some(last) = last else { break };
+        let mut kept = List::with_capacity(parts.len());
+        for part in parts.into_boxed() {
+            if part.thread == 0 || part.call != last {
+                kept.push(part).expect("removing parts does not grow the list");
+            }
+        }
+        parts = kept;
+        assignment.parts = crate::parts::encode(parts.as_slice(), limits)?;
+        bytes = u64::from(assignment.measure(limits)?).checked_add(8).expect("a u32 frame fits u64");
+        if bytes <= u64::from(room) {
+            return Ok((assignment, Fitted::Cut { cut: 0 }));
+        }
+    }
+    assignment.parts = Box::new([]);
+    bytes = u64::from(assignment.measure(limits)?).checked_add(8).expect("a u32 frame fits u64");
+    if bytes <= u64::from(room) {
+        return Ok((assignment, Fitted::Cut { cut: 0 }));
     }
 
     // A body's four-byte length stays the same size, so each saving is exact.

@@ -1,7 +1,7 @@
 //! A resumed start fitted to its room (jig/docs/design/protocol/channel/README.md, 11).
 use super::fixtures::{self, SIZES_LARGE, SIZES_ONE_SLOT, repeated};
 use crate::fit::{Fitted, cut_words, fit};
-use crate::v21::Record;
+use crate::v22::Record;
 use crate::{self as wire, sizes};
 use skein_lib::List;
 
@@ -226,4 +226,29 @@ fn the_smallest_resumed_start_is_measured() {
     }
     assert_eq!(sizes::smallest_resumed(u32::MAX, 64, 64, 1), None);
     assert_eq!(cut_words(135_168).as_ref(), b"[this call ran; its answer of 135168 bytes was left out of this start]");
+}
+
+#[test]
+fn parts_go_before_answers_and_sub_agents_go_by_last_call_all_or_none() {
+    let limits = sizes::limits(&SIZES_LARGE).unwrap();
+    let mut assignment = resumed(calls(&[HOST]));
+    let parts: Vec<_> = [(0, 9), (1, 2), (2, 3), (2, 3)].into_iter().map(|(thread, call)| wire::KeptPart {
+        attempt: 1, turn: 2, thread, call, kind: wire::PartKind::Answer, body: repeated(b'p', 64),
+    }).collect();
+    assignment.parts = crate::parts::encode(&parts, &limits).unwrap();
+    let whole = assignment.measure(&limits).unwrap() + 8;
+    let (fitted, result) = fit(assignment.clone(), &limits, whole).unwrap();
+    assert_eq!(result, Fitted::Whole);
+    assert_eq!(fitted, assignment);
+
+    let mut expected = assignment.clone();
+    expected.parts = crate::parts::encode(&parts[..2], &limits).unwrap();
+    let room = expected.measure(&limits).unwrap() + 8;
+    let (fitted, _) = fit(assignment.clone(), &limits, room + 1).unwrap();
+    assert_eq!(fitted, expected, "last call is dropped whole, main and earlier sub-agent kept");
+
+    expected.parts = Box::new([]);
+    let room = expected.measure(&limits).unwrap() + 8;
+    let (fitted, _) = fit(assignment, &limits, room).unwrap();
+    assert_eq!(fitted, expected, "all parts go before any answer is cut");
 }

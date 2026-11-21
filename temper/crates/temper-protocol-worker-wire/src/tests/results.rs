@@ -43,7 +43,7 @@ fn reports_roundtrip_at_bounds_and_the_ask_envelope_holds_the_worker_ceiling() {
         assert!(bytes.len() <= usize::try_from(largest.ask).unwrap());
         assert_eq!(u64::from(largest.ask), v1::Ask::encoded_bound(&v1::CEILINGS).unwrap());
         assert_eq!(largest.ask, 305_383);
-        assert!(largest.ask <= jig_protocol_worker_wire::v21::CEILINGS.ask_bytes);
+        assert!(largest.ask <= jig_protocol_worker_wire::v22::CEILINGS.ask_bytes);
     }
 }
 

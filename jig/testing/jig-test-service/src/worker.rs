@@ -1120,7 +1120,7 @@ mod admission_tests {
                     .push(wire::AgreedWire { name: spoken.name.as_bytes().into(), version: spoken.highest() })
                     .expect("four wires");
             }
-            let record = wire::v21::Agreed { wires };
+            let record = wire::v22::Agreed { wires };
             let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(
                 record.measure(&wire::CEILINGS).expect("statement within limits"),
             ));

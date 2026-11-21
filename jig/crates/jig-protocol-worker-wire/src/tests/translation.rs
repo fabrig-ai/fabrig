@@ -1,7 +1,7 @@
 //! The shared component bridge machine (jig/docs/design/protocol/channel/bridges.md, 5 and 9).
 use crate::translation::Translation;
-use crate::v21::Record;
-use crate::{self as channel, Agreed, Application, Carried, Kept, Root, Spoken, v21 as wire};
+use crate::v22::Record;
+use crate::{self as channel, Agreed, Application, Carried, Kept, Root, Spoken, v22 as wire};
 use skein_channel::{Frame, frame_writer};
 use skein_codec::{
     bridge::Bridge,
@@ -767,4 +767,69 @@ fn seventeens_kept_goldens_go_up_to_eighteen_with_no_refusal_and_back() {
             }
         }
     }
+}
+
+#[test]
+fn part_notices_are_unheld_below_twenty_two() {
+    for version in crate::wire::FLOOR..22 {
+        let agreed = agreed(version, smith_charter::wire::VERSION);
+        let up = wire::FromWorker::Part(wire::Part {
+            task: 1, attempt: 2, number: 3, turn: 4, thread: 0, call: 5,
+            kind: wire::PartKind::Answer, body: Box::new([]),
+        });
+        let result = opaque().send(worker(&up), version, &agreed, &wire::CEILINGS);
+        assert!(matches!(result, Err(crate::translation::Untranslated { halt: Halt::Unheld(_), .. })));
+        for record in [
+            wire::FromEngine::PartKept(wire::PartKept { task: 1, attempt: 2, number: 3 }),
+            wire::FromEngine::PartBusy(wire::PartBusy { task: 1, attempt: 2, number: 3 }),
+        ] {
+            let result = opaque().send(engine(&record), version, &agreed, &wire::CEILINGS);
+            assert!(matches!(result, Err(crate::translation::Untranslated { halt: Halt::Unheld(_), .. })));
+        }
+    }
+}
+
+#[test]
+fn an_assignment_reverse_drops_only_its_parts_at_twenty_one() {
+    let mut record = assignment(charter(smith_channel::wire::VERSION));
+    record.parts = crate::parts::encode(&[wire::KeptPart {
+        attempt: 1, turn: 2, thread: 0, call: 3, kind: wire::PartKind::Result, body: b"opaque".as_slice().into(),
+    }], &wire::CEILINGS).unwrap();
+    let mut bridge = crate::patches::kept::jig_worker_wire::bridge(Capacity {
+        versions: 32, patches: 32, text: 131_072, bytes: 1_048_576, nodes: 1_048_576,
+    }).unwrap();
+    let down = bridge.translate(22, 21, b"Assignment", record.encode(&wire::CEILINGS).unwrap()).unwrap();
+    let up = bridge.translate(21, 22, b"Assignment", down).unwrap();
+    let restored = wire::Assignment::decode(&wire::CEILINGS, &mut Reader::new(&up)).unwrap();
+    record.parts = Box::new([]);
+    assert_eq!(restored, record);
+    assert!(opaque().incomplete(&[Agreed { name: "jig-worker-wire", version: 21 }]).is_empty());
+}
+
+#[test]
+fn a_parts_body_crosses_as_a_turn_and_resumed_parts_keep_their_own_version() {
+    let old_turn = golden(smith_transcript::patches::kept::smith_transcript::TEXTS.first().unwrap(), "record_turn_smallest");
+    let current = smith_transcript::wire::VERSION;
+    let mut agreements = agreed(22, smith_charter::wire::VERSION);
+    agreements[2].version = current;
+    let record = wire::FromWorker::Part(wire::Part {
+        task: 1, attempt: 2, number: 3, turn: 4, thread: 0, call: 5,
+        kind: wire::PartKind::Answer, body: old_turn.clone(),
+    });
+    let incoming = worker(&record);
+    let up = opaque().receive(incoming.kind(), body(&incoming), 22, &agreements, &wire::CEILINGS).unwrap();
+    let wire::FromWorker::Part(part) = worker_value(&up) else { panic!("part") };
+    assert_eq!(&part.body[..2], &current.to_be_bytes());
+    let mut assignment = assignment(charter(smith_channel::wire::VERSION));
+    assignment.parts = crate::parts::encode(&[wire::KeptPart {
+        attempt: 2, turn: 4, thread: 0, call: 5, kind: wire::PartKind::Answer, body: old_turn.clone(),
+    }], &wire::CEILINGS).unwrap();
+    let down = opaque().send(engine(&wire::FromEngine::Assignment(assignment)), 22, &agreements, &wire::CEILINGS).unwrap();
+    let wire::FromEngine::Assignment(assignment) = engine_value(&down) else { panic!("assignment") };
+    let parts = crate::parts::decode(&assignment.parts, &wire::CEILINGS).unwrap();
+    assert_eq!(parts.as_slice()[0].body, old_turn);
+    let up = opaque().receive(down.kind(), body(&down), 22, &agreements, &wire::CEILINGS).unwrap();
+    let wire::FromEngine::Assignment(assignment) = engine_value(&up) else { panic!("assignment") };
+    let parts = crate::parts::decode(&assignment.parts, &wire::CEILINGS).unwrap();
+    assert_eq!(&parts.as_slice()[0].body[..2], &current.to_be_bytes());
 }
