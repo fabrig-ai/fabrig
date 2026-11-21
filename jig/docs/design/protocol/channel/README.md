@@ -546,7 +546,8 @@ holds, and neither of its components reads them.
   its domain can have queued at once, so a record the domain sends is
   never refused at the channel's entrance:
   - engine to worker, per worker: for each slot, an assignment at its
-    largest, its start's messages included, the messages its task's inbox
+    largest but never past the room, none past it being sent (below),
+    the messages its task's inbox
     may hold, an answer for each call a run may have in flight, a kept or
     busy notice for each turn it may have unacknowledged, an
     acknowledgement of its answer, a cancel, and a grant for each LLM
