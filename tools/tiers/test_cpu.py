@@ -1245,6 +1245,68 @@ class OneProcessTests(unittest.TestCase):
         self.assertEqual(folded['budgets']['temper']['domain']['lowest_s'], 122.5)
         self.assertEqual(rows['domain']['lowest_s'], 122.5)
 
+    def excluded_layer_case(self):
+        self.ledger_case()
+        self.results['layers'].append('real-loop')
+        self.results['selected_layers'] = ['domain', 'system', 'io', 'simulated', 'checks']
+        for binary, listed in (('temper-real::listed', True), ('temper-real::unlisted', False)):
+            self.main['binaries'][binary] = self.ledger_entry([500], layer='real-loop',
+                                                            tests={'a': [1]}, alone={'a': [1, 2, 3]})
+            self.results['workspace'].append(dict(binary_id=binary, tree='temper', layer='real-loop', listed=listed))
+        self.main['binaries']['temper-real::gone'] = self.ledger_entry([500], layer='real-loop')
+        self.main['budgets']['temper']['real-loop'] = {'ceiling_s': 1, 'lowest_s': 0}
+        self.limits['gate']['default']['temper']['real-loop'] = {'cpu_s': 1}
+
+    def test_unselected_layers_have_no_rows_warnings_or_folded_figures(self):
+        self.excluded_layer_case()
+        for gate in (False, True):
+            with self.subTest(gate=gate):
+                result = self.summary(self.limits, gate=gate, ledger=self.main)
+                self.assertEqual([row['layer'] for row in result['layers']], ['io', 'domain'])
+                self.assertEqual(result['warnings'], [])
+                self.assertEqual(result['over_budget'], [])
+                self.assertEqual(result['swings'], [])
+                tree = next(row for row in result['trees'] if row['tree'] == 'temper')
+                self.assertEqual((tree['ceiling_s'], tree['budget_s'], tree['cpu_s'], tree['main_s']),
+                                 (271, 261, 125, 127))
+                folded = CPU['fold_ledger'](self.directory, result, self.limits, self.main)
+                self.assertEqual(folded['binaries'], {
+                    'temper-a::domain': self.ledger_entry([50, 55], tests={'z': [2, 3, 4], 'new': [0.5]}),
+                    'temper-b::domain': self.ledger_entry([70])})
+                self.assertEqual(folded['budgets'], {'temper': {
+                    'domain': {'ceiling_s': 141, 'lowest_s': 118.4},
+                    'system': {'ceiling_s': 30, 'lowest_s': 0},
+                    'simulated': {'ceiling_s': 100, 'lowest_s': 0}}})
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    CPU['print_summary'](result)
+                self.assertNotIn('real-loop', output.getvalue())
+
+    def test_absent_or_null_selected_layers_judges_every_layer(self):
+        self.excluded_layer_case()
+        for absent in (False, True):
+            with self.subTest(absent=absent):
+                if absent:
+                    self.results.pop('selected_layers')
+                else:
+                    self.results['selected_layers'] = None
+                result = self.summary(self.limits, gate=True, ledger=self.main)
+                real = next(row for row in result['layers'] if row['layer'] == 'real-loop')
+                self.assertEqual((real['cpu_s'], real['main_s']), (500, 1500))
+                self.assertTrue(any('real-loop' in line for line in result['warnings']))
+                folded = CPU['fold_ledger'](self.directory, result, self.limits, self.main)
+                self.assertIn('temper-real::unlisted', folded['binaries'])
+                self.assertIn('real-loop', folded['budgets']['temper'])
+
+    def test_workspace_exclusion_keeps_old_selected_placement_only_at_main(self):
+        self.excluded_layer_case()
+        self.results['workspace'][1]['layer'] = 'real-loop'
+        result = self.summary(self.limits, ledger=self.main)
+        domain = next(row for row in result['layers'] if row['layer'] == 'domain')
+        self.assertEqual((domain['cpu_s'], domain['main_s']), (55, 127))
+        folded = CPU['fold_ledger'](self.directory, result, self.limits, self.main)
+        self.assertNotIn('temper-b::domain', folded['binaries'])
+
     def test_ledger_fold_whole_unlisted_and_gone(self):
         self.ledger_case()
         self.main['binaries']['temper-a::domain']['cpu'] = [60, 64, 61.2]
@@ -1424,19 +1486,20 @@ class OneProcessTests(unittest.TestCase):
 
     def stand_in(self, path, body=None):
         path.write_text('import json, os\nfrom pathlib import Path\n'
-                       "def run(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None, ledger=None):\n"
+                       "def run(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None, ledger=None, selected_layers=None):\n"
                        + (body if body is not None else
                        f'    run = {self.run!r}\n    results = {self.results!r}\n'
                        '    directory = Path(directory)\n    directory.mkdir(parents=True, exist_ok=True)\n'
                        '    recorded_env = {key: env[key] for key in ("fixture", "TIERS_WRAPPER") if key in env}\n'
                        '    (directory / "called.json").write_text(json.dumps([command, recorded_env, profile, limits, str(config)]))\n'
                        '    (directory / "ledger-arg.json").write_text(json.dumps(ledger))\n'
+                        '    (directory / "layers-arg.json").write_text(json.dumps(selected_layers))\n'
                        '    (directory / "mode").write_text(str(os.umask(0o077)))\n'
                        '    (directory / "run.json").write_text(json.dumps(run))\n'
                        '    (directory / "results.json").write_text(json.dumps(results))\n'
                        '    (directory / "command-output.txt").write_text("runner output\\n")\n'))
 
-    def execute(self, limits=None, body=None, gate=False, ledger=None):
+    def execute(self, limits=None, body=None, gate=False, ledger=None, selected_layers=None):
         stand_in = self.root / 'stand_in.py'
         self.stand_in(stand_in, body)
         execute = CPU['execute_one_process']
@@ -1446,10 +1509,15 @@ class OneProcessTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 code = execute(['prefix', 'cargo', 'nextest', 'run'], {'fixture': 'yes'},
-                               self.directory, 'default', limits or {}, self.root / 'config.toml', gate=gate, ledger=ledger)
+                               self.directory, 'default', limits or {}, self.root / 'config.toml', gate=gate, ledger=ledger, selected_layers=selected_layers)
             return code, output.getvalue()
         finally:
             execute.__globals__['ONE_PROCESS'] = previous
+
+    def test_execute_forwards_selected_layers(self):
+        code, _ = self.execute(selected_layers=['checks'])
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads((self.directory / 'layers-arg.json').read_text()), ['checks'])
 
     def test_execute_status_precedence_and_appended_summary(self):
         for outcome, starved, cancelled, limit, no_tests, expected in (
