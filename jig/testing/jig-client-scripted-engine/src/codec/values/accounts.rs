@@ -283,6 +283,7 @@ pub(in crate::codec) fn wire_account_fact(
         c::AccountFactValue::Span(nanos) => w::AccountFactValue::Span(w::AccountFactSpan { nanos: *nanos }),
         c::AccountFactValue::Share(basis) => w::AccountFactValue::Share(w::AccountFactShare { basis: *basis }),
         c::AccountFactValue::Window(window) => w::AccountFactValue::Window(w::AccountWindow {
+            rate: window.rate,
             length: window.length,
             used: window.used,
             resets: window.resets.map(skein_lib::Wall::as_nanos),

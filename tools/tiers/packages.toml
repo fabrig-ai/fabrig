@@ -48,6 +48,8 @@ browser-jig = [{ package = "jig-test", bin = "jig-test" }]
 browser-skein = [{ package = "skein-ui-example-server", bin = "skein-ui-example" }]
 browser-temper = [
     { package = "temper-box", bin = "temper-box" },
+    { package = "temper", bin = "temper" },
+    { package = "smith-fake-claude", bin = "fake-claude" },
     { package = "temper-playground-serve", bin = "temper-playground-serve" },
 ]
 conformance-hearth = []

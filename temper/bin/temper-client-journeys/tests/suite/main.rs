@@ -14,10 +14,10 @@ fn opening(text: &str) -> String {
 
 fn help(text: &str) -> bool {
     opening(text) == "temper-client-journeys: recorded walks, replayed through the shipped hosts and printed."
-        && !text.split_whitespace().any(|word| ["add", "normalise", "again", "pages"].contains(&word))
+        && !text.split_whitespace().any(|word| ["add", "normalise", "again", "pages", "reprint"].contains(&word))
         && text
             .split_once("environment:\n")
-            .is_some_and(|(_, environment)| environment.contains("PATH") && environment.contains("CARGO_TARGET_DIR"))
+            .is_some_and(|(_, environment)| environment.contains("PATH") && !environment.contains("CARGO_TARGET_DIR"))
 }
 
 fn internal(text: &str) -> bool {
@@ -41,18 +41,12 @@ fn normalise_help(text: &str) -> bool {
         && words.contains("Reads no configuration, environment, clock or network.")
 }
 
-fn pages_help(text: &str) -> bool {
+fn journey_walk_help(text: &str) -> bool {
     let words = text.split_whitespace().collect::<Vec<_>>().join(" ");
-    internal(text)
-        && words.contains("temper-client-journeys pages [--prepared DIR] [--within DURATION]")
-        && words.contains("temper-client-journeys pages --check")
-        && words.contains("Digits then s, m or h (90m).")
-        && words.contains("Every other word goes to stderr.")
-        && words.contains("Walk each stale journey again")
-        && words.contains("Directory holding temper-box, fake-claude, temper-client for TUI, and bundle/index.html.")
-        && words.contains(
-            "Exit 0: every journey printed; 1: a journey left unprinted; 2: usage; 3: a root unreadable or unwritable.",
-        )
+    internal(text) && words.contains("temper-client-journeys journey walk NAME --bin DIR [--bundle DIR] --scratch DIR [--strict] [--ports LIST] [--widths LIST] [--deployment DIR]")
+}
+fn drive_help(text: &str) -> bool {
+    internal(text) && text.contains("--journey") && text.contains("--widths LIST")
 }
 
 fn version(text: &str) -> bool {
@@ -72,26 +66,8 @@ const ROWS: &[Case] = &[
     (&["help"], 0, help, ""),
     (&["--version"], 0, version, ""),
     (&["add", "--help"], 0, add_help, ""),
-    (&["again", "--help"], 0, internal, ""),
-    (&["pages", "--help"], 0, pages_help, ""),
-    (
-        &["pages", "extra"],
-        2,
-        empty,
-        "temper-client-journeys pages: expected [--prepared DIR] [--within DURATION] or --check\nusage:\n  temper-client-journeys pages [--prepared DIR] [--within DURATION]\n  temper-client-journeys pages --check\n",
-    ),
-    (
-        &["pages", "--within", "90"],
-        2,
-        empty,
-        "temper-client-journeys pages: expected [--prepared DIR] [--within DURATION] or --check\nusage:\n  temper-client-journeys pages [--prepared DIR] [--within DURATION]\n  temper-client-journeys pages --check\n",
-    ),
-    (
-        &["pages", "--check", "--prepared", "DIR"],
-        2,
-        empty,
-        "temper-client-journeys pages: expected [--prepared DIR] [--within DURATION] or --check\nusage:\n  temper-client-journeys pages [--prepared DIR] [--within DURATION]\n  temper-client-journeys pages --check\n",
-    ),
+    (&["journey", "walk", "--help"], 0, journey_walk_help, ""),
+    (&["drive", "--help"], 0, drive_help, ""),
     (&["normalise", "--help"], 0, normalise_help, ""),
     (&["normalise", "-h"], 0, normalise_help, ""),
     (
@@ -100,13 +76,34 @@ const ROWS: &[Case] = &[
         empty,
         "temper-client-journeys normalise: unexpected arguments\nusage:\n  temper-client-journeys normalise\n",
     ),
+    (&[], 2, empty, "temper-client-journeys: no command; temper-client-journeys --help says more\n"),
+    (&["again"], 2, empty, "temper-client-journeys: no command again; temper-client-journeys --help says more\n"),
     (
-        &["again"],
+        &["again", "NAME"],
         2,
         empty,
-        "temper-client-journeys again: NAME is not given\nusage:\n  temper-client-journeys again [--prepared DIR] NAME\n",
+        "temper-client-journeys: no command again; temper-client-journeys --help says more\n",
     ),
-    (&["nope"], 2, empty, "temper-client-journeys: unexpected arguments\nusage:\n  temper-client-journeys\n"),
+    (
+        &["again", "--help"],
+        2,
+        empty,
+        "temper-client-journeys: no command again; temper-client-journeys --help says more\n",
+    ),
+    (&["pages"], 2, empty, "temper-client-journeys: no command pages; temper-client-journeys --help says more\n"),
+    (
+        &["pages", "--check"],
+        2,
+        empty,
+        "temper-client-journeys: no command pages; temper-client-journeys --help says more\n",
+    ),
+    (
+        &["pages", "--help"],
+        2,
+        empty,
+        "temper-client-journeys: no command pages; temper-client-journeys --help says more\n",
+    ),
+    (&["nope"], 2, empty, "temper-client-journeys: no command nope; temper-client-journeys --help says more\n"),
 ];
 
 #[test]
@@ -138,5 +135,6 @@ fn the_binary_answers_its_table_without_starting_children() {
             }
         }
     }
+    assert_eq!(std::fs::read_dir(scratch.path()).expect("scratch contents").count(), 0, "usage and help write nothing");
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }

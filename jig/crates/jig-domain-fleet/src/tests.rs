@@ -173,6 +173,7 @@ impl Harness {
             keys.push(*key).unwrap();
         }
         let hello = Hello {
+            reads_usage: true,
             jobs: Box::default(),
             bounds: fixtures::bounds(),
             stop_bound: Duration::from_secs(0),
@@ -478,6 +479,7 @@ fn retained_host_and_hello_history_is_bounded_and_independent_of_diagnostics() {
         worker: 0,
         channel: C3,
         hello: Hello {
+            reads_usage: true,
             jobs: Box::default(),
             bounds: fixtures::bounds(),
             stop_bound: LIMITS.grace,
@@ -591,6 +593,7 @@ fn a_draining_worker_takes_nothing_even_once_it_frees_a_slot() {
             worker: u32::try_from(channel.raw()).expect("fixture channel").checked_rem(64).expect("membership"),
             channel,
             hello: Hello {
+                reads_usage: true,
                 slots: 2,
                 stop_bound: Duration::ZERO,
                 bounds: fixtures::bounds(),
@@ -632,6 +635,7 @@ fn a_draining_workers_next_channel_is_placed_on() {
     h.step(Event::Lost { channel: C1 });
     // The same configured worker returns on a new channel; the harness answers its logins.
     let hello = Hello {
+        reads_usage: true,
         slots: 1,
         stop_bound: Duration::ZERO,
         bounds: fixtures::bounds(),
@@ -1407,6 +1411,7 @@ fn declared_stop_bounds_must_be_strictly_below_the_engine_grace() {
     ] {
         let mut h = Harness::new(LIMITS);
         let hello = Hello {
+            reads_usage: true,
             jobs: Box::default(),
             bounds: fixtures::bounds(),
             stop_bound,
@@ -1490,6 +1495,7 @@ fn a_version_refusal_excludes_runs_and_jobs_until_the_next_channel() {
         deadline: Duration::from_secs(3),
     };
     let hello = || Hello {
+        reads_usage: true,
         slots: 2,
         stop_bound: Duration::ZERO,
         bounds: fixtures::bounds(),
@@ -1543,6 +1549,7 @@ fn an_untranslated_task_avoids_only_its_channel_until_loss_for_runs_and_jobs() {
             deadline: Duration::from_secs(3),
         };
         let hello = || Hello {
+            reads_usage: true,
             slots: 2,
             stop_bound: Duration::ZERO,
             bounds: fixtures::bounds(),
@@ -1643,6 +1650,7 @@ fn resume_without_placement_keeps_waiting_runs_and_jobs_for_a_later_start() {
         worker: 0,
         channel: C1,
         hello: Hello {
+            reads_usage: true,
             slots: 1,
             stop_bound: Duration::ZERO,
             bounds: fixtures::bounds(),
@@ -1698,6 +1706,7 @@ fn settings_hello(channel: Token, worker: u32) -> Event {
         channel,
         worker,
         hello: Hello {
+            reads_usage: true,
             jobs: Box::new([]),
             bounds: fixtures::bounds(),
             stop_bound: Duration::ZERO,

@@ -798,6 +798,8 @@ fn fleet_delivery_within(event: &jig_domain_fleet::Event) -> bool {
         | Event::Relayed { .. } => true,
         Event::Ask { .. }
         | Event::Asked { .. }
+        | Event::CancelUsage { .. }
+        | Event::ReadUsage { .. }
         | Event::ReadList { .. }
         | Event::ListRead { .. }
         | Event::Needs(_)
@@ -821,6 +823,8 @@ fn fleet_delivery_within(event: &jig_domain_fleet::Event) -> bool {
         | Event::Loaded
         | Event::Grant { .. }
         | Event::Unauthorized { .. }
+        | Event::Usage { .. }
+        | Event::UsageRead { .. }
         | Event::Limited { .. }
         | Event::AccountRefused { .. }
         | Event::Hello { .. }

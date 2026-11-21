@@ -75,7 +75,7 @@ pub(crate) fn add(root: &Path, name: &str, recording: &[u8], given: &[Box<[u8]>]
 /// Reprint the TUI journeys, leaving each stale journey's files untouched.
 /// # Errors
 /// Refuses an unreadable recording or a filesystem failure.
-pub fn reprint(root: &Path, out: &Path) -> Result<Vec<(String, Stale)>, Refusal> {
+pub(super) fn reprint(root: &Path, out: &Path) -> Result<Vec<(String, Stale)>, Refusal> {
     let mut stale = Vec::new();
     for name in names(root)? {
         let path = root.join(&name).join("recording");

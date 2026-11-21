@@ -195,7 +195,7 @@ fn every_tab_draws_its_head_and_tabs_in_order() {
         (
             Address::Limits,
             "What this deployment holds.",
-            "Every limit, its stock and setting, and the figure in force. An owner can change settings; each row says when a raise applies.",
+            "Every limit, its stock and setting, and the figure in force. An owner can change settings; each row says when a change applies.",
             5,
         ),
     ] {

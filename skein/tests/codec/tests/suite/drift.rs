@@ -6,7 +6,7 @@ mod tests {
     use std::fs;
     use std::path::Path;
 
-    use skein_codegen::{Form, form_of, generate_as, goldens, missing, parse, unpinned};
+    use skein_codegen::{generate, goldens, missing, parse, unpinned};
 
     const FAMILIES: [(&str, &str, Option<&str>); 8] = [
         ("schema/every-v1.schema", "src/every/v1.rs", Some("golden/every-v1")),
@@ -69,15 +69,7 @@ mod tests {
         let schema = current
             .map_or_else(|| parse(&source).expect("schema valid"), |text| skein_codegen::values(text).schema.clone());
         let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
-        let form = form_of(Path::new(schema_path).parent().expect("schema directory"), &schema.family)
-            .expect("owner's lean mark readable");
-        check_text(generated_path, &generate_as(&schema, form).records, write);
-        if schema_path == "schema/every-v3.schema" {
-            check_text("src/every/v3_lean.rs", &generate_as(&schema, Form::Lean).records, write);
-        }
-        if schema_path == "schema/growth-v1.schema" {
-            check_text("src/growth/v1_lean.rs", &generate_as(&schema, Form::Lean).records, write);
-        }
+        check_text(generated_path, &generate(&schema).records, write);
         if let Some(directory) = golden_directory {
             check_goldens(
                 directory,

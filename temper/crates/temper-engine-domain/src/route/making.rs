@@ -234,6 +234,7 @@ pub(super) fn held(domain: &mut Domain, held: core::Held) -> Option<core::Held> 
         | core::Held::MakeEffect { .. }
         | core::Held::SettledCall { .. }
         | core::Held::Assign { .. }
+        | core::Held::ReadUsage { .. }
         | core::Held::ReadList { .. }
         | core::Held::Sources { .. }
         | core::Held::CheckSource { .. }

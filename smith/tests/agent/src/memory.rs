@@ -149,6 +149,7 @@ impl Driver {
                 | Request::LongDone { .. }
                 | Request::Unauthorized { .. }
                 | Request::Refused { .. }
+                | Request::Usage { .. }
                 | Request::Limited { .. }
                 | Request::Lower(smith_domain::Lower::Yield { .. } | smith_domain::Lower::Close { .. }) => {}
                 Request::Save { owner, host_run, .. } | Request::Deliver { owner, host_run, .. } => {

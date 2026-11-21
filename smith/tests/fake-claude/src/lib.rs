@@ -21,7 +21,7 @@ pub use fake::{Faces, Fake};
 pub use server::{Answer, Server, ServerScript, Tool, Verdict, served, server_main};
 pub use story::{
     Decision, End, Init, Login, Logout, Observation, Resume, Script, Seen, Selection, Status, Step, Story, Turn, Usage,
-    observations, received, seen, selections,
+    UsageReply, observations, received, seen, selections,
 };
 
 /// The environment variable naming this invocation's configuration directory.

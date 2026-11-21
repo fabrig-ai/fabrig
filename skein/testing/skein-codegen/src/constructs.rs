@@ -1,10 +1,9 @@
 //! The pin's schema constructs (data/codec/README.md, section 6).
-//! Table metadata retains holds, explicit defaults and former names; output
-//! shapes use the same named-boolean rule and field helpers as generation.
+//! Table metadata retains holds, explicit defaults and former names.
 
 use skein_codec::schema::{self, DeclIx, FieldIx, Held, Named, Shape, Type, TypeIx, VariantIx};
 
-use crate::{Declaration, Error, analysis::Context, emit_codec, emit_types, parse};
+use crate::{Error, parse};
 
 /// A schema type without its bound or declaration name.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -42,8 +41,6 @@ pub enum Construct {
     SecretPieces,
     Default,
     FormerName,
-    NamedBooleans,
-    SplitFunction,
 }
 
 /// The constructs held by the generator's pin, each once.
@@ -101,8 +98,6 @@ pub const CONSTRUCTS: &[Construct] = &[
     Construct::SecretPieces,
     Construct::Default,
     Construct::FormerName,
-    Construct::NamedBooleans,
-    Construct::SplitFunction,
 ];
 
 fn push(found: &mut Vec<Construct>, construct: Construct) {
@@ -221,28 +216,13 @@ fn declaration(tables: &schema::Schema, at: DeclIx, found: &mut Vec<Construct>) 
     }
 }
 
-/// Finds each construct once, in first-encounter order, with output shapes last.
+/// Finds each construct once, in first-encounter order, in the schema.
 /// Refuses the same texts, with the same error, as [`crate::parse`].
 pub fn constructs(text: &str) -> Result<Vec<Construct>, Error> {
-    let (schema, tables) = parse::with_tables(text)?;
+    let (_, tables) = parse::with_tables(text)?;
     let mut found = Vec::new();
     for at in 0..tables.declarations() {
         declaration(&tables, DeclIx::new(at), &mut found);
-    }
-    if schema.declarations.iter().any(|declaration| match declaration {
-        Declaration::Record(record) => emit_types::excessive_bools(record),
-        Declaration::Enum(_) => false,
-    }) {
-        push(&mut found, Construct::NamedBooleans);
-    }
-    let context = Context::new(&schema);
-    if schema.declarations.iter().any(|declaration| match declaration {
-        Declaration::Record(record) => {
-            emit_codec::splits_record(&context, record) || emit_types::splits_record(&context, record)
-        }
-        Declaration::Enum(_) => false,
-    }) {
-        push(&mut found, Construct::SplitFunction);
     }
     Ok(found)
 }

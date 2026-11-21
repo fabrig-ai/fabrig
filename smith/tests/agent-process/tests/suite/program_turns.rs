@@ -129,6 +129,60 @@ fn a_usage_limit_fails_the_run_limited() {
     }
 }
 #[test]
+fn every_rate_limit_event_reports_usage_before_the_limit() {
+    const R1: u64 = 1_781_845_200;
+    const R2: u64 = 1_782_018_000;
+    let run = run(vec![Turn::new(vec![
+        Step::RateLimitWindow {
+            status: "allowed".into(),
+            rate_limit_type: Some("five_hour".into()),
+            resets_at: Some(R1),
+            utilization: Some(json!(0.28)),
+        },
+        Step::RateLimitWindow {
+            status: "allowed_warning".into(),
+            rate_limit_type: Some("seven_day".into()),
+            resets_at: Some(R2),
+            utilization: Some(json!(0.8123)),
+        },
+        Step::RateLimitWindow {
+            status: "rejected".into(),
+            rate_limit_type: Some("five_hour".into()),
+            resets_at: Some(R1),
+            utilization: None,
+        },
+    ])]);
+    limited(&run, Some(R1));
+    let notices: Vec<_> = run
+        .frames
+        .iter()
+        .filter(|frame| [smith_channel::kind::USAGE, smith_channel::kind::LIMITED].contains(&frame.kind))
+        .collect();
+    assert_eq!(
+        notices.iter().map(|frame| frame.kind).collect::<Vec<_>>(),
+        [
+            smith_channel::kind::USAGE,
+            smith_channel::kind::USAGE,
+            smith_channel::kind::USAGE,
+            smith_channel::kind::LIMITED,
+        ]
+    );
+    for (frame, (label, seconds, used, resets, state)) in notices.iter().zip([
+        (b"five_hour".as_slice(), 18_000, Some(2800), R1, smith_channel::UsageState::Open),
+        (b"seven_day".as_slice(), 604_800, Some(8123), R2, smith_channel::UsageState::Warned),
+        (b"five_hour".as_slice(), 18_000, None, R1, smith_channel::UsageState::Limited),
+    ]) {
+        let notice = smith_channel::Usage::decode(&smith_channel::CEILINGS, &mut skein_lib::Reader::new(&frame.body))
+            .expect("usage notice");
+        assert_eq!(notice.account, 0);
+        let window = notice.window;
+        assert_eq!(window.label.as_ref(), label);
+        assert_eq!(window.length, Some(skein_lib::Duration::from_secs(seconds)));
+        assert_eq!((window.used, window.resets, window.state), (used, Some(resets), state));
+    }
+}
+
+#[test]
 fn an_error_result_retains_the_usage_limit_notice() {
     for resets_at in [None, Some(skein_sim::Config::calm().wall.as_nanos() / 1_000_000_000 + 123)] {
         let run = run(vec![Turn {

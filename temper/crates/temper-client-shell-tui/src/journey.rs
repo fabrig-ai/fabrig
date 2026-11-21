@@ -14,7 +14,7 @@ pub use redact::{Redacted, fields_mut, originals, redact};
 pub use replay::{Mark, Refusal, Replay, Stale, prove};
 pub use scan::{Found, Place, codes, scan, scan_bytes};
 pub use temper_client_redaction::{Framing, Kind, Normalised, Originals, Varying, What};
-pub use walk::{WalkStep, browsed, follows, shows, walk};
+pub use walk::browsed;
 
 #[cfg(test)]
 mod tests;

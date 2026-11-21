@@ -9,26 +9,12 @@
 - **Not yet:** 8.2: `again` gives the box, the page and the TUI no fixed
   start [in flight: change 7722].
 
-- **Departs:** 7, 8: `design-session`, `launchpad-chat` and
-  `launchpad-drawn` are stale. Their recordings predate the client
-  wire that limits as settings moved, with its `limits` and `limit-holds`
-  reads (`../../protocol/configuration/limit-settings.md`, 7), so the
-  print's test fails on them. The change landed without waiting for them
-  to be recorded again. `again` couldn't record on a fake box, because
-  the owned Forgejo's pinned download couldn't be fetched: codeberg.org didn't resolve anywhere on 2026-11-18. Free decided this on
-  2026-11-18, through temper/dev. temper/tiers records them again after
-  landing, and then deletes this entry.
-
 - **Departs:** 3.2: the committed recordings' `screen` says `dark`, the
   run's fallback when they were recorded, where `again`, in a
   pseudo-terminal with no `COLORFGBG` and no answer to OSC 11, writes
   `none` (`theme.md`, *The scheme*): Auto draws dark for both
   and no journey opens `/theme`'s list, so their frames are the same.
   They say `none` once a journey's change records them again.
-- **Not yet:** 8.4 and 9's `design-session`, `launchpad-chat` and
-  `launchpad-drawn`: no recording or frames on R4's pages, since `again`
-  stalls at each walk's first `see` after its message is sent [in
-  flight: change 8219].
 
 - **Not yet:** 8.3 and 9's `box-welcome`: `again` drives `temper` in its
   pseudo-terminal and starts the box apart on pipes, reading the printed
@@ -50,23 +36,22 @@ recorder writes where the start has them and the replay reads, a
 recording without them reading as neither, and `screen`'s `none`, a
 start whose terminal says no scheme, which the codec writes and reads. Section 8.2's browser-format
 setup follows its browser journey before the TUI starts and refuses a
-mark. Section 9's `sign-in-approved`, `launchpad-chat` and
-`launchpad-drawn` have their walk, README, redacted recording and text
-and page frames: two for `sign-in-approved`, ending on the no-project
-launchpad; four for `launchpad-chat`, from Hello's launchpad as drawn
-through commands and the typed question to the fake model's committed
-answer under the person's opening question; and seven for
-`launchpad-drawn`, from `/change` through the goal's question relayed
-in the chat, the launchpad with the chat, its need and the quiet line's
-count, and the walk's prompt, to the launchpad after the answer. The
-latter two draw the chat's title, its number and `127.0.0.1:PORT` in
-the rule above the box, and their first marks come before Home's facts
-answer, so the launchpad's framed header is empty there
-(`pages/README.md`). None has a band, since the pseudo-terminal
-leaves the background unanswered. `launchpad-chat`
-catches no growing answer; it establishes no streamed-frame look. No
-journey draws a brief, a goal's row or a sign-off's or money's need,
-which the goldens alone hold: no recorded walk reaches them.
+mark. Section 9's `sign-in-approved`, `launchpad-chat`,
+`launchpad-drawn` and `design-session` are version-2 walks with their
+READMEs, the last three with their scripts, printed in one process by
+the writer (`../journey-walks.md`, 6): two pages for
+`sign-in-approved`, ending on the no-project launchpad; four for
+`launchpad-chat`, from Hello's launchpad through the commands and the
+typed question to the scripted answer; five for `launchpad-drawn`,
+from `/change` through the goal's question relayed in the chat and the
+walk's prompt to the launchpad after the answer; and ten for
+`design-session`, from `/draft` through the pane's three states and
+the answer to the chat its goal was started from. The world's TUI
+draws dark with no band, since its start says no scheme and no
+background. `launchpad-chat` catches no growing answer; it establishes
+no streamed-frame look. No journey draws a brief, a goal's row or a
+sign-off's or money's need, which the goldens alone hold: no walk
+reaches them.
 
 Section 10's separate request branch and empty overlay have no known
 gap. Section 11 keeps real-terminal and Meta-key checks, real-box journeys,

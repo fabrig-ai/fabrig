@@ -2307,8 +2307,7 @@ raise SystemExit({code})
                 self.assertIn("a journey's recording, pages and the files beside them are written on main by "
                               "the journeys' writer alone (AGENTS.md, 4): restore them with git "
                               f"checkout {repair_base} -- PATH..., and compare pages by cargo run -p "
-                              "temper-client-journeys in your own tree, or, for a journey whose walk is of version 2, "
-                              "by cargo run -p temper-client-walk -- print --out DIR\n", log)
+                              "temper-client-walk -- print --out DIR in your own tree\n", log)
                 record = json.loads((self.root / 'target/temper/pre-pr-failures.json').read_text())
                 self.assertEqual(record['counts'], dict(new=1, flake=0, inherited=0), log)
                 self.assertEqual(record['failures'], [dict(name='journeys', key=None, **{'class': 'new'})])

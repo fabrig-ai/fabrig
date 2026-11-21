@@ -19,6 +19,10 @@ impl Busy {
             rng: Rng::new(seed),
         }
     }
+    /// Only the next add takes the span (protocol/channel/figures.md, 4).
+    pub(crate) fn retime(&mut self, span: Duration) {
+        self.span = span;
+    }
     pub(crate) fn add(&mut self, now: Time, run: Token, attempt: Token, turn: u32) -> bool {
         let key = (run, attempt, turn);
         let high = self.span.as_nanos();

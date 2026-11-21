@@ -7,6 +7,7 @@ mod changes;
 mod delivered;
 mod follow_check;
 mod follows;
+mod goal_branch_restart;
 mod green;
 mod history_world;
 mod hooks;

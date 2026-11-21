@@ -44,6 +44,7 @@ mod stream;
 mod tail;
 mod transport;
 mod turns;
+mod usage;
 
 #[cfg(test)]
 mod builtin_tests;

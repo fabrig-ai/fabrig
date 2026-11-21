@@ -110,6 +110,76 @@ class OneProcessTests(unittest.TestCase):
                                str(self.directory), *arguments], text=True, capture_output=True,
                               stdin=subprocess.DEVNULL, timeout=10)
 
+    def counts_case(self):
+        self.results.update(layers=['step', 'domain'], selected=4,
+            counting=dict(counted=True, why=None), commit='b' * 40,
+            processes=[self.process(['a'], binary_id='A', layer='step', instructions=100),
+                       self.process(['fresh'], binary_id='A', layer='step', kind='fresh', instructions=50),
+                       self.process(['a'], binary_id='A', layer='step', kind='reference', instructions=None),
+                       self.process(['b'], binary_id='B', layer='domain', instructions=None),
+                       self.process(['c'], binary_id='C', layer='step', instructions=7)],
+            tests=[self.entry('a', binary_id='A'), self.entry('fresh', binary_id='A', process=1),
+                   self.entry('b', binary_id='B', process=3), self.entry('c', binary_id='C', process=4)],
+            workspace=[dict(binary_id=binary, tree='temper', layer=layer, listed=True)
+                       for binary, layer in [('A', 'step'), ('B', 'domain'), ('C', 'step')]])
+
+    def test_counts_beside_cpu_and_printed(self):
+        self.counts_case()
+        result = self.summary()
+        self.assertEqual([p['instructions'] for p in result['processes']], [100, 50, None, None, 7])
+        self.assertEqual([r['instructions'] for r in result['layers']], [157, None])
+        self.assertIsNone(result['trees'][0]['instructions'])
+        self.assertTrue(all(r['main_instructions'] is None for r in result['layers'] + result['trees']))
+        self.assertEqual(result['counting'], dict(counted=True, why=None))
+        self.assertEqual((result['verdict'], result['over_budget'], result['warnings']), ('no budget set', [], []))
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            CPU['print_summary'](result)
+        lines = output.getvalue().splitlines()
+        for prefix, ending in [('layer temper step:', ', instructions 157'),
+                               ('layer temper domain:', ', instructions none'),
+                               ('tree temper:', ', instructions none'),
+                               ('A process tests:', ' instructions 100'),
+                               ('A process reference:', ' instructions none')]:
+            self.assertTrue(next(line for line in lines if line.startswith(prefix)).endswith(ending), lines)
+        self.assertNotIn('main instructions', output.getvalue())
+        # Removing the uncounted binary makes the tree counted too.
+        self.results['processes'][3]['instructions'] = 0
+        self.assertEqual(self.summary()['trees'][0]['instructions'], 157)
+
+    def test_before_counts_reads_as_uncounted(self):
+        result = self.summary()
+        self.assertIsNone(result['counting'])
+        self.assertTrue(all(p['instructions'] is None for p in result['processes']))
+        self.assertTrue(all(r['instructions'] is None and r['main_instructions'] is None
+                            for r in result['layers'] + result['trees']))
+
+    def test_count_results_refusals(self):
+        for value in (True, 1.5, -1):
+            with self.subTest(instructions=value):
+                self.results['processes'][0]['instructions'] = value
+                with self.assertRaisesRegex(ValueError, 'instructions'):
+                    self.summary()
+        self.results['processes'][0]['instructions'] = 0
+        for value in (True, [], {}, {'counted': 1, 'why': None}, {'counted': True, 'why': 'no'},
+                      {'counted': False, 'why': None}, {'counted': False, 'why': 0},
+                      {'counted': True, 'why': None, 'other': 0}):
+            with self.subTest(counting=value):
+                self.results['counting'] = value
+                with self.assertRaisesRegex(ValueError, 'counting'):
+                    self.summary()
+        for value in (None, {'counted': True, 'why': None}, {'counted': False, 'why': 'no counter'}):
+            self.results['counting'] = value
+            self.assertEqual(self.summary()['counting'], value)
+        for value in (True, 1, 'ABC', 'a' * 39, 'A' * 40, 'a' * 65, 'a' * 40 + '\n'):
+            with self.subTest(commit=value):
+                self.results['commit'] = value
+                with self.assertRaisesRegex(ValueError, 'commit'):
+                    self.summary()
+        for value in (None, 'a' * 40, 'a' * 64):
+            self.results['commit'] = value
+            self.assertEqual(self.summary()['processes'][0]['instructions'], 0)
+
     def test_passed_cpu_is_measured_by_process_including_alone(self):
         self.results['processes'].append(self.process(['z'], kind='alone', user_s=0.25))
         result = self.summary()
@@ -123,7 +193,7 @@ class OneProcessTests(unittest.TestCase):
                          starved_run=False, unobserved=0, leaked=None, incomplete=None,
                          cpu_by='process'))
         self.assertEqual(result['processes'], [dict((key, value) for key, value in process.items()
-                         if key != 'start_s') | {'cpu_s': process['user_s'] + process['system_s']}
+                         if key != 'start_s') | {'cpu_s': process['user_s'] + process['system_s'], 'instructions': None}
                          for process in self.results['processes']])
         self.assertEqual((result['failures'], result['warnings'], result['over_budget'],
                           result['unobserved']), ([], [], [], []))
@@ -265,13 +335,13 @@ class OneProcessTests(unittest.TestCase):
             with self.subTest(gate=gate):
                 result = self.summary(self.limits, gate=gate)
                 self.assertEqual(result['layers'], [
-                    dict(tree='temper', layer='step', cpu_s=10, measured_s=10, main_s=None,
+                    dict(tree='temper', layer='step', cpu_s=10, measured_s=10, main_s=None, instructions=0, main_instructions=None,
                          ceiling_s=253, budget_s=253, main_budget_s=None, lowest_s=0,
                          main_over=False, grew=[], ideal_s=25, reference_s=0.04, over=False),
-                    dict(tree='temper', layer='simulated', cpu_s=500, measured_s=500, main_s=None,
+                    dict(tree='temper', layer='simulated', cpu_s=500, measured_s=500, main_s=None, instructions=None, main_instructions=None,
                          ceiling_s=470, budget_s=470, main_budget_s=None, lowest_s=510,
                          main_over=False, grew=[], ideal_s=15, reference_s=2, over=True)])
-                self.assertEqual(result['trees'], [dict(tree='temper', cpu_s=510, main_s=None, ceiling_s=725, budget_s=725, ideal_s=100)])
+                self.assertEqual(result['trees'], [dict(tree='temper', cpu_s=510, main_s=None, instructions=None, main_instructions=None, ceiling_s=725, budget_s=725, ideal_s=100)])
                 self.assertEqual(result['over_budget'], [self.over_line + '\n' + REPAIR_LINE] if gate else [])
                 self.assertEqual(result['warnings'], [] if gate else [self.over_line])
                 self.assertEqual(result['verdict'], 'over budget' if gate else 'no budget set')
@@ -299,14 +369,14 @@ class OneProcessTests(unittest.TestCase):
             with self.subTest(gate=gate):
                 result = self.summary(self.limits, gate=gate)
                 self.assertEqual(result['layers'], [
-                    dict(tree='temper', layer='domain', cpu_s=30, measured_s=30, main_s=None,
+                    dict(tree='temper', layer='domain', cpu_s=30, measured_s=30, main_s=None, instructions=0, main_instructions=None,
                          ceiling_s=32, budget_s=32, main_budget_s=None, lowest_s=0,
                          main_over=False, grew=[], ideal_s=None, reference_s=0.2, over=False),
-                    dict(tree='temper', layer='simulated', cpu_s=460, measured_s=460, main_s=None,
+                    dict(tree='temper', layer='simulated', cpu_s=460, measured_s=460, main_s=None, instructions=None, main_instructions=None,
                          ceiling_s=458, budget_s=458, main_budget_s=None, lowest_s=490,
                          main_over=False, grew=[], ideal_s=None, reference_s=1, over=True)])
                 self.assertEqual(result['trees'], [
-                    dict(tree='temper', cpu_s=490, main_s=None, ceiling_s=490, budget_s=490, ideal_s=100)])
+                    dict(tree='temper', cpu_s=490, main_s=None, instructions=None, main_instructions=None, ceiling_s=490, budget_s=490, ideal_s=100)])
                 line = 'layer over budget: temper default simulated: 460.00 CPU s, budget 458 s'
                 self.assertEqual(result['over_budget'], [line + '\n' + REPAIR_LINE] if gate else [])
                 self.assertEqual(result['warnings'], [] if gate else [line])
@@ -325,12 +395,12 @@ class OneProcessTests(unittest.TestCase):
                                     if moved else [])
                 result = self.summary(self.limits, gate=True)
                 self.assertEqual(result['layers'], [
-                    dict(tree='temper', layer='machine', cpu_s=2, measured_s=2, main_s=None,
+                    dict(tree='temper', layer='machine', cpu_s=2, measured_s=2, main_s=None, instructions=None, main_instructions=None,
                          ceiling_s=3 if moved else None, budget_s=3 if moved else None,
                          main_budget_s=None, lowest_s=2 if moved else None, main_over=False, grew=[],
                          ideal_s=None, reference_s=0.2, over=not moved)])
                 self.assertEqual(result['trees'], [
-                    dict(tree='temper', cpu_s=2, main_s=None, ceiling_s=725, budget_s=725, ideal_s=100)])
+                    dict(tree='temper', cpu_s=2, main_s=None, instructions=None, main_instructions=None, ceiling_s=725, budget_s=725, ideal_s=100)])
                 self.assertEqual(result['over_budget'], [] if moved else [
                     'layer over budget: temper default machine: 2.00 CPU s, no budget\n' + REPAIR_LINE])
 
@@ -378,10 +448,10 @@ class OneProcessTests(unittest.TestCase):
         del process['tree'], process['layer'], self.results['layers']
         result = self.summary(gate=True)
         self.assertEqual((result['processes'][0]['tree'], result['processes'][0]['layer']), (None, None))
-        self.assertEqual(result['layers'], [dict(tree=None, layer=None, cpu_s=1.5, measured_s=1.5, main_s=None,
+        self.assertEqual(result['layers'], [dict(tree=None, layer=None, cpu_s=1.5, measured_s=1.5, main_s=None, instructions=None, main_instructions=None,
                                                ceiling_s=None, budget_s=None, main_budget_s=None, lowest_s=None,
                                                main_over=False, grew=[], ideal_s=None, reference_s=None, over=False)])
-        self.assertEqual(result['trees'], [dict(tree=None, cpu_s=1.5, main_s=None, ceiling_s=None, budget_s=None, ideal_s=None)])
+        self.assertEqual(result['trees'], [dict(tree=None, cpu_s=1.5, main_s=None, instructions=None, main_instructions=None, ceiling_s=None, budget_s=None, ideal_s=None)])
         self.assertEqual(result['warnings'], ['unplaced: pkg::suite has no layer (tools/tiers/layers.md)'])
         self.assertEqual(result['over_budget'], [])
         output = io.StringIO()
@@ -493,6 +563,7 @@ class OneProcessTests(unittest.TestCase):
         CPU['save'](tools / 'one.json', dict(item, profile='tools', test_name='suite', starved=False))
         for result in (CPU['summary'](self.directory),
                        CPU['summary'](tools, pair='tools', expected=['pkg::suite'])):
+            self.assertIsNone(result['counting'])
             self.assertEqual(result['suite']['cpu_by'], 'test')
             self.assertEqual(result['processes'], [])
             self.assertEqual(result['layers'], [])
@@ -507,7 +578,7 @@ class OneProcessTests(unittest.TestCase):
         self.results['processes'][0]['layer'] = 'step'
         self.results['workspace'][0]['layer'] = 'step'
         self.results['references'] = [self.reference('z', why=why, cpu_s=cpu)]
-        self.main = dict(ledger=3, profile='default', binaries={'pkg::suite':
+        self.main = dict(ledger=4, profile='default', binaries={'pkg::suite':
             self.ledger_entry([1.5], layer='step', tests={'z': [0.03, 0.01, 0.02]},
                               alone={'z': [0.02, 0.03, 0.025]})}, budgets={}, moves=[])
 
@@ -647,7 +718,7 @@ class OneProcessTests(unittest.TestCase):
         self.reference_case(cpu=0.031)
         self.results['references'][0]['runs'] = [dict(cpu_s=cpu) for cpu in (0.052, 0.047, 0.031)]
         folded = self.folded(self.main)
-        self.assertEqual(folded['ledger'], 3)
+        self.assertEqual(folded['ledger'], 4)
         self.assertEqual(folded['binaries']['pkg::suite']['alone']['z'], [0.03, 0.025, 0.031])
 
     def test_reference_flagged_ledger_fallback(self):
@@ -820,15 +891,17 @@ class OneProcessTests(unittest.TestCase):
         self.assertEqual([line for line in output.getvalue().splitlines() if line.startswith('warning:')], [
             'warning: test swings alone at main: temper-engine::domain forge::opens: 0.100, 0.160, 0.120 CPU s alone'])
         path = self.root / 'main.json'
-        for version in (3, 2, 1):
+        for version in (4, 3, 2, 1):
             with self.subTest(version=version):
                 main = copy.deepcopy(self.main)
                 main['ledger'] = version
-                if version != 3:
-                    for entry in main['binaries'].values():
+                for entry in main['binaries'].values():
+                    if version < 4:
+                        del entry['counts']
+                    if version < 3:
                         entry['cpu_s'] = entry.pop('cpu')[0]
-                        if version == 1:
-                            del entry['alone']
+                    if version == 1:
+                        del entry['alone']
                 CPU['save'](path, main)
                 cli = self.cli('--ledger', str(path), '--json')
                 self.assertEqual(cli.returncode, 0, cli.stdout + cli.stderr)
@@ -845,7 +918,7 @@ class OneProcessTests(unittest.TestCase):
             with self.subTest(cpu=cpu):
                 self.results['references'] = [] if cpu == 'absent' else [self.reference('z', cpu_s=cpu)]
                 folded = self.folded(self.main)
-                self.assertEqual(folded['ledger'], 3)
+                self.assertEqual(folded['ledger'], 4)
                 self.assertEqual(folded['binaries']['pkg::suite']['cpu'], [1.6, 1.5, 1.5])
                 self.assertEqual(folded['binaries']['pkg::suite']['alone'],
                     {'z': [0.02, 0.025, 0.03] if cpu == 0.03 else [0.01, 0.02, 0.025], 'a': [0.01]})
@@ -859,13 +932,13 @@ class OneProcessTests(unittest.TestCase):
         self.assertEqual(self.folded(self.main)['binaries']['pkg::suite']['cpu'], old['cpu'])
         path = self.root / 'folded.json'
         CPU['save'](path, self.folded(self.main))
-        self.assertEqual(CPU['ledger'](path)['ledger'], 3)
+        self.assertEqual(CPU['ledger'](path)['ledger'], 4)
 
-    def ledger_entry(self, cpu, tree='temper', layer='domain', tests=None, alone=None):
-        return dict(tree=tree, layer=layer, cpu=cpu, tests=tests or {}, alone=alone or {})
+    def ledger_entry(self, cpu, tree='temper', layer='domain', tests=None, alone=None, counts=None):
+        return dict(tree=tree, layer=layer, cpu=cpu, tests=tests or {}, alone=alone or {}, counts=counts or [])
 
     def ledger_case(self):
-        self.main = dict(ledger=3, profile='default', binaries={
+        self.main = dict(ledger=4, profile='default', binaries={
             'temper-a::domain': self.ledger_entry([50], tests={'z': [1, 2, 3], 'removed': [8]}),
             'temper-b::domain': self.ledger_entry([70]),
             'temper-d::domain': self.ledger_entry([7]),
@@ -894,6 +967,111 @@ class OneProcessTests(unittest.TestCase):
         result = self.summary(self.limits, ledger=ledger)
         return CPU['fold_ledger'](self.directory, result, self.limits, ledger)
 
+    def test_ledger_count_history_form_and_older_versions(self):
+        self.ledger_case()
+        path = self.root / 'ledger.json'
+        entry = self.main['binaries']['temper-a::domain']
+        entry['counts'] = [dict(commit=None, instructions=0), dict(commit='a' * 40, instructions=900),
+                           dict(commit='b' * 64, instructions=950)]
+        CPU['save'](path, self.main)
+        self.assertEqual(CPU['ledger'](path), self.main)
+        for version in (1, 2, 3):
+            with self.subTest(version=version):
+                older = copy.deepcopy(self.main)
+                older['ledger'] = version
+                for binary in older['binaries'].values():
+                    del binary['counts']
+                    if version < 3:
+                        binary['cpu_s'] = binary.pop('cpu')[0]
+                    if version == 1:
+                        del binary['alone']
+                CPU['save'](path, older)
+                normalized = CPU['ledger'](path)
+                self.assertEqual(normalized, dict(self.main, ledger=version, binaries={
+                    name: dict(binary, counts=[]) for name, binary in self.main['binaries'].items()}))
+        invalid = [None, {}, [dict(commit=None, instructions=0)] * 101,
+                   [dict(commit=None, instructions=1, other=0)], [{'instructions': 1}],
+                   *[[dict(commit=None, instructions=value)] for value in (None, True, 1.5, -1)],
+                   *[[dict(commit=value, instructions=1)]
+                     for value in ('ABC', 'a' * 39, 'A' * 40, 'a' * 41, 0)]]
+        for counts in invalid:
+            with self.subTest(counts=counts):
+                entry['counts'] = counts
+                CPU['save'](path, self.main)
+                with self.assertRaises(ValueError):
+                    CPU['ledger'](path)
+        entry['counts'] = []
+        CPU['save'](path, dict(self.main, ledger=3))
+        with self.assertRaisesRegex(ValueError, 'keys'):
+            CPU['ledger'](path)
+        del entry['counts']
+        CPU['save'](path, self.main)
+        with self.assertRaisesRegex(ValueError, 'keys'):
+            CPU['ledger'](path)
+
+    def test_ledger_counts_at_head_main_and_placement(self):
+        self.ledger_case()
+        for binary, count in [('temper-a::domain', 900), ('temper-b::domain', 800), ('temper-d::domain', 3)]:
+            self.main['binaries'][binary]['counts'] = [dict(commit=None, instructions=count)]
+        self.main['binaries']['temper-b::domain']['counts'].append(dict(commit=None, instructions=850))
+        self.results['processes'][0]['instructions'] = 150
+        self.results['workspace'][1]['layer'] = 'system'
+        result = self.summary(self.limits, ledger=self.main)
+        rows = {(r['tree'], r['layer']): r for r in result['layers']}
+        self.assertEqual([(rows[key]['instructions'], rows[key]['main_instructions'])
+                          for key in [('skein', 'io'), ('temper', 'domain'), ('temper', 'system')]],
+                         [(0, None), (150, 1753), (850, 0)])
+        self.assertEqual([(r['instructions'], r['main_instructions']) for r in result['trees']],
+                         [(0, None), (1000, 1753)])
+        head = CPU['head_binaries'](result['processes'], self.results['workspace'], self.main)
+        self.assertEqual(head['temper-b::domain']['instructions'], 850)
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            CPU['print_summary'](result)
+        lines = output.getvalue().splitlines()
+        for prefix, ending in [('layer skein io:', ', instructions 0, main instructions none'),
+                               ('tree skein:', ', instructions 0, main instructions none'),
+                               ('layer temper domain:', ', instructions 150, main instructions 1753'),
+                               ('tree temper:', ', instructions 1000, main instructions 1753')]:
+            self.assertTrue(next(line for line in lines if line.startswith(prefix)).endswith(ending), lines)
+        self.main['binaries']['temper-b::domain']['counts'] = []
+        result = self.summary(self.limits, ledger=self.main)
+        self.assertIsNone(result['trees'][1]['instructions'])
+        self.assertIsNone(result['trees'][1]['main_instructions'])
+
+    def test_ledger_fold_counts_keeps_last_100_counted_landings(self):
+        self.ledger_case()
+        old = self.main['binaries']['temper-a::domain']
+        old['counts'] = [dict(commit='a' * 40, instructions=count) for count in range(100)]
+        unlisted = self.main['binaries']['temper-b::domain']
+        unlisted['counts'] = [dict(commit=None, instructions=800)]
+        self.results.update(commit='b' * 40, counting=dict(counted=True, why=None))
+        self.results['processes'][0]['instructions'] = 100
+        self.results['processes'].append(self.process(['z'], binary_id='temper-a::domain', layer='domain',
+                                                      kind='alone', instructions=50))
+        self.results['processes'].append(self.process(['first'], binary_id='new::domain', layer='domain'))
+        self.results['tests'].append(self.entry('first', binary_id='new::domain', process=2))
+        self.results['selected'] += 1
+        folded = self.folded(self.main)
+        self.assertEqual(folded['ledger'], 4)
+        self.assertEqual(folded['binaries']['temper-a::domain']['counts'],
+                         old['counts'][1:] + [dict(commit='b' * 40, instructions=150)])
+        self.assertEqual(len(folded['binaries']['temper-a::domain']['counts']), 100)
+        self.assertEqual(folded['binaries']['temper-b::domain'], unlisted)
+        self.assertEqual(folded['binaries']['new::domain']['counts'], [])
+        path = self.root / 'folded.json'
+        CPU['save'](path, folded)
+        self.assertEqual(CPU['ledger'](path), folded)
+        # Whole but partly uncounted leaves the count history untouched.
+        self.results['processes'][1]['instructions'] = None
+        folded = self.folded(self.main)
+        self.assertEqual(folded['binaries']['temper-a::domain']['counts'], old['counts'])
+        # A counted landing with no commit still keeps its count.
+        self.results['processes'][1]['instructions'] = 0
+        self.results['commit'] = None
+        self.assertEqual(self.folded(self.main)['binaries']['temper-a::domain']['counts'][-1],
+                         dict(commit=None, instructions=100))
+
     def test_ledger_form_and_refusals(self):
         self.ledger_case()
         path = self.root / 'ledger.json'
@@ -905,7 +1083,7 @@ class OneProcessTests(unittest.TestCase):
         valid = json.dumps(self.main)
         cases = [
             (valid[:-1] + ', "other": 0}', 'keys'),
-            (valid.replace('"ledger": 3', '"ledger": 4'), 'version'),
+            (valid.replace('"ledger": 4', '"ledger": 5'), 'version'),
             (valid.replace('"default"', '"slow"'), 'profile'),
             (valid.replace('"temper"', '"tools"'), 'group'),
             (valid.replace('"cpu": [50]', '"cpu": []'), 'one to three figures'),
@@ -939,6 +1117,7 @@ class OneProcessTests(unittest.TestCase):
         version2['ledger'] = 2
         for entry in version2['binaries'].values():
             entry['cpu_s'] = entry.pop('cpu')[0]
+            del entry['counts']
         version1 = copy.deepcopy(version2)
         version1['ledger'] = 1
         for entry in version1['binaries'].values():
@@ -1083,7 +1262,7 @@ class OneProcessTests(unittest.TestCase):
         self.results['tests'].append(self.entry('first', binary_id='new::domain', process=2))
         self.results['selected'] += 1
         folded = self.folded(self.main)
-        self.assertEqual(folded['ledger'], 3)
+        self.assertEqual(folded['ledger'], 4)
         self.assertEqual(folded['binaries'], {
             'temper-a::domain': self.ledger_entry([64, 61.2, 63], layer='system', tests={'z': [2, 3, 4], 'new': [0.5]}),
             'temper-b::domain': self.ledger_entry([50, 70, 52], layer='system'),
@@ -1099,8 +1278,10 @@ class OneProcessTests(unittest.TestCase):
             with self.subTest(outcome=outcome):
                 self.held_case()
                 self.main['binaries']['temper-a::domain']['cpu'] = [60, 64, 61.2]
+                counts = [dict(commit=None, instructions=900)]
+                self.main['binaries']['temper-a::domain']['counts'] = counts
                 self.results['workspace'][0]['layer'] = 'system'
-                self.results['processes'][0]['layer'] = 'system'
+                self.results['processes'][0].update(layer='system', instructions=100)
                 self.results['cancelled'] = 'wall-hard'
                 if outcome == 'unobserved':
                     self.results['unobserved'] = [dict(binary_id='temper-a::domain', test_name='z')]
@@ -1115,7 +1296,7 @@ class OneProcessTests(unittest.TestCase):
                     self.results['tests'][0]['outcome'] = outcome
                 folded = self.folded(self.main)
                 self.assertEqual(folded['binaries'], {
-                    'temper-a::domain': self.ledger_entry([60, 64, 61.2], layer='system')})
+                    'temper-a::domain': self.ledger_entry([60, 64, 61.2], layer='system', counts=counts)})
                 self.main['binaries'] = {}
                 self.assertEqual(self.folded(self.main)['binaries'], {})
 

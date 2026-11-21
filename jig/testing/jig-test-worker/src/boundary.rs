@@ -32,6 +32,10 @@ pub enum Request {
         number: u64,
         answer: host::AskAnswer,
     },
+    ReadUsage {
+        read: u64,
+        source: SourceName,
+    },
     ReadList {
         read: u64,
         endpoint: u32,

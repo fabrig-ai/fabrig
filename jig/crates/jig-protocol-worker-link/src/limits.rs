@@ -24,6 +24,16 @@ pub struct Limits {
     pub grace: Duration,
     pub busy: Duration,
 }
+/// Live timers, read when each operation begins (protocol/channel/figures.md, 4).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Timers {
+    pub handshake: Duration,
+    pub stall: Duration,
+    pub backoff: Duration,
+    pub ceiling: Duration,
+    pub proved: Duration,
+    pub busy: Duration,
+}
 pub fn channel_limits(limits: &Limits) -> Result<channel::Limits, Unusable> {
     let bodies = sizes::limits(&limits.sizes).ok_or(Unusable::Limits)?;
     let cap = sizes::worker_cap(&limits.sizes).ok_or(Unusable::Limits)?;
@@ -103,6 +113,6 @@ pub fn valid_with_schema(limits: &Limits, schema: &channel::Schema) -> bool {
         && inventory_bound(&bodies).is_some()
 }
 
-fn inventory_bound(bodies: &wire::v18::Limits) -> Option<u64> {
+fn inventory_bound(bodies: &wire::v19::Limits) -> Option<u64> {
     wire::Logins::encoded_bound(bodies)?.checked_add(8)
 }

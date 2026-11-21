@@ -192,6 +192,7 @@ fn resume(
 
 /// Remove one source, erasing its account with the last source and saving dense shifts.
 pub(crate) fn detach(domain: &mut Domain, account: u32, number: u32, out: &mut Queue<Request>) {
+    crate::usage::source_gone(domain, account, number, out);
     drop(domain.sources.remove(&number).expect("a kept source"));
     domain.alarms.cancel(number);
     let entry = domain.accounts.get_mut(&account).expect("a source's account");
@@ -207,6 +208,7 @@ pub(crate) fn detach(domain: &mut Domain, account: u32, number: u32, out: &mut Q
         let holder = entry.holder;
         drop(domain.accounts.remove(&account).expect("a kept account"));
         crate::lists::removed(domain, account);
+        crate::usage::removed(domain, account, out);
         out.push(Request::Erase { key: Key::Account { number: account } });
         erase_facts(domain, account, out);
         let order = crate::ordering::accounts(domain, holder);
@@ -225,6 +227,7 @@ pub(crate) fn detach(domain: &mut Domain, account: u32, number: u32, out: &mut Q
         let order = crate::ordering::sources(domain, account);
         crate::ordering::save_sources(domain, account, &order, out);
         crate::lists::settled(domain, account, out);
+        crate::usage::settled(domain, account, out);
     }
 }
 
@@ -293,6 +296,7 @@ fn remove(
     // Remove the account once, then its rows; no transient renumbering of sources being erased.
     drop(domain.accounts.remove(&number).expect("checked account"));
     crate::lists::removed(domain, number);
+    crate::usage::removed(domain, number, out);
     out.push(Request::Erase { key: Key::Account { number } });
     erase_facts(domain, number, out);
     for source in &sources {
@@ -419,6 +423,7 @@ fn move_source(
     let order = moved(&order, source, place);
     crate::ordering::save_sources(domain, number, &order, out);
     crate::lists::settled(domain, number, out);
+    crate::usage::settled(domain, number, out);
     Ok(())
 }
 pub(crate) fn refuse(request: Token, refusal: Refusal, out: &mut Queue<Request>) {
@@ -427,6 +432,7 @@ pub(crate) fn refuse(request: Token, refusal: Refusal, out: &mut Queue<Request>)
 
 /// Facts go in the decision that erases their account (accounts.md, 3.7).
 fn erase_facts(domain: &mut Domain, account: u32, out: &mut Queue<Request>) {
+    drop(domain.rates.remove(&account));
     if domain.said.remove(&account).is_some() {
         out.push(Request::Erase { key: Key::Facts { account } });
     }

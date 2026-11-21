@@ -143,17 +143,30 @@ own, never a change's:
 - **Made whatever restarts.** temper alone makes and deletes a goal's
   own branch, so its making is conditional (`README.md`, section 4): while the goal
   holds the branch and none of its name exists, it is made, and never
-  reset once it exists. A restart reads each held goal branch afresh
-  (`README.md`, section 9): there, it is the goal's; missing, with its making's
-  entry restored, that entry settles as its class says, its find
-  answering not found sending it again at its commit; missing, with no
-  entry (the restart cut its making before it committed one), the
-  connector asks the root for a fresh entry number, as a taking's effect
-  is given one, reads the landing branch's tip and makes it there. A
+  reset once it exists. A restart's making is two steps, a read and a
+  write, and only the read belongs to the start:
+  - **Its read** is part of reading afresh (`README.md`, section 9): is
+    the branch there, at which commit, and is a creation entry of its
+    own in the outbox. There, it is the goal's; missing, with its
+    making's entry restored, that entry settles as its class says, its
+    find answering not found sending it again at its commit.
+  - **Its write** comes after the outbox settles. Missing, with no entry
+    (the restart cut its making before it committed one), the making
+    takes a place in the outbox's line, behind the places restored with
+    their records (`room.md`, 4), and asks nothing more while the start
+    reads: no entry number, no landing branch's tip. Once the restored
+    outbox has settled, the line asks it in its place's order as room
+    frees, as any making waiting for room: it takes a fresh entry
+    number from the root, reads the landing branch's tip afresh and
+    makes it there.
+
+  So reading afresh ends on reads alone, whatever room the outbox has:
+  a full outbox delays a making, never the start. A change into the
+  branch waits for it as for any making, within the change's stall. A
   forge away while it is made is ridden (`keeping-up.md`, 5), never a failure. A goal
   held for its making that fails for good is made again when a person
   releases that hold: the release reads the branch, as a restart does,
-  and makes it if it is still missing.
+  and, still missing, its making waits in the line the same way.
 - **Written by change, and by the goal's design:** each of the goal's
   changes lands into it as its landing branch, and the goal's own runs
   push their design and status documents to it (3); code reaches it

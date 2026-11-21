@@ -1,5 +1,5 @@
 //! Records' drift and pinned constructs (skein's data/codec/README.md, 6).
-use skein_codegen::{form_of, generate_as, unpinned, values};
+use skein_codegen::{generate, unpinned, values};
 use std::fs;
 
 #[test]
@@ -10,8 +10,7 @@ fn worker_wire_schema_matches_generated_records_and_is_pinned() {
     assert!(unpinned.is_empty(), "worker_wire: unpinned constructs: {unpinned:?}");
     let root = skein_scratch::paths::tree().join("crates/jig-protocol-worker-wire");
     let schema = &values(source).schema;
-    let form = form_of(&root.join("schema"), &schema.family).expect("family form readable");
-    let output = generate_as(schema, form);
+    let output = generate(schema);
     let path = root.join("src/generated/worker_wire.rs");
     let again = "run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p jig-worker-wire-world --test suite -E 'test(drift::)'";
     if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {

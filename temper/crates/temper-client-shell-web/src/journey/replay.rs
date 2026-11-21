@@ -253,10 +253,6 @@ impl Replay {
         }
     }
 }
-// Share the recording envelope without replaying: an old walk may be stale.
-pub(super) fn read(recording: &[u8]) -> Result<(Vec<Line>, Facts, usize), Unreadable> {
-    read_lines(lines(recording)?)
-}
 fn read_lines(lines: Vec<Line>) -> Result<(Vec<Line>, Facts, usize), Unreadable> {
     let (facts, at) = facts(&lines)?;
     if !matches!(lines.last(), Some(Line::End(_))) {

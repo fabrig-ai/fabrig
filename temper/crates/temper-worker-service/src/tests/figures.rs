@@ -1,6 +1,6 @@
 #![expect(clippy::disallowed_methods, reason = "ordinary tests edit fixture text and inspect diagnostics")]
 use super::fixtures;
-use crate::{figures, startup};
+use crate::{figures, startup, worker_alone::Note};
 use jig_protocol_config as config;
 use jig_protocol_worker_wire as w;
 use skein_lib::{Duration, List};
@@ -109,19 +109,129 @@ fn application_workers_is_refused_as_a_whole() {
 }
 
 #[test]
-fn changed_figures_are_not_applied_and_repeated_records_are_quiet() {
-    let mut worker = fixtures::worker();
-    let original = record(3, &[("hub.turns", 1)]);
-    let changed = record(2, &[("hub.turns", 2)]);
-    worker.built_from(original.clone());
+fn next_start_figures_wait_and_repeated_records_are_quiet() {
+    let original = stock_figures();
+    let mut worker = stock_service(&original).worker;
     let limits = worker.env.limits.clone();
-    for figures in [original.clone(), changed.clone(), changed.clone(), original, changed] {
-        worker.link(fixtures::NOW, jig_protocol_worker_link::Request::Figures { figures });
+    let git = *worker.git.component.limits();
+    let mut turn = original.clone();
+    set_limit(&mut turn, "hub.turn_bytes", 2_097_152);
+    let mut places = original.clone();
+    places.places = 5;
+    let mut agent = original.clone();
+    agent.agents.profile.iter_mut().find(|row| row.name.as_ref() == b"declared.tool_payload").unwrap().value = 63_000;
+    for (changed, name, value) in [
+        (turn, "hub.turn_bytes", 2_097_152),
+        (places, "places", 5),
+        (agent, "agents.profile.declared.tool_payload", 63_000),
+    ] {
+        hear(&mut worker, changed.clone());
+        assert_eq!(worker.notes().pop(), Some(Note::FiguresWaiting { figures: Box::new([scalar(name, value)]) }));
+        hear(&mut worker, changed);
+        hear(&mut worker, original.clone());
+        assert!(worker.notes().is_empty(), "repeated record and return to the figures in force");
+        assert_eq!(worker.env.limits, limits);
+        assert_eq!(*worker.git.component.limits(), git);
     }
-    assert_eq!(worker.env.limits, limits);
-    assert_eq!(worker.notes().pop(), Some(crate::worker_alone::Note::FiguresChanged));
-    assert_eq!(worker.notes().pop(), Some(crate::worker_alone::Note::FiguresChanged));
-    assert_eq!(worker.notes().pop(), None);
+}
+
+pub(crate) fn scalar(name: &str, value: u64) -> w::Limit {
+    w::Limit { name: name.as_bytes().into(), value }
+}
+
+pub(crate) fn set_limit(figures: &mut w::Figures, name: &str, value: u64) {
+    if let Some(figure) = figures.limits.iter_mut().find(|row| row.name.as_ref() == name.as_bytes()) {
+        figure.value = value;
+    } else {
+        let mut limits = List::uncapped();
+        for figure in &figures.limits {
+            limits.push(figure.clone()).unwrap();
+        }
+        limits.push(scalar(name, value)).unwrap();
+        figures.limits = limits;
+    }
+}
+
+fn hear(worker: &mut crate::Worker, figures: w::Figures) {
+    worker.link(fixtures::NOW, jig_protocol_worker_link::Request::Figures { figures });
+}
+
+fn stock_service(figures: &w::Figures) -> crate::worker_alone::Service {
+    let (part, agent) = stock_worker(figures.clone());
+    startup::worker_alone(part, &fixtures::files(), &agent, fixtures::worker_runtime(), 7).unwrap()
+}
+
+// figures.md, 9: take at least one accepted move for every live row and check
+// both sides of the classification, using the published rows as the oracle.
+#[test]
+fn the_names_tables_and_the_workers_takes_agree() {
+    use temper_engine_service_startup::limits as engine;
+    let base = stock_figures();
+    let (part, mut agent) = stock_worker(base.clone());
+    // Stock's hub event bytes exactly fit both the pinned hello and the
+    // agent's message ceiling. Leave one byte of headroom above the hello
+    // so this row can move alone without changing the profile it checks.
+    agent.host_limits.message_bytes = agent.host_limits.message_bytes.checked_add(1).unwrap();
+    let mut worker =
+        startup::worker_alone(part, &fixtures::files(), &agent, fixtures::worker_runtime(), 7).unwrap().worker;
+    let jig = config::stock();
+    let own = engine::stock();
+    for (name, applies, default, known) in config::names::NAMES
+        .iter()
+        .map(|row| (row.name, row.applies, (row.value)(&jig), true))
+        .chain(engine::NAMES.iter().map(|row| {
+            (row.name, row.applies, (row.value)(&own), temper_service_core::limits::known(row.name.as_bytes()))
+        }))
+    {
+        let stock =
+            base.limits.iter().find(|row| row.name.as_ref() == name.as_bytes()).map_or(default, |row| row.value);
+        check_row(&mut worker, &base, name, stock, applies, known);
+    }
+    check_row(&mut worker, &base, "future.worker_limit", 0, config::names::Applies::NextStart, false);
+}
+
+fn check_row(
+    worker: &mut crate::Worker,
+    base: &w::Figures,
+    name: &str,
+    stock: u64,
+    applies: config::names::Applies,
+    known: bool,
+) {
+    use config::names::Applies;
+    let mut refusal = None;
+    for value in [stock.checked_add(1), stock.checked_sub(1)].into_iter().flatten() {
+        let mut changed = base.clone();
+        set_limit(&mut changed, name, value);
+        let root = worker.env.limits.clone();
+        let git = *worker.git.component.limits();
+        hear(worker, changed);
+        let expected = match applies {
+            Applies::Live => Some(Note::FiguresTaken { figures: Box::new([scalar(name, value)]) }),
+            Applies::AtOnce | Applies::NextStart if known => {
+                Some(Note::FiguresWaiting { figures: Box::new([scalar(name, value)]) })
+            }
+            Applies::AtOnce | Applies::NextStart => None,
+        };
+        let note = worker.notes().pop();
+        assert!(worker.notes().is_empty(), "{name} has at most one disposition");
+        if let Some(Note::FiguresRefused { problem }) = &note {
+            assert_eq!(applies, Applies::Live, "only live figures can be refused");
+            refusal = Some(problem.clone());
+            continue;
+        }
+        assert_eq!(note, expected, "{name} {stock} -> {value}");
+        hear(worker, base.clone());
+        if applies == Applies::Live {
+            assert_eq!(worker.notes().pop(), Some(Note::FiguresTaken { figures: Box::new([scalar(name, stock)]) }));
+        }
+        assert!(worker.notes().is_empty(), "{name} back at stock");
+        assert_eq!(worker.env.limits, root, "{name} leaves the root at stock");
+        assert_eq!(*worker.git.component.limits(), git, "{name} leaves git at stock");
+        return;
+    }
+    let why = refusal.as_deref().map_or("no value", |text| core::str::from_utf8(text).unwrap());
+    panic!("no accepted move for {name} at {stock}: {why}");
 }
 #[test]
 fn a_short_figure_names_the_engine_scalar_and_keeps_the_check() {
@@ -143,7 +253,7 @@ fn a_short_figure_names_the_engine_scalar_and_keeps_the_check() {
 
 /// The engine's stock resolved without document overrides, then composed as
 /// its opening does (configuration/figures.md, 2–3).
-pub(super) fn stock_figures() -> w::Figures {
+pub(crate) fn stock_figures() -> w::Figures {
     use temper_engine_service_startup::{limits, stock};
     let mut input: serde_json::Value = serde_json::from_slice(&temper_config_shell::init_document(true)).unwrap();
     input["engine"]["clients"]["provider"] = serde_json::Value::Null;
@@ -162,7 +272,7 @@ pub(super) fn stock_figures() -> w::Figures {
     figures
 }
 
-fn stock_worker(figures: w::Figures) -> (startup::WorkerPart, crate::settings::Agent) {
+pub(crate) fn stock_worker(figures: w::Figures) -> (startup::WorkerPart, crate::settings::Agent) {
     let input = fixtures::worker_alone_document();
     let mut part = startup::worker_part(&input, &config::Directories::working(), None, &[]).unwrap();
     let bytes = temper_worker_shell::agent::figures::configuration(

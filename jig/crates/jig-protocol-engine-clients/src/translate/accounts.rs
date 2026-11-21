@@ -5,9 +5,10 @@ use jig_client_protocol_wire::Record as _;
 use jig_domain_accounts as a;
 use jig_domain_core_vocabulary::documents as d;
 use skein_lib::{List, Writer};
-pub fn facts(value: &List<a::AccountFact>, _limits: &w::Limits) -> Result<List<w::AccountFact>, w::Problem> {
+pub fn facts(value: &List<d::AccountFactLine>, _limits: &w::Limits) -> Result<List<w::AccountFact>, w::Problem> {
     let mut rows = List::with_capacity(value.len());
-    for fact in value {
+    for line in value {
+        let fact = &line.fact;
         let value = match &fact.value {
             a::FactValue::Text(text) => w::AccountFactValue::Text(w::AccountFactText { text: text.clone() }),
             a::FactValue::Count(count) => w::AccountFactValue::Count(w::AccountFactCount { count: *count }),
@@ -15,6 +16,7 @@ pub fn facts(value: &List<a::AccountFact>, _limits: &w::Limits) -> Result<List<w
             a::FactValue::Span(nanos) => w::AccountFactValue::Span(w::AccountFactSpan { nanos: *nanos }),
             a::FactValue::Share(basis) => w::AccountFactValue::Share(w::AccountFactShare { basis: *basis }),
             a::FactValue::Window(window) => w::AccountFactValue::Window(w::AccountWindow {
+                rate: line.rate,
                 length: window.length,
                 used: window.used,
                 resets: match window.resets {

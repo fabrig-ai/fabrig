@@ -2,6 +2,11 @@
 
 2026-11-20. Where skein's code lags or departs from [client.md](client.md).
 
+Section 8's rule that a restart's reads wait on no write is held: a paused
+outbox sends nothing for an entry and holds no call slot or budget, and
+`ReadAfreshDone` counts the fresh pass alone (`outbox.rs`, `pause`, `pump`;
+`keep/restore.rs`, `fresh_done`; `src/tests/recovery.rs`,
+`restart_reads_before_settling_the_outbox`).
 
 
 - **Not yet:** 4: a branch never there rests at `slow` like any absent branch (`keep/answer.rs`, `rest_resource`).

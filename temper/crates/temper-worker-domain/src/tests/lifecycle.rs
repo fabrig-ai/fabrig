@@ -189,6 +189,7 @@ fn notices_keep_the_source_and_reset_and_do_not_replace_the_terminal() {
             | agent::Up::Long { .. }
             | agent::Up::LongDone
             | agent::Up::Waiting { .. }
+            | agent::Up::Usage { .. }
             | agent::Up::Answer { .. } => unreachable!(),
         };
         let mut h = Harness::new();
@@ -213,6 +214,7 @@ fn notices_keep_the_source_and_reset_and_do_not_replace_the_terminal() {
             | agent::Up::Long { .. }
             | agent::Up::LongDone
             | agent::Up::Waiting { .. }
+            | agent::Up::Usage { .. }
             | agent::Up::Answer { .. } => unreachable!(),
         };
         assert!(h.say(again).contains(&Request::Link(expected)), "{notice:?}");
@@ -260,10 +262,14 @@ fn no_notices(rows: &[Request]) {
     for row in rows {
         let Request::Link(up) = row else { continue };
         match up {
-            host::LinkUp::Unauthorized { .. } | host::LinkUp::Limited { .. } | host::LinkUp::AccountRefused { .. } => {
+            host::LinkUp::Unauthorized { .. }
+            | host::LinkUp::Usage { .. }
+            | host::LinkUp::Limited { .. }
+            | host::LinkUp::AccountRefused { .. } => {
                 panic!("unexpected notice: {up:?}")
             }
-            host::LinkUp::ListRead { .. }
+            host::LinkUp::UsageRead { .. }
+            | host::LinkUp::ListRead { .. }
             | host::LinkUp::Draining
             | host::LinkUp::Logins { .. }
             | host::LinkUp::SignedOut { .. }
@@ -574,5 +580,51 @@ fn refusal_encoding_failure_keeps_cleanup_diagnostic() {
                 why: b"refusal\nsetup diagnostic tail".as_slice().into(),
             }))
         ));
+    }
+}
+
+#[test]
+fn usage_notices_keep_the_owner_account_and_observation_and_map_the_state() {
+    use jig_domain_link::{FactWindow, UsageWindow, WINDOW_LIMITED, WINDOW_OPEN, WINDOW_WARNED};
+    use skein_lib::{Duration, Wall};
+    for (state, number) in [
+        (agent::UsageState::Open, WINDOW_OPEN),
+        (agent::UsageState::Warned, WINDOW_WARNED),
+        (agent::UsageState::Limited, WINDOW_LIMITED),
+    ] {
+        let mut h = Harness::new();
+        h.started();
+        let length = Some(Duration::from_secs(604_800));
+        let resets = Some(Wall::from_nanos(1_000_000_000));
+        crate::agents::up(
+            &mut h.domain,
+            &h.env,
+            agent::parent::Request::Usage {
+                client: h.owner.expect("started owner"),
+                account: 17,
+                window: agent::UsageWindow {
+                    label: b"seven_day".as_slice().into(),
+                    length,
+                    used: Some(3450),
+                    resets,
+                    state,
+                },
+            },
+            &mut h.out,
+        );
+        crate::route::hand_off(&mut h.domain, &h.env, &mut h.out);
+        assert_eq!(
+            h.out.pop(),
+            Some(Request::Link(host::LinkUp::Usage {
+                run: RUN,
+                attempt: ATTEMPT,
+                account: 17,
+                window: UsageWindow {
+                    label: b"seven_day".as_slice().into(),
+                    window: FactWindow { length, used: Some(3450), resets, state: number }
+                },
+            }))
+        );
+        assert_eq!(h.out.pop(), None);
     }
 }

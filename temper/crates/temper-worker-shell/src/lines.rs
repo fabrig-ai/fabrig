@@ -63,9 +63,12 @@ pub fn note_line(binary: &str, note: service::Note) -> String {
             line.push('\n');
             line
         }
-        service::Note::FiguresChanged => {
-            "the engine's figures changed; they apply at this worker's next start\n".into()
-        }
+        service::Note::FiguresTaken { figures } => figure_line("taken live", &figures),
+        service::Note::FiguresWaiting { figures } => figure_line("at this worker's next start", &figures),
+        service::Note::FiguresRefused { problem } => format!(
+            "the engine's figures changed; not taken live: {}; they apply at this worker's next start\n",
+            String::from_utf8_lossy(&problem)
+        ),
         service::Note::Cancelling { run, attempt } => {
             format!("{binary} worker: run {run} attempt {attempt} cancelled by the engine\n")
         }
@@ -155,6 +158,25 @@ fn worker_job_ending(ending: &temper_worker_service::WorkerJobEnding) -> (String
             )),
         ) => (format!("refused {reason:?}"), b""),
     }
+}
+
+// One bounded line per part (temper/docs/design/protocol/configuration/figures.md, 3.2).
+fn figure_line(part: &str, figures: &[jig_protocol_worker_wire::Limit]) -> String {
+    use std::fmt::Write as _;
+    const SHOWN: usize = 8;
+    let mut line = format!("the engine's figures changed; {part}: ");
+    for (index, figure) in figures.iter().take(SHOWN).enumerate() {
+        if index != 0 {
+            line.push_str(", ");
+        }
+        escape_detail(&mut line, &figure.name);
+        write!(line, " {}", figure.value).expect("format figure");
+    }
+    if figures.len() > SHOWN {
+        write!(line, ", and {} more", figures.len() - SHOWN).expect("format remaining figures");
+    }
+    line.push('\n');
+    line
 }
 
 fn run_detail_line(mut line: String, detail: &[u8]) -> String {

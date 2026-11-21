@@ -294,7 +294,11 @@ impl Parent {
                 self.tally.stops += 1;
                 Vec::new()
             }
-            Request::ReadList { .. } | Request::CancelRead { .. } | Request::Source { .. } | Request::SourceFault => {
+            Request::ReadUsage { .. }
+            | Request::ReadList { .. }
+            | Request::CancelRead { .. }
+            | Request::Source { .. }
+            | Request::SourceFault => {
                 unreachable!("source scheduling has its own world")
             }
             Request::Prepare { owner, workspace } => self.prepare(owner, &workspace),
@@ -318,13 +322,15 @@ impl Parent {
             Request::Release { workspace } => self.release(workspace),
             Request::Agent(ToAgent::Grant { .. } | ToAgent::Renewals { .. }) => Vec::new(),
             Request::Up(
-                LinkUp::ListRead { .. }
+                LinkUp::UsageRead { .. }
+                | LinkUp::ListRead { .. }
                 | LinkUp::Draining
                 | LinkUp::Logins { .. }
                 | LinkUp::SignedOut { .. }
                 | LinkUp::Piece { .. }
                 | LinkUp::Activity { .. }
                 | LinkUp::Unauthorized { .. }
+                | LinkUp::Usage { .. }
                 | LinkUp::Limited { .. }
                 | LinkUp::AccountRefused { .. }
                 | LinkUp::Turn { .. }

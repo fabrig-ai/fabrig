@@ -62,6 +62,7 @@ impl World {
             channel: CHANNEL,
             worker: 0,
             hello: Hello {
+                reads_usage: true,
                 slots: 3,
                 stop_bound: Duration::from_secs(300),
                 workstreams: Box::new([]),
