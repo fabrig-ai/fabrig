@@ -6174,6 +6174,7 @@ dependencies = [
  "skein-scratch",
  "skein-ui-screen",
  "skein-ui-web",
+ "temper-client-journeys-kit",
  "temper-client-journeys-tool",
  "temper-client-shell-tui",
  "temper-client-shell-web",
@@ -6579,6 +6580,7 @@ dependencies = [
  "temper-client-shell-web",
  "temper-client-tui",
  "temper-config-shell",
+ "tempfile",
 ]
 
 [[package]]
