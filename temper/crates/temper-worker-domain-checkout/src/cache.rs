@@ -34,7 +34,7 @@ use crate::facts::Cached;
 use crate::hold::Hold;
 
 #[derive(Debug)]
-pub(crate) struct Workspace {
+pub struct Workspace {
     /// The workstream it is for, also its key in [`Cache::keys`].
     key: Box<[u8]>,
     disk: Disk,
@@ -61,7 +61,7 @@ pub(crate) struct Cloned {
 }
 /// Shared bare objects by remote, never spoiled by a workspace fault (worker/checkouts.md).
 #[derive(Debug)]
-pub(crate) struct Store {
+pub struct Store {
     remote: Box<[u8]>,
     token: Token,
     making: Making,
@@ -116,7 +116,69 @@ pub(crate) struct Cache {
     stores: Slab<Store>,
 }
 
+impl Workspace {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn is_held(&self) -> bool {
+        match self.used {
+            Use::Held => true,
+            Use::Idle { .. } => false,
+        }
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn is_trusted(&self) -> bool {
+        match self.disk {
+            Disk::Holds { .. } => true,
+            Disk::Unknown => false,
+        }
+    }
+}
+
+impl Store {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn token(&self) -> Token {
+        self.token
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn is_made(&self) -> bool {
+        match self.making {
+            Making::Made => true,
+            Making::Unmade | Making::By { .. } => false,
+        }
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn maker(&self) -> Option<Token> {
+        match self.making {
+            Making::By { owner } => Some(owner.token()),
+            Making::Unmade | Making::Made => None,
+        }
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn waiters(&self) -> &Queue<Id<Hold>> {
+        &self.waiters
+    }
+}
+
 impl Cache {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    pub(crate) const fn workspaces(&self) -> &Slab<Workspace> {
+        &self.workspaces
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    pub(crate) const fn stores(&self) -> &Slab<Store> {
+        &self.stores
+    }
+
     pub(crate) fn with_capacity(workspaces: u32, stores: u32) -> Cache {
         Cache {
             workspaces: Slab::with_capacity(workspaces),

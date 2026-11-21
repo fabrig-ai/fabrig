@@ -158,10 +158,62 @@ use crate::git::{Commit, Done, Fault, Into, Missing, Op, Place, Want};
 use crate::limits::Limits;
 
 #[derive(Debug)]
-pub(crate) struct Hold {
+pub struct Hold {
     holding: Holding,
     state: State,
     cut: bool,
+    /// The deadline handed to io, retained until its terminal event.
+    operation: Option<Time>,
+}
+
+impl Hold {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn workspace(&self) -> Token {
+        self.holding.workspace.token()
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn queued_since(&self) -> Option<Time> {
+        match self.state {
+            State::Queued { .. } => Some(self.holding.arrived),
+            State::Preparing { .. }
+            | State::Waiting { .. }
+            | State::Ready
+            | State::Reds(_)
+            | State::Unprepared
+            | State::Pushing { .. }
+            | State::Closed => None,
+        }
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn is_preparing(&self) -> bool {
+        active(&self.state)
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn is_ended(&self) -> bool {
+        match self.state {
+            State::Closed => true,
+            State::Queued { .. }
+            | State::Preparing { .. }
+            | State::Waiting { .. }
+            | State::Ready
+            | State::Reds(_)
+            | State::Unprepared
+            | State::Pushing { .. } => false,
+        }
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn operation_deadline(&self) -> Option<Time> {
+        self.operation
+    }
 }
 
 /// What a hold holds in every state.
@@ -480,7 +532,7 @@ pub(crate) fn prepare(domain: &mut Domain, env: &Env<Limits>, client: Token, spe
         fetched: List::uncapped(),
         candidate,
     };
-    let hold = Hold { holding, state: State::Closed, cut: false };
+    let hold = Hold { holding, state: State::Closed, cut: false, operation: None };
     let id = domain.holds.insert(hold).expect("room for a hold for each workspace, and as many released");
     out.push(Request::Held { client, hold: id.token() });
     if domain.active < env.limits.preparations {
@@ -731,6 +783,7 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
     let done = bounded_done(done, &env.limits);
     let id = Id::from_token(owner);
     let hold = domain.holds.get_mut(id).expect("a hold lives until its operation has ended");
+    hold.operation = None;
     let told = ending(&done);
     domain.facts.push(Fact::Ended { client: hold.holding.client, done: told });
     if !optional(&hold.state) && damages(&done) {
@@ -847,7 +900,26 @@ fn addressed(holds: &Slab<Hold>, hold: Token) -> Option<Id<Hold>> {
 /// Applied after every transition: what it tells, and what the new state
 /// implies. `mark` is where the requests the transition made begin in `out`.
 fn conclude(domain: &mut Domain, id: Id<Hold>, was_active: bool, out: &Queue<Request>, mark: u32) {
-    let hold = domain.holds.get(id).expect("a hold lives until it is retired");
+    let hold = domain.holds.get_mut(id).expect("a hold lives until it is retired");
+    let from = usize::try_from(mark).expect("a u32 fits in a usize");
+    for request in out.iter().skip(from) {
+        match request {
+            Request::Io { owner, deadline, .. } => {
+                if *owner == id.token() {
+                    hold.operation = Some(*deadline);
+                }
+            }
+            Request::Held { .. }
+            | Request::Prepared { .. }
+            | Request::Pushed { .. }
+            | Request::Saved { .. }
+            | Request::Released { .. }
+            | Request::Cancel { .. }
+            | Request::DependencyLanded { .. }
+            | Request::Results { .. }
+            | Request::ResultsEnd { .. } => {}
+        }
+    }
     tell(&mut domain.facts, hold.holding.client, out, mark);
     if was_active && !active(&hold.state) {
         domain.active = domain.active.checked_sub(1).expect("a settled prepare returns its permit once");

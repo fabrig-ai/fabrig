@@ -33,13 +33,13 @@ pub fn fake(commit: Commit) -> u64 {
 /// Where io keeps the workspace `workspace`.
 #[must_use]
 pub fn dir(workspace: Token) -> Vec<u8> {
-    format!("ws/{}", workspace.raw()).into_bytes()
+    temper_fake_checkout::layout::dir(workspace)
 }
 
 /// Where io keeps the repository at `place`.
 #[must_use]
 pub fn path(place: &Place) -> Vec<u8> {
-    [dir(place.workspace).as_slice(), b"/", &place.repository].concat()
+    temper_fake_checkout::layout::path(place.workspace, &place.repository)
 }
 
 /// The workspace an operation is in.
@@ -406,7 +406,7 @@ fn local_head(disk: &Checkout, at: &Place, name: &[u8]) -> Option<Commit> {
 /// A shared bare repository on the world's fake disk.
 #[must_use]
 pub fn store_path(store: Token) -> Vec<u8> {
-    format!("stores/{}", store.raw()).into_bytes()
+    temper_fake_checkout::layout::store_path(store)
 }
 
 fn ancestors(forge: &mut impl Remote, head: u64) -> std::collections::BTreeSet<u64> {

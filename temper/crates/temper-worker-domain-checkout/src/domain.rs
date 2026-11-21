@@ -21,6 +21,30 @@ pub struct Domain {
 }
 
 impl Domain {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn cached_workspaces(&self) -> &Slab<crate::Workspace> {
+        self.cache.workspaces()
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn stores(&self) -> &Slab<crate::Store> {
+        self.cache.stores()
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn held(&self) -> &Slab<Hold> {
+        &self.holds
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn queued(&self) -> &Queue<Id<Hold>> {
+        &self.queued
+    }
+
     /// A domain with room for `limits`.
     #[must_use]
     pub fn new(limits: &Limits) -> Domain {

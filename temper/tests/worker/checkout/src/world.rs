@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use skein_lib::{Duration, Rng, Time, Token};
 use skein_world::domain::{Key, Ledger, Schedule, Span, Stage, Trace};
+use skein_world::inspect::{Moment, check_tables, check_waits};
 use temper_fake_checkout::Checkout;
 use temper_fake_checkout::git::{Created, Remote, Tree};
 use temper_worker_domain_checkout::git::{Done, Fault, Kind, Missing, Op, Want};
@@ -292,6 +293,7 @@ enum Verified {
 #[derive(Debug)]
 pub struct World {
     now: Time,
+    iteration: u64,
     rng: Rng,
     settings: Settings,
     domain: Domain,
@@ -366,6 +368,7 @@ impl World {
         }
         World {
             now: Time::ZERO,
+            iteration: 0,
             rng,
             settings,
             domain,
@@ -518,7 +521,7 @@ impl World {
     /// settled world. Panics if it takes more than `iterations`.
     pub fn run(&mut self, iterations: u32) {
         for _ in 0..iterations {
-            self.iterate();
+            self.iterate().unwrap_or_else(|finding| panic!("{finding}"));
             if self.has_work_now() {
                 continue;
             }
@@ -533,7 +536,8 @@ impl World {
     }
 
     /// One iteration of the loop, as the shell would run it.
-    fn iterate(&mut self) {
+    fn iterate(&mut self) -> Result<(), String> {
+        self.iteration += 1;
         self.stage.tick(self.now);
         self.deliver();
         while let Some(event) = self.stage.next_event() {
@@ -555,7 +559,13 @@ impl World {
         assert!(self.workspaces.len() <= usize::try_from(limits.workspaces).expect("small"), "no more directories");
         self.stats.most_workspaces = self.stats.most_workspaces.max(self.domain.workspaces());
         self.stats.most_holds = self.stats.most_holds.max(self.domain.holds());
+        let moment = Moment { seed: self.settings.seed, at: self.now, iteration: self.iteration };
+        let mut found = temper_worker_inspect::inspection();
+        temper_worker_inspect::inspect_checkout(&self.domain, &limits, &mut found);
+        temper_worker_inspect::inspect_disk(&self.domain, &limits, &self.disk, &mut found);
+        check_waits(&[&found], moment).and(check_tables(&[&found], moment))?;
         self.domain.reclaim();
+        Ok(())
     }
 
     fn deliver(&mut self) {
