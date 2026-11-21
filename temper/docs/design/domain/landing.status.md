@@ -1,6 +1,6 @@
 # landing: status
 
-2026-11-19. Where temper's code lags or departs from [landing.md](landing.md).
+2026-11-21. Where temper's code lags or departs from [landing.md](landing.md).
 
 
 
@@ -16,6 +16,12 @@ each follows, as the forge holds them (`forge/change/branch-path.md`).
   (`jig/docs/design/domain/tasks/lifecycle.status.md`, 10).
 - **Not yet:** 7.1, by plan `forge-polls-quiet`: a landing polls its
   runs in flight every `poll`, not at the client's `poll_at`.
+- **Not yet:** 4.2 (*It ends*): an ended landing's writes leaving the
+  outbox, its unsent entries withdrawn for either ending and each in
+  flight leaving as it settles; a cancelled one following its runs no
+  further. 7.1: a dispatch's or rerun's entry leaving the outbox at its
+  outcome, the row keeping the dispatch, its entry's start and the
+  run's mark. [in flight: change 11697]
 
 - **Not yet:** 4.1: `with`; pin-only members; `dependencies_join`
   (`temper-engine-domain-forge/src/landing.rs`). 5.3, 6.1: the project's
