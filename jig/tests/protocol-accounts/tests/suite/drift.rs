@@ -4,7 +4,7 @@ use std::fs;
 
 #[test]
 #[expect(clippy::disallowed_methods, reason = "jig's round: reads SKEIN_CODEGEN_WRITE to refresh generated records")]
-fn moved_schema_matches_generated_records_and_is_pinned() {
+fn moved_schema_matches_generated_records() {
     let source = jig_protocol_accounts::SCHEMA;
 
     let tree = skein_scratch::paths::tree();

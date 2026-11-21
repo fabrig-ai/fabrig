@@ -232,7 +232,7 @@ impl Opened<'_> {
                 let length = u32::try_from(sample.len()).map_err(|error| error.to_string())?;
                 let piece = length.checked_add(4).ok_or("full fixed-rule value piece length exceeds u32")?;
                 if piece > bound {
-                    return Err(format!("full fixed_value piece needs {piece} bytes, bound {bound}"));
+                    return Err(format!("full fixed-rule value piece needs {piece} bytes, bound {bound}"));
                 }
                 let span = self.value.span(at).expect("fixed-rule value pieces span");
                 let start = usize::try_from(span.start).expect("fixed-rule value span fits usize");

@@ -346,7 +346,7 @@ recipient.
   answered so; nothing is done.
 - **Versions move with a wire's layout.** Each changed record moves its
   wire's version and its schema, codec and translations. Tests build
-  fixed-rule values from that schema or constructors, keeping no golden files
+  fixed-rule values from that schema or use public fields, keeping no golden files
   (skein's `data/codec/README.md`, 6).
   The engine serves one version; a client of another version is refused
   before its record is read. Client bridges are deferred
