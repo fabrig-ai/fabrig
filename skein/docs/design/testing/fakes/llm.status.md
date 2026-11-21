@@ -1,7 +1,10 @@
 # fake-llm: status
 
-2026-11-12. Where skein's code lags or departs from [llm.md](llm.md).
+2026-11-21. Where skein's code lags or departs from [llm.md](llm.md).
 
+- **Not yet:** 2.7: an account's strikes and its shared window; 2.8:
+  a cut stream; 5: the faults' stories and `skein_llm_kit::faults`'
+  kinds. [in flight: change 11572]
 
 Section 3.2 has no known implementation gap in configured list bodies,
 status replacement between reads, credential observations or keeping

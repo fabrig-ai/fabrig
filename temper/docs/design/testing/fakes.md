@@ -65,6 +65,47 @@ skein's (skein's `testing/fakes/llm.md`):
   login lost, which smith's and jig's worlds test (`real-loop.md`). The real loop
   runs it signed in, under smith's agent hosts, and the process tier
   under `temper-box internal agent` and `temper-box program-login` (`process-tier.md`).
+- **The faults production showed** (`../draft/failure-worlds.md`, 4.2):
+  the fake LLM strikes an account by event, with spent credits, an
+  expired sign-in, a model it doesn't serve, or a tokens-per-window
+  rate window every task on the account shares, answered `429` with the
+  provider's reset headers and no `retry-after`; and it cuts a `200`
+  stream before its completion event, before any output, mid-text or
+  mid-call (skein's `testing/fakes/llm.md`, 2.7 and 2.8). A hang is a
+  hold never released (2.2 there). The fake `claude` answers with
+  documented synthetic envelopes for a billing refusal, an edge's
+  refusal and an unserved model (below). Each fake's outputs are its
+  report of what fell, which a world copies into its fault ledger
+  (`checks.md`, 6.2).
+- **Claude Code's refusals, as synthetic envelopes:** the fake `claude`
+  ends a turn with a `result` whose `is_error` is true, as its story's
+  `End::Error` gives it, which gains the `result` text Claude Code
+  writes beside `errors`. Three envelopes stand for their classes; none
+  claims a deployment's own reply, which wasn't kept
+  (`../draft/failure-worlds.md`, 4.2):
+  - **a billing refusal,** as Claude Code reports a refused
+    subscription: `api_error_status` 402, `result` `API Error: 402
+    {"type":"error","error":{"type":"billing_error","message":"This
+    account's plan does not cover this request."},"request_id":"req_fake"}`.
+    The provider's own error is in its text, so smith's classification
+    tells it from an edge's (smith's `protocol/programs.md`, 5.6): today
+    *invalid*;
+  - **an edge's refusal,** the billing refusal's control:
+    `api_error_status` 403, `result` `API Error: 403 <html><head><title>403
+    Forbidden</title></head><body><h1>403 Forbidden</h1></body></html>`,
+    with no provider error: today *unavailable*, and retried;
+  - **an unserved model:** `api_error_status` 404, `result` `API Error:
+    404 {"type":"error","error":{"type":"not_found_error","message":"model:
+    MODEL"}}`, MODEL the run's: today *invalid*.
+
+  Each is a constructor of the story, `End::billing_refusal()`,
+  `End::edge_refusal()` and `End::unserved_model(model)`, so that worlds
+  share one text. The fake reports what it played: each fault step or
+  end (`Step::RateLimit`, a rejected `Step::RateLimitWindow`,
+  `Step::LoseLogin`, `Step::Hang`, an `End::Error`) is an observation of
+  its own, with its moment, beside its others. A world names each by the
+  fake LLM's kind for the same fault (skein's `testing/fakes/llm.md`, 5)
+  or, for the billing and edge refusals, by its own.
 - **What temper's stories need of them** is skein's and smith's to
   design (skein's `testing/fakes/llm.md`, and skein's `oauth/README.md`, section 5;
   smith's `protocol/programs.md`, section 8); temper's stories code
