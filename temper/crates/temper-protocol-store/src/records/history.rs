@@ -1,91 +1,22 @@
 //! Total landing history translations (temper/docs/design/domain/landing-history.md, 2 and 4).
-use super::{FITS, names, w};
-use alloc::boxed::Box;
-use skein_lib::{List, Wall};
+use super::{FITS, w};
+use skein_lib::List;
 use temper_engine_domain_forge_vocabulary::history as d;
-fn encode_unready(value: d::Unready) -> w::HistoryUnready {
-    match value {
-        d::Unready::Held => w::HistoryUnready::Held,
-        d::Unready::HeadMoved => w::HistoryUnready::HeadMoved,
-        d::Unready::Refused => w::HistoryUnready::Refused,
-        d::Unready::Dependency => w::HistoryUnready::Dependency,
-        d::Unready::Approval => w::HistoryUnready::Approval,
-        d::Unready::Conflict => w::HistoryUnready::Conflict,
-        d::Unready::Closed => w::HistoryUnready::Closed,
-    }
-}
-fn decode_unready(value: w::HistoryUnready) -> d::Unready {
-    match value {
-        w::HistoryUnready::Held => d::Unready::Held,
-        w::HistoryUnready::HeadMoved => d::Unready::HeadMoved,
-        w::HistoryUnready::Refused => d::Unready::Refused,
-        w::HistoryUnready::Dependency => d::Unready::Dependency,
-        w::HistoryUnready::Approval => d::Unready::Approval,
-        w::HistoryUnready::Conflict => d::Unready::Conflict,
-        w::HistoryUnready::Closed => d::Unready::Closed,
-    }
-}
-fn encode_line(value: d::Line) -> w::HistoryLine {
-    match value {
-        d::Line::Queue => w::HistoryLine::Queue,
-        d::Line::Landing => w::HistoryLine::Landing,
-        d::Line::ForgeQueue => w::HistoryLine::ForgeQueue,
-    }
-}
-fn decode_line(value: w::HistoryLine) -> d::Line {
-    match value {
-        w::HistoryLine::Queue => d::Line::Queue,
-        w::HistoryLine::Landing => d::Line::Landing,
-        w::HistoryLine::ForgeQueue => d::Line::ForgeQueue,
-    }
-}
-fn encode_update_outcome(value: d::UpdateOutcome) -> w::HistoryUpdateOutcome {
-    match value {
-        d::UpdateOutcome::Updated => w::HistoryUpdateOutcome::Updated,
-        d::UpdateOutcome::Conflict => w::HistoryUpdateOutcome::Conflict,
-        d::UpdateOutcome::Failed => w::HistoryUpdateOutcome::Failed,
-    }
-}
-fn decode_update_outcome(value: w::HistoryUpdateOutcome) -> d::UpdateOutcome {
-    match value {
-        w::HistoryUpdateOutcome::Updated => d::UpdateOutcome::Updated,
-        w::HistoryUpdateOutcome::Conflict => d::UpdateOutcome::Conflict,
-        w::HistoryUpdateOutcome::Failed => d::UpdateOutcome::Failed,
-    }
-}
 fn encode_job(value: d::Job) -> w::HistoryJob {
-    match value {
-        d::Job::Prepare => w::HistoryJob::Prepare,
-        d::Job::Merge => w::HistoryJob::Merge,
-    }
+    crate::generated::store::history_job_to_record(&value, &super::Context::UNBOUNDED).expect(FITS)
 }
 fn decode_job(value: w::HistoryJob) -> d::Job {
-    match value {
-        w::HistoryJob::Prepare => d::Job::Prepare,
-        w::HistoryJob::Merge => d::Job::Merge,
-    }
+    crate::generated::store::history_job_to_domain(value, &super::Context::UNBOUNDED)
+        .expect("infallible store translation")
 }
 fn encode_job_failure(value: d::JobFailure) -> w::HistoryJobFailure {
-    match value {
-        d::JobFailure::Unprepared => w::HistoryJobFailure::Unprepared,
-        d::JobFailure::Run => w::HistoryJobFailure::Run,
-        d::JobFailure::Result => w::HistoryJobFailure::Result,
-        d::JobFailure::Unstarted => w::HistoryJobFailure::Unstarted,
-        d::JobFailure::Undelivered => w::HistoryJobFailure::Undelivered,
-        d::JobFailure::Unknown => w::HistoryJobFailure::Unknown,
-    }
+    crate::generated::store::history_job_failure_to_record(&value, &super::Context::UNBOUNDED).expect(FITS)
 }
 fn decode_job_failure(value: w::HistoryJobFailure) -> d::JobFailure {
-    match value {
-        w::HistoryJobFailure::Unprepared => d::JobFailure::Unprepared,
-        w::HistoryJobFailure::Run => d::JobFailure::Run,
-        w::HistoryJobFailure::Result => d::JobFailure::Result,
-        w::HistoryJobFailure::Unstarted => d::JobFailure::Unstarted,
-        w::HistoryJobFailure::Undelivered => d::JobFailure::Undelivered,
-        w::HistoryJobFailure::Unknown => d::JobFailure::Unknown,
-    }
+    crate::generated::store::history_job_failure_to_domain(value, &super::Context::UNBOUNDED)
+        .expect("infallible store translation")
 }
-fn encode_job_outcome(value: d::JobOutcome) -> w::HistoryJobOutcome {
+pub(super) fn encode_job_outcome(value: d::JobOutcome) -> w::HistoryJobOutcome {
     match value {
         d::JobOutcome::Done => w::HistoryJobOutcome::Done,
         d::JobOutcome::Conflict => w::HistoryJobOutcome::Conflict,
@@ -98,7 +29,7 @@ fn encode_job_outcome(value: d::JobOutcome) -> w::HistoryJobOutcome {
         d::JobOutcome::Lost => w::HistoryJobOutcome::Lost,
     }
 }
-fn decode_job_outcome(value: w::HistoryJobOutcome) -> d::JobOutcome {
+pub(super) fn decode_job_outcome(value: w::HistoryJobOutcome) -> d::JobOutcome {
     match value {
         w::HistoryJobOutcome::Done => d::JobOutcome::Done,
         w::HistoryJobOutcome::Conflict => d::JobOutcome::Conflict,
@@ -109,633 +40,41 @@ fn decode_job_outcome(value: w::HistoryJobOutcome) -> d::JobOutcome {
         w::HistoryJobOutcome::Lost => d::JobOutcome::Lost,
     }
 }
-fn encode_with(value: d::With) -> w::HistoryWith {
-    match value {
-        d::With::Branch => w::HistoryWith::Branch,
-        d::With::Earlier => w::HistoryWith::Earlier,
-    }
-}
-fn decode_with(value: w::HistoryWith) -> d::With {
-    match value {
-        w::HistoryWith::Branch => d::With::Branch,
-        w::HistoryWith::Earlier => d::With::Earlier,
-    }
-}
-fn encode_ask(value: d::Ask) -> w::HistoryAsk {
-    match value {
-        d::Ask::Resolution => w::HistoryAsk::Resolution,
-        d::Ask::Repair => w::HistoryAsk::Repair,
-        d::Ask::Judgement => w::HistoryAsk::Judgement,
-    }
-}
-fn decode_ask(value: w::HistoryAsk) -> d::Ask {
-    match value {
-        w::HistoryAsk::Resolution => d::Ask::Resolution,
-        w::HistoryAsk::Repair => d::Ask::Repair,
-        w::HistoryAsk::Judgement => d::Ask::Judgement,
-    }
-}
-fn encode_answer(value: d::Answer) -> w::HistoryAnswer {
-    match value {
-        d::Answer::Pushed => w::HistoryAnswer::Pushed,
-        d::Answer::Passed => w::HistoryAnswer::Passed,
-        d::Answer::Refused => w::HistoryAnswer::Refused,
-        d::Answer::Nothing => w::HistoryAnswer::Nothing,
-        d::Answer::Failed => w::HistoryAnswer::Failed,
-        d::Answer::Cancelled => w::HistoryAnswer::Cancelled,
-    }
-}
-fn decode_answer(value: w::HistoryAnswer) -> d::Answer {
-    match value {
-        w::HistoryAnswer::Pushed => d::Answer::Pushed,
-        w::HistoryAnswer::Passed => d::Answer::Passed,
-        w::HistoryAnswer::Refused => d::Answer::Refused,
-        w::HistoryAnswer::Nothing => d::Answer::Nothing,
-        w::HistoryAnswer::Failed => d::Answer::Failed,
-        w::HistoryAnswer::Cancelled => d::Answer::Cancelled,
-    }
-}
-fn encode_pause(value: d::Pause) -> w::HistoryPause {
-    match value {
-        d::Pause::BranchRed => w::HistoryPause::BranchRed,
-        d::Pause::TierRed => w::HistoryPause::TierRed,
-    }
-}
-fn decode_pause(value: w::HistoryPause) -> d::Pause {
-    match value {
-        w::HistoryPause::BranchRed => d::Pause::BranchRed,
-        w::HistoryPause::TierRed => d::Pause::TierRed,
-    }
-}
-fn encode_round_cause(value: d::RoundCause) -> w::HistoryRoundCause {
-    match value {
-        d::RoundCause::Turned => w::HistoryRoundCause::Turned,
-        d::RoundCause::Left => w::HistoryRoundCause::Left,
-        d::RoundCause::Stale => w::HistoryRoundCause::Stale,
-        d::RoundCause::Cancelled => w::HistoryRoundCause::Cancelled,
-        d::RoundCause::Cut => w::HistoryRoundCause::Cut,
-    }
-}
-fn decode_round_cause(value: w::HistoryRoundCause) -> d::RoundCause {
-    match value {
-        w::HistoryRoundCause::Turned => d::RoundCause::Turned,
-        w::HistoryRoundCause::Left => d::RoundCause::Left,
-        w::HistoryRoundCause::Stale => d::RoundCause::Stale,
-        w::HistoryRoundCause::Cancelled => d::RoundCause::Cancelled,
-        w::HistoryRoundCause::Cut => d::RoundCause::Cut,
-    }
-}
-fn encode_gate_verdict(value: d::GateVerdict) -> w::HistoryGateVerdict {
-    match value {
-        d::GateVerdict::Passed => w::HistoryGateVerdict::Passed,
-        d::GateVerdict::Failed => w::HistoryGateVerdict::Failed,
-        d::GateVerdict::Fault => w::HistoryGateVerdict::Fault,
-        d::GateVerdict::Timeout => w::HistoryGateVerdict::Timeout,
-        d::GateVerdict::Superseded => w::HistoryGateVerdict::Superseded,
-    }
-}
-fn decode_gate_verdict(value: w::HistoryGateVerdict) -> d::GateVerdict {
-    match value {
-        w::HistoryGateVerdict::Passed => d::GateVerdict::Passed,
-        w::HistoryGateVerdict::Failed => d::GateVerdict::Failed,
-        w::HistoryGateVerdict::Fault => d::GateVerdict::Fault,
-        w::HistoryGateVerdict::Timeout => d::GateVerdict::Timeout,
-        w::HistoryGateVerdict::Superseded => d::GateVerdict::Superseded,
-    }
-}
-fn encode_recorded_state(value: d::RecordedState) -> w::HistoryRecordedState {
-    match value {
-        d::RecordedState::Merged => w::HistoryRecordedState::Merged,
-        d::RecordedState::Closed => w::HistoryRecordedState::Closed,
-    }
-}
-fn decode_recorded_state(value: w::HistoryRecordedState) -> d::RecordedState {
-    match value {
-        w::HistoryRecordedState::Merged => d::RecordedState::Merged,
-        w::HistoryRecordedState::Closed => d::RecordedState::Closed,
-    }
-}
-fn encode_ending(value: d::Ending) -> w::HistoryEnding {
-    match value {
-        d::Ending::NoChange => w::HistoryEnding::NoChange,
-        d::Ending::Cancelled => w::HistoryEnding::Cancelled,
-        d::Ending::Failed => w::HistoryEnding::Failed,
-    }
-}
-fn decode_ending(value: w::HistoryEnding) -> d::Ending {
-    match value {
-        w::HistoryEnding::NoChange => d::Ending::NoChange,
-        w::HistoryEnding::Cancelled => d::Ending::Cancelled,
-        w::HistoryEnding::Failed => d::Ending::Failed,
-    }
-}
-fn encode_landing_outcome(value: d::LandingOutcome) -> w::HistoryLandingOutcome {
-    match value {
-        d::LandingOutcome::Done => w::HistoryLandingOutcome::Done,
-        d::LandingOutcome::Cancelled => w::HistoryLandingOutcome::Cancelled,
-        d::LandingOutcome::Held => w::HistoryLandingOutcome::Held,
-    }
-}
-fn decode_landing_outcome(value: w::HistoryLandingOutcome) -> d::LandingOutcome {
-    match value {
-        w::HistoryLandingOutcome::Done => d::LandingOutcome::Done,
-        w::HistoryLandingOutcome::Cancelled => d::LandingOutcome::Cancelled,
-        w::HistoryLandingOutcome::Held => d::LandingOutcome::Held,
-    }
-}
-fn encode_on(value: d::On) -> w::HistoryOn {
-    match value {
-        d::On::Change => w::HistoryOn::Change,
-        d::On::Landing => w::HistoryOn::Landing,
-    }
-}
-fn decode_on(value: w::HistoryOn) -> d::On {
-    match value {
-        w::HistoryOn::Change => d::On::Change,
-        w::HistoryOn::Landing => d::On::Landing,
-    }
-}
-fn encode_after_verdict(value: d::AfterVerdict) -> w::HistoryAfterVerdict {
-    match value {
-        d::AfterVerdict::Verified => w::HistoryAfterVerdict::Verified,
-        d::AfterVerdict::Red => w::HistoryAfterVerdict::Red,
-        d::AfterVerdict::Cleared => w::HistoryAfterVerdict::Cleared,
-        d::AfterVerdict::Uncleared => w::HistoryAfterVerdict::Uncleared,
-    }
-}
-fn decode_after_verdict(value: w::HistoryAfterVerdict) -> d::AfterVerdict {
-    match value {
-        w::HistoryAfterVerdict::Verified => d::AfterVerdict::Verified,
-        w::HistoryAfterVerdict::Red => d::AfterVerdict::Red,
-        w::HistoryAfterVerdict::Cleared => d::AfterVerdict::Cleared,
-        w::HistoryAfterVerdict::Uncleared => d::AfterVerdict::Uncleared,
-    }
-}
-pub(super) fn encode_change_history(value: &d::ChangeHistory) -> w::ChangeHistory {
-    w::ChangeHistory {
-        last: value.last,
-        ready: value.ready,
-        queued: value.queued,
-        paused: value.paused,
-        held: value.held,
-        landing_held: value.landing_held,
-        delivered: value.delivered,
-    }
-}
-pub(super) fn decode_change_history(value: w::ChangeHistory) -> d::ChangeHistory {
-    let w::ChangeHistory { last, ready, queued, paused, held, landing_held, delivered } = value;
-    d::ChangeHistory { last, ready, queued, paused, held, landing_held, delivered }
-}
-pub(super) fn encode_in_landing(value: &d::InLanding) -> w::HistoryInLanding {
-    w::HistoryInLanding { task: value.task, round: value.round, unit: value.unit }
-}
-pub(super) fn decode_in_landing(value: w::HistoryInLanding) -> d::InLanding {
-    let w::HistoryInLanding { task, round, unit } = value;
-    d::InLanding { task, round, unit }
-}
-pub(super) fn encode_mark(value: &d::Mark) -> w::HistoryMark {
-    w::HistoryMark { hour: value.hour.as_nanos(), first: value.first }
-}
-pub(super) fn decode_mark(value: w::HistoryMark) -> d::Mark {
-    let w::HistoryMark { hour, first } = value;
-    d::Mark { hour: Wall::from_nanos(hour), first }
-}
 pub(super) fn encode_project(value: &d::Project) -> w::HistoryProject {
-    w::HistoryProject {
-        project: value.project,
-        next: value.next,
-        kept: value.kept,
-        whole_since: match value.whole_since {
-            Some(value) => Some(value.as_nanos()),
-            None => None,
-        },
-        marks: encode_marks(&value.marks),
-        sweeping: value.sweeping,
-        removing: value.removing,
-    }
+    crate::generated::store::history_project_to_record(value, &super::Context::UNBOUNDED).expect(FITS)
 }
 pub(super) fn decode_project(value: w::HistoryProject) -> d::Project {
-    let w::HistoryProject { project, next, kept, whole_since, marks, sweeping, removing } = value;
-    d::Project {
-        project,
-        next,
-        kept,
-        whole_since: match whole_since {
-            Some(value) => Some(Wall::from_nanos(value)),
-            None => None,
-        },
-        marks: decode_marks(marks),
-        sweeping,
-        removing,
-    }
+    crate::generated::store::history_project_to_domain(value, &super::Context::UNBOUNDED)
+        .expect("infallible store translation")
 }
 pub(super) fn encode_change_index(value: &d::ChangeIndex) -> w::HistoryChange {
-    w::HistoryChange { project: value.project, change: value.change, number: value.number, landing: value.landing }
+    crate::generated::store::history_change_to_record(value, &super::Context::UNBOUNDED).expect(FITS)
 }
 pub(super) fn decode_change_index(value: w::HistoryChange) -> d::ChangeIndex {
-    let w::HistoryChange { project, change, number, landing } = value;
-    d::ChangeIndex { project, change, number, landing }
+    crate::generated::store::history_change_to_domain(value, &super::Context::UNBOUNDED)
+        .expect("infallible store translation")
 }
 pub(super) fn encode_landing_index(value: &d::LandingIndex) -> w::HistoryLanding {
-    w::HistoryLanding { project: value.project, landing: value.landing, number: value.number, change: value.change }
+    crate::generated::store::history_landing_to_record(value, &super::Context::UNBOUNDED).expect(FITS)
 }
 pub(super) fn decode_landing_index(value: w::HistoryLanding) -> d::LandingIndex {
-    let w::HistoryLanding { project, landing, number, change } = value;
-    d::LandingIndex { project, landing, number, change }
+    crate::generated::store::history_landing_to_domain(value, &super::Context::UNBOUNDED)
+        .expect("infallible store translation")
 }
 pub(super) fn encode_last(value: &d::Last) -> w::HistoryLast {
-    w::HistoryLast { project: value.project, number: value.number, change: value.change, at: value.at.as_nanos() }
+    crate::generated::store::history_last_to_record(value, &super::Context::UNBOUNDED).expect(FITS)
 }
 pub(super) fn decode_last(value: w::HistoryLast) -> d::Last {
-    let w::HistoryLast { project, number, change, at } = value;
-    d::Last { project, number, change, at: Wall::from_nanos(at) }
-}
-pub(super) fn encode_member(value: &d::Member) -> w::HistoryMember {
-    w::HistoryMember { change: value.change, unit: value.unit, head: value.head }
-}
-pub(super) fn decode_member(value: w::HistoryMember) -> d::Member {
-    let w::HistoryMember { change, unit, head } = value;
-    d::Member { change, unit, head }
-}
-pub(super) fn encode_proof(value: &d::Proof) -> w::HistoryProof {
-    w::HistoryProof { gate: value.gate, run: value.run }
-}
-pub(super) fn decode_proof(value: w::HistoryProof) -> d::Proof {
-    let w::HistoryProof { gate, run } = value;
-    d::Proof { gate, run }
+    crate::generated::store::history_last_to_domain(value, &super::Context::UNBOUNDED)
+        .expect("infallible store translation")
 }
 pub(super) fn encode_event(value: &d::Event) -> w::HistoryEvent {
-    w::HistoryEvent {
-        project: value.project,
-        number: value.number,
-        at: value.at.as_nanos(),
-        source_at: match value.source_at {
-            Some(value) => Some(value.as_nanos()),
-            None => None,
-        },
-        change: value.change,
-        repository: names::encode_repository(value.repository),
-        landing: match value.landing {
-            Some(value) => Some(encode_in_landing(&value)),
-            None => None,
-        },
-        head: value.head,
-        base: value.base,
-        operation: value.operation,
-        attempt: value.attempt,
-        what: encode_what(&value.what),
-    }
+    crate::generated::store::history_event_to_record(value, &super::Context::UNBOUNDED).expect(FITS)
 }
 pub(super) fn decode_event(value: w::HistoryEvent) -> d::Event {
-    let w::HistoryEvent {
-        project,
-        number,
-        at,
-        source_at,
-        change,
-        repository,
-        landing,
-        head,
-        base,
-        operation,
-        attempt,
-        what,
-    } = value;
-    d::Event {
-        project,
-        number,
-        at: Wall::from_nanos(at),
-        source_at: match source_at {
-            Some(value) => Some(Wall::from_nanos(value)),
-            None => None,
-        },
-        change,
-        repository: names::decode_repository(repository),
-        landing: match landing {
-            Some(value) => Some(decode_in_landing(value)),
-            None => None,
-        },
-        head,
-        base,
-        operation,
-        attempt,
-        what: decode_what(what),
-    }
+    crate::generated::store::history_event_to_domain(value, &super::Context::UNBOUNDED)
+        .expect("infallible store translation")
 }
-fn encode_marks(values: &[d::Mark]) -> List<w::HistoryMark> {
-    let mut out = List::with_capacity(u32::try_from(values.len()).expect("bounded history list"));
-    for value in values {
-        out.push(encode_mark(value)).expect("bounded history list");
-    }
-    out
-}
-fn decode_marks(values: List<w::HistoryMark>) -> Box<[d::Mark]> {
-    let mut out = List::with_capacity(values.len());
-    for value in values.into_boxed() {
-        out.push(decode_mark(value)).expect("bounded history list");
-    }
-    out.into_boxed()
-}
-fn encode_members(values: &[d::Member]) -> List<w::HistoryMember> {
-    let mut out = List::with_capacity(u32::try_from(values.len()).expect("bounded history list"));
-    for value in values {
-        out.push(encode_member(value)).expect("bounded history list");
-    }
-    out
-}
-fn decode_members(values: List<w::HistoryMember>) -> Box<[d::Member]> {
-    let mut out = List::with_capacity(values.len());
-    for value in values.into_boxed() {
-        out.push(decode_member(value)).expect("bounded history list");
-    }
-    out.into_boxed()
-}
-fn encode_proofs(values: &[d::Proof]) -> List<w::HistoryProof> {
-    let mut out = List::with_capacity(u32::try_from(values.len()).expect("bounded history list"));
-    for value in values {
-        out.push(encode_proof(value)).expect("bounded history list");
-    }
-    out
-}
-fn decode_proofs(values: List<w::HistoryProof>) -> Box<[d::Proof]> {
-    let mut out = List::with_capacity(values.len());
-    for value in values.into_boxed() {
-        out.push(decode_proof(value)).expect("bounded history list");
-    }
-    out.into_boxed()
-}
-fn encode_style(value: skein_forge::api::UpdateStyle) -> w::UpdateStyle {
-    match value {
-        skein_forge::api::UpdateStyle::Merge => w::UpdateStyle::Merge,
-        skein_forge::api::UpdateStyle::Rebase => w::UpdateStyle::Rebase,
-    }
-}
-fn decode_style(value: w::UpdateStyle) -> skein_forge::api::UpdateStyle {
-    match value {
-        w::UpdateStyle::Merge => skein_forge::api::UpdateStyle::Merge,
-        w::UpdateStyle::Rebase => skein_forge::api::UpdateStyle::Rebase,
-    }
-}
-fn encode_departure(value: d::Departure) -> w::HistoryDeparture {
-    match value {
-        d::Departure::Landing(cause) => {
-            w::HistoryDeparture::Landing(w::HistoryLandingDeparture { cause: super::landing::encode_leave(cause) })
-        }
-        d::Departure::Unready => w::HistoryDeparture::Unready,
-        d::Departure::Conflict => w::HistoryDeparture::Conflict,
-        d::Departure::Repair => w::HistoryDeparture::Repair,
-        d::Departure::Ejected => w::HistoryDeparture::Ejected,
-    }
-}
-fn decode_departure(value: w::HistoryDeparture) -> d::Departure {
-    match value {
-        w::HistoryDeparture::Landing(value) => d::Departure::Landing(super::landing::decode_leave(value.cause)),
-        w::HistoryDeparture::Unready => d::Departure::Unready,
-        w::HistoryDeparture::Conflict => d::Departure::Conflict,
-        w::HistoryDeparture::Repair => d::Departure::Repair,
-        w::HistoryDeparture::Ejected => d::Departure::Ejected,
-    }
-}
-fn encode_by(value: d::By) -> w::HistoryBy {
-    match value {
-        d::By::Party(number) => w::HistoryBy::Party(w::Number { number }),
-        d::By::Task(number) => w::HistoryBy::Task(w::Number { number }),
-    }
-}
-fn decode_by(value: w::HistoryBy) -> d::By {
-    match value {
-        w::HistoryBy::Party(value) => d::By::Party(value.number),
-        w::HistoryBy::Task(value) => d::By::Task(value.number),
-    }
-}
-fn encode_what(value: &d::What) -> w::HistoryWhat {
-    match value {
-        d::What::Ready => w::HistoryWhat::Ready,
-        d::What::Unready { why } => w::HistoryWhat::Unready(w::HistoryUnreadyStep { why: encode_unready(*why) }),
-        d::What::Joined { line, place, priority } => w::HistoryWhat::Joined(w::HistoryJoined {
-            line: encode_line(*line),
-            place: *place,
-            priority: match *priority {
-                Some(value) => Some(u32::from_be_bytes(value.to_be_bytes())),
-                None => None,
-            },
-        }),
-        d::What::Departed { line, cause } => {
-            w::HistoryWhat::Departed(w::HistoryDeparted { line: encode_line(*line), cause: encode_departure(*cause) })
-        }
-        d::What::Selected => w::HistoryWhat::Selected,
-        d::What::Update { style, forge_base } => {
-            w::HistoryWhat::Update(w::HistoryUpdate { style: encode_style(*style), forge_base: *forge_base })
-        }
-        d::What::Updated { outcome, forge_base } => w::HistoryWhat::Updated(w::HistoryUpdated {
-            outcome: encode_update_outcome(*outcome),
-            forge_base: *forge_base,
-        }),
-        d::What::Job { job, task } => w::HistoryWhat::Job(w::HistoryJobStarted { job: encode_job(*job), task: *task }),
-        d::What::JobEnded { job, outcome } => w::HistoryWhat::JobEnded(w::HistoryJobEnded {
-            job: encode_job(*job),
-            outcome: encode_job_outcome(*outcome),
-        }),
-        d::What::Conflict { with, files } => {
-            w::HistoryWhat::Conflict(w::HistoryConflict { with: encode_with(*with), files: *files })
-        }
-        d::What::Asked { ask, task, gate } => {
-            w::HistoryWhat::Asked(w::HistoryAsked { ask: encode_ask(*ask), task: *task, gate: *gate })
-        }
-        d::What::Answered { ask, outcome } => {
-            w::HistoryWhat::Answered(w::HistoryAnswered { ask: encode_ask(*ask), outcome: encode_answer(*outcome) })
-        }
-        d::What::Pushed => w::HistoryWhat::Pushed,
-        d::What::Delivered { checked } => w::HistoryWhat::Delivered(w::HistoryDelivered { checked: *checked }),
-        d::What::Paused { why } => w::HistoryWhat::Paused(w::HistoryPaused { why: encode_pause(*why) }),
-        d::What::Resumed => w::HistoryWhat::Resumed,
-        d::What::Formed { members, place } => {
-            w::HistoryWhat::Formed(w::HistoryFormed { members: encode_members(members), place: *place })
-        }
-        d::What::RoundEnded { cause } => {
-            w::HistoryWhat::RoundEnded(w::HistoryRoundEnded { cause: encode_round_cause(*cause) })
-        }
-        d::What::Gate { gate, key } => w::HistoryWhat::Gate(w::HistoryGate { gate: *gate, key: *key }),
-        d::What::GateEnded { gate, key, verdict } => w::HistoryWhat::GateEnded(w::HistoryGateEnded {
-            gate: *gate,
-            key: *key,
-            verdict: encode_gate_verdict(*verdict),
-        }),
-        d::What::Proved { proofs } => w::HistoryWhat::Proved(w::HistoryProved { proofs: encode_proofs(proofs) }),
-        d::What::Search => w::HistoryWhat::Search,
-        d::What::Searched { green, red, blamed } => {
-            w::HistoryWhat::Searched(w::HistorySearched { green: *green, red: *red, blamed: *blamed })
-        }
-        d::What::Probe => w::HistoryWhat::Probe,
-        d::What::ProbeEnded { green } => w::HistoryWhat::ProbeEnded(w::HistoryProbeEnded { green: *green }),
-        d::What::Turn { members } => w::HistoryWhat::Turn(w::HistoryTurn { members: *members }),
-        d::What::Landed => w::HistoryWhat::Landed,
-        d::What::Recorded { state } => {
-            w::HistoryWhat::Recorded(w::HistoryRecorded { state: encode_recorded_state(*state) })
-        }
-        d::What::Ended { ending } => w::HistoryWhat::Ended(w::HistoryEnded { ending: encode_ending(*ending) }),
-        d::What::LandingEnded { outcome } => {
-            w::HistoryWhat::LandingEnded(w::HistoryLandingEnded { outcome: encode_landing_outcome(*outcome) })
-        }
-        d::What::Held { on, reason, by } => w::HistoryWhat::Held(w::HistoryHold {
-            on: encode_on(*on),
-            reason: reason.clone(),
-            by: match *by {
-                Some(value) => Some(encode_by(value)),
-                None => None,
-            },
-        }),
-        d::What::Released { on, reason, by } => w::HistoryWhat::Released(w::HistoryHold {
-            on: encode_on(*on),
-            reason: reason.clone(),
-            by: match *by {
-                Some(value) => Some(encode_by(value)),
-                None => None,
-            },
-        }),
-        d::What::After { verdict } => {
-            w::HistoryWhat::After(w::HistoryAfter { verdict: encode_after_verdict(*verdict) })
-        }
-    }
-}
-#[expect(clippy::too_many_lines, reason = "one exhaustive translation of history event kinds")]
-fn decode_what(value: w::HistoryWhat) -> d::What {
-    match value {
-        w::HistoryWhat::Ready => d::What::Ready,
-        w::HistoryWhat::Unready(value) => {
-            let w::HistoryUnreadyStep { why } = value;
-            d::What::Unready { why: decode_unready(why) }
-        }
-        w::HistoryWhat::Joined(value) => {
-            let w::HistoryJoined { line, place, priority } = value;
-            d::What::Joined {
-                line: decode_line(line),
-                place,
-                priority: match priority {
-                    Some(value) => Some(i32::from_be_bytes(value.to_be_bytes())),
-                    None => None,
-                },
-            }
-        }
-        w::HistoryWhat::Departed(value) => {
-            let w::HistoryDeparted { line, cause } = value;
-            d::What::Departed { line: decode_line(line), cause: decode_departure(cause) }
-        }
-        w::HistoryWhat::Selected => d::What::Selected,
-        w::HistoryWhat::Update(value) => {
-            let w::HistoryUpdate { style, forge_base } = value;
-            d::What::Update { style: decode_style(style), forge_base }
-        }
-        w::HistoryWhat::Updated(value) => {
-            let w::HistoryUpdated { outcome, forge_base } = value;
-            d::What::Updated { outcome: decode_update_outcome(outcome), forge_base }
-        }
-        w::HistoryWhat::Job(value) => {
-            let w::HistoryJobStarted { job, task } = value;
-            d::What::Job { job: decode_job(job), task }
-        }
-        w::HistoryWhat::JobEnded(value) => {
-            let w::HistoryJobEnded { job, outcome } = value;
-            d::What::JobEnded { job: decode_job(job), outcome: decode_job_outcome(outcome) }
-        }
-        w::HistoryWhat::Conflict(value) => {
-            let w::HistoryConflict { with, files } = value;
-            d::What::Conflict { with: decode_with(with), files }
-        }
-        w::HistoryWhat::Asked(value) => {
-            let w::HistoryAsked { ask, task, gate } = value;
-            d::What::Asked { ask: decode_ask(ask), task, gate }
-        }
-        w::HistoryWhat::Answered(value) => {
-            let w::HistoryAnswered { ask, outcome } = value;
-            d::What::Answered { ask: decode_ask(ask), outcome: decode_answer(outcome) }
-        }
-        w::HistoryWhat::Pushed => d::What::Pushed,
-        w::HistoryWhat::Delivered(value) => {
-            let w::HistoryDelivered { checked } = value;
-            d::What::Delivered { checked }
-        }
-        w::HistoryWhat::Paused(value) => {
-            let w::HistoryPaused { why } = value;
-            d::What::Paused { why: decode_pause(why) }
-        }
-        w::HistoryWhat::Resumed => d::What::Resumed,
-        w::HistoryWhat::Formed(value) => {
-            let w::HistoryFormed { members, place } = value;
-            d::What::Formed { members: decode_members(members), place }
-        }
-        w::HistoryWhat::RoundEnded(value) => {
-            let w::HistoryRoundEnded { cause } = value;
-            d::What::RoundEnded { cause: decode_round_cause(cause) }
-        }
-        w::HistoryWhat::Gate(value) => {
-            let w::HistoryGate { gate, key } = value;
-            d::What::Gate { gate, key }
-        }
-        w::HistoryWhat::GateEnded(value) => {
-            let w::HistoryGateEnded { gate, key, verdict } = value;
-            d::What::GateEnded { gate, key, verdict: decode_gate_verdict(verdict) }
-        }
-        w::HistoryWhat::Proved(value) => {
-            let w::HistoryProved { proofs } = value;
-            d::What::Proved { proofs: decode_proofs(proofs) }
-        }
-        w::HistoryWhat::Search => d::What::Search,
-        w::HistoryWhat::Searched(value) => {
-            let w::HistorySearched { green, red, blamed } = value;
-            d::What::Searched { green, red, blamed }
-        }
-        w::HistoryWhat::Probe => d::What::Probe,
-        w::HistoryWhat::ProbeEnded(value) => {
-            let w::HistoryProbeEnded { green } = value;
-            d::What::ProbeEnded { green }
-        }
-        w::HistoryWhat::Turn(value) => {
-            let w::HistoryTurn { members } = value;
-            d::What::Turn { members }
-        }
-        w::HistoryWhat::Landed => d::What::Landed,
-        w::HistoryWhat::Recorded(value) => {
-            let w::HistoryRecorded { state } = value;
-            d::What::Recorded { state: decode_recorded_state(state) }
-        }
-        w::HistoryWhat::Ended(value) => {
-            let w::HistoryEnded { ending } = value;
-            d::What::Ended { ending: decode_ending(ending) }
-        }
-        w::HistoryWhat::LandingEnded(value) => {
-            let w::HistoryLandingEnded { outcome } = value;
-            d::What::LandingEnded { outcome: decode_landing_outcome(outcome) }
-        }
-        w::HistoryWhat::Held(value) => {
-            let w::HistoryHold { on, reason, by } = value;
-            d::What::Held {
-                on: decode_on(on),
-                reason,
-                by: match by {
-                    Some(value) => Some(decode_by(value)),
-                    None => None,
-                },
-            }
-        }
-        w::HistoryWhat::Released(value) => {
-            let w::HistoryHold { on, reason, by } = value;
-            d::What::Released {
-                on: decode_on(on),
-                reason,
-                by: match by {
-                    Some(value) => Some(decode_by(value)),
-                    None => None,
-                },
-            }
-        }
-        w::HistoryWhat::After(value) => {
-            let w::HistoryAfter { verdict } = value;
-            d::What::After { verdict: decode_after_verdict(verdict) }
-        }
-    }
-}
-
 pub(super) fn encode_job_record(job: Option<&d::JobRecord>) -> Option<w::HistoryJobRecord> {
     let job = job?;
     let mut members = List::with_capacity(u32::try_from(job.members.len()).expect(FITS));
@@ -774,4 +113,32 @@ pub(super) fn decode_job_record(job: Option<w::HistoryJobRecord>) -> Option<d::J
         head,
         written,
     })
+}
+
+pub fn history_job_outcome_to_record(
+    value: &d::JobOutcome,
+    _context: &super::Context,
+) -> Result<w::HistoryJobOutcome, w::Problem> {
+    Ok(encode_job_outcome(*value))
+}
+
+pub fn history_job_outcome_to_domain(
+    value: w::HistoryJobOutcome,
+    _context: &super::Context,
+) -> Result<d::JobOutcome, w::Problem> {
+    Ok(decode_job_outcome(value))
+}
+
+pub fn history_job_record_to_record(
+    value: &d::JobRecord,
+    _context: &super::Context,
+) -> Result<w::HistoryJobRecord, w::Problem> {
+    Ok(encode_job_record(Some(value)).expect("present job"))
+}
+
+pub fn history_job_record_to_domain(
+    value: w::HistoryJobRecord,
+    _context: &super::Context,
+) -> Result<d::JobRecord, w::Problem> {
+    Ok(decode_job_record(Some(value)).expect("present job"))
 }

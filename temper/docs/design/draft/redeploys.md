@@ -161,14 +161,14 @@ From main at `ee03a1159c` and dev.fabrig.ai's redeploys of 2026-11-11 and 11-12,
 
 - **Told to stop, a worker drains** (jig's `domain/hosts/hub.md`, 7). It says so on its link, takes no new run or job, and asks each agent to stop at the end of its current turn, once the LLM has answered and the turn's calls have their answers.
 - **Within the drain bound,** by default 3 minutes (section 12). A run still in its turn at the bound is cancelled as today: a check in flight is cut, and the next attempt runs it again.
-- **Then as today:** each agent gone; relays and deliveries settled; the work saved to its saved-work branch; the answer `Cancelled(Shutdown)`, the attempt interrupted with no try spent and its window left open; every turn and answer acknowledged before the worker exits.
-- **A job the drain cancels** before its effect began ends interrupted too, where today it ends lost and spends a try. One whose effect began is left for the next attempt to recover, as after any loss.
+- **Then as today:** each agent gone; relays and deliveries settled; the work saved to its saved-work branch; the answer `Cancelled(Shutdown)`, the attempt suspended with no try spent and its window left open (`worker-restarts.md`, 5); every turn and answer acknowledged before the worker exits.
+- **A job the drain cancels** before its effect began ends suspended too, where today it ends lost and spends a try. One whose effect began is left for the next attempt to recover, as after any loss.
 - **The stop bound is enforced, not declared.** The bound a worker states at its hello (jig's `domain/hosts/hub.md`, 6) is a deadline the worker keeps over the drain, every cancellation, delivery and save, and its agents' teardown. A save still running at it is abandoned and its agent's group killed, so nothing of the attempt writes after it, and the engine's grace is sized from it.
 - **The service manager's stop timeout** sits above the stop bound. A kill before it is a crash: the workspace's changes since its last save or delivery are lost, whatever turns were committed since, and the attempt is lost.
 
 ### 6.2 What a run loses
 
-- **At most a turn's tail that the bound cut,** and whatever its saved work leaves out: ignored files and build outputs. Its conversation, its committed calls and its saved work go on in its next attempt, on any worker (jig's `domain/engine/executors.md`, 2).
+- **At most a turn's tail that the bound cut,** and whatever its saved work leaves out: ignored files and build outputs. Its conversation, its committed calls and its saved work go on in its next attempt, on the same worker while it is back within the restart wait, else on any worker (jig's `domain/engine/executors.md`, 2 and 6.4).
 
 ### 6.3 A warm start
 
@@ -260,7 +260,6 @@ Each part is carried by a goal, across the trees.
 - **The workers' grace.** Default: 5 minutes, with the engine's grace above every worker's enforced stop bound.
 - **The restart wait.** Default: 20 minutes, with room over every window measured so far, 6 minutes on 2026-11-15 and 11½ on 2026-11-13's store patch, not a current upgrade path; a worker gone for good across a restart holds its runs that long and the grace after it. It is the engine's to set and say, so one setting serves every worker.
 - **A run's reports to the engine** kept and sent at the relink, as its turns are, rather than dropped while it waits. Later.
-- **A worker back as a new process** proves the runs it no longer lists are gone, so they could be retried at once rather than after the restart wait. Later.
 - **How long a floor stays.** Default: until dev.fabrig.ai and staging.fabrig.ai have both run past it for a week.
 - **The policy for infrastructure failures** (section 9). Default: a bound of its own, in jig.
 - **A newer worker before its engine** (4.3). Default: only when all its wires go down whole.

@@ -42,11 +42,13 @@ pub(crate) fn admission(
         }
     }
     let mut findings = Queue::uncapped();
+    let mut task_authority = crate::translate::tasks_authority(&context.authority);
+    task_authority.budget.deadline = core.tasks.deadline(context.task, wall);
     let answer = authority::check_job(
         &core.authority,
         &authority::JobAsk {
             project: context.project,
-            authority: crate::translate::tasks_authority(&context.authority),
+            authority: task_authority,
             wall,
             credentials: core.run_credentials_check(context.task, core.run_now),
             writes: current.into_boxed(),

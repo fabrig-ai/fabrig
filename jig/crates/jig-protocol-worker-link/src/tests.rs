@@ -1,6 +1,6 @@
 mod backoff;
 mod busy;
-mod fixtures;
+pub(crate) mod fixtures;
 mod relays;
 mod translate;
 

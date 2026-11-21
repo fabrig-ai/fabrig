@@ -1,6 +1,7 @@
 # records: status
 
-2026-11-20. Where the tree's code lags or departs from [records.md](records.md).
+2026-11-21. Where the tree's code lags or departs from [records.md](records.md).
+
 
 
 - **Not yet:** *`OpenChange`* and *A project's changes*: `into` left
@@ -126,9 +127,9 @@ map the new tokens in both schemes, which establishes no rendered look.
 The quiet line names a step as the box names it ("forgejo-3
 restarting"), where the request's frame 05 has "forge restarting", and
 `/log` shows the box's own lines, as `../tui/box.md` has them
-(`../../draft/tui.status.md`). The journey `box-welcome` waits for
-`again` (`../tui/journeys.status.md`, 8.3), and the real terminal's check,
-Linux and macOS, is `../README.md`, section 5's after-landing work, owned by temper/tui.
+(`../../draft/tui.status.md`). A journey with the TUI in front of a box
+has no driver (`../drive.md`, 7); the real terminal's check, Linux and
+macOS, is `../README.md`, section 5's after-landing work, owned by temper/tui.
 
 - **Design departs:** *The program's environment*, from the request `box-small-2`
   of 2026-11-06, item 1, decided by its plan's cut, which takes `resolve` as all or

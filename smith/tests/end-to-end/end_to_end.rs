@@ -8,7 +8,7 @@ mod program_lifetime;
 mod program_rechecks;
 mod program_runs;
 mod relay;
-pub mod support;
+pub use smith_end_to_end_kit as support;
 
 use smith_local_process_world::{Placement, referee::CheckoutRead};
 use smith_real_world::{Scratch, World};
@@ -394,7 +394,7 @@ fn smith_check_json_shows_each_value_with_its_layer() {
     assert!(!String::from_utf8_lossy(&ran.stdout).contains("repository-value"));
     assert_eq!(
         report["formats"],
-        serde_json::json!({"channel":12,"charter":5,"transcript":7,"events":4,"chat_store":1,"check":2})
+        serde_json::json!({"channel":13,"charter":5,"transcript":7,"events":4,"chat_store":1,"check":2})
     );
     for tool in ["sh", "rg", "git"] {
         assert!(report["tools"][tool].as_str().expect("tool path").starts_with('/'));

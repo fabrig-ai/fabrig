@@ -656,6 +656,7 @@ pub(crate) fn named_action(
                         | jig_domain_people::Refusal::Kept { .. }
                         | jig_domain_people::Refusal::Role { .. }
                         | jig_domain_people::Refusal::Authority { .. }
+                        | jig_domain_people::Refusal::Unlinked { .. }
                         | jig_domain_people::Refusal::Concluded { .. }
                         | jig_domain_people::Refusal::Ended { .. }
                         | jig_domain_people::Refusal::Taken { .. }

@@ -10,6 +10,7 @@ pub enum TaskRunWait {
     Account { account: Option<u32>, source: Option<u32>, why: TaskWaitWhy },
     Credential,
     Host,
+    Worker { worker: u32, until: Wall },
     Refused(TaskWaitRefused),
 }
 /// A derived explanation, never a durable task state (domain/engine/fleet.md).

@@ -398,6 +398,7 @@ pub(crate) fn acted(
         | people::Outcome::AccountProgramDeclared { .. }
         | people::Outcome::AccountReading { .. }
         | people::Outcome::AccountLoginAsked { .. }
+        | people::Outcome::WorkerPauseAsked { .. }
         | people::Outcome::AccountChanged
         | people::Outcome::AccountMovingOut { .. }
         | people::Outcome::Lifted { .. }

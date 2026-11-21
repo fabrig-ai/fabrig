@@ -473,6 +473,11 @@ pub(super) fn encode_end(value: &tasks::End, limits: &Limits) -> Result<wire::En
         }
         tasks::End::Refused => wire::End::Refused,
         tasks::End::Recheck => wire::End::Recheck,
+        tasks::End::Suspended(value) => wire::End::Suspended(wire::Suspended {
+            worker: value.worker,
+            why: super::activity::suspend_why(value.why),
+            window: value.window,
+        }),
     })
 }
 pub(super) fn decode_end(value: wire::End, limits: &Limits) -> Result<tasks::End, wire::Problem> {
@@ -514,6 +519,11 @@ pub(super) fn decode_end(value: wire::End, limits: &Limits) -> Result<tasks::End
         wire::End::RefusedWithReason(value) => tasks::End::RefusedWithReason { reason: value.reason },
         wire::End::Refused => tasks::End::Refused,
         wire::End::Recheck => tasks::End::Recheck,
+        wire::End::Suspended(value) => tasks::End::Suspended(tasks::Suspended {
+            worker: value.worker,
+            why: super::activity::read_suspend_why(value.why),
+            window: value.window,
+        }),
     })
 }
 

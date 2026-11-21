@@ -8,10 +8,12 @@ mod jobs;
 mod liveness;
 mod memory;
 mod opening;
+mod pause;
 mod prepared;
 mod records;
 mod relinks;
 mod restarting;
+mod retime;
 mod sources;
 mod stopping;
 

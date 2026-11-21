@@ -247,6 +247,7 @@ pub struct WorkerState {
     pub withdrawn: bool,
     pub linked: bool,
     pub since: Option<Wall>,
+    pub pause: jig_domain_link::PauseState,
 }
 
 #[cfg(test)]

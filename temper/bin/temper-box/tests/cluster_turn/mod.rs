@@ -1,4 +1,5 @@
-//! Landing's two process boundaries on the fake forge (testing/process-tier.md).
+//! Cluster process boundaries on the fake forge (testing/process-tier.md).
+mod unit_stop;
 use serde_json::Value;
 use skein_io::kernel::Exit;
 use skein_lib::{Duration, Time};
@@ -25,10 +26,25 @@ fn a_worker_restarted_mid_delivery_lands_its_saved_work_by_turn() {
     story("cluster-turn-delivery", Cut::Worker).unwrap_or_else(|why| panic!("{why}"));
 }
 
+/// worker-restarts.md, 9, test 8: unit stop and a stray agent signal while an answer is held.
+#[test]
+fn a_unit_stop_settles_a_workers_held_turn() {
+    story("cluster-unit-stop", Cut::Unit).unwrap_or_else(|why| panic!("{why}"));
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Cut {
     Engine,
     Worker,
+    Unit,
+}
+impl Cut {
+    fn within(self) -> Duration {
+        // The user's process-temper wall backstop (tools/tiers/budgets.toml).
+        // The unit variant's stop deadline is the printed bound plus the help's margin;
+        // setup and ctl reads still have WITHIN, and its CPU budget remains 60 s.
+        if self == Self::Unit { Duration::from_secs(1080) } else { support::WITHIN }
+    }
 }
 #[derive(Debug, PartialEq, Eq)]
 enum Stage {
@@ -50,6 +66,7 @@ enum Stage {
     Jobs,
     Closed,
     Stopping,
+    Unit,
 }
 
 fn story(name: &str, cut: Cut) -> Result<(), String> {
@@ -67,9 +84,13 @@ fn story(name: &str, cut: Cut) -> Result<(), String> {
         cluster.git_on_path("w1", &directory);
         support::write_private(&root.join("delivery.hold"), b"");
     }
+    if cut == Cut::Unit {
+        unit_stop::prepare(&mut cluster);
+    }
+    let within = cut.within();
     let key = cluster.dir("llm").join("llm.key");
     let admin = cluster.dir("forge").join("setup/admin_token");
-    let (mut members, hosts) = cluster.members();
+    let (mut members, hosts) = cluster.members_within(within);
     members.up(&["w1"]);
     let clock = skein_shell::Clock::new();
     let mut world = skein_world::real::World::new(Judge {
@@ -90,12 +111,13 @@ fn story(name: &str, cut: Cut) -> Result<(), String> {
         panel: Value::Null,
         changed: Value::Null,
         last: Value::Null,
+        unit: unit_stop::Stop::new(),
     });
     for host in hosts {
         world.spawn(|| host);
     }
     world.spawn(Root::client);
-    let outcome = world.try_run(&clock, support::WITHIN)?;
+    let outcome = world.try_run(&clock, within)?;
     if !outcome.procs.iter().all(Host::is_empty) {
         return Err("every member and the client settled".into());
     }
@@ -121,6 +143,7 @@ struct Judge {
     panel: Value,
     changed: Value,
     last: Value,
+    unit: unit_stop::Stop,
 }
 
 fn json(call: &support::Ended) -> Result<Value, String> {
@@ -299,6 +322,9 @@ impl Judge {
             self.stage = Stage::Stopping;
             return Ok(());
         }
+        if self.stage == Stage::Unit {
+            return self.advance_unit(now, hosts);
+        }
         let (host, _) = hosts.split_last_mut().ok_or("client root")?;
         self.tick = None;
         match self.stage {
@@ -401,7 +427,8 @@ impl Judge {
             | Stage::Verify
             | Stage::Jobs
             | Stage::Closed
-            | Stage::Stopping => {}
+            | Stage::Stopping
+            | Stage::Unit => {}
         }
         Ok(())
     }
@@ -421,7 +448,10 @@ impl Judge {
                     .as_u64()
                     .ok_or("chat task")?
                     .to_string();
-                if self.cut == Cut::Worker {
+                if self.cut == Cut::Unit {
+                    self.stage = Stage::Unit;
+                    self.tick = Some(now);
+                } else if self.cut == Cut::Worker {
                     self.stage = Stage::Holding;
                     self.tick = Some(now);
                 } else {
@@ -487,7 +517,8 @@ impl Judge {
             | Stage::EngineEnded
             | Stage::Restarted
             | Stage::PanelAgain(_)
-            | Stage::Stopping => return Err("no calls in this stage".into()),
+            | Stage::Stopping
+            | Stage::Unit => return Err("no calls in this stage".into()),
         }
         Ok(())
     }
@@ -600,8 +631,15 @@ impl skein_world::Referee<Root> for Judge {
         self.members.observe(now, members);
         self.members.verdict()?;
         if let Some(stopped) = self.members.stopped() {
+            if self.cut == Cut::Unit {
+                self.unit_queries()?;
+            }
             let restarted = if self.cut == Cut::Engine { "engine" } else { "w1" };
-            let lives = if self.cut == Cut::Engine { 3 } else { 2 };
+            let lives = match self.cut {
+                Cut::Engine => 3,
+                Cut::Worker => 2,
+                Cut::Unit => 1,
+            };
             if stopped.iter().filter(|life| life.name == restarted).count() != lives {
                 return Err(format!("{lives} lives of {restarted}, including the landing-settings start"));
             }
@@ -628,8 +666,13 @@ impl skein_world::Referee<Root> for Judge {
         Some(self.members.next_deadline().into_iter().chain(self.tick).fold(self.deadline, Time::min))
     }
     fn overdue(&self, now: Time) -> Option<String> {
-        (now >= self.deadline && !self.passed())
-            .then(|| format!("cluster turn {:?}; last read: {}", self.stage, self.last))
+        (now >= self.deadline && !self.passed()).then(|| {
+            if self.stage == Stage::Unit {
+                format!("cluster unit stop {:?}", self.unit)
+            } else {
+                format!("cluster turn {:?}; last read: {}", self.stage, self.last)
+            }
+        })
     }
     fn passed(&self) -> bool {
         self.finding.is_none() && self.stage == Stage::Stopping && self.members.verdict() == Ok(true)

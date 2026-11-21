@@ -9,6 +9,7 @@
 - **Not yet:** 8, the bound's bullet: smith counts a check's bound from its start, the waits it says it makes included [in flight: change 9658].
 - **Not yet:** 8: a run's new and flagged tests run alone once each, none twice more past its limit (`tools/tiers/references.md`, 4) [in flight: change 8831].
 - **Not yet:** 1, 4 and 9.2: the check runs no check 8: a delivery that changes a journey's recording or page beside any other file, or fills an `overlay.css`, passes [in flight: change 8897].
+- **Not yet:** 4 and 9.2: the check runs no check 9: a delivery that changes the merge job runs none of its tests [in flight: change 11346].
 
 No other gap in sections 1–9. Section 10's later work remains outside the
 delivery check.

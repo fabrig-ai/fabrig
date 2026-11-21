@@ -431,6 +431,7 @@ fn keeps_requested(outcome: &Outcome) -> bool {
                 | c::DocumentOutcome::AccountChanged => true,
             },
             c::Outcome::Restored { .. }
+            | c::Outcome::WorkerPauseAsked { .. }
             | c::Outcome::Account(_)
             | c::Outcome::SettingsChanged(_)
             | c::Outcome::MovedToNewest(_)

@@ -1,4 +1,4 @@
-//! One worker setting per act (client/ctl/workers.md, 2).
+//! Worker settings, unkeyed asks and wait preflight (client/ctl/workers.md, 2).
 use super::{Out, Runner, acts, reads::Reading};
 use crate::jig::{
     Limits,
@@ -49,6 +49,29 @@ pub(super) fn resolved(
     let Some(Readout::Jig(c::ReadResult::Value(c::ReadValue::Deployment(deployment)))) = reading.pages.get(&1) else {
         unreachable!("worker deployment read")
     };
+    if reading.called.call.tool == rows::WORKER_LIST_AT {
+        let until = crate::jig::call::argument(&rows::WORKER_LIST, &reading.called.call, b"until");
+        if let Some(Value::Condition(
+            crate::jig::subject::Condition::Drained(name) | crate::jig::subject::Condition::Paused(name),
+        )) = until
+            && !matches_live(deployment, name)
+        {
+            let mut measure = render::Text::measure();
+            refusal_text(name, false, &mut measure);
+            let mut text = render::Text::writing_exact(measure);
+            refusal_text(name, false, &mut text);
+            let printed = render::failure(&text.finish(), reading.called.json, 1);
+            super::finish(reading.called, printed, out);
+            return;
+        }
+        crate::jig::wait::start(runner, client, env, reading.called, out);
+        return;
+    }
+    if asking(reading.called.call.tool) {
+        let request = pause_request(&reading.called.call, deployment);
+        acts::prepared(runner, client, env, reading.called, request, out);
+        return;
+    }
     let Some(Readout::Jig(c::ReadResult::Value(c::ReadValue::Settings(settings)))) = reading.pages.get(&2) else {
         unreachable!("worker settings read")
     };
@@ -56,6 +79,29 @@ pub(super) fn resolved(
     acts::prepared(runner, client, env, reading.called, request, out);
 }
 
+pub(super) fn asking(tool: u8) -> bool {
+    (rows::WORKER_PAUSE_AT..=rows::WORKER_RESUME_AT).contains(&tool)
+}
+fn matches_live(deployment: &c::Deployment, name: &[u8]) -> bool {
+    match c::worker_number(deployment.worker_settings.as_slice(), name) {
+        c::WorkerNumber::Live(_) => true,
+        c::WorkerNumber::Withdrawn(_) | c::WorkerNumber::Free(_) => false,
+    }
+}
+fn pause_request(call: &Call, deployment: &c::Deployment) -> acts::Prepared {
+    let Some(Value::Text(name)) = value(call, 0) else { unreachable!("worker name argument") };
+    let worker = match c::worker_number(deployment.worker_settings.as_slice(), name) {
+        c::WorkerNumber::Live(number) => number,
+        c::WorkerNumber::Withdrawn(_) | c::WorkerNumber::Free(_) => return Err(local_refusal(name, false)),
+    };
+    let mode = match call.tool {
+        rows::WORKER_PAUSE_AT => c::WorkerPauseMode::Pause,
+        rows::WORKER_DRAIN_AT => c::WorkerPauseMode::Drain,
+        rows::WORKER_RESUME_AT => c::WorkerPauseMode::Resume,
+        _ => unreachable!("worker ask"),
+    };
+    Ok((acts::Request::Ask(c::Ask::PauseWorker { worker, mode }), None))
+}
 fn request(call: &Call, deployment: &c::Deployment, against: u32) -> acts::Prepared {
     let Some(Value::Text(name)) = value(call, 0) else { unreachable!("worker name argument") };
     let picked = c::worker_number(deployment.worker_settings.as_slice(), name);

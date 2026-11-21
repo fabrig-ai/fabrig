@@ -7,6 +7,9 @@ pub fn waiting(value: Option<&w::TaskRunWait>) -> Option<c::TaskRunWait> {
     Some(match value? {
         w::TaskRunWait::Credential => c::TaskRunWait::Credential,
         w::TaskRunWait::Host => c::TaskRunWait::Host,
+        w::TaskRunWait::Worker(row) => {
+            c::TaskRunWait::Worker { worker: row.worker, until: skein_lib::Wall::from_nanos(row.until) }
+        }
         w::TaskRunWait::Refused(value) => c::TaskRunWait::Refused(match &value.value {
             w::TaskWaitRefused::Hello(row) => c::TaskWaitRefused::Hello {
                 kind: super::documents::host_kind_fields(&row.kind),

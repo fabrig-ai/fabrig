@@ -309,6 +309,7 @@ fn outputs(
             | Request::EraseCarried { .. }
             | Request::MilestoneMarked { .. }
             | Request::Marked { .. }
+            | Request::FullTableFact { .. }
             | Request::MarkedForges
             | Request::ApplicationPart { .. }
             | Request::ApplicationDone { .. }

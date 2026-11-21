@@ -106,6 +106,27 @@ pub(crate) fn heard(d: &mut Domain, wall: Wall, task: u64, step: h::JobStep, out
         out.push(Request::WakeProcedure { task });
     }
 }
+/// A suspended attempt has no result to read back, nor a loss to infer at its next claim.
+pub(crate) fn suspended(d: &mut Domain, task: u64, child: u64, attempt: u32, out: &mut Queue<Request>) {
+    if let Some(mut row) = d.landing.rows.get(&task).cloned() {
+        if let Some(job) = &row.job
+            && job.step.task == child
+            && job.step.attempt == attempt
+        {
+            row.job = None;
+            crate::landing::save(d, row, out);
+        }
+    } else if let Some(mut row) = d.changes.get(&task).cloned()
+        && let Some(job) = &row.job
+        && job.step.task == child
+        && job.step.attempt == attempt
+    {
+        row.job = None;
+        d.changes.insert(task, row.clone()).expect("job owner admitted");
+        crate::domain::save_change(d, out, row);
+    }
+}
+
 fn write_prepare(
     d: &mut Domain,
     wall: Wall,

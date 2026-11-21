@@ -9,15 +9,22 @@ pub const WORKER_LIST_AT: u8 = 106;
 pub const WORKER_ADD_AT: u8 = 107;
 pub const WORKER_PLACES_AT: u8 = 108;
 pub const WORKER_REMOVE_AT: u8 = 109;
+pub const WORKER_PAUSE_AT: u8 = 114;
+pub const WORKER_DRAIN_AT: u8 = 115;
+pub const WORKER_RESUME_AT: u8 = 116;
 pub const WORKER_LIST: Tool = Tool {
     name: b"worker list",
     line: b"Read the workers not withdrawn, in number order",
-    prints: b"A line per worker: WORKER, its places, up since TIME, down since TIME or down, and its runs' count",
+    prints: b"A line per worker: WORKER, its places, up since TIME, down since TIME or down, its runs' count, then paused, draining or drained when not taking; and `digest: workers`",
     result: b"workers",
-    forms: &[&[]],
+    forms: &[&[
+        flag(b"since", b"DIGEST", Kind::Digest, Optional, b"Wait until it differs from the read that printed DIGEST"),
+        flag(b"until", b"CONDITION", Kind::Condition, Optional, b"Wait until it holds: drained:WORKER, paused:WORKER, or changed"),
+        flag(b"timeout", b"DURATION", Kind::Duration, Optional, b"How long a wait lasts; 300 seconds when absent, at most 3600"),
+    ]],
     keyed: Keyed::Never,
     area: DEPLOYMENT_CENSUS.area,
-    notes: b"Runs are those of the connected host of the worker's name.\nJSON gives each worker not withdrawn, with its runs' count.\n",
+    notes: b"Runs are those of the connected host of the worker's name.\nJSON gives each worker not withdrawn, with its runs' count and pause:\ntaking, paused, draining or drained. The digest covers these rows.\nWaits on the deployment's watch. paused:WORKER holds for paused,\ndraining or drained; drained:WORKER holds for drained. An unknown\nlive worker in a condition is a usage error (exit 1) before watching.\n",
 };
 pub const WORKER_ADD: Tool = Tool {
     name: b"worker add",
@@ -55,6 +62,36 @@ pub const WORKER_REMOVE: Tool = Tool {
     keyed: Keyed::Required,
     area: DEPLOYMENT_CENSUS.area,
     notes: b"Stop a linked worker first; its runs end interrupted.\nChanges one setting against the newest revision read; running work stays.\n",
+};
+pub const WORKER_PAUSE: Tool = Tool {
+    name: b"worker pause",
+    line: b"Ask a linked worker to take no new run or job; its runs go on",
+    prints: b"`worker WORKER: asked to pause`",
+    result: b"pause_worker",
+    forms: WORKER_REMOVE.forms,
+    keyed: Keyed::Never,
+    area: DEPLOYMENT_CENSUS.area,
+    notes: b"A worker's restart ends its pause.\nAn ask is no settings change: no key, no revision, no retry.\n",
+};
+pub const WORKER_DRAIN: Tool = Tool {
+    name: b"worker drain",
+    line: b"Ask a linked worker to take no new work and drain",
+    prints: b"`worker WORKER: asked to drain`, then `worker list --until drained:WORKER`",
+    result: b"pause_worker",
+    forms: WORKER_REMOVE.forms,
+    keyed: Keyed::Never,
+    area: DEPLOYMENT_CENSUS.area,
+    notes: b"Each run stops at its turn's end; what is left is cut at the worker's\ndrain bound. A drained worker stays linked and takes nothing until\nworker resume or its stop, which then finds nothing to drain.\nAn older build is kept from new work but not drained.\nAn ask is no settings change: no key, no revision, no retry.\n",
+};
+pub const WORKER_RESUME: Tool = Tool {
+    name: b"worker resume",
+    line: b"Ask a linked worker to take work again",
+    prints: b"`worker WORKER: asked to take work again`",
+    result: b"pause_worker",
+    forms: WORKER_REMOVE.forms,
+    keyed: Keyed::Never,
+    area: DEPLOYMENT_CENSUS.area,
+    notes: b"A run already asked to stop still stops at its turn's end.\nAn ask is no settings change: no key, no revision, no retry.\n",
 };
 /// Deployment census (client/ctl/tools.md, 2; client/ctl/results.md, 1 and 2).
 pub const DEPLOYMENT_CENSUS_AT: u8 = 98;
@@ -1003,6 +1040,7 @@ pub(crate) fn watched(tool: u8) -> Option<&'static Tool> {
         TREE_AT => &TREE,
         RUN_AT => &RUN,
         ACCOUNTS_AT => &ACCOUNTS,
+        WORKER_LIST_AT => &WORKER_LIST,
         _ => return None,
     })
 }
@@ -1152,7 +1190,7 @@ pub const ROLE_TALK: Tool = Tool {
 };
 
 pub const GOAL_START_AT: u8 = 62;
-pub const GOAL_SHOW_AT: u8 = 114;
+pub const GOAL_SHOW_AT: u8 = 117;
 /// A read-once join, not a watched task read (client/ctl/findings.md, 4).
 pub const GOAL_SHOW: Tool = Tool {
     name: b"goal show",

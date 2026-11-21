@@ -105,6 +105,7 @@ pub(crate) fn route_answer_payload(
         | tasks::End::FailedWithReason { .. }
         | tasks::End::Refused
         | tasks::End::RefusedWithReason { .. }
+        | tasks::End::Suspended(_)
         | tasks::End::Recheck => end,
     };
     let proof = core.proofs.get_mut(&run.raw()).expect("terminal proof pre-reserved");
@@ -246,6 +247,7 @@ fn past_batch_bytes(limits: &tasks::Limits, end: &tasks::End) -> bool {
         | tasks::End::FailedWithReason { .. }
         | tasks::End::Refused
         | tasks::End::RefusedWithReason { .. }
+        | tasks::End::Suspended(_)
         | tasks::End::Recheck => None,
     };
     match batch {

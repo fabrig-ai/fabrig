@@ -61,6 +61,7 @@ pub fn recovery(object: &Object) -> Recovery {
             | Refusal::SignInRedirect { .. }
             | Refusal::AccountMove { .. }
             | Refusal::Provider
+            | Refusal::Unlinked { .. }
             | Refusal::Concluded { .. }
             | Refusal::KeyConflict => {}
         },

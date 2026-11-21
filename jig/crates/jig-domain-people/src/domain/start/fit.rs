@@ -222,6 +222,7 @@ pub(super) fn ask(key: &Key, limits: &Limits, value: &Ask) -> Result<(), Restore
         | Ask::MarkSeen { .. }
         | Ask::Application { .. }
         | Ask::ChangeSettings { .. }
+        | Ask::PauseWorker { .. }
         | Ask::MoveToNewest { .. }
         | Ask::AccountSignIn { .. }
         | Ask::AccountSignOut { .. }
@@ -302,6 +303,7 @@ pub(super) fn outcome(key: &Key, limits: &Limits, outcome: &Outcome) -> Result<(
         | Outcome::AccountMovedIn { .. }
         | Outcome::AccountReading { .. }
         | Outcome::AccountLoginAsked { .. }
+        | Outcome::WorkerPauseAsked { .. }
         | Outcome::AccountChanged
         | Outcome::SignedOut
         | Outcome::Again(_) => Ok(()),
@@ -330,6 +332,7 @@ fn refusal(key: &Key, why: &Refusal) -> Result<(), RestoreCause> {
         | Refusal::Authority { .. }
         | Refusal::Limit { .. }
         | Refusal::Moved { .. }
+        | Refusal::Unlinked { .. }
         | Refusal::Concluded { .. }
         | Refusal::Ended { .. }
         | Refusal::Taken { .. }

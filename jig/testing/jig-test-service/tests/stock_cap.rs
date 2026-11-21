@@ -9,7 +9,7 @@ mod tests {
         let stock = stock();
         let engine = jig_test_service::limits::stock(&stock).workers;
         let cap = sizes::engine_cap(&engine.sizes).expect("stock engine link cap fits u32");
-        // The v16 opening adds one 10,062,744-byte figures frame; v19 adds one 52-byte usage read.
+        // The v16 opening adds one 10,062,744-byte figures frame; v20 adds one 52-byte usage read.
         assert_eq!(cap.bytes, 2_513_481_656);
         let mut candidate = engine.sizes;
         candidate.slots = 64; // Jig alone holds 64; the application's startup sizes bind first.

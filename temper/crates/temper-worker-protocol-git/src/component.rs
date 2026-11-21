@@ -69,6 +69,16 @@ impl Component {
             checked: None,
         })
     }
+    /// Take the next operation's bounds, keeping slots and work already in flight
+    /// (temper/docs/design/protocol/configuration/figures.md, 3.2).
+    #[must_use]
+    pub fn take_limits(&mut self, limits: &Limits) -> bool {
+        if limits.operations != self.limits.operations || limits::check(limits, &self.checkout).is_err() {
+            return false;
+        }
+        self.limits = *limits;
+        true
+    }
     fn token(&mut self) -> Option<Token> {
         self.serial = self.serial.checked_add(1)?;
         if self.serial >= (1_u64 << 48_u32) {
@@ -104,7 +114,7 @@ impl Component {
         self.start = Start::Checking;
         let token = self.token().expect("first invocation token");
         let mut operation = Operation::new(token, token, Time::from_nanos(u64::MAX), None, None, Command::Version);
-        operation.spawn(token, Command::Version, &self.settings, out);
+        operation.spawn(token, Command::Version, &self.settings, &self.limits, out);
         self.insert(operation);
     }
     fn owned(&self, owner: Token) -> Option<Id<Operation>> {
@@ -292,7 +302,7 @@ impl Component {
         if !startup && now >= operation.deadline {
             operation.cancel(git::Fault::TimedOut, &self.checkout, out);
         }
-        let next = operation.up(input, &self.settings, &self.limits, &self.checkout, out);
+        let next = operation.up(input, &self.settings, &self.checkout, out);
         if let Some(next) = next {
             if startup {
                 let aborted = operation.aborted;
@@ -477,7 +487,7 @@ impl Component {
                 let operation = self.slots.get_mut(id).expect("live index");
                 let old = operation.io_owner;
                 self.index.remove(&old).expect("live index");
-                operation.spawn(token, command, &self.settings, out);
+                operation.spawn(token, command, &self.settings, &self.limits, out);
                 assert!(self.index.insert(token, id).expect("same operation").is_none(), "unique token");
             }
             Next::Snapshot { .. } | Next::InitView { .. } => {

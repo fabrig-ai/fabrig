@@ -27,7 +27,6 @@ temper-client-tui.workspace = true
 temper-client-shell-terminal.workspace = true
 temper-client-redaction.workspace = true
 [dev-dependencies]
-temper-client-shell-web.workspace = true
 smith-transcript.workspace = true
 temper-client-protocol-wire.workspace = true
 skein-scratch.workspace = true

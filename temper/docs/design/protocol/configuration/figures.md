@@ -6,20 +6,30 @@ hub's, the checkout's and the git component's limits, the places it's
 admitted at, and its agents' profile and endpoints. It also covers the
 agent configuration temper writes from them, the `agents` setting, and
 what a worker's document no longer holds. It carries
-`../../draft/config.md`, 6.3. The record and the two openings that carry
-it are jig's (jig's `protocol/channel/figures.md`).
+`../../draft/config.md`, 6.3, and, from 2026-11-20, the figures a running
+worker takes live (`../../draft/worker-restarts.md`, 8). The record and
+the two openings that carry it are jig's (jig's
+`protocol/channel/figures.md`).
 
 ## 1. In one page
 
 - **The engine composes the figures** (2) from its own limits, the
   endpoints of the LLM providers it runs (`providers.md`, 3) and the
   `agents` setting (5). It does so
-  after its store's restore and at each change of that setting, and
-  gives them to its workers host. The host sends them at each opening.
-- **A worker alone takes them at each start** (3). It opens for its
+  after its store's restore, at each change of that setting, and
+  whenever it takes limits at once (`limit-settings.md`, 4), and gives
+  them to its workers host. The host sends them at each opening and to
+  every linked worker.
+- **A worker alone takes them at each start** (3.1). It opens for its
   figures alone, then builds from them: its hub, its checkout and git
   component, and its agents' pinned configuration. Only then does it
-  open its link. A change reaches it at its next start.
+  open its link.
+- **A running worker takes a live figure at its next use** (3.2): a time
+  bound or a ceiling that every holder reads at each use, such as
+  `checkout.remote_timeout_ms`. What sizes a table, what its link agreed
+  at its opening, its places and the `agents` setting, which re-pins its
+  agent, wait for its next start. No run is cut: an operation in flight
+  keeps the bound it began with, and the next one takes the new figure.
 - **The box builds its worker from its own engine's figures** (4),
   before its store opens, with the `agents` setting as its last run kept
   it.
@@ -40,7 +50,7 @@ filled so:
 | Member | From |
 |---|---|
 | `places` | jig's, for each worker as it's sent |
-| `limits` | every limit of jig's that the engine holds, and every one of temper's (`limits.md`), each by its dotted name as an override names it, at the value the engine started with |
+| `limits` | every limit of jig's that the engine holds, and every one of temper's (`limits.md`), each by its dotted name as an override names it, at its figure in force (`limit-settings.md`, 4): the value the engine started with, or the one it has taken at once since |
 | `agents.profile` | the `agents` setting's profile figures (5), by the names smith's profile takes: `declared.NAME`, `policy.NAME` |
 | `agents.endpoints` | each endpoint of the providers the engine runs (`providers.md`, 3), in their providers' order and each provider's: its name, number, dialect, provider, program, address, transport, headers and deadlines as its provider's setting holds them, and its limits the `agents` setting's for its name, else the setting's `fallback` |
 
@@ -50,6 +60,13 @@ filled so:
   with temper's limits) and the `agents` setting's value, and returns
   the generated `Figures` with `places` 0. The engine calls it, and so
   does the box for its own worker (4), so both build the same figures.
+- **The composer keeps the limits in force.** The engine's workers keep
+  a `Composer`, made from the start's limits. When the engine takes
+  limits at once, it gives the composer the figures now in force,
+  `Composer::take_limits(&mut self, jig: &config::Limits, own:
+  &limits::Limits)`, which replaces its limits by name and keeps its
+  endpoints. `compose` is unchanged, so a later change of the `agents`
+  setting composes with the limits in force too.
 - **At most 64 endpoints.** `Agents.endpoints` holds 64, and jig's
   `provider` kind holds no more across its providers (jig's
   `domain/engine/llm-providers.md`, 4); temper's start checks still
@@ -62,15 +79,21 @@ filled so:
   reader, so a focused test holds that applying a list to any stock
   gives back the limits it was made from.
 - **When.** The engine composes once its restore has read the `agents`
-  setting, and again at each change of it. It gives each result whole to
-  its workers host. Until the first, the host refuses a figures opening
-  as *starting*, so a worker that starts with its engine waits for the
-  restore.
+  setting, again at each change of it, and again whenever it takes
+  limits at once (`limit-settings.md`, 4), then with the `agents` value
+  it last composed. It gives each result whole to its workers host,
+  which sends it to every linked worker. Until the first, the host
+  refuses a figures opening as *starting*, so a worker that starts with
+  its engine waits for the restore. A limit taken only at the next start
+  changes no figure, so it sends nothing.
 - **Logged.** At each composition, the engine's log says
   `figures for workers: L limits, E endpoints, agents setting revision
-  R`.
+  R`; at one for limits taken at once, `figures for workers: L limits, E
+  endpoints, limit settings revision S`.
 
-## 3. A worker alone's start
+## 3. A worker's figures
+
+### 3.1 A worker alone's start
 
 `temper-worker serve`, in order:
 
@@ -101,14 +124,81 @@ filled so:
    `the engine's figures: hub.turn_bytes 1048576 is below the agent's
    turn, 18431842`.
 6. **Its link** opens with `opening: link`. At this opening, or later,
-   it may hear figures other than those it was built from. It then logs
-   once, for each change, `the engine's figures changed; they apply at
-   this worker's next start`, and runs on as it was built.
+   it may hear figures other than those it was built from. It takes
+   them as 3.2 has it.
 
 - **Its own link's limits** come from the figures too. Only the figures
   form, which runs before them, uses the link's stock.
 - **A worker started before its engine** waits in step 2, as a link
   waits for its engine today. It holds no run until it's built.
+
+### 3.2 While it runs
+
+- **What it hears.** Its link reports each `figures` it hears (jig's
+  `protocol/channel/figures.md`, 4): at each opening, and whenever the
+  engine composes them again (2), for limits taken at once or a change
+  of the `agents` setting. A record equal to the last one heard is
+  quiet.
+- **Live or at its next start.** Each figure a worker reads is one or
+  the other, as its limit's row says (`limit-settings.md`, 5.2 and 5.3):
+  - **Live:** a time bound or a ceiling that every holder reads at each
+    use, and that sizes no table, no carrier and nothing its link agreed
+    at its opening. The worker's are the checkout's timeouts, its reds
+    read and its reruns, its preparations and commit message bound, the
+    git component's output, read and sweep bounds, the link's handshake,
+    stall, backoff, ceiling, proved and busy timers, and the hub's
+    event, accounts and turn queue ceilings: `limit-settings.md`, 5.2,
+    lists them by name.
+  - **At its next start:** every other figure it reads. Its places (its
+    hub's slots, workspaces and git operations) and every figure that
+    sizes a table or one of its link's carriers, `checkout.repositories`
+    and the hub's turn among them; `io.output`, which its link's opening
+    states; `link.ping_ms` and `link.silence_ms`, which make the stop
+    bound its hello states, which the engine checks against its grace
+    and holds its runs by (`../../draft/redeploys.md`, 5.3); and the
+    `agents` profile and endpoints, which re-pin its agent
+    (`../../draft/redeploys.md`, 4.4).
+- **How it takes them,** on figures that differ from those in force on
+  it:
+  1. It reads them over the stock as its start does (3.1, step 3),
+     keeping its places.
+  2. It finds, by name, each figure that moved against those in force
+     on it.
+  3. It sets each live figure that moved over a copy of the limits in
+     force on it, and runs its start's checks over the copy (3.1, step
+     5): the hub's, the checkout's, the git component's and the link's,
+     with its pinned agent's.
+  4. Passing, it takes them all together. The checkout and the hub read
+     theirs from the worker's environment at their next step; the git
+     component and the link take theirs through an input of their own
+     (jig's `protocol/channel/figures.md`, 4, for the link). Refused, it
+     takes none of them, and runs on as it was.
+  5. Every other figure that moved waits for its next start.
+- **At the next operation that reads it.** Each holder reads its figure
+  as an operation begins and keeps it for that operation: a git
+  operation's deadline is set as it's sent, from
+  `checkout.remote_timeout_ms` or `checkout.local_timeout_ms`; a reds
+  read's as it starts; a git process's output bounds as it's spawned;
+  the link's handshake at its next dial and its backoff at its next
+  wait. An operation in flight keeps what it began with, and the next
+  one takes the new figure.
+- **No run is cut.** Taking a figure never cancels, drains, saves or
+  ends a run or a job, and sends no hello: the hello's slots, stop bound
+  and bounds are all figures that wait for the next start.
+- **Its figures in force** are those it was built from, with each figure
+  it took over them, and it compares later figures with them. A worker
+  that restarts takes the engine's figures in force (2), which hold
+  every figure it took.
+- **Logged,** once for each change, a line for each part of it, each
+  naming at most 8 figures by name and figure, then `and N more`:
+  - `the engine's figures changed; taken live: checkout.remote_timeout_ms 600000, checkout.local_timeout_ms 20000`
+  - `the engine's figures changed; at this worker's next start: hub.turn_bytes 2097152`
+  - `the engine's figures changed; not taken live: PROBLEM; they apply at this worker's next start`,
+    PROBLEM the first problem of the checks in its start's words (3.1,
+    step 5), such as `the engine's figures: git_component.stdout_bytes
+    1024 is below the checkout's largest output, 70000`.
+- **The box's worker** takes them the same way, through its in-process
+  link (4).
 
 ## 4. The box
 
@@ -142,8 +232,8 @@ filled so:
   at the stock's 8 turns of 18,431,842 bytes a place passes 147 MB, so
   32 places pass the cap and a box built at them couldn't start
   (`derived.md`, 5.3).
-- **Its in-process link** hears its figures as any worker's does. One
-  that differs is logged the same way (3, step 6).
+- **Its in-process link** hears its figures as any worker's does, and
+  its worker takes them as any running worker does (3.2).
 - **Its agent configuration** is written and pinned as a worker alone's
   is (6), from its own `application.workers` entry.
 
@@ -151,7 +241,8 @@ filled so:
 
 - **Kind 21,** one of temper's (`settings.md`, section 2): the
   deployment's scope, number 1, decided by the deployment's owners. It
-  applies at each worker's next start. Kind 20 remains the deployment's welcome; kinds 16 to 19 are left for the draft's other milestones.
+  applies at each worker's next start, since it re-pins the worker's
+  agent (`../../draft/redeploys.md`, 4.4). Kind 20 remains the deployment's welcome; kinds 16 to 19 are left for the draft's other milestones.
 - **Its value,** a record of the client's wire:
 
   ```
@@ -180,7 +271,7 @@ filled so:
 
   It doesn't check the turn the profile derives against the engine's
   carriers. A worker's start refuses figures it can't run, naming them
-  (3, step 5).
+  (3.1, step 5).
 - **People change it** as any of temper's kinds: `temper ctl settings
   apply` with `{"kind": "agents", "profile": {"declared.memory": N, ...},
   "endpoints": {"openai": {"window": N, "output": N, "reasoning_item": N,
@@ -290,6 +381,16 @@ written as JSON by the worker's start:
   as the copies it kept did before: an endpoint's address is the one its
   agents dial from their worker's host (jig's
   `domain/engine/llm-providers.md`, 2).
+- **Figures taken live move no worker wire.** The engine already sends
+  `figures` to every linked worker whenever its owner gives new ones
+  (jig's `protocol/channel/figures.md`, 3). A worker of an earlier build
+  logs them and runs on as it was built; a worker of this build under an
+  engine of an earlier build hears changed figures only at a change of
+  kind 21, and takes the live ones it holds. So an engine and its
+  workers redeploy in either order, and no store or setting changes
+  form.
+- **`temper-client-wire` moves its version** for the Limits page's
+  word for a live limit (`limit-settings.md`, 7; `../wires.md`, 9).
 - **The agents' environment moves no version.** `application.environment`
   is a member the document gains, absent by default, and the pinned
   configuration keeps smith's form. A deployment whose agents need no
@@ -327,7 +428,27 @@ compiled, and run after landing.
 - **A worker alone:** in the real loop, an engine alone and two workers
   alone, each with a document without `limits` or `agent`, take their
   figures and run a task each to its end (`../cluster.md`, section 6).
-  A worker that hears changed figures logs them and runs on.
+  A worker that hears changed figures takes its live ones and runs on.
+- **Taken live,** focused, in `temper-worker-service`'s own tests: a
+  worker built from figures, with two runs in flight, one of them in a
+  git operation that reaches the forge, hears figures with
+  `checkout.remote_timeout_ms` raised from 60,000 to 600,000. The
+  operation in flight keeps its deadline; the next git operation of the
+  other run is sent with the new one; no run is cancelled, drained,
+  saved or ended, and no hello is sent again
+  (`../../draft/worker-restarts.md`, 9, test 7). A lowering is taken the
+  same way.
+- **The rows and the worker agree,** focused, in the same tests: for
+  each name of either names table that a worker reads, figures with that
+  figure alone moved are taken live exactly when its row says live, and
+  logged as waiting for the next start otherwise. A live figure the
+  checks refuse is taken with none of the others moved with it, and
+  logged in its start's words.
+- **Composed at a take,** focused, in the engine's service: a durable
+  revision moving a live figure reaches every linked worker as figures
+  holding it, logged with its revision; one moving only figures taken at
+  the next start sends none; a mixed one sends its live figures alone;
+  with `limits-held`, none.
 - **Refused by name:** each member of 7, and an `agent.json`.
 - **The box:** a start with `agents.setting` builds its worker from it,
   and a change of kind 21 writes the file.

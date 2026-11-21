@@ -155,7 +155,8 @@ impl Core {
         }
         let writes = current.into_boxed();
         let numbers = translate::authority_numbers(self.tasks.claim_numbers(number).unwrap_or(task_numbers));
-        let authority = translate::tasks_authority(task_authority);
+        let mut authority = translate::tasks_authority(task_authority);
+        authority.budget.deadline = self.tasks.deadline(number, wall);
         let budget = authority::run_spend(self.authority.rules(), &authority, numbers);
         authority::check_run(
             &self.authority,

@@ -1038,6 +1038,7 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                     | jig_domain_people::Ask::RemoveProject { .. }
                     | jig_domain_people::Ask::SetVisibility { .. }
                     | jig_domain_people::Ask::ChangeSettings { .. }
+                    | jig_domain_people::Ask::PauseWorker { .. }
                     | jig_domain_people::Ask::MoveToNewest { .. }
                     | jig_domain_people::Ask::Withdraw { .. }
                     | jig_domain_people::Ask::MarkSeen { .. }
@@ -1399,6 +1400,7 @@ pub fn program_answer_bytes(outcome: &jig_domain_people::Outcome) -> Option<u64>
         | Outcome::AccountKeyKept { .. }
         | Outcome::AccountReading { .. }
         | Outcome::AccountLoginAsked { .. }
+        | Outcome::WorkerPauseAsked { .. }
         | Outcome::AccountChanged
         | Outcome::AccountMovingOut { .. }
         | Outcome::AccountMovedIn { .. }

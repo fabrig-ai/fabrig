@@ -106,6 +106,9 @@ nothing slower than the fuzzy suite (`skein/docs/design/testing/README.md`, 6;
     each `figure raised:` and `figure added:` line. Rule:
     `tools/tiers/budgets.md`, 10.1; every figure there is the user's
     (`skein/docs/foundation/testing-strategy.md`, 8.1).
+18. **The merge job's tests:** `python3 -I -B tools/merge/test_merge.py`,
+    its one test with the real generator building `skein-codegen`. Rules:
+    `tools/merge/README.md` and `temper/docs/design/protocol/tooling.md`, 4.1.
 
 ## The gate's lists
 

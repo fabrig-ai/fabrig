@@ -222,7 +222,9 @@ fn start_detail(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut rea
         rows::MILESTONE_SHOW_AT | rows::ROLE_SHOW_AT | rows::GOAL_SHOW_AT => {
             read(runner, &mut reading, 1, c::Read::Task { task }, out);
         }
-        rows::DEPLOYMENT_CENSUS_AT | rows::WORKER_LIST_AT => read(runner, &mut reading, 1, c::Read::Deployment, out),
+        rows::DEPLOYMENT_CENSUS_AT | rows::WORKER_LIST_AT | rows::WORKER_PAUSE_AT..=rows::WORKER_RESUME_AT => {
+            read(runner, &mut reading, 1, c::Read::Deployment, out);
+        }
         rows::WORKER_ADD_AT..=rows::WORKER_REMOVE_AT => read(runner, &mut reading, 2, c::Read::Settings, out),
         rows::TASK_TEXT_AT => {
             let what = task_text_read(&reading.called.call);
@@ -605,6 +607,10 @@ fn close(runner: &Runner, reading: &Reading, out: &mut Queue<Out>) {
         }
     }
 }
+#[expect(
+    clippy::too_many_lines,
+    reason = "the read completion dispatch keeps host and worker follow-up reads together"
+)]
 fn complete(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut reading: Reading, out: &mut Queue<Out>) {
     if reading.called.call.tool == 1
         && let Some((local, what)) = next_inbox_detail(&mut reading, env.limits.rows)
@@ -673,7 +679,11 @@ fn complete(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut reading
         runner.active.insert(reading.called.call_number, reading);
         return;
     }
-    if (rows::WORKER_ADD_AT..=rows::WORKER_REMOVE_AT).contains(&reading.called.call.tool) {
+    if (rows::WORKER_ADD_AT..=rows::WORKER_REMOVE_AT).contains(&reading.called.call.tool)
+        || super::worker::asking(reading.called.call.tool)
+        || (reading.called.call.tool == rows::WORKER_LIST_AT
+            && crate::jig::call::waiting(&rows::WORKER_LIST, &reading.called.call))
+    {
         super::worker::resolved(runner, client, env, reading, out);
         return;
     }

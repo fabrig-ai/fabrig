@@ -377,6 +377,13 @@ Before a decision depends on a fact, the owner asks for it afresh with
 - **Refused at the entrance,** with no API call, `TooLarge` by section
   2.3 first, then `Busy` when the call slab is full or when the
   foreground share is spent and a keeping read is due (section 6).
+- **Its holders.** The client answers, at any time and changing
+  nothing, the calls that hold the slab's places, oldest admitted
+  first, each with its owner, its repository and what it reads, or that
+  it is a write, never the write's content, so that
+  an owner can say who holds a full slab (temper's `protocol/README.md`,
+  6.3). It keeps the order each call was admitted in, a number, not a
+  time.
 - **Retries.** `Unavailable` and `Timeout` are tried again, `read_attempts`
   tries in all, after `backoff` doubling to `backoff_max` plus a draw
   below that delay, capped at `backoff_max`. A rate refusal queues the
@@ -677,7 +684,9 @@ the client's last state, and a start builds a new client.
   once if none lacked one; or at its bound, twice the sum of `lifetime` and
   `clock_margin` after `Settle` (the write's lifetime, then its proving
   read's), `left` naming each entry still without its outcome. The next
-  start finds those by their attempts (section 8).
+  start finds those by their attempts (section 8). The bound is one
+  function, `stop_bound(&Limits) -> Duration`, saturating, which the
+  settle and an owner that prints its own stop bound both read.
 - **The owner** commits the outcomes as ever (2.1), and asks nothing new
   of the client while it settles.
 
@@ -721,6 +730,13 @@ the owner's own order, and holds no read of the step open.
    is found, or waits for its saved deadline (section 7.5); a queued one
    is restored queued and its pull read at once, within the same bounds
    (7.7). `OutboxDone` comes when each has been looked for once.
+
+**What it still owes,** for an owner that reports a restart that runs
+long (temper's `protocol/README.md`, 6.3), read at any time and changing
+nothing: during step 4, each watched resource and each repository's
+listing whose fresh read is still owed, in its table's order; during
+step 5, each entry not yet looked for, by number. A `Settle` ends both
+steps' waits (7.8): what they still owed is the next start's.
 
 ## 9. What it never knows
 

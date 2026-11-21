@@ -5,7 +5,7 @@ use smith_channel::Record;
 
 use skein_channel::Direction;
 use skein_lib::Reader;
-use smith_channel::{Answer, CEILINGS, Start, V12, schema};
+use smith_channel::{Answer, CEILINGS, Start, V13, schema};
 
 #[test]
 fn channel_goldens_decode_at_their_measured_length() {
@@ -33,6 +33,12 @@ fn channel_goldens_decode_at_their_measured_length() {
             .expect("drain decodes")
             .measure(&CEILINGS)
             .expect("bounded record")
+    });
+    goldens.assert_measured("signalled", |bytes| {
+        smith_channel::Signalled::decode(&CEILINGS, &mut Reader::new(bytes))
+            .expect("signal notice decodes")
+            .measure(&CEILINGS)
+            .expect("bounded signal notice")
     });
     goldens.assert_measured("answer", |bytes| {
         Answer::decode(&CEILINGS, &mut Reader::new(bytes))
@@ -73,8 +79,8 @@ fn every_required_kind_has_its_direction_and_bound_in_the_schema() {
     assert_eq!(smith_channel::KindRule::FORMAT_VERSION, u64::from(smith_channel::wire::VERSION));
     assert_eq!(table.versions.len(), 1);
     let version = table.version(smith_channel::wire::VERSION).expect("current version");
-    assert_eq!(version.kinds.len(), 23);
-    for (index, rule) in V12.iter().enumerate() {
+    assert_eq!(version.kinds.len(), 24);
+    for (index, rule) in V13.iter().enumerate() {
         assert!(rule.required, "all initial kinds are required");
         let kind = version.kind(rule.kind).expect("required kind is listed");
         assert_eq!(kind.direction, rule.direction);

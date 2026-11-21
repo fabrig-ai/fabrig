@@ -21,4 +21,4 @@ mod startup_calls;
 mod worker_declaration;
 
 mod environment;
-mod figures;
+pub(crate) mod figures;

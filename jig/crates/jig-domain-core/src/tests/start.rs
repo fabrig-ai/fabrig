@@ -26,6 +26,7 @@ fn call_key() -> crate::CallKey {
 
 fn proof() -> crate::RunProof {
     crate::RunProof {
+        worker: None,
         task: 1,
         attempt: 1,
         conversation: 1,
@@ -471,6 +472,8 @@ fn actual_account_outputs_wait_for_wires_release() {
     assert!(signing && component);
     assert!(core.start.held.is_empty());
 }
+
+mod stopping;
 
 fn step_phase(action: Action, phase: Phase) {
     match action {

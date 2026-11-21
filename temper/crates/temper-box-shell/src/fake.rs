@@ -1,6 +1,5 @@
 //! The deployment and document forms' files and peer loop (protocol/setup/playground.md).
-//! Fixed starts follow temper/docs/design/protocol/setup/box.md, 5 and
-//! temper/docs/design/client/journey-clock.md, 4.1.
+//! The fake box's steps follow temper/docs/design/protocol/setup/box.md, 5.
 use crate::directories::jig_directories;
 pub(crate) mod check;
 mod control;
@@ -26,15 +25,6 @@ use temper_fake::{
     demo, forge, limits, llm, oauth,
 };
 
-const FIXED_START: Setting = Setting {
-    name: "fixed-start",
-    value: "SECONDS,SEED",
-    about: "Start this peer from this fixed instant and seed: SECONDS,SEED.",
-    fallback: Fallback::Text(""),
-    set: skein_shell::Set::Internal,
-    twin: None,
-    notes: "",
-};
 pub const LLM_SETTINGS: Settings = Settings {
     tool: "temper",
     about: "Configure the fake LLM.",
@@ -84,7 +74,6 @@ pub const LLM_SETTINGS: Settings = Settings {
             twin: None,
             notes: "Requires --document.",
         },
-        FIXED_START,
     ],
 };
 pub const FORGE_SETTINGS: Settings = Settings {
@@ -136,7 +125,6 @@ pub const FORGE_SETTINGS: Settings = Settings {
             twin: None,
             notes: "A present file must be this user's private single-link regular file. A refused image leaves it unchanged.",
         },
-        FIXED_START,
     ],
 };
 pub const OAUTH_SETTINGS: Settings = Settings {
@@ -170,7 +158,6 @@ pub const OAUTH_SETTINGS: Settings = Settings {
             twin: None,
             notes: "",
         },
-        FIXED_START,
     ],
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -200,7 +187,6 @@ pub struct Arguments {
     pub source: Source,
     pub ready: Option<Box<[u8]>>,
     pub seed: u64,
-    pub fixed_start: Option<skein_shell::FixedStart>,
     pub observations: Option<PathBuf>,
     pub state: Option<PathBuf>,
     pub scripts: Option<PathBuf>,
@@ -273,8 +259,6 @@ pub(crate) fn configure(
         }
         Source::Document(super::path(&resolved.value(0).bytes).to_path_buf())
     };
-    let start = resolved.value(if kind == Kind::Oauth { 3 } else { 5 });
-    let fixed_start = if start.origin == Origin::Default { None } else { Some(crate::fixed_start(&start.bytes)?) };
     let seed = &resolved.value(2).bytes;
     let seed = std::str::from_utf8(seed)
         .ok()
@@ -303,7 +287,7 @@ pub(crate) fn configure(
         None
     };
     Ok(super::Command::Fake {
-        arguments: Arguments { kind, source, ready, seed, fixed_start, observations, state, scripts, strict },
+        arguments: Arguments { kind, source, ready, seed, observations, state, scripts, strict },
     })
 }
 
@@ -351,7 +335,7 @@ pub fn run(arguments: &Arguments) -> Result<u8, String> {
             return Err(super::prefixed(command, &why));
         }
     };
-    let clock = arguments.fixed_start.as_ref().map_or_else(skein_shell::Clock::new, skein_shell::Clock::fixed);
+    let clock = skein_shell::Clock::new();
     let exit = skein_shell::drive(&mut kernel, &clock, &mut host);
     if exit == Exit::Code(0)
         && host.stopped

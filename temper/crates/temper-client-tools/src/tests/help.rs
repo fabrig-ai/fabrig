@@ -61,6 +61,9 @@ const GOLDENS: &[(Option<u8>, &str)] = &[
     (Some(jig::rows::WORKER_ADD_AT), "help_worker_add"),
     (Some(jig::rows::WORKER_PLACES_AT), "help_worker_places"),
     (Some(jig::rows::WORKER_REMOVE_AT), "help_worker_remove"),
+    (Some(jig::rows::WORKER_PAUSE_AT), "help_worker_pause"),
+    (Some(jig::rows::WORKER_DRAIN_AT), "help_worker_drain"),
+    (Some(jig::rows::WORKER_RESUME_AT), "help_worker_resume"),
 ];
 #[test]
 fn the_help_is_the_page_ctl_then_the_tools() {
@@ -523,6 +526,12 @@ fn the_playground_push_and_deployment_references_are_what_the_table_renders() {
     reference_matches(b"playground", b"ctl-playground");
     reference_matches(b"push", b"ctl-push");
     reference_matches(b"deployment", b"ctl-deployment");
+}
+mod reference {
+    #[test]
+    fn the_reference_documents_match_the_table() {
+        super::reference_matches(b"worker", b"ctl-worker");
+    }
 }
 fn reference_matches(group_name: &[u8], page_name: &[u8]) {
     let mut group = None;

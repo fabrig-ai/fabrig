@@ -547,6 +547,11 @@ impl Decision {
             }
             Delivery::Forges { forges, .. } => {
                 let mut owned = forges.rows.len().saturating_mul(size_of::<temper_engine_domain_forge::Row>());
+                for table in &forges.full {
+                    owned = owned
+                        .saturating_add(size_of::<temper_engine_domain_forge::FullTable>())
+                        .saturating_add(table.words.len());
+                }
                 for row in &forges.rows {
                     use temper_engine_domain_forge::Connection;
                     owned = owned.saturating_add(
@@ -827,6 +832,8 @@ fn fleet_delivery_within(event: &jig_domain_fleet::Event) -> bool {
         | Event::Answer { .. }
         | Event::Turn { .. }
         | Event::TurnBusy { .. }
+        | Event::PauseWorker { .. }
+        | Event::Paused { .. }
         | Event::Observe { .. } => false,
     }
 }

@@ -731,6 +731,7 @@ impl Protocol {
                 | top::Request::Refused { .. }
                 | top::Request::ResourceRefused { .. }
                 | top::Request::HeadRefused { .. }
+                | top::Request::FullTableFact { .. }
                 | top::Request::LostReadFailed { .. }
                 | top::Request::MakeFailed { .. }
                 | top::Request::Outcome { .. }

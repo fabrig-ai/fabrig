@@ -176,6 +176,7 @@ fn live(runner: &Runner, client: &Client) -> bool {
 fn run(runner: &mut Runner, client: &Client, env: &Env<crate::jig::Limits>, called: Called, out: &mut Queue<Out>) {
     if let Some(row) = rows::watched(called.call.tool)
         && super::call::waiting(row, &called.call)
+        && called.call.tool != rows::WORKER_LIST_AT
     {
         wait::start(runner, client, env, called, out);
         return;
@@ -207,7 +208,8 @@ fn run(runner: &mut Runner, client: &Client, env: &Env<crate::jig::Limits>, call
         | rows::GOAL_SHOW_AT
         | rows::PROJECT_SHOW_AT
         | rows::DEPLOYMENT_CENSUS_AT
-        | rows::WORKER_LIST_AT..=rows::WORKER_REMOVE_AT => {
+        | rows::WORKER_LIST_AT..=rows::WORKER_REMOVE_AT
+        | rows::WORKER_PAUSE_AT..=rows::WORKER_RESUME_AT => {
             reads::start(runner, client, env, called, out);
         }
         rows::CONNECT_AT | rows::ADD_KEY_AT | rows::DECLARE_AT | rows::IMPORT_AT => {

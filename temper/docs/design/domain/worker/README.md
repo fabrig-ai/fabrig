@@ -79,6 +79,15 @@ agent    smith: LLM work, one run per agent process, reporting to the worker
   then a save's commit and push. The worker's configuration derives it
   (`../../protocol/configuration/README.md`, section 3); the domain takes
   it whole, with the drain's bound beside it, and keeps it as a deadline.
+- **The stop bound is printed** at each start, once the engine's figures
+  apply, on standard error after the figures' line: `stop bound S s,
+  drain D s`, S the stop bound and D the drain's bound, in whole seconds
+  rounded up. A service manager's stop timeout sits above it
+  (`../../draft/redeploys.md`, 6.1): temper's help gives the worker's
+  unit `KillMode=mixed`, so that a stop signals the worker alone, and a
+  `TimeoutStopSec` of the printed bound and a margin, past which the
+  unit kills what is left, an agent or a command among them
+  (`../../../help/server.md`, section 5).
 - **Losing contact and shutting down** are the hub's (jig's
   `domain/hosts/hub.md`, 6 and 7). Past the grace the worker cancels its
   runs itself, saving their work first. Shutting down, it still says its
@@ -86,7 +95,8 @@ agent    smith: LLM work, one run per agent process, reporting to the worker
   answers it keeps, counted, once no run is left and the engine is still
   out of reach past the grace, or at its stop bound.
 - **Told to stop, the worker drains** (`../../draft/redeploys.md`, 6.1),
-  a worker alone or a cluster's at its first termination signal. At
+  a worker alone or a cluster's at its first termination signal, which
+  its unit sends it alone (`KillMode=mixed`). At
   once it asks its hub to drain (jig's `domain/hosts/hub.md`, 7): each
   agent stops at the end of its current turn, once the LLM has answered
   and the turn's calls have their answers, and a run not yet live is
@@ -105,6 +115,39 @@ agent    smith: LLM work, one run per agent process, reporting to the worker
   and no new preparation. A job runs on through the drain; cancelled
   after it before its push began, it ends interrupted too (jig's
   `domain/hosts/hub.md`, 9).
+- **Asked over its link, the worker pauses or drains, and stays up**
+  (jig's `protocol/channel/pause.md`; jig's `domain/hosts/hub.md`, 7,
+  *Paused over the link*; `../../draft/worker-restarts.md`, section 2).
+  Paused, it takes no new run or job, and its runs go on. Draining, it
+  takes nothing and drains as a stop does: each agent stops at the end
+  of its current turn, a run not yet live is cancelled, and at the
+  drain's bound, counted from the ask, what is left is cancelled for
+  shutdown, a check in flight cut; each run's work is saved and it
+  answers `Cancelled(Shutdown)`, an interruption with no try spent. Its
+  git component takes every save and push a run's end asks for, and no
+  new preparation. Once nothing is left and the engine has every turn
+  and answer, it says it has drained, and stays linked, taking nothing,
+  until it is told to take work again or stopped; its stop then finds
+  nothing to drain. A stop while it drains is a stop: the stop's
+  deadlines, from the signal, then hold alone. It writes a line at each
+  change: `paused: no new run or job, as the engine asked`; `draining:
+  each run stops at its turn's end, the rest cut in D s, as the engine
+  asked`, D the drain's bound in whole seconds; `drained: no run or job
+  left; a stop now loses nothing`; `taking work again, as the engine
+  asked`. So a redeploy drains a worker, then stops it
+  (`../../draft/redeploys.md`, 7.2), and an operator keeps one from new
+  work without a stop.
+- **A signal to its agents is the worker's to decide.** Its agents run
+  in process groups of their own, inside its unit. A termination signal
+  one of them hears while its channel is open is told to the worker
+  rather than cancelling the run (smith's `domain/host.md`, section 4),
+  and the worker leaves the run to its own stop, writing `RUN: its agent
+  heard SIGNAL from pid P; its stop is the worker's`, RUN the run as
+  the worker's other lines name it, SIGNAL `SIGTERM` or `SIGINT`, and
+  `from an unknown sender` where the system names none. So a stray
+  signal, as a unit's whose `KillMode` signals every process in it,
+  cuts no run; an agent whose worker is gone, its channel ended,
+  cancels on its own as before.
 - **Past the grace,** lost contact keeps the rest of the stop bound as a
   deadline from the grace's end, the longer of the agent's stop and a
   push's deadline, then a save: at it, each run still stopping or

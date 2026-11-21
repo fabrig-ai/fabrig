@@ -99,6 +99,7 @@ pub(super) fn route_core(
                 | core::Held::ReadUsage { .. }
                 | core::Held::ReadList { .. }
                 | core::Held::Sources { .. }
+                | core::Held::PauseWorker { .. }
                 | core::Held::CheckSource { .. }
                 | core::Held::SignOutSource { .. }
                 | core::Held::SourceSignedOut { .. }
@@ -459,8 +460,8 @@ fn route_now(
                 answer: jig_domain_link::AskAnswer::Bytes(bytes),
             })));
         }
-        core::Now::Link(core::LinkNow::AnswerPayload { run, attempt, payload }) => {
-            crate::link::answer(domain, run, attempt, payload, work);
+        core::Now::Link(core::LinkNow::AnswerPayload { run, attempt, payload, worker, window }) => {
+            crate::link::answer(domain, run, attempt, payload, worker, window, work);
         }
         core::Now::Link(value) => crate::link::route(domain, env.now, jig_domain_hub_link::now(value), work),
         core::Now::RelayBusy { channel, run, attempt, call } => {
@@ -1124,7 +1125,8 @@ fn application_answer(outcome: people::Outcome) -> connector::ApplicationCoreAns
             connector::ApplicationCoreAnswer::Refused(crate::application_facts::refusal(why))
         }
         people::Outcome::Again(why) => connector::ApplicationCoreAnswer::Again(crate::application_facts::again(why)),
-        people::Outcome::Restored { .. }
+        people::Outcome::WorkerPauseAsked { .. }
+        | people::Outcome::Restored { .. }
         | people::Outcome::Compound { .. }
         | people::Outcome::CompoundRefused { .. }
         | people::Outcome::Applied { .. }

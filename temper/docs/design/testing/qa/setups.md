@@ -14,7 +14,7 @@ and adds to them is `places.md`.
   through ctl, keeping its repositories, pull requests and checks in the
   box's data and so in every copy. No setup sets up the box's own
   Forgejo, so no place runs a Forgejo or a runner.
-- **The first recipes** (section 2), from the journeys' setups: the
+- **The first recipes** (section 2), reaching the journeys' states: the
   welcome, `project-landing` and `chat-draft`, on the box's generated
   scripts.
 - **Ctl alone** (section 2): `ctl-hello`, from a fresh box by ctl lines
@@ -59,7 +59,7 @@ and adds to them is `places.md`.
   program, so the box's agents would reach no fake forge's git; ctl
   takes the token's file and `--git-program`, both named by the box's
   values. The web journey's "Run on this machine" stays the journeys'
-  (`../../client/web/journeys.md`, 8.2): QA's state is the one it
+  (`../../client/web/journeys.md`, 8.1): QA's state is the one it
   reaches, Hello with `work/hello`, on the fake Forgejo in place of the
   box's own, with a fake model key added through ctl. The plan's sign-in
   opens a new tab the drive cannot follow (`../../draft/sign-in-new-tab.md`,
@@ -72,7 +72,7 @@ and adds to them is `places.md`.
 |---|---|---|---|
 | `welcome` | none | its check alone | a fresh box's root showing "No project yet" and "Set up temper", nothing connected |
 | `project-landing` | `welcome` | `ctl project make Hello`; `ctl forge connect forgejo-admin {forgejo.admin} --first work/hello --project Hello --api {forgejo.api} --git {forgejo.git} --git-program {git}`, waited until `work/hello` is adopted; `ctl account add-key 1 {model.key} --key qa-model`; `ctl account list --until usable`; its check a `web see` of Hello's home naming `work/hello` | Hello, `work/hello` its home on the box's fake Forgejo, the box's fake model key added through ctl |
-| `chat-draft` | `project-landing` | the web journey's, unchanged | Hello's first chat with its first Away mode draft written |
+| `chat-draft` | `project-landing` | opens `/chats`, creates a chat, asks for Away mode and presses "+ Draft"; checks the draft's answer and path | Hello's first chat with its first Away mode draft written |
 | `ctl-hello` | none | `project-landing`'s three ctl lines; `ctl account add-key 1 {model.key} --key qa-model`; `ctl account list --until usable`; its check, after `check`, `ctl project show Hello` and `ctl account list --until usable` | Hello, `work/hello` its home on the box's fake Forgejo, the box's fake model the person's account, and any change's review answered approving |
 
 - **`ctl-hello`, ctl alone:** the catalogue's first recipe whose chain
@@ -131,9 +131,9 @@ and adds to them is `places.md`.
   drive session (`../../client/drive.md`, 3.3), so a case on the
   launchpad starts from `project-landing` with no recipe of its own.
 - **`tui-chat`,** after `project-landing`, with no `scripts.json`: the
-  steps of the `launchpad-chat` journey's walk past its approval
-  (`../../client/tui/journeys/launchpad-chat/walk`), as drive lines, from
-  `web reload "/projects/1"`, as the journey's setup ends, to the fake
+  client acts and waits of the `launchpad-chat` journey's walk past its
+  approval, without marks (`../../client/tui/journeys/launchpad-chat/walk`),
+  as drive lines, from `web reload "/projects/1"`, opening Hello, to the fake
   model's answer, a `tui see` of it that waits, then `web reload "/"`,
   a step that is no `see`, so that the answer's `see` stays a step
   (`../../client/recipe.md`, 3.1); its check `tui see "/chats 1"`, the

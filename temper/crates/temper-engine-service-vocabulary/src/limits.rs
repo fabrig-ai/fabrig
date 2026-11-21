@@ -286,7 +286,7 @@ const ROOT: Root = Root {
         // Outputs at the journal's door, counted in the default admission watermark.
         deliveries: 512,
         // The stock’s deep task row before source derivation; derive() supplies the resume carrier.
-        transcript_bytes: 22_468_296,
+        transcript_bytes: 22_468_344,
         // At least brief.brief_bytes and jig stock people.words: the root's worst case.
         result_bytes: BRIEF.brief_bytes,
         // Holds the stock goal agent's charter and room for an overlay.
@@ -297,10 +297,10 @@ const ROOT: Root = Root {
         loads: 2,
         // Two rows per load page, bounding each owner read’s work.
         rows: 2,
-        // The whole note's 70,208 owned bytes and its 256-byte temper record slot.
-        bytes: 70_464,
+        // The whole note's 70,208 owned bytes and its 264-byte temper record slot.
+        bytes: 70_472,
         // The same whole note and record slot fit the reply before source derivation.
-        reply_bytes: 70_464,
+        reply_bytes: 70_472,
         // One authenticated read's owned bytes; jig stock core.load_bytes.
         read_bytes: 131_072,
         // A whole stock note: body 65,536, description and pattern 256 each,

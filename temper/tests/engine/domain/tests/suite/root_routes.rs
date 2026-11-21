@@ -62,6 +62,7 @@ fn until_pending(driver: &mut Driver) {
 /// A worker's hello with its own slots, stop bound and hosted runs.
 fn hello_with(channel: Token, slots: u32, stop_bound: Duration, hosting: Box<[Hosting]>) -> engine::Event {
     let hello = jig_domain_link::Hello {
+        fresh: false,
         reads_usage: true,
         jobs: Box::default(),
         slots,
@@ -122,6 +123,8 @@ fn messages_to(driver: &Driver, run: &engine::Assignment) -> Vec<(u64, Box<[u8]>
             | host::LinkDown::Relayed { .. }
             | host::LinkDown::TurnKept { .. }
             | host::LinkDown::Acknowledge { .. }
+            // jig/docs/design/domain/hosts/hub.md, 7, Paused over the link.
+            | host::LinkDown::Pause { .. }
             | host::LinkDown::Cancel { .. }
             | host::LinkDown::AssignJob { .. }
             | host::LinkDown::Asked { .. }

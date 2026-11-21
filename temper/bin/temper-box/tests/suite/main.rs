@@ -10,7 +10,6 @@ mod fake;
 mod fake_opening;
 mod forge;
 mod forge_land;
-mod inbox_reply;
 mod landing_failure;
 mod ports;
 mod relay;
@@ -29,7 +28,6 @@ fn admission(directories: &temper_box_shell::directories::Directories, bytes: &[
 }
 
 mod admission_edges;
-mod producer_policy;
 mod provider_admission;
 mod support_tests;
 mod wiring;

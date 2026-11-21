@@ -966,7 +966,7 @@ fn owner_folds(b: &mut Builder, tree: &c::Tree, parent: u64, words: &Words) -> b
 fn text_node(b: &mut Builder, value: &[u8]) {
     skein_ui::markdown::read(value, 3, b);
 }
-pub(crate) fn owner_activity(b: &mut Builder, event: &c::Activity, words: &Words) {
+pub(crate) fn owner_activity(b: &mut Builder, event: &c::Activity, words: &Words, root: Option<&Domain>) {
     match event {
         c::Activity::Words { words, .. } => text_node(b, words.bytes()),
         c::Activity::Heard(word) | c::Activity::Notified { word, .. } => text_node(b, word.words.bytes()),
@@ -981,7 +981,7 @@ pub(crate) fn owner_activity(b: &mut Builder, event: &c::Activity, words: &Words
             };
             words.text(b, word, &[Hole::Number(*attempt)]);
         }
-        c::Activity::RunEnded { attempt, end, .. } => run_ended(b, *attempt, *end, words),
+        c::Activity::RunEnded { attempt, end, .. } => run_ended(b, *attempt, *end, words, root),
         c::Activity::Decided { .. } => words.text(b, Word::DecisionMade, &[]),
         c::Activity::Turn { .. } => words.text(b, Word::UnreadTurn, &[]),
         c::Activity::NowWritten { line, .. } => {
@@ -1016,8 +1016,16 @@ pub(crate) fn owner_activity(b: &mut Builder, event: &c::Activity, words: &Words
     }
 }
 
-fn run_ended(b: &mut Builder, attempt: u64, end: c::RunEnd, words: &Words) {
+fn run_ended(b: &mut Builder, attempt: u64, end: c::RunEnd, words: &Words, root: Option<&Domain>) {
     let (word, kind): (Word, Option<&[u8]>) = match end {
+        c::RunEnd::Suspended { worker, why } => {
+            let word = match why {
+                c::SuspendWhy::Stopped => Word::RunSuspendedStopped,
+                c::SuspendWhy::Restarted => Word::RunSuspendedRestarted,
+            };
+            words.text(b, word, &[Hole::Number(attempt), Hole::Name(crate::choice::run_worker(root, words, worker))]);
+            return;
+        }
         c::RunEnd::Failed { invalid_reason: Some(reason), .. } => match reason {
             c::InvalidReason::Form => (Word::RunEndedInvalid, Some(b"form")),
             c::InvalidReason::Verdict => (Word::RunEndedInvalid, Some(b"verdict")),

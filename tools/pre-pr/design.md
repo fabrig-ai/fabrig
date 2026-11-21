@@ -310,8 +310,24 @@ boundary (smith's run.md, 8.1).
 
 In this order, each announced by a line `pre-pr: <check> …` before it
 starts and ended by `pre-pr: <check>: passed|failed|inherited, <seconds> s`.
-Every selected check runs, whatever an earlier one ended in, so that one
-delivery hears every failure; the verdict is section 6's.
+Independent checks continue after a failure so the delivery reports their
+results together. The test phases below share build prerequisites. Section 6
+defines the verdict.
+
+An optional single-retry trial moves the focused profile before formatting,
+counted baselines and Clippy. A checkout-local `temper/repair-trial` in
+the Git directory names one exact new focused failure in the preceding
+uncached refusal in the last hour. Its base and HEAD write must match and the candidate
+tree must have changed. Consume the invitation once. A known red, disabled
+replay, selection error or required helper build keeps the ordinary order.
+An absent case in the current listing resumes the ordinary order before
+executing any tests. The runner prioritizes the existing process containing
+the case, preserving its predecessors, the full profile and its ledger.
+On a serial replay that reproduces that exact new failure, report the
+observed results, defer the remaining checks and leave the pass cache empty.
+Otherwise complete each selected profile once and use the ordinary verdict.
+Record the case, tree, base, focused duration and elapsed time to a confirmed
+failure, when observed, in the Git directory’s `temper/repair-trial-result.json`.
 
 1. **The format check:** `tools/pre-pr/pre_pr.py`'s batched `rustfmt
    --check` over every workspace target, as before
@@ -375,7 +391,8 @@ delivery hears every failure; the verdict is section 6's.
    - **2, its output ending with the line `one-process: nextest listing
      exited with 101`:** a build failure. The listing builds the tests as
      nextest's run would (`tools/tiers/design.md`, 11.2), and nextest's
-     101 is a failed build;
+     101 is a failed build. The delivery reports the compiler output and
+     skips the fuzzy listing of the same test targets;
    - **any other:** a failure of the check itself, a 2 that names no
      failed build included (a refusal or an invalid run:
      `tools/tiers/design.md`, 11.1 and 11.7).
@@ -433,12 +450,13 @@ delivery hears every failure; the verdict is section 6's.
    **Then the fuzzy tests** of the same tests' set: `tools/tiers/one-process
    --out <dir>/fuzzy fuzzy -p … --no-tests=warn`, the same `-p` arguments in
    the same order, `.config/nextest.toml`'s `fuzzy` profile its selection
-   and its `global-timeout` its only bound. It runs where the focused run
-   ran, whatever that ended in (a failure, a build failure, a failure of
-   the check itself), once the focused run and its tests again have ended;
-   where the focused run did not run (an empty tests' set, a failed build of
-   the other packages' binaries, no base), neither does it. It reuses the
-   other packages' binaries built for the focused run.
+   and its `global-timeout` its only bound. It runs after the focused tests
+   and their replays, including after test failures or errors of the check
+   itself. A focused listing that reports a build failure prints
+   `pre-pr: fuzzy tests: skipped (focused test build failed)` and leaves
+   fuzzy results unobserved. An empty tests' set, a failed build of the
+   other packages' binaries, or no base skips both profiles. Fuzzy tests
+   reuse the other packages' binaries built for the focused run.
    - **Its lines:** announced `pre-pr: fuzzy tests …` and ended `pre-pr:
      fuzzy tests: passed|failed|inherited, <seconds> s`. Each run's end
      line judges its own failures alone.
@@ -486,7 +504,7 @@ delivery hears every failure; the verdict is section 6's.
      (`tools/tiers/references.md`, 6), which the summary does not repeat:
      both are main's, not the delivery's.
 
-5. **The docs:** `python3 -I -B tools/citations/citations.py --base <base>
+5. **The docs:** `python3 -I -B tools/citations/citations.py --all
    --head <tree>` against section 3's private snapshot, including staged,
    unstaged and untracked documentation. The checker also enforces the
    design size limit for `tools/citations/sized.txt`'s trees (`DESIGN.md`,
@@ -561,12 +579,21 @@ delivery hears every failure; the verdict is section 6's.
      recording, pages and the files beside them are written on main by
      the journeys' writer alone (AGENTS.md, 4): restore them with git
      checkout BASE -- PATH..., and compare pages by cargo run -p
-     temper-client-journeys in your own tree, or, for a journey whose walk
-     is of version 2, by cargo run -p temper-client-walk -- print --out
-     DIR`, BASE the base or
+     temper-client-walk -- print --out DIR in your own tree`, BASE the base or
      `HEAD`. It is the delivery's own, never inherited (section 5).
    - **Passed:** neither; a delivery whose own paths are written files
      alone among them.
+9. **The merge job's tests,** where section 3's changed paths include
+   `.temper/merge` or a path under `tools/merge/` other than its
+   `README.md` and `codecs.txt`: `python3 -I -B tools/merge/test_merge.py`
+   from the tree's root, after check 7 and before check 8, announced
+   `pre-pr: merge …` and ended `pre-pr: merge: passed|failed, <seconds>
+   s`. Its test with the real generator builds `skein-codegen` under the
+   check's hold (`tools/merge/README.md`). Its exit decides:
+   - **0:** passed;
+   - **any other:** one failure, `merge`, its log the tests' output. It
+     is the delivery's own, never inherited (section 5): it runs only
+     for a delivery that changes the job.
 
 **The environment** is the check's, with `TEMPER_INTERNAL_BUNDLE=none` set where it
 is unset (`AGENTS.md`, 5), and `TIERS_LEDGER` removed, as `TIERS_HOLD` is
@@ -621,14 +648,9 @@ cause.
   increases the excess refuses. Each count is judged separately and
   named as `old-forms <tree> <form>`; a malformed baseline or a tool error
   cannot be inherited from an exit code alone.
-- **A broken citation** uses the citation checker's counted keys per
-  source file and target, with renames mapped; line movement does not
-  make an old finding new. Check 5's `--base` comparison already refuses
-  only new occurrences. Its inherited total is reported as
-  `inherited: citations (N broken at base)`, even when new findings also
-  refuse. Design documents already over the size limit pass when they
-  do not grow; crossing the limit or growing while over it refuses.
-  Neither comparison needs a cargo build or the kept base worktree.
+- **Citations and design sizes** are checked on the delivery snapshot alone.
+  A broken citation or an oversized design document in that snapshot refuses
+  delivery. Check 5 can run when historical file contents are unavailable.
 
 - **The base's worktree** is `<git dir>/temper-pre-pr/base`, a detached
   worktree (`git worktree add --detach --force`), made at the first
@@ -717,10 +739,10 @@ cause.
 - **A base run that cannot run** (the worktree cannot be made, or a
   tree's `scripts/old_forms.py` fails of itself at the base): the
   exceeded counts stay the delivery's, and the summary says why the base
-  could not judge them. The citation check's independent comparison and
+  could not judge them. The candidate's citation check and
   the goal's reds still stand.
 - **Inherited never refuses:** each is named in the summary, with the
-  base for a count or a citation and with the file for a goal's red, and
+  base for a count and with the file for a goal's red, and
   the delivery passes on them.
 
 ## 6. Its output
@@ -770,8 +792,7 @@ cause.
   - then each inherited failure, one line each: a goal's red as
     `inherited: test <binary id> <name> (red, temper/reds)` or
     `inherited: clippy <package> <code> <file> (red, temper/reds)`,
-    exceeded counts as `inherited: old-forms <tree> <form>`, and the
-    inherited citation total;
+    or an exceeded count as `inherited: old-forms <tree> <form>`;
   - past 8,192 bytes, the failures it has not room for are counted in
     one line, `[… N more failures]`, the first kept whole; the
     failures file holds each of them.
@@ -1013,7 +1034,7 @@ tests'. Its stories, a test each:
 
 `tools/pre-pr/test_pre_pr.py` first exercises code-only, docs-only, both
 and neither in scratch repositories. It runs the citation checker against
-private snapshots: new and inherited broken citations, a deleted cited
+private snapshots: new and pre-existing broken citations, a deleted cited
 document, and a design size violation. It checks that docs-only changes
 skip formatting, counted baselines and clippy even on a red baseline;
 unchanged red counts pass
@@ -1122,10 +1143,11 @@ that reaches nothing of it, and `fabrig-boundary`, a member, is in every
 set; a line naming no member is printed and skipped; no inputs, or no
 base, run neither. It runs the fuzzy tests after the focused ones, as
 section 4 gives them: `fuzzy`, a `--out` of its own, the same `-p`
-arguments in the same order; after a focused run that failed, or ended in
-a build failure, as after one that passed; and not where no focused run
-was selected (an empty tests' set, a failed build of the other packages'
-binaries). A fuzzy run's failure is read as a focused one's: keyed by
+arguments in the same order. A focused pass, test failure, or error of the
+check itself still runs fuzzy. A focused listing build failure skips fuzzy,
+retains the build diagnostic, and permits both profiles to run on retry.
+Both profiles are skipped for an empty tests' set or a failed build of the
+other packages' binaries. A fuzzy run's failure is read as a focused one's: keyed by
 binary id and name, inherited from a `- test` entry, its starved line
 printed and repeated in the summary, a failure no entry names run again
 from `<dir>/fuzzy`; its build failure is `build fuzzy`; and each run's end

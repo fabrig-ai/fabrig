@@ -1020,7 +1020,7 @@ fn a_parked_answers_checked_push_reaches_the_change_before_lost_writer_reads() {
             },
         )
         .unwrap();
-    crate::link::answer(&mut domain, Token::new(41), Token::new(1), payload);
+    crate::link::answer(&mut domain, Token::new(41), Token::new(1), payload, None, skein_lib::Duration::ZERO);
     let Some(Work::Core(core::Event::AnswerPayload { end, .. })) = domain.work.pop() else { panic!("parked answer") };
     assert_eq!(end, jig_domain_tasks::End::Parked);
     // The core's terminal acknowledgement asks Lost for parked and ended answers alike.

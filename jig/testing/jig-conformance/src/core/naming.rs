@@ -261,6 +261,7 @@ fn ask_project(ask: &people::Ask) -> Option<u32> {
         people::Ask::Restore { .. }
         | people::Ask::MakeProject { .. }
         | people::Ask::ChangeSettings { .. }
+        | people::Ask::PauseWorker { .. }
         | people::Ask::MoveToNewest { .. } => Some(0),
         people::Ask::Application { scope, .. } => match scope {
             people::ApplicationScope::Own => None,

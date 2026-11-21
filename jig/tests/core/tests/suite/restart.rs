@@ -19,6 +19,7 @@ fn hello(world: &mut World, hosting: Box<[Hosting]>) {
         worker: 0,
         channel: Token::new(7),
         hello: Hello {
+            fresh: false,
             reads_usage: true,
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),

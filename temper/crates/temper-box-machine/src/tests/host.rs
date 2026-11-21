@@ -3233,7 +3233,7 @@ fn unheld_owned_steps() -> temper_forge_setup::Steps {
     owned.fetch.forgejo = false;
     owned.fetch.runner = false;
     owned.runner = None;
-    let mut steps = temper_forge_setup::kinds(Some(&owned), &[], Box::new([]), false, true, None);
+    let mut steps = temper_forge_setup::kinds(Some(&owned), &[], Box::new([]), false, true);
     // Only the executables are faked; the listener and readiness descriptions are production's.
     steps.always[0] = long(b"serve", &[b"never"]);
     let group = steps.asked.get_mut(0).unwrap();

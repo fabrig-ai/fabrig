@@ -1,5 +1,5 @@
 //! The committed records and pinned constructs against their schemas (skein's data/codec/README.md, 6).
-use skein_codegen::{form_of, generate_as, values};
+use skein_codegen::{generate, values};
 use std::fs;
 use std::path::Path;
 
@@ -7,13 +7,8 @@ fn schema_matches(codec_crate: &str, family: &str, module: &str, source: &'stati
     let crates = skein_scratch::paths::tree().join("crates");
     let unpinned = skein_codegen::unpinned(source).expect("schema valid");
     assert!(unpinned.is_empty(), "{family}: unpinned constructs: {unpinned:?}");
-    let owner = match codec_crate {
-        "temper-protocol-store-codec" => "temper-protocol-store",
-        other => other,
-    };
     let schema = &values(source).schema;
-    let form = form_of(&crates.join(owner).join("schema"), &schema.family).expect("owner's lean mark");
-    let output = generate_as(schema, form);
+    let output = generate(schema);
     let code = crates.join(codec_crate).join("src/generated").join(format!("{module}.rs"));
     check_text(&code, &output.records, temper_test_env::rewrite());
 }
@@ -105,12 +100,12 @@ fn client_layout(source: &str, family: &str) {
 
 #[test]
 fn store_schema_matches_generated_code_and_pinned_constructs() {
-    schema_matches(
-        "temper-protocol-store-codec",
-        "store",
-        "store",
-        temper_protocol_store::OWNER_SET.families.first().expect("store family").current,
-    );
+    let source = temper_protocol_store::OWNER_SET.families.first().expect("store family").current;
+    schema_matches("temper-protocol-store-codec", "store", "store", source);
+    let maps = include_str!("../../../../crates/temper-protocol-store/schema/store.maps");
+    let translation = skein_codegen::translate(&values(source).schema, maps).expect("store maps valid");
+    let path = skein_scratch::paths::tree().join("crates/temper-protocol-store/src/generated/store.rs");
+    check_text(&path, &translation, temper_test_env::rewrite());
 }
 
 #[test]

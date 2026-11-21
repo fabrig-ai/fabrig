@@ -1,5 +1,6 @@
 //! The component's own durable rows (protocol/store/records.md, section 3, and protocol/store/transcripts.md, section 1).
 use crate::component_v3::{self as wire, Record};
+use crate::generated::component as maps;
 use alloc::boxed::Box;
 use skein_lib::{List, Reader};
 pub use wire::{CheckpointFile, Count};
@@ -12,16 +13,6 @@ pub struct Levels {
     pub jig: Option<u32>,
     pub application: Option<u32>,
 }
-impl Levels {
-    fn encoded(self) -> wire::Levels {
-        wire::Levels { skein: self.skein, smith: self.smith, jig: self.jig, application: self.application }
-    }
-    fn decoded(row: wire::Levels) -> Self {
-        let wire::Levels { skein, smith, jig, application } = row;
-        Self { skein, smith, jig, application }
-    }
-}
-
 /// The component's format row.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Format {
@@ -40,37 +31,14 @@ pub struct Format {
 impl Format {
     /// Encode this row with the component family's version.
     pub fn encode(&self) -> Result<Box<[u8]>, wire::Problem> {
-        let row = wire::Format {
-            component: self.component,
-            core: self.core,
-            tasks: self.tasks,
-            people: self.people,
-            notes: self.notes,
-            accounts: self.accounts,
-            settings: self.settings,
-            application: self.application,
-            deployment: self.deployment,
-            levels: self.levels.encoded(),
-        };
+        let row = maps::format_to_record(self, &())?;
         row.encode(&wire::CEILINGS)
     }
 
     /// Decode one row, refusing another version or trailing bytes.
     pub fn decode(bytes: &[u8]) -> Result<Self, wire::Problem> {
-        let wire::Format { component, core, tasks, people, notes, accounts, settings, application, deployment, levels } =
-            wire::Format::decode(&wire::CEILINGS, &mut Reader::new(bytes))?;
-        Ok(Self {
-            component,
-            core,
-            tasks,
-            people,
-            notes,
-            accounts,
-            settings,
-            application,
-            deployment,
-            levels: Levels::decoded(levels),
-        })
+        let row = wire::Format::decode(&wire::CEILINGS, &mut Reader::new(bytes))?;
+        maps::format_to_domain(row, &())
     }
 
     /// The component family's version a stored row begins with, read before
@@ -96,31 +64,12 @@ pub struct Manifest {
 impl Manifest {
     #[must_use]
     pub fn encode(self) -> Box<[u8]> {
-        let row = wire::Manifest {
-            generation: self.generation,
-            from: self.from,
-            before: self.before.encoded(),
-            after: self.after.encoded(),
-            counts: self.counts,
-            store: self.store,
-            secrets: self.secrets,
-            written: self.written,
-        };
+        let row = maps::manifest_to_record(&self, &()).expect("manifest translation is infallible");
         row.encode(&wire::CEILINGS).expect("manifest counts fit the checked sets")
     }
     pub fn decode(bytes: &[u8]) -> Result<Self, wire::Problem> {
-        let wire::Manifest { generation, from, before, after, counts, store, secrets, written } =
-            wire::Manifest::decode(&wire::CEILINGS, &mut Reader::new(bytes))?;
-        Ok(Self {
-            generation,
-            from,
-            before: Levels::decoded(before),
-            after: Levels::decoded(after),
-            counts,
-            store,
-            secrets,
-            written,
-        })
+        let row = wire::Manifest::decode(&wire::CEILINGS, &mut Reader::new(bytes))?;
+        maps::manifest_to_domain(row, &())
     }
 }
 
@@ -137,21 +86,12 @@ pub struct Checkpoint {
 }
 impl Checkpoint {
     pub fn encode(self) -> Result<Box<[u8]>, wire::Problem> {
-        let row = wire::Checkpoint {
-            store: self.store,
-            secrets: self.secrets,
-            made: self.made,
-            build: self.build,
-            deployment: self.deployment,
-            levels: self.levels.encoded(),
-            files: self.files,
-        };
+        let row = maps::checkpoint_to_record(&self, &())?;
         row.encode(&wire::CEILINGS)
     }
     pub fn decode(bytes: &[u8]) -> Result<Self, wire::Problem> {
-        let wire::Checkpoint { store, secrets, made, build, deployment, levels, files } =
-            wire::Checkpoint::decode(&wire::CEILINGS, &mut Reader::new(bytes))?;
-        Ok(Self { store, secrets, made, build, deployment, levels: Levels::decoded(levels), files })
+        let row = wire::Checkpoint::decode(&wire::CEILINGS, &mut Reader::new(bytes))?;
+        maps::checkpoint_to_domain(row, &())
     }
 }
 
@@ -165,14 +105,14 @@ pub struct Transcript {
 impl Transcript {
     /// Encode this row with the component family's version.
     pub fn encode(&self) -> Result<Box<[u8]>, wire::Problem> {
-        let row = wire::Transcript { length: self.length, window: self.window };
+        let row = maps::transcript_to_record(self, &())?;
         row.encode(&wire::CEILINGS)
     }
 
     /// Decode one row, refusing another version or trailing bytes.
     pub fn decode(bytes: &[u8]) -> Result<Self, wire::Problem> {
-        let wire::Transcript { length, window } = wire::Transcript::decode(&wire::CEILINGS, &mut Reader::new(bytes))?;
-        Ok(Self { length, window })
+        let row = wire::Transcript::decode(&wire::CEILINGS, &mut Reader::new(bytes))?;
+        maps::transcript_to_domain(row, &())
     }
 }
 
@@ -185,14 +125,14 @@ pub struct Attempt {
 impl Attempt {
     /// Encode this row with the component family's version.
     pub fn encode(&self) -> Result<Box<[u8]>, wire::Problem> {
-        let row = wire::Attempt { first: self.first };
+        let row = maps::attempt_to_record(self, &())?;
         row.encode(&wire::CEILINGS)
     }
 
     /// Decode one row, refusing another version or trailing bytes.
     pub fn decode(bytes: &[u8]) -> Result<Self, wire::Problem> {
-        let wire::Attempt { first } = wire::Attempt::decode(&wire::CEILINGS, &mut Reader::new(bytes))?;
-        Ok(Self { first })
+        let row = wire::Attempt::decode(&wire::CEILINGS, &mut Reader::new(bytes))?;
+        maps::attempt_to_domain(row, &())
     }
 }
 
@@ -203,12 +143,12 @@ pub struct HistoryLog {
 }
 impl HistoryLog {
     pub fn encode(&self) -> Result<Box<[u8]>, wire::Problem> {
-        let row = wire::HistoryLog { record: self.record };
+        let row = maps::history_log_to_record(self, &())?;
         row.encode(&wire::CEILINGS)
     }
     pub fn decode(bytes: &[u8]) -> Result<Self, wire::Problem> {
-        let wire::HistoryLog { record } = wire::HistoryLog::decode(&wire::CEILINGS, &mut Reader::new(bytes))?;
-        Ok(Self { record })
+        let row = wire::HistoryLog::decode(&wire::CEILINGS, &mut Reader::new(bytes))?;
+        maps::history_log_to_domain(row, &())
     }
 }
 
@@ -219,12 +159,12 @@ pub struct TurnLog {
 }
 impl TurnLog {
     pub fn encode(&self) -> Result<Box<[u8]>, wire::Problem> {
-        let row = wire::TurnLog { window: self.window };
+        let row = maps::turn_log_to_record(self, &())?;
         row.encode(&wire::CEILINGS)
     }
     pub fn decode(bytes: &[u8]) -> Result<Self, wire::Problem> {
-        let wire::TurnLog { window } = wire::TurnLog::decode(&wire::CEILINGS, &mut Reader::new(bytes))?;
-        Ok(Self { window })
+        let row = wire::TurnLog::decode(&wire::CEILINGS, &mut Reader::new(bytes))?;
+        maps::turn_log_to_domain(row, &())
     }
 }
 
@@ -235,11 +175,11 @@ pub struct LogAttempt {
 }
 impl LogAttempt {
     pub fn encode(&self) -> Result<Box<[u8]>, wire::Problem> {
-        let row = wire::LogAttempt { first: self.first };
+        let row = maps::log_attempt_to_record(self, &())?;
         row.encode(&wire::CEILINGS)
     }
     pub fn decode(bytes: &[u8]) -> Result<Self, wire::Problem> {
-        let wire::LogAttempt { first } = wire::LogAttempt::decode(&wire::CEILINGS, &mut Reader::new(bytes))?;
-        Ok(Self { first })
+        let row = wire::LogAttempt::decode(&wire::CEILINGS, &mut Reader::new(bytes))?;
+        maps::log_attempt_to_domain(row, &())
     }
 }

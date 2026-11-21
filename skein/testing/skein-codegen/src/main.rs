@@ -8,9 +8,9 @@ use std::process::{Command, ExitCode};
 
 use skein_codegen::diff::Rename;
 use skein_codegen::patch::{self, Landed, Options};
-use skein_codegen::{check_as, form_of, generate_as, parse};
+use skein_codegen::{generate, parse};
 
-const USAGE: &str = "usage: skein-codegen <schema>... <out-dir> | patch <crate> [--baseline] [--owner <name>] [--after <upstream> <level>] [--rename <family> <old> <new>] [--base <ref>] [--check]";
+const USAGE: &str = "usage: skein-codegen <schema>... [<maps>] <out-dir> | patch <crate> [--baseline] [--owner <name>] [--after <upstream> <level>] [--rename <family> <old> <new>] [--base <ref>] [--check]";
 
 #[derive(Debug, PartialEq, Eq)]
 enum Arguments {
@@ -139,6 +139,10 @@ fn landed(owner: &Path, base: Option<&str>) -> Result<Landed, Box<dyn core::erro
 
 /// The command's texts and filename (data/codec/README.md, 4).
 fn generate_files(schema_paths: &[PathBuf], out_dir: &Path) -> Result<(), Box<dyn core::error::Error>> {
+    let (schema_paths, maps_path) = match schema_paths.split_last() {
+        Some((last, schemas)) if last.extension().is_some_and(|extension| extension == "maps") => (schemas, Some(last)),
+        _ => (schema_paths, None),
+    };
     let first = schema_paths.first().ok_or(USAGE)?;
     let (family, version) = first
         .file_name()
@@ -154,12 +158,13 @@ fn generate_files(schema_paths: &[PathBuf], out_dir: &Path) -> Result<(), Box<dy
         source.push_str(&std::fs::read_to_string(path)?);
     }
     let schema = parse(&source)?;
-    let form = form_of(first.parent().ok_or("schema has no directory")?, &schema.family)?;
-    check_as(&schema, form)?;
-    let output = generate_as(&schema, form);
+    let output = match maps_path {
+        Some(path) => skein_codegen::translate(&schema, &std::fs::read_to_string(path)?)?,
+        None => generate(&schema).records,
+    };
     std::fs::create_dir_all(out_dir)?;
     let path = out_dir.join(format!("{}.rs", family.replace('-', "_")));
-    std::fs::write(path, output.records)?;
+    std::fs::write(path, output)?;
     Ok(())
 }
 

@@ -109,6 +109,7 @@ fn reconnect(world: &mut World, key: core::CallKey) {
         worker: 0,
         channel: Token::new(CHANNEL),
         hello: Hello {
+            fresh: false,
             reads_usage: true,
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),

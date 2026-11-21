@@ -660,6 +660,7 @@ impl World {
 
 fn parent_client(request: &parent::Request) -> Token {
     match request {
+        parent::Request::Signalled { host_run, .. } => *host_run,
         parent::Request::Started { client, .. }
         | parent::Request::Admitted { client }
         | parent::Request::Called { client, .. }

@@ -20,6 +20,10 @@ pub(crate) fn start(domain: &mut Domain) {
     if domain.settling.active() || domain.core.stopping() {
         return;
     }
+    if !domain.start_runtime() {
+        domain.work.push(Work::Core(core::Event::Stopping));
+        return;
+    }
     domain.settling = Phase::Waiting;
     domain.work.push(Work::Core(core::Event::Settling));
     domain.work.push(Work::Forge(forge::Event::Settle));

@@ -249,6 +249,10 @@ impl Core {
         assert!(self.unreported_restored.insert(task, attempt) == Ok(None), "one restored claim per task");
         let proof = self.proofs.get(&task).expect("restored claim proof");
         let kind = if self.workers_in_process { fleet::HostKind::Engine } else { proof.host };
+        let position = match proof.worker {
+            Some(number) => number.checked_sub(1),
+            None => None,
+        };
         let mut worked = kept > 0;
         for (key, _) in &self.call_parts {
             if key.task == task && key.attempt == attempt {
@@ -261,6 +265,7 @@ impl Core {
                 run: Token::new(task),
                 attempt: Token::new(attempt),
                 worked,
+                worker: position,
             });
             return;
         }
@@ -292,6 +297,7 @@ impl Core {
             }
         }
         self.adopted.push(fleet::Event::Adopt {
+            worker: position,
             holds: holds.into_boxed(),
             grants: grants.into_boxed(),
             kind,

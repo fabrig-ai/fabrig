@@ -645,6 +645,7 @@ pub enum Word {
     LimitsBytes,
     LimitsMilliseconds,
     LimitsAtOnce,
+    LimitsLive,
     LimitsNextStart,
     LimitsWaitingStart,
     LimitsLeftOut,
@@ -1667,6 +1668,10 @@ pub enum Word {
     RunBeganSession,
 
     RunEnded,
+    RunSuspendedStopped,
+    RunSuspendedRestarted,
+    WaitReturningWorker,
+    RunWorker,
     /// A run ended with a result outside its admitted contract.
     RunEndedInvalid,
     /// A run ended with a result the adapter could not read.
@@ -2302,7 +2307,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
-const PHRASES: u32 = 2861;
+const PHRASES: u32 = 2868;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2329,10 +2334,10 @@ const PHRASES: u32 = 2861;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 5323;
+const SEGMENTS: u32 = 5344;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 67129;
-const ALL: [Word; 2127] = [
+const ENGLISH_BYTES: u32 = 67290;
+const ALL: [Word; 2132] = [
     Word::WorkMilestoneLede,
     Word::MsGoals,
     Word::MsWhole,
@@ -2922,6 +2927,7 @@ const ALL: [Word; 2127] = [
     Word::LimitsBytes,
     Word::LimitsMilliseconds,
     Word::LimitsAtOnce,
+    Word::LimitsLive,
     Word::LimitsNextStart,
     Word::LimitsWaitingStart,
     Word::LimitsLeftOut,
@@ -3917,6 +3923,10 @@ const ALL: [Word; 2127] = [
     Word::RunBeganLimit,
     Word::RunBeganSession,
     Word::RunEnded,
+    Word::RunSuspendedStopped,
+    Word::RunSuspendedRestarted,
+    Word::WaitReturningWorker,
+    Word::RunWorker,
     Word::RunEndedInvalid,
     Word::RunEndedUnreadable,
     Word::Message,
@@ -5047,6 +5057,7 @@ impl Word {
             Self::LimitsBytes => 9865,
             Self::LimitsMilliseconds => 9866,
             Self::LimitsAtOnce => 9867,
+            Self::LimitsLive => 9881,
             Self::LimitsNextStart => 9868,
             Self::LimitsWaitingStart => 9869,
             Self::LimitsLeftOut => 9870,
@@ -6173,6 +6184,10 @@ impl Word {
             Self::RunBeganSession => 4494,
 
             Self::RunEnded => 151,
+            Self::RunSuspendedStopped => 4361,
+            Self::RunSuspendedRestarted => 4362,
+            Self::WaitReturningWorker => 4363,
+            Self::RunWorker => 4364,
             Self::RunEndedInvalid => 4183,
             Self::RunEndedUnreadable => 4184,
             Self::Message => 146,
@@ -8699,6 +8714,10 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::RunBeganSession => (&[b"Run ", b" began fresh: its session had ended"], &[Number]),
 
         Word::RunEnded => (&[b"Run ", b" ended"], &[Number]),
+        Word::RunSuspendedStopped => (&[b"Run ", b" suspended: ", b" stopped"], &[Number, Name]),
+        Word::RunSuspendedRestarted => (&[b"Run ", b" suspended: ", b" restarted without it"], &[Number, Name]),
+        Word::WaitReturningWorker => (&[b"Waiting for ", b" to return, until ", b""], &[Name, Name]),
+        Word::RunWorker => (&[b"worker ", b""], &[Name]),
         Word::RunEndedInvalid => (&[b"Run ", b" ended: its result broke its contract (", b")"], &[Number, Name]),
         Word::RunEndedUnreadable => (&[b"Run ", b" ended: its result couldn't be read"], &[Number]),
         Word::Message => (&[b"Message"], &[]),
@@ -8841,7 +8860,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::MembersLede => (&[b"Each project\xe2\x80\x99s people and services, and the role each holds there. Who owns an area of a project is its Team\xe2\x80\x99s."], &[]),
         Word::LimitsTab => (&[b"Limits"], &[]),
         Word::LimitsHeading => (&[b"What this deployment holds."], &[]),
-        Word::LimitsLede => (&[b"Every limit, its stock and setting, and the figure in force. An owner can change settings; each row says when a raise applies."], &[]),
+        Word::LimitsLede => (&[b"Every limit, its stock and setting, and the figure in force. An owner can change settings; each row says when a change applies."], &[]),
         Word::MembersDeployment => (&[b"The deployment"], &[]),
         Word::MembersOwner => (&[b"You are its owner."], &[]),
         Word::MembersNoRole => (&[b"You hold no role in it."], &[]),
@@ -8883,6 +8902,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::LimitsBytes => (&[b"bytes"], &[]),
         Word::LimitsMilliseconds => (&[b"milliseconds"], &[]),
         Word::LimitsAtOnce => (&[b"Raises apply at once"], &[]),
+        Word::LimitsLive => (&[b"Changes apply live"], &[]),
         Word::LimitsNextStart => (&[b"Raises apply at the next start"], &[]),
         Word::LimitsWaitingStart => (&[b"Waits for the next start"], &[]),
         Word::LimitsLeftOut => (&[b"Left out: no limit of this release"], &[]),

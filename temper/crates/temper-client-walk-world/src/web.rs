@@ -67,7 +67,7 @@ enum Mount {
     Ready,
 }
 
-/// A bounded driver operation could not finish (journey-walks.md, 3.2).
+/// A bounded driver operation could not finish (client/journey-walks.md, 3.2).
 #[derive(Debug, PartialEq, Eq)]
 pub enum Failed {
     Bound,

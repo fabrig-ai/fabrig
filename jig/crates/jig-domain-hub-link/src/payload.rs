@@ -44,6 +44,8 @@ pub enum Ending {
 pub fn up(domain: &mut Link, channel: Token, up: host::LinkUp) -> Option<core::Event> {
     let event = match up {
         host::LinkUp::Ask { run, attempt, number, bytes } => fleet::Event::Ask { channel, run, attempt, number, bytes },
+        // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too builds this route.
+        host::LinkUp::Paused { state } => fleet::Event::Paused { channel, state },
         host::LinkUp::Draining => fleet::Event::Draining { channel },
         host::LinkUp::JobAnswer { run, attempt, answer } => {
             let kind = match &answer {
@@ -165,7 +167,7 @@ fn refusals(values: Box<[host::Refused]>) -> Box<[u64]> {
     names.into_boxed()
 }
 
-pub(crate) fn ending(ending: &host::Ending) -> tasks::End {
+pub(crate) fn ending(ending: &host::Ending, worker: Option<u32>, window: skein_lib::Duration) -> tasks::End {
     match ending {
         host::Ending::Refused(host::Refusal::Busy) => tasks::End::Refused,
         host::Ending::Refused(host::Refusal::Version(mismatch) | host::Refusal::Untranslated(mismatch)) => {
@@ -224,7 +226,8 @@ pub(crate) fn ending(ending: &host::Ending) -> tasks::End {
                 | host::RunFailure::Limited { .. }
                 | host::RunFailure::Refused { .. },
             ) => tasks::End::Failed(tasks::Class::Run),
-            host::Failure::Cancelled(host::Reason::Contact | host::Reason::Shutdown) => tasks::End::Recheck,
+            host::Failure::Cancelled(host::Reason::Contact) => tasks::End::Recheck,
+            host::Failure::Cancelled(host::Reason::Shutdown) => stopped(worker, window),
             host::Failure::Agent(_) | host::Failure::Cancelled(host::Reason::Engine) => {
                 tasks::End::Failed(tasks::Class::Agent)
             }
@@ -348,8 +351,20 @@ fn live_piece(domain: &mut Link, run: Token, attempt: Token, piece: host::Piece)
     None
 }
 
+/// Only a worker's shutdown suspends; the engine's own hosts still recheck (jig/docs/design/domain/engine/executors.md, 6.1).
+fn stopped(worker: Option<u32>, window: skein_lib::Duration) -> tasks::End {
+    match worker {
+        Some(position) => tasks::End::Suspended(tasks::Suspended {
+            worker: position.checked_add(1).expect("configured worker number fits"),
+            why: tasks::SuspendWhy::Stopped,
+            window,
+        }),
+        None => tasks::End::Recheck,
+    }
+}
+
 /// A job carries its bytes directly, with no result read (jig/docs/design/domain/engine/executors.md, 5).
-pub(crate) fn job_end(ending: &host::JobEnding) -> tasks::End {
+pub(crate) fn job_end(ending: &host::JobEnding, worker: Option<u32>, window: skein_lib::Duration) -> tasks::End {
     let end = match ending {
         host::JobEnding::Finished { result, .. } => {
             tasks::End::Finished { result: tasks::TaskResult::Job { bytes: result.clone() }, cancel_delegates: false }
@@ -371,7 +386,7 @@ pub(crate) fn job_end(ending: &host::JobEnding) -> tasks::End {
             host::JobFailure::Failed | host::JobFailure::Deadline => tasks::End::Failed(tasks::Class::Run),
             host::JobFailure::Unstarted => tasks::End::Failed(tasks::Class::Agent),
             host::JobFailure::Result => tasks::End::Failed(tasks::Class::Invalid),
-            host::JobFailure::Cancelled(host::Reason::Shutdown) => tasks::End::Recheck,
+            host::JobFailure::Cancelled(host::Reason::Shutdown) => stopped(worker, window),
             host::JobFailure::Cancelled(host::Reason::Contact) => tasks::End::Failed(tasks::Class::Lost),
             host::JobFailure::Cancelled(host::Reason::Engine) => tasks::End::Refused,
             host::JobFailure::Undelivered(host::DeliveryOutcome::Delivered | host::DeliveryOutcome::Nothing) => {

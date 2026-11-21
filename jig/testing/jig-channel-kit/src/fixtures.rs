@@ -428,6 +428,7 @@ pub(crate) fn peer_hello() -> skein_channel::Frame {
         reply_bytes: None,
     };
     let hello = wire::Hello {
+        fresh: false,
         slots: 1,
         stop_bound: Duration::from_secs(15),
         workstreams: List::with_capacity(0),

@@ -9,6 +9,7 @@ use smith_channel::Record;
 mod coding;
 mod peer;
 mod setup;
+mod signals;
 use peer::child_charter;
 pub use peer::{TraceCase, long_child_answer};
 pub(crate) use setup::{Mode, ParentOptions, Setup};
@@ -45,6 +46,7 @@ pub(crate) struct Parent {
     frames_at_release: usize,
     refreshing: Option<smith_channel::GrantValue>,
     pub(crate) cancel_pending: bool,
+    cancel_written: bool,
     pub(crate) program_host_answers: Option<usize>,
     pub(crate) program_message: bool,
     order_messages_written: usize,
@@ -101,6 +103,7 @@ impl Parent {
             frames_at_release: 0,
             refreshing: None,
             cancel_pending: false,
+            cancel_written: false,
             program_host_answers: None,
             program_message: false,
             order_messages_written: 0,
@@ -256,6 +259,9 @@ impl Parent {
                 let offset = from.checked_add(count).expect("bounded frame offset");
                 if usize::try_from(offset).expect("offset") == bytes.len() && bytes.get(..2) == Some(&[1, 1]) {
                     self.order_messages_written += 1;
+                }
+                if usize::try_from(offset).expect("offset") == bytes.len() && bytes.get(..2) == Some(&[1, 5]) {
+                    self.cancel_written = true;
                 }
                 self.pending =
                     if usize::try_from(offset).expect("offset") == bytes.len() { None } else { Some((bytes, offset)) };
@@ -670,6 +676,7 @@ struct Referee {
     finding: Option<String>,
     release: Option<Release>,
     cancel: bool,
+    signal_plan: signals::Plan,
     provider_rejected: bool,
     after_answer: u32,
     hang_up: HangUp,
@@ -716,14 +723,19 @@ impl Referee {
                         parent.frames_at_release = parent.peer.observed().len();
                     }
                     if matches!(self.hang_up, HangUp::MidCall)
+                        && self.signal_plan.word != signals::Word::HangUp
                         && calling
                         && let Some(input) = parent.input.take()
                     {
                         parent.close(input);
                     }
-                    if self.cancel && admitted {
+                    if self.cancel && self.signal_plan.count == 0 && admitted {
                         parent.signal = parent.signal.max(1);
+                        if parent.peer.observed().iter().any(|frame| frame.kind == smith_channel::kind::SIGNALLED) {
+                            self.signal_plan.word = signals::Word::Cancel;
+                        }
                     }
+                    self.signal_plan.act(parent, calling);
                     if parent.answered() && parent.status.is_none() {
                         parent.signal = parent.signal.max(self.after_answer);
                     }
@@ -889,6 +901,7 @@ pub struct World {
     provider_rejected: bool,
     charter: Box<[u8]>,
     cancel: bool,
+    signal_plan: signals::Plan,
     after_answer: u32,
     hang_up: bool,
     hold_channel: bool,
@@ -948,6 +961,7 @@ impl World {
             provider_rejected: false,
             charter: charter.into(),
             cancel: false,
+            signal_plan: signals::Plan::new(),
             after_answer: 0,
             hang_up: false,
             hold_channel: false,
@@ -1181,8 +1195,40 @@ impl World {
 
     /// Request a pidfd termination signal after observed admission.
     pub fn signal(&mut self) {
-        self.cancel = true;
+        self.signal_plan.count += 1;
     }
+
+    /// Let the host choose cancellation after hearing the signal notice.
+    pub fn cancel_after_signal(&mut self) {
+        self.cancel = true;
+        self.signal_plan.word = signals::Word::Cancel;
+    }
+
+    /// Let the host drain at the turn boundary after hearing the notice.
+    pub fn drain_after_signal(&mut self) {
+        self.signal_plan.word = signals::Word::Drain;
+    }
+
+    /// Hang up the host's writing half after hearing the signal notice.
+    pub fn hang_up_after_signal(&mut self) {
+        self.cancel = true;
+        self.hang_up_mid_call = true;
+        self.signal_plan.word = signals::Word::HangUp;
+    }
+
+    /// Signal before admission, retaining the notice until the host admits the run.
+    pub fn signal_before_admission(&mut self) {
+        self.signal();
+        self.signal_plan.before_admission = true;
+    }
+
+    /// Have the host cancel first, then send a signal after its cancel can be read.
+    pub fn cancel_before_signal(&mut self) {
+        self.cancel = true;
+        self.signal_plan.word = signals::Word::CancelFirst;
+        self.signal();
+    }
+
     /// Request one more termination signal after the parent's channel answer.
     pub fn signal_after_answer(&mut self) {
         self.after_answer = self.after_answer.checked_add(1).expect("bounded signal scenario");
@@ -1250,6 +1296,7 @@ impl World {
             finding: None,
             release: self.release.clone(),
             cancel: self.cancel,
+            signal_plan: self.signal_plan,
             provider_rejected: self.provider_rejected,
             after_answer: self.after_answer,
             hang_up: self.hang_up_case(),

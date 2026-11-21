@@ -127,6 +127,20 @@ fn shutdown_cancels_every_run_and_takes_no_more() {
     assert!(count(&stats, "refused: busy") > 0, "assignments after shutdown are refused: {stats:?}");
 }
 
+#[test]
+fn seeded_link_pauses_drain_and_resume_without_stopping_the_worker() {
+    let settings = Settings { pauses: true, ..Settings::calm(41) };
+    let mut world = World::with_trace(&settings, true);
+    world.run(ITERATIONS);
+    let trace = world.trace();
+    for event in ["Pause { mode: Pause }", "Pause { mode: Drain }", "Pause { mode: Resume }", "DrainPassed"] {
+        assert!(trace.iter().any(|line| line.contains(event)), "seed 41 exercises {event}");
+    }
+    assert!(trace.iter().any(|line| line.contains("Paused { state: Drained }")), "the hub drains and stays linked");
+    assert!(!trace.iter().any(|line| line.contains("Up(Draining)")), "no shutdown notice");
+    assert!(count(&world.stats(), "refused: busy") > 0, "pauses refuse work even when slots are free");
+}
+
 /// A rough world, varied by seed: some shut down, some lose contact for
 /// longer than the grace, some let runs make several calls at once and hold
 /// several inbound events.

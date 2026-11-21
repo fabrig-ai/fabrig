@@ -1498,3 +1498,18 @@ fn next_run_line(bytes: &[u8]) -> &[u8] {
     let end = skein_lib::bytes::find_from(bytes, b"\n", start).expect("following line ends");
     bytes.get(start..end).unwrap()
 }
+
+#[test]
+fn a_worker_wait_keeps_its_worker_and_window_in_text_and_json() {
+    use jig_client::contract as c;
+    for (argv, expected) in [
+        (fixtures::TASK_JSON_CALL, br#""run_wait":{"worker":{"worker":2,"until":63600000000001}}"#.as_slice()),
+        (fixtures::TASK_CALL, b"next run: waiting for worker 2 to return, until 63600000000001".as_slice()),
+    ] {
+        let mut task = fixtures::goal(fixtures::TASK, c::WaitsOn::Nothing);
+        task.run_wait =
+            Some(c::TaskRunWait::Worker { worker: 2, until: skein_lib::Wall::from_nanos(63_600_000_000_001) });
+        let answer = fixtures::read_answer(argv, fixtures::task_result(task));
+        assert!(skein_lib::bytes::find(&answer.stdout, expected).is_some(), "{:?}", answer.stdout);
+    }
+}

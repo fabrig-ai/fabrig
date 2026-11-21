@@ -461,6 +461,48 @@ fn a_job_runs_on_through_a_drain_but_shutdown_before_delivery_cancels_it() {
 }
 
 #[test]
+fn a_job_failure_before_delivery_from_shutdown_start_answers_shutdown() {
+    for drain in [Some(true), Some(false), None] {
+        for failure in [JobFailure::Failed, JobFailure::Deadline, JobFailure::Unstarted, JobFailure::Result] {
+            let mut h = harness();
+            let owner = active(&mut h);
+            if let Some(drain) = drain {
+                let event = if drain { Event::Drain } else { Event::CancelAll { reason: Reason::Shutdown } };
+                assert_eq!(h.step(event).as_ref(), [Request::Up(LinkUp::Draining)]);
+            }
+            let event = match failure {
+                JobFailure::Failed => Some(JobEnd::Failed { detail: b"signal".as_slice().into() }),
+                JobFailure::Deadline => Some(JobEnd::Deadline),
+                JobFailure::Result => Some(JobEnd::Finished {
+                    result: b"rr".as_slice().into(),
+                    delivery: Some(b"never deliver".as_slice().into()),
+                }),
+                JobFailure::Unstarted => None,
+                JobFailure::Cancelled(_) | JobFailure::Unprepared(_) | JobFailure::Undelivered(_) => {
+                    unreachable!("the table fails a job before delivery")
+                }
+            };
+            if let Some(end) = event {
+                assert!(h.step(Event::Job(FromJob::Ended { owner, end })).is_empty());
+            }
+            let expected = if drain.is_some() { JobFailure::Cancelled(Reason::Shutdown) } else { failure };
+            let detail: Box<[u8]> =
+                if failure == JobFailure::Failed { b"signal".as_slice().into() } else { Box::new([]) };
+            assert_eq!(
+                h.step(gone(owner)).as_ref(),
+                [
+                    Request::Release { workspace: SPACE },
+                    answer(JobEnding::Failed { failure: expected, detail, work: work() }),
+                ]
+            );
+            crate::resume_runs(&mut h.domain, &h.env, &mut h.out);
+            assert!(h.out.is_empty(), "no late stop or second answer");
+            assert_eq!(h.domain.kept_answers(), 1);
+        }
+    }
+}
+
+#[test]
 fn shutdown_during_a_job_delivery_keeps_the_deliverys_result_not_cancellation() {
     for (outcome, gone_first) in [
         (DeliveryOutcome::Delivered, true),

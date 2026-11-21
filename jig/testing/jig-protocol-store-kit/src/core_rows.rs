@@ -37,6 +37,7 @@ pub fn terminal() -> core::TerminalRecord {
 #[must_use]
 pub fn run() -> core::RunProof {
     core::RunProof {
+        worker: None,
         accounts: Box::new([
             jig_domain_authority::AccountBinding { provider: 2, account: 5, source: 7 },
             jig_domain_authority::AccountBinding { provider: 3, account: 11, source: 13 },

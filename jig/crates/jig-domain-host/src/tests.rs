@@ -1108,6 +1108,7 @@ fn admission_classifies_calls_and_link_work_separately_from_completions() {
 
 mod drain;
 mod jobs;
+mod pause;
 
 #[test]
 fn a_starting_fault_keeps_its_class_until_gone_without_admission() {

@@ -158,7 +158,7 @@ fn run_forge(command: &Command, row: &Row, arguments: &[Box<[u8]>], captured: &C
     forge::command(ENGINE.binary, configured).map_err(|why| (1, why))
 }
 
-/// The store's patch levels and versions, then its worker wires (protocol/binaries.md, 2),
+/// The store's patch levels and versions, worker wires and bounds (protocol/binaries.md, 2),
 /// each line ending in a newline.
 #[must_use]
 pub fn versions() -> String {
@@ -195,6 +195,13 @@ pub fn versions() -> String {
             }
             text.push('\n');
         }
+    }
+    let limits = temper_engine_service::limits::stock();
+    let stop = skein_forge_client::stop_bound(&limits.forge.client);
+    let report = temper_engine_domain_forge::WAIT_REPORT;
+    for (name, span) in [("stop", stop), ("report", report)] {
+        let seconds = span.as_nanos().div_ceil(skein_lib::Duration::from_secs(1).as_nanos());
+        writeln!(text, "bound {name} {seconds}").expect("writing into a string");
     }
     text
 }
@@ -278,6 +285,8 @@ mod tests {
                 assert_eq!(fingerprint, expected);
             }
         }
+        assert_eq!(lines.next(), Some("bound stop 602"));
+        assert_eq!(lines.next(), Some("bound report 30"));
         assert_eq!(lines.next(), None);
     }
 

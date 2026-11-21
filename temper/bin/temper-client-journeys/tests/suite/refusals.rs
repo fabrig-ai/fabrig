@@ -18,7 +18,6 @@ use temper_client_shell_web::journey::{self, Line};
 
 fn fixture() -> Vec<Line> {
     let facts = journey::Facts {
-        fixed: false,
         seed: 11,
         now: Time::ZERO,
         wall: Wall::EPOCH,
@@ -53,7 +52,8 @@ fn listing(path: &Path) -> Vec<PathBuf> {
 }
 fn invoke(name: &str, recording: &[u8], options: &[OsString], private: &[&[u8]], code: i32) -> Output {
     let scratch = Scratch::new("journeys-process-refusal");
-    let file = scratch.path().join("recording");
+    let file = scratch.path().join(format!("{name}.recording"));
+    let out = scratch.path().join("out");
     fs::write(&file, recording).expect("scratch recording");
     let journeys = paths::tree().join("docs/design/client/web/journeys");
     let tool = paths::tree().join("crates/temper-client-journeys-tool");
@@ -61,12 +61,12 @@ fn invoke(name: &str, recording: &[u8], options: &[OsString], private: &[&[u8]],
     let before = (listing(&journeys), listing(&tool), listing(&tui));
     assert!(!journeys.join(name).exists() && !tui.join(name).exists(), "unused refusal name");
     let output = Command::new(paths::binary("temper-client-journeys"))
-        .arg("add")
+        .arg("print")
         .args(options)
-        .arg(name)
         .arg(&file)
+        .arg(&out)
         .output()
-        .expect("run add");
+        .expect("run print");
     for bytes in [&output.stdout, &output.stderr] {
         for value in private {
             assert!(find(bytes, value).is_none(), "no fake bytes in either stream");
@@ -74,6 +74,7 @@ fn invoke(name: &str, recording: &[u8], options: &[OsString], private: &[&[u8]],
     }
     assert_eq!(output.status.code(), Some(code));
     assert!(output.stdout.is_empty(), "refusal has no stdout");
+    assert!(!out.exists(), "refusal writes no OUT");
     assert!(!journeys.join(name).exists() && !tui.join(name).exists(), "no refused journey");
     assert!(before == (listing(&journeys), listing(&tool), listing(&tui)), "no temporary or journey paths");
     output
@@ -222,8 +223,10 @@ fn usage_echoes_nothing_given() {
         let output = invoke("guard-usage-refusal", b"", &options, &[fake.as_bytes()], 2);
         messages(&output, &["usage:"]);
     }
-    let output =
-        Command::new(paths::binary("temper-client-journeys")).args(["add", "--redact", &fake]).output().expect("usage");
+    let output = Command::new(paths::binary("temper-client-journeys"))
+        .args(["print", "--redact", &fake])
+        .output()
+        .expect("usage");
     for bytes in [&output.stdout, &output.stderr] {
         assert!(find(bytes, fake.as_bytes()).is_none(), "usage echoes no given text");
     }

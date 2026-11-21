@@ -1090,7 +1090,7 @@ pub(crate) fn conversation_lines(
             Line::Provisional { text, .. } => provisional(b, text, words),
             Line::Undecoded { why, .. } => undecoded(b, why, words, clock.as_deref()),
             Line::Activity { line } => {
-                owner_line(b, &line.source.line, projected, speakers.person, words, clock.as_deref());
+                owner_line(b, &line.source.line, projected, speakers.person, words, clock.as_deref(), proposals);
             }
         }
         b.close();
@@ -1307,6 +1307,7 @@ fn owner_line(
     person: Option<u64>,
     words: &Words,
     clock: Option<&[u8]>,
+    root: Option<&Domain>,
 ) {
     if projected && let c::Activity::Heard(c::Word { kind: c::MessageKind::QuestionAnswered { question }, .. }) = line {
         text(b, Role::Paragraph, &words.say(Word::QuestionAnswered, &[Hole::Number(*question)]));
@@ -1323,14 +1324,14 @@ fn owner_line(
                 if projected { look::BY_DELEGATE } else { look::BY_AGENT },
             ),
             c::Requester::Deployment { .. } => {
-                super::task::owner_activity(b, line, words);
+                super::task::owner_activity(b, line, words, root);
                 return;
             }
         };
         words_message(b, &label, message.bytes(), WordState::Read { message: 0 }, side, words, clock);
         return;
     }
-    super::task::owner_activity(b, line, words);
+    super::task::owner_activity(b, line, words, root);
 }
 fn hidden_line(
     line: &Line<'_>,

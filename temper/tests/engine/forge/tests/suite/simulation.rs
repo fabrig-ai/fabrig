@@ -1506,6 +1506,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::Refused { .. }
                 | top::Request::ResourceRefused { .. }
                 | top::Request::HeadRefused { .. }
+                | top::Request::FullTableFact { .. }
                 | top::Request::LostReadFailed { .. }
                 | top::Request::MakeFailed { .. }
                 | top::Request::Outcome { .. }

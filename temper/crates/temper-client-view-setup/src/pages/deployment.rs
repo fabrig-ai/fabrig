@@ -208,6 +208,7 @@ fn limit_row(b: &mut Builder, w: &Words, row: &temper_client_protocol_wire::v1::
         let applies = match &row.applies {
             wire::LimitApplies::AtOnce => Word::LimitsAtOnce,
             wire::LimitApplies::NextStart => Word::LimitsNextStart,
+            wire::LimitApplies::Live => Word::LimitsLive,
         };
         crate::cards::text(b, Role::Text, &w.say(applies, &[]));
     }

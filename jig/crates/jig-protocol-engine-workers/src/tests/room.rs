@@ -82,6 +82,30 @@ fn the_room_holds_control_and_every_non_start_frame() {
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
+#[test]
+fn retiming_the_host_reaches_its_component_without_io() {
+    let mut workers = host::Workers::new(
+        &config(),
+        host::Tokens { listeners: 1, connections: 2 },
+        wire::Application::opaque(fixtures::application()),
+        &fixtures::LIMITS,
+    )
+    .expect("host");
+    let timers = crate::Timers {
+        handshake: Duration::from_secs(2),
+        hello: fixtures::LIMITS.hello,
+        stall: fixtures::LIMITS.stall,
+    };
+    let pending = workers.pending();
+    let io = workers.io.len();
+    assert!(workers.retime(timers));
+    assert_eq!(workers.pending(), pending);
+    assert_eq!(workers.io.len(), io);
+    assert!(!workers.retime(crate::Timers { handshake: Duration::from_secs(3), hello: Duration::ZERO, ..timers }));
+    workers.down(Time::ZERO, Event::Accepted { connection: Token::new(1), in_process: false });
+    assert_eq!(workers.next_deadline(), Some(Time::ZERO.saturating_add(timers.handshake)));
+}
+
 fn job(bad: bool) -> hub::LinkDown {
     hub::LinkDown::AssignJob {
         job: hub::JobAssignment {
@@ -250,7 +274,9 @@ fn a_channels_closed_entrance_answers_the_current_record_once() {
                     why: words.as_bytes().into()
                 }))
             ),
-            other @ (hub::LinkUp::Draining
+            // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too.
+            other @ (hub::LinkUp::Paused { .. }
+            | hub::LinkUp::Draining
             | hub::LinkUp::UsageRead { .. }
             | hub::LinkUp::ListRead { .. }
             | hub::LinkUp::Piece { .. }

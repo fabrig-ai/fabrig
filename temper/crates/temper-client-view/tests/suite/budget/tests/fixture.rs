@@ -478,7 +478,9 @@ impl Project {
                 let fact = f::PersonFact::GoalFrom(f::GoalFrom { project: PROJECT, chat: 4000, goal: 100, at: RECENT });
                 wire::dismissals(&f::Dismissals { dismissed: List::from_boxed(Box::new([fact])) })
             }
-            f::Watch::Forges => wire::forges(&f::Forges { forges: List::with_capacity(0), linked: true }),
+            f::Watch::Forges => {
+                wire::forges(&f::Forges { forges: List::with_capacity(0), full: List::with_capacity(0), linked: true })
+            }
             f::Watch::Away => wire::aways(&f::Aways { rows: List::with_capacity(0) }),
             f::Watch::Trials => {
                 let record = f::Trials { rows: List::with_capacity(0) };

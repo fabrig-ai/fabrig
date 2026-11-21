@@ -923,8 +923,8 @@ The header says "temper box" in its stead (`pages/README.md`, 3).
   *link* original, its URL-base64 replaced in every field
   (`journeys.md`, 5), and `/web`'s note wraps the link as the welcome
   does, redacted across its rows (`journeys.md`, 8.3, *The welcome's
-  link, wrapped*). A journey of a box with the TUI in front
-  is `journeys.md`, 8.3.
+  link, wrapped*). The front host and what a journey
+  driver still needs are `journeys.md`, 8.3.
 - **Its tests,** beside `../testing.md`'s: golden frames at 80 by 24, dark,
   of the welcome before and after the sign-in, the welcome at each stage
   before the box's link (finding, fetching with and without a size,

@@ -1,0 +1,6 @@
+patch 1
+owner smith 6
+
+family smith-channel 12 to 13
+add Signal
+add Signalled
