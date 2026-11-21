@@ -1,103 +1,27 @@
 //! A restart reads the held goal branch before settling and makes it after
 //! (temper/docs/design/domain/forge/branches.md, 1).
 use skein_forge::api::{Op, Write};
-use skein_forge_client::{Condition, Effect, Entry};
+use skein_forge_client::Entry;
 use temper_engine_domain_forge as top;
-use temper_engine_domain_forge_landing as landing;
-use temper_engine_forge_world::{REPO, World};
+use temper_engine_forge_world::{
+    World,
+    restarts::{
+        BRANCH, GOAL, goal_name as name, synthetic_cancelled_landing, synthetic_held_dispatch as held_dispatch,
+        synthetic_missing_branch,
+    },
+};
 
-const GOAL: u64 = 77;
-const BRANCH: &[u8] = b"temper/77/g77";
-const ENDED: u64 = 63;
 const FRESH: u64 = 3;
-
-fn name() -> top::Name {
-    top::Name {
-        forge: REPO.forge,
-        repository: REPO.repository,
-        what: top::What::Branch(Box::new([
-            b"temper".as_slice().into(),
-            b"77".as_slice().into(),
-            b"g77".as_slice().into(),
-        ])),
-    }
-}
 
 fn before_restart() -> World {
     let mut world = World::with_entries(377, 2);
     world.adopt();
-    world.store_before_restart(top::Stored::Hold(top::Hold {
-        name: name(),
-        task: GOAL,
-        writer: None,
-        beside: None,
-        design_writers: Box::new([]),
-        drift: None,
-    }));
+    synthetic_missing_branch(&mut world);
     world.take_seen();
     world.take_calls();
     world.observe_entry_saves();
     assert!(!world.has_branch(BRANCH));
     world
-}
-
-fn cancelled_landing() -> top::LandingRow {
-    top::LandingRow {
-        last_event: None,
-        turn_since: None,
-        waiting: None,
-        room: None,
-        job: None,
-        landing: landing::Landing {
-            last_left: None,
-            searched: None,
-            task: ENDED,
-            project: 5,
-            phase: landing::Phase::Cancelled,
-            members: Box::new([]),
-            preparation: 0,
-            stale_proofs: 0,
-            branch: b"main".as_slice().into(),
-            round: landing::Round::new(b"temper/63/l63".as_slice().into()),
-            last_prepare: None,
-        },
-        asks: Box::new([]),
-        entries: [1, 2]
-            .map(|entry| top::LandingEntry {
-                preparation: None,
-                base: None,
-                entry,
-                member: 0,
-                gate: 0,
-                operation: top::Operation::Dispatch,
-                run: None,
-            })
-            .into(),
-        flake_reruns: Box::new([]),
-    }
-}
-
-fn held_dispatch(number: u64) -> top::Stored {
-    top::Stored::Entry {
-        entry: Entry {
-            number,
-            task: ENDED,
-            repository: REPO,
-            effect: Effect {
-                write: Write::Dispatch {
-                    workflow: b"gate.yml".as_slice().into(),
-                    branch: b"main".as_slice().into(),
-                    inputs: Box::new([]),
-                },
-                condition: Condition::None,
-            },
-            start: None,
-            attempt: None,
-            failures: 0,
-            queued: false,
-        },
-        held: true,
-    }
 }
 
 fn restart_has_read_then_settled(world: &mut World) -> usize {
@@ -160,7 +84,7 @@ fn finish_making(world: &mut World) {
 #[test]
 fn a_full_outbox_delays_a_restarted_goal_making_but_not_reading_afresh() {
     let mut world = before_restart();
-    world.store_before_restart(top::Stored::Landing(cancelled_landing()));
+    world.store_before_restart(top::Stored::Landing(synthetic_cancelled_landing(&[1, 2])));
     for number in [1, 2] {
         world.store_before_restart(held_dispatch(number));
     }

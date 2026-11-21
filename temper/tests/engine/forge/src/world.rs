@@ -127,6 +127,8 @@ struct Pending {
 mod follows;
 #[path = "world/history.rs"]
 mod history_reads;
+#[path = "world/restarts.rs"]
+pub mod restarts;
 
 struct ReadScript {
     branch_error: Option<(Box<[u8]>, skein_forge::api::Error)>,
@@ -167,6 +169,9 @@ pub struct World {
     timeout_merges: u32,
     lose_rerun_answer: bool,
     unavailable: Option<(Wall, Wall)>,
+    restart_scripts: restarts::Scripts,
+    settled_generation: Option<(u64, Time)>,
+    dropped_answers: u32,
     calls: u32,
     call_ops: Vec<skein_forge::api::Op>,
     hints: Vec<skein_forge::api::Hint>,
@@ -831,6 +836,9 @@ impl World {
             timeout_merges: 0,
             lose_rerun_answer: false,
             unavailable: None,
+            restart_scripts: restarts::Scripts::default(),
+            settled_generation: None,
+            dropped_answers: 0,
             calls: 0,
             call_ops: Vec::new(),
             hints: Vec::new(),
@@ -1657,6 +1665,8 @@ impl World {
         if let Some((generation, event)) = self.to_top.pop() {
             if generation == self.generation {
                 self.event(event);
+            } else if matches!(event, top::Event::Client(skein_forge_client::Event::Answered { .. })) {
+                self.dropped_answers += 1;
             }
         } else if let Some(event) = self.to_forge.pop() {
             let mut env =
@@ -1673,6 +1683,7 @@ impl World {
                 self.timeout_merges -= 1;
                 env.limits.timeouts = 1000;
             }
+            self.restart_call_config(&event, &mut env);
             forge::step(&mut self.forge, &env, event, &mut self.forge_out);
             self.take_forge();
         } else if self.top.is_ready() {
@@ -1819,6 +1830,9 @@ impl World {
                     self.seen.push(top::Request::Settled { unfinished }).expect("world output capacity");
                 }
                 top::Request::RestartDone { stage } => {
+                    if stage == top::RestartStage::Settled {
+                        self.settled_generation = Some((self.generation, self.env.now));
+                    }
                     restart = match stage {
                         top::RestartStage::Restored => Some(top::Event::ReadAfresh),
                         top::RestartStage::ReadAfresh => Some(top::Event::SettleOutbox),
@@ -1916,6 +1930,19 @@ impl World {
                     call,
                     cost: 1,
                     result: Err(skein_forge::api::Error::Unavailable),
+                }),
+            ));
+            return;
+        }
+        if let Some(error) = self.restart_refusal(&op) {
+            self.to_top.push((
+                self.generation,
+                top::Event::Client(skein_forge_client::Event::Answered {
+                    free: 0,
+                    rate: None,
+                    call,
+                    cost: 1,
+                    result: Err(error),
                 }),
             ));
             return;
@@ -2043,6 +2070,10 @@ impl World {
                     } else {
                         result
                     };
+                    if self.restart_loses_answer(&pending.op, &result) {
+                        continue;
+                    }
+                    self.restart_answer(&pending.op, &result);
                     let event = (
                         pending.generation,
                         top::Event::Client(skein_forge_client::Event::Answered {

@@ -30,6 +30,7 @@ mod protection;
 mod public;
 mod readiness;
 mod replay;
+mod restarts;
 mod rules_by_path;
 mod runner_wait;
 mod settle;
@@ -51,6 +52,7 @@ mod fuzzy {
     mod opened;
     mod pull_cutoff;
     mod queue_history;
+    mod restarts;
     mod rules_by_path;
     mod simulation;
 }
