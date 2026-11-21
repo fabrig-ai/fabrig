@@ -353,8 +353,7 @@ def journeys(base_id, tree_id, paths, root, env):
     lines.append("a journey's recording, pages and the files beside them are written on main by "
                  "the journeys' writer alone (AGENTS.md, 4): restore them with git "
                  f"checkout {base_id or 'HEAD'} -- PATH..., and compare pages by cargo run -p "
-                 "temper-client-journeys in your own tree, or, for a journey whose walk is of version 2, "
-                 "by cargo run -p temper-client-walk -- print --out DIR")
+                 "temper-client-walk -- print --out DIR in your own tree")
     log = '\n'.join(lines) + '\n'
     print(log, end='', flush=True)
     return 1, [failure('journeys', tail(log))]

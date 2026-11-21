@@ -152,11 +152,7 @@ def codec_list(repository, conflicts):
 
 
 def regenerate_codec(repository, path, schemas, stages, conflicts):
-    sources = list(schemas)
-    mark = str(Path(schemas[0]).parent / 'lean')
-    if (repository / mark).exists() or mark in conflicts:
-        sources.append(mark)
-    if any(source in conflicts or not (repository / source).is_file() for source in sources):
+    if any(source in conflicts or not (repository / source).is_file() for source in schemas):
         print(f'{path}: schema source is missing or unmerged', file=sys.stderr)
         return False
     if any(source.startswith(CODEC_GENERATORS) for source in conflicts):

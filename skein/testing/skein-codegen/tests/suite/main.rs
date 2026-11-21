@@ -1,6 +1,5 @@
 extern crate alloc;
 
-mod form;
 mod patch_bridges;
 mod patch_check;
 mod patch_generated;

@@ -83,6 +83,10 @@ impl World {
             dial: DialState::Settled,
         }
     }
+    #[must_use]
+    pub fn retime(&mut self, timers: jig_protocol_worker_link::Timers) -> bool {
+        self.component.retime(timers)
+    }
     pub fn engine(&mut self, peer: ScriptedPeer) {
         self.pending.push_back(Some(peer));
     }

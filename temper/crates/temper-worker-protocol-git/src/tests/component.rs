@@ -40,6 +40,51 @@ fn every_push_fault_keeps_gits_stderr_tail() {
 }
 
 #[test]
+fn an_unanswered_spawn_keeps_its_output_bounds() {
+    let raised = crate::Limits { stdout_bytes: 1024, stderr_bytes: 1024, ..fixtures::limits() };
+    let auth = b"fatal: Authentication failed for 'remote'\n";
+    for long_stdout in [true, false] {
+        let mut started = fixtures::Started::new();
+        for (first, fault) in [(true, git::Fault::Broken), (false, git::Fault::Refused)] {
+            started.down(Request::Io {
+                owner: fixtures::OWNER,
+                op: fixtures::push_op(None),
+                deadline: fixtures::DEADLINE,
+                identity: Some(fixtures::identity()),
+            });
+            if first {
+                assert!(started.component.take_limits(&raised), "raise after issuing the spawn but before Spawned");
+            }
+            let (child, pipes) = started.spawned();
+            started.stdout(pipes[1], auth);
+            if long_stdout {
+                // With truncated stdout we cannot trust the push's reply.
+                started.stdout(pipes[0], &[b'x'; 600]);
+                started.stdout(pipes[0], b"\n");
+            } else {
+                // With a short stderr tail the cause is no longer visible.
+                started.stdout(pipes[1], &[b'x'; 600]);
+                started.stdout(pipes[1], b"\n");
+            }
+            started.end(pipes[0]);
+            started.end(pipes[1]);
+            started.exited(child, 128);
+            started.closed(child, &pipes);
+            let (_, git::Done::FailedWithOutput { fault: actual, .. }) = started.done().expect("terminal") else {
+                panic!("push failure carries output");
+            };
+            assert_eq!(
+                actual,
+                fault,
+                "push with {} truncated by the old bound",
+                if long_stdout { "stdout" } else { "stderr" }
+            );
+        }
+        started.shutdown();
+    }
+}
+
+#[test]
 fn design_paths_stream_past_the_stdout_and_conflict_limits() {
     changed_paths(false);
 }

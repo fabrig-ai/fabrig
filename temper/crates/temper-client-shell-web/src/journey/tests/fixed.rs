@@ -103,23 +103,6 @@ fn fixed_is_an_optional_fact_only_after_clocks() {
 }
 
 #[test]
-fn a_fixed_key_mark_is_walked_without_a_moving_judgement() {
-    let records = [
-        turn(1000),
-        Line::Mark(None),
-        Line::Deadline(None),
-        turn(1100),
-        Line::Heard(Heard::StreamOpened),
-        Line::Deadline(None),
-    ];
-    let plain = recording(&records);
-    assert_eq!(walk(&plain), Err(Unwalkable::Moving { step: 1 }));
-    let mut fixed = lines(&plain).expect("plain records");
-    fixed.insert(3, Line::Fixed);
-    assert_eq!(walk(&written(&fixed)), Ok(vec![Step::Mark, Step::End]));
-}
-
-#[test]
 fn an_unfixed_start_keeps_native_facts_and_has_no_fixed_line() {
     let mut platform = skein_ui_web::platform::Facts {
         seed: 11,

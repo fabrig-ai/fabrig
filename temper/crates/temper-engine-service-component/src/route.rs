@@ -151,7 +151,7 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
                     None
                 }
                 root::PartyRequest::Deliver(root::Delivery::WorkerFigures { agents, revision }) => {
-                    engine.workers.figures(engine.env.now, &agents, revision, &mut engine.events);
+                    engine.workers.figures(engine.env.now, agents, revision, &mut engine.events);
                     None
                 }
                 root::PartyRequest::Deliver(root::Delivery::PlaygroundNote { line }) => {

@@ -75,11 +75,6 @@ test = "forge_routes::landing::two_goals::two_goals_land_in_one_green_turn"
 cpu_s = 0.27
 why = "Two goals' changes, each approved by its review behind a person's latch, form one turn landing of two on one green gate run, with one fast-forward, member pulls merged at their candidates, and the landing's panel checked. Two goals forming one turn cannot be shown with fewer."
 
-[[gate.default.reasons]]
-binary = "temper-client-shell-tui"
-test = "journey::normalise::tests::an_approved_sign_in_normalises_and_replays_to_the_end"
-cpu_s = 0.14
-why = "A synthesized approval recording is normalised twice to check idempotency and replayed through the shipped terminal host to its end; landing run 1593 measured 0.110 CPU s alone."
 
 
 [[gate.default.reasons]]

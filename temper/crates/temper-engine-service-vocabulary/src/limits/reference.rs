@@ -5,7 +5,7 @@ use temper_forge_setup::limits as setup;
 
 /// Temper's, the setup's and the box's override names at the stock's values.
 pub fn reference(out: &mut Writer) -> Result<(), Overflow> {
-    out.put(b"# Limits\n\nKind: reference\n\nEvery row belongs to the temper-limits setting: its name, unit, stock value, when a raise applies and what it bounds.\n")?;
+    out.put(b"# Limits\n\nKind: reference\n\nEvery row belongs to the temper-limits setting: its name, unit, stock value, when a change applies and what it bounds.\n")?;
     let mut limits = stock();
     super::derive(&mut limits, temper_service_core::derived::STOCK).expect("stock carriers fit");
     let mut owner = "";
@@ -93,7 +93,7 @@ pub fn engine_reference_with(out: &mut Writer, introduction: &[u8]) -> Result<()
             jig_protocol_config::names::Unit::Bytes => "bytes",
             jig_protocol_config::names::Unit::Milliseconds => "milliseconds",
         };
-        row(name.name, unit, (name.value)(&limits), name.line, Applies::NextStart, &mut owner, out)?;
+        row(name.name, unit, (name.value)(&limits), name.line, name.applies, &mut owner, out)?;
     }
     Ok(())
 }
@@ -146,6 +146,7 @@ fn row(
     out.put(b" | ")?;
     out.put(match applies {
         Applies::AtOnce => b"at once",
+        Applies::Live => b"live",
         Applies::NextStart => b"next start",
     })?;
     out.put(b" | ")?;
