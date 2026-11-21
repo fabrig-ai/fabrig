@@ -688,15 +688,22 @@ A world copies each into its ledger at the moment it takes the output.
 ```rust
 pub fn failed(error: &api::Error) -> skein_world::faults::Kind; // a failure the domain answered
 pub fn struck(strike: &api::Strike) -> skein_world::faults::Kind; // an account's strike
+pub const RATE_WINDOW: Kind;       // "rate window"
+pub const SPENT_CREDITS: Kind;     // "spent credits"
+pub const EXPIRED_SIGN_IN: Kind;   // "expired sign-in"
+pub const UNSERVED_MODEL: Kind;    // "unserved model"
+pub const CUT_BEFORE_OUTPUT: Kind; // "cut before output"
+pub const CUT_MID_TEXT: Kind;      // "cut mid-text"
+pub const CUT_MID_CALL: Kind;      // "cut mid-call"
 pub const HANG_AFTER_HEAD: Kind;   // "hang after head": a hold on a reply's first piece, never released
 pub const IDLE_MID_STREAM: Kind;   // "idle mid-stream": a hold on a later piece, never released
 ```
 
-Their names: `rate window`, `spent credits`, `expired sign-in`,
-`unserved model`, `cut before output`, `cut mid-text`, `cut mid-call`,
-and today's classes by their own (`overloaded`, `unavailable`, `rate
-limited`, `exhausted`, `refused`, `unsupported`, `context too long`,
-`invalid`, `unauthorized`). A strike is recorded from its strike to its
+Today's classes keep their own names (`overloaded`, `unavailable`,
+`rate limited`, `exhausted`, `refused`, `unsupported`, `context too
+long`, `invalid`, `unauthorized`), through `failed`. Another fake that
+makes one of these faults, as smith's fake program does, names it by the
+same constant. A strike is recorded from its strike to its
 clear, a window's refusal from the refusal to its reset, a cut at its
 instant, and a hang from the hold reached to its release, or never.
 
