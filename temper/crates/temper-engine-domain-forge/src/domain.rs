@@ -3741,6 +3741,11 @@ fn lost_read(
     let taken = branch_written(d, &pending.name, None);
     child(d, env, skein_forge_client::Event::Writer { resource, taken }, out);
     lost_release(d, &pending.name, false, out);
+    if let Some(hold) = d.holds.get(&pending.name)
+        && hold.task != pending.task
+    {
+        continue_writer_release(d, pending.task, false, out);
+    }
 }
 
 /// A later attempt keeps its slot while the lost read's branch or successful
@@ -3793,13 +3798,22 @@ fn superseded_head(
 
 fn lost_failed(d: &Domain, task: u64, attempt: u64, name: &Name, reason: &[u8], out: &mut Queue<Request>) {
     lost_release(d, name, true, out);
+    if let Some(hold) = d.holds.get(name)
+        && hold.task != task
+    {
+        continue_writer_release(d, task, true, out);
+    }
     emit(out, Request::LostReadFailed { task, attempt, resource: name.clone(), reason: Box::from(reason) });
 }
 
 /// Wake the holder's existing release after its lost writer's reread ends.
 fn lost_release(d: &Domain, name: &Name, failed: bool, out: &mut Queue<Request>) {
     let Some(hold) = d.holds.get(name) else { return };
-    let task = hold.task;
+    continue_writer_release(d, hold.task, failed, out);
+}
+
+/// A writer's own release waits too, even when its branch belongs to its parent.
+fn continue_writer_release(d: &Domain, task: u64, failed: bool, out: &mut Queue<Request>) {
     let Some(row) = d.releases.get(&task) else { return };
     if row.releasing && !row.failed && row.pending.is_none() {
         emit(
@@ -7925,6 +7939,27 @@ fn continue_release_inner(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u
             reds::released(d, task, &name, out);
             emit(out, Request::Erase { key: Key::Hold(name) });
             continue;
+        }
+        // The task remains live until every foreign hold has let go of its
+        // writer link (jig/docs/design/domain/engine/restart.md, Load, then link).
+        // Its lost/design read wakes this release when the link is cleared.
+        // Removed forges retain historical links without a live task.
+        for (_, hold) in &d.holds {
+            if d.forge_ended(hold.name.forge) {
+                continue;
+            }
+            let slot = match hold.writer {
+                Some(Writer::Run { task: writer, .. } | Writer::Lost { task: writer, .. }) => writer == task,
+                Some(Writer::Entry(_)) | None => false,
+            };
+            if slot {
+                return;
+            }
+            for writer in &hold.design_writers {
+                if writer.task == task {
+                    return;
+                }
+            }
         }
         let mut topics = List::with_capacity(env.limits.subscriptions);
         for ((owner, topic), _) in &d.subscriptions {

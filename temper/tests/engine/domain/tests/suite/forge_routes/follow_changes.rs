@@ -332,6 +332,9 @@ fn configured_follow(start: s::FollowStart, passes: u32, gate: Gate, cued: bool)
     world
 }
 fn unaccepted_follow(passes: u32, gate: Gate, cued: bool, context: bool) -> World {
+    unaccepted_follow_with_tables(passes, gate, cued, context, false)
+}
+fn unaccepted_follow_with_tables(passes: u32, gate: Gate, cued: bool, context: bool, tiny: bool) -> World {
     let mut world = World::configured_limits(
         true,
         true,
@@ -341,6 +344,10 @@ fn unaccepted_follow(passes: u32, gate: Gate, cued: bool, context: bool) -> Worl
         None,
         StoryLimits {
             second_project: true,
+            forge_entries: tiny.then_some(2),
+            forge_pending: tiny.then_some(2),
+            forge_calls: tiny.then_some(2),
+            sign_ins: tiny.then_some(2),
             forge_pages: Some(b"https://forge.example"),
             project_landing: cued.then(|| {
                 (

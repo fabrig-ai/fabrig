@@ -116,6 +116,8 @@ pub struct World {
     fake_out: Queue<fake::Request>,
     pub pending: BTreeMap<Token, skein_forge::api::Op>,
     pending_repositories: BTreeMap<Token, Box<[u8]>>,
+    /// Physical reply rights are never reused, even when a process restarts.
+    wire_calls: BTreeMap<Token, Token>,
     located_names: BTreeMap<u32, Box<[u8]>>,
     run_repositories: BTreeMap<Token, Box<[u8]>>,
     pub forge_calls: u32,
@@ -211,6 +213,7 @@ pub struct StoryLimits {
     pub forge_entries: Option<u32>,
     pub forge_holds: Option<u32>,
     pub forge_pending: Option<u32>,
+    pub sign_ins: Option<u32>,
     pub forge_calls: Option<u32>,
     pub forge_rate: Option<u32>,
     pub forge_rows: Option<u32>,
@@ -1365,6 +1368,9 @@ impl World {
             if let Some(holds) = timing.forge_holds {
                 limits.forge.holds = holds;
             }
+            if let Some(sign_ins) = timing.sign_ins {
+                limits.people.sign_ins = sign_ins;
+            }
             if let Some(pending) = timing.forge_pending {
                 limits.forge.client.pending = pending;
             }
@@ -1671,6 +1677,7 @@ impl World {
             fake_out: Queue::uncapped(),
             pending: BTreeMap::new(),
             pending_repositories: BTreeMap::new(),
+            wire_calls: BTreeMap::new(),
             located_names: BTreeMap::new(),
             run_repositories: BTreeMap::new(),
             forge_calls: 0,
@@ -2321,6 +2328,24 @@ impl World {
         self.restart_domain(crate::oracle::config::copy(&self.restart_config), true);
     }
 
+    /// Crash at a tick boundary, not a drained cut (draft/reconciling-start.md, 7).
+    /// The independent forge keeps running; only this process's reply rights and
+    /// uncommitted store work are lost. Hosted worker attempts survive as on `restart_same`.
+    pub fn crash_restart(&mut self, seed: u64) {
+        self.store.crash(seed);
+        self.pending.clear();
+        self.pending_repositories.clear();
+        self.wire_calls.clear();
+        self.run_repositories.clear();
+        self.fake_out = Queue::uncapped();
+        self.immediate.clear();
+        for held in [&mut self.held_reads, &mut self.held_comparisons, &mut self.held_merge_calls].into_iter().flatten()
+        {
+            held.clear();
+        }
+        self.restart_same();
+    }
+
     fn restart_domain(&mut self, mut config: engine::Config, with_change: bool) {
         for worker in &mut config.core.defaults.workers {
             worker.places = self.env.limits.fleet.slots;
@@ -2345,7 +2370,7 @@ impl World {
         self.adopted.clear();
         self.period = None;
         self.events.push_back(engine::Event::Restart { pending: self.store.pending_generation });
-        if !self.assigned.is_empty() {
+        if self.oracle_peer.is_some() || !self.assigned.is_empty() {
             let mut bounds = protocol::bounds();
             bounds.message_bytes = self.env.limits.tasks.message_bytes.max(self.env.limits.tasks.result_bytes);
             self.events.push_back(protocol::hello_with(
@@ -2688,6 +2713,8 @@ impl World {
                     };
                     self.pending.insert(call, op);
                     self.pending_repositories.insert(call, Box::from(name));
+                    let wire = Token::new(u64::from(self.forge_calls));
+                    assert!(self.wire_calls.insert(wire, call).is_none(), "unique physical reply right");
                     let mut limits = self.fake_env.limits.clone();
                     if slow {
                         limits.latency_min = self.slow_branch_latency;
@@ -2702,7 +2729,7 @@ impl World {
                         &mut self.fake,
                         &fake_env,
                         fake::Event::Call {
-                            reply_to: ReplyTo::new(call),
+                            reply_to: ReplyTo::new(wire),
                             user: 1,
                             repository: Box::from(name),
                             op: raw,
@@ -3221,7 +3248,8 @@ impl World {
         for _ in 0..self.fake_out.len() {
             match self.fake_out.pop().expect("counted fake output") {
                 fake::Request::Reply { to, result } => {
-                    let call = to.into_token();
+                    // A crash abandons reply rights, not the remote operation.
+                    let Some(call) = self.wire_calls.remove(&to.into_token()) else { continue };
                     let op = self.pending.remove(&call).expect("one pending forge call");
                     let repository = self.pending_repositories.remove(&call).expect("pending call's repository");
                     let result = match result {
