@@ -1,472 +1,57 @@
 //! Task lifecycle values and bounded creation templates (protocol/store/records.md, 1).
+use super::Context;
 use super::value;
+use crate::generated::tasks as mapped;
 use crate::tasks_v13 as wire;
 use alloc::boxed::Box;
 use jig_domain_tasks as domain;
-use skein_lib::{List, Wall};
-
-/// Translate `Holding` to its store value.
-pub fn holding(source: &domain::Holding, limits: &wire::Limits) -> Result<wire::Holding, wire::Problem> {
-    Ok(match source {
-        domain::Holding::Write { resource, kind } => {
-            wire::Holding::Write(wire::WriteHolding { resource: value::name(resource, limits)?, kind: *kind })
-        }
-        domain::Holding::Slot { pool, kind } => {
-            wire::Holding::Slot(wire::SlotHolding { pool: value::name(pool, limits)?, kind: *kind })
-        }
-    })
-}
-/// Read `Holding` from its store value.
-pub fn read_holding(source: wire::Holding, limits: &wire::Limits) -> Result<domain::Holding, wire::Problem> {
-    Ok(match source {
-        wire::Holding::Write(value) => {
-            let wire::WriteHolding { resource, kind } = value;
-            domain::Holding::Write { resource: value::read_name(resource, limits)?, kind }
-        }
-        wire::Holding::Slot(value) => {
-            let wire::SlotHolding { pool, kind } = value;
-            domain::Holding::Slot { pool: value::read_name(pool, limits)?, kind }
-        }
-    })
-}
-
-/// Translate `WakeRule` to its store value.
-pub fn wake_rule(source: &domain::WakeRule, _limits: &wire::Limits) -> Result<wire::WakeRule, wire::Problem> {
-    Ok(match source {
-        domain::WakeRule::Never => wire::WakeRule::Never,
-        domain::WakeRule::Immediate => wire::WakeRule::Immediate,
-        domain::WakeRule::Batch { count, age } => wire::WakeRule::Batch(wire::WakeBatch { count: *count, age: *age }),
-        domain::WakeRule::Paced { span } => wire::WakeRule::Paced(wire::WakePace { span: *span }),
-    })
-}
-/// Read `WakeRule` from its store value.
-pub fn read_wake_rule(source: wire::WakeRule) -> Result<domain::WakeRule, wire::Problem> {
-    Ok(match source {
-        wire::WakeRule::Never => domain::WakeRule::Never,
-        wire::WakeRule::Immediate => domain::WakeRule::Immediate,
-        wire::WakeRule::Batch(value) => {
-            let wire::WakeBatch { count, age } = value;
-            domain::WakeRule::Batch { count, age }
-        }
-        wire::WakeRule::Paced(value) => domain::WakeRule::Paced { span: value.span },
-    })
-}
-
-/// Translate `ResultsWake` to its store value.
-pub fn results_wake(source: &domain::ResultsWake) -> Result<wire::ResultsWake, wire::Problem> {
-    Ok(match source {
-        domain::ResultsWake::Never => wire::ResultsWake::Never,
-        domain::ResultsWake::Each => wire::ResultsWake::Each,
-        domain::ResultsWake::LastOrFailure => wire::ResultsWake::LastOrFailure,
-    })
-}
-/// Read `ResultsWake` from its store value.
-pub fn read_results_wake(source: wire::ResultsWake) -> Result<domain::ResultsWake, wire::Problem> {
-    Ok(match source {
-        wire::ResultsWake::Never => domain::ResultsWake::Never,
-        wire::ResultsWake::Each => domain::ResultsWake::Each,
-        wire::ResultsWake::LastOrFailure => domain::ResultsWake::LastOrFailure,
-    })
-}
-
-/// Translate `WakePolicy` to its store record.
-pub fn wake(source: &domain::WakePolicy, limits: &wire::Limits) -> Result<wire::WakePolicy, wire::Problem> {
-    let domain::WakePolicy { words, notices, news, results, questions, answers, timers } = source;
-    Ok(wire::WakePolicy {
-        words: wake_rule(words, limits)?,
-        notices: wake_rule(notices, limits)?,
-        news: wake_rule(news, limits)?,
-        results: results_wake(results)?,
-        questions: *questions,
-        answers: *answers,
-        timers: *timers,
-    })
-}
-/// Read `WakePolicy` from its store record.
-pub fn read_wake(source: wire::WakePolicy) -> Result<domain::WakePolicy, wire::Problem> {
-    let wire::WakePolicy { words, notices, news, results, questions, answers, timers } = source;
-    Ok(domain::WakePolicy {
-        words: read_wake_rule(words)?,
-        notices: read_wake_rule(notices)?,
-        news: read_wake_rule(news)?,
-        results: read_results_wake(results)?,
-        questions,
-        answers,
-        timers,
-    })
-}
-
-/// Translate `RecurringOverlap` to its store value.
-pub fn overlap(source: &domain::RecurringOverlap) -> Result<wire::RecurringOverlap, wire::Problem> {
-    Ok(match source {
-        domain::RecurringOverlap::Skip => wire::RecurringOverlap::Skip,
-        domain::RecurringOverlap::Wait => wire::RecurringOverlap::Wait,
-    })
-}
-/// Read `RecurringOverlap` from its store value.
-pub fn read_overlap(source: wire::RecurringOverlap) -> Result<domain::RecurringOverlap, wire::Problem> {
-    Ok(match source {
-        wire::RecurringOverlap::Skip => domain::RecurringOverlap::Skip,
-        wire::RecurringOverlap::Wait => domain::RecurringOverlap::Wait,
-    })
-}
+use skein_lib::List;
 
 /// Translate `Hold` to its store value.
 pub fn hold(source: &domain::Hold, _limits: &wire::Limits) -> Result<wire::Hold, wire::Problem> {
-    Ok(match source {
-        domain::Hold::Exceeded(value) => wire::Hold::Exceeded(wire::Exceeded {
-            bound: match value.bound {
-                domain::Bound::Reasoning => wire::Bound::Reasoning,
-                domain::Bound::Metadata => wire::Bound::Metadata,
-                domain::Bound::Items => wire::Bound::Items,
-                domain::Bound::Answer => wire::Bound::Answer,
-                domain::Bound::Tools => wire::Bound::Tools,
-                domain::Bound::HistoryItems => wire::Bound::HistoryItems,
-                domain::Bound::History => wire::Bound::History,
-                domain::Bound::Window => wire::Bound::Window,
-                domain::Bound::Output => wire::Bound::Output,
-            },
-            value: value.value,
-        }),
-        domain::Hold::Failures(class) => wire::Hold::Failures(wire::FailedClass { class: value::class(*class) }),
-        domain::Hold::Stalled => wire::Hold::Stalled,
-        domain::Hold::Dependency(task) => wire::Hold::Dependency(wire::Number { value: *task }),
-        domain::Hold::Stopped => wire::Hold::Stopped,
-        domain::Hold::Placed { hold } => wire::Hold::Placed(wire::Number { value: *hold }),
-        domain::Hold::Drift => wire::Hold::Drift,
-        domain::Hold::Effects => wire::Hold::Effects,
-        domain::Hold::EffectFailed => wire::Hold::EffectFailed,
-        domain::Hold::Uncertain { entry } => wire::Hold::Uncertain(wire::Effect { entry: *entry }),
-        domain::Hold::Budget => wire::Hold::Budget,
-        domain::Hold::Deadline => wire::Hold::Deadline,
-        domain::Hold::HoldsWaited => wire::Hold::HoldsWaited,
-        domain::Hold::ResourceUnavailable => wire::Hold::ResourceUnavailable,
-        domain::Hold::ResourceAccess => wire::Hold::ResourceAccess,
-        domain::Hold::PoolLost { pool } => wire::Hold::PoolLost(wire::Number { value: *pool }),
-        domain::Hold::Procedure => wire::Hold::Procedure,
-        domain::Hold::Circle => wire::Hold::Circle,
-    })
+    mapped::hold_to_record(source, &Context::new(&super::EMPTY, None))
 }
 /// Read `Hold` from its store value.
 pub fn read_hold(source: wire::Hold) -> Result<domain::Hold, wire::Problem> {
-    Ok(match source {
-        wire::Hold::Exceeded(value) => domain::Hold::Exceeded(domain::Exceeded {
-            bound: match value.bound {
-                wire::Bound::Reasoning => domain::Bound::Reasoning,
-                wire::Bound::Metadata => domain::Bound::Metadata,
-                wire::Bound::Items => domain::Bound::Items,
-                wire::Bound::Answer => domain::Bound::Answer,
-                wire::Bound::Tools => domain::Bound::Tools,
-                wire::Bound::HistoryItems => domain::Bound::HistoryItems,
-                wire::Bound::History => domain::Bound::History,
-                wire::Bound::Window => domain::Bound::Window,
-                wire::Bound::Output => domain::Bound::Output,
-            },
-            value: value.value,
-        }),
-        wire::Hold::Failures(value) => {
-            let wire::FailedClass { class } = value;
-            domain::Hold::Failures(value::read_class(class))
-        }
-        wire::Hold::Stalled => domain::Hold::Stalled,
-        wire::Hold::Dependency(value) => {
-            let wire::Number { value } = value;
-            domain::Hold::Dependency(value)
-        }
-        wire::Hold::Stopped => domain::Hold::Stopped,
-        wire::Hold::Placed(value) => {
-            let wire::Number { value: hold } = value;
-            domain::Hold::Placed { hold }
-        }
-        wire::Hold::Drift => domain::Hold::Drift,
-        wire::Hold::Effects => domain::Hold::Effects,
-        wire::Hold::EffectFailed => domain::Hold::EffectFailed,
-        wire::Hold::Uncertain(value) => {
-            let wire::Effect { entry } = value;
-            domain::Hold::Uncertain { entry }
-        }
-        wire::Hold::Budget => domain::Hold::Budget,
-        wire::Hold::Deadline => domain::Hold::Deadline,
-        wire::Hold::HoldsWaited => domain::Hold::HoldsWaited,
-        wire::Hold::ResourceUnavailable => domain::Hold::ResourceUnavailable,
-        wire::Hold::ResourceAccess => domain::Hold::ResourceAccess,
-        wire::Hold::PoolLost(value) => {
-            let wire::Number { value } = value;
-            domain::Hold::PoolLost { pool: value }
-        }
-        wire::Hold::Procedure => domain::Hold::Procedure,
-        wire::Hold::Circle => domain::Hold::Circle,
-    })
-}
-
-/// Translate `Active` to its store value.
-pub fn active(source: &domain::Active, _limits: &wire::Limits) -> Result<wire::Active, wire::Problem> {
-    Ok(match source {
-        domain::Active::Idle => wire::Active::Idle,
-        domain::Active::Due => wire::Active::Due,
-        domain::Active::Preparing => wire::Active::Preparing,
-        domain::Active::Claimed { attempt } => wire::Active::Claimed(wire::Number { value: *attempt }),
-        domain::Active::Running { attempt } => wire::Active::Running(wire::Number { value: *attempt }),
-        domain::Active::BackingOff { until } => wire::Active::BackingOff(wire::Number { value: until.as_nanos() }),
-    })
-}
-/// Read `Active` from its store value.
-pub fn read_active(source: wire::Active) -> Result<domain::Active, wire::Problem> {
-    Ok(match source {
-        wire::Active::Idle => domain::Active::Idle,
-        wire::Active::Due => domain::Active::Due,
-        wire::Active::Preparing => domain::Active::Preparing,
-        wire::Active::Claimed(value) => {
-            let wire::Number { value } = value;
-            domain::Active::Claimed { attempt: value }
-        }
-        wire::Active::Running(value) => {
-            let wire::Number { value } = value;
-            domain::Active::Running { attempt: value }
-        }
-        wire::Active::BackingOff(value) => {
-            let wire::Number { value } = value;
-            domain::Active::BackingOff { until: Wall::from_nanos(value) }
-        }
-    })
-}
-
-/// Translate `Stage` to its store value.
-pub fn stage(source: &domain::Stage, _limits: &wire::Limits) -> Result<wire::Stage, wire::Problem> {
-    Ok(match source {
-        domain::Stage::Run { attempt } => wire::Stage::Run(wire::Number { value: *attempt }),
-        domain::Stage::Delegates => wire::Stage::Delegates,
-        domain::Stage::Effects => wire::Stage::Effects,
-        domain::Stage::Releases => wire::Stage::Releases,
-        domain::Stage::Settled => wire::Stage::Settled,
-    })
-}
-/// Read `Stage` from its store value.
-pub fn read_stage(source: wire::Stage) -> Result<domain::Stage, wire::Problem> {
-    Ok(match source {
-        wire::Stage::Run(value) => {
-            let wire::Number { value } = value;
-            domain::Stage::Run { attempt: value }
-        }
-        wire::Stage::Delegates => domain::Stage::Delegates,
-        wire::Stage::Effects => domain::Stage::Effects,
-        wire::Stage::Releases => domain::Stage::Releases,
-        wire::Stage::Settled => domain::Stage::Settled,
-    })
-}
-
-/// Translate `Ending` to its store value.
-pub fn ending(source: &domain::Ending, limits: &wire::Limits) -> Result<wire::Ending, wire::Problem> {
-    Ok(match source {
-        domain::Ending::Done(result) => wire::Ending::Done(wire::Done { result: self::result(result, limits)? }),
-        domain::Ending::Failed { reason } => wire::Ending::Failed(wire::FailureResult { reason: reason.clone() }),
-        domain::Ending::Cancelled { by, at, reason, result } => wire::Ending::Cancelled(wire::Cancelled {
-            by: value::party(by, limits)?,
-            at: at.as_nanos(),
-            reason: reason.clone(),
-            result: optional_result(result.as_ref(), limits)?,
-        }),
-    })
-}
-/// Read `Ending` from its store value.
-pub fn read_ending(source: wire::Ending, limits: &wire::Limits) -> Result<domain::Ending, wire::Problem> {
-    Ok(match source {
-        wire::Ending::Done(value) => {
-            let wire::Done { result } = value;
-            domain::Ending::Done(read_result(result, limits)?)
-        }
-        wire::Ending::Failed(value) => {
-            let wire::FailureResult { reason } = value;
-            domain::Ending::Failed { reason }
-        }
-        wire::Ending::Cancelled(value) => {
-            let wire::Cancelled { by, at, reason, result } = value;
-            domain::Ending::Cancelled {
-                by: value::read_party(by),
-                at: Wall::from_nanos(at),
-                reason,
-                result: read_optional_result(result, limits)?,
-            }
-        }
-    })
-}
-
-/// Translate `Closing` to its store record.
-pub fn closing(source: &domain::Closing, limits: &wire::Limits) -> Result<wire::Closing, wire::Problem> {
-    let domain::Closing { stage, ending } = source;
-    Ok(wire::Closing { stage: self::stage(stage, limits)?, ending: self::ending(ending, limits)? })
-}
-/// Read `Closing` from its store record.
-pub fn read_closing(source: wire::Closing, limits: &wire::Limits) -> Result<domain::Closing, wire::Problem> {
-    let wire::Closing { stage, ending } = source;
-    Ok(domain::Closing { stage: read_stage(stage)?, ending: read_ending(ending, limits)? })
-}
-
-/// Translate `Was` to its store value.
-pub fn was(source: &domain::Was, limits: &wire::Limits) -> Result<wire::Was, wire::Problem> {
-    Ok(match source {
-        domain::Was::Waiting => wire::Was::Waiting,
-        domain::Was::Active(value) => wire::Was::Active(wire::Activation { value: active(value, limits)? }),
-        domain::Was::Closing(value) => wire::Was::Closing(closing(value, limits)?),
-    })
-}
-/// Read `Was` from its store value.
-pub fn read_was(source: wire::Was, limits: &wire::Limits) -> Result<domain::Was, wire::Problem> {
-    Ok(match source {
-        wire::Was::Waiting => domain::Was::Waiting,
-        wire::Was::Active(value) => {
-            let wire::Activation { value } = value;
-            domain::Was::Active(read_active(value)?)
-        }
-        wire::Was::Closing(value) => domain::Was::Closing(read_closing(value, limits)?),
-    })
-}
-
-/// Translate `HoldSource` to its store value.
-pub fn hold_source(source: &domain::HoldSource, limits: &wire::Limits) -> Result<wire::HoldSource, wire::Problem> {
-    Ok(match source {
-        domain::HoldSource::Preparation { words } => {
-            wire::HoldSource::Preparation(wire::HoldPreparation { words: words.clone() })
-        }
-        domain::HoldSource::Account { connector, entry, words } => {
-            wire::HoldSource::Account(wire::HoldAccount { connector: *connector, entry: *entry, words: words.clone() })
-        }
-        domain::HoldSource::Circle(circle) => wire::HoldSource::Circle(wire::Circle {
-            tasks: references(&circle.tasks, limits.circle_tasks, wire::paths::CIRCLE_TASKS, limits)?,
-            cut: circle.cut,
-        }),
-        domain::HoldSource::Resource(value) => wire::HoldSource::Resource(value::name(value, limits)?),
-        domain::HoldSource::Effect { connector, entry } => {
-            wire::HoldSource::Effect(wire::HoldEffect { connector: *connector, entry: *entry })
-        }
-    })
-}
-/// Read `HoldSource` from its store value.
-pub fn read_hold_source(source: wire::HoldSource, limits: &wire::Limits) -> Result<domain::HoldSource, wire::Problem> {
-    Ok(match source {
-        wire::HoldSource::Preparation(value) => {
-            let wire::HoldPreparation { words } = value;
-            domain::HoldSource::Preparation { words }
-        }
-        wire::HoldSource::Account(value) => {
-            let wire::HoldAccount { connector, entry, words } = value;
-            domain::HoldSource::Account { connector, entry, words }
-        }
-        wire::HoldSource::Circle(value) => {
-            let wire::Circle { tasks, cut } = value;
-            domain::HoldSource::Circle(domain::Circle { tasks: read_references(tasks), cut })
-        }
-        wire::HoldSource::Resource(value) => domain::HoldSource::Resource(value::read_name(value, limits)?),
-        wire::HoldSource::Effect(value) => {
-            let wire::HoldEffect { connector, entry } = value;
-            domain::HoldSource::Effect { connector, entry }
-        }
-    })
+    mapped::hold_to_domain(source, &Context::new(&super::EMPTY, None))
 }
 
 /// Translate `Phase` to its store value.
 pub fn phase(source: &domain::Phase, limits: &wire::Limits) -> Result<wire::Phase, wire::Problem> {
-    Ok(match source {
-        domain::Phase::Waiting => wire::Phase::Waiting,
-        domain::Phase::Active(value) => wire::Phase::Active(wire::Activation { value: active(value, limits)? }),
-        domain::Phase::Closing(value) => wire::Phase::Closing(closing(value, limits)?),
-        domain::Phase::Held { was, why, source } => wire::Phase::Held(wire::Held {
-            was: self::was(was, limits)?,
-            why: hold(why, limits)?,
-            source: optional_source(source.as_deref(), limits)?,
-        }),
-        domain::Phase::Ended(value) => wire::Phase::Ended(wire::Final { ending: ending(value, limits)? }),
-    })
+    mapped::phase_to_record(source, &Context::new(limits, None))
 }
 /// Read `Phase` from its store value.
 pub fn read_phase(source: wire::Phase, limits: &wire::Limits) -> Result<domain::Phase, wire::Problem> {
-    Ok(match source {
-        wire::Phase::Waiting => domain::Phase::Waiting,
-        wire::Phase::Active(value) => {
-            let wire::Activation { value } = value;
-            domain::Phase::Active(read_active(value)?)
-        }
-        wire::Phase::Closing(value) => domain::Phase::Closing(read_closing(value, limits)?),
-        wire::Phase::Held(value) => {
-            let wire::Held { was, why, source } = value;
-            domain::Phase::Held {
-                was: read_was(was, limits)?,
-                why: read_hold(why)?,
-                source: read_optional_source(source, limits)?,
-            }
-        }
-        wire::Phase::Ended(value) => {
-            let wire::Final { ending } = value;
-            domain::Phase::Ended(read_ending(ending, limits)?)
-        }
-    })
+    mapped::phase_to_domain(source, &Context::new(limits, None))
 }
 
 /// Translate `Grace` to its store record.
 pub fn grace(source: &domain::Grace, limits: &wire::Limits) -> Result<wire::Grace, wire::Problem> {
-    let domain::Grace { by, until, reason, message } = source;
-    Ok(wire::Grace {
-        by: value::party(by, limits)?,
-        until: until.as_nanos(),
-        reason: reason.clone(),
-        message: *message,
-    })
+    mapped::grace_to_record(source, &Context::new(limits, None))
 }
 /// Read `Grace` from its store record.
 pub fn read_grace(source: wire::Grace) -> Result<domain::Grace, wire::Problem> {
-    let wire::Grace { by, until, reason, message } = source;
-    Ok(domain::Grace { by: value::read_party(by), until: Wall::from_nanos(until), reason, message })
+    mapped::grace_to_domain(source, &Context::new(&super::EMPTY, None))
 }
 
 /// Translate `Revisions` to its store record.
 pub fn revisions(source: &domain::Revisions, _limits: &wire::Limits) -> Result<wire::Revisions, wire::Problem> {
-    let domain::Revisions { hold, spec, person } = source;
-    Ok(wire::Revisions { hold: *hold, spec: *spec, person: *person })
+    mapped::revisions_to_record(source, &Context::new(&super::EMPTY, None))
 }
 /// Read `Revisions` from its store record.
 pub fn read_revisions(source: wire::Revisions) -> Result<domain::Revisions, wire::Problem> {
-    let wire::Revisions { hold, spec, person } = source;
-    Ok(domain::Revisions { hold, spec, person })
+    mapped::revisions_to_domain(source, &Context::new(&super::EMPTY, None))
 }
 
 /// Translate `RetryNotice` to its store value.
 pub fn retry_notice(source: &domain::RetryNotice, _limits: &wire::Limits) -> Result<wire::RetryNotice, wire::Problem> {
-    Ok(match source {
-        domain::RetryNotice::Failed { class, count, allowance, reason } => {
-            wire::RetryNotice::Failed(wire::FailedRetry {
-                class: value::class(*class),
-                count: *count,
-                allowance: *allowance,
-                reason: reason.clone(),
-            })
-        }
-        domain::RetryNotice::Refused { count, reason } => {
-            wire::RetryNotice::Refused(wire::RefusedRetry { count: *count, reason: reason.clone() })
-        }
-    })
+    mapped::retry_notice_to_record(source, &Context::new(&super::EMPTY, None))
 }
 /// Read `RetryNotice` from its store value.
 pub fn read_retry_notice(source: wire::RetryNotice) -> Result<domain::RetryNotice, wire::Problem> {
-    Ok(match source {
-        wire::RetryNotice::Failed(value) => {
-            let wire::FailedRetry { class, count, allowance, reason } = value;
-            domain::RetryNotice::Failed { class: value::read_class(class), count, allowance, reason }
-        }
-        wire::RetryNotice::Refused(value) => {
-            let wire::RefusedRetry { count, reason } = value;
-            domain::RetryNotice::Refused { count, reason }
-        }
-    })
+    mapped::retry_notice_to_domain(source, &Context::new(&super::EMPTY, None))
 }
 
-pub(super) fn numbers(source: &domain::Numbers, _limits: &wire::Limits) -> wire::Numbers {
-    let domain::Numbers { budget, spent, spent_below, reserved } = source;
-    wire::Numbers { budget: *budget, spent: *spent, spent_below: *spent_below, reserved: *reserved }
-}
-pub(super) fn read_numbers(source: wire::Numbers) -> domain::Numbers {
-    let wire::Numbers { budget, spent, spent_below, reserved } = source;
-    domain::Numbers { budget, spent, spent_below, reserved }
-}
 pub(super) fn references(
     source: &[u64],
     cap: u32,
@@ -494,6 +79,7 @@ pub(super) fn member(
     limits: &wire::Limits,
     moved: Option<&[u64; 64]>,
 ) -> Result<wire::Member, wire::Problem> {
+    let context = &Context::new(limits, None);
     let domain::New {
         label,
         flags,
@@ -515,34 +101,32 @@ pub(super) fn member(
     } = source;
     let mut resources = List::with_capacity(limits.member_holdings);
     for resource in holdings {
-        let resource = holding(resource, limits)?;
+        let resource = mapped::holding_to_record(resource, context)?;
         if resources.push(resource).is_err() {
             return Err(problem(wire::paths::MEMBER_HOLDINGS));
         }
     }
     Ok(wire::Member {
         label: *label,
-        flags: self::flags(*flags, limits),
+        flags: mapped::flags_to_record(flags, context)?,
         number: *number,
         project: *project,
-        executor: value::executor(*executor, limits)?,
+        executor: mapped::executor_to_record(executor, context)?,
         llm: value::llm(llm.as_ref(), limits)?,
         spec: value::spec(spec, limits)?,
         contract: value::contract(contract, limits)?,
         authority: value::authority(authority, limits, moved)?,
-        deadline: match deadline {
-            domain::Deadline::Named => wire::Deadline::Named,
-            domain::Deadline::Span(value) => wire::Deadline::Span(wire::DeadlineSpan { value: *value }),
-        },
-        numbers: numbers(allotment, limits),
-        funder: value::funder(*funder, limits),
+        deadline: mapped::deadline_to_record(deadline, context)?,
+        numbers: mapped::numbers_to_record(allotment, context)?,
+        funder: mapped::funder_to_record(funder, context)?,
         dependencies: references(dependencies, limits.member_dependencies, wire::paths::MEMBER_DEPENDENCIES, limits)?,
         holdings: resources,
-        wake: wake(policy, limits)?,
+        wake: mapped::wake_policy_to_record(policy, context)?,
         tracked: *tracked,
     })
 }
 pub(super) fn read_member(source: wire::Member, limits: &wire::Limits) -> Result<domain::New, wire::Problem> {
+    let context = &Context::new(limits, None);
     let wire::Member {
         label,
         flags,
@@ -563,27 +147,24 @@ pub(super) fn read_member(source: wire::Member, limits: &wire::Limits) -> Result
     } = source;
     let mut resources = List::with_capacity(holdings.len());
     for resource in holdings.into_boxed() {
-        resources.push(read_holding(resource, limits)?).expect("same number of holdings");
+        resources.push(mapped::holding_to_domain(resource, context)?).expect("same number of holdings");
     }
     Ok(domain::New {
-        deadline: match deadline {
-            wire::Deadline::Named => domain::Deadline::Named,
-            wire::Deadline::Span(value) => domain::Deadline::Span(value.value),
-        },
+        deadline: mapped::deadline_to_domain(deadline, context)?,
         label,
-        flags: read_flags(flags),
+        flags: mapped::flags_to_domain(flags, context)?,
         number,
         project,
-        executor: value::read_executor(executor),
-        llm: value::read_llm(llm),
+        executor: mapped::executor_to_domain(executor, context)?,
+        llm: value::read_llm(llm)?,
         spec: value::read_spec(spec, limits)?,
         contract: value::read_contract(contract, limits)?,
         authority: value::read_authority(authority, limits)?,
-        numbers: read_numbers(numbers),
-        funder: value::read_funder(funder),
+        numbers: mapped::numbers_to_domain(numbers, context)?,
+        funder: mapped::funder_to_domain(funder, context)?,
         dependencies: read_references(dependencies),
         holdings: resources.into_boxed(),
-        wake: read_wake(policy)?,
+        wake: mapped::wake_policy_to_domain(policy, context)?,
         recurring: None,
         tracked,
     })
@@ -624,7 +205,11 @@ pub fn template(
         wire::paths::RECURRING_TEMPLATE_BATCH,
         moved,
     )?;
-    Ok(wire::RecurringTemplate { key: *key, batch: members, overlap: overlap(rule)? })
+    Ok(wire::RecurringTemplate {
+        key: *key,
+        batch: members,
+        overlap: mapped::recurring_overlap_to_record(rule, &Context::new(limits, None))?,
+    })
 }
 /// Read a recurring batch whose schema members cannot recur.
 pub fn read_template(
@@ -633,7 +218,11 @@ pub fn read_template(
 ) -> Result<domain::RecurringTemplate, wire::Problem> {
     let wire::RecurringTemplate { key, batch, overlap } = source;
     let members = super::pieces::read_members(batch, limits, wire::paths::RECURRING_TEMPLATE_BATCH)?;
-    Ok(domain::RecurringTemplate { key, batch: members, overlap: read_overlap(overlap)? })
+    Ok(domain::RecurringTemplate {
+        key,
+        batch: members,
+        overlap: mapped::recurring_overlap_to_domain(overlap, &Context::new(limits, None))?,
+    })
 }
 /// Translate a result within its combined byte bound.
 pub fn result(source: &domain::TaskResult, limits: &wire::Limits) -> Result<wire::TaskResult, wire::Problem> {
@@ -717,83 +306,6 @@ fn check_result(source: &domain::TaskResult, limits: &wire::Limits) -> Result<()
     }
     Ok(())
 }
-fn optional_result(
-    source: Option<&domain::TaskResult>,
-    limits: &wire::Limits,
-) -> Result<Option<wire::TaskResult>, wire::Problem> {
-    match source {
-        Some(value) => Ok(Some(result(value, limits)?)),
-        None => Ok(None),
-    }
-}
-fn read_optional_result(
-    source: Option<wire::TaskResult>,
-    limits: &wire::Limits,
-) -> Result<Option<domain::TaskResult>, wire::Problem> {
-    match source {
-        Some(value) => Ok(Some(read_result(value, limits)?)),
-        None => Ok(None),
-    }
-}
-pub(super) fn optional_source(
-    source: Option<&domain::HoldSource>,
-    limits: &wire::Limits,
-) -> Result<Option<wire::HoldSource>, wire::Problem> {
-    match source {
-        Some(value) => Ok(Some(hold_source(value, limits)?)),
-        None => Ok(None),
-    }
-}
-pub(super) fn read_optional_source(
-    source: Option<wire::HoldSource>,
-    limits: &wire::Limits,
-) -> Result<Option<Box<domain::HoldSource>>, wire::Problem> {
-    match source {
-        Some(value) => Ok(Some(Box::new(read_hold_source(value, limits)?))),
-        None => Ok(None),
-    }
-}
 fn problem(path: wire::Path) -> wire::Problem {
     wire::Problem { path, reason: skein_codec::Reason::Bound }
-}
-
-/// Translate immutable task flags to their durable form.
-pub(super) fn flags(source: domain::Flags, _limits: &wire::Limits) -> wire::Flags {
-    let retention = match source.retention {
-        domain::Retention::Kept => wire::Retention::Kept,
-        domain::Retention::ForgottenOnceRead => wire::Retention::ForgottenOnceRead,
-    };
-    wire::Flags {
-        ended_by: match source.ended_by {
-            domain::EndedBy::Result => wire::EndedBy::Result,
-            domain::EndedBy::Requester => wire::EndedBy::Requester,
-            domain::EndedBy::Standing => wire::EndedBy::Standing,
-            domain::EndedBy::Closer(closer) => {
-                wire::EndedBy::Closer(wire::Closer { connector: closer.connector, code: closer.code })
-            }
-        },
-        conversation: source.conversation,
-        listed: source.listed,
-        retention,
-    }
-}
-/// Read immutable task flags.
-pub(super) fn read_flags(source: wire::Flags) -> domain::Flags {
-    let retention = match source.retention {
-        wire::Retention::Kept => domain::Retention::Kept,
-        wire::Retention::ForgottenOnceRead => domain::Retention::ForgottenOnceRead,
-    };
-    domain::Flags {
-        ended_by: match source.ended_by {
-            wire::EndedBy::Result => domain::EndedBy::Result,
-            wire::EndedBy::Requester => domain::EndedBy::Requester,
-            wire::EndedBy::Standing => domain::EndedBy::Standing,
-            wire::EndedBy::Closer(closer) => {
-                domain::EndedBy::Closer(domain::Closer { connector: closer.connector, code: closer.code })
-            }
-        },
-        conversation: source.conversation,
-        listed: source.listed,
-        retention,
-    }
 }

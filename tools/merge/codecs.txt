@@ -16,6 +16,8 @@ jig/crates/jig-protocol-store-records/src/generated/accounts.rs jig/crates/jig-p
 jig/crates/jig-protocol-store-records/src/generated/component.rs jig/crates/jig-protocol-store/schema/component-v3.schema jig/crates/jig-protocol-store/schema/component.maps
 jig/crates/jig-protocol-store-records/src/generated/core.rs jig/crates/jig-protocol-store/schema/core-v6.schema jig/crates/jig-protocol-store/schema/core.maps
 jig/crates/jig-protocol-store-records/src/generated/notes.rs jig/crates/jig-protocol-store/schema/notes-v1.schema jig/crates/jig-protocol-store/schema/notes.maps
+jig/crates/jig-protocol-store-records/src/generated/settings.rs jig/crates/jig-protocol-store/schema/settings-v3.schema jig/crates/jig-protocol-store/schema/settings.maps
+jig/crates/jig-protocol-store-records/src/generated/tasks.rs jig/crates/jig-protocol-store/schema/tasks-v13.schema jig/crates/jig-protocol-store/schema/tasks.maps
 jig/crates/jig-protocol-store-settings/src/generated/settings.rs jig/crates/jig-protocol-store/schema/settings-v3.schema
 jig/crates/jig-protocol-store-tasks/src/generated/tasks.rs jig/crates/jig-protocol-store/schema/tasks-v13.schema
 jig/crates/jig-protocol-store/src/generated/openings.rs jig/crates/jig-protocol-store/schema/openings-v1.schema jig/crates/jig-protocol-store/schema/openings.maps

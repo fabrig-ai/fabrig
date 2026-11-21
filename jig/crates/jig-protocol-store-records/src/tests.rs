@@ -2,3 +2,4 @@
 mod codec;
 pub(crate) mod fixtures;
 mod settings;
+mod tasks_maps;
