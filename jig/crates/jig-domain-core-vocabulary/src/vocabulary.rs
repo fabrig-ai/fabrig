@@ -287,9 +287,12 @@ pub enum Ask {
 
 /// Store mutation issued by a child of the core.
 #[derive(Hash, Debug)]
-#[expect(
-    clippy::large_enum_variant,
-    reason = "durable run proofs carry placement evidence; writes retain the shared record vocabulary"
+#[cfg_attr(
+    target_pointer_width = "64",
+    expect(
+        clippy::large_enum_variant,
+        reason = "durable run proofs carry placement evidence; writes retain the shared record vocabulary"
+    )
 )]
 pub enum Write {
     /// Drop a task transcript whole with its places (jig/docs/design/protocol/store/transcripts.md, 5, jig/docs/design/protocol/store/README.md, 6.1;
