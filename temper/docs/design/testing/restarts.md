@@ -141,7 +141,9 @@ root over the fake forge's domain, the world of the follows workload
 - **A crash at any iteration** (`ENGINE_CRASH`): the world drops the root
   at the drawn iteration with whatever it has in flight. A commit
   submitted and not answered is kept whole or lost, as the injector
-  draws, and its answer reaches no one. A forge call sent and not
+  draws, and its answer reaches no one. What is kept is a prefix in
+  commit order: the store applies commits whole and in number order, so
+  once one is lost every later one is lost with it. A forge call sent and not
   answered is made by the fake forge or not, as the injector draws, and
   its answer reaches no one. A new root then starts from the store, as
   `restart_same` starts one, with no `drain_cut` before it. Its interval
@@ -176,6 +178,14 @@ root over the fake forge's domain, the world of the follows workload
   (`temper/crates/temper-engine-service-component/src/stop.rs`): a crash,
   as above, from the settle's state. It is an instant; the stop it cut
   keeps its own entry, stopped at the next opening.
+- **A claim committed and not delivered** at a crash or a stop is not
+  in the worker's hello, which lists only what reached it. A hello from
+  the same process proves only what it lists, so the new root holds
+  that claim until the stored restart wait ends, as jig's fleet does
+  (`jig/tests/fleet/tests/suite/restart.rs`), and places it again
+  after that. The restart sweep's workload moves the world's clock to
+  the root's next alarm when the world is quiet and not yet ready. The
+  follows workload's other tests and their bounds are unchanged.
 - **The service's own handling** of a signal in each phase, of a second
   signal and of a signal before the store opens stays its step tests'
   (`temper/crates/temper-engine-service-component/src/tests/stop/start.rs`;
@@ -301,6 +311,11 @@ as the world's programs (`README.md`, 2.5).
   for each seed, whether its run starts from the image or from the
   world's own first start. Its interval runs from the run's start to
   that start's opening.
+- **What checks an image run:** jig's conformance referee starts from
+  an empty store at commit zero, so it watches only the runs that start
+  fresh. A run from the image is checked by the golden reader's checks
+  (census, history, preserved sources, forge) and the secrets' checks.
+  These are the world's checks as they stand (section 9).
 - **Why the older layout falls at a run's start:** a world runs one
   build, so the only store a previous release writes is one that release
   wrote before, kept as its image, and the upgrade is the first start
@@ -373,3 +388,6 @@ Focused and fuzzy suites only.
   build them.
 - A stop in a start class the reconciling start adds, should it add one:
   a fourth kind beside the three of section 4.
+- jig's conformance referee started from a store's baseline, a compacted
+  prefix such as dev's image, so that it also watches a run from the
+  image (section 8).
