@@ -134,6 +134,13 @@ check would refuse.
   task proposes) and the acceptance (`authority::check_request` with
   `PersonRequest::Accept`), called as the engine calls them, never
   restated in the test.
+- **The kinds walked** are those a party proposes, a batch and an
+  amendment (`authority::ProposalKind`'s `Batch` and `Amend`). A case
+  one past a bound that the policy or the rules refuse before any
+  address (routing's own check) is addressed to no role: it is counted
+  and printed as refused before its address, never a finding. A bound
+  the stock leaves open (no deadline) has no case one past it, and is
+  reported unbounded.
 - **Out:** judging an amendment by what it widens, the user's rule of
   2026-11-20, which is the fix of the draft's S15 row and no check here
   until it is built.
@@ -198,6 +205,14 @@ relation and the decision it got.
   naming what it met first; the same removal over a copy of the stock
   with every other reference to it cleared gets the row's decision,
   naming the template.
+- **Where a narrowing meets the policy's own check:** every amendment
+  admission mutation goes through the policy's admission before any
+  walk. A role's decided kinds narrowed so that another field of the
+  policy no longer holds (the owners' role without `Escalation` while
+  the policy's escalation role is still the owners') gets that
+  admission's refusal (`InvalidRole`), named in the case, and is not
+  walked; no second field is moved to make it walkable. The other
+  narrowings, admitted, are walked for the row's decision.
 
 ## 7. The draft's open settings rows
 
