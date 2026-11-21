@@ -2535,6 +2535,12 @@ pub enum Event {
         task: u64,
         job: crate::history::JobStep,
     },
+    /// Forget a suspended attempt's pending read-back without recording a failure.
+    JobSuspended {
+        task: u64,
+        child: u64,
+        attempt: u32,
+    },
     /// Remember a committed procedure child and its role in this change.
     Delegated {
         task: u64,

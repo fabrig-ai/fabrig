@@ -134,10 +134,18 @@ fn attempt_ended(domain: &mut Domain, row: &tasks::AttemptRow, answer: Option<An
         | tasks::Executor::Person(_)
         | tasks::Executor::Job { .. } => return,
     };
+    if let Some(tasks::EndKind::Suspended { .. }) = row.end {
+        domain.work.push(Work::Forge(forge::Event::JobSuspended {
+            task: owner,
+            child: row.task,
+            attempt: u32::try_from(row.attempt).expect("job attempt fits history"),
+        }));
+        return;
+    }
     let outcome = match answered(answer, row.task, row.attempt) {
         Some(outcome) => outcome,
         None => match row.end {
-            Some(tasks::EndKind::Finished) => return,
+            Some(tasks::EndKind::Finished | tasks::EndKind::Suspended { .. }) => return,
             Some(tasks::EndKind::Cancelled) => JobOutcome::Cancelled,
             Some(tasks::EndKind::Failed { class: tasks::Class::Lost, .. }) => JobOutcome::Lost,
             Some(tasks::EndKind::Failed { .. } | tasks::EndKind::Refused | tasks::EndKind::Parked) => {

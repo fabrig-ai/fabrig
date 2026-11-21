@@ -481,6 +481,7 @@ fn an_open_chat_on_a_program_endpoint_starts() {
     let mut program_bounds = protocol::bounds();
     program_bounds.program_endpoints = Box::new([charter().policy.model.endpoint]);
     let program_hello = jig_domain_link::Hello {
+        fresh: false,
         reads_usage: true,
         jobs: Box::default(),
         slots: 1,

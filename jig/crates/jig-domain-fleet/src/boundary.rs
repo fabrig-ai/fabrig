@@ -274,6 +274,8 @@ pub enum Event {
         reply_to: ReplyTo,
         run: Token,
         attempt: Token,
+        /// Worker position from the claim's proof, none for an engine host or an older proof.
+        worker: Option<u32>,
         /// The committed prefix restored with the claim; zero before its first turn.
         kept: u32,
         /// Kind of host that held the claim before restart.
@@ -291,6 +293,7 @@ pub enum Event {
     /// `NotStarted`. A fenced attempt ends `Lost`, as for `Adopt`.
     /// Other traffic is dropped. Refused as `Adopt` is (busy, duplicate).
     Cross {
+        worker: Option<u32>,
         reply_to: ReplyTo,
         run: Token,
         attempt: Token,
@@ -663,6 +666,8 @@ pub enum Request {
         attempt: Token,
         answer: Answer,
         payload: Token,
+        /// Answering channel's worker position; none for an engine host.
+        worker: Option<u32>,
     },
     /// To the parent, terminal for an engine-hosted adoption with no committed
     /// work, or a crossed claim never listed and not worked at its grace.
@@ -671,6 +676,14 @@ pub enum Request {
         to: ReplyTo,
         run: Token,
         attempt: Token,
+    },
+    /// To the parent, terminal for `Start`, `Adopt`, `Cross` and `StartJob`:
+    /// the claim's worker returned as a new process without listing it (executors.md, 6.5).
+    Suspended {
+        to: ReplyTo,
+        run: Token,
+        attempt: Token,
+        worker: u32,
     },
     /// To the parent, terminal for `Start`, `Adopt` and `Cross`: the attempt
     /// is lost, its worker out of contact past the grace, none having said

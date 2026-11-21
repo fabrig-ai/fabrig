@@ -327,9 +327,12 @@ fn a_jobs_credential_wait_keeps_it_due_and_its_claim_grants_only_the_application
 /// (jig/docs/design/domain/engine/executors.md, 5).
 #[test]
 fn a_jobs_past_deadline_holds_before_credential_readiness() {
-    let (mut core, _) = due_job();
-    let mut context = core.tasks.run_context(1).expect("due job");
-    context.authority.budget.deadline = Some(Wall::EPOCH);
+    let (mut core, limits) = due_job();
+    let mut row = core.tasks.task(1).expect("due job").clone();
+    row.authority.budget.deadline = Some(Wall::EPOCH);
+    let parent = core.tasks.task(2).expect("procedure").clone();
+    fixtures::restore(&mut core, &limits, Box::new([parent, row]));
+    let context = core.tasks.run_context(1).expect("due job");
     core.workspace_credentials.insert(1, Box::new([7])).expect("credential room");
     assert_eq!(
         crate::routing::run::jobs::admission(&core, &context, Wall::from_nanos(1), Box::new([])),

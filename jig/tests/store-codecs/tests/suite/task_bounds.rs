@@ -189,15 +189,15 @@ fn every_tasks_declaration_keeps_its_ceiling_bounds() {
     assert_eq!((Word::encoded_bound(&limits), Word::decoded_bound(&limits)), (Some(1_572_908), Some(1_572_864)));
     assert_eq!((InvalidResult::encoded_bound(&limits), InvalidResult::decoded_bound(&limits)), (Some(1), Some(0)));
     assert_eq!((FailedEnd::encoded_bound(&limits), FailedEnd::decoded_bound(&limits)), (Some(3), Some(0)));
-    assert_eq!((EndKind::encoded_bound(&limits), EndKind::decoded_bound(&limits)), (Some(4), Some(0)));
-    assert_eq!((AttemptRow::encoded_bound(&limits), AttemptRow::decoded_bound(&limits)), (Some(53), Some(0)));
-    assert_eq!((OpenAttempt::encoded_bound(&limits), OpenAttempt::decoded_bound(&limits)), (Some(39), Some(0)));
+    assert_eq!((EndKind::encoded_bound(&limits), EndKind::decoded_bound(&limits)), (Some(6), Some(0)));
+    assert_eq!((AttemptRow::encoded_bound(&limits), AttemptRow::decoded_bound(&limits)), (Some(55), Some(0)));
+    assert_eq!((OpenAttempt::encoded_bound(&limits), OpenAttempt::decoded_bound(&limits)), (Some(41), Some(0)));
     assert_eq!((ActivityWords::encoded_bound(&limits), ActivityWords::decoded_bound(&limits)), (Some(1_572_895), Some(1_572_864)));
     assert_eq!((HeardMessage::encoded_bound(&limits), HeardMessage::decoded_bound(&limits)), (Some(1_572_908), Some(1_572_864)));
     assert_eq!((NotifiedMessage::encoded_bound(&limits), NotifiedMessage::decoded_bound(&limits)), (Some(1_572_917), Some(1_572_864)));
     assert_eq!((Fresh::encoded_bound(&limits), Fresh::decoded_bound(&limits)), (Some(1), Some(0)));
     assert_eq!((BeganLine::encoded_bound(&limits), BeganLine::decoded_bound(&limits)), (Some(40), Some(0)));
-    assert_eq!((EndedLine::encoded_bound(&limits), EndedLine::decoded_bound(&limits)), (Some(20), Some(0)));
+    assert_eq!((EndedLine::encoded_bound(&limits), EndedLine::decoded_bound(&limits)), (Some(22), Some(0)));
     assert_eq!((TurnLine::encoded_bound(&limits), TurnLine::decoded_bound(&limits)), (Some(29), Some(0)));
     assert_eq!((DecidedProposal::encoded_bound(&limits), DecidedProposal::decoded_bound(&limits)), (Some(9), Some(0)));
     assert_eq!((DecidedLine::encoded_bound(&limits), DecidedLine::decoded_bound(&limits)), (Some(18), Some(0)));
@@ -247,7 +247,7 @@ fn every_tasks_declaration_keeps_its_ceiling_bounds() {
     assert_eq!((Edge::encoded_bound(&limits), Edge::decoded_bound(&limits)), (Some(16), Some(0)));
     assert_eq!((TranscriptState::encoded_bound(&limits), TranscriptState::decoded_bound(&limits)), (Some(1), Some(0)));
     assert_eq!((TaskHistory::encoded_bound(&limits), TaskHistory::decoded_bound(&limits)), (Some(1_056_195), Some(1_056_896)));
-    assert_eq!((TaskRun::encoded_bound(&limits), TaskRun::decoded_bound(&limits)), (Some(68_686_556), Some(68_686_848)));
+    assert_eq!((TaskRun::encoded_bound(&limits), TaskRun::decoded_bound(&limits)), (Some(68_686_588), Some(68_686_848)));
     assert_eq!((Added::encoded_bound(&limits), Added::decoded_bound(&limits)), (Some(25), Some(0)));
     assert_eq!((TaskDefinition::encoded_bound(&limits), TaskDefinition::decoded_bound(&limits)), (Some(135_935_053), Some(135_936_384)));
     assert_eq!((InboxItem::encoded_bound(&limits), InboxItem::decoded_bound(&limits)), (Some(1_572_909), Some(1_572_864)));
@@ -258,12 +258,12 @@ fn every_tasks_declaration_keeps_its_ceiling_bounds() {
     assert_eq!((TaskOutcome::encoded_bound(&limits), TaskOutcome::decoded_bound(&limits)), (Some(2_162_818), Some(2_162_688)));
     assert_eq!((Talk::encoded_bound(&limits), Talk::decoded_bound(&limits)), (Some(24), Some(0)));
     assert_eq!((Session::encoded_bound(&limits), Session::decoded_bound(&limits)), (Some(20), Some(0)));
-    assert_eq!((BeforeTalk::encoded_bound(&limits), BeforeTalk::decoded_bound(&limits)), (Some(420_721_447), Some(420_734_672)));
+    assert_eq!((BeforeTalk::encoded_bound(&limits), BeforeTalk::decoded_bound(&limits)), (Some(420_721_479), Some(420_734_672)));
     assert_eq!((Concluded::encoded_bound(&limits), Concluded::decoded_bound(&limits)), (Some(16), Some(0)));
-    assert_eq!((TaskRecord::encoded_bound(&limits), TaskRecord::decoded_bound(&limits)), (Some(420_721_489), Some(420_734_672)));
+    assert_eq!((TaskRecord::encoded_bound(&limits), TaskRecord::decoded_bound(&limits)), (Some(420_721_521), Some(420_734_672)));
     assert_eq!((HotHistory::encoded_bound(&limits), HotHistory::decoded_bound(&limits)), (Some(531_902), Some(532_608)));
     assert_eq!((HotDefinition::encoded_bound(&limits), HotDefinition::decoded_bound(&limits)), (Some(67_120_303), Some(67_120_512)));
-    assert_eq!((LiveHot::encoded_bound(&limits), LiveHot::decoded_bound(&limits)), (Some(351_382_446), Some(351_394_512)));
+    assert_eq!((LiveHot::encoded_bound(&limits), LiveHot::decoded_bound(&limits)), (Some(351_382_478), Some(351_394_512)));
     assert_eq!((LiveCold::encoded_bound(&limits), LiveCold::decoded_bound(&limits)), (Some(69_339_043), Some(69_340_160)));
     assert_eq!((EndedByParty::encoded_bound(&limits), EndedByParty::decoded_bound(&limits)), (Some(28), Some(0)));
     assert_eq!((EndedByProject::encoded_bound(&limits), EndedByProject::decoded_bound(&limits)), (Some(24), Some(0)));
@@ -282,9 +282,9 @@ fn every_tasks_declaration_keeps_its_ceiling_bounds() {
     assert_eq!((TaskSummary::encoded_bound(&limits), TaskSummary::decoded_bound(&limits)), (Some(1_009), Some(768)));
     assert_eq!((RetentionStage::encoded_bound(&limits), RetentionStage::decoded_bound(&limits)), (Some(1), Some(0)));
     assert_eq!((RetentionRow::encoded_bound(&limits), RetentionRow::decoded_bound(&limits)), (Some(17), Some(0)));
-    assert_eq!((Value::encoded_bound(&limits), Value::decoded_bound(&limits)), (Some(420_721_490), Some(420_734_672)));
+    assert_eq!((Value::encoded_bound(&limits), Value::decoded_bound(&limits)), (Some(420_721_522), Some(420_734_672)));
     assert_eq!((ModelName::encoded_bound(&limits), ModelName::decoded_bound(&limits)), (Some(4_100), Some(4_096)));
-    assert_eq!((Row::encoded_bound(&limits), Row::decoded_bound(&limits)), (Some(420_983_896), Some(420_997_840)));
+    assert_eq!((Row::encoded_bound(&limits), Row::decoded_bound(&limits)), (Some(420_983_928), Some(420_997_840)));
     assert_eq!((CapacityActionBatch::encoded_bound(&limits), CapacityActionBatch::decoded_bound(&limits)), (Some(13), Some(0)));
     assert_eq!((CapacityActionProposal::encoded_bound(&limits), CapacityActionProposal::decoded_bound(&limits)), (Some(8), Some(0)));
     assert_eq!((CapacityActionPersonProposal::encoded_bound(&limits), CapacityActionPersonProposal::decoded_bound(&limits)), (Some(8), Some(0)));
@@ -342,7 +342,7 @@ fn every_tasks_declaration_keeps_its_ceiling_bounds() {
     assert_eq!((EndRecord::encoded_bound(&limits), EndRecord::decoded_bound(&limits)), (Some(69_730_365), Some(69_730_608)));
     assert_eq!((PhaseRecord::encoded_bound(&limits), PhaseRecord::decoded_bound(&limits)), (Some(2_162_755), Some(2_162_688)));
     assert_eq!((ChangeRecord::encoded_bound(&limits), ChangeRecord::decoded_bound(&limits)), (Some(3), Some(0)));
-    assert_eq!((encoded_bound(&limits), decoded_bound(&limits)), (Some(420_983_896), Some(420_997_840)));
+    assert_eq!((encoded_bound(&limits), decoded_bound(&limits)), (Some(420_983_928), Some(420_997_840)));
 }
 
 #[test]
@@ -452,10 +452,10 @@ fn tasks_roots_keep_their_small_limit_bounds() {
         end_refused_with_reason_reason: CEILINGS.end_refused_with_reason_reason.min(3),
     };
     // Roots are the declarations no other declaration names as a field or payload.
-    assert_eq!((Row::encoded_bound(&limits), Row::decoded_bound(&limits)), (Some(2_471), Some(2_169)));
+    assert_eq!((Row::encoded_bound(&limits), Row::decoded_bound(&limits)), (Some(2_503), Some(2_169)));
     assert_eq!((TaskProblem::encoded_bound(&limits), TaskProblem::decoded_bound(&limits)), (Some(103), Some(24)));
     assert_eq!((EndRecord::encoded_bound(&limits), EndRecord::decoded_bound(&limits)), (Some(391), Some(947)));
     assert_eq!((PhaseRecord::encoded_bound(&limits), PhaseRecord::decoded_bound(&limits)), (Some(107), Some(33)));
     assert_eq!((ChangeRecord::encoded_bound(&limits), ChangeRecord::decoded_bound(&limits)), (Some(3), Some(0)));
-    assert_eq!((encoded_bound(&limits), decoded_bound(&limits)), (Some(2_471), Some(2_169)));
+    assert_eq!((encoded_bound(&limits), decoded_bound(&limits)), (Some(2_503), Some(2_169)));
 }

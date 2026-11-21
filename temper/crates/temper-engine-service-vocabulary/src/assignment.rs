@@ -234,7 +234,7 @@ fn charter_size(field: &'static str, figure: u64, encoding: &Encoding) -> kit::U
     kit::Unencoded {
         figure: Some(figure),
         bound: Some(encoding.charter_bytes),
-        ceiling: Some(u64::from(jig_protocol_worker_wire::v20::CEILINGS.assignment_charter)),
+        ceiling: Some(u64::from(jig_protocol_worker_wire::v21::CEILINGS.assignment_charter)),
         ..unencoded(field)
     }
 }
@@ -377,7 +377,7 @@ mod tests {
                 reason: None,
                 figure: Some(owned),
                 bound: Some(encoding.charter_bytes),
-                ceiling: Some(u64::from(jig_protocol_worker_wire::v20::CEILINGS.assignment_charter)),
+                ceiling: Some(u64::from(jig_protocol_worker_wire::v21::CEILINGS.assignment_charter)),
             })
         );
     }
@@ -511,7 +511,7 @@ mod tests {
                 reason: None,
                 figure: Some(bytes),
                 bound: Some(encoding.charter_bytes),
-                ceiling: Some(u64::from(jig_protocol_worker_wire::v20::CEILINGS.assignment_charter)),
+                ceiling: Some(u64::from(jig_protocol_worker_wire::v21::CEILINGS.assignment_charter)),
             })
         );
         encoding.charter_bytes = bytes;

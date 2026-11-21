@@ -128,6 +128,15 @@ fn owner(row: &c::ActivityLine, out: &mut Text) {
 fn run_ended(attempt: u64, end: c::RunEnd, out: &mut Text) {
     out.put(b"run ");
     out.number(attempt);
+    if let c::RunEnd::Suspended { worker, why } = end {
+        out.put(b" suspended: worker ");
+        out.number(u64::from(worker));
+        out.put(match why {
+            c::SuspendWhy::Stopped => b" stopped",
+            c::SuspendWhy::Restarted => b" restarted without it",
+        });
+        return;
+    }
     out.put(b" ended");
     match end {
         c::RunEnd::Failed { invalid_reason: Some(reason), .. } => out.put(match reason {
@@ -142,6 +151,7 @@ fn run_ended(attempt: u64, end: c::RunEnd, out: &mut Text) {
         | c::RunEnd::Finished
         | c::RunEnd::Cancelled
         | c::RunEnd::Refused
+        | c::RunEnd::Suspended { .. }
         | c::RunEnd::Failed { invalid_reason: None, .. } => {}
     }
 }
@@ -257,6 +267,19 @@ mod tests {
             owner(&row, &mut measured);
             let mut out = Text::writing_exact(measured);
             owner(&row, &mut out);
+            assert_eq!(out.finish().as_ref(), expected);
+        }
+    }
+    #[test]
+    fn suspended_runs_print_the_worker_and_cause() {
+        for (why, expected) in [
+            (c::SuspendWhy::Stopped, b"run 4 suspended: worker 2 stopped".as_slice()),
+            (c::SuspendWhy::Restarted, b"run 4 suspended: worker 2 restarted without it"),
+        ] {
+            let mut measured = Text::measure();
+            super::run_ended(4, c::RunEnd::Suspended { worker: 2, why }, &mut measured);
+            let mut out = Text::writing_exact(measured);
+            super::run_ended(4, c::RunEnd::Suspended { worker: 2, why }, &mut out);
             assert_eq!(out.finish().as_ref(), expected);
         }
     }

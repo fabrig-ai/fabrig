@@ -181,6 +181,12 @@ pub fn language() -> Language {
             JigPhrase::SettingFaultOwner => {
                 Box::new([Segment::Text(copy_of(b"Setting policy owner role cannot be a root requester"))])
             }
+            JigPhrase::WaitReturningWorker => Box::new([
+                Segment::Text(copy_of(b"Waiting for worker ")),
+                Segment::Hole { index: 0, kind: HoleKind::Number },
+                Segment::Text(copy_of(b" to return, until ")),
+                Segment::Hole { index: 1, kind: HoleKind::Wall },
+            ]),
             JigPhrase::WaitUntooled => Box::new([
                 Segment::Text(copy_of(b"The program started without its tools on worker ")),
                 Segment::Hole { index: 0, kind: HoleKind::Number },

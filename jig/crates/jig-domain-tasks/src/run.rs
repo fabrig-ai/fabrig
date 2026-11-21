@@ -421,6 +421,7 @@ pub(crate) fn refuses_job_end(executor: crate::Executor, end: &End) -> bool {
         | End::FailedWithReason { .. }
         | End::Refused
         | End::RefusedWithReason { .. }
+        | End::Suspended(_)
         | End::Recheck => false,
     }
 }
@@ -452,6 +453,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
         | End::Parked
         | End::Failed(_)
         | End::Refused
+        | End::Suspended(_)
         | End::Recheck) => (end, None),
     };
     if !domain.ready() {
@@ -478,6 +480,19 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
     if !saved_within(saved.as_deref(), &env.limits) {
         return refused(to, Some(number), Refusal::Contract, out);
     }
+    let restarted = match &end {
+        End::Suspended(suspended) => suspended.why == crate::SuspendWhy::Restarted,
+        End::Exceeded(_)
+        | End::Finished { .. }
+        | End::FinishedWithFollowups { .. }
+        | End::Parked
+        | End::Failed(_)
+        | End::FailedWithReason { .. }
+        | End::Refused
+        | End::RefusedWithReason { .. }
+        | End::Recheck => false,
+    };
+    let end = if restarted && old.restarted { End::Failed(Class::Lost) } else { end };
     let lost_writer = match &end {
         End::Failed(Class::Lost) => true,
         End::Failed(_)
@@ -486,6 +501,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
         | End::Parked
         | End::Refused
         | End::RefusedWithReason { .. }
+        | End::Suspended(_)
         | End::Recheck
         | End::Finished { .. }
         | End::FinishedWithFollowups { .. } => false,
@@ -517,6 +533,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
         | End::FailedWithReason { .. }
         | End::Refused
         | End::RefusedWithReason { .. }
+        | End::Suspended(_)
         | End::Recheck => false,
     };
     let invalid = match &end {
@@ -530,6 +547,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
         | End::FailedWithReason { .. }
         | End::Refused
         | End::RefusedWithReason { .. }
+        | End::Suspended(_)
         | End::Recheck => None,
     };
     let parked = invalid.is_none() && kept.run_parks(&end);
@@ -554,6 +572,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
         | End::FailedWithReason { .. }
         | End::Refused
         | End::RefusedWithReason { .. }
+        | End::Suspended(_)
         | End::Recheck => end,
     };
     let end = if parked { End::Parked } else { end };
@@ -566,6 +585,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
         | End::FailedWithReason { .. }
         | End::Refused
         | End::RefusedWithReason { .. }
+        | End::Suspended(_)
         | End::Recheck => false,
     };
     if closing.is_none() && refuses_live && !old.delegates.is_empty() {
@@ -583,8 +603,25 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
                 crate::EndKind::Failed { class: *class, invalid_result: invalid }
             }
             End::Refused | End::RefusedWithReason { .. } | End::Recheck => crate::EndKind::Refused,
+            End::Suspended(suspended) => crate::EndKind::Suspended { worker: suspended.worker, why: suspended.why },
             End::FinishedWithFollowups { .. } => unreachable!("follow-ups normalized"),
         }
+    };
+    let suspension = match &end {
+        End::Suspended(suspended) => Some(crate::Suspension {
+            worker: suspended.worker,
+            since: env.wall,
+            until: wall_after(env, suspended.window),
+        }),
+        End::Exceeded(_)
+        | End::Finished { .. }
+        | End::FinishedWithFollowups { .. }
+        | End::Parked
+        | End::Failed(_)
+        | End::FailedWithReason { .. }
+        | End::Refused
+        | End::RefusedWithReason { .. }
+        | End::Recheck => None,
     };
     let terminal_parks = end == End::Parked;
     let activation_ended = match &end {
@@ -595,6 +632,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
         | End::FailedWithReason { .. }
         | End::Refused
         | End::RefusedWithReason { .. }
+        | End::Suspended(_)
         | End::Recheck => false,
         End::FinishedWithFollowups { .. } => unreachable!("follow-ups normalized"),
     };
@@ -610,6 +648,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
                 | End::FailedWithReason { .. }
                 | End::Refused
                 | End::RefusedWithReason { .. }
+                | End::Suspended(_)
                 | End::Recheck => {}
             },
             Ending::Done(_) | Ending::Failed { .. } => {}
@@ -639,7 +678,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
             End::FailedWithReason { class, .. } | End::Failed(class) => failure(domain, env, number, class, reason),
             End::Refused => pause(domain, env, number, reason),
             End::RefusedWithReason { reason } => pause(domain, env, number, Some(reason)),
-            End::Recheck => {
+            End::Suspended(_) | End::Recheck => {
                 if kept.blocks_claims() {
                     Phase::Active(Active::Idle)
                 } else {
@@ -664,6 +703,8 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
         next
     };
     let task = task_mut(domain, number).expect("terminal names live task");
+    task.record.restarted = restarted && suspension.is_some();
+    task.record.suspension = suspension;
     task.record.invalid_result = invalid;
     if activation_ended {
         task.record.activation_open = false;
@@ -762,7 +803,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
     if parked && kept.owes && record(domain, number).expect("owing task live").phase == Phase::Active(Active::Idle) {
         out.push(Request::QuestionOwedDue { task: number });
     }
-    if (narrowed || end_kind == crate::EndKind::Refused)
+    if (narrowed || end_kind == crate::EndKind::Refused || suspension.is_some())
         && record(domain, number).expect("amended task live").phase == Phase::Active(Active::Due)
     {
         crate::domain::activate(domain, number, out);

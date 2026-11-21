@@ -260,6 +260,7 @@ fn restart_world(world: &mut World) {
             worker: 0,
             channel: Token::new(7),
             hello: Hello {
+                fresh: false,
                 reads_usage: true,
                 jobs: Box::default(),
                 bounds: profile_fixtures::bounds(),

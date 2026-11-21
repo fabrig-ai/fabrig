@@ -73,6 +73,7 @@ pub(in crate::tests) fn host_with_endpoints(
             worker: u32::from(channel == SECOND).min(limits.fleet.workers.saturating_sub(1)),
             channel,
             hello: Hello {
+                fresh: false,
                 reads_usage: true,
                 jobs: Box::default(),
                 bounds,
@@ -129,6 +130,286 @@ fn ready(none: bool) -> (Core, Limits) {
     host(&mut core, &limits, FIRST, &[b"scripted", b"same"]);
     host(&mut core, &limits, SECOND, &[b"scripted", b"same", b"other"]);
     (core, limits)
+}
+
+const RESUME_UNTIL: Wall = Wall::from_nanos(100);
+
+fn suspended_on_second(core: &mut Core, limits: &Limits) {
+    let mut row = core.tasks.task(TASK).unwrap().clone();
+    row.suspension = Some(tasks::Suspension { worker: 2, since: Wall::EPOCH, until: RESUME_UNTIL });
+    let ledger = *core.tasks.funding(row.funder).unwrap();
+    fixtures::restore(core, limits, Box::new([row]));
+    send_task(core, limits, tasks::Event::Restore { record: tasks::Stored::Ledger(ledger) });
+    send_task(core, limits, tasks::Event::Check);
+    send_task(core, limits, tasks::Event::Restored);
+}
+
+fn placement_worker(core: &mut Core, limits: &Limits, worker: u32, channel: Token, slots: u32, workstreams: &[u64]) {
+    fleet_event(
+        core,
+        limits,
+        core.run_wall,
+        fleet::Event::Hello {
+            worker,
+            channel,
+            hello: Hello {
+                fresh: false,
+                reads_usage: true,
+                jobs: Box::new([]),
+                bounds: fixtures::bounds(),
+                stop_bound: Duration::ZERO,
+                slots,
+                workstreams: workstreams.into(),
+                hosting: Box::new([]),
+            },
+        },
+    );
+    inventory(core, limits, channel, Box::new([]));
+}
+
+#[test]
+fn a_suspension_overrides_affinity_and_free_room_only_before_its_until() {
+    for affinity in [false, true] {
+        let (mut core, mut limits) = ready(false);
+        limits.fleet.slots = 2;
+        core.fleet = placement_fleet(&core, &limits);
+        let mut configuration = config(41);
+        for worker in &mut configuration.defaults.workers {
+            worker.places = 2;
+        }
+        core.fleet.configure_workers(crate::limits::problems(&configuration.defaults.workers, &limits).unwrap());
+        placement_worker(&mut core, &limits, 0, FIRST, 2, if affinity { &[TASK] } else { &[] });
+        placement_worker(&mut core, &limits, 1, SECOND, 1, &[]);
+        assert_eq!(core.run_choice(TASK).unwrap().placement.channel, FIRST, "ordinary placement");
+        suspended_on_second(&mut core, &limits);
+        assert_eq!(core.run_choice(TASK).unwrap().placement.channel, SECOND);
+        core.run_wall = RESUME_UNTIL;
+        assert_eq!(core.run_choice(TASK).unwrap().placement.channel, FIRST, "the window excludes equality");
+        assert_eq!(document_wait(&core, &limits), None);
+        core.run_wall = Wall::from_nanos(101);
+        assert_eq!(core.run_choice(TASK).unwrap().placement.channel, FIRST, "expired suspension");
+    }
+}
+
+#[test]
+fn a_suspended_task_waits_for_its_workers_new_admitted_channel_and_logins() {
+    const RETURNED: Token = Token::new(23);
+    let (mut core, limits) = ready(false);
+    suspended_on_second(&mut core, &limits);
+    fleet_event(&mut core, &limits, Wall::EPOCH, fleet::Event::Lost { channel: SECOND });
+    core.fleet.reclaim();
+    let wait = RunWait::Worker { worker: 2, until: RESUME_UNTIL };
+    assert_eq!(core.run_choice(TASK), Err(wait));
+    assert_eq!(document_wait(&core, &limits), Some(TaskRunWait::Worker { worker: 2, until: RESUME_UNTIL }));
+    fleet_event(
+        &mut core,
+        &limits,
+        Wall::EPOCH,
+        fleet::Event::Hello {
+            worker: 1,
+            channel: RETURNED,
+            hello: Hello {
+                fresh: false,
+                reads_usage: true,
+                jobs: Box::new([]),
+                bounds: fixtures::bounds(),
+                stop_bound: Duration::ZERO,
+                slots: 1,
+                workstreams: Box::new([]),
+                hosting: Box::new([]),
+            },
+        },
+    );
+    assert_eq!(core.run_choice(TASK), Err(wait), "hello alone is not ready");
+    inventory(&mut core, &limits, RETURNED, Box::new([]));
+    assert_eq!(core.run_choice(TASK).unwrap().placement.channel, RETURNED);
+    assert_eq!(document_wait(&core, &limits), None);
+}
+
+#[test]
+fn an_unavailable_suspension_worker_is_not_replaced_or_explained_by_another_host() {
+    #[derive(Clone, Copy, Debug)]
+    enum Unavailable {
+        Away,
+        Draining,
+        Mismatched,
+        Untranslated,
+        Full,
+        RefusedHello,
+    }
+    for unavailable in [
+        Unavailable::Away,
+        Unavailable::Draining,
+        Unavailable::Mismatched,
+        Unavailable::Untranslated,
+        Unavailable::Full,
+        Unavailable::RefusedHello,
+    ] {
+        let (mut core, limits) = ready(false);
+        suspended_on_second(&mut core, &limits);
+        match unavailable {
+            Unavailable::Away => fleet_event(&mut core, &limits, Wall::EPOCH, fleet::Event::Lost { channel: SECOND }),
+            Unavailable::Draining => {
+                fleet_event(&mut core, &limits, Wall::EPOCH, fleet::Event::Draining { channel: SECOND });
+            }
+            Unavailable::Mismatched => {
+                fleet_event(&mut core, &limits, Wall::EPOCH, fleet::Event::Mismatch { channel: SECOND });
+            }
+            Unavailable::Untranslated | Unavailable::Full => {
+                let version = core.charter_version(TASK).unwrap();
+                fleet_event(
+                    &mut core,
+                    &limits,
+                    Wall::EPOCH,
+                    fleet::Event::Start {
+                        placement: Some(fleet::PlacementConstraint { channel: SECOND, kind: fleet::HostKind::Worker }),
+                        version,
+                        grants: Box::new([]),
+                        reply_to: ReplyTo::new(SECOND),
+                        run: Token::new(TASK),
+                        attempt: Token::new(42),
+                        workstream: TASK,
+                        kinds: fleet::Kinds::Workers,
+                        assignment: fleet::Assignment { turns: FIRST, answered: SECOND },
+                    },
+                );
+                fleet::resume(
+                    &mut core.fleet,
+                    &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.fleet },
+                    true,
+                    &mut Queue::uncapped(),
+                );
+                if let Unavailable::Untranslated = unavailable {
+                    fleet_event(
+                        &mut core,
+                        &limits,
+                        Wall::EPOCH,
+                        fleet::Event::Answer {
+                            channel: SECOND,
+                            run: Token::new(TASK),
+                            attempt: Token::new(42),
+                            answer: fleet::Answer::Untranslated,
+                            payload: SECOND,
+                        },
+                    );
+                }
+            }
+            Unavailable::RefusedHello => {
+                for channel in [FIRST, SECOND] {
+                    fleet_event(&mut core, &limits, Wall::EPOCH, fleet::Event::Lost { channel });
+                }
+                let mut bounds = fixtures::bounds();
+                bounds.turns = 0;
+                fleet_event(
+                    &mut core,
+                    &limits,
+                    Wall::EPOCH,
+                    fleet::Event::Hello {
+                        worker: 1,
+                        channel: SECOND,
+                        hello: Hello {
+                            fresh: false,
+                            reads_usage: true,
+                            bounds,
+                            jobs: Box::new([]),
+                            stop_bound: Duration::ZERO,
+                            slots: 1,
+                            workstreams: Box::new([]),
+                            hosting: Box::new([]),
+                        },
+                    },
+                );
+            }
+        }
+        assert_eq!(core.run_choice(TASK), Err(RunWait::Worker { worker: 2, until: RESUME_UNTIL }), "{unavailable:?}");
+        assert_eq!(
+            document_wait(&core, &limits),
+            Some(TaskRunWait::Worker { worker: 2, until: RESUME_UNTIL }),
+            "{unavailable:?}"
+        );
+        core.run_wall = RESUME_UNTIL;
+        if let Unavailable::RefusedHello = unavailable {
+            let Some(TaskRunWait::Refused(_)) = document_wait(&core, &limits) else {
+                panic!("the expired window permits the hello refusal");
+            };
+        } else {
+            assert_eq!(core.run_choice(TASK).unwrap().placement.channel, FIRST, "{unavailable:?}");
+            assert_eq!(document_wait(&core, &limits), None);
+        }
+    }
+}
+
+#[test]
+fn a_suspended_task_waits_for_its_paused_worker_until_it_resumes_or_the_window_ends() {
+    use jig_domain_link::PauseState;
+    for state in [PauseState::Paused, PauseState::Draining, PauseState::Drained] {
+        let (mut core, limits) = ready(false);
+        suspended_on_second(&mut core, &limits);
+        fleet_event(&mut core, &limits, Wall::EPOCH, fleet::Event::Paused { channel: SECOND, state });
+        assert_eq!(core.run_choice(TASK), Err(RunWait::Worker { worker: 2, until: RESUME_UNTIL }));
+        assert_eq!(document_wait(&core, &limits), Some(TaskRunWait::Worker { worker: 2, until: RESUME_UNTIL }));
+        fleet_event(
+            &mut core,
+            &limits,
+            Wall::EPOCH,
+            fleet::Event::Paused { channel: SECOND, state: PauseState::Taking },
+        );
+        assert_eq!(core.run_choice(TASK).unwrap().placement.channel, SECOND);
+        fleet_event(&mut core, &limits, Wall::EPOCH, fleet::Event::Paused { channel: SECOND, state });
+        core.run_wall = RESUME_UNTIL;
+        assert_eq!(core.run_choice(TASK).unwrap().placement.channel, FIRST);
+        assert_eq!(document_wait(&core, &limits), None);
+    }
+}
+
+#[test]
+fn a_suspended_tasks_account_and_credential_waits_still_name_their_cause() {
+    let (mut core, limits) = ready(false);
+    suspended_on_second(&mut core, &limits);
+    account(&mut core, &limits, accounts::Event::Limited { account: 1, reset: None });
+    assert_eq!(
+        core.run_choice(TASK),
+        Err(RunWait::Account {
+            account: Some(0),
+            source: Some(1),
+            why: accounts::WaitWhy::Source(accounts::State::Limited { until: None }),
+        })
+    );
+    assert_eq!(
+        document_wait(&core, &limits),
+        Some(TaskRunWait::Account {
+            account: Some(0),
+            source: Some(1),
+            why: TaskWaitWhy::Source(TaskSourceState::Limited { until: None }),
+        })
+    );
+    let (mut core, limits) = ready(false);
+    suspended_on_second(&mut core, &limits);
+    assert_eq!(core.run_choice(TASK).unwrap().placement.channel, SECOND);
+    assert_eq!(core.workspace_credentials.insert(TASK, Box::new([7])), Ok(None));
+    let context = core.tasks.run_context(TASK).unwrap();
+    assert_eq!(core.run_admission(&context, core.run_wall, Box::new([])), RunAdmission::Wait(RunWait::Credential));
+    assert_eq!(document_wait(&core, &limits), Some(TaskRunWait::Credential));
+}
+
+#[test]
+#[expect(clippy::wildcard_enum_match_arm, reason = "the restored fixture emits only Adopt or Cross")]
+fn restored_claims_pass_their_worker_setting_as_a_position() {
+    for (number, crossed) in [(None, false), (Some(2), false), (Some(2), true)] {
+        let (mut core, limits) = ready(false);
+        let mut proof = RunProof::claimed(TASK, 7, 7, None, fleet::HostKind::Worker);
+        proof.worker = number;
+        proof.crossed = crossed;
+        core.proofs.insert(TASK, proof).unwrap();
+        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+        core.adopt(&env, TASK, 7, 0);
+        let position = match core.adopted.pop().expect("restored claim") {
+            fleet::Event::Adopt { worker, .. } if !crossed => worker,
+            fleet::Event::Cross { worker, .. } if crossed => worker,
+            other => panic!("restored claim: {other:?}"),
+        };
+        assert_eq!(position, number.map(|number| number - 1));
+    }
 }
 
 #[test]
@@ -205,6 +486,47 @@ fn a_due_agent_s_readiness_is_its_admission_in_every_state() {
     }
 }
 
+/// Claims and jobs check the task's moved deadline, including the open gap (executors.md, 6.3).
+#[test]
+fn run_and_job_checks_move_only_the_suspended_tasks_deadline() {
+    fn minute(value: u64) -> Wall {
+        Wall::from_nanos(Duration::from_secs(value * 60).as_nanos())
+    }
+    for (open, at, held) in [(false, 730, false), (false, 740, false), (false, 741, true), (true, 725, false)] {
+        let (mut core, limits) = ready(false);
+        let mut row = core.tasks.task(TASK).unwrap().clone();
+        row.authority.budget.deadline = Some(minute(720));
+        if open {
+            row.suspension = Some(tasks::Suspension { worker: 2, since: minute(690), until: minute(710) });
+        } else {
+            row.suspended = Duration::from_secs(20 * 60).as_nanos();
+        }
+        let authority = row.authority.clone();
+        let ledger = *core.tasks.funding(row.funder).unwrap();
+        fixtures::restore(&mut core, &limits, Box::new([row]));
+        send_task(&mut core, &limits, tasks::Event::Restore { record: tasks::Stored::Ledger(ledger) });
+        send_task(&mut core, &limits, tasks::Event::Check);
+        send_task(&mut core, &limits, tasks::Event::Restored);
+        let context = core.tasks.run_context(TASK).unwrap();
+        let admission = core.run_admission(&context, minute(at), Box::new([]));
+        let job = crate::routing::run::jobs::admission(&core, &context, minute(at), Box::new([]));
+        if held {
+            assert_eq!(admission, RunAdmission::Hold(tasks::Hold::Deadline));
+            assert_eq!(job, Err(RunAdmission::Hold(tasks::Hold::Deadline)));
+            // A credential wait cannot hide the moved deadline's hold.
+            assert_eq!(core.workspace_credentials.insert(TASK, Box::new([7])), Ok(None));
+            assert_eq!(
+                core.run_admission(&context, minute(at), Box::new([])),
+                RunAdmission::Hold(tasks::Hold::Deadline)
+            );
+        } else {
+            let RunAdmission::Allow(_) = admission else { panic!("{admission:?}") };
+            assert_eq!(job, Ok(()));
+        }
+        assert_eq!(core.tasks.task(TASK).unwrap().authority, authority);
+    }
+}
+
 #[test]
 fn a_lower_numbered_goals_waiting_run_starts_first() {
     // One occupied host slot is freed for the two waiting runs.
@@ -237,6 +559,7 @@ fn a_lower_numbered_goals_waiting_run_starts_first() {
                 worker: 0,
                 channel: FIRST,
                 hello: Hello {
+                    fresh: false,
                     reads_usage: true,
                     jobs: Box::default(),
                     bounds: fixtures::bounds(),
@@ -260,6 +583,7 @@ fn a_lower_numbered_goals_waiting_run_starts_first() {
             &mut core.fleet,
             &environment,
             fleet::Event::Adopt {
+                worker: None,
                 reply_to: ReplyTo::new(Token::new(1)),
                 run: Token::new(TASK),
                 attempt: BUSY_ATTEMPT,
@@ -491,6 +815,37 @@ fn claim_account_run(core: &mut Core, env: &Env<Limits>, attempt: u64) {
         },
         &mut out,
     );
+}
+
+/// An answer carries its channel's worker and the fleet's current window to translation (executors.md, 6.1, 6.4).
+#[test]
+fn an_answer_carries_its_worker_and_the_current_restart_window_to_the_link() {
+    let (mut core, mut limits) = ready(false);
+    core.proofs.insert(TASK, RunProof::claimed(TASK, 7, 7, None, fleet::HostKind::Worker)).unwrap();
+    for (worker, window) in [(Some(1), Duration::from_secs(17)), (None, Duration::ZERO)] {
+        limits.fleet.restart_wait = window;
+        let mut child = Queue::uncapped();
+        child.push(fleet::Request::Answered {
+            to: ReplyTo::new(FIRST),
+            run: Token::new(TASK),
+            attempt: Token::new(7),
+            payload: Token::new(99),
+            answer: fleet::Answer::Failed { turned: None },
+            worker,
+        });
+        let mut out = crate::routing::children::tag_fleet(
+            &mut core,
+            &Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
+            &mut Queue::uncapped(),
+            child,
+        );
+        let Some(Request::Now(now)) = out.pop() else { panic!("link answer") };
+        let Now::Link(LinkNow::AnswerPayload { worker: named, window: length, .. }) = *now else {
+            panic!("link answer")
+        };
+        assert_eq!((named, length), (worker, window));
+        assert!(out.is_empty());
+    }
 }
 
 fn account_run_answer(attempt: u64) -> Event {
@@ -1170,6 +1525,7 @@ fn due_and_preparing_documents_refine_only_the_host_wait_from_an_actual_refused_
                 channel,
                 worker: 0,
                 hello: Hello {
+                    fresh: false,
                     reads_usage: true,
                     jobs: Box::default(),
                     bounds,
@@ -1212,6 +1568,7 @@ fn due_and_preparing_documents_refine_only_the_host_wait_from_an_actual_refused_
                 channel,
                 worker: 0,
                 hello: Hello {
+                    fresh: false,
                     reads_usage: true,
                     jobs: Box::default(),
                     bounds: Bounds { turns: 0, ..fixtures::bounds() },
@@ -1241,6 +1598,7 @@ fn a_due_tasks_bounds_wait_tracks_its_charters_growth_and_recovery() {
             channel: FIRST,
             worker: 0,
             hello: Hello {
+                fresh: false,
                 reads_usage: true,
                 jobs: Box::default(),
                 bounds: Bounds { turns: WORKER_TURNS, ..fixtures::bounds() },
@@ -1354,6 +1712,7 @@ fn an_untooled_fault_keeps_bounds_and_account_refusals_first() {
             worker: 0,
             channel: FIRST,
             hello: Hello {
+                fresh: false,
                 reads_usage: true,
                 jobs: Box::new([]),
                 bounds: Bounds { turns: 800, ..fixtures::bounds() },
@@ -1476,6 +1835,7 @@ fn a_standing_refusal_does_not_replace_account_or_credential_waits_or_placed_wor
             channel: Token::new(99),
             worker: 0,
             hello: Hello {
+                fresh: false,
                 reads_usage: true,
                 jobs: Box::default(),
                 bounds: Bounds { turns: 0, ..fixtures::bounds() },
@@ -1570,7 +1930,7 @@ fn crossed_callback(worked: bool) -> (u32, u32, tasks::End) {
     };
     // Exercise the parent's handling of either fleet terminal while its
     // restored proof is still unworked and no worker has reported it.
-    drop(step(&mut core, &env, Event::Fleet(fleet::Event::Cross { reply_to, run, attempt, worked })));
+    drop(step(&mut core, &env, Event::Fleet(fleet::Event::Cross { worker: None, reply_to, run, attempt, worked })));
     env.now = env.now.saturating_add(env.limits.fleet.grace);
     env.wall = Wall::from_nanos(env.limits.fleet.grace.as_nanos());
     drop(fire(&mut core, &env, Timer::Fleet));
@@ -2399,6 +2759,7 @@ fn an_untooled_answer_names_the_current_claim_channel_after_adoption() {
         &mut core.fleet,
         &env.with(limits.fleet),
         fleet::Event::Adopt {
+            worker: None,
             reply_to: ReplyTo::new(Token::new(OPEN_ATTEMPT)),
             run: Token::new(OPEN_TASK),
             attempt: Token::new(OPEN_ATTEMPT),
@@ -2417,6 +2778,7 @@ fn an_untooled_answer_names_the_current_claim_channel_after_adoption() {
             worker: 1,
             channel: SECOND,
             hello: Hello {
+                fresh: false,
                 reads_usage: true,
                 jobs: Box::new([]),
                 bounds: fixtures::bounds(),

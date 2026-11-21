@@ -216,6 +216,53 @@ fn registry(component: &keys::Own, value: &[u8]) -> &'static str {
     }
 }
 
+/// Added task suspension parts register current tasks layouts and core layouts that hold task ends.
+/// Only new registry rows are admitted; existing history must remain byte-for-byte unchanged.
+fn suspension_layouts(before: &maps::Maps, after: &maps::Maps) -> BTreeSet<Vec<u8>> {
+    use jig_protocol_store::registry_v1 as wire;
+    use skein_lib::Reader;
+    let families: Vec<_> = CURRENT_SETS.sets.iter().flat_map(|set| set.families).collect();
+    let schemas: Vec<_> = families
+        .iter()
+        .filter(|family| !family.types.is_empty())
+        .map(|family| skein_codec::schema::parse(family.current.as_bytes()).expect("current registered schema"))
+        .collect();
+    let held: Vec<_> = schemas.iter().collect();
+    let mut changed = BTreeSet::new();
+    for (key, value) in &after.store {
+        if before.store.contains_key(key) {
+            continue;
+        }
+        match keys::decode_own(key) {
+            Some(keys::Own::Layout { family: name, number, .. })
+                if name.as_ref() == "jig-store-core" || name.as_ref() == "jig-store-tasks" =>
+            {
+                let family = families.iter().find(|family| family.name == name.as_ref()).expect("affected family");
+                let ty = family.types.iter().find(|ty| ty.number == number).expect("registered value type");
+                let schema = skein_codec::schema::parse(family.current.as_bytes()).expect("current schema");
+                let root = schema.root(ty.root.as_bytes(), ty.variant.map(str::as_bytes)).expect("registered root");
+                let layout = wire::Layout::decode(&wire::CEILINGS, &mut Reader::new(value)).expect("new layout");
+                assert_eq!(layout.root.as_ref(), ty.root.as_bytes());
+                assert_eq!(layout.variant.as_deref(), ty.variant.map(str::as_bytes));
+                assert_eq!(layout.layout, schema.layout(root, &held).expect("current fingerprint").digest());
+                let text_key = keys::encode_own(&keys::Own::Text(layout.text), 1024).expect("layout text key");
+                let text = wire::Text::decode(
+                    &wire::CEILINGS,
+                    &mut Reader::new(after.store.get(text_key.as_ref()).expect("layout text")),
+                )
+                .expect("new text");
+                assert_eq!(text.text.as_ref(), family.current.as_bytes());
+                changed.insert(key.clone());
+                if !before.store.contains_key(text_key.as_ref()) {
+                    changed.insert(text_key.into_vec());
+                }
+            }
+            _ => {}
+        }
+    }
+    changed
+}
+
 /// The unused receipt layout is replaced and the live change's no-test layout added; each pending job ends once.
 fn registry_upgrade(before: &maps::Maps, after: &maps::Maps) -> BTreeSet<Vec<u8>> {
     use jig_protocol_store::registry_v1 as wire;
@@ -255,6 +302,7 @@ fn registry_upgrade(before: &maps::Maps, after: &maps::Maps) -> BTreeSet<Vec<u8>
     assert_eq!(text.text.as_ref(), family.current.as_bytes());
     assert!(!before.store.contains_key(text_key.as_ref()), "second build brings production text");
     let mut changed = BTreeSet::from([old_key, new_key, text_key.into_vec()]);
+    changed.extend(suspension_layouts(before, after));
     let hot = family.types.iter().find(|ty| ty.variant == Some("change_hot")).expect("change hot type");
     let root = schema.root(hot.root.as_bytes(), hot.variant.map(str::as_bytes)).expect("change hot root");
     let digest = schema.layout(root, &[]).expect("change hot fingerprint").digest();

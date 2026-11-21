@@ -159,6 +159,93 @@ fn a_drained_runs_answer_saves_releases_and_keeps_what_it_said() {
 }
 
 #[test]
+fn interrupted_runs_from_shutdown_start_save_release_and_answer_shutdown() {
+    for drain in [Some(true), Some(false), None] {
+        for waiting in [false, true] {
+            for failure in [
+                Failure::Agent(crate::AgentFailure::Exited),
+                Failure::Agent(crate::AgentFailure::Rules),
+                Failure::Run(crate::RunFailure::Cancelled),
+            ] {
+                let mut h = Harness::new();
+                let (owner, workspace, agent) = h.live(1);
+                if waiting {
+                    assert!(h.step(Event::Agent(FromAgent::Yielded { owner })).is_empty());
+                }
+                if let Some(drain) = drain {
+                    let event = if drain { Event::Drain } else { Event::CancelAll { reason: Reason::Shutdown } };
+                    h.step(event);
+                }
+                let event = match failure {
+                    Failure::Agent(crate::AgentFailure::Exited) => None,
+                    Failure::Agent(fault) => Some(Event::Agent(FromAgent::Faulted { owner, fault })),
+                    Failure::Run(failure) => Some(fixtures::finished(owner, Finish::Failed { failure, model: None })),
+                    Failure::Cancelled(_) | Failure::Unprepared(_) => unreachable!("the table interrupts a live run"),
+                };
+                if let Some(event) = event {
+                    assert_eq!(h.step(event).as_ref(), [Request::Agent(ToAgent::Cancel { agent })]);
+                }
+                assert_eq!(
+                    h.step(Event::Agent(FromAgent::Gone { owner, detail: b"signal".as_slice().into() })).as_ref(),
+                    [Request::Save { owner, workspace }],
+                );
+                let expected = if drain.is_some() { Failure::Cancelled(Reason::Shutdown) } else { failure };
+                saved_failure(&mut h, owner, workspace, expected);
+                crate::resume_runs(&mut h.domain, &h.env, &mut h.out);
+                assert!(h.out.is_empty(), "no second stop, save, release or answer");
+                assert_eq!(h.domain.kept_answers(), 1);
+            }
+        }
+    }
+}
+
+fn saved_failure(h: &mut Harness, owner: Token, workspace: Token, failure: Failure) {
+    let saved = Some(Token::new(77));
+    let requests = h.step(Event::Saved { owner, at: saved });
+    let [Request::Release { workspace: released }, Request::Up(LinkUp::Answer { answer, .. })] = requests.as_ref()
+    else {
+        panic!("saved interruption tail: {requests:?}");
+    };
+    assert_eq!(*released, workspace);
+    assert_eq!(
+        answer.ending,
+        crate::Ending::Failed {
+            failure,
+            detail: b"signal".as_slice().into(),
+            work: Work { left: None, saved },
+            model: None,
+        }
+    );
+}
+
+#[test]
+fn a_run_not_live_at_drain_start_reports_shutdown_before_its_queued_cancel() {
+    for preparing in [false, true] {
+        let mut h = Harness::new();
+        let (owner, workspace) = h.assign(1);
+        if !preparing {
+            h.step(Event::Prepared { owner, workspace });
+        }
+        assert_eq!(h.step(Event::Drain).as_ref(), [Request::Up(LinkUp::Draining)]);
+        if preparing {
+            h.step(Event::Prepared { owner, workspace });
+        }
+        let agent = Token::new(301);
+        assert!(h.started(owner, agent).is_empty());
+        assert_eq!(
+            h.step(fixtures::finished(owner, Finish::Failed { failure: crate::RunFailure::Cancelled, model: None }))
+                .as_ref(),
+            [Request::Agent(ToAgent::Cancel { agent })]
+        );
+        assert_eq!(
+            h.step(Event::Agent(FromAgent::Gone { owner, detail: b"signal".as_slice().into() })).as_ref(),
+            [Request::Save { owner, workspace }]
+        );
+        saved_failure(&mut h, owner, workspace, Failure::Cancelled(Reason::Shutdown));
+    }
+}
+
+#[test]
 fn cancel_after_a_drain_stops_live_runs_but_not_one_already_stopping() {
     let mut h = Harness::new();
     let (stopping, _, first) = h.live(1);

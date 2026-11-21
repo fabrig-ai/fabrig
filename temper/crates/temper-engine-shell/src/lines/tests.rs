@@ -1686,6 +1686,23 @@ fn the_playground_start_makes_a_private_random_key_before_reading_it() {
 }
 
 #[test]
+fn a_shutdown_run_is_logged_suspended_but_other_cancellations_stay_failed() {
+    use jig_domain_host::{Failure, Reason};
+    let note = temper_engine_service::Note::RunFailed(temper_engine_domain::RunDiagnostic {
+        task: 812,
+        run: 812,
+        attempt: 3,
+        failure: Failure::Cancelled(Reason::Shutdown),
+        detail: b"cut by stop".as_slice().into(),
+    });
+    assert_eq!(note_line("temper", note), "temper serve: task 812 run 812 attempt 3 suspended: its worker stopped\n");
+    assert_eq!(
+        note_line("temper", failed_run_note(b"person stopped it", Failure::Cancelled(Reason::Engine))),
+        "temper serve: task 3 run 7 attempt 2 failed Cancelled(Engine): person stopped it\n"
+    );
+}
+
+#[test]
 fn full_table_notes_are_single_bounded_serve_lines() {
     for words in [
         "the forge's outbox full for 30 s: 2 of 2, held by entry 7 (task 1), entry 9 (task 2); 1 waiting for room",

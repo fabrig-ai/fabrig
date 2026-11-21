@@ -233,6 +233,9 @@ pub fn task_record(number: u64) -> jig_domain_tasks::TaskRecord {
         words_woken: 0,
         unrecorded: Box::new([]),
         open_attempt: None,
+        suspension: None,
+        suspended: 0,
+        restarted: false,
         settings: tasks::SettingsRevision { task: 1, run: None },
         added: Box::new([]),
         hold_bound_since: None,
@@ -1188,6 +1191,7 @@ fn signed_worker_on(channel: Token) -> crate::Service {
         link: root::Link::Hello {
             worker: 0,
             hello: jig_domain_link::Hello {
+                fresh: false,
                 reads_usage: true,
                 jobs: Box::default(),
                 slots: 1,

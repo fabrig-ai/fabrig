@@ -233,6 +233,7 @@ fn turn_root() -> (Domain, Env<Limits>) {
         .insert(
             1,
             core::RunProof {
+                worker: None,
                 task: 1,
                 attempt: 1,
                 conversation: 1,

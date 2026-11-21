@@ -229,12 +229,19 @@ fn failure(b: &mut Builder, value: HoldFailure, words: &Words) {
     };
     caption(b, words, phrase);
 }
-pub(super) fn end(b: &mut Builder, value: RunEnd, words: &Words) {
+pub(super) fn end(b: &mut Builder, value: RunEnd, attempt: u64, words: &Words) {
     match value {
         RunEnd::Parked => caption(b, words, P::Parked),
         RunEnd::Finished => caption(b, words, P::Finished),
         RunEnd::Cancelled => caption(b, words, P::CancelledEnd),
         RunEnd::Refused => caption(b, words, P::Refused),
+        RunEnd::Suspended { worker, why } => {
+            let phrase = match why {
+                jig_client::contract::SuspendWhy::Stopped => P::SuspendedStopped,
+                jig_client::contract::SuspendWhy::Restarted => P::SuspendedRestarted,
+            };
+            say(b, words, phrase, &[Hole::Number(attempt), Hole::Number(u64::from(worker))]);
+        }
         RunEnd::Failed { class, .. } => {
             caption(b, words, P::FailedEnd);
             failure(b, class, words);
@@ -270,9 +277,13 @@ fn line(b: &mut Builder, value: &Activity, words: &Words) {
             fresh_cause(b, *fresh, words);
         }
         Activity::RunEnded { attempt, end: value, spent } => {
-            caption(b, words, P::RunEnded);
-            number(b, words, P::Attempt, *attempt);
-            end(b, *value, words);
+            if let RunEnd::Suspended { .. } = value {
+                end(b, *value, *attempt, words);
+            } else {
+                caption(b, words, P::RunEnded);
+                number(b, words, P::Attempt, *attempt);
+                end(b, *value, *attempt, words);
+            }
             number(b, words, P::Spent, *spent);
         }
         Activity::Turn { reply, attempt, turn, read } => {

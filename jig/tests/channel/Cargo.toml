@@ -11,6 +11,11 @@ publish.workspace = true
 jig-channel-kit.workspace = true
 
 [dev-dependencies]
+jig-core-kit.workspace = true
+jig-domain-fleet.workspace = true
+jig-test-domain.workspace = true
+jig-test-profile.workspace = true
+jig-domain-people.workspace = true
 jig-protocol-config-fixtures.workspace = true
 jig-protocol-config.workspace = true
 skein-llm.workspace = true

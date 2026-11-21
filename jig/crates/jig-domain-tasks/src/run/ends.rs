@@ -157,6 +157,7 @@ impl Kept {
                 | End::FailedWithReason { .. }
                 | End::Refused
                 | End::RefusedWithReason { .. }
+                | End::Suspended(_)
                 | End::Recheck => false,
             }
     }
@@ -172,6 +173,7 @@ impl Kept {
                 | End::FailedWithReason { .. }
                 | End::Refused
                 | End::RefusedWithReason { .. }
+                | End::Suspended(_)
                 | End::Recheck => false,
             }
     }
@@ -188,6 +190,7 @@ impl Kept {
                 | End::FailedWithReason { .. }
                 | End::Refused
                 | End::RefusedWithReason { .. }
+                | End::Suspended(_)
                 | End::Recheck => false,
             };
         self.parks(end) || (self.question.is_some() && finished(end)) || delegates
@@ -204,6 +207,7 @@ pub(crate) fn stood(end: &End) -> Option<Box<[u8]>> {
         | End::FailedWithReason { .. }
         | End::Refused
         | End::RefusedWithReason { .. }
+        | End::Suspended(_)
         | End::Recheck => return None,
     };
     let words = match result {
@@ -227,6 +231,7 @@ fn finished(end: &End) -> bool {
         | End::FailedWithReason { .. }
         | End::Refused
         | End::RefusedWithReason { .. }
+        | End::Suspended(_)
         | End::Recheck => false,
     }
 }

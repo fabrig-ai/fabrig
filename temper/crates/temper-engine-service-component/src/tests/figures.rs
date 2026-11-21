@@ -155,6 +155,7 @@ impl Peer {
                             NOW,
                             link::Event::Hello {
                                 hello: jig_domain_link::Hello {
+                                    fresh: false,
                                     reads_usage: true,
                                     jobs: Box::new([]),
                                     slots: 1,

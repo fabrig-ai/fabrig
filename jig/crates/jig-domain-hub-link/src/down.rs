@@ -109,7 +109,9 @@ pub fn now(value: core::LinkNow) -> Event {
         }
         core::LinkNow::DropPayload { payload } => Event::DropPayload { payload },
         core::LinkNow::TurnPayload { run, attempt, turn, body } => Event::TurnPayload { run, attempt, turn, body },
-        core::LinkNow::AnswerPayload { run, attempt, payload } => Event::AnswerPayload { run, attempt, payload },
+        core::LinkNow::AnswerPayload { run, attempt, payload, worker, window } => {
+            Event::AnswerPayload { run, attempt, payload, worker, window }
+        }
         core::LinkNow::AcceptedTurn { payload, task, attempt, turn, accepted } => {
             Event::AcceptedTurn { payload, task, attempt, turn, accepted }
         }

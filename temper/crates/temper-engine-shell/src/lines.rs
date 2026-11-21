@@ -885,6 +885,9 @@ fn run_failure_line(
     failure: jig_domain_host::Failure,
     detail: &[u8],
 ) -> String {
+    if failure == jig_domain_host::Failure::Cancelled(jig_domain_host::Reason::Shutdown) {
+        return format!("{binary} serve: task {task} run {run} attempt {attempt} suspended: its worker stopped\n");
+    }
     run_detail_head_line(
         format!("{binary} serve: task {task} run {run} attempt {attempt} failed {failure:?}: "),
         detail,

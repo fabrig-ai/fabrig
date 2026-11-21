@@ -26,6 +26,7 @@ fn call_key() -> crate::CallKey {
 
 fn proof() -> crate::RunProof {
     crate::RunProof {
+        worker: None,
         task: 1,
         attempt: 1,
         conversation: 1,

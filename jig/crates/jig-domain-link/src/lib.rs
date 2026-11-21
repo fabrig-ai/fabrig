@@ -321,6 +321,8 @@ pub struct Hello {
     pub workstreams: Box<[u64]>,
     /// The runs it hosts, and those whose answers it holds.
     pub hosting: Box<[Hosting]>,
+    /// No hello of this worker process has yet been admitted (domain/engine/executors.md, 6.5).
+    pub fresh: bool,
 }
 
 /// A run a worker hosts, or whose answer it holds.

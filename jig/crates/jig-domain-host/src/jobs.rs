@@ -318,7 +318,24 @@ fn conclude(domain: &mut Hub, id: Id<Hosted>, out: &mut Queue<Request>) {
     let work = Work { left: job.left, saved: None };
     let answer = match ending.expect("settled ending") {
         Ending::Finished { result } => JobEnding::Finished { result, work },
-        Ending::Failed { failure, detail } => JobEnding::Failed { failure, detail, work },
+        Ending::Failed { failure, detail } => {
+            let failure = match failure {
+                failure @ JobFailure::Cancelled(_) => failure,
+                failure @ (JobFailure::Unprepared(_)
+                | JobFailure::Failed
+                | JobFailure::Deadline
+                | JobFailure::Result
+                | JobFailure::Unstarted
+                | JobFailure::Undelivered(_)) => {
+                    if domain.shut && !job.delivery_began {
+                        JobFailure::Cancelled(Reason::Shutdown)
+                    } else {
+                        failure
+                    }
+                }
+            };
+            JobEnding::Failed { failure, detail, work }
+        }
         Ending::Refused { why } => JobEnding::Refused(JobRefusal::Invalid(JobInvalid::Start { why })),
     };
     let refused = match &answer {

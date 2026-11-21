@@ -74,11 +74,20 @@ the owner translates by hand, in the schema's order:
 `enum NAME = PATH`: its items between `{` and `}`, one to a line or
 separated by commas, in the schema's order.
 
-- In a record: `FIELD [= NAME] [via PATH]`: the domain's field of that
-  name, and a converter for its value (5).
-- In an enumeration: `VARIANT [= NAME] [tuple] [{ ... }]`: the domain's
-  variant of that name, its payload held as one value (3.2), and a block
-  of the payload's fields for this variant alone.
+- In a record: `FIELD [= NAME] [via PATH] [slice | boxed]`: the
+  domain's field of that name, a converter for its value (5), and the
+  domain's shape where it isn't the record's (3.1).
+- In an enumeration: `VARIANT [= NAME] [tuple [boxed]] [{ ... }]`: the
+  domain's variant of that name, its payload held as one value (3.2),
+  in a `Box`, and a block of the payload's fields for this variant
+  alone.
+
+**The domain's shape** is the record's unless a mark says otherwise:
+`slice`, the domain holds a list as a boxed slice where the record holds
+a `skein_lib::List`; `boxed`, the domain holds a declaration's value, or
+a `tuple` payload, in a `Box`, whether or not the schema's `boxed` puts
+one on the record's side. The generator reads nothing of the domain's
+types, so the file says what the generated code converts.
 
 What the file doesn't say matches by name (3). jig's notes family, for
 its shape:
@@ -119,12 +128,14 @@ record Row by hand
     for its field, that field's value;
   - an option: an `Option` on the domain's side, its value by the same
     rule;
-  - a list: on the domain's side a `skein_lib::List` or a boxed slice,
-    whichever the field is, each item by the same rule; a list whose
-    count passes a `u32` refuses with `Bound` at the field;
+  - a list: on the domain's side a `skein_lib::List`, or a boxed slice
+    where the item says `slice`, each item by the same rule; a list
+    whose count passes a `u32` refuses with `Bound` at the field;
   - a field of pieces: none; its record is the owner's (3.3).
-- **Boxes** are put on or taken off as the other side has them: the
-  schema's `boxed`, and a domain's `Box` at a field or a payload.
+- **Boxes** are put on or taken off as the two sides have them: the
+  schema's `boxed` on the record's, a `boxed` mark on the domain's, at a
+  field or a `tuple` payload. Where both sides hold the same container
+  or box, the generated code writes no conversion between them.
 - **`via PATH`** passes the field's value, each value inside an option
   or a list, through the converter (5) instead.
 
@@ -186,8 +197,11 @@ only for a shape that recurs (9).
 - **Plain step code** under the workspace's lints, with no allowance:
   matches on both sides, named fields, the converters, the by-hand pairs
   and its own functions. It defines and calls no generic helper; a
-  domain's choice of container or box is bridged by core's and
-  `skein-lib`'s `From` conversions, so `skein-codec`'s exception
+  domain's choice of container or box, which the maps file states (2),
+  is bridged by `Box::new`, a move out of the box and `skein-lib`'s
+  conversions between a `List` and a boxed slice, each written only
+  where the two sides differ, so that no conversion is to its own type;
+  `skein-codec`'s exception
   (`skein/docs/foundation/programming-model.md`, 10.2) stays its
   codecs'.
 
@@ -238,6 +252,9 @@ schema's name, for:
   doesn't hold;
 - `tuple` or a block on a unit variant; `via` on a field whose value is
   a declaration;
+- `slice` on a field whose value, or an option's, isn't a list; `boxed`
+  on a field whose value, or an option's, isn't a mapped declaration's
+  domain type, or on a variant without `tuple`;
 - a mapped record with a field of pieces.
 
 ## 7. Command, drift and merges

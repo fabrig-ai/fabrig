@@ -103,6 +103,7 @@ pub enum TaskRunWait {
     Credential,
     Host,
     Refused(TaskWaitRefused),
+    Worker { worker: u32, until: skein_lib::Wall },
 }
 /// The engine's current refusal explanation (client/domain/contract/documents.md, 1).
 /// Hello is an observed volatile fleet fact, kept only in the current document.

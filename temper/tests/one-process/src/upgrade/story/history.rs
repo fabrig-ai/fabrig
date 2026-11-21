@@ -68,9 +68,6 @@ pub(super) fn history(before: &Maps, after: &Maps) {
             }
         }
     }
-    assert_eq!(
-        registry_seen, registry,
-        "only the receipt, change hot and people registry rows and jobs' done rows change"
-    );
+    assert_eq!(registry_seen, registry, "only the named current layouts, their texts and jobs' done rows change");
     eprintln!("upgrade history allowed: {allowed:?}");
 }
