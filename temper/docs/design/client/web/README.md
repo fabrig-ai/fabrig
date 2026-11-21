@@ -62,10 +62,11 @@ skein's (skein's `ui/web/README.md`), and how a client of jig's does is jig's
   documents, beside the bundle's stylesheets, for screenshots held to
   the mockups: no server, no script, no network (`gallery.md`). It stays
   for the states no journey reaches.
-- **Journeys** are walks recorded in a browser on a fresh fake box,
-  replayed natively through the shipped host and printed as the
-  client's pages, where the look is tuned (`journeys.md`), kept current
-  on main by one writer after each landing (`../journey-writer.md`).
+- **Journeys** are their walks, printed in one process in a world by
+  `temper-client-walk` as the client's own pages, where the look is
+  tuned (`journeys.md`; `../journey-walks.md`). Main's pages have one
+  writer after each landing (`../journey-writer.md`). A person's
+  recording prints outside the repository's journeys (`journeys.md`, 5.1).
 - **Look requests** carry the person's changes from the prints into a
   landing, an account and an after-landing render check (`look-requests.md`).
 
@@ -824,7 +825,7 @@ they are, and two small root files carry the rest.
 - **The outside pages' comparison** (`README.md`, 2.4, `look.md`, `gallery.md`, 2; `../pages/README.md` and `../view.md`, 1
   ; `../forge/served.md`, 1; `../../protocol/sign-in.md`, 4.3): temper/ui
   compares the look request `outside-pages`'s pages 01 to 10 under their
-  overlay with the reprint after landing, at 1440, 1000 and 420 px
+  overlay with main's printed pages after landing, at 1440, 1000 and 420 px
   (`look-requests.md`, section 4), with the states its message
   names in words: the top bar while `me` is read, offline and behind; the
   public pages' "Sign in"; every approval state, deciding and signed out
