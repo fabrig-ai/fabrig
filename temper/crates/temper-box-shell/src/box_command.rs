@@ -60,7 +60,7 @@ pub fn run(
     let (read, held, first_run) = configuration_read(directories, environment)?;
     let opening = Opening { log_lines: first_run.into_iter().collect(), after_block: Box::new([]) };
     read.prepare(|bytes| {
-        run_configuration(directories, bytes, held, Box::new([]), echo, fronted, record, None, opening, environment)
+        run_configuration(directories, bytes, held, Box::new([]), echo, fronted, record, opening, environment)
     })
 }
 
@@ -83,7 +83,6 @@ pub(crate) fn run_configuration(
     echo: Echo,
     fronted: bool,
     record: bool,
-    fixed_start: Option<&[u8]>,
     opening: Opening,
     environment: &[super::EnvironmentEntry],
 ) -> Result<Exit, String> {
@@ -116,7 +115,7 @@ pub(crate) fn run_configuration(
             ))
             .collect();
         let deployment = super::setup::check_with(bytes, &jig_directories(directories), &given)?;
-        let (steps, limits) = configuration_steps_checked(directories, &deployment, first, record, fixed_start)?;
+        let (steps, limits) = configuration_steps_checked(directories, &deployment, first, record)?;
         let named = &deployment.named;
         let listeners = open_listeners(directories, &steps, held, &inherited, &mut owned)?;
         let mut first_link = first_link(named, &steps)?;
@@ -339,17 +338,16 @@ pub fn configuration_steps(
     bytes: &[u8],
     first: Box<[temper_forge_setup::Step]>,
 ) -> Result<(temper_forge_setup::Steps, temper_box_machine::limits::Limits), String> {
-    configuration_steps_recording(directories, bytes, first, false, None)
+    configuration_steps_recording(directories, bytes, first, false)
 }
 pub(crate) fn configuration_steps_recording(
     directories: &super::Directories,
     bytes: &[u8],
     first: Box<[temper_forge_setup::Step]>,
     record: bool,
-    fixed_start: Option<&[u8]>,
 ) -> Result<(temper_forge_setup::Steps, temper_box_machine::limits::Limits), String> {
     let deployment = super::setup::check(bytes, &jig_directories(directories))?;
-    configuration_steps_checked(directories, &deployment, first, record, fixed_start)
+    configuration_steps_checked(directories, &deployment, first, record)
 }
 /// Builds steps from the admission already performed for these effective directories.
 pub(crate) fn configuration_steps_checked(
@@ -357,7 +355,6 @@ pub(crate) fn configuration_steps_checked(
     deployment: &super::setup::Deployment,
     first: Box<[temper_forge_setup::Step]>,
     record: bool,
-    fixed_start: Option<&[u8]>,
 ) -> Result<(temper_forge_setup::Steps, temper_box_machine::limits::Limits), String> {
     let super::setup::Deployment { named, demo, limits, .. } = deployment;
     let mut serve = vec![super::address(&named.clients)?];
@@ -382,7 +379,6 @@ pub(crate) fn configuration_steps_checked(
             serve.into_boxed_slice(),
             cfg!(target_os = "linux"),
             record,
-            fixed_start,
         );
         if let Some(demo) = &demo {
             let mut asked = steps.asked.into_vec();
