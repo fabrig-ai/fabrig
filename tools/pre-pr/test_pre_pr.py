@@ -1628,14 +1628,29 @@ else:
                 if lints:
                     self.assertIn('clippy, focused and fuzzy tests (code input', log)
 
-    def test_fuzzy_follows_every_focused_exit_and_judges_its_own_failures(self):
+    def test_focused_build_failure_skips_fuzzy_and_preserves_the_diagnostic(self):
+        self.goal_file('reds-wait', b'temper-reds-wait 1 1\n')
+        self.goal_file('reds', b'temper-reds 1\n- test api::rules fuzzy::rule\n')
+        diagnostic = 'error[E0308]: mismatched types'
+        build = diagnostic + '\none-process: nextest listing exited with 101\n'
+        result, log, _, _ = self.ledger_run([], runs={'default': {'code': 2, 'output': build}})
+        self.assertEqual(result, 1, log)
+        self.assertEqual([args[6] for args in self.process_calls], ['default'])
+        self.assertIn('pre-pr: fuzzy tests: skipped (focused test build failed)', log)
+        self.assertIn('\nbuild\nno tests ran\n' + diagnostic, log)
+        self.assertFalse((self.root / '.git/pre-pr-passed').exists())
+        self.assertEqual((self.root / '.git/temper/check-results').read_text().splitlines()[2:], [])
+
+        result, log, _, _ = self.ledger_run([])
+        self.assertEqual(result, 0, log)
+        self.assertEqual([args[6] for args in self.process_calls], ['default', 'fuzzy'])
+
+    def test_fuzzy_follows_focused_tests_and_check_errors_and_judges_its_own_failures(self):
         test = dict(binary_id='api::rules', test_name='rule', outcome='failed')
         fuzzy = dict(test, test_name='fuzzy::rule', profile='fuzzy')
-        build = 'one-process: nextest listing exited with 101\n'
         for row, focused, tests, reds, statuses in (
                 ('passed', {}, [], '', ('passed', 'passed')),
                 ('failed', {}, [test], '', ('failed', 'passed')),
-                ('build', {'code': 2, 'output': build}, [], '', ('failed', 'passed')),
                 ('check', {'code': 2}, [], '', ('failed', 'passed')),
                 ('focused inherited', {}, [test, fuzzy], '- test api::rules rule\n', ('inherited', 'failed')),
                 ('fuzzy inherited', {}, [test, fuzzy], '- test api::rules fuzzy::rule\n', ('failed', 'inherited'))):
