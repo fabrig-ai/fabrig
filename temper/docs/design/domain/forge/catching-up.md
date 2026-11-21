@@ -133,6 +133,7 @@ reads, when one is at hand. Nothing is judged from the store alone.
 | `landing::judge` | the receipts `landing::rebuild` fills | the fresh reads |
 | the root's `form_landings` | the trains' landing rows | the fresh reads, where forming reads a forge fact |
 | the root's `limit_holds::reconcile`, `room_freed` | the forge's room and usage | the fresh reads |
+| a landing's merge or manual record whose authority answers Wait (the root's `drop_landing`) | the landing's evidence | the fresh reads, or its poll outside a restart: `DeferLandingMerge` erases the unsent entry, its result unknown and its send returned; only a refusal vetoes it |
 | `goal_branch::make`, `room::check` | a making's room | the line (section 3) |
 | `resolve` (a person's choice on a held entry) | the held entry | handed in number order (section 3) |
 | the landing queues, a change's panel, the views (`public`, `standing`, `views`) | restored heads, pulls, verdicts, CI, shown | nothing decided; shown with the catching-up line (section 5) |
