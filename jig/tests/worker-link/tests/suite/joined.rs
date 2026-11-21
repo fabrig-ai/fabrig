@@ -474,9 +474,9 @@ fn a_resumed_start_fits_the_room_on_each_stock_profile() {
     use jig_protocol_worker_wire::fit::cut_words;
     use jig_worker_link_world::fixtures;
     use skein_lib::Duration;
-    // Fixed65 + charter7 + a two-turn window16; a call's fields14,
+    // Fixed69 + charter7 + a two-turn window16; a call's fields14,
     // name8 and tool4; delivery evidence8. The oldest call is a delivery.
-    const BASE: u32 = 88;
+    const BASE: u32 = 92;
     const CALL: u32 = 26;
     const DELIVERY: u32 = CALL + 8;
     const FEW: u32 = 3;

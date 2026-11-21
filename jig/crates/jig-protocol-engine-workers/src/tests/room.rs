@@ -172,7 +172,7 @@ fn a_resumed_start_is_fitted_to_the_engines_room() {
     );
     let Some(Request::Unsent { unsent, .. }) = out.pop() else { panic!("fitted frame refused by unopened channel") };
     // One answer stays whole; three become 67-byte cut words.
-    assert_eq!(unsent.bytes, 613);
+    assert_eq!(unsent.bytes, 617);
     assert_eq!(unsent.bound, Bound::Channel(skein_channel::Unsent::Closed));
     assert!(unsent.bytes <= ENGINE && ENGINE < WHOLE && WHOLE < WORKER);
 }

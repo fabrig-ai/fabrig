@@ -214,18 +214,22 @@ fn frame(limits: &v22::Limits, kind: Kind) -> Option<u32> {
 }
 
 #[must_use]
-pub fn engine_cap(sizes: &Sizes) -> Option<Cap> {
+pub fn engine_cap(sizes: &Sizes, room: u32) -> Option<Cap> {
     let limits = limits(sizes)?;
     let grants = sizes.accounts.checked_add(sizes.credentials)?;
-    let mut bytes = frame(&limits, Kind::Assignment)?;
+    let mut bytes = frame(&limits, Kind::Assignment)?.min(room);
     bytes = bytes.checked_add(sizes.inbox.checked_mul(frame(&limits, Kind::Message)?)?)?;
     bytes = bytes.checked_add(sizes.calls.checked_mul(frame(&limits, Kind::Relayed)?)?)?;
     bytes = bytes.checked_add(2_u32.checked_mul(frame(&limits, Kind::Asked)?)?)?;
     bytes = bytes.checked_add(sizes.turns.checked_mul(frame(&limits, Kind::TurnKept)?)?)?;
+    // A kept or busy answer for each part, as for the turns.
+    let part = frame(&limits, Kind::PartKept)?.max(frame(&limits, Kind::PartBusy)?);
+    bytes = bytes.checked_add(sizes.turns.checked_mul(part)?)?;
     bytes = bytes.checked_add(frame(&limits, Kind::Acknowledge)?)?;
     bytes = bytes.checked_add(frame(&limits, Kind::Cancel)?)?;
     bytes = bytes.checked_add(grants.checked_mul(frame(&limits, Kind::Grant)?)?)?;
-    let frames = 5_u32.checked_add(sizes.inbox)?.checked_add(sizes.calls)?.checked_add(sizes.turns)?;
+    let frames =
+        5_u32.checked_add(sizes.inbox)?.checked_add(sizes.calls)?.checked_add(sizes.turns)?.checked_add(sizes.turns)?;
     let frames = frames.checked_add(grants)?.checked_mul(sizes.slots)?;
     let sources = frame(&limits, Kind::Sources)?;
     // One host-wide list request and usage request fit alongside run traffic and source commands.

@@ -194,7 +194,7 @@ impl Worker {
             events: Queue::uncapped(),
             engine: Queue::uncapped(),
             held: Queue::with_capacity(
-                jig_protocol_worker_wire::sizes::engine_cap(&prepared.link.sizes)
+                jig_protocol_worker_wire::sizes::engine_cap(&prepared.link.sizes, prepared.link.room)
                     .ok_or(problem(b"limits", What::Bound))?
                     .frames
                     .checked_add(3)

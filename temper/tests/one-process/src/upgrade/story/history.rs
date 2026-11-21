@@ -52,13 +52,15 @@ pub(super) fn history(before: &Maps, after: &Maps) {
                     if wire.name.as_ref() == b"jig-worker-wire" {
                         let current = u32::from(jig_protocol_worker_wire::VERSION);
                         if wire.version != current {
-                            assert_eq!(wire.version, 18, "the kept image's worker wire");
+                            assert_eq!(wire.version, 21, "the kept image's worker wire");
                             wire.version = current;
                         }
                         seen = true;
                     } else if wire.name.as_ref() == b"smith-transcript" {
-                        assert_eq!(wire.version, 7, "the kept image's transcript");
-                        wire.version = 8;
+                        if wire.version != 8 {
+                            assert_eq!(wire.version, 7, "the kept image's transcript");
+                            wire.version = 8;
+                        }
                     }
                 }
                 assert!(seen, "the worker wire is kept");

@@ -1100,7 +1100,7 @@ mod admission_tests {
             let limits = crate::limits::worker_link(&worker);
             let codec = wire::sizes::limits(&limits.sizes).expect("codec");
             let mut channel_limits = link::channel_limits(&limits).expect("channel limits");
-            let cap = wire::sizes::engine_cap(&limits.sizes).expect("engine cap");
+            let cap = wire::sizes::engine_cap(&limits.sizes, limits.room).expect("engine cap");
             channel_limits.output_bytes = cap.bytes;
             channel_limits.output_frames = cap.frames;
             let mut peer = Self {

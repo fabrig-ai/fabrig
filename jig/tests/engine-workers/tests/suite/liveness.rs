@@ -73,7 +73,7 @@ fn a_link_that_fills_its_cap_is_lost() {
     let mut world = world();
     let (connection, channel) = reporting(&mut world);
     world.withhold_write_room(connection);
-    let cap = jig_protocol_worker_wire::sizes::engine_cap(&fixtures::SIZES).expect("cap");
+    let cap = jig_protocol_worker_wire::sizes::engine_cap(&fixtures::SIZES, fixtures::limits().room).expect("cap");
     for _ in 0..cap.frames {
         busy(&mut world, channel);
     }
@@ -392,8 +392,8 @@ fn a_resumed_start_fits_the_room() {
 fn the_room_holds_the_smallest_resumed_start() {
     use jig_protocol_engine_workers::{Component, Limits, valid};
     use jig_protocol_worker_wire::sizes;
-    // Header8 + fixed57 + five calls (fields14 + name16 + tool16 + words66).
-    const FLOOR: u32 = 625;
+    // Header8 + fixed61 + five calls (fields14 + name16 + tool16 + words66).
+    const FLOOR: u32 = 629;
     let sizes = sizes::Sizes { answered: 5, ..fixtures::SIZES };
     for (room, accepted) in [(FLOOR, true), (FLOOR - 1, false)] {
         let limits = Limits { sizes, room, ..fixtures::LIMITS };

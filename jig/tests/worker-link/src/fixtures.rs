@@ -465,7 +465,7 @@ pub fn acknowledge() -> skein_channel::Frame {
 pub fn engine_accepting_with(limits: &Limits) -> skein_fake_channel::ScriptedPeer {
     let codec = wire::sizes::limits(&limits.sizes).expect("sizes");
     let schema = wire::schema(&codec).expect("schema");
-    let cap = wire::sizes::engine_cap(&limits.sizes).expect("engine cap");
+    let cap = wire::sizes::engine_cap(&limits.sizes, limits.room).expect("engine cap");
     let channel = skein_channel::Limits {
         output_bytes: cap.bytes,
         output_frames: cap.frames,
@@ -537,7 +537,7 @@ pub fn relay_answer(name: &[u8]) -> host::LinkDown {
 /// The scripted engine can send the fixed schema-bound figures record.
 #[must_use]
 pub fn engine_channel_limits() -> skein_channel::Limits {
-    let cap = wire::sizes::engine_cap(&SIZES).expect("engine cap");
+    let cap = wire::sizes::engine_cap(&SIZES, LIMITS.room).expect("engine cap");
     skein_channel::Limits { output_bytes: cap.bytes, output_frames: cap.frames, ..channel_limits() }
 }
 

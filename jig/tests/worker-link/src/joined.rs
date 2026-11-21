@@ -343,6 +343,14 @@ impl Joined {
             turn: 1,
         });
     }
+    pub fn engine_part_busy(&mut self) {
+        self.engine_event(engine::Event::PartBusy {
+            channel: self.channel.expect("admitted hello"),
+            run: fixtures::RUN_SEVEN,
+            attempt: fixtures::ATTEMPT_TWO,
+            part: 1,
+        });
+    }
     pub fn engine_restarting(&mut self, wait: Duration) {
         self.engine_event(engine::Event::Restarting { wait });
     }
