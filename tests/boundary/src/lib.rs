@@ -300,7 +300,8 @@ pub fn record_family(path: &Path) -> Result<Option<String>, std::io::Error> {
     Ok(record_source(path)?.map(|_| path.file_stem().expect("Rust file stem").to_string_lossy().into_owned()))
 }
 
-/// Read a generated record module once, distinguishing it from glue by its header.
+/// Read a generated record module once, distinguishing it from glue and maps
+/// translations by its header (skein/docs/design/data/codec/maps.md, 4).
 /// Translation modules, non-Rust files and directories are not records.
 ///
 /// # Errors
