@@ -250,7 +250,7 @@ fn golden_check_with(directory: &Path, configuration: temper_playground::documen
                 report.events.iter().any(|event| matches!(event, Event::Decoded { records: 293, .. })),
                 "literal record count: {lines}"
             );
-            assert!(lines.contains("registry commit, jobs and restores pass"), "{lines}");
+            assert!(lines.contains("registry commit, jobs and restores pass; opened in "), "{lines}");
         }
         Copy::Broken => {
             assert!(ran.is_empty(), "broken store before jobs: {lines}");

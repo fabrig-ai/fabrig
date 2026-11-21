@@ -396,12 +396,12 @@ impl Domain {
         self.forge.installation(forge, installation)
     }
 
-    /// Restore as at a start, ending before the switch (domain/root.md, 8.1).
+    /// Restore as at a start, ending at the opening (domain/root.md, 8.1).
     pub fn rehearse(&mut self) {
         assert!(self.start_wall.is_none(), "rehearsal set before restart");
         self.rehearsal = Some(false);
     }
-    /// The rehearsal reached the switch without asking for it.
+    /// The rehearsal opened, with the connector's catching up begun.
     #[must_use]
     pub fn rehearsed(&self) -> bool {
         self.rehearsal == Some(true)

@@ -555,6 +555,9 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                 route_core_requests(domain, env, decision, output);
                 if phase == core::start::Phase::Open && domain.start_phase().is_none() {
                     domain.opened = true;
+                    if domain.rehearsal.is_some() {
+                        domain.rehearsal = Some(true);
+                    }
                     // Open admits task control; a later resume takes the first due task.
                     trials::restarted(domain);
                 }
