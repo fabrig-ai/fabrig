@@ -1,6 +1,6 @@
 # Shared scripted LLM peer
 
-Provisional, 2026-10-05, revised 2026-10-19. The scripted peer that worlds
+Provisional, 2026-10-05, revised 2026-11-21. The scripted peer that worlds
 and an application's real loop call in place of an LLM provider.
 
 ## 1. Role
@@ -323,6 +323,131 @@ is not understood, but a known recap prompt can have its own rule.
   form's `{"take", "before", "after"}` (temper's
   `protocol/setup/playground.md`; `testing/fakes.md`, 1).
 
+### 2.7 An account's faults
+
+The faults production showed on an account (temper's
+`draft/failure-worlds.md`, 4.2) are the account's state, not a turn's:
+every call with the account's credential meets them, whichever script
+answers it, from the moment the owner strikes the account until it
+clears it.
+
+```rust
+pub enum Strike {
+    Spent,                                  // the credits are spent: never returns until cleared
+    SignedOut,                              // the sign-in expired
+    Unserved { model: Box<[u8]> },          // a model the account doesn't serve
+    Window { tokens: u64, length: Duration }, // tokens per window, shared by every call on the account
+}
+Event::Strike { credential: u32, strike: Strike }  // in force from this event
+Event::Clear { credential: u32, strike: Strike }   // stops it: matched by kind, and by model for Unserved
+
+pub enum Cut { BeforeOutput, MidText, MidCall }
+pub enum Error { /* today's */, Spent, SignedOut, Unserved, Window { reset: Duration, limit: u64, remaining: u64 }, Cut(Cut) }
+```
+
+- **The owner strikes by event,** at any time, in its own iteration, as
+  it releases a hold (2.2): the domain stays pure, with no timer or
+  callback. A clear of what isn't in force changes nothing. A
+  credential is the index the byte peer puts in each query (section 3);
+  a domain-face world gives each account its index in the queries it
+  makes.
+- **Before the script:** a call whose credential is struck is answered
+  with the strike's failure before any script line or seeded chance,
+  and spends no line: a failure adds no assistant message (2.3), so the
+  call made again after the clear plays its turn as if nothing fell.
+  `Unserved` answers only the calls for its model. Of two strikes in
+  force, the first struck answers.
+- **A shared window:** each call on a credential with a window is
+  charged its prompt's input tokens, as its usage counts them (2.1),
+  when it arrives. Windows are fixed, `length` long, the first starting
+  at the strike. A call that would take the window's charge past
+  `tokens`, while the window has charged anything, is refused with
+  `Window`: `reset` the time left to the window's end, `limit` its
+  tokens, `remaining` what is left of them; it is charged nothing. A
+  call alone past the limit is served, once per window. Every call with
+  the credential shares the window, whatever conversation or task makes
+  it: tokens per minute shared by every task on an account.
+- **A failing line may give these classes too** (2.3): `Spent`,
+  `SignedOut`, `Unserved` and `Window` (with its reset, limit and
+  remaining as given) have rows on both routes. `Cut` has its own line
+  (2.8), and a failing line of class `Cut` is refused at configuration.
+- **Room:** the accounts' state is kept for at most `Config.accounts`
+  credentials, with at most `Config.unserved` models each, reserved at
+  configuration under `script_bytes`. A strike past that room is refused
+  by the entry that takes it, never dropped.
+- **At the peer,** before any stream, each with the route's request id
+  and never a `retry-after`:
+
+  | Class | Responses | Anthropic |
+  |---|---|---|
+  | `Spent` | 429, code `insufficient_quota` | 402 `billing_error` |
+  | `SignedOut` | 401, code `token_expired` | 401 `authentication_error` |
+  | `Unserved` | 404, code `model_not_found`, `error.param` `model` | 404 `not_found_error` |
+  | `Window` | 429, code `rate_limit_exceeded`, type `tokens`; `x-ratelimit-limit-tokens`, `x-ratelimit-remaining-tokens` and `x-ratelimit-reset-tokens` | 429 `rate_limit_error`; `anthropic-ratelimit-tokens-limit`, `-remaining` and `-reset` |
+
+  The Responses reset is a duration as the provider writes it: `250ms`
+  under a second, `42s` under a minute, `1m30s` past it, rounded up to
+  the unit it ends in. The Anthropic reset is the wall time it falls
+  at, RFC 3339 in UTC, in whole seconds rounded up, from the wall the
+  owner installs (`Exchange::at`, section 5). A failing line of these
+  classes reached after other lines ends the stream as 2.3 says, with
+  no header.
+- **What the client reports:** `Exhausted` with no reset, `Unauthorized`,
+  `Invalid` and `RateLimited` with a zero delay, since it reads no
+  provider reset header (../../llm/README.md, 2.5, 4.7 and 4.8). A
+  domain-face world translates each class as the client reports the
+  peer's rendering of it, so that a change to the client's reading
+  changes those translations with it; section 5's stories pin the
+  client's side.
+
+### 2.8 A cut stream
+
+A stream that answered 200 and ended before its completion event, as
+ten tasks' Responses streams did on 2026-11-20.
+
+- **A line,** `Line::Cut { times: u32 }`. The stream ends at its place
+  in the turn, the block before it left open:
+  - first in the turn, `Cut::BeforeOutput`: the head and the opening
+    events alone;
+  - after a text line (`Text` or `Pieces`), `Cut::MidText`: the text's
+    pieces sent, its block not closed;
+  - after a call line, `Cut::MidCall`: the call's start and the first
+    half of its arguments' bytes, rounded down, sent, its block not
+    closed.
+- **Then the call made again passes:** it cuts the first `times` calls
+  that reach it, counted per line as a reset's first failure is (2.3),
+  under `script_bytes`; a call past them passes over it, and the turn's
+  other lines answer it. A cut adds no assistant message, so the call
+  made again plays the same turn whole. `times` of zero is refused at
+  configuration. Lines after a cut are allowed: they answer the calls
+  that pass over it.
+- **Seeded,** for sweeps and soak runs: `Config.cut`, a chance per
+  mille, rolled with the other chances (2.3), cuts a reply at a place
+  drawn from the seed among its lines' ends, as a scripted cut there.
+- **The domain's reply** is `Err(Failure { error: Error::Cut(place),
+  parts, .. })`, `parts` what was sent before the cut, a cut call's
+  arguments its sent half; pieces before it went out as `Request::Piece`
+  as any. The parts are evidence: the reply is a failure, so a
+  domain-face world hands its caller no completion.
+- **At the peer:** the head (200, `text/event-stream`), the dialect's
+  opening events, the parts' events up to the cut, no block's end
+  event for the open block, and no terminal: no `response.completed`,
+  `response.incomplete` or `response.failed` on Responses, no
+  `message_delta` or `message_stop` on Anthropic. Then the body ends
+  whole, its last chunk sent, and the connection stays as it would
+  after a response.
+- **What the client reports:** `Protocol`, "incomplete Responses
+  stream" or "incomplete Anthropic stream" (../../llm/README.md, 4.8;
+  `skein-llm`'s `openai/response.rs` and `anthropic/response.rs`), where
+  a connection closed within a response is `Unavailable`. A domain-face
+  world translates `Cut` as `Protocol`, under 2.7's rule.
+- **Hangs need no line:** a request that hangs after its head is a hold
+  on its reply's first piece that its owner never releases, and one
+  that goes idle mid-stream a hold on a later piece (2.2). The peer
+  sends the head and the opening events before the first; on Anthropic
+  a hold sends one `ping`, which the client's idle deadline doesn't
+  count.
+
 ## 3. Byte peer
 
 `Service` owns bounded routing across connections; `Server` owns one HTTP
@@ -534,6 +659,46 @@ credential the peer does not hold is observed apart from both, by its
 scheme with no index, and answered as unauthorized; a public-route
 request with a refused field is answered as unsupported, naming it; and
 no observation holds a credential's value.
+
+**The faults' stories** (2.7 and 2.8), through `Exchange`, on both
+routes: each strike reaches the client's terminal as 2.7's last bullet
+says, with its route's status, code and field, and a cleared strike
+lets the call made again through to its turn; a strike on one
+credential leaves another's calls alone, and `Unserved` another
+model's; a window shared by two conversations on one credential refuses
+the call past its tokens with 2.7's headers and no `retry-after` in the
+response head, and serves it after the reset; each cut reaches the
+client as `Protocol`, the deltas before it delivered as deltas and no
+completion, and a cut of `times` 1 completes on the call made again.
+The domain's own step tests hold the rest: a strike answering before
+the script and spending no line, a clear, two strikes in order, the
+window's fixed boundaries and its lone large call, the room's refusal,
+a cut's three places, its count, its refusals at configuration, and
+a seeded cut's place drawn from the seed.
+
+**What fell, for a world's ledger** (`../sweeps.md`, 3): the fake keeps
+no second log. Its outputs are its report: each `Request::Reply` that
+fails names its class, a cut its place, and its call's query the
+credential; each `Request::Hold` a hold reached; at the peer,
+`Observation::Answered` and the connection's `Observation::Credential`.
+A world copies each into its ledger at the moment it takes the output.
+`skein_llm_kit::faults` gives the kinds, family `provider` as the draft's
+4.2 names it:
+
+```rust
+pub fn failed(error: &api::Error) -> skein_world::faults::Kind; // a failure the domain answered
+pub fn struck(strike: &api::Strike) -> skein_world::faults::Kind; // an account's strike
+pub const HANG_AFTER_HEAD: Kind;   // "hang after head": a hold on a reply's first piece, never released
+pub const IDLE_MID_STREAM: Kind;   // "idle mid-stream": a hold on a later piece, never released
+```
+
+Their names: `rate window`, `spent credits`, `expired sign-in`,
+`unserved model`, `cut before output`, `cut mid-text`, `cut mid-call`,
+and today's classes by their own (`overloaded`, `unavailable`, `rate
+limited`, `exhausted`, `refused`, `unsupported`, `context too long`,
+`invalid`, `unauthorized`). A strike is recorded from its strike to its
+clear, a window's refusal from the refusal to its reset, a cut at its
+instant, and a hang from the hold reached to its release, or never.
 
 The redacted Anthropic captures beside the shared codec keep their
 provenance. They flow through the actual Client under fragmentation and
