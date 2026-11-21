@@ -377,7 +377,8 @@ nothing else:
 ## 8. Tests
 
 - **Step tests,** in `jig-protocol-store`: the intent's bytes, with
-  golden bytes; `RestoreRefusal::words`; the resolution from each row
+  fixed-rule values built from the schema's text; `RestoreRefusal::words`;
+  the resolution from each row
   of 5's table, and `Unmatched` from a state outside it and from an
   intent that doesn't decode; the strays with no intent standing; a
   rehearsal refusing `Unfinished`; the staging table of 4.4 over a

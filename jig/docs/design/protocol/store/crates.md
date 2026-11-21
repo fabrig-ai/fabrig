@@ -30,21 +30,20 @@ documents': nothing here changes a behaviour, a public path, a stored byte or a 
 ## 2. The crates
 
 ```
-jig-protocol-store            the component: Store, its boundary, keys, commits, reads, opening, jobs, transcripts, secrets; the translation under today's `codec` path
-└── jig-protocol-store-records    jig's records to the store's generated families and back, its `codec` module: limits, names, encode and decode, each family's translation, the component's own rows
+jig-protocol-store            the component: Store, its boundary, keys, commits, reads, opening, jobs, transcripts, secrets; src/generated/openings.rs; the re-exported `codec` path
+└── jig-protocol-store-records    jig's records to the store's generated families and back: src/generated/ translation modules and the hand-written `codec` module that calls them; limits, names, encode and decode, the component's own rows
     └── jig-protocol-store-{core,tasks,people,settings,families}   the generated record code (`../README.md`, 5)
 jig-protocol-store-kit        testing: the domain values and limits both pieces' tests build
 ```
 
 ### 2.1 What each holds
 
-By today's files, under `jig/crates/jig-protocol-store/src/`, once the preparation of section 3 has
-landed. A directory goes with the file of its name.
+Under each crate's `src/`. A directory goes with the file of its name.
 
 | Piece | Files |
 |---|---|
-| `jig-protocol-store-records` | `codec.rs`, `codec/` |
-| `jig-protocol-store` | every other file: `lib.rs` and its modules |
+| `jig-protocol-store-records` | hand-written `codec.rs`, `codec/`, calling the translation modules in `generated/`, one per mapped family |
+| `jig-protocol-store` | `lib.rs` and the component's modules, including `generated/openings.rs` |
 
 Their sizes, counted as raw lines of today's files, are each under the bound of `crate-graph.md`,
 7.3: about 24,000 for the records' translation, 17,700 of code and 6,300 of tests; about 43,000 for
@@ -98,11 +97,14 @@ From the crate's history, `crate-graph.md`, 5.2's first rule, and its module gra
   `tasks_v13`, `people_v17`, `notes_v1`, `accounts_v2`, `component_v3`), each from its own crate.
   It carries today's crate attributes that its files meet (`no_std` but under test,
   `forbid(unsafe_code)`, the `clippy::manual_map` expectation if its files still meet it) and
-  `extern crate alloc;`, and declares `#[cfg(test)] mod tests;`.
+  `extern crate alloc;`, and declares `#[cfg(test)] mod tests;`. Its public `generated` module
+  declares the translations in `src/generated/`, one per mapped family: accounts, component,
+  core, notes, people, settings and tasks, called by the hand-written `codec` module.
 - **`jig-protocol-store` keeps its name and every public path** (`crate-graph.md`, 5.3): its root
   re-exports `pub use jig_protocol_store_records::codec;` in place of `pub mod codec;`, so that
   `jig_protocol_store::codec::` and the component's own `crate::codec::` paths stay. Every other
-  line of today's root stays.
+  line of today's root stays. The component's `generated` module holds the openings translation,
+  `src/generated/openings.rs`, called by its hand-written openings code.
 - **No item widens.** Once the preparation has landed, the component names only public items of the
   translation; its `pub(crate)` items are the translation's own.
 
@@ -217,7 +219,8 @@ each stage a `#[cfg(test)]` module of the crate's root, in one change beside sec
 - **The records' owner stays** `jig-protocol-store`: its `schema/`, the patch set that embeds the
   schemas, `jig/tests/codec-families.rs`' entries and the store codecs world's reads of them stay
   with the owner (`tools/crates/design.md`, 3.2). Codec tests build fixed-rule values from embedded
-  schema texts or use constructors; the store and test connector keep no family golden directories
+  schema texts or build generated records by their public fields; the store and test connector
+  keep no family golden directories
   (skein's `data/codec/README.md`, 6).
 - **The component's test fixtures by path,** `src/tests/fixtures/*.schema` and
   `src/tests/golden/history-record.bin`, stay with the tests that read them, the component's.
