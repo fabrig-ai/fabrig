@@ -70,7 +70,8 @@ pub const KINDS: &[&str];
   rest are the adapter's choice.
 - **Names:** every waiter and owner is `task N`, its task's number, as in
   every adapter of a world (`checks.md`, 6.1); an outbox entry is
-  `entry N`; a branch hold is its resource's name.
+  `entry N`; an admitted read is `call N`, N its admission's number in
+  the read admissions' table; a branch hold is its resource's name.
 
 ### 2.2 Waits
 
@@ -89,12 +90,12 @@ change's due step.
 | `landing: turn` | `Waiter(task L)`, the landing holding the turn; none where the turn is free |
 | `landing: prepare` | `Waiter(task J)`, the round's live prepare job, from `inspect`; `Party("prepare job")` from `forge` alone; `Ended("prepare job")` where the root has no live prepare child |
 | `landing: open`, `close`, `delete`, `post`, `merge`, `record` | `Party("forge: entry N")`, the landing's write in the outbox for it; `Ended("<wait> write")` where none is outstanding |
-| `landing: prefixes`, `run`, `receipt`, `ancestry`, `read` | its deadline alone |
+| `landing: prefixes`, `run`, `receipt`, `ancestry`, `read` | its deadline; and its read in flight, `Party("forge: call N")` |
 | `landing: room`, `change: room` | for each entry holding the outbox's room: `Waiter(task T)`, its owner, while its owner lives; `Ended("entry N of task T")` once its owner has ended |
 | `change: held` | `Party("person")`: a person's release |
 | `change: ready`, `change: preparing` | `Waiter(task L)`, its landing |
 | `change: ready` with no landing | while the forge's limits refuse its train a landing, `Waiter(task L)` for each live landing; otherwise its landing's making, as the root's turn below |
-| every other `change:` step | its live delegate (producer, repair, resolution, gate or merge job), `Waiter(task D)`; its write in flight, `Party("forge: entry N")`; its open question's answerer, `Waiter(task R)` or `Party("person")`; else the root's turn below |
+| every other `change:` step | its live delegate (producer, repair, resolution, gate or merge job), `Waiter(task D)`; its write in flight, `Party("forge: entry N")`; its read in flight, `Party("forge: call N")`; its open question's answerer, `Waiter(task R)` or `Party("person")`; else the root's turn below |
 
 - **The root's turn:** a change the forge has decided an act for that
   the root carries out (a delegate to make, a landing task to make,
@@ -117,6 +118,13 @@ change's due step.
   of each such task, in the inspection `forge` gave, and to nothing
   else. The adapter's surface stays 2.1's; the forge's state gains
   nothing for it.
+- **A read in flight:** a read the forge's client has admitted and
+  not yet had answered, its holder's owner the token the forge maps to
+  the waiting change or landing, wakes it when its answer comes:
+  `Party("forge: call N")`, read from the client's admissions, like a
+  write's `Party("forge: entry N")` from the outbox. A call answered or
+  closed names nothing, and no read stands in for a wait it can't
+  name. A read still waiting for admission is not in flight.
 
 - **The change's steps,** in the change procedure's words
   (`../domain/forge/change/README.md`, 2): `producing`, `opening`,
