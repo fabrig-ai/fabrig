@@ -710,14 +710,11 @@ is built from, as `temper-client-journeys` does, under both roots.
 - **`chat-draft`,** `after project-landing`, with its `scripts.json`:
   eight pages, a chat through its draft to a goal and back. Its scripts
   are the fake model's turns for its chat, its draft's two revisions
-  and its goal's report, made from the box's own
-  (`temper_fake::backends::model_document`) with the world's task and
-  note numbers; its goal starts in the world on the bounds a box holds
-  (4.1).
+  and its goal's report, with the world's task and note numbers; its
+  goal starts in the world on the bounds a box holds (4.1).
 - **The TUI's longer journeys** are each `after project-landing`, with
-  their own `scripts.json`, made from the box's own
-  (`temper_fake::backends::model_document`) with the world's task and
-  note numbers. Each walk prints exactly its marks, and a mark's key
+  their own `scripts.json` with the world's task and note numbers.
+  Each walk prints exactly its marks, and a mark's key
   links its page to the next (2.4).
   - **`launchpad-chat`:** the approval walked by `tui approve`; Hello's
     launchpad seen by "Ask temper" and marked; `/` typed, the commands
