@@ -24,21 +24,11 @@ fn internal(text: &str) -> bool {
     opening(text) == "internal: not part of temper-client-journeys's public command line; it may change without notice."
 }
 
-fn add_help(text: &str) -> bool {
+fn print_help(text: &str) -> bool {
     let words = text.split_whitespace().collect::<Vec<_>>().join(" ");
     internal(text)
         && words.contains("These aren't all a secret could be: any other private text stands unless --redact names it, so read the pages before you commit them.")
-        && words.contains("FILE keeps every original: keep it out of the repository and remove it once added.")
-}
-
-fn normalise_help(text: &str) -> bool {
-    let words = text.split_whitespace().collect::<Vec<_>>().join(" ");
-    internal(text)
-        && words.contains("temper-client-journeys normalise")
-        && words.contains("Normalise every browser and TUI recording, then reprint both directories.")
-        && words.contains("Write each changed recording only after its normalised replay holds, naming each written.")
-        && words.contains("A stale recording is named with its turn and line kind and left as it was; after writing the others and reprinting, exit 1.")
-        && words.contains("Reads no configuration, environment, clock or network.")
+        && words.contains("FILE keeps every original: keep it out of the repository and remove it once printed.")
 }
 
 fn journey_walk_help(text: &str) -> bool {
@@ -65,16 +55,27 @@ const ROWS: &[Case] = &[
     (&["-h"], 0, help, ""),
     (&["help"], 0, help, ""),
     (&["--version"], 0, version, ""),
-    (&["add", "--help"], 0, add_help, ""),
+    (&["print", "--help"], 0, print_help, ""),
     (&["journey", "walk", "--help"], 0, journey_walk_help, ""),
     (&["drive", "--help"], 0, drive_help, ""),
-    (&["normalise", "--help"], 0, normalise_help, ""),
-    (&["normalise", "-h"], 0, normalise_help, ""),
+    (&["add"], 2, empty, "temper-client-journeys: no command add; temper-client-journeys --help says more\n"),
     (
-        &["normalise", "extra"],
+        &["normalise"],
         2,
         empty,
-        "temper-client-journeys normalise: unexpected arguments\nusage:\n  temper-client-journeys normalise\n",
+        "temper-client-journeys: no command normalise; temper-client-journeys --help says more\n",
+    ),
+    (
+        &["print", "FILE"],
+        2,
+        empty,
+        "temper-client-journeys print: expected FILE and OUT\nusage:\n  temper-client-journeys print [--redact TEXT]... FILE OUT\n",
+    ),
+    (
+        &["print", "FILE", "OUT", "extra"],
+        2,
+        empty,
+        "temper-client-journeys print: expected FILE and OUT\nusage:\n  temper-client-journeys print [--redact TEXT]... FILE OUT\n",
     ),
     (&[], 2, empty, "temper-client-journeys: no command; temper-client-journeys --help says more\n"),
     (&["again"], 2, empty, "temper-client-journeys: no command again; temper-client-journeys --help says more\n"),

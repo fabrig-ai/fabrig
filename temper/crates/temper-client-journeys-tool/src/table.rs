@@ -20,16 +20,16 @@ pub(crate) const CHROMIUM: Variable = Variable {
     way: Way::Reads,
 };
 pub(crate) const CAUTION: &str = "These aren't all a secret could be: any other private text stands unless --redact names it, so read the pages before you commit them.";
-const ADD_NOTES: &str = concat!(
-    "add takes out the link secret, stored credentials, typed secrets and each --redact TEXT, replacing their bytes with x's. ",
+const PRINT_NOTES: &str = concat!(
+    "print takes out the link secret, stored credentials, typed secrets and each --redact TEXT, replacing their bytes with x's. ",
     "It refuses surviving originals and shapes of a key, JWT, bearer, code or refresh token in records, drawn pages or printed pages. ",
-    "It proves the redacted replay, then normalises and replays it again before scanning and writing.\n",
+    "It checks the layout, redacts, scans and proves the replay, then prints and scans its pages before writing.\n",
     "A secret split across run deliveries or writing-call input is refused; --redact cannot replace it, so walk it again. ",
     "Text split across other records is seen only where a page draws it whole. Partial secrets and other encodings may remain unseen. ",
     "Values the client reshapes can stale the replay. Reload a settled page: stored requests in flight refuse. ",
     "--redact TEXT remains in shell history.\n",
     "These aren't all a secret could be: any other private text stands unless --redact names it, so read the pages before you commit them.\n",
-    "FILE keeps every original: keep it out of the repository and remove it once added."
+    "FILE keeps every original: keep it out of the repository and remove it once printed."
 );
 const REDACTION: Settings = Settings {
     tool: "temper-client-journeys",
@@ -55,22 +55,16 @@ const BASE: Command = Command {
     variables: &[],
     notes: "",
 };
-pub(crate) const NORMALISE: Command = Command {
-    reach: Reach::Words(&["normalise"]),
-    line: "Normalise every browser and TUI recording, then reprint both directories.",
-    notes: "Write each changed recording only after its normalised replay holds, naming each written. A stale recording is named with its turn and line kind and left as it was; after writing the others and reprinting, exit 1. Reads no configuration, environment, clock or network.",
-    ..BASE
-};
-pub(crate) const ADD: Command = Command {
-    reach: Reach::Words(&["add"]),
-    forms: &["[--redact TEXT]... NAME FILE"],
-    line: "Redact, prove, normalise, scan and print a saved recording as NAME.",
+pub(crate) const PRINT: Command = Command {
+    reach: Reach::Words(&["print"]),
+    forms: &["[--redact TEXT]... FILE OUT"],
+    line: "Check, redact, prove, scan and print a saved recording into OUT.",
     arguments: &[
-        Argument { shown: "NAME", line: "The journey's name, [a-z][a-z0-9-]*, unique across both clients." },
         Argument { shown: "FILE", line: "The saved recording; replaced in memory before anything is written." },
+        Argument { shown: "OUT", line: "Output laid out as the repository, outside its journeys roots." },
     ],
     settings: &[&REDACTION],
-    notes: ADD_NOTES,
+    notes: PRINT_NOTES,
     ..BASE
 };
 const SESSION: Settings = Settings {
@@ -275,7 +269,7 @@ pub const TABLE: Table = Table {
     line: "recorded walks, replayed through the shipped hosts and printed.",
     version: "",
     commit: "",
-    commands: &[ADD, NORMALISE, DRIVE, JOURNEY_WALK, RECIPE_WALK, RECIPE_HASH, RECIPE_LIST],
+    commands: &[PRINT, DRIVE, JOURNEY_WALK, RECIPE_WALK, RECIPE_HASH, RECIPE_LIST],
     settings: &[],
     variables: &[&CHROMIUM, &PATH],
     more: "temper-client-journeys COMMAND --help prints a command; read temper/docs/design/client/web/journeys.md, section 5.1.",

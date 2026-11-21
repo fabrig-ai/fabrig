@@ -21,6 +21,7 @@ temper-client-journeys-tool.workspace = true
 skein-fail-stop.workspace = true
 
 [dev-dependencies]
+temper-client-journeys-kit.workspace = true
 jig-client.workspace = true
 skein-scratch.workspace = true
 skein-lib.workspace = true

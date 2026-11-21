@@ -5,7 +5,6 @@ use skein_ui::{Act, NodeId, Tree};
 use skein_ui_web::{mapping::Primary, page::Page};
 mod fields;
 mod line;
-mod normalise;
 mod originals;
 mod record;
 mod redact;
@@ -14,7 +13,6 @@ pub mod scan;
 mod stream;
 pub use fields::fields_mut;
 pub use line::{Field, Line, Read as Fields, Unreadable, fields as read_fields, lines};
-pub use normalise::{normalise, normalise_lines};
 pub use originals::{SECRET_EVENT, kept_head, originals, typed};
 pub use record::Recorder;
 pub use redact::{Redacted, Unredacted, redact, redact_lines, saved, saved_lines};
@@ -22,7 +20,7 @@ pub use replay::prove_drawn;
 pub use replay::{Mark, Refusal, Replay, Stale, prove, prove_lines};
 pub use scan::{Found, Place, Shape, What, original, shape};
 pub use stream::{Event, Plain, Streams, Undecoded};
-pub use temper_client_redaction::{Framing, Kind, Normalised, Original, Originals, Varying, placeholder, redact_field};
+pub use temper_client_redaction::{Framing, Kind, Original, Originals, placeholder, redact_field};
 #[cfg(test)]
 mod tests;
 
