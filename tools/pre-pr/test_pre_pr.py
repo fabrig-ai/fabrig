@@ -2024,6 +2024,57 @@ else:
         self.assertEqual(code, (False, False, True))
         self.assertFalse(any('scripts/old_forms.py' in args for args, _ in calls))
 
+    def fake_merge_tests(self, code=0):
+        self.write('tools/merge/test_merge.py',
+                   f'print("merge test output")\nraise SystemExit({code})\n')
+        self.pin()
+
+    def test_merge_job_changes_run_tests_after_figures_before_journeys(self):
+        for path in ('.temper/merge', 'tools/merge/merge.py'):
+            with self.subTest(path=path):
+                self.setUp()
+                self.fake_merge_tests()
+                self.fake_figures(0, 'figures passed')
+                self.write(path, '# changed merge job\n')
+                self.write('tools/tiers/budgets.toml', '# delivered figures\n')
+                result, log, calls, _ = self.deliver()
+                self.assertEqual(result, 0, log)
+                self.assertEqual([call for call in calls if 'tools/merge/test_merge.py' in call[0]],
+                                 [(['python3', '-I', '-B', 'tools/merge/test_merge.py'], self.root)])
+                self.assertIn('pre-pr: merge …\nmerge test output\n', log)
+                self.assertRegex(log, r'pre-pr: merge: passed, \d+\.\d{3} s\n')
+                self.assertLess(log.index('pre-pr: figures: passed'), log.index('pre-pr: merge …'))
+                self.assertLess(log.index('pre-pr: merge: passed'), log.index('pre-pr: journeys …'))
+
+    def test_merge_list_and_readme_alone_do_not_run_tests(self):
+        for path in ('tools/merge/codecs.txt', 'tools/merge/README.md'):
+            with self.subTest(path=path):
+                self.setUp()
+                self.fake_merge_tests()
+                self.write(path, '# Changed\n')
+                result, log, calls, _ = self.deliver()
+                self.assertEqual(result, 0, log)
+                self.assertFalse(any('tools/merge/test_merge.py' in args for args, _ in calls))
+                self.assertNotIn('pre-pr: merge', log)
+
+    def test_merge_test_failure_is_one_uninherited_failure(self):
+        for code in (1, 7):
+            with self.subTest(code=code):
+                self.setUp()
+                self.fake_merge_tests(code)
+                self.write('tools/merge/merge.py', '# changed merge job\n')
+                self.write('.git/temper/reds', 'temper-reds 1\n- test merge merge\n'
+                           '- lint merge merge tools/merge/merge.py\n')
+                with mock.patch.object(PRE_PR, 'failure', wraps=PRE_PR.failure) as failure:
+                    result, log, _, _ = self.deliver()
+                failure.assert_called_once_with('merge', 'merge test output\n')
+                self.assertEqual(result, 1, log)
+                record = json.loads((self.root / 'target/temper/pre-pr-failures.json').read_text())
+                self.assertEqual(record['failures'], [dict(name='merge', key=None, **{'class': 'new'})])
+                self.assertRegex(log, r'pre-pr: merge: failed, \d+\.\d{3} s\n')
+                self.assertIn('merge test output\n', log)
+                self.assertIn('pre-pr: refused (base ', log)
+
     def fake_figures(self, code, output):
         """Fake check 7 at its process boundary (tools/pre-pr/design.md, 4)."""
         self.write('tools/tiers/figures.py', f'''import json
