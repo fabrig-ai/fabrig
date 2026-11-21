@@ -513,6 +513,12 @@ application's adapter names a task as jig's does.
   shared check finds it (`skein/docs/design/testing/inspection.md`, 4.1).
   A task's grace, and the authority's deadline that will hold an idle
   task, are a wake and a bound of each of its waits.
+- **The parties a policy names** are a party wake, `policy <kind> of
+  project P`, in the component's words for the proposal's kind: the tasks
+  child keeps the policy's project and kind, not its roles. A proposal or
+  an escalation waiting there has no bound, since it waits for them
+  however long (`tasks/proposals.md`: "At the parties the policy
+  names") and its design arms no alarm.
 - **Words are no wake.** A parked agent task that is no conversation,
   doesn't stand and isn't ended by its requester waits on what it asked,
   delegated, watches or proposed (`tasks/lifecycle.md`, 2): words may
@@ -544,7 +550,10 @@ table's words, its rule the table's:
 - **Admission's progress** is checked where newcomers wait, the pools' and
   write holds' queues. A waiter takes its holds all at once
   (`tasks/holds.md`, 2), so it is refused only in a table it waits on
-  alone, where room that frees must admit it.
+  alone, where room that frees must admit it. Its bound is its hold
+  alarm's due; its `since` is `Time::ZERO`, the start unknown, because
+  the tasks child keeps a wait's start as wall time alone and the
+  checks read `since` only to describe a finding.
 - **jig's kept answers** go by their retention alone: an unexpired one is
   never evicted (`people/acts.md`, 1); the draft's eviction is a
   connector's own.
