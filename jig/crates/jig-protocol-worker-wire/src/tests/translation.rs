@@ -1,7 +1,7 @@
 //! The shared component bridge machine (jig/docs/design/protocol/channel/bridges.md, 5 and 9).
 use crate::translation::Translation;
-use crate::v19::Record;
-use crate::{self as channel, Agreed, Application, Carried, Kept, Root, Spoken, v19 as wire};
+use crate::v20::Record;
+use crate::{self as channel, Agreed, Application, Carried, Kept, Root, Spoken, v20 as wire};
 use skein_channel::{Frame, frame_writer};
 use skein_codec::{
     bridge::Bridge,
@@ -129,6 +129,36 @@ fn failed_answer(failure: wire::RunFailure) -> wire::FromWorker {
     failed.failure = wire::Failure::Run(wire::RunFailureValue { value: failure });
     answer.ending = wire::Ending::Failed(failed);
     wire::FromWorker::Answer(answer)
+}
+
+#[test]
+fn pause_notices_are_unheld_below_nineteen() {
+    let mut translation = opaque();
+    for version in crate::wire::FLOOR..19 {
+        for record in [
+            wire::FromEngine::Pause(wire::Pause { mode: wire::PauseMode::Resume }),
+            wire::FromEngine::Pause(wire::Pause { mode: wire::PauseMode::Pause }),
+            wire::FromEngine::Pause(wire::Pause { mode: wire::PauseMode::Drain }),
+        ] {
+            let refusal = translation
+                .send(engine(&record), version, &agreed(version, 5), &wire::CEILINGS)
+                .expect_err("pause not held");
+            let Halt::Unheld(_) = refusal.halt else { panic!("new notice is unheld: {refusal:?}") };
+        }
+        for state in
+            [wire::PauseState::Taking, wire::PauseState::Paused, wire::PauseState::Draining, wire::PauseState::Drained]
+        {
+            let refusal = translation
+                .send(
+                    worker(&wire::FromWorker::Paused(wire::Paused { state })),
+                    version,
+                    &agreed(version, 5),
+                    &wire::CEILINGS,
+                )
+                .expect_err("paused not held");
+            let Halt::Unheld(_) = refusal.halt else { panic!("new notice is unheld: {refusal:?}") };
+        }
+    }
 }
 
 #[test]
@@ -629,7 +659,7 @@ fn usage_and_usage_read_are_unheld_below_nineteen() {
         for record in usage_records().into_iter().take(2) {
             let refusal = translation.send(worker(&record), version, &agreed(version, 5), &wire::CEILINGS).unwrap_err();
             assert_eq!(refusal.wire.as_ref(), b"jig-worker-wire");
-            assert_eq!(refusal.version, 19);
+            assert_eq!(refusal.version, crate::VERSION);
             let Halt::Unheld(_) = refusal.halt else { panic!("usage is unheld: {refusal:?}") };
         }
     }

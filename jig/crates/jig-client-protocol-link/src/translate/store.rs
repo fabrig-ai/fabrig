@@ -69,6 +69,14 @@ pub(crate) fn restore_ask(value: w::Ask, limits: &Limits) -> Result<c::Ask, w::P
     Ok(match value {
         w::Ask::ReadLists(value) => c::Ask::ReadLists { provider: value.provider },
         w::Ask::Restore(value) => super::asks::restore_ask_restore(&value, limits)?,
+        w::Ask::PauseWorker(value) => c::Ask::PauseWorker {
+            worker: value.worker,
+            mode: match value.mode {
+                w::WorkerPauseMode::Resume => c::WorkerPauseMode::Resume,
+                w::WorkerPauseMode::Pause => c::WorkerPauseMode::Pause,
+                w::WorkerPauseMode::Drain => c::WorkerPauseMode::Drain,
+            },
+        },
         w::Ask::MoveToNewest(value) => c::Ask::MoveToNewest(c::MoveToNewest { revision: value.revision }),
         w::Ask::ChangeModel(value) => c::Ask::ChangeModel(super::settings::restore_change_model(&value, limits)?),
         w::Ask::ChangeSettings(value) => {

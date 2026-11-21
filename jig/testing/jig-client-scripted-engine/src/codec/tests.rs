@@ -207,6 +207,7 @@ fn worker_settings_linked_faults_and_deployment_rows_survive_the_scripted_codec(
     assert_eq!(translate::settings::restore_setting_fault(&w::SettingFault::Range), Ok(c::SettingFault::Range));
     let mut source = crate::tests::deployment::empty();
     source.worker_settings = List::from_boxed(Box::new([c::WorkerState {
+        pause: c::WorkerPause::Taking,
         number: 2,
         name: b"w1".as_slice().into(),
         places: 4,

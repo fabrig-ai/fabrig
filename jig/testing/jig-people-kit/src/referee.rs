@@ -216,6 +216,7 @@ fn filled(why: Refusal) -> bool {
         | Refusal::SignInRedirect { .. }
         | Refusal::AccountMove { .. }
         | Refusal::Account { .. }
+        | Refusal::Unlinked { .. }
         | Refusal::Concluded { .. }
         | Refusal::KeyConflict => true,
     }

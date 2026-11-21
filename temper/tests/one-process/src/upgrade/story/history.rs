@@ -41,7 +41,24 @@ pub(super) fn history(before: &Maps, after: &Maps) {
             allowed.push("registry, job, restore and wires commit position");
         } else {
             let own = jig_protocol_store::keys::decode_own(key);
-            if matches!(own, Some(jig_protocol_store::keys::Own::Opening(_))) {
+            if own == Some(jig_protocol_store::keys::Own::Wires) {
+                use jig_protocol_store::component_v3::{CEILINGS, Record as _, Wires};
+                let mut expected =
+                    Wires::decode(&CEILINGS, &mut skein_lib::Reader::new(old.expect("wires kept"))).expect("old wires");
+                let found = Wires::decode(&CEILINGS, &mut skein_lib::Reader::new(new.expect("wires kept")))
+                    .expect("current wires");
+                let mut seen = false;
+                for wire in expected.wires.iter_mut() {
+                    if wire.name.as_ref() == b"jig-worker-wire" {
+                        assert_eq!(wire.version, 18, "the kept image's worker wire");
+                        wire.version = u32::from(jig_protocol_worker_wire::VERSION);
+                        seen = true;
+                    }
+                }
+                assert!(seen, "the worker wire is kept");
+                assert_eq!(found, expected, "only the worker wire moves at startup");
+                allowed.push("startup's current worker wire");
+            } else if matches!(own, Some(jig_protocol_store::keys::Own::Opening(_))) {
                 assert!(old.is_some() && new.is_none(), "the start's wires clear the previous worker opening");
                 allowed.push("wires cleared the previous worker opening");
             } else {
@@ -51,6 +68,9 @@ pub(super) fn history(before: &Maps, after: &Maps) {
             }
         }
     }
-    assert_eq!(registry_seen, registry, "only the receipt and change hot registry rows and jobs' done rows change");
+    assert_eq!(
+        registry_seen, registry,
+        "only the receipt, change hot and people registry rows and jobs' done rows change"
+    );
     eprintln!("upgrade history allowed: {allowed:?}");
 }

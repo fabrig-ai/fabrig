@@ -1,5 +1,5 @@
 # Module path, then schema texts in command order. Repository-relative paths.
-jig/crates/jig-client-protocol-wire/src/generated/client.rs jig/crates/jig-client-protocol-wire/schema/client-v40.schema jig/crates/jig-client-protocol-wire/schema/client-v40-part1.schema
+jig/crates/jig-client-protocol-wire/src/generated/client.rs jig/crates/jig-client-protocol-wire/schema/client-v41.schema jig/crates/jig-client-protocol-wire/schema/client-v41-part1.schema
 jig/crates/jig-client-protocol-wire/src/generated/public.rs jig/crates/jig-client-protocol-wire/schema/public-v1.schema
 jig/crates/jig-client-view-codec/src/generated/records.rs jig/crates/jig-client-view/schema/records-v1.schema
 jig/crates/jig-protocol-accounts-codec/src/generated/moved.rs jig/crates/jig-protocol-accounts/schema/moved-v1.schema
@@ -14,14 +14,14 @@ jig/crates/jig-protocol-store-families/src/generated/secrets.rs jig/crates/jig-p
 jig/crates/jig-protocol-store-people/src/generated/people.rs jig/crates/jig-protocol-store/schema/people-v17.schema
 jig/crates/jig-protocol-store-settings/src/generated/settings.rs jig/crates/jig-protocol-store/schema/settings-v3.schema
 jig/crates/jig-protocol-store-tasks/src/generated/tasks.rs jig/crates/jig-protocol-store/schema/tasks-v13.schema
-jig/crates/jig-protocol-worker-wire/src/generated/worker_wire.rs jig/crates/jig-protocol-worker-wire/schema/worker-wire-v19.schema
+jig/crates/jig-protocol-worker-wire/src/generated/worker_wire.rs jig/crates/jig-protocol-worker-wire/schema/worker-wire-v20.schema
 jig/examples/ops/client-protocol-wire/src/generated/ops_client.rs jig/examples/ops/client-protocol-wire/schema/ops-client-v1.schema
 jig/testing/jig-client-test-protocol-wire-codec/src/generated/test_client.rs jig/testing/jig-client-test-protocol-wire/schema/test-client-v2.schema
 jig/testing/jig-test-store-codec/src/generated/test_connector.rs jig/testing/jig-test-store/schema/test-connector-v2.schema
 skein/crates/skein-oauth-codec/src/generated/oauth.rs skein/crates/skein-oauth/schema/oauth-v3.schema
 skein/examples/ui/view-codec/src/generated/notes.rs skein/examples/ui/view/schema/notes-v1.schema
 skein/tests/codec/src/generated/sample.rs skein/tests/codec/schema/sample-v1.schema
-smith/crates/smith-channel/src/generated/channel.rs smith/crates/smith-channel/schema/channel-v12.schema
+smith/crates/smith-channel/src/generated/channel.rs smith/crates/smith-channel/schema/channel-v13.schema
 smith/crates/smith-charter/src/generated/charter.rs smith/crates/smith-charter/schema/charter-v5.schema
 smith/crates/smith-local-protocol-codec/src/generated/local_store.rs smith/crates/smith-local-protocol/schema/local-store-v1.schema
 smith/crates/smith-transcript/src/generated/transcript.rs smith/crates/smith-transcript/schema/transcript-v7.schema

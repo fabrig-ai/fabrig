@@ -12,7 +12,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         jig_protocol_worker_wire::SCHEMA,
-        jig_protocol_worker_wire::v19,
+        jig_protocol_worker_wire::v20,
         limits [
             wire_name,
             wire_layouts,

@@ -225,6 +225,7 @@ pub fn named(ask: &Ask) -> Vec<(Object, Revision)> {
         | Ask::ReadLists { .. }
         | Ask::ChangeModel(_)
         | Ask::ChangeSettings(_)
+        | Ask::PauseWorker { .. }
         | Ask::MoveToNewest(_)
         | Ask::Restore { .. }
         | Ask::MakeProject { .. }

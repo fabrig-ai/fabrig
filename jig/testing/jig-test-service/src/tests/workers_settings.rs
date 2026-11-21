@@ -41,7 +41,7 @@ fn component(driven: &mut Driven) -> &mut engine::Component {
 fn lower(driven: &mut Driven, connection: Token, event: LowerEvent, out: &mut Queue<engine::Request>) {
     component(driven).down(Time::ZERO, engine::Event::Lower { connection, event }, out);
 }
-fn hello(_codec: &wire::v19::Limits) -> skein_channel::Frame {
+fn hello(_codec: &wire::v20::Limits) -> skein_channel::Frame {
     let mut bounds = fixtures::agent().bounds;
     bounds.inbox = u32::MAX;
     bounds.unacknowledged = u32::MAX;
@@ -169,7 +169,8 @@ fn opening(driven: &mut Driven, connection: Token, secret: &[u8]) -> (Option<u16
                 engine::Request::Lost { channel } => fixtures::engine(&mut driven.service)
                     .events
                     .push(jig_test_domain::Event::Link { channel, link: jig_test_domain::link::Event::Lost }),
-                engine::Request::Told { .. }
+                engine::Request::Unpaused { .. }
+                | engine::Request::Told { .. }
                 | engine::Request::Take { .. }
                 | engine::Request::TurnAway { .. }
                 | engine::Request::Opened { .. }

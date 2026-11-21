@@ -117,6 +117,7 @@ pub(super) fn work_pending(service: &Stages, frame: Option<&Frame>, now: Time) -
             Some(channel) => channel.has_work() && super::channel_room(service, frame),
             None => false,
         }
+        || (service.pending_signal.is_some() && service.admission.run().is_some() && takes)
         || (!service.pending_messages.is_empty() && pending_message_ready(service))
         || (llm_events_ready(service, frame) && !service.llm_events.is_empty())
         || !service.machine_events.is_empty()
@@ -209,6 +210,9 @@ impl Stages {
                 output: None,
                 signals: None,
                 admission: super::admission::Admission::Waiting,
+                host_word_closed: false,
+                signalled: false,
+                pending_signal: None,
                 run_started: Time::ZERO,
                 line: crate::terminal::Last::Quiet,
                 opening: super::opening::Opening::Idle,

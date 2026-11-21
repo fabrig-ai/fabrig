@@ -94,6 +94,8 @@ pub(crate) fn keeps_payload(input: &WorkerInput) -> bool {
                         host::LinkUp::Piece { .. }
                         | host::LinkUp::UsageRead { .. }
                         | host::LinkUp::ListRead { .. }
+                        // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too.
+                        | host::LinkUp::Paused { .. }
                         | host::LinkUp::Draining
                         | host::LinkUp::Logins { .. }
                         | host::LinkUp::SignedOut { .. }

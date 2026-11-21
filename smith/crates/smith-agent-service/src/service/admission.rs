@@ -46,6 +46,8 @@ impl Admission {
 
 /// The one cancel entrance for a host cancel or a live run's shutdown.
 pub(super) fn cancel(service: &mut Stages) {
+    service.host_word_closed = true;
+    service.pending_signal = None;
     service.admission = match service.admission {
         Admission::Waiting | Admission::Cancelled | Admission::Draining => Admission::Cancelled,
         Admission::DrainOwed { run } => {
@@ -86,4 +88,53 @@ pub(super) fn follow(service: &mut Stages) {
         }
         state @ (Admission::Waiting | Admission::Cancelled | Admission::Draining | Admission::Admitted { .. }) => state,
     };
+}
+
+/// A signal belongs to the host while its word remains open.
+pub(super) fn signalled(service: &mut Stages, signal: skein_io::kernel::ServiceSignal, from: Option<Token>) {
+    match service.teardown {
+        super::Teardown::Live { .. } => {}
+        super::Teardown::Answered { .. } | super::Teardown::Closing { .. } | super::Teardown::Closed { .. } => {
+            super::teardown::shutdown(service);
+            return;
+        }
+    }
+    if service.host_word_closed {
+        cancel(service);
+        return;
+    }
+    if service.signalled {
+        return;
+    }
+    let signal = match signal {
+        skein_io::kernel::ServiceSignal::Interrupt => smith_channel::Signal::Interrupt,
+        skein_io::kernel::ServiceSignal::Terminate => smith_channel::Signal::Terminate,
+        skein_io::kernel::ServiceSignal::Hangup => {
+            super::teardown::shutdown(service);
+            return;
+        }
+    };
+    let from = match from {
+        Some(sender) => u32::try_from(sender.raw()).ok(),
+        None => None,
+    };
+    service.signalled = true;
+    service.pending_signal = Some(smith_channel::Signalled { signal, from });
+}
+
+/// Send the retained notice only after admission, before another run record.
+pub(super) fn tell_signal(service: &mut Stages, frame: &mut super::Frame) -> bool {
+    if service.pending_signal.is_none() || service.admission.run().is_none() {
+        return true;
+    }
+    if !frame.channel.takes() || !super::channel_room(service, Some(frame)) {
+        return false;
+    }
+    let record = service.pending_signal.take().expect("one retained signal");
+    let token = service.next_send();
+    if frame.channel.send_signalled(record, token, &mut service.channel_events, &mut service.channel_below).is_err() {
+        service.mark_failed(super::Failure::WriteFailed);
+        cancel(service);
+    }
+    true
 }

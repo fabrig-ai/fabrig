@@ -34,6 +34,9 @@ pub(in crate::codec) fn wire_outcome(value: &c::Outcome, limits: &w::Limits) -> 
         c::Outcome::SettingsChanged(value) => {
             w::Outcome::SettingsChanged(wire_outcome_settings_changed(value, limits)?)
         }
+        c::Outcome::WorkerPauseAsked { worker } => {
+            w::Outcome::WorkerPauseAsked(w::OutcomeWorkerPauseAsked { worker: *worker })
+        }
         c::Outcome::Restored { proposal, to, left_out } => {
             let mut settings = skein_lib::List::with_capacity(left_out.len());
             for setting in left_out {

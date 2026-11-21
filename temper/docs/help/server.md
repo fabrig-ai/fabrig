@@ -199,18 +199,19 @@ name = "w1"   # name engine knows, if not hostname
 PATH = "/usr/bin:/bin"
 ```
 
-  Secret: data's `secrets/worker.secret`. No worker
-  `limits`, `agent` or configuration `agent.json`: starts fetch engine
-  figures, apply limits, write private `ROOT/agent/agent.json`, and run
-  sibling `temper-agent`. No `claude` member: worker PATH's `claude`, else
-  fetched; `[programs]` can name its absolute path.
-  Step 3 unit: `KillMode=control-group` (no agent or command outlives it),
-  `TimeoutStopSec=360s`: its 326-second stop bound plus 34 seconds.
+  Secret: data's `secrets/worker.secret`. No worker `limits`, `agent` or
+  configuration `agent.json`: fetch figures, apply limits, write private
+  `ROOT/agent/agent.json`, run sibling `temper-agent`. No `claude`
+  member: worker PATH's `claude`, else fetched; `[programs]` can name its absolute path.
+  Step 3 unit: `KillMode=mixed` signals only the worker, which drains;
+  past timeout the unit kills the rest, including agents and commands.
+  `TimeoutStopSec=360s`: printed 326-second stop bound plus 34 seconds.
   Raise this timeout with the worker's bound.
   `ReadWritePaths` its home; without `PrivateTmp=yes`, Claude Code fails
   `EROFS: read-only file system, mkdir '/tmp/claude-UID'`.
-  `[environment]`: optional table of strings; unique names (temper help box).
-  Absent: the worker's own `HOME` and `PATH`. Otherwise: exactly its entries, with the worker's own `HOME` and `PATH` added where it omits them; no other process variables.
+  `[environment]`: optional string table; unique names (temper help box).
+  Only its entries plus the worker's `HOME` and `PATH` where omitted;
+  absent: those two alone. No other variables.
 - Forgejo runner 13.2.1: separate user, `url` `http://127.0.0.1:3000`,
   `uuid`/secret: `DATA/forge-1/runner/`; rootless podman jobs.
 
@@ -219,7 +220,8 @@ temper-worker serve --config CONFIG --data DATA --cache CACHE
 ```
 
 Expect: stderr: `figures taken from ENGINE: P places, L limits, E endpoints`,
-then `linked w1` and engine address; Forgejo site administration: runner online.
+then `stop bound 326 s, drain 180 s` (stock),
+then `linked w1` and engine address; Forgejo admin: runner online.
 
 If not: short limits refuse before listening: limit, setting, required
 size. `core.policy_bytes` in `limits` must fit stock policy; raise with

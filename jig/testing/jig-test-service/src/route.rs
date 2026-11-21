@@ -309,6 +309,7 @@ fn core_held(engine: &mut Engine, held: core::Held) {
         core::Held::ReadUsage { .. }
         | core::Held::ReadList { .. }
         | core::Held::Sources { .. }
+        | core::Held::PauseWorker { .. }
         | core::Held::CheckSource { .. }
         | core::Held::SignOutSource { .. } => {
             unreachable!("link translates host-wide source commands")

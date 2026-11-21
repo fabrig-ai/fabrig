@@ -63,6 +63,24 @@ The fleet child domain knows the hosts and the runs they host:
   its channel. A
   worker that dials again is a new channel, placed on once its logins
   answer.
+- **A paused worker leaves placement too.** An owner's ask to pause or
+  drain a linked worker (`workers.md`, 5) is the fleet's to carry: it
+  asks the worker's admitted channel, `Request::Pause { channel, mode }`
+  (`../../protocol/channel/pause.md`), and from then places nothing on
+  that channel, neither a run nor a job, whatever slots free there,
+  while the runs it hosts go on to their ends and their turns and
+  answers are taken as ever. An attempt chosen for it and not yet
+  assigned there is placed again, as for a draining worker. The
+  worker's own word, `Event::Paused { channel, state }`, keeps the
+  channel out too: whatever the fleet asked, a channel whose worker
+  last said paused, draining or drained is placed nothing until it says
+  taking. So an ask to resume places on the channel again once the
+  worker says it takes work, and a channel lost and dialled again by a
+  worker that kept its pause stays out from its word after its hello.
+  A worker whose version cannot hear the ask is still placed nothing:
+  the pause is the engine's placement, and only the drain needs the
+  worker. A worker's new process starts taking: its restart ends its
+  pause. A host's view says each channel's pause (`workers.md`, 6).
 - **A mismatched worker leaves placement too.** A channel that answered
   an assignment refused for a version (`../../protocol/channel/wires.md`,
   6) is marked mismatched: until it is lost, the fleet places nothing on

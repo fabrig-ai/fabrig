@@ -22,6 +22,7 @@ mod program_open;
 mod program_resume;
 mod program_tools;
 mod program_turns;
+mod signals;
 mod stories;
 
 mod fuzzy {

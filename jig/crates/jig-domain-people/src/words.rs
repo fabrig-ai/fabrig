@@ -54,6 +54,7 @@ pub(crate) fn valid(ask: &Ask) -> bool {
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
+        | Ask::PauseWorker { .. }
         | Ask::MoveToNewest { .. }
         | Ask::SetPool { .. }
         | Ask::Withdraw { .. }

@@ -48,6 +48,7 @@ impl Referee {
             | Event::Job(_)
             | Event::RelayCancelled { .. }
             | Event::Drain
+            | Event::DrainPassed
             | Event::CancelAll { .. }
             | Event::Opened { .. }
             | Event::Down(_)
@@ -87,6 +88,7 @@ impl Referee {
                 self.fence((*run, *attempt), answer.read, &answer.refused)?;
             }
             Request::Asked { .. }
+            | Request::Paused { .. }
             | Request::Job(_)
             | Request::DeliverJob { .. }
             | Request::Up(_)

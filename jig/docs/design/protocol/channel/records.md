@@ -24,6 +24,7 @@ answer, and a **notice** is not answered.
 | usage read | a read's number; at most 8 usage windows (below), or not signed in, spent, or failed with the source's failure and bounded detail, as `logins`' (`../../domain/hosts/README.md`, 5.1) | answer to a read usage, best effort as a list read's |
 | draining | none: the worker has started to shut down, and the fleet places nothing more on this channel (`../../domain/engine/fleet.md`) | notice: once as its shutdown begins, before anything its cancelled runs send, and again after each hello while it shuts down (`../../domain/hosts/hub.md`, 7) |
 | ask | task, attempt; the ask's number, the hub's for that attempt; the application's bytes, within the application's largest ask (`../../domain/hosts/hub.md`, 10) | call, answered by `asked` |
+| paused | the worker's state: taking, paused, draining or drained (`pause.md`) | notice: at each change of its state, and again after each hello while it is not taking, on a channel whose version has it (`../../domain/hosts/hub.md`, 7) |
 
 - **A usage window** is a program's report of one window
   (`../../domain/accounts.md`, 3.7): its label, 1 to 32 printable ASCII
@@ -147,6 +148,7 @@ The floor stays 16 and the block is not breaking.
 | wires | each wire the worker stated and the engine speaks, by name, with its agreed version (`bridges.md`, 3) | notice: once, the engine's first record, on a channel whose version has it |
 | asked | task, attempt; the ask's number; the application's answer, its bytes within the application's largest answer, or refused: the attempt is not its task's live one, or the application answers none (`../../domain/hosts/hub.md`, 10) | answer to an ask, best effort: a number the hub no longer holds is dropped |
 | restarting | the restart wait, in milliseconds: the engine restarts, and asks the worker to keep its runs that long after the link drops (`restart.md`) | notice: at the engine's settled stop, on a channel whose version has it |
+| pause | the mode: pause, take no new run or job; drain, pause and drain; resume, take work again (`pause.md`) | notice: at an owner's ask (`../../domain/engine/workers.md`, 5), on a channel whose version has it |
 
 - **The fleet's refusals travel as the records above:** a turn answered
   busy, a relayed call answered busy or as an error, and an answer

@@ -605,6 +605,7 @@ pub(super) fn act_refusal<'a>(ask: &'a c::Ask, refusal: &c::Refusal) -> Option<(
         | c::Ask::Restore { .. }
         | c::Ask::ChangeSettings(_)
         | c::Ask::ChangeModel(_)
+        | c::Ask::PauseWorker { .. }
         | c::Ask::MoveToNewest(_)
         | c::Ask::Create { .. }
         | c::Ask::Delegate { .. }

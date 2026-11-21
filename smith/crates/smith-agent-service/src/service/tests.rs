@@ -360,8 +360,22 @@ fn kernel_cancel_targets_the_right_layer_operation() {
 }
 
 #[test]
-fn termination_signal_cancels_the_admitted_run() {
+fn termination_signal_leaves_the_admitted_run_to_its_host() {
     let mut service = admitted(91);
+    for _ in 0_u32..2 {
+        route_io_event(
+            &mut service.stages,
+            Some(&mut service.frame),
+            io::Event::Shutdown { signal: kernel::ServiceSignal::Terminate, from: Some(Token::new(17)) },
+        );
+        assert!(service.stages.domain_events.is_empty(), "the signal is not a cancel");
+    }
+    let notice = service.stages.pending_signal.as_ref().expect("signal retained for the channel");
+    assert_eq!(notice.signal, smith_channel::Signal::Terminate);
+    assert_eq!(notice.from, Some(17));
+    channel_event(&mut service.stages, &mut service.frame, channel::Heard::Cancel);
+    assert_cancel(&mut service.stages.domain_events, Token::new(91));
+    assert!(service.stages.pending_signal.is_none(), "the host has decided");
     route_io_event(
         &mut service.stages,
         Some(&mut service.frame),
@@ -371,9 +385,25 @@ fn termination_signal_cancels_the_admitted_run() {
 }
 
 #[test]
-fn signal_during_opening_waits_for_the_admitted_run_handle() {
-    let mut service = interrupted_before_admission(19);
-    domain_down(&mut service.stages, Some(&mut service.frame));
+fn signal_during_opening_waits_to_tell_the_admitted_host() {
+    let service = interrupted_before_admission(19);
+    assert!(service.stages.domain_events.is_empty(), "admission owes no cancel");
+    assert_eq!(service.stages.admission.run(), Some(Token::new(19)));
+    let notice = service.stages.pending_signal.as_ref().expect("tell the host after admission");
+    assert_eq!(notice.signal, smith_channel::Signal::Interrupt);
+    assert_eq!(notice.from, None);
+}
+
+#[test]
+fn a_failed_write_after_a_signal_cancels_the_live_run() {
+    let mut service = admitted(19);
+    route_io_event(
+        &mut service.stages,
+        Some(&mut service.frame),
+        io::Event::Shutdown { signal: kernel::ServiceSignal::Terminate, from: None },
+    );
+    assert!(service.stages.domain_events.is_empty());
+    channel_event(&mut service.stages, &mut service.frame, channel::Heard::WriteFailed);
     assert_cancel(&mut service.stages.domain_events, Token::new(19));
 }
 

@@ -287,6 +287,31 @@ impl Component {
         Ok(())
     }
 
+    /// Leave a live agent's termination signal to its admitted host.
+    pub fn send_signalled(
+        &mut self,
+        record: smith_channel::Signalled,
+        token: Token,
+        to_service: &mut Queue<Heard>,
+        below: &mut Queue<Lower>,
+    ) -> Result<(), Error> {
+        if !self.state.admitted() {
+            return Err(Error::Order);
+        }
+        match record.measure(&self.bodies) {
+            Ok(_) => (),
+            Err(problem) => return Err(Error::ChannelBody(problem)),
+        }
+        let frame = match smith_channel::frame(smith_channel::Body::Signalled(record)) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::Frame(problem)),
+        };
+        self.machine.down(Request::Send { token, frame }, &mut self.events, below);
+        self.drain(to_service, below);
+        self.fire(to_service, below);
+        Ok(())
+    }
+
     /// Announce the bounded span of a check or other long operation.
     pub fn send_long(
         &mut self,

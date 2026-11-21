@@ -266,7 +266,9 @@ impl World {
                     jig_domain_host::LinkDown::Acknowledge { run, attempt } => {
                         self.trace.push(Trace::Acknowledged(*run, *attempt));
                     }
-                    jig_domain_host::LinkDown::AssignJob { .. }
+                    // jig/docs/design/domain/hosts/hub.md, 7, Paused over the link.
+                    jig_domain_host::LinkDown::Pause { .. }
+                    | jig_domain_host::LinkDown::AssignJob { .. }
                     | jig_domain_host::LinkDown::Assign { .. }
                     | jig_domain_host::LinkDown::Message { .. }
                     | jig_domain_host::LinkDown::Cancel { .. }

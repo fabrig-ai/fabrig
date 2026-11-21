@@ -98,3 +98,16 @@ fn queued_channel_events_keep_opening_sends_and_hangup_order() {
     assert_eq!(below.pop(), Some(Request::Close { entity: OUTPUT }));
     assert!(below.is_empty());
 }
+
+#[test]
+fn a_closed_channel_half_precedes_the_tree_terminate() {
+    let (process, mut above, mut below) = opening();
+    process.close_channel(&mut below);
+    process.signal(skein_io::kernel::Signal::Terminate, skein_io::kernel::Reason::Unknown, &mut below);
+    let Some(Request::Abort { entity }) = below.pop() else { panic!("close the writing half immediately") };
+    assert_eq!(entity, INPUT);
+    let Some(Request::Signal { child, .. }) = below.pop() else { panic!("then terminate the tree") };
+    assert_eq!(child, CHILD);
+    assert!(below.is_empty());
+    assert!(above.pop().is_none(), "the half's pending IO retains its own terminals");
+}

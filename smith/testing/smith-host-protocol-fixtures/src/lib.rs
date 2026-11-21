@@ -16,7 +16,7 @@ pub fn small() -> Limits {
         endpoints: 1,
         calls: 8,
         start_bytes: u32::try_from(
-            smith_channel::v12::Start::encoded_bound(&smith_channel::CEILINGS).expect("Start ceiling"),
+            smith_channel::v13::Start::encoded_bound(&smith_channel::CEILINGS).expect("Start ceiling"),
         )
         .expect("Start frame range"),
         channel: skein_channel::Limits {
@@ -25,7 +25,7 @@ pub fn small() -> Limits {
             skip: 8,
             output_bytes: u32::MAX,
             output_frames: 2,
-            kinds: u32::try_from(smith_channel::V12.len()).expect("channel kinds fit"),
+            kinds: u32::try_from(smith_channel::V13.len()).expect("channel kinds fit"),
         },
     }
 }

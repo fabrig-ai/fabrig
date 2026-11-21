@@ -42,7 +42,7 @@ pub struct Component {
     workers_ready: bool,
     names: Map<u32, Box<[u8]>>,
     pub(crate) wires: List<wire::Spoken>,
-    pub(crate) codec: wire::v19::Limits,
+    pub(crate) codec: wire::v20::Limits,
     pub(crate) connections: Map<Token, Connection>,
     pub(crate) figures: Option<wire::Figures>,
     schema: skein_channel::Schema,
@@ -288,6 +288,28 @@ impl Component {
                     }
                 }
                 let reply = match &down {
+                    jig_domain_host::LinkDown::Pause { mode } => {
+                        // A pause is best effort at the agreed version (protocol/channel/pause.md, 3).
+                        let state = self.connections.get(&connection).expect("heard channel exists");
+                        let version = state.version;
+                        let held = self
+                            .schema
+                            .version(version)
+                            .expect("agreed version")
+                            .kind(wire::Kind::Pause.number())
+                            .is_some();
+                        if !held {
+                            let worker = self
+                                .workers
+                                .get(skein_lib::usize_of(state.worker.expect("authenticated worker")))
+                                .expect("authenticated worker")
+                                .name
+                                .clone();
+                            out.push(Request::Unpaused { worker, version, mode: *mode });
+                            return;
+                        }
+                        Reply::Drop
+                    }
                     jig_domain_host::LinkDown::Assign { assignment } => {
                         Reply::Assignment { run: assignment.assignment.run, attempt: assignment.assignment.attempt }
                     }
@@ -441,7 +463,8 @@ impl Component {
                 };
                 (crate::translate::Down::Assign(record), past)
             }
-            crate::translate::Down::Restarting(_)
+            crate::translate::Down::Pause(_)
+            | crate::translate::Down::Restarting(_)
             | crate::translate::Down::Asked(_)
             | crate::translate::Down::ReadUsage(_)
             | crate::translate::Down::ReadList(_)
@@ -723,7 +746,7 @@ impl Component {
                             };
                             wires.push(record).expect("agreed wires fit credential limits");
                         }
-                        let record = wire::v19::Agreed { wires };
+                        let record = wire::v20::Agreed { wires };
                         let length = record.measure(&self.codec).expect("agreed statement fits limits");
                         let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(length));
                         record.write(&self.codec, &mut body).expect("measured statement");

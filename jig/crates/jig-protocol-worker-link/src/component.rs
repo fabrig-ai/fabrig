@@ -418,6 +418,20 @@ impl Component {
     fn up(&mut self, up: host::LinkUp, parts: &[wire::Part], out: &mut Queue<Request>) {
         let limits = sizes::limits(&self.limits.sizes).expect("checked sizes");
         let up = match up {
+            host::LinkUp::Paused { state } => {
+                // Notices go only where the agreed version holds the kind (protocol/channel/pause.md, 4).
+                let Some(connection) = self.phase.connection() else { return };
+                let held = self
+                    .schema
+                    .version(connection.version)
+                    .expect("agreed version")
+                    .kind(wire::Kind::Paused.number())
+                    .is_some();
+                if !held {
+                    return;
+                }
+                host::LinkUp::Paused { state }
+            }
             host::LinkUp::Call { run, attempt, contract, call, tool, writes, input, deadline } => {
                 if input.len() > skein_lib::length::usize_of(limits.call_input) {
                     self.refuse_call(run, attempt, call, b"call too large", out);
@@ -696,7 +710,7 @@ impl Component {
         let kind = frame.kind();
         let body = frame.bytes().get(8..).expect("validated frame header");
         if kind == wire::Kind::Wires.number() {
-            let record = wire::v19::Agreed::decode(&limits, &mut skein_lib::Reader::new(body));
+            let record = wire::v20::Agreed::decode(&limits, &mut skein_lib::Reader::new(body));
             let agreed = match record {
                 Ok(record) => crate::wires::statement(&self.wires, &record),
                 Err(_) => None,
@@ -804,7 +818,8 @@ impl Component {
                         self.busy.acknowledged(*run, *attempt);
                         true
                     }
-                    host::LinkDown::ReadUsage { .. }
+                    host::LinkDown::Pause { .. }
+                    | host::LinkDown::ReadUsage { .. }
                     | host::LinkDown::ReadList { .. }
                     | host::LinkDown::Sources { .. }
                     | host::LinkDown::Check { .. }
@@ -967,7 +982,7 @@ impl Component {
     fn translated(
         &mut self,
         frame: channel::Frame,
-        limits: &wire::v19::Limits,
+        limits: &wire::v20::Limits,
         out: &mut Queue<Request>,
     ) -> Option<channel::Frame> {
         let kind = frame.kind();

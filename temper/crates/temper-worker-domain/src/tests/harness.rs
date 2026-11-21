@@ -110,7 +110,9 @@ impl Harness {
                     self.reading = true;
                     return;
                 }
-                agent::process::Request::Wait { .. } | agent::process::Request::Reap { .. } => return,
+                agent::process::Request::CloseChannel { .. }
+                | agent::process::Request::Wait { .. }
+                | agent::process::Request::Reap { .. } => return,
             },
             Request::Decode { agent, run, start } => {
                 self.owner = Some(*agent);
@@ -125,7 +127,9 @@ impl Harness {
             Request::Io { owner, .. } => {
                 return self.owed.push(Event::Done { owner: *owner, done: Done::Failed { fault: Fault::Unreachable } });
             }
-            Request::Git { .. }
+            Request::Paused { .. }
+            | Request::Git { .. }
+            | Request::AgentSignalled { .. }
             | Request::AgentStopped { .. }
             | Request::Unprepared { .. }
             | Request::ResultsIgnored { .. }

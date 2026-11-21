@@ -1,7 +1,7 @@
 //! Nested bytes before outer records on send; outer before nested on receipt
 //! (jig/docs/design/protocol/channel/bridges.md, 5, 6 and 8).
-use crate::v19::Record;
-use crate::{Agreed, Application, Carried, Kept, Root, v19 as wire};
+use crate::v20::Record;
+use crate::{Agreed, Application, Carried, Kept, Root, v20 as wire};
 use alloc::boxed::Box;
 use skein_channel::{Frame, frame_writer};
 use skein_codec::{
@@ -109,8 +109,7 @@ impl Translation {
         let mut refused = List::uncapped();
         for wire in agreed {
             let total = if wire.name.as_bytes() == self.jig.family() {
-                // FromWorker includes each variant as well as each record.
-                self.jig.total(wire.version, b"FromWorker") == Some(true)
+                self.worker_sends_total(wire.version)
             } else if wire.name.as_bytes() == self.charter.family() {
                 self.charter.total(wire.version, b"RunResult") == Some(true)
             } else if wire.name.as_bytes() == self.transcript.family() {
@@ -123,6 +122,52 @@ impl Translation {
             }
         }
         refused
+    }
+
+    /// Optional notices are not admission requirements (protocol/channel/pause.md, 2 and 4).
+    fn worker_sends_total(&mut self, version: u16) -> bool {
+        use skein_codec::schema::{Shape, VariantIx, parse};
+        if version == self.jig.current() {
+            return true;
+        }
+        let mut text = None;
+        for kept in crate::patches::kept::jig_worker_wire::TEXTS {
+            if header_version(kept) == version {
+                text = Some(*kept);
+            }
+        }
+        let Some(text) = text else { return false };
+        let old = parse(text.as_bytes()).expect("kept worker schema");
+        let current = parse(crate::SCHEMA.as_bytes()).expect("current worker schema");
+        let (first, count) = match current.declaration(current.find(b"FromWorker").expect("worker kinds")).shape {
+            Shape::Enum { first, count } => (first, count),
+            Shape::Record { .. } => unreachable!("worker kinds are an enumeration"),
+        };
+        let Some(at) = old.find(b"FromWorker") else { return false };
+        let (old_first, old_count) = match old.declaration(at).shape {
+            Shape::Enum { first, count } => (first, count),
+            Shape::Record { .. } => unreachable!("worker kinds are an enumeration"),
+        };
+        for tag in 0..count {
+            let variant = current.variant(VariantIx::new(first.index().checked_add(tag).expect("bounded variants")));
+            let name = current.spelled(variant.name);
+            if name == b"paused" {
+                continue;
+            }
+            let mut present = false;
+            for old_tag in 0..old_count {
+                let kept =
+                    old.variant(VariantIx::new(old_first.index().checked_add(old_tag).expect("bounded variants")));
+                if old.spelled(kept.name) == name {
+                    present = true;
+                }
+            }
+            let record = current.declaration(variant.record.expect("each kind holds a record"));
+            if !present || self.jig.total(version, current.spelled(record.name)) != Some(true) {
+                return false;
+            }
+        }
+        true
     }
 
     #[cfg(test)]
@@ -682,6 +727,7 @@ impl Translation {
             | wire::FromEngine::Check(_)
             | wire::FromEngine::SignOut(_)
             | wire::FromEngine::Figures(_)
+            | wire::FromEngine::Pause(_)
             | wire::FromEngine::Restarting(_)
             | wire::FromEngine::ReadUsage(_)
             | wire::FromEngine::Wires(_)) => record,
@@ -713,6 +759,7 @@ impl Translation {
             | wire::FromWorker::Usage(_)
             | wire::FromWorker::UsageRead(_)
             | wire::FromWorker::ListRead(_)
+            | wire::FromWorker::Paused(_)
             | wire::FromWorker::Draining(_)) => record,
         })
     }

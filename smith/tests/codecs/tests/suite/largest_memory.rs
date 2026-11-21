@@ -12,7 +12,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         smith_channel::CHANNEL_SCHEMA,
-        smith_channel::v12,
+        smith_channel::v13,
         limits [
             directory_name,
             directory_path,
@@ -85,6 +85,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             Fact,
             Answer => (67_108_890, 67_108_864),
             Live,
+            Signalled,
         ]
     );
     family!(

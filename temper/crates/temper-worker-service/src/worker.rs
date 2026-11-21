@@ -941,8 +941,23 @@ impl Worker {
     #[expect(clippy::too_many_lines, reason = "the root boundary routes each request exhaustively")]
     pub(crate) fn route(&mut self, request: root::Request) {
         match request {
+            root::Request::Paused { state } => {
+                self.notes.push(crate::worker_alone::Note::Paused { state, drain: self.env.limits.drain });
+            }
             root::Request::Git { run, attempt, job, repository, what } => {
                 self.note_git(run, attempt, job, repository, what);
+            }
+            root::Request::AgentSignalled { run, attempt, signal, from } => {
+                let signal = match signal {
+                    smith::parent::Signal::Interrupt => "SIGINT",
+                    smith::parent::Signal::Terminate => "SIGTERM",
+                };
+                self.notes.push(crate::worker_alone::Note::AgentSignalled {
+                    run: run.raw(),
+                    attempt: attempt.raw(),
+                    signal,
+                    from,
+                });
             }
             root::Request::AgentStopped { run, attempt, failure } => {
                 self.note_agent_stopped(run, attempt, failure);
@@ -1047,6 +1062,9 @@ impl Worker {
         match request {
             smith::process::Request::Spawn { owner, deadline, .. } => self.process_spawn(owner, deadline),
             smith::process::Request::Send { owner, message, .. } => self.process_send(owner, message),
+            smith::process::Request::CloseChannel { owner, .. } => {
+                self.processes.get(&owner).expect("root owns process").close_channel(&mut self.io);
+            }
             smith::process::Request::Signal { owner, signal, .. } => self.process_signal(owner, signal),
             smith::process::Request::Read { owner, .. } => self.process_read(owner),
             smith::process::Request::Wait { .. } => Self::process_wait(),
@@ -1645,7 +1663,7 @@ mod prepared_tests {
                     assert_eq!((lowest, highest), (16, 16));
                     opening = Some(
                         jig_protocol_worker_wire::Credential::decode(
-                            &jig_protocol_worker_wire::v19::CEILINGS,
+                            &jig_protocol_worker_wire::v20::CEILINGS,
                             &mut Reader::new(&credential),
                         )
                         .expect("worker credential"),

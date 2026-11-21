@@ -7,14 +7,14 @@ extern crate alloc;
 
 /// The current family schema text (skein/docs/design/data/codec/README.md, section 6).
 #[expect(clippy::disallowed_macros, reason = "the owner embeds its current schema text once")]
-pub const SCHEMA: &str = include_str!("../schema/worker-wire-v19.schema");
+pub const SCHEMA: &str = include_str!("../schema/worker-wire-v20.schema");
 
 use alloc::boxed::Box;
 use skein_lib::Token;
 
 #[rustfmt::skip]
 #[path = "generated/worker_wire.rs"]
-pub mod v19;
+pub mod v20;
 mod application;
 mod kinds;
 mod spoken;
@@ -32,28 +32,29 @@ pub mod fit;
 #[cfg(test)]
 mod tests;
 
-pub use v19::Record;
+pub use v20::Record;
 
-pub use v19::{ModelEvidence, ModelFailure, ModelFailureKind};
+pub use v20::{ModelEvidence, ModelFailure, ModelFailureKind};
 
 pub use kinds::{
     KINDS, Kind, KindRule, Overflow, schema, schema_and_spoken, schema_for, schema_for_prepared, terms_gap,
 };
-pub use v19::Restarting;
-pub use v19::{
+pub use v20::Restarting;
+pub use v20::{
     AccountRefused, AgentFailure, AgentFailureValue, Answer, Bound, Call, CancelReason, CancelReasonValue, Count,
     CountKind, Ended, Ending, Exceeded, Fact, FactValue, Failed, Failure, Invalid, InvalidStart, InvalidValue, Limited,
     LimitedAccount, Long, MessageRefusal, Mismatch, Operation, Parked, PhaseValue, Preparation, PreparationValue,
     Refusal, RefusalValue, Refused, RefusedAccount, Resource, RunFailure, RunFailureValue, StartCause, Turn,
     Unauthorized, Work,
 };
-pub use v19::{
+pub use v20::{
     Acknowledge, AnsweredCall, ApplicationValue, Assignment, Cancel, CredentialValue, DeliveryAnswer, DeliveryOutcome,
     Grant, GrantValue, Granted, HostAnswer, Inbound, Message, ProgramValue, RelayAnswer, RelayText, Relayed, Scheme,
     SettledAnswer, TurnBusy, TurnKept, Workspace,
 };
-pub use v19::{AgreedWire, Draining};
-pub use v19::{Bounds, CEILINGS, Credential, EndpointBound, Hello, Hosting, Phase, Wire};
+pub use v20::{AgreedWire, Draining};
+pub use v20::{Bounds, CEILINGS, Credential, EndpointBound, Hello, Hosting, Phase, Wire};
+pub use v20::{Pause, PauseMode, PauseState, Paused};
 
 /// An application's opaque bytes under the token its vocabulary names.
 #[derive(PartialEq, Eq, Debug)]
@@ -107,20 +108,20 @@ impl Reason {
     }
 }
 
-pub use v19::{
+pub use v20::{
     Check, Login, LoginOtherwise, LoginState, Logins, ProgramSource, SignOut, SignOutResult, SignedOut, SourceFailed,
     SourceFailure, Sources,
 };
 
-pub use v19::{InputCall, LiveAsk, LiveKind, Piece};
+pub use v20::{InputCall, LiveAsk, LiveKind, Piece};
 
 // Jobs use the worker channel's own records (jig/docs/design/protocol/channel/records.md, 4).
-pub use v19::{
+pub use v20::{
     DeliveryOutcomeValue, Job, JobAnswer, JobBound, JobEnding, JobFailed, JobFailure, JobFinished, JobInvalid,
     JobInvalidStart, JobInvalidValue, JobRefusal, JobRefusalValue,
 };
 
-pub use v19::{ListFailed, ListFailureValue, ListOutcome, ListRead, ListRefused, ListRow, ListedRows, ReadList};
+pub use v20::{ListFailed, ListFailureValue, ListOutcome, ListRead, ListRefused, ListRow, ListedRows, ReadList};
 
 /// This crate's spoken family and layout (protocol/channel/wires.md, 2).
 pub mod wire {
@@ -128,7 +129,7 @@ pub mod wire {
     pub const FAMILY: &str = "jig-worker-wire";
 
     /// The version named by the current schema's header.
-    pub const VERSION: u16 = crate::v19::VERSION;
+    pub const VERSION: u16 = crate::v20::VERSION;
 
     /// The lowest version this build speaks.
     pub const FLOOR: u16 = crate::patches::kept::jig_worker_wire::FLOOR;
@@ -161,8 +162,8 @@ pub mod wire {
     }
 }
 
-pub use v19::{Ask, AskAnswer, AskBytes, Asked};
+pub use v20::{Ask, AskAnswer, AskBytes, Asked};
 
-pub use v19::{AgentEndpoint, Agents, EndpointLimits, Figures, Header, Limit, Opening, Oversized, Tls, Transport};
+pub use v20::{AgentEndpoint, Agents, EndpointLimits, Figures, Header, Limit, Opening, Oversized, Tls, Transport};
 
-pub use v19::{ReadUsage, Usage, UsageOutcome, UsageRead, UsageWindow, UsageWindows};
+pub use v20::{ReadUsage, Usage, UsageOutcome, UsageRead, UsageWindow, UsageWindows};

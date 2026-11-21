@@ -212,8 +212,10 @@ impl Engine {
                 unreachable!("source scheduling has its own world")
             }
             Request::Up(
-                LinkUp::UsageRead { .. }
-                | LinkUp::ListRead { .. }
+                LinkUp::ListRead { .. }
+                // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too.
+                | LinkUp::Paused { .. }
+                | LinkUp::UsageRead { .. }
                 | LinkUp::Draining
                 | LinkUp::Logins { .. }
                 | LinkUp::SignedOut { .. }
@@ -239,6 +241,7 @@ impl Engine {
             Request::Job(_)
             | Request::DeliverJob { .. }
             | Request::Hello { .. }
+            | Request::Paused { .. }
             | Request::CancelRelay { .. }
             | Request::Prepare { .. }
             | Request::Abort { .. }

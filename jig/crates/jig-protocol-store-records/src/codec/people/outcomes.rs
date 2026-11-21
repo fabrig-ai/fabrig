@@ -75,6 +75,9 @@ pub(super) fn encode_outcome(value: &domain::Outcome, limits: &wire::Limits) -> 
         domain::Outcome::AccountReading { count } => {
             wire::Outcome::AccountReading(wire::OutcomeAccountReading { count: *count })
         }
+        domain::Outcome::WorkerPauseAsked { worker } => {
+            wire::Outcome::WorkerPauseAsked(wire::OutcomeWorkerPauseAsked { worker: *worker })
+        }
         domain::Outcome::AccountChanged => wire::Outcome::AccountChanged,
         domain::Outcome::AccountRemoved { confirmed, failed_hosts } => {
             wire::Outcome::AccountRemoved(wire::OutcomeAccountRemoved {
@@ -195,6 +198,7 @@ pub(super) fn decode_outcome(value: wire::Outcome) -> domain::Outcome {
             domain::Outcome::AccountMovedIn { account, renewed }
         }
         wire::Outcome::AccountReading(value) => domain::Outcome::AccountReading { count: value.count },
+        wire::Outcome::WorkerPauseAsked(value) => domain::Outcome::WorkerPauseAsked { worker: value.worker },
         wire::Outcome::AccountChanged => domain::Outcome::AccountChanged,
         wire::Outcome::AccountRemoved(value) => domain::Outcome::AccountRemoved {
             confirmed: value.confirmed,

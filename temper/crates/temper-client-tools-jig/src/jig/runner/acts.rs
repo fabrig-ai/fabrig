@@ -788,6 +788,7 @@ fn amendment_request(request: Request) -> (Request, Option<c::Ask>, bool) {
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "send keeps request dispatch and its rendering context together")]
 fn send(
     runner: &mut Runner,
     client: &Client,
@@ -872,6 +873,7 @@ fn send(
         && called.call.tool != rows::CHANGE_SETTINGS_AT
         && called.call.tool != rows::PROPOSE_SETTINGS_AT
         && !(rows::WORKER_ADD_AT..=rows::WORKER_REMOVE_AT).contains(&called.call.tool)
+        && !super::worker::asking(called.call.tool)
     {
         operation.retry = Some(render::outcome::retry(&called.call, called.json));
     }

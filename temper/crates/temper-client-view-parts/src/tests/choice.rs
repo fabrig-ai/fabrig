@@ -873,6 +873,7 @@ fn untooled_root(named_worker: bool) -> d::Domain {
         )
         .unwrap();
         doc.worker_settings = List::from_boxed(Box::new([c::WorkerState {
+            pause: c::WorkerPause::Taking,
             number: 2,
             name: Box::from(b"box-2".as_slice()),
             places: 1,

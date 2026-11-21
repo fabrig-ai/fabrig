@@ -2,7 +2,7 @@
 use crate::{limits, settings};
 use alloc::boxed::Box;
 use jig_protocol_config::{self as config, llm::EndpointAddress};
-use jig_protocol_worker_wire::v19 as w;
+use jig_protocol_worker_wire::v20 as w;
 use skein_lib::{Decimal, Duration, List, bytes};
 use temper_client_protocol_wire::v1 as s;
 

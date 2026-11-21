@@ -414,10 +414,58 @@ fn job_stderr_forms_escape_and_bound_their_why() {
     }
 }
 
+fn pause_line(state: jig_domain_link::PauseState) -> String {
+    worker_note_words(BINARY, worker::Note::Paused { state, drain: skein_lib::Duration::from_secs(180) })
+}
+
+#[test]
+fn pause_words_say_no_new_run_or_job_as_the_engine_asked() {
+    assert_eq!(
+        pause_line(jig_domain_link::PauseState::Paused),
+        "temper-worker worker: paused: no new run or job, as the engine asked\n"
+    );
+}
+
+#[test]
+fn drain_words_name_the_stock_bound_from_the_engine_ask() {
+    assert_eq!(
+        pause_line(jig_domain_link::PauseState::Draining),
+        "temper-worker worker: draining: each run stops at its turn's end, the rest cut in 180 s, as the engine asked\n"
+    );
+}
+
+#[test]
+fn drained_words_say_a_stop_now_loses_nothing() {
+    assert_eq!(
+        pause_line(jig_domain_link::PauseState::Drained),
+        "temper-worker worker: drained: no run or job left; a stop now loses nothing\n"
+    );
+}
+
+#[test]
+fn resume_words_say_taking_work_again_as_the_engine_asked() {
+    assert_eq!(
+        pause_line(jig_domain_link::PauseState::Taking),
+        "temper-worker worker: taking work again, as the engine asked\n"
+    );
+}
+
 #[test]
 fn restart_words_name_how_long_runs_are_kept_after_loss() {
     assert_eq!(
         worker_note_words("custom", worker::Note::Restarting { keep: skein_lib::Duration::from_millis(1_200_000) }),
         "custom worker: the engine said it restarts: runs kept up to 1200000 ms after the link drops\n"
     );
+}
+
+#[test]
+fn an_agents_signal_line_leaves_its_stop_to_the_worker() {
+    for (from, sender) in [(Some(42), "pid 42"), (None, "an unknown sender")] {
+        assert_eq!(
+            worker_note_words(BINARY, worker::Note::AgentSignalled { run: 7, attempt: 2, signal: "SIGTERM", from }),
+            format!(
+                "{BINARY} worker: run 7 attempt 2: its agent heard SIGTERM from {sender}; its stop is the worker's\n"
+            )
+        );
+    }
 }

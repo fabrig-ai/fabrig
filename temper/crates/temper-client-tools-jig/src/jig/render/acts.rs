@@ -303,8 +303,15 @@ pub fn party(number: u64, me: Option<&Me>, out: &mut Text) {
     out.put(b"party ");
     out.number(number);
 }
+#[expect(clippy::too_many_lines, reason = "one exhaustive rendering preserves each supplied refusal's facts")]
 pub fn refusal(why: &Refusal, book: &Phrasebook, out: &mut Text) {
     match why {
+        Refusal::Unlinked { worker } => {
+            out.put(b"worker ");
+            out.number(u64::from(*worker));
+            out.put(b" is unlinked");
+            return;
+        }
         Refusal::Concluded { at } => {
             out.put(b"concluded at ");
             out.number(at.as_nanos());
@@ -446,6 +453,7 @@ fn plain_refusal(why: &Refusal, book: &Phrasebook, out: &mut Text) {
         | Refusal::NameTaken
         | Refusal::AccountMove { .. }
         | Refusal::SignInRedirect { .. }
+        | Refusal::Unlinked { .. }
         | Refusal::Concluded { .. }
         | Refusal::Provider => book.say(0, word.id(), &[]),
     }

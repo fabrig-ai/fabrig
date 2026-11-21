@@ -1731,3 +1731,43 @@ fn a_stopped_run_needs_no_renewals_record_to_end() {
     assert_eq!(world.seen.down.last(), Some(&Down::Cancel));
     finish(&mut world);
 }
+
+#[test]
+fn an_agents_signal_reaches_its_parent_once_without_stopping_it() {
+    let mut world = World::new(8, limits());
+    world.live();
+    world.up(Up::Signalled { signal: parent::Signal::Terminate, from: Some(42) });
+    assert_eq!(world.seen.signalled, [(Token::new(1), parent::Signal::Terminate, Some(42))]);
+    assert_eq!(world.seen.signals, []);
+    assert!(!world.seen.down.iter().any(|message| matches!(message, Down::Cancel)));
+    world.up(Up::Signalled { signal: parent::Signal::Interrupt, from: None });
+    assert_eq!(world.seen.signalled.len(), 1, "a duplicate is a rule fault, not a second parent notice");
+    world.clean_end();
+}
+
+#[test]
+fn every_live_terminate_sends_cancel_or_closes_the_channel_first() {
+    for busy in [false, true] {
+        for reason in ["rules", "no progress", "drop"] {
+            let mut world = World::new(8, limits());
+            world.live();
+            if busy {
+                message(&mut world, 30, 1);
+            }
+            match reason {
+                "rules" => world.up(Up::LongDone),
+                "no progress" => world.at_time(world.stage.env.now.saturating_add(limits().no_progress)),
+                "drop" => world.event(Input::Parent(parent::Event::Drop { agent: world.agent() })),
+                _ => unreachable!(),
+            }
+            assert_eq!(world.seen.controls, [if busy { "close" } else { "cancel" }, "terminate"], "{reason}");
+            world.clean_end();
+            world.at_time(world.stage.env.now.saturating_add(limits().kill_after));
+            assert_eq!(
+                world.seen.signals,
+                [smith_host_domain::Signal::Terminate],
+                "the agent exited before kill grace"
+            );
+        }
+    }
+}

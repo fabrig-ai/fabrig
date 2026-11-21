@@ -264,6 +264,13 @@ impl Process {
         self.channel_below.pop()
     }
 
+    /// Close the host's writing half when no cancel can be sent before termination.
+    pub fn close_channel(&self, below: &mut Queue<IoRequest>) {
+        if let Some(input) = self.input {
+            below.push(IoRequest::Abort { entity: input });
+        }
+    }
+
     /// Send a domain stop to io's child with its sender's reason.
     pub fn signal(&self, signal: kernel::Signal, reason: kernel::Reason, below: &mut Queue<IoRequest>) {
         let child = self.child.expect("a signal names a spawned child");

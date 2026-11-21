@@ -26,6 +26,23 @@ impl Class {
     }
 }
 
+/// The engine's pause ask (jig/docs/design/protocol/channel/pause.md, 2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum PauseMode {
+    Resume,
+    Pause,
+    Drain,
+}
+
+/// The worker's pause state (jig/docs/design/protocol/channel/pause.md, 2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum PauseState {
+    Taking,
+    Paused,
+    Draining,
+    Drained,
+}
+
 /// A configuration-directory name (accounts.md, 3.4), never an account number.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct SourceName(skein_lib::Name<32>);

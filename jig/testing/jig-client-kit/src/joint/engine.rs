@@ -220,6 +220,7 @@ pub fn held_event(held: core::Held) -> Option<Event> {
         | core::Held::ReadUsage { .. }
         | core::Held::ReadList { .. }
         | core::Held::Sources { .. }
+        | core::Held::PauseWorker { .. }
         | core::Held::CheckSource { .. }
         | core::Held::SignOutSource { .. }
         | core::Held::SourceSignedOut { .. }

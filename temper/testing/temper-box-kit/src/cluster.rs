@@ -694,6 +694,29 @@ impl Host for Member {
     }
 }
 
+/// Read the worker's complete startup diagnostic, never a copy of its formula.
+pub fn stop_bounds(stderr: &[u8]) -> Result<(Duration, Duration), String> {
+    let mut found = None;
+    for line in stderr.split_inclusive(|byte| *byte == b'\n') {
+        let Some(line) = line.strip_suffix(b"\n").and_then(|line| line.strip_prefix(b"stop bound ")) else {
+            continue;
+        };
+        let line = std::str::from_utf8(line).map_err(|why| format!("stop bound text: {why}"))?;
+        let (stop, drain) = line.split_once(" s, drain ").ok_or("stop bound and drain")?;
+        let stop = stop.parse::<u64>().map_err(|why| format!("stop seconds: {why}"))?;
+        let drain = drain
+            .strip_suffix(" s")
+            .ok_or("drain seconds")?
+            .parse::<u64>()
+            .map_err(|why| format!("drain seconds: {why}"))?;
+        if stop == 0 || drain == 0 || stop < drain || found.is_some() {
+            return Err("one positive stop bound covering its drain".into());
+        }
+        found = Some((Duration::from_secs(stop), Duration::from_secs(drain)));
+    }
+    found.ok_or_else(|| "worker's complete stop bound line".into())
+}
+
 /// A wait needs a longer world to own a deferred starvation verdict.
 enum MemberWait {
     World(Patience),
@@ -732,9 +755,19 @@ impl MemberWait {
 
 enum State {
     Waiting,
-    Starting { deadline: MemberWait, captures: Vec<Option<String>> },
+    Starting {
+        deadline: MemberWait,
+        captures: Vec<Option<String>>,
+    },
     Ready,
-    Stopping { deadline: MemberWait, ending: Ending, swept: bool, killed: bool, survivors: Vec<u32> },
+    Stopping {
+        deadline: MemberWait,
+        ending: Ending,
+        unit_timeout: Option<Duration>,
+        swept: bool,
+        killed: bool,
+        survivors: Vec<u32>,
+    },
     Ended,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -744,7 +777,7 @@ pub enum Ending {
     Kill,
 }
 enum Action {
-    End(Ending),
+    End(Ending, Option<Duration>),
     Signal(Signal),
 }
 #[derive(Clone, Copy)]
@@ -855,10 +888,22 @@ impl Members {
     pub fn stop_one(&mut self, process: &str) {
         self.end_one(process, Ending::Alone);
     }
+    /// Model KillMode=mixed: TERM only the leader, KILL the remaining tree only
+    /// after this wall timeout, even if the leader exits leaving descendants.
+    pub fn stop_one_within(&mut self, process: &str, timeout: Duration) {
+        let i = self.cluster.index(process);
+        assert!(matches!(self.states[i], State::Ready), "stop a ready member");
+        self.actions.push((i, Action::End(Ending::Alone, Some(timeout))));
+    }
+    /// The retained observer, including its stderr and the keeper's process identities.
+    #[must_use]
+    pub fn binary<'a>(&self, process: &str, hosts: &'a [Root]) -> Option<&'a Binary> {
+        hosts[self.cluster.index(process)].member().binary.as_ref()
+    }
     fn end_one(&mut self, process: &str, ending: Ending) {
         let i = self.cluster.index(process);
         assert!(matches!(self.states[i], State::Ready), "end a ready member");
-        self.actions.push((i, Action::End(ending)));
+        self.actions.push((i, Action::End(ending, None)));
     }
     /// Start a settled member again, retaining its command, files and directories.
     pub fn restart(&mut self, process: &str) {
@@ -876,25 +921,33 @@ impl Members {
     pub fn linked(&self, process: &str) -> usize {
         self.linked[self.cluster.index(process)]
     }
-    fn ending(&mut self, i: usize, ending: Ending, now: Time, hosts: &mut [Root]) {
+    fn ending(&mut self, i: usize, ending: Ending, unit_timeout: Option<Duration>, now: Time, hosts: &mut [Root]) {
         let binary = hosts[i].member_mut().binary.as_mut().expect("started binary");
         if binary.exit_status().is_none() {
             binary.signal(if ending == Ending::Kill { Signal::Kill } else { Signal::Terminate });
         }
         self.states[i] = State::Stopping {
-            deadline: MemberWait::watching(
-                "the cluster member's stopping",
-                now,
-                Duration::from_secs(STOP_SECONDS),
-                self.world_patience,
-                binary,
-            ),
+            deadline: match unit_timeout {
+                Some(timeout) => MemberWait::Bound(now.saturating_add(timeout)),
+                None => MemberWait::watching(
+                    "the cluster member's stopping",
+                    now,
+                    Duration::from_secs(STOP_SECONDS),
+                    self.world_patience,
+                    binary,
+                ),
+            },
             ending,
+            unit_timeout,
             swept: false,
             killed: false,
             survivors: Vec::new(),
         };
     }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the member lifecycle keeps its stop, timeout escalation and ordered starts together"
+    )]
     pub fn act(&mut self, now: Time, hosts: &mut [Root]) {
         if self.settling_client {
             if let Some(Root::Client { calls: Some(calls), .. }) = hosts.get_mut(self.states.len()) {
@@ -907,7 +960,7 @@ impl Members {
         }
         for (i, action) in std::mem::take(&mut self.actions) {
             match action {
-                Action::End(ending) => self.ending(i, ending, now, hosts),
+                Action::End(ending, timeout) => self.ending(i, ending, timeout, now, hosts),
                 Action::Signal(signal) => {
                     hosts[i].member_mut().binary.as_mut().expect("live binary").signal_tree(signal);
                 }
@@ -931,16 +984,22 @@ impl Members {
             let timed_out =
                 if let State::Stopping { deadline, killed: false, .. } = state { deadline.failed(now) } else { None };
             if let Some(figures) = &timed_out {
-                self.failure = Some(format!(
-                    "{} did not stop within {STOP_SECONDS}s{figures}",
-                    string(&self.cluster.specs[i]["name"])
-                ));
+                let seconds = match state {
+                    State::Stopping { unit_timeout: Some(timeout), .. } => timeout.as_millis() / 1000,
+                    State::Waiting | State::Starting { .. } | State::Ready | State::Stopping { .. } | State::Ended => {
+                        STOP_SECONDS
+                    }
+                };
+                self.failure =
+                    Some(format!("{} did not stop within {seconds}s{figures}", string(&self.cluster.specs[i]["name"])));
             }
             let timed_out = timed_out.is_some();
             // skein-world end_to_end.rs:253–260 refreshes tree membership on delivery;
             // an intentional whole-tree kill awaits settlement, not leader-exit cleanup.
             let deliberate_kill = matches!(state, State::Stopping { ending: Ending::Kill, .. });
+            let unit_stop = matches!(state, State::Stopping { unit_timeout: Some(_), .. });
             let left_tree = !deliberate_kill
+                && !unit_stop
                 && binary.exit_status().is_some()
                 && (!survivors.is_empty() || !binary.tree_status().live_pids.is_empty());
             if (left_tree || timed_out) && !matches!(state, State::Stopping { killed: true, .. }) {
@@ -953,7 +1012,7 @@ impl Members {
                 survivors.sort_unstable();
                 survivors.dedup();
                 let deadline = MemberWait::Disarmed;
-                *state = State::Stopping { deadline, ending, swept: true, killed: true, survivors };
+                *state = State::Stopping { deadline, ending, unit_timeout: None, swept: true, killed: true, survivors };
                 binary.signal_tree(Signal::Kill);
                 self.stopping = true;
             }
@@ -963,7 +1022,7 @@ impl Members {
             {
                 let i = life.member;
                 if !matches!(self.states[i], State::Stopping { .. }) {
-                    self.ending(i, Ending::Cluster, now, hosts);
+                    self.ending(i, Ending::Cluster, None, now, hosts);
                 }
             }
             return;
@@ -1074,6 +1133,7 @@ impl Members {
                         binary,
                     ),
                     ending: Ending::Cluster,
+                    unit_timeout: None,
                     swept: false,
                     killed: false,
                     survivors: Vec::new(),
@@ -1204,8 +1264,16 @@ pub mod verdict_tests {
 }
 
 pub mod deadline_tests {
-    use super::MemberWait;
+    use super::{MemberWait, stop_bounds};
     use skein_lib::{Duration, Time};
+
+    pub fn stop_bounds_read_the_printed_seconds_and_need_a_complete_line() {
+        assert_eq!(
+            stop_bounds(b"figures taken\nstop bound 9 s, drain 3 s\nlinked w1\n"),
+            Ok((Duration::from_secs(9), Duration::from_secs(3))),
+        );
+        assert!(stop_bounds(b"stop bound 9 s, drain 3 s").is_err(), "wait for the newline");
+    }
 
     pub fn a_member_wait_can_defer_only_to_a_longer_world() {
         let within = Duration::from_secs(20);

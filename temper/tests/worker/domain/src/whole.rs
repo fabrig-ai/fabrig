@@ -23,6 +23,7 @@ pub mod close;
 pub mod jobs;
 pub mod merge;
 pub mod orders;
+pub mod pause;
 pub mod prepare;
 
 const RUN: Token = Token::new(81);
@@ -44,6 +45,8 @@ pub enum Case {
     ContactPast,
     Drained,
     DrainExpired,
+    LinkDrained,
+    LinkDrainExpired,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -57,6 +60,7 @@ pub struct Report {
     pub io_cuts: u32,
     pub saves: u32,
     pub stop_bound: Duration,
+    pub pauses: Vec<jig_domain_link::PauseState>,
 }
 
 struct World {
@@ -84,6 +88,9 @@ struct World {
     /// The workstreams the last hello named.
     workstreams: Box<[u64]>,
     stops: u32,
+    root_pauses: Vec<jig_domain_link::PauseState>,
+    shutdown_notices: u32,
+    busy: Vec<(Token, Token)>,
     report: Report,
 }
 
@@ -127,6 +134,9 @@ impl World {
             answer: None,
             workstreams: Box::new([]),
             stops: 0,
+            root_pauses: Vec::new(),
+            shutdown_notices: 0,
+            busy: Vec::new(),
             report: Report {
                 tree: Tree::new(),
                 trace: Vec::new(),
@@ -137,6 +147,7 @@ impl World {
                 io_cuts: 0,
                 saves: 0,
                 stop_bound: Duration::ZERO,
+                pauses: Vec::new(),
             },
         }
     }
@@ -178,6 +189,7 @@ impl World {
 
     fn take(&mut self, request: Request) {
         match request {
+            Request::Paused { state } => self.root_pauses.push(state),
             Request::ReadUsage { .. }
             | Request::ReadList { .. }
             | Request::CancelRead { .. }
@@ -195,6 +207,10 @@ impl World {
             }
             Request::Link(up) => self.link(up),
             Request::Answer { run, attempt, answer, work, preparation } => {
+                if matches!(answer.ending, host::Ending::Refused(host::Refusal::Busy)) {
+                    self.busy.push((run, attempt));
+                    return;
+                }
                 assert_eq!((run, attempt), (RUN, self.attempt));
                 assert!(self.held.is_none(), "delivery settles before the final answer");
                 if self.up {
@@ -227,7 +243,7 @@ impl World {
                 });
             }
             note @ Request::Git { .. } => self.report.notes.push(note),
-            Request::AgentStopped { .. } | Request::Unprepared { .. } => {}
+            Request::AgentSignalled { .. } | Request::AgentStopped { .. } | Request::Unprepared { .. } => {}
             Request::JobAnswer { .. } | Request::Job { .. } | Request::CancelRelay { .. } => {
                 panic!("unscripted request")
             }
@@ -236,7 +252,8 @@ impl World {
 
     fn link(&mut self, up: host::LinkUp) {
         match up {
-            host::LinkUp::Draining => {}
+            host::LinkUp::Paused { state } => self.report.pauses.push(state),
+            host::LinkUp::Draining => self.shutdown_notices += 1,
             host::LinkUp::Turn { run, attempt, turn } => {
                 assert_eq!((run, attempt, turn.turn), (RUN, self.attempt, 1));
             }
@@ -335,6 +352,7 @@ impl World {
             agent::process::Request::Wait { owner, process } | agent::process::Request::Reap { owner, process } => {
                 assert_eq!((Some(owner), process), (self.process, PROCESS));
             }
+            agent::process::Request::CloseChannel { .. } => {}
             agent::process::Request::Signal { owner, signal, .. } => {
                 if signal == agent::Signal::Terminate {
                     self.report.drops += 1;
@@ -497,14 +515,19 @@ impl World {
 
     fn story(&mut self, case: Case) {
         match case {
-            Case::Drained | Case::DrainExpired => {
-                self.event(Event::Shutdown { drain: true });
+            Case::Drained | Case::DrainExpired | Case::LinkDrained | Case::LinkDrainExpired => {
+                if matches!(case, Case::LinkDrained | Case::LinkDrainExpired) {
+                    self.env.now = self.env.now.saturating_add(Duration::from_secs(7));
+                    self.event(Event::Link(host::LinkDown::Pause { mode: jig_domain_link::PauseMode::Drain }));
+                } else {
+                    self.event(Event::Shutdown { drain: true });
+                }
                 assert_eq!(self.report.drains, 1);
                 assert_eq!(self.report.cancellations, 0, "the current turn goes on");
                 self.env.now = self.env.now.saturating_add(Duration::from_nanos(self.env.limits.drain.as_nanos() - 1));
                 self.settle();
                 assert_eq!(self.report.cancellations, 0, "not before the drain bound");
-                if case == Case::DrainExpired {
+                if matches!(case, Case::DrainExpired | Case::LinkDrainExpired) {
                     self.env.now = self.env.now.saturating_add(Duration::from_nanos(1));
                     self.settle();
                     assert_eq!(self.report.cancellations, 1, "the bound stops a turn still running");
@@ -513,7 +536,7 @@ impl World {
                 }
                 let answer = agent::Answer {
                     read: None,
-                    turns: u32::from(case == Case::Drained),
+                    turns: u32::from(matches!(case, Case::Drained | Case::LinkDrained)),
                     spent: 0,
                     result: agent::RunResult::Failed { failure: agent::RunFailure::Cancelled },
                 };
@@ -573,7 +596,10 @@ impl World {
         assert_eq!(self.domain.workspaces(), 0);
         let (answer, work, preparation) = self.answer.take().expect("a terminal answer");
         assert_eq!(preparation, None);
-        let branch = if matches!(case, Case::ContactPast | Case::Drained | Case::DrainExpired) {
+        let branch = if matches!(
+            case,
+            Case::ContactPast | Case::Drained | Case::DrainExpired | Case::LinkDrained | Case::LinkDrainExpired
+        ) {
             b"saved".as_slice()
         } else {
             b"topic".as_slice()
@@ -583,7 +609,9 @@ impl World {
             Case::Delivered | Case::ContactWithin => None,
             Case::CancelledDelivery => Some(host::Reason::Engine),
             Case::ContactPast => Some(host::Reason::Contact),
-            Case::Drained | Case::DrainExpired => Some(host::Reason::Shutdown),
+            Case::Drained | Case::DrainExpired | Case::LinkDrained | Case::LinkDrainExpired => {
+                Some(host::Reason::Shutdown)
+            }
         };
         let cancelled = match answer.ending {
             host::Ending::Ended { .. } => None,
@@ -593,7 +621,10 @@ impl World {
             }
         };
         assert_eq!(cancelled, expected);
-        if matches!(case, Case::ContactPast | Case::Drained | Case::DrainExpired) {
+        if matches!(
+            case,
+            Case::ContactPast | Case::Drained | Case::DrainExpired | Case::LinkDrained | Case::LinkDrainExpired
+        ) {
             let saved = work.saved.expect("saved work");
             let [wire::SavedRepository { landing: wire::Landing::Landed { commit: saved }, .. }] = saved.as_ref()
             else {
@@ -611,9 +642,23 @@ impl World {
         assert!(self.forge.is_ancestor(self.first, commit));
         self.event(Event::Link(host::LinkDown::Acknowledge { run: RUN, attempt: ATTEMPT }));
         assert_eq!(self.domain.kept_answers(), 0);
-        if case == Case::Drained {
+        if matches!(case, Case::Drained | Case::LinkDrained) {
             assert_eq!(self.stops, 0, "its last turn must be kept too");
             self.event(Event::Link(host::LinkDown::TurnKept { run: RUN, attempt: ATTEMPT, turn: 1 }));
+        }
+        if matches!(case, Case::LinkDrained | Case::LinkDrainExpired) {
+            assert_eq!(
+                self.report.pauses,
+                [jig_domain_link::PauseState::Draining, jig_domain_link::PauseState::Drained]
+            );
+            assert_eq!(self.root_pauses, self.report.pauses, "each change is said both ways");
+            assert_eq!(self.stops, 0, "a link drain never stops the worker");
+            assert_eq!(self.shutdown_notices, 0, "a link drain is not shutdown");
+            assert_eq!(self.domain.abandoned(), 0);
+            assert!(self.up, "the worker stays linked");
+            self.env.now = self.env.now.saturating_add(self.env.limits.stop_bound);
+            self.settle();
+            assert_eq!(self.stops, 0, "drained stays up past a stop's bound");
         }
         if !matches!(case, Case::Drained | Case::DrainExpired) {
             self.event(Event::Shutdown { drain: true });

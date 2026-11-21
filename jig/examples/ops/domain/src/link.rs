@@ -133,7 +133,7 @@ pub(crate) fn host_out(
                 work.push(Work::Host(host::Event::RelayCancelled { run, attempt, call }));
             }
             // This root never asks and configures its engine host directly.
-            host::Request::Asked { .. } | host::Request::Hello { .. } => {}
+            host::Request::Asked { .. } | host::Request::Hello { .. } | host::Request::Paused { .. } => {}
             host::Request::Prepare { owner, .. } => work.push(Work::Host(host::Event::Unprepared {
                 owner,
                 failure: host::Preparation::Permanent { resource: None },
