@@ -6,7 +6,7 @@ faults, what every fake shares, what every world checks, scenarios and
 the referee, the two suites, and where a failure is fixed. This document
 keeps what is temper's: its tiers (section 2), its neighbours and their
 fakes (`README.md`, section 3 and `fakes.md`), its scenarios, referee and its case library
-(`README.md`, section 4), what its worlds check beyond the strategy (`checks.md`), its
+(`README.md`, section 4), what its worlds check beyond the strategy (`checks.md`; the engine's, `engine-checks.md`), its
 layout (`README.md`, section 5), its tools and fixtures as binaries (`tools.md`), what
 macOS tests (`macos.md`), QA after landing beside the deployment (`qa/README.md`), and what
 is still open (`README.md`, section 6).
@@ -527,7 +527,11 @@ records each in its run's fault ledger, draws its workload, faults,
 parties and scheduling from independent streams of its seed, and a sweep
 over its seeds fails when a fault it configures never falls; its only
 exclusions name ignored scenarios (skein's `testing/sweeps.md`;
-`checks.md`, 6.2).
+`checks.md`, 6.2). Every engine driver calls the engine's world kit at
+its quiet point, and its referee holds that the goals a scenario names
+end, or are held with words, within bounds in simulated minutes and in
+steps, and that the engine opens within a bound after every restart
+(`engine-checks.md`).
 
 ## 5. Layout
 
@@ -558,6 +562,7 @@ testing/temper-github-app           the App on the fake GitHub layer's first fix
 testing/temper-fixtures             the documents, transcripts, memory literals and local browser that temper's client crates and worlds share
 testing/temper-agent-fixtures       the agents' configuration as the worker's writer makes it
 testing/temper-landing-fixtures     a project's landing settings, typed, for the engine's and client's worlds
+testing/temper-engine-inspect       the engine's inspection adapter, read by its worlds alone (engine-checks.md, 2)
 tests/<component>/<child>           a child domain's world, temper-<component>-<child>-world
 tests/<component>/domain            a component's world: the engine's, the worker's
 tests/engine/forge                  the forge connector's world
