@@ -31,6 +31,9 @@
 //! traces and an observation referee. Services keep their own fakes and
 //! scenario expectations; these utilities are shared by temper and smith.
 //!
+//! [`streams`] derives independent workload, fault, party and scheduling RNGs
+//! from one seed, with a separate sequence for each named part.
+//!
 //! [`faults`] records each run's injected faults, intervals, identities and counters.
 //!
 //! A scenario's processes are one type, the scenario's own (an enum of its
@@ -58,6 +61,7 @@ mod referee;
 #[cfg(unix)]
 pub mod ring;
 pub mod stream;
+pub mod streams;
 #[cfg(unix)]
 mod tree;
 mod world;

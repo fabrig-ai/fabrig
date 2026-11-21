@@ -3,3 +3,4 @@
 
 mod faults;
 mod inspect;
+mod streams;

@@ -26,6 +26,8 @@ child's roots; a kill closes every descriptor still owned by the child.
 Parent and child may select the same directory, but never share descriptor
 ownership.
 
+The `streams` module derives independent workload, fault, party and scheduling RNGs, each with named parts, from a world's seed (`skein/docs/design/testing/sweeps.md`, 2).
+
 The `faults` module keeps one run's injected faults, closed intervals, struck
 identities and six independent counters (`skein/docs/design/testing/sweeps.md`, 3).
 
