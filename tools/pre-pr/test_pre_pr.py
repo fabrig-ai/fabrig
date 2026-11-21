@@ -800,6 +800,7 @@ else:
     def test_selected_test_binaries_build_between_lints_and_tests(self):
         inventory = Path(__file__).resolve().parents[1] / 'tiers/packages.toml'
         self.write('tools/tiers/packages.toml', inventory.read_text())
+        self.write('tools/tiers/design.md', '# Tiers\n## 2.1. Prerequisites\n## 6. Package sets\n')
         self.write('.config/gate/always.txt', 'smith\n')
         for path in ('smith/src/lib.rs', 'guide.md'):
             with self.subTest(path=path):
