@@ -25,6 +25,7 @@ mod landing_rounds;
 mod landing_search_tests;
 mod member_message;
 mod memory;
+mod open;
 mod opened;
 mod protection;
 mod public;
