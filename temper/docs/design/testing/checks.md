@@ -565,7 +565,7 @@ landing's or a change's wait and a task's resolve across inspections.
   commits, and the request.
 - **The failure table** of the draft's 3.3, each failure class's
   expected transition on each counter, is held by temper's 3.3 check,
-  beside the gates' and the runs' blame.
+  beside the gates' and the runs' blame (`blame.md`).
 - **Streams** (skein's `testing/sweeps.md`, 2): a world that sweeps
   seeds its workload (goals, items, trees and scripts) from `Workload`;
   each injector from its own part of `Faults` (`forge`, `llm`, `worker`,

@@ -100,6 +100,11 @@ its own types, close to ../../forge/README.md, section 3; the layers above trans
   having none. Both protocol layers write them on a pull request's
   document as `changed_files`, `additions` and `deletions`, as the
   forges do.
+- **A close refused by policy** (temper's `draft/failure-worlds.md`,
+  4.1): `scenario::refuse_close(domain, repository, number, refused)`
+  makes every `Write::Close` of that pull request answer `Protected`,
+  closing nothing, until a world sets it back. Deleting its branch
+  still closes it. An image keeps none.
 
 ### 2.3 Timing, faults and CI
 
@@ -224,6 +229,24 @@ Chances are per mille, in `Config`, and drawn from the domain's seed.
   runner; else `Needs` while a job is blocked. It is derived from the
   jobs whenever they change, an image's decoding included, and never
   kept.
+- **One runner for every job:** `scenario::runners(domain, Some(n))`,
+  none by default, lets at most `n` dispatched jobs of the whole forge
+  run at once, on runners numbered from 1. A job ready to run while
+  every runner is taken waits, its `wait` `Runner`, in the order it
+  became ready, and runs its span from taking one; it holds its runner
+  until it completes, is lost or is cancelled. Commit statuses' CI is
+  outside it. An image keeps none: a restored waiting job is runnable.
+- **Lagging views** (temper's `draft/failure-worlds.md`, 4.1):
+  `scenario::lag(domain, Lag { chance, min, max })`, `chance` per
+  mille, none by default. When a write moves a branch, each open pull
+  request it heads or bases shows, with the chance, its former head or
+  base, and its former mergeability, to every read and listing for a
+  span drawn from `min..=max`, while the branch reads its new tip. A
+  merge (`Write::Merge`) is, with the chance, recorded that long after
+  it is made: its caller is answered, its base moves and its hook
+  goes, but reads show the pull request open as it was until then, so
+  a later write shows first. A view ends at its time, with no timer;
+  an image keeps none.
 - **Merges and updates by style:** a fast-forward-only merge moves the
   base to the head and refuses one that does not contain the base's tip
   (`Conflict`); an update by rebase replays the branch's commits onto the
@@ -326,6 +349,29 @@ Chances are per mille, in `Config`, and drawn from the domain's seed.
   `room` left, so a forge that filled up is told from one that works. Needing
   room, it forgets the statuses of the oldest commit no head shows, never a
   commit.
+- **What fell** (`../sweeps.md`, 3): each fault the domain injects is
+  kept as it falls, a `Fell { at, until, fault, repository, user, call,
+  reply_to, pull, commit, run, runner }`, a field `None` where the
+  fault strikes none, in a queue a world drains (`pop_fell`), bounded
+  as observations are (`limits.observations`), a full one counting
+  what it drops (`fell_lost`). `until` is when a fault that lasts
+  stops: a late answer's or a landing's moment, a view's end, a wait's,
+  a wait being kept once it ends; `call` is `Called::{Read, Write, Merge, Git}`; `run` is a run's id.
+  An image keeps none. `Fault::family` and `Fault::name` are the words
+  a ledger keeps:
+
+  | `Fault` | family | name | falls when |
+  |---|---|---|---|
+  | `Busy` | `busy` | `no_room` | a call finds no room (`limits.calls`) |
+  | `Unavailable`, `TimedOut` | `busy` | `unavailable`, `timed_out` | those chances |
+  | `Landing`, `Late` | `busy` | `landing`, `late` | made, or answered, at `until` |
+  | `Limited`, `Crowded` | `busy` | `limited`, `crowded` | the rate |
+  | `HookLate`, `HookLost`, `HookDropped` | `hooks` | `late`, `lost`, `dropped` | a hook |
+  | `Silent`, `Rerun` | `ci` | `silent`, `rerun` | a context or job never reports; `reruns` |
+  | `SetUp`, `Lost` | `ci` | `set_up`, `lost` | `setup_faults`, `lost` |
+  | `RunnerWait` | `ci` | `runner_wait` | a job waits for a runner (2.3) |
+  | `HeadBehind`, `BaseBehind`, `MergeLate` | `lagging` | `head_behind`, `base_behind`, `merge_late` | a lagging view (2.3) |
+  | `CloseRefused` | `refusing` | `close_refused` | a refused close (2.2) |
 
 ### 2.5 The promises' judge
 
@@ -897,7 +943,10 @@ peers host theirs. The real loop hosts the same one.
 
 - **Step tests** sit in each crate. The domain's cover each call's decision,
   listings, merges, protection, CI, a declared wait's phases and a run's
-  wait, and hooks. The protocol layer's cover Actions' states,
+  wait, and hooks; each fault of 2.4's table falling, once, with its
+  moment and identities, and a full queue's count; a lagging view's
+  reads and end, and a merge recorded late; a refused close; and one
+  runner's queue, freed by a lost job. The protocol layer's cover Actions' states,
   routes, errors, faults, the tally, the setup routes and deliveries, each
   decoded by `skein-forge`, with a signature that holds for its body only;
   deliveries that follow the setup's hooks: one for each hook that takes

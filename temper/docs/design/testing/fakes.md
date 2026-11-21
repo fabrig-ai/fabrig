@@ -209,6 +209,68 @@ loopback (skein's `testing/fakes/forge.md`, section 5). temper's worlds add:
   tested in `temper-service`'s tests, against no fake (`README.md`, 2.1).
 - **Its referee** drains the forge's observations (skein's
   `testing/fakes/forge.md`, 2.4; here, `README.md`, 4.2).
+- **Its faults, in the engine's forge world** (`temper/tests/engine/forge`;
+  `../draft/failure-worlds.md`, 4.1 and 4.5):
+  - **A ledger per run** (skein's `testing/sweeps.md`, 3), in a world
+    made from `Streams` (2 there): the fake forge seeded from `Faults`'
+    part `forge`, the workload from `Workload`, latencies and order from
+    `Scheduling`. A world made from a bare seed, as today's tests make
+    it, keeps its draws as they are.
+  - **What the fake injected** is copied in after each step, from
+    `pop_fell` (skein's `testing/fakes/forge.md`, 2.4): each `Fell` as
+    `Kind { family: fault.family(), name: fault.name() }` from `at`,
+    stopped at `until` where it has one, else at `at`, striking `request`
+    with the call's reply in words, `gate_run` with its run's id,
+    `runner` with its runner's number and `candidate` with its commit's
+    hex as the engine names it. A `fell_lost` above zero fails the run.
+  - **What the world injects** it records as it does it: the kinds of
+    `blame.md`, 3 (a wrong tree, a red base, a run cancelled, a missing
+    report), and these, each striking the change's head or the
+    pull request's request as the world names them:
+
+    | Kind | The world |
+    |---|---|
+    | `refusing/closed_by_another`, `refusing/merged_by_another` | closes or merges a pull request as another user between two of the engine's reads |
+    | `stale/reopened_by_another` | reopens a pull request the engine closed |
+    | `stale/squashed_dependency` | lands a change's dependency squashed after the change's branch was made on its head |
+    | `stale/moved_base` | moves a base after the engine read it for an update, a resolution or a save, before its write |
+    | `bounds/pull_files`, `bounds/comparison`, `bounds/job_log` | makes a pull request's files, a comparison or a failed job's log past the forge's answer bounds while a repair needs it |
+
+  - **One sweep per family** (`../draft/failure-worlds.md`, 5), each a
+    fuzzy test of the world's suite (`tests/suite/fuzzy/`) that
+    configures its kinds, keeps the checks of the workload it runs, and
+    asserts each kind fell (skein's `testing/sweeps.md`, 4). Their seeds
+    share the budget plan's (`../../development/failure-worlds-budget.md`,
+    *What the sweeps cost*): eight for 4.1's families, eight for 4.5's.
+
+    | Sweep | Kinds | Workload | Seeds |
+    |---|---|---|---|
+    | `busy_and_slow_forges_keep_the_batches_invariants` | `busy/` `no_room`, `unavailable`, `timed_out`, `landing`, `late` (a merge's among them), `limited` | `fuzzy::landing_batches`' | 2 |
+    | `lagging_views_keep_the_batches_invariants` | `lagging/` `head_behind`, `base_behind`, `merge_late` | `fuzzy::landing_batches`' | 2 |
+    | `refusals_keep_the_batches_invariants` | `refusing/` `close_refused`, `closed_by_another`, `merged_by_another` | `fuzzy::landing_batches`' | 1 |
+    | `answers_past_bounds_leave_repairs_their_evidence` | `bounds/` `pull_files`, `comparison`, `job_log` | `fuzzy::landing_batches`', with repairs | 1 |
+    | `ci_faults_are_blamed_on_their_cause` | `ci/` `set_up`, `lost`, `cancelled`, `silent`, `missing_report`, `runner_wait`, `wrong_tree`, `base_red` | `fuzzy::landing_batches`', and a queue's changes | 2 |
+    | `stale_state_keeps_the_opens_invariants` | `lagging/` `head_behind`, `merge_late`; `stale/` `reopened_by_another`, `squashed_dependency`, `moved_base`; `refusing/` `closed_by_another`, `merged_by_another` | `fuzzy::opened`' | 8 |
+
+    The CI sweep runs `blame.md`'s check every seed. The bounds sweep
+    asserts that each repair asked while a bounds fault strikes its
+    change has, in its brief, what it needs or the words naming what it
+    couldn't read. Each sweep's only exclusions name the scenarios
+    below, as narrowly as their combinations.
+  - **The open scenarios** it holds, each `#[ignore]` with its reason
+    naming the work that fixes it (`../draft/failure-worlds.md`, 6 and
+    7): `blame.md`, 6's, and the check record's two, its reason `check
+    record: one structured record of what a check found`:
+    - `a_gate_repair_names_its_failed_tests` (S5): a landing gate red
+      whose failed job's log is past the forge's answer bounds, and whose
+      report names its failed tests: the repair's brief names those
+      tests, from the report. The bounds sweep leaves out a job log past
+      its bounds where a landing gate's repair reads it.
+    - `a_repair_reads_an_oversized_pull` (S2): a repair whose pull
+      request's file list is past the forge's bound (skein's
+      `Limits::files`) gets the files it needs, or is told which it
+      can't. The bounds sweep leaves out a pull request's files past
+      their bound where a repair reads them.
 - **Its git** is reached through the fake forge's own calls, never git's
   protocol over HTTP: through its typed transport by the fake git
   program in the one-process world (3), as by the fake checkout in the
