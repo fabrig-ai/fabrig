@@ -519,6 +519,14 @@ application's adapter names a task as jig's does.
   an escalation waiting there has no bound, since it waits for them
   however long (`tasks/proposals.md`: "At the parties the policy
   names") and its design arms no alarm.
+- **A closing task's parties** are named by what knows them. The tasks
+  child keeps a run's attempt, not its host, and not the connectors its
+  effects and releases wait on, so `tasks` names them in the task's own
+  words: `host of task N`, `connectors of task N`. `core` walks the same
+  tasks with the core's placement and closing connectors at hand, and
+  names each exactly, `host 4`, `connector 2`, one wake for each; where
+  the core knows none, it keeps the task's words. An application's
+  adapter that calls `tasks` alone takes the task's words.
 - **Words are no wake.** A parked agent task that is no conversation,
   doesn't stand and isn't ended by its requester waits on what it asked,
   delegated, watches or proposed (`tasks/lifecycle.md`, 2): words may
