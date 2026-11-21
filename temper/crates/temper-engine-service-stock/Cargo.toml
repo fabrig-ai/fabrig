@@ -27,6 +27,7 @@ temper-engine-smith.workspace = true
 temper-protocol-reaches.workspace = true
 
 [dev-dependencies]
+jig-domain-link.workspace = true
 temper-config-shell.workspace = true
 serde_json.workspace = true
 temper-service-core.workspace = true
