@@ -455,3 +455,45 @@ fn judged_runs_keep_red_ids_unique_and_uncleared_findings_unevictable() {
         );
     }
 }
+
+#[test]
+fn red_repairs_replay_with_unique_ids_bounded_attempts_and_judged_ends() {
+    use crate::ReleaseEnding;
+    use tests::tiers::filing::runs::repairs::{Move, random_repairs};
+    let mut seen = List::uncapped();
+    for seed in 0..16 {
+        let first = random_repairs(seed);
+        assert_eq!(first, random_repairs(seed), "seed {seed}");
+        for (action, _) in first {
+            if let Some(action) = action
+                && !seen.as_slice().contains(&action)
+            {
+                seen.push(action).expect("coverage of seeded moves");
+            }
+        }
+    }
+    for action in [
+        Move::Run { many: false },
+        Move::Run { many: true },
+        Move::Repair,
+        Move::Route,
+        Move::Backlog,
+        Move::Drop,
+        Move::Blame { landing: true },
+        Move::Blame { landing: false },
+        Move::Land,
+        Move::Hold,
+        Move::Release { judging: true },
+        Move::Restart,
+    ] {
+        assert!(seen.as_slice().contains(&action), "seeds did not exercise {action:?}");
+    }
+    for ending in [ReleaseEnding::Done, ReleaseEnding::Failed, ReleaseEnding::Cancelled] {
+        for landed in [true, false] {
+            assert!(
+                seen.as_slice().contains(&Move::End { ending, landed }),
+                "missing ending {ending:?}, landed {landed}"
+            );
+        }
+    }
+}

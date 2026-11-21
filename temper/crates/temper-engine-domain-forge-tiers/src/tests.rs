@@ -40,7 +40,14 @@ fn landing(commit: Commit, key: Key) -> Landing {
 }
 
 fn record(failing: Failures) -> Record {
-    Record { sequence: 0, judged: Some(Judged { tip: BASE, key: K_DOCS }), failing, flakes: Box::new([]), run: None }
+    Record {
+        sequence: 0,
+        last_run: None,
+        judged: Some(Judged { tip: BASE, key: K_DOCS }),
+        failing,
+        flakes: Box::new([]),
+        run: None,
+    }
 }
 
 fn dispatched(next: Next) -> Run {

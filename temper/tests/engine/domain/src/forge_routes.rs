@@ -129,6 +129,7 @@ pub struct World {
     /// Durable limit-setting words at the service face.
     pub limit_settings: Vec<engine::Request>,
     pub follow_answers: Vec<Option<Box<[u8]>>>,
+    pub finding_triages: Vec<forge_top::TriageFindingAnswer>,
     pub signed_in: Option<u64>,
     pub web_replies: Vec<people::Reply>,
     pub assigned: Vec<engine::Assignment>,
@@ -224,6 +225,8 @@ pub struct StoryLimits {
     pub forge_tasks: Option<u32>,
     pub close_job: Option<(Option<Box<[u8]>>, bool)>,
     pub goal_closer: bool,
+    /// Ceiling for a scripted change tree deeper than the default four levels.
+    pub delegation_depth: Option<u32>,
     pub landing_attempts: Option<u8>,
     pub landing_deployment: Option<Box<[engine::LandingRule]>>,
     pub project_landing: Option<(u32, temper_landing_fixtures::ProjectLanding)>,
@@ -871,7 +874,7 @@ impl World {
                         authority::Executor::Procedure(2),
                     ]);
                     rules.ceiling.delegation.tasks = tree_tasks.unwrap_or(12);
-                    rules.ceiling.delegation.depth = 4;
+                    rules.ceiling.delegation.depth = timing.delegation_depth.unwrap_or(4);
                 }
                 let mut policy = config.core.seed_projects[0].policy.policy.clone();
                 policy.ceiling.tools = authority::Tools(tools.unwrap_or(1023));
@@ -1686,6 +1689,7 @@ impl World {
             adopted: Vec::new(),
             limit_settings: Vec::new(),
             follow_answers: Vec::new(),
+            finding_triages: Vec::new(),
             signed_in: None,
             web_replies: Vec::new(),
             assigned: Vec::new(),
@@ -2786,6 +2790,7 @@ impl World {
                     Delivery::Application { outcome, .. } => match outcome {
                         Some(engine::ApplicationAnswer::Adopt(outcome)) => self.adopted.push(outcome),
                         Some(engine::ApplicationAnswer::Follow(outcome)) => self.follow_answers.push(outcome),
+                        Some(engine::ApplicationAnswer::TriageFinding(outcome)) => self.finding_triages.push(outcome),
                         Some(
                             engine::ApplicationAnswer::Looked(_)
                             | engine::ApplicationAnswer::FileFinding(_)
