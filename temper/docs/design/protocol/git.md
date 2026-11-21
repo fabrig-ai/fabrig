@@ -58,7 +58,7 @@ credentials.md's (`credentials.md`, section 4). What is open is listed in `git-l
   `commit-tree`) records both parents, and delivery advances HEAD (4.7).
 - **Make is file operations:** the old workspace renamed aside and a new
   one made; a sweep empties what was set aside, one file operation at a
-  time.
+  time, passing over and reporting what it can't remove (`git-sweep.md`).
 - **One store per repository.** A bare repository on the worker's disk,
   outside every workspace, holds a repository's objects for every checkout
   of it, which borrows them through its alternates file: the store is made
@@ -290,7 +290,7 @@ what the cache evicted, or a worker left behind before a restart, never
 fails a prepare (`../domain/worker/README.md`, section 8), and Make takes four
 file operations however large the old tree was.
 
-**The sweep** empties `trash`: `git-sweep.md`, section 1.
+**The sweep** empties `trash`: `git-sweep.md`, sections 2 to 4.
 
 ### 4.2 Clone
 
@@ -1044,14 +1044,16 @@ overridable under `git_component.` (configuration/limits.md):
 | `stdout_bytes` | stdout kept per invocation | at least the largest output section 4 reads under the checkout's limits: the unmerged list (`conflicts` paths of `path_bytes`, each with its NUL), a push's status lines |
 | `stderr_bytes` | the stderr tail kept per invocation | at least `PushDiagnostic::CAPACITY` |
 | `read_bytes` | one read of Commit's scan | above 0 |
-| `sweep_entries`, `sweep_bytes` | one page of the sweep's listing: entries, and bytes of names | above 0; `sweep_bytes` at least 255, the longest name io lists (skein's `runtime/io/files.md`) |
+| `sweep_entries`, `sweep_bytes` | one page of the sweep's listing (`git-sweep.md`, 2): entries, and bytes of names | above 0; `sweep_bytes` at least 255, the longest name io lists (skein's `runtime/io/files.md`) |
 
 The start is refused, naming the limit, when a rule does not hold. The
-component has no deadline of its own: an operation's is the domain's,
-and io's close timeout bounds the end of a killed invocation.
+component's one deadline of its own is the sweep's next pass
+(`git-sweep.md`, 4): an operation's is the domain's, and io's close
+timeout bounds the end of a killed invocation.
 
 - **Memory:** operation state and parsed paths grow as they fill; stdout,
-  stderr, reads and sweep pages are bounded at their entrances. No heap
+  stderr, reads and sweep pages are bounded at their entrances, and the
+  sweep's reported entries at 64 (`git-sweep.md`, 3). No heap
   sum is a startup condition: `check` refuses a limit set only for the
   operations, stdout, stderr, read and sweep rules above.
 - **Processes:** at most `operations` git process groups at once.
@@ -1060,7 +1062,8 @@ and io's close timeout bounds the end of a killed invocation.
   at the queue edge toward skein-io. Internal hand-offs reserve no room.
 - **Disk:** the workspaces are the cache's (`../domain/worker/checkouts.md`
   ); `trash` holds no more than the workspaces it took, until the sweep
-  has emptied it.
+  has emptied it of all but what it reports it can't remove
+  (`git-sweep.md`, 3).
 
 ## 9. Testing
 
@@ -1087,8 +1090,8 @@ checks this document's contract:
     both ways, and the classifier of section 6, each against transcripts
     and against their mutations;
   - **the scan's rule** on lines cut across reads, carriage returns, and
-    markers of six and eight characters; **the sweep's step** over a
-    listing;
+    markers of six and eight characters; **the sweep's steps**
+    (`git-sweep.md`, 5);
   - **the program:** an item's spawned in place of `workers[].git`, its
     `git version` at first use, again for a different one and never for
     the same, a version below 2.41 failing the operation unrun; and no
@@ -1111,8 +1114,8 @@ checks this document's contract:
   output cut at random, past each cap, and empty; an exit by a signal;
   the deadline at every invocation of every sequence; a cancel at every
   invocation and racing an exit; a missing identity's value; file
-  operations failing; a `Store` whose store another made first; the sweep
-  over deep and wide trees in pages of two; a view whose every step in the
+  operations failing; a `Store` whose store another made first; the
+  sweep's stories (`git-sweep.md`, 5); a view whose every step in the
   run's directory fails once, made again, and fails twice. Its referee: each operation ends exactly once, with the outcome
   its scripted outputs imply; no invocation starts after a deadline or a
   cancel; every child is closed before its operation's terminal; no
