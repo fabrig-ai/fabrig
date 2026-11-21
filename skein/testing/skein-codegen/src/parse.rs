@@ -114,6 +114,26 @@ fn ty(schema: &schema::Schema, first: TypeIx) -> Type {
     value
 }
 
+fn pieces(schema: &schema::Schema, mut at: TypeIx) -> bool {
+    loop {
+        match schema.ty(at) {
+            schema::Type::List { item, .. } | schema::Type::Option(item) => at = item,
+            schema::Type::Bytes { held, .. } | schema::Type::Secret { held, .. } => {
+                return matches!(held, schema::Held::Pieces(_));
+            }
+            schema::Type::U8
+            | schema::Type::U16
+            | schema::Type::U32
+            | schema::Type::U64
+            | schema::Type::Bool
+            | schema::Type::Duration
+            | schema::Type::Fixed(_)
+            | schema::Type::Text(_)
+            | schema::Type::Named(_) => return false,
+        }
+    }
+}
+
 fn declaration(schema: &schema::Schema, at: DeclIx) -> Declaration {
     let declaration = schema.declaration(at);
     let name = spelling(schema, declaration.name);
@@ -127,6 +147,7 @@ fn declaration(schema: &schema::Schema, at: DeclIx) -> Declaration {
                         line: usize::try_from(field.line).expect("line fits usize"),
                         name: spelling(schema, field.name),
                         ty: ty(schema, field.ty),
+                        pieces: pieces(schema, field.ty),
                     }
                 })
                 .collect();

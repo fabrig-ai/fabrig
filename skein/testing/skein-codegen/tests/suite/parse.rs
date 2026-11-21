@@ -122,7 +122,7 @@ mod tests {
         let with = parse("family f 1\nrecord Item { value: u8 }\nrecord R { a: bytes 8 holds other-family Value b: bytes 9 pieces Item }").expect("held clauses");
         let without =
             parse("family f 1\nrecord Item { value: u8 }\nrecord R { a: bytes 8 b: bytes 9 }").expect("opaque bytes");
-        assert_eq!(with, without);
+        assert_ne!(with, without, "the owned model retains pieces for translation validation");
         assert_eq!(generate(&with), generate(&without));
     }
 
@@ -131,7 +131,7 @@ mod tests {
         let with = parse("family f 1\nrecord Item { value: u8 }\nrecord R { a: secret 8 holds other-family Value b: secret 9 pieces Item }").expect("held clauses");
         let without =
             parse("family f 1\nrecord Item { value: u8 }\nrecord R { a: secret 8 b: secret 9 }").expect("opaque bytes");
-        assert_eq!(with, without);
+        assert_ne!(with, without, "the owned model retains pieces for translation validation");
         assert_eq!(generate(&with), generate(&without));
     }
 

@@ -2,6 +2,7 @@ use super::{Reason, read_count, read_len, read_text, version_of};
 use skein_lib::Reader;
 
 mod bounds;
+mod convert;
 mod fields;
 mod piece;
 
