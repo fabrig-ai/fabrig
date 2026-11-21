@@ -9,6 +9,7 @@
   (`temper-worker-domain-tooling`). 2: the project's `prepare_timeout`
   bounds no command: a command's time is its job's deadline. 6:
   `conflict_files` is no limit, on `files`, `settled` or `left`.
+- **Not yet:** 4.1: the generator's command writes no translation module from a maps file, so the merge job's list names none [in flight: change 11344].
 - **Departs:** 2: every command's `PATH` is `/usr/local/bin:/usr/bin:/bin`, and 6:
   `tooling_file_bytes` and `tooling_log_bytes` are 1 MiB and 64 KiB, the
   small profile's constants with no override
