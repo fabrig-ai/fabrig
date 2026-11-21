@@ -99,6 +99,7 @@ fn durable_panel(panel: &mut temper_engine_domain_forge::Panel) {
 /// (temper/docs/design/domain/forge/adoption.md, 1). Adopted rows persist.
 #[must_use]
 pub fn forges(mut document: temper_engine_domain_forge::Forges) -> temper_engine_domain_forge::Forges {
+    document.full = Box::new([]);
     for row in &mut document.rows {
         row.connection = temper_engine_domain_forge::Connection::NotConnected;
         row.app = None;

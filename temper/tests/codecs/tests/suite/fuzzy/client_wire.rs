@@ -322,7 +322,7 @@ fn drawn_makings(rng: &mut Rng) -> v1::Forges {
         .expect("drawn fields fit the schema ceilings");
     let mut forges = List::with_capacity(1);
     forges.push(parts).expect("drawn fields fit the schema ceilings");
-    v1::Forges { forges, linked: false }
+    v1::Forges { forges, full: List::with_capacity(0), linked: false }
 }
 
 fn drawn_request(rng: &mut Rng) -> v1::Request {

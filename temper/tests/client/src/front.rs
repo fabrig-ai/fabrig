@@ -2332,7 +2332,7 @@ impl Joint {
                 ended_stop: None,
             })
             .expect("playground row fits");
-        *bytes = wire::forges(&w::Forges { forges, linked });
+        *bytes = wire::forges(&w::Forges { forges, full: skein_lib::List::with_capacity(0), linked });
     }
     // Runtime records have no host-supplied version or password until the setup host reports them.
     fn host_forges(event: &mut RootEvent) {
@@ -2357,7 +2357,7 @@ impl Joint {
             }
             forges.push(parts).expect("bounded forge rows");
         }
-        record.bytes = wire::forges(&w::Forges { forges, linked });
+        record.bytes = wire::forges(&w::Forges { forges, full: skein_lib::List::with_capacity(0), linked });
     }
     fn callback(&mut self, client: ClientId, mut event: RootEvent) {
         Self::host_forges(&mut event);

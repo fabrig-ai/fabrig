@@ -8,11 +8,13 @@
 //! until reset without completing the logical read twice.
 use crate::domain::{Alarm, Domain};
 use crate::{Fact, Limits, Priority, Request, bounds};
+use alloc::boxed::Box;
 use skein_forge::api::{self, Answer, Error, Op, Repository};
-use skein_lib::{Duration, Env, Id, Map, Queue, Slab, Time, Token, Wall};
+use skein_lib::{Duration, Env, Id, List, Map, Queue, Slab, Time, Token, Wall};
 
 #[derive(Hash, Debug)]
 pub(crate) struct Call {
+    admitted: u64,
     owner: Owner,
     repository: Repository,
     op: Op,
@@ -24,11 +26,23 @@ pub(crate) struct Call {
     askers: Queue<Id<Call>>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub(crate) enum Owner {
+pub enum Owner {
     Read(Token),
     Entry(u64),
     Resource(crate::Resource),
     Repository(Repository),
+}
+/// A slab holder, without any write content (forge/client.md, 5).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Holder {
+    pub owner: Owner,
+    pub repository: Repository,
+    pub call: Holding,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Holding {
+    Read(api::Read),
+    Write,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum State {
@@ -43,6 +57,7 @@ pub(crate) struct Calls {
     slab: Slab<Call>,
     flights: Map<Token, Id<Call>>,
     sequence: u64,
+    admissions: u64,
     fresh: Queue<Id<Call>>,
     write: Queue<Id<Call>>,
     keep: Queue<Id<Call>>,
@@ -65,6 +80,7 @@ impl Calls {
             slab: Slab::with_capacity(l.pending),
             flights: Map::with_capacity(l.calls),
             sequence: 0,
+            admissions: 0,
             fresh: Queue::with_capacity(l.pending),
             write: Queue::with_capacity(l.pending),
             keep: Queue::with_capacity(l.pending),
@@ -86,6 +102,28 @@ impl Calls {
     pub(crate) fn is_full(&self) -> bool {
         self.slab.is_full()
     }
+    pub(crate) fn holders(&self) -> Box<[Holder]> {
+        let mut ordered = Map::with_capacity(self.slab.len());
+        for (id, call) in &self.slab {
+            ordered.insert(call.admitted, id).expect("one holder per admitted call");
+        }
+        let mut holders = List::with_capacity(ordered.len());
+        for (_, id) in &ordered {
+            let call = self.slab.get(*id).expect("queried holder remains");
+            let holding = match &call.op {
+                Op::Read(read) => Holding::Read(read.clone()),
+                Op::Write(_) => Holding::Write,
+            };
+            holders
+                .push(Holder { owner: call.owner.clone(), repository: call.repository, call: holding })
+                .expect("counted holders");
+        }
+        holders.into_boxed()
+    }
+    fn admit(&mut self) -> u64 {
+        self.admissions = self.admissions.checked_add(1).expect("admission numbers fit in a process");
+        self.admissions
+    }
     pub(crate) fn is_ready(&self) -> bool {
         let queued = !(self.fresh.is_empty() && self.write.is_empty() && self.keep.is_empty() && self.slow.is_empty());
         queued && !self.budget.spent && self.budget.reset.is_none() && self.flights.len() < self.flights.capacity()
@@ -100,7 +138,9 @@ impl Calls {
 }
 /// Caller has checked operation size and admission before entering.
 pub(crate) fn queue(c: &mut Calls, owner: Owner, repository: Repository, op: Op, priority: Priority) {
+    let admitted = c.admit();
     let call = Call {
+        admitted,
         owner,
         repository,
         op,
@@ -171,9 +211,11 @@ pub(crate) fn fresh(c: &mut Calls, owner: Token, repository: Repository, read: a
         }
     }
     if let Some(id) = shared {
+        let admitted = c.admit();
         let asker = c
             .slab
             .insert(Call {
+                admitted,
                 owner: Owner::Read(owner),
                 repository,
                 op,

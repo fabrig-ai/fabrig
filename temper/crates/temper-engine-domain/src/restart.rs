@@ -368,6 +368,7 @@ pub(crate) fn start_action(domain: &mut Domain, env: &Env<Limits>, decision: &mu
         }
         Action::Commit(continuation) => emit(decision, &env.limits, Delivery::Start(continuation)),
         Action::Step(phase) => {
+            domain.start_report = Some(forge::Report::new(env.now));
             #[cfg(test)]
             domain.start_phases.push(phase);
             match phase {
@@ -484,6 +485,9 @@ fn sweep(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision) {
 }
 
 pub(crate) fn connector_start_done(domain: &mut Domain, stage: jig_domain_core::effects::connector::RestartStage) {
+    if domain.core.stopping() || domain.settling.active() {
+        return;
+    }
     let connector = domain.config.forge_connector;
     let phase = match stage {
         jig_domain_core::effects::connector::RestartStage::Restored => Phase::Link,

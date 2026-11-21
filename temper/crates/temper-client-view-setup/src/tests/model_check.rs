@@ -320,6 +320,7 @@ pub(crate) fn fed(kind: d::WayKind) -> (d::Domain, Token, Token) {
     let forges = opening(&out, d::forge::forges::watch(&f::limits().forge).unwrap());
     let forges_doc = v::Forges {
         forges: f::connect_forge::first_rows(f::connect_forge::connected(), f::connect_forge::made()),
+        full: List::with_capacity(0),
         linked: false,
     };
     up(

@@ -1,0 +1,287 @@
+//! The lib phase fixture can hold synchronous Link and `AdoptRuns`; the world driver runs them through.
+use super::{resume::at_phase, resume_fixture as fixture};
+use crate::{Domain, Event, Request, StoreInput, StoreRequest, Write};
+use jig_domain_core::start::{Action, Phase};
+use skein_lib::{Env, Queue};
+use temper_engine_domain_forge as forge;
+
+fn serve(domain: &mut Domain, env: &Env<crate::Limits>, phase: Phase) {
+    let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
+    crate::restart::start_action(domain, env, &mut decision, Action::Step(phase));
+    crate::route::route_into(domain, env, &mut decision);
+    let mut out = Queue::uncapped();
+    crate::domain::close(domain, env, decision, &mut out);
+    assert!(out.is_empty());
+}
+
+fn seeded() -> fixture::StartStore {
+    let limits = fixture::limits();
+    let mut domain = Domain::new(fixture::config(7), &limits).unwrap();
+    let env = Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits };
+    let mut store = fixture::StartStore::new();
+    crate::step(&mut domain, &env, Event::Restart { pending: false });
+    store.run(&mut domain, &env, false);
+    store
+}
+
+fn forge_input(domain: &mut Domain, env: &Env<crate::Limits>, event: forge::Event) {
+    let mut out = Queue::uncapped();
+    forge::step(&mut domain.forge, &crate::translate::environment_forge(env), event, &mut out);
+    // Restore's report is the completed Link work supplied by at_phase.
+    for request in &out {
+        let (forge::Request::RestartDone { .. } | forge::Request::Save { .. } | forge::Request::MarkedForges) = request
+        else {
+            panic!("forge fixture: {request:?}")
+        };
+    }
+}
+
+fn prepare_forge(domain: &mut Domain, env: &Env<crate::Limits>, phase: Phase) {
+    use skein_forge::api::Repository;
+    let repository = Repository { forge: 1, repository: 1 };
+    forge_input(domain, env, forge::Event::Restore { record: forge::Stored::Repository(super::resume::repository()) });
+    if phase == (Phase::ReadAfresh { connector: 0 }) {
+        forge_input(
+            domain,
+            env,
+            forge::Event::Restore {
+                record: forge::Stored::Subscription(forge::Subscriber {
+                    task: 1,
+                    number: 1,
+                    topic: forge::Topic::Landings { repository, branch: b"main".as_slice().into() },
+                    own_change: None,
+                    goal_tasks: None,
+                    paths: Box::new([]),
+                }),
+            },
+        );
+    }
+    if phase == (Phase::SettleOutbox { connector: 0 }) {
+        let mut second = super::resume::repository();
+        second.provider.repository = 2;
+        forge_input(domain, env, forge::Event::Restore { record: forge::Stored::Repository(second.clone()) });
+        for entry in [uncertain(repository), status(second.provider)] {
+            forge_input(domain, env, forge::Event::Restore { record: forge::Stored::Entry { entry, held: false } });
+        }
+    }
+    forge_input(domain, env, forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    forge_input(
+        domain,
+        env,
+        forge::Event::Connection {
+            forge: 1,
+            state: forge::Connection::Connected { id: 1, login: b"writer".as_slice().into() },
+        },
+    );
+    if phase == (Phase::SettleOutbox { connector: 0 }) {
+        forge_input(domain, env, forge::Event::ReadAfresh);
+    }
+}
+
+use temper_limits_fixtures::start_forge::{status, uncertain};
+
+fn answer(domain: &mut Domain, env: &Env<crate::Limits>, call: skein_lib::Token, result: skein_forge::api::Answer) {
+    crate::step(
+        domain,
+        env,
+        Event::Forge(Box::new(forge::Event::Client(skein_forge_client::Event::Answered {
+            call,
+            cost: 1,
+            free: 0,
+            rate: None,
+            result: Ok(result),
+        }))),
+    );
+}
+
+/// Answer only work asked before the stop and the drain's commits. Anything outward is a failure.
+#[expect(
+    clippy::wildcard_enum_match_arm,
+    reason = "every unlisted output, including a future one, fails the stop's negative contract"
+)]
+fn drain(
+    domain: &mut Domain,
+    env: &Env<crate::Limits>,
+    store: &mut fixture::StartStore,
+    mut out: Queue<Request>,
+) -> u32 {
+    let mut words = 0_u32;
+    let mut drained = 0_u32;
+    for _ in 0_u32..1024 {
+        crate::release(domain, env, &mut out);
+        crate::release(domain, env, &mut out);
+        if let Some(request) = out.pop() {
+            match request {
+                Request::ToChild(released) => crate::step(domain, env, Event::Released(released)),
+                Request::Store(StoreRequest::Commit { number, writes }) => {
+                    assert!(!writes.contains(&Write::Wires), "a stop commits no further mark");
+                    store.apply(&writes);
+                    crate::step(domain, env, Event::Store(StoreInput::Committed { number, fill: 0 }));
+                }
+                Request::Restarting { wait } => {
+                    assert_eq!(wait, env.limits.fleet.restart_wait);
+                    words = words.checked_add(1).unwrap();
+                }
+                Request::Drained => drained = drained.checked_add(1).unwrap(),
+                other => panic!("stopping starts nothing outward: {other:?}"),
+            }
+        } else if drained == 1 {
+            break;
+        } else {
+            crate::try_step(domain, env, Event::Resume).unwrap();
+        }
+        domain.reclaim();
+    }
+    assert_eq!(
+        drained,
+        1,
+        "the start drains without waiting for a read or page: {:?}",
+        (domain.start_phase(), &domain.journal, domain.core.stopping())
+    );
+    crate::try_step(domain, env, Event::Resume).unwrap();
+    crate::release(domain, env, &mut out);
+    assert!(out.is_empty(), "the drain is said once");
+    words
+}
+
+fn held_work(
+    domain: &mut Domain,
+    env: &Env<crate::Limits>,
+    store: &mut fixture::StartStore,
+    phase: Option<Phase>,
+    mut owed: Queue<Request>,
+    before_mark: bool,
+    expected: u32,
+) -> Queue<Request> {
+    let mut held = Queue::uncapped();
+    for _ in 0_u32..128 {
+        crate::release(domain, env, &mut owed);
+        crate::release(domain, env, &mut owed);
+        match owed.pop() {
+            Some(Request::ToChild(released)) => crate::step(domain, env, Event::Released(released)),
+            Some(Request::Store(StoreRequest::Commit { number, writes })) if !before_mark => {
+                store.apply(&writes);
+                crate::step(domain, env, Event::Store(StoreInput::Committed { number, fill: 0 }));
+            }
+            Some(Request::Forge {
+                call, op: skein_forge::api::Op::Read(skein_forge::api::Read::Items { .. }), ..
+            }) => {
+                answer(
+                    domain,
+                    env,
+                    call,
+                    skein_forge::api::Answer::Items { cut: false, items: Box::new([]), more: false, now: env.now },
+                );
+            }
+            Some(request) => held.push(request),
+            None if before_mark || phase == Some(Phase::AdoptRuns) || phase.is_none() => break,
+            None => {
+                let expected = if phase == Some(Phase::SettleOutbox { connector: 0 }) { 2 } else { 1 };
+                if held.len() >= expected {
+                    break;
+                }
+                crate::try_step(domain, env, Event::Resume).unwrap();
+            }
+        }
+    }
+    assert_eq!(domain.start_phase(), phase, "the row holds its step");
+    assert_eq!(held.len(), expected, "each row holds its page, commit, read or find and sent write: {phase:?}");
+    held
+}
+
+#[test]
+#[expect(clippy::wildcard_enum_match_arm, reason = "every unlisted held request fails the phase contract")]
+fn a_stop_at_each_start_step_drains_and_the_next_start_opens() {
+    for (phase, before_mark, held_count) in [
+        (Some(Phase::LoadCore), true, 1),
+        (Some(Phase::LoadInbox), true, 1),
+        (Some(Phase::RestoreConnector { connector: 0 }), true, 1),
+        (Some(Phase::Link), true, 0),
+        (Some(Phase::Sweep), true, 1),
+        (Some(Phase::Switch), true, 1),
+        (Some(Phase::Wires), true, 1),
+        (Some(Phase::AdoptRuns), false, 0),
+        (Some(Phase::ReadAfresh { connector: 0 }), false, 1),
+        (Some(Phase::SettleOutbox { connector: 0 }), false, 2),
+        (None, false, 0),
+    ] {
+        let mut store = seeded();
+        let (mut domain, env) = match phase {
+            Some(phase) => at_phase(true, phase),
+            None => fixture::root(),
+        };
+        assert_eq!(domain.start_runtime(), !before_mark, "the root owns the mark boundary");
+        let mut owed = Queue::uncapped();
+        match phase {
+            Some(Phase::Link | Phase::AdoptRuns) | None => {}
+            Some(phase) => {
+                if !before_mark {
+                    prepare_forge(&mut domain, &env, phase);
+                    let row =
+                        crate::Record::Forge { row: Box::new(forge::Stored::Repository(super::resume::repository())) };
+                    store.rows.insert(row.key(), row);
+                    if phase == (Phase::SettleOutbox { connector: 0 }) {
+                        let mut repository = super::resume::repository();
+                        repository.provider.repository = 2;
+                        let row = crate::Record::Forge { row: Box::new(forge::Stored::Repository(repository)) };
+                        store.rows.insert(row.key(), row);
+                    }
+                }
+                serve(&mut domain, &env, phase);
+                crate::release(&mut domain, &env, &mut owed);
+                crate::release(&mut domain, &env, &mut owed);
+            }
+        }
+        let held = held_work(&mut domain, &env, &mut store, phase, owed, before_mark, held_count);
+        let mut owed = held;
+        let steps = domain.start_phases.len();
+        crate::try_step(&mut domain, &env, Event::Stop).unwrap();
+        assert!(domain.core.stopping() || domain.settling.active(), "stop heard at {phase:?}");
+        assert_eq!(domain.core.settling(), !before_mark, "settling follows only the mark at {phase:?}");
+        let mut out = Queue::uncapped();
+        let wires = store.wires;
+        for _ in 0..owed.len() {
+            match owed.pop().unwrap() {
+                Request::Store(StoreRequest::Commit { number, writes }) => {
+                    assert_eq!(writes.contains(&Write::Wires), phase == Some(Phase::Wires));
+                    store.apply(&writes);
+                    crate::step(&mut domain, &env, Event::Store(StoreInput::Committed { number, fill: 0 }));
+                }
+                Request::Store(StoreRequest::Load { .. } | StoreRequest::Switch) => {
+                    assert!(before_mark, "page still owed");
+                    // The stopped start owes no page and asks no following phase.
+                }
+                Request::Forge { op: skein_forge::api::Op::Read(_), .. } => {
+                    assert!(!before_mark, "no forge read before the mark");
+                }
+                Request::Forge { call, op: skein_forge::api::Op::Write(_), .. } => {
+                    assert_eq!(phase, Some(Phase::SettleOutbox { connector: 0 }));
+                    crate::release(&mut domain, &env, &mut out);
+                    assert!(!domain.core.stopping(), "the sent write holds the settled stop");
+                    for request in &out {
+                        if let Request::Drained = request {
+                            panic!("the sent write is still owed");
+                        }
+                    }
+                    answer(&mut domain, &env, call, skein_forge::api::Answer::Done);
+                }
+                other => panic!("unexpected held start work at {phase:?}: {other:?}"),
+            }
+        }
+        crate::release(&mut domain, &env, &mut out);
+        let words = drain(&mut domain, &env, &mut store, out);
+        assert_eq!(words, u32::from(!before_mark), "restart word at {phase:?}");
+        assert_eq!(domain.start_phases.len(), steps, "no further phase at {phase:?}");
+        assert_eq!(store.wires, wires.checked_add(u32::from(phase == Some(Phase::Wires))).unwrap());
+        assert_eq!(domain.core.counters.deployment().restart_wait_ms.is_some(), !before_mark);
+        assert!(domain.core.stopping());
+        assert_eq!(domain.start_phase(), phase, "a stopped start is no refused start");
+        assert!(domain.start_stop().is_none());
+        assert!(domain.work.is_empty());
+        let limits = env.limits;
+        let mut next = Domain::new(fixture::config(7), &limits).unwrap();
+        crate::step(&mut next, &env, Event::Restart { pending: true });
+        store.run(&mut next, &env, false);
+        assert!(next.ready(), "the cold next start opens after {phase:?}");
+    }
+}

@@ -22,6 +22,7 @@ mod link;
 pub use temper_engine_domain_store::loads;
 mod push;
 mod restart;
+mod start_wait;
 pub use temper_engine_domain_forge::{Push, PushAnswer};
 pub mod room;
 mod route;

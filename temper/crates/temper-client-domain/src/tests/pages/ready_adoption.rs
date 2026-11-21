@@ -260,7 +260,7 @@ fn ready_copies(addresses: &[&[u8]], home: Option<u32>) -> (Domain, skein_lib::T
             record: jig_client::Family {
                 family: wire::FORGE,
                 version: wire::CLIENT_VERSION,
-                bytes: wire::forges(&w::Forges { forges, linked: false }),
+                bytes: wire::forges(&w::Forges { forges, full: List::with_capacity(0), linked: false }),
             },
         },
     );
@@ -359,7 +359,7 @@ fn copies_choose_lowest_real_forge_and_offer_its_first_name() {
     let record = jig_client::Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::forges(&w::Forges { forges: rows, linked: false }),
+        bytes: wire::forges(&w::Forges { forges: rows, full: List::with_capacity(0), linked: false }),
     };
     let mut rows = forge::forges::rows(&record, &f::limits().forge).unwrap();
     rows.reverse();

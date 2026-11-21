@@ -25,7 +25,7 @@ pub(crate) fn start(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
     if active(&d.outbox) {
         return;
     }
-    let span = env.limits.lifetime.saturating_add(env.limits.clock_margin).saturating_mul(2);
+    let span = crate::stop_bound(&env.limits);
     d.outbox.stop = State::Settling(env.now.saturating_add(span));
     advance(d, env, out);
 }

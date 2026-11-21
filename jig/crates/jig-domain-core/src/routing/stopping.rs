@@ -78,6 +78,9 @@ pub(crate) fn start(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
     }
     core.stopping = true;
     core.draining = Some(true);
+    if !core.start_opened() {
+        drained(core, &mut out);
+    }
     out
 }
 

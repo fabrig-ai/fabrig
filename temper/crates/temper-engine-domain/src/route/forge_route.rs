@@ -366,7 +366,10 @@ fn describe_agent(
         Some(owner) => owner,
         None => effect_owner(domain),
     };
-    assert!(domain.forge.reserve_call(&env.limits.forge, owner), "room checked without an intervening write");
+    assert!(
+        domain.forge.reserve_call(&super::environment_forge(env), owner, key.task),
+        "room checked without an intervening write"
+    );
     Ok((
         owner,
         EffectFlight::Call { description: Box::new(description), repository, effect: described.effect, key, resource },
@@ -4377,6 +4380,9 @@ pub(crate) fn outputs(
                 );
             }
             forge::Request::BriefTaken { .. } => unreachable!("the root takes completed sections directly"),
+            forge::Request::FullTableFact { words } => {
+                super::diagnostics::emit(domain, crate::Fact::ForgeTable { words });
+            }
             forge::Request::MarkedForges => domain.mark_forges(),
             forge::Request::Marked { tasks } => {
                 const {

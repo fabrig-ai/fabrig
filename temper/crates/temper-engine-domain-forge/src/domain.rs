@@ -22,6 +22,8 @@ mod ci_news;
 mod connection_wait;
 #[cfg(test)]
 mod frozen;
+#[path = "full.rs"]
+pub(crate) mod full;
 #[path = "goal_branch.rs"]
 mod goal_branch;
 pub(crate) mod heads;
@@ -38,6 +40,7 @@ mod rebase;
 #[path = "reds.rs"]
 pub(crate) mod reds;
 pub(crate) mod release;
+mod restart_wait;
 #[path = "restore.rs"]
 mod restore;
 mod room;
@@ -303,6 +306,7 @@ pub struct Domain {
     review_requests: Map<u64, skein_forge::api::Commit>,
     pub(crate) makings: Map<Token, goal_branch::Making>,
     pub(crate) room: crate::room::State,
+    pub(crate) full: full::State,
     pub(crate) panel_ci: Map<u64, change::Ci>,
     pub(crate) issues: Map<u64, IssueRow>,
     pub(crate) releases: Map<u64, ReleaseRow>,
@@ -520,7 +524,7 @@ impl Domain {
             })
             .expect("configured forges");
         }
-        crate::Forges { rows: rows.into_boxed() }
+        crate::Forges { rows: rows.into_boxed(), full: self.full.document() }
     }
     fn forge_installations(&self, forge: u16, kind: crate::Kind) -> Box<[(u64, crate::Installation)]> {
         let mut rows = List::with_capacity(self.installations.len());
@@ -852,12 +856,15 @@ impl Domain {
     }
 
     /// Promise a described call's room until its entry or terminal ask (domain/forge/room.md, 5).
-    pub fn reserve_call(&mut self, limits: &Limits, owner: Token) -> bool {
+    pub fn reserve_call(&mut self, env: &Env<Limits>, owner: Token, task: u64) -> bool {
+        let limits = &env.limits;
         if !crate::room::check(self, limits, None) {
             return false;
         }
         assert!(!self.call_room.contains(&owner), "fresh call flight");
         self.call_room.insert(owner).expect("call reservations fit the outbox");
+        self.full.reserve(full::Reservation::Call(owner), task);
+        full::filled(self, env);
         true
     }
 
@@ -1016,6 +1023,7 @@ impl Domain {
             review_requests: Map::with_capacity(l.changes),
             makings: Map::with_capacity(l.holds),
             room: crate::room::State::new(l),
+            full: full::State::new(l.entries),
             panel_ci: Map::with_capacity(l.changes),
             issues: Map::with_capacity(l.issues),
             releases: Map::with_capacity(l.tasks),
@@ -1109,6 +1117,7 @@ impl Domain {
         self.makings.raise(limits.holds);
         self.reds.raise(limits.branch_reds.checked_mul(limits.holds).expect("checked red capacity"));
         self.entries.raise(limits.entries);
+        self.full.raise(limits.entries);
         self.flights.raise(limits.entries);
         if let Some(outage) = &mut self.outage {
             outage.raise(limits.entries);
@@ -1165,6 +1174,7 @@ impl Domain {
         .chain(self.watch_due)
         .chain(self.playground_due)
         .chain(if self.stopping { None } else { crate::follows::deadline(self) })
+        .chain(self.full.deadline())
         .chain(crate::tiers::deadline(self))
         .chain(goal_branch::deadline(self))
         .chain(if self.stopping { None } else { outage::deadline(self) })
@@ -1203,9 +1213,10 @@ impl Domain {
             return false;
         }
         if self.stopping {
-            return self.client.is_ready();
+            return self.full.dirty || self.client.is_ready();
         }
-        self.tier_ops.dirty
+        self.full.dirty
+            || self.tier_ops.dirty
             || crate::follows::waiting(self)
             || self.next_handoff().is_some()
             || !self.procedure_wakes.is_empty()
@@ -1283,7 +1294,11 @@ impl Domain {
 
     /// Reclaim transient child buffers after the current decision.
     pub fn reclaim(&mut self) {
+        let had_room = self.client.has_room();
         self.client.reclaim();
+        if self.client.has_room() != had_room {
+            self.full.dirty = true;
+        }
         crate::landing::reclaim(self);
         self.brief_reclaim = self.brief_reclaim.wrapping_add(1);
     }
@@ -1769,6 +1784,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::StepLanding { task, entry, heard } => crate::landing::step(d, env, task, entry, heard, out),
         Event::Settle => {
             d.stopping = true;
+            d.restart_fresh = None;
             d.watch_due = None;
             crate::landing::settle(d);
             child(d, env, skein_forge_client::Event::Settle, out);
@@ -2398,6 +2414,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
 
 /// Drive one child call after prior saves have committed.
 pub fn resume(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    full::update(d, env, out);
     if d.restore_fit.is_some() {
         return;
     }
@@ -2445,6 +2462,7 @@ pub fn resume(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 
 /// Expire one client timer.
 pub fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    full::update(d, env, out);
     if d.restore_fit.is_some() {
         return;
     }
@@ -2547,6 +2565,7 @@ pub(crate) fn scripted_outcome(
     reason = "one client-output cohort updates connector state before routing its outcomes"
 )]
 fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    full::update(d, env, out);
     for _ in 0..d.client_out.len() {
         // A handler may drain the remaining output while requesting its next read.
         let Some(request) = d.client_out.pop() else { break };
@@ -2660,6 +2679,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     | skein_forge_client::Outcome::Withdrawn => {
                         if !retain {
                             d.entries.remove(&entry);
+                            full::update(d, env, out);
                             emit(out, Request::Erase { key: Key::Entry(entry) });
                         }
                         erase_flight(d, task, entry, out);
@@ -2741,16 +2761,24 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     lost_read(d, env, owner, result, out);
                 }
             }
-            skein_forge_client::Request::ReadAfreshDone => d.restart_fresh = Some(true),
-            skein_forge_client::Request::OutboxDone => {
-                d.room.ready = true;
-                crate::landing::restore_waits(d, env);
-                emit(out, Request::RestartDone { stage: RestartStage::Settled });
+            skein_forge_client::Request::ReadAfreshDone => {
+                if !d.stopping {
+                    d.restart_fresh = Some(true);
+                }
             }
+            skein_forge_client::Request::OutboxDone => restart_outbox_done(d, env, out),
         }
     }
     written::cleanup(d, env, out);
     read_afresh_complete(d, out);
+}
+
+pub(crate) fn restart_outbox_done(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    if !d.stopping {
+        d.room.ready = true;
+        crate::landing::restore_waits(d, env);
+        emit(out, Request::RestartDone { stage: RestartStage::Settled });
+    }
 }
 
 fn settled_facts(
@@ -8253,6 +8281,7 @@ fn project(
                 return;
             };
             d.projection_room.insert(number).expect("projection reservations fit the outbox");
+            d.full.reserve(full::Reservation::Projection(number), goal);
             emit(out, Request::ProjectionEffect { row, entry, description });
         }
     }

@@ -362,7 +362,11 @@ fn forges(name: &str) -> Box<[u8]> {
                 .expect("four repositories");
         }
     }
-    wire::forges(&w::Forges { forges: List::from_boxed(Box::new([forge])), linked: false })
+    wire::forges(&w::Forges {
+        forges: List::from_boxed(Box::new([forge])),
+        full: List::with_capacity(0),
+        linked: false,
+    })
 }
 // These document fixtures exercise all four projects independently of the shipped watch room.
 fn limits() -> temper_client_domain::Limits {

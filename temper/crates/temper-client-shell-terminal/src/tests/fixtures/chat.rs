@@ -627,7 +627,7 @@ fn demo_forges() -> Box<[u8]> {
             ended_stop: None,
         })
         .expect("one demo forge");
-    wire::forges(&w::Forges { forges, linked: false })
+    wire::forges(&w::Forges { forges, full: skein_lib::List::with_capacity(0), linked: false })
 }
 
 pub fn composer_over_page(words: &[u8]) -> skein_ui::Tree {

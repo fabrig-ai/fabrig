@@ -200,7 +200,7 @@ fn the_deployment_owner_watches_forges_again_after_a_connection_changes() {
         settle(&mut domain, &env).as_ref(),
         [Request::Party(PartyRequest::Deliver(Delivery::Forges {
             watcher: WATCHER,
-            forges: forge::Forges { rows: Box::new([row(forge::Connection::NotSetUp)]) },
+            forges: forge::Forges { full: Box::new([]), rows: Box::new([row(forge::Connection::NotSetUp)]) },
         }))]
     );
     crate::try_step(&mut domain, &env, Event::Party(PartyInput::Delivered { watcher: WATCHER })).unwrap();
@@ -210,6 +210,7 @@ fn the_deployment_owner_watches_forges_again_after_a_connection_changes() {
         [Request::Party(PartyRequest::Deliver(Delivery::Forges {
             watcher: WATCHER,
             forges: forge::Forges {
+                full: Box::new([]),
                 rows: Box::new([row(forge::Connection::SettingUp { step: Some(forge::SetUpStep::Prepare) })])
             },
         }))]
@@ -221,6 +222,7 @@ fn the_deployment_owner_watches_forges_again_after_a_connection_changes() {
         [Request::Party(PartyRequest::Deliver(Delivery::Forges {
             watcher: WATCHER,
             forges: forge::Forges {
+                full: Box::new([]),
                 rows: Box::new([forge::Row {
                     starts_with: forge::StartsWith::Repository,
                     makings: Box::new([]),

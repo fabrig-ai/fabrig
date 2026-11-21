@@ -179,6 +179,7 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "temper-client-world::suite" = "system"
 "temper-codecs-world::suite" = "step"
 "temper-conformance-world::suite" = "domain" # Engine root on crash harness; workers and peers faked.
+"temper-engine-domain::history" = "step" # Public history-range containment, without a world.
 "temper-engine-domain-ways::suite" = "step"
 "temper-engine-domain-world::suite" = "domain"
 "temper-engine-forge-world::suite" = "domain"

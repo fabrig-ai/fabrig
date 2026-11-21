@@ -1504,6 +1504,28 @@ fn job_stderr_forms_escape_and_bound_their_why() {
     }
 }
 #[test]
+fn a_start_wait_note_is_one_bounded_stderr_line() {
+    use temper_engine_service::Note;
+    let line = b"starting: reading the forge afresh for 30 s: 2 fresh reads (work/hello branch main, work/hello pull 7), 4 goal branches (task 40, task 10, task 30)";
+    assert_eq!(
+        note_line("temper-engine", Note::StartWaiting { line: line.as_slice().into() }),
+        "temper-engine serve: starting: reading the forge afresh for 30 s: 2 fresh reads (work/hello branch main, work/hello pull 7), 4 goal branches (task 40, task 10, task 30)\n"
+    );
+    for text in ["starting: a name\nwith\rcontrols\0and é", &"界".repeat(1024)] {
+        let line = note_line("temper", Note::StartWaiting { line: text.as_bytes().into() });
+        assert!(line.len() <= 1024);
+        assert_eq!(line.lines().count(), 1);
+        assert!(line.ends_with('\n'));
+        assert!(!line.contains('\r'));
+        assert!(!line.contains('\0'));
+    }
+    assert_eq!(
+        note_line("custom", Note::StartWaiting { line: b"starting: link for 30 s: task A\ntask B".as_slice().into() }),
+        "custom serve: starting: link for 30 s: task A\\ntask B\n"
+    );
+}
+
+#[test]
 fn core_wait_notes_name_the_reason_and_recovery() {
     use temper_engine_service::{CoreWait, Note};
     for (binary, note, expected) in [
@@ -1647,4 +1669,27 @@ fn the_playground_start_makes_a_private_random_key_before_reading_it() {
     assert_eq!(std::fs::read(target).expect("target unchanged"), b"kept");
     assert!(!std::fs::symlink_metadata(&path).expect("key").is_symlink());
     assert_eq!(std::fs::metadata(&path).expect("key").mode() & 0o777, 0o600);
+}
+
+#[test]
+fn full_table_notes_are_single_bounded_serve_lines() {
+    for words in [
+        "the forge's outbox full for 30 s: 2 of 2, held by entry 7 (task 1), entry 9 (task 2); 1 waiting for room",
+        "the forge's read admission full for 60 s: 2 of 2, held by pull 12 of work/hello for task 42, branch main of work/hello",
+        "the forge's outbox has room again",
+        "the forge's read admission has room again",
+    ] {
+        let line =
+            note_line("temper-engine", temper_engine_service::Note::ForgeTable { words: words.as_bytes().into() });
+        assert_eq!(line, format!("temper-engine serve: {words}\n"));
+        assert_eq!(line.lines().count(), 1);
+        assert!(line.len() <= 1024);
+    }
+    let words = format!("the forge's outbox full for 2 min: {}\n{}", "é".repeat(1000), "z".repeat(100));
+    let line = note_line(
+        "temper-box",
+        temper_engine_service::Note::ForgeTable { words: words.into_bytes().into_boxed_slice() },
+    );
+    assert!(line.len() <= 1024);
+    assert_eq!(line.lines().count(), 1);
 }

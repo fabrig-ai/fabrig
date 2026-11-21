@@ -34,6 +34,8 @@ mod result;
 mod resume;
 pub(super) mod resume_fixture;
 mod setup;
+mod start_stop;
+mod start_wait;
 mod validity;
 
 const LIMITS: Limits =

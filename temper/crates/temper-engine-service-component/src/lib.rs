@@ -187,6 +187,13 @@ pub struct SetupStep {
 /// Operator diagnostics taken by the shell (protocol/forge/engine.md, 3).
 #[derive(PartialEq, Eq, Debug)]
 pub enum Note {
+    ForgeTable {
+        words: Box<[u8]>,
+    },
+    /// One long start-step observation (protocol/README.md, 6.3).
+    StartWaiting {
+        line: Box<[u8]>,
+    },
     /// A client stream closed on its queue or translation bound (client/engine.md).
     ClientStreamFailed {
         sign_in: u64,

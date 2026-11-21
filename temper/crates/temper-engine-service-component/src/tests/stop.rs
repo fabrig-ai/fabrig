@@ -6,6 +6,7 @@
 )]
 mod drop_job;
 mod pre_settings;
+mod start;
 use super::fixtures;
 use crate::{End, Stop};
 use jig_protocol_store::{Family, OpenRefusal};
