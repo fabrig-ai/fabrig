@@ -13,5 +13,4 @@
    the pending-reasons continuation gap remains `settings.status.md`, 6.
    the settings-holder gap remains `settings.status.md`, 6.
    the ignored restore stories remain `settings.status.md`, 10.
-- **Not yet:** *A paused worker leaves placement too*: the fleet takes no ask to pause a worker and no worker's pause state [in flight: change 10983].
 

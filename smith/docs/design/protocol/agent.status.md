@@ -15,7 +15,6 @@ The fake-provider child stories establish no real-provider result.
     with no read-only git directory or machine and no writable scope;
     startup checks no machine for contained trees, and the agent says
     `containment: groups`.
-  - 6 and 8: a termination signal while the run is live is its cancel, whatever its channel (`smith-agent-service/src/service/teardown.rs`, `shutdown`) [in flight: change 10976].
 - **Departs:** 6: a host may have the shell write each model request and what
   a program was given to a private directory (`smith-agent-shell/src/dump.rs`),
   with its lines also in `dump.log` there, because a development deployment

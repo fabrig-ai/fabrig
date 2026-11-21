@@ -14,7 +14,6 @@ remains a tail.
     never reach its owner: `smith-protocol-llm` hands deltas over only
     for a channel's ask, and `smith-local-service`'s `pop_live()` reads
     a spawned agent's alone.
-  - 4: *The kit's terminate follows its cancel* and *A signal the agent heard is its parent's to decide*: the kit terminates without a cancel first, and hands its parent no `Signalled` [in flight: change 10976].
   - 4: an agent spawned in a contained tree, in its view, and gone once
     the tree is proved empty: `smith-host-protocol/src/process.rs`
     spawns a plain child in a process group.
