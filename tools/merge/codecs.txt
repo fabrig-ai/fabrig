@@ -35,4 +35,5 @@ temper/crates/temper-client-protocol-wire/src/generated/client_wire.rs temper/cr
 temper/crates/temper-client-protocol-wire/src/generated/public.rs temper/crates/temper-client-protocol-wire/schema/public-v1.schema
 temper/crates/temper-protocol-records/src/generated/secrets.rs temper/crates/temper-protocol-records/schema/secrets-v1.schema
 temper/crates/temper-protocol-store-codec/src/generated/store.rs temper/crates/temper-protocol-store/schema/store-v25.schema
+temper/crates/temper-protocol-store/src/generated/store.rs temper/crates/temper-protocol-store/schema/store-v25.schema temper/crates/temper-protocol-store/schema/store.maps
 temper/crates/temper-protocol-worker-wire/src/generated/worker_wire.rs temper/crates/temper-protocol-worker-wire/schema/worker-wire-v1.schema
