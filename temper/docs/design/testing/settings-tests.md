@@ -90,7 +90,12 @@ and is live:
 of settings that removes a charter a template names is refused,
 `Fault::Reference`, as jig's whole check does today
 (`jig/docs/design/domain/engine/settings.md`, 1). The same for a producer a template's
-work names is P59's open problem (section 7).
+work names is P59's open problem (section 7). A model is withdrawn,
+never removed, and withdrawing one is never refused, so that an owner
+can always clear what is out of range (the same section): a charter
+naming it offers its next live model, among its alternatives or the
+rest, and the relation holds while every stock charter still resolves
+to a live model.
 
 ## 4. The provider capability fixtures
 
@@ -145,8 +150,8 @@ written case by case, and each names its relation:
 | floor | the figure at its derivation, one below it, and above it | kept at and above; refused below, naming the figure and its source |
 | checked together | each side overridden alone, past the other | refused at start, naming both |
 | holds what it must | the table one below what it must hold | refused, naming the table's setting, where it must hold all; accepted where its design lets it refuse a batch |
-| a reference | each charter, model or producer a template names removed or withdrawn, one at a time | refused, `Fault::Reference`, naming the template; a producer's is P59's |
-| a capability | each named model's efforts emptied, its effort outside its efforts | refused by the catalogue's check, naming the model |
+| a reference | each charter or producer a template names removed, and each model it names withdrawn, one at a time | a charter's removal refused, `Fault::Reference`, naming the template; a producer's is P59's (section 7); a model's withdrawal accepted, the charter still resolving to a live model |
+| a capability | each named model's efforts emptied with its effort kept, and its effort set outside its efforts | refused by the catalogue's check, naming the model; its efforts and its effort both emptied is P128's (section 7) |
 | amendment admission | each role's pool and decided kinds narrowed by one | the address moves to a role whose acceptance passes, or the proposal is refused as nobody's (`jig/docs/design/domain/tasks/proposals.md`) |
 
 The decision is judged through the code that makes it at a start or at
