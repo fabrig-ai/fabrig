@@ -71,6 +71,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::JoinLanding { .. }
             | forge::Event::Landing { .. }
             | forge::Event::VetoLanding { .. }
+            | forge::Event::DeferLandingMerge { .. }
             | forge::Event::StepLanding { .. }
             | forge::Event::TierWords { .. }
             | forge::Event::TierTask { .. }

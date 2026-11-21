@@ -4881,7 +4881,7 @@ fn following_wait(d: &Domain, task: u64) -> Option<policy::Awaited> {
     })
 }
 
-/// Startup's fresh-read wake may precede task activation; rebuild the poll after settlement
+/// Startup's fresh-read wake may precede task activation; rebuild the poll at `CatchUp`
 /// (domain/landing.md, 12; domain/root.md, 8.1).
 pub(crate) fn restore_waits(d: &mut Domain, env: &Env<Limits>) {
     for (task, row) in &d.landing.rows {
@@ -5478,6 +5478,48 @@ impl Domain {
         Some((kept.repository, what, crate::AgentEffect { effect: kept.effect.clone(), kind, state, form, recovery }))
     }
 }
+/// Authority's wait is not a refused merge: it spent no send and keeps its turn
+/// (domain/forge/catching-up.md, 4; domain/landing.md, 8).
+pub(crate) fn defer_merge(d: &mut Domain, task: u64, entry: u64, out: &mut Queue<Request>) {
+    if !matches_entry(d, task, entry) {
+        return;
+    }
+    let mut row = d.landing.rows.get(&task).expect("staged landing").clone();
+    let mut entries = List::with_capacity(d.landing.limits.entries);
+    for item in &row.entries {
+        if item.entry != entry {
+            entries.push(*item).expect("bounded entries");
+            continue;
+        }
+        match item.operation {
+            Operation::Merge => {
+                if !row.landing.round.branch.is_empty() {
+                    row.landing.round.merges = row.landing.round.merges.checked_sub(1).expect("staged merge counted");
+                }
+            }
+            Operation::Record => {}
+            Operation::Dispatch
+            | Operation::Rerun
+            | Operation::Pending
+            | Operation::Verdict
+            | Operation::Open
+            | Operation::Close
+            | Operation::Delete => unreachable!("only merge authority is deferred"),
+        }
+        d.landing
+            .results
+            .insert((task, item.member, item.gate, operation(item.operation)), (policy::Status::Unknown, false))
+            .expect("staged effect position");
+    }
+    row.entries = entries.into_boxed();
+    d.entries.remove(&entry);
+    emit(out, Request::Erase { key: Key::Entry(entry) });
+    save(d, row, out);
+    if super::domain::wait_fresh(d, task) {
+        d.landing.due.remove(&task);
+    }
+}
+
 /// A refused entry never reaches the client and is observed as failed next step.
 pub(crate) fn veto(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, out: &mut Queue<Request>) {
     if !matches_entry(d, task, entry) {

@@ -1004,16 +1004,42 @@ impl World {
             LIMITS.landing_members,
             None,
         );
+        world.second_repository(Box::new([workflow]));
+        world
+    }
+    /// Two independent repositories, without a runner workflow.
+    #[must_use]
+    pub fn with_second_repository(seed: u64) -> World {
+        let mut world = Self::configured_repositories(
+            seed,
+            LIMITS.facts,
+            false,
+            Some(skein_forge_client::Writer { forge: REPO.forge, author: 1 }),
+            None,
+            false,
+            4,
+            false,
+            None,
+            repository_config(2),
+            None,
+            LIMITS.landing_members,
+            None,
+        );
+        world.second_repository(Box::new([]));
+        world
+    }
+
+    fn second_repository(&mut self, workflows: Box<[raw::Workflow]>) {
         forge::repository(
-            &mut world.forge,
-            &world.forge_env.limits,
+            &mut self.forge,
+            &self.forge_env.limits,
             raw::Setup {
                 id: 3,
                 name: Box::from(b"org/second".as_slice()),
                 default: Box::from(b"main".as_slice()),
                 tree: Box::new([]),
                 labels: Box::new([]),
-                workflows: Box::new([workflow]),
+                workflows,
                 protection: None,
                 hooked: false,
                 checks: raw::Checks {
@@ -1029,16 +1055,16 @@ impl World {
             },
         );
         forge::manual_merges(
-            &mut world.forge,
+            &mut self.forge,
             b"org/second",
             raw::ManualMerges { allow_manual_merge: true, autodetect_manual_merge: true },
         );
-        forge::grant(&mut world.forge, b"org/second", 1, raw::Permission::Admin);
-        forge::grant(&mut world.forge, b"org/second", 2, raw::Permission::Write);
-        world
+        forge::grant(&mut self.forge, b"org/second", 1, raw::Permission::Admin);
+        forge::grant(&mut self.forge, b"org/second", 2, raw::Permission::Write);
     }
-    /// Prepare a second member through the independent repository's git and pull API.
-    pub fn public_second(&mut self, task: u64, branch: &[u8]) {
+
+    /// Adopt and push a change branch in the independent second repository.
+    pub fn produce_second(&mut self, branch: &[u8]) {
         self.event(top::Event::Application {
             role: None,
             carried: None,
@@ -1068,6 +1094,11 @@ impl World {
         );
         forge::advance(&mut self.forge, &self.forge_env, b"org/second", branch, b"file", b"change", 1)
             .expect("second change");
+    }
+
+    /// Prepare a second member through the independent repository's git and pull API.
+    pub fn public_second(&mut self, task: u64, branch: &[u8]) {
+        self.produce_second(branch);
         let raw::Answer::Created(pull) = self.external_repository(
             b"org/second",
             raw::Op::Write(raw::Write::OpenPull {

@@ -932,7 +932,7 @@ fn a_goal_branch_already_gone_completes_its_release() {
 }
 
 #[test]
-fn a_goal_branch_found_missing_after_restart_waits_for_settle_before_asking() {
+fn a_goal_branch_found_missing_after_restart_is_asked_as_its_read_ends() {
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(
@@ -949,14 +949,12 @@ fn a_goal_branch_found_missing_after_restart_waits_for_settle_before_asking() {
         },
     );
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::CatchUp);
+    let started = outputs(&mut d, Event::CatchUp);
+    assert!(started.contains(&Request::RestartDone { stage: RestartStage::Settled }));
     let missing = fixtures::answer_next(&mut d, Err(Error::Missing));
     assert!(missing.contains(&Request::RestartDone { stage: RestartStage::ReadAfresh }), "{missing:?}");
     assert_no_making(&missing);
-    let settled = missing;
-    assert!(settled.contains(&Request::RestartDone { stage: RestartStage::Settled }), "{settled:?}");
-    assert!(settled.contains(&Request::ContinueGoalBranch { task: GOAL }), "{settled:?}");
-    assert_no_making(&settled);
+    assert!(missing.contains(&Request::ContinueGoalBranch { task: GOAL }), "{missing:?}");
     outputs(&mut d, Event::ContinueGoalBranch { task: GOAL, entry: TAKING });
     let (call, op) = fixtures::next_call(&mut d);
     assert_eq!(op, Op::Read(Read::Branch { branch: b"main".as_slice().into() }));

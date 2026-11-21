@@ -96,10 +96,8 @@ fn full(kind: &str) -> Domain {
             .unwrap();
     }
     outputs(&mut d, Event::Landing { row });
-    outputs(&mut d, Event::Client(skein_forge_client::Event::PauseOutbox));
     for number in 1..=u64::from(env().limits.entries) {
         outputs(&mut d, Event::Enqueue { entry: refusals::entry(number) });
-        outputs(&mut d, Event::Committed { entry: number });
     }
     d
 }

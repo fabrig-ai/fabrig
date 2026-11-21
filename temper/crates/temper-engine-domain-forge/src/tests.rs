@@ -8,6 +8,7 @@ mod away;
 mod binding;
 mod brief_document;
 mod catching_up_changes;
+mod catching_up_outbox;
 mod change;
 #[path = "tests/brief.rs"]
 mod ci_brief;
@@ -913,7 +914,11 @@ fn restored_ci_subscriptions_are_read_in_the_fresh_step_and_delay_its_completion
         &[Request::RestartDone { stage: RestartStage::Restored }]
     );
     let fresh = outputs(&mut d, Event::CatchUp);
-    assert!(fresh.is_empty(), "the subscription read is scheduled before completion");
+    assert_eq!(
+        fresh.as_ref(),
+        &[Request::RestartDone { stage: RestartStage::Settled }],
+        "the subscription read delays only the fresh half"
+    );
     let calls = ready(&mut d);
     let Request::Call { call, op: skein_forge::api::Op::Read(skein_forge::api::Read::Checks { commit }), .. } =
         &calls[0]

@@ -2205,6 +2205,17 @@ fn a_done_tier_ends_with_the_verdicts_words() {
     assert_eq!(closing.ending, tasks::Ending::Done(tasks::TaskResult::Report { words: Box::from(words.as_slice()) }));
 }
 
+#[test]
+fn a_landing_merge_waiting_on_authority_is_deferred_not_vetoed() {
+    use super::{Work, authority, forge};
+    let (mut domain, env) = procedure_root();
+    while domain.work.pop().is_some() {}
+    super::drop_landing(&mut domain, &env, 91, 61, None, authority::Answer::Wait, true);
+    let Some(Work::Forge(event)) = domain.work.pop() else { panic!("deferred merge") };
+    assert_eq!(event, forge::Event::DeferLandingMerge { task: 61, entry: 91 });
+    assert!(domain.work.is_empty(), "waiting does not hold the landing");
+}
+
 fn reserve_period(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>) {
     use super::tasks;
     let seed = domain.core.repair_seed(1).expect("unreserved period can fund an agent");

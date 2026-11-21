@@ -10,10 +10,8 @@ const FRESH: u64 = 101;
 
 pub(super) fn full() -> Domain {
     let mut d = refusals::adopted_domain();
-    outputs(&mut d, Event::Client(skein_forge_client::Event::PauseOutbox));
     for number in 1..=u64::from(env().limits.entries) {
         outputs(&mut d, Event::Enqueue { entry: refusals::entry(number) });
-        outputs(&mut d, Event::Committed { entry: number });
     }
     d
 }
@@ -211,8 +209,12 @@ fn change_room_places_restart_without_the_decision_that_waited() {
     for (_, entry) in &before.entries {
         outputs(&mut d, Event::Restore { record: Stored::Entry { entry: entry.entry.clone(), held: true } });
     }
+    outputs(&mut d, Event::Restore { record: Stored::Names { task: 99, resources: Box::new([branch()]) } });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut d, Event::CatchUp);
+    assert!(d.room.ready, "the line is ready at CatchUp");
+    let (fresh, _) = fixtures::next_call(&mut d);
+    assert!(!d.fresh_reads_in(), "the watched branch still owes its fresh read");
 
     for (task, place) in [(FIRST, 1), (SECOND, 2)] {
         let saved = d.change(task).unwrap();
@@ -225,6 +227,9 @@ fn change_room_places_restart_without_the_decision_that_waited() {
     assert_eq!(room::reserved(&d), 0);
     let freed = outputs(&mut d, Event::Resolve { entry: 1, again: false });
     assert_eq!(asks(&freed).as_ref(), &[FIRST]);
+    assert!(!d.fresh_reads_in(), "free room is asked before the fresh reads end");
+    fixtures::answer(&mut d, fresh, Ok(Answer::Commit(fixtures::HEAD)));
+    assert!(d.fresh_reads_in());
     let kept = open(&mut d, FIRST, FRESH);
     assert_eq!(entries(&kept).len(), 1);
     assert_eq!(entries(&kept).first().unwrap().number, FRESH);

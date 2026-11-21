@@ -101,7 +101,6 @@ fn fixture_with_proposal(full: bool, proposal: bool) -> (Domain, Env<Limits>, Ca
     step(&mut domain, &env, forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     step(&mut domain, &env, forge::Event::CatchUp);
 
-    step(&mut domain, &env, forge::Event::Client(skein_forge_client::Event::PauseOutbox));
     let key = CallKey { task, attempt: 1, completion: 1, position: 0 };
     domain
         .call_renders

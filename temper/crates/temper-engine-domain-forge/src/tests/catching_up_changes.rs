@@ -267,15 +267,27 @@ fn tier_results_and_pending_reruns_wait_for_fresh_reads_and_each_restored_entry(
             for number in [DISPATCH, DISPATCH + 1] {
                 let mut entry = status(number, TIER_TASK);
                 entry.effect.write = api::Write::Rerun { attempt: pending };
+                entry.start = held_issue().start;
+                entry.attempt = held_issue().attempt;
                 restore(&mut d, Stored::Entry { entry, held: false });
             }
             begin(&mut d, &env());
             let mut fresh_calls = Vec::new();
-            for _ in 0_u8..2 {
+            for _ in 0_u8..3 {
+                if fresh_calls.len() == 2 {
+                    break;
+                }
                 let (call, op) = fixtures::next_at(&mut d, &env());
-                let Op::Read(Read::Branch { branch }) = op else { panic!("branch watch: {op:?}") };
-                fresh_calls.push((call, branch));
+                match op {
+                    Op::Read(Read::Branch { branch }) => fresh_calls.push((call, branch)),
+                    Op::Read(Read::Run { run: 71 }) => {
+                        // The restored find runs beside the pass, and still owes its first look.
+                        fixtures::answer_at(&mut d, &env(), call, Err(api::Error::Unavailable));
+                    }
+                    unexpected => panic!("branch watch or restored rerun find: {unexpected:?}"),
+                }
             }
+            assert_eq!(fresh_calls.len(), 2);
             let before = tier_step(&mut d, 40);
             no_tier_effects(&before);
             let mut all = Queue::uncapped();

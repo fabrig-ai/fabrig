@@ -968,6 +968,79 @@ fn turn_reviews_at(d: &mut Domain, entry: u64, main: skein_forge::api::Commit) -
     fixtures::answer(d, call, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }))
 }
 
+#[test]
+fn a_startup_landing_read_without_a_number_does_not_hold_another_write() {
+    use skein_forge::api::{Answer, Op, Read};
+    let mut d = landing_fixture();
+    outputs(&mut d, Event::Restore { record: Stored::Landing(merge_landing_row(false)) });
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::CatchUp);
+    let (_fresh, op) = fixtures::next_call(&mut d);
+    assert_eq!(op, Op::Read(Read::Branch { branch: b"temper/51".as_slice().into() }));
+    assert!(!d.fresh_reads_in());
+    let entry = status(91, 8);
+    outputs(&mut d, Event::Enqueue { entry: entry.clone() });
+    outputs(&mut d, Event::Committed { entry: 91 });
+    let (clock, op) = fixtures::next_call(&mut d);
+    assert_eq!(op, Op::Read(Read::Items { since: Time::from_nanos(u64::MAX), page: 1, kind: None, single: false }));
+    fixtures::answer(&mut d, clock, Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now }));
+    let (write, op) = fixtures::next_call(&mut d);
+    assert_eq!(op, Op::Write(entry.effect.write));
+    fixtures::answer(&mut d, write, Ok(Answer::Done));
+    assert!(!d.entries.contains_key(&91));
+    assert!(!d.fresh_reads_in(), "the startup gather's unanswered read holds no write");
+}
+
+#[test]
+fn a_merge_waiting_on_authority_retries_without_spending_a_send() {
+    let mut d = turn_fixture();
+    let start = 91_u64;
+    let end = start + u64::from(env().limits.client.write_attempts) + 1;
+    for entry in start..end {
+        turn_reviews_at(&mut d, entry, fixtures::BASE);
+        d.decide_landing(&env(), 61, true, &mut Queue::uncapped());
+        assert!(d.describe_landing_effect(61, entry).is_some(), "the merge is staged afresh");
+        assert_eq!(d.landing(61).unwrap().landing.round.merges, 1);
+        let deferred = outputs(&mut d, Event::DeferLandingMerge { task: 61, entry });
+        assert!(deferred.contains(&Request::Erase { key: Key::Entry(entry) }));
+        assert!(d.describe_landing_effect(61, entry).is_none());
+        assert!(d.landing(61).unwrap().entries.is_empty());
+        assert_eq!(d.landing(61).unwrap().landing.round.merges, 0, "waiting spends no send");
+        assert!(matches!(d.landing(61).unwrap().landing.phase, policy::Phase::Turn { .. }));
+        outputs(&mut d, Event::Committed { entry });
+        assert!(ready(&mut d).is_empty(), "an unadmitted merge never reaches the client");
+    }
+}
+
+#[test]
+fn a_record_waiting_on_authority_is_unknown_not_failed() {
+    let mut d = turn_fixture();
+    let mut entry = status(91, 61);
+    entry.effect.write = skein_forge::api::Write::Merge {
+        number: 1,
+        head: fixtures::HEAD,
+        how: skein_forge::api::MergeHow::Recorded { commit: fixtures::HEAD },
+    };
+    entry.effect.condition = skein_forge_client::Condition::Merge { base: b"main".as_slice().into() };
+    outputs(&mut d, Event::Enqueue { entry });
+    d.landing.rows.get_mut(&61).unwrap().entries = Box::new([LandingEntry {
+        entry: 91,
+        member: 0,
+        gate: 0,
+        operation: Operation::Record,
+        run: None,
+        preparation: Some(0),
+        base: Some(fixtures::BASE),
+    }]);
+    d.landing.results.insert((61, 0, 0, 9), (policy::Status::Pending, false)).unwrap();
+    let deferred = outputs(&mut d, Event::DeferLandingMerge { task: 61, entry: 91 });
+    assert!(deferred.contains(&Request::Erase { key: Key::Entry(91) }));
+    assert!(d.describe_landing_effect(61, 91).is_none());
+    assert!(d.landing(61).unwrap().entries.is_empty());
+    assert_eq!(d.landing(61).unwrap().landing.round.merges, 0);
+    assert_eq!(d.landing.results.get(&(61, 0, 0, 9)), Some(&(policy::Status::Unknown, false)));
+}
+
 /// A restored merge is recovered by its outbox entry, not proposed again (domain/landing.md, 12).
 #[test]
 fn a_restored_turn_waits_for_its_existing_merge_entry() {

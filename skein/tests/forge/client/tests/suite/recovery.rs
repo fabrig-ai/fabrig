@@ -41,7 +41,7 @@ fn a_deleted_uncertain_branch_is_held_after_its_deadline() {
 }
 
 #[test]
-fn restart_reads_afresh_before_settling_the_outbox() {
+fn restart_reads_afresh_and_settles_without_renewing_an_attempt() {
     let mut world = World::new(Settings::calm(41));
     let resource = Resource { repository: REPO, what: What::Branch(Box::from(&b"main"[..])) };
     world.keep(Box::new([Watch { resource: resource.clone(), participating: false }]));

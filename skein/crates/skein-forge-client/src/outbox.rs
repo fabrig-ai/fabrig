@@ -25,7 +25,6 @@ use skein_lib::{Duration, Env, Map, Queue, Time, Wall};
 pub(crate) struct Outbox {
     entries: Map<u64, Writing>,
     ready: bool,
-    paused: bool,
     settling: bool,
     clock: RecoveryClock,
     stop: stop::State,
@@ -74,7 +73,6 @@ impl Outbox {
         Outbox {
             entries: Map::with_capacity(l.entries),
             ready: false,
-            paused: false,
             settling: false,
             clock: RecoveryClock::Monotonic,
             stop: stop::State::Running,
@@ -84,7 +82,7 @@ impl Outbox {
         self.entries.raise(entries);
     }
     pub(crate) fn is_ready(&self, keep: &crate::keep::Keep) -> bool {
-        if !self.ready || self.paused {
+        if !self.ready {
             return false;
         }
         for (&number, writing) in &self.entries {
@@ -236,13 +234,8 @@ pub(crate) fn restored(d: &mut Domain, clock: RecoveryClock) {
     d.outbox.ready = true;
     d.outbox.clock = clock;
 }
-pub(crate) fn pause(d: &mut Domain) {
-    assert!(d.outbox.ready, "pause after restore");
-    d.outbox.paused = true;
-}
 pub(crate) fn start_settle(d: &mut Domain) {
-    assert!(d.outbox.ready && d.outbox.paused, "settle follows restored fresh reads");
-    d.outbox.paused = false;
+    assert!(d.outbox.ready, "settle follows restore");
     d.outbox.settling = true;
 }
 pub(crate) fn settle_done(d: &mut Domain) -> bool {
@@ -298,7 +291,7 @@ pub(crate) fn withdrawn(d: &Domain, number: u64) -> bool {
     }
 }
 pub(crate) fn pump(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) -> bool {
-    if !d.outbox.ready || d.outbox.paused || d.calls.is_full() {
+    if !d.outbox.ready || d.calls.is_full() {
         return false;
     }
     let mut selected = None;

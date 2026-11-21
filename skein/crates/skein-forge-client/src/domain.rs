@@ -226,7 +226,6 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             outbox::restored(d, clock);
             keep::restore::restored(d);
         }
-        Event::PauseOutbox => outbox::pause(d),
         Event::ReadAfresh => {
             keep::restore::start_fresh(d);
             if keep::restore::fresh_done(d) {

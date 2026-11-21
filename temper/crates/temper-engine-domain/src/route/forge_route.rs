@@ -5378,7 +5378,7 @@ pub(crate) fn effect_ask(
                     }));
                 }
                 Some(EffectFlight::Landing { entry, task, evidence, description }) => {
-                    drop_landing(domain, env, entry, task, evidence, answer);
+                    drop_landing(domain, env, entry, task, evidence, answer, description.effect.kind == 4);
                     if answer != authority::Answer::Wait {
                         let words = holds::effect_refusal(domain, task, &description, why, &findings);
                         domain.work.push(Work::Tasks(tasks::Event::HoldFrom {
@@ -5473,8 +5473,14 @@ fn drop_landing(
     task: u64,
     evidence: Option<Box<[forge::LandingEvidence]>>,
     answer: authority::Answer,
+    merge: bool,
 ) {
-    domain.work.push(Work::Forge(forge::Event::VetoLanding { task, entry }));
+    let event = if answer == authority::Answer::Wait && merge {
+        forge::Event::DeferLandingMerge { task, entry }
+    } else {
+        forge::Event::VetoLanding { task, entry }
+    };
+    domain.work.push(Work::Forge(event));
     if answer == authority::Answer::Wait {
         if let Some(evidence) = evidence {
             for evidence in evidence {

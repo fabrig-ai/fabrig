@@ -218,7 +218,6 @@ pub(super) fn track(d: &mut Domain, env: &Env<Limits>, event: &Event) {
         | Event::Withdraw { .. }
         | Event::Restore { .. }
         | Event::Restored { .. }
-        | Event::PauseOutbox
         | Event::ReadAfresh
         | Event::SettleOutbox => {}
     }

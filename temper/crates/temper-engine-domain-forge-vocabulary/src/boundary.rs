@@ -2217,6 +2217,11 @@ pub enum Event {
     Landing {
         row: LandingRow,
     },
+    /// An uncommitted merge waits for authority: give up its number, not the turn.
+    DeferLandingMerge {
+        task: u64,
+        entry: u64,
+    },
     VetoLanding {
         task: u64,
         entry: u64,

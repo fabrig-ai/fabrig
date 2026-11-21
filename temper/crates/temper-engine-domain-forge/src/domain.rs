@@ -193,7 +193,7 @@ pub(crate) struct Outboxed {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum Handoff {
     Uncommitted,
-    /// Restored entries enter the client only at `SettleOutbox`.
+    /// Restored entries enter the client first at `CatchUp`.
     Restored,
     Ready,
     Handed,
@@ -1243,19 +1243,19 @@ impl Domain {
 
     fn next_handoff(&self) -> Option<u64> {
         for (number, row) in &self.entries {
-            if row.handoff == Handoff::Handed {
+            if row.handoff == Handoff::Handed || held_landing(self, &row.entry) {
                 continue;
             }
             if row.handoff != Handoff::Ready || goal_branch::reserved_before(self, *number) {
                 return None;
             }
             for (_, pending) in &self.steps {
-                if pending.entry < *number {
+                if pending.entry != 0 && pending.entry < *number {
                     return None;
                 }
             }
             for (_, pending) in &self.landing.pending {
-                if pending.entry < *number {
+                if pending.entry != 0 && pending.entry < *number {
                     return None;
                 }
             }
@@ -1789,6 +1789,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::JoinLanding { task, member, after } => crate::landing::join(d, task, member, &after, out),
         Event::Landing { row } => crate::landing::register(d, env, row, out),
         Event::VetoLanding { task, entry } => crate::landing::veto(d, env, task, entry, out),
+        Event::DeferLandingMerge { task, entry } => crate::landing::defer_merge(d, task, entry, out),
         Event::StepLanding { task, entry, heard } => crate::landing::step(d, env, task, entry, heard, out),
         Event::Settle => {
             d.stopping = true;
@@ -2408,7 +2409,12 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::Client(event) => child(d, env, event, out),
         Event::Restore { record } => restore(d, env, record),
         Event::Restored { clock } => restored(d, env, clock, out),
-        Event::CatchUp => read_afresh(d, env, out),
+        Event::CatchUp => {
+            read_afresh(d, env, out);
+            settle_outbox(d, env, out);
+            d.room.ready = true;
+            crate::landing::restore_waits(d, env);
+        }
     }
     release::first_page(d, env, out);
     if d.retire_pending {
@@ -2772,8 +2778,6 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
             }
             skein_forge_client::Request::ReadAfreshDone => d.restart_fresh = Some(true),
             skein_forge_client::Request::OutboxDone => {
-                d.room.ready = true;
-                crate::landing::restore_waits(d, env);
                 emit(out, Request::RestartDone { stage: RestartStage::Settled });
             }
         }
@@ -8589,8 +8593,8 @@ fn handoff_one(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         return;
     }
     // skein's forge/client.md, 7.2: each new Make is above every held entry.
-    // Fresh-read chains and goal-branch makings retain their reserved numbers; built changes,
-    // projections and releases share this outbox and wait for lower chains
+    // Decision reads and goal-branch makings retain their reserved numbers; startup
+    // reads have none. Built changes, projections and releases wait for lower chains
     // and entries to finish or commit. Hand over at most one per step.
     let Some(number) = d.next_handoff() else { return };
     let row = d.entries.get_mut(&number).expect("selected entry remains");
@@ -9863,7 +9867,6 @@ fn restored(d: &mut Domain, env: &Env<Limits>, clock: skein_forge_client::Recove
     child(d, env, skein_forge_client::Event::Restored { clock }, out);
     retire_ended(d, env, out);
     admission::writers(d, env);
-    child(d, env, skein_forge_client::Event::PauseOutbox, out);
     for (_, record) in &d.records {
         if !d.forge_ended(record.number) {
             emit(out, Request::ForgeKept(record.clone()));
@@ -9874,23 +9877,27 @@ fn restored(d: &mut Domain, env: &Env<Limits>, clock: skein_forge_client::Recove
     emit(out, Request::RestartDone { stage: RestartStage::Restored });
 }
 
+fn held_landing(d: &Domain, entry: &skein_forge_client::Entry) -> bool {
+    let mut landing = d.landing.rows.contains_key(&entry.task);
+    if let skein_forge::api::Write::Merge { .. } = entry.effect.write {
+        landing = true;
+    }
+    d.landing.held && landing
+}
+
 fn settle_outbox(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     // A held entry waits for a person, out of the client's outbox.
     let mut entries = List::with_capacity(env.limits.entries);
     for (_, row) in &d.entries {
-        let mut landing = d.landing.rows.contains_key(&row.entry.task);
-        if let skein_forge::api::Write::Merge { .. } = row.entry.effect.write {
-            landing = true;
-        }
-        if d.landing.held && landing {
+        if held_landing(d, &row.entry) {
             continue;
         }
-        if !row.held && row.handoff != Handoff::Handed {
+        if !row.held && row.handoff == Handoff::Restored {
             entries.push(row.entry.clone()).expect("entry list capacity");
         }
     }
     for entry in &entries {
-        // Startup reconciliation can build entries before Restored too.
+        // The restored set precedes entries kept by startup reconciliation.
         d.entries.get_mut(&entry.number).expect("restored entry remains").handoff = Handoff::Handed;
         child(d, env, skein_forge_client::Event::Make { entry: entry.clone() }, out);
     }
@@ -10117,7 +10124,7 @@ pub(crate) fn erase_removed_repositories(
     !kept
 }
 
-// A making's write waits until after the settle; reading afresh ends on reads
+// A making's write belongs to its line and lane; reading afresh ends on reads
 // alone (temper/docs/design/domain/forge/branches.md, 1).
 fn read_afresh_complete(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     if d.restart_fresh == Some(true)
@@ -10151,7 +10158,6 @@ fn read_afresh_complete(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Reque
         crate::tiers::fresh(d, env, out);
         crate::follows::fresh(d, out);
         d.fresh_branches = Set::with_capacity(d.fresh_branches.capacity());
-        settle_outbox(d, env, out);
     }
 }
 
