@@ -174,6 +174,7 @@ pub fn assignment_record(transcript: Box<[u8]>) -> wire::Assignment {
         })
         .expect("room");
     wire::Assignment {
+        parts: Box::new([]),
         task: 7,
         attempt: 2,
         identity: [9; 16],

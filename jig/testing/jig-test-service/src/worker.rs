@@ -376,7 +376,8 @@ impl Worker {
                     }
                 }
                 link::Request::Closed => self.closed = true,
-                link::Request::Figures { .. }
+                link::Request::ResendPart { .. }
+                | link::Request::Figures { .. }
                 | link::Request::Refused { .. }
                 | link::Request::Fact { .. }
                 | link::Request::Restarting { .. }

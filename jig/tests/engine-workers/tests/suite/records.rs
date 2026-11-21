@@ -36,6 +36,7 @@ mod records {
         match request {
             Request::Hello { .. } => Record::Hello,
             Request::Up { up, .. } => match up {
+                LinkUp::Part { .. } => panic!("parts are acknowledged below the domain"),
                 LinkUp::Ask { .. } => Record::Ask,
                 LinkUp::UsageRead { .. } | LinkUp::ListRead { .. } => Record::ListRead,
                 // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too.

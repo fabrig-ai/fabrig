@@ -25,6 +25,7 @@ pub fn is_new_work(event: &Event) -> bool {
             host::LinkDown::Sources { .. }
             | host::LinkDown::Asked { .. }
             | host::LinkDown::Relayed { .. }
+            | host::LinkDown::PartKept { .. }
             | host::LinkDown::TurnKept { .. }
             | host::LinkDown::Acknowledge { .. }
             | host::LinkDown::Pause { .. }
@@ -61,6 +62,7 @@ pub fn passes(event: &Event) -> bool {
     match event {
         Event::Link(
             host::LinkDown::Asked { .. }
+            | host::LinkDown::PartKept { .. }
             | host::LinkDown::TurnKept { .. }
             | host::LinkDown::Acknowledge { .. }
             | host::LinkDown::Relayed { .. },

@@ -391,7 +391,8 @@ impl Joined {
                 self.worker_order.push("value");
                 self.values.push(request);
             }
-            Request::Figures { .. }
+            Request::ResendPart { .. }
+            | Request::Figures { .. }
             | Request::RelayCancelled { .. }
             | Request::Lost
             | Request::Restarting { .. }
@@ -432,6 +433,7 @@ impl Joined {
                         Some(host::LinkDown::Acknowledge { run: *run, attempt: *attempt })
                     }
                     host::LinkUp::Ask { .. }
+                    | host::LinkUp::Part { .. }
                     | host::LinkUp::Piece { .. }
                     | host::LinkUp::Activity { .. }
                     | host::LinkUp::Unauthorized { .. }

@@ -70,6 +70,7 @@ pub(crate) enum Up {
     Source(host::LinkUp),
     Ask(wire::Ask),
     ListRead(wire::ListRead),
+    Part(wire::v22::Part),
     Turn(wire::Turn),
     Call(wire::Call),
     Answer(wire::Answer),
@@ -145,6 +146,7 @@ pub(crate) fn decode(kind: u16, body: &[u8], limits: &wire::v22::Limits) -> Opti
             };
             Some(Up::Source(host::LinkUp::SignedOut { name, result }))
         }
+        wire::Kind::Part => Some(Up::Part(wire::v22::Part::decode(limits, reader).ok()?)),
         wire::Kind::Turn => Some(Up::Turn(wire::Turn::decode(limits, reader).ok()?)),
         wire::Kind::Call => Some(Up::Call(wire::Call::decode(limits, reader).ok()?)),
         wire::Kind::JobAnswer => Some(Up::JobAnswer(wire::JobAnswer::decode(limits, reader).ok()?)),
@@ -167,6 +169,8 @@ pub(crate) fn decode(kind: u16, body: &[u8], limits: &wire::v22::Limits) -> Opti
         | wire::Kind::Message
         | wire::Kind::Relayed
         | wire::Kind::TurnKept
+        | wire::Kind::PartKept
+        | wire::Kind::PartBusy
         | wire::Kind::TurnBusy
         | wire::Kind::Acknowledge
         | wire::Kind::Wires
@@ -185,6 +189,13 @@ pub(crate) fn up(record: Up, parts: &mut Parts) -> host::LinkUp {
         },
         Up::Source(up) => up,
         Up::ListRead(record) => host::LinkUp::ListRead { read: record.read, outcome: list_outcome(record.outcome) },
+        Up::Part(record) => host::LinkUp::Part {
+            run: Token::new(record.task), attempt: Token::new(record.attempt),
+            part: jig_domain_link::Part {
+                number: record.number, turn: record.turn, thread: record.thread, call: record.call,
+                kind: part_kind_up(record.kind), body: record.body,
+            },
+        },
         Up::Turn(record) => turn(record),
         Up::Call(record) => call(record),
         Up::Answer(record) => answer(record, parts),
@@ -583,6 +594,8 @@ pub(crate) enum Down {
     AssignJob(wire::Job),
     Message(wire::Inbound),
     Relayed(wire::Relayed),
+    PartKept(wire::PartKept),
+    PartBusy(wire::PartBusy),
     TurnKept(wire::TurnKept),
     TurnBusy(wire::TurnBusy),
     Acknowledge(wire::Acknowledge),
@@ -604,6 +617,8 @@ impl Down {
             Self::AssignJob(_) => wire::Kind::Job,
             Self::Message(_) => wire::Kind::Message,
             Self::Relayed(_) => wire::Kind::Relayed,
+            Self::PartKept(_) => wire::Kind::PartKept,
+            Self::PartBusy(_) => wire::Kind::PartBusy,
             Self::TurnKept(_) => wire::Kind::TurnKept,
             Self::TurnBusy(_) => wire::Kind::TurnBusy,
             Self::Acknowledge(_) => wire::Kind::Acknowledge,
@@ -625,6 +640,8 @@ impl Down {
             Self::AssignJob(record) => (wire::Kind::Job.number(), record.measure(limits)),
             Self::Message(record) => (0x0181, record.measure(limits)),
             Self::Relayed(record) => (0x0182, record.measure(limits)),
+            Self::PartKept(record) => (wire::Kind::PartKept.number(), record.measure(limits)),
+            Self::PartBusy(record) => (wire::Kind::PartBusy.number(), record.measure(limits)),
             Self::TurnKept(record) => (0x0183, record.measure(limits)),
             Self::TurnBusy(record) => (0x0184, record.measure(limits)),
             Self::Acknowledge(record) => (0x0185, record.measure(limits)),
@@ -650,6 +667,8 @@ impl Down {
             Self::AssignJob(record) => record.write(limits, &mut body),
             Self::Message(record) => record.write(limits, &mut body),
             Self::Relayed(record) => record.write(limits, &mut body),
+            Self::PartKept(record) => record.write(limits, &mut body),
+            Self::PartBusy(record) => record.write(limits, &mut body),
             Self::TurnKept(record) => record.write(limits, &mut body),
             Self::TurnBusy(record) => record.write(limits, &mut body),
             Self::Acknowledge(record) => record.write(limits, &mut body),
@@ -736,6 +755,9 @@ pub(crate) fn down(
                 host::Relayed::Answer { error, text } => wire::RelayAnswer::Text(wire::RelayText { error, text }),
             };
             Ok(Down::Relayed(wire::Relayed { task: run.raw(), attempt: attempt.raw(), name: call, answer }))
+        }
+        host::LinkDown::PartKept { run, attempt, part } => {
+            Ok(Down::PartKept(wire::PartKept { task: run.raw(), attempt: attempt.raw(), number: part }))
         }
         host::LinkDown::TurnKept { run, attempt, turn } => {
             Ok(Down::TurnKept(wire::TurnKept { task: run.raw(), attempt: attempt.raw(), number: turn }))
@@ -825,7 +847,19 @@ fn assignment_record(
         wire::v22::CEILINGS.assignment_charter,
     )?;
     let transcript = transcript(&assignment.turns, limits.assignment_transcript)?;
+    let mut kept_parts = List::with_capacity(u32::try_from(assignment.parts.len()).expect("bounded kept parts"));
+    for part in assignment.parts {
+        kept_parts.push(wire::KeptPart {
+            attempt: part.attempt, turn: part.turn, thread: part.thread, call: part.call,
+            kind: part_kind_down(part.kind), body: part.body,
+        }).expect("one slot per kept part");
+    }
+    let kept_parts = match wire::parts::encode(kept_parts.as_slice(), limits) {
+        Ok(parts) => parts,
+        Err(error) => return Err(problem(error)),
+    };
     Ok(wire::Assignment {
+        parts: kept_parts,
         task: run.run.raw(),
         attempt: run.attempt.raw(),
         identity: run.identity,
@@ -1093,4 +1127,19 @@ fn usage_outcome(outcome: wire::UsageOutcome) -> Option<jig_domain_link::UsageOu
 
 fn reset_wall(reset: Option<u64>) -> Option<skein_lib::Wall> {
     Some(skein_lib::Wall::from_nanos(reset?))
+}
+
+fn part_kind_up(kind: wire::PartKind) -> jig_domain_link::PartKind {
+    match kind {
+        wire::PartKind::Answer => jig_domain_link::PartKind::Answer,
+        wire::PartKind::Result => jig_domain_link::PartKind::Result,
+        wire::PartKind::Window => jig_domain_link::PartKind::Window,
+    }
+}
+fn part_kind_down(kind: jig_domain_link::PartKind) -> wire::PartKind {
+    match kind {
+        jig_domain_link::PartKind::Answer => wire::PartKind::Answer,
+        jig_domain_link::PartKind::Result => wire::PartKind::Result,
+        jig_domain_link::PartKind::Window => wire::PartKind::Window,
+    }
 }

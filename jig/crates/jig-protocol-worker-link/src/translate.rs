@@ -123,6 +123,7 @@ pub(crate) fn up(up: host::LinkUp, parts: &[Part], limits: &wire::v22::Limits) -
             let record = wire::AccountRefused { task: run.raw(), attempt: attempt.raw(), account, code, reason };
             frame(0x0107, record.encode(limits).ok()?)
         }
+        host::LinkUp::Part { run, attempt, part } => part_frame(run, attempt, part, limits),
         host::LinkUp::Turn { run, attempt, turn } => {
             let record = wire::Turn {
                 task: run.raw(),
@@ -566,7 +567,7 @@ pub(crate) fn down(
         }
         wire::Kind::Assignment => {
             let record = wire::Assignment::decode(limits, &mut reader).ok()?;
-            host::LinkDown::Assign { assignment: assignment(record, now, parts, next, out)? }
+            host::LinkDown::Assign { assignment: assignment(record, now, parts, next, out, limits)? }
         }
         wire::Kind::Message => {
             let record = wire::Inbound::decode(limits, &mut reader).ok()?;
@@ -578,6 +579,10 @@ pub(crate) fn down(
                 words: record.words,
                 finish_requested: record.finish_requested,
             }
+        }
+        wire::Kind::PartKept => {
+            let record = wire::PartKept::decode(limits, &mut reader).ok()?;
+            host::LinkDown::PartKept { run: Token::new(record.task), attempt: Token::new(record.attempt), part: record.number }
         }
         wire::Kind::TurnKept => {
             let record = wire::TurnKept::decode(limits, &mut reader).ok()?;
@@ -614,7 +619,9 @@ pub(crate) fn down(
             }
         }
         // TurnBusy is decoded below the hub by the component; up kinds are invalid here.
-        wire::Kind::Paused
+        wire::Kind::Part
+        | wire::Kind::PartBusy
+        | wire::Kind::Paused
         | wire::Kind::Draining
         | wire::Kind::Usage
         | wire::Kind::UsageRead
@@ -721,7 +728,16 @@ fn assignment(
     parts: &mut Queue<Part>,
     next: &mut u64,
     out: &mut Queue<Request>,
+    limits: &wire::v22::Limits,
 ) -> Option<host::Assignment> {
+    let kept = wire::parts::decode(&record.parts, limits).ok()?;
+    let mut kept_parts = List::with_capacity(kept.len());
+    for part in kept.into_boxed() {
+        kept_parts.push(jig_domain_link::KeptPart {
+            attempt: part.attempt, turn: part.turn, thread: part.thread, call: part.call,
+            kind: part_kind_down(part.kind), body: part.body,
+        }).expect("one slot per kept part");
+    }
     // Decode every form before emitting values or parts. A second bounded pass
     // avoids staging credential copies or another output queue.
     for granted in &record.grants {
@@ -785,6 +801,8 @@ fn assignment(
         messages: messages.into_boxed(),
         answered: answered.into_boxed(),
         turns,
+        parts: kept_parts.into_boxed(),
+        tell_parts: false,
     })
 }
 
@@ -925,4 +943,27 @@ fn usage_read_frame(read: u64, outcome: jig_domain_link::UsageOutcome, limits: &
 
 fn reset_nanos(reset: Option<skein_lib::Wall>) -> Option<u64> {
     Some(reset?.as_nanos())
+}
+
+fn part_kind_up(kind: jig_domain_link::PartKind) -> wire::PartKind {
+    match kind {
+        jig_domain_link::PartKind::Answer => wire::PartKind::Answer,
+        jig_domain_link::PartKind::Result => wire::PartKind::Result,
+        jig_domain_link::PartKind::Window => wire::PartKind::Window,
+    }
+}
+fn part_kind_down(kind: wire::PartKind) -> jig_domain_link::PartKind {
+    match kind {
+        wire::PartKind::Answer => jig_domain_link::PartKind::Answer,
+        wire::PartKind::Result => jig_domain_link::PartKind::Result,
+        wire::PartKind::Window => jig_domain_link::PartKind::Window,
+    }
+}
+
+fn part_frame(run: Token, attempt: Token, part: jig_domain_link::Part, limits: &wire::v22::Limits) -> Option<Frame> {
+            let record = wire::v22::Part {
+                task: run.raw(), attempt: attempt.raw(), number: part.number, turn: part.turn,
+                thread: part.thread, call: part.call, kind: part_kind_up(part.kind), body: part.body,
+            };
+            frame(wire::Kind::Part.number(), record.encode(limits).ok()?)
 }

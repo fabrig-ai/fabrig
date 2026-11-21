@@ -19,7 +19,7 @@ jig/crates/jig-protocol-store-records/src/generated/notes.rs jig/crates/jig-prot
 jig/crates/jig-protocol-store-settings/src/generated/settings.rs jig/crates/jig-protocol-store/schema/settings-v3.schema
 jig/crates/jig-protocol-store-tasks/src/generated/tasks.rs jig/crates/jig-protocol-store/schema/tasks-v13.schema
 jig/crates/jig-protocol-store/src/generated/openings.rs jig/crates/jig-protocol-store/schema/openings-v1.schema jig/crates/jig-protocol-store/schema/openings.maps
-jig/crates/jig-protocol-worker-wire/src/generated/worker_wire.rs jig/crates/jig-protocol-worker-wire/schema/worker-wire-v21.schema
+jig/crates/jig-protocol-worker-wire/src/generated/worker_wire.rs jig/crates/jig-protocol-worker-wire/schema/worker-wire-v22.schema
 jig/examples/ops/client-protocol-wire/src/generated/ops_client.rs jig/examples/ops/client-protocol-wire/schema/ops-client-v1.schema
 jig/testing/jig-client-test-protocol-wire-codec/src/generated/test_client.rs jig/testing/jig-client-test-protocol-wire/schema/test-client-v2.schema
 jig/testing/jig-test-store-codec/src/generated/test_connector.rs jig/testing/jig-test-store/schema/test-connector-v2.schema

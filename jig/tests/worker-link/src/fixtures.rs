@@ -357,6 +357,7 @@ pub fn assignment_record(transcript: Box<[u8]>) -> wire::Assignment {
         })
         .expect("room");
     wire::Assignment {
+        parts: Box::new([]),
         task: 7,
         attempt: 2,
         identity: [9; 16],
@@ -493,6 +494,7 @@ pub fn grant(form: Form) -> Grant {
 #[must_use]
 pub fn assignment() -> host::Assignment {
     host::Assignment {
+        parts: Box::new([]), tell_parts: false,
         assignment: host::RunAssignment {
             run: RUN_SEVEN,
             attempt: ATTEMPT_TWO,

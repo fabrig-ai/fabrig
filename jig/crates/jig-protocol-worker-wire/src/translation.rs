@@ -167,7 +167,7 @@ impl Translation {
                 }
             }
             let record = current.declaration(variant.record.expect("each kind holds a record"));
-            let total = if name == b"hello" {
+            let total = if name == b"hello" && version < 21 {
                 self.before_fresh.total(version, current.spelled(record.name))
             } else {
                 self.jig.total(version, current.spelled(record.name))

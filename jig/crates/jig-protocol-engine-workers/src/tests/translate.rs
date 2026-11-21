@@ -220,6 +220,7 @@ fn down(record: jig_domain_host::LinkDown) -> translate::Down {
         | LinkDown::Message { .. }
         | LinkDown::Asked { .. }
         | LinkDown::Relayed { .. }
+        | LinkDown::PartKept { .. }
         | LinkDown::TurnKept { .. }
         | LinkDown::Acknowledge { .. }
         | LinkDown::AssignJob { .. }

@@ -9,6 +9,7 @@ mod liveness;
 mod memory;
 mod opening;
 mod pause;
+mod parts;
 mod prepared;
 mod records;
 mod relinks;

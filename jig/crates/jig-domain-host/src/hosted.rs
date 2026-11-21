@@ -139,7 +139,7 @@ enum RunEnding {
 // cell's handler, conclude from the run's new state.
 
 pub(crate) fn assign(domain: &mut Hub, env: &Env<Limits>, next: Assignment, out: &mut Queue<Request>) {
-    let Assignment { assignment, turns, answered, messages } = next;
+    let Assignment { assignment, turns, answered, messages, parts: _, tell_parts: _ } = next;
     if !assignment::messages_fit(&messages, &env.limits) {
         refuse(&assignment, Refusal::Invalid(crate::Invalid::Messages), out);
         return;
@@ -413,7 +413,7 @@ pub(crate) fn drain(domain: &mut Hub, out: &mut Queue<Request>) {
             State::Active { agent, .. } | State::Waiting { agent, .. } => {
                 if !entry.drained {
                     entry.drained = true;
-                    out.push(Request::Agent(crate::ToAgent::Drain { agent: *agent }));
+                    out.push(Request::Agent(crate::ToAgent::Drain { agent: *agent, grace: None }));
                 }
             }
             State::Preparing { .. } | State::Starting { .. } => {
@@ -1375,6 +1375,17 @@ fn refuse(assignment: &RunAssignment, refusal: Refusal, out: &mut Queue<Request>
 
 fn refused(assignment: &RunAssignment, refusal: Refusal, _runtime: &Runtime, out: &mut Queue<Request>) {
     refuse(assignment, refusal, out);
+}
+
+/// Parts are acknowledged at once; the hub does not retain or relay them.
+pub(crate) fn parted(domain: &Hub, owner: Token, number: u32, out: &mut Queue<Request>) {
+    let Some(entry) = domain.hosted.get(Id::<Hosted>::from_token(owner)) else { return };
+    let agent = match entry.state {
+        State::Active { agent, .. } | State::Waiting { agent, .. } | State::Stopping { agent, gone: false, .. } => agent,
+        State::Preparing { .. } | State::Cancelling { .. } | State::Starting { .. } | State::Unwanted { .. }
+        | State::Stopping { gone: true, .. } | State::Saving { .. } | State::Closed => return,
+    };
+    out.push(Request::Agent(crate::ToAgent::AcknowledgePart { agent, number }));
 }
 
 pub(crate) fn turned(

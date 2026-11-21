@@ -525,6 +525,7 @@ fn route_now(
                 env.now,
                 jig_domain_hub_link::Event::Prepared {
                     assignment: crate::Assignment {
+                        parts: Box::new([]),
                         live,
                         task,
                         attempt,

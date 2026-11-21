@@ -110,8 +110,8 @@ fn a_link_drain_asks_active_and_waiting_runs_once_without_shutdown() {
     let expected = [
         Request::Up(LinkUp::Paused { state: PauseState::Draining }),
         Request::Paused { state: PauseState::Draining },
-        Request::Agent(ToAgent::Drain { agent: active }),
-        Request::Agent(ToAgent::Drain { agent: waiting }),
+        Request::Agent(ToAgent::Drain { agent: active, grace: None }),
+        Request::Agent(ToAgent::Drain { agent: waiting, grace: None }),
     ];
     assert_eq!(&*h.step(ask(PauseMode::Drain)), expected);
     sources_open(&mut h);

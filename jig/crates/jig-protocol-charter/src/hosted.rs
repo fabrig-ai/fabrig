@@ -62,6 +62,8 @@ pub fn hosted(assignment: &core::Assignment, parts: RootParts<'_>) -> Option<hos
     }
     let live = assignment.live;
     Some(host::Assignment {
+        parts: assignment.parts.clone(),
+        tell_parts: false,
         messages: messages.into_boxed(),
         assignment: host::RunAssignment {
             identity: crate::run_identity(parts.deployment, assignment.task, assignment.conversation),

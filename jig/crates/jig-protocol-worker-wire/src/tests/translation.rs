@@ -798,9 +798,12 @@ fn an_assignment_reverse_drops_only_its_parts_at_twenty_one() {
     let mut bridge = crate::patches::kept::jig_worker_wire::bridge(Capacity {
         versions: 32, patches: 32, text: 131_072, bytes: 1_048_576, nodes: 1_048_576,
     }).unwrap();
-    let down = bridge.translate(22, 21, b"Assignment", record.encode(&wire::CEILINGS).unwrap()).unwrap();
-    let up = bridge.translate(21, 22, b"Assignment", down).unwrap();
-    let restored = wire::Assignment::decode(&wire::CEILINGS, &mut Reader::new(&up)).unwrap();
+    assert_eq!(bridge.translate(22, 21, b"Assignment", record.encode(&wire::CEILINGS).unwrap()), Err(Halt::Altered));
+    let mut translation = opaque();
+    let agreements = agreed(21, smith_charter::wire::VERSION);
+    let down = translation.send(engine(&wire::FromEngine::Assignment(record.clone())), 21, &agreements, &wire::CEILINGS).unwrap();
+    let up = translation.receive(down.kind(), body(&down), 21, &agreements, &wire::CEILINGS).unwrap();
+    let wire::FromEngine::Assignment(restored) = engine_value(&up) else { panic!("assignment") };
     record.parts = Box::new([]);
     assert_eq!(restored, record);
     assert!(opaque().incomplete(&[Agreed { name: "jig-worker-wire", version: 21 }]).is_empty());
@@ -816,6 +819,10 @@ fn a_parts_body_crosses_as_a_turn_and_resumed_parts_keep_their_own_version() {
         task: 1, attempt: 2, number: 3, turn: 4, thread: 0, call: 5,
         kind: wire::PartKind::Answer, body: old_turn.clone(),
     });
+    let mut unreadable = agreements;
+    unreadable[2].version = smith_transcript::wire::FLOOR.checked_sub(1).unwrap();
+    assert!(opaque().send(worker(&record), 22, &unreadable, &wire::CEILINGS).is_err(),
+        "a part's body cannot go below the transcript's floor");
     let incoming = worker(&record);
     let up = opaque().receive(incoming.kind(), body(&incoming), 22, &agreements, &wire::CEILINGS).unwrap();
     let wire::FromWorker::Part(part) = worker_value(&up) else { panic!("part") };

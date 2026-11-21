@@ -29,6 +29,7 @@ pub fn class(event: &Event) -> Class {
             | LinkDown::Message { .. } => Class::New,
             LinkDown::Asked { .. }
             | LinkDown::Relayed { .. }
+            | LinkDown::PartKept { .. }
             | LinkDown::TurnKept { .. }
             | LinkDown::Acknowledge { .. }
             | LinkDown::Pause { .. }
@@ -149,6 +150,7 @@ pub(crate) fn must_follow(domain: &Domain, held: &Event, event: &Event) -> bool 
             | LinkDown::Message { .. }
             | LinkDown::Asked { .. }
             | LinkDown::Relayed { .. }
+            | LinkDown::PartKept { .. }
             | LinkDown::TurnKept { .. }
             | LinkDown::Acknowledge { .. }
             | LinkDown::Pause { .. }
@@ -175,6 +177,7 @@ fn named_assignment(link: &LinkDown) -> Option<(Token, Token)> {
         LinkDown::Cancel { run, attempt }
         | LinkDown::Asked { run, attempt, .. }
         | LinkDown::Relayed { run, attempt, .. }
+        | LinkDown::PartKept { run, attempt, .. }
         | LinkDown::TurnKept { run, attempt, .. }
         | LinkDown::Acknowledge { run, attempt }
         | LinkDown::Grant { run, attempt, .. } => Some((*run, *attempt)),

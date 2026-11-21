@@ -12,8 +12,8 @@ fn a_drain_asks_active_and_waiting_runs_once_and_announces_before_their_outputs(
         h.step(Event::Drain).as_ref(),
         [
             Request::Up(LinkUp::Draining),
-            Request::Agent(ToAgent::Drain { agent: active }),
-            Request::Agent(ToAgent::Drain { agent: waiting }),
+            Request::Agent(ToAgent::Drain { agent: active, grace: None }),
+            Request::Agent(ToAgent::Drain { agent: waiting, grace: None }),
         ]
     );
     assert!(h.step(Event::Drain).is_empty());
@@ -141,7 +141,7 @@ fn a_drained_runs_answer_saves_releases_and_keeps_what_it_said() {
         let (owner, workspace, agent) = h.live(1);
         assert_eq!(
             h.step(Event::Drain).as_ref(),
-            [Request::Up(LinkUp::Draining), Request::Agent(ToAgent::Drain { agent })]
+            [Request::Up(LinkUp::Draining), Request::Agent(ToAgent::Drain { agent, grace: None })]
         );
         assert_eq!(h.step(fixtures::finished(owner, finish)).as_ref(), [Request::Agent(ToAgent::Cancel { agent })]);
         assert_eq!(

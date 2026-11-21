@@ -455,6 +455,7 @@ fn run_prepared(domain: &mut Domain, env: &Env<Limits>, prepared: Prepared) {
     };
     domain.assignment_parts.insert(task, parts).expect("one temper assignment per task");
     let assignment = jig_domain_hub_link::Assignment {
+        parts: Box::new([]),
         task,
         attempt,
         conversation,

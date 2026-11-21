@@ -33,6 +33,7 @@ fn assignment(world: &World) -> &host::Assignment {
             | Request::CannotSendWhole { .. }
             | Request::Untranslated { .. }
             | Request::Fact { .. }
+            | Request::ResendPart { .. }
             | Request::Resend { .. }
             | Request::Figures { .. }
             | Request::RelayCancelled { .. } => None,
@@ -59,6 +60,7 @@ fn down(world: &World) -> Vec<&host::LinkDown> {
             | Request::CannotSendWhole { .. }
             | Request::Untranslated { .. }
             | Request::Fact { .. }
+            | Request::ResendPart { .. }
             | Request::Resend { .. }
             | Request::Figures { .. }
             | Request::RelayCancelled { .. } => None,

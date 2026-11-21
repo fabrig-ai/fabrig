@@ -369,7 +369,8 @@ fn to_agent(domain: &mut Domain, env: &Env<Limits>, request: host::ToAgent, out:
         }
         host::ToAgent::Renewals { agent: _, held } => smith::parent::Event::Renewals { held },
         host::ToAgent::Acknowledge { agent, turn } => smith::parent::Event::Acknowledge { agent, turn },
-        host::ToAgent::Drain { agent } => smith::parent::Event::Drain { agent },
+        host::ToAgent::AcknowledgePart { .. } => return,
+        host::ToAgent::Drain { agent, grace: _ } => smith::parent::Event::Drain { agent },
         host::ToAgent::Cancel { agent } => smith::parent::Event::Stop { agent },
         host::ToAgent::Grant { agent, grant } => {
             let Some(grant) = translate::grant(grant) else { return };

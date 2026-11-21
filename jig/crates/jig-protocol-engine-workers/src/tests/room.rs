@@ -287,6 +287,7 @@ fn a_channels_closed_entrance_answers_the_current_record_once() {
             | hub::LinkUp::Usage { .. }
             | hub::LinkUp::Limited { .. }
             | hub::LinkUp::AccountRefused { .. }
+            | hub::LinkUp::Part { .. }
             | hub::LinkUp::Turn { .. }
             | hub::LinkUp::Ask { .. }
             | hub::LinkUp::Call { .. }) => panic!("start answer: {other:?}"),

@@ -56,6 +56,7 @@ pub enum Request {
         attempt: Token,
         call: Box<[u8]>,
     },
+    ResendPart { run: Token, attempt: Token, part: u32 },
     Resend {
         run: Token,
         attempt: Token,

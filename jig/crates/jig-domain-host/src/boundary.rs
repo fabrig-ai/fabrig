@@ -214,6 +214,7 @@ pub enum ToAgent {
         agent: Token,
         turn: u32,
     },
+    AcknowledgePart { agent: Token, number: u32 },
     Grant {
         agent: Token,
         grant: Grant,
@@ -222,6 +223,7 @@ pub enum ToAgent {
     /// report `Gone` as for a cancel (domain/hosts/hub.md, 7).
     Drain {
         agent: Token,
+        grace: Option<Duration>,
     },
     /// Cancel the run and end what remains past its grace. The start reports
     /// `Gone` once the agent and everything it started have ended.
@@ -240,6 +242,7 @@ pub enum FromAgent {
     Withdrawn { owner: Token, call: Box<[u8]> },
     /// One completed conversation turn from the agent.
     Turn { owner: Token, turn: Turn },
+    Part { owner: Token, part: jig_domain_link::Part },
     /// A piece of live content (domain/hosts/hub.md, 5).
     Piece { owner: Token, piece: crate::Piece },
     /// Typed agent activity, kept best effort for the engine.
@@ -325,6 +328,8 @@ pub struct Assignment {
     pub turns: Box<[Box<[u8]>]>,
     /// Calls settled after the last committed turn, in commit order.
     pub answered: Box<[AnsweredCall]>,
+    pub parts: Box<[jig_domain_link::KeptPart]>,
+    pub tell_parts: bool,
 }
 
 /// A call committed after the last turn, to tell the next activation.
@@ -679,6 +684,7 @@ impl Event {
                 crate::LinkDown::Asked { .. }
                 | crate::LinkDown::Relayed { .. }
                 | crate::LinkDown::TurnKept { .. }
+                | crate::LinkDown::PartKept { .. }
                 | crate::LinkDown::Acknowledge { .. }
                 | crate::LinkDown::Pause { .. }
                 | crate::LinkDown::Cancel { .. }
@@ -709,6 +715,7 @@ impl FromAgent {
             FromAgent::Called { .. } => true,
             FromAgent::Withdrawn { .. }
             | FromAgent::Turn { .. }
+            | FromAgent::Part { .. }
             | FromAgent::Piece { .. }
             | FromAgent::Activity { .. }
             | FromAgent::Unauthorized { .. }
