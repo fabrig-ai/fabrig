@@ -53,21 +53,6 @@ fn the_tui_refusals_explain_the_terminal_and_sign_in() {
     assert_eq!(terminal_refusal(CLIENT.binary, true), Refused::NotATerminal.line(CLIENT.binary));
 }
 #[test]
-fn fixed_start_is_declared_only_by_the_bare_tui() {
-    for (reach, declared) in [(skein_shell::Reach::Words(&[]), true), (skein_shell::Reach::Words(&["box"]), false)] {
-        let command = CLIENT.commands.iter().find(|command| command.reach == reach).expect("TUI command");
-        let fixed = command.variables.iter().find(|variable| variable.name == "TEMPER_INTERNAL_FIXED_START");
-        assert_eq!(fixed.is_some(), declared);
-        if let Some(fixed) = fixed {
-            assert_eq!(*fixed, &temper_shell::environment::INTERNAL_FIXED_START);
-            assert_eq!(fixed.set, skein_shell::Set::Internal);
-            assert_eq!(fixed.way, skein_shell::Way::Reads);
-            assert_eq!(fixed.form, "SECONDS,SEED");
-        }
-    }
-}
-
-#[test]
 fn tui_recording_variable_is_internal_and_read() {
     for reach in [skein_shell::Reach::Words(&[]), skein_shell::Reach::Words(&["box"])] {
         let tui = CLIENT.commands.iter().find(|command| command.reach == reach).expect("a client TUI command");

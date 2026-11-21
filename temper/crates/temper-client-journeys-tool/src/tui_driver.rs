@@ -8,8 +8,8 @@ use std::{
     path::Path,
 };
 pub(crate) mod terminal;
-/// Isolated terminal settings without choosing a fixed start (client/drive.md, 5).
-pub(crate) fn unfixed_environment(
+/// Isolated terminal settings (client/drive.md, 5).
+pub(crate) fn environment(
     given: &[crate::EnvironmentEntry],
     scratch: &Path,
 ) -> Result<Vec<(OsString, OsString)>, std::env::JoinPathsError> {

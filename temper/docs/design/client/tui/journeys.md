@@ -46,8 +46,7 @@ the look, 11 what is open.
   tests refuse a TUI `overlay.css` that holds anything (section 7).
 - **Recorded again by a command:** `again NAME` walks the journey's
   `walk` on a fresh fake box, the TUI in a pseudo-terminal and the
-  approval given in headless Chromium, all on one fixed start
-  (`../journey-clock.md`), and adds the result (section 8); on main the
+  approval given in headless Chromium, and adds the result (section 8); on main the
   journeys' writer alone runs it.
 - **The look is asked for on the frames:** a frame's text edited in
   place, the theme's overlay written, each request landing as the
@@ -539,9 +538,7 @@ ordinary Rust over skein's harness:
   --fake-backends` from that copy serving that bundle, every directory
   in the scratch directory, and headless Chromium from
   `SKEIN_TEST_CHROMIUM`, as the browser tier drives it, its printed
-  sign-in link opened, so that the browser is signed in. The box takes
-  `again`'s fixed start as `--fixed-start`, and the page as
-  `internal-fixed-start` (`../journey-clock.md`, 4.4).
+  sign-in link opened, so that the browser is signed in.
 - **The TUI in a pseudo-terminal** of 80 columns by 24 rows (skein's
   harness starts a binary on one), `temper http://HOST:PORT` at the
   box's address, with `XDG_STATE_HOME` and `HOME` in the scratch
@@ -555,9 +552,7 @@ ordinary Rust over skein's harness:
   (`theme.md`, *The band*), `TERM` `xterm-256color`, no `SSH_` variables, `DISPLAY` as
   `again`'s or `:0`, and `PATH` led by a scratch directory whose
   `xdg-open` is a link to `true`, so that the TUI's opener runs, exits
-  0, and leaves the tab to `again`; and `TEMPER_INTERNAL_FIXED_START`,
-  `again`'s fixed start, so that the TUI's seed and clock are the walk's
-  (`../journey-clock.md`, 4.3). Its output is read and dropped.
+  0, and leaves the tab to `again`. Its output is read and dropped.
 - **A setup,** where the journey's directory holds one: its `setup`
   file, in the browser's format and with its rules (`../web/journeys.md`,
   8.2), its `after`, where it has one, naming a browser journey not yet
