@@ -296,6 +296,7 @@ impl World {
                 | Request::Usage { .. }
                 | Request::Limited { .. }
                 | Request::AccountRefused { .. }
+                | Request::Suspended { .. }
                 | Request::NotStarted { .. }
                 | Request::Lost { .. }
                 | Request::Withdrawn { .. }
@@ -324,6 +325,7 @@ impl World {
         let channel = Token::new(self.channels);
         self.channel = Some(channel);
         let hello = Hello {
+            fresh: false,
             reads_usage: true,
             jobs: Box::default(),
             bounds: crate::fixtures::bounds(),
@@ -344,6 +346,7 @@ impl World {
 
     fn adopt(&mut self) {
         self.step(Event::Adopt {
+            worker: None,
             holds: Box::new([]),
             grants: Box::new([]),
             reply_to: ReplyTo::new(ATTEMPT),

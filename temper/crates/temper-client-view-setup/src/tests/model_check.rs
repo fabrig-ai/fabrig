@@ -502,6 +502,7 @@ fn a_running_trials_wait_stops_the_line_until_it_clears_and_waited_keeps_its_wor
     for wait in [
         R::Credential,
         R::Host,
+        R::Worker(j::TaskWaitWorker { worker: 2, until: 63_600_000_000_000 }),
         R::Refused(j::TaskRunWaitRefused {
             value: j::TaskWaitRefused::Bounds(j::TaskWaitBounds {
                 kind: j::HostKind::Worker,
@@ -531,7 +532,7 @@ fn a_running_trials_wait_stops_the_line_until_it_clears_and_waited_keeps_its_wor
                     j::TaskWaitRefused::Hello(value) => skein_lib::Wall::from_nanos(value.at),
                     j::TaskWaitRefused::Bounds(_) => f::NOW,
                 },
-                R::Account(_) | R::Credential | R::Host => f::NOW,
+                R::Account(_) | R::Credential | R::Host | R::Worker(_) => f::NOW,
             };
             crate::choice::waiting(
                 &mut b,

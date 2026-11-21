@@ -50,7 +50,15 @@ The fleet child domain knows the hosts and the runs they host:
 - **Losing contact.** A lost worker's runs are kept for a grace; one that
   reconnects says what it hosts, and the core keeps or cancels each. Past
   the grace they are lost, and their tasks retry. The engine's own slots
-  are lost only with the engine (`restart.md`).
+  are lost only with the engine (`restart.md`). A worker back as a new
+  process, its hello `fresh`, ends at once, suspended, each claim of it
+  that its hello does not list (`executors.md`, 6.5).
+- **A suspended task goes back to its worker.** Within its window, its
+  claim takes that worker's channel alone, and waits for it where that
+  channel can't take it; past the window, any host (`executors.md`,
+  6.4). An answer names the position of the worker whose channel gave
+  it, so that the core knows which worker a stop cut (`executors.md`,
+  6.1).
 - **A draining worker leaves placement.** A worker that starts to shut
   down says it drains before anything its runs' ends send (../hosts/hub.md,
   7): from then until its channel is lost, the fleet places nothing

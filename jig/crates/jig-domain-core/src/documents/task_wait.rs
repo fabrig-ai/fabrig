@@ -28,7 +28,7 @@ pub fn waiting(core: &Core, row: &tasks::TaskRecord) -> Option<TaskRunWait> {
             Some(TaskRunWait::Account { account: Some(account), source: None, why: TaskWaitWhy::Invalid(why) })
         }
         Err(RunWait::Credential) => Some(TaskRunWait::Credential),
-        Err(RunWait::Host) => Some(host_wait(core, row.number)),
+        Err(RunWait::Host | RunWait::Worker { .. }) => Some(host_wait(core, row.number)),
         Err(RunWait::Account { account, source, why }) => {
             if why == accounts::WaitWhy::Host
                 && let Some(source) = source
@@ -51,6 +51,11 @@ pub fn waiting(core: &Core, row: &tasks::TaskRecord) -> Option<TaskRunWait> {
 }
 
 fn host_wait(core: &Core, task: u64) -> TaskRunWait {
+    if let Some(suspension) = core.tasks.suspension(task)
+        && core.run_wall < suspension.until
+    {
+        return TaskRunWait::Worker { worker: suspension.worker, until: suspension.until };
+    }
     let kinds = core.charter_of(task).hosts;
     if let Some((kind, record)) = core.fleet.standing_refusal(kinds) {
         return TaskRunWait::Refused(TaskWaitRefused::Hello {

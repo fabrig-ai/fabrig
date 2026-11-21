@@ -47,6 +47,7 @@ impl World {
     }
     fn adopt(&mut self, run: Token, attempt: Token) {
         self.step(Event::Adopt {
+            worker: None,
             reply_to: ReplyTo::new(attempt),
             run,
             attempt,
@@ -62,6 +63,7 @@ impl World {
             channel: CHANNEL,
             worker: 0,
             hello: Hello {
+                fresh: false,
                 reads_usage: true,
                 slots: 3,
                 stop_bound: Duration::from_secs(300),
@@ -89,7 +91,13 @@ fn adopted_and_crossed_claims_wait_for_the_word_plus_grace_from_adoption() {
         let mut world = World::new();
         world.at(7);
         if crossed {
-            world.step(Event::Cross { reply_to: ReplyTo::new(ATTEMPT), run: RUN, attempt: ATTEMPT, worked: true });
+            world.step(Event::Cross {
+                worker: None,
+                reply_to: ReplyTo::new(ATTEMPT),
+                run: RUN,
+                attempt: ATTEMPT,
+                worked: true,
+            });
         } else {
             world.adopt(RUN, ATTEMPT);
         }

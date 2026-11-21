@@ -118,7 +118,7 @@ pub(crate) fn saved(domain: &mut Domain, env: &Env<Limits>, record: &core::Recor
             tasks::EndKind::Finished => trials::Event::Finished { task: row.task },
             tasks::EndKind::Failed { class: why, .. } => trials::Event::RunFailed { task: row.task, class: class(why) },
             tasks::EndKind::Refused => trials::Event::RunFailed { task: row.task, class: trials::Class::Refused },
-            tasks::EndKind::Parked | tasks::EndKind::Cancelled => return,
+            tasks::EndKind::Parked | tasks::EndKind::Cancelled | tasks::EndKind::Suspended { .. } => return,
         },
         tasks::Line::Words { .. }
         | tasks::Line::Heard(_)

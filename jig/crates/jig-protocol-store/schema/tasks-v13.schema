@@ -209,7 +209,10 @@ enum MessageKind { escalation: EscalationMessage, proposal: ProposalMessage, per
 record Word { number: u64 from: Party kind: MessageKind words: bytes 524288 at: u64 hits: u32 eligible: bool }
 enum InvalidResult { form, verdict, words, change, followups }
 record FailedEnd { class: Class invalid_result: option InvalidResult }
-enum EndKind { parked, finished, cancelled, failed: FailedEnd, refused }
+enum SuspendWhy { stopped, restarted }
+record SuspendedEnd { worker: u32 why: SuspendWhy }
+enum EndKind { parked, finished, cancelled, failed: FailedEnd, refused, suspended: SuspendedEnd }
+record Suspension { worker: u32 since: u64 until: u64 }
 record AttemptRow { task: u64 attempt: u64 claimed: option u64 started: option u64 ended: option u64 end: option EndKind phases: option u32 }
 record OpenAttempt { attempt: u64 claimed: option u64 started: option u64 from: u64 end: option EndKind }
 record ActivityWords { message: u64 by: Party kind: MessageKind words: bytes 524288 }
@@ -306,6 +309,9 @@ record TaskRun {
     run_spent: u64
     run_reserved: u64
     open_attempt: option OpenAttempt = none
+    suspension: option Suspension = none
+    suspended: u64 = 0
+    restarted: bool = false
 }
 record Added { task: u64 at: u64 by: Party }
 record TaskDefinition {
@@ -486,7 +492,8 @@ record EndFinishedWithFollowups { result: TaskResult followups: ResultFollowups 
 record EndFailed { value: Class }
 record EndFailedWithReason { class: Class reason: bytes 128 }
 record EndRefusedWithReason { reason: bytes 128 }
-enum End { finished: EndFinished, finished_with_followups: boxed EndFinishedWithFollowups, parked, failed: EndFailed, refused, recheck, exceeded: Exceeded, failed_with_reason: EndFailedWithReason, refused_with_reason: EndRefusedWithReason }
+record Suspended { worker: u32 why: SuspendWhy window: duration }
+enum End { finished: EndFinished, finished_with_followups: boxed EndFinishedWithFollowups, parked, failed: EndFailed, refused, recheck, exceeded: Exceeded, failed_with_reason: EndFailedWithReason, refused_with_reason: EndRefusedWithReason, suspended: Suspended }
 versioned record EndRecord { value: End }
 versioned record PhaseRecord { value: Phase }
 versioned record ChangeRecord { value: Change }

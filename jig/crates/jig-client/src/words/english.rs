@@ -159,6 +159,7 @@ impl Word {
             Self::Status(StatusWord::WaitingForAccount) => (124, b"Waiting for an account", &[]),
             Self::Status(StatusWord::WaitingForCredential) => (125, b"Waiting for a credential", &[]),
             Self::Status(StatusWord::WaitingForHost) => (126, b"Waiting for a host", &[]),
+            Self::Status(StatusWord::WaitingForWorker) => (134, b"Waiting for its worker", &[]),
             Self::Status(StatusWord::Starting) => (48, b"Starting", &[]),
             Self::Status(StatusWord::Writing) => (49, b"Writing", &[]),
             Self::Status(StatusWord::Tool) => (50, b"Using tool ", &[HoleKind::Name]),

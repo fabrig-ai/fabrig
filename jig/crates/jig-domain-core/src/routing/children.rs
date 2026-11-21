@@ -264,6 +264,31 @@ pub(crate) fn tag_fleet(
                 );
                 continue;
             }
+            fleet::Request::Suspended { to, run, attempt, worker } => {
+                let _answered = to.into_token();
+                let _: Option<u64> = core.unreported_restored.remove(&run.raw());
+                let end = tasks::End::Suspended(tasks::Suspended {
+                    worker: worker.checked_add(1).expect("worker setting number"),
+                    why: tasks::SuspendWhy::Restarted,
+                    window: env.limits.fleet.restart_wait,
+                });
+                core.remember_unpriced_terminal(run, attempt, end.clone());
+                let token = core.internal(super::flight::Internal::Acknowledge);
+                append_tasks(
+                    core,
+                    env,
+                    tasks::Event::Activation {
+                        reply_to: ReplyTo::new(token),
+                        task: run.raw(),
+                        attempt: attempt.raw(),
+                        end,
+                        saved: None,
+                        cause: tasks::Cause::Unpriced,
+                    },
+                    &mut out,
+                );
+                continue;
+            }
             fleet::Request::Lost { to, run, attempt } => {
                 let _answered = to.into_token();
                 let proof = core.proofs.get(&run.raw()).expect("lost claim has durable evidence");
@@ -461,7 +486,7 @@ pub(crate) fn tag_fleet(
             fleet::Request::Answered { payload, .. } if core.stopping => {
                 Request::Now(Box::new(Now::Link(LinkNow::DropPayload { payload })))
             }
-            fleet::Request::Answered { run, attempt, payload, to, answer } => {
+            fleet::Request::Answered { run, attempt, payload, to, answer, worker } => {
                 let _answered = to.into_token();
                 let _: Option<u64> = core.unreported_restored.remove(&run.raw());
                 assert!(core.current_proof(run.raw(), attempt.raw()), "current answer has reserved proof");
@@ -473,7 +498,13 @@ pub(crate) fn tag_fleet(
                         append_account(core, env, run_failed(env.now, turned), &mut out);
                     }
                 }
-                Request::Now(Box::new(Now::Link(LinkNow::AnswerPayload { run, attempt, payload })))
+                Request::Now(Box::new(Now::Link(LinkNow::AnswerPayload {
+                    run,
+                    attempt,
+                    payload,
+                    worker,
+                    window: env.limits.fleet.restart_wait,
+                })))
             }
         };
         out.push(request);

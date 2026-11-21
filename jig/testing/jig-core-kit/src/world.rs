@@ -255,6 +255,7 @@ impl World {
             worker,
             channel,
             hello: Hello {
+                fresh: false,
                 reads_usage: true,
                 jobs: kinds,
                 bounds,

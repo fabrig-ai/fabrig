@@ -260,6 +260,20 @@ pub fn read_word(source: wire::Word, limits: &wire::Limits) -> Result<domain::Wo
     })
 }
 
+pub(super) fn suspend_why(source: domain::SuspendWhy) -> wire::SuspendWhy {
+    match source {
+        domain::SuspendWhy::Stopped => wire::SuspendWhy::Stopped,
+        domain::SuspendWhy::Restarted => wire::SuspendWhy::Restarted,
+    }
+}
+
+pub(super) fn read_suspend_why(source: wire::SuspendWhy) -> domain::SuspendWhy {
+    match source {
+        wire::SuspendWhy::Stopped => domain::SuspendWhy::Stopped,
+        wire::SuspendWhy::Restarted => domain::SuspendWhy::Restarted,
+    }
+}
+
 /// Translate `EndKind` to its durable value.
 pub fn end_kind(source: &domain::EndKind, _limits: &wire::Limits) -> Result<wire::EndKind, wire::Problem> {
     Ok(match source {
@@ -274,6 +288,9 @@ pub fn end_kind(source: &domain::EndKind, _limits: &wire::Limits) -> Result<wire
             },
         }),
         domain::EndKind::Refused => wire::EndKind::Refused,
+        domain::EndKind::Suspended { worker, why } => {
+            wire::EndKind::Suspended(wire::SuspendedEnd { worker: *worker, why: suspend_why(*why) })
+        }
     })
 }
 /// Read `EndKind` from its durable value.
@@ -293,6 +310,9 @@ pub fn read_end_kind(source: wire::EndKind) -> Result<domain::EndKind, wire::Pro
             }
         }
         wire::EndKind::Refused => domain::EndKind::Refused,
+        wire::EndKind::Suspended(source) => {
+            domain::EndKind::Suspended { worker: source.worker, why: read_suspend_why(source.why) }
+        }
     })
 }
 

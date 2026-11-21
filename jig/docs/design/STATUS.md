@@ -38,8 +38,10 @@ settles its in-process agent claims as interrupted before draining,
 keeping their committed work and spending no try; crash recovery still
 settles claims as lost or not started (`domain/engine/restart.md`
 ; `domain/tasks/lifecycle.md`, 2). A worker stopped in another process
-still spends an agent try on its Shutdown cancel; changing that remains
-deferred (`protocol/service.md`, section 9). A settled stop keeps that
+suspends the attempts its stop cuts, with no try, no clock over the gap
+and their next attempt sent back to it within the restart wait, and a
+worker back as a new process has the claims it no longer lists
+suspended at once (`domain/engine/executors.md`, section 6). A settled stop keeps that
 the engine restarts and tells each worker whose channel's version has
 the word, which keeps its runs through the restart wait; the next start
 holds their claims as long, until each worker hears it again, and a

@@ -460,8 +460,8 @@ fn route_now(
                 answer: jig_domain_link::AskAnswer::Bytes(bytes),
             })));
         }
-        core::Now::Link(core::LinkNow::AnswerPayload { run, attempt, payload }) => {
-            crate::link::answer(domain, run, attempt, payload, work);
+        core::Now::Link(core::LinkNow::AnswerPayload { run, attempt, payload, worker, window }) => {
+            crate::link::answer(domain, run, attempt, payload, worker, window, work);
         }
         core::Now::Link(value) => crate::link::route(domain, env.now, jig_domain_hub_link::now(value), work),
         core::Now::RelayBusy { channel, run, attempt, call } => {

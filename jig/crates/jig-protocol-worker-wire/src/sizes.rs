@@ -1,6 +1,6 @@
 //! Channel bounds from the owners' numbers (protocol/channel/README.md, 8 and 10).
 use crate::Record;
-use crate::{Kind, v20};
+use crate::{Kind, v21};
 
 /// Bounds supplied by the domains and the application's protocol layer.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -58,23 +58,23 @@ pub struct WorkerCap {
 
 /// Map field and count bounds without inspecting any payload or sum.
 #[must_use]
-pub fn limits(sizes: &Sizes) -> Option<v20::Limits> {
-    let limits = v20::Limits {
+pub fn limits(sizes: &Sizes) -> Option<v21::Limits> {
+    let limits = v21::Limits {
         ask_bytes: sizes.application_ask,
         ask_bytes_bytes: sizes.application_answer,
-        agreed_wire_name: v20::CEILINGS.agreed_wire_name,
-        agreed_wires: v20::CEILINGS.agreed_wires,
-        model_failure_endpoint: v20::CEILINGS.model_failure_endpoint,
-        model_failure_model: v20::CEILINGS.model_failure_model,
-        model_failure_refusal_some: v20::CEILINGS.model_failure_refusal_some,
-        mismatch_wire: v20::CEILINGS.mismatch_wire,
-        list_row_name: v20::CEILINGS.list_row_name,
-        list_row_shown_some: v20::CEILINGS.list_row_shown_some,
-        list_row_efforts: v20::CEILINGS.list_row_efforts,
-        list_row_efforts_item: v20::CEILINGS.list_row_efforts_item,
-        listed_rows_rows: v20::CEILINGS.listed_rows_rows,
-        input_call_id: v20::CEILINGS.input_call_id,
-        input_call_tool: v20::CEILINGS.input_call_tool,
+        agreed_wire_name: v21::CEILINGS.agreed_wire_name,
+        agreed_wires: v21::CEILINGS.agreed_wires,
+        model_failure_endpoint: v21::CEILINGS.model_failure_endpoint,
+        model_failure_model: v21::CEILINGS.model_failure_model,
+        model_failure_refusal_some: v21::CEILINGS.model_failure_refusal_some,
+        mismatch_wire: v21::CEILINGS.mismatch_wire,
+        list_row_name: v21::CEILINGS.list_row_name,
+        list_row_shown_some: v21::CEILINGS.list_row_shown_some,
+        list_row_efforts: v21::CEILINGS.list_row_efforts,
+        list_row_efforts_item: v21::CEILINGS.list_row_efforts_item,
+        listed_rows_rows: v21::CEILINGS.listed_rows_rows,
+        input_call_id: v21::CEILINGS.input_call_id,
+        input_call_tool: v21::CEILINGS.input_call_tool,
         piece_bytes: sizes.piece,
         program_source_name: 32,
         sources_sources: sizes.program_sources,
@@ -90,12 +90,12 @@ pub fn limits(sizes: &Sizes) -> Option<v20::Limits> {
         login_email_some: 255,
         logins_logins: sizes.program_sources,
         signed_out_name: 32,
-        wire_name: v20::CEILINGS.wire_name,
-        wire_layouts: v20::CEILINGS.wire_layouts,
-        credential_wires: v20::CEILINGS.credential_wires,
+        wire_name: v21::CEILINGS.wire_name,
+        wire_layouts: v21::CEILINGS.wire_layouts,
+        credential_wires: v21::CEILINGS.credential_wires,
         credential_name: sizes.name,
         credential_secret: sizes.secret,
-        bounds_program_endpoints: v20::CEILINGS.bounds_program_endpoints,
+        bounds_program_endpoints: v21::CEILINGS.bounds_program_endpoints,
         bounds_endpoints: sizes.models,
         hello_jobs: sizes.models,
         job_spec: sizes.charter,
@@ -117,8 +117,8 @@ pub fn limits(sizes: &Sizes) -> Option<v20::Limits> {
         failed_detail: sizes.detail,
         invalid_start_why: sizes.detail,
         // A provider's code and reason are smith's text, within the detail's bound.
-        account_refused_code: sizes.detail.min(v20::CEILINGS.account_refused_code),
-        account_refused_reason: sizes.detail.min(v20::CEILINGS.account_refused_reason),
+        account_refused_code: sizes.detail.min(v21::CEILINGS.account_refused_code),
+        account_refused_reason: sizes.detail.min(v21::CEILINGS.account_refused_reason),
         answer_refused: sizes.inbox,
         message_sender: sizes.sender,
         message_words: sizes.message,
@@ -129,7 +129,7 @@ pub fn limits(sizes: &Sizes) -> Option<v20::Limits> {
         answered_call_tool: sizes.tool_name,
         credential_value_bytes: sizes.grant,
         application_value_secret: sizes.grant,
-        program_value_name: v20::CEILINGS.program_source_name,
+        program_value_name: v21::CEILINGS.program_source_name,
         assignment_charter: sizes.charter,
         assignment_transcript: sizes.transcript,
         assignment_answered: sizes.answered,
@@ -139,9 +139,9 @@ pub fn limits(sizes: &Sizes) -> Option<v20::Limits> {
         inbound_words: sizes.message,
         relay_text_text: sizes.answer,
         relayed_name: sizes.call_name,
-        ..v20::CEILINGS
+        ..v21::CEILINGS
     };
-    v20::check_limits(&limits).ok()?;
+    v21::check_limits(&limits).ok()?;
     Some(limits)
 }
 
@@ -161,49 +161,49 @@ pub fn smallest_resumed(calls: u32, name: u32, tool: u32, answer: u32) -> Option
     u32::try_from(bytes).ok()
 }
 
-pub(crate) fn body(limits: &v20::Limits, kind: Kind) -> Option<u32> {
+pub(crate) fn body(limits: &v21::Limits, kind: Kind) -> Option<u32> {
     let bytes = match kind {
-        Kind::Ask => v20::Ask::encoded_bound(limits),
-        Kind::Asked => v20::Asked::encoded_bound(limits),
-        Kind::Pause => v20::Pause::encoded_bound(limits),
-        Kind::Paused => v20::Paused::encoded_bound(limits),
-        Kind::Figures => v20::Figures::encoded_bound(&v20::CEILINGS),
-        Kind::Restarting => v20::Restarting::encoded_bound(limits),
-        Kind::Wires => v20::Agreed::encoded_bound(limits),
-        Kind::Draining => v20::Draining::encoded_bound(limits),
-        Kind::Hello => v20::Hello::encoded_bound(limits),
-        Kind::Turn => v20::Turn::encoded_bound(limits),
-        Kind::Call => v20::Call::encoded_bound(limits),
-        Kind::Answer => v20::Answer::encoded_bound(limits),
-        Kind::Fact => v20::Fact::encoded_bound(limits),
-        Kind::Unauthorized => v20::Unauthorized::encoded_bound(limits),
-        Kind::Limited => v20::Limited::encoded_bound(limits),
-        Kind::AccountRefused => v20::AccountRefused::encoded_bound(limits),
-        Kind::Assignment => v20::Assignment::encoded_bound(limits),
-        Kind::Message => v20::Inbound::encoded_bound(limits),
-        Kind::Relayed => v20::Relayed::encoded_bound(limits),
-        Kind::TurnKept => v20::TurnKept::encoded_bound(limits),
-        Kind::TurnBusy => v20::TurnBusy::encoded_bound(limits),
-        Kind::Acknowledge => v20::Acknowledge::encoded_bound(limits),
-        Kind::Cancel => v20::Cancel::encoded_bound(limits),
-        Kind::Sources => v20::Sources::encoded_bound(limits),
-        Kind::Usage => v20::Usage::encoded_bound(limits),
-        Kind::UsageRead => v20::UsageRead::encoded_bound(limits),
-        Kind::ReadUsage => v20::ReadUsage::encoded_bound(limits),
-        Kind::ReadList => v20::ReadList::encoded_bound(limits),
-        Kind::ListRead => v20::ListRead::encoded_bound(limits),
-        Kind::Check => v20::Check::encoded_bound(limits),
-        Kind::SignOut => v20::SignOut::encoded_bound(limits),
-        Kind::Logins => v20::Logins::encoded_bound(limits),
-        Kind::SignedOut => v20::SignedOut::encoded_bound(limits),
-        Kind::Job => v20::Job::encoded_bound(limits),
-        Kind::JobAnswer => v20::JobAnswer::encoded_bound(limits),
-        Kind::Grant => v20::Granted::encoded_bound(limits),
+        Kind::Ask => v21::Ask::encoded_bound(limits),
+        Kind::Asked => v21::Asked::encoded_bound(limits),
+        Kind::Pause => v21::Pause::encoded_bound(limits),
+        Kind::Paused => v21::Paused::encoded_bound(limits),
+        Kind::Figures => v21::Figures::encoded_bound(&v21::CEILINGS),
+        Kind::Restarting => v21::Restarting::encoded_bound(limits),
+        Kind::Wires => v21::Agreed::encoded_bound(limits),
+        Kind::Draining => v21::Draining::encoded_bound(limits),
+        Kind::Hello => v21::Hello::encoded_bound(limits),
+        Kind::Turn => v21::Turn::encoded_bound(limits),
+        Kind::Call => v21::Call::encoded_bound(limits),
+        Kind::Answer => v21::Answer::encoded_bound(limits),
+        Kind::Fact => v21::Fact::encoded_bound(limits),
+        Kind::Unauthorized => v21::Unauthorized::encoded_bound(limits),
+        Kind::Limited => v21::Limited::encoded_bound(limits),
+        Kind::AccountRefused => v21::AccountRefused::encoded_bound(limits),
+        Kind::Assignment => v21::Assignment::encoded_bound(limits),
+        Kind::Message => v21::Inbound::encoded_bound(limits),
+        Kind::Relayed => v21::Relayed::encoded_bound(limits),
+        Kind::TurnKept => v21::TurnKept::encoded_bound(limits),
+        Kind::TurnBusy => v21::TurnBusy::encoded_bound(limits),
+        Kind::Acknowledge => v21::Acknowledge::encoded_bound(limits),
+        Kind::Cancel => v21::Cancel::encoded_bound(limits),
+        Kind::Sources => v21::Sources::encoded_bound(limits),
+        Kind::Usage => v21::Usage::encoded_bound(limits),
+        Kind::UsageRead => v21::UsageRead::encoded_bound(limits),
+        Kind::ReadUsage => v21::ReadUsage::encoded_bound(limits),
+        Kind::ReadList => v21::ReadList::encoded_bound(limits),
+        Kind::ListRead => v21::ListRead::encoded_bound(limits),
+        Kind::Check => v21::Check::encoded_bound(limits),
+        Kind::SignOut => v21::SignOut::encoded_bound(limits),
+        Kind::Logins => v21::Logins::encoded_bound(limits),
+        Kind::SignedOut => v21::SignedOut::encoded_bound(limits),
+        Kind::Job => v21::Job::encoded_bound(limits),
+        Kind::JobAnswer => v21::JobAnswer::encoded_bound(limits),
+        Kind::Grant => v21::Granted::encoded_bound(limits),
     }?;
     u32::try_from(bytes).ok()
 }
 
-fn frame(limits: &v20::Limits, kind: Kind) -> Option<u32> {
+fn frame(limits: &v21::Limits, kind: Kind) -> Option<u32> {
     body(limits, kind)?.checked_add(8)
 }
 

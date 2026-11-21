@@ -73,7 +73,7 @@ fn kept_terms_exclude_fields_and_kinds_the_version_does_not_have() {
                 let bound = text
                     .most_bytes_within(
                         variant.record.expect("record"),
-                        crate::v20::LIMIT_NAMES,
+                        crate::v21::LIMIT_NAMES,
                         limits.values().as_slice(),
                     )
                     .expect("bound");

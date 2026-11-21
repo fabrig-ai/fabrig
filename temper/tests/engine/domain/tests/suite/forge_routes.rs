@@ -158,6 +158,7 @@ mod pull_owner;
 mod saved_close;
 #[path = "forge_routes/saved_retry.rs"]
 mod saved_retry;
+mod suspended;
 
 #[path = "forge_routes/goal_tool.rs"]
 mod goal_tool;

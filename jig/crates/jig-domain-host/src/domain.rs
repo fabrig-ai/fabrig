@@ -29,7 +29,8 @@ pub struct Hub {
     pub(crate) facts: Facts,
     pub(crate) turns: Turns,
     pub(crate) answers: Map<(Token, Token), Id<Hosted>>,
-    /// The root is shutting down: it admits no more runs.
+    /// A drain or shutdown cancel has begun: it admits no more runs, and
+    /// attributes interrupted work to shutdown (domain/hosts/hub.md, 7, 9).
     pub(crate) shut: bool,
     pub(crate) pause: jig_domain_link::PauseState,
     pub(crate) refusals_lost: u64,

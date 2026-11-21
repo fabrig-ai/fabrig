@@ -658,6 +658,7 @@ mod tests {
         let mut service = crate::tests::fixtures::started();
         let channel = Token::new(7);
         let hello = jig_domain_link::Hello {
+            fresh: false,
             reads_usage: true,
             jobs: Box::default(),
             slots: 1,

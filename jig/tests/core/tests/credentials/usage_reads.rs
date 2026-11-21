@@ -19,6 +19,7 @@ fn idle_reads_reach_the_link_and_answers_mark_only_changed_facts() {
         link: root::link::Event::Hello {
             worker: 0,
             hello: jig_domain_link::Hello {
+                fresh: false,
                 reads_usage: true,
                 jobs: Box::new([]),
                 bounds: jig_test_profile::fixtures::bounds(),

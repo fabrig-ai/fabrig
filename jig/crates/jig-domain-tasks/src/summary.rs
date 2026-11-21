@@ -140,7 +140,7 @@ impl TaskSummary {
             last_activity: record.last_activity,
             ended_at: RetentionRow::of(record).since,
             numbers: record.numbers,
-            deadline: record.authority.budget.deadline,
+            deadline: crate::domain::deadline(record, record.changed),
             funder: record.funder,
             ended_delegates: SummaryEndings {
                 done: record.ended_delegates.done,

@@ -23,6 +23,28 @@ fn wall(source: Option<Wall>) -> Option<u64> {
     }
 }
 
+pub(super) fn suspension(source: Option<domain::Suspension>) -> Option<wire::Suspension> {
+    match source {
+        Some(source) => Some(wire::Suspension {
+            worker: source.worker,
+            since: source.since.as_nanos(),
+            until: source.until.as_nanos(),
+        }),
+        None => None,
+    }
+}
+
+pub(super) fn read_suspension(source: Option<wire::Suspension>) -> Option<domain::Suspension> {
+    match source {
+        Some(source) => Some(domain::Suspension {
+            worker: source.worker,
+            since: Wall::from_nanos(source.since),
+            until: Wall::from_nanos(source.until),
+        }),
+        None => None,
+    }
+}
+
 pub(super) fn attempt(row: &domain::AttemptRow, limits: &wire::Limits) -> Result<wire::AttemptRow, wire::Problem> {
     Ok(wire::AttemptRow {
         task: row.task,

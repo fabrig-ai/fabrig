@@ -95,6 +95,7 @@ impl Channel {
             worker_read: None,
             cannot_send: None,
             hello: Some(jig_domain_link::Hello {
+                fresh: false,
                 reads_usage: true,
                 jobs: Box::new([]),
                 slots: 1,

@@ -107,13 +107,13 @@ pub(crate) fn pause(domain: &mut Domain, worker: u32, mode: jig_domain_link::Pau
     let id = *domain.tokens.get(&channel).expect("admitted worker channel");
     domain.channels.get_mut(id).expect("named channel").pause_mode = mode;
     out.push(Request::Pause { channel, mode });
-    exclude_waiting(domain, channel);
+    domain.placing = !domain.waiting.is_empty();
 }
 
 pub(crate) fn paused(domain: &mut Domain, channel: Token, state: jig_domain_link::PauseState) {
     let Some(&id) = domain.tokens.get(&channel) else { return };
     domain.channels.get_mut(id).expect("named channel").pause_state = state;
-    exclude_waiting(domain, channel);
+    domain.placing = !domain.waiting.is_empty();
 }
 
 /// The protocol's name for the channel `channel`, which is in contact.
@@ -282,7 +282,8 @@ pub(crate) fn hello(
     }
     let _previous = domain.worker_links.insert(worker, (true, env.wall)).expect("configured worker link bound");
     let places = domain.worker_names.places(worker).expect("admitted worker setting");
-    let Hello { slots, workstreams, hosting, stop_bound: _, bounds, jobs, reads_usage } = hello;
+    let Hello { slots, workstreams, hosting, stop_bound: _, bounds, jobs, fresh, reads_usage } = hello;
+    let position = worker;
     let mut worker = Channel {
         jobs,
         evidence: crate::needs::evidence(&bounds),
@@ -335,6 +336,9 @@ pub(crate) fn hello(
             attempt::listed(domain, env, id, run, attempt, answered, out);
         }
         listed = listed.saturating_add(1);
+    }
+    if fresh {
+        attempt::restarted(domain, position, out);
     }
     out.push(Request::Sources { channel, sources: domain.program_sources.clone() });
     domain.facts.push(Fact::Hello { listed });
@@ -393,7 +397,7 @@ pub(crate) fn lost(domain: &mut Domain, env: &Env<Limits>, channel: Token, out: 
     let hosts = mem::replace(&mut entry.hosts, Set::with_capacity(0));
     let until = env.now.saturating_add(env.limits.grace);
     for &attempt in &hosts {
-        attempt::adrift(domain, attempt, channel, until);
+        attempt::adrift(domain, attempt, channel, worker, until);
     }
     domain.channels.retire(id);
     crate::history::lost(domain, crate::history::LostHost { worker, channel, slots, draining, until });
@@ -406,26 +410,13 @@ pub(crate) fn draining(domain: &mut Domain, channel: Token) {
         return;
     };
     domain.channels.get_mut(id).expect("named channel").shutting_down = true;
-    exclude_waiting(domain, channel);
+    domain.placing = !domain.waiting.is_empty();
 }
 
 /// A wire mismatch lasts for this channel, while hosted attempts continue.
 pub(crate) fn mismatch(domain: &mut Domain, channel: Id<Channel>) {
     let entry = domain.channels.get_mut(channel).expect("named channel");
     entry.mismatched = true;
-    let token = entry.token;
-    exclude_waiting(domain, token);
-}
-
-fn exclude_waiting(domain: &mut Domain, channel: Token) {
-    for (_, &id) in &domain.waiting {
-        let entry = domain.attempts.get_mut(id).expect("queued attempt");
-        if let Some(placement) = entry.placement
-            && placement.channel == channel
-        {
-            entry.placement = None;
-        }
-    }
     domain.placing = !domain.waiting.is_empty();
 }
 
@@ -474,6 +465,7 @@ pub(crate) fn choose(
 }
 
 /// Candidate hosts in affinity/free-room order, checking only retained run models.
+/// A suspension restricts candidates to its worker's position (domain/engine/executors.md, 6.4).
 pub(crate) fn probe(
     domain: &Domain,
     workstream: u64,
@@ -481,13 +473,15 @@ pub(crate) fn probe(
     version: crate::Version,
     models: &[crate::ModelNeed],
     excluded: &[Token],
+    worker: Option<u32>,
 ) -> Option<crate::PlacementConstraint> {
     let run = Token::new(workstream);
     let mut best: Option<(&Channel, u32)> = None;
     for (_, &id) in &domain.tokens {
         let channel = domain.channels.get(id).expect("connected host");
         let free = channel.slots.saturating_sub(channel.hosts.len());
-        if !channel.sources.ready()
+        if (worker.is_some() && channel.worker != worker)
+            || !channel.sources.ready()
             || free == 0
             || channel.draining
             || channel.shutting_down

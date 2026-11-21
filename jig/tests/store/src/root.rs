@@ -330,6 +330,9 @@ pub fn live_task(number: u64) -> core::Record {
         words_woken: 0,
         unrecorded: Box::new([]),
         open_attempt: None,
+        suspension: None,
+        suspended: 0,
+        restarted: false,
         placed: None,
         settings: tasks::SettingsRevision { task: 1, run: None },
         added: Box::new([]),
@@ -429,6 +432,7 @@ pub fn live_task(number: u64) -> core::Record {
 #[must_use]
 pub fn run_proof(task: u64) -> core::Record {
     core::Record::Core(core::CoreRecord::RunProof(core::RunProof {
+        worker: None,
         accounts: Box::new([]),
         placement: None,
         account_failure: None,

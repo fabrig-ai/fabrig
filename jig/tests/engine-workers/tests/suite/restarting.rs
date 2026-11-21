@@ -78,7 +78,7 @@ fn a_restart_says_nothing_before_hello_or_after_closing() {
 fn usage_reads_and_hello_capability_follow_the_agreed_channel_version() {
     use jig_domain_host::LinkDown;
     use skein_lib::Secret;
-    for version in [17, 18, 19] {
+    for version in [17, 18, 19, 20] {
         let mut world = World::new(&fixtures::limits(), &fixtures::workers(), 1);
         let codec = wire::sizes::limits(&fixtures::limits().sizes).expect("codec");
         let mut schema = fixtures::schema();
@@ -107,7 +107,11 @@ fn usage_reads_and_hello_capability_follow_the_agreed_channel_version() {
         let connection = world.connect(peer);
         world.run();
         assert!(world.ready(connection));
-        world.play(connection, fixtures::hello_frame());
+        let hello = wire::translation::Translation::new(wire::Application::opaque(fixtures::application()))
+            .expect("opaque application")
+            .send(fixtures::hello_frame(), version, &[wire::Agreed { name: wire::wire::FAMILY, version }], &codec)
+            .expect("hello at the agreed version");
+        world.play(connection, hello);
         world.run();
         let (channel, reads_usage) = world
             .root()

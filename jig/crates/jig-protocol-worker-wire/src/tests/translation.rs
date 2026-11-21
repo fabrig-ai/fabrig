@@ -1,7 +1,7 @@
 //! The shared component bridge machine (jig/docs/design/protocol/channel/bridges.md, 5 and 9).
 use crate::translation::Translation;
-use crate::v20::Record;
-use crate::{self as channel, Agreed, Application, Carried, Kept, Root, Spoken, v20 as wire};
+use crate::v21::Record;
+use crate::{self as channel, Agreed, Application, Carried, Kept, Root, Spoken, v21 as wire};
 use skein_channel::{Frame, frame_writer};
 use skein_codec::{
     bridge::Bridge,
@@ -106,6 +106,26 @@ fn fixture_golden(goldens: &[skein_codegen::Golden], name: &str) -> Box<[u8]> {
     }
     panic!("missing golden {name}")
 }
+#[test]
+fn a_hello_before_twenty_one_drops_freshness_and_reads_back_not_fresh() {
+    for version in [18, 19, 20] {
+        let mut hello = super::fixtures::hello_smallest();
+        hello.fresh = true;
+        let current = worker(&wire::FromWorker::Hello(hello));
+        let current_len = current.bytes().len();
+        let mut bridge = opaque();
+        let old = bridge
+            .send(current, version, &agreed(version, smith_charter::wire::VERSION), &wire::CEILINGS)
+            .expect("hello goes down to an older worker wire");
+        assert_eq!(old.bytes().len().checked_add(1), Some(current_len), "fresh is dropped");
+        let restored = bridge
+            .receive(old.kind(), body(&old), version, &agreed(version, smith_charter::wire::VERSION), &wire::CEILINGS)
+            .expect("an older hello goes up");
+        let wire::FromWorker::Hello(hello) = worker_value(&restored) else { panic!("hello") };
+        assert!(!hello.fresh, "an older channel cannot prove a new process");
+    }
+}
+
 fn charter(contract: u16) -> Box<[u8]> {
     let bytes = golden(smith_charter::patches::kept::smith_charter::TEXTS.last().unwrap(), "record_charter_smallest");
     let mut parts = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(&bytes)).unwrap();
@@ -132,9 +152,9 @@ fn failed_answer(failure: wire::RunFailure) -> wire::FromWorker {
 }
 
 #[test]
-fn pause_notices_are_unheld_below_nineteen() {
+fn pause_notices_are_unheld_below_twenty() {
     let mut translation = opaque();
-    for version in crate::wire::FLOOR..19 {
+    for version in crate::wire::FLOOR..20 {
         for record in [
             wire::FromEngine::Pause(wire::Pause { mode: wire::PauseMode::Resume }),
             wire::FromEngine::Pause(wire::Pause { mode: wire::PauseMode::Pause }),
@@ -193,12 +213,14 @@ fn older_run_failures_round_trip_through_sixteen_without_changing() {
 }
 
 #[test]
-fn a_worker_of_nineteen_cannot_send_whole_to_an_engine_below_nineteen() {
+fn a_worker_of_twenty_one_sends_whole_at_nineteen_and_twenty_but_not_below() {
     for version in [16, 17, 18] {
         let agreed = [Agreed { name: "jig-worker-wire", version }];
         assert_eq!(opaque().incomplete(&agreed).as_slice(), &agreed);
     }
-    assert!(opaque().incomplete(&[Agreed { name: "jig-worker-wire", version: 19 }]).is_empty());
+    for version in [19, 20] {
+        assert!(opaque().incomplete(&[Agreed { name: "jig-worker-wire", version }]).is_empty());
+    }
 }
 
 fn model_answer(refusal: Option<Box<[u8]>>) -> wire::FromWorker {
@@ -229,8 +251,14 @@ fn model_refusals_round_trip_at_eighteen_and_are_unheld_below_it() {
         schema::{FieldIx, Shape, parse},
         value::{Part, Path},
     };
-    let schema = parse(channel::patches::kept::jig_worker_wire::TEXTS.last().expect("current schema").as_bytes())
-        .expect("schema");
+    // The refusal is the reverse from 18: its path names that plan's source layout.
+    let mut source = None;
+    for text in channel::patches::kept::jig_worker_wire::TEXTS {
+        if text.starts_with("family jig-worker-wire 18\n") {
+            source = Some(text);
+        }
+    }
+    let schema = parse(source.expect("wire 18").as_bytes()).expect("schema");
     let decl = schema.find(b"ModelFailure").expect("model failure record");
     let first = match schema.declaration(decl).shape {
         Shape::Record { first, .. } => first,

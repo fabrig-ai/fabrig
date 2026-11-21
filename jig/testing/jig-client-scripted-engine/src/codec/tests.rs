@@ -219,3 +219,43 @@ fn worker_settings_linked_faults_and_deployment_rows_survive_the_scripted_codec(
     let wire = values::wire_deployment(&source, limits.wire()).unwrap();
     assert_eq!(translate::documents::deployment(wire, &limits).unwrap(), source);
 }
+
+#[test]
+fn scripted_suspensions_and_worker_waits_keep_their_wire_facts() {
+    use skein_lib::{Reader, Wall};
+    for (why, expected) in
+        [(c::SuspendWhy::Stopped, w::SuspendWhy::Stopped), (c::SuspendWhy::Restarted, w::SuspendWhy::Restarted)]
+    {
+        let end = c::RunEnd::Suspended { worker: 2, why };
+        let value = c::Activity::RunEnded { attempt: 4, end, spent: 19 };
+        let record = values::wire_activity(&value, &w::CEILINGS).unwrap();
+        let bytes = record.encode(&w::CEILINGS).unwrap();
+        let decoded = w::Activity::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
+        assert_eq!(
+            decoded,
+            w::Activity::RunEnded(w::ActivityRunEnded {
+                attempt: 4,
+                end: w::RunEnd::Suspended(w::RunEndSuspended { worker: 2, why: expected }),
+                spent: 19
+            })
+        );
+        let value = c::ReadValue::History(Box::new(c::HistoryPage {
+            rows: List::from_boxed(Box::new([c::HistoryRow::Attempt(Box::new(c::AttemptLine {
+                task: 7,
+                attempt: 4,
+                claimed: None,
+                started: None,
+                ended: Some(Wall::from_nanos(37)),
+                end: Some(end),
+                phases: None,
+            }))])),
+            before: None,
+            after: None,
+            cut: false,
+        }));
+        assert_eq!(read(&value, &Bounds::default()), Ok(value));
+    }
+    let wait = c::TaskRunWait::Worker { worker: 2, until: Wall::from_nanos(63_600_000_000_001) };
+    let record = values::wire_task_run_wait(&wait, &w::CEILINGS).unwrap();
+    assert_eq!(record, w::TaskRunWait::Worker(w::TaskWaitWorker { worker: 2, until: 63_600_000_000_001 }));
+}

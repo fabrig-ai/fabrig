@@ -57,6 +57,7 @@ pub enum JigPhrase {
 
     BoundsWorker,
     WaitUntooled,
+    WaitReturningWorker,
     BoundsEngine,
     RefusedWorkerAt,
     RefusedEngineAt,
@@ -1143,6 +1144,7 @@ impl JigPhrase {
             Self::EngineLimitProjects => 7836,
             Self::BoundsWorker => 7840,
             Self::WaitUntooled => 7931,
+            Self::WaitReturningWorker => 7943,
             Self::BoundsEngine => 7841,
             Self::RefusedWorkerAt => 7821,
             Self::RefusedEngineAt => 7822,
@@ -1771,7 +1773,11 @@ impl JigPhrase {
     pub fn shape(self, text: u32) -> PhraseShape {
         let holes: Box<[HoleShape]> = match self {
             Self::Word(word) => return word.shape(text),
-            Self::DependencyByTask | Self::DependencyByParty | Self::DependencyByDeployment | Self::AnswersFull => {
+            Self::DependencyByTask
+            | Self::DependencyByParty
+            | Self::DependencyByDeployment
+            | Self::AnswersFull
+            | Self::WaitReturningWorker => {
                 Box::new([HoleShape { kind: HoleKind::Number, bytes: 0 }, HoleShape { kind: HoleKind::Wall, bytes: 0 }])
             }
             Self::FrameNeedsKinds => Box::new([
@@ -2476,7 +2482,7 @@ impl JigPhrase {
     }
 }
 /// Every jig phrase; loading checks this whole contract.
-pub const ALL: [JigPhrase; 667] = [
+pub const ALL: [JigPhrase; 668] = [
     JigPhrase::TooLinked,
     JigPhrase::SettingsChanged,
     JigPhrase::SettingProjectPolicy,
@@ -2526,6 +2532,7 @@ pub const ALL: [JigPhrase; 667] = [
     JigPhrase::EngineLimitProjects,
     JigPhrase::BoundsWorker,
     JigPhrase::WaitUntooled,
+    JigPhrase::WaitReturningWorker,
     JigPhrase::BoundsEngine,
     JigPhrase::RefusedWorkerAt,
     JigPhrase::RefusedEngineAt,

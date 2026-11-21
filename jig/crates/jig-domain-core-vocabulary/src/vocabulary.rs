@@ -287,6 +287,13 @@ pub enum Ask {
 
 /// Store mutation issued by a child of the core.
 #[derive(Hash, Debug)]
+#[cfg_attr(
+    target_pointer_width = "64",
+    expect(
+        clippy::large_enum_variant,
+        reason = "durable run proofs carry placement evidence; writes retain the shared record vocabulary"
+    )
+)]
 pub enum Write {
     /// Drop a task transcript whole with its places (jig/docs/design/protocol/store/transcripts.md, 5, jig/docs/design/protocol/store/README.md, 6.1;
     /// jig/docs/design/domain/people/acts.md, 2).
@@ -595,6 +602,10 @@ pub enum LinkNow {
         run: Token,
         attempt: Token,
         payload: Token,
+        /// Answering worker's fleet position, none on the engine.
+        worker: Option<u32>,
+        /// Fleet restart wait at the answer's decision.
+        window: skein_lib::Duration,
     },
     /// Read the root-owned transcript after the task accepts its charge.
     AcceptedTurn {

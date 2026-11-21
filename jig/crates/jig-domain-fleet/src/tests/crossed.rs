@@ -8,12 +8,12 @@ const DISCONNECT: u64 = 4;
 const WORKSTREAM: u64 = 1;
 
 fn cross(h: &mut Harness, run: Token, attempt: Token) -> Box<[Request]> {
-    h.step(Event::Cross { reply_to: to(attempt), run, attempt, worked: false })
+    h.step(Event::Cross { worker: None, reply_to: to(attempt), run, attempt, worked: false })
 }
 
 fn crossed(worked: bool) -> Harness {
     let mut h = Harness::new(Limits { turns: 2, ..LIMITS });
-    h.step(Event::Cross { reply_to: to(A1), run: R1, attempt: A1, worked });
+    h.step(Event::Cross { worker: None, reply_to: to(A1), run: R1, attempt: A1, worked });
     h
 }
 
