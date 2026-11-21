@@ -4,3 +4,4 @@
 mod faults;
 mod inspect;
 mod streams;
+mod sweep;

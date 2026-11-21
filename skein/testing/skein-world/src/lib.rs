@@ -35,6 +35,8 @@
 //! from one seed, with a separate sequence for each named part.
 //!
 //! [`faults`] records each run's injected faults, intervals, identities and counters.
+//! [`sweep`] checks configured faults across seeds and excludes named combinations
+//! before injection, never findings.
 //!
 //! A scenario's processes are one type, the scenario's own (an enum of its
 //! service and its fakes, say), implementing [`Host`]; the boundary
@@ -62,6 +64,7 @@ mod referee;
 pub mod ring;
 pub mod stream;
 pub mod streams;
+pub mod sweep;
 #[cfg(unix)]
 mod tree;
 mod world;

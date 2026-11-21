@@ -94,6 +94,7 @@ impl Injected {
 #[derive(Default, Debug)]
 pub struct FaultLedger {
     entries: Vec<Injected>,
+    left_out: Vec<(&'static str, Kind, Time)>,
 }
 
 impl FaultLedger {
@@ -101,6 +102,17 @@ impl FaultLedger {
     #[must_use]
     pub fn new() -> FaultLedger {
         FaultLedger::default()
+    }
+
+    /// Records a draw left out before injection by its named exclusion
+    /// (`skein/docs/design/testing/sweeps.md`, 4 and 5).
+    pub fn leave_out(&mut self, scenario: &'static str, kind: Kind, at: Time) {
+        self.left_out.push((scenario, kind, at));
+    }
+
+    /// Left-out draws in draw order, separate from injected faults.
+    pub(crate) fn left_out_draws(&self) -> &[(&'static str, Kind, Time)] {
+        &self.left_out
     }
 
     /// Records a fault as it starts.
