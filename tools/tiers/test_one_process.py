@@ -897,24 +897,79 @@ class EndToEndTests(RunnerFixture):
                 self.assertIn(output.getvalue().splitlines()[-1],
                               (self.directory / 'command-output.txt').read_text())
 
+    def assert_ledger_counts(self, result, data, ledger, output, main=None):
+        self.assert_counting(data)
+        self.assertEqual(result['counting'], data['counting'])
+        self.assertEqual([p['instructions'] for p in result['processes']],
+                         [p['instructions'] for p in data['processes']])
+        processes = [p for p in result['processes'] if p['kind'] in ('tests', 'fresh', 'alone')]
+        self.assertTrue(processes)
+        for process in result['processes']:
+            if process['kind'] not in ('tests', 'fresh', 'alone'):
+                self.assertIsNone(process['instructions'])
+        if result['counting']['counted']:
+            for process in processes:
+                self.assertIs(type(process['instructions']), int)
+                self.assertGreater(process['instructions'], 0)
+            count = sum(p['instructions'] for p in processes)
+            own = [dict(commit=data['commit'], instructions=count)]
+        else:
+            count, own = None, []
+            for process in result['processes']:
+                self.assertIsNone(process['instructions'])
+            self.assertIn(f"tiers: not counting instructions: {data['counting']['why']}\n", output)
+        previous = [] if main is None else main['binaries']['fixture::suite']['counts']
+        self.assertEqual(ledger['binaries']['fixture::suite']['counts'], previous + own)
+        main_count = previous[-1]['instructions'] if previous else None
+        self.assertEqual([(r['tree'], r['layer']) for r in result['layers']], [('repository', 'checks')])
+        self.assertEqual([r['tree'] for r in result['trees']], ['repository'])
+        for row in result['layers'] + result['trees']:
+            self.assertEqual(row['instructions'], count)
+            self.assertEqual(row['main_instructions'], main_count)
+        line = next(line for line in output.splitlines() if line.startswith('layer repository checks:'))
+        ending = f", instructions {count if count is not None else 'none'}"
+        if main is not None:
+            ending += f", main instructions {main_count if main_count is not None else 'none'}"
+        self.assertTrue(line.endswith(ending), line)
+        self.assertIn(line, (self.directory / 'command-output.txt').read_text())
+        return count
+
     def test_execute_writes_readable_ledger(self):
         cpu = runpy.run_path(str(HERE / 'cpu.py'))
         execute = cpu['execute_one_process']
         execute.__globals__['runpy'] = mock.Mock(run_path=lambda path: {'run': self.run})
+        # Split one binary across processes so its ledger must sum their counts.
+        self.run.__globals__['LANES'] = 2
         self.prepare()
-        with contextlib.redirect_stdout(io.StringIO()):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
             code = execute(self.command, self.env, self.directory, 'default', {}, self.config)
         self.assertEqual(code, 0)
         ledger = cpu['ledger'](self.directory / 'ledger.json')
         result = cpu['summary'](self.directory)
         data = json.loads((self.directory / 'results.json').read_text())
-        count = cpu['head_binaries'](result['processes'], data['workspace'], None)['fixture::suite']['instructions']
-        counts = [] if count is None else [dict(commit=data.get('commit'), instructions=count)]
+        self.assertEqual(len(result['processes']), 2)
+        count = self.assert_ledger_counts(result, data, ledger, output.getvalue())
+        counts = [] if count is None else [dict(commit=data['commit'], instructions=count)]
         self.assertEqual(ledger, dict(ledger=4, profile='default', budgets={}, moves=[], binaries={
             'fixture::suite': dict(tree='repository', layer='checks',
                                   cpu=[sum(p['cpu_s'] for p in result['processes'])],
                                   tests={t['test_name']: [t['wall_s']] for t in result['tests']}, alone={}, counts=counts)}))
         self.assertEqual(set(ledger['binaries']['fixture::suite']['tests']), {'a', 'b', 'c'})
+
+        self.directory = self.root / 'second run with spaces'
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            code = execute(self.command, self.env, self.directory, 'default', {}, self.config, ledger=ledger)
+        self.assertEqual(code, 0)
+        second_ledger = cpu['ledger'](self.directory / 'ledger.json')
+        second = cpu['summary'](self.directory, ledger=ledger)
+        second_data = json.loads((self.directory / 'results.json').read_text())
+        self.assert_ledger_counts(second, second_data, second_ledger, output.getvalue(), main=ledger)
+        entry = second_ledger['binaries']['fixture::suite']
+        self.assertEqual(entry['cpu'], [*ledger['binaries']['fixture::suite']['cpu'], second['suite']['cpu_s']])
+        self.assertEqual(entry['tests'], {t['test_name']: [*ledger['binaries']['fixture::suite']['tests'][t['test_name']],
+                                                        t['wall_s']] for t in second['tests']})
 
     def test_walls_replace_the_profiles_global_timeout(self):
         self.env['FIXTURE_CASE'] = 'hang'
