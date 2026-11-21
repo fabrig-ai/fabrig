@@ -38,3 +38,4 @@ record Packet = d::Packet {
     optional_primary boxed
 }
 record Root by hand
+enum LongChoice = d::LongChoice

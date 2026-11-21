@@ -102,7 +102,7 @@ mod tests {
                 }
             }
         }
-        // 60 roots * (6144 drawn/mutated + 784 arbitrary), plus 4 per golden.
-        assert_eq!(cases, 416_432);
+        // 61 roots * (6144 drawn/mutated + 784 arbitrary), plus 4 per golden.
+        assert_eq!(cases, 424_152);
     }
 }
