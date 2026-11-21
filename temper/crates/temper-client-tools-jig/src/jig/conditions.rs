@@ -25,7 +25,9 @@ pub fn holds(condition: &Condition, facts: &Facts<'_>) -> Option<bool> {
             | Condition::Held
             | Condition::Replied
             | Condition::Changed
-            | Condition::Phase(_) => None,
+            | Condition::Phase(_)
+            | Condition::Drained(_)
+            | Condition::Paused(_) => None,
         },
 
         c::Delivery::Inbox(inbox) => match condition {
@@ -38,9 +40,11 @@ pub fn holds(condition: &Condition, facts: &Facts<'_>) -> Option<bool> {
             | Condition::Held
             | Condition::Replied
             | Condition::Changed
-            | Condition::Phase(_) => None,
+            | Condition::Phase(_)
+            | Condition::Drained(_)
+            | Condition::Paused(_) => None,
         },
-        c::Delivery::Task(task) => task_holds(*condition, task, facts.me),
+        c::Delivery::Task(task) => task_holds(condition, task, facts.me),
 
         c::Delivery::Tree(tree) => {
             if *condition == Condition::Ended {
@@ -59,7 +63,9 @@ pub fn holds(condition: &Condition, facts: &Facts<'_>) -> Option<bool> {
             | Condition::Held
             | Condition::Replied
             | Condition::Changed
-            | Condition::Phase(_) => None,
+            | Condition::Phase(_)
+            | Condition::Drained(_)
+            | Condition::Paused(_) => None,
         },
         c::Delivery::RunState(run) => {
             if *condition == Condition::Ended {
@@ -68,21 +74,21 @@ pub fn holds(condition: &Condition, facts: &Facts<'_>) -> Option<bool> {
                 None
             }
         }
+        c::Delivery::Deployment(deployment) => worker_holds(condition, deployment),
         c::Delivery::Terminal(_)
         | c::Delivery::Project(_)
         | c::Delivery::Proposal(_)
         | c::Delivery::Chips(_)
         | c::Delivery::Tasks(_)
         | c::Delivery::Run(_)
-        | c::Delivery::Settings(_)
-        | c::Delivery::Deployment(_) => None,
+        | c::Delivery::Settings(_) => None,
     }
 }
-fn task_holds(condition: Condition, task: &c::Task, me: Option<&c::Me>) -> Option<bool> {
+fn task_holds(condition: &Condition, task: &c::Task, me: Option<&c::Me>) -> Option<bool> {
     Some(match condition {
         Condition::Ended => ended(task.chip.phase),
         Condition::Held => task.chip.phase == c::Phase::Held,
-        Condition::Phase(phase) => task.chip.phase == phase,
+        Condition::Phase(phase) => task.chip.phase == *phase,
         Condition::WaitingOnMe => waits_on_me(&task.waits_on, task.project, me?),
         Condition::Replied => {
             match facts::chat_status(&task.chip, &task.waits_on, task.run_wait.as_ref(), task.project, me?) {
@@ -102,10 +108,42 @@ fn task_holds(condition: Condition, task: &c::Task, me: Option<&c::Me>) -> Optio
                 | ChatStatus::Retrying { .. } => false,
             }
         }
-        Condition::Changed | Condition::Usable | Condition::Settled | Condition::Waiting | Condition::Updates => {
+        Condition::Changed
+        | Condition::Usable
+        | Condition::Settled
+        | Condition::Waiting
+        | Condition::Updates
+        | Condition::Drained(_)
+        | Condition::Paused(_) => {
             return None;
         }
     })
+}
+fn worker_holds(condition: &Condition, deployment: &c::Deployment) -> Option<bool> {
+    let (name, drained) = match condition {
+        Condition::Drained(name) => (name, true),
+        Condition::Paused(name) => (name, false),
+        Condition::Changed
+        | Condition::Waiting
+        | Condition::Usable
+        | Condition::Settled
+        | Condition::Updates
+        | Condition::Ended
+        | Condition::WaitingOnMe
+        | Condition::Held
+        | Condition::Replied
+        | Condition::Phase(_) => return None,
+    };
+    for worker in &deployment.worker_settings {
+        if !worker.withdrawn && worker.name == *name {
+            return Some(match worker.pause {
+                c::WorkerPause::Taking => false,
+                c::WorkerPause::Paused | c::WorkerPause::Draining => !drained,
+                c::WorkerPause::Drained => true,
+            });
+        }
+    }
+    Some(false)
 }
 /// Terminal chip facts can arrive before a watch's terminal.
 #[must_use]

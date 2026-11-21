@@ -216,6 +216,7 @@ fn help_lists_groups_then_a_group_then_a_tool() {
         (&["help", "task"], "help_task"),
         (&["help", "goal"], "help_goal"),
         (&["help", "milestone"], "help_milestone"),
+        (&["help", "worker"], "help_worker"),
         (&["help", "task", "show"], "help_task_show"),
         (&["help", "me"], "help_me"),
     ] {

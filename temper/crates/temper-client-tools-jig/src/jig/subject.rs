@@ -1,17 +1,19 @@
 //! Watch subjects and their conditions (tools contract, 5.4).
 use super::{argv::Usage, call::Call};
+use alloc::boxed::Box;
 use jig_client::contract::Phase;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Subject {
     Me,
     Accounts,
+    Workers,
     Inbox,
     Task(u64),
     Tree(u64),
     Run(u64),
     Tasks,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Condition {
     Changed,
     Waiting,
@@ -23,19 +25,21 @@ pub enum Condition {
     Held,
     Replied,
     Phase(Phase),
+    Drained(Box<[u8]>),
+    Paused(Box<[u8]>),
 }
 /// Parse a condition for its subject; terminal phases name `--until ended`.
 pub fn condition(subject: &Subject, word: &[u8]) -> Result<Condition, Usage> {
     let value = parse(word).ok_or(Usage::Condition)?;
-    check(subject, value)?;
+    check(subject, &value)?;
     Ok(value)
 }
-pub(crate) fn check(subject: &Subject, condition: Condition) -> Result<(), Usage> {
-    if takes(subject, &condition) {
+pub(crate) fn check(subject: &Subject, condition: &Condition) -> Result<(), Usage> {
+    if takes(subject, condition) {
         return Ok(());
     }
     if let (Subject::Task(_), Condition::Phase(phase)) = (subject, condition) {
-        return Err(Usage::TerminalPhase { phase });
+        return Err(Usage::TerminalPhase { phase: *phase });
     }
     Err(Usage::Condition)
 }
@@ -45,6 +49,7 @@ pub fn takes(subject: &Subject, condition: &Condition) -> bool {
     match (subject, condition) {
         (_, Condition::Changed)
         | (Subject::Accounts, Condition::Usable | Condition::Settled)
+        | (Subject::Workers, Condition::Drained(_) | Condition::Paused(_))
         | (Subject::Me, Condition::Waiting)
         | (Subject::Inbox, Condition::Waiting | Condition::Updates)
         | (Subject::Task(_), Condition::Ended | Condition::WaitingOnMe | Condition::Held | Condition::Replied)
@@ -65,10 +70,22 @@ pub(super) fn parse(word: &[u8]) -> Option<Condition> {
         b"held" => Condition::Held,
         b"replied" => Condition::Replied,
         _ => {
+            if let Some(name) = word.strip_prefix(b"drained:") {
+                return worker_condition(name, true);
+            }
+            if let Some(name) = word.strip_prefix(b"paused:") {
+                return worker_condition(name, false);
+            }
             let phase = phase(word.strip_prefix(b"phase:")?)?;
             Condition::Phase(phase)
         }
     })
+}
+fn worker_condition(name: &[u8], drained: bool) -> Option<Condition> {
+    if !super::argv::value::worker_name(name) {
+        return None;
+    }
+    Some(if drained { Condition::Drained(Box::from(name)) } else { Condition::Paused(Box::from(name)) })
 }
 /// A phase's word in any ASCII case; `backing-off` also `BackingOff` and `--json`'s `backing_off`.
 #[must_use]
@@ -138,6 +155,7 @@ pub(crate) fn of(call: &Call) -> Option<Subject> {
     Some(match call.tool {
         rows::ME_AT => Subject::Me,
         rows::ACCOUNTS_AT => Subject::Accounts,
+        rows::WORKER_LIST_AT => Subject::Workers,
         rows::INBOX_AT => Subject::Inbox,
         rows::TASK_AT => Subject::Task(call::number(call, 0)?),
         rows::TREE_AT => Subject::Tree(call::number(call, 0)?),

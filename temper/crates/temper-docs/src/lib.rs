@@ -571,7 +571,7 @@ pub static PAGES: [Page; 76] = [
         name: "ctl-worker",
         kind: Kind::Reference,
         title: "temper ctl worker",
-        summary: "Workers: list, add, change places or remove.",
+        summary: "Workers: list, add, change places, remove, pause, drain or resume.",
         text: include_str!("../../../docs/help/reference/ctl-worker.md"),
     },
     Page {

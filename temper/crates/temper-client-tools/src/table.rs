@@ -51,7 +51,7 @@ pub const GROUPS: &[Group] = &[
     Group { name: b"push", line: b"Push devices: list, add or remove your subscriptions" },
     Group { name: b"playground", line: b"The playground: start it, or end it and set up temper" },
     Group { name: b"deployment", line: b"Read the deployment's store census or take a checkpoint" },
-    Group { name: b"worker", line: b"Workers: list, add, change places or remove" },
+    Group { name: b"worker", line: b"Workers: list, add, change places, remove, pause, drain or resume" },
 ];
 pub const TOOLS: &[&Tool] = &[
     &rows::ME,
@@ -168,6 +168,9 @@ pub const TOOLS: &[&Tool] = &[
     &rows::USES,
     &rows::LINK,
     &rows::WITHDRAW,
+    &rows::WORKER_PAUSE,
+    &rows::WORKER_DRAIN,
+    &rows::WORKER_RESUME,
 ];
 pub fn parse(words: &[&[u8]]) -> Result<Parsed, Usage> {
     let parsed = argv::parse(TOOLS, words, &crate::limits::tools())?;
