@@ -171,12 +171,14 @@ baseline recounted, a generated file made again), with no model.
   playground log with its focused walk test on the merged tree,
   `SKEIN_CODEGEN_WRITE=1`. It makes again each generated codec module
   its list names (`tools/merge/codecs.txt`: a module's path, then the
-  schema texts it is made from, in order) whose schema texts and
-  generator merged clean, the generator being `skein-codegen`'s and
-  `skein-codec`'s crates: it builds `skein-codegen`'s command alone and
-  runs it on those texts. It never runs the family's drift test, whose
-  world builds the very codec crates left in conflict. A module whose
-  schema text or generator conflicts too is left with them
+  schema texts it is made from, in order, and for a translation module
+  its maps file last, `skein/docs/design/data/codec/maps.md`, 7) whose
+  schema texts, maps file and generator merged clean, the generator
+  being `skein-codegen`'s and `skein-codec`'s crates: it builds
+  `skein-codegen`'s command alone and runs it on those texts. It never
+  runs the family's drift test, whose world builds the very codec
+  crates left in conflict. A module whose schema text, maps file or
+  generator conflicts too is left with them
   (`../draft/codec-shape.md`, 6.2). It settles a conflict at a
   journey's recording, page or file printed beside them with the base's
   copy, the landing branch's, or with none where the base holds none,
