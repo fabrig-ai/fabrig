@@ -254,7 +254,7 @@ forge, temper adds:
 - **`draft/`:** the drafts, the vision this design is written from
   (the repository's `AGENTS.md`, section 6).
 - **Status files:** beside each document, `<name>.status.md`, where
-  the code lags or departs from it; `STATUS.md` indexes them.
+  the code lags or departs from it; `STATUS.md` tells how to roll them up.
 
 ## 7. Conventions
 
