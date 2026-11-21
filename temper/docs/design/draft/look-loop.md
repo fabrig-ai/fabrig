@@ -37,12 +37,12 @@ with no one watching. It supersedes the draft of 2026-11-04 that became
   at each new tip of main, renders each newly landed request's pages
   beside the print at three widths. It compares the computed style and
   box of each element the request touched, and writes the verdict into
-  `looks.md` beside the pages it prints.
+  `looks.html` beside the pages it prints.
 - **No one watches it** (section 5): the run starts by itself when main
   moves. Its change brings the verdict to whoever starts look requests'
   goals, who proposes a repair to the person for each difference.
 - **The person's look is main's pages** (section 6): plain HTML in the
-  repository, with a journey for each look asked for, and `looks.md`
+  repository, with a journey for each look asked for, and `looks.html`
   saying whether each rendered as drawn.
 
 ## 2. The request
@@ -207,7 +207,7 @@ accounts do today.
 
 - **Which requests:** each request whose trailer a commit on main
   carries, whose commit is at `docs/look/NAME`, and whose name
-  `looks.md` doesn't hold yet.
+  `looks.html` doesn't hold yet.
 - **Which pages:** each page C changes, from C's tree with C's overlay
   and stylesheets, beside the same path in the run's print, with the
   landed stylesheets and an empty overlay. A page with nothing beside it
@@ -232,12 +232,13 @@ accounts do today.
 
 ### 5.3 The verdict
 
-- **`looks.md`,** beside each root's journeys, is written by the writer
-  alone (`../client/journey-writer.md`, 2). It holds one section per
-  checked request: its name, its commit, the tip it was checked at, and
-  its result. A request is checked once, and its section stays.
+- **`looks.html`,** a page beside each root's journeys, is written by the
+  writer alone (`../client/journey-writer.md`, 2). It holds an entry per
+  checked request: its name, its commit, the tip it was checked at, its
+  result, and links to its pages. A request is checked once, and its
+  entry stays.
 - **It lands with the print:** the run's change holds the pages and
-  `looks.md`, and its message ends `Printed: TIP`, so
+  `looks.html`, and its message ends `Printed: TIP`, so
   `look-refresh.sh` drops the request (`../client/journey-writer.md`,
   6). A landing that changes no page still gives a change, its
   verdict, so every checked request is printed and dropped.
@@ -255,8 +256,8 @@ accounts do today.
 - **Main's pages are the landed look:** each journey's pages under the
   two roots, plain files that open in a browser from a checkout. A
   request drawn on a walk leaves its state there for good.
-- **`looks.md`** says, for each request, whether it rendered as drawn,
-  and where it didn't.
+- **`looks.html`,** a page of the same kind, says for each request
+  whether it rendered as drawn and where it didn't, and links its pages.
 
 ## 7. Its tests
 
@@ -280,7 +281,7 @@ Focused and native: no browser, terminal or box starts.
 - **The render check's reading of Chromium:** a browser-tier story,
   written and compiled in the plan, not run. Two pages differing by one
   rule give one difference at each width, and equal pages give none.
-- **The delivery check and the merge job** take `looks.md` as a written
+- **The delivery check and the merge job** take `looks.html` as a written
   file (`tools/pre-pr/design.md`, 4; `tools/merge/README.md`).
 
 ## 8. Later
