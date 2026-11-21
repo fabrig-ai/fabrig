@@ -314,6 +314,21 @@ Independent checks continue after a failure so the delivery reports their
 results together. The test phases below share build prerequisites. Section 6
 defines the verdict.
 
+An optional single-retry trial moves the focused profile before formatting,
+counted baselines and Clippy. A checkout-local `temper/repair-trial` in
+the Git directory names one exact new focused failure in the preceding
+uncached refusal in the last hour. Its base and HEAD write must match and the candidate
+tree must have changed. Consume the invitation once. A known red, disabled
+replay, selection error or required helper build keeps the ordinary order.
+An absent case in the current listing resumes the ordinary order before
+executing any tests. The runner prioritizes the existing process containing
+the case, preserving its predecessors, the full profile and its ledger.
+On a serial replay that reproduces that exact new failure, report the
+observed results, defer the remaining checks and leave the pass cache empty.
+Otherwise complete each selected profile once and use the ordinary verdict.
+Record the case, tree, base, focused duration and elapsed time to a confirmed
+failure, when observed, in the Git directory’s `temper/repair-trial-result.json`.
+
 1. **The format check:** `tools/pre-pr/pre_pr.py`'s batched `rustfmt
    --check` over every workspace target, as before
    (`temper/docs/design/protocol/configuration/reference.md`). No build.

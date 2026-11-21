@@ -142,7 +142,7 @@ default-filter = "test(/^fuzzy::/) - binary(=live)"
 
             config.write_text('[profile.default]\ndefault-filter="none()"\n')
             with contextlib.redirect_stdout(io.StringIO()):
-                plan, _, no_tests, _ = one['listed_plan'](command, env, 'default', {}, config, None, root / 'layers.toml')
+                plan, _, no_tests, _, _ = one['listed_plan'](command, env, 'default', {}, config, None, root / 'layers.toml')
             self.assertEqual((plan['binaries'], no_tests), ([], 'warn'))
 
             # Splitting the two roots would disable a feature of a shared dependency for app.
@@ -1214,7 +1214,7 @@ class BaseTests(RunnerFixture):
     def test_head_base_and_judgement_meet(self):
         self.env['FIXTURE_CASE'] = 'slow'
         ledger = dict(profile='default', budgets={}, moves=[], binaries={'fixture::suite': dict(
-            tree='repository', layer='checks', cpu=[1.0],
+            tree='repository', layer='checks', cpu=[1.0], counts=[],
             tests={'a': [10], 'b': [0], 'c': [10]}, alone={'b': [100]})})
         head = self.invoke(ledger=ledger)
         self.assertEqual([(r['test_name'], r['why']) for r in head['references']], [('b', 'flagged')])
@@ -1887,6 +1887,22 @@ class RunnerTests(RunnerFixture):
                 self.assertTrue(all(times[name] >= 0 for name in ('a', 'b', 'c', 'd')))
                 if kept:
                     self.assertEqual(times['absent'], 9)
+
+    def test_repair_case_prioritizes_its_original_process_and_preserves_coverage(self):
+        self.run.__globals__['LANES'] = 1
+        self.binary(names=('a', 'b'))
+        self.binary('fixture::second', names=('c', 'd'))
+        self.env['TIERS_PRE_PR_REPAIR_CASE'] = json.dumps(['fixture::second', 'd'])
+        result = self.invoke()
+        self.assertEqual([(p['binary_id'], p['tests']) for p in result['processes']],
+                         [('fixture::second', ['c', 'd']), ('fixture::suite', ['a', 'b'])])
+        self.assertEqual(result['unobserved'], [])
+        self.directory = self.root / 'missing-case'
+        self.env['TIERS_PRE_PR_REPAIR_CASE'] = json.dumps(['fixture::suite', 'd'])
+        with self.assertRaisesRegex(ValueError, 'repair case absent'):
+            self.invoke()
+        self.assertTrue((self.directory / 'repair-case-missing').is_file())
+        self.assertFalse((self.directory / 'results.json').exists())
 
     def test_zero_and_dominant_kept_times_do_not_drop_tests(self):
         self.run.__globals__['LANES'] = 8
