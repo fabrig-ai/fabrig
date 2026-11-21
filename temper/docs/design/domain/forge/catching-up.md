@@ -22,8 +22,9 @@ forge runs on its records are `README.md`, section 9.
 - **A write waits for the restored entries on its lane** and nothing
   else: writes on other lanes go ahead (section 3).
 - **A decision on a forge fact** is made on its own read, or waits for
-  the forge's fresh reads, never on what the store held alone. Each
-  procedure's wait is named in section 4.
+  its repository's fresh reads, never on what the store held alone: a
+  repository whose reads keep failing holds its own procedures and no
+  other's. Each procedure's wait is named in section 4.
 - **A person sees it:** the forge's row and the project's landing
   queues say "Catching up" and what it waits for (section 5).
 
@@ -52,10 +53,27 @@ forge runs on its records are `README.md`, section 9.
   ```
 
   in `temper-engine-domain-forge`'s `domain.rs`, beside
-  `read_afresh_complete`. As the fresh reads come in, every procedure
-  that waits for them (section 4) is woken there, as its own wake
+  `read_afresh_complete`.
+- **A repository's fresh reads** are in once the forge's are, or before,
+  once no term on that repository is left: the client owes no fresh
+  read of its listing or of a resource in it (`fresh_owed_in`, skein's
+  `forge/client.md`, 8, step 6), and no startup gather, pending CI read,
+  goal file's read, lost writer's read or making's read on it is
+  pending. In code, beside `fresh_reads_in`:
+
+  ```rust
+  /// One repository's restart reads are in (temper/docs/design/domain/forge/catching-up.md, 2).
+  pub(crate) fn repository_fresh(d: &Domain, repository: skein_forge::api::Repository) -> bool
+  ```
+
+  Whenever an answer, a dropped watch or an ended term leaves a
+  repository's reads in, every procedure waiting on that repository
+  (section 4), and on no other still out, is woken, as its own wake
   does: a change by its procedure's wake, a release by
-  `ContinueRelease`, a making by `ContinueGoalBranch`.
+  `ContinueRelease`, a making by `ContinueGoalBranch`; whatever is
+  still parked is woken at the forge's report. So one read rate-limited
+  at every attempt holds the procedures of its own repository alone.
+  Resources within one repository share its wait (section 6).
 - **Its settle:** at the beginning, every restored entry not held for a
   person, nor a held landing's, is handed to the client, in number
   order and before any entry kept since the restart; then
@@ -100,8 +118,13 @@ A decision that judges a forge fact after a restart is made on one of:
 
 - **its own read,** as in steady state: the procedure reads the
   resource and decides on the answer;
-- **the fresh reads,** `fresh_reads_in`: it decides nothing on a
-  restored fact before them, and is woken as they come in (section 2);
+- **the fresh reads:** its repositories', `repository_fresh` for each
+  repository whose facts it judges (a change's, its goal branch's, a
+  design's, a train's members'): it decides nothing on a restored fact
+  of a repository before that repository's reads are in, and is woken
+  as they come in (section 2). Where the table says **the forge's**
+  fresh reads, the fact spans the forge, and the procedure waits for
+  `fresh_reads_in`;
 - **its entries:** a procedure whose restored state names entries of
   its own waits for each one's first look, its outcome or its find's
   answer, as it waits for any entry's outcome: a find that finds nothing
@@ -132,7 +155,7 @@ reads, when one is at hand. Nothing is judged from the store alone.
 | `rebase::read_afresh` | a branch's drift | its own read of the branch |
 | `landing::judge` | the receipts `landing::rebuild` fills | the fresh reads |
 | the root's `form_landings` | the trains' landing rows | the fresh reads, where forming reads a forge fact |
-| the root's `limit_holds::reconcile`, `room_freed` | the forge's room and usage | the fresh reads |
+| the root's `limit_holds::reconcile`, `room_freed` | the forge's room and usage | the forge's fresh reads |
 | a landing's merge or manual record whose authority answers Wait (the root's `drop_landing`) | the landing's evidence | the fresh reads, or its poll outside a restart: `DeferLandingMerge` erases the unsent entry, its result unknown and its send returned; only a refusal vetoes it |
 | `goal_branch::make`, `room::check` | a making's room | the line (section 3) |
 | `resolve` (a person's choice on a held entry) | the held entry | handed in number order (section 3) |
@@ -187,6 +210,10 @@ that call, within the run's own deadlines, as when the forge is slow
 
 ## 6. Open questions
 
+- **Later:** a wait per resource, as `../../draft/reconciling-start.md`,
+  section 3, has it: a procedure waits for its repository's fresh reads,
+  so a resource still unread holds every procedure on its repository
+  (`../../draft/reconciling-start.status.md`).
 - How long a catching-up forge may go before it is named in the logs,
   the census and the pages by its oldest waiters
   (`../../draft/reconciling-start.md`, section 5).

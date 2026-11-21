@@ -737,7 +737,11 @@ like any, in the owner's own order, and holds no read of the step open.
 6. **What it still owes,** per forge, for its owner's catching-up state:
    `fresh_owed(forge)`, the pass's watched resources and listings not
    yet read, and `finds_owed(forge)`, the restored entries with an
-   attempt not yet looked for once; both zero outside a restart.
+   attempt not yet looked for once; both zero outside a restart. Per
+   repository, `fresh_owed_in(repository)`: the pass's reads still owed
+   on that repository's listing and live resources, zero outside a
+   restart, so its owner can let a repository's decisions go once its
+   own reads are in.
 
 ## 9. What it never knows
 
