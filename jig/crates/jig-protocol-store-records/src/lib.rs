@@ -12,7 +12,6 @@ pub mod generated {
     pub mod accounts;
     pub mod component;
     pub mod notes;
-    #[expect(clippy::too_many_lines, reason = "wide people enumerations are generated exhaustively from maps")]
     pub mod people;
 }
 

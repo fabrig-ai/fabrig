@@ -1702,6 +1702,7 @@ pub fn account_change_to_record(value: &jig_domain_people::AccountChange, contex
 }
 
 // Maps line 230: AccountChange.
+#[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
 pub fn account_change_to_domain(record: crate::people_v17::AccountChange, context: &crate::people_v17::Limits) -> Result<jig_domain_people::AccountChange, crate::people_v17::Problem> {
     match record {
         crate::people_v17::AccountChange::AddKey(held) => {
@@ -1864,6 +1865,7 @@ pub fn worker_pause_mode_to_domain(record: crate::people_v17::WorkerPauseMode, _
 }
 
 // Maps line 240: Ask.
+#[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
 pub fn ask_to_record(value: &jig_domain_people::Ask, context: &crate::people_v17::Limits) -> Result<crate::people_v17::Ask, crate::people_v17::Problem> {
     match value {
         jig_domain_people::Ask::Rename { project: field_000000, name: field_000001 } => Ok(crate::people_v17::Ask::Rename(crate::people_v17::AskRename {
@@ -2116,6 +2118,7 @@ pub fn ask_to_record(value: &jig_domain_people::Ask, context: &crate::people_v17
 }
 
 // Maps line 240: Ask.
+#[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
 pub fn ask_to_domain(record: crate::people_v17::Ask, context: &crate::people_v17::Limits) -> Result<jig_domain_people::Ask, crate::people_v17::Problem> {
     match record {
         crate::people_v17::Ask::Rename(held) => {
@@ -3298,6 +3301,7 @@ pub fn account_move_why_to_domain(record: crate::people_v17::AccountMoveWhy, _co
 }
 
 // Maps line 316: Refusal.
+#[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
 pub fn refusal_to_record(value: &jig_domain_people::Refusal, context: &crate::people_v17::Limits) -> Result<crate::people_v17::Refusal, crate::people_v17::Problem> {
     match value {
         jig_domain_people::Refusal::NameTaken => Ok(crate::people_v17::Refusal::NameTaken),
@@ -3432,6 +3436,7 @@ pub fn refusal_to_record(value: &jig_domain_people::Refusal, context: &crate::pe
 }
 
 // Maps line 316: Refusal.
+#[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
 pub fn refusal_to_domain(record: crate::people_v17::Refusal, context: &crate::people_v17::Limits) -> Result<jig_domain_people::Refusal, crate::people_v17::Problem> {
     match record {
         crate::people_v17::Refusal::NameTaken => Ok(jig_domain_people::Refusal::NameTaken),
@@ -3723,6 +3728,7 @@ pub fn given_to_domain(record: crate::people_v17::Given, _context: &crate::peopl
 }
 
 // Maps line 365: Outcome.
+#[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
 pub fn outcome_to_record(value: &jig_domain_people::Outcome, context: &crate::people_v17::Limits) -> Result<crate::people_v17::Outcome, crate::people_v17::Problem> {
     match value {
         jig_domain_people::Outcome::Renamed { project: field_000000 } => Ok(crate::people_v17::Outcome::Renamed(crate::people_v17::OutcomeRenamed {
@@ -3935,6 +3941,7 @@ pub fn outcome_to_record(value: &jig_domain_people::Outcome, context: &crate::pe
 }
 
 // Maps line 365: Outcome.
+#[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
 pub fn outcome_to_domain(record: crate::people_v17::Outcome, context: &crate::people_v17::Limits) -> Result<jig_domain_people::Outcome, crate::people_v17::Problem> {
     match record {
         crate::people_v17::Outcome::Renamed(held) => {
