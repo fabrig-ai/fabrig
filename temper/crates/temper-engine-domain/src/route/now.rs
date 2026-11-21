@@ -315,6 +315,13 @@ fn workspace(domain: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, co
     }
     let mut credentials = List::with_capacity(env.limits.forge.resources_per_task);
     let workspace = forge_route::run_workspace(domain, env, &context, attempt);
+    if workspace.is_none() && domain.forge.workspace_reads_waiting() {
+        domain
+            .run_workspaces
+            .insert(task, WorkspacePreparation::Workspace { attempt, context })
+            .expect("one workspace request per live task");
+        return;
+    }
     let writes = match workspace {
         Some(workspace) => {
             match forge_route::claim_names(domain, &env.limits, task, &workspace.names, &workspace.designs) {

@@ -301,6 +301,14 @@ fn opening_row() -> ChangeRow {
 
 fn configured_domain(names: &[(&[u8], Option<&[u8]>)]) -> Domain {
     let mut d = domain();
+    let mut out = Queue::uncapped();
+    restored(&mut d, &env(), skein_forge_client::RecoveryClock::Monotonic, &mut out);
+    read_afresh(&mut d, &env(), &mut out);
+    settle_outbox(&mut d, &env(), &mut out);
+    configured_tiers(d, names)
+}
+
+fn configured_tiers(mut d: Domain, names: &[(&[u8], Option<&[u8]>)]) -> Domain {
     d.repositories.insert(REPO, Box::new(adopted())).expect("adoption");
     let mut tiers = List::uncapped();
     for (name, branch) in names {

@@ -13,6 +13,12 @@ pub use temper_engine_domain_forge_vocabulary::items::*;
 type CheckoutSelection = (Start, Option<Box<[u8]>>, Option<u64>, Option<Box<[u8]>>, bool);
 
 impl Domain {
+    /// Workspace selection waits for the restart's forge facts (domain/forge/catching-up.md, 4).
+    #[must_use]
+    pub fn workspace_reads_waiting(&self) -> bool {
+        !crate::domain::fresh_reads_in(self)
+    }
+
     /// One landing job's repository and new writable branch (temper/docs/design/domain/worker/jobs.md).
     #[must_use]
     pub fn prepare_item(
@@ -85,6 +91,9 @@ impl Domain {
     }
 
     fn design_branch_waiting(&self, name: &crate::Name) -> bool {
+        if self.workspace_reads_waiting() {
+            return true;
+        }
         let undrifted = match self.holds.get(name) {
             Some(hold) => hold.drift.is_none(),
             None => false,
@@ -118,7 +127,12 @@ impl Domain {
         let (mut start, mut push, holder, selected_landing, delivers) = match inherited {
             Some((row, kind)) => match kind {
                 change::Delegate::Produce => {
-                    let existing = branch_head(self, seed.repository, &row.branch).is_some();
+                    if seed.saved_branch.is_none() && self.workspace_reads_waiting() {
+                        return None;
+                    }
+                    // A saved start replaces this selection below and needs no branch observation.
+                    let existing =
+                        seed.saved_branch.is_some() || branch_head(self, seed.repository, &row.branch).is_some();
                     let start = if existing {
                         Start::Branch(row.branch.clone())
                     } else if let change::Early::Started(heads) = &row.change.early {
@@ -186,6 +200,9 @@ impl Domain {
             if merge_landing {
                 match &start {
                     Start::Branch(branch) | Start::Saved(branch) => {
+                        if self.workspace_reads_waiting() {
+                            return None;
+                        }
                         start = Start::Merge {
                             branch: branch.clone(),
                             base: branch_head(self, seed.repository, &row.base)?,
@@ -285,6 +302,9 @@ impl Domain {
     /// other tasks start at the repository's base
     /// (temper/docs/design/domain/forge/branches.md, 1).
     fn task_workspace_item(&self, seed: &Seed, repository: &crate::Repository) -> Option<CheckoutSelection> {
+        if seed.modify && repository.role != Role::Context && self.workspace_reads_waiting() {
+            return None;
+        }
         if repository.role != Role::Context {
             for (name, hold) in &self.holds {
                 if name.forge != seed.repository.forge
@@ -295,8 +315,7 @@ impl Domain {
                 }
                 if let Some((_, task)) = goal_branch(name, &repository.prefix)
                     && task == seed.task
-                    && seed.modify
-                    && self.design_branch_waiting(name)
+                    && (self.workspace_reads_waiting() || (seed.modify && self.design_branch_waiting(name)))
                 {
                     return None;
                 }

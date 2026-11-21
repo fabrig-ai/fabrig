@@ -252,27 +252,11 @@ def baselines(name, root, env):
     return code, errors
 
 
-def citations(base_id, tree_id, root, env):
-    """The citation gate compares counted findings and design sizes itself."""
-    inherited_count = 0
-
-    def consume(line, log):
-        nonlocal inherited_count
-        log.add(line)
-        sys.stdout.buffer.write(line)
-        sys.stdout.flush()
-        match = re.search(rb'citations: (\d+) new broken since .* \((\d+) in all\)', line)
-        if match:
-            inherited_count = int(match[2]) - int(match[1])
-
+def citations(tree_id, root, env):
+    """Check citations and design sizes in the delivery snapshot."""
     code, log = run(['python3', '-I', '-B', 'tools/citations/citations.py',
-                     '--base', base_id, '--head', tree_id], root, env, consume)
-    errors = [failure('citations', log)] if code else []
-    if inherited_count:
-        error = failure(f'citations ({inherited_count} broken at base)', '')
-        error['inherited'] = True
-        errors.append(error)
-    return code, errors
+                     '--all', '--head', tree_id], root, env, stdout=True)
+    return code, [failure('citations', log)] if code else []
 
 
 def merged_tips(base_id, root, env):
@@ -1117,8 +1101,11 @@ def main():
                     errors += found
                     if warning:
                         starved.append(warning)
+                    if any(error['name'] == 'build' for error in found):
+                        print('pre-pr: fuzzy tests: skipped (focused test build failed)', flush=True)
+                        break
             if docs:
-                _, found = timed('citations', lambda: citations(base_id, tree_id, root, env), pending)
+                _, found = timed('citations', lambda: citations(tree_id, root, env), pending)
                 errors += found
             if prose_only:
                 _, found = timed('outward', lambda: outward(root, private), pending)

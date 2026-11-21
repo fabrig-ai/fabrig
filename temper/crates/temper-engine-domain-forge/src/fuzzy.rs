@@ -258,7 +258,7 @@ fn goal_reds_remain_bounded_unique_ordered_and_live_under_random_writes_and_rele
         let mut rng = Rng::new(seed);
         let mut env = tests::env();
         env.limits = Limits { branch_reds: 2, ..env.limits };
-        let mut d = tests::domain_with_limits(&env.limits);
+        let mut d = tests::active_domain_with_limits(&env.limits);
         tests::outputs(&mut d, Event::Restore { record: Stored::Repository(tests::adopted()) });
         let mut live = Set::with_capacity(3);
         let mut model: Map<(u64, Box<[u8]>), Red> = Map::with_capacity(6);

@@ -4945,6 +4945,9 @@ pub(crate) fn judge(
     evidence: &crate::ChangeEvidence,
     reviewers: &[crate::Reviewer],
 ) -> Option<crate::JudgeVerdict> {
+    if !crate::domain::fresh_reads_in(d) {
+        return Some(crate::JudgeVerdict::Wait);
+    }
     for (position, member) in row.landing.members.iter().enumerate() {
         if member.candidate != Some(head) {
             continue;

@@ -44,6 +44,10 @@ class DeliverySelection(unittest.TestCase):
         source = Path(__file__).resolve().parents[1] / 'citations'
         for name in ('citations.py', 'sized.txt'):
             self.write('tools/citations/' + name, (source / name).read_text())
+        # The fixture includes the real checker, so its own citations must resolve.
+        self.write('DESIGN.md', '# Design\n## 5. Document limits\n')
+        self.write('skein/docs/design/data/kv.md', '# Key-value data\n')
+        self.write('temper/docs/design/testing/reference-case.md', '# Reference case\n')
         source = Path(__file__).resolve().parents[1] / 'outward'
         for name in ('outward.py', 'names.txt'):
             self.write('tools/outward/' + name, (source / name).read_text())
@@ -173,7 +177,7 @@ sys.exit(int(count > 0))
                     self.assertIn('docs only: citations', log)
                     self.assertEqual(code, (False, False, False))
                     self.assertEqual(counts, [])
-                    self.assertTrue(any('--base' in args and '--head' in args for args, _ in calls))
+                    self.assertTrue(any('tools/citations/citations.py' in args and '--all' in args and '--head' in args for args, _ in calls))
                 else:
                     reason = ('no refs/temper/landing' if row == 'no pin' else
                               'no merge base of refs/temper/landing and HEAD')
@@ -796,6 +800,7 @@ else:
     def test_selected_test_binaries_build_between_lints_and_tests(self):
         inventory = Path(__file__).resolve().parents[1] / 'tiers/packages.toml'
         self.write('tools/tiers/packages.toml', inventory.read_text())
+        self.write('tools/tiers/design.md', '# Tiers\n## 2.1. Prerequisites\n## 6. Package sets\n')
         self.write('.config/gate/always.txt', 'smith\n')
         for path in ('smith/src/lib.rs', 'guide.md'):
             with self.subTest(path=path):
@@ -1623,14 +1628,29 @@ else:
                 if lints:
                     self.assertIn('clippy, focused and fuzzy tests (code input', log)
 
-    def test_fuzzy_follows_every_focused_exit_and_judges_its_own_failures(self):
+    def test_focused_build_failure_skips_fuzzy_and_preserves_the_diagnostic(self):
+        self.goal_file('reds-wait', b'temper-reds-wait 1 1\n')
+        self.goal_file('reds', b'temper-reds 1\n- test api::rules fuzzy::rule\n')
+        diagnostic = 'error[E0308]: mismatched types'
+        build = diagnostic + '\none-process: nextest listing exited with 101\n'
+        result, log, _, _ = self.ledger_run([], runs={'default': {'code': 2, 'output': build}})
+        self.assertEqual(result, 1, log)
+        self.assertEqual([args[6] for args in self.process_calls], ['default'])
+        self.assertIn('pre-pr: fuzzy tests: skipped (focused test build failed)', log)
+        self.assertIn('\nbuild\nno tests ran\n' + diagnostic, log)
+        self.assertFalse((self.root / '.git/pre-pr-passed').exists())
+        self.assertEqual((self.root / '.git/temper/check-results').read_text().splitlines()[2:], [])
+
+        result, log, _, _ = self.ledger_run([])
+        self.assertEqual(result, 0, log)
+        self.assertEqual([args[6] for args in self.process_calls], ['default', 'fuzzy'])
+
+    def test_fuzzy_follows_focused_tests_and_check_errors_and_judges_its_own_failures(self):
         test = dict(binary_id='api::rules', test_name='rule', outcome='failed')
         fuzzy = dict(test, test_name='fuzzy::rule', profile='fuzzy')
-        build = 'one-process: nextest listing exited with 101\n'
         for row, focused, tests, reds, statuses in (
                 ('passed', {}, [], '', ('passed', 'passed')),
                 ('failed', {}, [test], '', ('failed', 'passed')),
-                ('build', {'code': 2, 'output': build}, [], '', ('failed', 'passed')),
                 ('check', {'code': 2}, [], '', ('failed', 'passed')),
                 ('focused inherited', {}, [test, fuzzy], '- test api::rules rule\n', ('inherited', 'failed')),
                 ('fuzzy inherited', {}, [test, fuzzy], '- test api::rules fuzzy::rule\n', ('failed', 'inherited'))):
@@ -1891,7 +1911,7 @@ else:
                 self.assertEqual(result, 0, log)
                 self.assertEqual(code, (False, False, True))
                 self.assertFalse(any('scripts/old_forms.py' in args for args, _ in calls))
-                self.assertTrue(any('--base' in args and '--head' in args for args, _ in calls))
+                self.assertTrue(any('tools/citations/citations.py' in args and '--all' in args and '--head' in args for args, _ in calls))
                 self.assertIn('docs only: citations', log)
 
     def test_prose_only_status_uses_text_checks_without_a_hold(self):
@@ -1911,7 +1931,7 @@ else:
         self.assertEqual(result, 0, log)
         self.assertEqual(checks, (False, False, False))
         self.assertEqual([args for args, _ in calls], [
-            ['python3', '-I', '-B', 'tools/citations/citations.py', '--base', mock.ANY, '--head', mock.ANY],
+            ['python3', '-I', '-B', 'tools/citations/citations.py', '--all', '--head', mock.ANY],
             ['python3', '-I', '-B', 'tools/outward/outward.py']])
         self.assertEqual(outward.call_count, 1)
         self.assertNotEqual(outward.call_args.args[1]['GIT_INDEX_FILE'], str(self.root / '.git/index'))
@@ -2494,18 +2514,18 @@ raise SystemExit({code})
         result, log, _, code = self.deliver(('api', 'fabrig-boundary'))
         self.assertEqual(result, 1, log)
         self.assertIn('missing.md', log)
-        self.assertIn('1 new broken', log)
+        self.assertIn('1 broken in', log)
         self.assertIn('pre-pr: prose only:', log)
         self.assertEqual(code, (False, False, False))
 
-    def test_inherited_broken_citation(self):
+    def test_broken_citation_already_in_base_refuses(self):
         self.write('skein/docs/guide.md', '# Guide\nSee `missing.md`, section 1.\n')
         self.pin()
         self.write('skein/docs/guide.md', '# Guide\nExtra paragraph.\nSee `missing.md`, section 1.\n')
         result, log, _, _ = self.deliver()
-        self.assertEqual(result, 0, log)
-        self.assertIn('0 new broken', log)
-        self.assertIn('inherited: citations', log)
+        self.assertEqual(result, 1, log)
+        self.assertIn('1 broken in', log)
+        self.assertIn('missing.md', log)
 
     def test_inherited_baseline_and_regression(self):
         self.write('skein/count.txt', '2')
@@ -2601,14 +2621,14 @@ with Path({str(records)!r}).open('a') as output:
         self.assertIn('reader.md', log)
         self.assertEqual(code, (False, False, False))
 
-    def test_new_citation_is_not_hidden_by_inherited_findings(self):
+    def test_reports_all_broken_citations_in_candidate(self):
         self.write('skein/docs/guide.md', '# Guide\nSee `missing.md`.\n')
         self.pin()
         self.write('skein/docs/guide.md', '# Guide\nSee `missing.md` and `new-missing.md`.\n')
         result, log, _, _ = self.deliver()
         self.assertEqual(result, 1, log)
-        self.assertIn('1 new broken', log)
-        self.assertIn('inherited: citations', log)
+        self.assertIn('2 broken in', log)
+        self.assertIn('new-missing.md', log)
 
     def test_tightening_a_red_baseline_is_new(self):
         self.write('skein/scripts/old_forms.py', (self.root / 'skein/scripts/old_forms.py').read_text()

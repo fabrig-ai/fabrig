@@ -269,6 +269,11 @@ fn fixture() -> skein_scratch::Scratch {
         fs::set_permissions(root.join(format!(".git/bin/{name}")), fs::Permissions::from_mode(0o700))
             .expect("executable check");
     }
+    write(root, "DESIGN.md", "# Design\n## 5. Document limits\n");
+    write(root, "skein/docs/design/data/kv.md", "# Key-value data\n");
+    write(root, "temper/docs/design/testing/reference-case.md", "# Reference case\n");
+    write(root, "tools/tiers/budgets.md", "# Budgets\n## 4. Layers\n## 8. Order\n## 10.1. Repair\n");
+    write(root, "tools/tiers/design.md", "# Tiers\n## 7.3. Cancellation\n");
     write(root, "tools/tiers/packages.toml", "[test-binaries]\n");
     write(root, "tools/tiers/one-process", PROGRAM);
     fs::set_permissions(root.join("tools/tiers/one-process"), fs::Permissions::from_mode(0o700))

@@ -9,6 +9,7 @@ mod binding;
 mod brief_document;
 mod catching_up_changes;
 mod catching_up_outbox;
+mod catching_up_releases;
 mod change;
 #[path = "tests/brief.rs"]
 mod ci_brief;
@@ -350,6 +351,20 @@ pub(crate) fn domain_with_limits(limits: &Limits) -> Domain {
     )
     .expect("valid connector")
 }
+/// Live-procedure fixtures inject records after an empty restart has finished.
+pub(crate) fn active_domain_with_limits(limits: &Limits) -> Domain {
+    let mut d = domain_with_limits(limits);
+    let environment = env().with(*limits);
+    let mut out = Queue::uncapped();
+    for event in [Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic }, Event::CatchUp] {
+        step(&mut d, &environment, event, &mut out);
+    }
+    d
+}
+pub(crate) fn active_domain() -> Domain {
+    active_domain_with_limits(&LIMITS)
+}
+
 fn accept_landings(d: &mut Domain, environment: &Env<Limits>, out: &mut Queue<Request>) {
     let mut pending = core::mem::replace(out, Queue::uncapped());
     while let Some(request) = pending.pop() {
@@ -452,7 +467,7 @@ fn branch() -> Name {
 
 #[test]
 fn a_hold_and_writer_slot_are_exclusive_until_answered() {
-    let mut d = domain();
+    let mut d = active_domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let name = branch();
     let first = outputs(&mut d, Event::Hold { entry: 0, task: 7, resource: name.clone(), from: None });
@@ -1484,7 +1499,7 @@ fn run_branch(task: &[u8]) -> Name {
 /// A ready forge whose run 9 writes four branches the forge last saw at
 /// commit 2, each held by its own task: their reads fill the client's table.
 fn four_writers() -> Domain {
-    let mut d = domain();
+    let mut d = active_domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     for (holder, task) in [(7, b"7".as_slice()), (8, b"8"), (10, b"10"), (11, b"11")] {
         let name = run_branch(task);
@@ -1502,9 +1517,6 @@ fn four_writers() -> Domain {
             },
         );
     }
-    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::CatchUp);
-
     d
 }
 
@@ -2054,7 +2066,7 @@ fn a_release_waits_while_its_lost_writer_is_waiting_for_read_room() {
 #[test]
 fn a_release_still_fails_for_a_running_writer_or_a_lost_writer_without_a_read() {
     for writer in [Writer::Run { task: 9, attempt: 1 }, Writer::Lost { task: 9, attempt: 1 }] {
-        let mut d = domain();
+        let mut d = active_domain();
         outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
         outputs(
             &mut d,
@@ -2975,7 +2987,7 @@ fn two_forges_repositories_with_one_id_resolve_apart() {
 
 #[test]
 fn pushed_heads_match_their_own_forge_only() {
-    let mut d = domain();
+    let mut d = active_domain();
     for forge in [1, 3] {
         let mut repository = adopted();
         repository.provider.forge = forge;
@@ -3162,7 +3174,7 @@ fn a_merge_delegate_asks_for_a_merge_in_progress_named_as_its_repository() {
 
 #[test]
 fn a_writable_task_without_a_goal_branch_starts_at_the_adopted_landing() {
-    let mut d = domain();
+    let mut d = active_domain();
     let mut repository = adopted();
     repository.landing = b"staging".as_slice().into();
     outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
@@ -3202,7 +3214,7 @@ fn workspace_landing_is_for_every_writable_producer_start() {
             (true, true, true),    // Saved over an existing early producer branch
         ] {
             for writable in [false, true] {
-                let mut d = domain();
+                let mut d = active_domain();
                 let mut repo = adopted();
                 repo.kinds.push = writable;
                 outputs(&mut d, Event::Restore { record: Stored::Repository(repo) });
@@ -3287,7 +3299,7 @@ fn workspace_landing_is_for_every_writable_producer_start() {
 
 fn failed_issue() -> (Domain, issues::GoalView) {
     const GOAL: u64 = 7;
-    let mut d = domain();
+    let mut d = active_domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let view = issues::GoalView {
         phase: issues::Phase::Active,

@@ -108,7 +108,7 @@ fn ending_a_held_change_keeps_its_hold_without_a_cancelling_step() {
         row.pending = None;
         row.change.state = State::Held { was: Box::new(State::Producing { requested: false }), why };
         row.change.ended_held = prior;
-        let mut d = domain();
+        let mut d = active_domain();
         outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
         outputs(
             &mut d,
@@ -143,7 +143,7 @@ fn ending_landed_or_no_change_keeps_no_ending_hold() {
         let mut row = fixtures::opening_row();
         row.pending = None;
         row.change.state = state;
-        let mut d = domain();
+        let mut d = active_domain();
         outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
         outputs(
             &mut d,

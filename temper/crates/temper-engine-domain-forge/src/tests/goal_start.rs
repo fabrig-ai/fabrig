@@ -21,7 +21,7 @@ fn name(branch: &[u8]) -> Name {
 }
 
 fn held_goal() -> Domain {
-    let mut d = domain();
+    let mut d = active_domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(
         &mut d,
