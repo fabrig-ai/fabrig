@@ -471,12 +471,6 @@ original's width, and a browser's print numbers skein-ui's ids afresh
 per page (`client/journey-placeholders.md`;
 `draft/journey-placeholders.status.md`).
 
-`again` fixes start 2026-01-06T09:00:00Z, seed 7 for a journey's fake
-box engine, worker, peers, page and TUI, each clock moving only to its
-own deadlines: two walks match but where real processes, the box's
-TLS-fetching loop and agents, keep the host's clock
-(`client/journey-clock.md`; `draft/journey-clock.status.md`).
-
 Main's journey files have one writer, run after each landing, ending
 `Printed: COMMIT`; no test or goal writes them
 (`client/journey-writer.md`). Every journey on main has a `walk` of
@@ -513,7 +507,6 @@ Design documents:
 - [`client/forge/records.md`](client/forge/records.status.md)
 - [`client/forge/repositories.md`](client/forge/repositories.status.md)
 - [`client/forge/served.md`](client/forge/served.status.md)
-- [`client/journey-clock.md`](client/journey-clock.status.md)
 - [`client/journey-placeholders.md`](client/journey-placeholders.status.md)
 - [`client/journey-walks.md`](client/journey-walks.status.md)
 - [`client/journey-writer.md`](client/journey-writer.status.md)
