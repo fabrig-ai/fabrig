@@ -15,16 +15,14 @@ pub(super) fn decode(row: w::FollowRow, bounds: &Bounds) -> Result<d::FollowRow,
     };
     crate::generated::store::follow_row_to_domain(row, &context).or(Err(Undecodable::Malformed))
 }
-#[expect(clippy::borrowed_box, reason = "maps pairs keep the prescribed borrowed, fallible signature")]
-#[expect(clippy::unnecessary_wraps, reason = "maps pairs keep the prescribed borrowed, fallible signature")]
-pub(crate) fn follow_files_to_record(
+pub fn follow_files_to_record(
     value: &Box<[Box<[u8]>]>,
     _context: &super::Context,
 ) -> Result<w::FollowFiles, w::Problem> {
     Ok(w::FollowFiles { files: names::encode_piece(value) })
 }
 
-pub(crate) fn follow_files_to_domain(
+pub fn follow_files_to_domain(
     value: w::FollowFiles,
     context: &super::Context,
 ) -> Result<Box<[Box<[u8]>]>, w::Problem> {

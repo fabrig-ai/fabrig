@@ -529,11 +529,10 @@ fn decode_goals(goals: List<w::TierGoal>) -> Result<Box<[d::TierGoal]>, Undecoda
     Ok(values.into_boxed())
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "maps pairs keep the prescribed fallible signature")]
-pub(crate) fn failures_to_record(value: &p::Failures, _context: &super::Context) -> Result<w::Failures, w::Problem> {
+pub fn failures_to_record(value: &p::Failures, _context: &super::Context) -> Result<w::Failures, w::Problem> {
     Ok(verification::encode_failures(value))
 }
 
-pub(crate) fn failures_to_domain(value: w::Failures, _context: &super::Context) -> Result<p::Failures, w::Problem> {
+pub fn failures_to_domain(value: w::Failures, _context: &super::Context) -> Result<p::Failures, w::Problem> {
     verification::decode_failures(value).or(Err(w::paths::FAILURES_TAG.problem(skein_codec::Reason::Malformed)))
 }

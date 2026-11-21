@@ -498,47 +498,42 @@ pub(super) fn decode_landing_state(landing: w::LandingState) -> Result<d::Landin
     })
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "maps pairs keep the prescribed borrowed, fallible signature")]
-pub(crate) fn landing_leave_to_record(
+pub fn landing_leave_to_record(
     value: &d::Leave,
     _context: &super::Context,
 ) -> Result<w::LandingLeave, w::Problem> {
     Ok(encode_leave(*value))
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "maps pairs keep the prescribed borrowed, fallible signature")]
-pub(crate) fn landing_leave_to_domain(
+pub fn landing_leave_to_domain(
     value: w::LandingLeave,
     _context: &super::Context,
 ) -> Result<d::Leave, w::Problem> {
     Ok(decode_leave(value))
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "maps pairs keep the prescribed borrowed, fallible signature")]
-pub(crate) fn landing_search_tests_to_record(
+pub fn landing_search_tests_to_record(
     value: &d::SearchTests,
     _context: &super::Context,
 ) -> Result<w::LandingSearchTests, w::Problem> {
     Ok(encode_search_tests(value))
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "maps pairs keep the prescribed borrowed, fallible signature")]
-pub(crate) fn landing_search_tests_to_domain(
+pub fn landing_search_tests_to_domain(
     value: w::LandingSearchTests,
     _context: &super::Context,
 ) -> Result<d::SearchTests, w::Problem> {
     Ok(decode_search_tests(value))
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "maps pairs keep the prescribed borrowed, fallible signature")]
-pub(crate) fn landing_state_to_record(
+pub fn landing_state_to_record(
     value: &d::Landing,
     _context: &super::Context,
 ) -> Result<w::LandingState, w::Problem> {
     Ok(encode_landing_state(value))
 }
 
-pub(crate) fn landing_state_to_domain(
+pub fn landing_state_to_domain(
     value: w::LandingState,
     _context: &super::Context,
 ) -> Result<d::Landing, w::Problem> {

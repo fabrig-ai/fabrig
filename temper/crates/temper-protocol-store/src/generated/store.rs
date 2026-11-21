@@ -3715,6 +3715,7 @@ pub fn history_after_verdict_to_domain(record: crate::v25::HistoryAfterVerdict, 
 }
 
 // Maps line 266: HistoryWhat.
+#[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
 pub fn history_what_to_record(value: &temper_engine_domain_forge_vocabulary::history::What, context: &crate::records::Context) -> Result<crate::v25::HistoryWhat, crate::v25::Problem> {
     match value {
         temper_engine_domain_forge_vocabulary::history::What::Ready => Ok(crate::v25::HistoryWhat::Ready),
@@ -3869,6 +3870,7 @@ pub fn history_what_to_record(value: &temper_engine_domain_forge_vocabulary::his
 }
 
 // Maps line 266: HistoryWhat.
+#[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
 pub fn history_what_to_domain(record: crate::v25::HistoryWhat, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::history::What, crate::v25::Problem> {
     match record {
         crate::v25::HistoryWhat::Ready => Ok(temper_engine_domain_forge_vocabulary::history::What::Ready),
@@ -4425,6 +4427,7 @@ pub fn regate_to_domain(record: crate::v25::Regate, context: &crate::records::Co
 }
 
 // Maps line 275: ChangeHot.
+#[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
 pub fn change_hot_to_record(value: &temper_engine_domain_forge_vocabulary::ChangeHot, context: &crate::records::Context) -> Result<crate::v25::ChangeHot, crate::v25::Problem> {
     let temper_engine_domain_forge_vocabulary::ChangeHot { room: field_000000, delegate_head: field_000001, delegate_flake: field_000002, delegate_no_test: field_000003, regate: field_000004, kept: field_000005, task_release: field_000006, job: field_000007, signed: field_000008, ending: field_000009, repair_tasks: field_000010, resolution_tasks: field_000011, result: field_000012, task: field_000013, priority: field_000014, change: field_000015, ci: field_000016, pull: field_000017, pending: field_000018, effect: field_000019, delegate: field_000020, delegate_status: field_000021, spec_revision: field_000022, gate_revision: field_000023, verdicts: field_000024, gate_remarks: field_000025, drift: field_000026, queue_repair: field_000027, queue_repairs: field_000028, effect_account: field_000029, producer_failure: field_000030, questions: field_000031, follow_check: field_000032, merge_result: field_000033, history: field_000034 } = value;
     Ok(crate::v25::ChangeHot {
@@ -4566,6 +4569,7 @@ pub fn change_hot_to_record(value: &temper_engine_domain_forge_vocabulary::Chang
 }
 
 // Maps line 275: ChangeHot.
+#[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
 pub fn change_hot_to_domain(record: crate::v25::ChangeHot, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::ChangeHot, crate::v25::Problem> {
     let crate::v25::ChangeHot { room: field_000000, delegate_head: field_000001, delegate_flake: field_000002, delegate_no_test: field_000003, regate: field_000004, kept: field_000005, task_release: field_000006, job: field_000007, signed: field_000008, ending: field_000009, repair_tasks: field_000010, resolution_tasks: field_000011, result: field_000012, task: field_000013, priority: field_000014, change: field_000015, ci: field_000016, pull: field_000017, pending: field_000018, effect: field_000019, delegate: field_000020, delegate_status: field_000021, spec_revision: field_000022, gate_revision: field_000023, verdicts: field_000024, gate_remarks: field_000025, drift: field_000026, queue_repair: field_000027, queue_repairs: field_000028, effect_account: field_000029, producer_failure: field_000030, questions: field_000031, follow_check: field_000032, merge_result: field_000033, history: field_000034 } = record;
     Ok(temper_engine_domain_forge_vocabulary::ChangeHot {

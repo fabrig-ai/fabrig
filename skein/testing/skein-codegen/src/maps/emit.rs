@@ -230,8 +230,17 @@ impl Emitter<'_> {
             Declaration::Enum(enumeration) => self.enumeration(enumeration, mapping, domain, input),
         };
         let context = if body.contains(", context)") { "context" } else { "_context" };
+        // Clippy excludes the outer braces and blank or comment-only lines.
+        // The emitted body has no block comments, only whole-line comments.
+        let indented = indent(&body);
+        let lines = indented.lines().filter(|line| !line.trim().is_empty() && !line.trim().starts_with("//")).count();
+        let expectation = if lines > 100 {
+            "#[expect(clippy::too_many_lines, reason = \"one translation step per field or variant (data/codec/maps.md, 4.1)\")]\n"
+        } else {
+            ""
+        };
         format!(
-            "// Maps line {}: {decl_name}.\npub fn {}_to_{direction}({parameter}, {context}: &{}) -> Result<{result}, {problem}> {{\n{body}\n}}\n\n",
+            "// Maps line {}: {decl_name}.\n{expectation}pub fn {}_to_{direction}({parameter}, {context}: &{}) -> Result<{result}, {problem}> {{\n{body}\n}}\n\n",
             mapping.line,
             snake(decl_name),
             self.maps.path(&self.maps.context)

@@ -124,30 +124,28 @@ pub(super) fn decode_landing(landing: w::LoggedLanding, tier_bound: u32) -> Resu
     Ok(d::LoggedLanding { tiers, commit, branch, at: Wall::from_nanos(at), changes: members.into_boxed() })
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "maps pairs keep the prescribed borrowed, fallible signature")]
-pub(crate) fn logged_verdict_to_record(
+pub fn logged_verdict_to_record(
     value: &d::LoggedVerdict,
     _context: &super::Context,
 ) -> Result<w::LoggedVerdict, w::Problem> {
     Ok(encode_verdict(value))
 }
 
-pub(crate) fn logged_verdict_to_domain(
+pub fn logged_verdict_to_domain(
     value: w::LoggedVerdict,
     _context: &super::Context,
 ) -> Result<d::LoggedVerdict, w::Problem> {
     decode_verdict(value).or(Err(w::paths::LOGGED_VERDICT_TAG.problem(skein_codec::Reason::Malformed)))
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "maps pairs keep the prescribed fallible signature")]
-pub(crate) fn logged_landing_to_record(
+pub fn logged_landing_to_record(
     value: &d::LoggedLanding,
     _context: &super::Context,
 ) -> Result<w::LoggedLanding, w::Problem> {
     Ok(encode_landing(value))
 }
 
-pub(crate) fn logged_landing_to_domain(
+pub fn logged_landing_to_domain(
     value: w::LoggedLanding,
     context: &super::Context,
 ) -> Result<d::LoggedLanding, w::Problem> {

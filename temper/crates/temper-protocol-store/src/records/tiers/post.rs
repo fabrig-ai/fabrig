@@ -119,14 +119,13 @@ fn decode_blame(blame: w::TierPostedBlame, failing: &p::Failures) -> Result<p::B
     Ok(if suspect { p::Blame::Suspect(tests) } else { p::Blame::Owns(tests) })
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "maps pairs keep the prescribed fallible signature")]
-pub(crate) fn tier_posted_blame_to_record(
+pub fn tier_posted_blame_to_record(
     value: &p::Blame,
     context: &super::super::Context,
 ) -> Result<w::TierPostedBlame, w::Problem> {
     Ok(encode_blame(value, &context.posted_failures))
 }
-pub(crate) fn tier_posted_blame_to_domain(
+pub fn tier_posted_blame_to_domain(
     value: w::TierPostedBlame,
     context: &super::super::Context,
 ) -> Result<p::Blame, w::Problem> {

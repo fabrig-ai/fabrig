@@ -565,7 +565,7 @@ pub(super) fn decode_judgement(value: w::Judgement) -> d::Judgement {
     crate::generated::store::judgement_to_domain(value, &super::Context::UNBOUNDED)
         .expect("infallible store translation")
 }
-pub(crate) fn authority_hold_to_record(
+pub fn authority_hold_to_record(
     value: &d::AuthorityHold,
     context: &super::Context,
 ) -> Result<w::AuthorityHold, w::Problem> {
@@ -580,7 +580,7 @@ pub(crate) fn authority_hold_to_record(
     })
 }
 
-pub(crate) fn authority_hold_to_domain(
+pub fn authority_hold_to_domain(
     value: w::AuthorityHold,
     context: &super::Context,
 ) -> Result<d::AuthorityHold, w::Problem> {
@@ -592,72 +592,64 @@ pub(crate) fn authority_hold_to_domain(
     })
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "maps pairs keep the prescribed borrowed, fallible signature")]
-pub(crate) fn landing_below_to_record(
+pub fn landing_below_to_record(
     value: &d::Below,
     _context: &super::Context,
 ) -> Result<w::LandingBelow, w::Problem> {
     Ok(encode_below(Some(*value)).expect("present below"))
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "maps pairs keep the prescribed borrowed, fallible signature")]
-pub(crate) fn landing_below_to_domain(
+pub fn landing_below_to_domain(
     value: w::LandingBelow,
     _context: &super::Context,
 ) -> Result<d::Below, w::Problem> {
     Ok(decode_below(Some(value)).expect("present below"))
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "maps pairs keep the prescribed borrowed, fallible signature")]
-pub(crate) fn change_to_record(value: &d::Change, _context: &super::Context) -> Result<w::Change, w::Problem> {
+pub fn change_to_record(value: &d::Change, _context: &super::Context) -> Result<w::Change, w::Problem> {
     Ok(encode_change(value))
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "maps pairs keep the prescribed borrowed, fallible signature")]
-pub(crate) fn change_to_domain(value: w::Change, _context: &super::Context) -> Result<d::Change, w::Problem> {
+pub fn change_to_domain(value: w::Change, _context: &super::Context) -> Result<d::Change, w::Problem> {
     Ok(decode_change(value))
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "maps pairs keep the prescribed borrowed, fallible signature")]
-pub(crate) fn llm_choice_to_record(
+pub fn llm_choice_to_record(
     value: &jig_domain_tasks::LlmChoice,
     _context: &super::Context,
 ) -> Result<w::LlmChoice, w::Problem> {
     Ok(encode_llm(Some(value)).expect("present choice"))
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "maps pairs keep the prescribed borrowed, fallible signature")]
-pub(crate) fn llm_choice_to_domain(
+pub fn llm_choice_to_domain(
     value: w::LlmChoice,
     _context: &super::Context,
 ) -> Result<jig_domain_tasks::LlmChoice, w::Problem> {
     Ok(decode_llm(Some(value)).expect("present choice"))
 }
 
-pub(crate) fn delegate_ref_to_record(
+pub fn delegate_ref_to_record(
     value: &(u64, d::Delegate),
     context: &super::Context,
 ) -> Result<w::DelegateRef, w::Problem> {
     Ok(w::DelegateRef { task: value.0, request: crate::generated::store::delegate_to_record(&value.1, context)? })
 }
 
-pub(crate) fn delegate_ref_to_domain(
+pub fn delegate_ref_to_domain(
     value: w::DelegateRef,
     context: &super::Context,
 ) -> Result<(u64, d::Delegate), w::Problem> {
     Ok((value.task, crate::generated::store::delegate_to_domain(value.request, context)?))
 }
 
-#[expect(clippy::trivially_copy_pass_by_ref, reason = "maps pairs keep the prescribed borrowed, fallible signature")]
-#[expect(clippy::unnecessary_wraps, reason = "maps pairs keep the prescribed borrowed, fallible signature")]
-pub(crate) fn route_to_record(value: &d::Route, _context: &super::Context) -> Result<w::Route, w::Problem> {
+pub fn route_to_record(value: &d::Route, _context: &super::Context) -> Result<w::Route, w::Problem> {
     Ok(match value {
         d::Route::None => w::Route::None,
         d::Route::Up => w::Route::Up,
     })
 }
 
-pub(crate) fn route_to_domain(value: w::Route, _context: &super::Context) -> Result<d::Route, w::Problem> {
+pub fn route_to_domain(value: w::Route, _context: &super::Context) -> Result<d::Route, w::Problem> {
     match value {
         w::Route::None => Ok(d::Route::None),
         w::Route::Up => Ok(d::Route::Up),
@@ -665,8 +657,7 @@ pub(crate) fn route_to_domain(value: w::Route, _context: &super::Context) -> Res
     }
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "maps pairs keep the prescribed borrowed, fallible signature")]
-pub(crate) fn stands_to_record(value: &d::Stands, _context: &super::Context) -> Result<w::Stands, w::Problem> {
+pub fn stands_to_record(value: &d::Stands, _context: &super::Context) -> Result<w::Stands, w::Problem> {
     Ok(match value {
         d::Stands::Taken => w::Stands::Taken,
         d::Stands::Asked => w::Stands::Asked,
@@ -674,7 +665,7 @@ pub(crate) fn stands_to_record(value: &d::Stands, _context: &super::Context) -> 
     })
 }
 
-pub(crate) fn stands_to_domain(value: w::Stands, _context: &super::Context) -> Result<d::Stands, w::Problem> {
+pub fn stands_to_domain(value: w::Stands, _context: &super::Context) -> Result<d::Stands, w::Problem> {
     match value {
         w::Stands::Taken => Ok(d::Stands::Taken),
         w::Stands::Asked => Ok(d::Stands::Asked),

@@ -115,33 +115,28 @@ pub(super) fn decode_job_record(job: Option<w::HistoryJobRecord>) -> Option<d::J
     })
 }
 
-#[expect(clippy::trivially_copy_pass_by_ref, reason = "maps pairs keep the prescribed borrowed, fallible signature")]
-#[expect(clippy::unnecessary_wraps, reason = "maps pairs keep the prescribed borrowed, fallible signature")]
-pub(crate) fn history_job_outcome_to_record(
+pub fn history_job_outcome_to_record(
     value: &d::JobOutcome,
     _context: &super::Context,
 ) -> Result<w::HistoryJobOutcome, w::Problem> {
     Ok(encode_job_outcome(*value))
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "maps pairs keep the prescribed borrowed, fallible signature")]
-pub(crate) fn history_job_outcome_to_domain(
+pub fn history_job_outcome_to_domain(
     value: w::HistoryJobOutcome,
     _context: &super::Context,
 ) -> Result<d::JobOutcome, w::Problem> {
     Ok(decode_job_outcome(value))
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "maps pairs keep the prescribed borrowed, fallible signature")]
-pub(crate) fn history_job_record_to_record(
+pub fn history_job_record_to_record(
     value: &d::JobRecord,
     _context: &super::Context,
 ) -> Result<w::HistoryJobRecord, w::Problem> {
     Ok(encode_job_record(Some(value)).expect("present job"))
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "maps pairs keep the prescribed borrowed, fallible signature")]
-pub(crate) fn history_job_record_to_domain(
+pub fn history_job_record_to_domain(
     value: w::HistoryJobRecord,
     _context: &super::Context,
 ) -> Result<d::JobRecord, w::Problem> {
