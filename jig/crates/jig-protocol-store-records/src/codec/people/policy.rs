@@ -1,95 +1,30 @@
 //! Policy values retained by people (protocol/store/records.md, 1).
 use super::{
-    Duration, Wall, decode_authority_note_resources, decode_delegation_kinds, decode_grant_piece, decode_grants,
-    decode_numbers, decode_permissions, decode_policy_value_roles, decode_requirement_piece, decode_requirements,
-    decode_segments, decode_spec_parameters, domain, encode_authority_note_resources, encode_delegation_kinds,
-    encode_grant_piece, encode_grants, encode_numbers, encode_permissions, encode_policy_value_roles,
-    encode_requirement_piece, encode_requirements, encode_segments, encode_spec_parameters, permission_sum, shared_sum,
-    wire,
+    Wall, decode_authority_note_resources, decode_delegation_kinds, decode_grant_piece, decode_grants, decode_numbers,
+    decode_permissions, decode_policy_value_roles, decode_requirement_piece, decode_requirements, decode_segments,
+    decode_spec_parameters, domain, encode_authority_note_resources, encode_delegation_kinds, encode_grant_piece,
+    encode_grants, encode_numbers, encode_permissions, encode_policy_value_roles, encode_requirement_piece,
+    encode_requirements, encode_segments, encode_spec_parameters, permission_sum, shared_sum, wire,
 };
+use crate::generated::people as mapped;
 use alloc::boxed::Box;
-pub(super) fn encode_last(value: &domain::Last, _limits: &wire::Limits) -> wire::Last {
-    match value {
-        domain::Last::Exact(value) => wire::Last::Exact(wire::LastExact { value: value.clone() }),
-        domain::Last::Open(value) => wire::Last::Open(wire::LastOpen { value: value.clone() }),
-    }
-}
-pub(super) fn decode_last(value: wire::Last) -> domain::Last {
-    match value {
-        wire::Last::Exact(value) => {
-            let wire::LastExact { value } = value;
-            domain::Last::Exact(value)
-        }
-        wire::Last::Open(value) => {
-            let wire::LastOpen { value } = value;
-            domain::Last::Open(value)
-        }
-    }
-}
 
 pub(crate) fn encode_pattern(value: &domain::Pattern, limits: &wire::Limits) -> Result<wire::Pattern, wire::Problem> {
     let domain::Pattern { segments, last } = value;
     Ok(wire::Pattern {
         segments: encode_segments(segments, limits, shared_sum(limits), limits.pattern_segments)?,
-        last: encode_last(last, limits),
+        last: mapped::last_to_record(last, limits)?,
     })
 }
 pub(crate) fn decode_pattern(value: wire::Pattern, limits: &wire::Limits) -> Result<domain::Pattern, wire::Problem> {
     let wire::Pattern { segments, last } = value;
-    Ok(domain::Pattern { segments: decode_segments(segments, limits, shared_sum(limits))?, last: decode_last(last) })
+    Ok(domain::Pattern {
+        segments: decode_segments(segments, limits, shared_sum(limits))?,
+        last: mapped::last_to_domain(last, limits)?,
+    })
 }
 
-pub(super) fn encode_grant(value: &domain::Grant, limits: &wire::Limits) -> Result<wire::Grant, wire::Problem> {
-    let domain::Grant { connector, kind, pattern } = value;
-    Ok(wire::Grant { connector: *connector, kind: *kind, pattern: encode_pattern(pattern, limits)? })
-}
-pub(super) fn decode_grant(value: wire::Grant, limits: &wire::Limits) -> Result<domain::Grant, wire::Problem> {
-    let wire::Grant { connector, kind, pattern } = value;
-    Ok(domain::Grant { connector, kind, pattern: decode_pattern(pattern, limits)? })
-}
-
-pub(super) fn encode_resource_scope(
-    value: &domain::ResourceScope,
-    limits: &wire::Limits,
-) -> Result<wire::ResourceScope, wire::Problem> {
-    let domain::ResourceScope { connector, pattern } = value;
-    Ok(wire::ResourceScope { connector: *connector, pattern: encode_pattern(pattern, limits)? })
-}
-pub(super) fn decode_resource_scope(
-    value: wire::ResourceScope,
-    limits: &wire::Limits,
-) -> Result<domain::ResourceScope, wire::Problem> {
-    let wire::ResourceScope { connector, pattern } = value;
-    Ok(domain::ResourceScope { connector, pattern: decode_pattern(pattern, limits)? })
-}
-
-pub(super) fn encode_executor(value: domain::Executor, _limits: &wire::Limits) -> wire::Executor {
-    match value {
-        domain::Executor::Job(kind) => wire::Executor::Job(wire::ExecutorJob { kind }),
-        domain::Executor::Charter(value) => wire::Executor::Charter(wire::ExecutorCharter { value }),
-        domain::Executor::Procedure(value) => wire::Executor::Procedure(wire::ExecutorProcedure { value }),
-        domain::Executor::Role(value) => wire::Executor::Role(wire::ExecutorRole { value }),
-    }
-}
-pub(super) fn decode_executor(value: wire::Executor) -> domain::Executor {
-    match value {
-        wire::Executor::Job(value) => domain::Executor::Job(value.kind),
-        wire::Executor::Charter(value) => {
-            let wire::ExecutorCharter { value } = value;
-            domain::Executor::Charter(value)
-        }
-        wire::Executor::Procedure(value) => {
-            let wire::ExecutorProcedure { value } = value;
-            domain::Executor::Procedure(value)
-        }
-        wire::Executor::Role(value) => {
-            let wire::ExecutorRole { value } = value;
-            domain::Executor::Role(value)
-        }
-    }
-}
-
-pub(super) fn encode_delegation(
+pub(crate) fn delegation_to_record(
     value: &domain::Delegation,
     limits: &wire::Limits,
 ) -> Result<wire::Delegation, wire::Problem> {
@@ -100,7 +35,7 @@ pub(super) fn encode_delegation(
         depth: *depth,
     })
 }
-pub(super) fn decode_delegation(
+pub(crate) fn delegation_to_domain(
     value: wire::Delegation,
     limits: &wire::Limits,
 ) -> Result<domain::Delegation, wire::Problem> {
@@ -108,7 +43,7 @@ pub(super) fn decode_delegation(
     Ok(domain::Delegation { kinds: decode_delegation_kinds(kinds, limits, shared_sum(limits))?, tasks, depth })
 }
 
-pub(super) fn encode_authority(
+pub(crate) fn authority_to_record(
     value: &domain::Authority,
     limits: &wire::Limits,
 ) -> Result<wire::Authority, wire::Problem> {
@@ -116,12 +51,11 @@ pub(super) fn encode_authority(
     Ok(wire::Authority {
         tools: *tools,
         models: match models {
-            Some(domain::Models::All) => Some(wire::ModelSet::All),
-            Some(domain::Models::Named(bits)) => Some(wire::ModelSet::Named(wire::ModelSetNamed { bits: *bits })),
+            Some(value) => Some(mapped::model_set_to_record(value, limits)?),
             None => None,
         },
         grants: encode_grant_piece(grants, limits, shared_sum(limits), limits.authority_grants)?,
-        delegation: encode_delegation(delegation, limits)?,
+        delegation: delegation_to_record(delegation, limits)?,
         spend: *spend,
         deadline: match deadline {
             Some(value) => Some(value.as_nanos()),
@@ -136,7 +70,7 @@ pub(super) fn encode_authority(
         )?,
     })
 }
-pub(super) fn decode_authority(
+pub(crate) fn authority_to_domain(
     value: wire::Authority,
     limits: &wire::Limits,
 ) -> Result<domain::Authority, wire::Problem> {
@@ -144,12 +78,11 @@ pub(super) fn decode_authority(
     Ok(domain::Authority {
         tools,
         models: match models {
-            Some(wire::ModelSet::All) => Some(domain::Models::All),
-            Some(wire::ModelSet::Named(value)) => Some(domain::Models::Named(value.bits)),
+            Some(value) => Some(mapped::model_set_to_domain(value, limits)?),
             None => None,
         },
         grants: decode_grant_piece(grants, limits, shared_sum(limits))?,
-        delegation: decode_delegation(delegation, limits)?,
+        delegation: delegation_to_domain(delegation, limits)?,
         spend,
         deadline: match deadline {
             Some(value) => Some(Wall::from_nanos(value)),
@@ -160,93 +93,7 @@ pub(super) fn decode_authority(
     })
 }
 
-pub(super) fn encode_judge(value: domain::Judge, _limits: &wire::Limits) -> wire::Judge {
-    let domain::Judge { connector, requirement, parameters } = value;
-    wire::Judge { connector, requirement, parameters }
-}
-pub(super) fn decode_judge(value: wire::Judge) -> domain::Judge {
-    let wire::Judge { connector, requirement, parameters } = value;
-    domain::Judge { connector, requirement, parameters }
-}
-
-pub(super) fn encode_guard(value: &domain::Guard, _limits: &wire::Limits) -> wire::Guard {
-    match value {
-        domain::Guard::Guarded => wire::Guard::Guarded,
-        domain::Guard::Observed { freshness } => {
-            wire::Guard::Observed(wire::GuardObserved { freshness: freshness.as_nanos() })
-        }
-    }
-}
-pub(super) fn decode_guard(value: wire::Guard) -> domain::Guard {
-    match value {
-        wire::Guard::Guarded => domain::Guard::Guarded,
-        wire::Guard::Observed(value) => {
-            let wire::GuardObserved { freshness } = value;
-            domain::Guard::Observed { freshness: Duration::from_nanos(freshness) }
-        }
-    }
-}
-
-pub(super) fn encode_requirement(
-    value: &domain::Requirement,
-    limits: &wire::Limits,
-) -> Result<wire::Requirement, wire::Problem> {
-    let domain::Requirement { connector, kind, pattern, judge, guard, must_be_guarded } = value;
-    Ok(wire::Requirement {
-        connector: *connector,
-        kind: *kind,
-        pattern: encode_pattern(pattern, limits)?,
-        judge: encode_judge(*judge, limits),
-        guard: encode_guard(guard, limits),
-        must_be_guarded: *must_be_guarded,
-    })
-}
-pub(super) fn decode_requirement(
-    value: wire::Requirement,
-    limits: &wire::Limits,
-) -> Result<domain::Requirement, wire::Problem> {
-    let wire::Requirement { connector, kind, pattern, judge, guard, must_be_guarded } = value;
-    Ok(domain::Requirement {
-        connector,
-        kind,
-        pattern: decode_pattern(pattern, limits)?,
-        judge: decode_judge(judge),
-        guard: decode_guard(guard),
-        must_be_guarded,
-    })
-}
-
-pub(super) fn encode_permission_role(value: domain::PermissionRole, _limits: &wire::Limits) -> wire::PermissionRole {
-    let domain::PermissionRole { connector, permission, role } = value;
-    wire::PermissionRole { connector, permission, role }
-}
-pub(super) fn decode_permission_role(value: wire::PermissionRole) -> domain::PermissionRole {
-    let wire::PermissionRole { connector, permission, role } = value;
-    domain::PermissionRole { connector, permission, role }
-}
-
-pub(super) fn encode_policy_role(
-    value: &domain::PolicyRole,
-    limits: &wire::Limits,
-) -> Result<wire::PolicyRole, wire::Problem> {
-    let domain::PolicyRole { number, authority, period_spend, requests, decides } = value;
-    Ok(wire::PolicyRole {
-        number: *number,
-        authority: encode_authority(authority, limits)?,
-        period_spend: *period_spend,
-        requests: *requests,
-        decides: *decides,
-    })
-}
-pub(super) fn decode_policy_role(
-    value: wire::PolicyRole,
-    limits: &wire::Limits,
-) -> Result<domain::PolicyRole, wire::Problem> {
-    let wire::PolicyRole { number, authority, period_spend, requests, decides } = value;
-    Ok(domain::PolicyRole { number, authority: decode_authority(authority, limits)?, period_spend, requests, decides })
-}
-
-pub(super) fn encode_policy_value(
+pub(crate) fn policy_value_to_record(
     value: &domain::PolicyValue,
     limits: &wire::Limits,
 ) -> Result<wire::PolicyValue, wire::Problem> {
@@ -261,7 +108,7 @@ pub(super) fn encode_policy_value(
         templates,
     } = value;
     Ok(wire::PolicyValue {
-        ceiling: encode_authority(ceiling, limits)?,
+        ceiling: authority_to_record(ceiling, limits)?,
         escalation_role: *escalation_role,
         period_spend: *period_spend,
         templates: encode_templates(templates, limits, limits.policy_value_templates)?,
@@ -271,7 +118,7 @@ pub(super) fn encode_policy_value(
         permissions: encode_permissions(permissions, limits, permission_sum(limits), limits.policy_value_permissions)?,
     })
 }
-pub(super) fn decode_policy_value(
+pub(crate) fn policy_value_to_domain(
     value: wire::PolicyValue,
     limits: &wire::Limits,
 ) -> Result<domain::PolicyValue, wire::Problem> {
@@ -286,9 +133,9 @@ pub(super) fn decode_policy_value(
         templates,
     } = value;
     Ok(domain::PolicyValue {
-        ceiling: decode_authority(ceiling, limits)?,
+        ceiling: authority_to_domain(ceiling, limits)?,
         escalation_role,
-        templates: decode_templates(templates),
+        templates: decode_templates(templates, limits)?,
         period_spend,
         projections: decode_grants(projections, limits)?,
         roles: decode_policy_value_roles(roles, limits)?,
@@ -297,7 +144,7 @@ pub(super) fn decode_policy_value(
     })
 }
 
-pub(super) fn encode_policy_change(
+pub(crate) fn policy_change_to_record(
     value: &domain::PolicyChange,
     limits: &wire::Limits,
 ) -> Result<wire::PolicyChange, wire::Problem> {
@@ -312,7 +159,7 @@ pub(super) fn encode_policy_change(
             wire::PolicyChange::ProjectSpend(wire::PolicyChangeProjectSpend { period_spend: *period_spend })
         }
         domain::PolicyChange::Role(value) => {
-            wire::PolicyChange::Role(wire::PolicyChangeRole { value: encode_policy_role(value, limits)? })
+            wire::PolicyChange::Role(wire::PolicyChangeRole { value: mapped::policy_role_to_record(value, limits)? })
         }
         domain::PolicyChange::Requirements { requirements } => {
             wire::PolicyChange::Requirements(wire::PolicyChangeRequirements {
@@ -346,13 +193,13 @@ pub(super) fn encode_policy_change(
         }
     })
 }
-pub(super) fn decode_policy_change(
+pub(crate) fn policy_change_to_domain(
     value: wire::PolicyChange,
     limits: &wire::Limits,
 ) -> Result<domain::PolicyChange, wire::Problem> {
     Ok(match value {
         wire::PolicyChange::Templates(value) => {
-            domain::PolicyChange::Templates { overrides: decode_templates(value.overrides) }
+            domain::PolicyChange::Templates { overrides: decode_templates(value.overrides, limits)? }
         }
         wire::PolicyChange::RoleSpend(value) => {
             let wire::PolicyChangeRoleSpend { role, period_spend } = value;
@@ -364,7 +211,7 @@ pub(super) fn decode_policy_change(
         }
         wire::PolicyChange::Role(value) => {
             let wire::PolicyChangeRole { value } = value;
-            domain::PolicyChange::Role(decode_policy_role(value, limits)?)
+            domain::PolicyChange::Role(mapped::policy_role_to_domain(value, limits)?)
         }
         wire::PolicyChange::Requirements(value) => {
             let wire::PolicyChangeRequirements { requirements } = value;
@@ -387,71 +234,7 @@ pub(super) fn decode_policy_change(
     })
 }
 
-pub(super) fn encode_person_address(value: &domain::PersonAddress, _limits: &wire::Limits) -> wire::PersonAddress {
-    match value {
-        domain::PersonAddress::Person(value) => {
-            wire::PersonAddress::Person(wire::PersonAddressPerson { value: *value })
-        }
-        domain::PersonAddress::Role(value) => wire::PersonAddress::Role(wire::PersonAddressRole { value: *value }),
-    }
-}
-pub(super) fn decode_person_address(value: wire::PersonAddress) -> domain::PersonAddress {
-    match value {
-        wire::PersonAddress::Person(value) => {
-            let wire::PersonAddressPerson { value } = value;
-            domain::PersonAddress::Person(value)
-        }
-        wire::PersonAddress::Role(value) => {
-            let wire::PersonAddressRole { value } = value;
-            domain::PersonAddress::Role(value)
-        }
-    }
-}
-
-pub(super) fn encode_address_change(value: &domain::AddressChange, limits: &wire::Limits) -> wire::AddressChange {
-    let domain::AddressChange { revision, address } = value;
-    wire::AddressChange { revision: *revision, address: encode_person_address(address, limits) }
-}
-pub(super) fn decode_address_change(value: wire::AddressChange) -> domain::AddressChange {
-    let wire::AddressChange { revision, address } = value;
-    domain::AddressChange { revision, address: decode_person_address(address) }
-}
-
-pub(super) fn encode_parameter(value: &domain::Parameter, _limits: &wire::Limits) -> wire::Parameter {
-    match value {
-        domain::Parameter::Number { name, value } => {
-            wire::Parameter::Number(wire::ParameterNumber { name: *name, value: *value })
-        }
-        domain::Parameter::Bytes { name, value } => {
-            wire::Parameter::Bytes(wire::ParameterBytes { name: *name, value: value.clone() })
-        }
-        domain::Parameter::Resource { name, connector, resource } => {
-            wire::Parameter::Resource(wire::ParameterResource {
-                name: *name,
-                connector: *connector,
-                resource: *resource,
-            })
-        }
-    }
-}
-pub(super) fn decode_parameter(value: wire::Parameter) -> domain::Parameter {
-    match value {
-        wire::Parameter::Number(value) => {
-            let wire::ParameterNumber { name, value } = value;
-            domain::Parameter::Number { name, value }
-        }
-        wire::Parameter::Bytes(value) => {
-            let wire::ParameterBytes { name, value } = value;
-            domain::Parameter::Bytes { name, value }
-        }
-        wire::Parameter::Resource(value) => {
-            let wire::ParameterResource { name, connector, resource } = value;
-            domain::Parameter::Resource { name, connector, resource }
-        }
-    }
-}
-
-pub(super) fn encode_spec(value: &domain::Spec, limits: &wire::Limits) -> Result<wire::Spec, wire::Problem> {
+pub(crate) fn spec_to_record(value: &domain::Spec, limits: &wire::Limits) -> Result<wire::Spec, wire::Problem> {
     let domain::Spec { asks, words, parameters, inputs } = value;
     Ok(wire::Spec {
         asks: *asks,
@@ -460,7 +243,7 @@ pub(super) fn encode_spec(value: &domain::Spec, limits: &wire::Limits) -> Result
         inputs: encode_numbers(inputs, limits, limits.parameter_bytes_value, limits.spec_inputs)?,
     })
 }
-pub(super) fn decode_spec(value: wire::Spec, limits: &wire::Limits) -> Result<domain::Spec, wire::Problem> {
+pub(crate) fn spec_to_domain(value: wire::Spec, limits: &wire::Limits) -> Result<domain::Spec, wire::Problem> {
     let wire::Spec { words, parameters, inputs, asks } = value;
     Ok(domain::Spec {
         asks,
@@ -468,68 +251,6 @@ pub(super) fn decode_spec(value: wire::Spec, limits: &wire::Limits) -> Result<do
         parameters: decode_spec_parameters(parameters, limits, limits.parameter_bytes_value)?,
         inputs: decode_numbers(inputs, limits, limits.parameter_bytes_value)?,
     })
-}
-
-pub(super) fn encode_wake_rule(value: &domain::WakeRule, _limits: &wire::Limits) -> wire::WakeRule {
-    match value {
-        domain::WakeRule::Never => wire::WakeRule::Never,
-        domain::WakeRule::Immediate => wire::WakeRule::Immediate,
-        domain::WakeRule::Batch { count, age } => {
-            wire::WakeRule::Batch(wire::WakeRuleBatch { count: *count, age: age.as_nanos() })
-        }
-        domain::WakeRule::Paced { span } => wire::WakeRule::Paced(wire::WakeRulePaced { span: span.as_nanos() }),
-    }
-}
-pub(super) fn decode_wake_rule(value: wire::WakeRule) -> domain::WakeRule {
-    match value {
-        wire::WakeRule::Never => domain::WakeRule::Never,
-        wire::WakeRule::Immediate => domain::WakeRule::Immediate,
-        wire::WakeRule::Batch(value) => {
-            let wire::WakeRuleBatch { count, age } = value;
-            domain::WakeRule::Batch { count, age: Duration::from_nanos(age) }
-        }
-        wire::WakeRule::Paced(value) => domain::WakeRule::Paced { span: Duration::from_nanos(value.span) },
-    }
-}
-
-pub(super) fn encode_results_wake(value: domain::ResultsWake) -> wire::ResultsWake {
-    match value {
-        domain::ResultsWake::Never => wire::ResultsWake::Never,
-        domain::ResultsWake::Each => wire::ResultsWake::Each,
-        domain::ResultsWake::LastOrFailure => wire::ResultsWake::LastOrFailure,
-    }
-}
-pub(super) fn decode_results_wake(value: wire::ResultsWake) -> domain::ResultsWake {
-    match value {
-        wire::ResultsWake::Never => domain::ResultsWake::Never,
-        wire::ResultsWake::Each => domain::ResultsWake::Each,
-        wire::ResultsWake::LastOrFailure => domain::ResultsWake::LastOrFailure,
-    }
-}
-
-pub(super) fn encode_wake_policy(value: &domain::WakePolicy, limits: &wire::Limits) -> wire::WakePolicy {
-    let domain::WakePolicy { words, notices, news, results, questions, answers, timers } = value;
-    wire::WakePolicy {
-        words: encode_wake_rule(words, limits),
-        notices: encode_wake_rule(notices, limits),
-        news: encode_wake_rule(news, limits),
-        results: encode_results_wake(*results),
-        questions: *questions,
-        answers: *answers,
-        timers: *timers,
-    }
-}
-pub(super) fn decode_wake_policy(value: wire::WakePolicy) -> domain::WakePolicy {
-    let wire::WakePolicy { words, notices, news, results, questions, answers, timers } = value;
-    domain::WakePolicy {
-        words: decode_wake_rule(words),
-        notices: decode_wake_rule(notices),
-        news: decode_wake_rule(news),
-        results: decode_results_wake(results),
-        questions,
-        answers,
-        timers,
-    }
 }
 
 pub(crate) fn encode_amendment(
@@ -540,25 +261,25 @@ pub(crate) fn encode_amendment(
     let domain::Amendment { tracked, addressed, instructions, spec, wake, dependencies, authority, llm, reason } =
         value;
     Ok(wire::Amendment {
-        llm: super::llm::encode_llm(llm.as_ref(), limits)?,
+        llm: match llm {
+            Some(value) => Some(mapped::llm_choice_to_record(value, limits)?),
+            None => None,
+        },
         tracked: match tracked {
-            Some(domain::Tracking::Tracked { priority }) => {
-                Some(wire::Tracking::Tracked(wire::TrackingTracked { priority: *priority }))
-            }
-            Some(domain::Tracking::Untracked) => Some(wire::Tracking::Untracked),
+            Some(value) => Some(mapped::tracking_to_record(value, limits)?),
             None => None,
         },
         addressed: match addressed {
-            Some(value) => Some(encode_address_change(value, limits)),
+            Some(value) => Some(mapped::address_change_to_record(value, limits)?),
             None => None,
         },
         instructions: instructions.clone(),
         spec: match spec {
-            Some(value) => Some(encode_spec(value, limits)?),
+            Some(value) => Some(spec_to_record(value, limits)?),
             None => None,
         },
         wake: match wake {
-            Some(value) => Some(encode_wake_policy(value, limits)),
+            Some(value) => Some(mapped::wake_policy_to_record(value, limits)?),
             None => None,
         },
         dependencies: match dependencies {
@@ -568,7 +289,7 @@ pub(crate) fn encode_amendment(
             None => None,
         },
         authority: match authority {
-            Some(value) => Some(encode_authority(value, limits)?),
+            Some(value) => Some(authority_to_record(value, limits)?),
             None => None,
         },
         reason: reason.clone(),
@@ -580,23 +301,25 @@ pub(crate) fn decode_amendment(
 ) -> Result<domain::Amendment, wire::Problem> {
     let wire::Amendment { tracked, addressed, instructions, spec, wake, dependencies, authority, llm, reason } = value;
     let value = domain::Amendment {
-        llm: super::llm::decode_llm(llm),
+        llm: match llm {
+            Some(value) => Some(mapped::llm_choice_to_domain(value, limits)?),
+            None => None,
+        },
         tracked: match tracked {
-            Some(wire::Tracking::Tracked(value)) => Some(domain::Tracking::Tracked { priority: value.priority }),
-            Some(wire::Tracking::Untracked) => Some(domain::Tracking::Untracked),
+            Some(value) => Some(mapped::tracking_to_domain(value, limits)?),
             None => None,
         },
         addressed: match addressed {
-            Some(value) => Some(decode_address_change(value)),
+            Some(value) => Some(mapped::address_change_to_domain(value, limits)?),
             None => None,
         },
         instructions,
         spec: match spec {
-            Some(value) => Some(decode_spec(value, limits)?),
+            Some(value) => Some(spec_to_domain(value, limits)?),
             None => None,
         },
         wake: match wake {
-            Some(value) => Some(decode_wake_policy(value)),
+            Some(value) => Some(mapped::wake_policy_to_domain(value, limits)?),
             None => None,
         },
         dependencies: match dependencies {
@@ -604,7 +327,7 @@ pub(crate) fn decode_amendment(
             None => None,
         },
         authority: match authority {
-            Some(value) => Some(decode_authority(value, limits)?),
+            Some(value) => Some(authority_to_domain(value, limits)?),
             None => None,
         },
         reason,
@@ -622,77 +345,24 @@ fn check_amendment(value: &domain::Amendment, limits: &wire::Limits) -> Result<(
 
 fn encode_templates(
     entries: &[domain::TemplateOverride],
-    _limits: &wire::Limits,
+    limits: &wire::Limits,
     bound: u32,
 ) -> Result<skein_lib::List<wire::TemplateOverride>, wire::Problem> {
     let mut values = skein_lib::List::with_capacity(bound);
     for entry in entries {
-        let executor = match entry.executor {
-            Some(domain::TemplateExecutor::Charter(value)) => {
-                Some(wire::TemplateExecutor::Charter(wire::TemplateExecutorCharter { value }))
-            }
-            Some(domain::TemplateExecutor::Chosen) => Some(wire::TemplateExecutor::Chosen),
-            None => None,
-        };
-        let budget = match entry.budget {
-            Some(domain::TemplateBudget::Amount(value)) => {
-                Some(wire::TemplateBudget::Amount(wire::TemplateBudgetAmount { value }))
-            }
-            Some(domain::TemplateBudget::AsAllowed { cap }) => {
-                Some(wire::TemplateBudget::AsAllowed(wire::TemplateBudgetAsAllowed { cap }))
-            }
-            Some(domain::TemplateBudget::Given) => Some(wire::TemplateBudget::Given),
-            None => None,
-        };
-        let deadline = match entry.deadline {
-            Some(domain::TemplateDeadline::None) => Some(wire::TemplateDeadline::None),
-            Some(domain::TemplateDeadline::Span(value)) => {
-                Some(wire::TemplateDeadline::Span(wire::TemplateDeadlineSpan { value: value.as_nanos() }))
-            }
-            Some(domain::TemplateDeadline::Given) => Some(wire::TemplateDeadline::Given),
-            None => None,
-        };
-        if values
-            .push(wire::TemplateOverride {
-                template: entry.template,
-                executor,
-                budget,
-                deadline,
-                priority: entry.priority,
-            })
-            .is_err()
-        {
+        if values.push(mapped::template_override_to_record(entry, limits)?).is_err() {
             return Err(super::problem());
         }
     }
     Ok(values)
 }
-fn decode_templates(entries: skein_lib::List<wire::TemplateOverride>) -> Box<[domain::TemplateOverride]> {
+fn decode_templates(
+    entries: skein_lib::List<wire::TemplateOverride>,
+    limits: &wire::Limits,
+) -> Result<Box<[domain::TemplateOverride]>, wire::Problem> {
     let mut values = skein_lib::List::with_capacity(entries.len());
     for entry in entries.into_boxed() {
-        let wire::TemplateOverride { template, executor, budget, deadline, priority } = entry;
-        let executor = match executor {
-            Some(wire::TemplateExecutor::Charter(value)) => Some(domain::TemplateExecutor::Charter(value.value)),
-            Some(wire::TemplateExecutor::Chosen) => Some(domain::TemplateExecutor::Chosen),
-            None => None,
-        };
-        let budget = match budget {
-            Some(wire::TemplateBudget::Amount(value)) => Some(domain::TemplateBudget::Amount(value.value)),
-            Some(wire::TemplateBudget::AsAllowed(value)) => Some(domain::TemplateBudget::AsAllowed { cap: value.cap }),
-            Some(wire::TemplateBudget::Given) => Some(domain::TemplateBudget::Given),
-            None => None,
-        };
-        let deadline = match deadline {
-            Some(wire::TemplateDeadline::None) => Some(domain::TemplateDeadline::None),
-            Some(wire::TemplateDeadline::Span(value)) => {
-                Some(domain::TemplateDeadline::Span(Duration::from_nanos(value.value)))
-            }
-            Some(wire::TemplateDeadline::Given) => Some(domain::TemplateDeadline::Given),
-            None => None,
-        };
-        values
-            .push(domain::TemplateOverride { template, executor, budget, deadline, priority })
-            .expect("decoded overrides bounded");
+        values.push(mapped::template_override_to_domain(entry, limits)?).expect("decoded overrides bounded");
     }
-    values.into_boxed()
+    Ok(values.into_boxed())
 }
