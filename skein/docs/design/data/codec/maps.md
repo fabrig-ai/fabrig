@@ -194,9 +194,13 @@ only for a shape that recurs (9).
   is the encoder's to refuse: translation checks no limit.
 - **The context** reaches every call to a by-hand pair; no generated
   line reads it.
-- **Plain step code** under the workspace's lints, with no allowance:
-  matches on both sides, named fields, the converters, the by-hand pairs
-  and its own functions. It defines and calls no generic helper; a
+- **Plain step code** under the workspace's lints: matches on both
+  sides, named fields, the converters, the by-hand pairs and its own
+  functions. Its one allowance is the generated files' own
+  ([README.md](README.md), section 4): a pair of one line per field or
+  variant whose body passes the lint's line bound carries
+  `#[expect(clippy::too_many_lines, reason = "...")]`, emitted only
+  there, as the records' emitter does. It defines and calls no generic helper; a
   domain's choice of container or box, which the maps file states (2),
   is bridged by `Box::new`, a move out of the box and `skein-lib`'s
   conversions between a `List` and a boxed slice, each written only
