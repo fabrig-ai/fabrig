@@ -287,6 +287,12 @@ def figures(base_id, tree_id, root, env, merged):
     return code, errors
 
 
+def merge_tests(root, env):
+    """Run check 9 for deliveries changing the merge job (tools/pre-pr/design.md, 4)."""
+    code, log = run(['python3', '-I', '-B', 'tools/merge/test_merge.py'], root, env, stdout=True)
+    return code, [failure('merge', log)] if code else []
+
+
 JOURNEY_ROOTS = tuple(f'temper/docs/design/client/{kind}/journeys' for kind in ('web', 'tui'))
 JOURNEY_WRITTEN = re.compile(
     r'(?:[^/]+/(?:recording|[0-9]{2,}\.(?:html|txt))|skein-ui\.css|journey\.js|theme\.css|tui-journey\.js)')
@@ -1196,6 +1202,11 @@ def main():
                         return 2, [failure('check figures', str(error))]
 
                 _, found = timed('figures', figures_check, pending)
+                errors += found
+            if any(path == '.temper/merge' or
+                   (path.startswith('tools/merge/') and path not in
+                    ('tools/merge/README.md', 'tools/merge/codecs.txt')) for path in paths):
+                _, found = timed('merge', lambda: merge_tests(root, env), pending)
                 errors += found
             inherited(reds, errors)
             count_errors = [e for e in errors if e['name'].startswith('old-forms ') and e['key']]
