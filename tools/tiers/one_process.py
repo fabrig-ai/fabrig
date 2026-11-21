@@ -657,7 +657,12 @@ def split_jobs(plan, lanes):
                     size += length
             if ordinary:
                 jobs.append(dict(binary=binary, tests=ordinary, kind='tests', diagnostic=None))
-    return sorted(jobs, key=job_order)
+    jobs.sort(key=job_order)
+    if repair := plan.get('repair_case'):
+        binary, name = repair
+        jobs.sort(key=lambda job: not (job['binary']['binary_id'] == binary
+                                      and any(test['name'] == name for test in job['tests'])))
+    return jobs
 
 
 def job_order(job):
@@ -1111,7 +1116,16 @@ def run(command, env, directory, profile, limits, config=Path('.config/nextest.t
         raise ValueError('run directory must be empty')
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
     directory.chmod(0o700)
+    env = env.copy()
+    repair = env.pop('TIERS_PRE_PR_REPAIR_CASE', None)
     plan, prefix, no_tests, output, root = listed_plan(command, env, profile, limits, config, walls, layers)
+    if repair is not None:
+        binary, name = json.loads(repair)
+        if not any(b['binary_id'] == binary and any(t['name'] == name for t in b['tests'])
+                   for b in plan['binaries']):
+            (directory / 'repair-case-missing').touch()
+            raise ValueError('repair case absent from focused listing')
+        plan['repair_case'] = [binary, name]
     plan['count'] = True
     execute_plan(plan, prefix, env, directory, limits, no_tests=no_tests, output=output, ledger=ledger,
                  commit=checkout_commit(root, env))

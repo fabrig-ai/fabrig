@@ -1628,6 +1628,55 @@ else:
                 if lints:
                     self.assertIn('clippy, focused and fuzzy tests (code input', log)
 
+    def test_repair_reorders_only_a_fresh_exact_refusal_and_requires_replay(self):
+        test = dict(binary_id='api::rules', test_name='rule', outcome='failed', before=['setup'])
+        key = ('api::rules', 'rule')
+        self.goal_file('rerun', b'temper-rerun 1 1\n')
+        self.goal_file('reds-wait', b'temper-reds-wait 1 1\n')
+        self.goal_file('reds', b'temper-reds 1\n- lint api clippy::rule api/src/lib.rs\n')
+        head = self.root / '.git/HEAD'
+        for case in ('reproduced', 'passed', 'flake', 'replay error', 'stale checkout', 'same tree', 'known red'):
+            with self.subTest(case=case):
+                (self.root / '.git/pre-pr-passed').unlink(missing_ok=True)
+                self.goal_file('reds', b'temper-reds 1\n- lint api clippy::rule api/src/lib.rs\n')
+                self.write('api/src/lib.rs', f'// before {case}\n')
+                repeated = {key: {'code': 100, 'outcome': 'failed'}}
+                first, log, _, _ = self.ledger_run([test], repeated, changed=False)
+                self.assertEqual(first, 1, log)
+                self.assertNotIn('repair trial:', log)
+                receipt = json.loads((self.root / 'target/temper/pre-pr-failures.json').read_bytes())
+                entry = dict(form='pre-pr-repair 1', head=head.read_text().strip(),
+                             head_ns=head.stat().st_mtime_ns + (case == 'stale checkout'),
+                             previous=receipt['tree'], base=receipt['base'], binary=key[0], test=key[1],
+                             refused_ns=(self.root / 'target/temper/pre-pr-failures.json').stat().st_mtime_ns)
+                marker = self.goal_file('repair-trial', json.dumps(entry).encode())
+                if case != 'same tree':
+                    self.write('api/src/lib.rs', f'// repair {case}\n')
+                if case == 'known red':
+                    self.goal_file('reds', b'temper-reds 1\n- test api::rules rule\n')
+                again = {key: {'missing': True}} if case == 'replay error' else {} if case == 'flake' else repeated
+                result, log, _, calls = self.ledger_run([dict(test, outcome='passed') if case == 'passed' else test],
+                                                        again, changed=False)
+                self.assertEqual(result, int(case not in ('passed', 'flake', 'known red')), log)
+                self.assertFalse(marker.exists())
+                self.assertEqual((self.root / '.git/pre-pr-passed').exists(), result == 0)
+                profiles = [args[6] for args in self.process_calls if '--again' not in args]
+                self.assertEqual(profiles, ['default'] if case == 'reproduced' else ['default', 'fuzzy'])
+                self.assertEqual(calls[:2], (case != 'reproduced', case != 'reproduced'))
+                results = (self.root / '.git/temper/check-results').read_text()
+                if case == 'reproduced':
+                    measurement = json.loads((self.root / '.git/temper/repair-trial-result.json').read_bytes())
+                    self.assertEqual(measurement['case'], list(key))
+                    self.assertEqual(measurement['observed'], 'failed')
+                    self.assertGreater(measurement['confirmed_s'], 0)
+                    self.assertIn('confirmed prior failure', log)
+                    self.assertNotIn('passed lint', results)
+                elif case in ('stale checkout', 'same tree', 'known red'):
+                    self.assertNotIn('repair trial:', log)
+                else:
+                    self.assertLess(log.index('repair trial:'), log.index('pre-pr: format …'))
+                    self.assertIn('passed lint', results)
+
     def test_focused_build_failure_skips_fuzzy_and_preserves_the_diagnostic(self):
         self.goal_file('reds-wait', b'temper-reds-wait 1 1\n')
         self.goal_file('reds', b'temper-reds 1\n- test api::rules fuzzy::rule\n')

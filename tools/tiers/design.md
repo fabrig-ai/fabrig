@@ -1171,7 +1171,10 @@ nothing.
   start by test count. Processes start by priority, the highest of their
   tests', then by estimate, longest first. A fresh process (11.6) takes its
   place among those waiting by the same order, its tests' priority and
-  estimate; an alone diagnostic goes before them all (11.6).
+  estimate; an alone diagnostic goes before them all (11.6). For the
+  delivery repair trial, place the already-formed process containing the
+  requested binary and case first. Keep every process's cases, their order,
+  its groups and the complete profile ledger (tools/pre-pr/design.md, 4).
 - **A long binary is split.** Where a binary's estimate is more than the
   total over the lanes (the selection's estimate divided by the lanes), its
   tests in libtest's order are dealt into
