@@ -90,24 +90,92 @@ def git(arguments, cwd, env):
                           stderr=subprocess.PIPE, check=False)
 
 
-def base(root, env):
+def base(root, env, destination=None, frozen_heads=None):
     """Read the landing pin and merge heads, never moving the pin (section 2)."""
-    if git(['rev-parse', '--verify', '--quiet', 'refs/temper/landing^{commit}'], root, env).returncode:
+    pin = git(['rev-parse', '--verify', '--quiet', 'refs/temper/landing^{commit}'], root, env)
+    if pin.returncode:
         return None, 'no refs/temper/landing'
-    heads = ['refs/temper/landing', 'HEAD']
-    if not git(['rev-parse', '--verify', '--quiet', 'MERGE_HEAD'], root, env).returncode:
-        heads.append('MERGE_HEAD')
-    result = git(['merge-base'] + heads, root, env)
+    if destination is not None and pin.stdout.strip() != destination.encode():
+        return None, 'destination differs from the worker landing pin'
+    if frozen_heads is None:
+        heads = ['refs/temper/landing', 'HEAD']
+        if not git(['rev-parse', '--verify', '--quiet', 'MERGE_HEAD'], root, env).returncode:
+            heads.append('MERGE_HEAD')
+    else:
+        heads = [destination, *frozen_heads]
+    result = git((['merge-base'] if destination is None else ['merge-base', '--all']) + heads, root, env)
     if result.returncode or not result.stdout.strip():
         return None, 'no merge base of refs/temper/landing and HEAD'
+    if destination is not None and len(result.stdout.splitlines()) != 1:
+        return None, 'child delivery requires one merge base'
     commit = result.stdout.decode().splitlines()[0]
     while git(['log', '-1', '--format=%s', commit], root, env).stdout.decode().rstrip('\n') == (
             'Unchecked: work in progress, saved before a question'):
         parent = git(['rev-parse', '--verify', '--quiet', commit + '^1'], root, env)
         if parent.returncode:
+            if destination is not None:
+                return None, 'cannot find the parent of the unchecked save'
             break
         commit = parent.stdout.decode().strip()
     return commit, None
+
+
+FULL_COMMIT = re.compile(r'(?:[0-9a-f]{40}|[0-9a-f]{64})')
+
+
+def verify_commit(name, commit, root, env):
+    if not FULL_COMMIT.fullmatch(commit):
+        raise ValueError(f'{name} must be a full commit ID')
+    actual = git(['rev-parse', '--verify', commit + '^{commit}'], root, env)
+    if actual.returncode or actual.stdout.strip() != commit.encode():
+        raise ValueError(f'{name} commit unavailable: {commit}')
+
+
+def goal_base(goal, root, git_dir, env):
+    """Verify the exact completed checkout and find the goal's unambiguous branch point."""
+    if len(goal) != 2:
+        raise ValueError('expected the full goal head and destination commit IDs')
+    head, destination = goal
+    for name, commit in zip(('head', 'destination'), goal):
+        verify_commit(name, commit, root, env)
+    current = git(['rev-parse', '--verify', 'HEAD'], root, env)
+    if current.returncode or current.stdout.strip() != head.encode():
+        raise ValueError(f'checkout HEAD differs from goal head {head}')
+    if (git_dir / 'MERGE_HEAD').exists():
+        raise ValueError('checkout has a pending merge')
+    status = git(['status', '--porcelain=v1', '--untracked-files=all', '--ignore-submodules=none'], root, env)
+    if status.returncode or status.stdout:
+        raise ValueError('goal checkout must have a clean index and worktree')
+    bases = git(['merge-base', '--all', destination, head], root, env)
+    if bases.returncode or len(bases.stdout.splitlines()) != 1:
+        raise ValueError('goal head and destination require one common merge base')
+    return bases.stdout.decode().strip()
+
+
+def policy_context(scope, commits, root, git_dir, env):
+    """Bind the comparison base and the child parents used by per-change rules."""
+    if scope == 'goal':
+        return goal_base(commits, root, git_dir, env), None
+    if scope != 'child' or len(commits) != 1 or not FULL_COMMIT.fullmatch(commits[0]):
+        raise ValueError('expected a full child destination commit ID')
+    current = git(['rev-parse', '--verify', 'HEAD^{commit}'], root, env)
+    if current.returncode:
+        raise ValueError('child checkout requires HEAD')
+    heads = [current.stdout.decode().strip()]
+    try:
+        merging = (git_dir / 'MERGE_HEAD').read_text(encoding='ascii').splitlines()
+    except FileNotFoundError:
+        pass
+    else:
+        if not merging:
+            raise ValueError('empty child MERGE_HEAD')
+        for commit in merging:
+            verify_commit('pending merge head', commit, root, env)
+        heads.extend(merging)
+    base_id, why = base(root, env, commits[0], heads)
+    if not base_id:
+        raise ValueError(why)
+    return base_id, heads
 
 
 def tree(root, git_dir, index, env):
@@ -220,7 +288,7 @@ def code_inputs(paths, data, root):
         # alone must not turn a package README into a build.
         if source or registered or (not documentation(path) and (
                 '.cargo' in Path(path).parts[:-1] or path.startswith(('.config/', 'tools/'))
-                or path == '.temper/pre-pr'
+                or path in ('.temper/pre-pr', '.temper/goal-pre-pr', '.temper/goal-child-pre-pr')
                 or (path.startswith('skein/scripts/') and path.endswith('.sh'))
                 or any(path.startswith(prefix) for prefix in prefixes)
                 or owner(root / path, directories) is not None
@@ -259,13 +327,15 @@ def citations(tree_id, root, env):
     return code, [failure('citations', log)] if code else []
 
 
-def merged_tips(base_id, root, env):
+def merged_tips(base_id, root, env, frozen_heads=None):
     """Check 7's pending merge first, then first-parent history's other parents."""
-    merged = []
-    pending = git(['rev-parse', '--verify', '--quiet', 'MERGE_HEAD'], root, env)
-    if not pending.returncode:
-        merged.append(pending.stdout.decode().strip())
-    history = git(['rev-list', '--first-parent', '--merges', '--parents', base_id + '..HEAD'], root, env)
+    if frozen_heads is None:
+        head = 'HEAD'
+        pending = git(['rev-parse', '--verify', '--quiet', 'MERGE_HEAD'], root, env)
+        merged = [] if pending.returncode else [pending.stdout.decode().strip()]
+    else:
+        head, *merged = frozen_heads
+    history = git(['rev-list', '--first-parent', '--merges', '--parents', base_id + '..' + head], root, env)
     if history.returncode:
         raise RuntimeError(history.stderr.decode(errors='replace'))
     for line in history.stdout.decode().splitlines():
@@ -897,9 +967,9 @@ def failure_counts(errors):
     return dict(zip(('new', 'flake', 'inherited'), map(len, failure_groups(errors))))
 
 
-def failure_file(tree_id, base_id, verdict, cached, errors, root, env):
+def failure_file(tree_id, base_id, verdict, cached, errors, root, env, scope='delivery', commits=(), heads=None):
     """Keep every structured failure atomically, before the summary (sections 6–7)."""
-    relative = 'target/temper/pre-pr-failures.json'
+    relative = 'target/temper/goal-child-pre-pr.json' if scope == 'child' else 'target/temper/pre-pr-failures.json'
     path = root / relative
     try:
         entries = []
@@ -917,10 +987,15 @@ def failure_file(tree_id, base_id, verdict, cached, errors, root, env):
         header = {'form': 'pre-pr-failures 1', 'tree': tree_id, 'base': base_id,
                   'cached': cached, 'verdict': 'refused' if verdict else 'passed',
                   'counts': failure_counts(errors)}
+        if scope == 'goal':
+            header.update(goal_head=commits[0], destination=commits[1])
+        elif scope == 'child':
+            header.update(form='goal-child-pre-pr 1', scope='child', destination=commits[0],
+                          delivery_head=heads[0], merge_heads=heads[1:])
         text = json.dumps(header, ensure_ascii=False)[:-1] + ', "failures": [\n'
         text += ',\n'.join(json.dumps(entry, ensure_ascii=False) for entry in entries) + '\n]}\n'
         path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = path.with_name('pre-pr-failures.json.tmp')
+        temporary = path.with_name(path.name + '.tmp')
         temporary.write_bytes(text.encode('utf-8', errors='backslashreplace'))
         temporary.replace(path)
         return f'every key in {relative}'
@@ -948,10 +1023,14 @@ def timed(name, action, pending=None):
     return result
 
 
-def summary(base_id, lints, tests, errors, reason, failures_tail, starved=()):
+def summary(base_id, lints, tests, errors, reason, failures_tail, starved=(), scope='delivery', commits=()):
     """Keep the first failure whole and count what the host's tail cannot hold."""
     refused = any(not settled(e) for e in errors)
     base_text = f'base {base_id}, merge base of refs/temper/landing and HEAD' if base_id else 'no base'
+    if scope == 'goal':
+        base_text = f'goal head {commits[0]}, destination {commits[1]}, merge base {base_id}'
+    elif scope == 'child':
+        base_text = f'child checks, destination {commits[0]}, base {base_id}'
     header = f'pre-pr: {"refused" if refused else "passed"} ({base_text})\n'
     counts = failure_counts(errors)
     header += (f'failures: {counts["new"]} new, {counts["flake"]} flakes, '
@@ -983,7 +1062,7 @@ def summary(base_id, lints, tests, errors, reason, failures_tail, starved=()):
     return int(refused)
 
 
-def main():
+def main(scope='delivery', commits=()):
     started = time.monotonic()
     root = Path.cwd()
     env = os.environ.copy()
@@ -992,9 +1071,21 @@ def main():
     ledger_setting = env.pop('TIERS_LEDGER', '')
     env.setdefault('TEMPER_INTERNAL_BUNDLE', 'none')
     git_dir = Path(git(['rev-parse', '--absolute-git-dir'], root, env).stdout.decode().strip())
-    reds, digest, marker = goal_reds(root, env)
-    rerun = rerun_bound(root, env)
-    base_id, why = base(root, env)
+    frozen_heads = None
+    if scope == 'delivery':
+        reds, digest, marker = goal_reds(root, env)
+        base_id, why = base(root, env)
+    else:
+        env['GIT_NO_REPLACE_OBJECTS'] = '1'
+        try:
+            base_id, frozen_heads = policy_context(scope, commits, root, git_dir, env)
+        except (OSError, ValueError) as error:
+            print(f'pre-pr: refused {scope}: {error}', flush=True)
+            return 1
+        reds, digest, marker, why = set(), None, False, None
+        if scope == 'child':
+            reds, _, _ = goal_reds(root, env)
+    rerun = rerun_bound(root, env) if scope != 'child' else 0
     errors = []
     lints, tests = [], []
     starved = []
@@ -1004,35 +1095,55 @@ def main():
         try:
             if own_paths_error is not None:
                 raise RuntimeError(own_paths_error)
-            return journeys(base_id, tree_id, own_paths, root, env)
+            return journeys(base_id, tree_id, [] if scope == 'goal' else own_paths, root, env)
         except (OSError, ValueError, RuntimeError) as error:
             return 2, [failure('check journeys', str(error))]
 
     def conclude():
         _, found = timed('journeys', journeys_check)
         errors.extend(found)
+        if scope != 'delivery':
+            try:
+                final_base, final_heads = policy_context(scope, commits, root, git_dir, env)
+                if final_heads != frozen_heads:
+                    raise ValueError('child HEAD or pending merge heads changed during checks')
+                if final_base != base_id:
+                    raise ValueError('merge base changed during checks')
+                if scope == 'child':
+                    checked_tree, _ = tree(root, git_dir, Path(directory) / 'final-index', env)
+                    if checked_tree != tree_id:
+                        raise ValueError('child delivery tree changed during checks')
+            except (OSError, ValueError, RuntimeError) as error:
+                errors.append(failure(f'check {scope} checkout', str(error)))
         refused = any(not settled(e) for e in errors)
-        failures_tail = failure_file(tree_id, base_id, refused, False, errors, root, env)
-        verdict = summary(base_id, lints, tests, errors, why if base_id else None, failures_tail, starved)
+        failures_tail = failure_file(tree_id, base_id, refused, False, errors, root, env, scope, commits, frozen_heads)
+        if scope != 'delivery' and failures_tail.startswith('not written'):
+            errors.append(failure(f'check {scope} receipt', failures_tail))
+        verdict = summary(base_id, lints, tests, errors, why if base_id else None, failures_tail, starved, scope, commits)
         if marker:
             check_results(tree_id, base_id, verdict, reds, lints, outcomes, errors, root, env)
         return verdict
 
     with tempfile.TemporaryDirectory(prefix='temper-pre-pr-') as directory:
         tree_id, private = tree(root, git_dir, Path(directory) / 'index', env)
-        ledgers, ledger_digest = main_ledgers(ledger_setting, Path(directory), root)
+        if scope == 'goal':
+            expected = git(['rev-parse', '--verify', commits[0] + '^{tree}'], root, env)
+            if expected.returncode or expected.stdout.strip() != tree_id.encode():
+                print('pre-pr: refused goal: checkout snapshot differs from goal tree', flush=True)
+                return 1
+        ledgers, ledger_digest = ({}, '-') if scope == 'child' else main_ledgers(ledger_setting, Path(directory), root)
         cache = git_dir / 'pre-pr-passed'
         own_paths, own_paths_error = [], None
         merged = None
         try:
-            merged = merged_tips(base_id, root, env) if base_id else []
+            merged = merged_tips(base_id, root, env, frozen_heads) if base_id and scope != 'goal' else []
             own_paths = delivery_paths(base_id, tree_id, root, env, merged)
         except (OSError, RuntimeError) as error:
             own_paths_error = str(error)
         # The same tree can have different own paths after HEAD or a merge changes.
         own_digest = hashlib.sha256(os.fsencode('\0'.join(own_paths))).hexdigest()
         record = f'{tree_id} {base_id or "-"} {digest or "-"} {ledger_digest} {own_digest}'
-        if own_paths_error is None and cache.exists() and cache.read_text().strip() == record:
+        if scope == 'delivery' and own_paths_error is None and cache.exists() and cache.read_text().strip() == record:
             print(f'pre-pr: passed before (tree {tree_id}, base {base_id or "-"}, '
                   f'reds {digest or "-"}, ledgers {ledger_digest})', flush=True)
             failures_tail = failure_file(tree_id, base_id, False, True, [], root, env)
@@ -1060,7 +1171,7 @@ def main():
         docs = any(documentation(path) for path in paths)
         prose_only = bool(paths) and not selected and not errors and all(
             path.endswith('.md') and 'docs' in Path(path).parts[:-1] for path in paths)
-        if prose_only:
+        if prose_only or scope == 'child':
             hold = contextlib.nullcontext()
         else:
             runner = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'tiers/run'))
@@ -1072,7 +1183,8 @@ def main():
                 code_checks = True
             else:
                 try:
-                    if not prose_only and not errors and (docs or selected or any(not documentation(path) for path in paths)):
+                    if not prose_only and not errors and (
+                            (docs and scope != 'child') or selected or any(not documentation(path) for path in paths)):
                         data = metadata(root, private)
                         selected = code_inputs(paths, data, root)
                 except (OSError, ValueError, RuntimeError) as error:
@@ -1080,8 +1192,9 @@ def main():
                 code_checks = bool(selected)
                 kind = 'code and docs' if code_checks and docs else 'code only' if code_checks else 'docs only'
                 if code_checks:
-                    print(f'pre-pr: {kind}: format, counted baselines, clippy, focused and fuzzy tests '
-                          f'(code input {selected[0]!r})', flush=True)
+                    checks = ('format, counted baselines, outward names' if scope == 'child' else
+                              'format, counted baselines, clippy, focused and fuzzy tests')
+                    print(f'pre-pr: {kind}: {checks} (code input {selected[0]!r})', flush=True)
                 if docs:
                     path = next(path for path in paths if documentation(path))
                     if prose_only:
@@ -1103,7 +1216,7 @@ def main():
                     return [failure('format', str(error))]
 
             inventory = {}
-            if base_id and data is not None and (code_checks or docs):
+            if scope != 'child' and base_id and data is not None and (code_checks or docs):
                 always = root / '.config/gate/always.txt'
                 always = always.read_text() if always.exists() else ''
                 lints, tests = select(data, {root / p: p for p in selected}, always) if code_checks else ([], [])
@@ -1123,7 +1236,7 @@ def main():
 
             pending = {}
             binaries = [binary for name in tests for binary in inventory.get(name, [])]
-            repair = repair_case(git_dir, root, base_id, tree_id, tests, reds)
+            repair = repair_case(git_dir, root, base_id, tree_id, tests, reds) if scope == 'delivery' else None
             early = None
             if repair and code_checks and rerun and not errors and not binaries:
                 print(f'pre-pr: repair trial: focused process for {repair[0]} {repair[1]} first', flush=True)
@@ -1189,10 +1302,10 @@ def main():
             if docs:
                 _, found = timed('citations', lambda: citations(tree_id, root, env), pending)
                 errors += found
-            if prose_only:
+            if prose_only or (scope == 'child' and (code_checks or docs)):
                 _, found = timed('outward', lambda: outward(root, private), pending)
                 errors += found
-            if base_id and 'tools/tiers/budgets.toml' in raw_paths:
+            if scope != 'goal' and base_id and 'tools/tiers/budgets.toml' in raw_paths:
                 def figures_check():
                     try:
                         if merged is None:
@@ -1203,9 +1316,9 @@ def main():
 
                 _, found = timed('figures', figures_check, pending)
                 errors += found
-            if any(path == '.temper/merge' or
-                   (path.startswith('tools/merge/') and path not in
-                    ('tools/merge/README.md', 'tools/merge/codecs.txt')) for path in paths):
+            if scope != 'child' and any(
+                    path == '.temper/merge' or (path.startswith('tools/merge/') and path not in
+                                                ('tools/merge/README.md', 'tools/merge/codecs.txt')) for path in paths):
                 _, found = timed('merge', lambda: merge_tests(root, env), pending)
                 errors += found
             inherited(reds, errors)
@@ -1216,7 +1329,7 @@ def main():
                 status = 'inherited' if found and all(settled(e) for e in found) else 'failed'
                 print(f'pre-pr: {name}: {status}, {seconds:.3f} s', flush=True)
             verdict = conclude()
-            if not verdict:
+            if not verdict and scope == 'delivery':
                 temporary = git_dir / 'pre-pr-passed.tmp'
                 temporary.write_text(record + '\n')
                 temporary.replace(cache)
@@ -1224,4 +1337,8 @@ def main():
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    if len(sys.argv) == 1:
+        sys.exit(main())
+    if sys.argv[1] in ('--goal', '--child'):
+        sys.exit(main(sys.argv[1].removeprefix('--'), sys.argv[2:]))
+    sys.exit('expected no arguments, --goal HEAD DESTINATION, or --child DESTINATION')

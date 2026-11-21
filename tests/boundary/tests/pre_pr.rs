@@ -704,3 +704,118 @@ fn mains_ledgers_refuse_a_delivery_over_budget() {
     assert_eq!(events.iter().filter(|e| e[0] == "one-process").count(), 2);
     assert_eq!(events.iter().filter(|e| e[0] == "cpu-summary").count(), 1);
 }
+
+#[test]
+fn completed_goal_checks_a_merged_siblings_test_after_an_empty_close() {
+    let scratch = fixture();
+    let root = scratch.path();
+    let workspace = skein_scratch::paths::workspace();
+    for path in [".temper/close", "tools/close/close.py", ".temper/goal-pre-pr"] {
+        fs::create_dir_all(root.join(path).parent().expect("hook directory")).expect("create hook directory");
+        fs::copy(workspace.join(path), root.join(path)).expect("copy executable hook or its implementation");
+    }
+    git(root, &["add", "."]);
+    git(root, &["commit", "-qm", "install goal and close hooks"]);
+    let commit = || String::from_utf8(git(root, &["rev-parse", "HEAD"])).expect("commit").trim().to_owned();
+    let destination = commit();
+    git(root, &["checkout", "-qb", "sibling"]);
+    write(root, "a/tests/earlier.rs", "#[test]\nfn earlier_sibling() { assert_eq!(1, 2); }\n");
+    git(root, &["add", "a/tests"]);
+    git(root, &["commit", "-qm", "earlier sibling"]);
+    git(root, &["checkout", "-qb", "goal", &destination]);
+    git(root, &["merge", "-q", "--no-ff", "sibling", "-m", "land earlier sibling"]);
+    write(root, "notes.txt", "second sibling\n");
+    git(root, &["add", "notes.txt"]);
+    git(root, &["commit", "-qm", "land later sibling"]);
+    let head = commit();
+
+    write(
+        root,
+        ".git/request.json",
+        r#"{"version":1,"goal":7,"changes":[{"task":8,"landed":true},{"task":9,"landed":true}]}"#,
+    );
+    let close = command(root, "env", &["TEMPER_JOB=.git", ".temper/close", "close", ".git/request.json"]);
+    assert!(close.status.success(), "{}", text(&close));
+    assert_eq!(
+        serde_json::from_slice::<Value>(&fs::read(root.join(".git/result.json")).expect("close result")).expect("JSON"),
+        json!({"settled": []})
+    );
+    assert!(git(root, &["status", "--porcelain"]).is_empty());
+
+    let check = |candidate: &str| command(root, ".temper/goal-pre-pr", &[candidate, &destination]);
+    ledger(root, &json!({"head": {"tests": [test_failure("earlier_sibling", "earlier assertion failed")]}}));
+    let refused = check(&head);
+    assert_eq!(refused.status.code(), Some(1), "{}", text(&refused));
+    assert!(text(&refused).contains("test A::rules earlier_sibling"), "{}", text(&refused));
+    let receipt = || {
+        serde_json::from_slice::<Value>(&fs::read(root.join("target/temper/pre-pr-failures.json")).expect("receipt"))
+            .expect("JSON receipt")
+    };
+    let red = receipt();
+    assert_eq!(red["goal_head"], head);
+    assert_eq!(red["destination"], destination);
+    assert_eq!(red["verdict"], "refused");
+    assert_eq!(red["counts"]["new"], 1);
+
+    write(root, "a/tests/earlier.rs", "#[test]\nfn earlier_sibling() { assert_eq!(1, 1); }\n");
+    git(root, &["add", "a/tests"]);
+    git(root, &["commit", "-qm", "repair sibling test"]);
+    reset(root, "");
+    let stale = check(&head);
+    assert!(!stale.status.success(), "stale head passed: {}", text(&stale));
+    let repaired = commit();
+    ledger(
+        root,
+        &json!({"head": {"tests": [changed_field(test_failure("earlier_sibling", ""), "outcome", json!("passed"))]}}),
+    );
+    let green = check(&repaired);
+    assert!(green.status.success(), "{}", text(&green));
+    let result = receipt();
+    assert_eq!(result["goal_head"], repaired);
+    assert_eq!(result["destination"], destination);
+    assert_eq!(result["verdict"], "passed");
+}
+
+#[test]
+fn child_delivery_checks_format_without_using_the_build_hold_or_the_full_pass() {
+    let scratch = fixture();
+    let root = scratch.path();
+    let hook = ".temper/goal-child-pre-pr";
+    let workspace = skein_scratch::paths::workspace();
+    fs::create_dir_all(root.join("tools/outward")).expect("outward directory");
+    for path in [hook, "tools/outward/outward.py", "tools/outward/names.txt"] {
+        fs::copy(workspace.join(path), root.join(path)).expect("copy child check and outward scanner");
+    }
+    git(root, &["add", hook, "tools/outward"]);
+    git(root, &["commit", "-qm", "install child hook"]);
+    pin(root);
+    let commit = |name: &str| String::from_utf8(git(root, &["rev-parse", name])).expect("commit").trim().to_owned();
+    let destination = commit("HEAD");
+    write(root, "a/src/lib.rs", "fn changed() {}\n");
+    let hold = Some(".git/bin/hold");
+    let child = |sha: &str| command_with_settings(root, hook, &[sha], hold, None);
+
+    let mismatched = child(&commit("HEAD^"));
+    assert!(!mismatched.status.success(), "accepted a destination different from the worker pin");
+    reset(root, "");
+    let cheap = child(&destination);
+    assert!(cheap.status.success(), "{}", text(&cheap));
+    let state = budget(root);
+    let events = state["events"].as_array().expect("child check events");
+    assert!(events.iter().any(|e| e[0] == "format"), "{state}");
+    assert!(
+        events.iter().all(|e| e[0] != "hold-start" && e[0] != "build" && e[0] != "clippy" && e[0] != "one-process"),
+        "{state}"
+    );
+    assert!(!passed(root), "a child pass cannot certify a full delivery");
+
+    reset(root, "");
+    let full = command_with_settings(root, "sh", &[".temper/pre-pr"], hold, None);
+    assert!(full.status.success(), "{}", text(&full));
+    let state = budget(root);
+    let events = state["events"].as_array().expect("full check events");
+    for required in ["hold-start", "clippy", "one-process"] {
+        assert!(events.iter().any(|e| e[0] == required), "missing {required}: {state}");
+    }
+    assert!(passed(root));
+}

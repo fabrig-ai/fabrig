@@ -181,6 +181,42 @@ boundary (smith's run.md, 8.1).
   The worker writes it at prepare alone, and the next hold writes it
   afresh.
 
+### Child delivery and the completed goal
+
+An engine that enforces the final goal gate can select
+`.temper/goal-child-pre-pr DESTINATION` for a delivery into an enabled
+goal branch. DESTINATION must be the full commit ID pinned by the worker
+at `refs/temper/landing`. A missing or different pin refuses the check.
+The caller identifies an eligible goal from the held branch and the
+change's role. The checkout alone cannot distinguish two destinations
+pointing at the same commit.
+
+The child check uses the ordinary per-delivery path selection. It keeps
+formatting and counted baselines for code, citations for docs, the
+outward text check where applicable, journey file rules and budget figure
+rules. It skips the build hold, Clippy, test builds and test suites. Its
+result goes to `target/temper/goal-child-pre-pr.json`. Ordinary deliveries
+continue to use `.temper/pre-pr` and their own pass cache.
+
+`.temper/goal-pre-pr HEAD DESTINATION` checks a completed goal in an
+isolated checkout at HEAD. The caller supplies both full commit IDs and
+the history needed to find their common ancestor. The command requires a
+clean index and worktree, the specified head, and a single merge base.
+It selects the entire diff from that base to HEAD, including changes
+introduced by merged children. An independent advance on the destination
+leaves the comparison at the fork. The selected packages run through the
+ordinary build, lint and test commands with the same builder hold.
+
+Journey file mixing and budget figure changes are judged on each delivery.
+The whole-tree empty-overlay rule also applies at goal completion.
+The completed-goal command runs afresh and records the goal head,
+destination and comparison base in its verdict. Queue admission requires
+a successful invocation for the current pair and must check both refs
+again before admitting the final change. A failed invocation invalidates
+any result file left by an earlier invocation. The repository command
+checks the supplied commits locally. Dispatch and admission require an
+engine gate on the change adopting the goal branch.
+
 ## 3. What it selects
 
 - **The tree** is the working tree as git sees it, untracked files
@@ -210,7 +246,8 @@ boundary (smith's run.md, 8.1).
 - **Code inputs:** Rust (`.rs`); Cargo manifests and locks; rustfmt,
   clippy and Rust toolchain configuration, including under `docs/`;
   non-docs paths under a `.cargo/` directory, `.config/` and `tools/`;
-  `.temper/pre-pr`; `skein/scripts/*.sh` (the boundary profile check's
+  `.temper/pre-pr`, `.temper/goal-child-pre-pr` and `.temper/goal-pre-pr`;
+  `skein/scripts/*.sh` (the boundary profile check's
   inputs); each tree's
   `scripts/old_forms.py` and `scripts/old-forms.txt`; and non-docs paths
   owned by workspace packages or matching a prefixed path reader below.
