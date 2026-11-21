@@ -92,7 +92,19 @@ change's due step.
 | `landing: room`, `change: room` | for each entry holding the outbox's room: `Waiter(task T)`, its owner, while its owner lives; `Ended("entry N of task T")` once its owner has ended |
 | `change: held` | `Party("person")`: a person's release |
 | `change: ready`, `change: preparing` | `Waiter(task L)`, its landing |
-| every other `change:` step | its live delegate (producer, repair, resolution, gate or merge job), `Waiter(task D)`; its write in flight, `Party("forge: entry N")`; its open question's answerer, `Waiter(task R)` or `Party("person")` |
+| `change: ready` with no landing | while the forge's limits refuse its train a landing, `Waiter(task L)` for each live landing; otherwise its landing's making, as the root's turn below |
+| every other `change:` step | its live delegate (producer, repair, resolution, gate or merge job), `Waiter(task D)`; its write in flight, `Party("forge: entry N")`; its open question's answerer, `Waiter(task R)` or `Party("person")`; else the root's turn below |
+
+- **The root's turn:** a change the forge has decided an act for that
+  the root carries out (a delegate to make, a landing task to make,
+  a decision's effect to run), with no other wake, waits on the root.
+  `forge` gives `Party("root")` for it while that act stands unanswered
+  in the forge's state, read from the state itself (the step's
+  procedure state awaiting the root's answer), never as a fallback for
+  a wait it can't name: the forge world's scripted root answers in its
+  own time. `inspect` gives none: the root carries out each act in the
+  step that decides it, so a change still awaiting one at the root's
+  quiet point has no wake, and is a finding.
 
 - **The change's steps,** in the change procedure's words
   (`../domain/forge/change/README.md`, 2): `producing`, `opening`,
