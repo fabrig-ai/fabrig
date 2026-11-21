@@ -1,4 +1,4 @@
-//! Saved recordings are proved and printed without placeholders (draft/journey-walks.md, 4.3).
+//! Saved recordings are proved and printed without placeholders (draft/archive/journey-walks.md, 4.3).
 use fixtures::{
     TuiWorld, absent, fixture_with_marks_and_secret, tree_bytes, tui_approval_recording, tui_recording, tui_written,
 };

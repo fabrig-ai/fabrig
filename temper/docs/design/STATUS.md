@@ -372,9 +372,8 @@ opens temper in the browser by the box's printed link while it is
 live and the web's Home once a browser signed in by it, the link in a
 note to copy where no browser opens; `temper-box` alone
 runs the box with no TUI (`client/tui/box.md`; `client/box-binary.md`;
-`protocol/setup/box.md`, 6). Its journey waits
-for `again` to start the box in the pseudo-terminal
-(`client/tui/journeys.status.md`, 8.3), and its real-terminal check
+`protocol/setup/box.md`, 6). Its journey needs a front host in the
+world or drive session (`client/tui/journeys.status.md`, 8.3); its real-terminal check
 follows landing (`client/README.md`, section 5). The user's requests
 `tui-11` to `tui-14` of 2026-11-15, goal 3416, give a box set up before
 a starting screen until the TUI has read `me`, a group starting in the
@@ -464,20 +463,14 @@ a fresh one (`client/ctl/README.md`, 6.1 and 7; `protocol/sign-in.md`, 2.3;
 jig's `protocol/client/sign-in.md`;
 `draft/asked-link.status.md`).
 
-A journey's recording holds nonsecret placeholders for what varies
-between walks: the TUI's build, loopback ports and approval codes,
-inserted by `add` and checked by replay; a framed field's is the
-original's width, and a browser's print numbers skein-ui's ids afresh
-per page (`client/journey-placeholders.md`;
-`draft/journey-placeholders.status.md`).
-
-Main's journey files have one writer, run after each landing, ending
-`Printed: COMMIT`; no test or goal writes them
-(`client/journey-writer.md`). Every journey on main has a `walk` of
-version 2 and prints in one process by `temper-client-walk`, the TUI's
-host on the service with no terminal, the box's part, a sign-in's tab
-and the model's scripted turns played by the world's
-(`client/journey-walks.md`).
+A journey is its version-2 walk, printed in one process by
+`temper-client-walk`: the browser's and TUI's hosts on the simulated
+service, with no box or terminal. The world plays the box's part, a
+sign-in's tab and the model's scripted turns (`client/journey-walks.md`).
+The browser's print numbers generated ids afresh per page
+(`client/web/journeys.md`, 5.3). Main's pages have one writer, run after
+each landing, ending `Printed: COMMIT`; no test or goal writes them
+(`client/journey-writer.md`).
 
 Design documents:
 - [Areas](status-areas.status.md)
@@ -507,7 +500,6 @@ Design documents:
 - [`client/forge/records.md`](client/forge/records.status.md)
 - [`client/forge/repositories.md`](client/forge/repositories.status.md)
 - [`client/forge/served.md`](client/forge/served.status.md)
-- [`client/journey-placeholders.md`](client/journey-placeholders.status.md)
 - [`client/journey-walks.md`](client/journey-walks.status.md)
 - [`client/journey-writer.md`](client/journey-writer.status.md)
 - [`client/line.md`](client/line.status.md)
@@ -726,9 +718,6 @@ Drafts:
 - [`draft/held-landing-recovery.md`](draft/held-landing-recovery.status.md)
 - [`draft/home-for-a-person.md`](draft/home-for-a-person.status.md) — A1, goal 4273: the stock charters' words for a goal's or a change's title line, `decided`'s question and options, and a goal's report headline, written for a person, and `help goal start`'s for a goal's title.
 - [`draft/home-for-a-person.md`](draft/home-for-a-person.status.md) — B1: the status agent's words carry the project's open findings, counted by kind and severity with the high ones' titles, after the goals and before the roles' Nows; a sitting starts a run when they changed since the last brief, kept as the brief's mark, a project that has landed nothing included; its instructions name findings by what they are about (`domain/forge/attention.md`, 2 and 3).
-- [`draft/journey-clock.md`](draft/journey-clock.status.md)
-- [`draft/journey-placeholders.md`](draft/journey-placeholders.status.md)
-- [`draft/journey-walks.md`](draft/journey-walks.status.md)
 - [`draft/kept-change-answers.md`](draft/kept-change-answers.status.md)
 - [`draft/landed-qa.md`](draft/landed-qa.status.md)
 - [`draft/landing-history.md`](draft/landing-history.status.md)
@@ -759,11 +748,9 @@ Drafts:
 - [`draft/project-open-superseded.md`](draft/project-open-superseded.status.md) — a made project's `Home` opens only while the person stays where they asked it: a later navigation or project choice supersedes the opening, the creation still finishing; the native client shows the address it last applied, and the process tier's person goes on once the creation's own `Home` is applied (`client/view.md`, 3; `testing/process-tier.md`).
 - [`draft/proposal-reach.md`](draft/proposal-reach.status.md)
 - [`draft/queue-smooth.md`](draft/queue-smooth.status.md)
-- [`draft/real-journeys.md`](draft/real-journeys.status.md)
 - [`draft/real-loop-cancel-kills.md`](draft/real-loop-cancel-kills.status.md)
 - [`draft/real-loop-kill-cause.md`](draft/real-loop-kill-cause.status.md)
 - [`draft/reconciling-start.md`](draft/reconciling-start.status.md) — S1, goal 10905: a start reads and doesn't write; a missing goal branch is made after the settle, in the outbox line's order (`domain/forge/branches.md`, 1).
-- [`draft/record-anywhere.md`](draft/record-anywhere.status.md)
 - [`draft/reference-case.md`](draft/reference-case.status.md)
 - [`draft/reference-code-production.md`](draft/reference-code-production.status.md)
 - [`draft/redeploys.md`](draft/redeploys.status.md)
@@ -798,6 +785,7 @@ Drafts:
 - [`draft/widening-funded.md`](draft/widening-funded.status.md)
 
 Archived drafts:
+- [`draft/archive/journey-walks.md`](draft/archive/journey-walks.status.md)
 - [`draft/archive/reference-landing.md`](draft/archive/reference-landing.status.md)
 - [`draft/archive/worker-reply-bound.md`](draft/archive/worker-reply-bound.status.md)
 

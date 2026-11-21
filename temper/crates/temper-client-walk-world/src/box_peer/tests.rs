@@ -1,4 +1,4 @@
-//! Pipe requests and the single owned script (journey-walks.md, 7).
+//! Pipe requests and the single owned script (client/journey-walks.md, 7).
 use super::{Answers, LINE_BYTES, OWNED};
 use skein_lib::{Duration, Time};
 

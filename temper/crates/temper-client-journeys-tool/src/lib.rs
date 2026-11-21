@@ -53,7 +53,7 @@ pub struct Printed {
     pub bearer: u32,
 }
 
-/// The layouts this build can prove (draft/journey-walks.md, 4.3).
+/// The layouts this build can prove (draft/archive/journey-walks.md, 4.3).
 pub struct Build {
     pub wire: u32,
     pub temper: String,
@@ -88,7 +88,7 @@ fn recording_name(file: &OsStr) -> String {
 }
 
 /// Check the layout, redact, scan and prove a person's recording before printing
-/// any pages into OUT (draft/journey-walks.md, 4.3).
+/// any pages into OUT (draft/archive/journey-walks.md, 4.3).
 /// # Errors
 /// Refuses a writer-owned OUT, incompatible layout, unsafe bytes, failed proof or io.
 pub fn print(
