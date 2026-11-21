@@ -165,25 +165,19 @@ skein's (skein's `ui/web/README.md`), and how a client of jig's does is jig's
     (`testing.md`, 3, The tier's window), where they name none and
     131,072;
   - `internal-loopback-navigation`: skein's platform follows a
-    navigation to plaintext loopback (skein's `ui/web/README.md`, section 8);
-  - `internal-fixed-start`, the one with a value other than `1`: a
-    fixed start, `SECONDS,SEED`, from which the page takes its seed, its
-    clocks and a UTC zone, as a journey's walk does
-    (`../journey-clock.md`, 4.2); off when its value doesn't read.
+    navigation to plaintext loopback (skein's `ui/web/README.md`, section 8).
 
-  `internal-small-window`, `internal-loopback-navigation` and
-  `internal-fixed-start` are
+  `internal-small-window` and `internal-loopback-navigation` are
   honoured only on a loopback origin, the page's host `127.0.0.1` or
   `[::1]`, as the browser tier and the journeys tool serve it, and
   ignored elsewhere: loopback navigation elsewhere would let a page
   send a person's browser to plaintext services on their own machine,
-  the small window is the browser tier's, and a fixed start's seed is
-  known to anyone. `internal-record` is
+  the small window is the browser tier's. `internal-record` is
   honoured everywhere: the recorder adds no node, no style and no
   request, and a recording leaves the browser only by the person's own
   Alt+Shift+S, or the save before a departure, into their own downloads
   (`journeys.md`, 3.1), so a link that sets it on someone else's page
-  takes nothing from them. Each of the four is taken out of the
+  takes nothing from them. Each of the three is taken out of the
   address wherever it is given, honoured or not. A reload is a load
   without them. The shell's limits are given at its host's start, which
   the replay gives the ordinary ones.

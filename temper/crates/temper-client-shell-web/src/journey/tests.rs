@@ -2,7 +2,6 @@ use super::*;
 use jig_client_shell_web::adapter::Heard;
 use skein_ui::Act;
 
-mod fixed;
 mod pieces;
 mod saving;
 
@@ -16,7 +15,6 @@ fn every_record_reads_back_as_written() {
         Line::Journey { version: 2 },
         Line::Seed(u64::MAX),
         Line::Clocks { now: Time::ZERO, wall: Wall::EPOCH },
-        Line::Fixed,
         Line::Primary(Primary::Control),
         Line::Primary(Primary::Meta),
         Line::Zone(120),
@@ -149,9 +147,44 @@ fn a_malformed_line_is_unreadable() {
     assert_eq!(lines(b"").expect_err("empty recording").line, 1);
 }
 
+#[test]
+fn a_fixed_record_is_an_unknown_kind() {
+    let error = lines(b"journey 2\nseed 11\nclocks 0 0\nfixed\nprimary control\npath \"/\"\nend\n")
+        .expect_err("removed record kind");
+    assert_eq!(error, Unreadable { line: 4, why: "unknown kind" });
+}
+
+#[test]
+fn a_recording_keeps_its_start_facts() {
+    let facts = Facts {
+        seed: 99,
+        now: Time::from_nanos(123),
+        wall: Wall::from_nanos(456),
+        primary: Primary::Meta,
+        zone_minutes: 120,
+        ..facts()
+    };
+    let (_, page) = facts.start();
+    let records = lines(&Recorder::new(&facts).save(&page)).expect("start records");
+    assert_eq!(
+        &records[..5],
+        &[
+            Line::Journey { version: 2 },
+            Line::Seed(facts.seed),
+            Line::Clocks { now: facts.now, wall: facts.wall },
+            Line::Primary(facts.primary),
+            Line::Zone(facts.zone_minutes),
+        ]
+    );
+    let (read, _) = replay::facts(&records).expect("start facts");
+    assert_eq!(
+        (read.seed, read.now, read.wall, read.primary, read.zone_minutes),
+        (facts.seed, facts.now, facts.wall, facts.primary, facts.zone_minutes)
+    );
+}
+
 pub(super) fn facts() -> Facts {
     Facts {
-        fixed: false,
         seed: 11,
         now: Time::ZERO,
         wall: Wall::EPOCH,

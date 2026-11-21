@@ -193,33 +193,36 @@ fn layouts_are_refused_before_proof_and_leave_output_untouched() {
     assert_eq!(tree_bytes(&out), before);
 }
 
-fn fixed_capture() -> Box<[u8]> {
+fn capture_recording() -> Box<[u8]> {
     use fixtures::web::{Capture, managed_capture};
     use skein_ui::{Act, Role};
-    let mut capture = managed_capture(Capture::fixed());
+    let mut capture = managed_capture(Capture::new());
     capture.act(Role::Button, b"Connect as its admin", Act::Press);
     capture.save()
 }
 
 #[test]
-fn a_fixed_capture_keeps_its_start_through_print() {
-    let recording = fixed_capture();
-    let scratch = Scratch::new("journeys-fixed-print");
-    print(scratch.path(), "fixed", &recording, &[]).expect("redact, prove and scan");
-    let header = b"journey 2\nseed 7\nclocks 3600000000000 1767690000000000000\nfixed\n";
-    assert!(recording.starts_with(header), "capture keeps the fixed facts");
-    let directory = scratch.path().join(WEB).join("fixed");
+fn a_capture_keeps_its_start_through_print() {
+    let recording = capture_recording();
+    let scratch = Scratch::new("journeys-capture-print");
+    print(scratch.path(), "capture", &recording, &[]).expect("redact, prove and scan");
+    let header = b"journey 2\nseed 11\nclocks 0 0\nprimary control\n";
+    assert!(recording.starts_with(header), "capture keeps the start facts");
+    let redacted = journey::redact(&recording, &[]).expect("redact capture");
+    let proved = journey::prove(&redacted.recording).expect("prove capture");
+    assert!(proved.starts_with(header), "print's redaction and proof keep the start facts");
+    let directory = scratch.path().join(WEB).join("capture");
     assert_eq!(fs::read_dir(directory).expect("printed pages").count(), 2, "the press mark and end print");
 }
 
 #[test]
-fn two_fixed_walks_and_their_printed_pages_are_identical() {
-    let first = fixed_capture();
-    let second = fixed_capture();
+fn two_captures_and_their_printed_pages_are_identical() {
+    let first = capture_recording();
+    let second = capture_recording();
     assert!(first == second, "fresh captures of the same scripted walk have identical bytes");
-    let scratch = Scratch::new("journeys-fixed-twice");
+    let scratch = Scratch::new("journeys-capture-twice");
     for (name, recording) in [("first", first), ("second", second)] {
-        print(&scratch.path().join(name), "fixed", &recording, &[]).expect("print fixed walk");
+        print(&scratch.path().join(name), "capture", &recording, &[]).expect("print capture");
     }
     assert_eq!(
         tree_bytes(&scratch.path().join("first")),
