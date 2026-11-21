@@ -15,6 +15,10 @@ pub enum LinkDown {
         number: u64,
         answer: crate::AskAnswer,
     },
+    ReadUsage {
+        read: u64,
+        source: SourceName,
+    },
     ReadList {
         read: u64,
         endpoint: u32,
@@ -83,6 +87,16 @@ pub enum LinkUp {
     },
     /// The host has started to shut down (domain/hosts/hub.md, 7).
     Draining,
+    Usage {
+        run: Token,
+        attempt: Token,
+        account: u32,
+        window: jig_domain_link::UsageWindow,
+    },
+    UsageRead {
+        read: u64,
+        outcome: jig_domain_link::UsageOutcome,
+    },
     ListRead {
         read: u64,
         outcome: jig_domain_link::ListOutcome,
@@ -159,6 +173,8 @@ impl LinkUp {
             Self::Call { .. } | Self::Ask { .. } => true,
             Self::Paused { .. }
             | Self::Draining
+            | Self::Usage { .. }
+            | Self::UsageRead { .. }
             | Self::ListRead { .. }
             | Self::JobAnswer { .. }
             | Self::Piece { .. }

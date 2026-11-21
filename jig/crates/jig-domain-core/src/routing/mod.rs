@@ -839,7 +839,9 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Queue<Request> 
             let mut changed = false;
             for request in &out {
                 match request {
-                    accounts::Request::ReadList { .. } => {}
+                    accounts::Request::CancelUsage { .. }
+                    | accounts::Request::ReadUsage { .. }
+                    | accounts::Request::ReadList { .. } => {}
                     accounts::Request::Answer { .. }
                     | accounts::Request::Programs { .. }
                     | accounts::Request::CheckProgram { .. }

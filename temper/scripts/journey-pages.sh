@@ -14,7 +14,6 @@ fail() {
     exit 1
 }
 
-started=$(date +%s)
 project=
 budget=
 allow=
@@ -38,6 +37,10 @@ while [ "$#" -gt 0 ]; do
             esac
             shift 2
             ;;
+        --help)
+            printf '%s\n' 'usage: journey-pages.sh [--project PROJECT (--budget AMOUNT | --as-allowed)] [--branch NAME] [--push REMOTE] [--prepared DIR] [--within DURATION]' '--prepared DIR and --within DURATION have no effect: temper-client-walk pages walks no box'
+            exit 0
+            ;;
         --as-allowed)
             [ -z "$allow" ] || refuse 'repeated --as-allowed'
             allow=yes
@@ -59,6 +62,13 @@ if [ -n "$within" ]; then
     esac
     case "$digits" in '' | *[!0-9]*) refuse '--within needs digits then s, m or h' ;; esac
 fi
+for option in prepared within; do
+    case "$option" in
+        prepared) value=$prepared ;;
+        within) value=$within ;;
+    esac
+    [ -z "$value" ] || printf 'journey-pages.sh: --%s has no effect: temper-client-walk pages walks no box\n' "$option" >&2
+done
 force=
 [ -z "$project" ] || [ -n "$branch" ] || force=yes
 branch=${branch:-journey-pages}
@@ -160,46 +170,13 @@ git fetch origin main >&2 || exit 1
 git checkout -B "$branch" origin/main >&2 || exit 1
 tip=$(git rev-parse HEAD) || exit 1
 
-moved=
-for walk in temper/docs/design/client/web/journeys/*/walk temper/docs/design/client/tui/journeys/*/walk; do
-    [ -f "$walk" ] || continue
-    first=
-    IFS= read -r first < "$walk" || :
-    [ "$first" != 'walk 2' ] || moved=yes
-done
-: > "$scratch/print"
-walk_printed=0
-if [ -n "$moved" ]; then
-    {
-        status=0
-        TEMPER_INTERNAL_BUNDLE=none cargo run --locked -p temper-client-walk -- pages || status=$?
-        printf '%s\n' "$status" > "$scratch/exit"
-    } | tee -a "$scratch/print"
-    walk_printed=$(cat "$scratch/exit")
-    case "$walk_printed" in 0 | 1) ;; *) exit 1 ;; esac
-fi
-
-set -- run --locked -p temper-client-journeys -- pages
-[ -z "$prepared" ] || set -- "$@" --prepared "$prepared"
-if [ -n "$within" ]; then
-    rest=$(python3 -I -B - "$within" "$started" "$(date +%s)" <<'PY'
-import sys
-
-duration, start, now = sys.argv[1:]
-seconds = int(duration[:-1]) * {"s": 1, "m": 60, "h": 3600}[duration[-1]]
-print(f"{max(0, seconds - (int(now) - int(start)))}s")
-PY
-    ) || exit 1
-    set -- "$@" --within "$rest"
-fi
 {
-    printed=0
-    TEMPER_INTERNAL_BUNDLE=none cargo "$@" || printed=$?
-    printf '%s\n' "$printed" > "$scratch/exit"
+    status=0
+    TEMPER_INTERNAL_BUNDLE=none cargo run --locked -p temper-client-walk -- pages || status=$?
+    printf '%s\n' "$status" > "$scratch/exit"
 } | tee -a "$scratch/print"
 printed=$(cat "$scratch/exit")
 case "$printed" in 0 | 1) ;; *) exit 1 ;; esac
-[ "$walk_printed" != 1 ] || printed=1
 
 # NUL records keep spaces, quoting and newlines in paths unambiguous. Disabling
 # rename detection checks both the deleted and added paths against the same set.
@@ -234,7 +211,7 @@ fi
 short=$(printf '%.12s' "$tip")
 subject="Journey pages printed at $short"
 # The commit and the opened change keep the same report and final paragraph.
-awk '/^stopped / { sub(/; scratch kept at .*/, "") } /^walked again / || /^stopped / { print }' "$scratch/print" > "$scratch/body"
+awk '/^stopped / { sub(/; scratch kept at .*/, ""); print }' "$scratch/print" > "$scratch/body"
 [ ! -s "$scratch/body" ] || printf '\n' >> "$scratch/body"
 printf 'Printed: %s\n' "$tip" >> "$scratch/body"
 body=$(cat "$scratch/body")

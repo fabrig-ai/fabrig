@@ -139,8 +139,8 @@ pub(crate) fn host_out(
                 failure: host::Preparation::Permanent { resource: None },
                 detail: Box::new([]),
             })),
-            host::Request::ReadList { .. } | host::Request::CancelRead { .. } => {
-                unreachable!("the host answers list reads without a machine")
+            host::Request::ReadUsage { .. } | host::Request::ReadList { .. } | host::Request::CancelRead { .. } => {
+                unreachable!("the host refuses reads without a source machine")
             }
             host::Request::Source { .. } | host::Request::SourceFault => {
                 unreachable!("engine hub has no program sources")

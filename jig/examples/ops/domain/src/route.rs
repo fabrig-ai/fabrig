@@ -408,6 +408,7 @@ fn core_held(
         | core::Held::AcknowledgeTurn { .. }
         | core::Held::Cancel { .. }
         | core::Held::Acknowledge { .. }
+        | core::Held::ReadUsage { .. }
         | core::Held::ReadList { .. }
         | core::Held::Sources { .. }
         | core::Held::PauseWorker { .. }

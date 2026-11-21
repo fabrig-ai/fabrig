@@ -56,20 +56,29 @@ pub fn build(
 /// Git's local rules are checked independently; the checkout's capacity
 /// reports stdout with the other carriers once both links' rooms are known.
 pub fn git_limits<E>(limits: &Limits, git: &limits::GitComponent, problems: &mut SharedProblems<SharedWhat<E>>) {
+    git_rules(
+        crate::worker_settings::git_component(*git),
+        &crate::worker_settings::checkout(limits.checkout),
+        problems,
+    );
+}
+
+pub(crate) fn git_rules<E>(
+    mut checked: temper_worker_protocol_git::Limits,
+    checkout: &temper_worker_domain_checkout::Limits,
+    problems: &mut SharedProblems<SharedWhat<E>>,
+) {
     use temper_worker_protocol_git::{Unfit, check};
-    let mut checked = crate::worker_settings::git_component(*git);
     // Repair just the reported rule in the local copy, then ask for the next.
     for _ in 0_u8..7 {
-        match check(&checked, &crate::worker_settings::checkout(limits.checkout)) {
+        match check(&checked, checkout) {
             Ok(()) => break,
             Err(Unfit::Operations) => {
                 against(problems, b"git_component.operations", b"checkout.workspaces");
-                checked.operations = limits.checkout.workspaces;
+                checked.operations = checkout.workspaces;
             }
             Err(Unfit::StdoutBytes) => {
-                let Some(bytes) = temper_worker_protocol_git::limits::largest_output(
-                    &crate::worker_settings::checkout(limits.checkout),
-                ) else {
+                let Some(bytes) = temper_worker_protocol_git::limits::largest_output(checkout) else {
                     break;
                 };
                 checked.stdout_bytes = bytes;

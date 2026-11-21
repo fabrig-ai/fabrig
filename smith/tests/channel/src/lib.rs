@@ -95,6 +95,8 @@ pub enum Observation {
     HostFact { kind: smith_channel::FactKind, elapsed: skein_lib::Duration, count: u64 },
     /// The host received a credential rejection notice.
     HostUnauthorized { account: u32, generation: u64 },
+    /// The host received one allowance window.
+    HostUsage { account: u32, window: smith_host_domain::UsageWindow },
     /// The host received an account exhaustion notice.
     HostLimited { account: u32, reset: Option<skein_lib::Duration> },
     /// The host received an account refusal without any credential.
@@ -387,6 +389,9 @@ impl Peer {
                 host::Received::Message { message: smith_host_domain::Up::Unauthorized { account, generation } } => {
                     output.push(Observation::HostUnauthorized { account, generation });
                 }
+                host::Received::Message { message: smith_host_domain::Up::Usage { account, window } } => {
+                    output.push(Observation::HostUsage { account, window });
+                }
                 host::Received::Message { message: smith_host_domain::Up::Limited { account, reset } } => {
                     output.push(Observation::HostLimited { account, reset });
                 }
@@ -520,7 +525,7 @@ fn channel_limits(bodies: smith_channel::Limits) -> skein_channel::Limits {
         skip: 4096,
         output_bytes: largest.checked_add(8).expect("frame fits"),
         output_frames: 4,
-        kinds: 23,
+        kinds: u32::try_from(smith_channel::V13.len()).expect("channel kinds fit"),
     }
 }
 
@@ -1115,6 +1120,15 @@ impl World {
                     &mut self.agent.below,
                 )
                 .expect("bounded rejected notice");
+        }
+    }
+
+    /// Forward one allowance observation from the scripted agent domain.
+    pub fn agent_reports_usage(&mut self, account: u32, window: smith_domain::UsageWindow) {
+        if let Half::Agent(agent) = &mut self.agent.half {
+            agent
+                .send_usage(account, window, Token::new(39), &mut self.agent.agent_events, &mut self.agent.below)
+                .expect("bounded usage notice");
         }
     }
 

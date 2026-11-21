@@ -9,5 +9,8 @@ pub mod record;
 pub mod redeploy;
 pub mod referee;
 pub mod stage;
+#[doc(hidden)]
+#[expect(clippy::must_use_candidate, reason = "shared test fixtures retain their helpers' signatures")]
+pub mod testing;
 
 pub use cli::{TABLE, main};

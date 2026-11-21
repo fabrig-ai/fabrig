@@ -383,6 +383,11 @@ pub enum Held {
         assignment: fleet::Assignment,
     },
     /// Read an account's list on this channel (jig/docs/design/protocol/channel/records.md, 2).
+    ReadUsage {
+        channel: Token,
+        read: u64,
+        source: SourceName,
+    },
     ReadList {
         channel: Token,
         read: u64,
@@ -1673,13 +1678,15 @@ fn fleet_new_work(event: &fleet::Event) -> bool {
         | fleet::Event::CleanupPrograms { .. }
         | fleet::Event::CheckProgram { .. }
         | fleet::Event::SignOutProgram { .. }
+        | fleet::Event::ReadUsage { .. }
         | fleet::Event::ReadList { .. }
         | fleet::Event::Sources { .. }
         | fleet::Event::Check { .. }
         | fleet::Event::SignOut { .. }
         | fleet::Event::Ask { .. }
         | fleet::Event::Relay { .. } => true,
-        fleet::Event::ListRead { .. }
+        fleet::Event::CancelUsage { .. }
+        | fleet::Event::ListRead { .. }
         | fleet::Event::Untooled { .. }
         | fleet::Event::Mismatch { .. }
         | fleet::Event::Draining { .. }
@@ -1699,6 +1706,8 @@ fn fleet_new_work(event: &fleet::Event) -> bool {
         | fleet::Event::Loaded
         | fleet::Event::Grant { .. }
         | fleet::Event::Unauthorized { .. }
+        | fleet::Event::Usage { .. }
+        | fleet::Event::UsageRead { .. }
         | fleet::Event::Limited { .. }
         | fleet::Event::AccountRefused { .. }
         | fleet::Event::Hello { .. }
@@ -1746,6 +1755,8 @@ fn account_new_work(event: &accounts::Event) -> bool {
         | accounts::Event::SignOut { .. } => true,
         accounts::Event::ForgetProject { .. }
         | accounts::Event::Restore { .. }
+        | accounts::Event::UsageRead { .. }
+        | accounts::Event::Usage { .. }
         | accounts::Event::ProgramSaid { .. }
         | accounts::Event::ProgramTargets { .. }
         | accounts::Event::ProgramSignedOut { .. }

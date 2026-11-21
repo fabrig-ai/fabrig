@@ -2,5 +2,6 @@ patch 1
 owner smith 5
 
 family smith-channel 11 to 12
-add Signal
-add Signalled
+add UsageState
+add UsageWindow
+add Usage

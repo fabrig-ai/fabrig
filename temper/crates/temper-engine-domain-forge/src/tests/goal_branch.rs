@@ -335,7 +335,8 @@ fn a_goal_branch_making_waits_for_room_but_holds_for_each_unmendable_cause() {
             None => {
                 assert_no_making(&requests);
                 assert!(!d.is_ready(), "{case}: no busy loop");
-                assert_eq!(d.next_deadline(), None, "{case}: no polling timer");
+                let report = env().now.saturating_add(WAIT_REPORT);
+                assert_eq!(d.next_deadline(), Some(report), "{case}: only a report, no polling");
                 assert_no_making(&ready(&mut d));
                 assert_eq!(
                     outputs(
@@ -933,7 +934,7 @@ fn a_goal_branch_already_gone_completes_its_release() {
 }
 
 #[test]
-fn a_goal_branch_found_missing_after_restart_gets_a_fresh_entry() {
+fn a_goal_branch_found_missing_after_restart_waits_for_settle_before_asking() {
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(
@@ -952,8 +953,13 @@ fn a_goal_branch_found_missing_after_restart_gets_a_fresh_entry() {
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut d, Event::ReadAfresh);
     let missing = fixtures::answer_next(&mut d, Err(Error::Missing));
-    assert!(missing.contains(&Request::ContinueGoalBranch { task: GOAL }), "{missing:?}");
+    assert!(missing.contains(&Request::RestartDone { stage: RestartStage::ReadAfresh }), "{missing:?}");
+    assert!(!missing.contains(&Request::ContinueGoalBranch { task: GOAL }), "{missing:?}");
     assert_no_making(&missing);
+    let settled = outputs(&mut d, Event::SettleOutbox);
+    assert!(settled.contains(&Request::RestartDone { stage: RestartStage::Settled }), "{settled:?}");
+    assert!(settled.contains(&Request::ContinueGoalBranch { task: GOAL }), "{settled:?}");
+    assert_no_making(&settled);
     outputs(&mut d, Event::ContinueGoalBranch { task: GOAL, entry: TAKING });
     let (call, op) = fixtures::next_call(&mut d);
     assert_eq!(op, Op::Read(Read::Branch { branch: b"main".as_slice().into() }));

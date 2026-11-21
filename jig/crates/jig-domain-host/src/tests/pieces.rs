@@ -14,10 +14,12 @@ fn assert_activity(record: LinkUp) {
         | LinkUp::Paused { .. }
         | LinkUp::Draining
         | LinkUp::Piece { .. }
+        | LinkUp::UsageRead { .. }
         | LinkUp::ListRead { .. }
         | LinkUp::Logins { .. }
         | LinkUp::SignedOut { .. }
         | LinkUp::Unauthorized { .. }
+        | LinkUp::Usage { .. }
         | LinkUp::Limited { .. }
         | LinkUp::AccountRefused { .. }
         | LinkUp::Turn { .. }

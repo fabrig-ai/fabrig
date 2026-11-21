@@ -491,7 +491,7 @@ fn a_deployment_past_its_decoded_room_is_refused() {
 
 fn fact_rows() -> List<c::AccountFact> {
     let mut facts = List::with_capacity(24);
-    for _ in 0_u32..4 {
+    for rate in [None, Some(0), Some(600), Some(u32::MAX)] {
         for value in [
             c::AccountFactValue::Text(Box::from(b"you@example.com".as_slice())),
             c::AccountFactValue::Count(123),
@@ -499,6 +499,7 @@ fn fact_rows() -> List<c::AccountFact> {
             c::AccountFactValue::Span(Duration::from_nanos(131)),
             c::AccountFactValue::Share(10_000),
             c::AccountFactValue::Window(c::AccountWindow {
+                rate,
                 length: Some(Duration::from_nanos(137)),
                 used: Some(10_000),
                 resets: Some(Wall::from_nanos(139)),
@@ -580,6 +581,7 @@ fn account_fact_shares_keep_their_basis_point_bound() {
             (w::AccountFactValue::Share(w::AccountFactShare { basis }), w::paths::ACCOUNT_FACT_SHARE_BASIS),
             (
                 w::AccountFactValue::Window(w::AccountWindow {
+                    rate: None,
                     length: None,
                     used: Some(basis),
                     resets: None,

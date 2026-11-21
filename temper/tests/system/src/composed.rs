@@ -1382,6 +1382,10 @@ impl World {
         self.worker_events.push_back(worker::Event::Link(down));
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "exhaustive worker routing retains independent pause, usage and diagnostic notices"
+    )]
     fn worker_request(&mut self, request: worker::Request) {
         match request {
             worker::Request::RedsAsk { owner, check, ask } => {
@@ -1397,7 +1401,8 @@ impl World {
                 let answer = temper_worker_service::translate::answer(&bytes, &limits);
                 self.worker_events.push_back(worker::Event::RedsAnswer { owner, check, answer });
             }
-            worker::Request::ReadList { .. }
+            worker::Request::ReadUsage { .. }
+            | worker::Request::ReadList { .. }
             | worker::Request::CancelRead { .. }
             | worker::Request::Source { .. }
             | worker::Request::SourceFault => {
@@ -1424,11 +1429,13 @@ impl World {
                     host::LinkUp::ListRead { .. }
                     // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too.
                     | host::LinkUp::Paused { .. }
+                    | host::LinkUp::UsageRead { .. }
                     | host::LinkUp::Draining
                     | host::LinkUp::Logins { .. }
                     | host::LinkUp::SignedOut { .. }
                     | host::LinkUp::Activity { .. }
                     | host::LinkUp::Unauthorized { .. }
+                    | host::LinkUp::Usage { .. }
                     | host::LinkUp::Limited { .. }
                     | host::LinkUp::AccountRefused { .. }
                     | host::LinkUp::JobAnswer { .. }

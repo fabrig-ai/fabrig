@@ -1258,3 +1258,55 @@ fn a_save_is_an_unchecked_delivery_and_shares_the_delivery_slot() {
 }
 
 mod asks;
+
+#[test]
+fn usage_from_an_active_agent_is_relayed_with_its_attempt() {
+    let mut h = Harness::new();
+    let (owner, _, _) = h.live(1);
+    let hosting = h.domain.hosting(owner).expect("active run");
+    let window = jig_domain_link::UsageWindow {
+        label: Box::from(b"five_hour".as_slice()),
+        window: jig_domain_link::FactWindow {
+            length: None,
+            used: Some(2800),
+            resets: None,
+            state: jig_domain_link::WINDOW_OPEN,
+        },
+    };
+    assert_eq!(
+        h.step(Event::Agent(crate::FromAgent::Usage { owner, account: 7, window: window.clone() })).as_ref(),
+        &[Request::Up(LinkUp::Usage {
+            run: hosting.run,
+            attempt: hosting.attempt,
+            account: 7,
+            window: window.clone()
+        })]
+    );
+    assert_eq!(
+        h.step(Event::Agent(crate::FromAgent::Usage { owner: Token::new(999), account: 7, window })).as_ref(),
+        &[]
+    );
+}
+#[test]
+fn a_usage_read_is_queued_and_its_answer_keeps_the_number() {
+    let mut h = Harness::new();
+    h.step(Event::Down(LinkDown::Sources { sources: Box::new([]) }));
+    let source = crate::SourceName::new(b"personal").expect("source");
+    assert_eq!(
+        h.step(Event::Down(LinkDown::ReadUsage { read: 7, source })).as_ref(),
+        &[Request::ReadUsage { read: 7, source }]
+    );
+    assert_eq!(h.step(Event::Down(LinkDown::ReadUsage { read: 8, source })).as_ref(), &[]);
+    assert_eq!(
+        h.step(Event::UsageRead { read: 7, outcome: jig_domain_link::UsageOutcome::Spent }).as_ref(),
+        &[
+            Request::Up(LinkUp::UsageRead { read: 7, outcome: jig_domain_link::UsageOutcome::Spent }),
+            Request::ReadUsage { read: 8, source },
+        ]
+    );
+    assert_eq!(
+        h.step(Event::UsageRead { read: 8, outcome: jig_domain_link::UsageOutcome::NotSignedIn }).as_ref(),
+        &[Request::Up(LinkUp::UsageRead { read: 8, outcome: jig_domain_link::UsageOutcome::NotSignedIn }),]
+    );
+    assert_eq!(h.domain.hosted(), 0);
+}

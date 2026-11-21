@@ -194,6 +194,8 @@ pub fn check(domain: &mut Domain, holder: Holder, source: u32, out: &mut Queue<R
     domain.counted(out);
     crate::domain::withdraw_program(domain, source);
     crate::domain::program_grant(domain, source, out);
+    let account = domain.sources.get(&source).expect("checked program source").account;
+    crate::usage::settled(domain, account, out);
     publish(domain, out);
     out.push(Request::CheckProgram { name });
     Ok(())
@@ -217,6 +219,10 @@ pub(crate) fn begin(
         },
     });
     crate::domain::withdraw_program(domain, source);
+    if let Some(entry) = domain.sources.get(&source) {
+        let account = entry.account;
+        crate::usage::settled(domain, account, out);
+    }
     assert!(
         domain
             .programs

@@ -102,6 +102,8 @@ pub enum Request {
     LongDone { client: Token },
     /// Known-account credential rejection notice.
     Unauthorized { client: Token, account: u32, generation: u64 },
+    /// One program allowance observation for the run's account.
+    Usage { client: Token, account: u32, window: crate::UsageWindow },
     /// Known-account quota notice.
     Limited { client: Token, account: u32, reset: Option<skein_lib::Duration> },
     /// The provider refused a known account, retaining its diagnostic fields.

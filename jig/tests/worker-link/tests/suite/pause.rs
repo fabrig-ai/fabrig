@@ -41,7 +41,8 @@ fn every_pause_mode_reaches_the_owner_between_the_records_around_it() {
 
 #[test]
 fn paused_states_are_sent_only_where_the_agreed_version_has_the_kind() {
-    for version in [18, 19] {
+    // Usage notices are required from 19; older engines refuse this worker at opening.
+    for version in [19, 20] {
         let mut world = crate::joined_world::Joined::with_wires(
             &super::translation::limits(),
             1,
@@ -50,12 +51,18 @@ fn paused_states_are_sent_only_where_the_agreed_version_has_the_kind() {
         );
         world.run();
         world.acknowledge(false);
-        assert_eq!(world.engine_channels().len(), 1, "range-stating worker admits the older engine");
+        assert_eq!(
+            world.engine_channels().len(),
+            1,
+            "range-stating worker admits engine {version}: engine={:?}, worker={:?}",
+            world.engine_root,
+            world.worker_root
+        );
         for state in [PauseState::Taking, PauseState::Paused, PauseState::Draining, PauseState::Drained] {
             let before = world.worker_records().len();
             world.worker_up(host::LinkUp::Paused { state }, Box::new([]));
             world.run();
-            if version == 19 {
+            if version == 20 {
                 assert_eq!(world.worker_records().get(before..), Some([wire::Kind::Paused.number()].as_slice()));
                 assert!(matches!(world.engine_root.last(),
                     Some(jig_protocol_engine_workers::Request::Up { up: host::LinkUp::Paused { state: got }, .. }) if *got == state));

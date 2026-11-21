@@ -132,6 +132,7 @@ fn removed_providers_and_source_less_accounts_keep_identity() {
 
 #[test]
 fn stored_names_reconstruct_without_declaration_spelling_rules() {
+    const QUIET_SECONDS: u64 = 30 * 60; // accounts.md, 3.7: the first idle usage read.
     for name in [b"".as_slice(), b"Upper Name", &[255; 32]] {
         let mut world = start(&[issued(21, name), held(ACCOUNT, b""), program(ACCOUNT, 21, 0, name)]);
         assert_eq!(restore_limit(&world.domain), None);
@@ -139,6 +140,12 @@ fn stored_names_reconstruct_without_declaration_spelling_rules() {
         assert_eq!(restore_limit(&world.domain), None);
         assert_eq!(programs::name(&world.domain, 21, HOLDER), Some(name));
         assert!(world.domain.source_grant(21, world.now).is_some());
+        let out = world.fire_at(QUIET_SECONDS);
+        assert!(
+            out.iter().any(|request| matches!(request,
+            Request::ReadUsage { source, .. } if source.as_bytes() == name)),
+            "usage reads keep the stored name too"
+        );
     }
 }
 

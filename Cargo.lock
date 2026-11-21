@@ -2542,6 +2542,9 @@ dependencies = [
  "jig-client-protocol-kit",
  "jig-client-shell-native",
  "jig-protocol-accounts-kit",
+ "jig-protocol-config",
+ "jig-protocol-config-fixtures",
+ "jig-protocol-store",
  "serde_json",
  "skein-fake-llm-domain",
  "skein-fake-llm-protocol",
@@ -3617,6 +3620,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "skein-fake-peers-kit"
+version = "0.0.0"
+dependencies = [
+ "skein-fake-forge-domain",
+ "skein-fake-forge-forgejo",
+ "skein-fake-llm-domain",
+ "skein-fake-llm-protocol",
+ "skein-fake-peers",
+ "skein-forge",
+ "skein-http",
+ "skein-io",
+ "skein-json",
+ "skein-lib",
+ "skein-llm",
+ "skein-llm-kit",
+ "skein-shell",
+ "skein-sim",
+]
+
+[[package]]
 name = "skein-fake-peers-tests"
 version = "0.0.0"
 dependencies = [
@@ -3629,6 +3652,7 @@ dependencies = [
  "skein-fake-llm-protocol",
  "skein-fake-oauth",
  "skein-fake-peers",
+ "skein-fake-peers-kit",
  "skein-fake-push",
  "skein-forge",
  "skein-forge-connection",
@@ -4589,6 +4613,7 @@ dependencies = [
  "smith-agent-shell",
  "smith-agent-world",
  "smith-bench",
+ "smith-end-to-end-kit",
  "smith-events",
  "smith-events-fixtures",
  "smith-fake-claude",
@@ -4837,7 +4862,9 @@ name = "smith-bench-fixtures"
 version = "0.0.0"
 dependencies = [
  "serde_json",
+ "sha2",
  "skein-lib",
+ "skein-scratch",
  "smith-bench",
  "smith-events",
  "smith-events-fixtures",
@@ -4987,6 +5014,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "smith-end-to-end-kit"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "skein-fake-llm-domain",
+ "skein-fake-peers",
+ "skein-io",
+ "skein-lib",
+ "skein-llm",
+ "skein-oauth",
+ "skein-scratch",
+ "skein-shell",
+ "skein-world",
+ "smith-agent-process-world",
+ "smith-agent-shell",
+ "smith-agent-world",
+ "smith-bench",
+ "smith-events",
+ "smith-fake-claude",
+ "smith-hosts-world",
+ "smith-local-process-world",
+ "smith-local-shell",
+ "smith-real-world",
+ "toml",
+]
+
+[[package]]
 name = "smith-events"
 version = "0.0.0"
 dependencies = [
@@ -5043,6 +5097,7 @@ version = "0.0.0"
 dependencies = [
  "skein-channel",
  "skein-io",
+ "skein-json",
  "skein-lib",
  "smith-channel",
  "smith-charter",
@@ -5891,14 +5946,18 @@ dependencies = [
  "skein-ui-screen",
  "skein-ui-screen-terminal",
  "skein-world",
+ "smith-agent-world",
+ "smith-domain-run",
  "smith-host-domain",
  "temper-agent-fixtures",
  "temper-box-shell",
  "temper-client-domain",
+ "temper-client-journeys-tool",
  "temper-client-shell-cli",
  "temper-client-shell-terminal",
  "temper-config-shell",
  "temper-engine-domain-forge",
+ "temper-engine-service",
  "temper-engine-service-vocabulary",
  "temper-engine-shell",
  "temper-fake",
@@ -6057,6 +6116,8 @@ dependencies = [
  "temper-agent-fixtures",
  "temper-box-kit",
  "temper-client-domain",
+ "temper-client-journeys-tool",
+ "temper-client-walk-lines",
  "temper-config-shell",
  "temper-engine-domain",
  "temper-engine-service",
@@ -6169,9 +6230,9 @@ dependencies = [
  "skein-fail-stop",
  "skein-lib",
  "skein-scratch",
- "skein-shell",
  "skein-ui-screen",
  "skein-ui-web",
+ "temper-client-journeys-kit",
  "temper-client-journeys-tool",
  "temper-client-shell-tui",
  "temper-client-shell-web",
@@ -6345,7 +6406,6 @@ dependencies = [
  "temper-client-protocol-wire",
  "temper-client-redaction",
  "temper-client-shell-terminal",
- "temper-client-shell-web",
  "temper-client-tui",
  "temper-client-view",
  "temper-shell",
@@ -6577,6 +6637,7 @@ dependencies = [
  "temper-client-shell-web",
  "temper-client-tui",
  "temper-config-shell",
+ "tempfile",
 ]
 
 [[package]]
@@ -6844,6 +6905,7 @@ dependencies = [
  "jig-protocol-config",
  "jig-protocol-config-fixtures",
  "jig-protocol-worker-wire",
+ "jig-test-profile",
  "skein-forge",
  "skein-forge-client",
  "skein-json",
@@ -6867,6 +6929,7 @@ dependencies = [
  "temper-engine-domain-translate",
  "temper-engine-domain-trials",
  "temper-engine-domain-ways",
+ "temper-limits-fixtures",
  "temper-protocol-brief",
  "temper-protocol-reaches",
  "temper-protocol-worker-wire",
@@ -7423,6 +7486,7 @@ dependencies = [
  "serde_json",
  "skein-channel",
  "skein-forge",
+ "skein-forge-client",
  "skein-forge-connection",
  "skein-http",
  "skein-io",
@@ -7756,7 +7820,15 @@ dependencies = [
 name = "temper-limits-fixtures"
 version = "0.0.0"
 dependencies = [
+ "jig-domain-accounts",
+ "jig-domain-authority",
+ "jig-domain-core",
+ "jig-domain-fleet",
+ "jig-domain-notes",
+ "jig-domain-people",
+ "jig-domain-tasks",
  "jig-protocol-config",
+ "skein-forge",
  "skein-forge-client",
  "skein-forge-setup",
  "skein-lib",

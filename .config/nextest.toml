@@ -49,8 +49,7 @@ default-filter = """
 ) | (
   package(/^jig(-|$)/)
   & not (kind(test) & test(/^fuzzy::/))
-  & (not binary(=live) | test(=the_live_configurations_are_ones_jig_test_reads)
-     | test(=live_sign_in::tests::a_refused_plan_is_reported_with_the_run_failure))
+  & not binary(=live)
   & not binary(/^browser_/)
 ) | (
   package(/^temper(-|$)/)
@@ -204,7 +203,7 @@ platform = 'cfg(target_os = "macos")'
 slow-timeout = { period = "240s" }
 
 [profile.live-jig]
-default-filter = "binary(=live) & not test(=live_sign_in::tests::a_refused_plan_is_reported_with_the_run_failure) & package(/^jig(-|$)/)"
+default-filter = "binary(=live) & package(/^jig(-|$)/)"
 global-timeout = "24m"
 slow-timeout = { period = "10m", terminate-after = 1 }
 test-threads = 1

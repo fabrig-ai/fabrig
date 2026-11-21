@@ -6,12 +6,13 @@ use jig_protocol_worker_wire::Record;
 
 const CAP: u64 = 64 * 1024 * 1024;
 
+#[expect(clippy::too_many_lines, reason = "one dispatch per schema root and one clamp per named limit")]
 #[test]
 fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         jig_protocol_worker_wire::SCHEMA,
-        jig_protocol_worker_wire::v19, lean,
+        jig_protocol_worker_wire::v20,
         limits [
             wire_name,
             wire_layouts,
@@ -83,6 +84,10 @@ fn largest_roots_stay_within_decoded_bounds() {
             list_row_efforts,
             list_row_efforts_item,
             listed_rows_rows,
+            usage_window_label,
+            usage_label,
+            usage_windows_windows,
+            read_usage_source,
             agreed_wire_name,
             agreed_wires,
             ask_bytes,

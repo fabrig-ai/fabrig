@@ -184,6 +184,7 @@ pub(crate) fn down(peers: &mut Peers, now: Time, down: host::LinkDown) -> Vec<r:
         | host::LinkDown::Asked { .. }
         | host::LinkDown::AssignJob { .. }
         | host::LinkDown::Grant { .. } => Vec::new(),
+        host::LinkDown::ReadUsage { .. } => panic!("this fixture requests no usage reads"),
         host::LinkDown::ReadList { .. } => panic!("this fixture requests no account lists"),
         host::LinkDown::Assign { .. } => panic!("temper's root hands assignments as typed deliveries"),
     }

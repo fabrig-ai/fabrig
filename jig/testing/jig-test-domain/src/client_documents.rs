@@ -93,6 +93,7 @@ pub(crate) fn document(
                 | core::Held::Drained
                 | core::Held::Restarting { .. }
                 | core::Held::Cancel { .. }
+                | core::Held::ReadUsage { .. }
                 | core::Held::ReadList { .. }
                 | core::Held::Sources { .. }
                 | core::Held::PauseWorker { .. }

@@ -2,11 +2,12 @@
 
 Provisional, 2026-11-19. A journey printed in one process, with no
 box, browser, terminal, recording or network: `../draft/journey-walks.md`,
-sections 3, 4.1, 5 and 6, with 8.3 for how a journey moves. A journey
-whose `walk` is of version 2 is walked here, the browser's and the
-TUI's alike; every other journey is still a recording, replayed and
-walked again as `web/journeys.md` and `tui/journeys.md` have it, and
-the writer takes either engine (`journey-writer.md`, 3).
+sections 3, 4.1, 5 and 6, with 8.3 for how a journey moves. Every
+journey on main has a `walk` of version 2 and is walked here, the
+browser's and the TUI's alike. A directory without one is still a
+recording, replayed and walked again as `web/journeys.md` and
+`tui/journeys.md` have it, and the writer takes either engine
+(`journey-writer.md`, 3) until the old engine goes (section 8).
 
 ## 1. In one page
 
@@ -44,7 +45,10 @@ the writer takes either engine (`journey-writer.md`, 3).
   in the world and removes its `recording`. `welcome-playground` moved
   first, `welcome-set-up` second, `project-landing` third, and
   `sign-in-approved` is the TUI's first; `chat-draft` returns as a walk
-  after `project-landing`, with its scripts.
+  after `project-landing`, with its scripts; and the TUI's
+  `launchpad-chat`, `launchpad-drawn` and `design-session` follow, each
+  after `project-landing` with its own scripts, so that every journey
+  on main is a walk.
 
 ## 2. The walk
 
@@ -715,10 +719,7 @@ is built from, as `temper-client-journeys` does, under both roots.
   fresh project's Home draws while To begin shows, where the draft's
   sample waits for "Nothing needs you.", which that Home does not draw.
   One page, as before. Its `setup` goes, and its `recording` is the
-  writer's to remove. The TUI's `design-session`, `launchpad-chat` and
-  `launchpad-drawn`, not yet moved, take its `setup`'s lines in place of
-  their `after "project-landing"`, so that `again` walks them on a box
-  as before until they move (`tui/journeys.md`, 8.2).
+  writer's to remove.
 - **`chat-draft` returns** as a walk, `after project-landing`, with its
   `scripts.json`, by its renewed walk (`web/journeys.md`, 9): eight
   pages, a chat through its draft to a goal and back. Its scripts are
@@ -727,6 +728,41 @@ is built from, as `temper-client-journeys` does, under both roots.
   (`temper_fake::backends::model_document`) with the world's task and
   note numbers; its goal starts in the world on the bounds a box holds
   (4.1).
+- **The TUI's longer journeys** move after `project-landing`, each with
+  its `scripts.json`, made from the box's own
+  (`temper_fake::backends::model_document`) with the world's task and
+  note numbers. A version-2 walk prints exactly its marks, and a mark's
+  key links its page to the next (2.4), so each requested state prints
+  once: a frame the recording held only as the one before a key that
+  acts, or at its end, is now the mark's link. Each `setup` goes; each
+  `recording` is the writer's to remove.
+  - **`launchpad-chat`:** the approval walked by `tui approve`; Hello's
+    launchpad seen by "Ask temper" and marked; `/` typed, the commands
+    seen and marked, Escape its key; "What can you tell me about
+    Hello?" typed and marked, Enter its key; the Ask temper chat seen by
+    its scripted answer, "Hello from the local fake model.", and marked.
+    Four pages, as before. Its scripts are that answer alone, cued by
+    the question, where a box gave it as its model's fallback.
+  - **`launchpad-drawn`:** `/change Add a CSV export to the report`
+    typed and marked, Enter its key; the chat's reply seen, `/new` typed
+    and marked, Enter its key; the launchpad with the chat's question
+    under Needs you seen and marked, `n` its key; the walk's prompt seen
+    and marked, Enter, taking Comma, its key; the launchpad marked once
+    it says "Nothing else needs you.". Five pages, where the recording
+    had seven. Its scripts are the chat's reply starting a goal, and
+    that goal's question to the chat, its wait and its finish once
+    answered.
+  - **`design-session`:** Hello's launchpad marked; `/draft Plan a
+    farewell line for hello.` typed and marked, Enter its key; the
+    session marked at half, at all and folded, each linked by Ctrl-P
+    (`tui/pages/design-session.md`, 1); half again with "1" typed and
+    marked, Enter its key; the reply saying nothing blocks the work
+    marked; `/goal` typed and marked, Enter its key; its ways' prompt
+    marked, Enter, taking Task by task, its key; the returned chat
+    marked with its goal linked, once `/goal`, typed and cleared, is no
+    longer offered. Ten pages, where the recording had fifteen. Its
+    scripts are the drafter's turns, cued by the opening words and by
+    the answer, and the started goal's report and finish.
 
 ## 7. Its tests
 
@@ -797,6 +833,18 @@ its own process.
   its second turn revises the draft, its goal prints a report and
   lands, and its Draft link returns to both replies. Printed twice,
   the same bytes, including after those reloads.
+- **The TUI's longer walks,** simulated, in the program's suite, each a
+  TUI journey of the tests' own after a walk of its own that reaches a
+  project, with its own `scripts.json`: a `/change` whose chat starts a
+  goal that asks the person, walked by `n` and answered by Enter, the
+  launchpad then needing nothing, its marks linked by `n` and Enter;
+  and a `/draft` session at half, all, folded and half again, each of
+  the first three marks linked by Ctrl-P. Each printed twice, the same
+  bytes.
+- **Each moved journey's scripts read:** every moved journey of the
+  checkout read by `walk::read`, its chain's scripts joined as the
+  walker joins them, with no world started: its sources read, never a
+  page of main's or a walk of it.
 - **The walker and the program,** simulated, on journeys of the tests'
   own in scratch roots: walked and printed; printed twice, the same
   bytes; a control that never appears stopping the walk by its journey
@@ -829,9 +877,6 @@ its own process.
 
 ## 8. Later
 
-- **The TUI's longer journeys,** `launchpad-chat`, `launchpad-drawn` and
-  `design-session`, each after `project-landing`, with their scripts
-  (`../draft/journey-walks.md`, 8.3).
 - **The drive session taking a journey's lines** on a box, `tui
   approve` and the marks among them, a mark there a look
   (`../draft/journey-walks.md`, 4.2).

@@ -8,7 +8,7 @@ mod program_lifetime;
 mod program_rechecks;
 mod program_runs;
 mod relay;
-pub mod support;
+pub use smith_end_to_end_kit as support;
 
 use smith_local_process_world::{Placement, referee::CheckoutRead};
 use smith_real_world::{Scratch, World};

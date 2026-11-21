@@ -34,6 +34,7 @@ impl Referee {
                 | FromAgent::Piece { .. }
                 | FromAgent::Activity { .. }
                 | FromAgent::Unauthorized { .. }
+                | FromAgent::Usage { .. }
                 | FromAgent::Limited { .. }
                 | FromAgent::AccountRefused { .. }
                 | FromAgent::Finished { .. }
@@ -54,6 +55,7 @@ impl Referee {
             | Event::Prepared { .. }
             | Event::Unprepared { .. }
             | Event::Delivered { .. }
+            | Event::UsageRead { .. }
             | Event::ListRead { .. }
             | Event::SourceAnswered { .. }
             | Event::Ask { .. }
@@ -67,7 +69,11 @@ impl Referee {
     }
     pub(crate) fn request(&mut self, request: &Request) -> Result<(), String> {
         match request {
-            Request::ReadList { .. } | Request::CancelRead { .. } | Request::Source { .. } | Request::SourceFault => {
+            Request::ReadUsage { .. }
+            | Request::ReadList { .. }
+            | Request::CancelRead { .. }
+            | Request::Source { .. }
+            | Request::SourceFault => {
                 unreachable!("source scheduling has its own world")
             }
             Request::Agent(ToAgent::Message { agent, name, .. }) => {

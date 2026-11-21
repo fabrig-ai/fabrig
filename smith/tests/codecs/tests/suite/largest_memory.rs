@@ -12,7 +12,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         smith_channel::CHANNEL_SCHEMA,
-        smith_channel::v12, lean,
+        smith_channel::v13,
         limits [
             directory_name,
             directory_path,
@@ -48,6 +48,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             turn_body,
             account_refused_code,
             account_refused_reason,
+            usage_window_label,
             completion_fault_code,
             completion_fault_request_id,
             completion_fault_field,
@@ -79,6 +80,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             LongDone,
             Unauthorized,
             Limited,
+            Usage,
             AccountRefused,
             Fact,
             Answer => (67_108_890, 67_108_864),
@@ -89,7 +91,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         smith_charter::SCHEMA,
-        smith_charter::v5, lean,
+        smith_charter::v5,
         limits [
             section_title,
             section_body,
@@ -131,7 +133,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         smith_local_protocol::SCHEMA,
-        smith_local_protocol::local_store_v1, lean,
+        smith_local_protocol::local_store_v1,
         limits [
             turn_body,
             push_target_remote,
@@ -155,7 +157,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         smith_transcript::SCHEMA,
-        smith_transcript::v7, lean,
+        smith_transcript::v7,
         limits [
             replay_bytes,
             text_text,

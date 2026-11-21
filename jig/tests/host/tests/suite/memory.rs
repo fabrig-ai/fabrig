@@ -103,7 +103,8 @@ impl Measured {
         let mut cancelled = Vec::new();
         while let Some(request) = self.out.pop() {
             asked.push(match request {
-                Request::ReadList { .. }
+                Request::ReadUsage { .. }
+                | Request::ReadList { .. }
                 | Request::CancelRead { .. }
                 | Request::Source { .. }
                 | Request::SourceFault => unreachable!("source scheduling has its own world"),
@@ -111,12 +112,14 @@ impl Measured {
                     LinkUp::ListRead { .. }
                     // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too.
                     | LinkUp::Paused { .. }
+                    | LinkUp::UsageRead { .. }
                     | LinkUp::Draining
                     | LinkUp::Logins { .. }
                     | LinkUp::SignedOut { .. }
                     | LinkUp::Piece { .. }
                     | LinkUp::Activity { .. }
                     | LinkUp::Unauthorized { .. }
+                    | LinkUp::Usage { .. }
                     | LinkUp::Limited { .. }
                     | LinkUp::AccountRefused { .. },
                 ) => continue,
@@ -509,7 +512,8 @@ fn source_replacement_at_capacity_completes_every_check() {
             match request {
                 Request::Source { owner: next, .. } => owner = next,
                 Request::Up(LinkUp::Logins { logins }) => assert_eq!(logins.len(), names.len()),
-                other @ (Request::ReadList { .. }
+                other @ (Request::ReadUsage { .. }
+                | Request::ReadList { .. }
                 | Request::CancelRead { .. }
                 | Request::SourceFault
                 | Request::Up(_)
@@ -585,10 +589,12 @@ fn maximum_input_pieces_keep_their_payloads_and_order() {
             other @ (LinkUp::ListRead { .. }
             // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too.
             | LinkUp::Paused { .. }
+            | LinkUp::UsageRead { .. }
             | LinkUp::Draining
             | LinkUp::Logins { .. }
             | LinkUp::SignedOut { .. }
             | LinkUp::Unauthorized { .. }
+            | LinkUp::Usage { .. }
             | LinkUp::Limited { .. }
             | LinkUp::AccountRefused { .. }
             | LinkUp::Turn { .. }

@@ -985,6 +985,7 @@ impl Observer {
             | core::Held::MakeEffect { .. }
             | core::Held::SettledCall { .. }
             | core::Held::Assign { .. }
+            | core::Held::ReadUsage { .. }
             | core::Held::ReadList { .. }
             | core::Held::Sources { .. }
             | core::Held::PauseWorker { .. }

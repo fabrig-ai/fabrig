@@ -9,6 +9,9 @@ use skein_lib::Token;
 #[expect(clippy::result_large_err, reason = "an untranslated output returns to its root without another allocation")]
 pub fn down(link: &mut Link, value: core::Held) -> Result<(Token, host::LinkDown), core::Held> {
     let (channel, value) = match value {
+        core::Held::ReadUsage { channel, read, source } if link.connected(channel) => {
+            (channel, host::LinkDown::ReadUsage { read, source })
+        }
         core::Held::ReadList { channel, read, endpoint, grant } if link.connected(channel) => {
             (channel, host::LinkDown::ReadList { read, endpoint, grant })
         }
@@ -80,6 +83,7 @@ pub fn down(link: &mut Link, value: core::Held) -> Result<(Token, host::LinkDown
         | core::Held::NotesLoad { .. }
         | core::Held::NotesWritten { .. }
         | core::Held::NotesDeleted { .. }
+        | core::Held::ReadUsage { .. }
         | core::Held::ReadList { .. }
         | core::Held::Sources { .. }
         | core::Held::PauseWorker { .. }

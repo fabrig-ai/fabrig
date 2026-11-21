@@ -27,8 +27,8 @@ fn channel(world: &World) -> Token {
 }
 
 #[test]
-fn every_pause_ask_is_sent_at_nineteen_or_reported_once_at_eighteen() {
-    for version in [18, 19] {
+fn every_pause_ask_is_sent_at_twenty_or_reported_once_to_older_workers() {
+    for version in [18, 19, 20] {
         let mut world = World::new(&fixtures::limits(), &fixtures::workers(), 1);
         let mut worker = peer(version);
         worker.play(fixtures::hello_frame());
@@ -44,10 +44,10 @@ fn every_pause_ask_is_sent_at_nineteen_or_reported_once_at_eighteen() {
             let before = world.root().len();
             let sent = world.observed(connection).len();
             pause(&mut world, channel, mode);
-            if version == 19 {
+            if version == 20 {
                 let frames = &world.observed(connection)[sent..];
                 assert_eq!(frames.len(), 1);
-                assert_eq!(frames[0].kind, 0x0191);
+                assert_eq!(frames[0].kind, 0x0192);
                 assert_eq!(wire::Pause::decode(&codec, &mut Reader::new(&frames[0].body)).expect("pause").mode, value);
                 assert_eq!(world.root().len(), before);
             } else {
@@ -56,7 +56,7 @@ fn every_pause_ask_is_sent_at_nineteen_or_reported_once_at_eighteen() {
                     panic!("one outcome per ask")
                 };
                 assert_eq!(worker.as_ref(), fixtures::WORKER_A);
-                assert_eq!((*got, *asked), (18, mode));
+                assert_eq!((*got, *asked), (version, mode));
             }
         }
     }
@@ -64,7 +64,7 @@ fn every_pause_ask_is_sent_at_nineteen_or_reported_once_at_eighteen() {
 
 #[test]
 fn a_pause_sends_and_reports_nothing_before_hello_or_after_closing() {
-    for version in [18, 19] {
+    for version in [18, 19, 20] {
         let mut world = World::new(&fixtures::limits(), &fixtures::workers(), 1);
         let connection = world.connect(peer(version));
         world.run();
@@ -72,7 +72,7 @@ fn a_pause_sends_and_reports_nothing_before_hello_or_after_closing() {
         // The pending channel's token is not yet an owner-visible admission.
         pause(&mut world, Token::new(1), PauseMode::Drain);
         assert!(!world.root().iter().any(|r| matches!(r, Request::Unpaused { .. })));
-        assert!(!world.observed(connection).iter().any(|r| r.kind == 0x0191));
+        assert!(!world.observed(connection).iter().any(|r| r.kind == 0x0192));
         world.play(connection, fixtures::hello_frame());
         world.run();
         let channel = channel(&world);
@@ -80,7 +80,7 @@ fn a_pause_sends_and_reports_nothing_before_hello_or_after_closing() {
         world.down(Event::Close);
         pause(&mut world, channel, PauseMode::Pause);
         assert!(!world.root().iter().any(|r| matches!(r, Request::Unpaused { .. })));
-        assert!(!world.observed(connection).iter().any(|r| r.kind == 0x0191));
+        assert!(!world.observed(connection).iter().any(|r| r.kind == 0x0192));
     }
 }
 
@@ -97,7 +97,7 @@ fn every_paused_state_reaches_the_owner() {
     ] {
         let before = world.root().len();
         let bytes = wire::Paused { state }.encode(&codec).expect("paused");
-        world.play(connection, fixtures::frame(0x010e, &bytes));
+        world.play(connection, fixtures::frame(0x0110, &bytes));
         world.run();
         assert_eq!(world.root().len(), before + 1);
         let Request::Up { channel: got, up, parts } = world.root().last().expect("paused up") else {

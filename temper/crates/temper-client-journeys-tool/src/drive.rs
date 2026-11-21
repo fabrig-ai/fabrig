@@ -17,6 +17,9 @@ mod tui;
 mod values;
 pub use io::Session;
 pub use options::{Input, Options, Plan, Program};
+fn is_mark(record: &Record) -> bool {
+    matches!(record, Record::Web(Web::Mark) | Record::Tui(Tui::Mark))
+}
 const STEP: Duration = Duration::from_secs(60);
 const LOOK: Duration = Duration::from_secs(10);
 const REQUESTS: Duration = Duration::from_secs(30);
@@ -249,6 +252,7 @@ pub struct Machine {
     frame: Box<[u8]>,
     return_address: Option<Box<[u8]>>,
     tui_browse: Option<Box<[u8]>>,
+    mark_widths: std::collections::VecDeque<u32>,
 }
 impl Machine {
     #[must_use]
@@ -276,6 +280,7 @@ impl Machine {
                 frame: Box::new([]),
                 return_address: None,
                 tui_browse: None,
+                mark_widths: std::collections::VecDeque::new(),
             },
             vec![action],
         )
@@ -415,9 +420,9 @@ impl Machine {
             return;
         }
         let refused = match record {
-            Record::Web(Web::Mark) => Some("web mark is a journey's line"),
-            Record::Tui(Tui::Mark) => Some("tui mark is a journey's line"),
-            Record::Tui(Tui::Approve) => Some("tui approve is a journey's line"),
+            Record::Web(Web::Mark) if !self.plan.options.journey => Some("web mark is a journey's line"),
+            Record::Tui(Tui::Mark) if !self.plan.options.journey => Some("tui mark is a journey's line"),
+            Record::Tui(Tui::Approve) if !self.plan.options.journey => Some("tui approve is a journey's line"),
             _ => self.place.refuse_line(record, self.plan.options.ctl),
         };
         if let Some(why) = refused {
@@ -450,9 +455,12 @@ impl Machine {
                 }
                 Err(why) => self.answer(Some(why), out),
             },
-            Record::Web(Web::Mark) => unreachable!("journey line refused"),
+            Record::Web(Web::Mark) => {
+                self.mark_widths = self.plan.options.widths.clone().into();
+                self.mark_look(now, out);
+            }
             Record::Web(Web::Act { role, name, order, .. }) => {
-                let find = Find::exactly_named(*role, name).nth(*order);
+                let find = self.control(*role, name, *order);
                 self.wait(Phase::Finding, now, STEP);
                 out.push(Action::Find(find));
             }
@@ -510,7 +518,7 @@ impl Machine {
     }
     fn answer(&mut self, why: Option<String>, out: &mut Vec<Action>) {
         let failed = why.map(|why| format!("line {}: {}", self.number, why.replace(['\n', '\r'], " ")));
-        if let Some(line) = self.current.take().filter(Line::kept) {
+        if let Some(line) = self.current.take().filter(|line| line.kept() && !is_mark(line.record())) {
             out.push(Action::Keep(line.print().into()));
         }
         out.push(Action::Answer(Answer { shown: std::mem::take(&mut self.shown), failed }));
@@ -520,6 +528,7 @@ impl Machine {
         self.poll = None;
         self.save_until = None;
         self.forge = None;
+        self.mark_widths.clear();
     }
     fn exited(&mut self, process: Process, code: i32, stdout: &[u8], stderr: &[u8], now: Time, out: &mut Vec<Action>) {
         match process {
@@ -583,6 +592,7 @@ impl Machine {
             return;
         }
         match self.phase {
+            Phase::Signing if self.plan.options.journey => self.session_ready(out),
             Phase::Signing => {
                 self.phase = Phase::Root;
                 self.poll = None;
@@ -659,11 +669,34 @@ impl Machine {
                 if let Some(Record::Web(Web::Look(Some(width)))) = self.current.as_ref().map(Line::record) {
                     self.shown.push(self.plan.look(self.number, *width).display().to_string());
                 }
-                self.phase = Phase::Snapshot;
-                out.push(Action::Snapshot);
+                if matches!(self.current.as_ref().map(Line::record), Some(Record::Web(Web::Mark))) {
+                    if let Some(width) = self.mark_widths.pop_front() {
+                        self.shown.push(self.plan.look(self.number, width).display().to_string());
+                    }
+                    self.mark_look(now, out);
+                } else {
+                    self.phase = Phase::Snapshot;
+                    out.push(Action::Snapshot);
+                }
             }
             Phase::ClosingBrowser => self.stop_place(now, out),
             _ => {}
+        }
+    }
+    fn control(&self, role: Role, name: &[u8], order: u32) -> Find {
+        if self.plan.options.journey && role == Role::TextField {
+            Find::text_box(name).nth(order)
+        } else {
+            Find::exactly_named(role, name).nth(order)
+        }
+    }
+    fn mark_look(&mut self, now: Time, out: &mut Vec<Action>) {
+        if let Some(width) = self.mark_widths.front().copied() {
+            self.wait(Phase::Screenshot, now, LOOK);
+            out.push(Action::Screenshot { width, path: self.plan.look(self.number, width) });
+        } else {
+            self.wait(Phase::Snapshot, now, LOOK);
+            out.push(Action::Snapshot);
         }
     }
     fn sought(&self) -> String {
@@ -717,9 +750,7 @@ impl Machine {
             let find = match self.phase {
                 Phase::Signing | Phase::Main | Phase::MainLine => Some(Find::named(Role::Main, b"")),
                 Phase::Finding => match self.current.as_ref().map(Line::record) {
-                    Some(Record::Web(Web::Act { role, name, order, .. })) => {
-                        Some(Find::exactly_named(*role, name).nth(*order))
-                    }
+                    Some(Record::Web(Web::Act { role, name, order, .. })) => Some(self.control(*role, name, *order)),
                     _ => None,
                 },
                 Phase::Seeing => match self.current.as_ref().map(Line::record) {

@@ -190,7 +190,8 @@ impl World {
     fn take(&mut self, request: Request) {
         match request {
             Request::Paused { state } => self.root_pauses.push(state),
-            Request::ReadList { .. }
+            Request::ReadUsage { .. }
+            | Request::ReadList { .. }
             | Request::CancelRead { .. }
             | Request::Source { .. }
             | Request::ResultsIgnored { .. }
@@ -264,11 +265,13 @@ impl World {
                 assert_eq!(input.as_ref(), b"{}");
                 assert!(self.call.replace(call).is_none());
             }
-            host::LinkUp::ListRead { .. }
+            host::LinkUp::UsageRead { .. }
+            | host::LinkUp::ListRead { .. }
             | host::LinkUp::Logins { .. }
             | host::LinkUp::SignedOut { .. }
             | host::LinkUp::Piece { .. }
             | host::LinkUp::Unauthorized { .. }
+            | host::LinkUp::Usage { .. }
             | host::LinkUp::Limited { .. }
             | host::LinkUp::AccountRefused { .. }
             | host::LinkUp::JobAnswer { .. }

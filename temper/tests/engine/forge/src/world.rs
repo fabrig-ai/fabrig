@@ -156,6 +156,7 @@ pub struct World {
     history_hold: bool,
     history_held: Vec<(u64, top::Event)>,
     seen: List<top::Request>,
+    observe_entry_saves: bool,
     serial: u64,
     generation: u64,
     seed: u64,
@@ -616,6 +617,26 @@ impl World {
         world
     }
 
+    /// Bound the restored outbox independently of the fake's capacity.
+    #[must_use]
+    pub fn with_entries(seed: u64, entries: u32) -> World {
+        let mut world = Self::new(seed);
+        world.env.limits.entries = entries;
+        world.env.limits.client.entries = entries;
+        world.restart();
+        world
+    }
+
+    /// Include entry saves in `seen` to check their order against restart stages.
+    pub fn observe_entry_saves(&mut self) {
+        self.observe_entry_saves = true;
+    }
+
+    /// Put a durable record in the snapshot before the next restart.
+    pub fn store_before_restart(&mut self, record: top::Stored) {
+        self.store_record(record);
+    }
+
     /// Read the full goal comparison and check the client's row and byte admission.
     #[must_use]
     pub fn comparison_fits(&self, base: u64, head: u64) -> bool {
@@ -799,6 +820,7 @@ impl World {
             history_hold: false,
             history_held: Vec::new(),
             seen: List::with_capacity(256),
+            observe_entry_saves: false,
             serial: 0,
             generation: 1,
             seed,
@@ -1765,7 +1787,12 @@ impl World {
                         self.store_record(record);
                     }
                 }
-                top::Request::Save { record, release, .. } => {
+                top::Request::Save { record, release, read_afresh } => {
+                    if self.observe_entry_saves && matches!(record, top::Stored::Entry { .. }) {
+                        self.seen
+                            .push(top::Request::Save { record: record.clone(), release, read_afresh })
+                            .expect("world output capacity");
+                    }
                     if matches!(record, top::Stored::Writer(_)) {
                         self.writer_saves += 1;
                     }
@@ -1822,6 +1849,7 @@ impl World {
                 | top::Request::Refused { .. }
                 | top::Request::ResourceRefused { .. }
                 | top::Request::HeadRefused { .. }
+                | top::Request::FullTableFact { .. }
                 | top::Request::LostReadFailed { .. }
                 | top::Request::MakeFailed { .. }
                 | top::Request::Outcome { .. }

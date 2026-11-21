@@ -24,7 +24,6 @@ pub fn fixture_with_marks_and_secret(secret: Option<Box<[u8]>>) -> Box<[u8]> {
 
 fn fixture(secret: Option<Box<[u8]>>, marked: bool) -> Box<[u8]> {
     let facts = journey::Facts {
-        fixed: false,
         seed: 11,
         now: Time::ZERO,
         wall: Wall::EPOCH,
@@ -260,27 +259,4 @@ pub fn tree_bytes(root: &Path) -> std::collections::BTreeMap<std::path::PathBuf,
         }
     }
     files
-}
-
-pub fn assert_normalised(root: &Path, tui: bool) {
-    for entry in fs::read_dir(root).expect("journeys directory") {
-        let entry = entry.expect("journey entry");
-        let name = entry.file_name();
-        if !entry.file_type().expect("journey type").is_dir()
-            || !entry.path().join("recording").try_exists().expect("recording path")
-        {
-            continue;
-        }
-        let recording = fs::read(root.join(&name).join("recording")).expect("committed recording");
-        let normalised = if tui {
-            temper_client_shell_tui::journey::normalise(&recording).expect("normalise TUI")
-        } else {
-            journey::normalise(&recording).expect("normalise browser")
-        };
-        assert!(
-            recording == normalised.recording.as_ref(),
-            "{} is not its own normalisation; run cargo run -p temper-client-journeys -- normalise",
-            root.join(name).display()
-        );
-    }
 }

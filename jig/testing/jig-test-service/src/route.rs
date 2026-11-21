@@ -306,7 +306,8 @@ fn immediate(engine: &mut Engine, now: core::Now) {
 fn core_held(engine: &mut Engine, held: core::Held) {
     match held {
         core::Held::PublicWait { .. } => unreachable!("the root consumes its durability callbacks"),
-        core::Held::ReadList { .. }
+        core::Held::ReadUsage { .. }
+        | core::Held::ReadList { .. }
         | core::Held::Sources { .. }
         | core::Held::PauseWorker { .. }
         | core::Held::CheckSource { .. }

@@ -43,6 +43,12 @@ pub struct Limits {
     pub fallback: Duration,
     pub facts: u32,
 }
+/// The settled stop's bound (forge/client.md, 7.8), saturating at the longest span.
+#[must_use]
+pub fn stop_bound(limits: &Limits) -> Duration {
+    limits.lifetime.saturating_add(limits.clock_margin).saturating_mul(2)
+}
+
 /// Whether these limits are representable: every edge bound they size
 /// is finite and every capacity they derive fits (programming-model.md, 6.3).
 /// Budgets and retry windows are coherent; alarm and keep capacities fit u32.

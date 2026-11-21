@@ -19,6 +19,7 @@ use temper_client_domain::{
     pages::Act,
 };
 
+#[expect(clippy::too_many_arguments, reason = "the forges draw carries its clock beside the existing page bindings")]
 pub fn main(
     b: &mut Builder,
     root: &Domain,
@@ -27,6 +28,7 @@ pub fn main(
     forge: &mut ForgeBindings,
     sign_in: &crate::forge_sign_in::Forges,
     project: Option<u32>,
+    times: &mut crate::words::Times,
 ) {
     b.open(Role::Main);
     b.style(look::MAIN);
@@ -67,6 +69,14 @@ pub fn main(
         );
     }
     b.close();
+    for full in root.forge().full_tables() {
+        crate::cards::text(b, Role::Paragraph, &forge::forges::full_line(full, times.now, true));
+        let next = skein_lib::Wall::from_nanos(times.now.as_nanos().saturating_add(1_000_000_000));
+        times.next = Some(match times.next {
+            Some(before) => before.min(next),
+            None => next,
+        });
+    }
     confirmation(b, root, w, bindings, project);
     match root.forges() {
         State::Unknown => {}

@@ -22,6 +22,13 @@ pub struct Limits {
     pub silence: Duration,
     pub stall: Duration,
 }
+/// Live timers, read when each operation begins (protocol/channel/figures.md, 3).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Timers {
+    pub handshake: Duration,
+    pub hello: Duration,
+    pub stall: Duration,
+}
 pub(crate) fn channel(limits: &Limits) -> Option<skein_channel::Limits> {
     let codec = sizes::limits(&limits.sizes)?;
     let credential = u32::try_from(wire::Credential::encoded_bound(&codec)?).ok()?;
@@ -93,5 +100,5 @@ pub fn valid_with_schema(limits: &Limits, schema: &Schema) -> bool {
     }
     limits.workers.checked_add(limits.opening).is_some()
         && skein_channel::valid(schema, Role::Responder, &channel)
-        && wire::v19::decoded_bound(&codec).is_some()
+        && wire::v20::decoded_bound(&codec).is_some()
 }

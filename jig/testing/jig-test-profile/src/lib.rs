@@ -2,6 +2,8 @@
 
 #![forbid(unsafe_code)]
 
+pub mod start_values;
+
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
 use jig_domain_core as core;

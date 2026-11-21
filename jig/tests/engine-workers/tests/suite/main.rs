@@ -13,6 +13,7 @@ mod prepared;
 mod records;
 mod relinks;
 mod restarting;
+mod retime;
 mod sources;
 mod stopping;
 

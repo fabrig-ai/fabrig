@@ -19,6 +19,20 @@ fn room(jig: Option<&config::Limits>, payload: &payload::Limits) -> Option<(u32,
     short(u64::from(jig.io.largest_room()), answer(jig, payload)?)
 }
 
+pub(crate) fn stdout(checkout: &temper_worker_domain_checkout::Limits, bytes: u32) -> Option<(u32, &'static [u8])> {
+    let needs = temper_worker_protocol_git::limits::largest_output(checkout)?;
+    if bytes >= needs {
+        return None;
+    }
+    let paths = u64::from(checkout.conflicts).checked_mul(u64::from(checkout.path_bytes).saturating_add(1));
+    let of: &'static [u8] = if paths == Some(u64::from(needs)) {
+        b"checkout.conflicts * (checkout.path_bytes + 1)"
+    } else {
+        b"checkout.name_bytes and git's push output"
+    };
+    Some((needs, of))
+}
+
 /// Gather every checkout-derived shortfall into one refusal before later
 /// domain or link construction can return a less complete one.
 pub fn capacity<E>(
@@ -29,15 +43,10 @@ pub fn capacity<E>(
     problems: &mut Problems<What<E>>,
 ) {
     let checkout = &own.checkout;
-    let stdout = match temper_worker_protocol_git::limits::largest_output(&crate::worker_settings::checkout(*checkout))
+    let (stdout, stdout_of) = match stdout(&crate::worker_settings::checkout(*checkout), own.git_component.stdout_bytes)
     {
-        Some(needs) => short(u64::from(own.git_component.stdout_bytes), u64::from(needs)),
-        None => None, // The payload ceiling check names the checkout field.
-    };
-    let paths = u64::from(checkout.conflicts).checked_mul(u64::from(checkout.path_bytes).saturating_add(1));
-    let stdout_of: &'static [u8] = match stdout {
-        Some((_, needs)) if paths == Some(u64::from(needs)) => b"checkout.conflicts * (checkout.path_bytes + 1)",
-        Some(_) | None => b"checkout.name_bytes and git's push output",
+        Some((needs, of)) => (Some((own.git_component.stdout_bytes, needs)), of),
+        None => (None, b"".as_slice()), // A payload ceiling check names any unrepresentable output.
     };
     // These are the conflict and path rules of temper-worker-domain::unfit;
     // the remaining worker rules still run at their own construction phase.

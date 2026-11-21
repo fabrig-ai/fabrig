@@ -38,9 +38,16 @@ pub(crate) struct Operation {
 #[derive(Debug)]
 enum Phase {
     Waiting,
-    Spawning { failed: bool },
+    Spawning { failed: bool, capture: Capture },
     Active(Child),
     Settled,
+}
+/// The two output ceilings this invocation read as it was spawned
+/// (temper/docs/design/protocol/configuration/figures.md, 3.2).
+#[derive(Debug)]
+struct Capture {
+    stdout: u32,
+    stderr: u32,
 }
 #[derive(Debug)]
 struct Child {
@@ -90,7 +97,7 @@ impl Operation {
             viewed: false,
             view_done: None,
             scan_index: None,
-            phase: Phase::Spawning { failed: false },
+            phase: Phase::Settled,
         }
     }
     pub fn waiting(&self) -> bool {
@@ -109,11 +116,21 @@ impl Operation {
         self.phase = Phase::Settled;
         core::mem::replace(&mut self.command, Command::Version)
     }
-    pub fn spawn(&mut self, io_owner: Token, command: Command, settings: &Settings, out: &mut Outputs) {
+    pub fn spawn(
+        &mut self,
+        io_owner: Token,
+        command: Command,
+        settings: &Settings,
+        limits: &Limits,
+        out: &mut Outputs,
+    ) {
         self.io_owner = io_owner;
         self.word = Some(if self.view_done.is_some() { b"view" } else { invocation::word(&command) });
         self.command = command;
-        self.phase = Phase::Spawning { failed: false };
+        self.phase = Phase::Spawning {
+            failed: false,
+            capture: Capture { stdout: limits.stdout_bytes, stderr: limits.stderr_bytes },
+        };
         let (directory, kind) = if self.command == Command::Version {
             (Box::from(&b""[..]), None)
         } else {
@@ -517,13 +534,12 @@ impl Operation {
         &mut self,
         event: io::Event,
         settings: &Settings,
-        limits: &Limits,
         checkout: &checkout::Limits,
         out: &mut Outputs,
     ) -> Option<Next> {
         let phase = core::mem::replace(&mut self.phase, Phase::Settled);
         match phase {
-            Phase::Spawning { failed } => self.spawning(event, failed, settings, limits, out),
+            Phase::Spawning { failed, capture } => self.spawning(event, failed, settings, capture, out),
             Phase::Active(child) => self.active(event, child, settings, checkout, out),
             Phase::Waiting => {
                 self.phase = Phase::Waiting;
@@ -537,7 +553,7 @@ impl Operation {
         event: io::Event,
         mut failed: bool,
         settings: &Settings,
-        limits: &Limits,
+        capture: Capture,
         out: &mut Outputs,
     ) -> Option<Next> {
         let delimiter = self.delimiter();
@@ -557,7 +573,7 @@ impl Operation {
                     closed: [!commit, false, false],
                     exited: None,
                     closing: false,
-                    stdout: Capped::new(limits.stdout_bytes),
+                    stdout: Capped::new(capture.stdout),
                     design_paths: if let Command::DiffPaths { .. } = self.command {
                         let Some(git::Op::DiffPaths { markdown, .. }) = &self.op else {
                             unreachable!("path comparison")
@@ -566,7 +582,7 @@ impl Operation {
                     } else {
                         None
                     },
-                    stderr: ByteRing::new(limits.stderr_bytes),
+                    stderr: ByteRing::new(capture.stderr),
                     dropped: 0,
                     message,
                     sent: 0,
@@ -590,7 +606,7 @@ impl Operation {
             }
             io::Event::Failed { owner, .. } if owner == self.io_owner => {
                 failed = true;
-                Phase::Spawning { failed }
+                Phase::Spawning { failed, capture }
             }
             io::Event::Closed { owner } if owner == self.io_owner && failed => {
                 return Some(Next::End(if self.ran {
@@ -615,7 +631,7 @@ impl Operation {
             | io::Event::Window { .. }
             | io::Event::Shutdown { .. }
             | io::Event::Failed { .. }
-            | io::Event::Closed { .. } => Phase::Spawning { failed },
+            | io::Event::Closed { .. } => Phase::Spawning { failed, capture },
         };
         None
     }

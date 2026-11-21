@@ -693,13 +693,15 @@ impl World {
                 Taken::Other
             }
             Event::DrainPassed
+            | Event::UsageRead { .. }
             | Event::ListRead { .. }
             | Event::SourceAnswered { .. }
             | Event::Ask { .. }
             | Event::LinkLost
             | Event::SourceLost
             | Event::Down(
-                LinkDown::ReadList { .. }
+                LinkDown::ReadUsage { .. }
+                | LinkDown::ReadList { .. }
                 | LinkDown::Sources { .. }
                 | LinkDown::Check { .. }
                 | LinkDown::SignOut { .. }
@@ -717,6 +719,7 @@ impl World {
                 | FromAgent::Piece { .. }
                 | FromAgent::Activity { .. }
                 | FromAgent::Unauthorized { .. }
+                | FromAgent::Usage { .. }
                 | FromAgent::Limited { .. }
                 | FromAgent::AccountRefused { .. }
                 | FromAgent::Withdrawn { .. }
@@ -800,7 +803,11 @@ impl World {
     /// `run`'s attempt `attempt`: a refusal, or a prepare that admits it.
     fn assigned(&mut self, run: Token, attempt: Token, request: &Request) {
         match request {
-            Request::ReadList { .. } | Request::CancelRead { .. } | Request::Source { .. } | Request::SourceFault => {
+            Request::ReadUsage { .. }
+            | Request::ReadList { .. }
+            | Request::CancelRead { .. }
+            | Request::Source { .. }
+            | Request::SourceFault => {
                 unreachable!("source scheduling has its own world")
             }
             Request::Up(LinkUp::Answer { run: answered, attempt: of, answer }) => {
@@ -830,12 +837,14 @@ impl World {
                 LinkUp::ListRead { .. }
                 // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too.
                 | LinkUp::Paused { .. }
+                | LinkUp::UsageRead { .. }
                 | LinkUp::Draining
                 | LinkUp::Logins { .. }
                 | LinkUp::SignedOut { .. }
                 | LinkUp::Piece { .. }
                 | LinkUp::Activity { .. }
                 | LinkUp::Unauthorized { .. }
+                | LinkUp::Usage { .. }
                 | LinkUp::Limited { .. }
                 | LinkUp::AccountRefused { .. }
                 | LinkUp::Ask { .. }
@@ -894,19 +903,25 @@ impl World {
             Request::Asked { .. } | Request::Up(LinkUp::Ask { .. }) => {
                 unreachable!("the script does not make application asks")
             }
-            Request::ReadList { .. } | Request::CancelRead { .. } | Request::Source { .. } | Request::SourceFault => {
+            Request::ReadUsage { .. }
+            | Request::ReadList { .. }
+            | Request::CancelRead { .. }
+            | Request::Source { .. }
+            | Request::SourceFault => {
                 unreachable!("source scheduling has its own world")
             }
             Request::Up(
                 LinkUp::ListRead { .. }
                 // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too.
                 | LinkUp::Paused { .. }
+                | LinkUp::UsageRead { .. }
                 | LinkUp::Draining
                 | LinkUp::Logins { .. }
                 | LinkUp::SignedOut { .. }
                 | LinkUp::Piece { .. }
                 | LinkUp::Activity { .. }
                 | LinkUp::Unauthorized { .. }
+                | LinkUp::Usage { .. }
                 | LinkUp::Limited { .. }
                 | LinkUp::AccountRefused { .. },
             ) => {

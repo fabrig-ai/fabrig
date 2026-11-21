@@ -1,4 +1,4 @@
-family temper-client-wire 41
+family temper-client-wire 43
 
 # The role, as temper-engine-domain-forge's Role, in its order.
 enum Role { owned, adopted, fork, context }
@@ -206,7 +206,9 @@ enum MakingState { waiting, making, made: MakingMade, adopting: MakingMade, fail
 record RepositoryMaking { org: bytes 1024 name: bytes 1024 from: MakeFrom into: option MakeInto state: MakingState }
 enum StartsWith { repository, copies: CopyAddresses, nothing }
 record ForgeRow { number: u16 host: bytes 2048 kind: Kind mode: Mode connection: Connection offer: Offer first: option FirstRepository starts_with: StartsWith installations: list 64 Installation ended: option ConnectStopped app: option AppWay web: option bytes 2048 repositories: list 16 Adoption owned: option OwnedForge admin: bool ended_stop: option AdminStop read_only: bool makings: list 64 RepositoryMaking }
-versioned record Forges { forges: list 16 ForgeRow linked: bool }
+enum FullKind { outbox, read_admission }
+record FullTable { table: FullKind since: u64 words: bytes 1024 }
+versioned record Forges { forges: list 16 ForgeRow linked: bool full: list 2 FullTable }
 
 # The forge's reads (temper/docs/design/client/forge/served.md).
 record SettingRead { kind: u32 scope: u32 number: u32 }
@@ -336,7 +338,7 @@ versioned record MilestoneAnswer { result: MilestoneResult }
 record LimitsRead { after: option bytes 64 }
 enum LimitKind { jig, temper }
 enum LimitUnit { count, bytes, milliseconds }
-enum LimitApplies { at_once, next_start }
+enum LimitApplies { at_once, next_start, live }
 record LimitSetting { kind: LimitKind value: u64 reason: text 120 }
 record LimitRow { name: bytes 64 line: text 120 unit: LimitUnit stock: option u64 setting: option LimitSetting in_force: option u64 applies: LimitApplies waiting: bool left_out: bool held: option u64 }
 versioned record LimitsAnswer { rows: list 32 LimitRow next: option bytes 64 revision: u32 }

@@ -30,6 +30,7 @@ impl World {
             | Request::Paused { .. }
             | Request::Job(host::ToJob::Stop { .. })
             | Request::DeliverJob { .. }
+            | Request::ReadUsage { .. }
             | Request::ReadList { .. }
             | Request::CancelRead { .. }
             | Request::Source { .. }

@@ -5,7 +5,7 @@
     clippy::disallowed_methods,
     reason = "ordinary focused tests edit startup documents and restart a memory store"
 )]
-mod admission;
+pub(super) mod admission;
 mod heap;
 mod reading;
 use super::fixtures;
@@ -43,7 +43,7 @@ fn inputs() -> LimitInputs {
         None,
     )
 }
-fn item(name: &[u8], value: u64) -> s::Override {
+pub(super) fn item(name: &[u8], value: u64) -> s::Override {
     s::Override { name: name.into(), value, reason: b"restart room".as_slice().into() }
 }
 fn opening(inputs: &LimitInputs, kept: Option<jig_protocol_store::Stores>) -> Store {

@@ -96,6 +96,7 @@ pub(super) fn route_core(
                 | core::Held::Restarting { .. }
                 | core::Held::Grant { .. }
                 | core::Held::Cancel { .. }
+                | core::Held::ReadUsage { .. }
                 | core::Held::ReadList { .. }
                 | core::Held::Sources { .. }
                 | core::Held::PauseWorker { .. }

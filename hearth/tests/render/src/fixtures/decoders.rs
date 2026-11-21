@@ -10,27 +10,30 @@ pub fn root() -> PathBuf {
 }
 #[must_use]
 pub fn source(world: &str, file: &str) -> String {
-    fs::read_to_string(root().join("tests").join(world).join("tests").join("suite").join("fuzzy").join(file))
-        .expect("seeded sweep source")
+    fs::read_to_string(fuzzy_directory(world).join(file)).expect("seeded sweep source")
 }
 #[must_use]
 pub fn fuzzy_files() -> Vec<(String, String)> {
     let mut files = Vec::new();
     for world in fs::read_dir(root().join("tests")).expect("world directories") {
-        let world = world.expect("world");
-        let directory = world.path().join("tests").join("suite").join("fuzzy");
+        let world = world.expect("world").file_name().into_string().expect("world name");
+        let directory = fuzzy_directory(&world);
         if !directory.is_dir() {
             continue;
         }
         for file in fs::read_dir(directory).expect("world tests") {
             let name = file.expect("test file").file_name().into_string().expect("UTF-8 file name");
             if Path::new(&name).extension().is_some_and(|extension| extension == "rs") {
-                files.push((world.file_name().into_string().expect("world name"), name));
+                files.push((world.clone(), name));
             }
         }
     }
     files.sort();
     files
+}
+fn fuzzy_directory(world: &str) -> PathBuf {
+    let binary = if world == "builder" { "simulated" } else { "suite" };
+    root().join("tests").join(world).join("tests").join(binary).join("fuzzy")
 }
 #[must_use]
 pub fn machine_crates() -> Vec<String> {

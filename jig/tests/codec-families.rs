@@ -1,5 +1,5 @@
 //! Each jig codec's records and pinned constructs (skein's data/codec/README.md, 6).
-use skein_codegen::{form_of, generate_as, unpinned, values};
+use skein_codegen::{generate, unpinned, values};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
@@ -163,8 +163,7 @@ pub fn check() {
         let unpinned = unpinned(source).expect("schema valid");
         assert!(unpinned.is_empty(), "{}: unpinned constructs: {unpinned:?}", family.name);
         let schema = &values(source).schema;
-        let form = form_of(&root.join("schema"), &schema.family).expect("family form readable");
-        let output = generate_as(schema, form);
+        let output = generate(schema);
         if family.name == "client" {
             client_layout(&root, source, write, again);
         }

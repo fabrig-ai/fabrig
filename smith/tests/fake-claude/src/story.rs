@@ -7,6 +7,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Story {
     pub status: Status,
+    /// The local /usage command's result, exit or silence.
+    #[serde(default)]
+    pub usage_read: UsageReply,
     pub login: Login,
     pub logout: Logout,
     #[serde(default)]
@@ -30,6 +33,26 @@ pub struct Story {
     /// Text returned by the tool-free summary invocation.
     #[serde(default)]
     pub summary: String,
+}
+
+/// The local usage command's scripted answer (protocol/programs.md, 5.11 and 8).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum UsageReply {
+    /// Prints this JSON value as one line, then exits zero.
+    Result(serde_json::Value),
+    /// Exits with the given code and standard error detail.
+    Exit { code: u8, detail: String },
+    /// Waits for termination without printing an answer.
+    Silent,
+}
+
+impl Default for UsageReply {
+    fn default() -> Self {
+        Self::Result(serde_json::json!({
+            "type": "result", "is_error": false, "result": "Current session: 0% used · resets Nov 19, 4:30am (UTC)\n",
+            "usage": {"input_tokens": 0, "output_tokens": 0}, "total_cost_usd": 0,
+        }))
+    }
 }
 
 /// One conversation selected by a cue in the system prompt or a user message.
@@ -214,6 +237,13 @@ pub enum Step {
     Partial(String),
     /// Reports a rejected usage limit with an optional Unix-seconds reset.
     RateLimit { resets_at: Option<u64> },
+    /// Reports one allowance observation with the supplied provider fields.
+    RateLimitWindow {
+        status: String,
+        rate_limit_type: Option<String>,
+        resets_at: Option<u64>,
+        utilization: Option<serde_json::Value>,
+    },
     /// Reports the program's own retry to its parent.
     Retry { attempt: u32, status: u16, delay_ms: Option<u64> },
     /// Removes the login before the next turn checks it.

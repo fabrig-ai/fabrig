@@ -14,6 +14,7 @@ skein-lib.workspace = true
 skein-sim.workspace = true
 
 [dev-dependencies]
+skein-fake-peers-kit.workspace = true
 skein-forge-kit.workspace = true
 skein-forge-connection.workspace = true
 skein-world.workspace = true

@@ -35,6 +35,10 @@ path = "tests/end-to-end/live.rs"
 name = "live_configuration"
 path = "tests/end-to-end/live_configuration.rs"
 
+[[test]]
+name = "step"
+path = "tests/step/main.rs"
+
 [dependencies]
 skein-fail-stop.workspace = true
 skein-io.workspace = true
@@ -43,6 +47,7 @@ smith-agent-shell.workspace = true
 smith-local-shell.workspace = true
 
 [dev-dependencies]
+smith-end-to-end-kit = { path = "testing/smith-end-to-end-kit" }
 smith-fake-claude.workspace = true
 smith-agent-world.workspace = true
 skein-scratch.workspace = true

@@ -3,9 +3,14 @@ use crate::{End, Stop, engine::Engine};
 use jig_protocol_config::{Path, Problems, What};
 use temper_engine_domain as root;
 
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "the drain retains the independent start-mark gate alongside its close progress"
+)]
 pub(crate) struct Drain {
     pub(crate) closing: bool,
     pub(crate) requested: bool,
+    before_mark: bool,
     pub(crate) agents_ended: bool,
     stopped: Option<Stop>,
     pub(crate) unsettled: skein_lib::List<root::Unsettled>,
@@ -23,6 +28,7 @@ pub(crate) fn shutdown(engine: &mut Engine) {
     engine.drain = Some(Drain {
         closing: false,
         requested: false,
+        before_mark: !engine.start_runtime(),
         // The standalone owner supplies its worker's state each pass.
         agents_ended: true,
         stopped: None,
@@ -42,9 +48,17 @@ pub(crate) fn drained(engine: &mut Engine) {
     drain.closing = true;
     engine.setup.close();
     engine.forge.down(skein_forge_connection::Request::Close);
-    engine.clients.down(jig_protocol_engine_clients::Event::Close);
+    if before_mark(engine) {
+        engine.clients.close_before_mark();
+    } else {
+        engine.clients.down(jig_protocol_engine_clients::Event::Close);
+    }
     engine.workers.close(engine.env.now, &mut engine.events);
-    if engine.accounts.is_some() {
+    if before_mark(engine) {
+        if let Some(accounts) = &mut engine.accounts {
+            accounts.abort();
+        }
+    } else if engine.accounts.is_some() {
         engine.step(root::Event::Account(jig_domain_accounts::Event::Close));
     }
 }
@@ -52,14 +66,19 @@ pub(crate) fn advance(engine: &mut Engine) {
     if engine.end.is_some() {
         return;
     }
+    let unstarted = engine.domain.start_phase().is_none() && !engine.start_runtime();
     let Some(drain) = &mut engine.drain else {
         return;
     };
     if !drain.requested {
-        // Finish public restore and the mark before closing the core's children.
-        // In particular, Switch must still see the accounts in Wanted.
-        // A ready root hears Stop before queued inputs or an owner's Resume.
-        if engine.domain.ready() && root::try_step(&mut engine.domain, &engine.env, root::Event::Stop).is_ok() {
+        // Before the root starts there is no domain work to drain.
+        if unstarted {
+            drain.requested = true;
+            drained(engine);
+            return;
+        }
+        // A refused stop is retried before another root input or continuation.
+        if root::try_step(&mut engine.domain, &engine.env, root::Event::Stop).is_ok() {
             drain.requested = true;
             engine.drain_notes();
         }
@@ -82,7 +101,7 @@ pub(crate) fn advance(engine: &mut Engine) {
         && engine.workers.host.closed()
         && engine.clients.closed
         && engine.clients.io.is_empty()
-        && engine.store.idle()
+        && (engine.store.idle() || unstarted)
         && engine.events.is_empty()
         && engine.requests.is_empty()
     {
@@ -153,6 +172,25 @@ pub(crate) fn root(engine: &mut Engine) {
         None => stopped,
     };
     engine.end = Some(End::Stopped(stopped));
+}
+
+pub(crate) fn closing(engine: &Engine) -> bool {
+    match &engine.drain {
+        Some(drain) => drain.closing,
+        None => false,
+    }
+}
+
+pub(crate) fn before_mark(engine: &Engine) -> bool {
+    match &engine.drain {
+        Some(drain) => drain.before_mark,
+        None => false,
+    }
+}
+
+/// The root's stopped start wins over a store mark answered in the same pass.
+pub(crate) fn marked(engine: &Engine) -> bool {
+    engine.store.host.mark_durable() && !before_mark(engine)
 }
 
 pub(crate) fn requested(engine: &Engine) -> bool {

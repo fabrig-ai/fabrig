@@ -517,6 +517,19 @@ pub(super) fn memory_store_for(
     profile: &jig_protocol_store::Limits,
     models: &[jig_domain_core::Model],
 ) -> crate::store::Store {
+    let mut store = opening_memory_store_for(root, profile, models);
+    let Some(jig_protocol_store::Event::Opened { .. }) = store.host.above.pop() else { panic!("store opened") };
+    // These fixture handoffs do not consume census reports (jig protocol/store/README.md, 6.3).
+    let Some(jig_protocol_store::Event::Census { .. }) = store.host.above.pop() else { panic!("opened census") };
+    store.opened = true;
+    store
+}
+
+pub(super) fn opening_memory_store_for(
+    root: &temper_engine_domain::Limits,
+    profile: &jig_protocol_store::Limits,
+    models: &[jig_domain_core::Model],
+) -> crate::store::Store {
     let limits = crate::store::limits(root, &root.forge, profile).expect("checked store limits");
     let mut store = crate::store::Store::new(root, &limits, models, &seeds());
     store.host.component = jig_protocol_store::Store::over(
@@ -535,10 +548,6 @@ pub(super) fn memory_store_for(
         root: jig_protocol_store::Root { token: OWNER, fd: skein_io::kernel::Fd::new(1) },
         installation: seeds().installation,
     });
-    let Some(jig_protocol_store::Event::Opened { .. }) = store.host.above.pop() else { panic!("store opened") };
-    // These fixture handoffs do not consume census reports (jig protocol/store/README.md, 6.3).
-    let Some(jig_protocol_store::Event::Census { .. }) = store.host.above.pop() else { panic!("opened census") };
-    store.opened = true;
     store
 }
 
@@ -1179,6 +1188,7 @@ fn signed_worker_on(channel: Token) -> crate::Service {
         link: root::Link::Hello {
             worker: 0,
             hello: jig_domain_link::Hello {
+                reads_usage: true,
                 jobs: Box::default(),
                 slots: 1,
                 stop_bound: skein_lib::Duration::from_millis(100),

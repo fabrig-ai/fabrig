@@ -180,7 +180,7 @@ fn a_tier_waits_when_a_call_has_reserved_the_last_room() {
         outputs(&mut d, Event::Enqueue { entry: status(number, 7) });
     }
     let owner = Token::new(501);
-    assert!(d.reserve_call(&LIMITS, owner));
+    assert!(d.reserve_call(&env(), owner, 1));
     let waiting = tier_step(&mut d, DISPATCH, false);
     assert_eq!(choice(&waiting), Some(&TierDecision::Wait { until: None }));
     assert!(!d.entries.contains_key(&DISPATCH));

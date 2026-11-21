@@ -71,8 +71,9 @@ of domain/host.md, section 2.
   of kinds, and the records of that version's schema. Each half speaks
   one version, its build's, and offers only that one: this channel is
   per-build (README.md, section 8).
-  The current version is 12 (`channel-v12.schema`), which adds the
-  agent's `signalled` (section 4); version 11 added a program that
+  The current version is 13 (`channel-v13.schema`), which adds the
+  agent's `signalled` (section 4); version 12 added a program's usage
+  window (section 4); version 11 added a program that
   started without smith's tools to a run's failures, and version 8 a
   model failure's status to its report.
   From 2026-11-12 the version
@@ -228,6 +229,7 @@ of domain/host.md, section 2.
 | unauthorized | an account and a generation | when a provider refused that credential, or a program source's login was lost (programs.md, 5.6) |
 | limited | an account, and its reset (below) | when its account reached a usage limit |
 | refused | an account, and the provider's code and reason (below) | when its provider refused the account what the run asked, such as a model its plan does not serve |
+| usage | an account, and one usage window (below) | at each `rate_limit_event` a program reports (programs.md, 5.6) |
 | fact | one fact (section 8) | while the run is admitted and has not answered, with room to spare; any other is not projected, and counted (section 7) |
 | live | a piece of live content (below) | while the run is admitted and has not answered, only for a kind the start asked for, with room to spare; any other is dropped, and counted (section 7) |
 | signalled | the signal, `interrupt` or `terminate`; the sender's process id, if the system names one | at most once per run: when the agent hears a termination signal while the run is live, its channel open and the host's cancel not yet heard, or at its admission for one heard before it; a request to the host, never a cancel (agent.md, section 6; domain/host.md, section 4); added in version 12 |
@@ -308,6 +310,14 @@ last one with `opens_window` (domain/host.md, section 6).
 
 The code and the reason are each text within its bound, which
 limits.md, 2.4, gives.
+
+**The usage window,** in usage, added in version 12 (`UsageWindow`): its
+label, 1 to 32 printable ASCII bytes; its length, an optional
+`duration`; its share used, optional basis points from 0 to 10,000; its
+reset, the provider's optional wall time in Unix seconds, as given, never
+a duration, so that two reports of one reset are equal; and its state,
+`UsageState`: open, warned or limited. The channel is per-build, so the
+version moves with no bridge (temper's `draft/redeploys.md`, 4.4).
 
 **How a run ended** (domain/run.md, section 9):
 

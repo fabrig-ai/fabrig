@@ -59,9 +59,10 @@ fn application_grants_answer_either_retained_generation() {
 fn identities_are_announced_after_the_durable_start_wires() {
     let mut service = fixtures::started();
     service.engine.as_mut().expect("engine").store.hold_mark = true;
+    let engine = service.engine.as_ref().expect("engine");
     assert_eq!(
-        service.engine.as_ref().expect("engine").domain.next_deadline(&service.engine.as_ref().expect("engine").env),
-        None
+        engine.domain.next_deadline(&engine.env),
+        Some(engine.env.now.saturating_add(temper_engine_domain_forge::WAIT_REPORT))
     );
     for _ in 0_u32..256 {
         fixtures::turn(&mut service);
@@ -1387,6 +1388,7 @@ fn hello_for_loss_notes(worker: u32) -> jig_protocol_engine_workers::host::Outpu
         worker,
         channel: Token::new(7),
         hello: jig_domain_link::Hello {
+            reads_usage: true,
             jobs: Box::new([]),
             slots: 1,
             stop_bound: skein_lib::Duration::from_millis(100),

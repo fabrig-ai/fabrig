@@ -1,6 +1,7 @@
 # areas: status
 
-2026-11-18. Where the tree's code lags or departs from [areas.md](areas.md).
+2026-11-20. Where the tree's code lags or departs from [areas.md](areas.md).
+
 
 
 - **Not yet:** area 2: `goal start`'s and `milestone new`'s `--budget` in ctl's amount, and `--as-allowed`'s help lines saying what it takes [in flight: change 7671].

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Offline one-process runner proof (tools/tiers/design.md, 11.10)."""
 import contextlib
+import errno
 import io
 import json
 import math
@@ -11,6 +12,7 @@ import re
 import runpy
 import shutil
 import signal
+import struct
 import subprocess
 import tempfile
 import time
@@ -29,7 +31,8 @@ def setUpModule():
     NATIVE = Path(native.name)
     before = resource.getrusage(resource.RUSAGE_CHILDREN)
     for name, source, flags in [('tests', 'tests.rs', []), ('before', 'tests.rs', ['--cfg', 'before_start']),
-                                ('state', 'state.rs', []), ('again', 'again.rs', [])]:
+                                ('state', 'state.rs', []), ('again', 'again.rs', []),
+                                ('count', 'count.rs', [])]:
         try:
             result = subprocess.run(['rustc', '--edition', '2024', '--test',
                                      str(FIXTURES / source), *flags, '-o', str(NATIVE / name)],
@@ -83,7 +86,7 @@ class ProtocolTests(unittest.TestCase):
                 self.assertIn('ok a' if scenario == 'pass' else 'failed a', logfile.read_text())
 
 
-class PrePrListingTests(unittest.TestCase):
+class ProfileTargetTests(unittest.TestCase):
     def test_cargo_targets_and_named_test_exceptions(self):
         one = runpy.run_path(str(HERE / 'one_process.py'))
         with tempfile.TemporaryDirectory(dir=HERE.parents[1]) as scratch, contextlib.chdir(scratch):
@@ -105,22 +108,37 @@ default-filter = "test(/^fuzzy::/) - binary(=live)"
 """)
             subprocess.run(['cargo', 'generate-lockfile', '--offline'], check=True, capture_output=True)
             command = ['cargo', 'nextest', 'run', '-p', 'app', '-p', 'other', '--no-tests=warn']
+            build_target = root / 'landing'
+            landing_env = dict(os.environ, CARGO_TARGET_DIR=str(build_target), CARGO_NET_OFFLINE='true',
+                               TIERS_PROFILE_TARGETS='1')
+            built = subprocess.run([HERE / 'build-profile-targets', '--workspace'], env=landing_env,
+                                   capture_output=True, text=True)
+            self.assertEqual(built.returncode, 0, built.stderr)
+            self.assertIn('skip linking app::live', built.stdout)
+            dep_info = '\n'.join(path.read_text() for path in build_target.rglob('*.d'))
+            self.assertNotIn('app/tests/live.rs', dep_info)
+            self.assertIn('other/tests/live.rs', dep_info)
             for profile in ('default', 'fuzzy'):
                 selections = []
-                for mode in ('broad', 'pruned'):
-                    target = root / mode
-                    env = dict(os.environ, CARGO_TARGET_DIR=str(target), CARGO_NET_OFFLINE='true',
-                               TIERS_PRE_PR_TARGETS='1' if mode == 'pruned' else '0')
+                for mode in ('broad', 'pruned', 'landing'):
+                    if mode == 'landing':
+                        target, env = build_target, landing_env
+                        args = ['cargo', 'nextest', 'run', '--workspace', '--no-tests=warn']
+                    else:
+                        target = root / mode
+                        env = dict(os.environ, CARGO_TARGET_DIR=str(target), CARGO_NET_OFFLINE='true',
+                                   TIERS_PRE_PR_TARGETS='1' if mode == 'pruned' else '0')
+                        args = command
                     with contextlib.redirect_stdout(io.StringIO()):
-                        plan, *_ = one['listed_plan'](command, env, profile, {}, config, None, root / 'layers.toml')
+                        plan, *_ = one['listed_plan'](args, env, profile, {}, config, None, root / 'layers.toml')
                     selections.append({(binary['binary_id'], case['name'])
                                        for binary in plan['binaries'] for case in binary['tests']})
-                    # Dep-info exists even for a linked harness with zero selected cases.
                     linked = any('app/tests/live.rs' in path.read_text() for path in target.rglob('*.d'))
                     self.assertEqual(linked, mode == 'broad')
                 self.assertEqual(selections[0], selections[1])
-                self.assertIn(('app::suite', 'kept' if profile == 'default' else 'fuzzy::sample'), selections[1])
-                self.assertEqual(('other::live', 'kept') in selections[1], profile == 'default')
+                self.assertEqual(selections[0], selections[2])
+                self.assertIn(('app::suite', 'kept' if profile == 'default' else 'fuzzy::sample'), selections[2])
+                self.assertEqual(('other::live', 'kept') in selections[2], profile == 'default')
 
             config.write_text('[profile.default]\ndefault-filter="none()"\n')
             with contextlib.redirect_stdout(io.StringIO()):
@@ -142,7 +160,7 @@ default-filter = "test(/^fuzzy::/) - binary(=live)"
             args = ['-p', 'app', '-p', 'other']
             filters = [one['filterset']('not (package(=app) & binary(=live))')]
             with contextlib.redirect_stdout(io.StringIO()):
-                self.assertEqual(one['pre_pr_listings'](args, metadata, filters, ['cargo'], os.environ), [args])
+                self.assertEqual(one['profile_target_groups'](args, metadata, filters, ['cargo'], os.environ), [args])
 
 
 class ConfigurationTests(unittest.TestCase):
@@ -191,6 +209,85 @@ class ConfigurationTests(unittest.TestCase):
                 self.assertTrue(all('platform' not in settings for _, settings in overrides))
 
 
+class CountingDecisionTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.paranoid = Path(temporary.name) / 'paranoid'
+        self.module = runpy.run_path(str(HERE / 'one_process.py'))
+        self.counting = self.module['counting']
+
+    def test_past_two(self):
+        self.paranoid.write_text('3\n')
+        self.assertEqual(self.counting(self.paranoid),
+                         dict(counted=False, why='kernel.perf_event_paranoid is 3, past 2'))
+
+    def test_unreadable(self):
+        decision = self.counting(self.paranoid)
+        self.assertFalse(decision['counted'])
+        self.assertTrue(decision['why'].startswith(f'no counter: cannot read {self.paranoid}: '))
+
+    def test_no_integer(self):
+        self.paranoid.write_text('x\n')
+        self.assertEqual(self.counting(self.paranoid),
+                         dict(counted=False, why=f'no counter: {self.paranoid} holds no integer'))
+
+    def test_permitted_levels_try_machine_counter(self):
+        for level in (2, -1):
+            with self.subTest(level=level):
+                self.paranoid.write_text(f'{level}\n')
+                decision = self.counting(self.paranoid)
+                if decision['counted']:
+                    self.assertEqual(decision, dict(counted=True, why=None))
+                else:
+                    self.assertTrue(decision['why'].startswith(('perf_event_open refused: ', 'no counter: ')))
+
+    def test_counter_decision_errors_and_attribute(self):
+        self.paranoid.write_text('2\n')
+        globals_ = self.counting.__globals__
+        with mock.patch.dict(globals_, PERF_EVENT_OPEN=None):
+            self.assertEqual(self.counting(self.paranoid),
+                             dict(counted=False, why=f"no counter: no perf_event_open on {self.module['platform'].machine()}"))
+        for code, prefix in ((errno.EACCES, 'perf_event_open refused'), (errno.EPERM, 'perf_event_open refused'),
+                             (errno.ENOSYS, 'no counter: perf_event_open')):
+            with self.subTest(code=code):
+                error = OSError(code, os.strerror(code))
+                with mock.patch.dict(globals_, PERF_EVENT_OPEN=298,
+                                     perf_event_open=mock.Mock(side_effect=error)):
+                    self.assertEqual(self.counting(self.paranoid), dict(counted=False, why=f'{prefix}: {error}'))
+        fd = os.open(self.paranoid, os.O_RDONLY)
+        opened = mock.Mock(return_value=fd)
+        with mock.patch.dict(globals_, PERF_EVENT_OPEN=298, perf_event_open=opened):
+            self.assertEqual(self.counting(self.paranoid), dict(counted=True, why=None))
+        opened.assert_called_once_with(struct.pack('=IIQQQQQIIQ', 0, 64, 1, 0, 0, 3, 99, 0, 0, 0), 0, -1, -1, 8)
+        with self.assertRaises(OSError):
+            os.fstat(fd)
+
+    def test_counter_reads_only_complete_unscaled_values_and_closes(self):
+        process_type = self.module['BinaryProcess']
+        process = process_type.__new__(process_type)
+        for data, expected in ((struct.pack('=QQQ', 123, 7, 7), 123),
+                               (struct.pack('=QQQ', 123, 7, 6), None), (b'short', None)):
+            with self.subTest(data=data):
+                read, write = os.pipe()
+                os.write(write, data)
+                os.close(write)
+                process.counter = read
+                self.assertEqual(process.instructions(), expected)
+                self.assertIsNone(process.counter)
+                with self.assertRaises(OSError):
+                    os.fstat(read)
+        # A write-only descriptor makes read fail, and still must close.
+        read, write = os.pipe()
+        os.close(read)
+        process.counter = write
+        self.assertIsNone(process.instructions())
+        self.assertIsNone(process.counter)
+        with self.assertRaises(OSError):
+            os.fstat(write)
+        self.assertIsNone(process.instructions())
+
+
 class RunnerFixture(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory(dir=HERE.parents[1], prefix='tiers-one-test-')
@@ -203,7 +300,8 @@ class RunnerFixture(unittest.TestCase):
         for name in ('cargo', 'prefix', 'hold'):
             shutil.copyfile(FIXTURES / f'{name}.py', self.root / name)
             (self.root / name).chmod(0o700)
-        self.env = dict(os.environ, FIXTURE_CASE='pass', NEXTEST='1')
+        self.env = dict(os.environ, FIXTURE_CASE='pass', NEXTEST='1',
+                        GIT_CEILING_DIRECTORIES=str(self.root.parent))
         self.env.pop('TIERS_HOLD', None)
         self.command = [str(self.root / 'prefix'), str(self.root / 'cargo'), 'nextest', 'run',
                         '-p', 'fixture', '--profile', 'default', '--no-fail-fast']
@@ -243,6 +341,36 @@ class RunnerFixture(unittest.TestCase):
         self.record = json.loads((self.directory / 'run.json').read_text())
         return self.results
 
+    def assert_counting(self, results):
+        decision = self.module['counting']()
+        self.assertEqual(results['counting'], decision)
+        output = (self.directory / 'command-output.txt').read_text()
+        line = 'tiers: not counting instructions: '
+        if decision['counted']:
+            self.assertNotIn(line, output)
+            for process in results['processes']:
+                if process['kind'] in ('tests', 'fresh', 'alone'):
+                    self.assertIs(type(process['instructions']), int)
+                    self.assertGreater(process['instructions'], 0)
+                    if process['binary_id'] == 'fixture::count' and 'spin' in process['tests']:
+                        self.assertGreaterEqual(process['instructions'], 10_000_000)
+        else:
+            self.assertEqual(output.count(line), 1)
+            self.assertEqual(output.count(f"{line}{decision['why']}\n"), 1)
+            status = re.search(r'(?m)^(PASS|FAIL|CRASH|STARVED|CANCEL) ', output)
+            self.assertIsNotNone(status)
+            self.assertLess(output.index(line), status.start())
+            for process in results['processes']:
+                self.assertIsNone(process['instructions'])
+
+    def assert_uncounted(self, results, directory):
+        self.assertIsNone(results['counting'])
+        self.assertIsNone(results['commit'])
+        for process in results['processes']:
+            self.assertIsNone(process['instructions'])
+        self.assertNotIn('tiers: not counting', (directory / 'command-output.txt').read_text())
+        self.assertFalse(json.loads((directory / 'plan.json').read_text())['count'])
+
     def invoke_bounded(self, limits, seconds=3):
         def expired(sig, frame):
             raise TimeoutError('runner did not finish cancellation')
@@ -253,6 +381,68 @@ class RunnerFixture(unittest.TestCase):
         finally:
             signal.setitimer(signal.ITIMER_REAL, 0)
             signal.signal(signal.SIGALRM, previous)
+
+
+class CountingRunTests(RunnerFixture):
+    def test_suite_counts_spawned_thread_and_idle_process(self):
+        self.listing['rust-suites'].clear()
+        self.binary('fixture::count', names=('idle', 'spin'), native='count')
+        self.listing['rust-suites']['fixture::count']['binary-name'] = 'count'
+        self.metadata['packages'][0]['targets'].append(dict(name='count', kind=['test'], test=True))
+        self.run.__globals__['LANES'] = 2
+        result = self.invoke()
+        self.assertEqual([t['outcome'] for t in result['tests']], ['passed', 'passed'])
+        self.assertEqual(sorted(p['tests'] for p in result['processes']), [['idle'], ['spin']])
+        self.assertTrue(json.loads((self.directory / 'plan.json').read_text())['count'])
+        self.assert_counting(result)
+
+    def test_commit_from_metadata_workspace_root(self):
+        # Invoke from elsewhere: only metadata's root is the run's checkout.
+        for args in (['init', '--quiet'], ['-c', 'user.name=t', '-c', 'user.email=t@t.invalid',
+                                          'commit', '--quiet', '--allow-empty', '-m', 'fixture']):
+            subprocess.run(['git', *args], cwd=self.root, env=self.env, stdin=subprocess.DEVNULL,
+                           check=True, capture_output=True)
+        expected = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=self.root, env=self.env,
+                                           stdin=subprocess.DEVNULL, text=True).strip()
+        self.prepare()
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.run(self.command, self.env, self.directory, 'default', {}, self.config)
+        self.assertEqual(json.loads((self.directory / 'results.json').read_text())['commit'], expected)
+
+    def test_commit_without_repository(self):
+        self.assertIsNone(self.invoke()['commit'])
+
+    def test_counted_descriptor_handoff_and_refusal(self):
+        # A readable stand-in exercises the handoff even without kernel permission.
+        counter = self.root / 'counter'
+        counter.write_bytes(struct.pack('=QQQ', 123, 7, 7))
+        self.env.update(FIXTURE_CASE='descriptors', FIXTURE_DESCRIPTOR_CHECK=str(FIXTURES / 'descriptors.py'))
+        self.binary(names=('a',))
+        self.prepare()
+        with contextlib.chdir(self.root), contextlib.redirect_stdout(io.StringIO()):
+            plan, _, _, _, _ = self.module['listed_plan'](
+                self.command, self.env, 'default', {}, self.config, None, HERE / 'layers.toml')
+        plan['count'] = True
+        globals_ = self.module['lanes'].__globals__
+
+        def open_counter(attr, pid, cpu, group, flags):
+            assert (attr, pid, cpu, group, flags) == (
+                struct.pack('=IIQQQQQIIQ', 0, 64, 1, 0, 0, 3, 4195, 0, 0, 0), 0, -1, -1, 8)
+            return os.open(counter, os.O_RDONLY | os.O_CLOEXEC)
+
+        for opener, expected in ((open_counter, 123), (mock.Mock(side_effect=OSError(errno.EPERM, 'refused')), None)):
+            with self.subTest(expected=expected):
+                events = []
+                def emit(kind, **fields):
+                    events.append(dict(event=kind, **fields))
+                with mock.patch.dict(globals_, counting=lambda: dict(counted=True, why=None),
+                                     perf_event_open=opener, emit=emit):
+                    self.module['lanes'](plan)
+                self.assertEqual([e['event'] for e in events[:2]], ['lanes', 'counting'])
+                process, = [e['item'] for e in events if e['event'] == 'process']
+                test, = [e['item'] for e in events if e['event'] == 'test']
+                self.assertEqual(test['outcome'], 'passed', test['output'])
+                self.assertEqual(process['instructions'], expected)
 
 
 class LaneTests(RunnerFixture):
@@ -455,6 +645,7 @@ class ReferenceTests(RunnerFixture):
         self.config.write_text('[test-groups.serial]\nmax-threads=1\n[profile.default]\n'
                                '[[profile.default.overrides]]\nfilter="test(=b)"\ntest-group="serial"\n')
         results = self.invoke(ledger=ledger)
+        self.assert_counting(results)
         self.assertEqual([(r['binary_id'], r['test_name'], r['why']) for r in results['references']],
                          [('fixture::early', 'd', 'new'), ('fixture::suite', 'a', 'new'),
                           ('fixture::suite', 'b', 'flagged')])
@@ -463,6 +654,8 @@ class ReferenceTests(RunnerFixture):
         empties = [p for p in results['processes'] if p['kind'] == 'empty']
         self.assertEqual([p['tests'] for p in refs], [['d'], ['a'], ['b']])
         self.assertEqual(len(empties), 2)
+        for process in refs + empties:
+            self.assertIsNone(process['instructions'])
         for empty in empties:
             self.assertEqual((empty['tests'], empty['exit_code'], empty['leaked']), ([], 0, False))
         self.assertGreaterEqual(min(p['start_s'] for p in refs + empties),
@@ -477,6 +670,7 @@ class ReferenceTests(RunnerFixture):
         plan = json.loads((self.directory / 'plan.json').read_text())
         self.assertNotIn('reference_picks', plan)
         phase = json.loads((self.directory / 'references-plan.json').read_text())
+        self.assertFalse(phase['count'])
         jobs = self.module['split_jobs'](phase, 1)
         self.assertEqual([j['tests'][0]['group'] for j in jobs], [None, None, None, None, 'serial'])
         self.assertEqual({j['tests'][0]['name'] for j in jobs if j['kind'] == 'empty'},
@@ -703,21 +897,79 @@ class EndToEndTests(RunnerFixture):
                 self.assertIn(output.getvalue().splitlines()[-1],
                               (self.directory / 'command-output.txt').read_text())
 
+    def assert_ledger_counts(self, result, data, ledger, output, main=None):
+        self.assert_counting(data)
+        self.assertEqual(result['counting'], data['counting'])
+        self.assertEqual([p['instructions'] for p in result['processes']],
+                         [p['instructions'] for p in data['processes']])
+        processes = [p for p in result['processes'] if p['kind'] in ('tests', 'fresh', 'alone')]
+        self.assertTrue(processes)
+        for process in result['processes']:
+            if process['kind'] not in ('tests', 'fresh', 'alone'):
+                self.assertIsNone(process['instructions'])
+        if result['counting']['counted']:
+            for process in processes:
+                self.assertIs(type(process['instructions']), int)
+                self.assertGreater(process['instructions'], 0)
+            count = sum(p['instructions'] for p in processes)
+            own = [dict(commit=data['commit'], instructions=count)]
+        else:
+            count, own = None, []
+            for process in result['processes']:
+                self.assertIsNone(process['instructions'])
+            self.assertIn(f"tiers: not counting instructions: {data['counting']['why']}\n", output)
+        previous = [] if main is None else main['binaries']['fixture::suite']['counts']
+        self.assertEqual(ledger['binaries']['fixture::suite']['counts'], previous + own)
+        main_count = previous[-1]['instructions'] if previous else None
+        self.assertEqual([(r['tree'], r['layer']) for r in result['layers']], [('repository', 'checks')])
+        self.assertEqual([r['tree'] for r in result['trees']], ['repository'])
+        for row in result['layers'] + result['trees']:
+            self.assertEqual(row['instructions'], count)
+            self.assertEqual(row['main_instructions'], main_count)
+        line = next(line for line in output.splitlines() if line.startswith('layer repository checks:'))
+        ending = f", instructions {count if count is not None else 'none'}"
+        if main is not None:
+            ending += f", main instructions {main_count if main_count is not None else 'none'}"
+        self.assertTrue(line.endswith(ending), line)
+        self.assertIn(line, (self.directory / 'command-output.txt').read_text())
+        return count
+
     def test_execute_writes_readable_ledger(self):
         cpu = runpy.run_path(str(HERE / 'cpu.py'))
         execute = cpu['execute_one_process']
         execute.__globals__['runpy'] = mock.Mock(run_path=lambda path: {'run': self.run})
+        # Split one binary across processes so its ledger must sum their counts.
+        self.run.__globals__['LANES'] = 2
         self.prepare()
-        with contextlib.redirect_stdout(io.StringIO()):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
             code = execute(self.command, self.env, self.directory, 'default', {}, self.config)
         self.assertEqual(code, 0)
         ledger = cpu['ledger'](self.directory / 'ledger.json')
         result = cpu['summary'](self.directory)
-        self.assertEqual(ledger, dict(ledger=3, profile='default', budgets={}, moves=[], binaries={
+        data = json.loads((self.directory / 'results.json').read_text())
+        self.assertEqual(len(result['processes']), 2)
+        count = self.assert_ledger_counts(result, data, ledger, output.getvalue())
+        counts = [] if count is None else [dict(commit=data['commit'], instructions=count)]
+        self.assertEqual(ledger, dict(ledger=4, profile='default', budgets={}, moves=[], binaries={
             'fixture::suite': dict(tree='repository', layer='checks',
                                   cpu=[sum(p['cpu_s'] for p in result['processes'])],
-                                  tests={t['test_name']: [t['wall_s']] for t in result['tests']}, alone={})}))
+                                  tests={t['test_name']: [t['wall_s']] for t in result['tests']}, alone={}, counts=counts)}))
         self.assertEqual(set(ledger['binaries']['fixture::suite']['tests']), {'a', 'b', 'c'})
+
+        self.directory = self.root / 'second run with spaces'
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            code = execute(self.command, self.env, self.directory, 'default', {}, self.config, ledger=ledger)
+        self.assertEqual(code, 0)
+        second_ledger = cpu['ledger'](self.directory / 'ledger.json')
+        second = cpu['summary'](self.directory, ledger=ledger)
+        second_data = json.loads((self.directory / 'results.json').read_text())
+        self.assert_ledger_counts(second, second_data, second_ledger, output.getvalue(), main=ledger)
+        entry = second_ledger['binaries']['fixture::suite']
+        self.assertEqual(entry['cpu'], [*ledger['binaries']['fixture::suite']['cpu'], second['suite']['cpu_s']])
+        self.assertEqual(entry['tests'], {t['test_name']: [*ledger['binaries']['fixture::suite']['tests'][t['test_name']],
+                                                        t['wall_s']] for t in second['tests']})
 
     def test_walls_replace_the_profiles_global_timeout(self):
         self.env['FIXTURE_CASE'] = 'hang'
@@ -824,6 +1076,7 @@ class BaseTests(RunnerFixture):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         base = self.root / 'base output'
         results = json.loads((base / 'results.json').read_text())
+        self.assert_uncounted(results, base)
         row, = results['references']
         self.assertEqual(len(row['runs']), 3)
         self.assertIsNone(row['run_limit_s'])
@@ -1169,6 +1422,7 @@ class AgainTests(RunnerFixture):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(result.stdout.splitlines()[0], str(self.again_directory))
         results = json.loads((self.again_directory / 'results.json').read_text())
+        self.assert_uncounted(results, self.again_directory)
         self.assertEqual([(t['binary_id'], t['test_name'], t['outcome']) for t in results['tests']],
                          [('fixture::suite', 'a_passes', 'passed'),
                           ('fixture::suite', 'c_reads', 'passed')])
@@ -1438,6 +1692,7 @@ class RunnerTests(RunnerFixture):
                         FIXTURE_DESCRIPTOR_CHECK=str(FIXTURES / 'descriptors.py'))
         self.binary(names=('a',))
         result = self.invoke()
+        self.assert_counting(result)
         self.assertEqual(result['tests'][0]['outcome'], 'passed', result['tests'][0]['output'])
 
     def test_crash_fresh_and_before_first(self):
@@ -1446,6 +1701,7 @@ class RunnerTests(RunnerFixture):
         layers = self.root / 'custom-layers.toml'
         layers.write_text('layers = ["step", "domain"]\n[temper]\n"fixture::suite" = "domain"\n')
         result = self.invoke(layers=Path('custom-layers.toml'))
+        self.assert_counting(result)
         self.assertEqual(result['layers'], ['step', 'domain'])
         self.assertEqual({p['kind']: (p['tree'], p['layer']) for p in result['processes']},
                          {'tests': ('temper', 'domain'), 'fresh': ('temper', 'domain'),

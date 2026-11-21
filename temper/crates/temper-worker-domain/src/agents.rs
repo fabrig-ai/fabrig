@@ -184,6 +184,26 @@ pub(crate) fn up(domain: &mut Domain, env: &Env<Limits>, request: smith::parent:
         smith::parent::Request::Unauthorized { client, account, generation } => {
             host::Event::Agent(host::FromAgent::Unauthorized { owner: client, account, generation })
         }
+        smith::parent::Request::Usage { client, account, window } => {
+            let state = match window.state {
+                smith::UsageState::Open => jig_domain_link::WINDOW_OPEN,
+                smith::UsageState::Warned => jig_domain_link::WINDOW_WARNED,
+                smith::UsageState::Limited => jig_domain_link::WINDOW_LIMITED,
+            };
+            host::Event::Agent(host::FromAgent::Usage {
+                owner: client,
+                account,
+                window: jig_domain_link::UsageWindow {
+                    label: window.label,
+                    window: jig_domain_link::FactWindow {
+                        length: window.length,
+                        used: window.used,
+                        resets: window.resets,
+                        state,
+                    },
+                },
+            })
+        }
         smith::parent::Request::Limited { client, account, reset } => {
             host::Event::Agent(host::FromAgent::Limited { owner: client, account, reset })
         }

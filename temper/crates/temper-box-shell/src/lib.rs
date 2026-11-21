@@ -79,7 +79,6 @@ pub enum Command {
         directories: Directories,
         boxed: bool,
         record: bool,
-        fixed_start: Option<skein_shell::FixedStart>,
     },
     Box {
         directories: Directories,
@@ -92,7 +91,6 @@ pub enum Command {
         bundle: Option<PathBuf>,
         scripts: Vec<PathBuf>,
         strict: bool,
-        fixed_start: Option<Box<[u8]>>,
         echo: temper_box_machine::host::Echo,
         front: bool,
         record: bool,
@@ -211,7 +209,7 @@ fn configure_box(arguments: &[Box<[u8]>], environment: &[EnvironmentEntry], work
     }
     let mut words = rest.iter();
     while let Some(word) = words.next() {
-        if [b"--bundle".as_slice(), b"--scripts", b"--fixed-start"].contains(&word.as_ref()) {
+        if [b"--bundle".as_slice(), b"--scripts"].contains(&word.as_ref()) {
             words.next();
         } else if !word.starts_with(b"-") {
             return Err(TABLE.unknown(arguments));
@@ -220,9 +218,9 @@ fn configure_box(arguments: &[Box<[u8]>], environment: &[EnvironmentEntry], work
         }
     }
     let rest: Vec<_> = rest.iter().map(|arg| std::ffi::OsStr::from_bytes(arg).to_owned()).collect();
-    let fake_backends::Options { bundle, scripts, strict, fixed_start } =
+    let fake_backends::Options { bundle, scripts, strict } =
         fake_backends::configure(&rest, working).map_err(|why| refused(&why))?;
-    Ok(Command::BoxFakeBackends { directories, bundle, scripts, strict, fixed_start, echo, front, record })
+    Ok(Command::BoxFakeBackends { directories, bundle, scripts, strict, echo, front, record })
 }
 
 fn configure_row(
@@ -312,23 +310,13 @@ fn configure_row(
     match words {
         ["init"] if rest.is_empty() => Ok(Command::Init { directories, boxed: false }),
         ["init"] if rest == ["--box"] => Ok(Command::Init { directories, boxed: true }),
-        ["serve"] if rest.is_empty() => Ok(Command::Serve { directories, boxed: false, record, fixed_start: None }),
-        ["internal", "serve"] => {
-            let fixed_start = match rest.as_slice() {
-                [boxed] if boxed == "--box" => None,
-                [boxed, flag, value] if boxed == "--box" && flag == "--fixed-start" => {
-                    Some(fixed_start(value.as_bytes())?)
-                }
-                _ => return Err(invalid()),
-            };
-            Ok(Command::Serve { directories, boxed: true, record, fixed_start })
-        }
+        ["serve"] if rest.is_empty() => Ok(Command::Serve { directories, boxed: false, record }),
+        ["internal", "serve"] if rest == ["--box"] => Ok(Command::Serve { directories, boxed: true, record }),
         ["program-login"] if rest.len() == 1 => Ok(Command::ProgramLogin { directories, name: rest[0].clone() }),
         _ => Err(invalid()),
     }
 }
 
-#[expect(clippy::too_many_lines, reason = "the command dispatcher forwards each command's typed startup inputs")]
 pub fn run(
     command: Command,
     environment: &[EnvironmentEntry],
@@ -382,20 +370,18 @@ pub fn run(
         Command::Init { directories, boxed } => {
             return init::run(&directories, boxed, environment).map_err(|why| prefixed("temper init", &why));
         }
-        Command::Serve { directories, boxed, record, fixed_start } => {
-            serve::run("temper-box", environment, working, &directories, boxed, record, fixed_start.as_ref())?
+        Command::Serve { directories, boxed, record } => {
+            serve::run("temper-box", environment, working, &directories, boxed, record)?
         }
-        Command::BoxFakeBackends { directories, bundle, scripts, strict, fixed_start, echo, front, record } => {
-            fake_backends::run(
-                &directories,
-                &fake_backends::Options { bundle, scripts, strict, fixed_start },
-                echo,
-                front,
-                record,
-                environment,
-            )
-            .map_err(|why| prefixed("temper-box", &why))?
-        }
+        Command::BoxFakeBackends { directories, bundle, scripts, strict, echo, front, record } => fake_backends::run(
+            &directories,
+            &fake_backends::Options { bundle, scripts, strict },
+            echo,
+            front,
+            record,
+            environment,
+        )
+        .map_err(|why| prefixed("temper-box", &why))?,
         Command::Box { directories, echo, front, record } => {
             box_command::run(&directories, echo, front, record, environment)
                 .map_err(|why| prefixed("temper-box", &why))?
@@ -438,10 +424,6 @@ pub fn run(
         Exit::Code(code) => code,
         Exit::Signal(_) => 1,
     })
-}
-fn fixed_start(text: &[u8]) -> Result<skein_shell::FixedStart, String> {
-    skein_shell::FixedStart::read(text)
-        .ok_or_else(|| "--fixed-start: expected SECONDS,SEED in canonical decimal".into())
 }
 fn path(bytes: &[u8]) -> &Path {
     Path::new(std::ffi::OsStr::from_bytes(bytes))
@@ -578,39 +560,25 @@ mod box_tests {
     }
 
     #[test]
-    fn fixed_start_is_read_only_by_internal_boxed_serve() {
-        for record in [false, true] {
-            let mut words = vec!["internal", "serve", "--box"];
-            if record {
-                words.push("--record");
-            }
-            words.extend(["--fixed-start", "1767690000,7", "--config", "/c", "--data", "/d", "--cache", "/k"]);
-            let args = words.iter().map(|word| Box::from(word.as_bytes())).collect::<Vec<_>>();
-            let super::Command::Serve { boxed, record: found_record, fixed_start, .. } =
-                super::configure_with(&args, &[], b"/").expect("internal boxed fixed serve")
-            else {
-                panic!("serve command");
-            };
-            assert!(boxed);
-            assert_eq!(found_record, record);
-            assert_eq!(fixed_start, skein_shell::FixedStart::read(b"1767690000,7"));
-        }
-        for words in [
-            vec!["serve", "--fixed-start", "1767690000,7"],
-            vec!["serve", "--box", "--fixed-start", "1767690000,7"],
-            vec!["internal", "serve", "--fixed-start", "1767690000,7"],
-            vec!["internal", "serve", "--box", "--fixed-start", "01,7"],
-            vec!["internal", "serve", "--box", "--fixed-start"],
-            vec!["internal", "serve", "--box", "--fixed-start", "1767690000,7", "--fixed-start", "1767690000,7"],
-        ] {
-            let args = words
-                .iter()
-                .copied()
-                .chain(["--config", "/c", "--data", "/d", "--cache", "/k"])
-                .map(|word| Box::from(word.as_bytes()))
-                .collect::<Vec<_>>();
-            assert!(super::configure_with(&args, &[], b"/").is_err(), "{words:?}");
-        }
+    fn boxed_serve_refuses_the_removed_start_flag() {
+        let args = [
+            "internal",
+            "serve",
+            "--box",
+            "--fixed\x2dstart",
+            "1767690000,7",
+            "--config",
+            "/c",
+            "--data",
+            "/d",
+            "--cache",
+            "/k",
+        ]
+        .iter()
+        .map(|word| Box::from(word.as_bytes()))
+        .collect::<Vec<_>>();
+        let refusal = super::configure_with(&args, &[], b"/").expect_err("removed flag");
+        assert_eq!(refusal.lines().next(), Some("temper-box internal serve: invalid arguments"));
     }
 
     #[test]

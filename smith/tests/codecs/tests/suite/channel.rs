@@ -5,7 +5,7 @@ use smith_channel::Record;
 
 use skein_channel::Direction;
 use skein_lib::Reader;
-use smith_channel::{Answer, CEILINGS, Start, V12, schema};
+use smith_channel::{Answer, CEILINGS, Start, V13, schema};
 
 #[test]
 fn channel_goldens_decode_at_their_measured_length() {
@@ -49,14 +49,38 @@ fn channel_goldens_decode_at_their_measured_length() {
 }
 
 #[test]
+fn usage_round_trips_present_and_absent_window_fields() {
+    for state in
+        [smith_channel::UsageState::Open, smith_channel::UsageState::Warned, smith_channel::UsageState::Limited]
+    {
+        for mask in 0..8 {
+            let window = smith_channel::UsageWindow {
+                label: b"seven_day".as_slice().into(),
+                length: (mask & 1 != 0).then_some(skein_lib::Duration::from_secs(604_800)),
+                used: (mask & 2 != 0).then_some(8123),
+                resets: (mask & 4 != 0).then_some(1_781_845_200),
+                state: state.clone(),
+            };
+            let record = smith_channel::Usage { account: 7, window };
+            let frame = smith_channel::frame(smith_channel::Body::Usage(record.clone())).expect("usage frame");
+            assert_eq!(frame.kind(), smith_channel::kind::USAGE);
+            let body = &frame.bytes()[8..];
+            let read = smith_channel::Usage::decode(&CEILINGS, &mut Reader::new(body)).expect("usage decodes");
+            assert_eq!(read, record, "{state:?}, field mask {mask}");
+            assert_eq!(usize::try_from(read.measure(&CEILINGS).expect("bounded usage")).expect("measure"), body.len());
+        }
+    }
+}
+
+#[test]
 fn every_required_kind_has_its_direction_and_bound_in_the_schema() {
     let table = schema(&CEILINGS).expect("schema bounds fit");
     assert_eq!(table.magic, *b"smth");
     assert_eq!(smith_channel::KindRule::FORMAT_VERSION, u64::from(smith_channel::wire::VERSION));
     assert_eq!(table.versions.len(), 1);
     let version = table.version(smith_channel::wire::VERSION).expect("current version");
-    assert_eq!(version.kinds.len(), 23);
-    for (index, rule) in V12.iter().enumerate() {
+    assert_eq!(version.kinds.len(), 24);
+    for (index, rule) in V13.iter().enumerate() {
         assert!(rule.required, "all initial kinds are required");
         let kind = version.kind(rule.kind).expect("required kind is listed");
         assert_eq!(kind.direction, rule.direction);

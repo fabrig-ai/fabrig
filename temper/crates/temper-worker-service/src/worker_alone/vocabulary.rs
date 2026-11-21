@@ -22,11 +22,20 @@ pub enum Note {
         repository: Box<[u8]>,
         what: temper_worker_domain::Git,
     },
-    FiguresChanged,
     /// A link pause's operator line (domain/worker/README.md, 2).
     Paused {
         state: jig_domain_link::PauseState,
         drain: skein_lib::Duration,
+    },
+    /// The three parts of a figures change (configuration/figures.md, 3.2).
+    FiguresTaken {
+        figures: Box<[jig_protocol_worker_wire::Limit]>,
+    },
+    FiguresWaiting {
+        figures: Box<[jig_protocol_worker_wire::Limit]>,
+    },
+    FiguresRefused {
+        problem: Box<[u8]>,
     },
     Cancelling {
         run: u64,

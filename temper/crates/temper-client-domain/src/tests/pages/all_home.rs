@@ -340,7 +340,10 @@ impl Across {
         let dismissed = self.watch(forge::dismissed::watch(&self.limits.forge).unwrap());
         self.family(dismissed, wire::dismissals(&w::Dismissals { dismissed: List::with_capacity(0) }));
         let forges = self.watch(forge::forges::watch(&self.limits.forge).unwrap());
-        self.family(forges, wire::forges(&w::Forges { forges: List::with_capacity(0), linked: false }));
+        self.family(
+            forges,
+            wire::forges(&w::Forges { forges: List::with_capacity(0), full: List::with_capacity(0), linked: false }),
+        );
         let settings = self.watch(Watchable::Jig(c::Subject::Settings));
         self.up(Up::Watched {
             watch: settings,

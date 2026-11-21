@@ -5,9 +5,9 @@
 use skein_channel::{Direction, Kind, Role, Schema, Term, Version};
 use skein_lib::List;
 
-use crate::{Record, kind, v12};
+use crate::{Record, kind, v13};
 
-/// A version-twelve body's number, sender, admission obligation and codec.
+/// A version-thirteen body's number, sender, admission obligation and codec.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[expect(
     clippy::partial_pub_fields,
@@ -40,6 +40,7 @@ enum Body {
     LongDone,
     Unauthorized,
     Limited,
+    Usage,
     Fact,
     Answer,
     Live,
@@ -56,8 +57,8 @@ pub enum Overflow {
     Frame,
 }
 
-/// The 23 kinds required by channel version twelve, in wire number order.
-pub const V12: &[KindRule] = &[
+/// The 24 kinds required by channel version thirteen, in wire number order.
+pub const V13: &[KindRule] = &[
     KindRule { kind: kind::START, direction: Direction::FromInitiator, required: true, body: Body::Start },
     KindRule { kind: kind::MESSAGE, direction: Direction::FromInitiator, required: true, body: Body::Message },
     KindRule { kind: kind::HOST_ANSWER, direction: Direction::FromInitiator, required: true, body: Body::HostAnswer },
@@ -100,43 +101,45 @@ pub const V12: &[KindRule] = &[
     },
     KindRule { kind: kind::DRAIN, direction: Direction::FromInitiator, required: true, body: Body::Drain },
     KindRule { kind: kind::RENEWALS, direction: Direction::FromInitiator, required: true, body: Body::Renewals },
+    KindRule { kind: kind::USAGE, direction: Direction::FromResponder, required: true, body: Body::Usage },
     KindRule { kind: kind::SIGNALLED, direction: Direction::FromResponder, required: true, body: Body::Signalled },
 ];
 
-/// Build the version-twelve channel schema from receiving codec limits.
-pub fn schema(limits: &v12::Limits) -> Result<Schema, Overflow> {
-    let mut kinds = List::with_capacity(23);
-    for rule in V12 {
+/// Build the version-thirteen channel schema from receiving codec limits.
+pub fn schema(limits: &v13::Limits) -> Result<Schema, Overflow> {
+    let mut kinds = List::with_capacity(24);
+    for rule in V13 {
         let largest = match rule.body {
-            Body::Start => v12::Start::encoded_bound(limits),
-            Body::Message => v12::Message::encoded_bound(limits),
-            Body::MessageRefused => v12::MessageRefused::encoded_bound(limits),
-            Body::HostAnswer => v12::HostAnswer::encoded_bound(limits),
-            Body::Acknowledge => v12::Acknowledge::encoded_bound(limits),
-            Body::GrantRefresh => v12::GrantRefresh::encoded_bound(limits),
-            Body::Cancel => v12::Cancel::encoded_bound(limits),
-            Body::Renewals => v12::Renewals::encoded_bound(limits),
-            Body::Drain => v12::Drain::encoded_bound(limits),
-            Body::Admitted => v12::Admitted::encoded_bound(limits),
-            Body::Call => v12::Call::encoded_bound(limits),
-            Body::Withdraw => v12::Withdraw::encoded_bound(limits),
-            Body::Turn => v12::Turn::encoded_bound(limits),
-            Body::Waiting => v12::Waiting::encoded_bound(limits),
-            Body::Long => v12::Long::encoded_bound(limits),
-            Body::LongDone => v12::LongDone::encoded_bound(limits),
-            Body::Unauthorized => v12::Unauthorized::encoded_bound(limits),
-            Body::Limited => v12::Limited::encoded_bound(limits),
-            Body::Fact => v12::Fact::encoded_bound(limits),
-            Body::Answer => v12::Answer::encoded_bound(limits),
-            Body::AccountRefused => v12::AccountRefused::encoded_bound(limits),
-            Body::Signalled => v12::Signalled::encoded_bound(limits),
-            Body::Live => v12::Live::encoded_bound(limits),
+            Body::Start => v13::Start::encoded_bound(limits),
+            Body::Message => v13::Message::encoded_bound(limits),
+            Body::MessageRefused => v13::MessageRefused::encoded_bound(limits),
+            Body::HostAnswer => v13::HostAnswer::encoded_bound(limits),
+            Body::Acknowledge => v13::Acknowledge::encoded_bound(limits),
+            Body::GrantRefresh => v13::GrantRefresh::encoded_bound(limits),
+            Body::Cancel => v13::Cancel::encoded_bound(limits),
+            Body::Renewals => v13::Renewals::encoded_bound(limits),
+            Body::Drain => v13::Drain::encoded_bound(limits),
+            Body::Admitted => v13::Admitted::encoded_bound(limits),
+            Body::Call => v13::Call::encoded_bound(limits),
+            Body::Withdraw => v13::Withdraw::encoded_bound(limits),
+            Body::Turn => v13::Turn::encoded_bound(limits),
+            Body::Waiting => v13::Waiting::encoded_bound(limits),
+            Body::Long => v13::Long::encoded_bound(limits),
+            Body::LongDone => v13::LongDone::encoded_bound(limits),
+            Body::Unauthorized => v13::Unauthorized::encoded_bound(limits),
+            Body::Limited => v13::Limited::encoded_bound(limits),
+            Body::Usage => v13::Usage::encoded_bound(limits),
+            Body::Fact => v13::Fact::encoded_bound(limits),
+            Body::Answer => v13::Answer::encoded_bound(limits),
+            Body::AccountRefused => v13::AccountRefused::encoded_bound(limits),
+            Body::Signalled => v13::Signalled::encoded_bound(limits),
+            Body::Live => v13::Live::encoded_bound(limits),
         };
         let largest = largest.ok_or(Overflow::Body)?;
         let Ok(largest) = u32::try_from(largest) else {
             return Err(Overflow::Frame);
         };
-        kinds.push(Kind { kind: rule.kind, direction: rule.direction, largest }).expect("V12 has exactly 23 kinds");
+        kinds.push(Kind { kind: rule.kind, direction: rule.direction, largest }).expect("V13 has exactly 24 kinds");
     }
     let mut versions = List::with_capacity(1);
     versions.push(Version { version: kind::VERSION, kinds }).expect("one version has one slot");
@@ -146,7 +149,7 @@ pub fn schema(limits: &v12::Limits) -> Result<Schema, Overflow> {
 /// Find the first required kind that the peer cannot receive at our sending bound.
 #[must_use]
 pub fn peer_terms_gap(schema: &Schema, role: Role, version: u16, terms: &List<Term>) -> Option<u16> {
-    required_terms_gap(schema, role, version, terms, V12)
+    required_terms_gap(schema, role, version, terms, V13)
 }
 
 fn required_terms_gap(

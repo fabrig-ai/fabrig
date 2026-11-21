@@ -33,6 +33,19 @@
   optional members: absent, `engine_over` and `worker_over` read the
   base, and `Engine.memory` is none. temper's engine and box refuse them
   (temper's `protocol/configuration/limit-settings.md`).
+- **When a change applies.** Each row of `names::NAMES` gives `applies`,
+  `names::Applies { AtOnce, Live, NextStart }`. `Live` is a time bound
+  or a ceiling every holder reads at each use, which sizes no table, no
+  carrier and nothing a link agrees at its opening or its hello states:
+  `link.handshake_ms`, `link.hello_ms`, `link.stall_ms`,
+  `link.backoff_ms`, `link.ceiling_ms`, `link.proved_ms`,
+  `link.busy_ms`, `hub.event_bytes`, `hub.accounts` and
+  `hub.turn_queue_bytes`. Every other row is `NextStart`, since the core
+  and its children size their tables from their limits at their start.
+  `AtOnce`, a raise everything holding a copy takes at once, is for an
+  application's names; none of jig's has it yet. An application takes a
+  live change by `channel/figures.md`, 3 and 4 (temper's
+  `protocol/configuration/limit-settings.md`, 5).
 - **Sized from fabrig's development:** the stock sizes its counts,
   times and other figures as temper's stock does (temper's
   `protocol/configuration/limits.md`, sized from what): a

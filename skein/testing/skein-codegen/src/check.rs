@@ -166,6 +166,7 @@ pub(crate) fn check(schema: &Schema) -> Result<(), Error> {
         "Option".to_string(),
         "Path".to_string(),
         "Problem".to_string(),
+        "Record".to_string(),
         "Result".to_string(),
     ]);
     let mut paths = BTreeSet::new();
@@ -235,24 +236,14 @@ mod tests {
     use super::{path_position, record_positions};
 
     #[test]
-    fn lean_surface_names_are_checked_without_changing_sealed_parse() {
-        use crate::{Declaration, Form, check_as, parse};
+    fn codec_surface_names_are_reserved_in_every_family() {
         for name in ["Record", "Path", "Problem"] {
-            for source in ["record Value {}", "enum Value { unit }"] {
-                let mut schema = parse(&format!("family names 1\n{source}")).expect("shared schema");
-                match schema.declarations.first_mut().expect("one declaration") {
-                    Declaration::Record(record) => record.name = name.into(),
-                    Declaration::Enum(enumeration) => enumeration.name = name.into(),
-                }
-                assert_eq!(check_as(&schema, Form::Sealed), Ok(()));
-                let error = check_as(&schema, Form::Lean).expect_err("lean re-export name is reserved");
+            for declaration in [format!("versioned record {name} {{}}"), format!("enum {name} {{ unit }}")] {
+                let error = crate::parse(&format!("family names 1\n{declaration}"))
+                    .expect_err("the codec's type names are reserved");
                 assert_eq!(error.line, 2);
-                assert_eq!(error.message, format!("lean type name {name} is reserved"));
+                assert_eq!(error.message, format!("generated type name {name} is used twice"));
             }
-        }
-        parse("family names 1\nversioned record Record { word: u8 }").expect("sealed Record stays valid");
-        for name in ["Path", "Problem"] {
-            parse(&format!("family names 1\nrecord {name} {{}}")).expect_err("shared names remain reserved");
         }
     }
 

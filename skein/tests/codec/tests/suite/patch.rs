@@ -14,8 +14,9 @@ mod tests {
     use skein_codec::schema::{self, Shape};
     use skein_codec_tests::{every as v1, every_v2 as v2, patches};
     use skein_codegen::diff::{Op, Rename, diff};
-    use skein_lib::{Reader, Writer};
+    use skein_lib::Reader;
     use std::path::Path;
+    use v1::Record;
 
     #[test]
     fn patch_operations_spell_the_diff_in_order() {
@@ -198,19 +199,19 @@ mod tests {
     }
 
     fn numbers(old: &v1::Numbers, new: &v2::Numbers) {
-        assert_eq!(new.small(), old.small());
-        assert_eq!(new.short(), old.short());
-        assert_eq!(new.word(), old.word());
-        assert_eq!(new.long(), old.long());
-        assert_eq!(new.flag(), old.flag());
-        assert_eq!(new.pause(), old.wait());
-        assert_eq!(new.tag(), old.tag());
+        assert_eq!(new.small, old.small);
+        assert_eq!(new.short, old.short);
+        assert_eq!(new.word, old.word);
+        assert_eq!(new.long, old.long);
+        assert_eq!(new.flag, old.flag);
+        assert_eq!(new.pause, old.wait);
+        assert_eq!(new.tag, old.tag);
     }
 
     fn texts(old: &v1::Strings, new: &v2::Texts) {
-        assert_eq!(new.raw(), old.raw());
-        assert_eq!(new.key().expose(), old.key().expose());
-        assert_eq!(new.words(), old.words());
+        assert_eq!(new.raw, old.raw);
+        assert_eq!(new.key.expose(), old.key.expose());
+        assert_eq!(new.words, old.words);
     }
 
     fn light(old: &v1::Light, new: &v2::Light) {
@@ -223,9 +224,9 @@ mod tests {
     }
 
     fn stamp(old: &v1::Stamp, new: &v2::Stamp) {
-        assert_eq!(new.at(), old.at());
-        assert_eq!(new.note(), old.note());
-        assert_eq!(new.zone(), b"utc");
+        assert_eq!(new.at, old.at);
+        assert_eq!(new.note, old.note);
+        assert_eq!(new.zone.as_ref(), b"utc");
     }
 
     fn shape(old: &v1::Shape, new: &v2::Shape) {
@@ -242,58 +243,56 @@ mod tests {
     }
 
     fn nest(old: &v1::Nest, new: &v2::Nest) {
-        assert_eq!(new.blanks().len(), old.blanks().len());
-        assert_eq!(new.lights().len(), old.lights().len());
-        for (old, new) in old.lights().iter().zip(new.lights().iter()) {
+        assert_eq!(new.blanks.len(), old.blanks.len());
+        assert_eq!(new.lights.len(), old.lights.len());
+        for (old, new) in old.lights.iter().zip(new.lights.iter()) {
             light(old, new);
         }
-        assert_eq!(new.maybe_lights().len(), old.maybe_lights().len());
-        for (old, new) in old.maybe_lights().iter().zip(new.maybe_lights().iter()) {
+        assert_eq!(new.maybe_lights.len(), old.maybe_lights.len());
+        for (old, new) in old.maybe_lights.iter().zip(new.maybe_lights.iter()) {
             assert_eq!(new.is_some(), old.is_some());
             if let (Some(old), Some(new)) = (old, new) {
                 light(old, new);
             }
         }
-        assert_eq!(new.grid().len(), old.grid().len());
-        for (old, new) in old.grid().iter().zip(new.grid().iter()) {
+        assert_eq!(new.grid.len(), old.grid.len());
+        for (old, new) in old.grid.iter().zip(new.grid.iter()) {
             assert_eq!(new.as_slice(), old.iter().copied().map(u32::from).collect::<Vec<_>>());
         }
-        assert_eq!(new.maybe_list(), old.maybe_list());
-        assert_eq!(new.maybe_numbers().is_some(), old.maybe_numbers().is_some());
-        if let (Some(old), Some(new)) = (old.maybe_numbers(), new.maybe_numbers()) {
+        assert_eq!(new.maybe_list, old.maybe_list);
+        assert_eq!(new.maybe_numbers.is_some(), old.maybe_numbers.is_some());
+        if let (Some(old), Some(new)) = (&old.maybe_numbers, &new.maybe_numbers) {
             numbers(old, new);
         }
-        assert_eq!(new.shapes().len(), old.shapes().len());
-        for (old, new) in old.shapes().iter().zip(new.shapes().iter()) {
+        assert_eq!(new.shapes.len(), old.shapes.len());
+        for (old, new) in old.shapes.iter().zip(new.shapes.iter()) {
             shape(old, new);
         }
-        assert_eq!(new.secrets().len(), old.secrets().len());
-        for (old, new) in old.secrets().iter().zip(new.secrets().iter()) {
+        assert_eq!(new.secrets.len(), old.secrets.len());
+        for (old, new) in old.secrets.iter().zip(new.secrets.iter()) {
             assert_eq!(new.expose(), old.expose());
         }
-        assert_eq!(new.stamps().len(), old.stamps().len());
-        for (old, new) in old.stamps().iter().zip(new.stamps().iter()) {
+        assert_eq!(new.stamps.len(), old.stamps.len());
+        for (old, new) in old.stamps.iter().zip(new.stamps.iter()) {
             stamp(old, new);
         }
-        assert_eq!(new.label().as_deref(), Some(b"nest".as_slice()));
+        assert_eq!(new.label.as_deref(), Some(b"nest".as_slice()));
     }
 
     fn every(old: &v1::Every, new: &v2::Every) {
-        numbers(old.numbers(), new.numbers());
-        texts(old.strings(), new.strings());
-        light(old.light(), new.light().as_ref().expect("light wrapped in Some"));
-        shape(old.shape(), new.shape());
-        stamp(old.stamp(), new.stamp());
-        nest(old.nest(), new.nest());
-        assert_eq!(new.empty(), &v2::Blank::new(&v2::CEILINGS, v2::BlankParts {}).expect("Blank"));
+        numbers(&old.numbers, &new.numbers);
+        texts(&old.strings, &new.strings);
+        light(&old.light, new.light.as_ref().expect("light wrapped in Some"));
+        shape(&old.shape, &new.shape);
+        stamp(&old.stamp, &new.stamp);
+        nest(&old.nest, &new.nest);
+        assert_eq!(new.empty, v2::Blank {});
         assert_eq!(
-            new.score(),
-            u32::from(old.numbers().small())
-                .checked_add(u32::from(old.numbers().short()))
-                .expect("u8 plus u16 fits u32")
+            new.score,
+            u32::from(old.numbers.small).checked_add(u32::from(old.numbers.short)).expect("u8 plus u16 fits u32")
         );
-        assert_eq!(new.held(), old.held());
-        assert_eq!(new.items(), old.items());
+        assert_eq!(new.held, old.held);
+        assert_eq!(new.items, old.items);
     }
 
     fn generated_round_trip(name: &[u8], old: &[u8], bytes: &[u8]) {
@@ -306,9 +305,12 @@ mod tests {
                 let old = v1::$old::decode(&v1::CEILINGS, &mut old_reader).expect("v1 generated decode");
                 assert_eq!(old_reader.remaining(), 0);
                 $compare(&old, &new);
-                let mut writer = Writer::new(usize::try_from(new.measure()).expect("measured bytes"));
-                new.encode(&mut writer).expect("measured room");
-                assert_eq!(writer.finish().as_ref(), bytes);
+                assert_eq!(
+                    usize::try_from(new.measure(&v2::CEILINGS).expect("decoded value measures"))
+                        .expect("measured bytes"),
+                    bytes.len()
+                );
+                assert_eq!(new.encode(&v2::CEILINGS).expect("decoded value encodes").as_ref(), bytes);
             }};
         }
         match name {
