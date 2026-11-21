@@ -254,7 +254,7 @@ policy.
   service manager's that signals every process of a unit, never cuts a
   run its host means to keep (temper's `draft/worker-restarts.md`,
   section 2).
-- **Drain, then cancel.** The parent may ask a run to stop at the end of its current turn, as a host does that stops for a while and means to resume it (run.md, section 9): the kit sends the drain down the channel once, and arms no grace for it, so the watchdog and the bound on wall time hold as ever, and the run answers when its turn ends. A stop that follows is the ordinary cancel, its grace counted from the stop; a drain asked after a stop, or twice, is ignored; one asked before the agent's start has gone down follows the start, in order. The inline agent takes a drain alike, as its run's (9.2).
+- **Drain, then cancel.** The parent may ask a run to stop at the end of its current turn, as a host does that stops for a while and means to resume it (run.md, section 9): the kit sends the drain down the channel once, and arms no grace for it, so the watchdog and the bound on wall time hold as ever, and the run answers when its turn ends. A stop that follows is the ordinary cancel, its grace counted from the stop; a drain asked after a stop, or twice, is ignored; one asked before the agent's start has gone down follows the start, in order. The inline agent takes a drain alike, as its run's (9.2). A parent whose start asked for parts may give the drain a grace, which the kit carries down as it is: the run then answers at its answer, the calls in flight cut after the grace (turn-parts.md, section 4), and the kit still arms nothing for it.
 - **An answered agent exits on its own.** After its answer, the agent
   closes everything it owns and exits once each has settled; only io's
   close deadlines bound that, and they make its teardown bound
@@ -333,6 +333,14 @@ policy.
     which then stands but was not kept whole.
   - **A later resume starts from what was kept.** A host that keeps its
     transcripts durably resumes from the last turn it kept.
+- **Parts are held as turns are,** for a parent whose start asked for
+  them (turn-parts.md, section 3): each told part is held until the
+  parent acknowledges it, counted with the turns against the window,
+  and passed to the parent in the order told, interleaved with the
+  turns, as `parent::Request::Part`. A parent keeps those told since the
+  run's last whole turn it kept, and hands them back, with the activation
+  each was told in, in its next start's parts (protocol/channel.md,
+  section 3).
 - **Only the current window goes back.** Each told turn says whether it
   opens a window (section 2), so a host, or its store with the turns
   encoded, knows where the current window starts from that flag alone. Resuming a run,

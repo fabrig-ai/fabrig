@@ -306,7 +306,8 @@ that is not empty, or a message.
    nothing it started is still writing.
 6. **Tells each turn** to its host as it ends (session.md, section 3):
    what the LLM said and called, the results, what it spent, and the last
-   message it read.
+   message it read; and, to a host that asks, its parts as they come
+   (turn-parts.md).
 7. **Judges** a declared result against the contract (section 7). A
    violation goes back to the LLM as a tool error it can fix; it does not
    end the run.
@@ -734,6 +735,13 @@ its next run to hear of. smith does not make the host's judgement.
   including output read during stopping, as a check that exits does.
   An empty tail with no discarded bytes records no output read before
   the pipes closed.
+- **A results directory,** where the start names one for a directory
+  (protocol/channel.md, section 3): the check finds its path in
+  `SMITH_CHECK_RESULTS`, the run having made it if it was missing, and
+  keeps there what it likes; smith never reads it. Its host keeps it as
+  long as the tree, across a restart too, so a check run again on the
+  same tree may skip what passed (turn-parts.md, section 5). Without
+  one, the variable is not set.
 - **Not a security boundary.** An agent can change what a check runs;
   whatever guards the host's systems (temper's CI and its authority's
   requirements) guards them. The checks catch failures early, inside the
@@ -879,6 +887,7 @@ finish delivered meanwhile is still its result (8.4).
 - **At once** when no completion of main is in flight: a run awaiting its first message, waiting, listening after a reply, or still preparing ends as a cancel ends it.
 - **A turn that ends the run anyway** answers as it would have: a result accepted, a park.
 - **A cancel after a drain** cuts the turn, as any cancel does. The drain's wait is the host's to bound: smith arms nothing for it.
+- **A drain with a grace,** from a host that asked for parts, ends the run at its answer instead: the calls in flight get the grace, then are cut, and the turn stays open for the next activation (turn-parts.md, section 4).
 
 ## 10. Facts
 

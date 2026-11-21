@@ -159,21 +159,21 @@ From main at `ee03a1159c` and dev.fabrig.ai's redeploys of 2026-11-11 and 11-12,
 
 ### 6.1 The drain
 
-- **Told to stop, a worker drains** (jig's `domain/hosts/hub.md`, 7). It says so on its link, takes no new run or job, and asks each agent to stop at the end of its current turn, once the LLM has answered and the turn's calls have their answers.
-- **Within the drain bound,** by default 3 minutes (section 12). A run still in its turn at the bound is cancelled as today: a check in flight is cut, and the next attempt runs it again.
-- **Then as today:** each agent gone; relays and deliveries settled; the work saved to its saved-work branch; the answer `Cancelled(Shutdown)`, the attempt suspended with no try spent and its window left open (`worker-restarts.md`, 5); every turn and answer acknowledged before the worker exits.
+- **Told to stop, a worker drains** (jig's `domain/hosts/hub.md`, 7). It says so on its link, takes no new run or job, and asks each agent to stop at its answer: the LLM's answer in flight arrives and is committed as it comes, each call's answer is committed as it ends, and the calls still running after a short grace, the drain's grace, by default 10 seconds, are cut, the turn left open for the next attempt (`worker-restarts.md`, 3; smith's `domain/turn-parts.md`, section 4). A worker whose link does not carry parts (jig's `protocol/channel/records.md`, 5) asks its agents to stop at the end of their turns, as before.
+- **Within the drain bound,** by default 3 minutes (section 12). A run still waiting for its answer at the bound is cancelled as before: that answer is lost, and the next attempt plans its turn again.
+- **Then:** each agent gone; relays and deliveries settled; the work saved to its saved-work branch, and the workspace kept on the worker for the run's next attempt (`../domain/worker/checkouts.md`, *A workspace kept for its run*); the answer `Cancelled(Shutdown)`, the attempt suspended with no try spent and its window left open (`worker-restarts.md`, 5); every turn, part and answer acknowledged before the worker exits.
 - **A job the drain cancels** before its effect began ends suspended too, where today it ends lost and spends a try. One whose effect began is left for the next attempt to recover, as after any loss.
 - **The stop bound is enforced, not declared.** The bound a worker states at its hello (jig's `domain/hosts/hub.md`, 6) is a deadline the worker keeps over the drain, every cancellation, delivery and save, and its agents' teardown. A save still running at it is abandoned and its agent's group killed, so nothing of the attempt writes after it, and the engine's grace is sized from it.
 - **The service manager's stop timeout** sits above the stop bound. A kill before it is a crash: the workspace's changes since its last save or delivery are lost, whatever turns were committed since, and the attempt is lost.
 
 ### 6.2 What a run loses
 
-- **At most a turn's tail that the bound cut,** and whatever its saved work leaves out: ignored files and build outputs. Its conversation, its committed calls and its saved work go on in its next attempt, on the same worker while it is back within the restart wait, else on any worker (jig's `domain/engine/executors.md`, 2 and 6.4).
+- **At most the answer in flight when the drain's bound came, and the cut calls' progress.** Its next attempt resumes the cut turn from its committed answer and its calls' committed answers, without asking the LLM again: it runs a cut check again, skipping the tests that passed, answers a host call from what the engine decided, and hands any other cut call to the model as interrupted, with how long it ran and its output so far (smith's `domain/turn-parts.md`, section 5). On the same worker, while it is back within the restart wait, it takes up its kept workspace, ignored files and build outputs included; on any other worker, it starts from its saved work, which leaves those out (jig's `domain/engine/executors.md`, 2 and 6.4).
 
 ### 6.3 A warm start
 
 - **Stores kept,** each made once by one creator while the other preparations wait (goal 1492, in flight), and cloned without blobs, by the user's word of 2026-11-12.
-- **Workspaces not kept.** The workspace-reuse mode stays internal, since an agent can write a workspace's `.git` and so reach later workstreams. With its store kept, a workspace is a local clone and a checkout.
+- **Workspaces not kept, but a cut run's for that run alone.** The workspace-reuse mode stays internal, since an agent can write a workspace's `.git` and so reach later workstreams. With its store kept, a workspace is a local clone and a checkout. A run a drain or stop cut keeps its workspace on its worker for its next attempt alone, never another workstream's, so that concern does not reach it (`../domain/worker/checkouts.md`, *A workspace kept for its run*).
 
 ### 6.4 Preparations a few at a time
 

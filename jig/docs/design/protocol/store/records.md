@@ -246,6 +246,21 @@ follow from the limits that bound each kind (4).
   by the call's key, and puts it in the assignment as it makes it
   (`../channel/README.md`, 5.2), so jig keeps none of another owner's bytes.
 
+A kept part of a turn in flight (`../../domain/engine/executors.md`, 2;
+`../channel/records.md`, 5) is the core family's value type `part`, the
+family's next number and key range, an added part with its version
+unmoved (`layouts.md`, 2), until a committed turn or the task's end
+retires it:
+
+```
+record PartKey { task: u64 attempt: u64 number: u32 }
+record PartRecord { key: PartKey turn: u32 thread: u32 call: u32 kind: PartKind body: bytes 33554432 holds smith-transcript Turn }
+```
+
+Its body is held as a turn's, so the store patches it forward as it
+reads it, as it does a kept turn (`transcripts.md`, 6), and a restart
+restores the parts with the calls, within the start's room.
+
 A settings revision's items, each with its edit and replaced state, cross as
 one aggregate byte field of length-prefixed `RevisionItem` pieces, not a
 list priced as its count times its largest item. The field's schema ceiling

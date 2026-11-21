@@ -26,6 +26,7 @@ jig and temper are named only as examples.
 | session | one conversation with an LLM (session.md) |
 | turn | one completion of a session, with its calls and their results, told as it ends |
 | transcript | the main session's turns from its current window's opening, versioned, kept by the host, to resume from (session.md, section 3) |
+| part | a completion's answer, a call's result or a sub-agent's window, told as it comes to a host that asks, so a turn a drain cut resumes where it stopped (turn-parts.md) |
 | owned tool | a tool a session runs itself, on the workspace (tools.md) |
 | served tool | a tool the run answers: `finish`, `deliver`, `wait`, sub-agents (run.md, section 5) |
 | host tool | a tool the charter declares and the host answers, relayed (run.md, 5.2) |

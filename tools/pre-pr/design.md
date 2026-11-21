@@ -916,6 +916,33 @@ line does.
 The record holds the last pass alone, so a hit is always of the last
 tree that passed here.
 
+**Passed tests kept for a check run again.** Where smith names the
+check a results directory in its environment (`smith/docs/design/domain/run.md`, 8.1), which a worker keeps with a stopped
+run's workspace across its restart (`temper/docs/design/domain/worker/checkouts.md`, *A workspace kept for its run*), the check keeps
+there the tests that passed, so that a check a drain cut runs only what
+is left when it runs again (`temper/docs/design/draft/worker-restarts.md`, section 4):
+
+- **Keyed as the record above,** by the same fields the passed-tree
+  record holds for this check, written in `passed` in that directory: a
+  first line, the key, then one line per test that passed, its binary's
+  id and its name as nextest names them, each appended as nextest reports
+  the test passed, so a check cut midway keeps what passed before the
+  cut.
+- **A check whose key matches** runs every set of section 4 without the
+  tests `passed` lists, and prints `pre-pr: N tests passed before (key
+  <key>), not run again` before its runs; a set left with none runs
+  nothing. A key that differs, or a file of another shape, matches
+  nothing, and the check starts the file again under its own key.
+- **What it skipped counts as passed** for its verdict and its passed-tree
+  record, since each passed on the same key; the failures file and
+  `temper/check-results` count them as passed, saying how many were.
+- **Without a results directory,** or with one the check cannot write,
+  the check keeps nothing and runs every test, as before; it says why in
+  one line.
+- **Tested** in the driver's unit tests (9.2): a key's line and three
+  passes appended; a matching key's runs filtered to the rest and its
+  line printed; a different key starting again; no variable, no file.
+
 ## 8. Time
 
 - No `cargo clean` and no whole-workspace run: the sets are what the

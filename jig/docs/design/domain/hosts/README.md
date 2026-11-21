@@ -267,10 +267,11 @@ The hub's agent capability is one of smith's two crates. Both speak
 smith's parent face (`smith_host_domain::parent`; smith's
 `domain/host.md`, sections 4 and 9.4), its payloads typed (`hub.md`, 8): down, a
 start (what the assignment gives the agent, with the workspace's
-directories), messages, answers to calls, acknowledgements of turns,
-grants, a drain (the run stops at the end of its current turn, `hub.md`,
-7), a stop and a drop; up, in order, message refusals, calls and
-withdrawals, turns, waiting, long operations, notices, the unread names,
+directories), messages, answers to calls, acknowledgements of turns and
+parts, grants, a drain (the run stops at the end of its current turn,
+or with a grace at its answer, `hub.md`, 7), a stop and a drop; up, in
+order, message refusals, calls and withdrawals, turns and parts (`hub.md`,
+4), waiting, long operations, notices, the unread names,
 one answer, and the agent's failures and end, typed. Both refuse a
 message at the entrance, typed, with smith's reasons (section 7).
 

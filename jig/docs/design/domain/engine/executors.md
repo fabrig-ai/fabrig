@@ -214,6 +214,21 @@ program its endpoint names (`../../protocol/configuration.md`, section 3).
   failure and is closed; its retry continues fresh without that tail. A
   failed load, rather than an unread window, remains a preparation
   failure and closes nothing.
+- **Parts kept between turns** (`../../protocol/channel/records.md`, 5;
+  smith's `domain/turn-parts.md`): the core keeps each part a run sends
+  as it keeps a settled call, under its task, attempt and number, with
+  its turn, thread, call, kind and bytes, then acknowledges it, a copy
+  already kept acknowledged again and dropped. A committed turn retires
+  every part of its task from an earlier attempt and those of its own
+  attempt whose turn is at most its number; the task's end retires the
+  rest. A resumed run is given those kept, by attempt, then number,
+  when its window resumes and the window's bytes and theirs fit the
+  resume limit: main's parts first, then each sub-agent's all or none in
+  call order while they fit, none where main's do not. A run that
+  starts fresh is given none. The core family keeps them as a value
+  type of its own, an added part with its version unmoved
+  (`../../protocol/store/layouts.md`, 1), its body held as a turn's,
+  `holds smith-transcript Turn`.
 - **Resumed only where it ran.** A window is resumed only on the
   endpoint it ran on, program to direct or back alike. The endpoint
   names the backend too: a program source runs on its model's program
@@ -847,10 +862,12 @@ pub enum Request {
   (2), as before. The tasks child activates a due task again at its
   suspension's `until`, whatever else has changed, and with the window
   past the claim's check takes every host.
-- **What the return gains** is the worker's warm store and its
-  workstream's cache (`fleet.md`, the workstream affinity), until the
-  worker keeps the run's workspace too (temper's
-  `draft/worker-restarts.md`, 4).
+- **What the return gains** is the worker's warm store, its
+  workstream's cache (`fleet.md`, the workstream affinity) and, on
+  temper's worker, the cut run's workspace, kept for it with its build
+  outputs and its checks' results (temper's `domain/worker/checkouts.md`,
+  *A workspace kept for its run*), and with the parts kept since its
+  last turn, the cut turn itself (2).
 
 ```rust
 // jig-domain-core

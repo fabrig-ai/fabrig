@@ -69,3 +69,6 @@
 5. **domain/host.md:** the other side: what a host owes a run and is owed, the
    channel, supervising agent processes, the local host, and one process
    through the inline agent.
+6. **domain/turn-parts.md:** a turn told in parts for a host that keeps a
+   run's place across its restart: the answer and each call's result as
+   they come, a drain at the answer, and a cut turn resumed.

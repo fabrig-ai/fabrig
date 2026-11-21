@@ -616,7 +616,7 @@ holds, and neither of its components reads them.
   assignment still past the room with every host answer cut is refused
   as above, its words naming the frame so cut. The cut is the link's:
   the core keeps every call as committed, and retires them at the run's
-  next turn as any.
+  next turn as any. Parts go before any answer is cut (`records.md`, 5).
 - **Inventories coalesce while output waits.** The worker's component
   keeps one latest whole snapshot outside the channel queue and sends it
   when that queue is empty. A replacement snapshot overwrites an unsent

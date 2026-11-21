@@ -10,6 +10,7 @@ answer, and a **notice** is not answered.
 |---|---|---|
 | hello | slots; stop bound, a duration; the agent's bounds: for each endpoint it serves, its number and the largest window and output a charter may name on it; the most turns, spend, time and waiting a run may have; its checks' timeout; the largest message a run takes and how many its inbox holds; the turns it keeps unacknowledged (`README.md`, 4.3); the longest host answer its agent takes, in bytes, if it names one (`../../domain/hosts/README.md`, section 2); the job kinds it runs, ascending and each once, each with the most bytes a spec and a result of it may hold and its longest deadline (4); workstreams held; runs hosted, jobs among them, each with its task, attempt and phase; runs whose turns or answer wait for acknowledgement; `fresh`, whether no hello of the worker's process has yet been admitted, from the workers' wire 19 (`../../domain/engine/executors.md`, 6.5) | first, once |
 | turn | task, attempt; its number within the attempt; its cumulative spend; the last message it read, by name, if any; the messages refused since the run's previous turn, each by name with smith's reason: too large as the run reads it, the run's inbox full, a name in use, or the run ending; whether it opens a window; its bytes, smith's (jig/docs/design/protocol/channel/README.md, 5.1) | notice, kept by the hub until acknowledged |
+| part | task, attempt; its number within the attempt, apart from turns; the turn it belongs to, as a turn's number in the attempt; its thread and its call, numbers smith gives; its kind, `answer`, `result` or `window`; its bytes, smith's turn (smith's `domain/turn-parts.md`, section 2), from the workers' wire 22 (5) | notice, kept by the hub until acknowledged; sent only on a channel whose version has it |
 | call | task, attempt; the run's name for the call, as bytes (`README.md`, section 6); the host tool's name; whether it writes; its input; the time left on its deadline; the version of the host's tools contract its run's charter names (`../../domain/hosts/hub.md`, 8), 1 for a call from an older worker | call |
 | answer | task, attempt; the turns it took; what it spent; the last message it read, by name, if any: the unread fence; the messages refused since the run's last turn, each by name with smith's reason, as a turn carries them; how it ended: refused (busy, or invalid and what), ended with its result, smith's bytes (`README.md`, 5.1), parked, or failed with its typed failure and bounded detail, and, for a failure of its model, the model call where its application names one: endpoint and model, each at most 40 bytes, its kind, its evidence, its HTTP status, if one came, and the name of its refusal's cause, if it was refused before it was sent (`../../domain/hosts/hub.md`, 3); what it left on resources and what it saved, each the application's bytes (`README.md`, 5.2) | answer to an assignment, kept by the hub until acknowledged; a refusal, kept by nothing (below) |
 | job answer | task, attempt; how it ended: refused (busy, or invalid and what), finished with its result, the application's bytes, or failed with its typed failure and bounded detail (4); what it left on resources, the application's bytes (`README.md`, 5.2) | answer to a job, kept by the hub until acknowledged; a refusal, kept by nothing |
@@ -131,12 +132,14 @@ The floor stays 16 and the block is not breaking.
 
 | Record | Fields | Shape |
 |---|---|---|
-| assignment | task, attempt; the run's identity, 16 bytes (`README.md`, section 6); the workstream key and the workspace's items, the application's bytes; whether to save unfinished work; the ask for live content, a boolean for each kind (`../../domain/hosts/README.md`, section 2); the charter, smith's bytes; the transcript, when the run resumes: its current window's turns, smith's bytes, from the last that opens a window (`README.md`, 5.1); the calls committed since its last turn, each with its name, its tool and its answer; the start's messages: those waiting in the task's inbox, oldest first, as many as the run's inbox takes, each with its name, its sender's label and its words, the rest relayed as message records as the run reads (`../../domain/tasks/messages.md`, 2); its credential grants, each naming its form, which selects the table its value comes from, with their values: a credential with its scheme, or a program source's name (`README.md`, section 7) | call |
+| assignment | task, attempt; the run's identity, 16 bytes (`README.md`, section 6); the workstream key and the workspace's items, the application's bytes; whether to save unfinished work; the ask for live content, a boolean for each kind (`../../domain/hosts/README.md`, section 2); the charter, smith's bytes; the transcript, when the run resumes: its current window's turns, smith's bytes, from the last that opens a window (`README.md`, 5.1); the calls committed since its last turn, each with its name, its tool and its answer; the parts kept since its last turn, from the workers' wire 22, each with the attempt that told it, its turn, thread, call, kind and bytes, as a part has them (5); the start's messages: those waiting in the task's inbox, oldest first, as many as the run's inbox takes, each with its name, its sender's label and its words, the rest relayed as message records as the run reads (`../../domain/tasks/messages.md`, 2); its credential grants, each naming its form, which selects the table its value comes from, with their values: a credential with its scheme, or a program source's name (`README.md`, section 7) | call |
 | job | task, attempt; its kind; its spec, the application's bytes; its deadline; the workstream key and the workspace's items, the application's bytes; its credential grants, the application's only (`README.md`, section 7) (4) | call |
 | message | task, attempt; the message's name; its sender's label; its words | notice |
 | relayed | task, attempt; the call's name; the engine's answer: its text for the LLM and whether it is an error, or busy, to ask again after a backoff | answer to a call |
 | turn kept | task, attempt; the turn's number | notice |
 | turn busy | task, attempt; the turn's number: send it again after a backoff | notice |
+| part kept | task, attempt; the part's number: it and every part before it are durable (5) | notice, on a channel whose version has it |
+| part busy | task, attempt; the part's number: send it again after a backoff, as a turn busy | notice, on a channel whose version has it |
 | acknowledge | task, attempt: the answer is durable, or not wanted | notice |
 | cancel | task, attempt | notice, at most one per attempt |
 | grant | task, attempt; its form, which selects the table its value comes from, jig's accounts' or the application's; its number there, generation, how long it is valid, if it lapses; its value: a credential with its scheme, a program source's name, or the application's secret (`README.md`, section 7) | notice |
@@ -297,3 +300,49 @@ its own where a run's carry an agent's parts:
   goes again after a redial until acknowledged (3).
 - **No turns, calls, facts of live content or account notices** cross
   for a job.
+
+## 5. Parts
+
+From the workers' wire 22, a run whose agent tells its turns' parts
+(smith's `domain/turn-parts.md`) sends them up, and a resumed run is
+given back those kept since its last turn.
+
+```
+enum PartKind { answer, result, window }
+record Part { task: u64 attempt: u64 number: u32 turn: u32 thread: u32 call: u32 kind: PartKind body: bytes 33554432 }
+record PartKept { task: u64 attempt: u64 number: u32 }
+record PartBusy { task: u64 attempt: u64 number: u32 }
+record KeptPart { attempt: u64 turn: u32 thread: u32 call: u32 kind: PartKind body: bytes 33554432 }
+# Assignment, appended last: parts: list 4096 KeptPart = []
+```
+
+- **The engine reads none of a part's fields but its numbers and size,**
+  and keeps the rest as it came: its thread, call and kind are smith's
+  numbers, which jig names and never interprets, and its body a turn's
+  bytes in smith's vocabulary (`README.md`, 5.1; `bridges.md`, 5.3).
+- **Kept until acknowledged, as a turn:** sent at once, again after
+  every hello and after a backoff when the engine answers it busy, and
+  counted with the run's turns against what the hub keeps unacknowledged
+  (`../../domain/hosts/hub.md`, 4). Parts and turns go up in the order
+  the agent told them.
+- **Numbered apart from turns,** from one in each attempt. Its `turn`
+  is the number the turn it belongs to will have in that attempt, the
+  last turn told plus one, so a part of turn `n` is moot once turn `n`
+  or a later one of its attempt, or any turn of a later attempt, is
+  committed (`../../domain/engine/executors.md`, 2).
+- **An assignment's parts** are those the engine kept for the task
+  since its last committed turn, by attempt, then number, each with the
+  attempt that told it: none when the run starts fresh.
+- **Parts go first to fit a start's room** (`README.md`, section 8): an
+  assignment carrying parts that does not fit whole is measured again
+  without its sub-agents' parts, each sub-agent's all or none from the
+  last call back, then without its parts at all, before any host answer
+  is cut; a run so started resumes from its window alone, or opens those
+  sub-agents afresh (smith's `domain/turn-parts.md`, section 6). The
+  core keeps the parts as it keeps the calls.
+- **Only where the version has them.** A worker whose channel's agreed
+  version lacks `part` asks its agents for no parts, so it sends none;
+  `part kept` and `part busy` go only to a worker that sent the part
+  they answer; an assignment's parts go down to an older worker by a
+  written reverse that drops them, and that worker's run resumes from
+  its window alone, its cut turn planned again (`bridges.md`, 6.1).
