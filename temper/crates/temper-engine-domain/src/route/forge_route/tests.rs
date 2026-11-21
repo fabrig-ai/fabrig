@@ -5056,6 +5056,117 @@ fn judge_trains(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>)
         .unwrap();
 }
 #[test]
+#[expect(clippy::too_many_lines, reason = "the restart fixture and observed forming stay in one story")]
+fn the_root_forms_a_fresh_repositorys_train_while_another_repository_is_unread() {
+    use super::{Work, forge, landing_route};
+    use skein_forge::api::{Answer, Error, Op, Read};
+    use skein_lib::{Duration, Queue};
+    let (mut domain, env) = train_root(false);
+    let changes = [domain.forge.change(7).unwrap().clone(), domain.forge.change(8).unwrap().clone()];
+    let config = crate::tests::resume_fixture::config(7);
+    domain.forge =
+        forge::Domain::new(&env.limits.forge, 4, config.forge, &config.identities, &config.forges, false).unwrap();
+    domain.forge.restore_begin(env.wall);
+    let forge_env = super::super::environment_forge(&env);
+    let mut first_repository = adopted(1);
+    first_repository.project = 1;
+    let first = first_repository.provider;
+    forge::step(
+        &mut domain.forge,
+        &forge_env,
+        forge::Event::Restore { record: forge::Stored::Repository(first_repository) },
+        &mut Queue::uncapped(),
+    );
+    for change in changes {
+        forge::step(
+            &mut domain.forge,
+            &forge_env,
+            forge::Event::Restore { record: forge::Stored::Change(Box::new(change)) },
+            &mut Queue::uncapped(),
+        );
+    }
+    let other = skein_forge::api::Repository { repository: 2, ..first };
+    let mut repository = adopted(1);
+    repository.project = 1;
+    repository.provider = other;
+    repository.home = false;
+    repository.name = b"other".as_slice().into();
+    forge::step(
+        &mut domain.forge,
+        &forge_env,
+        forge::Event::Restore { record: forge::Stored::Repository(repository) },
+        &mut Queue::uncapped(),
+    );
+    let mut change = domain.forge.change(8).unwrap().clone();
+    change.repository = other;
+    forge::step(
+        &mut domain.forge,
+        &forge_env,
+        forge::Event::Restore { record: forge::Stored::Change(Box::new(change)) },
+        &mut Queue::uncapped(),
+    );
+    for (repository, task) in [(first, 7), (other, 8)] {
+        let name = forge::Name {
+            forge: repository.forge,
+            repository: repository.repository,
+            what: forge::What::Branch(Box::new([b"marker".as_slice().into()])),
+        };
+        forge::step(
+            &mut domain.forge,
+            &forge_env,
+            forge::Event::Restore { record: forge::Stored::Names { task, resources: Box::new([name]) } },
+            &mut Queue::uncapped(),
+        );
+    }
+    for event in [forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic }, forge::Event::CatchUp]
+    {
+        forge::step(&mut domain.forge, &forge_env, event, &mut Queue::uncapped());
+    }
+    turn_project(&mut domain);
+    assert!(!landing_route::form_landings(&mut domain, &env));
+    let mut calls = Queue::uncapped();
+    for _ in 0..forge_env.limits.client.calls {
+        forge::resume(&mut domain.forge, &forge_env, &mut calls);
+    }
+    let mut responses = Queue::uncapped();
+    while let Some(request) = calls.pop() {
+        if let forge::Request::Call { call, repository, op, .. } = request {
+            let Op::Read(Read::Branch { .. }) = op else { panic!("fresh branch read: {op:?}") };
+            let result = if repository == other {
+                Ok(Answer::Commit(SHA1))
+            } else {
+                Err(Error::RateLimited { after: Duration::from_secs(1) })
+            };
+            forge::step(
+                &mut domain.forge,
+                &forge_env,
+                forge::Event::Client(skein_forge_client::Event::Answered {
+                    free: 0,
+                    rate: None,
+                    call,
+                    cost: 1,
+                    result,
+                }),
+                &mut responses,
+            );
+        }
+    }
+    assert!(!domain.forge.fresh_reads_in());
+    assert!(domain.forge.repository_fresh(other));
+    assert!(landing_route::form_landings(&mut domain, &env));
+    let mut members = None;
+    while let Some(work) = domain.work.pop() {
+        if let Work::LandingAdmission { row, .. } = work {
+            members = Some(row.landing.members);
+        }
+    }
+    let members = members.expect("the fresh train is admitted");
+    assert_eq!(members.len(), 1);
+    assert_eq!(members.first().unwrap().change, 8);
+    assert_eq!(domain.forge.change(7).unwrap().change.landing, None);
+}
+
+#[test]
 fn the_root_forms_a_train_from_a_restored_change_with_a_stale_landing_link() {
     use super::{forge, landing};
     use skein_lib::Queue;

@@ -747,7 +747,7 @@ fn landing_merge_carries_coherent_evidence_and_veto_withdraws_it() {
 fn a_single_landing_resumes_ancestry_and_merges_its_members_pull_with_coherent_evidence() {
     landing_merge_evidence(true);
 }
-fn merge_landing_row(single: bool) -> LandingRow {
+pub(super) fn merge_landing_row(single: bool) -> LandingRow {
     let mut row = landing_row(61, policy::Phase::Turn { at: env().wall });
     row.landing.members = Box::new([policy::Member {
         round: None,

@@ -46,6 +46,50 @@ fn fresh_owed_counts_only_each_forges_pending_resources_and_listings() {
 }
 
 #[test]
+fn fresh_owed_in_counts_only_its_listing_and_live_resources_and_keep_drops_them() {
+    let limits = crate::Limits { rate: 100, reserve: 0, ..super::LIMITS };
+    let mut h = Harness::new(limits);
+    h.domain = configured(&limits);
+    let other = Repository { repository: REPO.repository + 1, ..REPO };
+    for repository in [REPO, other] {
+        let mut live = recovery::live();
+        live.watch = kept::watch(kept::issue(), false);
+        live.watch.resource.repository = repository;
+        h.step(Event::Restore { record: Stored::Live(live) });
+        h.step(Event::Restore {
+            record: Stored::Repository(crate::RepositoryRecord { repository, ..recovery::repository() }),
+        });
+        assert_eq!(h.domain.fresh_owed_in(repository), 0);
+    }
+    h.step(Event::Restored { clock: RecoveryClock::Monotonic });
+    assert_eq!(h.domain.fresh_owed_in(REPO), 0);
+    h.step(Event::ReadAfresh);
+    assert_eq!(h.domain.fresh_owed_in(REPO), 2);
+    assert_eq!(h.domain.fresh_owed_in(other), 2);
+    let (read, repository) = h.sent();
+    let answer = match read.op {
+        Op::Read(Read::Items { .. }) => {
+            Answer::Items { cut: false, items: Box::new([]), more: false, now: super::at(recovery::START_AT) }
+        }
+        Op::Read(Read::Item { .. }) => recovery::empty_item(),
+        Op::Read(_) | Op::Write(_) => panic!("unexpected fresh read: {:?}", read.op),
+    };
+    h.answer(&read, 1, Ok(answer));
+    assert_eq!(h.domain.fresh_owed_in(repository), 1);
+    let untouched = if repository == REPO { other } else { REPO };
+    assert_eq!(h.domain.fresh_owed_in(untouched), 2);
+    let mut watch = kept::watch(kept::issue(), false);
+    watch.resource.repository = untouched;
+    h.step(Event::Keep { owner: skein_lib::Token::new(1), watches: Box::new([watch]) });
+    assert_eq!(h.domain.fresh_owed_in(repository), 0);
+    assert_eq!(h.domain.fresh_owed_in(untouched), 2);
+    let done = h.step(Event::Keep { owner: skein_lib::Token::new(2), watches: Box::new([]) });
+    assert!(done.contains(&crate::Request::ReadAfreshDone));
+    assert_eq!(h.domain.fresh_owed_in(REPO), 0);
+    assert_eq!(h.domain.fresh_owed_in(other), 0);
+}
+
+#[test]
 fn finds_owed_counts_each_forges_attempt_until_its_first_look() {
     let mut h = kept::Harness::new();
     h.domain = Domain::configured(

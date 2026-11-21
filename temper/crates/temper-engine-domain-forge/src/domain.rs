@@ -40,6 +40,7 @@ mod rebase;
 #[path = "reds.rs"]
 pub(crate) mod reds;
 pub(crate) mod release;
+pub(crate) mod repository_reads;
 #[path = "restore.rs"]
 mod restore;
 mod room;
@@ -296,15 +297,17 @@ pub struct Domain {
     pending_ci: Map<Token, PendingCi>,
     ci_news: Map<(u64, skein_forge::api::Commit), ci_news::Watch>,
     restart_fresh: Option<bool>,
+    restart_reads_started: bool,
+    fresh_repositories: Set<skein_forge::api::Repository>,
     restart_settling: bool,
     pub(crate) catching_up_seen: Map<u16, crate::CatchingUp>,
     /// Claims received while the restart reads are pending.
     waiting_claims: Map<u64, WaitingClaim>,
     projection_waits: Set<u64>,
-    release_waits: Set<u64>,
+    release_waits: Map<u64, Box<[skein_forge::api::Repository]>>,
     waiting_release_outcomes: Map<u64, (skein_forge_client::Outcome, Option<crate::EffectAccount>)>,
     /// Restored procedures and entries awaiting their restart observations (forge/catching-up.md, 4).
-    fresh_waits: Set<u64>,
+    fresh_waits: Map<u64, Box<[skein_forge::api::Repository]>>,
     fresh_steps: Map<u64, FreshStep>,
     entry_looks: Set<u64>,
     pub(crate) fresh_branches: Set<Name>,
@@ -1028,13 +1031,15 @@ impl Domain {
             pending_ci: Map::uncapped(),
             ci_news: Map::uncapped(),
             restart_fresh: None,
+            restart_reads_started: false,
+            fresh_repositories: Set::with_capacity(l.repositories),
             restart_settling: false,
             catching_up_seen: Map::with_capacity(l.forges),
             waiting_claims: Map::with_capacity(l.tasks),
             projection_waits: Set::with_capacity(l.issues),
-            release_waits: Set::with_capacity(l.tasks),
+            release_waits: Map::with_capacity(l.tasks),
             waiting_release_outcomes: Map::with_capacity(l.tasks),
-            fresh_waits: Set::with_capacity(
+            fresh_waits: Map::with_capacity(
                 l.changes
                     .checked_add(l.landings)
                     .expect("change and landing waiters")
@@ -1232,8 +1237,15 @@ impl Domain {
             return None;
         }
         let mut next = read_session::deadline(self).into_iter().chain(crate::history::sweep::deadline(self)).min();
-        let projections = if fresh_reads_in(self) { Some(&self.projection_due) } else { None };
-        for deadlines in projections.into_iter().chain([&self.change_due, &self.landing.due, &self.tier_ops.due]) {
+        for (goal, deadline) in &self.projection_due {
+            if repository_reads::projection_fresh(self, *goal) {
+                next = Some(match next {
+                    Some(previous) => previous.min(*deadline),
+                    None => *deadline,
+                });
+            }
+        }
+        for deadlines in [&self.change_due, &self.landing.due, &self.tier_ops.due] {
             for (_, deadline) in deadlines {
                 next = Some(match next {
                     Some(previous) => previous.min(*deadline),
@@ -1742,6 +1754,7 @@ impl Domain {
 /// Decide one parent event and collect its durable records and outputs.
 pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     decide(d, env, event, out);
+    read_afresh_complete(d, env, out);
     catching_up::mark(d, out);
 }
 
@@ -2173,7 +2186,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
         }
         Event::Hold { entry, task, resource, from } => hold(d, env, entry, task, resource, from, out),
         Event::Claim { task, attempt, writes, designs, holders } => {
-            if fresh_reads_in(d) {
+            if repository_reads::claim_fresh(d, &writes, &designs) {
                 claim(d, env, task, attempt, &writes, &designs, &holders, out);
             } else if !matches_later_claim(d, task, attempt) {
                 d.waiting_claims.insert(task, (attempt, writes, designs, holders)).expect("one claim per live run");
@@ -2548,7 +2561,7 @@ fn expire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         }
     }
     for goal in &goals {
-        if fresh_reads_in(d) {
+        if repository_reads::projection_fresh(d, *goal) {
             d.projection_due.remove(goal);
             emit(out, Request::ProjectAfter { goal: *goal, when: None });
         } else {
@@ -2760,7 +2773,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                         None => false,
                     }
                 {
-                    emit(out, Request::ContinueRelease { task });
+                    continue_release_once(out, task);
                 }
             }
             skein_forge_client::Request::Changed { resource, result } => {
@@ -3768,7 +3781,7 @@ fn lost_read(
     if let Some(hold) = d.holds.get(&pending.name)
         && hold.task != pending.task
     {
-        continue_writer_release(d, pending.task, false, out);
+        continue_writer_release(d, pending.task, repository_reads::repository(&pending.name), false, out);
     }
 }
 
@@ -3820,30 +3833,44 @@ fn superseded_head(
     }
 }
 
-fn lost_failed(d: &Domain, task: u64, attempt: u64, name: &Name, reason: &[u8], out: &mut Queue<Request>) {
+fn lost_failed(d: &mut Domain, task: u64, attempt: u64, name: &Name, reason: &[u8], out: &mut Queue<Request>) {
     lost_release(d, name, true, out);
     if let Some(hold) = d.holds.get(name)
         && hold.task != task
     {
-        continue_writer_release(d, task, true, out);
+        continue_writer_release(d, task, repository_reads::repository(name), true, out);
     }
     emit(out, Request::LostReadFailed { task, attempt, resource: name.clone(), reason: Box::from(reason) });
 }
 
 /// Wake the holder's existing release after its lost writer's reread ends.
-fn lost_release(d: &Domain, name: &Name, failed: bool, out: &mut Queue<Request>) {
+fn lost_release(d: &mut Domain, name: &Name, failed: bool, out: &mut Queue<Request>) {
     let Some(hold) = d.holds.get(name) else { return };
-    continue_writer_release(d, hold.task, failed, out);
+    let task = hold.task;
+    continue_writer_release(d, task, repository_reads::repository(name), failed, out);
 }
 
 /// A writer's own release waits too, even when its branch belongs to its parent.
-fn continue_writer_release(d: &Domain, task: u64, failed: bool, out: &mut Queue<Request>) {
+fn continue_writer_release(
+    d: &mut Domain,
+    task: u64,
+    repository: skein_forge::api::Repository,
+    failed: bool,
+    out: &mut Queue<Request>,
+) {
+    if !failed && (!repository_fresh(d, repository) || !repository_reads::release_fresh(d, task)) {
+        if d.releases.contains_key(&task) {
+            repository_reads::park_release_in(d, task, repository);
+        }
+        return;
+    }
     let Some(row) = d.releases.get(&task) else { return };
     if row.releasing && !row.failed && row.pending.is_none() {
-        emit(
-            out,
-            if failed { Request::ReleaseFailed { task, account: None } } else { Request::ContinueRelease { task } },
-        );
+        if failed {
+            emit(out, Request::ReleaseFailed { task, account: None });
+        } else {
+            continue_release_once(out, task);
+        }
     }
 }
 
@@ -5092,7 +5119,7 @@ fn step_verified(
     heard: change::Heard,
     out: &mut Queue<Request>,
 ) {
-    if !fresh_reads_in(d) {
+    if !repository_reads::change_fresh(d, task) {
         d.fresh_steps
             .insert(task, FreshStep::Verified { merge, heard: Box::new(heard) })
             .expect("one parked step per change");
@@ -5304,7 +5331,7 @@ fn step_read(
                 }
             }
             if goal_branch::base_wait(d, repository, &base) {
-                wait_fresh(d, pending.task);
+                wait_fresh(d, pending.task, &[repository]);
                 wait_for_forge(d, env, &pending, None, out);
                 return;
             }
@@ -5321,7 +5348,7 @@ fn step_read(
         }
         StepStage::Base => {
             if goal_branch::base_wait(d, repository, &base) {
-                wait_fresh(d, pending.task);
+                wait_fresh(d, pending.task, &[repository]);
                 wait_for_forge(d, env, &pending, None, out);
                 return;
             }
@@ -5964,7 +5991,7 @@ fn hold_read_session(
     pending: Option<&PendingStep>,
     out: &mut Queue<Request>,
 ) {
-    if wait_fresh(d, task) {
+    if wait_fresh(d, task, &[]) {
         return;
     }
     let Some(mut row) = d.changes.get(&task).cloned() else { return };
@@ -6081,7 +6108,7 @@ fn change_standing(d: &Domain, row: &ChangeRow, pending: &PendingStep) -> change
 
 #[expect(clippy::too_many_lines, reason = "one coherent snapshot records a green repair ending before stepping onward")]
 fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out: &mut Queue<Request>) {
-    if !fresh_reads_in(d) {
+    if !repository_reads::change_fresh(d, pending.task) {
         d.fresh_steps.insert(pending.task, FreshStep::Gather(Box::new(pending))).expect("one parked step per change");
         return;
     }
@@ -7587,7 +7614,7 @@ fn fresh_release_reads(d: &mut Domain, env: &Env<Limits>, row: &ChangeRow, out: 
 fn cancellation_pull(d: &Domain, task: u64) -> Option<u64> {
     let change = d.changes.get(&task)?;
     // Keep the possible close until the fresh pull and merge facts can judge it.
-    if !fresh_reads_in(d) {
+    if !repository_fresh(d, change.repository) {
         return change.pull;
     }
     if landed_commit(&change.change.state).is_some() {
@@ -7763,8 +7790,8 @@ fn withdraw_unsent(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue
 }
 
 fn settle_prior_effects(d: &mut Domain, task: u64, out: &mut Queue<Request>) {
-    if !fresh_reads_in(d) {
-        d.release_waits.insert(task).expect("one wait per release");
+    if !repository_reads::release_fresh(d, task) {
+        repository_reads::park_release(d, task);
         return;
     }
     if let Some(issue) = d.issues.get(&task)
@@ -7840,9 +7867,9 @@ fn release(
 
 fn continue_release(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, out: &mut Queue<Request>) {
     // The durable release and its place stay put while its facts are read.
-    if !fresh_reads_in(d) {
+    if !repository_reads::release_fresh(d, task) {
         if d.releases.contains_key(&task) {
-            d.release_waits.insert(task).expect("one wait per release");
+            repository_reads::park_release(d, task);
             crate::room::pass(d, task);
         }
         return;
@@ -8241,9 +8268,9 @@ fn release_outcome(
     }
     let Some(task) = owner else { return };
     let account = settled_account(d, entry, outcome);
-    if !fresh_reads_in(d) {
+    if !repository_reads::release_fresh(d, task) {
         d.waiting_release_outcomes.insert(entry, (outcome, account)).expect("one outcome per pending release");
-        d.release_waits.insert(task).expect("one wait per release");
+        repository_reads::park_release(d, task);
         return;
     }
     finish_release_outcome(d, env, task, entry, outcome, account, out);
@@ -8371,7 +8398,7 @@ fn project(
         d.issues.insert(goal, prior.clone()).expect("projection room checked");
         emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Issue(prior.clone()) });
     }
-    if !fresh_reads_in(d) {
+    if !repository_fresh(d, repository) {
         d.projection_waits.insert(goal).expect("one wait per issue");
         return;
     }
@@ -8810,7 +8837,7 @@ fn settle_held(d: &mut Domain, task: u64, out: &mut Queue<Request>) -> bool {
         }
         not_made(d, *number, out);
     }
-    emit(out, Request::ContinueRelease { task });
+    continue_release_once(out, task);
     false
 }
 
@@ -10001,6 +10028,8 @@ fn restored(d: &mut Domain, env: &Env<Limits>, clock: skein_forge_client::Recove
     d.restore_landing_settings();
     crate::landing_log::restored(d, out);
     d.restore_phase = RestorePhase::Restoring;
+    d.restart_reads_started = false;
+    d.fresh_repositories = Set::with_capacity(d.repositories.capacity());
     d.restart_settling = true;
     child(d, env, skein_forge_client::Event::Restored { clock }, out);
     retire_ended(d, env, out);
@@ -10085,7 +10114,7 @@ fn read_afresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     for (task, row) in &d.changes {
         changes.push(*task).expect("change capacity");
         if let change::State::Landing { .. } = row.change.state {
-            d.fresh_waits.insert(*task).expect("restored landing judgement waiter");
+            d.fresh_waits.insert(*task, Box::new([row.repository])).expect("restored landing judgement waiter");
         }
         if !row.questions.waiting.is_empty() {
             emit(out, Request::WakeProcedure { task: *task });
@@ -10094,7 +10123,8 @@ fn read_afresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     for (task, row) in &d.landing.rows {
         for entry in &row.entries {
             if entry.operation == crate::Operation::Merge {
-                d.fresh_waits.insert(*task).expect("restored landing judgement waiter");
+                let repositories = crate::landing::repositories(row, env.limits.repositories);
+                d.fresh_waits.insert(*task, repositories).expect("restored landing judgement waiter");
             }
         }
     }
@@ -10108,6 +10138,7 @@ fn read_afresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     goal_branch::restart(d, env, out);
     crate::tiers::restart(d, env, out);
     rebase::read_afresh(d, env, out);
+    d.restart_reads_started = true;
     child(d, env, skein_forge_client::Event::ReadAfresh, out);
 }
 
@@ -10157,7 +10188,7 @@ fn retire_ended(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
             if let Some(row) = d.releases.get(&task)
                 && !row.failed
             {
-                emit(out, Request::ContinueRelease { task });
+                continue_release_once(out, task);
             }
         }
         let mut releases = List::with_capacity(d.releases.capacity());
@@ -10175,7 +10206,7 @@ fn retire_ended(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         }
         for task in releases.into_boxed() {
             leave_room_release(d, task, out);
-            emit(out, Request::ContinueRelease { task });
+            continue_release_once(out, task);
         }
         let mut changes = List::with_capacity(d.changes.capacity());
         for (task, row) in &d.changes {
@@ -10275,64 +10306,48 @@ fn read_afresh_complete(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Reque
         d.restart_fresh = None;
         emit(out, Request::RestartDone { stage: RestartStage::ReadAfresh });
         read_session::fresh(d, env);
-        let capacity = d.fresh_steps.capacity();
-        let mut steps = core::mem::replace(&mut d.fresh_steps, Map::with_capacity(capacity));
-        while let Some((&task, _)) = steps.first() {
-            let step = steps.remove(&task).expect("collected parked step");
-            d.fresh_waits.remove(&task);
-            if d.stopping {
-                continue;
-            }
-            match step {
-                FreshStep::Gather(pending) => decide_step(d, env, *pending, out),
-                FreshStep::Verified { merge, heard } => step_verified(d, env, task, merge, *heard, out),
-            }
-        }
-        let capacity = d.fresh_waits.capacity();
-        let waiting = core::mem::replace(&mut d.fresh_waits, Set::with_capacity(capacity));
-        for task in &waiting {
-            wake_once(out, *task);
-        }
-        crate::tiers::fresh(d, env, out);
-        crate::follows::fresh(d, out);
-        d.fresh_branches = Set::with_capacity(d.fresh_branches.capacity());
-        let outcomes = core::mem::replace(&mut d.waiting_release_outcomes, Map::with_capacity(env.limits.tasks));
-        for (entry, (outcome, account)) in &outcomes {
-            let mut owner = None;
-            for (task, row) in &d.releases {
-                if let Some((pending, _)) = &row.pending
-                    && *pending == *entry
-                {
-                    owner = Some(*task);
-                }
-            }
-            if let Some(task) = owner {
-                finish_release_outcome(d, env, task, *entry, *outcome, account.clone(), out);
-                // Keep the pending release and its entry linked across a crash until this judgement is saved.
-                if *outcome != skein_forge_client::Outcome::Held && d.entries.remove(entry).is_some() {
-                    emit(out, Request::Erase { key: Key::Entry(*entry) });
-                }
-            }
-        }
-        let claims = core::mem::replace(&mut d.waiting_claims, Map::with_capacity(env.limits.tasks));
-        for (task, (attempt, writes, designs, holders)) in &claims {
-            claim(d, env, *task, *attempt, writes, designs, holders, out);
-            wake_once(out, *task);
-        }
-        let releases = core::mem::replace(&mut d.release_waits, Set::with_capacity(env.limits.tasks));
-        for task in &releases {
-            if let Some(row) = d.releases.get(task)
-                && !row.failed
-            {
-                emit(out, Request::ContinueRelease { task: *task });
-            }
-        }
-        let projections = core::mem::replace(&mut d.projection_waits, Set::with_capacity(env.limits.issues));
-        for goal in &projections {
-            d.projection_due.remove(goal);
-            emit(out, Request::ProjectAfter { goal: *goal, when: None });
+    }
+    if d.restart_reads_started {
+        repository_reads::wake(d, env, out);
+        if fresh_reads_in(d) {
+            d.fresh_branches = Set::with_capacity(d.fresh_branches.capacity());
+            d.restart_reads_started = false;
         }
     }
+}
+
+/// One repository's restart reads are in (temper/docs/design/domain/forge/catching-up.md, 2).
+pub(crate) fn repository_fresh(d: &Domain, repository: skein_forge::api::Repository) -> bool {
+    if fresh_reads_in(d) {
+        return true;
+    }
+    if d.restore_phase == RestorePhase::Restoring || !d.restart_reads_started {
+        return false;
+    }
+    if d.client.fresh_owed_in(repository) != 0 || d.landing.reading_in(repository) {
+        return false;
+    }
+    for (_, pending) in &d.pending_ci {
+        if pending.repository == repository {
+            return false;
+        }
+    }
+    for (_, pending) in &d.goal_file_reads {
+        if pending.repository == repository {
+            return false;
+        }
+    }
+    for (_, pending) in &d.lost {
+        if repository_reads::repository(&pending.name) == repository {
+            return false;
+        }
+    }
+    for (_, pending) in &d.makings {
+        if pending.outbox_wait.is_none() && repository_reads::repository(&pending.name) == repository {
+            return false;
+        }
+    }
+    true
 }
 
 /// The restart's fresh reads are in (temper/docs/design/domain/forge/catching-up.md, 2).
@@ -10341,11 +10356,28 @@ pub(crate) fn fresh_reads_in(d: &Domain) -> bool {
 }
 
 impl Domain {
+    /// Whether decisions on this repository's restored facts may proceed.
+    #[must_use]
+    pub fn repository_fresh(&self, repository: skein_forge::api::Repository) -> bool {
+        repository_fresh(self, repository)
+    }
+
     /// Whether decisions on restored forge facts may proceed.
     #[must_use]
     pub fn fresh_reads_in(&self) -> bool {
         fresh_reads_in(self)
     }
+}
+
+fn continue_release_once(out: &mut Queue<Request>, task: u64) {
+    for request in out.iter() {
+        if let Request::ContinueRelease { task: prior } = request
+            && *prior == task
+        {
+            return;
+        }
+    }
+    emit(out, Request::ContinueRelease { task });
 }
 
 fn wake_once(out: &mut Queue<Request>, task: u64) {
@@ -10359,11 +10391,31 @@ fn wake_once(out: &mut Queue<Request>, task: u64) {
     emit(out, Request::WakeProcedure { task });
 }
 
-pub(crate) fn wait_fresh(d: &mut Domain, task: u64) -> bool {
-    if fresh_reads_in(d) {
+pub(crate) fn wait_fresh(d: &mut Domain, task: u64, repositories: &[skein_forge::api::Repository]) -> bool {
+    let mut waiting = List::with_capacity(d.repositories.capacity());
+    let mut forge_wide = repositories.is_empty();
+    if let Some(prior) = d.fresh_waits.get(&task) {
+        forge_wide |= prior.is_empty();
+        for repository in prior {
+            if !waiting.as_slice().contains(repository) {
+                waiting.push(*repository).expect("wait repositories are adopted");
+            }
+        }
+    }
+    if forge_wide {
+        waiting = List::with_capacity(d.repositories.capacity());
+    } else {
+        for repository in repositories {
+            if !waiting.as_slice().contains(repository) {
+                waiting.push(*repository).expect("wait repositories are adopted");
+            }
+        }
+    }
+    if repository_reads::all_fresh(d, waiting.as_slice()) {
+        d.fresh_waits.remove(&task);
         return false;
     }
-    d.fresh_waits.insert(task).expect("one restart waiter per procedure");
+    d.fresh_waits.insert(task, waiting.into_boxed()).expect("one restart waiter per procedure");
     true
 }
 
@@ -10379,7 +10431,15 @@ pub(crate) fn entries_looked(d: &Domain, task: u64) -> bool {
 }
 
 pub(crate) fn branch_read(d: &Domain, name: &Name) -> bool {
-    fresh_reads_in(d) || d.fresh_branches.contains(name)
+    repository_fresh(d, repository_reads::repository(name)) || d.fresh_branches.contains(name)
+}
+
+/// Whether an earlier answer already woke this branch's followers. The client's
+/// last read can complete the repository before its observation is routed here.
+pub(crate) fn branch_observed(d: &Domain, name: &Name) -> bool {
+    fresh_reads_in(d)
+        || d.fresh_repositories.contains(&repository_reads::repository(name))
+        || d.fresh_branches.contains(name)
 }
 
 fn settled_projection(d: &Domain, goal: u64, out: &mut Queue<Request>) {

@@ -14,17 +14,7 @@ fn changes(domain: &Domain, env: &Env<Limits>, task: u64) -> Box<[u64]> {
 }
 
 fn dependencies(domain: &Domain, env: &Env<Limits>, project: u32) -> Box<[forge::ChangeDependencies]> {
-    let mut graph = List::with_capacity(env.limits.forge.changes);
-    for repository in domain.forge.writable_repositories(project) {
-        for change in domain.forge.changes_for(repository.provider, env.limits.forge.changes) {
-            if let Some(row) = domain.core.tasks.task(change) {
-                graph
-                    .push(forge::ChangeDependencies { change, pending: row.waiting_on.clone() })
-                    .expect("bounded changes");
-            }
-        }
-    }
-    graph.into_boxed()
+    domain.forge.forming_dependencies(&domain.core.tasks, project, env.limits.forge.changes)
 }
 
 /// Joined dependencies permit the forming decision to refuse the whole unit.
@@ -88,96 +78,20 @@ pub(super) fn pending(
     pending.into_boxed()
 }
 
-pub(super) fn landed_step_due(domain: &Domain, task: u64) -> bool {
-    let Some(change) = domain.forge.change(task) else { return false };
-    if let forge_change::State::Ready { .. } = change.change.state
-        && let Some(task) = change.change.landing
-        && let Some(row) = domain.forge.landing(task)
-    {
-        for member in &row.landing.members {
-            if member.change == change.task {
-                return member.landed.is_some();
-            }
-        }
-    }
-    false
-}
-
-fn member(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<landing::Member> {
-    let row = domain.forge.change(task)?;
-    let project = domain.forge.repository(row.repository)?.project;
-    let mut gates = List::with_capacity(env.limits.forge.gates);
-    if let Some(repository) = domain.forge.repository_gates(project, row.repository)
-        && domain.forge.repository(row.repository)?.landing == row.base
-    {
-        for _ in &repository.gates {
-            gates
-                .push(landing::GateProof {
-                    proof: landing::Proof::Unkeyed,
-                    posted: landing::Posted::Nothing,
-                    faults: 0,
-                })
-                .expect("configured gates");
-        }
-    }
-    Some(landing::Member {
-        round: None,
-        unit: 0,
-        branch: Box::new([]),
-        combined: None,
-        recorded: false,
-        told: false,
-        judging: false,
-        leave_told: false,
-        left: None,
-        change: task,
-        repository: landing::Repository { forge: row.repository.forge, repository: row.repository.repository },
-        // A producing member has no pull yet; the top fills it before reading.
-        pull: row.pull.unwrap_or(0),
-        head: None,
-        base: None,
-        candidate: None,
-        gates: gates.into_boxed(),
-        asked: None,
-        landed: None,
-    })
-}
-
 /// Judge every derived train at quiescence, after readiness, ending, priority and
 /// restart work has settled. One queued decision is committed before judging again
 /// so neither a train nor the live-row bound can be reserved twice (landing.md, 9).
 pub(crate) fn form_landings(domain: &mut Domain, env: &Env<Limits>) -> bool {
-    if !domain.forge.fresh_reads_in() || domain.forge.landing_held() {
+    if domain.forge.landing_held() {
         return false;
     }
     forget_empty_trains(domain, env);
     for (repository, branch) in domain.forge.waiting_trains() {
-        if form_train(domain, env, repository, &branch) {
+        if domain.forge.repository_fresh(repository) && form_train(domain, env, repository, &branch) {
             return true;
         }
     }
     false
-}
-
-/// The policy owns gate retries and every merge outcome
-/// (temper/docs/design/domain/landing.md, 7.4, 8); other terminal writes need an account.
-pub(super) fn failed_effect_needs_hold(domain: &Domain, task: u64, entry: u64) -> bool {
-    let Some(row) = domain.forge.landing(task) else { return false };
-    for pending in &row.entries {
-        if pending.entry != entry {
-            continue;
-        }
-        match pending.operation {
-            forge::Operation::Dispatch | forge::Operation::Rerun | forge::Operation::Merge => return false,
-            forge::Operation::Pending
-            | forge::Operation::Verdict
-            | forge::Operation::Open
-            | forge::Operation::Close
-            | forge::Operation::Delete
-            | forge::Operation::Record => {}
-        }
-    }
-    true
 }
 
 #[cfg(test)]
@@ -238,6 +152,18 @@ fn form_train(domain: &mut Domain, env: &Env<Limits>, repository: skein_forge::a
     }
     let graph = dependencies(domain, env, project);
     let units = domain.forge.waiting_units(repository, branch, excluded.as_slice(), &graph, env.wall);
+    // The outer forming loop checked this train's repository. A dependency unit
+    // can also judge other repositories, including a refusal to join them.
+    for unit in &units {
+        for task in &unit.changes {
+            if let Some(row) = domain.forge.change(*task)
+                && row.repository != repository
+                && !domain.forge.repository_fresh(row.repository)
+            {
+                return false;
+            }
+        }
+    }
     let selection = domain.forge.select_waiting(repository, branch, &units);
     // A hold is a committed decision too: judge the remaining train again afterwards.
     if let Some(index) = selection.hold.first() {
@@ -252,7 +178,7 @@ fn form_train(domain: &mut Domain, env: &Env<Limits>, repository: skein_forge::a
     for (number, index) in selection.take.iter().enumerate() {
         let unit = units.get(skein_lib::usize_of(*index)).expect("selected unit");
         for task in &unit.changes {
-            let Some(mut member) = member(domain, env, *task) else { return false };
+            let Some(mut member) = domain.forge.forming_member(*task, env.limits.forge.gates) else { return false };
             member.unit = u16::try_from(number).expect("bounded units");
             members.push(member).expect("selected members");
             changes.push(*task).expect("selected members");
@@ -581,9 +507,9 @@ pub(super) fn landing_decision(domain: &mut Domain, env: &Env<Limits>, task: u64
             domain.forge.wait_landing(&super::super::environment_forge(env), task, until);
             StepEnd::Wait
         }
-        landing::Decision::Finish => {
-            StepEnd::Result(tasks::TaskResult::Report { words: landing_result_words(domain, env, task) })
-        }
+        landing::Decision::Finish => StepEnd::Result(tasks::TaskResult::Report {
+            words: domain.forge.landing_result_words(task, env.limits.tasks.result_bytes),
+        }),
         landing::Decision::Cancel => {
             domain.work.push(Work::Tasks(tasks::Event::Cancel {
                 reply_to: super::super::internal(u64::MAX),
@@ -659,49 +585,9 @@ pub(super) fn landing_decision(domain: &mut Domain, env: &Env<Limits>, task: u64
 
 // A landing ends for its train alone (domain/landing.md, 4.2 and 9).
 fn wake_train_ready(domain: &mut Domain, env: &Env<Limits>, task: u64) {
-    let Some(landing) = domain.forge.landing(task) else { return };
-    let Some(member) = landing.landing.members.first() else { return };
-    let repository =
-        skein_forge::api::Repository { forge: member.repository.forge, repository: member.repository.repository };
-    for change in domain.forge.changes_for(repository, env.limits.forge.changes) {
-        if let Some(row) = domain.forge.change(change)
-            && row.change.landing.is_none()
-            && let forge_change::State::Ready { .. } = row.change.state
-            && row.base == landing.landing.branch
-        {
-            domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task: change }));
-        }
+    for change in domain.forge.waiting_after_landing(task, env.limits.forge.changes) {
+        domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task: change }));
     }
-}
-/// Aggregate report contract: owner/name, a space, then the landed commit in hex, one line each.
-fn landing_result_words(domain: &Domain, env: &Env<Limits>, task: u64) -> Box<[u8]> {
-    let mut words = List::with_capacity(env.limits.tasks.result_bytes);
-    for (index, member) in domain.forge.landing(task).expect("finished landing").landing.members.iter().enumerate() {
-        let provider =
-            skein_forge::api::Repository { forge: member.repository.forge, repository: member.repository.repository };
-        if let Some(repository) = domain.forge.repository(provider) {
-            append(&mut words, &repository.owner);
-            append(&mut words, b"/");
-            append(&mut words, &repository.name);
-        }
-        append(&mut words, b" ");
-        let Some(commit) = member.landed else {
-            append(&mut words, b"change ");
-            append(&mut words, skein_lib::Decimal::of(member.change).as_bytes());
-            append(&mut words, b" left: ");
-            if let Some(why) = domain.forge.landing_leave_words(task, u16::try_from(index).expect("member position")) {
-                append(&mut words, &why);
-            }
-            append(&mut words, b"\n");
-            continue;
-        };
-        let width = if commit[20..] == [0; 12] { 20 } else { 32 };
-        for byte in commit.get(..width).expect("commit width") {
-            append(&mut words, &forge::hex(*byte));
-        }
-        append(&mut words, b"\n");
-    }
-    words.into_boxed()
 }
 
 // Read the inbox, live children, and the round's kept answer, in that order;

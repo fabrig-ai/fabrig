@@ -532,7 +532,7 @@ pub(crate) fn observed(
     out: &mut Queue<Request>,
 ) {
     let name = name(repository, branch);
-    let first = !crate::domain::branch_read(d, &name);
+    let first = !crate::domain::branch_observed(d, &name);
     crate::follows::observed(d, repository, branch, after, out);
     if !crate::domain::fresh_reads_in(d) && watched(d).as_slice().contains(&name) {
         d.fresh_branches.insert(name).expect("followed branches fit watches");
@@ -940,7 +940,7 @@ fn effect(d: &mut Domain, row: &mut TierRow, entry: u64, write: Write, release: 
     );
 }
 fn finish(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, message_bytes: u32, out: &mut Queue<Request>) {
-    if crate::domain::wait_fresh(d, row.task.expect("tier task"))
+    if crate::domain::wait_fresh(d, row.task.expect("tier task"), &[row.repository])
         || !crate::domain::entries_looked(d, row.task.expect("tier task"))
     {
         wait(row.task.expect("tier task"), out);
@@ -1138,7 +1138,7 @@ pub(crate) fn step(
         );
         return;
     };
-    if crate::domain::wait_fresh(d, task) || !crate::domain::entries_looked(d, task) {
+    if crate::domain::wait_fresh(d, task, &[key.0]) || !crate::domain::entries_looked(d, task) {
         wait(task, out);
         return;
     }
@@ -1672,15 +1672,17 @@ fn span_deadline(d: &Domain, row: &TierRow) -> Option<Time> {
 }
 
 /// Fresh reads release due tiers and procedures without a timer or hint.
-pub(crate) fn fresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    d.tier_ops.restored = Set::with_capacity(d.tier_ops.restored.capacity());
-    let mut repositories = List::with_capacity(d.repositories.capacity());
-    for (repository, _) in &d.repositories {
-        repositories.push(*repository).expect("adopted repositories");
+pub(crate) fn fresh(d: &mut Domain, env: &Env<Limits>, repository: Repository, out: &mut Queue<Request>) {
+    let mut restored = List::with_capacity(d.tier_ops.restored.capacity());
+    for key in &d.tier_ops.restored {
+        if key.0 == repository {
+            restored.push(key.clone()).expect("restored tiers");
+        }
     }
-    for repository in repositories.into_boxed() {
-        start_due(d, env, repository, out);
+    for key in restored.into_boxed() {
+        d.tier_ops.restored.remove(&key);
     }
+    start_due(d, env, repository, out);
 }
 
 pub(crate) fn restart(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {

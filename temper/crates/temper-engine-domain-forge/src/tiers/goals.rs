@@ -194,7 +194,7 @@ pub(super) fn start_due(
             }
             ready
         }
-        None => crate::domain::fresh_reads_in(d),
+        None => crate::domain::repository_fresh(d, repository),
     };
     if ready
         && !row.requested

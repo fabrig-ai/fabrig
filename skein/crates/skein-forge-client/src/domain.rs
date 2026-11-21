@@ -107,6 +107,11 @@ impl Domain {
     pub fn fresh_owed(&self, forge: u16) -> u32 {
         self.keep.fresh_owed(forge)
     }
+    /// Reads still owed by this repository in the restart's fresh pass (forge/client.md, 8).
+    #[must_use]
+    pub fn fresh_owed_in(&self, repository: api::Repository) -> u32 {
+        self.keep.fresh_owed_in(repository)
+    }
     /// Restored attempts this forge has not looked at once (forge/client.md, 8).
     #[must_use]
     pub fn finds_owed(&self, forge: u16) -> u32 {

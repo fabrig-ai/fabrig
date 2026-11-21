@@ -152,7 +152,35 @@ enum RoundRead {
     Upstream,
 }
 
+/// The repositories whose receipts and heads a train judges.
+pub(crate) fn repositories(row: &LandingRow, capacity: u32) -> Box<[api::Repository]> {
+    let mut repositories = List::with_capacity(capacity);
+    for member in &row.landing.members {
+        let repository = repository(member);
+        if !repositories.as_slice().contains(&repository) {
+            repositories.push(repository).expect("train repositories are adopted");
+        }
+    }
+    repositories.into_boxed()
+}
+
 impl State {
+    pub(crate) fn reading_in(&self, repository: api::Repository) -> bool {
+        for (_, pending) in &self.pending {
+            if pending.repository == repository {
+                return true;
+            }
+            if let Some(row) = self.rows.get(&pending.task) {
+                for member in &row.landing.members {
+                    if self::repository(member) == repository {
+                        return true;
+                    }
+                }
+            }
+        }
+        false
+    }
+
     pub(crate) fn gathers_owed(&self, forge: u16) -> u32 {
         let mut owed = 0_u32;
         for (_, pending) in &self.pending {
@@ -719,7 +747,7 @@ impl Domain {
         self.landing.receipts.get(key)
     }
 }
-fn append_words(words: &mut List<u8>, bytes: &[u8]) {
+pub(crate) fn append_words(words: &mut List<u8>, bytes: &[u8]) {
     for byte in bytes {
         if words.push(*byte).is_err() {
             break;
@@ -4954,8 +4982,10 @@ pub(crate) fn judge(
     evidence: &crate::ChangeEvidence,
     reviewers: &[crate::Reviewer],
 ) -> Option<crate::JudgeVerdict> {
-    if !crate::domain::fresh_reads_in(d) {
-        return Some(crate::JudgeVerdict::Wait);
+    for member in &row.landing.members {
+        if !crate::domain::repository_fresh(d, repository(member)) {
+            return Some(crate::JudgeVerdict::Wait);
+        }
     }
     for (position, member) in row.landing.members.iter().enumerate() {
         if member.candidate != Some(head) {
@@ -5527,7 +5557,11 @@ pub(crate) fn defer_merge(d: &mut Domain, task: u64, entry: u64, out: &mut Queue
     d.entries.remove(&entry);
     emit(out, Request::Erase { key: Key::Entry(entry) });
     save(d, row, out);
-    if super::domain::wait_fresh(d, task) {
+    let repositories = match d.landing.rows.get(&task) {
+        Some(row) => repositories(row, d.repositories.capacity()),
+        None => Box::new([]),
+    };
+    if super::domain::wait_fresh(d, task, &repositories) {
         d.landing.due.remove(&task);
     }
 }

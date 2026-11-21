@@ -225,7 +225,7 @@ pub(crate) fn observed(d: &mut Domain, repository: Repository, branch: &[u8], af
     }
     let source = !keys.is_empty();
     let name = crate::tiers::name(repository, branch);
-    let first = !crate::domain::branch_read(d, &name);
+    let first = !crate::domain::branch_observed(d, &name);
     if source && !crate::domain::fresh_reads_in(d) {
         d.fresh_branches.insert(name).expect("follow sources fit watches");
     }
@@ -263,8 +263,11 @@ fn wake(row: &FollowRow, out: &mut Queue<Request>) {
         None => out.push(Request::FollowRun { project: row.project, follow: row.follow }),
     }
 }
-pub(crate) fn fresh(d: &Domain, out: &mut Queue<Request>) {
+pub(crate) fn fresh(d: &Domain, repository: Repository, out: &mut Queue<Request>) {
     for (_, row) in &d.follow_rows {
+        if row.source != repository {
+            continue;
+        }
         let Some(branch) = branch(d, row) else { continue };
         if !d.fresh_branches.contains(&crate::tiers::name(row.source, branch)) {
             wake(row, out);

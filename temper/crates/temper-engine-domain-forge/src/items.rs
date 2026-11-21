@@ -91,7 +91,7 @@ impl Domain {
     }
 
     fn design_branch_waiting(&self, name: &crate::Name) -> bool {
-        if self.workspace_reads_waiting() {
+        if !self.repository_fresh(api::Repository { forge: name.forge, repository: name.repository }) {
             return true;
         }
         let undrifted = match self.holds.get(name) {
@@ -127,7 +127,7 @@ impl Domain {
         let (mut start, mut push, holder, selected_landing, delivers) = match inherited {
             Some((row, kind)) => match kind {
                 change::Delegate::Produce => {
-                    if seed.saved_branch.is_none() && self.workspace_reads_waiting() {
+                    if seed.saved_branch.is_none() && !self.repository_fresh(seed.repository) {
                         return None;
                     }
                     // A saved start replaces this selection below and needs no branch observation.
@@ -200,7 +200,7 @@ impl Domain {
             if merge_landing {
                 match &start {
                     Start::Branch(branch) | Start::Saved(branch) => {
-                        if self.workspace_reads_waiting() {
+                        if !self.repository_fresh(seed.repository) {
                             return None;
                         }
                         start = Start::Merge {
@@ -302,7 +302,7 @@ impl Domain {
     /// other tasks start at the repository's base
     /// (temper/docs/design/domain/forge/branches.md, 1).
     fn task_workspace_item(&self, seed: &Seed, repository: &crate::Repository) -> Option<CheckoutSelection> {
-        if seed.modify && repository.role != Role::Context && self.workspace_reads_waiting() {
+        if seed.modify && repository.role != Role::Context && !self.repository_fresh(seed.repository) {
             return None;
         }
         if repository.role != Role::Context {
@@ -315,7 +315,7 @@ impl Domain {
                 }
                 if let Some((_, task)) = goal_branch(name, &repository.prefix)
                     && task == seed.task
-                    && (self.workspace_reads_waiting() || (seed.modify && self.design_branch_waiting(name)))
+                    && (!self.repository_fresh(seed.repository) || (seed.modify && self.design_branch_waiting(name)))
                 {
                     return None;
                 }

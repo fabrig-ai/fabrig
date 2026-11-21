@@ -17,7 +17,7 @@ pub(super) fn defer(
     let head = match hold.beside {
         Some(beside) => beside.head,
         None => {
-            if super::fresh_reads_in(d) {
+            if super::repository_fresh(d, super::repository_reads::repository(name)) {
                 return false;
             }
             let Some(head) = d.branch_head(name) else { return false };

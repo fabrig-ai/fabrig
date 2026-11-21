@@ -10,6 +10,7 @@ mod brief_document;
 mod catching_up_changes;
 mod catching_up_outbox;
 mod catching_up_releases;
+mod catching_up_repositories;
 mod catching_up_state;
 mod change;
 #[path = "tests/brief.rs"]

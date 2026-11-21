@@ -148,7 +148,7 @@ impl Domain {
         evidence: &ChangeEvidence,
         reviewers: &[Reviewer],
     ) -> Option<JudgeVerdict> {
-        if !crate::domain::fresh_reads_in(self) {
+        if !crate::domain::repository_reads::change_fresh(self, task) {
             return Some(JudgeVerdict::Wait);
         }
         match self.held_landing_verdict(up_to_date, task, head, evidence, reviewers) {

@@ -4146,7 +4146,7 @@ fn change_decision_from_read(
     // still due. Retry its landed progress after the cached read can expire.
     if again {
         domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
-    } else if landing_route::landed_step_due(domain, task) {
+    } else if domain.forge.landing_step_due(task) {
         domain.forge.wait_change(&super::environment_forge(env), task, None);
     }
 }
@@ -4621,7 +4621,7 @@ pub(crate) fn outputs(
                         skein_forge_client::Outcome::Failed(_) | skein_forge_client::Outcome::Withdrawn => true,
                     };
                     if failed
-                        && landing_route::failed_effect_needs_hold(domain, task, entry)
+                        && domain.forge.landing_effect_needs_hold(task, entry)
                         && domain.core.tasks.task(task).is_some()
                     {
                         let mut account = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
