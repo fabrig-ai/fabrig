@@ -302,6 +302,7 @@ fn a_retry_discards_the_unfinished_message() {
             ToDomain::Text { .. } => {}
             event @ (ToDomain::BuiltinResult { .. }
             | ToDomain::ReadVersion { .. }
+            | ToDomain::Usage { .. }
             | ToDomain::Failed { .. }
             | ToDomain::Cancelled { .. }) => {
                 panic!("unexpected {event:?}");

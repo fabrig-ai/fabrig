@@ -11,7 +11,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         jig_client_view::SCHEMA,
-        jig_client_view_codec::records_v1, lean,
+        jig_client_view_codec::records_v1,
         limits [
             draft_words,
             stored_record_record,

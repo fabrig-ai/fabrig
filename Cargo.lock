@@ -5048,6 +5048,7 @@ version = "0.0.0"
 dependencies = [
  "skein-channel",
  "skein-io",
+ "skein-json",
  "skein-lib",
  "smith-channel",
  "smith-charter",
@@ -6062,6 +6063,8 @@ dependencies = [
  "temper-agent-fixtures",
  "temper-box-kit",
  "temper-client-domain",
+ "temper-client-journeys-tool",
+ "temper-client-walk-lines",
  "temper-config-shell",
  "temper-engine-domain",
  "temper-engine-service",
@@ -6174,9 +6177,9 @@ dependencies = [
  "skein-fail-stop",
  "skein-lib",
  "skein-scratch",
- "skein-shell",
  "skein-ui-screen",
  "skein-ui-web",
+ "temper-client-journeys-kit",
  "temper-client-journeys-tool",
  "temper-client-shell-tui",
  "temper-client-shell-web",
@@ -6582,6 +6585,7 @@ dependencies = [
  "temper-client-shell-web",
  "temper-client-tui",
  "temper-config-shell",
+ "tempfile",
 ]
 
 [[package]]

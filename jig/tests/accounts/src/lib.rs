@@ -209,6 +209,8 @@ pub fn commit(store: &mut BTreeMap<Key, Stored>, requests: &[Request]) {
             Request::Save { record } => drop(store.insert(record.key(), record.clone())),
             Request::Erase { key } => drop(store.remove(key)),
             Request::Programs { .. }
+            | Request::CancelUsage { .. }
+            | Request::ReadUsage { .. }
             | Request::ReadList { .. }
             | Request::CheckProgram { .. }
             | Request::SignOutProgram { .. }

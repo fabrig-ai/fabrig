@@ -10,6 +10,7 @@ mod referee;
 mod refused_calls;
 mod restarted;
 mod source_carry_over;
+mod usage_read;
 mod worker_orders;
 
 mod fuzzy {

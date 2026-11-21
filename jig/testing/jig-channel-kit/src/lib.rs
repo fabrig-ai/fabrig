@@ -19,5 +19,7 @@ pub mod worker_orders;
 
 pub mod list_read;
 
+pub mod usage_read;
+
 #[cfg(test)]
 mod cursor_fixture;

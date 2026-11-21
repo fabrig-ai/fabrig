@@ -1687,24 +1687,21 @@ pub(crate) fn step_core(
 ) -> Queue<jig_domain_core::Request> {
     let mut makings = List::with_capacity(env.limits.forge.holds);
     for view in domain.core.tasks.view_tasks() {
-        if making_held(domain, env, view.number) {
+        if making_held(domain, env, view.number)
+            || (domain.forge.making_waits(view.number) && making_unavailable(domain, view.number))
+        {
             makings.push(view.number).expect("goal makings bounded by holds");
         }
     }
-    let mut requests = jig_domain_core::step(&mut domain.core, &super::environment_core(env), event);
-    let mut routed = Queue::uncapped();
-    while let Some(request) = requests.pop() {
-        if let jig_domain_core::Request::Write(jig_domain_core::Write::Save(jig_domain_core::Record::Tasks(
-            tasks::Stored::History(row),
-        ))) = &request
-            && row.change == tasks::Change::Released
-            && makings.as_slice().contains(&row.task)
-        {
-            domain.work.push(Work::Forge(forge::Event::RetryGoalBranch { task: row.task }));
+    let requests = jig_domain_core::step(&mut domain.core, &super::environment_core(env), event);
+    // Released or lifted, a passed-over making is asked again in its place
+    // (temper/docs/design/domain/forge/room.md, 3).
+    for task in makings.into_boxed() {
+        if !making_unavailable(domain, task) {
+            domain.work.push(Work::Forge(forge::Event::RetryGoalBranch { task }));
         }
-        routed.push(request);
     }
-    routed
+    requests
 }
 
 /// Project a task revision before any merge judgement can read its reviews
@@ -1721,6 +1718,14 @@ pub(crate) fn revision_saved(
     let mut out = Queue::uncapped();
     domain.forge.refresh_spec_revision(task.number, task.revisions.spec, &mut out);
     outputs(domain, env, decision, &mut out);
+}
+
+fn making_unavailable(domain: &Domain, task: u64) -> bool {
+    let Some(row) = domain.core.tasks.task(task) else { return true };
+    match row.phase {
+        tasks::Phase::Held { .. } | tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => true,
+        tasks::Phase::Waiting | tasks::Phase::Active(_) => row.placed.is_some(),
+    }
 }
 
 fn making_held(domain: &Domain, env: &Env<Limits>, task: u64) -> bool {

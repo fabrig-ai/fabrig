@@ -165,6 +165,7 @@ fn connect(core: &mut Core, limits: &Limits, channel: Token, endpoints: &[u32], 
             channel,
             hello: Hello {
                 fresh: false,
+                reads_usage: true,
                 jobs: Box::new([]),
                 bounds,
                 stop_bound: Duration::ZERO,

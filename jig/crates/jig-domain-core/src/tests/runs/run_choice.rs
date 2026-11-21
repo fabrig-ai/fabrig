@@ -74,6 +74,7 @@ pub(in crate::tests) fn host_with_endpoints(
             channel,
             hello: Hello {
                 fresh: false,
+                reads_usage: true,
                 jobs: Box::default(),
                 bounds,
                 stop_bound: Duration::ZERO,
@@ -153,6 +154,7 @@ fn placement_worker(core: &mut Core, limits: &Limits, worker: u32, channel: Toke
             channel,
             hello: Hello {
                 fresh: false,
+                reads_usage: true,
                 jobs: Box::new([]),
                 bounds: fixtures::bounds(),
                 stop_bound: Duration::ZERO,
@@ -208,6 +210,7 @@ fn a_suspended_task_waits_for_its_workers_new_admitted_channel_and_logins() {
             channel: RETURNED,
             hello: Hello {
                 fresh: false,
+                reads_usage: true,
                 jobs: Box::new([]),
                 bounds: fixtures::bounds(),
                 stop_bound: Duration::ZERO,
@@ -306,6 +309,7 @@ fn an_unavailable_suspension_worker_is_not_replaced_or_explained_by_another_host
                         channel: SECOND,
                         hello: Hello {
                             fresh: false,
+                            reads_usage: true,
                             bounds,
                             jobs: Box::new([]),
                             stop_bound: Duration::ZERO,
@@ -533,6 +537,7 @@ fn a_lower_numbered_goals_waiting_run_starts_first() {
                 channel: FIRST,
                 hello: Hello {
                     fresh: false,
+                    reads_usage: true,
                     jobs: Box::default(),
                     bounds: fixtures::bounds(),
                     stop_bound: Duration::ZERO,
@@ -1498,6 +1503,7 @@ fn due_and_preparing_documents_refine_only_the_host_wait_from_an_actual_refused_
                 worker: 0,
                 hello: Hello {
                     fresh: false,
+                    reads_usage: true,
                     jobs: Box::default(),
                     bounds,
                     stop_bound: Duration::ZERO,
@@ -1540,6 +1546,7 @@ fn due_and_preparing_documents_refine_only_the_host_wait_from_an_actual_refused_
                 worker: 0,
                 hello: Hello {
                     fresh: false,
+                    reads_usage: true,
                     jobs: Box::default(),
                     bounds: Bounds { turns: 0, ..fixtures::bounds() },
                     stop_bound: Duration::ZERO,
@@ -1569,6 +1576,7 @@ fn a_due_tasks_bounds_wait_tracks_its_charters_growth_and_recovery() {
             worker: 0,
             hello: Hello {
                 fresh: false,
+                reads_usage: true,
                 jobs: Box::default(),
                 bounds: Bounds { turns: WORKER_TURNS, ..fixtures::bounds() },
                 stop_bound: Duration::ZERO,
@@ -1682,6 +1690,7 @@ fn an_untooled_fault_keeps_bounds_and_account_refusals_first() {
             channel: FIRST,
             hello: Hello {
                 fresh: false,
+                reads_usage: true,
                 jobs: Box::new([]),
                 bounds: Bounds { turns: 800, ..fixtures::bounds() },
                 stop_bound: Duration::ZERO,
@@ -1804,6 +1813,7 @@ fn a_standing_refusal_does_not_replace_account_or_credential_waits_or_placed_wor
             worker: 0,
             hello: Hello {
                 fresh: false,
+                reads_usage: true,
                 jobs: Box::default(),
                 bounds: Bounds { turns: 0, ..fixtures::bounds() },
                 stop_bound: Duration::ZERO,
@@ -2746,6 +2756,7 @@ fn an_untooled_answer_names_the_current_claim_channel_after_adoption() {
             channel: SECOND,
             hello: Hello {
                 fresh: false,
+                reads_usage: true,
                 jobs: Box::new([]),
                 bounds: fixtures::bounds(),
                 stop_bound: Duration::ZERO,

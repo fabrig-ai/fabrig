@@ -141,6 +141,27 @@ impl Component {
             fresh: true,
         })
     }
+    /// Takes timers for the next operation without moving an armed deadline
+    /// (protocol/channel/figures.md, 4).
+    #[must_use]
+    pub fn retime(&mut self, timers: crate::Timers) -> bool {
+        let limits = Limits {
+            handshake: timers.handshake,
+            stall: timers.stall,
+            backoff: timers.backoff,
+            ceiling: timers.ceiling,
+            proved: timers.proved,
+            busy: timers.busy,
+            ..self.limits
+        };
+        if !limits::valid_with_schema(&limits, &self.schema) {
+            return false;
+        }
+        self.limits = limits;
+        self.backoff.retime(timers.backoff, timers.ceiling);
+        self.busy.retime(timers.busy);
+        true
+    }
     pub fn down(&mut self, now: Time, event: Event, out: &mut Queue<Request>) {
         if self.life == Life::Closed {
             return;
@@ -434,6 +455,7 @@ impl Component {
                 return;
             }
             up @ (host::LinkUp::Ask { .. }
+            | host::LinkUp::UsageRead { .. }
             | host::LinkUp::ListRead { .. }
             | host::LinkUp::Draining
             | host::LinkUp::Logins { .. }
@@ -441,6 +463,7 @@ impl Component {
             | host::LinkUp::Piece { .. }
             | host::LinkUp::Activity { .. }
             | host::LinkUp::Unauthorized { .. }
+            | host::LinkUp::Usage { .. }
             | host::LinkUp::Limited { .. }
             | host::LinkUp::AccountRefused { .. }
             | host::LinkUp::Turn { .. }
@@ -680,7 +703,7 @@ impl Component {
         let kind = frame.kind();
         let body = frame.bytes().get(8..).expect("validated frame header");
         if kind == wire::Kind::Wires.number() {
-            let record = wire::v19::Agreed::decode(&limits, &mut skein_lib::Reader::new(body));
+            let record = wire::v20::Agreed::decode(&limits, &mut skein_lib::Reader::new(body));
             let agreed = match record {
                 Ok(record) => crate::wires::statement(&self.wires, &record),
                 Err(_) => None,
@@ -792,7 +815,8 @@ impl Component {
                         self.fresh = false;
                         true
                     }
-                    host::LinkDown::ReadList { .. }
+                    host::LinkDown::ReadUsage { .. }
+                    | host::LinkDown::ReadList { .. }
                     | host::LinkDown::Check { .. }
                     | host::LinkDown::SignOut { .. }
                     | host::LinkDown::AssignJob { .. }
@@ -953,7 +977,7 @@ impl Component {
     fn translated(
         &mut self,
         frame: channel::Frame,
-        limits: &wire::v19::Limits,
+        limits: &wire::v20::Limits,
         out: &mut Queue<Request>,
     ) -> Option<channel::Frame> {
         let kind = frame.kind();

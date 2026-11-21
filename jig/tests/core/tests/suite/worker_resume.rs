@@ -21,6 +21,7 @@ fn worker(world: &mut World, position: u32, channel: Token) {
         channel,
         hello: Hello {
             fresh: false,
+            reads_usage: true,
             slots: 1,
             stop_bound: Duration::from_millis(100),
             bounds: jig_test_profile::fixtures::bounds(),

@@ -62,6 +62,7 @@ fn host(world: &mut World) {
         channel: CHANNEL,
         hello: Hello {
             fresh: false,
+            reads_usage: true,
             jobs: Box::new([]),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),

@@ -121,6 +121,7 @@ pub fn hello(slots: u32) -> engine::Event {
             worker: 0,
             hello: jig_domain_link::Hello {
                 fresh: false,
+                reads_usage: true,
                 jobs: Box::default(),
                 slots,
                 stop_bound: Duration::from_secs(1),

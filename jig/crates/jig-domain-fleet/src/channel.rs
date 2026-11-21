@@ -40,12 +40,14 @@ use crate::facts::Fact;
 use crate::limits::Limits;
 
 /// A worker in contact.
+#[expect(clippy::struct_excessive_bools, reason = "the negotiated usage capability is independent of placement holds")]
 #[derive(Hash, Debug)]
 pub(crate) struct Channel {
     pub(crate) jobs: Box<[jig_domain_link::JobBound]>,
     pub(crate) evidence: crate::Bounds,
     pub(crate) program_endpoints: Box<[u32]>,
     pub(crate) sources: crate::sources::Sources,
+    pub(crate) reads_usage: bool,
     pub(crate) worker: Option<u32>,
     /// Model eligibility in configured charter order, independent of free slots.
     pub(crate) eligible: Box<[bool]>,
@@ -240,7 +242,7 @@ pub(crate) fn hello(
     }
     let _previous = domain.worker_links.insert(worker, (true, env.wall)).expect("configured worker link bound");
     let places = domain.worker_names.places(worker).expect("admitted worker setting");
-    let Hello { slots, workstreams, hosting, stop_bound: _, bounds, jobs, fresh } = hello;
+    let Hello { slots, workstreams, hosting, stop_bound: _, bounds, jobs, fresh, reads_usage } = hello;
     let position = worker;
     let mut worker = Channel {
         jobs,
@@ -248,6 +250,7 @@ pub(crate) fn hello(
         program_endpoints: bounds.program_endpoints,
         worker: Some(worker),
         sources: crate::sources::Sources::new(domain.program_sources.clone(), limits.program_sources, true),
+        reads_usage,
         eligible: crate::needs::eligibility(&domain.needs, &bounds.endpoints),
         kind: HostKind::Worker,
         token: channel,
@@ -340,6 +343,7 @@ pub(crate) fn lost(domain: &mut Domain, env: &Env<Limits>, channel: Token, out: 
         return;
     };
     domain.reads.lost(channel);
+    domain.usage_reads.lost(channel);
     let entry = domain.channels.get_mut(id).expect("a named channel is in contact");
     crate::sources::lost(&mut entry.sources, channel, out);
     let worker = entry.worker;

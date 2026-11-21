@@ -29,7 +29,7 @@ pub mod task_tree;
 pub use task_tree::hold as task_hold;
 pub mod task_wait;
 
-pub use accounts::{AccountLine, AccountList, Accounts, LastEnd, SignInLine, SourceLine};
+pub use accounts::{AccountFactLine, AccountLine, AccountList, Accounts, LastEnd, SignInLine, SourceLine};
 pub use catalogue::{Offered, PayerReadiness, ProviderOffer, Readiness};
 pub use chip_phase::{ChipDetails, ChipObservation, ChipWork};
 pub use deployment::{

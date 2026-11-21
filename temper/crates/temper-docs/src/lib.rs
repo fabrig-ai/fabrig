@@ -592,7 +592,7 @@ pub static PAGES: [Page; 76] = [
         name: "limits",
         kind: Kind::Reference,
         title: "Limits",
-        summary: "Every row belongs to the temper-limits setting: its name, unit, stock value, when a raise applies and what it bounds.",
+        summary: "Every row belongs to the temper-limits setting: its name, unit, stock value, when a change applies and what it bounds.",
         text: include_str!("../../../docs/help/reference/limits.md"),
     },
     Page {

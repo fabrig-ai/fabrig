@@ -187,6 +187,7 @@ fn a_runs_proposal_belongs_as_a_partys_does() {
             channel: skein_lib::Token::new(7),
             hello: Hello {
                 fresh: false,
+                reads_usage: true,
                 jobs: Box::default(),
                 bounds: jig_test_profile::fixtures::bounds(),
                 stop_bound: skein_lib::Duration::from_millis(1),
@@ -1655,6 +1656,7 @@ fn release_host(world: &mut World, hosting: Box<[Hosting]>) {
         channel: skein_lib::Token::new(7),
         hello: Hello {
             fresh: false,
+            reads_usage: true,
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: skein_lib::Duration::from_millis(1),

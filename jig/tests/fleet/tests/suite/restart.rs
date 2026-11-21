@@ -64,6 +64,7 @@ impl World {
             worker: 0,
             hello: Hello {
                 fresh: false,
+                reads_usage: true,
                 slots: 3,
                 stop_bound: Duration::from_secs(300),
                 workstreams: Box::new([]),

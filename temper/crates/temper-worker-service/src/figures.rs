@@ -1,8 +1,10 @@
 //! Limits taken by name (temper/docs/design/protocol/configuration/figures.md, 3).
+mod live;
 use crate::startup::{Problems, What, WorkerPart};
 use alloc::boxed::Box;
 use jig_protocol_config as config;
 use jig_protocol_worker_wire::Figures;
+pub(crate) use live::{bound_line, plan};
 use skein_lib::{Decimal, List, bytes};
 use temper_service_core::limits;
 
@@ -10,45 +12,26 @@ use temper_service_core::limits;
 pub fn apply(part: &mut WorkerPart, figures: Figures) -> Result<List<Box<[u8]>>, Problems> {
     let mut jig = config::stock();
     let mut own = limits::stock();
-    let names = config::overrides::list(&jig);
     let mut unknown: List<Box<[u8]>> = List::uncapped();
     let mut found = Problems::empty();
     for limit in &figures.limits {
         let name = limit.name.as_ref();
         let value = limit.value;
-        let mut known = false;
-        for &(candidate, _) in &names {
-            if candidate.as_bytes() == name {
-                known = true;
-                break;
-            }
-        }
-        let refusal = if known {
-            match config::overrides::apply(&mut jig, name, value) {
-                Ok(()) => None,
-                Err(what) => Some(What::Jig(what)),
-            }
-        } else {
-            match limits::apply(&mut own, name, value) {
-                Ok(()) => None,
-                Err(limits::Refused::Range) => Some(What::Override(limits::Refused::Range)),
-                Err(limits::Refused::Unknown) => {
-                    let mut seen = false;
-                    for previous in &unknown {
-                        if previous.as_ref() == name {
-                            seen = true;
-                            break;
-                        }
+        match read(&mut jig, &mut own, name, value) {
+            Ok(()) => {}
+            Err(What::Override(limits::Refused::Unknown)) => {
+                let mut seen = false;
+                for previous in &unknown {
+                    if previous.as_ref() == name {
+                        seen = true;
+                        break;
                     }
-                    if !seen {
-                        unknown.push(bytes::copy_of(name)).expect("uncapped unknown names");
-                    }
-                    None
+                }
+                if !seen {
+                    unknown.push(bytes::copy_of(name)).expect("uncapped unknown names");
                 }
             }
-        };
-        if let Some(what) = refusal {
-            found.push(figure_path(name, value), what);
+            Err(what) => found.push(figure_path(name, value), what),
         }
     }
     part.worker.jig.slots = figures.places;
@@ -69,6 +52,20 @@ pub fn apply(part: &mut WorkerPart, figures: Figures) -> Result<List<Box<[u8]>>,
     part.figures = Some(figures);
     if found.is_empty() { Ok(unknown) } else { Err(found) }
 }
+fn read(jig: &mut config::Limits, own: &mut limits::Shared, name: &[u8], value: u64) -> Result<(), What> {
+    if config::names::find(name).is_some() {
+        match config::overrides::apply(jig, name, value) {
+            Ok(()) => Ok(()),
+            Err(what) => Err(What::Jig(what)),
+        }
+    } else {
+        match limits::apply(own, name, value) {
+            Ok(()) => Ok(()),
+            Err(what) => Err(What::Override(what)),
+        }
+    }
+}
+
 fn figure_path(name: &[u8], value: u64) -> config::Path {
     config::Path::root().member(&bytes::concat(&[b"the engine's figures: ", name, b" ", Decimal::of(value).as_bytes()]))
 }

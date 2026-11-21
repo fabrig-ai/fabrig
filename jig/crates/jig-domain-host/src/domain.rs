@@ -268,6 +268,7 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
             crate::asks::lost(domain, out);
             crate::sources::lost(&mut domain.sources, out);
         }
+        Event::UsageRead { read, outcome } => crate::sources::usage_read(&mut domain.sources, env, read, outcome, out),
         Event::ListRead { read, outcome } => crate::sources::list_read(&mut domain.sources, env, read, outcome, out),
         Event::SourceAnswered { owner, answer } => {
             crate::sources::answered(&mut domain.sources, env, owner, answer, out);
@@ -284,6 +285,9 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
         }
         Event::Agent(crate::FromAgent::Unauthorized { owner, account, generation }) => {
             crate::activity::unauthorized(domain, owner, account, generation, out);
+        }
+        Event::Agent(crate::FromAgent::Usage { owner, account, window }) => {
+            crate::activity::usage(domain, owner, account, window, out);
         }
         Event::Agent(crate::FromAgent::Limited { owner, account, reset }) => {
             crate::activity::limited(domain, owner, account, reset, out);
@@ -356,6 +360,9 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
         Event::Down(down) => match down {
             LinkDown::Asked { run, attempt, number, answer } => {
                 crate::asks::asked(domain, env, run, attempt, number, answer, out);
+            }
+            LinkDown::ReadUsage { read, source } => {
+                crate::sources::usage(&mut domain.sources, env, read, source, out);
             }
             LinkDown::ReadList { read, endpoint, grant } => {
                 crate::sources::read(&mut domain.sources, env, read, endpoint, grant, out);

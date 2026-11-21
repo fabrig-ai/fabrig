@@ -34,6 +34,7 @@ fn hello(channel: Token) -> Event {
         channel,
         hello: Hello {
             fresh: false,
+            reads_usage: true,
             jobs: Box::default(),
             bounds: jig_fleet_world::fixtures::bounds(),
             slots: 1,

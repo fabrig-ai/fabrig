@@ -76,12 +76,13 @@ use skein_lib::{List, Token, Writer};
 pub const TOKEN_ONE: &[u8] = b"access";
 pub const RUN_SEVEN: Token = Token::new(7);
 pub const ATTEMPT_TWO: Token = Token::new(2);
-pub fn codec() -> wire::v19::Limits {
+pub fn codec() -> wire::v20::Limits {
     wire::sizes::limits(&SIZES).expect("small codec limits")
 }
 pub fn hello() -> Hello {
     Hello {
         fresh: false,
+        reads_usage: true,
         jobs: Box::default(),
         slots: 1,
         stop_bound: Duration::from_secs(1),

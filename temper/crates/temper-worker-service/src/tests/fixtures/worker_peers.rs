@@ -91,7 +91,7 @@ impl LinkPeer {
                 limits,
                 Box::new([engine_link::Worker {
                     number: 1,
-                    places: 1,
+                    places: settings.jig.slots,
                     withdrawn: false,
                     name: settings.jig.name.clone(),
                     digest: Some(skein_lib::sha256::digest(
@@ -365,6 +365,7 @@ impl AgentPeer {
         rooted: bool,
     ) -> Self {
         let mut peer = Self::new(agent, owner);
+        peer.now = worker.env.now;
         if !rooted {
             worker.route(root::Request::Process(Box::new(smith_host_domain::process::Request::Spawn {
                 owner,
@@ -402,7 +403,7 @@ impl AgentPeer {
     }
     fn attach(&mut self, worker: &mut crate::Worker, owner: Token) {
         worker.up(
-            fixtures::NOW,
+            self.now,
             io::Event::Spawned { owner, child: AGENT_CHILD, pipes: Box::new([AGENT_INPUT, AGENT_OUTPUT, AGENT_ERROR]) },
         );
         self.settle(worker);

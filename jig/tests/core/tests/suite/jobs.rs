@@ -399,6 +399,7 @@ fn hello_hosting(world: &mut World, task: u64, attempt: u64) {
         channel: Token::new(9),
         hello: Hello {
             fresh: false,
+            reads_usage: true,
             jobs: Box::new([bound(7)]),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(100),

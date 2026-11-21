@@ -5,7 +5,7 @@
 #![forbid(unsafe_code)]
 extern crate alloc;
 use alloc::boxed::Box;
-use skein_lib::{Duration, Token};
+use skein_lib::{Duration, Token, Wall};
 
 /// How a root takes an event (jig/docs/design/domain/root.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -293,6 +293,8 @@ pub enum GrantTable {
 pub struct Hello {
     /// Job kinds this host runs, ascending and unique (jig/docs/design/domain/hosts/hub.md, 9).
     pub jobs: Box<[JobBound]>,
+    /// Whether the agreed channel carries usage reads (protocol/channel/records.md, 1).
+    pub reads_usage: bool,
     pub bounds: Bounds,
     /// The worker's longest stop time after losing contact. It must be
     /// strictly below the engine's grace.
@@ -445,4 +447,31 @@ pub enum ListOutcome {
 pub enum AskAnswer {
     Bytes(Box<[u8]>),
     Refused,
+}
+
+/// A program's usage window (jig/docs/design/domain/accounts.md, 3.7).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct FactWindow {
+    pub length: Option<Duration>,
+    pub used: Option<u16>,
+    pub resets: Option<Wall>,
+    pub state: u16,
+}
+pub const WINDOW_OPEN: u16 = 1;
+pub const WINDOW_WARNED: u16 = 2;
+pub const WINDOW_LIMITED: u16 = 3;
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct UsageWindow {
+    pub label: Box<[u8]>,
+    pub window: FactWindow,
+}
+pub const USAGE_WINDOWS: u32 = 8;
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum UsageOutcome {
+    Read(Box<[UsageWindow]>),
+    NotSignedIn,
+    Spent,
+    Failed { reason: SourceFailure, detail: Box<[u8]> },
 }

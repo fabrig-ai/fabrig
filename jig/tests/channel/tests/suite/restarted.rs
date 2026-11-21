@@ -52,6 +52,7 @@ fn a_new_worker_process_suspends_two_attempts_but_a_reconnect_keeps_their_grace(
             worker: 0,
             hello: Hello {
                 fresh,
+                reads_usage: true,
                 slots: 2,
                 stop_bound: Duration::ZERO,
                 bounds: jig_test_profile::fixtures::bounds(),

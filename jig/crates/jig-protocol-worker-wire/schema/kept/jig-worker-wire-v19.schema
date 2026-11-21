@@ -31,7 +31,6 @@ record Hello {
     hosting: list 65536 Hosting
     jobs: list 256 JobBound
     bounds: Bounds
-    fresh: bool = false
 }
 
 # Other worker-to-engine records (protocol/channel/records.md, 1, and protocol/channel/README.md, 5.4).
@@ -206,6 +205,15 @@ record ListFailureValue { value: ListFailed }
 enum ListOutcome { listed: ListedRows, failed: ListFailureValue }
 record ListRead { read: u64 outcome: ListOutcome }
 
+# Reset times are wall-clock nanoseconds since the Unix epoch.
+# Usage windows (protocol/channel/records.md, 1 and 2).
+record UsageWindow { label: text 32 length: option duration used: option u16 resets: option u64 state: u16 }
+record Usage { task: u64 attempt: u64 account: u32 label: text 32 length: option duration used: option u16 resets: option u64 state: u16 }
+record UsageWindows { windows: list 8 UsageWindow }
+enum UsageOutcome { read: UsageWindows, not_signed_in, spent, failed: SourceFailed }
+record UsageRead { read: u64 outcome: UsageOutcome }
+record ReadUsage { read: u64 source: text 32 }
+
 # A shutting worker leaves placement (jig/docs/design/protocol/channel/records.md, 1).
 record Draining {}
 
@@ -241,10 +249,10 @@ enum FromWorker {
     hello: Hello, turn: Turn, call: Call, answer: Answer, fact: Fact,
     unauthorized: Unauthorized, limited: Limited, account_refused: AccountRefused,
     logins: Logins, signed_out: SignedOut, list_read: ListRead, draining: Draining,
-    job_answer: JobAnswer, ask: Ask
+    job_answer: JobAnswer, ask: Ask, usage: Usage, usage_read: UsageRead
 }
 enum FromEngine {
     assignment: Assignment, message: Inbound, relayed: Relayed, turn_kept: TurnKept,
     turn_busy: TurnBusy, acknowledge: Acknowledge, cancel: Cancel, grant: Granted,
-    sources: Sources, check: Check, sign_out: SignOut, job: Job, read_list: ReadList, wires: Agreed, asked: Asked, restarting: Restarting, figures: Figures
+    sources: Sources, check: Check, sign_out: SignOut, job: Job, read_list: ReadList, wires: Agreed, asked: Asked, restarting: Restarting, figures: Figures, read_usage: ReadUsage
 }

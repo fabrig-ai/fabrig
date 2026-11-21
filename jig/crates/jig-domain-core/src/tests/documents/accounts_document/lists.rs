@@ -107,6 +107,7 @@ fn read_lists_retains_its_count_and_a_retry_starts_no_second_read() {
                 channel: Token::new(77),
                 hello: Hello {
                     fresh: false,
+                    reads_usage: true,
                     jobs: Box::new([]),
                     bounds: fixtures::bounds(),
                     stop_bound: Duration::ZERO,
@@ -224,6 +225,7 @@ fn a_key_first_accounts_list_takes_the_direct_way_where_configured() {
                 channel: Token::new(77),
                 hello: Hello {
                     fresh: false,
+                    reads_usage: true,
                     jobs: Box::new([]),
                     bounds,
                     stop_bound: Duration::ZERO,

@@ -10,58 +10,26 @@ pub(crate) const PATH: Variable = Variable {
     notes: "The recording harness searches absolute directories only.",
     way: Way::Reads,
 };
-pub(crate) const TARGET: Variable = Variable {
-    name: "CARGO_TARGET_DIR",
-    set: Set::Public,
-    form: "DIR",
-    line: "Cargo's target directory, holding the built binaries to copy.",
-    absent: "Use the workspace's target directory.",
-    notes: "A relative path is relative to temper's root.",
-    way: Way::Reads,
-};
 pub(crate) const CHROMIUM: Variable = Variable {
     name: "SKEIN_TEST_CHROMIUM",
     set: Set::Test,
     form: "FILE",
-    line: "The Chromium binary used to record a journey again.",
-    absent: "Recording again is refused before building or starting children.",
+    line: "The Chromium binary used by the drive session.",
+    absent: "A full drive session is refused before starting children.",
     notes: "",
     way: Way::Reads,
 };
-const BUNDLE: Variable = Variable {
-    name: "TEMPER_INTERNAL_BUNDLE",
-    set: Set::Internal,
-    form: "none",
-    line: "Leave the browser bundle out of the child Cargo build.",
-    absent: "The tool always sets none for its builds and builds the bundle separately.",
-    notes: "",
-    way: Way::Sets,
-};
-
-const RECORD: Variable = Variable {
-    way: Way::Sets,
-    absent: "The tool always sets 1 for temper's TUI when recording again.",
-    ..temper_shell::environment::INTERNAL_RECORD
-};
-
-/// The TUI's walk start (temper/docs/design/client/journey-clock.md, 4.4).
-const FIXED_START: Variable = Variable {
-    way: Way::Sets,
-    absent: "The tool always sets again's fixed start for temper's TUI when recording again.",
-    ..temper_shell::environment::INTERNAL_FIXED_START
-};
-
 pub(crate) const CAUTION: &str = "These aren't all a secret could be: any other private text stands unless --redact names it, so read the pages before you commit them.";
-const ADD_NOTES: &str = concat!(
-    "add takes out the link secret, stored credentials, typed secrets and each --redact TEXT, replacing their bytes with x's. ",
+const PRINT_NOTES: &str = concat!(
+    "print takes out the link secret, stored credentials, typed secrets and each --redact TEXT, replacing their bytes with x's. ",
     "It refuses surviving originals and shapes of a key, JWT, bearer, code or refresh token in records, drawn pages or printed pages. ",
-    "It proves the redacted replay, then normalises and replays it again before scanning and writing.\n",
+    "It checks the layout, redacts, scans and proves the replay, then prints and scans its pages before writing.\n",
     "A secret split across run deliveries or writing-call input is refused; --redact cannot replace it, so walk it again. ",
     "Text split across other records is seen only where a page draws it whole. Partial secrets and other encodings may remain unseen. ",
     "Values the client reshapes can stale the replay. Reload a settled page: stored requests in flight refuse. ",
     "--redact TEXT remains in shell history.\n",
     "These aren't all a secret could be: any other private text stands unless --redact names it, so read the pages before you commit them.\n",
-    "FILE keeps every original: keep it out of the repository and remove it once added."
+    "FILE keeps every original: keep it out of the repository and remove it once printed."
 );
 const REDACTION: Settings = Settings {
     tool: "temper-client-journeys",
@@ -76,90 +44,29 @@ const REDACTION: Settings = Settings {
         notes: "Repeats. With no --redact, only the recorder's identified secrets are replaced.",
     }],
 };
-pub(crate) const REPRINT: Command = Command {
+const BASE: Command = Command {
     reach: Reach::Words(&[]),
     set: Set::Internal,
     forms: &[""],
-    line: "Reprint every browser and TUI journey from its recording.",
+    line: "",
     arguments: &[],
     settings: &[],
     switches: &[],
     variables: &[],
-    notes: "A stale journey is named and left as it was; after printing the others, exit 1.",
+    notes: "",
 };
-pub(crate) const NORMALISE: Command = Command {
-    reach: Reach::Words(&["normalise"]),
-    line: "Normalise every browser and TUI recording, then reprint both directories.",
-    notes: "Write each changed recording only after its normalised replay holds, naming each written. A stale recording is named with its turn and line kind and left as it was; after writing the others and reprinting, exit 1. Reads no configuration, environment, clock or network.",
-    ..REPRINT
-};
-pub(crate) const ADD: Command = Command {
-    reach: Reach::Words(&["add"]),
-    forms: &["[--redact TEXT]... NAME FILE"],
-    line: "Redact, prove, normalise, scan and print a saved recording as NAME.",
+pub(crate) const PRINT: Command = Command {
+    reach: Reach::Words(&["print"]),
+    forms: &["[--redact TEXT]... FILE OUT"],
+    line: "Check, redact, prove, scan and print a saved recording into OUT.",
     arguments: &[
-        Argument { shown: "NAME", line: "The journey's name, [a-z][a-z0-9-]*, unique across both clients." },
         Argument { shown: "FILE", line: "The saved recording; replaced in memory before anything is written." },
+        Argument { shown: "OUT", line: "Output laid out as the repository, outside its journeys roots." },
     ],
     settings: &[&REDACTION],
-    notes: ADD_NOTES,
-    ..REPRINT
+    notes: PRINT_NOTES,
+    ..BASE
 };
-const PREPARED: Settings = Settings {
-    tool: "temper-client-journeys again",
-    about: "Prebuilt recording inputs and the parent of fresh private scratch directories.",
-    table: &[Setting {
-        name: "prepared",
-        value: "DIR",
-        about: "Directory holding temper-box, fake-claude, temper-client for TUI, and bundle/index.html.",
-        fallback: Fallback::Text(""),
-        set: Set::Internal,
-        twin: None,
-        notes: "An optional cache subdirectory supplies pinned downloads. When given, build nothing and create scratch here; otherwise build into a system scratch directory.",
-    }],
-};
-pub(crate) const AGAIN: Command = Command {
-    reach: Reach::Words(&["again"]),
-    forms: &["[--prepared DIR] NAME"],
-    settings: &[&PREPARED],
-    line: "Record journey NAME again while its acts hold, then add it.",
-    arguments: &[Argument { shown: "NAME", line: "The journey to record again." }],
-    variables: &[&CHROMIUM, &BUNDLE, &RECORD, &FIXED_START, &PATH, &TARGET],
-    notes: "Unwalkable journeys and invalid setups are refused before any build or child starts.",
-    ..REPRINT
-};
-
-const PAGE_INPUTS: Settings = Settings { tool: "temper-client-journeys pages", ..PREPARED };
-const PAGE_BOUND: Settings = Settings {
-    tool: "temper-client-journeys pages",
-    about: "The walks' bound from the command's start; the reprint is not bounded.",
-    table: &[Setting {
-        name: "within",
-        value: "DURATION",
-        about: "Digits then s, m or h (90m).",
-        fallback: Fallback::Text(""),
-        set: Set::Internal,
-        twin: None,
-        notes: "A cut walk, or one not started before the bound passes, stops naming the bound.",
-    }],
-};
-/// The journeys' writer (temper/docs/design/client/journey-writer.md, 3).
-pub(crate) const PAGES: Command = Command {
-    reach: Reach::Words(&["pages"]),
-    forms: &["[--prepared DIR] [--within DURATION]", "--check"],
-    settings: &[&PAGE_INPUTS, &PAGE_BOUND],
-    switches: &[Switch {
-        name: "check",
-        set: Set::Internal,
-        line: "Name each journey fresh or stale; write nothing and start no child.",
-        notes: "Takes no other argument. Exit 0: every journey fresh; 1: a stale journey; 2: usage; 3: a root unreadable.",
-    }],
-    line: "Walk each stale journey again, then reprint both clients and remove pages with no recording.",
-    variables: AGAIN.variables,
-    notes: "Current journeys start nothing and change no byte. Inputs are built once when needed, unless --prepared supplies them; their build counts against --within. A stopped walk keeps its own scratch and leaves its journey's files as they were; the others still print. Stdout has one line a journey, the browser's then the TUI's, each in name order: fresh NAME, walked again NAME, or stopped NAME: WHY; scratch kept at PATH where a stopped walk left one. Every other word goes to stderr. Exit 0: every journey printed; 1: a journey left unprinted; 2: usage; 3: a root unreadable or unwritable.",
-    ..REPRINT
-};
-
 const SESSION: Settings = Settings {
     tool: "temper-client-journeys drive",
     about: "The given build and private scratch directory; nothing is built.",
@@ -227,12 +134,22 @@ const SESSION: Settings = Settings {
             twin: None,
             notes: "Needs --ports. --ctl selects a ctl session without Chromium; otherwise a full session. --bundle is optional unless a document names {place.bundle}.",
         },
+        WIDTHS,
     ],
+};
+const WIDTHS: Setting = Setting {
+    name: "widths",
+    value: "LIST",
+    about: "Distinct screenshot widths from 320 to 3840, joined by commas, in the given order.",
+    fallback: Fallback::Text(""),
+    set: Set::Internal,
+    twin: None,
+    notes: "Requires --journey. With none, web mark answers text alone.",
 };
 pub(crate) const DRIVE: Command = Command {
     reach: Reach::Words(&["drive"]),
     forms: &[
-        "--bin DIR [--bundle DIR] --scratch DIR [--scripts FILE]... [--strict] [--ports LIST] [--files DIR] [--ctl] [--deployment DIR]",
+        "--bin DIR [--bundle DIR] --scratch DIR [--scripts FILE]... [--strict] [--ports LIST] [--files DIR] [--ctl] [--deployment DIR] [--journey [--widths LIST]]",
     ],
     line: "Drive a signed-in box or deployment from a given build, one stdin line at a time.",
     settings: &[&SESSION],
@@ -244,10 +161,16 @@ pub(crate) const DRIVE: Command = Command {
             line: "Take ctl and forge lines alone, without a browser or TUI.",
             notes: "Needs no SKEIN_TEST_CHROMIUM; the box still takes its bundle.",
         },
+        Switch {
+            name: "journey",
+            set: Set::Internal,
+            line: "Take journey lines without an implied root load or TUI approval.",
+            notes: "Refuses --ctl. tui approve signs the TUI in; web mark and tui mark answer looks and are not kept.",
+        },
     ],
     variables: &[&CHROMIUM, &PATH],
     notes: "Answers ready, then each web, tui, ctl, forge or deployment line with shown lines prefixed | and ok or failed. forge commit forgejo REPOSITORY MESSAGE PATH [PATH]... commits files from --files DIR; forge checks forgejo REPOSITORY waits on its checks. deployment patch DOCUMENT PATH merges a JSON object into engine or worker, then restarts the deployment; deployment restart keeps the documents unchanged. A box refuses deployment lines. ctl settings apply/propose resolve input files from --files DIR before ctl starts. ctl fields {forgejo.api}, {forgejo.git}, {forgejo.admin}, {git} and {model.key} read the box’s values when run, or the deployment’s rendered documents. end or stdin's end stops the session. Exit 0: ended; 3: store refused; 4: box or deployment failed; 1: session failure. See temper/docs/design/client/drive.md.",
-    ..REPRINT
+    ..BASE
 };
 
 const RECIPES: Settings = Settings {
@@ -289,7 +212,7 @@ pub(crate) const RECIPE_HASH: Command = Command {
     arguments: &[Argument { shown: "NAME", line: "Recipe name, 1–64 bytes of [a-z][a-z0-9-]*." }],
     settings: &[&RECIPES],
     notes: "Refusals name the recipe and its line or file, exit 1.",
-    ..REPRINT
+    ..BASE
 };
 pub(crate) const RECIPE_LIST: Command = Command {
     reach: Reach::Words(&["recipe", "list"]),
@@ -297,7 +220,7 @@ pub(crate) const RECIPE_LIST: Command = Command {
     line: "List recipes, parents and each README's first sentence, in name order.",
     settings: &[&RECIPES],
     notes: "An unreadable recipe is listed as refused; the catalogue goes on.",
-    ..REPRINT
+    ..BASE
 };
 pub(crate) const RECIPE_WALK: Command = Command {
     reach: Reach::Words(&["recipe", "walk"]),
@@ -308,7 +231,36 @@ pub(crate) const RECIPE_WALK: Command = Command {
     switches: &[DRIVE.switches[0]],
     variables: DRIVE.variables,
     notes: "A box needs --bundle. A deployment uses its root’s config/ and needs --ports; with web or tui lines it also needs --bundle and runs a full session with resets. With none it runs --ctl --deployment without resets, passing --bundle where given. Chain scripts go to the session root first. Answers carry recipe and file line, or walk: for resets. Exit 0: walked NAME HASH; 5: stopped at NAME:N: WHY. Session statuses 3, 4 and 1 pass through. No build. See temper/docs/design/client/recipe.md, 5.",
-    ..REPRINT
+    ..BASE
+};
+
+const JOURNEY_SESSION: Settings = Settings {
+    tool: "temper-client-journeys journey walk",
+    about: "One journey session on a fresh scratch directory; nothing is built.",
+    table: &[
+        SESSION.table[0],
+        SESSION.table[1],
+        SESSION.table[2],
+        SESSION.table[4],
+        SESSION.table[6],
+        Setting { notes: "With none, web mark answers text alone.", ..WIDTHS },
+    ],
+};
+pub(crate) const JOURNEY_WALK: Command = Command {
+    reach: Reach::Words(&["journey", "walk"]),
+    forms: &[
+        "NAME --bin DIR [--bundle DIR] --scratch DIR [--strict] [--ports LIST] [--widths LIST] [--deployment DIR]",
+    ],
+    line: "Walk a journey's chain through one journey session, stopping at its first failed line.",
+    arguments: &[Argument {
+        shown: "NAME",
+        line: "Journey name, [a-z][a-z0-9-]*, under the checkout's web or TUI roots.",
+    }],
+    settings: &[&JOURNEY_SESSION],
+    switches: &[DRIVE.switches[0]],
+    variables: DRIVE.variables,
+    notes: "Refuses config/ or data/ in scratch. Chain scripts and lines go root first, without ancestors' marks or added resets. Answers carry journey and file line. Exit 0: walked NAME; 5: stopped at NAME:N: WHY. Session statuses 3, 4 and 1 pass through. No build.",
+    ..BASE
 };
 
 /// The internal journeys binary's table (temper/docs/design/testing/tools.md, 4.1).
@@ -317,8 +269,8 @@ pub const TABLE: Table = Table {
     line: "recorded walks, replayed through the shipped hosts and printed.",
     version: "",
     commit: "",
-    commands: &[REPRINT, ADD, NORMALISE, AGAIN, PAGES, DRIVE, RECIPE_WALK, RECIPE_HASH, RECIPE_LIST],
+    commands: &[PRINT, DRIVE, JOURNEY_WALK, RECIPE_WALK, RECIPE_HASH, RECIPE_LIST],
     settings: &[],
-    variables: &[&CHROMIUM, &BUNDLE, &RECORD, &FIXED_START, &PATH, &TARGET],
+    variables: &[&CHROMIUM, &PATH],
     more: "temper-client-journeys COMMAND --help prints a command; read temper/docs/design/client/web/journeys.md, section 5.1.",
 };

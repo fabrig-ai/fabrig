@@ -22,9 +22,15 @@ the application's (temper's `protocol/configuration/figures.md`).
   saying `opening: link`.
 - **At every link opening, and when they change.** The engine sends
   `figures` after `Agreed` at each link opening, and to every linked
-  worker whenever its owner gives new ones (3). A running worker keeps
-  the figures it was built from. One that hears others tells its owner,
-  and they apply at its next start.
+  worker whenever its owner gives new ones (3). A running worker tells
+  its owner each one it hears. The owner applies the live ones at once,
+  through `retime` for the link's timers (4), and the rest at its next
+  start (temper's `protocol/configuration/figures.md`, 3.2).
+- **Live timers on both sides.** The link's handshake, stall, backoff,
+  ceiling, proved and busy timers, and the engine host's handshake,
+  hello and stall, are read at each use, so each side takes new ones
+  while it runs (3, 4). Its sizes, room, chunk, ping and silence are
+  fixed for a link's life.
 - **The owner gives them, as data.** jig's engine host sends what its
   owner last gave it. Until it's been given figures, it refuses a figures
   opening as *starting*.
@@ -68,8 +74,10 @@ them picks each one, and the schema then fixes it.
   once (3).
 - **`limits`** is every limit the engine holds, each by its dotted name
   as a configuration's overrides name it (`../limits.md`), jig's and the
-  application's alike, at the value the engine started with. jig gives
-  the names no order. A worker applies the names it knows over its
+  application's alike, at its figure in force: the value the engine
+  started with, or one its owner took at once since (temper's
+  `protocol/configuration/limit-settings.md`, 4). jig gives the names no
+  order. A worker applies the names it knows over its
   stock: jig's through jig's override reader, the application's through
   its own. It skips a name it doesn't know, and logs it once. A limit
   the list doesn't name stays at the worker's stock.
@@ -115,6 +123,16 @@ them picks each one, and the schema then fixes it.
   whose `places` the host sets for each worker as it sends. There's no
   callback. A host given none sends none at a link opening, and refuses
   a figures opening as *starting*.
+- **The host's own timers, live.** Its owner may give it new handshake,
+  hello and stall timers while it runs:
+  `host::Workers::retime(&mut self, timers: Timers) -> bool`, with
+  `Timers { handshake: Duration, hello: Duration, stall: Duration }`,
+  an input of its component as `restarting` is. A deadline already set
+  keeps its time; each one set after it takes the new figure: a
+  connection's handshake, an opening's wait for its hello, a stall. It
+  is false, and the host as it was, when the host's limits with them
+  over them fail its limits' check (`valid_with_schema`), such as a zero
+  figure. Its sizes, room, chunk, ping and silence stay as it was built.
 
 ## 4. The worker's side
 
@@ -128,7 +146,19 @@ them picks each one, and the schema then fixes it.
   its pause, as a link does.
 - **The link form** reports each `figures` it hears to its owner, at
   each opening and whenever they come. It goes on as today; the owner
-  compares them with the figures it was built from.
+  compares them with the figures in force on it.
+- **Its timers, live.** Its owner may give a running link new timers:
+  `Component::retime(&mut self, timers: Timers) -> bool`, with `Timers {
+  handshake: Duration, stall: Duration, backoff: Duration, ceiling:
+  Duration, proved: Duration, busy: Duration }`. A deadline already set
+  keeps its time; each one set after it takes the new figure: the next
+  dial's handshake, the next stall, the next proving. Its next redial
+  wait is the new backoff's, within the new ceiling, and its next span
+  of *busy* refusals the new busy's. It is false, and the link as it
+  was, when its limits with them over them fail its limits' check
+  (`valid_with_schema`): a zero figure, or a ceiling below the backoff.
+  Its sizes, room, chunk, ping, silence and grace stay as it was built:
+  they make its table and the stop bound its hello states.
 - **The hello is unchanged.** It still states the worker's slots,
   stop bound and bounds, which the worker took from its figures.
 
@@ -164,6 +194,14 @@ Focused, in the link's and the host's tests and jig's channel world:
   its hello. New figures given to the host reach every linked worker.
 - **Refusals:** a wrong secret is refused *unauthorized*, and a worker
   of 15 is refused by version.
+- **Timers, live:** a running link given a longer handshake by `retime`
+  keeps the deadline of the dial in flight and gives its next dial the
+  new one; a longer backoff and ceiling make its next redial wait the
+  new backoff's; a stall and a busy span take the new figures at their
+  next use; a zero figure, or a ceiling below the backoff, is false and
+  changes nothing. On the engine's side, a host given a longer hello by
+  `retime` waits that long for the next opening's hello, and one already
+  waiting keeps its deadline; a zero figure is false.
 - **The record:** generated records' drift and pinned constructs, as
   skein's `data/codec/README.md`, section 6 has it; patch `0006`'s
   breaking declaration, held by the wire's patch tests and
@@ -171,7 +209,7 @@ Focused, in the link's and the host's tests and jig's channel world:
 
 ## 8. Open questions
 
-- **Figures a running worker takes at once.** A raise could apply to a
-  running hub the way limits as settings take one (temper's
-  `draft/config.md`, 6.1). Here a worker takes its figures
-  only at its start.
+- **Ping and silence live.** A running link keeps the ping and silence
+  it was built with, since the stop bound its hello states follows them
+  and the engine checks it against its grace. Default: they stay, until
+  a worker can state a new stop bound without a new opening.

@@ -20,6 +20,7 @@ impl Fleet {
             worker,
             hello: Hello {
                 fresh: false,
+                reads_usage: true,
                 jobs: Box::default(),
                 slots: 1,
                 stop_bound,

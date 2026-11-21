@@ -14,6 +14,7 @@ fn a_run_waits_while_a_credential_it_needs_is_unusable() {
             channel: Token::new(1),
             hello: Hello {
                 fresh: false,
+                reads_usage: true,
                 jobs: Box::default(),
                 bounds: fixtures::bounds(),
                 stop_bound: Duration::ZERO,

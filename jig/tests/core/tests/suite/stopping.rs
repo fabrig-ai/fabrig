@@ -227,6 +227,7 @@ fn settling_leaves_a_queued_job_unplaced_when_the_host_frees_its_slot() {
         channel: Token::new(8),
         hello: Hello {
             fresh: false,
+            reads_usage: true,
             jobs: Box::new([JobBound { kind: JobKind(7), spec: 64, result: 32, deadline: Duration::from_secs(60) }]),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(100),

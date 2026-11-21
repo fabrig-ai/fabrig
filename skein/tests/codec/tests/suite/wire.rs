@@ -4,17 +4,16 @@
 mod tests {
 
     use skein_codec::Reason;
-    use skein_codec_tests::lints::{CEILINGS as LINT_CEILINGS, HostTool, HostToolParts};
-    use skein_codec_tests::scalars::{CEILINGS as SCALAR_CEILINGS, Flag, Scalars, ScalarsParts};
+    use skein_codec_tests::lints::{CEILINGS as LINT_CEILINGS, HostTool};
+    use skein_codec_tests::scalars::{CEILINGS as SCALAR_CEILINGS, Flag, Scalars};
     use skein_codec_tests::v1::{CEILINGS, Choice, Effect, Field, Record, Report, paths};
     use skein_lib::{Duration, List, Reader, Writer};
 
     #[test]
     fn a_credentials_debug_shows_its_secrets_length_and_not_its_bytes() {
-        use skein_codec_tests::secrets::{CEILINGS, Credential, CredentialParts};
-        let parts =
-            CredentialParts { name: Box::from(&b"llm"[..]), value: skein_lib::Secret::new(Box::from(&b"hunter2"[..])) };
-        let credential = Credential::new(&CEILINGS, parts).expect("within its limits");
+        use skein_codec_tests::secrets::Credential;
+        let credential =
+            Credential { name: Box::from(&b"llm"[..]), value: skein_lib::Secret::new(Box::from(&b"hunter2"[..])) };
         let shown = format!("{credential:?}");
         assert!(!shown.contains("hunter2"), "the secret's bytes are not shown: {shown}");
         assert!(shown.contains("len: 7"), "its length is: {shown}");
@@ -22,16 +21,11 @@ mod tests {
 
     #[test]
     fn a_credential_encodes_its_secret_as_bytes_and_decodes_back() {
-        use skein_codec_tests::secrets::{CEILINGS, Credential, CredentialParts};
-        let credential = Credential::new(
-            &CEILINGS,
-            CredentialParts { name: Box::from(&b"llm"[..]), value: skein_lib::Secret::new(Box::from(&b"hunter2"[..])) },
-        )
-        .expect("within ceilings");
+        use skein_codec_tests::secrets::{CEILINGS, Credential};
+        let credential =
+            Credential { name: Box::from(&b"llm"[..]), value: skein_lib::Secret::new(Box::from(&b"hunter2"[..])) };
         let wire = [0, 0, 0, 3, b'l', b'l', b'm', 0, 0, 0, 7, b'h', b'u', b'n', b't', b'e', b'r', b'2'];
-        let mut writer = Writer::new(18);
-        credential.encode(&mut writer).expect("measured room");
-        assert_eq!(writer.finish().as_ref(), &wire);
+        assert_eq!(credential.encode(&CEILINGS).expect("within ceilings").as_ref(), &wire);
         assert_eq!(Credential::decode(&CEILINGS, &mut Reader::new(&wire)), Ok(credential));
     }
 
@@ -117,14 +111,10 @@ mod tests {
     fn unbounded_scalar_family_uses_big_endian_and_canonical_tags() {
         const SCALARS_WIRE: [u8; 27] =
             [1, 2, 3, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 5, 1, 0, 0, 0, 0, 0, 0, 0, 6, 7, 8, 1];
-        let value = Scalars::new(
-            &SCALAR_CEILINGS,
-            ScalarsParts { a: 1, b: 0x0203, c: 4, d: 5, e: true, f: Duration::from_nanos(6), g: [7, 8], h: Flag::On },
-        );
-        assert_eq!(value.measure(), 27);
-        let mut writer = Writer::new(27);
-        value.encode(&mut writer).expect("measured room");
-        assert_eq!(&*writer.finish(), &SCALARS_WIRE);
+        let value =
+            Scalars { a: 1, b: 0x0203, c: 4, d: 5, e: true, f: Duration::from_nanos(6), g: [7, 8], h: Flag::On };
+        assert_eq!(value.measure(&SCALAR_CEILINGS), Ok(27));
+        assert_eq!(&*value.encode(&SCALAR_CEILINGS).expect("within ceilings"), &SCALARS_WIRE);
         assert_eq!(Scalars::decode(&SCALAR_CEILINGS, &mut Reader::new(&SCALARS_WIRE)), Ok(value));
     }
 
@@ -142,19 +132,16 @@ mod tests {
     }
 
     fn optional_payload(data: Option<&[u8]>) -> skein_codec_tests::lints::OptionalPayload {
-        use skein_codec_tests::lints::{OptionalPayload, OptionalPayloadParts};
-        OptionalPayload::new(&LINT_CEILINGS, OptionalPayloadParts { data: data.map(Box::from) }).expect("within limits")
+        use skein_codec_tests::lints::OptionalPayload;
+        OptionalPayload { data: data.map(Box::from) }
     }
 
     #[test]
     fn a_boxed_variant_encodes_as_its_unboxed_twin() {
         use skein_codec_tests::lints::{BoxedChoice, InlineChoice};
-        let boxed = BoxedChoice::new(&LINT_CEILINGS, BoxedChoice::Payload(Box::new(optional_payload(Some(b"x")))))
-            .expect("within limits");
+        let boxed = BoxedChoice::Payload(Box::new(optional_payload(Some(b"x"))));
         let wire = [0, 1, 0, 0, 0, 1, b'x'];
-        let mut writer = Writer::new(7);
-        boxed.encode(&mut writer).expect("measured room");
-        assert_eq!(writer.finish().as_ref(), wire);
+        assert_eq!(boxed.encode(&LINT_CEILINGS).expect("within limits").as_ref(), wire);
         assert_eq!(BoxedChoice::decode(&LINT_CEILINGS, &mut Reader::new(&wire)), Ok(boxed));
         assert_eq!(
             InlineChoice::decode(&LINT_CEILINGS, &mut Reader::new(&wire)),
@@ -172,16 +159,15 @@ mod tests {
 
     #[test]
     fn an_optional_bytes_field_refuses_values_past_its_bound() {
-        use skein_codec_tests::lints::{OptionalPayload, OptionalPayloadParts, Path};
-        let problem =
-            OptionalPayload::new(&LINT_CEILINGS, OptionalPayloadParts { data: Some(Box::from(&b"12345"[..])) })
-                .expect_err("beyond its bound");
-        assert_eq!((problem.path, problem.reason), (Path::OptionalPayloadData, Reason::Bound));
+        use skein_codec_tests::lints::{OptionalPayload, paths};
+        let value = OptionalPayload { data: Some(Box::from(&b"12345"[..])) };
+        let problem = value.encode(&LINT_CEILINGS).expect_err("beyond its bound");
+        assert_eq!((problem.path, problem.reason), (paths::OPTIONAL_PAYLOAD_DATA, Reason::Bound));
     }
 
     #[test]
     fn named_boolean_fields_keep_their_wire_order() {
-        let parts = HostToolParts {
+        let value = HostTool {
             inspect: true,
             modify: false,
             shell: true,
@@ -189,17 +175,13 @@ mod tests {
             max_tokens: 7,
             payload: Box::from(&b"x"[..]),
         };
-        let value = HostTool::new(&LINT_CEILINGS, parts).expect("within limits");
-        assert!(value.inspect());
-        assert!(!value.modify());
-        assert!(value.shell());
-        assert!(!value.agents());
+        assert!(value.inspect);
+        assert!(!value.modify);
+        assert!(value.shell);
+        assert!(!value.agents);
         let wire = [1, 0, 1, 0, 0, 0, 0, 7, 0, 0, 0, 1, b'x'];
-        let mut writer = Writer::new(wire.len());
-        value.encode(&mut writer).expect("measured room");
-        assert_eq!(writer.finish().as_ref(), wire);
+        assert_eq!(value.encode(&LINT_CEILINGS).expect("within limits").as_ref(), wire);
         let decoded = HostTool::decode(&LINT_CEILINGS, &mut Reader::new(&wire)).expect("canonical bytes");
-        let parts = decoded.into_parts();
-        assert_eq!([parts.inspect, parts.modify, parts.shell, parts.agents], [true, false, true, false]);
+        assert_eq!([decoded.inspect, decoded.modify, decoded.shell, decoded.agents], [true, false, true, false]);
     }
 }

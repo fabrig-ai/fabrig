@@ -148,6 +148,49 @@ mod agreement {
     fn an_unauthorized_notice_crosses_unchanged() {
         cross_up(unauthorized(), &unauthorized());
     }
+    #[test]
+    fn usage_notices_and_reads_cross_both_translations_unchanged() {
+        use jig_domain_link::{FactWindow, UsageOutcome, UsageWindow, WINDOW_WARNED};
+        use skein_lib::Wall;
+        let windows = [
+            UsageWindow {
+                label: b"five_hour".as_slice().into(),
+                window: FactWindow {
+                    length: Some(Duration::from_secs(18_000)),
+                    used: Some(2800),
+                    resets: Some(Wall::from_nanos(987_654_321)),
+                    state: WINDOW_WARNED,
+                },
+            },
+            UsageWindow {
+                label: b"seven_day".as_slice().into(),
+                window: FactWindow { length: None, used: None, resets: None, state: 3 },
+            },
+        ];
+        for window in &windows {
+            cross_up(
+                host::LinkUp::Usage { run: RUN_SEVEN, attempt: ATTEMPT_TWO, account: 3, window: window.clone() },
+                &host::LinkUp::Usage { run: RUN_SEVEN, attempt: ATTEMPT_TWO, account: 3, window: window.clone() },
+            );
+        }
+        for outcome in [
+            UsageOutcome::Read(windows.into()),
+            UsageOutcome::Read(Box::new([])),
+            UsageOutcome::NotSignedIn,
+            UsageOutcome::Spent,
+            UsageOutcome::Failed {
+                reason: jig_domain_link::SourceFailure::Unconfigured,
+                detail: b"unconfigured".as_slice().into(),
+            },
+        ] {
+            cross_up(
+                host::LinkUp::UsageRead { read: 42, outcome: outcome.clone() },
+                &host::LinkUp::UsageRead { read: 42, outcome },
+            );
+        }
+        let source = jig_domain_link::SourceName::new(b"personal").expect("source");
+        cross_down(host::LinkDown::ReadUsage { read: 42, source }, &host::LinkDown::ReadUsage { read: 42, source });
+    }
     fn limited(reset: Option<Duration>) -> host::LinkUp {
         host::LinkUp::Limited { run: RUN_SEVEN, attempt: ATTEMPT_TWO, account: 1, reset }
     }

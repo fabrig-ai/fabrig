@@ -88,6 +88,7 @@ fn reconnect(world: &mut World, seed: u64) {
         channel: Token::new(7),
         hello: Hello {
             fresh: false,
+            reads_usage: true,
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(100),

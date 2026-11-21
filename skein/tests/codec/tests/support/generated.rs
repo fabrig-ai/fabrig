@@ -1,7 +1,7 @@
 //! Seeded canonical wire values and the generated decoder for every declaration.
 
 use skein_codegen::{Declaration, Schema, Type};
-use skein_lib::{Reader, Rng, Writer};
+use skein_lib::{Reader, Rng};
 
 #[derive(Debug)]
 pub struct Family {
@@ -20,28 +20,6 @@ pub struct Root {
 pub enum Decoded {
     Value { debug: String, bytes: Vec<u8>, measured: u32 },
     Problem { path: String, reason: skein_codec::Reason },
-}
-
-macro_rules! roots {
-    ($module:ident; $($name:ident),+ $(,)?) => {
-        &[$(Root {
-            name: stringify!($name),
-            decode: |bytes| {
-                use skein_codec_tests::$module::{self, $name};
-                match $name::decode(&$module::CEILINGS, &mut Reader::new(bytes)) {
-                    Ok(value) => {
-                        let debug = format!("{value:?}");
-                        let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length"));
-                        value.encode(&mut writer).expect("measured room");
-                        Decoded::Value { debug, bytes: writer.finish().into_vec(), measured: value.measure() }
-                    }
-                    Err(problem) => Decoded::Problem {
-                        path: problem.path.name().into(), reason: problem.reason,
-                    },
-                }
-            },
-        }),+]
-    };
 }
 
 macro_rules! lean_roots {
@@ -80,16 +58,6 @@ pub fn current_text(path: &str) -> Option<&'static str> {
     }
 }
 
-pub fn every_lean() -> Family {
-    Family {
-        name: "every",
-        text: skein_codec_tests::EVERY_SCHEMA,
-        roots: lean_roots!(every_v3_lean;
-            Blank, Numbers, Texts, Light, Stamp, Shape, Nest, Every, Kinds, Lists, Options, Grouped, Held, LongRecord
-        ),
-    }
-}
-
 pub fn families() -> [Family; 7] {
     [
         Family {
@@ -100,29 +68,29 @@ pub fn families() -> [Family; 7] {
         Family {
             name: "scalars",
             text: skein_codec_tests::SCALARS_SCHEMA,
-            roots: roots!(scalars; Empty, Flag, Scalars),
+            roots: lean_roots!(scalars; Empty, Flag, Scalars),
         },
         Family {
             name: "lint-fixture",
             text: skein_codec_tests::LINTS_SCHEMA,
-            roots: roots!(lints; HostTool, Boundless, Payload, OtherPayload, Shared, OneByteItems,
+            roots: lean_roots!(lints; HostTool, Boundless, Payload, OtherPayload, Shared, OneByteItems,
                 OptionalPayload, BoxedChoice, InlineChoice, FixedWidthItems, LongRecord),
         },
-        Family { name: "secrets", text: skein_codec_tests::SECRETS_SCHEMA, roots: roots!(secrets; Credential) },
+        Family { name: "secrets", text: skein_codec_tests::SECRETS_SCHEMA, roots: lean_roots!(secrets; Credential) },
         Family {
             name: "every",
             text: include_str!("../../schema/every-v1.schema"),
-            roots: roots!(every; Blank, Numbers, Strings, Light, Stamp, Shape, Nest, Every),
+            roots: lean_roots!(every; Blank, Numbers, Strings, Light, Stamp, Shape, Nest, Every),
         },
         Family {
             name: "every",
             text: include_str!("../../schema/every-v2.schema"),
-            roots: roots!(every_v2; Blank, Numbers, Texts, Light, Stamp, Shape, Nest, Every),
+            roots: lean_roots!(every_v2; Blank, Numbers, Texts, Light, Stamp, Shape, Nest, Every),
         },
         Family {
             name: "every",
             text: skein_codec_tests::EVERY_SCHEMA,
-            roots: roots!(every_v3; Blank, Numbers, Texts, Light, Stamp, Shape, Nest, Every,
+            roots: lean_roots!(every_v3; Blank, Numbers, Texts, Light, Stamp, Shape, Nest, Every,
                 Kinds, Lists, Options, Grouped, Held, LongRecord),
         },
     ]

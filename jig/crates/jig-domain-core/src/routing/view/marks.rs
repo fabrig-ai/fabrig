@@ -16,6 +16,23 @@ use jig_domain_views as views;
 use skein_lib::{Env, List, Queue, Set, Token};
 
 impl Core {
+    /// A rate changes only documents that carry its holder's account facts (accounts.md, 3.7).
+    pub(crate) fn touch_account_rate(&mut self, holder: jig_domain_accounts::Holder) {
+        for (id, _) in &self.flights {
+            let Some(binding) = self.watch_binding(id.token()) else { continue };
+            let subject = &self.view_names.get(binding.subject).expect("bound subject").subject;
+            let shown = match holder {
+                jig_domain_accounts::Holder::Party(party) => {
+                    *subject != Subject::Deployment && subject.touched_by(Touch::AccountLines(Some(party)))
+                }
+                jig_domain_accounts::Holder::Deployment => *subject == Subject::Deployment,
+            };
+            if shown {
+                let _new = self.changed_views.insert(binding.subject).expect("bounded watched marks");
+            }
+        }
+    }
+
     /// A list answer changes account lines and deployment facts without marking frames.
     pub(crate) fn touch_account_lines(&mut self, party: Option<u64>) {
         self.touch_views(Touch::AccountLines(party));

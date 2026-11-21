@@ -2215,15 +2215,19 @@ fn a_non_owner_accept_never_reaches_the_setup_host() {
 
 #[test]
 fn foreign_versions_and_former_layouts_are_refused() {
-    for (bytes, why) in [
-        (&[0, 2, 10, 0, 0, 0, 1, b'*'][..], b"pasted with another version of temper: paste it again".as_slice()),
-        (&[0, 1, 10, 0, 0, 0, 1, b'*'][..], b"the pasted value is not a key".as_slice()),
+    // A whole marker cannot match a single version byte in the encoded refusal.
+    const OLD_KEY: &[u8] = b"old-key";
+    let length = u32::try_from(OLD_KEY.len()).unwrap().to_be_bytes();
+    for (version, why) in [
+        (2, b"pasted with another version of temper: paste it again".as_slice()),
+        (1, b"the pasted value is not a key".as_slice()),
     ] {
         let mut service = service(8, Duration::from_secs(3600));
-        let bundle = Secret::new(Box::from(bytes));
+        let header = [0, version, 10];
+        let bundle = Secret::new([header.as_slice(), length.as_slice(), OLD_KEY].concat().into_boxed_slice());
         let digest = skein_lib::sha256::digest(bundle.expose());
         paste_start(&mut service, bundle, digest);
-        assert_eq!(paste_ended(&mut service, false, b"*").as_deref(), Some(why));
+        assert_eq!(paste_ended(&mut service, false, OLD_KEY).as_deref(), Some(why));
     }
 }
 

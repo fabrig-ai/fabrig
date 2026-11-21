@@ -44,7 +44,15 @@ impl Machine {
                 self.wait(Phase::TuiSeeing, now, BOUND);
                 self.tui_save(now, out);
             }
-            Some(Record::Tui(Tui::Look)) => {
+            Some(Record::Tui(Tui::Approve)) => {
+                if self.phase == Phase::TuiStarting {
+                    self.phase = Phase::TuiBrowse;
+                } else {
+                    self.wait(Phase::TuiBrowse, now, BOUND);
+                }
+                self.tui_save(now, out);
+            }
+            Some(Record::Tui(Tui::Look | Tui::Mark)) => {
                 self.wait(Phase::TuiLook, now, LOOK);
                 self.tui_save(now, out);
             }
@@ -58,8 +66,12 @@ impl Machine {
     pub(super) fn tui_event(&mut self, event: Event, now: Time, out: &mut Vec<Action>) {
         match event {
             Event::TuiReady if self.phase == Phase::TuiStarting => {
-                self.phase = Phase::TuiBrowse;
-                self.tui_save(now, out);
+                if self.plan.options.journey {
+                    self.tui_line(now, out);
+                } else {
+                    self.phase = Phase::TuiBrowse;
+                    self.tui_save(now, out);
+                }
             }
             Event::TuiSaved(bytes) if matches!(self.phase, Phase::TuiBrowse | Phase::TuiSeeing | Phase::TuiLook) => {
                 self.save_until = None;
@@ -185,9 +197,18 @@ impl Machine {
             }
             Phase::TuiPressed => {
                 self.phase = Phase::TuiReturning;
-                out.push(Action::Open(self.return_address.take().expect("browser address before approval")));
+                let address =
+                    if self.plan.options.journey { self.return_address.clone() } else { self.return_address.take() };
+                out.push(Action::Open(address.expect("browser address before approval")));
             }
-            Phase::TuiReturning => self.tui_line(now, out),
+            Phase::TuiReturning => {
+                self.return_address = None;
+                if self.plan.options.journey {
+                    self.answer(None, out);
+                } else {
+                    self.tui_line(now, out);
+                }
+            }
             _ => {}
         }
         true
@@ -209,7 +230,21 @@ impl Machine {
             self.tui_fail("no recording within 10 s; the session needs the client's recording build".into(), now, out);
         } else if self.until.is_some_and(|at| now >= at) {
             let rows = String::from_utf8_lossy(self.frame.get(..4096).unwrap_or(&self.frame));
-            let why = format!("{}: deadline passed; frame's rows: {rows}", self.sought());
+            let waiting = match self.phase {
+                Phase::TuiStarting => "the TUI to start",
+                Phase::TuiBrowse => "the TUI to browse an address",
+                Phase::TuiAddress => "the browser's address",
+                Phase::TuiOpening => "the approval page to open",
+                Phase::TuiApprove => "button Approve",
+                Phase::TuiPressed => "button Approve to be pressed",
+                Phase::TuiReturning => "the browser to return",
+                _ => "the TUI's frame",
+            };
+            let why = if self.plan.options.journey {
+                format!("{}: deadline passed waiting for {waiting}; frame's rows: {rows}", self.sought())
+            } else {
+                format!("{}: deadline passed; frame's rows: {rows}", self.sought())
+            };
             if self.phase == Phase::TuiRecover {
                 self.answer(Some(self.diagnostic.clone()), out);
             } else {

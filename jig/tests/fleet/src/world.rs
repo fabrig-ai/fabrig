@@ -911,6 +911,7 @@ impl World {
                     channel: token,
                     hello: Hello {
                         fresh: false,
+                        reads_usage: true,
                         jobs: self.settings.job.into_iter().collect(),
                         bounds: crate::fixtures::bounds(),
                         slots,
@@ -987,7 +988,9 @@ impl World {
             Request::Ask { .. } | Request::Asked { .. } => {
                 unreachable!("the script does not make application asks")
             }
-            Request::ReadList { .. }
+            Request::ReadUsage { .. }
+            | Request::UsageRead { .. }
+            | Request::ReadList { .. }
             | Request::ListRead { .. }
             | Request::ProgramEmail { .. }
             | Request::ProgramTargets { .. }
@@ -1020,6 +1023,7 @@ impl World {
             Request::Grant { channel, run, attempt, grant } => self.record_grant(channel, run, attempt, grant),
             Request::Discharged
             | Request::Unauthorized { .. }
+            | Request::Usage { .. }
             | Request::Limited { .. }
             | Request::AccountRefused { .. } => {}
             Request::Assign { channel, run, attempt, .. } | Request::AssignJob { channel, run, attempt } => {
@@ -1407,7 +1411,10 @@ fn describe(event: &Event) -> String {
         Event::Hello { worker: _, channel, hello } => {
             format!("Hello {} slots {} hosting {:?}", channel.raw(), hello.slots, hello.hosting)
         }
-        Event::ReadList { .. }
+        Event::CancelUsage { .. }
+        | Event::ReadUsage { .. }
+        | Event::ReadList { .. }
+        | Event::UsageRead { .. }
         | Event::ListRead { .. }
         | Event::Needs(_)
         | Event::CleanupPrograms { .. }
@@ -1424,6 +1431,7 @@ fn describe(event: &Event) -> String {
         | Event::Inbound { .. }
         | Event::Grant { .. }
         | Event::Unauthorized { .. }
+        | Event::Usage { .. }
         | Event::Limited { .. }
         | Event::AccountRefused { .. }
         | Event::Turn { .. }

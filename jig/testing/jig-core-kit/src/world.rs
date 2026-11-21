@@ -159,6 +159,7 @@ pub struct World {
     pub stop_deliveries: Vec<core::Held>,
     pub commits: Vec<Vec<root::Write>>,
     pub list_reads: Vec<crate::lists::Reading>,
+    pub usage_reads: Vec<(Token, u64, jig_domain_link::SourceName)>,
     pub projections: Vec<(usize, u16, core::ProjectionFeed)>,
     pub hold_projection_settlements: bool,
     pub sign_in: Option<u64>,
@@ -254,6 +255,7 @@ impl World {
             channel,
             hello: Hello {
                 fresh: false,
+                reads_usage: true,
                 jobs: kinds,
                 bounds,
                 stop_bound: Duration::from_millis(100),

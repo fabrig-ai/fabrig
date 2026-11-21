@@ -684,7 +684,13 @@ the client's last state, and a start builds a new client.
 ## 8. Restart
 
 After a restart the owner gives the client its rows, then has it read
-before it writes.
+before it writes. The reads wait on no write: until `SettleOutbox`, no
+entry is sent and none holds a call slot or any of the request budget
+(section 6), so a `Busy` while they run comes from reads alone, and a
+read's retries from its own timers. The owner keeps its own reads of
+step 4 to reads too: a write it finds it needs while it reads (a
+resource found missing that it must make) waits until `OutboxDone`, in
+the owner's own order, and holds no read of the step open.
 
 1. **Restore.** The namespace is given first (section 2).
    `Restore { record }` for each stored row, its writers' among them,
@@ -699,7 +705,9 @@ before it writes.
    `expires` less the wall clock.
 3. **Prepare.** The owner tells `Writer` for the branches its writers
    hold, sends `PauseOutbox`, and hands every stored entry not held for a
-   person to `Make`. An entry with an attempt starts at its find.
+   person to `Make`, here or at any point before `SettleOutbox`. An entry
+   with an attempt starts at its find. While the outbox is paused nothing
+   is sent for an entry, its find included.
 4. **Read afresh.** `ReadAfresh` reads the listing of each repository
    with an issue or pull watch from its stored mark, inclusive (section
    4), and each live resource, all as `Fresh`, so what
@@ -707,7 +715,8 @@ before it writes.
    no watched resource or repository is left to read: after an answer, or
    after a `Keep` that drops the last one still owed (an owner that stops
    watching a resource it can never read again, such as a forge gone for
-   good, does not hold the pass open).
+   good, does not hold the pass open). It counts the pass's reads alone,
+   never an entry's find, a queued merge's look or an echo.
 5. **Settle.** `SettleOutbox` lets the entries run. Each with an attempt
    is found, or waits for its saved deadline (section 7.5); a queued one
    is restored queued and its pull read at once, within the same bounds

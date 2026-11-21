@@ -83,6 +83,10 @@ impl World {
             dial: DialState::Settled,
         }
     }
+    #[must_use]
+    pub fn retime(&mut self, timers: jig_protocol_worker_link::Timers) -> bool {
+        self.component.retime(timers)
+    }
     pub fn engine(&mut self, peer: ScriptedPeer) {
         self.pending.push_back(Some(peer));
     }
@@ -266,6 +270,7 @@ impl World {
                     | jig_domain_host::LinkDown::Assign { .. }
                     | jig_domain_host::LinkDown::Message { .. }
                     | jig_domain_host::LinkDown::Cancel { .. }
+                    | jig_domain_host::LinkDown::ReadUsage { .. }
                     | jig_domain_host::LinkDown::ReadList { .. }
                     | jig_domain_host::LinkDown::Sources { .. }
                     | jig_domain_host::LinkDown::Check { .. }

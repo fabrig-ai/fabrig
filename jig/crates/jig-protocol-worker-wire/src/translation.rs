@@ -1,7 +1,7 @@
 //! Nested bytes before outer records on send; outer before nested on receipt
 //! (jig/docs/design/protocol/channel/bridges.md, 5, 6 and 8).
-use crate::v19::Record;
-use crate::{Agreed, Application, Carried, Kept, Root, v19 as wire};
+use crate::v20::Record;
+use crate::{Agreed, Application, Carried, Kept, Root, v20 as wire};
 use alloc::boxed::Box;
 use skein_channel::{Frame, frame_writer};
 use skein_codec::{
@@ -114,8 +114,8 @@ impl Translation {
         for wire in agreed {
             let total = if wire.name.as_bytes() == self.jig.family() {
                 // FromWorker includes each variant as well as each record.
-                if wire.version < 19 {
-                    self.jig.total(19, b"FromWorker") == Some(true)
+                if wire.version < 20 {
+                    self.jig.total(20, b"FromWorker") == Some(true)
                         && self.before_fresh.total(wire.version, b"FromWorker") == Some(true)
                 } else {
                     self.jig.total(wire.version, b"FromWorker") == Some(true)
@@ -369,7 +369,7 @@ impl Lazy {
     const fn current(&self) -> u16 {
         match self.family {
             Family::Records => crate::VERSION,
-            Family::BeforeFresh => 18,
+            Family::BeforeFresh => 19,
             Family::Charter => smith_charter::wire::VERSION,
             Family::Transcript => smith_transcript::wire::VERSION,
         }
@@ -419,31 +419,31 @@ impl Lazy {
         self.materialize().ok()?.total(to, root)
     }
 }
-/// Wire 19 adds only the hello's freshness evidence. Its constrained sends
-/// at older versions have wire 18's shape (executors.md, 6.5).
+/// Wire 20 adds only the hello's freshness evidence. Its constrained sends
+/// at older versions have wire 19's shape (executors.md, 6.5).
 fn before_fresh_texts() -> &'static [&'static str] {
     let texts = crate::patches::kept::jig_worker_wire::TEXTS;
     for (index, text) in texts.iter().enumerate() {
-        if header_version(text) == 19 {
+        if header_version(text) == 20 {
             return texts.get(..index).expect("schema prefix");
         }
     }
-    unreachable!("wire 19 has a kept schema")
+    unreachable!("wire 20 has a kept schema")
 }
 
 fn before_fresh_patches() -> &'static [&'static str] {
     for (index, text) in crate::patches::PATCHES.iter().enumerate() {
-        if text.contains("family jig-worker-wire 18 to 19") {
+        if text.contains("family jig-worker-wire 19 to 20") {
             return crate::patches::PATCHES.get(..index).expect("patch prefix");
         }
     }
-    unreachable!("wire 19 has a patch")
+    unreachable!("wire 20 has a patch")
 }
 
 /// Older channels cannot prove process freshness (domain/engine/executors.md, 6.5).
 /// Clear that evidence before the lossless bridge judges the defaulted field.
 fn hello_at_version(value: Frame, version: u16, limits: &wire::Limits) -> Result<Frame, Untranslated> {
-    if version >= 19 || value.kind() != crate::Kind::Hello.number() {
+    if version >= 20 || value.kind() != crate::Kind::Hello.number() {
         return Ok(value);
     }
     let mut hello =
@@ -738,6 +738,7 @@ impl Translation {
             | wire::FromEngine::SignOut(_)
             | wire::FromEngine::Figures(_)
             | wire::FromEngine::Restarting(_)
+            | wire::FromEngine::ReadUsage(_)
             | wire::FromEngine::Wires(_)) => record,
         })
     }
@@ -764,6 +765,8 @@ impl Translation {
             | wire::FromWorker::AccountRefused(_)
             | wire::FromWorker::Logins(_)
             | wire::FromWorker::SignedOut(_)
+            | wire::FromWorker::Usage(_)
+            | wire::FromWorker::UsageRead(_)
             | wire::FromWorker::ListRead(_)
             | wire::FromWorker::Draining(_)) => record,
         })

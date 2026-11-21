@@ -113,6 +113,7 @@ impl Measured {
             channel,
             hello: Hello {
                 fresh: false,
+                reads_usage: true,
                 jobs: Box::default(),
                 bounds,
                 stop_bound: Duration::from_secs(0),
@@ -422,6 +423,7 @@ fn two_standing_refusals_with_no_history_retain_no_additional_heap() {
         worker: 0,
         hello: Hello {
             fresh: false,
+            reads_usage: true,
             jobs: Box::default(),
             bounds,
             stop_bound: Duration::ZERO,
