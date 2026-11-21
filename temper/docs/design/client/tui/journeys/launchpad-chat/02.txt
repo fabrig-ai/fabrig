@@ -7,6 +7,7 @@
  Start
    /draft    a design session that ends in a draft and a goal
    /change   one change, run as Hello's way says
+   /ask      Ask temper
 ────────────────────────────────────────────────────────────────────────────────
 ❯ /
 ────────────────────────────────────────────────────────────────────────────────
@@ -14,7 +15,6 @@
   /change   One change, run as the project's way says
   /ask      Ask temper
   /model    Change the model, from the next turn
-  /effort   Change the effort
   /new      Start a new chat
   /chats    Open another chat
   /open     Open this on the web

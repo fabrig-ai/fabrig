@@ -13,12 +13,12 @@
  Start
    /draft    a design session that ends in a draft and a goal
    /change   one change, run as Hello's way says
-   /ask      Ask temper
-
-
-
-
 ────────────────────────────────────────────────────────────────────────────────
-❯ Ask for a change, or ask temper.  / for commands
+❯
 ────────────────────────────────────────────────────────────────────────────────
- ● Live · Hello · GPT-6 Astra · high                    1 needs you · n to walk
+csv-export: comma or semicolon?
+Reached you because it was asked of you directly.
+❯ 1. Comma
+  2. Semicolon
+  3. Tell it something else
+  4. Next

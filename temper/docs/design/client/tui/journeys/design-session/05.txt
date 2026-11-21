@@ -1,17 +1,17 @@
-farewell-line.md
+❯ Plan a farewell line for hello.
 
-### Farewell line  new
-Draft, with the user.
+  Write this up as a draft beside us.
 
-#### Purpose  new
-Add a farewell line to hello, alongside its greeting.
+✦ I wrote the farewell draft beside us. Where should the farewell line go?
+  1. At the end of README.md — it closes the page
+  2. In its own file — the greeting stays alone
+  3. Tell me something else
 
-#### Checks  new
-Check README.md keeps its greeting and contains one farewell line.
 
-#### Open questions  new
-Where should the farewell line go?
-Recommendation: at the end of README.md so it closes the page.
+
+
+
+
 
 
 
