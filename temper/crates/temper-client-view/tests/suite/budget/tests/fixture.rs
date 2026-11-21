@@ -199,6 +199,7 @@ impl Project {
             chats: Vec::new(),
             closed: Vec::new(),
             changes: f::ChangesPanel {
+                catching_up: None,
                 project: PROJECT,
                 landing: b"main".as_slice().into(),
                 queues: List::with_capacity(0),

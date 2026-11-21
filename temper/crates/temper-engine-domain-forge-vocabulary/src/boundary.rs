@@ -670,9 +670,22 @@ pub struct AdoptedRow {
     pub project: u32,
 }
 
+/// What one forge still owes after a restart (domain/forge/catching-up.md, 5).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct CatchingUp {
+    pub fresh: u32,
+    pub gathers: u32,
+    pub ci: u32,
+    pub goal_files: u32,
+    pub lost_writers: u32,
+    pub goal_branches: u32,
+    pub uncertain: u32,
+}
+
 /// One configured forge, including its connection, offer and first repository.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Row {
+    pub catching_up: Option<CatchingUp>,
     pub read_only: bool,
     pub number: u16,
     /// The host in repository resource names, including an explicit port.

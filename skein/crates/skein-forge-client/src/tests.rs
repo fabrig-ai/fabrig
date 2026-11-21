@@ -1,5 +1,6 @@
 //! Step tests of admission, request accounting, bounded answers and recovery.
 mod budget;
+mod catching_up;
 mod contracts;
 mod fixtures;
 use fixtures::{Harness, Sent, at, configured, listing_item, terminal};

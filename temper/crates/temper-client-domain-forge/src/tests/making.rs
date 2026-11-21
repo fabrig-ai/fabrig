@@ -117,6 +117,7 @@ fn a_rows_makings_are_delivered_in_order() {
     for (number, makings) in [(3, makings), (4, List::with_capacity(0))] {
         forges
             .push(w::ForgeRow {
+                catching_up: None,
                 starts_with: w::StartsWith::Repository,
                 number,
                 host: b"git.example:3000".as_slice().into(),

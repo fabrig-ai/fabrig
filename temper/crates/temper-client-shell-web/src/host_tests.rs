@@ -596,6 +596,7 @@ fn the_github_rows_external_web_link_has_its_address_and_noopener() {
         let mut forges = List::with_capacity(1);
         forges
             .push(w::ForgeRow {
+                catching_up: None,
                 starts_with: w::StartsWith::Repository,
                 makings: skein_lib::List::with_capacity(0),
                 host: b"git.example:3000".as_slice().into(),

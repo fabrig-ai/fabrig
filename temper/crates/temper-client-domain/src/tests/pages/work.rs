@@ -667,6 +667,7 @@ impl Fixture {
                 .unwrap();
         }
         let panel = w::ChangesPanel {
+            catching_up: None,
             landed_default: List::with_capacity(0),
             landed_default_more: 0,
             project: f::PROJECT,

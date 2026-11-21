@@ -136,6 +136,7 @@ fn setting(fixture: &mut Fixture, setting: c::Setting, follows: c::SettingFollow
 }
 fn row(number: u16) -> w::ForgeRow {
     w::ForgeRow {
+        catching_up: None,
         starts_with: w::StartsWith::Repository,
         host: b"git.example:3000".as_slice().into(),
         number,

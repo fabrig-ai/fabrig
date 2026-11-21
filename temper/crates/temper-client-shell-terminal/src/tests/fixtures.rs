@@ -351,6 +351,7 @@ fn populate_page(
                         })
                         .unwrap();
                     let panel = w::ChangesPanel {
+                        catching_up: None,
                         landed_default: skein_lib::List::with_capacity(0),
                         landed_default_more: 0,
                         project: subject.project,

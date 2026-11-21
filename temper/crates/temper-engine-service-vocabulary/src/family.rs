@@ -1244,6 +1244,21 @@ pub fn forges(value: forge::Forges, linked: bool, limits: &w::Limits) -> Option<
     }
     (w::Forges { forges, linked }).encode(limits).ok()
 }
+fn catching_up(value: Option<forge::CatchingUp>) -> Option<w::CatchingUp> {
+    match value {
+        Some(value) => Some(w::CatchingUp {
+            fresh: value.fresh,
+            gathers: value.gathers,
+            ci: value.ci,
+            goal_files: value.goal_files,
+            lost_writers: value.lost_writers,
+            goal_branches: value.goal_branches,
+            uncertain: value.uncertain,
+        }),
+        None => None,
+    }
+}
+
 fn forge_row(row: forge::Row, limits: &w::Limits) -> Option<w::ForgeRow> {
     let ended = match row.ended {
         Some(why) => Some(w::ConnectStopped { why }),
@@ -1255,6 +1270,7 @@ fn forge_row(row: forge::Row, limits: &w::Limits) -> Option<w::ForgeRow> {
     }
     {
         let value = w::ForgeRow {
+            catching_up: catching_up(row.catching_up),
             number: row.number,
             host: row.host,
             makings,
@@ -1897,6 +1913,7 @@ fn changes_panel(value: forge::ChangesView, limits: &w::Limits) -> Option<Box<[u
     let landed = changes_landed(value.landed, limits.changes_panel_landed, limits)?;
     let landed_default = changes_landed(value.landed_default, limits.changes_panel_landed_default, limits)?;
     let panel = w::ChangesPanel {
+        catching_up: catching_up(value.catching_up),
         project: value.project,
         landing: value.landing,
         queues,

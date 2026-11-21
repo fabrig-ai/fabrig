@@ -254,6 +254,7 @@ impl Fixture {
             List::with_capacity(0)
         };
         let panel = w::ChangesPanel {
+            catching_up: None,
             landed_default: landed.clone(),
             landed_default_more: 0,
             project: f::PROJECT,

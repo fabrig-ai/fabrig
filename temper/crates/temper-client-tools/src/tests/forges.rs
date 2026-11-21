@@ -13,6 +13,7 @@ use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 pub(super) fn row(connection: C) -> Row {
     Row {
+        catching_up: None,
         starts_with: forge::forges::StartsWith::Repository,
         makings: Box::new([]),
         host: b"git.example:3000".as_slice().into(),
@@ -41,6 +42,7 @@ fn record_first(connection: w::Connection, first: Option<w::FirstRepository>) ->
     let mut forges = List::with_capacity(1);
     forges
         .push(w::ForgeRow {
+            catching_up: None,
             starts_with: w::StartsWith::Repository,
             makings: List::with_capacity(0),
             host: b"git.example:3000".as_slice().into(),
@@ -778,6 +780,7 @@ fn settled_wait_with_installations(count: u32) {
     let mut forges = List::with_capacity(1);
     forges
         .push(w::ForgeRow {
+            catching_up: None,
             starts_with: w::StartsWith::Repository,
             makings: List::with_capacity(0),
             host: b"git.example:3000".as_slice().into(),
@@ -921,6 +924,7 @@ fn human_forges_bounds_the_wire_maximum_installations_with_longest_logins() {
         }
         let mut rows = List::with_capacity(1);
         rows.push(w::ForgeRow {
+            catching_up: None,
             starts_with: w::StartsWith::Repository,
             makings: List::with_capacity(0),
             host: b"git.example:3000".as_slice().into(),

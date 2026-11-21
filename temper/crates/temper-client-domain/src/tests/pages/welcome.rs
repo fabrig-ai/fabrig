@@ -103,6 +103,7 @@ fn forge_rows(root: &mut Domain, watch: Token, number: Option<u16>, adopted: boo
     if let Some(number) = number {
         forges
             .push(w::ForgeRow {
+                catching_up: None,
                 starts_with: w::StartsWith::Repository,
                 makings: List::with_capacity(0),
                 host: b"git.example:3000".as_slice().into(),
@@ -481,6 +482,7 @@ fn strip_forges(root: &mut Domain, watch: Token, connection: Option<w::Connectio
     if let Some(connection) = connection {
         forges
             .push(w::ForgeRow {
+                catching_up: None,
                 starts_with: w::StartsWith::Repository,
                 makings: List::with_capacity(0),
                 host: b"git.example:3000".as_slice().into(),

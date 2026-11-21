@@ -153,6 +153,15 @@ enum RoundRead {
 }
 
 impl State {
+    pub(crate) fn gathers_owed(&self, forge: u16) -> u32 {
+        let mut owed = 0_u32;
+        for (_, pending) in &self.pending {
+            if pending.repository.forge == forge {
+                owed = owed.checked_add(1).expect("gathers fit their limit");
+            }
+        }
+        owed
+    }
     pub fn new(l: &Limits) -> Self {
         let slots = slots(l).expect("landing bounds checked");
         Self {

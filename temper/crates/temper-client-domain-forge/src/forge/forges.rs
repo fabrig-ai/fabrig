@@ -18,6 +18,8 @@ pub enum FailedStep {
 /// The wire bounds the session's forge rows.
 pub const ROWS: u32 = wire::FORGES;
 pub const INSTALLATIONS: u32 = wire::INSTALLATIONS;
+/// The client twin of the forge's restart state (domain/forge/catching-up.md, 5).
+pub use w::CatchingUp;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
     Forgejo,
@@ -138,6 +140,7 @@ pub struct Owned {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Row {
+    pub catching_up: Option<CatchingUp>,
     pub makings: Box<[Making]>,
     pub read_only: bool,
     pub number: u16,

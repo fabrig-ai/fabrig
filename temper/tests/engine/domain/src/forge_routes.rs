@@ -99,6 +99,8 @@ pub struct World {
     restart_config: engine::Config,
     /// Delivered forge documents, including updates to a live watch.
     pub oracle_documents: Vec<(Token, forge_top::Document)>,
+    /// Delivered deployment forge rows, including updates to a live watch.
+    pub forges_documents: Vec<(Token, forge_top::Forges)>,
     oracle_watcher: u64,
     broken: bool,
     oracle_running: bool,
@@ -1661,6 +1663,7 @@ impl World {
             restart_config: crate::oracle::config::copy(&config),
             idle_revision: None,
             oracle_documents: Vec::new(),
+            forges_documents: Vec::new(),
             oracle_watcher: 0x4e33,
             broken: false,
             oracle_running: false,
@@ -2762,6 +2765,7 @@ impl World {
                         self.events.push_back(engine::Event::Party(engine::PartyInput::Delivered { watcher }));
                     }
                     Delivery::ForgeDocument { watcher, document } => self.oracle_documents.push((watcher, *document)),
+                    Delivery::Forges { watcher, forges } => self.forges_documents.push((watcher, forges)),
                     Delivery::Link {
                         down: host::LinkDown::Relayed { call, answer: host::Relayed::Answer { error: true, text }, .. },
                         ..

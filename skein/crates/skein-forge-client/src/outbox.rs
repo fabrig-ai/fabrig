@@ -78,6 +78,15 @@ impl Outbox {
             stop: stop::State::Running,
         }
     }
+    pub(crate) fn finds_owed(&self, forge: u16) -> u32 {
+        let mut owed = 0_u32;
+        for (_, writing) in &self.entries {
+            if writing.entry.repository.forge == forge && !writing.restart_checked {
+                owed = owed.checked_add(1).expect("entries fit their limit");
+            }
+        }
+        owed
+    }
     pub(crate) fn raise(&mut self, entries: u32) {
         self.entries.raise(entries);
     }

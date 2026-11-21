@@ -18,6 +18,8 @@ use crate::{
 use crate::{adoption, brief, held, topics};
 
 mod admission;
+#[path = "catching_up.rs"]
+mod catching_up;
 mod ci_news;
 mod connection_wait;
 #[cfg(test)]
@@ -294,6 +296,8 @@ pub struct Domain {
     pending_ci: Map<Token, PendingCi>,
     ci_news: Map<(u64, skein_forge::api::Commit), ci_news::Watch>,
     restart_fresh: Option<bool>,
+    restart_settling: bool,
+    pub(crate) catching_up_seen: Map<u16, crate::CatchingUp>,
     /// Claims received while the restart reads are pending.
     waiting_claims: Map<u64, WaitingClaim>,
     projection_waits: Set<u64>,
@@ -485,6 +489,7 @@ impl Domain {
                 makings.push(row.clone()).expect("bounded makings");
             }
             rows.push(crate::Row {
+                catching_up: self.catching_up(*forge),
                 makings: makings.into_boxed(),
                 read_only: config.kind == crate::Kind::GitHub && config.read_only,
                 number: *forge,
@@ -1023,6 +1028,8 @@ impl Domain {
             pending_ci: Map::uncapped(),
             ci_news: Map::uncapped(),
             restart_fresh: None,
+            restart_settling: false,
+            catching_up_seen: Map::with_capacity(l.forges),
             waiting_claims: Map::with_capacity(l.tasks),
             projection_waits: Set::with_capacity(l.issues),
             release_waits: Set::with_capacity(l.tasks),
@@ -1120,6 +1127,7 @@ impl Domain {
 
     /// Raise every holder of the at-once limits (configuration/limit-settings.md, 5).
     fn raise(&mut self, limits: &Limits) {
+        self.catching_up_seen.raise(limits.forges);
         let before = self.landing.limits;
         assert!(
             limits.tasks >= before.tasks
@@ -1732,8 +1740,13 @@ impl Domain {
 }
 
 /// Decide one parent event and collect its durable records and outputs.
-#[expect(clippy::too_many_lines, reason = "one exhaustive connector input dispatcher")]
 pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
+    decide(d, env, event, out);
+    catching_up::mark(d, out);
+}
+
+#[expect(clippy::too_many_lines, reason = "one exhaustive connector input dispatcher")]
+fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     if d.restore_fit.is_some() {
         return;
     }
@@ -2447,6 +2460,11 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
 
 /// Drive one child call after prior saves have committed.
 pub fn resume(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    drive(d, env, out);
+    catching_up::mark(d, out);
+}
+
+fn drive(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     if d.restore_fit.is_some() {
         return;
     }
@@ -2494,6 +2512,11 @@ pub fn resume(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 
 /// Expire one client timer.
 pub fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    expire(d, env, out);
+    catching_up::mark(d, out);
+}
+
+fn expire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     if d.restore_fit.is_some() {
         return;
     }
@@ -2803,6 +2826,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
             }
             skein_forge_client::Request::ReadAfreshDone => d.restart_fresh = Some(true),
             skein_forge_client::Request::OutboxDone => {
+                d.restart_settling = false;
                 emit(out, Request::RestartDone { stage: RestartStage::Settled });
             }
         }
@@ -9977,6 +10001,7 @@ fn restored(d: &mut Domain, env: &Env<Limits>, clock: skein_forge_client::Recove
     d.restore_landing_settings();
     crate::landing_log::restored(d, out);
     d.restore_phase = RestorePhase::Restoring;
+    d.restart_settling = true;
     child(d, env, skein_forge_client::Event::Restored { clock }, out);
     retire_ended(d, env, out);
     admission::writers(d, env);

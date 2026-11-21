@@ -102,6 +102,16 @@ impl Domain {
         let alarms = alarms.checked_add(2).expect("validated alarm capacity");
         self.alarms.raise(alarms);
     }
+    /// Reads still owed by this forge in the restart's fresh pass (forge/client.md, 8).
+    #[must_use]
+    pub fn fresh_owed(&self, forge: u16) -> u32 {
+        self.keep.fresh_owed(forge)
+    }
+    /// Restored attempts this forge has not looked at once (forge/client.md, 8).
+    #[must_use]
+    pub fn finds_owed(&self, forge: u16) -> u32 {
+        self.outbox.finds_owed(forge)
+    }
     /// The owner's next poll, stretched while the repository hears
     /// (forge/client.md, 4.1). Reads state and changes none.
     #[must_use]

@@ -1403,6 +1403,7 @@ pub(super) fn landing(task: u64, at: u64, parties: &[u64]) -> w::ChangesLanded {
 }
 pub(super) fn changes(rows: &[w::ChangesLanded], more: u32) -> w::ChangesPanel {
     w::ChangesPanel {
+        catching_up: None,
         project: PROJECT,
         landing: b"main".as_slice().into(),
         queues: List::with_capacity(0),

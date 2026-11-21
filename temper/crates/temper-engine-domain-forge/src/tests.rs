@@ -10,6 +10,7 @@ mod brief_document;
 mod catching_up_changes;
 mod catching_up_outbox;
 mod catching_up_releases;
+mod catching_up_state;
 mod change;
 #[path = "tests/brief.rs"]
 mod ci_brief;
@@ -555,13 +556,19 @@ fn an_outbox_entry_waits_for_its_commit() {
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     assert_eq!(
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic }).as_ref(),
-        &[Request::RestartDone { stage: RestartStage::Restored }],
+        &[
+            Request::RestartDone { stage: RestartStage::Restored },
+            Request::MarkedForges,
+            Request::Marked { tasks: Box::new([changes_subject(5)]) },
+        ],
     );
     assert_eq!(
         outputs(&mut d, Event::CatchUp).as_ref(),
         &[
             Request::RestartDone { stage: RestartStage::ReadAfresh },
-            Request::RestartDone { stage: RestartStage::Settled }
+            Request::RestartDone { stage: RestartStage::Settled },
+            Request::MarkedForges,
+            Request::Marked { tasks: Box::new([changes_subject(5)]) },
         ],
     );
 
@@ -927,12 +934,20 @@ fn restored_ci_subscriptions_are_read_in_the_fresh_step_and_delay_its_completion
     );
     assert_eq!(
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic }).as_ref(),
-        &[Request::RestartDone { stage: RestartStage::Restored }]
+        &[
+            Request::RestartDone { stage: RestartStage::Restored },
+            Request::MarkedForges,
+            Request::Marked { tasks: Box::new([changes_subject(5)]) },
+        ]
     );
     let fresh = outputs(&mut d, Event::CatchUp);
     assert_eq!(
         fresh.as_ref(),
-        &[Request::RestartDone { stage: RestartStage::Settled }],
+        &[
+            Request::RestartDone { stage: RestartStage::Settled },
+            Request::MarkedForges,
+            Request::Marked { tasks: Box::new([changes_subject(5)]) },
+        ],
         "the subscription read delays only the fresh half"
     );
     let calls = ready(&mut d);
@@ -1371,13 +1386,19 @@ fn a_held_effect_survives_a_restart_out_of_the_clients_outbox() {
     let mut d = held_restored();
     assert_eq!(
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic }).as_ref(),
-        &[Request::RestartDone { stage: RestartStage::Restored }]
+        &[
+            Request::RestartDone { stage: RestartStage::Restored },
+            Request::MarkedForges,
+            Request::Marked { tasks: Box::new([changes_subject(5)]) },
+        ]
     );
     assert_eq!(
         outputs(&mut d, Event::CatchUp).as_ref(),
         &[
             Request::RestartDone { stage: RestartStage::ReadAfresh },
-            Request::RestartDone { stage: RestartStage::Settled }
+            Request::RestartDone { stage: RestartStage::Settled },
+            Request::MarkedForges,
+            Request::Marked { tasks: Box::new([changes_subject(5)]) },
         ]
     );
     // Nothing is looked for: the client never had the held entry.
@@ -2352,6 +2373,7 @@ fn a_configured_git_base_is_bounded_by_its_priced_pull_address_bytes() {
 
 fn setup_row(number: u16, kind: Kind, connection: Connection, offer: Offer) -> Row {
     Row {
+        catching_up: None,
         starts_with: StartsWith::Repository,
         host: Box::new([]),
         number,

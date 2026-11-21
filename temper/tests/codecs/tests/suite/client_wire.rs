@@ -61,7 +61,7 @@ fn first(state: v1::FirstState) -> v1::FirstRepository {
 #[test]
 fn setup_and_every_first_repository_state_round_trip_at_current_version() {
     use temper_client_protocol_wire as wire;
-    assert_eq!(wire::CLIENT_VERSION, 41);
+    assert_eq!(wire::CLIENT_VERSION, 42);
     let request = setup_request();
     assert_eq!(wire::decode_requesting(&wire::requesting(&request), &v1::CEILINGS), Some(request));
     for state in [
@@ -73,6 +73,7 @@ fn setup_and_every_first_repository_state_round_trip_at_current_version() {
         v1::FirstState::Failed(v1::CreateFailed { step: v1::CreateStep::File }),
     ] {
         let row = v1::ForgeRow {
+            catching_up: None,
             starts_with: v1::StartsWith::Repository,
             makings: List::with_capacity(0),
             host: b"git.example:3000".as_slice().into(),

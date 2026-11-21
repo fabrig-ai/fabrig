@@ -77,6 +77,7 @@ fn deliver(root: &mut f::Harness, states: &[w::MakingState], listed: bool) {
     if listed {
         forges
             .push(w::ForgeRow {
+                catching_up: None,
                 starts_with: w::StartsWith::Repository,
                 number: 3,
                 host: b"git.example:3000".as_slice().into(),

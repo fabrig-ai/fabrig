@@ -262,6 +262,7 @@ fn changes(reader: u64, alone: bool) -> w::ChangesPanel {
         }
     }
     w::ChangesPanel {
+        catching_up: None,
         project: PROJECT,
         landing: b"main".as_slice().into(),
         queues: List::with_capacity(0),

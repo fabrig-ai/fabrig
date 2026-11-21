@@ -14,6 +14,7 @@ use temper_client_protocol_wire::{self as wire, v1 as w};
 const HERE: u16 = 3;
 fn row(number: u16, kind: Kind, mode: Mode, connection: C, offer: Offer) -> Row {
     Row {
+        catching_up: None,
         starts_with: forges::StartsWith::Repository,
         makings: Box::new([]),
         host: b"git.example:3000".as_slice().into(),
@@ -488,6 +489,7 @@ fn deliver_first_record(
 ) -> Queue<Request> {
     let mut rows = List::with_capacity(1);
     rows.push(w::ForgeRow {
+        catching_up: None,
         starts_with: w::StartsWith::Repository,
         makings: List::with_capacity(0),
         host: b"git.example:3000".as_slice().into(),
@@ -753,6 +755,7 @@ fn deliver_picker(root: &mut crate::Domain, watch: Token, changed: bool) -> Queu
     }
     let mut rows = List::with_capacity(1);
     rows.push(w::ForgeRow {
+        catching_up: None,
         starts_with: w::StartsWith::Repository,
         makings: List::with_capacity(0),
         host: b"git.example:3000".as_slice().into(),
@@ -1162,6 +1165,7 @@ fn go_on_uses_a_kept_github_and_its_recorded_app_way() {
         let (mut root, _, watch) = opened(true);
         let mut rows = List::with_capacity(1);
         rows.push(w::ForgeRow {
+            catching_up: None,
             starts_with: w::StartsWith::Repository,
             makings: List::with_capacity(0),
             host: b"git.example:3000".as_slice().into(),
