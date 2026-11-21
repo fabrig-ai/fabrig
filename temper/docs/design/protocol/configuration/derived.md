@@ -199,6 +199,35 @@ writes only `slots`.
 - **`Sources` is a projection** of the agent's declaration, the four
   figures that the derivations read. It isn't a second agent type.
 
+### 5.6 The engine's stop and report bounds
+
+From `../../draft/reconciling-start.md`, 4 and 5: the bounds derive from
+one another, and a unit takes its timeouts from the engine's.
+
+- **The stop bound** is the settled stop's (`../../domain/root.md`,
+  8.2): twice the sum of the forge client's write lifetime and clock
+  margin, `forge.client.lifetime_ms` and `forge.client.clock_margin_ms`
+  (skein's `forge/client.md`, 7.8), from the limits in force at the
+  start (`limit-settings.md`). At the stock's 300 s and 1 s it is 602 s.
+  One function computes it, `skein_forge_client::stop_bound(&Limits)`,
+  which the client's settle reads too. The drain after the settle, its
+  commits answered and its components closed, is local and has no bound
+  of its own.
+- **A unit's stop timeout** is the stop bound plus at least 30 s,
+  rounded up to a whole minute: 660 s at the stock, the stop bound plus
+  58 s (`temper/docs/help/server.md`, 3). A deployment that raises
+  either limit raises its unit's timeout by the same rule.
+- **No start timeout:** a unit sets none, since the engine's start lasts
+  as long as its store's open and its steps take, and a step past the
+  report bound says what holds it.
+- **The report bound** is 30 s, `WAIT_REPORT`, one fixed figure for
+  every step of a start and every full table (`../README.md`, 6.3),
+  with `Report`, the clock of its doublings, beside it in
+  `temper-engine-domain-forge`, the lowest crate every one of its
+  readers names (the forge, the root and the engine's shell).
+- **Printed** by `temper-engine versions` (`../binaries.md`, 2), both at
+  the stock limits, in whole seconds rounded up.
+
 ## 6. Tests
 
 - **Each formula of 5.1 and 5.2 has a focused test** in the crate that

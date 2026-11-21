@@ -477,7 +477,7 @@ Read one endpoint's model list, on smith's agent configuration. Internal: it may
 
 ### temper-box internal serve
 
-`temper-box internal serve [DIRECTORIES] --box [--record] [--fixed-start SECONDS,SEED]`
+`temper-box internal serve [DIRECTORIES] --box [--record]`
 
 Run temper-box serve as the box's step, on the listeners and the pipe the box gives it. Internal: it may change without notice.
 

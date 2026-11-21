@@ -296,6 +296,9 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     WORKER_ADD,
     WORKER_PLACES,
     WORKER_REMOVE,
+    &["worker", "pause", "w1"],
+    &["worker", "drain", "w1"],
+    &["worker", "resume", "w1"],
 ];
 
 pub(crate) const WORKER_ADD: &[&str] = &[
@@ -772,6 +775,7 @@ impl Harness {
         let count = if (call.tool == crate::jig::rows::GOAL_START_AT && crate::jig::call::number(&call, 11).is_some())
             || crate::table::TOOLS[usize::from(call.tool)].name == b"change show"
             || crate::table::TOOLS[usize::from(call.tool)].name == b"landing history"
+            || call.tool == crate::jig::rows::WORKER_LIST_AT
         {
             SINGLE_READ
         } else if crate::jig::call::waiting(crate::table::TOOLS[usize::from(call.tool)], &call) {
@@ -797,6 +801,7 @@ impl Harness {
                 | crate::jig::rows::TASK_NOTES_AT
                 | crate::jig::rows::DEPLOYMENT_CENSUS_AT
                 | crate::jig::rows::WORKER_LIST_AT..=crate::jig::rows::WORKER_REMOVE_AT
+                | crate::jig::rows::WORKER_PAUSE_AT..=crate::jig::rows::WORKER_RESUME_AT
                 | crate::jig::rows::MILESTONE_LIST_AT
                 | crate::jig::rows::MILESTONE_SHOW_AT
                 | crate::jig::rows::MILESTONE_WHOLE_AT

@@ -171,6 +171,7 @@ fn worker(number: u32, name: &[u8], withdrawn: bool) -> c::WorkerState {
         withdrawn,
         linked: false,
         since: None,
+        pause: c::WorkerPause::Taking,
     }
 }
 fn ready() -> (Domain, Token, Token) {

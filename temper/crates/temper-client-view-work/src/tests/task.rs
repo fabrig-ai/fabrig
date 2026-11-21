@@ -473,6 +473,7 @@ fn the_chats_owner_activity_draws_no_link() {
         &mut builder,
         &c::Activity::Heard(heard_word(c::Requester::Task(RESULT_TASK), c::MessageKind::Result(c::WordResult::Report))),
         &fixtures::words(),
+        None,
     );
     let tree = builder.finish();
     assert_no_activity_link(&tree);
@@ -486,6 +487,7 @@ fn a_kept_activity_is_parked() {
         &mut builder,
         &c::Activity::Kept { attempt: 1, pending: List::with_capacity(0), question: None },
         &fixtures::words(),
+        None,
     );
     assert_eq!(fixtures::text(&builder.finish()).as_ref(), b"parked");
 }
@@ -1215,7 +1217,7 @@ fn a_heard_or_notified_long_word_draws_whole() {
             for words in [fixtures::words(), fixtures::browser_words()] {
                 let bounds = crate::Limits::of(&domain, &words).unwrap();
                 let mut builder = Builder::new(&bounds.tree);
-                crate::pages::task::owner_activity(&mut builder, &event, &words);
+                crate::pages::task::owner_activity(&mut builder, &event, &words, None);
                 assert_eq!(fixtures::text(&builder.finish()).as_ref(), bytes.as_ref());
             }
         }
@@ -1241,6 +1243,7 @@ fn invalid_run_ends_draw_their_reason() {
                 spent: 0,
             },
             &fixtures::words(),
+            None,
         );
         assert_eq!(fixtures::text(&builder.finish()).as_ref(), expected, "{reason:?}");
     }
@@ -1262,8 +1265,28 @@ fn run_beginnings_draw_why_they_began_fresh() {
                 &mut builder,
                 &c::Activity::RunBegan { attempt: 3, why: c::RunWhy::Ready, resumed: false, fresh },
                 &words,
+                None,
             );
             assert_eq!(fixtures::text(&builder.finish()).as_ref(), expected, "{fresh:?}");
+        }
+    }
+}
+
+#[test]
+fn suspended_run_ends_draw_the_worker_and_cause_instead_of_ended() {
+    for (why, expected) in [
+        (c::SuspendWhy::Stopped, b"Run 4 suspended: worker 2 stopped".as_slice()),
+        (c::SuspendWhy::Restarted, b"Run 4 suspended: worker 2 restarted without it"),
+    ] {
+        for words in [fixtures::words(), fixtures::browser_words()] {
+            let mut builder = Builder::new(&fixtures::tree_limits());
+            crate::pages::task::owner_activity(
+                &mut builder,
+                &c::Activity::RunEnded { attempt: 4, end: c::RunEnd::Suspended { worker: 2, why }, spent: 0 },
+                &words,
+                None,
+            );
+            assert_eq!(fixtures::text(&builder.finish()).as_ref(), expected);
         }
     }
 }

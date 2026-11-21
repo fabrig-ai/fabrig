@@ -322,6 +322,32 @@ fn a_failed_run_fails_it_and_no_retry_starts() {
 }
 
 #[test]
+fn a_suspended_trial_is_not_a_failed_run_and_can_answer_after_its_worker_returns() {
+    let (mut driver, run) = watched();
+    acknowledge(&mut driver);
+    driver.send(protocol::up(CHANNEL, host::LinkUp::Draining, engine::Parts::none()));
+    driver.send(protocol::shutdown(CHANNEL, run.task, run.attempt, 0));
+    driver.pump();
+    acknowledge(&mut driver);
+    assert_eq!(row(&driver).state, trials::State::Running, "a worker stop is not a trial failure");
+    assert!(driver.task(run.task).expect("suspended trial stays live").suspension.is_some());
+    assert_eq!(driver.task(run.task).expect("trial stays live").tries, tasks::Tries::NONE);
+    let returned = Token::new(8);
+    driver.send(protocol::lost(CHANNEL));
+    driver.send(protocol::hello(returned, Box::new([])));
+    driver.pump();
+    let retry = driver.last_assignment();
+    assert_eq!(retry.task, run.task);
+    assert!(retry.attempt > run.attempt);
+    driver.send(protocol::turn(returned, retry.task, retry.attempt, 1, 1, None, b"Word"));
+    driver.pump();
+    acknowledge(&mut driver);
+    assert!(matches!(row(&driver).state, trials::State::Answered { .. }));
+    driver.answer(returned, retry.task, retry.attempt, 1, tasks::End::Refused, engine::Parts::none());
+    driver.settle();
+}
+
+#[test]
 fn a_trials_row_carries_its_changing_run_wait_without_a_task_watch() {
     use core::documents::{TaskRunWait, TaskWaitWhy};
     for fails in [false, true] {

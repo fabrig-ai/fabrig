@@ -148,6 +148,7 @@ fn deployment_complete_connector_registry_does_not_hide_original_refusal_history
                 worker: 0,
                 channel: Token::new(channel),
                 hello: Hello {
+                    fresh: false,
                     reads_usage: true,
                     jobs: Box::default(),
                     bounds: fixtures::bounds(),
@@ -204,6 +205,7 @@ fn a_refused_hello_shows_its_agent_shortfall() {
             worker: 0,
             channel: Token::new(9),
             hello: Hello {
+                fresh: false,
                 reads_usage: true,
                 jobs: Box::default(),
                 bounds,
@@ -305,6 +307,7 @@ fn program_facts() -> (Core, Env<Limits>) {
             channel: Token::new(17),
             worker: 0,
             hello: Hello {
+                fresh: false,
                 reads_usage: true,
                 jobs: Box::default(),
                 bounds: fixtures::bounds(),
@@ -461,6 +464,7 @@ fn a_hellos_reason_reaches_the_held_refusal() {
             worker: 0,
             channel,
             hello: Hello {
+                fresh: false,
                 reads_usage: true,
                 jobs: Box::default(),
                 bounds,

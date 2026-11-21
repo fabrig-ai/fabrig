@@ -708,6 +708,30 @@ Its listings start from the newest time the store kept for each
 repository with an issue or pull watch, inclusive, so what changed while
 the engine was down is read once.
 
+**What steps 1 and 2 wait for** (`../../draft/reconciling-start.md`, 5).
+The forge answers the root, at any time during its restart, what each
+step still owes, by kind, each with its count and its oldest three
+named, in the words and order of `../../protocol/README.md`, 6.3:
+
+- **reading afresh** owes each term its end waits on: the client's
+  fresh reads still owed, by resource and listing (skein's
+  `forge/client.md`, 8, *What it still owes*), the landings' gathers,
+  the CI reads, the goal files' reads and the lost writers' reads still
+  pending, and the goal branches still being made (`branches.md`, 1);
+- **settling the outbox** owes each restored entry not yet looked for,
+  by its number and task.
+
+The root reports them past the report bound as its step's waiters
+(`../root.md`, 8.1). Nothing in them is a deadline.
+
+**A stop during steps 1 and 2.** Told to settle while it reads afresh
+or settles its outbox (`../root.md`, 8.2), the forge stops waiting for
+either: it settles as at any stop (section 4), its client sending
+nothing new (skein's `forge/client.md`, 7.8). A read or a find
+answered after is taken as a fact and steps nothing, and the end of
+either step is no longer awaited, its report, should it come, dropped.
+What either owed is the next start's to read and find again.
+
 ## 10. The world
 
 The connector's world, `tests/engine/forge`, runs its subtree with the

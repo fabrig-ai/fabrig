@@ -429,7 +429,7 @@ fn an_untooled_wait_keeps_its_account_source_and_worker() {
     let wait =
         d::TaskRunWait::Account { account: Some(4), source: Some(7), why: d::TaskWaitWhy::Untooled { worker: 2 } };
     let wire = translate::task_wait::waiting(Some(wait), &limits).unwrap().unwrap();
-    assert_eq!(w::VERSION, 40);
+    assert_eq!(w::VERSION, 42);
     let w::TaskRunWait::Account(row) = wire else { panic!("account wait") };
     assert_eq!((row.account, row.source), (Some(4), Some(7)));
     let w::TaskWaitWhy::Untooled(why) = &row.why else { panic!("untooled wait") };
@@ -593,4 +593,21 @@ fn checks_refusal_preserves_charter_through_server_bytes_and_client_tasks() {
             figures: None,
         },
     );
+}
+
+#[test]
+fn a_worker_wait_crosses_task_bytes_with_its_wall_nanoseconds() {
+    use jig_client_domain::contract as c;
+    use jig_domain_core_vocabulary::documents as d;
+    use skein_lib::Wall;
+    let limits = fixtures::wire_limits();
+    let mut task = fixtures::task_with_hold();
+    let until = Wall::from_nanos(63_600_000_000_001);
+    task.run_wait = Some(d::TaskRunWait::Worker { worker: 2, until });
+    let record = translate::task::document(&task, &[], &limits).unwrap();
+    assert_eq!(record.run_wait, Some(w::TaskRunWait::Worker(w::TaskWaitWorker { worker: 2, until: until.as_nanos() })));
+    let bytes = record.encode(&limits).unwrap();
+    let decoded = w::Task::decode(&limits, &mut Reader::new(&bytes)).unwrap();
+    let client = jig_client_protocol_link::translate::documents::task(decoded, &fixtures::client_limits()).unwrap();
+    assert_eq!(client.run_wait, Some(c::TaskRunWait::Worker { worker: 2, until }));
 }

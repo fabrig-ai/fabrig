@@ -361,6 +361,7 @@ pub(super) fn restart(world: &mut World, child: (u64, u64)) {
         worker: 0,
         channel: Token::new(7),
         hello: jig_domain_link::Hello {
+            fresh: false,
             reads_usage: true,
             jobs: Box::new([]),
             bounds: jig_test_profile::fixtures::bounds(),
@@ -498,6 +499,7 @@ fn an_engine_stop_preserves_the_activation_and_session() {
         worker: 0,
         channel: Token::new(7),
         hello: jig_domain_link::Hello {
+            fresh: false,
             reads_usage: true,
             jobs: Box::new([]),
             bounds: jig_test_profile::fixtures::bounds(),

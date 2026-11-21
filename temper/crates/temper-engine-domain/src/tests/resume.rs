@@ -628,42 +628,7 @@ fn an_empty_store_opens_through_every_start_phase_in_order() {
     assert_eq!((store.switches, store.wires), (0, 1));
 }
 
-fn repository() -> temper_engine_domain_forge::Repository {
-    use temper_engine_domain_forge as forge;
-    forge::Repository {
-        contexts: Box::new([]),
-        landing: b"main".as_slice().into(),
-        workflows: Box::default(),
-        project: 1,
-        home: false,
-        provider: skein_forge::api::Repository { forge: 1, repository: 1 },
-        host: b"forge.invalid".as_slice().into(),
-        owner: b"owner".as_slice().into(),
-        name: b"repo".as_slice().into(),
-        prefix: Box::new([]),
-        role: forge::Role::Context,
-        ci: false,
-        checks: Box::new([]),
-        kinds: forge::Kinds {
-            read: false,
-            push: false,
-            open: false,
-            land: false,
-            review: false,
-            status: false,
-            comment: false,
-            issue: false,
-            branch: false,
-        },
-        protection: forge::Protection::Unknown,
-        settings: skein_forge::api::Settings {
-            default_branch: b"main".as_slice().into(),
-            merge: true,
-            squash: false,
-            rebase: false,
-        },
-    }
-}
+pub(super) use temper_limits_fixtures::start_forge::repository;
 
 fn restored_start_store() -> (super::resume_fixture::StartStore, Env<Limits>) {
     let (mut first, env) = cold();
@@ -913,7 +878,7 @@ fn firing_before_start_and_before_wires_does_not_consume_or_open_the_start() {
     crate::fire(&mut domain, &env);
     assert_eq!(domain.start_phase(), Some(jig_domain_core::start::Phase::LoadCore));
     assert!(!domain.ready());
-    assert_eq!(domain.next_deadline(&env), None);
+    assert_eq!(domain.next_deadline(&env), Some(env.now.saturating_add(temper_engine_domain_forge::WAIT_REPORT)));
 }
 
 fn take_start(domain: &mut Domain, env: &Env<Limits>) -> crate::Released {

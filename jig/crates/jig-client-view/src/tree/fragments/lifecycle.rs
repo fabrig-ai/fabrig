@@ -39,7 +39,7 @@ pub fn attempt(b: &mut Builder, value: &AttemptLine, words: &Words) {
     wall(b, words, value.started, P::Started, P::StartedAbsent);
     wall(b, words, value.ended, P::Ended, P::EndedAbsent);
     match value.end {
-        Some(end) => super::activity::end(b, end, words),
+        Some(end) => super::activity::end(b, end, value.attempt, words),
         None => text(b, words, P::EndAbsent, &[]),
     }
     match value.phases {

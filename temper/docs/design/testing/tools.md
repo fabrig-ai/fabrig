@@ -57,13 +57,15 @@ transcripts' and playground-serve's are, it takes two lines of the page.
 Their forms are today's:
 
 - `temper-client-gallery OUT`;
-- `temper-client-journeys`, `temper-client-journeys add [--redact
-  TEXT]... NAME FILE`, `temper-client-journeys again NAME` and
-  `temper-client-journeys pages [--prepared DIR] [--within DURATION]`
-  and `pages --check`, the journeys'
-  writer's (`../client/journey-writer.md`, 3);
+- `temper-client-journeys print [--redact TEXT]... FILE OUT`, the saved
+  recording's print (`../client/web/journeys.md`, 5.1);
+  `temper-client-journeys drive` and `temper-client-journeys journey walk
+  NAME`, the session and a journey on a box (`../client/drive.md`, 2.1
+  and 2.7); `temper-client-journeys recipe hash NAME`, `recipe list` and
+  `recipe walk NAME`, QA's recipes (`../client/recipe.md`, 5);
 - `temper-client-walk print [--out DIR] [NAME]...` and
-  `temper-client-walk pages` (`../client/journey-walks.md`, 5), new;
+  `temper-client-walk pages`, the journeys' writer's print
+  (`../client/journey-walks.md`, 5; `../client/journey-writer.md`, 3);
 - `temper-git-transcripts --git PATH --scratch DIR --out DIR`;
 - `temper-playground-serve OUT`;
 - `temper-stage-one obligations [--json]`, `collect` with its eight
@@ -146,8 +148,8 @@ Their forms are today's:
 - **Its commands** are its forms (section 2), each `Set::Internal`,
   reached by its words or, for a bare form, by none. Each command's line
   is what its design says it does, and its notes keep what the tool's own
-  help said, so that nothing it printed is lost: the journeys' cautions
-  are `add`'s notes, and `add --help` prints them.
+  help says: the saved recording's print keeps its redaction, replay and
+  scan cautions in `print`'s notes, and `print --help` prints them.
 - **Their flags:** a flag with a value is a setting of the command's
   group (`skein/docs/design/runtime/shell.md`, 6.5), internal, with no
   twin, `Fallback::Refuse` where it's required and its default where it
@@ -159,8 +161,9 @@ Their forms are today's:
   `../draft/cli.md`, 4.6 gives it:
   - test: `TEMPER_TEST_FORGEJO`, read by the transcripts' tool, and skein's
     `SKEIN_TEST_CHROMIUM`, read by the journeys';
-  - internal: `TEMPER_INTERNAL_BUNDLE`, which the journeys' tool sets for the
-    builds it runs;
+  - internal: `TEMPER_INTERNAL_FAKE_BOX_PORTS` and `TEMPER_INTERNAL_RECORD`,
+    which the drive session sets for the box and TUI (`../client/drive.md`,
+    2.1 and 3.3); it runs no build;
   - public, as `skein-shell`'s `HOME` is: the host's and Cargo's, as
     `PATH` and `CARGO_TARGET_DIR`.
 

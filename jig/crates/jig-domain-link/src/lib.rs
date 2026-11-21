@@ -26,6 +26,23 @@ impl Class {
     }
 }
 
+/// The engine's pause ask (jig/docs/design/protocol/channel/pause.md, 2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum PauseMode {
+    Resume,
+    Pause,
+    Drain,
+}
+
+/// The worker's pause state (jig/docs/design/protocol/channel/pause.md, 2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum PauseState {
+    Taking,
+    Paused,
+    Draining,
+    Drained,
+}
+
 /// A configuration-directory name (accounts.md, 3.4), never an account number.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct SourceName(skein_lib::Name<32>);
@@ -304,6 +321,8 @@ pub struct Hello {
     pub workstreams: Box<[u64]>,
     /// The runs it hosts, and those whose answers it holds.
     pub hosting: Box<[Hosting]>,
+    /// No hello of this worker process has yet been admitted (domain/engine/executors.md, 6.5).
+    pub fresh: bool,
 }
 
 /// A run a worker hosts, or whose answer it holds.

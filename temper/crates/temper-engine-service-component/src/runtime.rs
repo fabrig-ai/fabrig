@@ -411,7 +411,7 @@ impl engine::Engine {
                 process.down(state.io.pop().expect("checkpoint child requests"));
             }
         }
-        if engine.store.opened || engine.end.is_some() || engine.checkpoint.is_some() {
+        if engine.store.opened || engine.end.is_some() || crate::stop::closing(engine) || engine.checkpoint.is_some() {
             for _ in 0..engine.setup.io.len() {
                 if process.room() < io::MAX_OUT_DOWN.submissions || !process.io().takes() {
                     break;
@@ -441,7 +441,7 @@ impl engine::Engine {
                 process.down(request);
             }
         }
-        if (engine.store.opened || engine.end.is_some())
+        if (engine.store.opened || engine.end.is_some() || crate::stop::closing(engine))
             && let Some(accounts) = &mut engine.accounts
         {
             for _ in 0..accounts.io.len() {

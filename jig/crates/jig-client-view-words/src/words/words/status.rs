@@ -15,6 +15,13 @@ impl Words {
                 self.text(b, P::Word(Word::Status(StatusWord::HostRefused)), &[]);
                 self.host_refused(b, *why);
             }
+            ChatStatus::RunWaiting(jig_client::facts::RunWaitKind::Worker { worker, until }) => {
+                self.text(
+                    b,
+                    P::WaitReturningWorker,
+                    &[Hole::Number(u64::from(*worker)), Hole::Wall(self.adjusted_wall(*until))],
+                );
+            }
             ChatStatus::Starting => self.text(b, P::Word(Word::Status(StatusWord::Starting)), &[]),
             ChatStatus::Writing => self.text(b, P::Word(Word::Status(StatusWord::Writing)), &[]),
             ChatStatus::Tool { tool, since } => {

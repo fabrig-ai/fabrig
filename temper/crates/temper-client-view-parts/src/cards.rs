@@ -52,6 +52,7 @@ pub fn refusal_words(words: &Words, value: &c::Refusal) -> Box<[u8]> {
         | c::Refusal::Circle { .. }
         | c::Refusal::Dependency { .. }
         | c::Refusal::Kept { .. }
+        | c::Refusal::Unlinked { .. }
         | c::Refusal::Concluded { .. }
         | c::Refusal::Provider => None,
     };
@@ -121,7 +122,8 @@ pub fn outcome(b: &mut Builder, words: &Words, value: &c::Outcome) {
         c::Outcome::Restored { .. } => unreachable!("a restore: restore-ctl"),
         c::Outcome::Document(value) => return owner_outcome(b, words, value),
 
-        c::Outcome::Account(_)
+        c::Outcome::WorkerPauseAsked { .. }
+        | c::Outcome::Account(_)
         | c::Outcome::SettingsChanged(_)
         | c::Outcome::MovedToNewest(_)
         | c::Outcome::Made { .. } => P::Applied,

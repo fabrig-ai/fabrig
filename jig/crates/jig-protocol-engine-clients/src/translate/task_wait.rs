@@ -8,6 +8,9 @@ pub fn waiting(value: Option<d::TaskRunWait>, limits: &w::Limits) -> Result<Opti
     Ok(Some(match value {
         d::TaskRunWait::Credential => w::TaskRunWait::Credential,
         d::TaskRunWait::Host => w::TaskRunWait::Host,
+        d::TaskRunWait::Worker { worker, until } => {
+            w::TaskRunWait::Worker(w::TaskWaitWorker { worker, until: until.as_nanos() })
+        }
         d::TaskRunWait::Refused(value) => w::TaskRunWait::Refused(w::TaskRunWaitRefused {
             value: match value {
                 d::TaskWaitRefused::Hello { kind, at, why, figures } => w::TaskWaitRefused::Hello(w::TaskWaitHello {

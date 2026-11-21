@@ -8,3 +8,9 @@ pub mod events;
 pub mod json;
 
 pub mod request;
+
+/// Benchmark stories shared by replaying and real binaries.
+pub mod common;
+
+/// Parity inputs and row derivation shared by both binaries.
+pub mod parity;

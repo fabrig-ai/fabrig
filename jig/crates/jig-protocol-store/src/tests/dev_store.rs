@@ -259,6 +259,8 @@ fn read_back(disk: &mut Disk, store: &mut Store, calls: &[Record], activities: &
             .request(store, Request::Get { owner: OWNER, key: Get::Jig(core::Key::Tasks(tasks::Key::Ended(task))) });
         let [Event::Got { row: Some(Row::Jig(row)), .. }] = events.as_ref() else { panic!("ended get: {events:?}") };
         assert_eq!(*row, fixtures::ended_task(task));
+        let Record::Tasks(tasks::Stored::Ended(kept_task)) = row else { panic!("ended task") };
+        assert_eq!((kept_task.suspension, kept_task.suspended, kept_task.restarted), (None, 0, false));
         let mut range = fixtures::read(ALICE, core::reads::Scope::TaskOwnRows { task });
         range.rows = 4;
         // The fetch's encoded page and the caller's owned, decoded rows have

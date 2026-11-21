@@ -4,7 +4,7 @@ use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
 use jig_domain_fleet as fleet;
-use skein_lib::List;
+use skein_lib::{List, Wall};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum RunWait {
@@ -12,6 +12,7 @@ pub enum RunWait {
     InvalidAccount { account: u32, why: jig_domain_tasks::AccountWhy },
     Credential,
     Host,
+    Worker { worker: u32, until: Wall },
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct RunChoice {
@@ -64,6 +65,14 @@ impl Core {
             excluded,
             coverage.as_slice(),
         );
+        let suspension = match self.tasks.suspension(task) {
+            Some(suspension) if self.run_wall < suspension.until => Some(suspension),
+            Some(_) | None => None,
+        };
+        let worker = match suspension {
+            Some(suspension) => Some(suspension.worker.checked_sub(1).expect("a worker setting number starts at one")),
+            None => None,
+        };
         let mut waiting = None;
         let mut host_wait = false;
         let mut login_wait = None;
@@ -75,7 +84,7 @@ impl Core {
             }
             let mut tried = List::with_capacity(self.fleet.host_capacity());
             for _ in 0..=self.fleet.host_capacity() {
-                let Some(placement) = self.fleet.probe(kinds, task, version, &[], tried.as_slice()) else {
+                let Some(placement) = self.fleet.probe(kinds, task, version, &[], tried.as_slice(), worker) else {
                     host_wait = true;
                     break;
                 };
@@ -133,7 +142,10 @@ impl Core {
             {
                 return Err(wait);
             }
-            Err(RunWait::Host)
+            Err(match suspension {
+                Some(suspension) => RunWait::Worker { worker: suspension.worker, until: suspension.until },
+                None => RunWait::Host,
+            })
         } else {
             Err(waiting.unwrap_or(account_wait(None)))
         }

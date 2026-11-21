@@ -42,6 +42,7 @@ fn the_document_bridge_starts_once_and_preserves_templates_policies_rules_and_mo
         worker: 0,
         channel: Token::new(7),
         hello: Hello {
+            fresh: false,
             reads_usage: true,
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
@@ -441,6 +442,7 @@ fn changed_charter_instructions_and_catalogue_effort_prepare_the_next_new_task()
         worker: 0,
         channel: Token::new(7),
         hello: Hello {
+            fresh: false,
             reads_usage: true,
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
@@ -728,6 +730,7 @@ fn a_changed_run_cap_applies_to_the_next_run_without_capping_its_tasks_total_all
         worker: 0,
         channel: Token::new(7),
         hello: Hello {
+            fresh: false,
             reads_usage: true,
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
@@ -893,6 +896,7 @@ fn ready_host(world: &mut World) {
         worker: 0,
         channel: Token::new(7),
         hello: Hello {
+            fresh: false,
             reads_usage: true,
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
@@ -1749,6 +1753,7 @@ fn a_goal_on_an_older_revision_runs_where_its_version_allows() {
         worker: 0,
         channel: Token::new(0),
         hello: Hello {
+            fresh: false,
             reads_usage: true,
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
@@ -1879,6 +1884,7 @@ fn a_restart_adopts_a_live_run_on_its_old_version() {
         worker: 0,
         channel: Token::new(7),
         hello: Hello {
+            fresh: false,
             reads_usage: true,
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
@@ -2115,6 +2121,7 @@ fn a_held_versions_documents_show_its_charter_and_nothing_once_released() {
         worker: 0,
         channel: Token::new(8),
         hello: Hello {
+            fresh: false,
             reads_usage: true,
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
@@ -2317,6 +2324,7 @@ fn a_hello_before_settings_restore_uses_the_stored_reserve_and_adopts_its_run() 
         worker: 0,
         channel: Token::new(7),
         hello: Hello {
+            fresh: false,
             reads_usage: true,
             jobs: Box::new([]),
             bounds,
@@ -2355,6 +2363,7 @@ fn checks_hello(world: &mut World, channel: u64) {
         worker: 0,
         channel: Token::new(channel),
         hello: Hello {
+            fresh: false,
             reads_usage: true,
             jobs: Box::default(),
             bounds,

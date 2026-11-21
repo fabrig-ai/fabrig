@@ -251,6 +251,7 @@ impl Process {
                 self.reaping = Some(owner);
                 return;
             }
+            agent::process::Request::CloseChannel { .. } => return,
             agent::process::Request::Signal { owner, .. } => {
                 around.observed.killed += 1;
                 agent::process::Event::Signalled { owner }

@@ -78,12 +78,16 @@ one on a host in the engine's own process when that engine stops
 (../engine/restart.md, 1): its attempt ends interrupted, as a recheck ends, with
 no try spent and no backoff, keeping the turns and calls it committed,
 and the task is due again. Nor is a run its host cancelled for lost
-contact or for the host's own shutdown (../hosts/hub.md, 6), whose answer
-ends its attempt interrupted in the same way, with the saved work it
-names kept for the next attempt; nor a job its host cancelled for its
-shutdown, which it answers so only before the job's delivery began
-(../hosts/hub.md, 9): its attempt ends interrupted alike, and the next
-runs the job from the start. A kept
+contact (../hosts/hub.md, 6), whose answer ends its attempt interrupted
+in the same way, with the saved work it names kept for the next
+attempt. Nor is an attempt its worker's stop cut: a run or a job its
+worker answers `Cancelled(Shutdown)`, a job only before its delivery
+began (../hosts/hub.md, 7 and 9), or a claim its worker, back as a new
+process, no longer lists. Its attempt is **suspended**
+(../engine/executors.md, 6): released as an interrupted one is, its
+end read `suspended`, no clock counting the gap, and its next attempt
+sent back to that worker within a window; a job's next runs it from the
+start. A kept
 task is never due, and a run of it that finishes done parks instead
 (8). A standing task's run that finishes parks too (`standing.md`,
 section 2).
@@ -330,7 +334,9 @@ them (8).
   for fails for good (a procedure's task hears it and steps instead,
   ../connectors.md, 4.2), an effect it asked for is uncertain and of a kind
   that cannot be recovered (../connectors.md, 4.3), its budget or its
-  deadline runs out (../authority.md, section 7; for an agent task, its
+  deadline runs out (../authority.md, section 7; the deadline moved
+  later by the time the task spent suspended, ../engine/executors.md,
+  6.3; for an agent task, its
   share for its next run, half of what it has left where it may start a
   delegate and that half is above a run's minimum, too little for that run's reserve and one completion more of its
   main model, and on a program backend one more again, with nothing to
@@ -830,7 +836,8 @@ record OpenAttempt { attempt: u64 claimed: option u64 started: option u64 from: 
   `Running { N }`: `started` takes its time, and the row is put again.
 - **Its run's end:** where the tasks child accepts its run's end and
   writes the activity's `RunEnded` line, `open_attempt.end` keeps the
-  end's kind.
+  end's kind: `suspended`, with its worker and cause, for an attempt its
+  worker's stop cut (../engine/executors.md, 6.2).
 - **Closed** at the first phase change after which the phase no longer
   names it, the task's end among them: its row is put whole, `ended`
   that change's time, `end` its run's end where one was heard, `phases`

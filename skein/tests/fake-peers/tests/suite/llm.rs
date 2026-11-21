@@ -11,97 +11,11 @@ use skein_shell::Host;
 
 #[path = "../llm/request.rs"]
 mod request;
-#[path = "../llm/tls.rs"]
-mod tls;
 use skein_fake_peers_tests as support;
 
-fn limits() -> Limits {
-    Limits {
-        io: skein_io::Limits { sockets: 3, retry: Duration::from_millis(1), ..skein_io::Limits::TEST },
-        connections: 2,
-        queue: 64,
-        plaintext: 32_768,
-        ciphertext: 32_768,
-        observations: 16,
-        observation_bytes: 32_768,
-    }
-}
-
-fn make(address: SocketAddr, transport: Transport) -> Result<llm::Peer, skein_fake_peers::Error> {
-    let call = skein_llm_kit::call(1);
-    make_on(call.endpoint, call.credential.expect("fixture credential"), address, transport)
-}
-
-fn make_on(
-    endpoint: Endpoint,
-    credential: Credential,
-    address: SocketAddr,
-    transport: Transport,
-) -> Result<llm::Peer, skein_fake_peers::Error> {
-    make_scripted(endpoint, credential, address, transport, Box::new([]))
-}
-
-fn make_scripted(
-    endpoint: Endpoint,
-    credential: Credential,
-    address: SocketAddr,
-    transport: Transport,
-    scripts: Box<[api::Script]>,
-) -> Result<llm::Peer, skein_fake_peers::Error> {
-    make_scripted_with_limits(endpoint, credential, address, transport, scripts, limits())
-}
-
-fn make_scripted_with_limits(
-    endpoint: Endpoint,
-    credential: Credential,
-    address: SocketAddr,
-    transport: Transport,
-    scripts: Box<[api::Script]>,
-    limits: Limits,
-) -> Result<llm::Peer, skein_fake_peers::Error> {
-    let machine_limits = skein_llm_kit::fake::config();
-    let domain = domain::Domain::configured(
-        &machine_limits,
-        23,
-        scripts,
-        api::Menu { arguments: Box::new([]), invalid: Box::new([]) },
-    )
-    .expect("configured script domain");
-    make_domain_with_limits(endpoint, credential, address, transport, domain, limits)
-}
-
-fn make_domain_with_limits(
-    endpoint: Endpoint,
-    credential: Credential,
-    address: SocketAddr,
-    transport: Transport,
-    domain: domain::Domain,
-    limits: Limits,
-) -> Result<llm::Peer, skein_fake_peers::Error> {
-    let machine_limits = skein_llm_kit::fake::config();
-    llm::Peer::new(
-        address,
-        transport,
-        limits,
-        provider::Config {
-            list: None,
-            list_status: None,
-            without_credential: false,
-            usage_fields: skein_fake_llm_protocol::documents::UsageFields::ALL,
-            echo: skein_llm::openai::Echo::NONE,
-            provider: match endpoint.provider {
-                Provider::OpenAi => documents::Provider::OpenAi,
-                Provider::Anthropic => documents::Provider::Anthropic,
-            },
-            path: endpoint.target,
-            headers: Box::new([]),
-        },
-        credential,
-        skein_llm_kit::fake::limits(&skein_llm_kit::limits()),
-        domain,
-        machine_limits,
-    )
-}
+use skein_fake_peers_kit::llm::{
+    limits, make, make_domain_with_limits, make_on, make_scripted, make_scripted_with_limits,
+};
 
 #[test]
 fn fake_peer_binds_loopback_and_shutdown_settles_the_actual_listener() {

@@ -1,6 +1,9 @@
-//! A running engine gives restored and changed figures (protocol/configuration/figures.md, 9).
-use super::fixtures;
-use crate::engine::Engine;
+//! A running engine gives restored and changed figures (temper/docs/design/protocol/configuration/figures.md, 9).
+use super::{
+    fixtures,
+    limit_settings::{admission as limits, item},
+};
+use crate::{FiguresRevision, engine::Engine};
 use jig_domain_core::settings;
 use jig_domain_people::{self as people, Reply};
 use jig_protocol_worker_link as link;
@@ -16,6 +19,7 @@ use temper_engine_domain_forge::settings as own;
 const SOCKET: Token = Token::new(901);
 const CONNECTION: Token = Token::new(902);
 const NOW: Time = Time::from_nanos(1);
+const WORKER_SECRET: &[u8] = b"worker-secret";
 
 struct Peer {
     worker: link::Component,
@@ -28,13 +32,21 @@ struct Peer {
     figures: List<wire::Figures>,
     ended: bool,
     hello: bool,
+    send_hello: bool,
 }
 impl Peer {
     fn open(engine: &mut Engine, opening: Opening) -> Self {
-        let settings = fixtures::start_settings(fixtures::engine(), &[(1, 100)]);
+        Self::open_with_hello(engine, opening, true)
+    }
+    fn open_with_hello(engine: &mut Engine, opening: Opening, send_hello: bool) -> Self {
+        let mut settings = fixtures::start_settings(fixtures::engine(), &[(1, 100)]);
+        if let Some(state) = engine.limits_in_force() {
+            settings.jig.limits = state.in_force.jig;
+            settings.limits = state.in_force.temper;
+        }
         let limits = crate::workers::limits(&settings).unwrap();
         let worker_limits = link::Limits {
-            sizes: limits.sizes,
+            sizes: wire::sizes::Sizes { slots: 1, ..limits.sizes },
             chunk: limits.chunk,
             room: limits.room,
             handshake: limits.handshake,
@@ -53,7 +65,7 @@ impl Peer {
             link::Credential {
                 opening,
                 name: b"worker-a".as_slice().into(),
-                secret: Secret::new(b"worker-secret".as_slice().into()),
+                secret: Secret::new(WORKER_SECRET.into()),
                 application: temper_protocol_worker_wire::application(
                     &crate::translate::limits(&settings.limits).unwrap(),
                 )
@@ -70,9 +82,10 @@ impl Peer {
             engine_read: None,
             worker_read: None,
             owner: None,
-            figures: List::with_capacity(2),
+            figures: List::with_capacity(3),
             ended: false,
             hello: false,
+            send_hello,
         };
         engine.workers.up(
             NOW,
@@ -83,9 +96,11 @@ impl Peer {
             },
             &mut engine.events,
         );
-        let mut workers = fixtures::opening_workers();
-        workers[0].digest = Some(skein_lib::sha256::digest(b"worker-secret"));
-        engine.workers.down(NOW, jig_protocol_engine_workers::Event::Workers(workers), &mut engine.events);
+        if engine.limits_in_force().is_none() {
+            let mut workers = fixtures::opening_workers();
+            workers[0].digest = Some(skein_lib::sha256::digest(WORKER_SECRET));
+            engine.workers.down(NOW, jig_protocol_engine_workers::Event::Workers(workers), &mut engine.events);
+        }
         peer.worker.fire(NOW, &mut peer.out);
         peer.settle(engine);
         peer
@@ -132,18 +147,22 @@ impl Peer {
                         self.worker.down(NOW, link::Event::Dialled { connection: CONNECTION }, &mut self.out);
                     }
                     link::Request::Ready => {
+                        if !self.send_hello {
+                            continue;
+                        }
                         self.hello = true;
                         self.worker.down(
                             NOW,
                             link::Event::Hello {
                                 hello: jig_domain_link::Hello {
+                                    fresh: false,
                                     reads_usage: true,
                                     jobs: Box::new([]),
                                     slots: 1,
                                     stop_bound: Duration::from_millis(100),
                                     workstreams: Box::new([]),
                                     hosting: Box::new([]),
-                                    bounds: fixtures::worker_agent().bounds,
+                                    bounds: hello_bounds(engine),
                                 },
                             },
                             &mut self.out,
@@ -192,6 +211,38 @@ impl Peer {
     }
 }
 
+fn hello_bounds(engine: &Engine) -> jig_domain_link::Bounds {
+    let mut bounds = fixtures::worker_agent().bounds;
+    // The resolved deployment uses stock providers and carriers rather than the small typed fixture.
+    if let Some(state) = engine.limits_in_force() {
+        let agent = crate::stock::agents();
+        let mut endpoints = List::with_capacity(temper_engine_service_vocabulary::figures::ENDPOINTS);
+        let mut programs = List::with_capacity(endpoints.capacity());
+        for provider in &engine.running_providers {
+            for endpoint in &provider.endpoints {
+                endpoints
+                    .push(jig_domain_link::EndpointBound {
+                        endpoint: endpoint.number,
+                        window: agent.fallback.window,
+                        output: agent.fallback.output,
+                    })
+                    .unwrap();
+                programs.push(endpoint.number).unwrap();
+            }
+        }
+        bounds.endpoints = endpoints.into_boxed();
+        bounds.program_endpoints = programs.into_boxed();
+        bounds.message_bytes = state.in_force.jig.core.tasks.message_bytes;
+        bounds.inbox = state.in_force.jig.core.tasks.run_inbox;
+        bounds.unacknowledged = state.in_force.jig.hub.turns;
+        bounds.turns = 901;
+        bounds.time = Duration::from_secs(86_400);
+        bounds.waiting = Duration::from_secs(86_400);
+        bounds.spend = u64::MAX;
+    }
+    bounds
+}
+
 #[expect(
     clippy::wildcard_enum_match_arm,
     reason = "only synthetic web replies are intercepted; production routes every other request"
@@ -222,7 +273,15 @@ fn settle(engine: &mut Engine) -> List<Reply> {
             return replies;
         }
     }
-    panic!("settings decision settles");
+    panic!(
+        "settings decision at revision {} settles (quiescent {}, event count {}, request count {}, store idle {}, commits {})",
+        engine.domain.settings_revision(),
+        engine.domain.quiescent(),
+        engine.events.len(),
+        engine.requests.len(),
+        engine.store.idle(),
+        engine.domain.commits_in_flight(),
+    );
 }
 
 fn signed_in(engine: &mut Engine) {
@@ -273,7 +332,7 @@ fn expected(agents: &s::AgentFigures) -> wire::Figures {
     parts.places = 1;
     parts
 }
-fn notes(engine: &mut Engine) -> List<(u32, u32, u32)> {
+fn notes(engine: &mut Engine) -> List<(u32, u32, FiguresRevision)> {
     let mut values = List::with_capacity(2);
     for queue in [&mut engine.notes, &mut engine.workers.notes] {
         while let Some(note) = queue.pop() {
@@ -307,7 +366,10 @@ fn restored_agents_reach_a_figures_opening_and_owner_changes_reach_a_link() {
     assert!(!figures.hello);
     assert!(figures.ended);
     Peer::engine_up(engine, io::Event::Closed { owner: figures.owner.unwrap() });
-    assert_eq!(notes(engine).as_slice(), &[(expected_first.limits.len(), expected_first.agents.endpoints.len(), 2)]);
+    assert_eq!(
+        notes(engine).as_slice(),
+        &[(expected_first.limits.len(), expected_first.agents.endpoints.len(), FiguresRevision::Agents(2))]
+    );
     let mut linked = Peer::open(engine, Opening::Link);
     assert_eq!(linked.figures.as_slice(), &[expected_first]);
     assert!(linked.hello);
@@ -324,7 +386,141 @@ fn restored_agents_reach_a_figures_opening_and_owner_changes_reach_a_link() {
     let expected_second = expected(&second);
     assert_eq!(linked.figures.len(), 2);
     assert_eq!(linked.figures.as_slice()[1], expected_second);
-    assert_eq!(notes(engine).as_slice(), &[(expected_second.limits.len(), expected_second.agents.endpoints.len(), 3)]);
+    assert_eq!(
+        notes(engine).as_slice(),
+        &[(expected_second.limits.len(), expected_second.agents.endpoints.len(), FiguresRevision::Agents(3))]
+    );
+}
+
+const REMOTE: &[u8] = b"checkout.remote_timeout_ms";
+
+fn heard(figures: &wire::Figures, name: &[u8]) -> u64 {
+    for row in &figures.limits {
+        if row.name.as_ref() == name {
+            return row.value;
+        }
+    }
+    unreachable!("the figures carry every named limit")
+}
+
+fn settings_changed(engine: &mut Engine, revision: u32) {
+    assert_eq!(settle(engine).as_slice(), &[Reply::Outcome(people::Outcome::SettingsChanged { revision })]);
+}
+
+fn live_limits_world(held: bool) -> Box<crate::Service> {
+    let mut service = limits::owned_with_held(held);
+    let engine = service.engine.as_mut().unwrap();
+    notes(engine);
+    let mut worker = fixtures::opening_workers()[0].clone();
+    worker.digest = Some(skein_lib::sha256::digest(WORKER_SECRET));
+    engine.step(limits::party(
+        Box::new([settings::Item {
+            setting: settings::Setting::Worker(1),
+            edit: settings::Edit::Set(settings::Value::Worker(Box::new(worker))),
+        }]),
+        false,
+        1,
+    ));
+    settings_changed(engine, 2);
+    notes(engine);
+    service
+}
+
+#[test]
+fn durable_live_limits_reach_the_link_and_later_agents_compositions() {
+    let mut service = live_limits_world(false);
+    let engine = service.engine.as_mut().unwrap();
+    let mut agents = crate::stock::agents();
+    let profile = b"policy.max_turns";
+    agents.profile = List::from_boxed(Box::new([s::AgentFigure { name: profile.as_slice().into(), value: 901 }]));
+    changed(engine, &agents, 2);
+    let mut linked = Peer::open(engine, Opening::Link);
+    assert!(linked.hello);
+    assert_eq!(linked.figures.len(), 1);
+    let before = linked.figures.get(0).unwrap().clone();
+    assert_eq!(heard(&before, REMOTE), 60_000);
+    assert_eq!(before.agents.profile.get(0).unwrap().value, 901);
+    notes(engine);
+    settle(engine);
+    notes(engine);
+
+    engine.step(limits::party(Box::new([limits::temper(Box::new([item(b"live_goals", 60)]))]), false, 3));
+    settings_changed(engine, 4);
+    linked.settle(engine);
+    assert_eq!(linked.figures.len(), 1, "a next-start figure sends nothing");
+    assert!(notes(engine).is_empty());
+
+    engine.step(limits::party(
+        Box::new([limits::temper(Box::new([item(REMOTE, 600_000), item(b"live_goals", 60)]))]),
+        false,
+        4,
+    ));
+    linked.settle(engine);
+    assert_eq!(linked.figures.len(), 1, "the change is not yet durable");
+    settings_changed(engine, 5);
+    linked.settle(engine);
+    assert_eq!(linked.figures.len(), 2);
+    let taken = linked.figures.get(1).unwrap();
+    assert_eq!(heard(taken, REMOTE), 600_000);
+    assert_eq!(heard(taken, b"live_goals"), 40);
+    assert_eq!(taken.agents, before.agents);
+    assert_eq!(
+        notes(engine).as_slice(),
+        &[(taken.limits.len(), taken.agents.endpoints.len(), FiguresRevision::Limits(5))]
+    );
+
+    agents.profile.get_mut(0).unwrap().value = 902;
+    changed(engine, &agents, 5);
+    linked.settle(engine);
+    assert_eq!(linked.figures.len(), 3);
+    let changed = linked.figures.get(2).unwrap();
+    assert_eq!(changed.limits, linked.figures.get(1).unwrap().limits);
+    assert_eq!(changed.agents.profile.get(0).unwrap().value, 902);
+    assert_eq!(
+        notes(engine).as_slice(),
+        &[(changed.limits.len(), changed.agents.endpoints.len(), FiguresRevision::Agents(6))]
+    );
+}
+
+#[test]
+fn held_limits_send_no_live_figures() {
+    let mut service = live_limits_world(true);
+    let engine = service.engine.as_mut().unwrap();
+    let mut linked = Peer::open(engine, Opening::Link);
+    assert!(linked.hello);
+    assert_eq!(linked.figures.len(), 1);
+    notes(engine);
+    settle(engine);
+    notes(engine);
+
+    engine.step(limits::party(Box::new([limits::temper(Box::new([item(REMOTE, 600_000)]))]), false, 2));
+    settings_changed(engine, 3);
+    linked.settle(engine);
+    assert_eq!(linked.figures.len(), 1, "limits-held sends no figures");
+    assert!(notes(engine).is_empty());
+    let state = engine.limits_in_force().unwrap();
+    assert_eq!(state.in_force.temper.checkout.remote_timeout.as_millis(), 60_000);
+}
+
+#[test]
+fn a_new_opening_uses_the_live_hello_timer() {
+    let mut service = live_limits_world(false);
+    let engine = service.engine.as_mut().unwrap();
+    let hello = Duration::from_millis(1_234);
+    assert_ne!(engine.limits_in_force().unwrap().in_force.jig.link.hello, hello);
+    engine.step(limits::party(
+        Box::new([limits::jig(Box::new([item(b"link.hello_ms", hello.as_millis())]))]),
+        false,
+        2,
+    ));
+    settings_changed(engine, 3);
+    assert_eq!(engine.limits_in_force().unwrap().in_force.jig.link.hello, hello);
+
+    let peer = Peer::open_with_hello(engine, Opening::Link, false);
+    assert!(!peer.hello && !peer.ended);
+    assert_eq!(peer.figures.len(), 1, "the link is open and waiting for a hello");
+    assert_eq!(heard(peer.figures.get(0).unwrap(), b"link.hello_ms"), hello.as_millis());
+    assert_eq!(engine.workers.host.next_deadline(), Some(NOW.saturating_add(hello)));
 }
 
 #[test]

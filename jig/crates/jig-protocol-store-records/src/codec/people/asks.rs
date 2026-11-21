@@ -272,6 +272,14 @@ pub fn encode_ask(value: &domain::Ask, limits: &wire::Limits) -> Result<wire::As
             project: *project,
             grace: super::compound::encode_grace(*grace),
         }),
+        domain::Ask::PauseWorker { worker, mode } => wire::Ask::PauseWorker(wire::AskPauseWorker {
+            worker: *worker,
+            mode: match mode {
+                jig_domain_link::PauseMode::Resume => wire::WorkerPauseMode::Resume,
+                jig_domain_link::PauseMode::Pause => wire::WorkerPauseMode::Pause,
+                jig_domain_link::PauseMode::Drain => wire::WorkerPauseMode::Drain,
+            },
+        }),
         domain::Ask::MoveToNewest { revision } => {
             wire::Ask::MoveToNewest(wire::AskMoveToNewest { revision: *revision })
         }
@@ -453,6 +461,14 @@ pub fn decode_ask(value: wire::Ask, limits: &wire::Limits) -> Result<domain::Ask
         wire::Ask::RemoveProject(value) => {
             domain::Ask::RemoveProject { project: value.project, grace: super::compound::decode_grace(value.grace) }
         }
+        wire::Ask::PauseWorker(value) => domain::Ask::PauseWorker {
+            worker: value.worker,
+            mode: match value.mode {
+                wire::WorkerPauseMode::Resume => jig_domain_link::PauseMode::Resume,
+                wire::WorkerPauseMode::Pause => jig_domain_link::PauseMode::Pause,
+                wire::WorkerPauseMode::Drain => jig_domain_link::PauseMode::Drain,
+            },
+        },
         wire::Ask::MoveToNewest(value) => domain::Ask::MoveToNewest { revision: value.revision },
         wire::Ask::Restore(value) => {
             let wire::AskRestore { revision, reason } = value;

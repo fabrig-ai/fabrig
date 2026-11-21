@@ -350,7 +350,7 @@ fn no_command_spawns_anywhere_but_the_worker_root() {
             Some(fixtures::identity()),
             command.clone(),
         );
-        operation.spawn(fixtures::OWNER, command, &fixtures::settings(), &mut below.out);
+        operation.spawn(fixtures::OWNER, command, &fixtures::settings(), &fixtures::limits(), &mut below.out);
         let Some(skein_io::Request::Spawn { spawn, .. }) = below.out.io.pop() else { panic!("spawn") };
         assert!(spawn.dir.is_empty(), "spawn dir: {:?}", spawn.dir);
     }

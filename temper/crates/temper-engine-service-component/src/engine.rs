@@ -353,6 +353,18 @@ impl Engine {
             }
             let Some(fact) = self.domain.pop_fact() else { break };
             match fact {
+                root::Fact::StartWaiting { step, age, waits } => {
+                    self.notes.push(crate::Note::StartWaiting {
+                        line: skein_lib::bytes::concat(&[
+                            b"starting: ",
+                            crate::core_wait::starting(Some(step)),
+                            b" for ",
+                            &temper_engine_domain_forge::age_words(age),
+                            b": ",
+                            &waits,
+                        ]),
+                    });
+                }
                 root::Fact::LandingUnmade { task, repository, branch, changes } => {
                     self.notes.push(crate::Note::LandingUnmade { task, repository, branch, changes });
                 }
@@ -380,6 +392,7 @@ impl Engine {
                 root::Fact::BriefReadRefused { task, section, stage, reason, heads, error } => {
                     self.notes.push(crate::Note::BriefReadRefused { task, section, stage, reason, heads, error });
                 }
+                root::Fact::ForgeTable { words } => self.notes.push(crate::Note::ForgeTable { words }),
                 root::Fact::HeadRefused { task, words } => {
                     self.notes.push(crate::Note::HeadRefused { task, words });
                 }
@@ -422,7 +435,7 @@ impl Engine {
         self.pending_with_room(now, self.note_bound.saturating_sub(held).saturating_sub(self.notes.len()))
     }
     fn pending_with_room(&self, now: Time, notes_room: u32) -> bool {
-        let secrets_ready = self.end.is_none() && self.store.host.mark_durable();
+        let secrets_ready = self.end.is_none() && stop::marked(self);
         self.pending_with_clients(now, notes_room, self.clients.work_pending_with_secrets(now, secrets_ready))
     }
     /// HTTP fragments alone need only the clients pass; queued root and other-child work still runs.
@@ -436,13 +449,13 @@ impl Engine {
         {
             return true;
         }
-        let effects = self.store.host.mark_durable() || self.end.is_some();
-        let components = (self.store.opened || self.end.is_some()) && clients_pending
+        let effects = stop::marked(self) || self.end.is_some() || stop::closing(self);
+        let components = (self.store.opened || self.end.is_some() || stop::closing(self)) && clients_pending
             || effects && self.setup.work_pending(now)
             || effects && self.setup.lifecycle_ready(self) && self.events.room() >= 4
             || self.store.work_pending(now)
             || effects && (self.forge.work_pending(now) || self.unresolved_github().is_some())
-            || (self.store.opened || self.end.is_some()) && self.workers.host.work_pending(now)
+            || (self.store.opened || self.end.is_some() || stop::closing(self)) && self.workers.host.work_pending(now)
             || !self.workers.notes.is_empty() && notes_room > 0
             || effects
                 && match &self.accounts {
@@ -534,24 +547,27 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
         engine.abort_if_ended();
         return;
     }
-    if !engine.store.opened && engine.end.is_none() {
+    stop::advance(engine);
+    if !engine.store.opened && engine.end.is_none() && !stop::closing(engine) {
         return;
     }
-    if let Some(accounts) = &mut engine.accounts {
+    if (!stop::before_mark(engine) || stop::closing(engine))
+        && let Some(accounts) = &mut engine.accounts
+    {
         crate::accounts::iterate(accounts, now, wall, &mut engine.values, &mut engine.events, &mut engine.store);
     }
     crate::forge::gone::advance(engine);
     crate::forge::records::advance(engine);
-    if engine.store.host.mark_durable()
+    if (stop::marked(engine) || stop::closing(engine))
         && (!engine.forge_records.loading() || engine.end.is_some() || stop::requested(engine))
     {
         engine.forge.iterate(now, wall);
     }
     // Reconcile must observe the root's restored repositories.
-    if !engine.begin && engine.store.host.mark_durable() && engine.forge_records.done() {
+    if !engine.begin && stop::marked(engine) && engine.forge_records.done() {
         crate::setup::lifecycle::restored(engine);
     }
-    if engine.store.host.mark_durable() {
+    if stop::marked(engine) {
         crate::setup::advance(engine);
     }
     forge_pass(engine);
@@ -601,7 +617,7 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
     }
     // Public restore runs before secrets. Once marked, finish secret bootstrap
     // before releasing the script into adoption and fresh forge reads.
-    if engine.store.host.mark_durable() && !engine.forge_records.done() && !stop::requested(engine) {
+    if stop::marked(engine) && !engine.forge_records.done() && !stop::requested(engine) {
         return;
     }
     input_pass(engine, now);
@@ -620,6 +636,12 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
     clients_pass(engine);
 }
 fn input_pass(engine: &mut Engine, now: Time) {
+    if engine.drain.is_some() && !stop::requested(engine) {
+        return;
+    }
+    if engine.begin && stop::requested(engine) {
+        return;
+    }
     if engine.begin {
         engine.begin = false;
         engine.step(root::Event::Restart { pending: engine.store.pending_generation });
@@ -670,7 +692,7 @@ fn completes_pending(engine: &Engine) -> Option<bool> {
 fn clients_pass(engine: &mut Engine) {
     engine.clients.deployment.welcome = engine.domain.welcome();
     engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
-    if engine.end.is_none() && engine.store.host.mark_durable() {
+    if engine.end.is_none() && stop::marked(engine) {
         engine.clients.secrets_step(&mut engine.store);
     }
     engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
@@ -760,7 +782,7 @@ pub(crate) fn release(engine: &mut Engine) {
 // or a quiescent root (including during connector restart). Retry once before
 // parking; a refusal stays blocked until another release pass.
 fn retry_blocked(engine: &mut Engine) {
-    if !engine.blocked {
+    if !engine.blocked || engine.drain.is_some() && !stop::requested(engine) {
         return;
     }
     let event = match engine.passing.take() {

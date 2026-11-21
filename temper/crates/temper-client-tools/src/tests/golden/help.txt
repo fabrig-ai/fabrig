@@ -30,4 +30,4 @@ project  Projects: make or delete one, read periods and pools, set spend and vis
 push  Push devices: list, add or remove your subscriptions
 playground  The playground: start it, or end it and set up temper
 deployment  Read the deployment's store census or take a checkpoint
-worker  Workers: list, add, change places or remove
+worker  Workers: list, add, change places, remove, pause, drain or resume

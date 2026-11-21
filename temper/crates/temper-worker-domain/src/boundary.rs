@@ -177,6 +177,10 @@ pub enum Git {
 /// domain -> protocol
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    /// A link pause changed; the service writes its operator line.
+    Paused {
+        state: jig_domain_link::PauseState,
+    },
     /// Each fetch and check out as the checkout asks it (domain/worker/README.md, 4.3).
     Git {
         run: Token,
@@ -184,6 +188,13 @@ pub enum Request {
         job: Option<(jig_domain_link::JobKind, Box<[u8]>)>,
         repository: Box<[u8]>,
         what: Git,
+    },
+    /// An agent left its signal to this worker to decide (domain/worker/README.md, 2).
+    AgentSignalled {
+        run: Token,
+        attempt: Token,
+        signal: smith_host_domain::parent::Signal,
+        from: Option<u32>,
     },
     /// The first agent fault of an attempt, before its answer (domain/worker/README.md, 4.3).
     AgentStopped {

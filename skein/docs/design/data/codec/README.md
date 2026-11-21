@@ -88,7 +88,8 @@ records kept in files or stores.
   - `bridge`: a wire's reverses, its floor, and the bridge that
     translates a record between the versions it speaks (`bridges.md`).
 - **`skein-codegen`** is the generator, and the tooling of upgrades: the
-  diff (`diff.md`) and the command (`command.md`). Ordinary Rust, not
+  diff (`diff.md`), the command (`command.md`) and the translation from
+  maps files (`maps.md`). Ordinary Rust, not
   step code. It reads schemas through `skein-codec`'s parser and adds
   the checks only Rust needs (`README.md`, section 7). A consumer depends on it in its
   tests and tools only.

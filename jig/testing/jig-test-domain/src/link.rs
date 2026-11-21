@@ -186,8 +186,21 @@ pub(super) fn route(
         }
     }
 }
-pub(super) fn answer(domain: &mut Domain, run: Token, attempt: Token, payload: Token, work: &mut Queue<Work>) {
-    route(domain, skein_lib::Time::ZERO, jig_domain_hub_link::Event::AnswerPayload { run, attempt, payload }, work);
+pub(super) fn answer(
+    domain: &mut Domain,
+    run: Token,
+    attempt: Token,
+    payload: Token,
+    worker: Option<u32>,
+    window: skein_lib::Duration,
+    work: &mut Queue<Work>,
+) {
+    route(
+        domain,
+        skein_lib::Time::ZERO,
+        jig_domain_hub_link::Event::AnswerPayload { run, attempt, payload, worker, window },
+        work,
+    );
 }
 pub(super) fn read(domain: &mut Domain, env: &Env<Limits>, payload: Token, end: tasks::End) {
     if let Some(event) = jig_domain_hub_link::result_event(&domain.hub_link, payload, end) {

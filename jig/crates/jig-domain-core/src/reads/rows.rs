@@ -2013,6 +2013,7 @@ fn hydrate_result(
             | tasks::End::FailedWithReason { .. }
             | tasks::End::Refused
             | tasks::End::RefusedWithReason { .. }
+            | tasks::End::Suspended(_)
             | tasks::End::Recheck => {}
         }
     }

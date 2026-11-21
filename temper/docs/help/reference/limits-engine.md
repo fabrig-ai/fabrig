@@ -220,7 +220,7 @@ temper sizes the engine's watch rooms itself: a stream holds 31 watches, and the
 |---|---|---|---|---|
 | `hub.program_sources` | count | 12 | next start | Bounds local program sources. |
 | `hub.slots` | count | 80 | next start | Bounds runs and jobs hosted at once: the shared slots. |
-| `hub.accounts` | count | 4 | next start | Bounds distinct grants retained for a hosted attempt. |
+| `hub.accounts` | count | 4 | live | Bounds distinct grants retained for a hosted attempt. |
 | `hub.charter_bytes` | bytes | 262,144 | next start | Bounds bytes of a charter. |
 | `hub.transcript_bytes` | bytes | 73,727,378 | next start | Bounds opaque transcript bytes, including the committed call tail. |
 | `hub.delivery_evidence_bytes` | bytes | 4,096 | next start | Bounds opaque evidence bytes in one settled delivery call. |
@@ -229,12 +229,12 @@ temper sizes the engine's watch rooms itself: a stream holds 31 watches, and the
 | `hub.detail_bytes` | bytes | 4,096 | next start | Bounds bytes of detail an answer carries for operators: the tail of what it is given. |
 | `hub.held` | count | 8 | next start | Bounds inbound events a run holds until it is live. |
 | `hub.inbox` | count | 82 | next start | Bounds messages a run starts with and refusals a turn or answer carries. |
-| `hub.event_bytes` | bytes | 63,738 | next start | Bounds bytes of an inbound event. |
+| `hub.event_bytes` | bytes | 63,738 | live | Bounds bytes of an inbound event. |
 | `hub.run_calls` | count | 48 | next start | Bounds host calls a run has in flight at once, including delivery. |
 | `hub.facts` | count | 256 | next start | Bounds facts kept until the parent drains them. |
 | `hub.told` | count | 256 | next start | Bounds activity and live pieces kept for the core while the link cannot take it. |
 | `hub.turns` | count | 8 | next start | Bounds retained turns per attempt, with an additional window reserved for stopping. |
-| `hub.turn_queue_bytes` | bytes | 147,454,736 | next start | Bounds retained body bytes per attempt, with an additional window reserved for stopping. |
+| `hub.turn_queue_bytes` | bytes | 147,454,736 | live | Bounds retained body bytes per attempt, with an additional window reserved for stopping. |
 | `hub.piece_bytes` | bytes | 4,096 | next start | Bounds bytes of one piece of live content. |
 
 ## documents
@@ -300,15 +300,15 @@ temper sizes the engine's watch rooms itself: a stream holds 31 watches, and the
 | `link.secret` | bytes | 256 | next start | Bounds bytes in a worker secret. |
 | `link.names` | count | 64 | next start | Bounds configured worker names. |
 | `link.opening` | count | 16 | next start | Bounds connections opening at once. |
-| `link.handshake_ms` | milliseconds | 10,000 | next start | Bounds the time to complete a channel opening. |
-| `link.hello_ms` | milliseconds | 10,000 | next start | Bounds the time to receive a worker hello. |
+| `link.handshake_ms` | milliseconds | 10,000 | live | Bounds the time to complete a channel opening. |
+| `link.hello_ms` | milliseconds | 10,000 | live | Bounds the time to receive a worker hello. |
 | `link.ping_ms` | milliseconds | 5,000 | next start | Bounds the interval between channel pings. |
 | `link.silence_ms` | milliseconds | 15,000 | next start | Bounds channel silence before declaring the link lost. |
-| `link.stall_ms` | milliseconds | 30,000 | next start | Bounds how long a channel may stall. |
-| `link.backoff_ms` | milliseconds | 250 | next start | Sets the first redial backoff span. |
-| `link.ceiling_ms` | milliseconds | 30,000 | next start | Bounds the redial backoff span. |
-| `link.proved_ms` | milliseconds | 60,000 | next start | Sets the open-channel span that resets the redial backoff. |
-| `link.busy_ms` | milliseconds | 2,000 | next start | Bounds the wait before resending a turn answered busy. |
+| `link.stall_ms` | milliseconds | 30,000 | live | Bounds how long a channel may stall. |
+| `link.backoff_ms` | milliseconds | 250 | live | Sets the first redial backoff span. |
+| `link.ceiling_ms` | milliseconds | 30,000 | live | Bounds the redial backoff span. |
+| `link.proved_ms` | milliseconds | 60,000 | live | Sets the open-channel span that resets the redial backoff. |
+| `link.busy_ms` | milliseconds | 2,000 | live | Bounds the wait before resending a turn answered busy. |
 | `link.facts` | count | 4,470 | next start | Bounds channel observations waiting to be drained. |
 
 ## clients

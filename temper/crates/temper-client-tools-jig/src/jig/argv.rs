@@ -518,7 +518,7 @@ fn check_watch(row: &Tool, call: &Call) -> Result<(), Usage> {
     }
     if let Some(Value::Condition(condition)) = super::call::argument(row, call, b"until") {
         let subject = subject::of(call).ok_or(Usage::Condition)?;
-        subject::check(&subject, *condition)?;
+        subject::check(&subject, condition)?;
     }
     Ok(())
 }

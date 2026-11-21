@@ -300,3 +300,42 @@ fn attempts_render_every_run_end_recorded_times_phase_count_and_absences_in_chec
         assert_eq!(words.book().say(u16::from(selected), id, &[Hole::Number(14)]).err(), Some(Invalid::Values { id }));
     }
 }
+
+#[test]
+fn a_suspended_history_attempt_names_its_worker_and_end() {
+    for (why, expected) in [
+        (SuspendWhy::Stopped, b"Run 4 suspended: worker 2 stopped".as_slice()),
+        (SuspendWhy::Restarted, b"Run 4 suspended: worker 2 restarted without it"),
+    ] {
+        let value = AttemptLine {
+            task: 7,
+            attempt: 4,
+            claimed: None,
+            started: None,
+            ended: Some(Wall::from_nanos(37)),
+            end: Some(RunEnd::Suspended { worker: 2, why }),
+            phases: None,
+        };
+        let mut builder = Builder::new(&crate::tests::kit::limits());
+        view::attempt(&mut builder, &value, &words(false));
+        assert!(crate::tests::kit::contains(&builder.finish(), expected));
+    }
+}
+
+#[test]
+fn a_worker_wait_names_its_worker_and_uses_the_views_wall_time() {
+    let mut words = Words::new(crate::words::phrases::english::english(128).unwrap(), 0, 60);
+    let until = Wall::from_nanos(60_000_000_000_000);
+    let status = jig_client::facts::ChatStatus::RunWaiting(jig_client::facts::RunWaitKind::Worker { worker: 2, until });
+    for (offset, expected) in [
+        (60_i32, b"Waiting for worker 2 to return, until 17:40".as_slice()),
+        (0_i32, b"Waiting for worker 2 to return, until 16:40"),
+    ] {
+        words.set_offset_minutes(offset);
+        let mut builder = Builder::new(&crate::tests::kit::limits());
+        builder.open(skein_ui::Role::Paragraph);
+        words.chat_status(&mut builder, &status, Wall::EPOCH);
+        builder.close();
+        assert!(crate::tests::kit::contains(&builder.finish(), expected));
+    }
+}

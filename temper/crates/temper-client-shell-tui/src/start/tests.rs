@@ -197,67 +197,6 @@ fn recording_requires_a_nonempty_captured_variable() {
 }
 
 #[test]
-fn fixed_start_is_a_nonempty_captured_variable_on_loopback_only() {
-    let start = skein_shell::FixedStart { wall: skein_lib::Wall::from_nanos(1_767_690_000_000_000_000), seed: 7 };
-    for (host, value, expected) in [
-        ("127.0.0.1:8367", Some("1767690000,7"), Ok(Some(start))),
-        ("[::1]:9000", Some("1767690000,7"), Ok(Some(start))),
-        ("10.0.0.1:8367", Some("1767690000,7"), Ok(None)),
-        ("127.0.0.2:8367", Some("1767690000,7"), Ok(None)),
-        ("10.0.0.1:8367", Some("bad"), Ok(None)),
-        ("127.0.0.1:8367", None, Ok(None)),
-        ("127.0.0.1:8367", Some(""), Ok(None)),
-        ("127.0.0.1:8367", Some("bad"), Err(Refused::FixedStart)),
-        ("127.0.0.1:8367", Some("01767690000,7"), Err(Refused::FixedStart)),
-        ("127.0.0.1:8367", Some("18446744073709551615,7"), Err(Refused::FixedStart)),
-    ] {
-        let entries = value.map(|value| ("TEMPER_INTERNAL_FIXED_START", value)).into_iter().collect::<Vec<_>>();
-        assert_eq!(
-            tui::fixed_start(&environment(&entries), host.parse().expect("engine")),
-            expected,
-            "{host}: {value:?}"
-        );
-    }
-    assert_eq!(Refused::FixedStart.line("temper"), "temper: TEMPER_INTERNAL_FIXED_START: expected SECONDS,SEED\n");
-}
-
-#[test]
-fn a_fixed_run_draws_its_seed_on_the_tuis_stream_and_keeps_the_starts_first_reading() {
-    let start = skein_shell::FixedStart::read(b"1767690000,7").expect("fixed start");
-    let (seed, clock) = super::fixed_run(&start);
-    let mut bytes = [0u8; 8];
-    start.draw(4, &mut bytes);
-    assert_eq!(seed, u64::from_le_bytes(bytes), "the seed given to local_run");
-    assert_ne!(seed, start.seed);
-    assert_eq!(clock.now(), skein_shell::Now { now: skein_shell::FixedStart::NOW, wall: start.wall });
-}
-
-#[test]
-fn the_fixed_tui_and_page_share_no_request_keys() {
-    fn keys(limits: &jig_client::DomainLimits, seed: u64) -> Vec<skein_lib::RequestKey> {
-        // Domain::new gives this seed to RequestTable::new (jig-client-domain/src/domain.rs).
-        let mut table = skein_lib::RequestTable::new(&limits.requests, seed);
-        let mut keys = Vec::new();
-        for _ in 0..64 {
-            let admitted = table.ask((), 1, limits.ask_bytes, ()).expect("request fits the client's table");
-            keys.push(admitted.key);
-            table.not_kept(admitted.key, admitted.number).expect("retire the request to release its capacity");
-            let mut outputs = table.take(skein_lib::Time::ZERO, skein_lib::Wall::EPOCH);
-            while outputs.next_out().is_some() {}
-            table.reclaim();
-        }
-        keys
-    }
-
-    let start = skein_shell::FixedStart::read(b"1767690000,7").expect("fixed start");
-    let (seed, _) = super::fixed_run(&start);
-    let tui = keys(&crate::limits::tui().native.client.client.domain, seed);
-    let page = keys(&temper_client_shell_web::limits::client().client.domain, start.seed);
-    let shared = tui.iter().filter(|key| page.contains(key)).count();
-    assert_eq!(shared, 0, "shared request keys among each client's first 64");
-}
-
-#[test]
 fn the_directory_is_the_state_directorys() {
     for (entries, expected) in [
         (vec![("XDG_STATE_HOME", "/s"), ("HOME", "/h")], Some("/s/temper/tui")),

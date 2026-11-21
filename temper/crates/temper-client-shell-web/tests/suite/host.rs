@@ -265,53 +265,6 @@ fn a_save_is_whole_and_the_recording_goes_on() {
     assert_eq!(&later[..later.len() - 1], &completed[..later.len() - 1]);
 }
 #[test]
-fn a_saves_control_is_found_by_its_event() {
-    use skein_ui::{Act, Role};
-    use temper_client_shell_web::journey::{Control, control};
-    let saves = walk::walked_with_saves(false);
-    let records = lines(&saves.recording).expect("records");
-    let event = records
-        .iter()
-        .find_map(|line| if let Line::Act { event, .. } = line { Some(event) } else { None })
-        .expect("press event");
-    assert_eq!(
-        control(&saves.before_press, &Act::Press, event),
-        Ok(Some(Control { role: Role::Button, name: b"Continue with ChatGPT".as_slice().into(), order: 0 }))
-    );
-    assert_eq!(control(&saves.before_press, &Act::Press, b"Gone"), Ok(None));
-    let stale = edited(&saves.before_press, |line| matches!(line, Line::Deadline(_)), Line::Deadline(Some(Time::ZERO)));
-    assert!(matches!(control(&stale, &Act::Press, event), Err(Refusal::Stale(_))));
-    assert!(matches!(control(b"bad", &Act::Press, event), Err(Refusal::Unreadable(_))));
-}
-
-#[test]
-fn a_saves_control_skips_a_menu_item_for_the_pages_link() {
-    use skein_ui::{Act, Role};
-    use temper_client_shell_web::journey::{Control, control, giving};
-    let save = walk::project_frame();
-    let save = save.as_ref();
-    let mut replay = Replay::new(save).expect("project frame save");
-    while replay.next().expect("project frame replays").is_some() {}
-    let host = replay.host();
-    let event = b"Act { action: Pages(Go { address: Accounts }) }";
-    let nodes = giving(host, &Act::Press, event);
-    assert!(nodes.iter().any(|node| Control::of(host.tree(), *node).expect("control").role == Role::MenuItem));
-    assert_eq!(
-        control(save, &Act::Press, event),
-        Ok(Some(Control { role: Role::Link, name: b"Deployment".as_slice().into(), order: 0 }))
-    );
-    let change = host
-        .tree()
-        .nodes()
-        .iter()
-        .find(|node| node.role == Role::MenuItem && node.name.as_deref() == Some(b"Sign out"))
-        .expect("Sign out menu item");
-    let change = temper_client_shell_web::journey::event(host, change.id, &Act::Press).expect("sign out event");
-    assert_eq!(giving(host, &Act::Press, &change).len(), 1, "only the menu offers sign out");
-    assert_eq!(control(save, &Act::Press, &change), Ok(None));
-}
-
-#[test]
 fn a_refused_tab_replays_without_pointing() {
     let recording = walk::walked_with_refused_tab();
     let records = lines(&recording).expect("refused tab records");

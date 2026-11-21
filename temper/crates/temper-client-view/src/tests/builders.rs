@@ -133,6 +133,7 @@ fn worker(number: u32, name: &[u8]) -> c::WorkerState {
         withdrawn: false,
         linked: false,
         since: None,
+        pause: c::WorkerPause::Taking,
     }
 }
 fn workers_document() -> c::Deployment {

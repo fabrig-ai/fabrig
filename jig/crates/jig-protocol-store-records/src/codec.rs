@@ -1,6 +1,7 @@
 //! Domain records translated to generated store families (protocol/store/records.md, 1).
 pub mod accounts;
 pub mod component;
+pub mod convert;
 pub mod core;
 mod lowering;
 pub mod notes;

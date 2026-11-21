@@ -3,7 +3,7 @@ use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::Record as _;
 use jig_client_shell_web::adapter::{Asked, Heard};
 use skein_lib::{
-    Duration, FixedClock, FixedStart, List, Time, Wall, Writer,
+    Duration, List, Time, Wall, Writer,
     base64::{self, Alphabet},
 };
 use skein_ui::{Act, Role};
@@ -13,32 +13,25 @@ use temper_client_shell_web::{
     journey::{Facts, Recorder},
 };
 
-// The scripted walk's start (temper/docs/design/client/journey-clock.md, 2).
-const FIXED_START: &str = "1767690000,7";
-
 // Keep native reports as text lines, with no browser or box.
 pub struct Capture {
     host: Host,
     page: Page<'static>,
     recorder: Recorder,
     now: Time,
-    clock: Option<FixedClock>,
+}
+impl Default for Capture {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 impl Capture {
     #[must_use]
-    pub fn unfixed() -> Self {
-        Self::starting(None)
-    }
-    #[must_use]
-    pub fn fixed() -> Self {
-        Self::starting(Some(FixedStart::read(FIXED_START.as_bytes()).expect("walk start")))
-    }
-    fn starting(start: Option<FixedStart>) -> Self {
+    pub fn new() -> Self {
         let facts = Facts {
-            fixed: start.is_some(),
-            seed: start.map_or(11, |start| start.seed),
-            now: start.map_or(Time::ZERO, |_| FixedStart::NOW),
-            wall: start.map_or(Wall::EPOCH, |start| start.wall),
+            seed: 11,
+            now: Time::ZERO,
+            wall: Wall::EPOCH,
             primary: Primary::Control,
             zone_minutes: 0,
             ways: None,
@@ -48,25 +41,15 @@ impl Capture {
             stored: vec![],
         };
         let (host, page) = facts.start();
-        Self {
-            host,
-            page,
-            recorder: Recorder::new(&facts),
-            now: Time::ZERO,
-            clock: start.map(|start| FixedClock::new(&start, Time::ZERO)),
-        }
+        Self { host, page, recorder: Recorder::new(&facts), now: Time::ZERO }
     }
     pub fn report(&mut self, report: Report) -> Vec<Asked> {
         self.now = self.now.saturating_add(Duration::from_millis(10));
-        let (now, wall) = self.clock.as_mut().map_or((self.now, Wall::EPOCH), |clock| clock.read(self.now));
-        self.host.clocks(now, wall);
-        self.recorder.turn(now, wall);
+        self.host.clocks(self.now, Wall::EPOCH);
+        self.recorder.turn(self.now, Wall::EPOCH);
         let duties = self.recorder.report(&mut self.host, &self.page, report);
         self.host.draw(&mut self.page, &mut Vec::new());
         self.recorder.deadline(self.host.deadline());
-        if let Some(clock) = &mut self.clock {
-            let _next = clock.until(self.host.deadline(), self.now);
-        }
         duties.asked
     }
     fn stream(&mut self, event: &w::StreamEvent) -> Vec<Asked> {

@@ -29,9 +29,6 @@ impl Recorder {
         {
             this.keep(&line);
         }
-        if facts.fixed {
-            this.keep(&Line::Fixed);
-        }
         this.keep(&Line::Primary(facts.primary));
         if facts.zone_minutes != 0 {
             this.keep(&Line::Zone(facts.zone_minutes));

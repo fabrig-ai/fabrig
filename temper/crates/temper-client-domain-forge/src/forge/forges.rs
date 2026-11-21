@@ -16,6 +16,8 @@ pub enum FailedStep {
 }
 
 /// The wire bounds the session's forge rows.
+pub use w::{FullKind, FullTable};
+pub type Document = (Box<[Row]>, bool, Box<[FullTable]>);
 pub const ROWS: u32 = wire::FORGES;
 pub const INSTALLATIONS: u32 = wire::INSTALLATIONS;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -231,11 +233,12 @@ pub fn answer(answer: &Answered, limits: &super::Limits) -> Option<SetUpAnswer> 
 /// Invalid documents are refused by the watch's owner, which unwatches its handle.
 #[must_use]
 pub fn rows(record: &Family, limits: &super::Limits) -> Option<Box<[Row]>> {
-    let (rows, _) = decoded(record, *limits)?;
+    let (rows, _, _) = decoded(record, *limits)?;
     Some(rows)
 }
 
-fn decoded(record: &Family, limits: super::Limits) -> Option<(Box<[Row]>, bool)> {
+#[must_use]
+pub fn decoded(record: &Family, limits: super::Limits) -> Option<Document> {
     if record.family != wire::FORGE || record.version != wire::CLIENT_VERSION {
         return None;
     }
@@ -766,6 +769,7 @@ pub fn configure(side: &mut super::Side, limits: super::Limits, out: &mut skein_
         }
         side.forges = State::Unknown;
         side.linked = None;
+        side.full = Box::new([]);
         if side.link == Link::SignedOut {
             side.set_up = None;
             side.setup_form.making = None;
@@ -937,6 +941,7 @@ pub fn told(
         Told::Ended { handle: ended, .. } if *ended == handle() => {
             side.forges = State::Ended;
             side.linked = None;
+            side.full = Box::new([]);
             end(side, out);
         }
         Told::Pending { key } if setup_key(side, *key) => {
@@ -1015,11 +1020,13 @@ fn delivered(
     use jig_client::Latest;
     let before = fake_row(&side.forges);
     side.linked = None;
+    side.full = Box::new([]);
     side.forges = match client.document(handle) {
         Some(document) if document.state == jig_client::State::Ended => State::Ended,
         Some(document) => match document.latest {
             Some(Latest::Family(record)) => match decoded(record, limits) {
-                Some((rows, linked)) => {
+                Some((rows, linked, full)) => {
+                    side.full = full;
                     side.linked = Some(linked);
                     State::Rows(rows)
                 }
@@ -1181,4 +1188,27 @@ pub fn pasted_tokens(api: Option<&[u8]>, git: Option<&[u8]>, secret: Option<&[u8
         }
     }
     temper_protocol_records::encode_pasted(items.as_slice()).ok()
+}
+
+/// The census and log use the same age words (protocol/README.md, 6.3).
+#[must_use]
+pub fn full_line(full: &FullTable, now: skein_lib::Wall, view: bool) -> Box<[u8]> {
+    let seconds = now.as_nanos().saturating_sub(full.since).div_euclid(1_000_000_000);
+    let age = if seconds < 120 {
+        skein_lib::bytes::concat(&[skein_lib::Decimal::of(seconds).as_bytes(), b" s"])
+    } else {
+        skein_lib::bytes::concat(&[skein_lib::Decimal::of(seconds.div_euclid(60)).as_bytes(), b" min"])
+    };
+    let table = match full.table {
+        FullKind::Outbox => b"outbox".as_slice(),
+        FullKind::ReadAdmission => b"read admission".as_slice(),
+    };
+    skein_lib::bytes::concat(&[
+        if view { b"The forge's " } else { b"the forge's " },
+        table,
+        if view { b" is full for " } else { b" full for " },
+        &age,
+        b": ",
+        &full.words,
+    ])
 }

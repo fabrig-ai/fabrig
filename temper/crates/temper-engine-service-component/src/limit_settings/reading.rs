@@ -33,7 +33,7 @@ pub(crate) fn answer(state: &LimitSettings, after: Option<&[u8]>, held: u64, bou
             stock: Some((name.value)(&stock.jig)),
             setting,
             in_force: Some(in_force),
-            applies: w::LimitApplies::NextStart,
+            applies: applies(name.applies),
             waiting: (state.held && has(&state.jig, name.name.as_bytes())) || wanted != in_force,
             left_out: false,
             held: None,
@@ -61,10 +61,7 @@ pub(crate) fn answer(state: &LimitSettings, after: Option<&[u8]>, held: u64, bou
             stock: Some((name.value)(&stock.temper)),
             setting,
             in_force: Some(in_force),
-            applies: match name.applies {
-                own::Applies::AtOnce => w::LimitApplies::AtOnce,
-                own::Applies::NextStart => w::LimitApplies::NextStart,
-            },
+            applies: applies(name.applies),
             waiting: (state.held && has(&state.temper, name.name.as_bytes())) || wanted != in_force,
             left_out: false,
             held: if name.name == "transcript_memory" { Some(held) } else { None },
@@ -109,6 +106,13 @@ pub(crate) fn answer(state: &LimitSettings, after: Option<&[u8]>, held: u64, bou
     }
     let record = w::LimitsAnswer { rows: page, next, revision: state.revision };
     Some(wire::limits_answer(&record))
+}
+fn applies(applies: jig::Applies) -> w::LimitApplies {
+    match applies {
+        jig::Applies::AtOnce => w::LimitApplies::AtOnce,
+        jig::Applies::Live => w::LimitApplies::Live,
+        jig::Applies::NextStart => w::LimitApplies::NextStart,
+    }
 }
 fn has(values: &[Override], name: &[u8]) -> bool {
     for item in values {

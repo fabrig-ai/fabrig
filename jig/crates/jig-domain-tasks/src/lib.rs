@@ -160,7 +160,8 @@ pub use boundary::{
     ProcedureEnd, ProcedureInput, QuestionCredit, QuestionNotice, RecurringOverlap, RecurringState, RecurringTemplate,
     Refusal, ReplyHint, Request, ResourceAccess, ResultField, ResultFollowups, ResultKind, ResultsWake, Revisions,
     RunContext, SavedResource, SettingsRevision, Spec, Stage, Status, Stored, Stub, Subscription, SubscriptionKind,
-    Taken, TaskRecord, TaskResult, Verdict, WakePolicy, WakeRule, Was, Word, Writer, WriterSlot,
+    SuspendWhy, Suspended, Suspension, Taken, TaskRecord, TaskResult, Verdict, WakePolicy, WakeRule, Was, Word, Writer,
+    WriterSlot,
 };
 pub use boundary::{Hint, MessageFamily, Separate, Slot, Spoken};
 pub use capacity::{Capacity, CapacityAction, CapacityCause, CapacityRefusal};

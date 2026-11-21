@@ -44,6 +44,10 @@ class DeliverySelection(unittest.TestCase):
         source = Path(__file__).resolve().parents[1] / 'citations'
         for name in ('citations.py', 'sized.txt'):
             self.write('tools/citations/' + name, (source / name).read_text())
+        # The fixture includes the real checker, so its own citations must resolve.
+        self.write('DESIGN.md', '# Design\n## 5. Document limits\n')
+        self.write('skein/docs/design/data/kv.md', '# Key-value data\n')
+        self.write('temper/docs/design/testing/reference-case.md', '# Reference case\n')
         source = Path(__file__).resolve().parents[1] / 'outward'
         for name in ('outward.py', 'names.txt'):
             self.write('tools/outward/' + name, (source / name).read_text())
@@ -173,7 +177,7 @@ sys.exit(int(count > 0))
                     self.assertIn('docs only: citations', log)
                     self.assertEqual(code, (False, False, False))
                     self.assertEqual(counts, [])
-                    self.assertTrue(any('--base' in args and '--head' in args for args, _ in calls))
+                    self.assertTrue(any('tools/citations/citations.py' in args and '--all' in args and '--head' in args for args, _ in calls))
                 else:
                     reason = ('no refs/temper/landing' if row == 'no pin' else
                               'no merge base of refs/temper/landing and HEAD')
@@ -796,6 +800,7 @@ else:
     def test_selected_test_binaries_build_between_lints_and_tests(self):
         inventory = Path(__file__).resolve().parents[1] / 'tiers/packages.toml'
         self.write('tools/tiers/packages.toml', inventory.read_text())
+        self.write('tools/tiers/design.md', '# Tiers\n## 2.1. Prerequisites\n## 6. Package sets\n')
         self.write('.config/gate/always.txt', 'smith\n')
         for path in ('smith/src/lib.rs', 'guide.md'):
             with self.subTest(path=path):
@@ -1623,14 +1628,78 @@ else:
                 if lints:
                     self.assertIn('clippy, focused and fuzzy tests (code input', log)
 
-    def test_fuzzy_follows_every_focused_exit_and_judges_its_own_failures(self):
+    def test_repair_reorders_only_a_fresh_exact_refusal_and_requires_replay(self):
+        test = dict(binary_id='api::rules', test_name='rule', outcome='failed', before=['setup'])
+        key = ('api::rules', 'rule')
+        self.goal_file('rerun', b'temper-rerun 1 1\n')
+        self.goal_file('reds-wait', b'temper-reds-wait 1 1\n')
+        self.goal_file('reds', b'temper-reds 1\n- lint api clippy::rule api/src/lib.rs\n')
+        head = self.root / '.git/HEAD'
+        for case in ('reproduced', 'passed', 'flake', 'replay error', 'stale checkout', 'same tree', 'known red'):
+            with self.subTest(case=case):
+                (self.root / '.git/pre-pr-passed').unlink(missing_ok=True)
+                self.goal_file('reds', b'temper-reds 1\n- lint api clippy::rule api/src/lib.rs\n')
+                self.write('api/src/lib.rs', f'// before {case}\n')
+                repeated = {key: {'code': 100, 'outcome': 'failed'}}
+                first, log, _, _ = self.ledger_run([test], repeated, changed=False)
+                self.assertEqual(first, 1, log)
+                self.assertNotIn('repair trial:', log)
+                receipt = json.loads((self.root / 'target/temper/pre-pr-failures.json').read_bytes())
+                entry = dict(form='pre-pr-repair 1', head=head.read_text().strip(),
+                             head_ns=head.stat().st_mtime_ns + (case == 'stale checkout'),
+                             previous=receipt['tree'], base=receipt['base'], binary=key[0], test=key[1],
+                             refused_ns=(self.root / 'target/temper/pre-pr-failures.json').stat().st_mtime_ns)
+                marker = self.goal_file('repair-trial', json.dumps(entry).encode())
+                if case != 'same tree':
+                    self.write('api/src/lib.rs', f'// repair {case}\n')
+                if case == 'known red':
+                    self.goal_file('reds', b'temper-reds 1\n- test api::rules rule\n')
+                again = {key: {'missing': True}} if case == 'replay error' else {} if case == 'flake' else repeated
+                result, log, _, calls = self.ledger_run([dict(test, outcome='passed') if case == 'passed' else test],
+                                                        again, changed=False)
+                self.assertEqual(result, int(case not in ('passed', 'flake', 'known red')), log)
+                self.assertFalse(marker.exists())
+                self.assertEqual((self.root / '.git/pre-pr-passed').exists(), result == 0)
+                profiles = [args[6] for args in self.process_calls if '--again' not in args]
+                self.assertEqual(profiles, ['default'] if case == 'reproduced' else ['default', 'fuzzy'])
+                self.assertEqual(calls[:2], (case != 'reproduced', case != 'reproduced'))
+                results = (self.root / '.git/temper/check-results').read_text()
+                if case == 'reproduced':
+                    measurement = json.loads((self.root / '.git/temper/repair-trial-result.json').read_bytes())
+                    self.assertEqual(measurement['case'], list(key))
+                    self.assertEqual(measurement['observed'], 'failed')
+                    self.assertGreater(measurement['confirmed_s'], 0)
+                    self.assertIn('confirmed prior failure', log)
+                    self.assertNotIn('passed lint', results)
+                elif case in ('stale checkout', 'same tree', 'known red'):
+                    self.assertNotIn('repair trial:', log)
+                else:
+                    self.assertLess(log.index('repair trial:'), log.index('pre-pr: format …'))
+                    self.assertIn('passed lint', results)
+
+    def test_focused_build_failure_skips_fuzzy_and_preserves_the_diagnostic(self):
+        self.goal_file('reds-wait', b'temper-reds-wait 1 1\n')
+        self.goal_file('reds', b'temper-reds 1\n- test api::rules fuzzy::rule\n')
+        diagnostic = 'error[E0308]: mismatched types'
+        build = diagnostic + '\none-process: nextest listing exited with 101\n'
+        result, log, _, _ = self.ledger_run([], runs={'default': {'code': 2, 'output': build}})
+        self.assertEqual(result, 1, log)
+        self.assertEqual([args[6] for args in self.process_calls], ['default'])
+        self.assertIn('pre-pr: fuzzy tests: skipped (focused test build failed)', log)
+        self.assertIn('\nbuild\nno tests ran\n' + diagnostic, log)
+        self.assertFalse((self.root / '.git/pre-pr-passed').exists())
+        self.assertEqual((self.root / '.git/temper/check-results').read_text().splitlines()[2:], [])
+
+        result, log, _, _ = self.ledger_run([])
+        self.assertEqual(result, 0, log)
+        self.assertEqual([args[6] for args in self.process_calls], ['default', 'fuzzy'])
+
+    def test_fuzzy_follows_focused_tests_and_check_errors_and_judges_its_own_failures(self):
         test = dict(binary_id='api::rules', test_name='rule', outcome='failed')
         fuzzy = dict(test, test_name='fuzzy::rule', profile='fuzzy')
-        build = 'one-process: nextest listing exited with 101\n'
         for row, focused, tests, reds, statuses in (
                 ('passed', {}, [], '', ('passed', 'passed')),
                 ('failed', {}, [test], '', ('failed', 'passed')),
-                ('build', {'code': 2, 'output': build}, [], '', ('failed', 'passed')),
                 ('check', {'code': 2}, [], '', ('failed', 'passed')),
                 ('focused inherited', {}, [test, fuzzy], '- test api::rules rule\n', ('inherited', 'failed')),
                 ('fuzzy inherited', {}, [test, fuzzy], '- test api::rules fuzzy::rule\n', ('failed', 'inherited'))):
@@ -1891,7 +1960,7 @@ else:
                 self.assertEqual(result, 0, log)
                 self.assertEqual(code, (False, False, True))
                 self.assertFalse(any('scripts/old_forms.py' in args for args, _ in calls))
-                self.assertTrue(any('--base' in args and '--head' in args for args, _ in calls))
+                self.assertTrue(any('tools/citations/citations.py' in args and '--all' in args and '--head' in args for args, _ in calls))
                 self.assertIn('docs only: citations', log)
 
     def test_prose_only_status_uses_text_checks_without_a_hold(self):
@@ -1911,7 +1980,7 @@ else:
         self.assertEqual(result, 0, log)
         self.assertEqual(checks, (False, False, False))
         self.assertEqual([args for args, _ in calls], [
-            ['python3', '-I', '-B', 'tools/citations/citations.py', '--base', mock.ANY, '--head', mock.ANY],
+            ['python3', '-I', '-B', 'tools/citations/citations.py', '--all', '--head', mock.ANY],
             ['python3', '-I', '-B', 'tools/outward/outward.py']])
         self.assertEqual(outward.call_count, 1)
         self.assertNotEqual(outward.call_args.args[1]['GIT_INDEX_FILE'], str(self.root / '.git/index'))
@@ -2018,6 +2087,57 @@ else:
         self.assertEqual(result, 0, log)
         self.assertEqual(code, (False, False, True))
         self.assertFalse(any('scripts/old_forms.py' in args for args, _ in calls))
+
+    def fake_merge_tests(self, code=0):
+        self.write('tools/merge/test_merge.py',
+                   f'print("merge test output")\nraise SystemExit({code})\n')
+        self.pin()
+
+    def test_merge_job_changes_run_tests_after_figures_before_journeys(self):
+        for path in ('.temper/merge', 'tools/merge/merge.py'):
+            with self.subTest(path=path):
+                self.setUp()
+                self.fake_merge_tests()
+                self.fake_figures(0, 'figures passed')
+                self.write(path, '# changed merge job\n')
+                self.write('tools/tiers/budgets.toml', '# delivered figures\n')
+                result, log, calls, _ = self.deliver()
+                self.assertEqual(result, 0, log)
+                self.assertEqual([call for call in calls if 'tools/merge/test_merge.py' in call[0]],
+                                 [(['python3', '-I', '-B', 'tools/merge/test_merge.py'], self.root)])
+                self.assertIn('pre-pr: merge …\nmerge test output\n', log)
+                self.assertRegex(log, r'pre-pr: merge: passed, \d+\.\d{3} s\n')
+                self.assertLess(log.index('pre-pr: figures: passed'), log.index('pre-pr: merge …'))
+                self.assertLess(log.index('pre-pr: merge: passed'), log.index('pre-pr: journeys …'))
+
+    def test_merge_list_and_readme_alone_do_not_run_tests(self):
+        for path in ('tools/merge/codecs.txt', 'tools/merge/README.md'):
+            with self.subTest(path=path):
+                self.setUp()
+                self.fake_merge_tests()
+                self.write(path, '# Changed\n')
+                result, log, calls, _ = self.deliver()
+                self.assertEqual(result, 0, log)
+                self.assertFalse(any('tools/merge/test_merge.py' in args for args, _ in calls))
+                self.assertNotIn('pre-pr: merge', log)
+
+    def test_merge_test_failure_is_one_uninherited_failure(self):
+        for code in (1, 7):
+            with self.subTest(code=code):
+                self.setUp()
+                self.fake_merge_tests(code)
+                self.write('tools/merge/merge.py', '# changed merge job\n')
+                self.write('.git/temper/reds', 'temper-reds 1\n- test merge merge\n'
+                           '- lint merge merge tools/merge/merge.py\n')
+                with mock.patch.object(PRE_PR, 'failure', wraps=PRE_PR.failure) as failure:
+                    result, log, _, _ = self.deliver()
+                failure.assert_called_once_with('merge', 'merge test output\n')
+                self.assertEqual(result, 1, log)
+                record = json.loads((self.root / 'target/temper/pre-pr-failures.json').read_text())
+                self.assertEqual(record['failures'], [dict(name='merge', key=None, **{'class': 'new'})])
+                self.assertRegex(log, r'pre-pr: merge: failed, \d+\.\d{3} s\n')
+                self.assertIn('merge test output\n', log)
+                self.assertIn('pre-pr: refused (base ', log)
 
     def fake_figures(self, code, output):
         """Fake check 7 at its process boundary (tools/pre-pr/design.md, 4)."""
@@ -2307,8 +2427,7 @@ raise SystemExit({code})
                 self.assertIn("a journey's recording, pages and the files beside them are written on main by "
                               "the journeys' writer alone (AGENTS.md, 4): restore them with git "
                               f"checkout {repair_base} -- PATH..., and compare pages by cargo run -p "
-                              "temper-client-journeys in your own tree, or, for a journey whose walk is of version 2, "
-                              "by cargo run -p temper-client-walk -- print --out DIR\n", log)
+                              "temper-client-walk -- print --out DIR in your own tree\n", log)
                 record = json.loads((self.root / 'target/temper/pre-pr-failures.json').read_text())
                 self.assertEqual(record['counts'], dict(new=1, flake=0, inherited=0), log)
                 self.assertEqual(record['failures'], [dict(name='journeys', key=None, **{'class': 'new'})])
@@ -2494,18 +2613,18 @@ raise SystemExit({code})
         result, log, _, code = self.deliver(('api', 'fabrig-boundary'))
         self.assertEqual(result, 1, log)
         self.assertIn('missing.md', log)
-        self.assertIn('1 new broken', log)
+        self.assertIn('1 broken in', log)
         self.assertIn('pre-pr: prose only:', log)
         self.assertEqual(code, (False, False, False))
 
-    def test_inherited_broken_citation(self):
+    def test_broken_citation_already_in_base_refuses(self):
         self.write('skein/docs/guide.md', '# Guide\nSee `missing.md`, section 1.\n')
         self.pin()
         self.write('skein/docs/guide.md', '# Guide\nExtra paragraph.\nSee `missing.md`, section 1.\n')
         result, log, _, _ = self.deliver()
-        self.assertEqual(result, 0, log)
-        self.assertIn('0 new broken', log)
-        self.assertIn('inherited: citations', log)
+        self.assertEqual(result, 1, log)
+        self.assertIn('1 broken in', log)
+        self.assertIn('missing.md', log)
 
     def test_inherited_baseline_and_regression(self):
         self.write('skein/count.txt', '2')
@@ -2601,14 +2720,14 @@ with Path({str(records)!r}).open('a') as output:
         self.assertIn('reader.md', log)
         self.assertEqual(code, (False, False, False))
 
-    def test_new_citation_is_not_hidden_by_inherited_findings(self):
+    def test_reports_all_broken_citations_in_candidate(self):
         self.write('skein/docs/guide.md', '# Guide\nSee `missing.md`.\n')
         self.pin()
         self.write('skein/docs/guide.md', '# Guide\nSee `missing.md` and `new-missing.md`.\n')
         result, log, _, _ = self.deliver()
         self.assertEqual(result, 1, log)
-        self.assertIn('1 new broken', log)
-        self.assertIn('inherited: citations', log)
+        self.assertIn('2 broken in', log)
+        self.assertIn('new-missing.md', log)
 
     def test_tightening_a_red_baseline_is_new(self):
         self.write('skein/scripts/old_forms.py', (self.root / 'skein/scripts/old_forms.py').read_text()

@@ -224,6 +224,10 @@ pub(crate) fn workspace_prepared(
     let mut proof = start_proof(core, task, attempt, conversation, &messages);
     proof.host = allowance.choice.placement.kind;
     proof.placement = Some(allowance.choice.placement.channel);
+    proof.worker = match core.fleet.channel_worker(allowance.choice.placement.channel) {
+        Some(position) => Some(position.checked_add(1).expect("worker setting number")),
+        None => None,
+    };
     proof.accounts.clone_from(&allowance.choice.accounts);
     proof.window = if resume {
         match transcript.window {

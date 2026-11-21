@@ -1147,6 +1147,20 @@ fn worker_preparation_refuses_unusable_io_and_overflowing_operation_counts() {
 }
 
 #[test]
+fn pause_notes_follow_each_root_state_with_the_configured_drain() {
+    use jig_domain_link::PauseState;
+    let mut stand = socket_stand();
+    for state in [PauseState::Paused, PauseState::Draining, PauseState::Drained, PauseState::Taking] {
+        stand.worker.route(temper_worker_domain::Request::Paused { state });
+        assert_eq!(
+            stand.worker.notes().pop(),
+            Some(crate::worker_alone::Note::Paused { state, drain: fixtures::worker_settings().jig.graces.drain })
+        );
+        assert!(stand.worker.notes().is_empty(), "one line per change");
+    }
+}
+
+#[test]
 fn restart_notes_keep_the_longer_of_the_word_and_the_configured_grace() {
     use skein_lib::Duration;
     let mut stand = socket_stand();

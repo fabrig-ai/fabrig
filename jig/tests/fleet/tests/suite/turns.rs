@@ -65,3 +65,10 @@ fn a_worker_whose_stop_bound_reaches_the_engines_grace_is_refused_at_its_hello()
         assert_eq!(report.committed, 0);
     }
 }
+
+#[test]
+fn a_paused_channels_turns_and_answer_still_finish() {
+    let report = turns::run(Settings { pause: true, drops: false, restart: false, ..Settings::new(3) });
+    assert_eq!(report.pauses, 1);
+    assert_eq!(report.committed, 8, "the paused channel's running attempt keeps its turns and ends");
+}

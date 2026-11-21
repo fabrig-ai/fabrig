@@ -1,6 +1,4 @@
 //! The standalone start, composed from the engine and worker shells (protocol/services.md, 7).
-//! Fixed starts follow temper/docs/design/protocol/setup/box.md, 5 and
-//! temper/docs/design/client/journey-clock.md, 4.1.
 use crate::{Service, path, prefixed, program_login, setup};
 use skein_io::kernel::{Exit, Fd};
 use skein_lib::{List, Secret};
@@ -51,7 +49,6 @@ pub fn prepare_with_store(
         sizing,
         &[],
         None,
-        None,
         programs,
     )
     .map(|(service, store, _)| (service, store))
@@ -77,7 +74,6 @@ pub(crate) fn prepare_with_limits(
     sizing: bool,
     projects: &[jig_protocol_config::Project],
     limits: Option<(&jig_protocol_config::Limits, &service::limits::Limits)>,
-    fixed_start: Option<&skein_shell::FixedStart>,
     programs: &temper_config_shell::Programs,
 ) -> Result<(Service, Box<[u8]>, u32), String> {
     let given = crate::scripted::given(directories, given, crate::scripted::address(environment)?);
@@ -167,10 +163,7 @@ pub(crate) fn prepare_with_limits(
         None
     };
     let accounts = engine::accounts(&engine)?;
-    let seeds = match fixed_start {
-        Some(start) => engine::seeds_from(start, link_secret, local_secret),
-        None => engine::seeds(link_secret, local_secret)?,
-    };
+    let seeds = engine::seeds(link_secret, local_secret)?;
     let git = programs.git.clone().or_else(|| temper_shell::lookup::find(environment, b"git"));
     let landing = engine::landing_hold(path(&directories.data))?;
     let sources = agent
@@ -597,7 +590,6 @@ pub fn prepare_in_with_inputs_and_limits(
         false,
         projects,
         limits,
-        None,
         &programs,
     )
     .map(|(service, _, _)| service);
@@ -661,7 +653,6 @@ pub fn run(
     directories: &Directories,
     boxed: bool,
     record: bool,
-    fixed_start: Option<&skein_shell::FixedStart>,
 ) -> Result<Exit, String> {
     temper_service_shell::run(
         binary,
@@ -669,7 +660,7 @@ pub fn run(
         temper_config_shell::Shape::Standalone,
         environment,
         crate::served::SERVED,
-        &fixed_start.map_or_else(skein_shell::Clock::new, skein_shell::Clock::fixed),
+        &skein_shell::Clock::new(),
         |listeners| box_inputs(boxed, listeners),
         |bytes, programs, owned, input| {
             prepare_with_limits(
@@ -688,7 +679,6 @@ pub fn run(
                 false,
                 &[],
                 None,
-                fixed_start,
                 programs,
             )
             .map(|(service, store, line_bytes)| temper_service_shell::Prepared {

@@ -1137,6 +1137,7 @@ fn forge_row(
 }
 fn configured_forge_rows() -> forge::Forges {
     forge::Forges {
+        full: Box::new([]),
         rows: Box::new([
             forge::Row {
                 starts_with: forge::StartsWith::Repository,
@@ -1205,7 +1206,8 @@ fn a_row_s_fetched_reaches_the_wire() {
             forge::Offer::Offered,
         );
         row.fetched = Some(forge::SetUpFetched { binary, done: 10, total });
-        let bytes = family::forges(forge::Forges { rows: Box::new([row]) }, false, &w::CEILINGS).unwrap();
+        let bytes =
+            family::forges(forge::Forges { full: Box::new([]), rows: Box::new([row]) }, false, &w::CEILINGS).unwrap();
         let rows = wire::decode_forges(&bytes, &w::CEILINGS).unwrap();
         let w::Connection::SettingUp(setup) = &rows.forges.get(0).unwrap().connection else { panic!("setting up") };
         assert_eq!(&setup.step, &Some(w::SetUpStep::Fetch));
@@ -1383,7 +1385,7 @@ fn setup_and_first_repository_states_translate_without_losing_fields() {
             forge::Offer::NotOffered,
         );
         row.first = Some(first);
-        let value = forge::Forges { rows: Box::new([row]) };
+        let value = forge::Forges { full: Box::new([]), rows: Box::new([row]) };
         let bytes = family::forges(value, false, &w::CEILINGS).unwrap();
         let rows = wire::decode_forges(&bytes, &w::CEILINGS).unwrap().forges;
         let first = rows.get(0).unwrap().first.as_ref().unwrap();
@@ -1581,6 +1583,7 @@ fn install_without_a_back_is_admitted() {
 fn installations_and_the_last_connect_end_encode_unchanged() {
     let bytes = family::forges(
         forge::Forges {
+            full: Box::new([]),
             rows: Box::new([forge::Row {
                 starts_with: forge::StartsWith::Repository,
                 makings: Box::new([]),
@@ -1655,6 +1658,7 @@ fn owned_details_fit_their_bounds_and_an_overlong_field_drops_only_the_details()
         (64, Some(64), 513, false),
     ] {
         let value = forge::Forges {
+            full: Box::new([]),
             rows: Box::new([forge::Row {
                 starts_with: forge::StartsWith::Repository,
                 makings: Box::new([]),
@@ -2712,7 +2716,8 @@ fn forge_rows_encode_the_makings_and_all_their_states() {
             copying: true,
             state,
         }]);
-        let bytes = family::forges(forge::Forges { rows: Box::new([row]) }, false, &w::CEILINGS).unwrap();
+        let bytes =
+            family::forges(forge::Forges { full: Box::new([]), rows: Box::new([row]) }, false, &w::CEILINGS).unwrap();
         let forges = wire::decode_forges(&bytes, &w::CEILINGS).unwrap();
         let making = forges.forges.get(0).unwrap().makings.get(0).unwrap();
         assert_eq!((making.org.as_ref(), making.name.as_ref()), (b"work".as_slice(), b"copied".as_slice()));
@@ -5146,4 +5151,31 @@ fn an_opened_panel_carries_its_source_and_taking_step() {
         }
     }
     assert_eq!(decoded_panel(panel(), &crate::forges::Forges::with_capacity(0)).source, None);
+}
+
+#[test]
+fn full_tables_reach_the_client_wire_with_their_wall_and_words() {
+    let words = b"2 of 2, held by entry 7 (task 1), entry 9 (task 2)".as_slice();
+    let full = Box::new([
+        forge::FullTable { table: forge::FullKind::Outbox, since: 17, words: words.into() },
+        forge::FullTable {
+            table: forge::FullKind::ReadAdmission,
+            since: 19,
+            words: b"2 of 2, held by pull 12 of work/hello, a write of work/hello".as_slice().into(),
+        },
+    ]);
+    let bytes = family::forges(forge::Forges { rows: Box::new([]), full }, true, &w::CEILINGS).unwrap();
+    let document = wire::decode_forges(&bytes, &w::CEILINGS).unwrap();
+    assert!(document.linked);
+    assert_eq!(
+        document.full.as_slice(),
+        &[
+            w::FullTable { table: w::FullKind::Outbox, since: 17, words: words.into() },
+            w::FullTable {
+                table: w::FullKind::ReadAdmission,
+                since: 19,
+                words: b"2 of 2, held by pull 12 of work/hello, a write of work/hello".as_slice().into()
+            },
+        ]
+    );
 }

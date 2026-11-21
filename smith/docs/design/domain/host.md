@@ -235,6 +235,25 @@ policy.
   to io names it `Grace` (skein's `runtime/io/processes.md`, section 5): the host
   process adapter's `signal` takes the reason beside the signal, and a
   terminate goes down named `Unknown`.
+- **The kit's terminate follows its cancel.** An agent whose channel is
+  open leaves a termination signal to its host until it has heard the
+  host's cancel (protocol/agent.md, section 6). So wherever the kit
+  terminates a live run's tree to which it has not sent the cancel, a
+  broken rule, no progress or a parent's drop, it sends the cancel down
+  first, in the same step, where its half still writes, and otherwise
+  closes its half, so that the agent takes the signal as the cancel.
+- **A signal the agent heard is its parent's to decide.** The run's
+  `signalled` (protocol/channel.md, section 4) reaches the kit's parent
+  once, `parent::Request::Signalled { host_run, signal, from }`, `from`
+  the sender's process id where the system names one: a notice owing no
+  terminal, which counts as progress as any record does, and changes
+  nothing the kit supervises. The parent decides: temper's worker
+  leaves the run to its own stop and writes a line
+  (`temper/docs/design/domain/worker/README.md`, section 2); smith's
+  local host writes it to its log and goes on. So a stray signal, as a
+  service manager's that signals every process of a unit, never cuts a
+  run its host means to keep (temper's `draft/worker-restarts.md`,
+  section 2).
 - **Drain, then cancel.** The parent may ask a run to stop at the end of its current turn, as a host does that stops for a while and means to resume it (run.md, section 9): the kit sends the drain down the channel once, and arms no grace for it, so the watchdog and the bound on wall time hold as ever, and the run answers when its turn ends. A stop that follows is the ordinary cancel, its grace counted from the stop; a drain asked after a stop, or twice, is ignored; one asked before the agent's start has gone down follows the start, in order. The inline agent takes a drain alike, as its run's (9.2).
 - **An answered agent exits on its own.** After its answer, the agent
   closes everything it owns and exits once each has settled; only io's

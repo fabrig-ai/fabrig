@@ -480,7 +480,8 @@ happens.
 - **Past the grace,** the hub cancels them itself, saving their work
   first, and keeps their turns and answers for the next channel. The
   answer, `Cancelled(Contact)`, is no fault of the run's, and neither is
-  `Cancelled(Shutdown)` (7): the core ends the attempt interrupted,
+  `Cancelled(Shutdown)` (7): the core ends the attempt interrupted, or
+  for `Cancelled(Shutdown)` from a worker suspended (../engine/executors.md, 6),
   with no try spent and no backoff (../tasks/lifecycle.md, 2), and the next attempt
   resumes from its transcript and its saved work (../engine/executors.md, 2).
 - **The stop bound** the worker says at its hello is the longest it may
@@ -527,6 +528,12 @@ hub arms no timers (2):
    the drain's bound, or at once for a root that does not drain. A run
    whose stop has begun goes on with it.
 
+From the drain's start, or the cancel's where there is no drain, a
+run's agent that exits, faults or says its run was cancelled answers
+`Cancelled(Shutdown)` too, as the stop's own signal may reach the agent
+first, and a run that said how it finished keeps its ending
+(../engine/executors.md, 6.6).
+
 Either step says the hub drains, on its link, before anything its runs
 send after it, and again after each hello while it shuts down, so that
 the fleet places nothing more on it (../engine/fleet.md). The host is
@@ -535,6 +542,43 @@ it keeps, counted, once no run is left and the engine is still out of
 reach past the grace, or at its stop bound (6). A worker's root drains;
 the engine's own hub has no drain, since the engine's stop settles its
 claims at once (../engine/restart.md, 1).
+
+**Paused over the link.** Beside its shutdown, a worker's hub takes the
+engine's ask to pause, to drain or to take work again,
+`LinkDown::Pause { mode }` (`../../protocol/channel/pause.md`), and
+keeps its state, `jig_domain_link::PauseState`, for its process's life.
+Nothing of it stops the process (temper's `draft/worker-restarts.md`,
+section 2):
+
+- **`Pause`,** from taking: *paused*. The hub admits no new run or job,
+  refusing either as busy as a shutting hub does, and its runs and jobs
+  go on as ever.
+- **`Drain`,** from taking or paused: *draining*. The hub admits
+  nothing, and drains as step 1 does: each live run's agent asked to
+  stop at the end of its current turn, a run not yet live cancelled at
+  once, a job running on, and a drained run's end taking the cancel's
+  tail and answering `Cancelled(Shutdown)`. Its root times the drain's
+  bound, as for a stop's, and at it sends `Event::DrainPassed`: the hub
+  cancels every run and job still going, for shutdown, as step 2 does,
+  but does not shut down. A `DrainPassed` at any other state changes
+  nothing.
+- **Drained:** a draining hub that hosts no run and no job, and keeps
+  no turn or answer the engine has not acknowledged, is *drained*, and
+  stays so: linked, admitting nothing.
+- **`Resume`,** from any state: *taking*. The hub admits again. A run
+  already asked to stop still stops at its turn's end, since a drain is
+  not withdrawn (smith's `domain/run.md`, section 9).
+- **A pause while draining or drained, or a drain while drained,**
+  changes nothing; the hub says its state again.
+- **It says each change** on its link, `Request::Up(LinkUp::Paused {
+  state })`, and to its root, `Request::Paused { state }`, so that the
+  root times the drain's bound from *draining* and drops that deadline
+  at any other state; and again on its link after each hello while it
+  is not taking, before anything its runs send after that hello.
+- **A stop wins.** A hub told to shut down, by either step above, shuts
+  down whatever its pause state: it says `draining` as before and no
+  more `paused`, and its root's own deadlines for the stop then hold
+  alone. A drained hub's stop finds nothing to drain.
 
 ## 8. smith's payloads
 
@@ -615,8 +659,11 @@ with no agent:
   for shutdown reaches it only after. The job's delivery is its one
   effect on a system, since the job has no credential: a job that
   cancel stops before its delivery began answers `Cancelled(Shutdown)`,
-  which the core ends interrupted, spending no try
-  (../tasks/lifecycle.md, 2). One whose delivery began lets it settle
+  which the core ends suspended, spending no try
+  (../engine/executors.md, 6), and so does one that fails from the
+  drain's start on, before its delivery began, since the stop's own
+  signal may reach its processes first (../engine/executors.md, 6.6).
+  One whose delivery began lets it settle
   and answers as it ends, finished or failed as the delivery says,
   never cancelled, so `Cancelled(Shutdown)` always means that nothing
   of the job reached a system. A delivery the stop bound cuts (6) is

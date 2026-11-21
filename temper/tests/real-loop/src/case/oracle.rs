@@ -1589,11 +1589,12 @@ pub fn step_4_6(observed: &Observed) -> Vec<Miss> {
         "the complete journal must order every run beginning after the previous ending, with no attempt left open",
     );
     let director = task_document(observed, Read::HangEnded);
-    // A shutdown interrupts without spending a try (domain/worker/README.md, 2);
-    // tasks journals that recheck as refused, not as an agent failure.
+    // A worker's stop suspends without spending a try (jig's domain/engine/executors.md, 6.2).
     let retried = matches!(attempts.as_slice(), [Some(first), Some(next)] if first != next)
         && matches!(endings.as_slice(), [first, next]
-            if text(first, "/end") == "refused" && text(next, "/end") == "finished");
+            if text(first, "/end/suspended/why") == "stopped"
+                && number(first, "/end/suspended/worker").is_some()
+                && text(next, "/end") == "finished");
     step_check(
         &mut misses,
         "4.6",
@@ -1605,7 +1606,7 @@ pub fn step_4_6(observed: &Observed) -> Vec<Miss> {
             && text(director, "/chip/phase") == "ended"
             && text(director, "/result/value/report/bytes") == HANG_REPORT,
         REPLACED,
-        "the chat must have exactly two ordered attempts, interrupted (refused) then finished, and end with its report",
+        "the chat must have exactly two ordered attempts, suspended by its worker's stop then finished, and end with its report",
     );
     let read = check_activity(observed, Read::HangQuestionRead)
         .iter()
@@ -1709,7 +1710,7 @@ mod restart_tests {
         let events = [
             json!({"run_ended":{"attempt":8,"end":"finished"}}),
             json!({"run_began":{"attempt":8}}),
-            json!({"run_ended":{"attempt":7,"end":"refused"}}),
+            json!({"run_ended":{"attempt":7,"end":{"suspended":{"worker":1,"why":"stopped"}}}}),
             json!({"run_began":{"attempt":7}}),
         ];
         let mut documents = BTreeMap::new();

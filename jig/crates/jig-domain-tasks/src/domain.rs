@@ -373,6 +373,19 @@ impl Domain {
         record(self, number)
     }
 
+    /// The task's deadline, moved by closed suspensions and the open gap at `wall`
+    /// (domain/engine/executors.md, 6.3). Authority and ancestor deadlines stay unchanged.
+    #[must_use]
+    pub fn deadline(&self, task: u64, wall: Wall) -> Option<Wall> {
+        deadline(record(self, task)?, wall)
+    }
+
+    /// Worker and window of the task's open suspension (domain/engine/executors.md, 6.2).
+    #[must_use]
+    pub fn suspension(&self, task: u64) -> Option<crate::Suspension> {
+        record(self, task)?.suspension
+    }
+
     /// Reservation a new requester must fund, including this task's live reservations
     /// but excluding spend already charged (domain/authority.md, 7).
     #[must_use]
@@ -918,6 +931,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                 | crate::End::FailedWithReason { .. }
                 | crate::End::Refused
                 | crate::End::RefusedWithReason { .. }
+                | crate::End::Suspended(_)
                 | crate::End::Recheck => {
                     crate::run::activation(
                         domain,
@@ -983,6 +997,15 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
     crate::settings::released(domain, held, out);
 }
 
+pub(crate) fn deadline(record: &TaskRecord, wall: Wall) -> Option<Wall> {
+    let deadline = record.authority.budget.deadline?;
+    let age = match record.suspension {
+        Some(suspension) => wall.as_nanos().saturating_sub(suspension.since.as_nanos()),
+        None => 0,
+    };
+    Some(Wall::from_nanos(deadline.as_nanos().saturating_add(record.suspended).saturating_add(age)))
+}
+
 /// Expire at most one due retry deadline using `env.now` after successful restoration, then advance
 /// bounded closing/readiness cascades into an uncapped output queue. The caller drives later
 /// iterations while due; wall correction does not reproject an already armed deadline.
@@ -1006,13 +1029,17 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 out.push(Request::PersonStallDue { task: number });
             }
             Phase::Active(Active::Idle)
-                if match task.record.authority.budget.deadline {
+                if match deadline(&task.record, env.wall) {
                     Some(wall) => env.wall > wall,
                     None => false,
                 } =>
             {
                 task.record.phase = Phase::Active(Active::Due);
                 publish(domain, env, number, out);
+                activate(domain, number, out);
+            }
+            Phase::Active(Active::Due) if task.record.suspension.is_some() => {
+                task.alarm = None;
                 activate(domain, number, out);
             }
             Phase::Active(Active::BackingOff { .. }) => {
@@ -1333,7 +1360,7 @@ pub(crate) fn publish(domain: &mut Domain, env: &Env<Limits>, number: u64, out: 
     let escalation = crate::escalation::begin(&mut task.record);
     // Admission permits equality with the wall. Wake just after it, without
     // another alarm or a durable deadline carrier (domain/authority.md, 7).
-    let wall = match task.record.authority.budget.deadline {
+    let wall = match deadline(&task.record, env.wall) {
         Some(wall) => match wall.as_nanos().checked_add(1) {
             Some(nanos) => Some(Wall::from_nanos(nanos)),
             None => None,
@@ -1345,12 +1372,16 @@ pub(crate) fn publish(domain: &mut Domain, env: &Env<Limits>, number: u64, out: 
             Some(task.record.person_wait.expect("active person wait").deadline)
         }
         Phase::Active(Active::Idle) => wall,
+        Phase::Active(Active::Due) => match task.record.suspension {
+            Some(suspension) if suspension.until > env.wall => Some(suspension.until),
+            Some(_) | None => None,
+        },
         Phase::Active(Active::BackingOff { until }) => Some(match wall {
             Some(wall) => until.min(wall),
             None => until,
         }),
         Phase::Waiting
-        | Phase::Active(Active::Due | Active::Preparing | Active::Claimed { .. } | Active::Running { .. })
+        | Phase::Active(Active::Preparing | Active::Claimed { .. } | Active::Running { .. })
         | Phase::Closing(_)
         | Phase::Held { .. }
         | Phase::Ended(_) => None,
@@ -1632,6 +1663,9 @@ pub(crate) fn make_admitted(
             words_woken: 0,
             unrecorded: Box::new([]),
             open_attempt: None,
+            suspension: None,
+            suspended: 0,
+            restarted: false,
             placed: None,
             settings: crate::SettingsRevision { task: domain.newest, run: None },
             label: new.label,

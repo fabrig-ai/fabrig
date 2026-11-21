@@ -716,16 +716,16 @@ fn adoption_refused(outcome: &Outcome, limits: &Limits) -> bool {
             temper_client_domain_forge::forge::Reason::Refused,
         ))
 }
-fn rows(client: &Client, handle: Handle, limits: &Limits) -> Option<Box<[Row]>> {
+fn document(client: &Client, handle: Handle, limits: &Limits) -> Option<domain::Document> {
     let Latest::Family(record) = client.document(handle)?.latest? else { return None };
-    domain::rows(record, &limits.domain.forge)
+    domain::decoded(record, limits.domain.forge)
 }
 fn changed(state: &mut Forges, client: &Client, env: &Env<Limits>, handle: Handle, out: &mut Queue<Out>) {
     let Some(doc) = client.document(handle) else { return };
     if doc.state != State::Live {
         return;
     }
-    let Some(rows) = rows(client, handle, &env.limits) else {
+    let Some((rows, _, full)) = document(client, handle, &env.limits) else {
         let watch = state.watches.remove(&handle).expect("active watch");
         out.push(Out::Client { event: Event::Unwatch { handle } });
         let printed = render::failure(b"forges document decoding failed", watch.called.json, 1);
@@ -737,7 +737,7 @@ fn changed(state: &mut Forges, client: &Client, env: &Env<Limits>, handle: Handl
         return;
     }
     let watch = state.watches.get_mut(&handle).expect("active watch");
-    let Some(digest) = digest(&rows, &env.limits) else {
+    let Some(digest) = digest(&rows, &full, &env.limits) else {
         let printed = render::failure(b"result limit", watch.called.json, 1);
         complete(state, handle, printed, out);
         return;
@@ -753,8 +753,10 @@ fn changed(state: &mut Forges, client: &Client, env: &Env<Limits>, handle: Handl
     };
     let met = jig::wait::met(watch.since, watch.first, digest, verdict);
     if watch.deadline.is_none() || met {
-        let printed = print_rows(
+        let printed = print_document(
             Some(&rows),
+            &full,
+            env.wall,
             watch.called.json,
             match watch.deadline {
                 Some(_) => Some(true),
@@ -787,8 +789,12 @@ pub(crate) fn fire(state: &mut Forges, client: &Client, env: &Env<Limits>, out: 
         if let Some(deadline) = watch.deadline
             && deadline <= env.now
         {
-            let rows = rows(client, handle, &env.limits);
-            let printed = print_rows(rows.as_deref(), watch.called.json, Some(false), &env.limits);
+            let document = document(client, handle, &env.limits);
+            let (rows, full) = match &document {
+                Some((rows, _, full)) => (Some(rows.as_ref()), full.as_ref()),
+                None => (None, [].as_slice()),
+            };
+            let printed = print_document(rows, full, env.wall, watch.called.json, Some(false), &env.limits);
             complete(state, handle, printed, out);
         }
     }
@@ -874,7 +880,7 @@ fn text_identity(row: &Row, out: &mut Text) {
 }
 
 #[expect(clippy::too_many_lines, reason = "one forge row keeps its public fields together; client/ctl/areas.md")]
-fn encode_rows(rows: &[Row], digest: Option<Digest>, out: &mut Encoder) {
+fn encode_rows(rows: &[Row], full: &[domain::FullTable], digest: Option<Digest>, out: &mut Encoder) {
     out.object_start();
     out.key(b"forges");
     out.array_start();
@@ -989,18 +995,42 @@ fn encode_rows(rows: &[Row], digest: Option<Digest>, out: &mut Encoder) {
         out.object_end();
     }
     out.array_end();
+    if !full.is_empty() {
+        out.key(b"full");
+        out.array_start();
+        for table in full {
+            out.object_start();
+            out.key(b"table");
+            out.string(match table.table {
+                domain::FullKind::Outbox => b"outbox",
+                domain::FullKind::ReadAdmission => b"read_admission",
+            });
+            out.key(b"since");
+            out.unsigned(table.since);
+            out.key(b"words");
+            out.string(&table.words);
+            out.object_end();
+        }
+        out.array_end();
+    }
     if let Some(digest) = digest {
         out.key(b"digest");
         out.string(&digest.hex());
     }
     out.object_end();
 }
-fn json_rows(rows: Option<&[Row]>, digest: Option<Digest>, met: Option<bool>, out: &mut Encoder) {
+fn json_rows(
+    rows: Option<&[Row]>,
+    full: &[domain::FullTable],
+    digest: Option<Digest>,
+    met: Option<bool>,
+    out: &mut Encoder,
+) {
     if let Some(met) = met {
         out.object_start();
         out.key(b"forges");
         match rows {
-            Some(rows) => encode_rows(rows, digest, out),
+            Some(rows) => encode_rows(rows, full, digest, out),
             None => out.null(),
         }
         out.key(b"met");
@@ -1011,10 +1041,21 @@ fn json_rows(rows: Option<&[Row]>, digest: Option<Digest>, met: Option<bool>, ou
         }
         out.object_end();
     } else {
-        encode_rows(rows.expect("read has rows"), digest, out);
+        encode_rows(rows.expect("read has rows"), full, digest, out);
     }
 }
-fn text_rows(rows: Option<&[Row]>, digest: Option<Digest>, met: Option<bool>, out: &mut Text) {
+fn text_rows(
+    rows: Option<&[Row]>,
+    full: &[domain::FullTable],
+    now: skein_lib::Wall,
+    digest: Option<Digest>,
+    met: Option<bool>,
+    out: &mut Text,
+) {
+    for table in full {
+        out.put(&domain::full_line(table, now, false));
+        out.put(b"\n");
+    }
     if let Some(rows) = rows {
         for row in rows {
             text_identity(row, out);
@@ -1080,17 +1121,28 @@ fn text_rows(rows: Option<&[Row]>, digest: Option<Digest>, met: Option<bool>, ou
         None => {}
     }
 }
-fn digest(rows: &[Row], limits: &Limits) -> Option<Digest> {
+fn digest(rows: &[Row], full: &[domain::FullTable], limits: &Limits) -> Option<Digest> {
     let bounds = skein_json::writer::Limits { depth: ROWS_JSON_DEPTH, length: limits.tools.text };
     let mut measure = Encoder::measure(&bounds);
-    encode_rows(rows, None, &mut measure);
+    encode_rows(rows, full, None, &mut measure);
     let mut out = Encoder::write(measure.measured().ok()?, &bounds);
-    encode_rows(rows, None, &mut out);
+    encode_rows(rows, full, None, &mut out);
     Some(Digest::of(&out.finish()))
 }
+#[cfg(test)]
 pub(crate) fn print_rows(rows: Option<&[Row]>, json: bool, met: Option<bool>, limits: &Limits) -> jig::Printed {
+    print_document(rows, &[], skein_lib::Wall::EPOCH, json, met, limits)
+}
+fn print_document(
+    rows: Option<&[Row]>,
+    full: &[domain::FullTable],
+    now: skein_lib::Wall,
+    json: bool,
+    met: Option<bool>,
+    limits: &Limits,
+) -> jig::Printed {
     let digest = match rows {
-        Some(rows) => match digest(rows, limits) {
+        Some(rows) => match digest(rows, full, limits) {
             Some(digest) => Some(digest),
             None => return render::failure(b"result limit", json, 1),
         },
@@ -1099,16 +1151,16 @@ pub(crate) fn print_rows(rows: Option<&[Row]>, json: bool, met: Option<bool>, li
     let bytes = if json {
         let bounds = skein_json::writer::Limits { depth: ROWS_JSON_DEPTH, length: limits.tools.text };
         let mut measure = Encoder::measure(&bounds);
-        json_rows(rows, digest, met, &mut measure);
+        json_rows(rows, full, digest, met, &mut measure);
         let Ok(size) = measure.measured() else { return render::failure(b"result limit", json, 1) };
         let mut out = Encoder::write(size, &bounds);
-        json_rows(rows, digest, met, &mut out);
+        json_rows(rows, full, digest, met, &mut out);
         out.finish()
     } else {
         let mut measure = Text::measure();
-        text_rows(rows, digest, met, &mut measure);
+        text_rows(rows, full, now, digest, met, &mut measure);
         let mut out = Text::writing_exact(measure);
-        text_rows(rows, digest, met, &mut out);
+        text_rows(rows, full, now, digest, met, &mut out);
         out.finish()
     };
     if bytes.len() > usize::try_from(limits.tools.text).expect("text fits") {

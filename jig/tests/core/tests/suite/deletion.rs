@@ -260,6 +260,7 @@ fn restart_world(world: &mut World) {
             worker: 0,
             channel: Token::new(7),
             hello: Hello {
+                fresh: false,
                 reads_usage: true,
                 jobs: Box::default(),
                 bounds: profile_fixtures::bounds(),
@@ -343,6 +344,7 @@ fn ask_names(ask: &people::Ask, project: u32) -> bool {
             ..
         }
         | people::Ask::ChangeSettings { .. }
+        | people::Ask::PauseWorker { .. }
         | people::Ask::MoveToNewest { .. }
         | people::Ask::MakeProject { .. }
         | people::Ask::MarkSeen { .. }

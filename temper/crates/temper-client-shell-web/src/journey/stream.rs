@@ -80,25 +80,6 @@ impl Streams {
     pub fn plain_mut(&mut self) -> &mut [Plain] {
         &mut self.plain
     }
-    /// Decoded records and plain runs in their joined byte order.
-    pub(super) fn fields(&self) -> Vec<(u32, &[u8])> {
-        let mut fields = Vec::new();
-        for joined in &self.joined {
-            for run in &joined.runs {
-                match run.source {
-                    Source::Event { index, .. } => {
-                        let event = &self.events[index];
-                        fields.push((event.line, event.record.as_ref()));
-                    }
-                    Source::Plain { index } => {
-                        let plain = &self.plain[index];
-                        fields.push((plain.line, plain.bytes.as_ref()));
-                    }
-                }
-            }
-        }
-        fields
-    }
     /// Encode records back and cut bytes at the original piece boundaries.
     ///
     /// # Panics

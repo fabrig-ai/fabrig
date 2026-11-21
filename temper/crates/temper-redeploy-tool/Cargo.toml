@@ -15,6 +15,10 @@ doctest = false
 name = "suite"
 path = "tests/suite/main.rs"
 
+[[test]]
+name = "domain"
+path = "tests/domain/main.rs"
+
 [dependencies]
 temper-config-shell.workspace = true
 jig-protocol-store.workspace = true

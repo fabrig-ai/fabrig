@@ -32,6 +32,8 @@ COLOUR = re.compile(rb'\x1b\[[0-9;]*m')
 # Outlast nextest's ten-second grace and the wrapper's settlement (design.md, 7.3).
 GRACE_S = 15.0
 ONE_PROCESS = Path(__file__).with_name('one_process.py')
+# A binary's last counted landings (tools/tiers/budgets.md, 7).
+COUNTS_KEPT = 100
 
 
 def timed_out(directory):
@@ -202,6 +204,29 @@ def budgets(path, pairs=None, layers=Path('tools/tiers/layers.toml')):
     return data
 
 
+def check_instructions(value):
+    """A count is a nonnegative integer, or uncounted (design.md, 11.8)."""
+    if value is not None and (type(value) is not int or value < 0):
+        raise ValueError('instructions must be a nonnegative integer or null')
+
+
+def check_commit(value):
+    """A run's commit, where git names one (design.md, 11.8)."""
+    if value is not None and (not isinstance(value, str)
+                              or re.fullmatch(r'(?:[0-9a-f]{40}|[0-9a-f]{64})', value) is None):
+        raise ValueError('commit must be 40 or 64 lowercase hex digits or null')
+
+
+def sum_counts(values):
+    """An uncounted part makes the whole uncounted (budgets.md, 4 and 8)."""
+    total = 0
+    for value in values:
+        if value is None:
+            return None
+        total += value
+    return total
+
+
 def ledger(path):
     """Read main's suite ledger (tools/tiers/budgets.md, 7)."""
     data = json.loads(Path(path).read_text())
@@ -225,20 +250,22 @@ def ledger(path):
             raise ValueError(f'invalid ledger groups for {label}')
 
     keys(data, {'ledger', 'profile', 'binaries', 'budgets', 'moves'}, 'ledger')
-    if type(data['ledger']) is not int or data['ledger'] not in (1, 2, 3):
-        raise ValueError('ledger version must be 1, 2 or 3')
+    if type(data['ledger']) is not int or data['ledger'] not in (1, 2, 3, 4):
+        raise ValueError('ledger version must be 1, 2, 3 or 4')
     if data['profile'] not in ('default', 'fuzzy'):
         raise ValueError('ledger profile must be default or fuzzy')
     if not isinstance(data['binaries'], dict):
         raise ValueError('ledger binaries must be an object')
     for binary, entry in data['binaries'].items():
         name(binary, 'binary id')
-        cpu_key = 'cpu' if data['ledger'] == 3 else 'cpu_s'
-        keys(entry, {'tree', 'layer', cpu_key, 'tests'} | ({'alone'} if data['ledger'] != 1 else set()), binary)
+        cpu_key = 'cpu' if data['ledger'] >= 3 else 'cpu_s'
+        keys(entry, {'tree', 'layer', cpu_key, 'tests'}
+             | ({'alone'} if data['ledger'] != 1 else set())
+             | ({'counts'} if data['ledger'] == 4 else set()), binary)
         if entry['tree'] not in GROUPS:
             raise ValueError(f'invalid ledger group for {binary}')
         name(entry['layer'], f'{binary}.layer', nullable=True)
-        if data['ledger'] != 3:
+        if data['ledger'] < 3:
             figure(entry['cpu_s'], f'{binary}.cpu_s')
             entry['cpu'] = [entry.pop('cpu_s')]
         if not isinstance(entry['cpu'], list) or not 1 <= len(entry['cpu']) <= 3:
@@ -264,6 +291,16 @@ def ledger(path):
                 raise ValueError(f'{binary} {test} must have one to three alone figures')
             for cpu in figures:
                 figure(cpu, f'{binary} {test} alone')
+        if data['ledger'] < 4:
+            entry['counts'] = []
+        if not isinstance(entry['counts'], list) or len(entry['counts']) > COUNTS_KEPT:
+            raise ValueError(f'{binary}.counts must have at most {COUNTS_KEPT} entries')
+        for count in entry['counts']:
+            keys(count, {'commit', 'instructions'}, f'{binary}.counts')
+            check_instructions(count['instructions'])
+            if count['instructions'] is None:
+                raise ValueError('ledger instructions must not be null')
+            check_commit(count['commit'])
     groups(data['budgets'], 'budgets')
     for tree, layers in data['budgets'].items():
         if not isinstance(layers, dict):
@@ -542,6 +579,14 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
             raise ValueError('ledger profile does not match run')
         if 'workspace' not in data:
             raise ValueError('ledger requires results workspace')
+    check_commit(data.get('commit'))
+    counting = data.get('counting')
+    if counting is not None:
+        if (not isinstance(counting, dict) or counting.keys() != {'counted', 'why'}
+                or type(counting['counted']) is not bool
+                or (counting['why'] is not None and not isinstance(counting['why'], str))
+                or (counting['why'] is None) != counting['counted']):
+            raise ValueError('invalid counting in one-process results')
     if data['profile'] != run['profile']:
         raise ValueError('results profile does not match run')
     if (type(data['selected']) is not int or data['selected'] < 0
@@ -580,7 +625,8 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
             raise ValueError('invalid process exit status')
         process = {key: item[key] for key in ('binary_id', 'tests', 'user_s', 'system_s',
                    'wall_s', 'exit_code', 'signal', 'kind', 'leaked')}
-        process.update(tree=item.get('tree'), layer=item.get('layer'))
+        process.update(tree=item.get('tree'), layer=item.get('layer'), instructions=item.get('instructions'))
+        check_instructions(process['instructions'])
         process['cpu_s'] = figure(item['user_s'] + item['system_s'], 'cpu_s')
         processes.append(process)
     tests, failures, warnings, seen = [], [], [], set()
@@ -697,6 +743,11 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
                             f'{main_cpu:.2f} CPU s at main, budget {main_limit} s; {cpu:.2f} CPU s at the head')
         grew = growing_binaries(key, head, tests, ledger) if is_over and ledger is not None else []
         layers.append(dict(tree=tree, layer=layer, cpu_s=cpu, measured_s=measured.get(key, 0.0),
+                           instructions=sum_counts(entry['instructions'] for entry in head.values()
+                                                   if (entry['tree'], entry['layer']) == key),
+                           main_instructions=None if ledger is None else sum_counts(
+                               binary_count(entry) for entry in ledger['binaries'].values()
+                               if (entry['tree'], entry['layer']) == key),
                            main_s=main_cpu, ceiling_s=ceiling, budget_s=limit, main_budget_s=main_limit,
                            lowest_s=state.get('lowest_s'), main_over=main_over, grew=grew,
                            ideal_s=budget.get('ideal_s'),
@@ -708,7 +759,10 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
             held_total = None if table is None else sum(
                 value['budget_s'] for (group, _), value in held.items() if group == tree)
             trees[tree] = dict(tree=tree, cpu_s=0.0, main_s=None if ledger is None else 0.0,
+                               instructions=0, main_instructions=None if ledger is None else 0,
                                ceiling_s=total, budget_s=held_total, ideal_s=(table or {}).get('ideal_s'))
+        for field in ('instructions', 'main_instructions'):
+            trees[tree][field] = sum_counts((trees[tree][field], layers[-1][field]))
         trees[tree]['cpu_s'] += cpu
         if ledger is not None:
             trees[tree]['main_s'] += main_cpu
@@ -734,7 +788,7 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
     verdict = ('over budget' if over else 'starved' if suite['starved_run'] or suite['starved']
                else 'within budget' if limits or (gate and gate_limits) else 'no budget set')
     return dict(pair=pair, tests=tests, suite=suite, processes=processes, failures=failures,
-                layers=layers, trees=list(trees.values()), references=references, swings=swings,
+                layers=layers, trees=list(trees.values()), counting=counting, references=references, swings=swings,
                 unobserved=unobserved, warnings=warnings, over_budget=over, verdict=verdict)
 
 
@@ -850,6 +904,11 @@ def reference_rows(data, profile, ledger, base, warnings, over):
     return rows
 
 
+def binary_count(entry):
+    """A binary's last count at main, not a sample (tools/tiers/budgets.md, 8)."""
+    return entry['counts'][-1]['instructions'] if entry['counts'] else None
+
+
 def binary_median(entry):
     """A binary's figure at main (tools/tiers/budgets.md, 8)."""
     return statistics.median(entry['cpu'])
@@ -872,14 +931,16 @@ def head_binaries(processes, workspace, ledger):
             continue
         binary = process['binary_id']
         if binary not in head:
-            head[binary] = dict(tree=process['tree'], layer=process['layer'], cpu_s=0.0)
+            head[binary] = dict(tree=process['tree'], layer=process['layer'], cpu_s=0.0, instructions=0)
         head[binary]['cpu_s'] += process['cpu_s']
+        head[binary]['instructions'] = sum_counts((head[binary]['instructions'], process['instructions']))
     if ledger is not None:
         for entry in workspace:
             binary = entry['binary_id']
             if binary not in head and not entry['listed'] and binary in ledger['binaries']:
                 head[binary] = dict(tree=entry['tree'], layer=entry['layer'],
-                                    cpu_s=binary_median(ledger['binaries'][binary]))
+                                    cpu_s=binary_median(ledger['binaries'][binary]),
+                                    instructions=binary_count(ledger['binaries'][binary]))
     return head
 
 
@@ -985,18 +1046,22 @@ def fold_binaries(data, head, tests, unobserved, ledger):
                 elif name in history:
                     figures[name] = history[name]
             cpu = [*old.get(binary, {}).get('cpu', [])[-2:], entry['cpu_s']]
+            counts = old.get(binary, {}).get('counts', [])
+            if entry['instructions'] is not None:
+                counts = [*counts[-(COUNTS_KEPT - 1):],
+                          dict(commit=data.get('commit'), instructions=entry['instructions'])]
             binaries[binary] = dict(tree=entry['tree'], layer=entry['layer'], cpu=cpu,
-                                    tests=walls, alone=figures)
+                                    tests=walls, alone=figures, counts=counts)
         elif binary in old:
             binaries[binary] = dict(old[binary], tree=entry['tree'], layer=entry['layer'],
-                                    alone=old[binary].get('alone', {}))
+                                    alone=old[binary].get('alone', {}), counts=old[binary].get('counts', []))
     # An unobserved binary may have no process and still keeps its last whole CPU.
     workspace = {entry['binary_id']: entry for entry in data.get('workspace', [])}
     for binary in partial - head.keys():
         if binary in old and binary in workspace:
             entry = workspace[binary]
             binaries[binary] = dict(old[binary], tree=entry['tree'], layer=entry['layer'],
-                                    alone=old[binary].get('alone', {}))
+                                    alone=old[binary].get('alone', {}), counts=old[binary].get('counts', []))
     return binaries
 
 
@@ -1010,7 +1075,7 @@ def fold_ledger(directory, result, limits, ledger=None):
     folded_budgets = {}
     for (tree, layer), state in held_budgets(profile, ledger, figures).items():
         folded_budgets.setdefault(tree, {})[layer] = {key: state[key] for key in ('ceiling_s', 'lowest_s')}
-    return dict(ledger=3, profile=result['pair'], binaries=binaries, budgets=folded_budgets,
+    return dict(ledger=4, profile=result['pair'], binaries=binaries, budgets=folded_budgets,
                 moves=profile.get('moves', []))
 
 
@@ -1080,7 +1145,7 @@ def summarize_records(items, pair, limits, run, timeouts, failures):
                 for name in limits.get('auto_reap', [])] if pair != 'tools' else []
     over = [line + '\n' + REPAIR_LINE for line in over]
     return dict(pair=pair, tests=tests, warnings=warnings, suite=dict(totals, tests=len(tests), wall_s=run['wall_s'],
-                starved_run=wall_starved, unobserved=0, cpu_by='test'), processes=[], layers=[], trees=[], references=[], swings=[], failures=failures, unobserved=[], over_budget=over,
+                starved_run=wall_starved, unobserved=0, cpu_by='test'), processes=[], layers=[], trees=[], counting=None, references=[], swings=[], failures=failures, unobserved=[], over_budget=over,
                 verdict="over budget" if over else "starved" if wall_starved or timeouts else "within budget" if limits else "no budget set")
 
 
@@ -1097,7 +1162,8 @@ def print_summary(result, as_json=False):
         status = f"exit {process['exit_code']}" if process['signal'] is None else f"signal {process['signal']}"
         print(f"{process['binary_id']} process {process['kind']}: CPU {process['cpu_s']:.6f}s "
               f"(user {process['user_s']:.6f}s system {process['system_s']:.6f}s) "
-              f"wall {process['wall_s']:.6f}s tests {len(process['tests'])} {status}")
+              f"wall {process['wall_s']:.6f}s tests {len(process['tests'])} {status} "
+              f"instructions {process['instructions'] if process['instructions'] is not None else 'none'}")
     suite = result['suite']
     print(f"{result['pair']}: {suite['tests']} tests, {suite['attempts']} attempts; "
           f"CPU {suite['cpu_s']:.6f}s (user {suite['user_s']:.6f}s system {suite['system_s']:.6f}s), "
@@ -1110,6 +1176,9 @@ def print_summary(result, as_json=False):
             figures = ', '.join(f"{key.removesuffix('_s')} {row[key] if row[key] is not None else 'none'} s"
                                 for key in ('cpu_s', 'ceiling_s', 'budget_s', 'ideal_s', *(['reference_s'] if kind == 'layer' else []),
                                             *(['main_s'] if row['main_s'] is not None else [])))
+            figures += f", instructions {row['instructions'] if row['instructions'] is not None else 'none'}"
+            if row['main_s'] is not None:
+                figures += f", main instructions {row['main_instructions'] if row['main_instructions'] is not None else 'none'}"
             print(f'{kind} {label}: {figures}')
     for row in result['references']:
         figures = ', '.join(f"{key.removesuffix('_s')} {row[key] if row[key] is not None else 'none'} s"

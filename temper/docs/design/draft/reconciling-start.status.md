@@ -4,10 +4,12 @@
 
 - **Design lags:**
   - 3: `jig/docs/design/domain/model.md`, 4, has a restart read every connector afresh before deciding anything new; `jig/docs/design/domain/engine/restart.md` opens after every connector's settle; `jig/docs/design/domain/connectors.md`, 5.1, has no reconciliation after opening; `jig/docs/design/protocol/service.md`, 3, admits clients only once decisions open.
-  - 4: `../domain/root.md`, 8.2, hears a stop only once the root is ready; `../../help/server.md` sets no unit timeout from the engine's bounds.
-  - 5: no design names a start's or a reconciliation's waiters.
+  - 5: a forge's reconciliation after the opening, its census row and the forge pages' "reconciling" wait for section 3: until then reading afresh and settling the outbox are steps of the start, whose waiters `../protocol/README.md`, 6.3 names in the log alone.
   - 6: `../protocol/binaries.md`, 2, ends `upgrade --check` at the switch; `../redeploy.md`, 4.1, passes the check there.
-- **Design departs:** none.
+- **Design departs:**
+  - 4: the bounds are printed by `temper-engine versions`, not `--version`: `--version` stays the one line the redeploy tool and the binary's test read whole, and `versions` is the engine's version details, reading no configuration, store or settings, so it prints the bounds at the stock limits (`../protocol/binaries.md`, 2). The goal's designer, 2026-11-20.
+  - 5: the report bound is one fixed figure, 30 s, for every step of a start and every full table, not one derived from each step's work on the deployment's store: `versions` reads no store, and dev.fabrig.ai's whole start took ten seconds once its cycle was cut (`../protocol/configuration/derived.md`, 5.6). The goal's designer, 2026-11-20.
+  - 5: "the health census" and "the deployment census" are the deployment's forges, the forges' document on the client's Deployment page and `temper ctl forge list`: no census of waits exists, and the outbox and read admission are the forge connector's, one for every forge (`../protocol/README.md`, 6.3; `../client/forge/deployment.md`, *A full table*). The goal's designer, 2026-11-20.
 - **Open:** none.
 
 Section 2's check of every term that ends reading afresh (S1, 2026-11-20;

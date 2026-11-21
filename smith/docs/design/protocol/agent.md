@@ -323,9 +323,21 @@ spawns one (host.md, section 5.2).
   with the three components and the event sink (README.md, section 5).
 - **The end is one phase,** matched exhaustively in one place, from which
   what work is pending and whether the process is done both follow:
-  - **`Live`:** the run runs. A termination signal is the domain's
-    cancel: the run winds down and answers, as it would on the host's
-    cancel.
+  - **`Live`:** the run runs. **A termination signal is its host's to
+    decide** while the channel is open and the host's cancel is not yet
+    heard (temper's `draft/worker-restarts.md`, section 2): the agent
+    tells its host, `signalled` (channel.md, section 4), once, with the
+    signal and its sender where the system names one, and the run goes
+    on; the host's word, a drain, a cancel or none, is what ends it. One
+    heard before the start is admitted is told at the admission. **Once
+    the channel is gone,** its input read to its end or its writes
+    failed, or after the host's cancel, a termination signal is the
+    domain's cancel, as before: the run winds down and answers, as it
+    would on the host's cancel. A signal told while the channel was
+    open becomes that cancel when the channel goes, if the run is still
+    live; a channel's end cancels a live run in any case. So a service
+    manager's signal to every process of its unit leaves the run to its
+    host, and an agent whose host died stops on its own.
   - **`Answered`:** the answer is sent, and `run.completed` written. The
     service closes everything it owns at once: the LLM pool, whose idle
     connections close at once and whose busy ones close when their calls
@@ -429,7 +441,12 @@ run has.
   - startup refusals, each relationship by name;
   - a run from start to answer, then an exit with no signal from the
     host, at shipped keep and idle times;
-  - a termination signal mid-turn, as a cancel;
+  - a termination signal mid-turn with the channel open: `signalled` to
+    the host, once, and the run goes on to the host's word, its drain at
+    the turn's end or its cancel; a second signal tells nothing more;
+  - a termination signal mid-turn after the host's cancel, or once the
+    host has hung up, as a cancel; and one told while the channel was
+    open, then the channel's end, as a cancel;
   - a termination signal after the answer, with a peer that ignores the
     close, ending by abort before io's close deadline;
   - a host that hangs up mid-call: one terminal per call;

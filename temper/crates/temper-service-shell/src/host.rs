@@ -1,7 +1,6 @@
 //! The host drives the binary's service table (temper/docs/design/protocol/services.md, 7).
 //! Start refusals name their cause (temper/docs/design/protocol/binaries.md).
-//! Pass lengths keep the host's clock even with a fixed service clock
-//! (temper/docs/design/protocol/setup/box.md, 5; temper/docs/design/client/journey-clock.md, 4.1).
+//! Pass lengths use a separate host clock, apart from the service's clock.
 use crate::Served;
 use skein_io::kernel::{Complete, Exit, Submit};
 use skein_lib::{Queue, Time, Wall};

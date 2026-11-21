@@ -146,6 +146,13 @@ pub(crate) fn run_end_fields(value: &w::RunEnd) -> c::RunEnd {
             },
         },
         w::RunEnd::Refused => c::RunEnd::Refused,
+        w::RunEnd::Suspended(row) => c::RunEnd::Suspended {
+            worker: row.worker,
+            why: match row.why {
+                w::SuspendWhy::Stopped => c::SuspendWhy::Stopped,
+                w::SuspendWhy::Restarted => c::SuspendWhy::Restarted,
+            },
+        },
     }
 }
 

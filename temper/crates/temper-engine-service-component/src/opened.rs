@@ -45,7 +45,9 @@ impl Engine {
     }
     pub fn advance_clients(&mut self, now: Time, wall: Wall) {
         self.clients.iterate(now, wall, &mut self.events, &self.workers.forges, self.demo.as_ref(), &mut self.accounts);
-        self.clients.secrets_step(&mut self.store);
+        if crate::stop::marked(self) {
+            self.clients.secrets_step(&mut self.store);
+        }
     }
     /// Restore a kept forge before driving its runtime membership.
     pub fn restore_forge(&mut self, record: temper_engine_domain_forge::ForgeRecord) {

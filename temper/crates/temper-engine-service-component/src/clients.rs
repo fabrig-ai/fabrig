@@ -427,6 +427,13 @@ impl Clients {
             self.pending = true;
         }
     }
+    /// The component has served nothing and its secrets gate was never begun.
+    pub(crate) fn close_before_mark(&mut self) {
+        self.down(kit::Event::Close);
+        self.component_closed = true;
+        self.out.clear();
+        self.secrets.clear();
+    }
     pub(crate) fn abort(&mut self, unstarted: bool) {
         self.down(kit::Event::Abort);
         if unstarted {

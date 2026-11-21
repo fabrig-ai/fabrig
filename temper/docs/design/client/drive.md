@@ -1,6 +1,6 @@
 # Driving the clients a line at a time
 
-Provisional, 2026-11-12, revised 2026-11-18. QA's hands on ctl, the web
+Provisional, 2026-11-12, revised 2026-11-21. QA's hands on ctl, the web
 client and the TUI (`../draft/landed-qa.md`, 7 and 10):
 `temper-client-journeys drive`, a session that starts a fake box, or a
 deployment's processes (`../testing/qa/deployment.md`), from a given
@@ -8,10 +8,10 @@ build in a given scratch directory, then takes lines on standard input,
 each a step a person takes in ctl, the browser, the TUI or the forge, or
 a look at what they are shown, and answers each. A ctl session starts
 no browser (2.6). It runs no build and writes nothing outside its
-scratch directory. Recipes are walked through it (`recipe.md`). The
-journeys' `again` (`web/journeys.md`, 8.1; `tui/journeys.md`, 8.2) stays
-a person's command that builds from the checkout: it records into the
-checkout, which a session never touches. Section 2 is the session, 3
+scratch directory. It serves QA's recipes (`recipe.md`) and a journey's
+walk on a box or deployment after landing (2.7), for what only a browser
+or terminal shows. It writes no page of main's: those are printed in a
+world (`journey-walks.md`, 4). Section 2 is the session, 3
 its lines, 4 the lines it keeps, 5 its code, 6 its tests, 7 what is
 open.
 
@@ -22,19 +22,20 @@ open.
   given scratch directory, the box's or the deployment's directories
   kept there across sessions, so that a place's restored copy starts as
   a fresh one does (2.1 and 2.2).
-- **Signed in by the session, three ways:** ctl from a file holding the
+- **Signed in by the session:** ctl from a file holding the
   box's first link, the browser with the fresh link serve prints when
   the spent one is opened, and the TUI, when a line first needs it, by
-  the browser's approval (2.3 and 3.3). No line signs in, and no link
-  is logged, answered or kept.
+  the browser's approval (2.3 and 3.3), except in a journey's session:
+  there `tui approve` signs the TUI in, and no root load is implied
+  (2.7). No link is logged, answered or kept.
 - **A ctl session** (2.6), `--ctl`, takes ctl and forge lines alone and
   starts no browser and no TUI, on the box or at a deployment. A
   deployment's session (`--deployment`) starts the deployment's
   processes in the box's stead, and, but with `--ctl`, its browser and
   TUI reach the engine's origin as a box's reach the box's
   (`../testing/qa/deployment.md`, 5 and 6).
-- **Lines are the recipes' words:** `web` and a journeys' setup record,
-  `tui` and a walk's record, `ctl` and a ctl act, with the box's values
+- **Lines are the walks' words:** `web` and a browser act,
+  `tui` and a terminal act, `ctl` and a ctl act, with the box's values
   named rather than written, `forge` and a commit or a wait on the box's
   fake Forgejo as the person, and `look`, which answers the page's
   accessible text and a screenshot, or the TUI's rows (section 3).
@@ -43,13 +44,13 @@ open.
   checked on a landed build (3.2).
 - **Each line answered,** `ok` or `failed: WHY`, what it shows prefixed
   `| `; a failed line never ends the session (3.7).
-- **Kept lines:** every line but `look`, in order, in `session/lines`,
+- **Kept lines:** every act but a look or mark, in order, in `session/lines`,
   so a case's steps become a recipe's and a finding's reproduction
   (section 4).
 - **Its end stops the box cleanly,** so that its directories are a
   stopped box's, ready to copy; its exit status says whether the box
   started, was refused by its store, or failed (2.4 and 2.5).
-- **Its logic has no io,** as `again`'s walk has none, and its tests are
+- **Its logic has no io,** and its tests are
   focused: no browser, no box (sections 5 and 6).
 
 ## 2. The session
@@ -57,7 +58,7 @@ open.
 ### 2.1 Its command
 
 ```text
-temper-client-journeys drive --bin DIR [--bundle DIR] --scratch DIR [--scripts FILE]... [--strict] [--ports LIST] [--files DIR] [--ctl] [--deployment DIR]
+temper-client-journeys drive --bin DIR [--bundle DIR] --scratch DIR [--scripts FILE]... [--strict] [--ports LIST] [--files DIR] [--ctl] [--deployment DIR] [--journey [--widths LIST]]
 ```
 
 - **`--bin DIR`** holds `temper-box`, `fake-claude` and `temper`,
@@ -72,6 +73,10 @@ temper-client-journeys drive --bin DIR [--bundle DIR] --scratch DIR [--scripts F
   (`../testing/qa/deployment.md`, 2), which a document naming it
   requires; one given is checked as a box's is.
 - **`--ctl`:** a ctl session (2.6), on the box or at a deployment.
+- **`--journey`:** a journey's session (2.7), refusing `--ctl`.
+- **`--widths LIST`:** distinct screenshot widths from 320 to 3840,
+  joined by commas, in the given order; requires `--journey`. With none,
+  `web mark` answers text alone (3.6).
 - **`--deployment DIR`:** a deployment's session, DIR a deployment's
   root recipe's `config/`, its processes started, its lines taken and its
   end as `../testing/qa/deployment.md` has them, in place of the box's
@@ -94,8 +99,8 @@ temper-client-journeys drive --bin DIR [--bundle DIR] --scratch DIR [--scripts F
   settings files (3.4), read only: a QA pass's
   (`../testing/qa/places.md`, 5). A recipe's walk gives each recipe's
   lines its own `files/` instead (`recipe.md`, 5.1).
-- **Chromium** comes from `SKEIN_TEST_CHROMIUM`, as the browser tier and
-  `again` take it, for a full session on a box or at a deployment; a
+- **Chromium** comes from `SKEIN_TEST_CHROMIUM`, as the browser tier
+  takes it, for a full session on a box or at a deployment; a
   ctl session needs none and reads no such variable.
 - **Each path** is taken relative to the working directory and made
   absolute before anything starts. A file of `--bin` missing, a bundle
@@ -149,11 +154,13 @@ In order, each within its bound; a failure is 2.5's.
    link, now spent, so that serve prints a fresh link on stdout
    (`../protocol/setup/box.md`, 2) within 30 seconds; it opens that one,
    waits until that page shows the client's main region so its sign-in
-   is answered, then loads `/` on the box's origin and waits for its main
-   region, all within 60 seconds: loading `/` sooner cancels the sign-in's
-   exchange and leaves `/` signed out. So the browser holds the
-   session's sign-in, a copy holds none (`../draft/landed-qa.md`, 5),
-   and every session's first line meets the box's root page.
+   is answered. Outside a journey's session, it then loads `/` on the
+   box's origin and waits for its main region, all within 60 seconds:
+   loading `/` sooner cancels the sign-in's exchange and leaves `/`
+   signed out. In a journey's session (2.7), it does not load `/`: its
+   first line meets the page the fresh link opens. Otherwise the first
+   line meets the root page. The browser holds the session's
+   sign-in; a copy holds none (`../draft/landed-qa.md`, 5).
 4. **The TUI** starts at the session's first `tui` line (3.3), not
    before.
 5. **`ready`** on stdout, and the lines are read.
@@ -215,7 +222,7 @@ and its resource's URL, apart from its own (skein's `ui/web/testing.md`,
 ### 2.4 Its end
 
 At a line `end`, or at stdin's end: the TUI ended, its process group
-killed, as `again` ends it; the browser closed; then the box stopped by
+killed; the browser closed; then the box stopped by
 `SIGTERM` and waited on, within 60 seconds, and its tree killed past
 them. After a clean stop the box's directories hold a stopped box,
 which a place copies (`../draft/landed-qa.md`, 5). The session's
@@ -259,6 +266,38 @@ So a pass runs its ctl cases first in such a session
 (`../testing/qa/passes.md`, 4), and a recipe whose chain has no web and
 no tui line walks in one (`recipe.md`, 5.1).
 
+### 2.7 A journey's session
+
+`drive --journey` takes the journey's client lines with nothing implied:
+no root load after the browser's sign-in (2.3), and no TUI approval at
+its first line (3.3). `tui approve` signs it in explicitly; `web mark`
+and `tui mark` answer looks and are not kept (3.6). This mode refuses
+`--ctl`; outside it, those three lines fail without being kept or
+starting a TUI.
+
+```text
+temper-client-journeys journey walk NAME --bin DIR [--bundle DIR] --scratch DIR [--strict] [--ports LIST] [--widths LIST] [--deployment DIR]
+```
+
+- **One journey session,** on a fake box or a deployment, from the given
+  build: no build is run. Its options are 2.1's, with `--journey`
+  selected by the command. It refuses `config/` or `data/` in scratch,
+  and session writes that would overlap either repository journey root.
+- **The chain read first** (`journey-walks.md`, 2.2 and 2.3): its lines
+  and `scripts.json` files root first, skipping ancestors' marks, on
+  one session. No reset, root load or `tui stop` is added between
+  journeys. The file's `walk 2` selects these rules; `recipe 1` keeps
+  the recipe's own sign-in and resets (`recipe.md`, 5.1).
+- **Each answer carries `NAME:N`,** the journey and its file line, before
+  each shown line and its `ok` or `failed`. A failed line stops the
+  walk before the next; the session is ended before the walk exits.
+- **Its exit:** 0, `walked NAME`; 5, `stopped at NAME:N: WHY` for a failed
+  line. The session's 3, 4 and 1 (2.5) pass through instead when its own
+  start, end or operation fails.
+- **After landing:** this walk checks the rendered look or a real
+  program's set-up, outside every plan (`web/look-requests.md`, 4).
+  Its marks write no page of main's.
+
 ## 3. Lines
 
 ### 3.1 Their form
@@ -279,16 +318,18 @@ no tui line walks in one (`recipe.md`, 5.1).
 
 | Line | What the session does | Bound |
 |---|---|---|
-| `web press ROLE NAME [ORDER]`, `web submit ...`, `web toggle ...` | finds the control by its role, its accessible name and its order from 0, as `again`'s setup finds it (`web/journeys.md`, 8.2), and acts on it as a person | 60 s to find it |
+| `web press ROLE NAME [ORDER]`, `web submit ...`, `web toggle ...` | finds the control by role, exact accessible name and order from 0 (`web/journeys.md`, 8.2), and acts on it as a person | 60 s to find it |
 | `web input ROLE NAME VALUE [ORDER]` | the field's value selected and VALUE typed | 60 s |
 | `web see TEXT` | waits until the page shows TEXT | 60 s |
 | `web reload PATH` | loads PATH, with its query, on the box's origin, and waits for the client's main region | 60 s |
 | `web look` | answers the page's accessible text, the browser kit's snapshot, a line per node (skein's `testing/browser.md`, 6) | 10 s |
 | `web look WIDTH` | first the path of a screenshot of the page at WIDTH CSS pixels wide, its height the page's viewport's, written to `session/looks/`, then the text as `web look`; the viewport restored after | 10 s |
+| `web mark` | in a journey's session alone, answers a look (3.6), text and screenshots at `--widths` | 10 s per screenshot, then 10 s for text |
 | `web requests` | answers the requests the page has sent since it last loaded, a line each with its wave, then `N requests in W waves`, once the page is quiet (below) | 30 s, quiet for 2 s |
 
 A role is a word of skein's roles, lowercase, as `web/journeys.md`, 8.2
-has it. WIDTH is 320 to 3840. At a deployment the origin is the
+has it. In a journey's session, `textbox` finds a text field or text
+area (`journey-walks.md`, 4.2). WIDTH is 320 to 3840. At a deployment the origin is the
 engine's clients' listener, its first link's
 (`../testing/qa/deployment.md`, 5 and 6.1).
 
@@ -363,24 +404,29 @@ its budget.
 
 ### 3.3 The TUI's lines
 
-The TUI starts at a `tui` line when none runs: `BIN/temper
-http://HOST:PORT`, at the box's origin, or the engine's at a deployment, in a pseudo-terminal of 80
-columns by 24 rows, its environment `tui/journeys.md`, 8.2's in the
-session's directories, its output read and dropped. The session signs
-it in at once, as a walk's `approve` does (`tui/journeys.md`, 8.1): a
-save that holds a `browse`, whose address the browser opens and whose
-"Approve" it presses, then the browser loads again the address it was
-on; within 30 seconds, before the line is carried out. So no line
-approves, and a recipe holds none. `tui approve`, `tui mark` and
-`web mark` are a journey's lines (`journey-walks.md`, 2.2): the session
-answers each `failed: line N: tui approve is a journey's line`, with
-its own words, keeps none, and starts no TUI for it.
+The TUI starts at a `tui` line other than `tui stop` when none runs:
+`BIN/temper http://HOST:PORT`, at the box's origin, or the engine's at a
+deployment, in a pseudo-terminal of 80 columns by 24 rows, its
+environment `tui/journeys.md`, 8.2's in the
+session's directories, its output read and dropped. Outside a journey's
+session, the session signs it in at once: a save holds a `browse`, whose
+address the browser opens and whose "Approve" it presses, then the
+browser returns to the address it was on; within 30 seconds, before the
+line is carried out. A recipe keeps that sign-in. In a journey's session
+(2.7), the TUI starts without approval, even after `tui stop`; its walk
+says `tui approve` where it needs to sign in (`tui/journeys.md`, 8.1).
+
+Outside that mode, `tui approve`, `tui mark` and `web mark` each answer
+`failed: line N: tui approve is a journey's line`, with its own words,
+are not kept and start no TUI.
 
 | Line | What the session does | Bound |
 |---|---|---|
 | `tui key KEY` | KEY as the journeys' file writes a key (`tui/journeys.md`, 3.2), given through the terminal as a person types it | — |
 | `tui see TEXT` | waits until the TUI's frame shows TEXT: a save, replayed natively to its end, gives the frame, as a walk's `see` does (`tui/journeys.md`, 8.1) | 30 s |
-| `tui stop` | ends the TUI as the session's end does, `ok` when none runs; the next `tui` line starts it again, signed in afresh | 10 s |
+| `tui stop` | ends the TUI as the session's end does, `ok` when none runs; the next `tui` line starts it afresh, with approval only outside a journey's session | 10 s |
+| `tui approve` | in a journey's session alone, opens the last `browse` address from a save, presses "Approve", then returns the browser to its prior address | 30 s |
+| `tui mark` | in a journey's session alone, answers the frame's rows as `tui look` | 10 s |
 | `tui look` | answers the frame's rows, from a save replayed, a row a line, trailing spaces cut | 10 s |
 
 A save that writes no recording within 10 seconds fails its line,
@@ -518,6 +564,12 @@ what the page or the frame showed instead, where it can: for a control
 not found, the controls of that role on the page with their names; for
 a `see`, the page's text or the frame's rows, cut at 4096 bytes.
 
+A journey's mark is a look, not a kept line: `web mark` answers each
+screenshot's path, in `--widths` order, then the page's accessible text;
+with no widths, text alone. Each screenshot uses the look's path and
+restores the viewport (3.2). `tui mark` answers the frame's rows as
+`tui look`, not a browser screenshot. `tui approve` is kept as an act.
+
 ### 3.7 A failed line
 
 A failed line never ends the session: the next line is read
@@ -537,7 +589,7 @@ deployment line`, and is not kept.
 
 ## 4. The kept lines
 
-- **Every line the session parsed,** but a look, `end` and an empty
+- **Every line the session parsed,** but a look, a mark, `end` and an empty
   line, in order, as it was given, appended to `session/lines` once
   answered, so that a session ended by its bound or a crash keeps what
   it reached.
@@ -550,9 +602,10 @@ deployment line`, and is not kept.
 
 ## 5. Its code
 
-- **In `temper-client-journeys-tool`,** beside `again`: a `drive`
-  module for the session. The lines' grammar, `Line`'s parse and print,
-  is `temper-client-walk-lines`' `line` module
+- **In `temper-client-journeys-tool`,** `drive` is the session,
+  beside `journey_walk.rs`, which feeds a journey's chain to it,
+  `recipe` for QA's recipes, and the recorded file's print. The lines'
+  grammar, `Line`'s parse and print, is `temper-client-walk-lines`' `line` module
   (`journey-walks.md`, 3.1), which `recipe.md`'s reader and a journey's
   walk share. A line prints as it parses, field for field, so a kept
   line is the line given.
@@ -562,15 +615,14 @@ deployment line`, and is not kept.
   their logs classified, by the place's kind; the session's own steps,
   ctl's sign-in, the browser's start, the TUI, the lines and the
   clients' end, written once for both.
-- **Its logic without io,** as `again`'s walk has it
-  (`web/journeys.md`, 8.1): a state machine that takes each event, a
+- **Its logic without io:** a state machine that takes each event, a
   line read, a face's answer, a save's bytes, a process's line or exit,
   a deadline, a forge's response, and answers what to do: start this
   program with these arguments and this environment, find this control
   and act, take a snapshot, a screenshot or a save, read this file, send
   this request to the forge, write this answer, stop. The io is
   a thin loop around it over skein's harness, the fake person's browser
-  face, the pseudo-terminal and the processes, as `again`'s is.
+  face, the pseudo-terminal and the processes.
 - **The browser kit's snapshot, viewport and screenshot** (skein's
   `testing/browser.md`, 5 and 6) are asked through the fake person's
   harness, which gains a read for each where it has none (skein's
@@ -581,8 +633,9 @@ deployment line`, and is not kept.
   method and its URL, and a first answer, by its id. The logic keeps the
   last load's from the session's start, and counts their waves, and the
   quiet spell by its events' times, with no io (3.2).
-- **The TUI's saves and replay** are the walk's (`tui/journeys.md`, 8.1
-  and 8.2), shared, not copied.
+- **The TUI's saves and native replay** (`tui/journeys.md`, 2 and 4)
+  give its frames and browse address; the terminal and its environment
+  are `tui/journeys.md`, 8.2's.
 
 ## 6. Its tests
 
@@ -656,6 +709,18 @@ Focused, with no browser, no box and no Chromium:
   30 seconds fails the line, naming it, and a page that sends every
   second fails it, saying so. `web requests` parses and prints back to
   its bytes, `web requests 1` is refused, and the line is kept.
+- **A journey's session:** `drive/tests.rs` holds the fresh link's page
+  without a root load, option conflicts and bad widths, ordered mark
+  screenshots then text with no kept mark, and the journey's `textbox`
+  matching a text area, including on retry. `drive/tests/tui.rs` holds
+  no implied approval before or after a stop, explicit approval kept,
+  its single 30-second bound and return on failure, and refusal of the
+  journey-only lines outside that mode.
+- **A journey's chain:** `journey_walk/tests.rs` holds one session,
+  scripts and lines root first, only the named journey's marks, no
+  added resets, answers carrying file lines, stop at the first failure,
+  session exits passed through, and refusal of a missing journey or
+  held scratch before a session starts.
 - **A deployment's session:** `../testing/qa/deployment.md`, 9's;
   `--ctl --deployment` a ctl session, `--deployment` alone a full one
   needing Chromium, and `--bundle` optional there.
@@ -666,10 +731,6 @@ Focused, with no browser, no box and no Chromium:
   fixed until a case needs another.
 - **The box with the TUI in front** (`tui/journeys.md`, 8.3): not
   driven. Default: none until a case needs it.
-- **The TUI's approval as a case:** the session approves the TUI
-  itself (3.3), so no case walks the approval's own frames; the TUI
-  journey `sign-in-approved` keeps them recorded (`tui/journeys.md`, 9).
-  Default: so, until a case asks for them.
 - **The quiet spell and its bound** (3.2): 2 and 30 seconds, for a box
   or a deployment on the session's own machine. Default: fixed until a
   case needs another.

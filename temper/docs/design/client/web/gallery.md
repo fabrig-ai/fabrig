@@ -6,8 +6,9 @@ directory, as static documents, for screenshots beside the mockups
 and a person's eye. It is a tool, not a test of the pages: what
 the pages do is the worlds' (`testing.md`), and the gallery draws what the
 view draws, never changing a view to suit a sample. It stays for the
-states no journey reaches (`journeys.md`): a journey's print, replayed
-from the engine's own answers, is where the look is tuned.
+states no journey reaches (`journeys.md`): a journey is its walk,
+printed in a world from the engine's own answers by
+`temper-client-walk` (`../journey-walks.md`), where the look is tuned.
 
 ## 1. What it prints
 

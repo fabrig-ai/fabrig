@@ -32,11 +32,9 @@ fn check(bytes: &[u8], seed: u64) {
                     "temper: a sign-in link is never an argument: run temper http://HOST:PORT and paste it\n".into()
                 }
                 Refused::NotLoopback => "temper: the engine's address must be on loopback\n".into(),
-                Refused::NotATerminal
-                | Refused::FixedStart
-                | Refused::Directory(_)
-                | Refused::Resolve { .. }
-                | Refused::Roots(_) => panic!("seed {seed}: not an argument refusal: {refused:?}"),
+                Refused::NotATerminal | Refused::Directory(_) | Refused::Resolve { .. } | Refused::Roots(_) => {
+                    panic!("seed {seed}: not an argument refusal: {refused:?}")
+                }
             };
             assert_eq!(refused.line("temper"), expected, "seed {seed}, {bytes:?}");
         }

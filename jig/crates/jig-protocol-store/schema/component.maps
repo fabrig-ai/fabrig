@@ -1,0 +1,18 @@
+records crate::component_v3
+use c = crate::codec::component
+
+record Levels = c::Levels
+record Wire by hand
+record Wires by hand
+record Format = c::Format
+record Count = c::Count
+record Manifest = c::Manifest
+record CheckpointFile = c::CheckpointFile
+record Checkpoint = c::Checkpoint
+record RestoreIntent by hand
+record Transcript = c::Transcript
+record Attempt = c::Attempt
+record HistoryLog = c::HistoryLog
+record TurnLog = c::TurnLog
+record LogAttempt = c::LogAttempt
+record Floor by hand

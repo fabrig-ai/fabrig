@@ -1242,7 +1242,15 @@ pub fn forges(value: forge::Forges, linked: bool, limits: &w::Limits) -> Option<
     for row in value.rows {
         forges.push(forge_row(row, limits)?).ok()?;
     }
-    (w::Forges { forges, linked }).encode(limits).ok()
+    let mut full = List::with_capacity(2);
+    for row in value.full {
+        let table = match row.table {
+            forge::FullKind::Outbox => w::FullKind::Outbox,
+            forge::FullKind::ReadAdmission => w::FullKind::ReadAdmission,
+        };
+        full.push(w::FullTable { table, since: row.since, words: row.words }).ok()?;
+    }
+    (w::Forges { forges, full, linked }).encode(limits).ok()
 }
 fn forge_row(row: forge::Row, limits: &w::Limits) -> Option<w::ForgeRow> {
     let ended = match row.ended {

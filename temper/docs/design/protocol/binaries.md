@@ -487,7 +487,15 @@ spawned        temper-engine internal forge-child --parent PID --signal kill|ter
   - for each wire of `temper_engine_service::wires()`, in its order
     (`wires.md`, section 10): `wire NAME LOWEST HIGHEST`, LOWEST its
     floor, then `layout NAME VERSION FINGERPRINT` for each version from
-    LOWEST to HIGHEST, FINGERPRINT its layout's 64 lowercase hex digits.
+    LOWEST to HIGHEST, FINGERPRINT its layout's 64 lowercase hex digits;
+  - `bound stop SECONDS`, the settled stop's bound at the stock limits
+    (`../domain/root.md`, 8.2), `bound stop 602`, then `bound report
+    SECONDS`, a wait's report bound (`README.md`, 6.3), `bound report
+    30`, each in whole seconds, rounded up
+    (`configuration/derived.md`, 5.6). A deployment whose limits it
+    changed has its own stop bound, which `versions`, reading no
+    settings, does not print. `--version` stays its one line, which
+    tools read whole.
 - **`upgrade`**, **`checkpoint`** and **`restore`** are `binaries.md`'s
   `temper-box upgrade`, `temper-box checkpoint` and `temper-box
   restore`, on this binary.

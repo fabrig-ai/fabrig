@@ -2,33 +2,28 @@
 use super::{FITS, List, Undecodable, d, p, w};
 
 pub(super) fn encode(posting: &d::TierPosting, failing: &p::Failures) -> w::TierPosting {
+    let context = super::super::Context { posted_failures: failing.clone(), ..super::super::Context::UNBOUNDED };
     let mut landings = List::with_capacity(u32::try_from(posting.landings.len()).expect(FITS));
     for landing in &posting.landings {
         landings
-            .push(w::TierPostedLanding {
-                commit: landing.commit,
-                blame: encode_blame(&landing.blame, failing),
-                change: landing.change,
-            })
+            .push(crate::generated::store::tier_posted_landing_to_record(landing, &context).expect(FITS))
             .expect(FITS);
     }
     let mut comments = List::with_capacity(u32::try_from(posting.comments.len()).expect(FITS));
     for comment in &posting.comments {
-        let kind = match comment.kind {
-            d::TierCommentKind::Verdict { at } => w::TierCommentKind::Verdict(w::TierCommentVerdict { at }),
-            d::TierCommentKind::Repaired { by } => w::TierCommentKind::Repaired(w::TierCommentRepair { by }),
-        };
-        comments.push(w::TierComment { pull: comment.pull, landing: comment.landing, kind }).expect(FITS);
+        comments
+            .push(
+                crate::generated::store::tier_comment_to_record(comment, &super::super::Context::UNBOUNDED)
+                    .expect(FITS),
+            )
+            .expect(FITS);
     }
     w::TierPosting {
         number: posting.number,
         tip: posting.tip,
         link: posting.link.clone(),
-        status: match posting.check {
-            skein_forge::api::Check::Pending => w::Check::Pending,
-            skein_forge::api::Check::Passed => w::Check::Passed,
-            skein_forge::api::Check::Failed => w::Check::Failed,
-        },
+        status: crate::generated::store::check_to_record(&posting.check, &super::super::Context::UNBOUNDED)
+            .expect(FITS),
         description: posting.description.clone(),
         landings,
         comments,
@@ -64,33 +59,33 @@ fn encode_blame(blame: &p::Blame, failing: &p::Failures) -> w::TierPostedBlame {
 pub(super) fn decode(posting: w::TierPosting, failing: &p::Failures) -> Result<d::TierPosting, Undecodable> {
     let w::TierPosting { number, tip, link, status, description, landings, comments, next, entry, part, op_bytes } =
         posting;
+    let context = super::super::Context { posted_failures: failing.clone(), ..super::super::Context::UNBOUNDED };
     let mut decoded = List::with_capacity(landings.len());
     for landing in landings.into_boxed() {
-        let w::TierPostedLanding { commit, blame, change } = landing;
-        decoded.push(d::TierPostedLanding { commit, blame: decode_blame(blame, failing)?, change }).expect(FITS);
+        decoded
+            .push(
+                crate::generated::store::tier_posted_landing_to_domain(landing, &context)
+                    .or(Err(Undecodable::Malformed))?,
+            )
+            .expect(FITS);
     }
     let landings = decoded.into_boxed();
     let mut decoded = List::with_capacity(comments.len());
     for comment in comments.into_boxed() {
-        let w::TierComment { pull, landing, kind } = comment;
-        let kind = match kind {
-            w::TierCommentKind::Verdict(value) => {
-                let at = value.at;
-                if landings.get(usize::from(at)).ok_or(Undecodable::Malformed)?.commit != landing {
+        let comment =
+            crate::generated::store::tier_comment_to_domain(comment, &super::super::Context::UNBOUNDED).expect(FITS);
+        match comment.kind {
+            d::TierCommentKind::Verdict { at } => {
+                if landings.get(usize::from(at)).ok_or(Undecodable::Malformed)?.commit != comment.landing {
                     return Err(Undecodable::Malformed);
                 }
-                d::TierCommentKind::Verdict { at }
             }
-            w::TierCommentKind::Repaired(value) => d::TierCommentKind::Repaired { by: value.by },
-        };
-        decoded.push(d::TierComment { pull, landing, kind }).expect(FITS);
+            d::TierCommentKind::Repaired { .. } => {}
+        }
+        decoded.push(comment).expect(FITS);
     }
     let comments = decoded.into_boxed();
-    let check = match status {
-        w::Check::Pending => skein_forge::api::Check::Pending,
-        w::Check::Passed => skein_forge::api::Check::Passed,
-        w::Check::Failed => skein_forge::api::Check::Failed,
-    };
+    let check = crate::generated::store::check_to_domain(status, &super::super::Context::UNBOUNDED).expect(FITS);
     let count = u32::try_from(comments.len()).or(Err(Undecodable::Malformed))?;
     if next > count.checked_add(1).ok_or(Undecodable::Malformed)?
         || (entry.is_some() && next > count)
@@ -122,4 +117,18 @@ fn decode_blame(blame: w::TierPostedBlame, failing: &p::Failures) -> Result<p::B
     }
     let tests = p::Failures::Tests(decoded.into_boxed());
     Ok(if suspect { p::Blame::Suspect(tests) } else { p::Blame::Owns(tests) })
+}
+
+pub fn tier_posted_blame_to_record(
+    value: &p::Blame,
+    context: &super::super::Context,
+) -> Result<w::TierPostedBlame, w::Problem> {
+    Ok(encode_blame(value, &context.posted_failures))
+}
+pub fn tier_posted_blame_to_domain(
+    value: w::TierPostedBlame,
+    context: &super::super::Context,
+) -> Result<p::Blame, w::Problem> {
+    decode_blame(value, &context.posted_failures)
+        .or(Err(w::paths::TIER_POSTED_BLAME_TAG.problem(skein_codec::Reason::Malformed)))
 }

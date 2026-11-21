@@ -128,6 +128,8 @@ fn largest_roots_stay_within_decoded_bounds() {
             forge_row_repositories,
             forge_row_makings,
             forges_forges,
+            forges_full,
+            full_table_words,
             setting_answer_value_some,
             setting_value_value,
             proposal_items_answer_items,

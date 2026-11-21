@@ -414,6 +414,43 @@ fn an_open_runs_recheck_goes_due_without_a_try() {
     run_ended(&w, ATTEMPT, EndKind::Refused);
 }
 
+/// A worker stop has its own end, keeps the committed turn, and wakes again at the window (executors.md, 6).
+#[test]
+fn an_open_runs_suspended_end_keeps_its_worker_and_committed_turn() {
+    const CHAT: u64 = 1;
+    const ATTEMPT: u64 = 1;
+    let mut w = claimed(Flags { conversation: true, ended_by: EndedBy::Requester, ..Flags::PLAIN });
+    commit_turn(&mut w, ATTEMPT, None);
+    let since = w.env.wall;
+    let window = Duration::from_secs(30);
+    let end = End::Suspended(tasks::Suspended { worker: 2, why: tasks::SuspendWhy::Stopped, window });
+    assert_eq!(w.terminal(CHAT, end), Reply::Acknowledged(Accepted::New));
+    assert_eq!(w.record(CHAT).phase, Phase::Active(Active::Due));
+    assert_eq!((w.record(CHAT).tries, w.record(CHAT).refusals), (Tries::NONE, 0));
+    assert_eq!(
+        w.record(CHAT).suspension,
+        Some(tasks::Suspension {
+            worker: 2,
+            since,
+            until: skein_lib::Wall::from_nanos(since.as_nanos() + window.as_nanos()),
+        })
+    );
+    assert_eq!(w.activations(CHAT), 2);
+    assert!(w.results.is_empty());
+    committed_turn(&w);
+    let kind = EndKind::Suspended { worker: 2, why: tasks::SuspendWhy::Stopped };
+    run_ended(&w, ATTEMPT, kind);
+    let Stored::Attempt(attempt) = &w.records[&Key::Attempt { task: CHAT, attempt: ATTEMPT }] else {
+        panic!("closed attempt")
+    };
+    assert_eq!((attempt.end, attempt.ended), (Some(kind), Some(since)));
+    w.elapse(window);
+    assert_eq!(w.activations(CHAT), 3);
+    w.claim(CHAT, 2);
+    assert_eq!(w.record(CHAT).suspension, None);
+    assert_eq!(w.record(CHAT).suspended, window.as_nanos());
+}
+
 #[test]
 fn a_finish_grace_cancels_an_idle_open_task_at_once() {
     const CHAT: u64 = 1;

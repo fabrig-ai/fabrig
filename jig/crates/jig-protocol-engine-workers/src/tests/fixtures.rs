@@ -146,6 +146,7 @@ pub fn hello_record() -> jig_protocol_worker_wire::Hello {
     let mut workstreams = List::with_capacity(1);
     workstreams.push(9).expect("one workstream");
     wire::Hello {
+        fresh: false,
         slots: 1,
         stop_bound: Duration::from_secs(20),
         workstreams,

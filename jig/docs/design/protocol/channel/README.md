@@ -10,8 +10,10 @@ decoded, names and credential grants, liveness and flow control, the
 worker's link on each side, the two components that own it, and how it
 is tested; `wires.md` holds the wires its opening states,
 `bridges.md` how the channel speaks them across versions,
-`figures.md` what the engine sends a worker at its opening, and
-`restart.md` the restart an engine says before it stops. An application with no workers has no channel: its
+`figures.md` what the engine sends a worker at its opening,
+`restart.md` the restart an engine says before it stops, and
+`pause.md` how an engine asks a worker to take no new work, to drain,
+or to take work again. An application with no workers has no channel: its
 engine's hub is linked to the core directly (`../../domain/hosts/hub.md`, 1).
 What is still open is listed in `README.md`, section 13.
 

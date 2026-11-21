@@ -1,0 +1,8 @@
+worker pause WORKER
+  WORKER (worker): a worker name: ASCII letters, digits, -, _ or ., starting with a letter or digit, at most 128 bytes; required. The live worker's name
+Ask a linked worker to take no new run or job; its runs go on
+Prints: `worker WORKER: asked to pause`
+--json: the record pause_worker.
+Key: none.
+A worker's restart ends its pause.
+An ask is no settings change: no key, no revision, no retry.

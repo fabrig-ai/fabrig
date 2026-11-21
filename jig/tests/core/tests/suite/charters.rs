@@ -226,6 +226,7 @@ fn a_delegate_waits_for_a_host_declaring_its_charters_model() {
         worker: 1,
         channel: Token::new(8),
         hello: Hello {
+            fresh: false,
             reads_usage: true,
             jobs: Box::default(),
             bounds,
@@ -273,6 +274,7 @@ fn rejoin(world: &mut World) {
         worker: 0,
         channel: skein_lib::Token::new(7),
         hello: Hello {
+            fresh: false,
             reads_usage: true,
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
@@ -412,6 +414,7 @@ fn worker_with_affinity(world: &mut World, task: u64) {
         worker: 0,
         channel: Token::new(8),
         hello: Hello {
+            fresh: false,
             reads_usage: true,
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),

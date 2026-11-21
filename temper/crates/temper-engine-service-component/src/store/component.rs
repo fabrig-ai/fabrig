@@ -9,6 +9,10 @@ use temper_engine_domain as root;
 
 const MASK: u64 = (1_u64 << 60) - 1;
 #[derive(Debug)]
+#[cfg_attr(
+    test,
+    expect(clippy::struct_excessive_bools, reason = "tests can hold a startup page or its mark independently")
+)]
 pub struct Store {
     logs: skein_lib::List<Fd>,
     #[cfg(test)]
@@ -17,6 +21,10 @@ pub struct Store {
     pub(crate) erases: u32,
     #[cfg(test)]
     pub(crate) hold_mark: bool,
+    #[cfg(test)]
+    pub(crate) hold_load: bool,
+    #[cfg(test)]
+    pub(crate) held_load: Option<root::StoreRequest>,
     #[cfg(test)]
     pub(crate) held_mark: Option<root::StoreRequest>,
     #[cfg(test)]
@@ -67,6 +75,10 @@ impl Store {
             erases: 0,
             #[cfg(test)]
             hold_mark: false,
+            #[cfg(test)]
+            hold_load: false,
+            #[cfg(test)]
+            held_load: None,
             #[cfg(test)]
             held_mark: None,
             #[cfg(test)]
@@ -138,6 +150,14 @@ impl Store {
         {
             assert!(self.held_mark.is_none(), "one held startup mark");
             self.held_mark = Some(out);
+            return true;
+        }
+        #[cfg(test)]
+        if self.hold_load
+            && let root::StoreRequest::Load { .. } = &out
+        {
+            assert!(self.held_load.is_none(), "one held startup page");
+            self.held_load = Some(out);
             return true;
         }
         if let Some(request) = route::down(&mut self.routes, out) {

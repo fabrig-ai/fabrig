@@ -50,7 +50,15 @@ The fleet child domain knows the hosts and the runs they host:
 - **Losing contact.** A lost worker's runs are kept for a grace; one that
   reconnects says what it hosts, and the core keeps or cancels each. Past
   the grace they are lost, and their tasks retry. The engine's own slots
-  are lost only with the engine (`restart.md`).
+  are lost only with the engine (`restart.md`). A worker back as a new
+  process, its hello `fresh`, ends at once, suspended, each claim of it
+  that its hello does not list (`executors.md`, 6.5).
+- **A suspended task goes back to its worker.** Within its window, its
+  claim takes that worker's channel alone, and waits for it where that
+  channel can't take it; past the window, any host (`executors.md`,
+  6.4). An answer names the position of the worker whose channel gave
+  it, so that the core knows which worker a stop cut (`executors.md`,
+  6.1).
 - **A draining worker leaves placement.** A worker that starts to shut
   down says it drains before anything its runs' ends send (../hosts/hub.md,
   7): from then until its channel is lost, the fleet places nothing
@@ -63,6 +71,24 @@ The fleet child domain knows the hosts and the runs they host:
   its channel. A
   worker that dials again is a new channel, placed on once its logins
   answer.
+- **A paused worker leaves placement too.** An owner's ask to pause or
+  drain a linked worker (`workers.md`, 5) is the fleet's to carry: it
+  asks the worker's admitted channel, `Request::Pause { channel, mode }`
+  (`../../protocol/channel/pause.md`), and from then places nothing on
+  that channel, neither a run nor a job, whatever slots free there,
+  while the runs it hosts go on to their ends and their turns and
+  answers are taken as ever. An attempt chosen for it and not yet
+  assigned there is placed again, as for a draining worker. The
+  worker's own word, `Event::Paused { channel, state }`, keeps the
+  channel out too: whatever the fleet asked, a channel whose worker
+  last said paused, draining or drained is placed nothing until it says
+  taking. So an ask to resume places on the channel again once the
+  worker says it takes work, and a channel lost and dialled again by a
+  worker that kept its pause stays out from its word after its hello.
+  A worker whose version cannot hear the ask is still placed nothing:
+  the pause is the engine's placement, and only the drain needs the
+  worker. A worker's new process starts taking: its restart ends its
+  pause. A host's view says each channel's pause (`workers.md`, 6).
 - **A mismatched worker leaves placement too.** A channel that answered
   an assignment refused for a version (`../../protocol/channel/wires.md`,
   6) is marked mismatched: until it is lost, the fleet places nothing on

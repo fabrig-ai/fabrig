@@ -16,7 +16,7 @@ pub(crate) struct State {
 }
 #[derive(Hash, Debug)]
 pub(crate) struct Reading {
-    task: u64,
+    pub(crate) task: u64,
     step: u64,
     repository: Repository,
     base: Box<[u8]>,

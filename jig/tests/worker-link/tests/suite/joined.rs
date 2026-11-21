@@ -40,7 +40,9 @@ mod joined_story {
     fn a_worker_is_admitted_and_its_hello_reaches_the_engine_root() {
         let mut world = world(1);
         let engine::Request::Hello { channel, hello, worker: _ } = &world.engine_root[0] else { panic!("hello") };
-        assert_eq!((*channel, hello), (Token::new(1), &fixtures::hello()));
+        let mut expected = fixtures::hello();
+        expected.fresh = true;
+        assert_eq!((*channel, hello), (Token::new(1), &expected));
         assert_eq!(world.dials, [Time::ZERO]);
         world.finish();
     }

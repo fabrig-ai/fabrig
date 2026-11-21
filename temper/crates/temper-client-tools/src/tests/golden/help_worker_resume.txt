@@ -1,0 +1,8 @@
+worker resume WORKER
+  WORKER (worker): a worker name: ASCII letters, digits, -, _ or ., starting with a letter or digit, at most 128 bytes; required. The live worker's name
+Ask a linked worker to take work again
+Prints: `worker WORKER: asked to take work again`
+--json: the record pause_worker.
+Key: none.
+A run already asked to stop still stops at its turn's end.
+An ask is no settings change: no key, no revision, no retry.

@@ -1,5 +1,6 @@
 //! Walk lines and page printers (temper/docs/design/client/journey-walks.md, 3.1).
 
+pub mod layout;
 pub mod line;
 pub mod print;
 pub mod tui_print;

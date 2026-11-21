@@ -699,6 +699,19 @@ pub struct Row {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Forges {
     pub rows: Box<[Row]>,
+    pub full: Box<[FullTable]>,
+}
+/// Tables full past the report bound (protocol/README.md, 6.3).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum FullKind {
+    Outbox,
+    ReadAdmission,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct FullTable {
+    pub table: FullKind,
+    pub since: u64,
+    pub words: Box<[u8]>,
 }
 /// The admitted repository and its observed collaborators.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -2522,6 +2535,12 @@ pub enum Event {
         task: u64,
         job: crate::history::JobStep,
     },
+    /// Forget a suspended attempt's pending read-back without recording a failure.
+    JobSuspended {
+        task: u64,
+        child: u64,
+        attempt: u32,
+    },
     /// Remember a committed procedure child and its role in this change.
     Delegated {
         task: u64,
@@ -2782,6 +2801,10 @@ pub fn is_root_read(owner: Token) -> bool {
 /// The connector's output to the root, including child API calls.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Request {
+    /// A table report, words after `serve: ` (protocol/README.md, 6.3).
+    FullTableFact {
+        words: Box<[u8]>,
+    },
     /// Choose a loopback port before making the record (protocol/setup/place.md, 2).
     ChoosePlace {
         request: Token,

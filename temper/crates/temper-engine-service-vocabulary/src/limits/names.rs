@@ -373,12 +373,7 @@ pub enum Unit {
     Milliseconds,
 }
 
-/// When a raised limit takes effect (configuration/limit-settings.md, 5).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Applies {
-    AtOnce,
-    NextStart,
-}
+pub use jig_protocol_config::names::Applies;
 
 /// One override name (temper/docs/design/protocol/documentation.md, 8).
 #[derive(Clone, Copy, Debug)]
@@ -1348,7 +1343,7 @@ pub static NAMES: [Name; 198] = [
     Name {
         name: "checkout.preparations",
         unit: Unit::Count,
-        applies: Applies::NextStart,
+        applies: Applies::Live,
         line: "Bounds workspace preparations active at once on a worker, runs' and jobs' alike; the rest wait in order of arrival.",
         value: |limits| u64::from(limits.checkout.preparations),
     },
@@ -1369,7 +1364,7 @@ pub static NAMES: [Name; 198] = [
     Name {
         name: "checkout.message_bytes",
         unit: Unit::Bytes,
-        applies: Applies::NextStart,
+        applies: Applies::Live,
         line: "Bounds a commit message's title and body together.",
         value: |limits| u64::from(limits.checkout.message_bytes),
     },
@@ -1390,28 +1385,28 @@ pub static NAMES: [Name; 198] = [
     Name {
         name: "checkout.remote_timeout_ms",
         unit: Unit::Milliseconds,
-        applies: Applies::NextStart,
+        applies: Applies::Live,
         line: "Bounds a checkout operation that reaches the forge, including cloning, fetching and pushing.",
         value: |limits| limits.checkout.remote_timeout.as_millis(),
     },
     Name {
         name: "checkout.local_timeout_ms",
         unit: Unit::Milliseconds,
-        applies: Applies::NextStart,
+        applies: Applies::Live,
         line: "Bounds an operation on the worker's disk, including checking out, merging and committing.",
         value: |limits| limits.checkout.local_timeout.as_millis(),
     },
     Name {
         name: "checkout.reds_read_ms",
         unit: Unit::Milliseconds,
-        applies: Applies::NextStart,
+        applies: Applies::Live,
         line: "Waits for the goal’s reds at each check; 100 to 60,000 milliseconds.",
         value: |limits| u64::from(limits.checkout.reds_read_ms),
     },
     Name {
         name: "checkout.rerun_processes",
         unit: Unit::Count,
-        applies: Applies::NextStart,
+        applies: Applies::Live,
         line: "Bounds failing test processes run again by a check; 0 to 16.",
         value: |limits| u64::from(limits.checkout.rerun_processes),
     },
@@ -1432,35 +1427,35 @@ pub static NAMES: [Name; 198] = [
     Name {
         name: "git_component.stdout_bytes",
         unit: Unit::Bytes,
-        applies: Applies::NextStart,
+        applies: Applies::Live,
         line: "Bounds standard output retained from a git operation.",
         value: |limits| u64::from(limits.git_component.stdout_bytes),
     },
     Name {
         name: "git_component.stderr_bytes",
         unit: Unit::Bytes,
-        applies: Applies::NextStart,
+        applies: Applies::Live,
         line: "Bounds standard error retained from a git operation.",
         value: |limits| u64::from(limits.git_component.stderr_bytes),
     },
     Name {
         name: "git_component.read_bytes",
         unit: Unit::Bytes,
-        applies: Applies::NextStart,
+        applies: Applies::Live,
         line: "Bounds one read from a git operation's output.",
         value: |limits| u64::from(limits.git_component.read_bytes),
     },
     Name {
         name: "git_component.sweep_entries",
         unit: Unit::Count,
-        applies: Applies::NextStart,
+        applies: Applies::Live,
         line: "Bounds entries in one page of the checkout trash sweep's listing.",
         value: |limits| u64::from(limits.git_component.sweep_entries),
     },
     Name {
         name: "git_component.sweep_bytes",
         unit: Unit::Bytes,
-        applies: Applies::NextStart,
+        applies: Applies::Live,
         line: "Bounds bytes of names in one page of the checkout trash sweep's listing.",
         value: |limits| u64::from(limits.git_component.sweep_bytes),
     },

@@ -244,6 +244,10 @@ pub(crate) fn agent_step(domain: &mut Domain, env: &Env<Limits>, event: agent::I
 /// One of the host's requests: to the engine, or to a capability.
 fn from_host(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out: &mut Queue<Request>) {
     match request {
+        host::Request::Paused { state } => {
+            crate::stopping::paused(domain, env, state);
+            out.push(Request::Paused { state });
+        }
         host::Request::Asked { run, attempt, number, answer } => {
             crate::reds::asked(domain, env, run, attempt, number, answer, out);
         }
@@ -301,6 +305,8 @@ fn from_host(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out
                         up @ (host::LinkUp::Piece { .. }
                         | host::LinkUp::UsageRead { .. }
                         | host::LinkUp::ListRead { .. }
+                        // jig/docs/design/domain/hosts/hub.md, 7, Paused over the link.
+                        | host::LinkUp::Paused { .. }
                         | host::LinkUp::Draining
                         | host::LinkUp::Logins { .. }
                         | host::LinkUp::SignedOut { .. }

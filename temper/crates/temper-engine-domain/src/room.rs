@@ -41,7 +41,3 @@ pub(crate) fn approval_rows(limits: &crate::Limits) -> u32 {
         .expect("an approval row has fields")
         .min(32)
 }
-
-#[cfg(test)]
-#[path = "tests/room.rs"]
-mod tests;

@@ -4,8 +4,9 @@ use skein_io::kernel::{Exit, Op, Signal};
 use skein_lib::{Duration, Queue, Time};
 use skein_shell::Clock;
 use skein_world::end_to_end::{Binary, Cleanup, Command, Containment, Mode, StartError};
-use skein_world::{Deadline, Delegate, Expired, Host, Referee, real};
+use skein_world::{Deadline, Expired, Host, Referee, real};
 use skein_world_tests::hosted::{Act, Script};
+use skein_world_tests::supervised::{Process, SupervisedJudge, SupervisedTrigger, ready_descendant};
 
 const WORLD_PATIENCE: Duration = Duration::from_secs(2);
 
@@ -22,28 +23,6 @@ fn is_open(fd: skein_io::kernel::Fd) -> bool {
 const ALL: [Containment; 3] = [Containment::Walk, Containment::Best, Containment::Group];
 #[cfg(not(target_os = "linux"))]
 const ALL: [Containment; 1] = [Containment::Group];
-
-#[derive(Debug)]
-enum Process {
-    Child(Binary),
-    Person(Script),
-}
-
-impl Delegate for Process {
-    fn host(&self) -> &dyn Host {
-        match self {
-            Self::Child(child) => child,
-            Self::Person(person) => person,
-        }
-    }
-
-    fn host_mut(&mut self) -> &mut dyn Host {
-        match self {
-            Self::Child(child) => child,
-            Self::Person(person) => person,
-        }
-    }
-}
 
 struct Judge {
     signal: bool,
@@ -278,14 +257,6 @@ fn tree_child(outcome: &real::Outcome<Process>) -> &Binary {
 
 fn descendant(stderr: &[u8]) -> u32 {
     ready_descendant(stderr).expect("fixture names its descendant")
-}
-
-fn ready_descendant(stderr: &[u8]) -> Option<u32> {
-    std::str::from_utf8(stderr)
-        .expect("fixture stderr is text")
-        .split_inclusive('\n')
-        .filter(|line| line.ends_with('\n'))
-        .find_map(|line| line.strip_prefix("descendant:").and_then(|pid| pid.trim().parse().ok()))
 }
 
 fn assert_tree_counted(child: &Binary, containment: Containment) {
@@ -795,210 +766,6 @@ fn a_failed_binary_start_restores_the_original_subreaper_setting() {
     assert_eq!(skein_shell::keeper::subreaper().expect("the setting after failed startup"), original);
 }
 
-#[derive(Clone, Copy, Debug)]
-enum SupervisedTrigger {
-    // The detached-descendant cases use Linux's tree keeper (runtime/shell.md, 8).
-    #[cfg(target_os = "linux")]
-    Ready,
-    // The detached-descendant case uses Linux's tree keeper (runtime/shell.md, 8).
-    #[cfg(target_os = "linux")]
-    StderrOverflow,
-    // The detached-descendant cases use Linux's tree keeper (runtime/shell.md, 8).
-    #[cfg(target_os = "linux")]
-    LeaderExit,
-    Bound,
-    Never,
-}
-
-struct SupervisedJudge {
-    trigger: SupervisedTrigger,
-    grace: Duration,
-    cleanup: Cleanup,
-    term_at: Option<Time>,
-    kill_at: Option<Time>,
-    next: Option<Time>,
-    saw_retained_exit: bool,
-    saw_grace: bool,
-    failure: Option<&'static str>,
-}
-
-impl SupervisedJudge {
-    fn new(trigger: SupervisedTrigger, grace: Duration, cleanup: Cleanup) -> Self {
-        Self {
-            trigger,
-            grace,
-            cleanup,
-            term_at: None,
-            kill_at: None,
-            next: None,
-            saw_retained_exit: false,
-            saw_grace: false,
-            failure: None,
-        }
-    }
-}
-
-/// The observer's supplied state, with no process or kernel required
-/// (skein/docs/foundation/testing-strategy.md, 2.1).
-struct SupervisedSnapshot<'a> {
-    stderr: &'a [u8],
-    stderr_overflowed: bool,
-    exit: Option<Exit>,
-    settled: bool,
-    tree: &'a skein_world::end_to_end::TreeStatus,
-}
-
-impl SupervisedSnapshot<'_> {
-    fn from_binary(child: &Binary) -> SupervisedSnapshot<'_> {
-        SupervisedSnapshot {
-            stderr: child.stderr(),
-            stderr_overflowed: child.stderr_overflowed(),
-            exit: child.exit_status(),
-            settled: child.counts().is_some(),
-            tree: child.tree_status(),
-        }
-    }
-}
-
-impl SupervisedJudge {
-    fn act_snapshot(&mut self, now: Time, child: &SupervisedSnapshot<'_>) -> Option<Signal> {
-        if self.term_at.is_none() {
-            let ready = match self.trigger {
-                #[cfg(target_os = "linux")]
-                SupervisedTrigger::Ready => ready_descendant(child.stderr).is_some(),
-                #[cfg(target_os = "linux")]
-                SupervisedTrigger::StderrOverflow => child.stderr_overflowed,
-                #[cfg(target_os = "linux")]
-                SupervisedTrigger::LeaderExit => child.exit.is_some(),
-                SupervisedTrigger::Bound => now >= Time::ZERO.saturating_add(Duration::from_millis(10)),
-                SupervisedTrigger::Never => false,
-            };
-            if ready {
-                self.term_at = Some(now);
-                return Some(Signal::Terminate);
-            }
-        } else if let Some(term_at) = self.term_at
-            && !child.settled
-        {
-            let grace = term_at.saturating_add(self.grace);
-            if now >= grace && self.kill_at.is_none() {
-                self.kill_at = Some(now);
-                return Some(Signal::Kill);
-            }
-        }
-        None
-    }
-
-    fn observe_snapshot(&mut self, now: Time, child: &SupervisedSnapshot<'_>) -> Result<(), String> {
-        // A forced cleanup gives the live TERM-delivered tree its grace before
-        // the leader wait completes. The exit may first reach this referee
-        // after escalation; its history survives the current membership poll.
-        if self.cleanup == Cleanup::Kill {
-            let tree = child.tree;
-            self.saw_retained_exit |= tree.live_at_leader_exit.as_ref().is_some_and(|pids| !pids.is_empty());
-            if self.term_at.is_some_and(|at| now < at.saturating_add(self.grace))
-                && tree.live_pids.iter().any(|pid| tree.terminated_pids.contains(pid))
-            {
-                if !tree.killed_pids.is_empty() {
-                    return Err("the keeper leaves escalation to its referee".into());
-                }
-                self.saw_grace = true;
-            }
-        }
-        if child.exit.is_some() && !child.tree.live_pids.is_empty() {
-            if child.settled {
-                return Err("a living tree retains its keeper after leader exit".into());
-            }
-            self.saw_retained_exit = true;
-            if let Some(term_at) = self.term_at
-                && now < term_at.saturating_add(self.grace)
-            {
-                self.saw_grace = true;
-                if !child.tree.killed_pids.is_empty() {
-                    return Err("the keeper leaves escalation to its referee".into());
-                }
-            }
-        }
-        // Once a required window closes or the tree settles, later iterations
-        // cannot supply its missing observation. Keep that verdict permanent.
-        if self.failure.is_none() {
-            self.failure = if self.kill_at.is_some() && self.cleanup != Cleanup::Kill {
-                Some("waiting for TERM-only cleanup: the referee unexpectedly escalated to KILL")
-            } else if self.cleanup == Cleanup::Kill
-                && !self.saw_grace
-                && self.term_at.is_some_and(|at| now >= at.saturating_add(self.grace))
-            {
-                Some(
-                    "waiting for a live retained leader exit during TERM grace: the grace window closed before it was observed",
-                )
-            } else if child.settled && !self.passed() {
-                Some(
-                    "waiting for a retained leader exit and the expected cleanup: the supervised tree has already settled",
-                )
-            } else {
-                None
-            };
-        }
-        if let Some(why) = self.overdue(now) {
-            return Err(format!("supervised referee failed: {why}"));
-        }
-        self.next = if child.settled {
-            None
-        } else if let Some(term_at) = self.term_at {
-            self.kill_at.is_none().then_some(term_at.saturating_add(self.grace))
-        } else {
-            match self.trigger {
-                #[cfg(target_os = "linux")]
-                SupervisedTrigger::Ready => ready_descendant(child.stderr).is_some().then_some(now),
-                #[cfg(target_os = "linux")]
-                SupervisedTrigger::StderrOverflow => child.stderr_overflowed.then_some(now),
-                #[cfg(target_os = "linux")]
-                SupervisedTrigger::LeaderExit => child.exit.is_some().then_some(now),
-                SupervisedTrigger::Bound => Some(Time::ZERO.saturating_add(Duration::from_millis(10))),
-                SupervisedTrigger::Never => None,
-            }
-        };
-        Ok(())
-    }
-}
-
-impl Referee<Process> for SupervisedJudge {
-    fn act(&mut self, now: Time, procs: &mut [Process]) {
-        let Process::Child(child) = &mut procs[0] else { panic!("binary observer") };
-        if let Some(signal) = self.act_snapshot(now, &SupervisedSnapshot::from_binary(child)) {
-            child.signal_tree(signal);
-        }
-    }
-
-    fn watch(&mut self, now: Time, procs: &[Process]) -> Result<(), String> {
-        let Process::Child(child) = &procs[0] else { return Err("binary observer".into()) };
-        self.observe_snapshot(now, &SupervisedSnapshot::from_binary(child))
-    }
-
-    fn next_deadline(&self) -> Option<Time> {
-        self.next
-    }
-    fn overdue(&self, _now: Time) -> Option<String> {
-        self.failure.map(String::from)
-    }
-    fn passed(&self) -> bool {
-        if self.failure.is_some() {
-            return false;
-        }
-        if self.cleanup == Cleanup::Kill {
-            self.kill_at.is_some() && self.saw_grace && self.saw_retained_exit
-        } else {
-            match self.trigger {
-                #[cfg(target_os = "linux")]
-                SupervisedTrigger::LeaderExit => self.saw_retained_exit,
-                #[cfg(target_os = "linux")]
-                SupervisedTrigger::Ready | SupervisedTrigger::StderrOverflow => true,
-                SupervisedTrigger::Bound | SupervisedTrigger::Never => true,
-            }
-        }
-    }
-}
-
 fn supervised_run(mode: &str, containment: Containment, trigger: SupervisedTrigger) -> real::Outcome<Process> {
     let cleanup = match trigger {
         SupervisedTrigger::Never => Cleanup::None,
@@ -1355,11 +1122,6 @@ fn a_group_refuses_beside_a_subreaper() {
     skein_shell::keeper::set_subreaper(previous).expect("the test restores its prior adoption policy");
     assert!(matches!(result, Err(StartError::Tree(skein_io::kernel::Error::Other(16)))));
 }
-
-// The supplied-state tests start no process (testing-strategy.md, 2.1).
-#[cfg(target_os = "linux")]
-#[path = "supervised_referee.rs"]
-mod referee_steps;
 
 #[test]
 fn kept_modes_can_be_set_back_and_raw_again_without_being_given_up() {

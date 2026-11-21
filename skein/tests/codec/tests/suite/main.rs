@@ -18,6 +18,8 @@ mod fingerprint;
 mod generic;
 mod largest;
 mod lean_bounds;
+#[cfg(test)]
+mod mapped;
 mod memory;
 mod named_limits;
 mod patch;
