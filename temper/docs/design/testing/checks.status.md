@@ -8,7 +8,7 @@
   seed's streams or sweeps with configured faults and exclusions, and no
   check holds the 3.3 failure table for gates.
 - **Not yet:** 6.3: the system world's two accounts, its account case
-  and its three ignored scenarios.
+  and its three ignored scenarios. [in flight: change 11855]
 
 - **Departs:** 1: eighteen named real-loop stories remain in the fuzzy
   suite: sixteen scripted stories (fourteen reference-case stories,
