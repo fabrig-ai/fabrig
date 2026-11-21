@@ -12,7 +12,46 @@ Only temper's tests change in F7, so only temper's packages are measured. The ot
 
 ## Before
 
-At the commit F7 started from, before any of its changes. Filled by the before run.
+**Unmeasured: package discovery was blocked waiting for disk, then timed out.** The intended measurement commit is `ac898e16f970d628425df798b581348375be23e0`, read with `git rev-parse HEAD` before any work and verified unchanged after the attempt. No suite results were produced; this is not a zero-cost baseline or an affordability claim.
+
+The attempt ran from machine **hel1-8** (the identifying suffix of the observed hostname) on 2026-11-21. At 20:12:39 UTC the initial checkout and time were recorded. The prerequisite `cargo metadata --no-deps --format-version 1`, piped to a reader selecting manifests under `temper/`, was then started through Cargo on PATH. It produced no metadata. Its only captured diagnostic was `heavy: disk: waiting: 4556435456 bytes short`; the enclosing command timed out at its 1800 s limit. At 20:42:51 UTC the checkout still had no target directory. The observed outcome is the command timeout, not a verified Cargo exit 75; neither a builder identity nor a completed disk-wait outcome was reported.
+
+Consequently neither prescribed `tools/tiers/one-process --out DIR default -p …` nor its `fuzzy` counterpart started. The package selection and Cargo target directory could not be obtained, so there are no run directories, `results.json`, `run.json` or `cpu-summary` outputs. No hold was acquired or bypassed (the environment's hold was `cargo --hold`), no disk workaround or unchanged retry was attempted, and no slow profile, browser, walk, render check or throwaway driver ran. This is the departure from **Method**: failure in discovery prevented both suite invocations, rather than leaving a partly completed suite.
+
+| Suite | Lanes | Suite wall s | Exit status | Instructions | temper CPU s |
+| --- | --- | --- | --- | --- | --- |
+| Focused (`default`) | unmeasured | unmeasured | not started | not counted; no run | unmeasured |
+| `fuzzy` | unmeasured | unmeasured | not started | not counted; no run | unmeasured |
+
+### Focused (`default`)
+
+No layers were placed by a run. There are no CPU figures to compare with `cpu-summary`, and no measured room or ceilings with moves applied.
+
+| Layer | CPU s | Ceiling | Room |
+| --- | --- | --- | --- |
+
+### Fuzzy
+
+No layers were placed by a run. There are no CPU figures to compare with `cpu-summary`, and no measured room or ceilings with moves applied.
+
+| Layer | CPU s | Ceiling | Room |
+| --- | --- | --- | --- |
+
+### Affected binaries and completeness
+
+All seven requested binaries are **unmeasured**, not completed observations or measured lower bounds. No binary has a process record to mark **partial**; every test is unobserved. There are no reported failed, crashed, starved or cancelled tests, and no standalone failure diagnostic to run. Without a listing or `results.json`, the selected test names and counts are unknown; this must not be read as an empty selection or as passing tests.
+
+| Binary | Focused CPU s | Focused selected tests | Fuzzy CPU s | Fuzzy selected tests |
+| --- | --- | --- | --- | --- |
+| `temper-engine-domain-world::suite` | unmeasured | unknown | unmeasured | unknown |
+| `temper-engine-forge-world::suite` | unmeasured | unknown | unmeasured | unknown |
+| `temper-worker-domain-world::suite` | unmeasured | unknown | unmeasured | unknown |
+| `temper-system-world::suite` | unmeasured | unknown | unmeasured | unknown |
+| `temper-one-process-world::suite` | unmeasured | unknown | unmeasured | unknown |
+| `temper-one-process-world` (library tests) | unmeasured | unknown | unmeasured | unknown |
+| `temper-real-loop-world::suite` | unmeasured | unknown | unmeasured | unknown |
+
+Every `fuzzy::` test's wall time in `temper-real-loop-world::suite` is likewise unmeasured; no result supplies their selected names or individual times. No shared-process CPU has been apportioned, no historical figure substituted, and no budget, move, reference or test changed.
 
 ## After
 
