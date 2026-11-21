@@ -267,6 +267,24 @@ cpu_s = 39
 ideal_s = 3
 reference_s = 2
 
+[[gate.default.moves]]
+from = "temper.end-to-end"
+to = "temper.domain"
+cpu_s = 2.1
+why = "temper-box's replaying harness checks and scripted client-tool reads have their own domain binary (tools/tiers/layers.md, 6.1)."
+
+[[gate.default.moves]]
+from = "temper.real-loop"
+to = "temper.step"
+cpu_s = 1.6
+why = "The forge setup's source checks, the process guard's scripted observations and QA's value checks have step binaries of their own (tools/tiers/layers.md, 6.1)."
+
+[[gate.default.moves]]
+from = "temper.real-loop"
+to = "temper.domain"
+cpu_s = 3.2
+why = "The redeploy's replaying value checks and fake-host orchestration have their own domain binary (tools/tiers/layers.md, 6.1)."
+
 [gate.default.hearth]
 ideal_s = 30
 
@@ -461,6 +479,18 @@ cpu_s = 198
 
 [gate.fuzzy.temper.end-to-end]
 cpu_s = 1
+
+[[gate.fuzzy.moves]]
+from = "temper.real-loop"
+to = "temper.step"
+cpu_s = 7.6
+why = "QA's seeded ledger sequences replay in their own step binary (tools/tiers/layers.md, 6.1)."
+
+[[gate.fuzzy.moves]]
+from = "temper.real-loop"
+to = "temper.domain"
+cpu_s = 4.6
+why = "The redeploy's seeded fake-host and parser cases replay in their own domain binary (tools/tiers/layers.md, 6.1)."
 
 [gate.fuzzy.hearth]
 ideal_s = 120
