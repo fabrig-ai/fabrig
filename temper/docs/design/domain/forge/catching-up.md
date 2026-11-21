@@ -127,7 +127,7 @@ reads, when one is at hand. Nothing is judged from the store alone.
 | `continue_release_inner`, with `release_pull`, `pull_seen_closed`, `settle_prior_effects`, `goal_branch::landed`, `design::unpublished_branch` | heads, pulls, an issue's state, lost writers | the fresh reads |
 | `design::design_claim_permitted` and a run's write claim | owned heads, goal-branch and design waits, the writer | the fresh reads |
 | `items::workspace_item`, `items::task_workspace_item`, `items::design_workspace_waiting` | a branch's existence, a base head, an owned goal branch | the fresh reads |
-| `written::defer`, `record_written_head`, `confirm_written_head` | a writer's push against the head | `written::restart`'s comparison, else the fresh reads |
+| `written::defer`, `record_written_head`, `confirm_written_head` | a writer's push against the head | its own read: the head beside, W kept beside the restored head in the stored hold and compared as `written::restart` compares it (`branches.md`, 3), so another restart reads it again |
 | `project` (a goal's issue projection) | the issue's state | the fresh reads |
 | `rebase::read_afresh` | a branch's drift | its own read of the branch |
 | `landing::judge` | the receipts `landing::rebuild` fills | the fresh reads |

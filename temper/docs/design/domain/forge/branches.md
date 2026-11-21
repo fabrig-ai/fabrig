@@ -565,7 +565,17 @@ fast-forward never forced. Its repository's other writes are as before.
 
   The answer drops the head beside and W, and frees g if nothing else
   writes it. A record that finds no head beside, or g's head already
-  moved off it, takes W at once, as before. Drift is unchanged: a head
+  moved off it, takes W at once, as before.
+  - *While the forge catches up.* Before a restart's fresh reads are in
+    (`catching-up.md`, 4), a record of W on a held branch whose recorded
+    head H is restored from the store keeps W beside H in the same way,
+    with no design writer, and takes the same comparison. The hold is
+    stored, so another restart reads it again, and the write holds the
+    branch until the answer, so the fresh read judges no drift on W.
+    A record on a branch with no hold or no recorded head takes W at
+    once.
+
+  Drift is unchanged: a head
   none of temper's writes made, even on top of g's head, and a move not
   forward from it, still hold the goal (`change/README.md`, 3).
 - **Written while any writes it.** The forge's keep counts g as written
