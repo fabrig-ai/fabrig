@@ -309,8 +309,10 @@ moves blame and starts repair goals (`domain/red-repairs.md`). A
 change's stall on CI and a landing's gate run past its bound name each
 pending job's state, read by skein's `JobState`, and count only the
 time CI runs, by an execution clock read each poll, a wait for a runner
-bounded apart (`domain/forge/change/stalls.md`, 2); a tier's run that never
-ends is held by no bound (`draft/tier-controls.status.md`).
+bounded apart (`domain/forge/change/stalls.md`, 2); a tier's run waiting
+for a runner past that bound is held as on its faults, each hold naming
+its pending jobs, while one running has no bound
+(`domain/after-landing.md`, section 3).
 
 T1's repair, goal 761, reads the launchpad's brief, Where you left off
 and Needs you across the person's projects, says why a walked need

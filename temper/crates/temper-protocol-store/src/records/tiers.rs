@@ -253,9 +253,10 @@ pub(super) fn encode(row: &d::TierRow) -> w::TierRow {
             None => None,
         },
         held: match row.held {
-            Some(fault) => Some(encode_fault(fault)),
-            None => None,
+            Some(d::TierHeld::Faults(fault)) => Some(encode_fault(fault)),
+            Some(d::TierHeld::RunnerWait) | None => None,
         },
+        runner_wait: row.held == Some(d::TierHeld::RunnerWait),
         result: match &row.result {
             Some(receipt) => Some(landing::encode_receipt_value(receipt)),
             None => None,
@@ -292,6 +293,7 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
         flight,
         probe,
         held,
+        runner_wait,
         hold,
         result,
         received,
@@ -344,9 +346,13 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
             }
             None => None,
         },
-        held: match held {
-            Some(fault) => Some(decode_fault(fault)),
-            None => None,
+        held: if runner_wait {
+            Some(d::TierHeld::RunnerWait)
+        } else {
+            match held {
+                Some(fault) => Some(d::TierHeld::Faults(decode_fault(fault))),
+                None => None,
+            }
         },
         result: match result {
             Some(receipt) => Some(landing::decode_receipt_value(receipt)?),

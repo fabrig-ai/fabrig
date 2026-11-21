@@ -2097,7 +2097,7 @@ pub fn tier_fault_to_domain(record: crate::v25::TierFault, _context: &crate::rec
 
 // Maps line 166: TierFlight.
 pub fn tier_flight_to_record(value: &temper_engine_domain_forge_vocabulary::TierFlight, context: &crate::records::Context) -> Result<crate::v25::TierFlight, crate::v25::Problem> {
-    let temper_engine_domain_forge_vocabulary::TierFlight { entry: field_000000, start: field_000001, since: field_000002, waiting: field_000003, next: field_000004, run: field_000005, pending: field_000006, fault: field_000007, report: field_000008 } = value;
+    let temper_engine_domain_forge_vocabulary::TierFlight { entry: field_000000, start: field_000001, since: field_000002, waiting: field_000003, next: field_000004, run: field_000005, pending: field_000006, fault: field_000007, report: field_000008, clock: field_000009 } = value;
     Ok(crate::v25::TierFlight {
         entry: *field_000000,
         start: match field_000001 {
@@ -2134,13 +2134,17 @@ pub fn tier_flight_to_record(value: &temper_engine_domain_forge_vocabulary::Tier
         report: match field_000008 {
             Some(item) => Some(receipt_run_to_record(item, context)?),
             None => None,
+        },
+        clock: match field_000009 {
+            Some(item) => Some(execution_clock_to_record(item, context)?),
+            None => None,
         }
     })
 }
 
 // Maps line 166: TierFlight.
 pub fn tier_flight_to_domain(record: crate::v25::TierFlight, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::TierFlight, crate::v25::Problem> {
-    let crate::v25::TierFlight { entry: field_000000, start: field_000001, since: field_000002, waiting: field_000003, next: field_000004, run: field_000005, pending: field_000006, fault: field_000007, report: field_000008 } = record;
+    let crate::v25::TierFlight { entry: field_000000, start: field_000001, since: field_000002, waiting: field_000003, next: field_000004, run: field_000005, pending: field_000006, fault: field_000007, report: field_000008, clock: field_000009 } = record;
     Ok(temper_engine_domain_forge_vocabulary::TierFlight {
         entry: field_000000,
         start: match field_000001 {
@@ -2176,6 +2180,10 @@ pub fn tier_flight_to_domain(record: crate::v25::TierFlight, context: &crate::re
         },
         report: match field_000008 {
             Some(item) => Some(receipt_run_to_domain(item, context)?),
+            None => None,
+        },
+        clock: match field_000009 {
+            Some(item) => Some(execution_clock_to_domain(item, context)?),
             None => None,
         }
     })
