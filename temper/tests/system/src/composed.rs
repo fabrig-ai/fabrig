@@ -313,6 +313,12 @@ impl World {
         Self::configured_with(seed, script, false, open_config)
     }
 
+    /// Start an open chat with the adopted repository mounted for local reads.
+    #[must_use]
+    pub fn open_chat_with_repository(seed: u64, script: Script) -> Self {
+        Self::configured_with(seed, script, true, open_config)
+    }
+
     /// Watch an open chat, holding its reply before each later live piece
     /// and before its turn crosses the process channel (testing/README.md, 2.1).
     #[must_use]
@@ -1331,7 +1337,7 @@ impl World {
         let parts = link::parts(work, preparation);
         let link = engine::Link::Up { up: host::LinkUp::Answer { run, attempt, answer }, parts };
         if let Some(story) = &mut self.merge_job
-            && run.raw() == 4
+            && run.raw() == if story.row == merge_job::Row::MovedBase { 3 } else { 4 }
             && story.base.is_none()
         {
             story.held = Some(link);
