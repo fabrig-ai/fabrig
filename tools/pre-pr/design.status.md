@@ -2,6 +2,7 @@
 
 2026-11-21. Where `.temper/pre-pr`'s code lags or departs from [design.md](design.md).
 
+- **Not yet:** 1 and 4: the check's one-process runs take every layer, the real loop and end to end included, and build their binaries, since one-process doesn't yet leave them out (`tools/tiers/layers.md`, 9.1) [in flight: change 11541].
 - **Not yet:** 1, 4: the check runs no check 7: a delivery that raises a figure of `tools/tiers/budgets.toml` or adds a reason's line passes [in flight: change 8161].
 - **Not yet:** 1, 2, 3, *Changed paths*, and 9.2: the selection reads the whole base-to-tree diff, merged tips' entries included, so a merge repair selects every package the merge brought in, and no line names the merged tips [in flight: change 9656].
 - **Not yet:** 5, *The base's target is its own*, and 9.2: the base's count runs inherit the check's `CARGO_TARGET_DIR`, or none [in flight: change 9655].
