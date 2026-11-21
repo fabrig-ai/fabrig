@@ -37,7 +37,13 @@ crate that holds what it reads.
 Over both profiles: the stock, resolved with no override through the
 start's one resolution (`startup::resolve_limits`; `../protocol/configuration/limit-settings.md`, 3),
 and the worlds' `small` (`temper_limits_fixtures::small()`). A relation
-holds in both.
+holds in both. `small` is made without the stock agent's derivations,
+so its fixture's own figures for the carriers of T and P (5.1) and the
+counts that scale with `live_goals` (5.4) are explicit overrides, the
+exception of their kind: over `small` those rows are judged by the
+start's checks as they judge an override, and every other row holds as
+over the stock. The formulas and their mutations are walked over the
+stock in full.
 
 Each relation has one of five kinds, which fixes what holds, its valid
 exception, and how its mutations are drawn (section 6):
