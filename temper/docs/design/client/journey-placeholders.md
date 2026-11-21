@@ -32,9 +32,7 @@ take them, 5 a print's ids, 6 the code, 7 its tests, 8 what is open.
   recordings were normalised once, by `normalise` (4.3); no test holds
   them to it.
 - **What stays:** times, the seed and the turns, which the replay needs
-  as they were (2.4). `again` walks on a fixed start, so two of its
-  walks hold the same ones but where real processes decide
-  (`journey-clock.md`). A print reads the recording's clocks, never the
+  as they were (2.4). A print reads the recording's clocks, never the
   printing host's, so one recording prints the same bytes on any day.
 - **A print's ids:** skein-ui's ids follow the order the page's nodes
   were made, which the walk's turns decide; the browser's print numbers
@@ -90,11 +88,7 @@ take them, 5 a print's ids, 6 the code, 7 its tests, 8 what is open.
   "today 16:07"), and the engine's times sit in wire bytes as bare
   numbers that nothing marks, so a shifted clock could neither be found
   whole nor proved (`web/journeys.md`, 4.3). No placeholder takes a
-  time: `again` fixes them at their source instead, walking every part
-  on one fixed start and a clock that moves only to its deadlines, so
-  that two of its walks hold the same times, prints that draw one
-  included, but where real processes decide (`journey-clock.md`, 5). A
-  recording walked by hand keeps its walk's times.
+  time: a recording keeps its walk's times.
 - **A print reads no host's clock:** the replay that prints takes each
   turn's clocks and the browser's `zone` from the recording
   (`web/journeys.md`, 4.1; `tui/journeys.md`, 4.1), and the print adds
@@ -103,9 +97,7 @@ take them, 5 a print's ids, 6 the code, 7 its tests, 8 what is open.
   journey that still replays (`journey-writer.md`, 3).
 - **The seed and the turns** stand: the host draws from the seed, and
   the turns' clocks, deadlines and a stream's pieces are when things
-  happened, which the replay gives back as they were. Two of `again`'s
-  walks share the seed and the clocks, from its fixed start
-  (`journey-clock.md`, 2 and 3).
+  happened, which the replay gives back as they were.
 - **What the fake box makes the same each time** needs nothing: a fresh
   box numbers its projects, chats and tasks alike.
 

@@ -207,8 +207,6 @@ forge, temper adds:
   `client/web/journey-redaction.md` their redaction,
   `client/journey-placeholders.md` the placeholders both clients'
   journeys hold for what varies between walks,
-  `client/journey-clock.md` the fixed start and clock `again` walks
-  them on,
   `client/journey-writer.md` the one writer of main's journey files,
   run after each landing,
   `client/journey-walks.md` a journey's walk, printed in one process
