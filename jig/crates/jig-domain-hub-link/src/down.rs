@@ -15,6 +15,9 @@ pub fn down(link: &mut Link, value: core::Held) -> Result<(Token, host::LinkDown
         core::Held::Sources { channel, sources } if link.connected(channel) => {
             (channel, host::LinkDown::Sources { sources })
         }
+        core::Held::PauseWorker { channel, mode } if link.connected(channel) => {
+            (channel, host::LinkDown::Pause { mode })
+        }
         core::Held::CheckSource { channel, name } if link.connected(channel) => {
             (channel, host::LinkDown::Check { name })
         }
@@ -79,6 +82,7 @@ pub fn down(link: &mut Link, value: core::Held) -> Result<(Token, host::LinkDown
         | core::Held::NotesDeleted { .. }
         | core::Held::ReadList { .. }
         | core::Held::Sources { .. }
+        | core::Held::PauseWorker { .. }
         | core::Held::CheckSource { .. }
         | core::Held::SignOutSource { .. }
         | core::Held::Acknowledge { .. }

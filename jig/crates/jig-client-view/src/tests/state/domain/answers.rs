@@ -50,6 +50,7 @@ fn read_token(rows: &[Request]) -> jig_client::Handle {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one total refusal fixture checks facts and the subsequent refresh together")]
 fn refusals_keep_every_engine_fact_and_moved_reads_the_current_object_without_losing_the_refusal() {
     let names = crate::tests::kit::list([7, 5]);
     let refusals = [
@@ -144,6 +145,7 @@ fn refusals_keep_every_engine_fact_and_moved_reads_the_current_object_without_lo
             | Refusal::NotLending
             | Refusal::NotOffered
             | Refusal::NoEscalationHolder
+            | Refusal::Unlinked { .. }
             | Refusal::Concluded { .. }
             | Refusal::KeyConflict => {
                 assert!(!recovery(&object).look_again && !recovery(&object).change_ask);

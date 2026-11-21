@@ -1,4 +1,4 @@
-family jig-client-wire 39
+family jig-client-wire 40
 # Accounts.accounts/signing, AccountLine.sources and Account.sources: jig_client_domain::Limits::document_bytes; each item is a length-prefixed piece
 # AccountLine.uses and Account.uses: jig_domain_accounts::USES (16)
 # OutcomeAccountSignInStarted.address: jig_domain_people::ADDRESS (2048 bytes).
@@ -965,3 +965,9 @@ enum AccountKeyFailure { too_long, not_stored }
 # Stream admission refusals precede the hello (protocol/client/wire.md, 2, and protocol/client/default-http.md, 2).
 enum StreamBound { component, transport }
 record StreamsFull { bound: StreamBound size: u32 }
+
+enum WorkerPauseMode { resume, pause, drain }
+enum WorkerPause { taking, paused, draining, drained }
+record PauseWorker { worker: u32 mode: WorkerPauseMode }
+record OutcomeWorkerPauseAsked { worker: u32 }
+record RefusalUnlinked { worker: u32 }

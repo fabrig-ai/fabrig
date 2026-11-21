@@ -18,6 +18,9 @@ pub enum Setting {
 /// A final reason a keyed request was refused.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Refusal {
+    Unlinked {
+        worker: u32,
+    },
     Concluded {
         at: Wall,
     },

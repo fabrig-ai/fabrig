@@ -987,6 +987,7 @@ impl Observer {
             | core::Held::Assign { .. }
             | core::Held::ReadList { .. }
             | core::Held::Sources { .. }
+            | core::Held::PauseWorker { .. }
             | core::Held::CheckSource { .. }
             | core::Held::SignOutSource { .. }
             | core::Held::SourceSignedOut { .. }

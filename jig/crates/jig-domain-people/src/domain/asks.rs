@@ -120,6 +120,7 @@ pub(crate) fn valid_ask(limits: &Limits, ask: &Ask) -> bool {
         Ask::RemoveProject { .. }
         | Ask::SetVisibility { .. }
         | Ask::ChangeSettings { .. }
+        | Ask::PauseWorker { .. }
         | Ask::MoveToNewest { .. }
         | Ask::Application { .. }
         | Ask::AccountSignIn { .. }
@@ -250,6 +251,7 @@ pub(crate) fn invalid_ask(limits: &Limits, ask: &Ask) -> Refusal {
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
+        | Ask::PauseWorker { .. }
         | Ask::MoveToNewest { .. }
         | Ask::AccountChange { .. }
         | Ask::Propose { action: crate::Action::Amend { .. } | crate::Action::Settings { .. }, .. } => LimitKind::Words,

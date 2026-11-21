@@ -156,6 +156,7 @@ pub(crate) fn tag_fleet(
                 continue;
             }
             fleet::Request::Sources { channel, sources } => Request::Held(Box::new(Held::Sources { channel, sources })),
+            fleet::Request::Pause { channel, mode } => Request::Held(Box::new(Held::PauseWorker { channel, mode })),
             fleet::Request::Check { channel, name } => Request::Held(Box::new(Held::CheckSource { channel, name })),
             fleet::Request::SignOut { channel, name } => Request::Held(Box::new(Held::SignOutSource { channel, name })),
             fleet::Request::SignedOut { to, channel, name, result } => {
@@ -804,6 +805,8 @@ pub(crate) fn route_fleet(
     }
     let touched = match &event {
         fleet::Event::CleanupPrograms { .. }
+        | fleet::Event::PauseWorker { .. }
+        | fleet::Event::Paused { .. }
         | fleet::Event::CheckProgram { .. }
         | fleet::Event::SignOutProgram { .. }
         | fleet::Event::Sources { .. }
@@ -900,6 +903,8 @@ fn host_shape(event: &fleet::Event) -> bool {
     match event {
         fleet::Event::Sources { .. }
         | fleet::Event::CleanupPrograms { .. }
+        | fleet::Event::PauseWorker { .. }
+        | fleet::Event::Paused { .. }
         | fleet::Event::CheckProgram { .. }
         | fleet::Event::SignOutProgram { .. }
         | fleet::Event::Mismatch { .. }
@@ -952,7 +957,7 @@ fn draining_hosts(core: &Core) -> u32 {
     draining
 }
 
-fn append_fleet(
+pub(crate) fn append_fleet(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,

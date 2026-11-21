@@ -39,6 +39,7 @@ pub(crate) fn to_component(held: core::Held) -> Option<kit::Event> {
         | core::Held::Cancel { .. }
         | core::Held::ReadList { .. }
         | core::Held::Sources { .. }
+        | core::Held::PauseWorker { .. }
         | core::Held::CheckSource { .. }
         | core::Held::SignOutSource { .. }
         | core::Held::SourceSignedOut { .. }

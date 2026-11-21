@@ -255,6 +255,7 @@ fn kept(request: &Ask) -> bool {
             contract::Ask::ReadLists { .. }
             | contract::Ask::ChangeModel(_)
             | contract::Ask::ChangeSettings(_)
+            | contract::Ask::PauseWorker { .. }
             | contract::Ask::MoveToNewest(_)
             | contract::Ask::Restore { .. }
             | contract::Ask::Create { .. }

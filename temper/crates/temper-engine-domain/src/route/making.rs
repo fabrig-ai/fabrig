@@ -157,6 +157,7 @@ fn acted(domain: &mut Domain, key: forge::MakingKey, outcome: people::Outcome) {
         | people::Outcome::AccountProgramDeclared { .. }
         | people::Outcome::AccountReading { .. }
         | people::Outcome::AccountLoginAsked { .. }
+        | people::Outcome::WorkerPauseAsked { .. }
         | people::Outcome::AccountChanged
         | people::Outcome::AccountMovingOut { .. }
         | people::Outcome::AccountMovedIn { .. }
@@ -201,6 +202,7 @@ fn refusal_words(why: people::Refusal) -> Box<[u8]> {
         people::Refusal::SignInRedirect { .. } => b"adopt sign-in redirect was refused",
         people::Refusal::Circle { .. } => b"adopt has a dependency circle",
         people::Refusal::Dependency { .. } => b"adopt prerequisite failed",
+        people::Refusal::Unlinked { .. } => b"worker is unlinked",
         people::Refusal::Concluded { .. } => b"adopt gathering is concluded",
         people::Refusal::Kept { .. } => b"adopt waits for prerequisites",
     };
@@ -236,6 +238,7 @@ pub(super) fn held(domain: &mut Domain, held: core::Held) -> Option<core::Held> 
         | core::Held::Assign { .. }
         | core::Held::ReadList { .. }
         | core::Held::Sources { .. }
+        | core::Held::PauseWorker { .. }
         | core::Held::CheckSource { .. }
         | core::Held::SignOutSource { .. }
         | core::Held::SourceSignedOut { .. }

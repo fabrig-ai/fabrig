@@ -109,6 +109,7 @@ pub(super) fn deployment(
                     withdrawn: value.withdrawn,
                     linked,
                     since,
+                    pause: core.fleet.worker_pause(value.number.checked_sub(1).expect("positive worker number")),
                 })
                 .expect("checked worker count");
         }

@@ -165,6 +165,16 @@ pub enum Event {
     Mismatch {
         channel: Token,
     },
+    /// An owner asks the admitted channel of this configured worker position.
+    PauseWorker {
+        worker: u32,
+        mode: jig_domain_link::PauseMode,
+    },
+    /// The worker's last word on this channel.
+    Paused {
+        channel: Token,
+        state: jig_domain_link::PauseState,
+    },
     /// The worker of `channel` drains: nothing more is placed on it
     /// (domain/engine/fleet.md).
     Draining {
@@ -397,6 +407,10 @@ pub enum Event {
 /// fleet -> parent
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    Pause {
+        channel: Token,
+        mode: jig_domain_link::PauseMode,
+    },
     /// Once loaded, none of the start's claims is held for its kept word any more.
     Discharged,
     Ask {

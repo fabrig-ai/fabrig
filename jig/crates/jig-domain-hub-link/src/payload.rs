@@ -45,7 +45,7 @@ pub fn up(domain: &mut Link, channel: Token, up: host::LinkUp) -> Option<core::E
     let event = match up {
         host::LinkUp::Ask { run, attempt, number, bytes } => fleet::Event::Ask { channel, run, attempt, number, bytes },
         // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too builds this route.
-        host::LinkUp::Paused { .. } => return None,
+        host::LinkUp::Paused { state } => fleet::Event::Paused { channel, state },
         host::LinkUp::Draining => fleet::Event::Draining { channel },
         host::LinkUp::JobAnswer { run, attempt, answer } => {
             let kind = match &answer {

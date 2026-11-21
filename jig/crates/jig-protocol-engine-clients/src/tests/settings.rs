@@ -770,7 +770,7 @@ fn overlays_cross_engine_changes_and_setting_reads_without_losing_presence() {
 fn worker_settings_and_linked_facts_cross_client_wire() {
     use jig_client_domain::contract as c;
     use jig_client_protocol_link::translate::settings as client;
-    assert_eq!(jig_client_protocol_wire::VERSION, 39);
+    assert_eq!(jig_client_protocol_wire::VERSION, 40);
     for digest in [None, Some([9; 32])] {
         let source = s::Value::Worker(Box::new(s::WorkerSetting {
             number: 2,
@@ -817,6 +817,7 @@ fn worker_settings_and_linked_facts_cross_client_wire() {
     assert_eq!((&facts.fault), &w::SettingFault::Linked);
     let mut source = f::deployment_document();
     source.worker_settings = List::from_boxed(Box::new([d::WorkerState {
+        pause: jig_domain_link::PauseState::Taking,
         number: 2,
         name: b"w1".as_slice().into(),
         places: 4,
@@ -830,6 +831,7 @@ fn worker_settings_and_linked_facts_cross_client_wire() {
     assert_eq!(
         client.worker_settings.as_slice(),
         &[c::WorkerState {
+            pause: c::WorkerPause::Taking,
             number: 2,
             name: b"w1".as_slice().into(),
             places: 4,

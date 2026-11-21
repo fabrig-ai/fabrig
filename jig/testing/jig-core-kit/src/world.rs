@@ -159,6 +159,7 @@ pub struct World {
     pub stop_deliveries: Vec<core::Held>,
     pub commits: Vec<Vec<root::Write>>,
     pub list_reads: Vec<crate::lists::Reading>,
+    pub worker_pauses: Vec<(Token, jig_domain_link::PauseMode)>,
     pub projections: Vec<(usize, u16, core::ProjectionFeed)>,
     pub hold_projection_settlements: bool,
     pub sign_in: Option<u64>,

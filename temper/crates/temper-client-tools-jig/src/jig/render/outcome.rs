@@ -111,6 +111,7 @@ impl Operation {
         let (word, task): (&[u8], Option<u64>) = match ask {
             Ask::Family { .. } => (b"adopt", None),
             Ask::Jig(ask) => match ask.as_ref() {
+                c::Ask::PauseWorker { .. } => (b"pause-worker", None),
                 c::Ask::Restore { .. } => (b"restore", None),
                 c::Ask::Propose { action: c::ProposeAction::Settings(_), .. } => (b"propose_settings", None),
                 c::Ask::MoveToNewest(_) => (b"move-to-newest", None),
@@ -451,6 +452,12 @@ fn text(
     out.put(b"\n");
 }
 fn done_text(done: &c::Outcome, operation: &Operation, out: &mut Text) {
+    if let c::Outcome::WorkerPauseAsked { worker } = done {
+        out.put(b"done: worker ");
+        out.number(u64::from(*worker));
+        out.put(b" pause asked");
+        return;
+    }
     if let c::Outcome::Document(c::DocumentOutcome::ServiceMade { person: party })
     | c::Outcome::Made { what: c::Made::Service { party } } = done
     {
@@ -486,6 +493,7 @@ fn done_text(done: &c::Outcome, operation: &Operation, out: &mut Text) {
         }
         c::Outcome::Made { what: c::Made::Tasks { tasks } } => tasks.get(0).copied(),
         c::Outcome::Document(c::DocumentOutcome::Created { first, .. }) => Some(*first),
+        c::Outcome::WorkerPauseAsked { .. } => None,
         c::Outcome::Account(_) | c::Outcome::Document(_) | c::Outcome::Made { .. } => operation.task,
     };
     if let Some(task) = task {
@@ -1180,7 +1188,8 @@ fn worker_refusal(operation: &Operation, refusal: &c::Refusal, out: &mut Text) -
             out.number(u64::from(value.newest));
             out.put(b"; run it again");
         }
-        c::Refusal::Concluded { .. }
+        c::Refusal::Unlinked { .. }
+        | c::Refusal::Concluded { .. }
         | c::Refusal::Judged { .. }
         | c::Refusal::SignInRedirect { .. }
         | c::Refusal::Forgotten { .. }
@@ -1384,6 +1393,7 @@ fn proposal_project(ask: &Ask) -> Option<u32> {
         Ask::Jig(ask) => match ask.as_ref() {
             c::Ask::Propose { project, .. } => Some(*project),
             c::Ask::Restore { .. }
+            | c::Ask::PauseWorker { .. }
             | c::Ask::MoveToNewest(_)
             | c::Ask::ReadLists { .. }
             | c::Ask::ChangeModel(_)
@@ -1503,6 +1513,7 @@ fn ended_refusal(refusal: &c::Refusal, archived: bool) -> bool {
         | c::Refusal::NotLending
         | c::Refusal::NotOffered
         | c::Refusal::KeyConflict
+        | c::Refusal::Unlinked { .. }
         | c::Refusal::Concluded { .. }
         | c::Refusal::Llm { .. } => false,
     }

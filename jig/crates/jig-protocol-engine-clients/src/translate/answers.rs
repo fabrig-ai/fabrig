@@ -11,6 +11,9 @@ pub(crate) fn answer(
     limits: &w::Limits,
 ) -> Result<w::KeyedAnswer, w::Problem> {
     let final_answer = match reply {
+        p::Reply::Outcome(p::Outcome::WorkerPauseAsked { worker }) => w::Final::Done(w::Done {
+            outcome: w::Outcome::WorkerPauseAsked(w::OutcomeWorkerPauseAsked { worker: *worker }),
+        }),
         p::Reply::Outcome(p::Outcome::AccountReading { count }) => w::Final::Done(w::Done {
             outcome: w::Outcome::Account(w::OutcomeAccount {
                 answer: w::AccountAnswer::Reading(w::AccountReading { count: *count }),
@@ -253,6 +256,7 @@ fn owner(value: &p::Outcome, limits: &w::Limits) -> Result<w::DocumentOutcome, w
         p::Outcome::Restored { .. }
         | p::Outcome::SettingsChanged { .. }
         | p::Outcome::MovedToNewest { .. }
+        | p::Outcome::WorkerPauseAsked { .. }
         | p::Outcome::AccountReading { .. }
         | p::Outcome::AccountMovingOut { .. }
         | p::Outcome::CompoundRefused { .. }

@@ -1737,3 +1737,5 @@ fn settings_admit_sparse_positions_and_keep_places_until_the_next_channel() {
     assert_eq!(workers.first().expect("live").number(), 2);
     assert_eq!(workers.get(1).expect("offline").number(), 3);
 }
+
+mod pause;

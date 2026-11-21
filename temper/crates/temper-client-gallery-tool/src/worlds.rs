@@ -5509,6 +5509,7 @@ fn worker_settings(since: Wall) -> List<c::WorkerState> {
         [(1, "Workshop", true, None), (2, "Finishing", true, Some([0xab; 32])), (3, "Away", false, Some([0xcd; 32]))]
     {
         rows.push(c::WorkerState {
+            pause: c::WorkerPause::Taking,
             number,
             name: name.as_bytes().into(),
             places: 2,

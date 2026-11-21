@@ -23,6 +23,7 @@ fn list<T>(values: impl IntoIterator<Item = T>) -> List<T> {
 }
 pub(super) fn row(number: u32, name: &str, withdrawn: bool) -> c::WorkerState {
     c::WorkerState {
+        pause: c::WorkerPause::Taking,
         number,
         name: name.as_bytes().into(),
         places: 2,

@@ -33,6 +33,10 @@ impl World {
             }
         }
         match delivery {
+            root::Delivery::Core(core::Held::PauseWorker { channel, mode })
+            | root::Delivery::Link { channel, down: jig_domain_host::LinkDown::Pause { mode } } => {
+                self.worker_pauses.push((channel, mode));
+            }
             root::Delivery::Core(core::Held::ReadList { channel, read, endpoint, grant }) => {
                 self.list_reads.push(crate::lists::Reading { channel, read, endpoint, grant });
             }

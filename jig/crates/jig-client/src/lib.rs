@@ -11,6 +11,7 @@ pub mod shapes;
 mod store;
 pub mod thread;
 pub mod words;
+pub mod workers;
 pub use client::{
     APPROVAL_AGAIN, Admission, ApprovalAct, Client, Event, LinkView, NotSignedIn, Request, UnlinkedRequest,
 };
