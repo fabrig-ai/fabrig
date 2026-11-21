@@ -356,7 +356,9 @@ Chances are per mille, in `Config`, and drawn from the domain's seed.
   as observations are (`limits.observations`), a full one counting
   what it drops (`fell_lost`). `until` is when a fault that lasts
   stops: a late answer's or a landing's moment, a view's end, a wait's,
-  a wait being kept once it ends; `call` is `Called::{Read, Write, Merge, Git}`; `run` is a run's id.
+  a wait being kept once it ends; `call` is `Called::{Read, Write, Merge, Git}`; `reply_to` is the
+  call's `Token`, never its `ReplyTo`, so a record copies and the right
+  to answer stays the domain's alone; `run` is a run's id.
   An image keeps none. `Fault::family` and `Fault::name` are the words
   a ledger keeps:
 
