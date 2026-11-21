@@ -57,10 +57,9 @@ deleted once no pass can need them.
     `bin/` too;
   - `bundle/`: the web bundle, `temper/scripts/bundle.sh STAGE/bundle`,
     one bundle for every use, which the drive session gives a box
-    (`../../client/drive.md`, 2.1): its recording and its loopback
-    navigation are a page's query since 2026-11-12, as the journeys and
-    the browser tier take it (`../../client/web/journeys.md`, 8.1), so a
-    build keeps no recording bundle of its own.
+    (`../../client/drive.md`, 2.1): recording and loopback navigation
+    are selected by the page's query (`../../client/web/README.md`, 2.1),
+    so a build keeps no recording bundle of its own.
 
   A debug build's set is about 400 MB.
 - **Then** `temper-qa build keep COMMIT DIR`, with the home's
