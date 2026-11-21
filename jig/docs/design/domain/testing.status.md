@@ -1,9 +1,20 @@
 # testing: status
 
-2026-11-20. Where jig's code lags or departs from [testing.md](testing.md).
+2026-11-21. Where jig's code lags or departs from [testing.md](testing.md).
 
-- **Not yet:** 7: jig's inspection adapter, `jig-inspect`, and the
-  core's and engine-clients worlds' calls of the shared checks.
+- **Not yet:**
+  7.1: jig's inspection adapter, `jig-inspect`'s `tasks` and `core`, with
+  the reads they take.
+  7.1, 7.2: `jig_inspect::engine_clients`, and the engine-clients world's
+  calls of the shared checks.
+  7.2: the core kit's `World` calls the shared checks at its quiet point,
+  with each check's own tests.
+  7.3: the core world's scenarios of P43, S15 and P77, and P77's client
+  part.
+  7.3: the core world's scenarios of P76, P93, P98 and P82's residual.
+  7.3: the engine-clients world's scenario of P117.
+  7.3: the exclusions in `jig_core_kit::open` and
+  `jig_engine_clients_kit::open`.
 
 Section 5's keyed durable-row evidence and exhaustive forked cuts are
 present. Section 7's core row names retain typed keys until a failure
