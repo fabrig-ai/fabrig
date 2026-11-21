@@ -1,62 +1,49 @@
 # The TUI's journeys
 
-Provisional, 2026-11-08. A TUI journey is a walk through the TUI
-(`README.md`, 1 to 3 and `pages/README.md` and `theme.md` and `README.md`, 4; `../../draft/tui.md`, section 5) recorded
-at its host's seam on a fresh `temper box --fake-backends`, replayed
-natively through the shipped host, and printed as its frames: each as
-text, a line per row, and as a page drawn in the theme's colours,
-linked so that the same keys walk them. They are the browser's journeys
-(`../web/journeys.md`) for the TUI's host, and share their file's syntax,
-their redaction and their last scan, with the same code. `journeys.md`, section 2 is
-the build, 3 the recording, 4 the replay, 5 the redaction and the scan,
-6 the print, 7 the tests, 8 recording again, 9 the journeys, 10 editing
-the look, 11 what is open.
+A TUI journey is its `walk` of version 2: what a person does and where
+its frames are printed (`../journey-walks.md`, 2). The frames are text,
+a line per row, and themed HTML pages linked by keys. The walk runs in
+a world for the print, on a box through the drive session, or by hand
+with the TUI's recorder. These are different ways to meet the shipped
+host, not different sources for main's journeys.
 
 ## 1. In one page
 
-- **One seam, the host's** (`README.md`, 3): the run gives its
-  host each report and carries out the duties it asks back; the
-  recorder keeps what crosses that seam, and the replay gives it back to
-  the same host, natively.
-- **Recorded when asked:** every build holds the recorder, and a TUI
-  started with `TEMPER_INTERNAL_RECORD` set records from its start into
-  the TUI's directory; without it, nothing is recorded (section 2).
-- **The browser's file, the TUI's records:** the same text, one record
-  per line, the same shared records (the start's seed and clocks, a
-  turn, a deadline, a mark, the small store's records), and records of
-  the TUI's own for its keys, its transport, its credential and its
-  browser (section 3). One format, sharing what fits
-  (`../../draft/tui.md`, section 8's default).
-- **Replayed, it must ask what it asked,** each key giving the event it
-  gave; otherwise the journey is stale and recorded again (sections 4
-  and 8). The first replay proves itself against the live frames.
-- **Redacted and scanned by the browser's code** (`../web/journey-redaction.md` and `../web/journeys.md`, 3.7
-  ), which gains the TUI's originals: the approval's secret, the
-  credential the TUI takes and the bearer every exchange carries
-  (section 5).
-- **Placeholders for what varies,** once proved: the build, the
-  loopback ports and the approval codes, as the browser's journeys take
-  them (`../journey-placeholders.md`; section 5).
-- **Printed by `temper-client-journeys`,** under
-  `docs/design/client/tui/journeys/`: a text and a page per mark, a
-  generated `theme.css` and `tui-journey.js`, and an empty `overlay.css`
-  (section 6). No terminal, no box, the same bytes every time.
-- **Kept current by one writer,** with the browser's, after each
-  landing (`../journey-writer.md`); the delivery check and the journeys'
-  tests refuse a TUI `overlay.css` that holds anything (section 7).
-- **Recorded again by a command:** `again NAME` walks the journey's
-  `walk` on a fresh fake box, the TUI in a pseudo-terminal and the
-  approval given in headless Chromium, and adds the result (section 8); on main the
-  journeys' writer alone runs it.
+- **The source is the walk,** with its README and, where it has its
+  own, `scripts.json` (6.2). A walk names both clients on its lines:
+  `tui key`, `tui see`, `tui approve` and `tui mark`, with browser lines
+  where the journey needs them (`../journey-walks.md`, 2.2).
+- **In a world:** `temper-client-walk` prints it in one process, the
+  TUI's shipped host on the simulated service, with no terminal, box,
+  recording or network (section 6; `../journey-walks.md`, 3.3 and 4).
+- **On a box:** the drive session takes the same lines, the TUI in a
+  pseudo-terminal, after landing and outside every plan (section 8;
+  `../drive.md`). It writes no page of main's.
+- **By hand:** a person starts the TUI with `TEMPER_INTERNAL_RECORD`
+  set, records into their private directory, and prints the saved file
+  outside the repository with `temper-client-journeys print FILE OUT`
+  (sections 2 to 5 and 6.1). No recording is committed.
+- **One seam, the host's:** the recorder keeps reports and duties; the
+  native replay gives the reports to that same host and checks what it
+  asks. Redaction, the proof against saved live frames and the last
+  scan guard a person's print (sections 3 to 5).
+- **Main's pages have one writer,** after each landing
+  (`../journey-writer.md`). A goal changes sources, compares by a print
+  into scratch, and commits no page (section 10). The delivery check
+  refuses written files beside other changes and a nonempty overlay.
 - **The look is asked for on the frames:** a frame's text edited in
   place, the theme's overlay written, each request landing as the
   browser's do (section 10).
+
+Section 2 is the build, 3 the person's recording, 4 its replay, 5 its
+redaction and scan, 6 the print, 7 the tests, 8 the box, 9 the journeys,
+10 the look and 11 what is open.
 
 ## 2. The build
 
 - **The journey module,** `temper-client-shell-tui`'s `journey`, in
   every build: the file's lines, the recorder, the replay, the
-  redaction's and the scan's TUI part, and the walk's logic. The shared
+  redaction's and the scan's TUI part. It has no walk logic of its own. The shared
   redaction and scan are `temper-client-redaction`'s, which the
   browser's journeys use too (section 5), so the client links no web
   shell (`../../protocol/binaries.md`, 4). It is ordinary Rust, as the
@@ -67,7 +54,7 @@ the look, 11 what is open.
   any nonempty value, the start opens the TUI's directory for the
   recording and gives the run a recording (`run::Settings.record`);
   absent or empty, it gives none, and the run records nothing. The
-  journeys tool sets it in the TUI's environment (section 8).
+  drive session sets it in the TUI's environment (8.2).
 - **Nothing else changes in the TUI:** the recorder adds no node, no
   paint, no request and no file but its own (3.1).
 
@@ -90,19 +77,16 @@ the look, 11 what is open.
 - **Each key in two forms:** Alt+m is the mark key too, and Alt+s the
   save key, for a terminal that drops the Shift from a Meta key it
   doesn't bind, as emacs' vterm does: it sends Alt+Shift+M as Alt+m.
-  Only a recording takes them: a run without one, as the shipped
-  `temper-box`'s always is (section 2), gives Alt+m and Alt+s to the host as
-  any other key.
+  Only a recording takes them: a run without one gives Alt+m and
+  Alt+s to the host as any other key.
 - **A save** writes the run's file whole, `recording-TIME` in the TUI's
   directory (`README.md`, 2; *Each run its own file*, below), `0o600`, a
   synced temporary replacing it, through skein-io's file layer on the
   run's own io. The recorder goes on after a save, so each save is a
   whole recording and a later one holds more. Closing saves once more,
   as it is, before the terminal's `LEAVE`; a save that fails says
-  nothing on the screen, and the next save tries again.
-- **Each run its own file** (the user's request `tui-19` of 2026-11-15,
-  "to not overwrite the last journey when saving", after a recording of
-  a `/close` they wanted to report was replaced by the next run's): a
+  nothing on the screen, and the next save retries.
+- **Each run its own file:** a
   recording starts with the TUI and is whole at each save, and each run
   saves to a file of its own, `recording-TIME`, TIME the run's start,
   the wall clock at its first iteration, in UTC, in the basic form
@@ -117,8 +101,8 @@ the look, 11 what is open.
   form exactly, oldest first by name, which is by time. It removes
   nothing else: a `recording` an earlier build saved, a save's
   temporary and the directory's other files stay. A removal that fails
-  says nothing on the screen; the next run that records tries again.
-- **Said at the end** (the request's third ask, left to the designer):
+  says nothing on the screen; the next run that records retries.
+- **Said at the end:**
   once the terminal is left, a run that recorded writes one line to
   standard error, before any other line it writes there: "temper:
   recorded to PATH" where its last save, the closing one, stored the
@@ -126,9 +110,9 @@ the look, 11 what is open.
   file's whole path. Standard error, since standard output is the
   terminal's and closes with it.
 - **The file keeps every original:** it is the person's, in their
-  private directory, and `add` takes it (section 6). Each kept file
-  holds the box's sign-in link until `add` redacts it (section 5). It is
-  never committed as it is.
+  private directory. `temper-client-journeys print` reads it without
+  changing it (6.1); the saved file still holds every secret afterwards.
+  Keep it out of the repository and remove it once printed.
 
 ### 3.2 The file
 
@@ -140,7 +124,7 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 
 | Record | Fields | Where |
 |---|---|---|
-| `journey` | `2` | the first line (shared) |
+| `journey` | `4` | the first line; the replay reads versions 2 to 4 |
 | `seed` | the host's seed | the start's facts, in this order (shared) |
 | `clocks` | now and wall, in nanoseconds, at the host's making | (shared) |
 | `screen` | rows, columns, `dark`, `light` or `none` | the start's size and the scheme the terminal says, `none` where it says none (`theme.md`) |
@@ -161,6 +145,8 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 | `key` | the key (below), then its event's print in quotes, or `none` | a `Key` report |
 | `resize` | rows, columns | a `Resize` report |
 | `reply` | the exchange, the message's bytes | `Heard(Reply)` |
+| `part` | the exchange, the part's bytes | `Heard(Part)` |
+| `done` | the exchange | `Heard(Done)` |
 | `unanswered` | the exchange | `Heard(Lost)` |
 | `streamed` | `record` and its bytes, `heartbeat`, `full` with `component` or `transport` and the size, or `signed-out` | `Heard(Streamed)` |
 | `gone` | none | `Heard(StreamGone)` |
@@ -173,8 +159,10 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 | `returned` | `get` or `other`, the target as bytes, the `Host` as bytes or `none` | a `Returned` report |
 | `box-line` | a line of the box's, as `BoxLine::print` prints it, in quotes | a `Front` report (`box.md`) |
 | `box-stage` | the stage, as `BoxStage::print` prints it, in quotes | a `Stage` report (`box.md`) |
+| `lent` | the number, then `exited` and its code, `killed` and its signal, or `not-started` | a `Lent` report |
 | `send` | the exchange, the message's kind, its bytes, the credential's bytes or `none` | a duty's `Request::Exchange`, in order |
 | `stream` | the credential's bytes or `none` | `Request::OpenStream` |
+| `replacing` | the credential's bytes or `none`, then the replaced stream's bytes | `Request::OpenStream` with a replacement |
 | `unstream` | none | `Request::CloseStream` |
 | `save` | a record's key and bytes | `Request::Save`, one per record (shared) |
 | `erase` | a record's key | `Request::Erase`, one per key (shared) |
@@ -188,6 +176,8 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 | `quit` | none | the duty `close` |
 | `stop-box` | none | the duty to stop the box (`box.md`, *Quitting*) |
 | `stop-box-again` | none | the duty of the box's second stop (`box.md`, *Quitting*) |
+| `lend` | the number and the name as bytes | the duty to lend the terminal (`box.md`, *Lending its terminal*) |
+| `unlend` | none | the duty to cancel the loan |
 | `deadline` | nanoseconds, or `none` | each turn's end (shared) |
 | `mark` | the live frame's print | before its key, or at the mark key, in a turn of its own (`turn`, `mark`, `deadline`) (shared) |
 | `end` | the live frame's print | the last line (shared) |
@@ -200,31 +190,26 @@ is told from a browser's by its first fact after `clocks`, `screen`.
   (`skein_ui_screen_terminal::Key`).
 - **A message's kind,** `jig_client::Message`'s variant in kebab case:
   `authorize`, `approval-ask`, `approval-read`, `approval-decide`,
-  `sign-in-approval`, `request`, `read`, `watch`, `unwatch`,
+  `sign-in-approval`, `request`, `read`, `watch`, `batch`, `unwatch`,
   `stream-gone`, `sign-in-link`, `sign-in-service`, `sign-out`; the last
   two carry no bytes, so their bytes field is `""`, and a reader refuses
   any other.
 - **Any other `jig_client::Event`** reaching the host is no native
   shell's, and the recorder refuses it as its defect.
 - **The duties' order:** each request of `asked` in order, then `keep`,
-  `note`, `signed`, `read`, `browse`, `listen`, `unlisten`, `answer` and
-  `quit`, each when the duty holds it. A recording made before the
-  loopback return holds none of its records, and replays as it stands;
-  the version stays.
-- **The start's facts** are in the table's order, `background` after
-  `screen`, `plain` after `background`, `version` after `plain`,
-  `local` after `address`, `box` after `local`, `front` after `box`,
-  `set-up` after `front`, `box-log` after `set-up` and `noted` after
-  `credential`. A recording with none of them reads as a start with no
-  background answered, a terminal that draws the mark, an empty version,
-  no engine's link file, not on a box, out of front, a box not set up
-  before and with no log's path, and with no note, so one made before
-  them replays as it stands; the version stays `2`.
+  `note`, `signed`, `read`, `browse`, `listen`, `unlisten`, `answer`,
+  the box's stop, `lend`, `unlend` and `quit`, each when the duty holds it.
+- **The start's facts** are in the table's order. Optional facts absent
+  mean no background answered, a terminal that draws the mark, an empty
+  build, no local link, not boxed or in front, not set up and with no
+  box log, no stored records, credential or note. The reader also
+  accepts `front` before `box`. The writer emits `journey 4`; accepting
+  a file's version does not promise its build's wire can replay (6.1).
 - **Unreadable:** another version, a record out of its place, an unknown
   kind or word, a field missing or over, a number out of its type's
   range; it names the line.
-- **A committed recording's marks hold no print:** `add` drops it once
-  the first replay has proved itself (4.3), as the browser's does.
+- **The live prints** are removed from the in-memory copy once the
+  proof holds (4.3); the person's saved file is unchanged.
 
 ### 3.3 A key's event
 
@@ -276,7 +261,7 @@ yields the host's frame.
   lines, and each turn's deadline is the recorded one.
 - **Each key's event** read before it is given (3.3) is the recorded
   one.
-- **Stale** is where the replay stops: at the first duty, deadline or
+- **A mismatch** stops the replay: at the first duty, deadline or
   key's event that differs, a `browse` or a `quit` asked or not asked
   among them. It names the turn, the recorded line and what the host
   asked or made instead. Frames are not compared: they are what the
@@ -284,14 +269,15 @@ yields the host's frame.
 
 ### 4.3 The first replay's proof
 
-`add` replays the redacted recording with its live prints: at each mark
-the replay's `Frame::print` is the recorded one, or the recording is
-refused, naming the mark and the first line of the print that differs,
-never its text. Once every mark matches, the live prints are dropped,
-the recording takes its placeholders and replays again, as the check
-has it (`../journey-placeholders.md`, 4.1), and the print is that
-replay's. The proof comes first since a frame lays its rows out by
-width, so a placeholder of another width moves what follows it.
+`temper-client-journeys print` proves the redacted recording against
+its saved live prints: at each mark and at the end, the replay's
+`Frame::print` must equal the saved print, or the file is refused,
+naming the mark and the first line that differs, never its text. Once
+every mark matches, the live prints are dropped from the in-memory
+copy and the replay supplies the frames to print. The saved file is
+not rewritten. The tool scans the redacted fields and replayed frames
+before the proof, and the printed files before writing (section 5).
+It changes no build, port, approval code or clock for the print.
 
 ## 5. Redaction and the last scan
 
@@ -330,9 +316,11 @@ the TUI's lines.
   event of its view shows a secret's length, and the paste's link is
   found by its secret.
 - **Where:** every original in every field of every line. A `reply`'s,
-  a `send`'s and a `streamed record`'s bytes, a `stored`'s, `save`'s and
-  `erase`'s key and bytes, and every credential's field are framed; a
-  `key`'s bytes and event, `found`'s and `box-line`'s bytes, `address`, `signed`,
+  a `send`'s, a `part`'s and a `streamed record`'s bytes, a `stored`'s, `save`'s and
+  `erase`'s key and bytes, and every credential's field, including `replacing`'s credential and
+  stream bytes, are framed; a `key`'s paste and event, `found`'s,
+  `box-line`'s, `box-stage`'s, `box-log`'s and `lend`'s bytes, `version`,
+  `address`, `signed`,
   `browse`, `returned`'s target and `Host`, `answer`'s address, `mark` and `end` are text (`../web/journey-redaction.md`, *A form's
   size*). A TUI's
   stream records come whole from the native shell, so no pieces are
@@ -363,51 +351,72 @@ the TUI's lines.
 - **What is left to the person** is `../web/journeys.md`, 3.8's, and: a
   link typed key by key is never found whole, so its proof fails and
   nothing is written; paste it.
-- **Placeholders** (`../journey-placeholders.md`), after the proof, with
-  the shared code: the build from the `version` fact; each loopback port
-  in every field, `address`, `signed`, `browse`, a `found`'s and a
-  `box-line`'s bytes and the framed fields among them, and in a pasted
-  address's decimal byte elements in its `Typed` event; and each code a
-  `browse` address shows, its letters in the ask's `reply` too. A framed
-  field takes a placeholder of the original's width alone
-  (`../journey-placeholders.md`, 3.3).
-
 ## 6. The print
 
-### 6.1 The program
+### 6.1 The programs
 
-`temper-client-journeys` (`../web/journeys.md`, 5.1) takes, reprints and
-records again the TUI's journeys beside the browser's, through
-`bin/temper-client-journeys` and its crate `crates/temper-client-journeys-tool`
-(`../../testing/tools.md`, 3–4):
+**For journeys,** `temper-client-walk` (`../journey-walks.md`, 5):
 
-- `add [--redact TEXT]... NAME FILE` reads FILE's first fact after
-  `clocks`: `screen` makes it the TUI's, taken under
-  `docs/design/client/tui/journeys/NAME/`. A NAME is one journey's
-  across both directories: `add` refuses a TUI recording under a name
-  the browser's directory holds, and the reverse. It redacts (section
-  5), proves (4.3), normalises, scans and prints in memory, writing
-  nothing until the scan has passed, and prints its counts as the
-  browser's does (`../journey-placeholders.md`, 4.1).
-- The reprint, `cargo run -p temper-client-journeys`, prints both
-  directories' journeys, and `normalise` gives both directories'
-  recordings their placeholders (`../journey-placeholders.md`, 4.3).
-- `again NAME` records the TUI journey NAME when its directory holds a
-  `walk` (section 8), the browser's otherwise.
+- `temper-client-walk print [--out DIR] [NAME]...` prints the named
+  journeys, or all, into DIR, a scratch directory it names when none is
+  given. DIR is laid out from the repository root down, with the assets
+  the pages need; it cannot be inside either journeys root.
+- `temper-client-walk pages` prints in place for the writer alone
+  (`../journey-writer.md`, 4). A completed walk replaces its numbered
+  pages whole, removing any past its marks' count and any recording
+  left in its directory. A stopped walk leaves that journey's files as
+  they were.
+- The TUI's host runs on the playground's simulated service, through
+  the native transport's HTTP, with its asks, stream and deadlines
+  carried on the world's time (`../journey-walks.md`, 3.3). No terminal
+  or recording is involved. Its start is 80 columns by 24 rows, not
+  local, boxed or in front; no scheme or background, drawing dark with
+  no band; build `0.0.0 (000000000000)` at `http://127.0.0.1:10001`.
+  The world's facts and schedule make the bytes reproducible.
 
-### 6.2 What it writes
+**For a person's TUI recording,**
+`temper-client-journeys print [--redact TEXT]... FILE OUT`, through
+`temper/bin/temper-client-journeys`, crate
+`temper-client-journeys-tool` (`../../testing/tools.md`, 3–4):
 
-Under `docs/design/client/tui/journeys/`:
+- `screen`, the first fact after `clocks`, identifies a TUI file. The
+  tool checks its layout, redacts in memory, scans its fields and
+  replayed frames, proves it, prints and scans the pages, writing
+  nothing until all have passed (sections 4 and 5).
+- Build the tool at the deployment's commit: the TUI layout check
+  compares a present `version` fact with this build's temper version
+  and refuses another by name, before proof or output. A file without
+  that fact still has to pass the replay and proof.
+- OUT is laid out as the repository, the TUI's print under
+  `OUT/temper/docs/design/client/tui/journeys/NAME/`, with its assets.
+  NAME is FILE's first filename component before a dot when that is a
+  valid name, `recorded` otherwise. Use an OUT outside the repository;
+  the tool refuses a path inside either writer-owned journeys root,
+  including one reached through a symbolic link. It writes pages and
+  assets, not a recording or a journey source. FILE is unchanged.
 
-- **A journey's directory,** `NAME/`: its `recording`; its `../../README.md`,
-  what it walks and what each mark shows; its `walk` (8.1); and for each
-  mark, `01.txt` and `01.html` onwards, in the marks' order, replaced
-  whole at each print.
-- **Beside the journeys:** `theme.css` and `tui-journey.js`, the
-  program's, written at each print; and `overlay.css`, the person's,
-  made empty when missing and never written otherwise.
-- **Generated:** the texts, the pages, `theme.css` and `tui-journey.js`.
-  A recording, a README, a walk and the overlay are sources.
+The TUI journeys live at
+`temper/docs/design/client/tui/journeys/`. Only the writer writes their
+pages; the recording tool's print is a person's private output.
+
+### 6.2 A journey's directory
+
+Under `temper/docs/design/client/tui/journeys/`:
+
+- **Sources in `NAME/`:** `walk`, version 2, its own `README.md` saying
+  what the walk and each page show, and `scripts.json` where the walk
+  has its own model scripts (`../journey-walks.md`, 2.1 to 2.3).
+- **Written by the writer alone:** `01.txt` and `01.html` onwards,
+  numbered in the walk's marks' order. No recording is a source or
+  proof for these pages.
+- **Beside the journeys:** generated `theme.css` and `tui-journey.js`,
+  also the writer's; `overlay.css`, the person's, empty on main, made
+  empty when missing and never overwritten by the printer.
+
+A walk prints exactly its marks; typing marks nothing, and the end
+adds no page. A mark's page is linked by its key as
+`../journey-walks.md`, 2.4 has it. A person's recording instead prints
+its recorded marks and end frame, after the proof.
 
 ### 6.3 A frame's text
 
@@ -422,7 +431,7 @@ no cursor.
   stylesheets `../theme.css` then `../overlay.css`, its neighbours
   (`<link rel="prev">`, `<link rel="next">`) and `../tui-journey.js`; in
   its body one `pre` of the classes `tui` and `tui-dark` or `tui-light`,
-  the recording's scheme, a row per line.
+  the print's scheme, a row per line.
 - **A row's cells** are runs of one paint: the base's, the terminal's
   defaults (`theme.md`), as plain text, any other in a `span`
   whose classes name its foreground and background by the theme's
@@ -433,12 +442,14 @@ no cursor.
   `style`, `color:#RRGGBB` or `background:#RRGGBB`. The cursor, when the
   frame has one, is a `span` of the class `cursor` around its cell.
   Text escapes `<`, `>`, `&` and `"`.
-- **Linked by keys:** a mark taken before a key carries the key's name
+- **Linked by keys:** a walk's mark linked by 2.4 of
+  `../journey-walks.md`, or a recording's mark taken before a key,
+  carries the key's name
   and the next page, `data-journey-key="enter"` and
   `data-journey-next="02.html"` on its `pre`; `tui-journey.js` follows
   it on that key (a character by itself, `control c` by Control and
   `c`). `n` and `p` follow the neighbours, unless the mark's key is one
-  of them. A mark of the mark key leads on by its neighbours alone.
+  of them. A mark without a key leads on by its neighbours alone.
 - **`theme.css`,** from `theme::palette` for both schemes: each
   scheme's palette as custom properties under `.tui-dark` and
   `.tui-light`; on the `pre`, the scheme's stand-ins for the terminal's
@@ -455,173 +466,145 @@ checkout, as a file or through a server from the repository's root.
 
 ## 7. Its tests
 
-As the browser's journeys' (`../web/journeys.md`, section 6), within their
-cost, in `temper-client-shell-tui`'s journey module (the host's world:
-reports given by the test) and `crates/temper-client-journeys-tool`'s own tests:
+Focused and native, using data the tests make, not main's recordings or
+pages (`../journey-writer.md`, 7). The suites are:
 
-- **The seam:** a walk recorded by `journey::Recorder` and replayed; the
-  file's lines read back to the records written, every record and key
-  and each escape among them, and another version, a record out of its
-  place and an unknown kind unreadable; stale at a changed ask, a
-  changed deadline, a key whose event changed and a `browse` not asked;
-  a key with no event kept and replayed; the proof refusing a mark whose
-  print differs; two saves of one walk, the first a whole recording that
-  the second extends.
-- **The redaction and the scan, natively:** a failing test first for
-  each TUI original, in each place it can appear (the ask's `reply`,
-  the take's `send` and `reply`, `credential`, `keep`, each `send`'s and
-  `stream`'s credential, a pasted link's `key` and its `send`); the
-  shared code's new kinds in the browser's tables; the approval's code
-  passing the scan in a `browse` address and a frame, and a `code=` of
-  any other value still refused; a redacted approval walk replaying as
-  it stands.
-- **The print,** on walks the tests record in the host's world: printed
-  and proved; no test replays, reprints or compares a recording or a
-  frame of main's (`../journey-writer.md`, 7); the tests fail while the
-  TUI's `overlay.css` holds any byte, and for a journey whose
-  `../../README.md` is missing or empty; a page's runs, palette classes,
-  attributes and key links in the print's unit tests.
-- **The walk, natively:** a `walk` read back, each record among them,
-  and another version, a record out of its place and a second `end`
-  unreadable; a recording checked against its walk; a TUI journey's
-  `setup` read with its `after` joined from the browser's directory, and
-  one holding a `mark` refused, naming its line.
-- **`again`'s half that drives a terminal and a browser** has no story of
-  its own: the first journey, recorded by it, proves it (8.2).
-- **Their cost:** within their layers' budgets as they stand; no fuzzy
-  test; no default test starts a terminal, a browser or a box.
+- **`temper-client-shell-tui`, library binary
+  `temper_client_shell_tui`:** `journey::line::tests` holds strict
+  records, escapes and keys, batch parts and replacement streams, and
+  terminal loans; `journey::record::tests` the ordered optional start
+  facts. `journey::tests` records and replays the seam, refuses changed
+  duties, deadlines and key events, keeps keys with no event, proves
+  frames and checks that later saves extend a whole file.
+  `journey::redact::tests` and `journey::scan::tests` hold the originals,
+  the approval code exception, grants, pasted and found links, and the
+  welcome and `/web` link across wrapped rows. `run::tests` holds the
+  recording keys and the start facts handed to the recorder.
+- **`temper-client-walk-lines`, library binary
+  `temper_client_walk_lines`:** `walk::tests` reads version-2 lines and
+  chains, refusing wrong-client marks and bad ancestors;
+  `tui_print::tests` holds rows, palette and attribute classes, escaping,
+  cursors, key links, neighbours and the assets beside the pages.
+- **`temper-client-walk-world`, library binary
+  `temper_client_walk_world`:** `walk::tests` holds TUI key links and
+  reads the checkout's walk sources and scripts without starting a
+  world. No verdict reads main's generated pages.
+- **`temper-playground-world`, integration binary `suite`:** `tui`
+  holds the shipped TUI on the simulated service: browser approval and
+  its address restored, no approval spending its bound, a chat's
+  native stream, stopping and restarting, and reproducible frames.
+- **`temper-client-walk-tool`, integration binary `suite`:** small
+  walks of its own hold TUI marks, key links and bounds, printed assets,
+  exact page counts, and the longer change and design-session flows
+  (`../journey-walks.md`, 7). No test walks main's journeys to their end.
+- **`temper-client-journeys-tool`, library binary
+  `temper_client_journeys_tool`:** `tests` holds empty overlays and
+  nonempty journey descriptions, redaction and print refusals;
+  `tui_driver::tests` holds terminal key bytes and a save detected by
+  replacement even when its bytes are unchanged. `drive::tests::tui`
+  holds lazy startup, explicit approval in a journey, save replay,
+  looks, bounds and stops; `journey_walk::tests` holds chains through
+  one session, scripts, ancestor marks skipped and first-failure stop.
+- **`temper-client-journeys-tool`, integration binary `suite`:**
+  `admission` holds recording prints with resolving assets, layout
+  refusal before proof, unchanged build, ports and approval codes, and
+  no output on refusal. `journey_pages` and `look_refresh` hold the
+  writer and request refresh machinery (`../journey-writer.md`, 7).
 
-## 8. Recorded again
+These tests start no terminal, browser or box. Native frames and byte
+equality establish no real terminal's rendered look; section 8's box
+session is after-landing work, not a plan's check.
 
-### 8.1 The walk
+## 8. On a box
 
-A TUI journey's `walk`, beside its recording, is what the person did,
-step by step: `again` follows it, and needs no earlier recording, so the
-first one is made by `again` too. Text, one record per line, as the
-recording's (3.2).
+After landing, outside every plan, the drive session takes the
+journey's lines on a box or deployment (`../drive.md`, 2 and 3;
+`../web/journeys.md`, 8). It writes no page of main's.
 
-| Record | Fields | What `again` does |
+- `temper-client-journeys journey walk NAME --bin DIR [--bundle DIR]
+  --scratch DIR [--strict] [--ports LIST] [--widths LIST]
+  [--deployment DIR]` reads NAME's version-2 walk and its ancestors,
+  passes their scripts root first, skips ancestors' marks and walks
+  the lines through one journey session. It stops at the first failed
+  line, reporting the source journey and file line. Its scratch must
+  be fresh, with no `config/` or `data/`, and cannot overlap a journeys
+  root. Nothing is built.
+- `temper-client-journeys drive --journey` with the session's build and
+  scratch options takes the lines interactively. It implies neither a
+  browser load of `/` after sign-in nor the TUI's approval. A recipe's
+  session keeps its own automatic sign-in (`../drive.md`, 3.3).
+
+### 8.1 The TUI's lines on a box
+
+| Line | What the journey session does | Bound |
 |---|---|---|
-| `walk` | `1`, the format's version | the first line |
-| `see` | text | waits until the TUI's frame shows the text: a save, replayed natively to its end (section 4), gives the frame |
-| `key` | a key, as 3.2 writes it | gives it to the TUI through its terminal, as a person types it |
-| `mark` | none | the mark key in its Shift form, Alt+Shift+M (3.1) |
-| `approve` | none | the browser opens the address of the latest save's last `browse` and presses its button "Approve", found by role and name as skein's fake person finds it |
-| `end` | none | last, once: the save key in its Shift form, Alt+Shift+S (3.1), whose save is the new recording |
+| `tui key KEY` | gives the terminal KEY, as 3.2 writes it, with paste bracketed as a terminal's paste | no key bound |
+| `tui see TEXT` | saves, replays natively to the end (section 4), and waits until that frame's text contains TEXT | 30 s |
+| `tui approve` | saves until the TUI has asked to browse an address; remembers the browser's current address, opens the requested one, finds and presses the button named "Approve", then loads the remembered address | 30 s for the approval |
+| `tui mark` | answers a look: the saved replay's final frame, a row per line with trailing spaces cut; not kept and not a page written | 10 s |
+| `tui stop` | ends the TUI, or succeeds if none runs; a later TUI line starts one | 10 s |
 
-- **A `see` names no varying value:** it is found in the live frames,
-  which hold the box's ports and the build as they are
-  (`../journey-placeholders.md`, 4.2).
-- **Its bounds:** a `see` not shown within 30 seconds, or an `approve`
-  whose page shows no "Approve" within 30 seconds, stops `again`,
-  naming the step.
-- **The check, then `add`:** the new recording's `key` records are the
-  walk's `key` steps, in order, and it holds a `browse` before each
-  `approve`; or `again` refuses, naming the first step that differs.
-  Then `add NAME FILE`, its first replay proving it, its README and walk
-  left as they were.
+The first TUI line starts it where none runs, but signs it in only
+when that line is `tui approve`. A journey that needs approval says so.
+A save that never arrives fails after 10 seconds, naming the need for
+the client's recording build. Failed approval attempts return the
+browser to the remembered address. `tui mark` is not the recorder's
+mark key: it is a look, not another saved mark. Ordinary drive sessions
+and recipes refuse journey-only marks and approval (`../drive.md`, 3.3).
 
-### 8.2 Again
+### 8.2 The terminal
 
-`cargo run -p temper-client-journeys -- again NAME`, in
-`crates/temper-client-journeys-tool`, for a TUI journey, as the browser's `again` is (`../web/journeys.md`, 8.1),
-ordinary Rust over skein's harness:
+The session starts `BIN/temper http://HOST:PORT` on a pseudo-terminal,
+80 columns by 24 rows, sized before the TUI can read its size
+(`../drive.md`, 2.2, 2.3 and 3.3). Output is drained and dropped; saves,
+not terminal escape sequences, give the frame.
 
-- **Built from the checkout:** the client `temper`, run with
-  `TEMPER_INTERNAL_RECORD=1` (2), and
-  `fake-claude`, and the browser's bundle (`scripts/bundle.sh`), each
-  copied into a fresh scratch directory under the platform's temporary
-  directory, as the browser's `again` makes it (`../web/journeys.md`,
-  8.1), the browser's
-  page opened with `internal-loopback-navigation=1` (`../web/README.md`, 2.1).
-- **A fresh fake box** (`../web/journeys.md`, 3.5), `temper box
-  --fake-backends` from that copy serving that bundle, every directory
-  in the scratch directory, and headless Chromium from
-  `SKEIN_TEST_CHROMIUM`, as the browser tier drives it, its printed
-  sign-in link opened, so that the browser is signed in.
-- **The TUI in a pseudo-terminal** of 80 columns by 24 rows (skein's
-  harness starts a binary on one), `temper http://HOST:PORT` at the
-  box's address, with `XDG_STATE_HOME` and `HOME` in the scratch
-  directory, `XDG_RUNTIME_DIR` a directory of its own there,
-  `tui-runtime`, apart from the box's, so that it finds no engine's link
-  file and the journey walks the approval (`README.md`, 2), and,
-  reading none at start, is not on a box: the rule above a chat's box
-  names the engine's place by its `HOST:PORT` (`pages/README.md`), no
-  `COLORFGBG`, so that it asks the terminal its background, which the
-  pseudo-terminal leaves unanswered, and draws dark with no band
-  (`theme.md`, *The band*), `TERM` `xterm-256color`, no `SSH_` variables, `DISPLAY` as
-  `again`'s or `:0`, and `PATH` led by a scratch directory whose
-  `xdg-open` is a link to `true`, so that the TUI's opener runs, exits
-  0, and leaves the tab to `again`. Its output is read and dropped.
-- **A setup,** where the journey's directory holds one: its `setup`
-  file, in the browser's format and with its rules (`../web/journeys.md`,
-  8.2), its `after`, where it has one, naming a browser journey not yet
-  moved, read from the browser's journeys' directory. No journey on
-  main has a `setup` now: each is a walk (`../journey-walks.md`, 6). `again` walks it in the signed-in browser, its `reload` loaded
-  last where it has one, before the TUI starts, so that the TUI opens on
-  what the setup made; a `mark` in it is refused when it is read, since
-  the TUI's `walk` marks its own frames. Its steps and their bounds are
-  the browser's; nothing of them reaches the recording.
-- **A save** is told by the run's file replaced (3.1): the one
-  `recording-TIME` in the TUI's directory of the attempt's fresh
-  scratch directory, which holds no other run's.
-- **What it reads and starts:** as the browser's; the box, Chromium and
-  the TUI all stopped at its end, the scratch directory removed unless
-  it failed, which it then names with what failed.
-- **A run that stops on a moving screen** is tried again, at most three
-  times, each on a fresh fake box.
+- **Its own runtime:** `XDG_RUNTIME_DIR` is `session/tui-runtime/`,
+  apart from the box's `session/runtime/`, so no engine's link file is
+  read at start and no approval is bypassed. `HOME`, `XDG_STATE_HOME`,
+  `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_CACHE_HOME` and `TMPDIR` are
+  in the session's private directories.
+- **Its opener:** `session/bin/`, first in `PATH`, holds `xdg-open` and
+  `open` linked to `true`. The opener succeeds but starts no tab; the
+  session's browser carries out the explicit approval.
+- **Its terminal environment:** `TEMPER_INTERNAL_RECORD=1`,
+  `TERM=xterm-256color`, no `SSH_` variables and no `COLORFGBG`;
+  `DISPLAY` is inherited or `:0`. The pseudo-terminal leaves OSC 11
+  unanswered: Auto draws dark with no band (`theme.md`).
+- **Its saves:** the session sends Alt+Shift+S and observes a file's
+  replacement by device and inode, not changed bytes, then reads the
+  whole save through the native replay (section 4). The observer
+  currently looks for `session/state/temper/tui/recording`, whereas
+  the recorder writes `recording-TIME` (3.1). Following that per-run
+  file is a gap in [journeys.status.md](journeys.status.md); a missing save times out
+  as 8.1 has it.
+- **Its end:** the session stops the TUI and its process group, then
+  the browser and box (`../drive.md`, 2.4). Its private session files
+  stay until the next session, never becoming main's pages.
 
 ### 8.3 A box with the TUI in front
 
-What `again` does to record a journey of `temper box`, the TUI in
-front of the box (`box.md`; `../../protocol/setup/box.md`, 6),
-where 8.2 says otherwise:
+`temper box` can put the TUI in front of its child box (`box.md`;
+`../../protocol/setup/box.md`, 6). A person can record that TUI by hand
+and print the saved file with 6.1's recording command.
 
-- **`temper box` in the pseudo-terminal:** `temper box --fake-backends`,
-  `temper` with `TEMPER_INTERNAL_RECORD=1` with the scratch copy's `temper-box`
-  beside it, is started in the pseudo-terminal of 80 by 24, in a session
-  of its own, with the TUI's environment of 8.2 and the box's
-  directories, so that the TUI runs there and the box behind it, as its
-  child. It records into the TUI's directory as bare `temper` does
-  (3.1). No box is started apart, and no approval is walked: the TUI
-  signs in by the link the box hands it.
-- **The printed link,** which the box writes to no stream `again` reads,
-  is read from the latest save's last `box-line` record holding a `link`
-  line, and opened in the browser, which it signs in; the walk's record
-  `open`, with no field, says when.
-- **The browser's steps, mid-walk:** the journey's `setup` (8.2), from
-  the welcome to the playground, is walked in the signed-in browser at
-  the walk's record `setup`, with no field, while the TUI follows it,
-  rather than before the TUI starts; a `see` after it waits for the
-  frame the steps lead to.
-- **The welcome's link, wrapped:** at 80 columns the welcome draws the
-  printed link over rows, and so does `/web`'s note (`box.md`, *`/web`,
-  temper in the browser*). The redaction seeks a `box-line` link's secret in
-  each `mark`'s and the `end`'s print across the rows it wraps over too,
-  the print's rows read as one where the link continues, each row's
-  indentation and line feed left out, and the last scan reads the
-  frames alike, so that the link is redacted in a mark's print across
-  the wrap.
-- **Why not yet:** 8.2's `again` drives `temper` in the pseudo-terminal
-  and the box apart, on pipes, reading the box's printed link from its
-  stdout; `temper box` starts the box itself, whose printed link reaches
-  no stream `again` reads. Until 8.3 is built, a recording made by
-  hand whose marks draw the welcome's link wrapped fails its first
-  replay's proof, as a link typed key by key does (section 5), and
-  nothing is written.
-
-### 8.4 Recorded again after R4
-
-Milestone R4 of `../../draft/page-round-trips.md` holds Work to its budget,
-which changes which requests the pages send and when (`../README.md`, 3.4;
-`../pages/work.md`, 1, *Its budget*), so an exchange recorded on the
-pages before it is stale (section 7, *The print*). `sign-in-approved`,
-`launchpad-chat`, `launchpad-drawn` and `design-session` are walks of
-version 2 now, printed on R4's pages in one process
-(`../journey-walks.md`, 6), as section 9's table has it, so none is
-recorded again: a step that stalls in the world is a fault of the
-client, the service or the world, repaired where it is, never a walk's
-patience raised or its step dropped.
+- **The printed link:** the host hears the box's `link` line as a
+  `Front` report, recorded as `box-line`. Its secret is a *link*
+  original, as is a handed local link (section 5). `/web`'s `browse`
+  holds the same secret in the printed link's URL.
+- **The welcome's link, wrapped:** at 80 columns the welcome and
+  `/web`'s note draw the link across rows. Redaction and the last scan
+  seek its URL-base64 across row breaks and indentation, keeping that
+  whitespace while replacing the secret. A redacted recording can
+  prove against the live frames across the wrap; this needs no change
+  to the box driver.
+- **A journey's walk needs a front host:** the drive session starts
+  `temper` at the box's address, the box apart on pipes, and the world's
+  TUI starts not in front. Neither starts `temper box` in the terminal
+  for a journey or carries its front reports. The world refuses the
+  host's stop and terminal-lending duties; no walk line lends a
+  terminal or starts a box in front. The welcome's own frames and a
+  loan's return are covered by host tests, not a journey's walk.
 
 ## 9. The journeys
 
@@ -631,9 +614,21 @@ patience raised or its step dropped.
 | `launchpad-chat` | version-2 `walk` in one process on the playground's composition, `after project-landing`, with its `scripts.json` (`../journey-walks.md`, 6): Hello with its owned `work/hello` and the ChatGPT plan; the TUI approved as `sign-in-approved`'s is; the launchpad marked; `/` typed and the commands marked; Esc; a question typed and marked, then sent, which opens an Ask temper chat; the scripted answer marked | `01`, the launchpad in Hello; `02`, the commands under the box; `03`, the question typed; `04`, the chat answered (`pages/README.md`); its `launchpad-chat/README.md` describes the world's frames |
 | `launchpad-drawn` | version-2 `walk` in one process on the playground's composition, `after project-landing`, with its `scripts.json` (`../journey-walks.md`, 6): Hello, the TUI approved, to the launchpad; `/change` and a change asked in words, marked, then sent, which starts a chat; its scripted model starts a goal and says that a question waits, and the goal asks the chat's person a question with two choices, the first recommended, as a goal a chat calls asks (`../../domain/agent/agents.md`, 2); `/new` typed and marked, then sent, back to the launchpad, the chat under *Where you left off*, its question under Needs you and the quiet line's count, marked; `n` and the walk's prompt, marked; its first choice taken; the launchpad after the walk, marked | `01` and `02`, the words typed before Enter sends them; `03`, the launchpad as drawn, with the chat, its need and Start (`pages/launchpad.md`), `n` its key; `04`, the walk's prompt under the box (*Walking what needs you*), Enter its key; `05`, the launchpad after the walk, its note; its `launchpad-drawn/README.md` describes the world's frames |
 | `design-session` | version-2 `walk` in one process on the playground's composition, `after project-landing`, with its `scripts.json` (`../journey-walks.md`, 6): Hello, the TUI approved, to the launchpad, marked; `/draft` and the work asked in words, marked, then sent, which starts a design session; the scripted drafter's reply writing the draft and ending with numbered choices, the pane at half; Ctrl-P to all, to folded and to half again, each marked; "1" typed, marked and sent, the next reply changing a section, marked new, and saying nothing blocks the work, marked; `/goal` typed and marked, its prompt of ways marked, the first taken; the chat again, its goal linked: `/goal` no longer offered, and the quiet line without the goal's part, which at 80 columns goes first (`pages/design-session.md`, 1, *narrow*; the goal's part is the 110-column golden's), marked | `01`, Hello's launchpad; `02`, the `/draft` words typed; `03`, the session at half with the drafter's choices under the box; `04`, the pane at all; `05`, folded; `06`, half again with "1" typed; `07`, Open questions marked new; `08`, `/goal` typed; `09`, `/goal`'s ways prompt; `10`, the returned chat with its goal linked (`pages/design-session.md`, 1); its `design-session/README.md` describes the world's frames |
-| `box-welcome` | on a fresh `temper box --fake-backends` with the TUI in front (8.3): the welcome as the box starts; the printed link opened in the browser; the welcome following the browser's steps to the playground, walked mid-walk; the playground's launchpad; the end | `01`, the welcome before the link is opened; `02`, the steps followed, a step under way; `03`, the playground's launchpad at the recording's end (`box.md`); its `../../README.md` names each frame |
-| `box-claude-sign-in` | on a fresh `temper box --fake-backends` with the TUI in front (8.3), the welcome walked in the browser to Model with Forgejo connected: "Sign in to Claude Code" pressed and cancelled in the browser; back; pressed again, the TUI stepped aside, a fake `claude` reading a line and exiting 0; back; the end | `01`, the welcome at 3 Model, following; `02`, back with "Claude Code's sign-in cancelled"; `03`, back with "Claude Code signed in" and 3 Model ticked with its detail, at the recording's end (`box.md`, *Lending its terminal*; `../../draft/claude-sign-in.md`, 3, t1, t3 and t4); t2 is the terminal outside the TUI, which no frame holds |
-| `role-talk` | on a fresh `temper box --fake-backends`: its `setup`, `project-landing`'s steps, to Hello; a standing role started in Hello with `temper ctl role start`, its first session ending with its Now written; then as `sign-in-approved` to the launchpad, with Team on Hello and Start's `/talk`; `/talk` and the role chosen from its list; words sent, the fake model's reply; an instruction for every case, the reply asking "Add it to my rules?" with its choices under the box; "1" sent, the role's proposal and its prompt, accepted in place; Esc, the launchpad and the notice of the talk left; `/tell` and words, the notice of the finding filed; the end | the launchpad with Team on Hello and `/talk`; the talk's head with its Now; the role's choices under the box; the proposal's prompt; the launchpad with the talk left's notice, and then the finding filed's at the recording's end (`pages/talk.md`; `pages/launchpad.md`, 7); its `../../README.md` names each frame |
+The following are journeys the TUI wants, not directories or walks on
+main. Their section 9 gaps are in [journeys.status.md](journeys.status.md); they have no pages to
+open or recording to supply them.
+
+| Name | The wanted walk | The frames it would show |
+|---|---|---|
+| `box-welcome` | the TUI in front of a box (8.3), from its welcome through the browser's steps to the playground | the welcome before the link is opened, a step under way, and the playground's launchpad (`box.md`) |
+| `box-claude-sign-in` | the TUI in front, the welcome at Model with Forgejo connected; Claude Code's sign-in cancelled, then completed with a fake program, returning the terminal to the TUI | the welcome following Model, the cancellation note and the success note (`box.md`, *Lending its terminal*); the lent terminal itself is outside a TUI frame |
+| `role-talk` | a standing role in Hello, `/talk`, words and its reply, an instruction proposed as a rule and accepted, then the launchpad and `/tell` | Team on Hello and Start's `/talk`; the talk's Now, its choices and rule prompt; the notices after leaving and filing a finding (`pages/talk.md`; `pages/launchpad.md`, 7) |
+
+Each needs a version-2 walk and README, with scripts where its model
+answers. The front-box pair also needs a driver that starts and carries
+the front host (8.3), and the second a terminal loan. `role-talk` needs
+its standing-role state expressed through client lines: a journey
+admits no `ctl` line (`../journey-walks.md`, 2.2).
 
 ## 10. Editing the look
 
@@ -646,7 +641,7 @@ As the browser's (`../web/journeys.md`, section 7), on the TUI's print:
 - **Requests stack** on a branch of the person's own, `tui-requests`,
   apart from the browser's `look-requests`, so that the two are asked
   for in parallel: one commit each, with a `Look-request: NAME` trailer
-  whose NAME starts `tui-`, kept on `main` by the same
+  whose NAME starts `tui-`, kept based on `main` by the same
   `scripts/look-refresh.sh`, run with `tui-requests` checked out, and
   never landed (`../web/journeys.md`, section 7;
   `../web/look-requests.md`, 2).
@@ -656,56 +651,30 @@ As the browser's (`../web/journeys.md`, section 7), on the TUI's print:
 - **Done** is a landing carrying the request's trailer in commits of its
   own that moves the overlay's rules into `temper-client-tui`'s theme
   (its palette, its tokens' paints, its borders and glyphs) and the
-  frames' changes into its view and words, and compares by a reprint in
-  its own tree, committing no frame (`../web/look-requests.md`, 3).
+  frames' changes into its view and words. It compares by
+  `temper-client-walk print --out DIR`, DIR's pages against the request's
+  commit, equal where their facts agree, and commits no frame
+  (`../web/look-requests.md`, 3). The writer prints main after landing.
 
 ## 11. Open questions
 
-- **A terminal's Meta keys:** the user records by hand on their laptop
-  after landing to check marking with Alt+m and saving with Alt+s in
-  emacs' vterm. The automated walk keeps the Shift forms (8.1).
-- **The frames' refinement:** the user refines `sign-in-approved` and
-  `launchpad-chat` on their frames (sections 9 and 10), with later
-  surfaces refined before they are designed (`../../draft/tui.md`,
-  section 3). The look requests `tui-launchpad` and
-  `tui-chat-title-below` have their render check and
-  walk after landing, owned by temper/tui's after-landing check; differences
-  return as repairs carrying its trailer (`../web/look-requests.md`,
-  sections 4 and 5). A replay and byte-equal print establish no real
-  terminal's look. A growing answer, calls and a question's choices
-  remain for a journey that catches them; the joint world and goldens
-  cover them without establishing the rendered look
-  (`../testing.md` and `../README.md`, section 5).
+- **The rendered look:** a world and a native replay establish no real
+  terminal's look or macOS runtime result. The user refines the frames
+  through section 10's requests; the rendered check and the box session
+  follow landing, outside a plan (`../web/look-requests.md`, 4).
+  A growing answer, calls and a question's choices remain for a
+  journey that catches them; the joint world and goldens cover them
+  without establishing the rendered look (`../testing.md`).
 - **Selectors by token:** a page's cells carry their paint, not the
   view's token, so an overlay retunes a palette colour or a paint
-  wherever it falls, never one token alone. Default: palette classes; a
-  token's class on its cells waits for a request that needs it.
-- **Both schemes on one page:** a page draws its recording's scheme.
-  Default: one; a key that swaps `tui-dark` for `tui-light` is a
-  request's.
-- **A real box's TUI journey:** none in the first pass; it would be
-  recorded by hand and redacted as the browser's real journeys are
-  (`../web/journeys.md`, 3.5).
+  wherever it falls, never one token alone. Default: palette classes;
+  a token's class waits for a request that needs it.
+- **Both schemes on one page:** a page draws one scheme. Default: one;
+  a key that swaps `tui-dark` for `tui-light` is a request's.
 - **The place "box" in a journey:** the world's TUI is not on a box and
-  reads no engine's link file (`../journey-walks.md`, 3.3), as `again`
-  kept it apart so that it walks the approval (8.2), so no journey
-  draws "box" in the rule above a chat's box (`pages/chat.md`, 1, *The
-  rule above the box*), and `launchpad-chat/04` names the service's
-  address where the look request `tui-chat-title-below` drew "box:40691"; the
-  view's rows hold "box". Default: so, until a journey signs in by the
-  engine's link file, or `box-welcome` is recorded in front of a box
-  (8.3).
-- **A resize in a walk:** recorded and replayed as a report; `walk` has
-  no step for it until a journey needs one.
-- **A new recording's noise:** a fake box's port and the clocks change
-  with each `again`, as the browser's (`../web/journeys.md`, section 10).
-- **Redaction in `again`:** a recording keeps the recorder's OS account
-  name, the label the fake box gives Me, and a program's reply may name
-  the scratch directory `temper-journey-PID-N` under the temporary
-  directory (8.2); neither is
-  drawn, and `add --redact` refuses an admitted recording. The
-  `launchpad-chat`, `launchpad-drawn`, `sign-in-approved` and
-  `design-session` recordings are committed so (the user, 2026-11-11),
-  and so again on R4's pages (8.4).
-  Default: so, until a later change gives the fake box a fixed account
-  label under `again` and redacts the scratch prefix in what it records.
+  reads no engine's link file (`../journey-walks.md`, 3.3), so no walk
+  draws "box" in the rule above a chat's composer (`pages/chat.md`, 1,
+  *The rule above the box*). Default: the service's address, until a
+  walk can sign in by the engine's link file or run in front of a box.
+- **A resize in a walk:** a recording keeps it and replays it as a
+  report; a walk has no line for it until a journey needs one.
