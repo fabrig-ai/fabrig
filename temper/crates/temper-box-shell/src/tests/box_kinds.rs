@@ -389,9 +389,8 @@ fn recording_is_given_only_to_the_serve_step_after_box() {
     let dirs = super::configuration::directories(std::path::Path::new("/fixture"));
     let document = super::configuration::init_document();
     for record in [false, true] {
-        let (steps, _) =
-            crate::box_command::configuration_steps_recording(&dirs, &document, Box::new([]), record, None)
-                .expect("box steps");
+        let (steps, _) = crate::box_command::configuration_steps_recording(&dirs, &document, Box::new([]), record)
+            .expect("box steps");
         let serve = steps.always.iter().find(|step| step.name() == b"serve").expect("serve step");
         let arguments: Vec<_> = serve.arguments().iter().map(std::convert::AsRef::as_ref).collect();
         assert_eq!(arguments.contains(&b"--record".as_slice()), record);

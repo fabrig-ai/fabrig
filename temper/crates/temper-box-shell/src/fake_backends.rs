@@ -1,6 +1,5 @@
 //! Retained isolated startup for `temper-box --fake-backends` (protocol/configuration/directories.md, 1).
-//! Fixed starts follow temper/docs/design/protocol/setup/box.md, 5 and
-//! temper/docs/design/client/journey-clock.md, 4.1.
+//! The fake box's steps follow temper/docs/design/protocol/setup/box.md, 5.
 use crate::directories::jig_directories;
 mod import;
 use crate::directories::{Directories, make_private, private_root};
@@ -77,7 +76,6 @@ pub(crate) struct Options {
     pub bundle: Option<PathBuf>,
     pub scripts: Vec<PathBuf>,
     pub strict: bool,
-    pub fixed_start: Option<Box<[u8]>>,
 }
 pub(crate) fn configure(rest: &[std::ffi::OsString], working: &[u8]) -> Result<Options, String> {
     let mut fake = false;
@@ -87,11 +85,6 @@ pub(crate) fn configure(rest: &[std::ffi::OsString], working: &[u8]) -> Result<O
         match word.as_bytes() {
             b"--fake-backends" if !fake => fake = true,
             b"--strict" if !options.strict => options.strict = true,
-            b"--fixed-start" if options.fixed_start.is_none() => {
-                let value = words.next().ok_or("--fixed-start: missing SECONDS,SEED")?;
-                crate::fixed_start(value.as_bytes())?;
-                options.fixed_start = Some(value.as_bytes().into());
-            }
             flag @ (b"--bundle" | b"--scripts") if flag == b"--scripts" || options.bundle.is_none() => {
                 let flag = String::from_utf8_lossy(flag);
                 let value = words.next().ok_or_else(|| format!("{flag}: missing path"))?;
@@ -112,14 +105,14 @@ pub(crate) fn configure(rest: &[std::ffi::OsString], working: &[u8]) -> Result<O
             }
             _ => {
                 return Err(
-                    "invalid box arguments: expected --fake-backends [--bundle BUNDLE] [--scripts FILE]... [--strict] [--fixed-start SECONDS,SEED]"
+                    "invalid box arguments: expected --fake-backends [--bundle BUNDLE] [--scripts FILE]... [--strict]"
                         .into(),
                 );
             }
         }
     }
     if !fake {
-        return Err("--bundle, --scripts, --strict and --fixed-start require --fake-backends".into());
+        return Err("--bundle, --scripts and --strict require --fake-backends".into());
     }
     Ok(options)
 }
@@ -148,7 +141,6 @@ pub(crate) fn run(
         echo,
         front,
         record,
-        options.fixed_start.as_deref(),
         opening,
         environment,
     );
@@ -168,26 +160,12 @@ fn scripts_for_start(
             Err(why) if why.kind() == std::io::ErrorKind::NotFound => {}
             Err(why) => return Err(format!("{}: {why}", path.display())),
         }
-        return Ok(backends::steps(
-            &dirs.config,
-            &dirs.data,
-            peers,
-            None,
-            options.strict,
-            options.fixed_start.as_deref(),
-        ));
+        return Ok(backends::steps(&dirs.config, &dirs.data, peers, None, options.strict));
     }
     let document = peer_document(dirs, "llm.json", temper_fake::DOCUMENT_BYTES)?;
     let joined = join_scripts(&options.scripts, &document)?;
     write(&path, &joined, path.exists())?;
-    Ok(backends::steps(
-        &dirs.config,
-        &dirs.data,
-        peers,
-        Some(&bytes(&path)),
-        options.strict,
-        options.fixed_start.as_deref(),
-    ))
+    Ok(backends::steps(&dirs.config, &dirs.data, peers, Some(&bytes(&path)), options.strict))
 }
 fn join_scripts(files: &[PathBuf], document: &[u8]) -> Result<Box<[u8]>, String> {
     let mut joined = temper_fake::llm::ScriptJoin::empty();
@@ -423,7 +401,7 @@ fn ordinary_ports(dirs: &Directories, bytes: &[u8]) -> Result<Vec<u16>, String> 
     ordinary_ports_checked(dirs, &deployment)
 }
 fn ordinary_ports_checked(dirs: &Directories, deployment: &crate::setup::Deployment) -> Result<Vec<u16>, String> {
-    let (ordinary, _) = crate::box_command::configuration_steps_checked(dirs, deployment, Box::new([]), false, None)?;
+    let (ordinary, _) = crate::box_command::configuration_steps_checked(dirs, deployment, Box::new([]), false)?;
     let mut ports = vec![1455];
     for step in
         ordinary.always.iter().chain(ordinary.asked.iter().flat_map(|group| group.steps.iter().map(|(_, step)| step)))

@@ -228,7 +228,6 @@ fn the_standalone_operations_check_retains_no_descriptors() {
         true,
         &[],
         Some((&config.jig, &config.limits)),
-        None,
         &temper_config_shell::Programs::default(),
     )
     .expect("same standalone preparation");

@@ -127,7 +127,6 @@ fn startup_pins_composed_default_file_and_fallback_figures() {
             false,
             &[],
             None,
-            None,
             &temper_config_shell::Programs::default(),
         )
         .map(|(service, _, _)| service.operations());
@@ -248,7 +247,6 @@ fn local_copy_builds_the_next_start_at_its_places_and_bad_bytes_log_once() {
                 Some(&program),
                 false,
                 &[],
-                None,
                 None,
                 &temper_config_shell::Programs::default(),
             )
