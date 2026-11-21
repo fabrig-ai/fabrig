@@ -317,7 +317,6 @@ fn configure_row(
     }
 }
 
-#[expect(clippy::too_many_lines, reason = "the command dispatcher forwards each command's typed startup inputs")]
 pub fn run(
     command: Command,
     environment: &[EnvironmentEntry],
