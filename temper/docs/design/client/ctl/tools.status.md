@@ -22,7 +22,7 @@
 - **Not yet:** 3: a settings file's landing rule has no `sets`, in
   `temper-settings-form` or `temper-client-tools`' `render_rule`.
 
-- **Not yet:** 1, 2 and 3: the groups `finding` and `need`, FINDING's form and the placeholders `AREA` and `PARTY`; `finding list` and `finding show`; `finding file`, `finding hand`, `finding route`, `finding backlog`, `finding drop` and `need ask` [in flight: change 749].
+- **Not yet:** 1 and 3: the groups `finding` and `need`, FINDING's form and the placeholders `AREA` and `PARTY`; `finding file`, `finding hand`, `finding route`, `finding backlog`, `finding drop` and `need ask` [in flight: change 749].
 
 - **Not yet:** 1: the groups `qa` and
   `deployment`, absent from `temper-client-tools`' `table.rs` `GROUPS`.

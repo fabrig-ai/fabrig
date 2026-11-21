@@ -361,22 +361,22 @@ fn subscribed(domain: &Domain, task: u64, number: u64) -> bool {
     false
 }
 #[must_use]
-pub fn document(
-    domain: &Domain,
-    project: u32,
-    party: u64,
-    state: Option<forge::FindingState>,
-    only_mine: bool,
-) -> forge::Findings {
+pub fn document(domain: &Domain, project: u32, party: u64, filter: forge::FindingsFilter) -> forge::Findings {
     let mut rows = List::with_capacity(128);
     let mut cut = false;
     for (_, row) in domain.forge.findings(project).rev() {
         let held = holder(domain, project, row.area.as_deref());
-        if (match state {
-            Some(state) => state != row.state,
-            None => false,
-        }) || (only_mine && (row.needs_no_triage() || !mine(domain, project, party, held)))
-        {
+        let keep = match filter {
+            forge::FindingsFilter::Triage { state, mine: only_mine } => {
+                let state_kept = match state {
+                    Some(state) => state == row.state,
+                    None => true,
+                };
+                state_kept && (!only_mine || (!row.needs_no_triage() && mine(domain, project, party, held)))
+            }
+            forge::FindingsFilter::Goal(_) | forge::FindingsFilter::Milestone(_) => blamed_on(row, filter),
+        };
+        if !keep {
             continue;
         }
         if rows.push(row.row(held)).is_err() {
@@ -404,6 +404,22 @@ pub fn document(
         cut,
     }
 }
+fn blamed_on(row: &forge::Finding, filter: forge::FindingsFilter) -> bool {
+    let Some(blame) = &row.blame else { return false };
+    for landing in &blame.landings {
+        for goal in &landing.goals {
+            let found = match filter {
+                forge::FindingsFilter::Goal(number) => goal.goal == number,
+                forge::FindingsFilter::Milestone(number) => goal.milestone == Some(number),
+                forge::FindingsFilter::Triage { .. } => false,
+            };
+            if found {
+                return true;
+            }
+        }
+    }
+    false
+}
 #[must_use]
 pub fn read(domain: &Domain, project: u32, number: u32) -> Option<forge::FindingAnswer> {
     let row = domain.forge.finding(project, number)?;
@@ -411,7 +427,6 @@ pub fn read(domain: &Domain, project: u32, number: u32) -> Option<forge::Finding
         row: row.row(holder(domain, project, row.area.as_deref())),
         body: row.body.clone(),
         filer: row.filer,
-        goal: row.goal,
-        reason: row.reason.clone(),
+        blame: row.blame.clone(),
     })
 }

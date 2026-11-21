@@ -2288,8 +2288,10 @@ fn home_groups_milestones_counts_goals_and_names_their_dependencies() {
         ended: None,
         last_landing: None,
         spent: 0,
+        reds: 0,
     };
-    milestone.parts = List::from_boxed(Box::new([f::milestones::part(None, totals, &[(child.clone(), None)], 0)]));
+    milestone.parts =
+        List::from_boxed(Box::new([f::milestones::part(None, totals.clone(), &[(child.clone(), None)], 0)]));
     f::milestones::live(&mut root, &limits, listed, core::slice::from_ref(&milestone), false);
     // The dependency is held only by the milestone, not the shared goals list.
     for more in [true, false] {
@@ -2334,7 +2336,7 @@ fn home_groups_milestones_counts_goals_and_names_their_dependencies() {
     milestone.parts = busy.clone();
     child.parts = busy.clone();
     waiting.parts = busy;
-    f::milestones::live(&mut root, &limits, listed, &[milestone], false);
+    f::milestones::live(&mut root, &limits, listed, &[milestone.clone()], false);
     f::milestones::live(&mut root, &limits, goals, &[waiting, child], false);
     for (view, expected, browser) in
         [(f::page_view(&root), before, false), (f::browser_page_view(&root), browser_before, true)]
@@ -2350,6 +2352,20 @@ fn home_groups_milestones_counts_goals_and_names_their_dependencies() {
         } else {
             contains(&text, "2 done of 6");
         }
+    }
+    let mut totals = totals;
+    totals.done = 6;
+    totals.live = 0;
+    totals.reds = 2;
+    milestone.chip.phase = c::Phase::Ended;
+    milestone.chip.details.phase = c::ChipPhase::Ended;
+    milestone.chip.details.details.ending = Some(c::ChipEnding::Done(c::ResultValue::Report(f::goal::text(b"Done."))));
+    milestone.parts = List::from_boxed(Box::new([f::milestones::part(Some(f::NOW), totals, &[], 0)]));
+    f::milestones::live(&mut root, &limits, listed, &[milestone], false);
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        let text = f::main_text(view.tree());
+        contains(&text, "All 6 goals done; 2 reds after landing owed.");
+        contains(&text, "complete");
     }
 }
 
@@ -2512,6 +2528,7 @@ fn home_draws_the_same_when_unchanged_reads_answer_in_turns() {
             ended: None,
             last_landing: None,
             spent: 0,
+            reds: 0,
         },
         &embedded,
         0,
@@ -3530,6 +3547,9 @@ fn finding_home(address: Address, counts: [u32; 3], cut: bool, question: bool, a
                             holder: holder.clone(),
                             why: None,
                             hander: None,
+                            goal: None,
+                            reason: None,
+                            cleared: None,
                         })
                         .unwrap();
                     }

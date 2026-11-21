@@ -115,7 +115,7 @@ Pause, Resume and Close are `task`'s, as for any task.
   milestone 812 · Store shape · whole since 2026-11-16T10:02Z
   The store's new shape, from its draft
   made by person 4, Sam · 2026-11-16T09:12Z
-  goals: 7 / 8 done · 0 failed · 1 closed · 1 live
+  goals: 7 / 8 done · 0 failed · 1 closed · 1 live · 2 reds owed
   spent: 2.12 of 4.00
   last landing: 2026-11-16T21:38Z, S7 history in task logs (task 820)
   goals:
@@ -131,7 +131,10 @@ Pause, Resume and Close are `task`'s, as for any task.
   `Milestone`, `spent:` the forge's spend of the milestone's budget,
   both in ctl's amount, as `task show` prints the milestone's
   (`results.md`, 1); where it answers `not_milestone` the tool prints jig's
-  facts alone and `totals: none`. Its goals are its delegates, live and
+  facts alone and `totals: none`. The goals' line ends with its totals'
+  `reds`, the reds after landing its goals owe, ` · R reds owed`, ` · 1
+  red owed` for one, zero included (`../../domain/red-findings.md`,
+  section 10). Its goals are its delegates, live and
   ended, merged in the order they joined (`../../domain/milestones.md`,
   section 7), each its number, title and state, `live`, `done`, `failed`
   or `closed`; a list past one page prints `read on with:` as `task
@@ -149,7 +152,7 @@ tasks from the milestone's `tasks_left`, refused
 locally for a task that is not a milestone or is whole; `--after`'s
 dependencies in order; `--no-deadline` sent with none and refused under
 a deadline's bound; `milestone whole` a `Conclude`; `list` and `show`
-printing from fixtures. In the joined client world (`temper/tests/client`):
+printing from fixtures, `show` with the reds its goals owe. In the joined client world (`temper/tests/client`):
 a milestone made, two goals started in it, the second `--after` the
 first, said whole, and `milestone show` printing it; and, under a
 delegation deep and wide enough that a goal in a milestone gets tasks of

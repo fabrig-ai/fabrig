@@ -5,31 +5,11 @@ use skein_codec::Record;
 use skein_lib::{List, Reader, Wall, Writer};
 use temper_engine_domain_forge_vocabulary as d;
 
-fn wall(value: Option<u64>) -> Option<Wall> {
-    match value {
-        Some(value) => Some(Wall::from_nanos(value)),
-        None => None,
-    }
-}
-fn nanos(value: Option<Wall>) -> Option<u64> {
-    match value {
-        Some(value) => Some(value.as_nanos()),
-        None => None,
-    }
-}
 pub(super) fn encode_away(row: &d::Away) -> w::Away {
-    w::Away {
-        party: row.party,
-        project: row.project,
-        since: row.since.as_nanos(),
-        until: nanos(row.until),
-        landed: row.landed,
-        off: nanos(row.off),
-    }
+    crate::generated::store::away_to_record(row, &super::Context::UNBOUNDED).expect(super::FITS)
 }
 pub(super) fn decode_away(row: w::Away) -> d::Away {
-    let w::Away { party, project, since, until, landed, off } = row;
-    d::Away { party, project, since: Wall::from_nanos(since), until: wall(until), landed, off: wall(off) }
+    crate::generated::store::away_to_domain(row, &super::Context::UNBOUNDED).expect(super::FITS)
 }
 pub(super) fn encode_decided(row: &d::Decided) -> w::Decided {
     let mut options = List::with_capacity(u32::try_from(row.options.len()).expect("bounded options"));
@@ -118,4 +98,18 @@ pub(super) fn decode_device(row: w::Device) -> Result<d::Device, Undecodable> {
         return Err(Undecodable::Malformed);
     }
     Ok(d::Device { party, number, endpoint, p256dh, auth, label, at: Wall::from_nanos(at) })
+}
+
+/// Owner-shaped `Reach` (skein/docs/design/data/codec/maps.md, 3.3).
+pub fn reach_to_record(
+    value: &temper_protocol_reaches::Reach,
+    _context: &super::Context,
+) -> Result<w::Reach, w::Problem> {
+    Ok(encode_reach(*value))
+}
+pub fn reach_to_domain(
+    value: w::Reach,
+    _context: &super::Context,
+) -> Result<temper_protocol_reaches::Reach, w::Problem> {
+    decode_reach(value).or(Err(w::paths::REACH_KIND.problem(skein_codec::Reason::Malformed)))
 }

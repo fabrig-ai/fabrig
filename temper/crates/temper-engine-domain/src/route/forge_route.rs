@@ -4384,6 +4384,7 @@ pub(crate) fn outputs(
                 super::diagnostics::emit(domain, crate::Fact::ForgeTable { words });
             }
             forge::Request::MarkedForges => domain.mark_forges(),
+            forge::Request::MilestoneMarked { task } => super::parts::marked(domain, task),
             forge::Request::Marked { tasks } => {
                 const {
                     assert!(

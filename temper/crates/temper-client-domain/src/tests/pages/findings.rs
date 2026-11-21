@@ -80,8 +80,9 @@ fn setup_watches_with(
         {
             let watching = wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap();
             if let w::Watch::Findings(subject) = &watching.watch {
-                assert_eq!(&subject.state, &Some(w::FindingState::New));
-                assert!(subject.mine);
+                let w::FindingsFilter::Triage(filter) = &subject.filter else { panic!("triage watch") };
+                assert_eq!(filter.state, Some(w::FindingState::New));
+                assert!(filter.mine);
                 watches.push((subject.project, *watch)).unwrap();
             }
             if let w::Watch::Decided(subject) = &watching.watch {
@@ -105,6 +106,9 @@ fn row(number: u32, at: u64) -> w::FindingRow {
         holder: w::Holder::Party(w::HolderParty { number: f::PARTY }),
         why: Some(b"Your area owns the view".as_slice().into()),
         hander: Some(w::Filer::Task(w::HolderTask { number: 55 })),
+        goal: None,
+        reason: None,
+        cleared: None,
     }
 }
 fn document(project: u32, rows: Box<[w::FindingRow]>, cut: bool) -> w::Findings {
@@ -527,11 +531,12 @@ fn open_findings(out: &Queue<Request>) -> Option<Token> {
                     down: Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } },
                 },
         } = request
-            && let w::Watch::Findings(subject) = &wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch
-            && !subject.mine
+            && let w::Watch::Findings(subject) = wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch
+            && let w::FindingsFilter::Triage(filter) = subject.filter
+            && !filter.mine
         {
             assert_eq!(subject.project, 2);
-            assert_eq!(&subject.state, &Some(w::FindingState::New));
+            assert_eq!(filter.state, Some(w::FindingState::New));
             assert!(found.is_none(), "one open findings watch per project");
             found = Some(*watch);
         }

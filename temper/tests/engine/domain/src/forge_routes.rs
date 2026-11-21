@@ -99,6 +99,10 @@ pub struct World {
     restart_config: engine::Config,
     /// Delivered forge documents, including updates to a live watch.
     pub oracle_documents: Vec<(Token, forge_top::Document)>,
+    /// Core query documents, including parts-watch updates.
+    pub documents: Vec<(Token, jig_domain_core::documents::Document)>,
+    /// Answers to milestone totals reads at the party boundary.
+    pub milestone_reads: Vec<Option<forge_top::MilestoneTotals>>,
     oracle_watcher: u64,
     broken: bool,
     oracle_running: bool,
@@ -1410,6 +1414,7 @@ impl World {
             for worker in &mut config.core.defaults.workers {
                 worker.places = limits.fleet.slots;
             }
+            config.core.parts = forge_top::parts::kinds(*config.core.connectors.first().expect("forge connector"));
             (config, limits)
         };
         let mut runtime = crate::oracle::config::copy(&bootstrap);
@@ -1655,6 +1660,8 @@ impl World {
             restart_config: crate::oracle::config::copy(&config),
             idle_revision: None,
             oracle_documents: Vec::new(),
+            documents: Vec::new(),
+            milestone_reads: Vec::new(),
             oracle_watcher: 0x4e33,
             broken: false,
             oracle_running: false,
@@ -1741,6 +1748,16 @@ impl World {
     pub fn with_forge_pages(mut self, pages: &[u8]) -> Self {
         assert_eq!(self.env.now, Time::ZERO);
         self.restart_config.forges[0].web = Some(pages.into());
+        self
+    }
+
+    /// Keep a scripted watch session valid across a simulated tier workflow.
+    #[must_use]
+    pub fn with_sign_in_lifetime(mut self, lifetime: Duration) -> Self {
+        assert_eq!(self.env.now, Time::ZERO);
+        self.env.limits.people.sign_in_lifetime = lifetime;
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("valid sign-in configuration");
         self
     }
 
@@ -2726,6 +2743,10 @@ impl World {
                         self.jobs.push(job);
                     }
                     Delivery::Read { reply, answer } => self.reads.push((reply, answer)),
+                    Delivery::Document { watcher, document } => self.documents.push((watcher, *document)),
+                    Delivery::ForgeRead { answer: engine::ForgeReadAnswer::Milestone(totals), .. } => {
+                        self.milestone_reads.push(totals);
+                    }
                     Delivery::Link { down: host::LinkDown::Message { run, attempt, name, .. }, .. } => {
                         self.delivered_messages.entry((run.raw(), attempt.raw())).or_default().push(name.raw());
                     }
@@ -4018,7 +4039,11 @@ impl World {
     }
 
     pub(super) fn stored_read(&mut self, request: engine::Request) -> Option<engine::Request> {
-        if let engine::Request::Store(engine::StoreRequest::Read { load, range }) = request {
+        if let engine::Request::Store(engine::StoreRequest::PartRead { waiter, range }) = request {
+            let result = self.store.read(range);
+            self.immediate.push_back(engine::Event::Store(engine::StoreInput::PartLoaded { waiter, result }));
+            None
+        } else if let engine::Request::Store(engine::StoreRequest::Read { load, range }) = request {
             let result = self.store.read(range);
             self.immediate.push_back(engine::Event::Store(engine::StoreInput::ReadLoaded { load, result }));
             None

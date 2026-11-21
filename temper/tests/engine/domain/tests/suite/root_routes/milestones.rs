@@ -323,6 +323,7 @@ fn milestone_totals_sum_settled_and_live_spend_then_keep_the_ended_row() {
         ended: None,
         last_landing: Some(landing()),
         spent: 9,
+        reds: 0,
     };
     assert_eq!(read(&mut driver, 1, 1), Some(expected));
     ask(&mut driver, 82, people::Ask::Conclude { project: 1, task: 1 });
@@ -346,6 +347,7 @@ fn milestone_totals_sum_settled_and_live_spend_then_keep_the_ended_row() {
             ended: Some(at),
             last_landing: Some(landing()),
             spent: 9,
+            reds: 0,
         })
     );
 }

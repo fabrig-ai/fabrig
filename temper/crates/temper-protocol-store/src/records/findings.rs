@@ -5,134 +5,35 @@ use alloc::boxed::Box;
 use skein_lib::Wall;
 use temper_engine_domain_forge_vocabulary as d;
 fn encode_holder(value: d::Holder) -> w::FindingHolder {
-    match value {
-        d::Holder::Task(number) => w::FindingHolder::Task(w::Number { number }),
-        d::Holder::Party(number) => w::FindingHolder::Party(w::Number { number }),
-        d::Holder::Role(number) => w::FindingHolder::Role(w::FindingCount { number }),
-    }
+    crate::generated::store::finding_holder_to_record(&value, &super::Context::UNBOUNDED).expect(FITS)
 }
 fn decode_holder(value: w::FindingHolder) -> d::Holder {
-    match value {
-        w::FindingHolder::Task(value) => d::Holder::Task(value.number),
-        w::FindingHolder::Party(value) => d::Holder::Party(value.number),
-        w::FindingHolder::Role(value) => d::Holder::Role(value.number),
-    }
-}
-fn encode_refusal(value: &d::FindingRefusal) -> w::FindingRefusal {
-    match value {
-        d::FindingRefusal::NoArea(names) => {
-            let mut listed = skein_lib::List::with_capacity(16);
-            for name in names {
-                listed.push(name.clone()).expect(FITS);
-            }
-            w::FindingRefusal::NoArea(w::FindingAreas { names: listed })
-        }
-        d::FindingRefusal::Full(number) => w::FindingRefusal::Full(w::FindingCount { number: *number }),
-        d::FindingRefusal::NotYours(holder) => {
-            w::FindingRefusal::NotYours(w::FindingHeld { holder: encode_holder(*holder) })
-        }
-        d::FindingRefusal::NoFinding => w::FindingRefusal::NoFinding,
-        d::FindingRefusal::NoGoal => w::FindingRefusal::NoGoal,
-        d::FindingRefusal::Ended => w::FindingRefusal::Ended,
-        d::FindingRefusal::Words(words) => w::FindingRefusal::Words(w::FindingWords { words: words.clone() }),
-    }
-}
-fn decode_refusal(value: w::FindingRefusal) -> d::FindingRefusal {
-    match value {
-        w::FindingRefusal::NoArea(value) => d::FindingRefusal::NoArea(value.names.into_boxed()),
-        w::FindingRefusal::Full(value) => d::FindingRefusal::Full(value.number),
-        w::FindingRefusal::NotYours(value) => d::FindingRefusal::NotYours(decode_holder(value.holder)),
-        w::FindingRefusal::NoFinding => d::FindingRefusal::NoFinding,
-        w::FindingRefusal::NoGoal => d::FindingRefusal::NoGoal,
-        w::FindingRefusal::Ended => d::FindingRefusal::Ended,
-        w::FindingRefusal::Words(value) => d::FindingRefusal::Words(value.words),
-    }
-}
-pub(super) fn encode_reply(reply: &d::FindingReply) -> w::FindingReply {
-    let result = match &reply.result {
-        Ok(d::FindingDone::Filed(holder)) => w::FindingResult::Filed(w::FindingHeld { holder: encode_holder(*holder) }),
-        Ok(d::FindingDone::Handed(holder)) => {
-            w::FindingResult::Handed(w::FindingHeld { holder: encode_holder(*holder) })
-        }
-        Ok(d::FindingDone::Routed(number)) => w::FindingResult::Routed(w::Number { number: *number }),
-        Ok(d::FindingDone::Backlog) => w::FindingResult::Backlog,
-        Ok(d::FindingDone::Dropped) => w::FindingResult::Dropped,
-        Err(why) => w::FindingResult::Refused(w::FindingRefused { why: encode_refusal(why) }),
-    };
-    w::FindingReply { project: reply.project, number: reply.number, area: reply.area.clone(), result }
-}
-pub(super) fn decode_reply(reply: w::FindingReply) -> d::FindingReply {
-    let w::FindingReply { project, number, area, result } = reply;
-    let result = match result {
-        w::FindingResult::Filed(value) => Ok(d::FindingDone::Filed(decode_holder(value.holder))),
-        w::FindingResult::Handed(value) => Ok(d::FindingDone::Handed(decode_holder(value.holder))),
-        w::FindingResult::Routed(value) => Ok(d::FindingDone::Routed(value.number)),
-        w::FindingResult::Backlog => Ok(d::FindingDone::Backlog),
-        w::FindingResult::Dropped => Ok(d::FindingDone::Dropped),
-        w::FindingResult::Refused(value) => Err(decode_refusal(value.why)),
-    };
-    d::FindingReply { project, number, area, result }
+    crate::generated::store::finding_holder_to_domain(value, &super::Context::UNBOUNDED).expect(FITS)
 }
 
 fn encode_findingkind(value: d::FindingKind) -> w::FindingKind {
-    match value {
-        d::FindingKind::Qa => w::FindingKind::Qa,
-        d::FindingKind::Flake => w::FindingKind::Flake,
-        d::FindingKind::Red => w::FindingKind::Red,
-        d::FindingKind::Review => w::FindingKind::Review,
-        d::FindingKind::Feedback => w::FindingKind::Feedback,
-    }
+    crate::generated::store::finding_kind_to_record(&value, &super::Context::UNBOUNDED).expect(FITS)
 }
 fn decode_findingkind(value: w::FindingKind) -> d::FindingKind {
-    match value {
-        w::FindingKind::Qa => d::FindingKind::Qa,
-        w::FindingKind::Flake => d::FindingKind::Flake,
-        w::FindingKind::Red => d::FindingKind::Red,
-        w::FindingKind::Review => d::FindingKind::Review,
-        w::FindingKind::Feedback => d::FindingKind::Feedback,
-    }
+    crate::generated::store::finding_kind_to_domain(value, &super::Context::UNBOUNDED).expect(FITS)
 }
 fn encode_severity(value: d::Severity) -> w::Severity {
-    match value {
-        d::Severity::Low => w::Severity::Low,
-        d::Severity::Medium => w::Severity::Medium,
-        d::Severity::High => w::Severity::High,
-    }
+    crate::generated::store::severity_to_record(&value, &super::Context::UNBOUNDED).expect(FITS)
 }
 fn decode_severity(value: w::Severity) -> d::Severity {
-    match value {
-        w::Severity::Low => d::Severity::Low,
-        w::Severity::Medium => d::Severity::Medium,
-        w::Severity::High => d::Severity::High,
-    }
+    crate::generated::store::severity_to_domain(value, &super::Context::UNBOUNDED).expect(FITS)
 }
 fn encode_findingstate(value: d::FindingState) -> w::FindingState {
-    match value {
-        d::FindingState::New => w::FindingState::New,
-        d::FindingState::Routed => w::FindingState::Routed,
-        d::FindingState::Backlog => w::FindingState::Backlog,
-        d::FindingState::Dropped => w::FindingState::Dropped,
-    }
+    crate::generated::store::finding_state_to_record(&value, &super::Context::UNBOUNDED).expect(FITS)
 }
 fn decode_findingstate(value: w::FindingState) -> d::FindingState {
-    match value {
-        w::FindingState::New => d::FindingState::New,
-        w::FindingState::Routed => d::FindingState::Routed,
-        w::FindingState::Backlog => d::FindingState::Backlog,
-        w::FindingState::Dropped => d::FindingState::Dropped,
-    }
+    crate::generated::store::finding_state_to_domain(value, &super::Context::UNBOUNDED).expect(FITS)
 }
 fn encode_filer(value: d::Filer) -> w::Filer {
-    match value {
-        d::Filer::Task(number) => w::Filer::Task(w::Number { number }),
-        d::Filer::Party(number) => w::Filer::Party(w::Number { number }),
-    }
+    crate::generated::store::filer_to_record(&value, &super::Context::UNBOUNDED).expect(FITS)
 }
 fn decode_filer(value: w::Filer) -> d::Filer {
-    match value {
-        w::Filer::Task(value) => d::Filer::Task(value.number),
-        w::Filer::Party(value) => d::Filer::Party(value.number),
-    }
+    crate::generated::store::filer_to_domain(value, &super::Context::UNBOUNDED).expect(FITS)
 }
 fn encode_signature(signature: &d::FindingSignature) -> w::FindingSignature {
     let mut ids = skein_lib::List::with_capacity(64);
@@ -271,56 +172,18 @@ pub(super) fn decode(row: w::Finding) -> Result<d::Finding, Undecodable> {
 }
 
 fn encode_blame(blame: &d::FindingBlame) -> w::FindingBlame {
-    let strength = match blame.strength {
-        d::BlameStrength::Owned => w::BlameStrength::Owned,
-        d::BlameStrength::Suspected => w::BlameStrength::Suspected,
-        d::BlameStrength::Unblamed => w::BlameStrength::None,
-    };
-    let mut landings = skein_lib::List::with_capacity(256);
-    for landing in &blame.landings {
-        let mut goals = skein_lib::List::with_capacity(64);
-        for goal in &landing.goals {
-            goals.push(w::BlamedGoal { goal: goal.goal, milestone: goal.milestone, person: goal.person }).expect(FITS);
-        }
-        landings.push(w::BlamedLanding { commit: landing.commit, goals }).expect(FITS);
-    }
-    w::FindingBlame { strength, landings }
+    crate::generated::store::finding_blame_to_record(blame, &super::Context::UNBOUNDED).expect(FITS)
 }
 fn decode_blame(blame: w::FindingBlame) -> d::FindingBlame {
-    let strength = match blame.strength {
-        w::BlameStrength::Owned => d::BlameStrength::Owned,
-        w::BlameStrength::Suspected => d::BlameStrength::Suspected,
-        w::BlameStrength::None => d::BlameStrength::Unblamed,
-    };
-    let mut landings = skein_lib::List::with_capacity(256);
-    for landing in blame.landings.into_boxed() {
-        let mut goals = skein_lib::List::with_capacity(64);
-        for goal in landing.goals.into_boxed() {
-            goals.push(d::BlamedGoal { goal: goal.goal, milestone: goal.milestone, person: goal.person }).expect(FITS);
-        }
-        landings.push(d::BlamedLanding { commit: landing.commit, goals: goals.into_boxed() }).expect(FITS);
-    }
-    d::FindingBlame { strength, landings: landings.into_boxed() }
+    crate::generated::store::finding_blame_to_domain(blame, &super::Context::UNBOUNDED).expect(FITS)
 }
 
 /// Waiting filings preserve their words and blame without passing through a Finding.
 pub(super) fn encode_filings(filings: &[d::VerdictFiling]) -> skein_lib::List<w::VerdictFiling> {
     let mut rows = skein_lib::List::with_capacity(8);
     for filing in filings {
-        rows.push(w::VerdictFiling {
-            project: filing.project,
-            kind: encode_findingkind(filing.kind),
-            severity: encode_severity(filing.severity),
-            title: filing.title.clone(),
-            body: filing.body.clone(),
-            signature: encode_signature(&filing.signature),
-            blame: match &filing.blame {
-                Some(blame) => Some(encode_blame(blame)),
-                None => None,
-            },
-            follow: filing.follow,
-        })
-        .expect(FITS);
+        rows.push(crate::generated::store::verdict_filing_to_record(filing, &super::Context::UNBOUNDED).expect(FITS))
+            .expect(FITS);
     }
     rows
 }
@@ -329,21 +192,82 @@ pub(super) fn decode_filings(
 ) -> Result<Box<[d::VerdictFiling]>, Undecodable> {
     let mut rows = skein_lib::List::with_capacity(8);
     for filing in filings.into_boxed() {
-        let w::VerdictFiling { project, kind, severity, title, body, signature, blame, follow } = filing;
-        rows.push(d::VerdictFiling {
-            project,
-            kind: decode_findingkind(kind),
-            severity: decode_severity(severity),
-            title,
-            body,
-            signature: decode_signature(signature)?,
-            blame: match blame {
-                Some(blame) => Some(decode_blame(blame)),
-                None => None,
-            },
-            follow,
-        })
+        rows.push(
+            crate::generated::store::verdict_filing_to_domain(filing, &super::Context::UNBOUNDED)
+                .or(Err(Undecodable::Malformed))?,
+        )
         .expect(FITS);
     }
     Ok(rows.into_boxed())
+}
+
+/// Owner-shaped `FindingSignature` (skein/docs/design/data/codec/maps.md, 3.3).
+pub fn finding_signature_to_record(
+    value: &d::FindingSignature,
+    _context: &super::Context,
+) -> Result<w::FindingSignature, w::Problem> {
+    Ok(encode_signature(value))
+}
+pub fn finding_signature_to_domain(
+    value: w::FindingSignature,
+    _context: &super::Context,
+) -> Result<d::FindingSignature, w::Problem> {
+    decode_signature(value).or(Err(w::paths::FINDING_SIGNATURE_REPOSITORY.problem(skein_codec::Reason::Malformed)))
+}
+
+/// Owner-shaped `FindingAreas` (skein/docs/design/data/codec/maps.md, 3.3).
+#[expect(clippy::borrowed_box, reason = "maps pairs take the domain type by reference")]
+pub fn finding_areas_to_record(
+    value: &Box<[Box<[u8]>]>,
+    _context: &super::Context,
+) -> Result<w::FindingAreas, w::Problem> {
+    Ok({
+        let mut names = skein_lib::List::with_capacity(16);
+        for name in value {
+            names.push(name.clone()).expect(FITS);
+        }
+        w::FindingAreas { names }
+    })
+}
+pub fn finding_areas_to_domain(
+    value: w::FindingAreas,
+    _context: &super::Context,
+) -> Result<Box<[Box<[u8]>]>, w::Problem> {
+    Ok::<_, w::Problem>(value.names.into_boxed())
+        .or(Err(w::paths::FINDING_AREAS_NAMES.problem(skein_codec::Reason::Malformed)))
+}
+
+/// Owner-shaped `FindingResult` (skein/docs/design/data/codec/maps.md, 3.3).
+pub fn finding_result_to_record(
+    value: &Result<d::FindingDone, d::FindingRefusal>,
+    _context: &super::Context,
+) -> Result<w::FindingResult, w::Problem> {
+    Ok(match value {
+        Ok(d::FindingDone::Filed(holder)) => w::FindingResult::Filed(w::FindingHeld { holder: encode_holder(*holder) }),
+        Ok(d::FindingDone::Handed(holder)) => {
+            w::FindingResult::Handed(w::FindingHeld { holder: encode_holder(*holder) })
+        }
+        Ok(d::FindingDone::Routed(number)) => w::FindingResult::Routed(w::Number { number: *number }),
+        Ok(d::FindingDone::Backlog) => w::FindingResult::Backlog,
+        Ok(d::FindingDone::Dropped) => w::FindingResult::Dropped,
+        Err(why) => w::FindingResult::Refused(w::FindingRefused {
+            why: crate::generated::store::finding_refusal_to_record(why, &super::Context::UNBOUNDED).expect(FITS),
+        }),
+    })
+}
+pub fn finding_result_to_domain(
+    value: w::FindingResult,
+    _context: &super::Context,
+) -> Result<Result<d::FindingDone, d::FindingRefusal>, w::Problem> {
+    Ok::<_, w::Problem>(match value {
+        w::FindingResult::Filed(value) => Ok(d::FindingDone::Filed(decode_holder(value.holder))),
+        w::FindingResult::Handed(value) => Ok(d::FindingDone::Handed(decode_holder(value.holder))),
+        w::FindingResult::Routed(value) => Ok(d::FindingDone::Routed(value.number)),
+        w::FindingResult::Backlog => Ok(d::FindingDone::Backlog),
+        w::FindingResult::Dropped => Ok(d::FindingDone::Dropped),
+        w::FindingResult::Refused(value) => {
+            Err(crate::generated::store::finding_refusal_to_domain(value.why, &super::Context::UNBOUNDED).expect(FITS))
+        }
+    })
+    .or(Err(w::paths::FINDING_RESULT_TAG.problem(skein_codec::Reason::Malformed)))
 }

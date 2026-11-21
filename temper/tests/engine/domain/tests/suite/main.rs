@@ -60,6 +60,7 @@ mod fuzzy {
     mod follows;
     mod landing_settings;
     mod loads;
+    mod reds_owed;
     #[expect(clippy::duplicate_mod, reason = "the same crash cases run in both profiles")]
     #[path = "../removal.rs"]
     mod removal;

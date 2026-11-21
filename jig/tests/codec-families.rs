@@ -88,8 +88,8 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-tasks",
         generated: &["src/generated/tasks.rs"],
-        maps: None,
-        translation: None,
+        maps: Some(include_str!("../crates/jig-protocol-store/schema/tasks.maps")),
+        translation: Some("crates/jig-protocol-store-records/src/generated/tasks.rs"),
     },
     Family {
         name: "people",
@@ -97,8 +97,8 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-people",
         generated: &["src/generated/people.rs"],
-        maps: None,
-        translation: None,
+        maps: Some(include_str!("../crates/jig-protocol-store/schema/people.maps")),
+        translation: Some("crates/jig-protocol-store-records/src/generated/people.rs"),
     },
     Family {
         name: "registry",

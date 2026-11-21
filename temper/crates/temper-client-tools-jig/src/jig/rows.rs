@@ -1190,6 +1190,18 @@ pub const ROLE_TALK: Tool = Tool {
 };
 
 pub const GOAL_START_AT: u8 = 62;
+pub const GOAL_SHOW_AT: u8 = 117;
+/// A read-once join, not a watched task read (client/ctl/findings.md, 4).
+pub const GOAL_SHOW: Tool = Tool {
+    name: b"goal show",
+    line: b"Read a goal and its reds after landing",
+    prints: b"The task's document, then reds after landing, uncleared first, and where each stands",
+    result: b"goal_show",
+    forms: &[&[positional(b"task", b"TASK", Kind::Number, Required, b"The goal's task number")]],
+    keyed: Keyed::Never,
+    area: 2,
+    notes: b"Reads the task, then its project's findings blamed on it, once.\nA task that is not a goal has no reds. A cut is marked.\n--since and --until are not taken. --json prints task, reds with stands, and cut.\n",
+};
 /// Fill a project's offered goal template and submit a keyed request.
 pub const GOAL_START: Tool = Tool {
     name: b"goal start",
@@ -1405,20 +1417,22 @@ const AREA: super::table::Argument = flag(b"area", b"AREA", Kind::Literal, Requi
 pub const FINDING_LIST: Tool = Tool {
     name: b"finding list",
     line: b"Read a project's areas, triager and findings, newest first",
-    prints: b"Each area's NAME owner OWNER, held by HOLDER: WORDS, the triager, then P/N, state, kind, severity, area or -, holder and title per finding",
+    prints: b"Each area's NAME owner OWNER, held by HOLDER: WORDS, the triager, then P/N, state, kind, severity, area or -, holder and title per finding; cleared rows end with cleared by TIER run N",
     result: b"findings",
     forms: &[&[
         flag(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project"),
         flag(b"state", b"new|routed|backlog|dropped", Kind::Word { set: &[b"new", b"routed", b"backlog", b"dropped"] }, Optional, b"Only this state"),
         switch(b"mine", b"Only findings held by you or a role you hold"),
+        flag(b"goal", b"TASK", Kind::Number, Optional, b"Blamed on this goal; not with --milestone, --state or --mine"),
+        flag(b"milestone", b"TASK", Kind::Number, Optional, b"Blamed on this milestone's goals; not with --goal, --state or --mine"),
     ]],
     keyed: Keyed::Never, area: 2,
-    notes: b"Reads the findings subject once. At most 128 findings; a cut is marked.\n",
+    notes: b"Reads the findings subject once. At most 128 findings; a cut is marked.\n--goal and --milestone take neither each other nor --state or --mine.\n--json rows carry goal, reason and cleared, null where absent.\n",
 };
 pub const FINDING_SHOW: Tool = Tool {
     name: b"finding show",
     line: b"Read one finding whole",
-    prints: b"Its line, filer, filing time, last hand-off's why, goal and drop reason, then its body",
+    prints: b"Its line, filer, filing time, last hand-off's why, goal and drop reason, blame and its landings, clearing, then its body",
     result: b"finding",
     forms: &[&[FINDING]],
     keyed: Keyed::Never,
