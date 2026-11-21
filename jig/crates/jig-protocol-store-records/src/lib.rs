@@ -11,7 +11,9 @@ pub mod codec;
 pub mod generated {
     pub mod accounts;
     pub mod component;
+    pub mod core;
     pub mod notes;
+    pub mod settings;
     pub mod tasks;
 }
 

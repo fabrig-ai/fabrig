@@ -14,7 +14,9 @@ jig/crates/jig-protocol-store-families/src/generated/secrets.rs jig/crates/jig-p
 jig/crates/jig-protocol-store-people/src/generated/people.rs jig/crates/jig-protocol-store/schema/people-v17.schema
 jig/crates/jig-protocol-store-records/src/generated/accounts.rs jig/crates/jig-protocol-store/schema/accounts-v2.schema jig/crates/jig-protocol-store/schema/accounts.maps
 jig/crates/jig-protocol-store-records/src/generated/component.rs jig/crates/jig-protocol-store/schema/component-v3.schema jig/crates/jig-protocol-store/schema/component.maps
+jig/crates/jig-protocol-store-records/src/generated/core.rs jig/crates/jig-protocol-store/schema/core-v6.schema jig/crates/jig-protocol-store/schema/core.maps
 jig/crates/jig-protocol-store-records/src/generated/notes.rs jig/crates/jig-protocol-store/schema/notes-v1.schema jig/crates/jig-protocol-store/schema/notes.maps
+jig/crates/jig-protocol-store-records/src/generated/settings.rs jig/crates/jig-protocol-store/schema/settings-v3.schema jig/crates/jig-protocol-store/schema/settings.maps
 jig/crates/jig-protocol-store-records/src/generated/tasks.rs jig/crates/jig-protocol-store/schema/tasks-v13.schema jig/crates/jig-protocol-store/schema/tasks.maps
 jig/crates/jig-protocol-store-settings/src/generated/settings.rs jig/crates/jig-protocol-store/schema/settings-v3.schema
 jig/crates/jig-protocol-store-tasks/src/generated/tasks.rs jig/crates/jig-protocol-store/schema/tasks-v13.schema
@@ -36,4 +38,5 @@ temper/crates/temper-client-protocol-wire/src/generated/client_wire.rs temper/cr
 temper/crates/temper-client-protocol-wire/src/generated/public.rs temper/crates/temper-client-protocol-wire/schema/public-v1.schema
 temper/crates/temper-protocol-records/src/generated/secrets.rs temper/crates/temper-protocol-records/schema/secrets-v1.schema
 temper/crates/temper-protocol-store-codec/src/generated/store.rs temper/crates/temper-protocol-store/schema/store-v25.schema
+temper/crates/temper-protocol-store/src/generated/store.rs temper/crates/temper-protocol-store/schema/store-v25.schema temper/crates/temper-protocol-store/schema/store.maps
 temper/crates/temper-protocol-worker-wire/src/generated/worker_wire.rs temper/crates/temper-protocol-worker-wire/schema/worker-wire-v1.schema

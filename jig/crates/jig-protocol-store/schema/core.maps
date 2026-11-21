@@ -1,0 +1,149 @@
+# Core translation (skein/docs/design/data/codec/maps.md, 4).
+records crate::core_v6
+use d = jig_domain_core_vocabulary
+use p = jig_domain_people
+use t = jig_domain_tasks
+use a = jig_domain_authority
+use n = jig_domain_notes
+use f = jig_domain_fleet
+use s = skein_codec::convert
+by hand crate::codec::core
+context crate::codec::View
+
+record MovedPlacedHold
+record HoldOwnerParty
+record HoldOwnerTask
+enum HoldOwner = p::HoldOwner
+record CallPartHoldOwner
+record ProposerTask stands for value
+record ProposerParty stands for value
+enum Proposer = p::Proposer { task tuple, party tuple }
+enum ProposalChoice = p::ProposalChoice
+record EscalationDecisionReject
+enum EscalationDecision = p::EscalationDecision
+enum ProposalKind = t::ProposalKind
+record EscalationOutcomePassed
+enum EscalationOutcome = t::EscalationOutcome
+enum ProposalOutcome = t::ProposalOutcome
+enum Source = a::Source
+record Lacks = a::Lacks
+record Judge = a::Judge
+enum Answer = a::Answer
+record FindingAuthority
+record FindingExecutor
+record FindingTasks
+record FindingSpend
+record FindingGrant
+record FindingPrice
+record FindingScope
+record FindingRequired
+record FindingFailed
+record FindingUnguarded
+enum Finding = a::Finding
+enum HostKind = f::HostKind
+record OutboxOutcomeHeld
+enum OutboxOutcome = d::effects::connector::OutboxOutcome
+enum DeliveryOutcome = d::DeliveryOutcome
+record SettledAnswerHost
+record SettledAnswerDelivery
+enum SettledAnswer = d::SettledAnswer
+record SettledCall = d::SettledCall
+record CallKey = d::CallKey
+record CallPartEffect { deadline via s::wall }
+record CallPartConnector
+record CallPartEffectDenied { findings slice }
+record CallPartToolDenied { findings slice }
+record CallPartEscalationDecided
+record Number stands for value
+record PolicyHolder
+enum ProposalHolder = t::ProposalHolder { task tuple, person tuple }
+record CallPartProposed
+record CallPartProposalDecided
+record CallPartControlDenied
+record CallPartSent
+record CallPartSubscribed
+record CallPartDelegationDenied { findings slice }
+record CallPartNoteDeleted
+record CallPartNoteWritten { recorded slice, unknown slice }
+record CallPartWordsRecorded { recorded slice, unknown slice }
+record TaskBytes by hand
+record CallPartEscalationRefused stands for value
+record CallPartProposalRefused stands for value
+record CallPartControlRefused stands for value
+record CallPartMessageRefused stands for value
+record CallPartSubscriptionRefused stands for value
+record CallPartDelegationRefused stands for value
+record Made = d::Made
+# Tuple payloads cannot mark a stands-for list as a boxed slice.
+record CallPartDelegated by hand
+record NoteBytes by hand
+record CallPartNoteRecalled { entries slice }
+record NoteRefusalMoved
+record NoteRefusalPastEnd
+record NoteRefusalPastBound
+enum NoteRefusal = n::Refusal
+record CallPartNoteRefused stands for value
+record CallPartRevised
+enum FailureClass = p::FailureClass
+record HoldReasonFailures
+record HoldReasonDependency
+record HoldReasonPlaced
+record HoldReasonUncertain
+record HoldReasonPoolLost
+enum Bound = p::Bound
+record Exceeded = p::Exceeded
+enum HoldReason = p::HoldReason { exceeded tuple }
+record MovedHold
+record MovedSpec
+record MovedPerson
+record MovedNote
+enum Moved = p::Moved
+record CallPartMoved
+record CallPartAgain
+record CallPartPassedUp
+record CallPartEffectRefused stands for value
+record SettingsRefusal by hand
+enum CallPart = d::CallPart {
+    escalation_refused tuple
+    proposal_refused tuple
+    control_refused tuple
+    message_refused tuple
+    subscription_refused tuple
+    delegated tuple
+    delegation_refused tuple
+    note_refused tuple
+    effect_refused tuple
+    settings_refused tuple
+}
+record CallRecord = d::CallRecord
+record Deployment = d::Deployment
+record PhaseBytes by hand
+record ChangeBytes by hand
+record EndBytes by hand
+record PartyTask stands for value
+record PartyPerson stands for value
+record PartyDeployment
+enum Party = t::Party { task tuple, person tuple }
+record MilestoneLifecycle
+record MilestoneRevision
+enum MilestoneId = d::MilestoneId
+record ProjectionMilestone = d::ProjectionMilestone
+record Connector stands for value
+record ProjectionMilestoneRow
+record ProjectionGoalHot by hand
+record ProjectionTaskHot by hand
+record ProjectionWords by hand
+enum ProjectionRecord by hand
+record TerminalRecord = d::TerminalRecord
+record TurnProof = d::TurnProof
+record Window = d::CurrentWindow
+record Credential stands for value
+record AccountBinding = a::AccountBinding
+record RunProof = d::RunProof { accounts slice, placement via s::token, credentials slice, outstanding slice }
+record TurnRecord = d::TurnRecord { at via s::wall }
+record Created by hand
+record ProposalDecisionRecord = d::ProposalDecisionRecord { at via s::wall }
+record EscalationDecisionRecord = d::EscalationDecisionRecord { at via s::wall }
+record ProjectionValue stands for value
+enum Value by hand
+record Row by hand
