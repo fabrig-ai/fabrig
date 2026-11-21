@@ -82,6 +82,8 @@ Design documents:
 - [`testing/simulator.md`](testing/simulator.status.md)
 - [`testing/conformance.md`](testing/conformance.status.md)
 - [`testing/world.md`](testing/world.status.md)
+- [`testing/inspection.md`](testing/inspection.status.md)
+- [`testing/sweeps.md`](testing/sweeps.status.md)
 - [`testing/README.md`](testing/README.status.md)
 - [`examples.md`](examples.status.md)
 - [`data/README.md`](data/README.status.md)

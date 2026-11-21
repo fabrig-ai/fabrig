@@ -51,7 +51,7 @@ this design.
 | the fake checkout | `skein-fake-checkout` | for tests: deterministic files, scripted commands and local git mechanics; worlds own policy and delivery | [testing/fakes/checkout.md](testing/fakes/checkout.md) |
 | the counting allocator | `skein-heap` | for tests: the heap counted, and each scenario's peak checked under its ceiling | [testing/README.md](testing/README.md) |
 | the simulated world | `skein-sim-world`, `skein-fake-machine` | a service's processes hosted over the simulator and run a step at a time, as the harness and a playground run them; the minimal fake machine | [testing/world.md](testing/world.md) |
-| the world harness | `skein-world` | for tests: the simulated world's run with a referee and every world's checks, and the same processes over the ring | [examples.md](examples.md) |
+| the world harness | `skein-world` | for tests: the simulated world's run with a referee and every world's checks, and the same processes over the ring; the inspection of a component's frozen state, and a sweep's streams, fault ledger and exclusions | [examples.md](examples.md), [testing/inspection.md](testing/inspection.md), [testing/sweeps.md](testing/sweeps.md) |
 | HTTP | `skein-http` | HTTP/1.1 client and server, server-sent events | [net/http/README.md](net/http/README.md) |
 | the HTTP client | `skein-http` | the client's requests and events for an exchange | [net/http/client.md](net/http/client.md) |
 | the HTTP server | `skein-http` | the server's requests and events for an exchange | [net/http/server.md](net/http/server.md) |
