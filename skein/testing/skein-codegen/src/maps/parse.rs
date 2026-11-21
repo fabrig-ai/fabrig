@@ -1,6 +1,6 @@
 //! Line-aware maps grammar (data/codec/maps.md, 2).
 
-use super::{Item, Mapping, Maps, Mode, error};
+use super::{Item, Mapping, Maps, Mode, Shape, error};
 use crate::{Error, Schema};
 
 #[derive(Clone)]
@@ -76,8 +76,15 @@ impl Parser<'_> {
             let rename = if self.eat("=") { Some(self.word()?) } else { None };
             let via = if !enumeration && self.eat("via") { Some(self.word()?) } else { None };
             let tuple = enumeration && self.eat("tuple");
+            let shape = if !enumeration && self.eat("slice") {
+                Shape::Slice
+            } else if self.eat("boxed") {
+                Shape::Boxed
+            } else {
+                Shape::Same
+            };
             let block = if enumeration && self.peek() == "{" { Some(self.block(false)?) } else { None };
-            items.push(Item { line, name, rename, via, tuple, block });
+            items.push(Item { line, name, rename, via, tuple, shape, block });
             if !matches!(self.peek(), "}" | "\n" | ",") {
                 return Err(self.fail("expected comma, newline or block end"));
             }
@@ -162,7 +169,7 @@ pub(super) fn parse(schema: &Schema, source: &str) -> Result<Maps, Error> {
             "use" => {
                 let alias = parser.word()?;
                 parser.expect("=")?;
-                let path = parser.word()?;
+                let path = maps.path(&parser.word()?);
                 if maps.aliases.insert(alias, path).is_some() {
                     return Err(error(schema, token.line, "duplicate alias"));
                 }

@@ -45,11 +45,14 @@ macro_rules! lean_roots {
 }
 
 pub fn current_text(path: &str) -> Option<&'static str> {
-    use skein_codec_tests::{EVERY_SCHEMA, GROWTH_SCHEMA, LINTS_SCHEMA, SAMPLE_SCHEMA, SCALARS_SCHEMA, SECRETS_SCHEMA};
+    use skein_codec_tests::{
+        EVERY_SCHEMA, GROWTH_SCHEMA, LINTS_SCHEMA, MAPPED_SCHEMA, SAMPLE_SCHEMA, SCALARS_SCHEMA, SECRETS_SCHEMA,
+    };
     match path {
         "schema/every-v3.schema" => Some(EVERY_SCHEMA),
         "schema/growth-v1.schema" => Some(GROWTH_SCHEMA),
         "schema/lints-v1.schema" => Some(LINTS_SCHEMA),
+        "schema/mapped-v1.schema" => Some(MAPPED_SCHEMA),
         "schema/sample-v1.schema" => Some(SAMPLE_SCHEMA),
         "schema/scalars-v1.schema" => Some(SCALARS_SCHEMA),
         "schema/secrets-v1.schema" => Some(SECRETS_SCHEMA),
@@ -58,12 +61,17 @@ pub fn current_text(path: &str) -> Option<&'static str> {
     }
 }
 
-pub fn families() -> [Family; 7] {
+pub fn families() -> [Family; 8] {
     [
         Family {
             name: "sample",
             text: skein_codec_tests::SAMPLE_SCHEMA,
             roots: lean_roots!(v1; Field, Effect, Report, Choice, Marker),
+        },
+        Family {
+            name: "mapped",
+            text: skein_codec_tests::MAPPED_SCHEMA,
+            roots: lean_roots!(mapped_records; Reference, Label, Item, Empty, Shared, Checked, HandChoice, Event, Packet, Root),
         },
         Family {
             name: "scalars",

@@ -10,6 +10,12 @@ extern crate alloc;
 /// The current family schema text (skein data/codec/README.md, section 6).
 pub const SAMPLE_SCHEMA: &str = include_str!("../schema/sample-v1.schema");
 
+/// The maps fixture's record schema (data/codec/maps.md, 8).
+pub const MAPPED_SCHEMA: &str = include_str!("../schema/mapped-v1.schema");
+
+/// The maps fixture's domain mapping (data/codec/maps.md, 8).
+pub const MAPPED_MAPS: &str = include_str!("../schema/mapped.maps");
+
 /// The current family schema text (skein data/codec/README.md, section 6).
 pub const EVERY_SCHEMA: &str = include_str!("../schema/every-v3.schema");
 

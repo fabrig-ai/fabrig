@@ -9,6 +9,7 @@ context crate::mapped_domain::Context
 record Reference stands for id
 record Label stands for text via c::text
 record Item = d::Item { code = number }
+record Empty = d::Empty
 record Shared {
     count = total via own::positive
 }
@@ -18,7 +19,8 @@ enum Event = d::Event {
     idle
     inline
     alternate { count = other }
-    item tuple
+    item tuple boxed
+    unboxed_item tuple
     label tuple
     old_name = Renamed
     checked tuple
@@ -27,6 +29,12 @@ record Packet = d::Packet {
     when = changed via c::wall
     caption via c::text
     maybe via c::wall
-    times via c::wall
+    times via c::wall slice
+    labels slice
+    items slice
+    padding slice
+    primary boxed
+    optional_items slice
+    optional_primary boxed
 }
 record Root by hand

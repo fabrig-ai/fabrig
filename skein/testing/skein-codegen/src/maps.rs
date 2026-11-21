@@ -8,6 +8,14 @@ mod check;
 mod emit;
 mod parse;
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+enum Shape {
+    #[default]
+    Same,
+    Slice,
+    Boxed,
+}
+
 #[derive(Clone, Debug)]
 struct Item {
     line: usize,
@@ -15,6 +23,7 @@ struct Item {
     rename: Option<String>,
     via: Option<String>,
     tuple: bool,
+    shape: Shape,
     block: Option<Vec<Item>>,
 }
 
@@ -50,12 +59,25 @@ impl Maps {
     }
 
     fn path(&self, path: &str) -> String {
-        let (head, tail) = path.split_once("::").unwrap_or((path, ""));
-        match self.aliases.get(head) {
-            Some(alias) if tail.is_empty() => alias.clone(),
-            Some(alias) => format!("{alias}::{tail}"),
-            None => path.to_owned(),
+        let mut output = String::new();
+        let mut word = String::new();
+        for character in path.chars() {
+            if character.is_alphanumeric() || character == '_' {
+                word.push(character);
+            } else {
+                self.append_word(&mut output, &word);
+                word.clear();
+                output.push(character);
+            }
         }
+        self.append_word(&mut output, &word);
+        output
+    }
+
+    fn append_word(&self, output: &mut String, word: &str) {
+        let qualified = output.trim_end().ends_with("::") || output.ends_with('\'');
+        let expanded = if qualified { word } else { self.aliases.get(word).map_or(word, String::as_str) };
+        output.push_str(expanded);
     }
 }
 

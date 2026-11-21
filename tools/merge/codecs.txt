@@ -1,4 +1,4 @@
-# Module path, then schema texts in command order. Repository-relative paths.
+# Module path, then schema texts in command order and optional maps file last. Repository-relative paths.
 jig/crates/jig-client-protocol-wire/src/generated/client.rs jig/crates/jig-client-protocol-wire/schema/client-v41.schema jig/crates/jig-client-protocol-wire/schema/client-v41-part1.schema
 jig/crates/jig-client-protocol-wire/src/generated/public.rs jig/crates/jig-client-protocol-wire/schema/public-v1.schema
 jig/crates/jig-client-view-codec/src/generated/records.rs jig/crates/jig-client-view/schema/records-v1.schema
@@ -20,6 +20,8 @@ jig/testing/jig-client-test-protocol-wire-codec/src/generated/test_client.rs jig
 jig/testing/jig-test-store-codec/src/generated/test_connector.rs jig/testing/jig-test-store/schema/test-connector-v2.schema
 skein/crates/skein-oauth-codec/src/generated/oauth.rs skein/crates/skein-oauth/schema/oauth-v3.schema
 skein/examples/ui/view-codec/src/generated/notes.rs skein/examples/ui/view/schema/notes-v1.schema
+skein/tests/codec/src/generated/mapped.rs skein/tests/codec/schema/mapped-v1.schema
+skein/tests/codec/src/generated/maps/mapped.rs skein/tests/codec/schema/mapped-v1.schema skein/tests/codec/schema/mapped.maps
 skein/tests/codec/src/generated/sample.rs skein/tests/codec/schema/sample-v1.schema
 smith/crates/smith-channel/src/generated/channel.rs smith/crates/smith-channel/schema/channel-v13.schema
 smith/crates/smith-charter/src/generated/charter.rs smith/crates/smith-charter/schema/charter-v5.schema

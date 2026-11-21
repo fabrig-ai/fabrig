@@ -1,5 +1,7 @@
 extern crate alloc;
 
+#[cfg(test)]
+mod maps;
 mod patch_bridges;
 mod patch_check;
 mod patch_generated;

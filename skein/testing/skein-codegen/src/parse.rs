@@ -121,7 +121,15 @@ fn pieces(schema: &schema::Schema, mut at: TypeIx) -> bool {
             schema::Type::Bytes { held, .. } | schema::Type::Secret { held, .. } => {
                 return matches!(held, schema::Held::Pieces(_));
             }
-            schema::Type::U8 | schema::Type::U16 | schema::Type::U32 | schema::Type::U64 | schema::Type::Bool | schema::Type::Duration | schema::Type::Fixed(_) | schema::Type::Text(_) | schema::Type::Named(_) => return false,
+            schema::Type::U8
+            | schema::Type::U16
+            | schema::Type::U32
+            | schema::Type::U64
+            | schema::Type::Bool
+            | schema::Type::Duration
+            | schema::Type::Fixed(_)
+            | schema::Type::Text(_)
+            | schema::Type::Named(_) => return false,
         }
     }
 }

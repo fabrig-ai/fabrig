@@ -52,7 +52,10 @@ pub fn text_to_record(value: &Box<str>) -> Result<Box<[u8]>, Reason> {
 }
 
 /// Record bytes interpreted as UTF-8, refusing invalid text.
-#[expect(clippy::disallowed_methods, reason = "the shared text converter validates the record's UTF-8 at the protocol boundary")]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the shared text converter validates the record's UTF-8 at the protocol boundary"
+)]
 pub fn text_to_domain(value: Box<[u8]>) -> Result<Box<str>, Reason> {
     match core::str::from_utf8(&value) {
         Ok(value) => Ok(Box::from(value)),

@@ -18,6 +18,9 @@ pub struct Limits {
     pub packet_references: u32,
     pub packet_labels: u32,
     pub packet_items: u32,
+    pub packet_counts: u32,
+    pub packet_padding: u32,
+    pub packet_optional_items_some: u32,
     pub packet_events: u32,
 }
 
@@ -28,6 +31,9 @@ pub const CEILINGS: Limits = Limits {
     packet_references: 4,
     packet_labels: 4,
     packet_items: 4,
+    packet_counts: 4,
+    packet_padding: 4,
+    packet_optional_items_some: 4,
     packet_events: 8,
 };
 
@@ -38,6 +44,9 @@ pub const LIMIT_NAMES: &[&str] = &[
     "packet_references",
     "packet_labels",
     "packet_items",
+    "packet_counts",
+    "packet_padding",
+    "packet_optional_items_some",
     "packet_events",
 ];
 
@@ -51,6 +60,9 @@ impl Limits {
         values.push(self.packet_references).expect("room for every named limit");
         values.push(self.packet_labels).expect("room for every named limit");
         values.push(self.packet_items).expect("room for every named limit");
+        values.push(self.packet_counts).expect("room for every named limit");
+        values.push(self.packet_padding).expect("room for every named limit");
+        values.push(self.packet_optional_items_some).expect("room for every named limit");
         values.push(self.packet_events).expect("room for every named limit");
         values
     }
@@ -63,6 +75,9 @@ const LIMIT_PATHS: &[Path] = &[
     paths::PACKET_REFERENCES,
     paths::PACKET_LABELS,
     paths::PACKET_ITEMS,
+    paths::PACKET_COUNTS,
+    paths::PACKET_PADDING,
+    paths::PACKET_OPTIONAL_ITEMS,
     paths::PACKET_EVENTS,
 ];
 
@@ -84,29 +99,34 @@ pub mod paths {
     pub const LABEL_TAIL: Path = Path::new(1, 1);
     pub const ITEM_CODE: Path = Path::new(2, 0);
     pub const ITEM_TAIL: Path = Path::new(2, 1);
-    pub const SHARED_COUNT: Path = Path::new(3, 0);
-    pub const SHARED_TAIL: Path = Path::new(3, 1);
-    pub const CHECKED_CODE: Path = Path::new(4, 0);
-    pub const CHECKED_TAIL: Path = Path::new(4, 1);
-    pub const HAND_CHOICE_TAG: Path = Path::new(5, 0);
-    pub const EVENT_TAG: Path = Path::new(6, 0);
-    pub const PACKET_WHEN: Path = Path::new(7, 0);
-    pub const PACKET_CAPTION: Path = Path::new(7, 1);
-    pub const PACKET_MAYBE: Path = Path::new(7, 2);
-    pub const PACKET_TIMES: Path = Path::new(7, 3);
-    pub const PACKET_REFERENCES: Path = Path::new(7, 4);
-    pub const PACKET_LABELS: Path = Path::new(7, 5);
-    pub const PACKET_ITEMS: Path = Path::new(7, 6);
-    pub const PACKET_PRIMARY: Path = Path::new(7, 7);
-    pub const PACKET_EVENTS: Path = Path::new(7, 8);
-    pub const PACKET_CHECKED: Path = Path::new(7, 9);
-    pub const PACKET_CHOICE: Path = Path::new(7, 10);
-    pub const PACKET_ENABLED: Path = Path::new(7, 11);
-    pub const PACKET_NONCE: Path = Path::new(7, 12);
-    pub const PACKET_AGE: Path = Path::new(7, 13);
-    pub const PACKET_TAIL: Path = Path::new(7, 14);
-    pub const ROOT_PACKET: Path = Path::new(8, 0);
-    pub const ROOT_TAIL: Path = Path::new(8, 1);
+    pub const EMPTY_TAIL: Path = Path::new(3, 0);
+    pub const SHARED_COUNT: Path = Path::new(4, 0);
+    pub const SHARED_TAIL: Path = Path::new(4, 1);
+    pub const CHECKED_CODE: Path = Path::new(5, 0);
+    pub const CHECKED_TAIL: Path = Path::new(5, 1);
+    pub const HAND_CHOICE_TAG: Path = Path::new(6, 0);
+    pub const EVENT_TAG: Path = Path::new(7, 0);
+    pub const PACKET_WHEN: Path = Path::new(8, 0);
+    pub const PACKET_CAPTION: Path = Path::new(8, 1);
+    pub const PACKET_MAYBE: Path = Path::new(8, 2);
+    pub const PACKET_TIMES: Path = Path::new(8, 3);
+    pub const PACKET_REFERENCES: Path = Path::new(8, 4);
+    pub const PACKET_LABELS: Path = Path::new(8, 5);
+    pub const PACKET_ITEMS: Path = Path::new(8, 6);
+    pub const PACKET_COUNTS: Path = Path::new(8, 7);
+    pub const PACKET_PADDING: Path = Path::new(8, 8);
+    pub const PACKET_PRIMARY: Path = Path::new(8, 9);
+    pub const PACKET_OPTIONAL_ITEMS: Path = Path::new(8, 10);
+    pub const PACKET_OPTIONAL_PRIMARY: Path = Path::new(8, 11);
+    pub const PACKET_EVENTS: Path = Path::new(8, 12);
+    pub const PACKET_CHECKED: Path = Path::new(8, 13);
+    pub const PACKET_CHOICE: Path = Path::new(8, 14);
+    pub const PACKET_ENABLED: Path = Path::new(8, 15);
+    pub const PACKET_NONCE: Path = Path::new(8, 16);
+    pub const PACKET_AGE: Path = Path::new(8, 17);
+    pub const PACKET_TAIL: Path = Path::new(8, 18);
+    pub const ROOT_PACKET: Path = Path::new(9, 0);
+    pub const ROOT_TAIL: Path = Path::new(9, 1);
 }
 
 const PATH_NAMES: &[&[&str]] = &[
@@ -121,6 +141,9 @@ const PATH_NAMES: &[&[&str]] = &[
     &[
         "Item.code",
         "Item (tail)",
+    ],
+    &[
+        "Empty (tail)",
     ],
     &[
         "Shared.count",
@@ -144,7 +167,11 @@ const PATH_NAMES: &[&[&str]] = &[
         "Packet.references",
         "Packet.labels",
         "Packet.items",
+        "Packet.counts",
+        "Packet.padding",
         "Packet.primary",
+        "Packet.optional_items",
+        "Packet.optional_primary",
         "Packet.events",
         "Packet.checked",
         "Packet.choice",
@@ -173,49 +200,61 @@ const TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[2] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[4] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[] },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[6] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[7] },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[8] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[9] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[10, 11] },
+    skein_codec::bounds::Node::Enum { variants: &[11, 12] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Boxed { item: 5, size: size_of::<Item>() },
+    skein_codec::bounds::Node::Boxed { item: 5, size: size_of::<Item>() },
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[13, 7, 7, 14, 3, 15, 9] },
+    skein_codec::bounds::Node::Enum { variants: &[14, 8, 8, 15, 16, 3, 17, 10] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Bytes { limit: 1 },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 19 },
+    skein_codec::bounds::Node::Option { item: 21 },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::List { limit: 2, item: 21, size: size_of::<u64>() },
+    skein_codec::bounds::Node::List { limit: 2, item: 23, size: size_of::<u64>() },
     skein_codec::bounds::Node::List { limit: 3, item: 1, size: size_of::<Reference>() },
     skein_codec::bounds::Node::List { limit: 4, item: 3, size: size_of::<Label>() },
     skein_codec::bounds::Node::List { limit: 5, item: 5, size: size_of::<Item>() },
-    skein_codec::bounds::Node::List { limit: 6, item: 16, size: size_of::<Event>() },
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::List { limit: 6, item: 28, size: size_of::<u32>() },
+    skein_codec::bounds::Node::List { limit: 7, item: 6, size: size_of::<Empty>() },
+    skein_codec::bounds::Node::List { limit: 8, item: 5, size: size_of::<Item>() },
+    skein_codec::bounds::Node::Option { item: 31 },
+    skein_codec::bounds::Node::Option { item: 5 },
+    skein_codec::bounds::Node::List { limit: 9, item: 18, size: size_of::<Event>() },
     skein_codec::bounds::Node::Scalar(1),
     skein_codec::bounds::Node::Scalar(2),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[17, 18, 20, 22, 23, 24, 25, 5, 26, 9, 12, 27, 28, 29] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[30] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[19, 20, 22, 24, 25, 26, 27, 29, 30, 5, 32, 33, 34, 10, 13, 35, 36, 37] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[38] },
 ];
 
 const DECLARATIONS: &[u32] = &[
     1,
     3,
     5,
-    7,
-    9,
-    12,
-    16,
-    30,
-    31,
+    6,
+    8,
+    10,
+    13,
+    18,
+    38,
+    39,
 ];
 
 const CEILING_VALUES: &[u32] = &[
     16,
     16,
+    4,
+    4,
+    4,
     4,
     4,
     4,
@@ -326,6 +365,34 @@ impl Record for Item {
     }
 }
 
+// Type: Empty.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Empty {
+}
+
+// Record: Empty.
+impl Record for Empty {
+    type Limits = Limits;
+    const TAIL: Path = paths::EMPTY_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 6)?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 6)?.decoded)
+    }
+
+    fn write(&self, _limits: &Limits, _out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        Ok(())
+    }
+
+    fn read(_limits: &Limits, _reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+        })
+    }
+}
+
 // Type: Shared.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Shared {
@@ -338,11 +405,11 @@ impl Record for Shared {
     const TAIL: Path = paths::SHARED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 7)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 8)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 7)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 8)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -369,11 +436,11 @@ impl Record for Checked {
     const TAIL: Path = paths::CHECKED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 9)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 10)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 9)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 10)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -401,11 +468,11 @@ impl Record for HandChoice {
     const TAIL: Path = paths::HAND_CHOICE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 12)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 13)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 12)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 13)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -432,6 +499,7 @@ pub enum Event {
     Inline(Shared),
     Alternate(Shared),
     Item(Box<Item>),
+    UnboxedItem(Box<Item>),
     Label(Label),
     OldName,
     Checked(Checked),
@@ -443,11 +511,11 @@ impl Record for Event {
     const TAIL: Path = paths::EVENT_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 16)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 18)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 16)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 18)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -456,9 +524,10 @@ impl Record for Event {
             Self::Inline(value) => { field::put(out, &[1], paths::EVENT_TAG)?; value.write(limits, out) },
             Self::Alternate(value) => { field::put(out, &[2], paths::EVENT_TAG)?; value.write(limits, out) },
             Self::Item(value) => { field::put(out, &[3], paths::EVENT_TAG)?; value.write(limits, out) },
-            Self::Label(value) => { field::put(out, &[4], paths::EVENT_TAG)?; value.write(limits, out) },
-            Self::OldName => field::put(out, &[5], paths::EVENT_TAG),
-            Self::Checked(value) => { field::put(out, &[6], paths::EVENT_TAG)?; value.write(limits, out) },
+            Self::UnboxedItem(value) => { field::put(out, &[4], paths::EVENT_TAG)?; value.write(limits, out) },
+            Self::Label(value) => { field::put(out, &[5], paths::EVENT_TAG)?; value.write(limits, out) },
+            Self::OldName => field::put(out, &[6], paths::EVENT_TAG),
+            Self::Checked(value) => { field::put(out, &[7], paths::EVENT_TAG)?; value.write(limits, out) },
         }
     }
 
@@ -469,10 +538,11 @@ impl Record for Event {
             1 => Ok(Self::Inline(Shared::read(limits, reader)?)),
             2 => Ok(Self::Alternate(Shared::read(limits, reader)?)),
             3 => Ok(Self::Item(Box::new(Item::read(limits, reader)?))),
-            4 => Ok(Self::Label(Label::read(limits, reader)?)),
-            5 => Ok(Self::OldName),
-            6 => Ok(Self::Checked(Checked::read(limits, reader)?)),
-            7..=u8::MAX => Err(Problem { path: paths::EVENT_TAG, reason: skein_codec::Reason::Tag }),
+            4 => Ok(Self::UnboxedItem(Box::new(Item::read(limits, reader)?))),
+            5 => Ok(Self::Label(Label::read(limits, reader)?)),
+            6 => Ok(Self::OldName),
+            7 => Ok(Self::Checked(Checked::read(limits, reader)?)),
+            8..=u8::MAX => Err(Problem { path: paths::EVENT_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -487,7 +557,11 @@ pub struct Packet {
     pub references: List<Reference>,
     pub labels: List<Label>,
     pub items: List<Item>,
+    pub counts: List<u32>,
+    pub padding: List<Empty>,
     pub primary: Item,
+    pub optional_items: Option<List<Item>>,
+    pub optional_primary: Option<Item>,
     pub events: List<Event>,
     pub checked: Checked,
     pub choice: HandChoice,
@@ -502,11 +576,11 @@ impl Record for Packet {
     const TAIL: Path = paths::PACKET_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 30)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 38)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 30)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 38)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -517,7 +591,11 @@ impl Record for Packet {
         field::write(field::Sequence { limit: limits.packet_references.min(CEILINGS.packet_references), minimum: 8, item: field::Nested }, &self.references, limits, out, paths::PACKET_REFERENCES)?;
         field::write(field::Sequence { limit: limits.packet_labels.min(CEILINGS.packet_labels), minimum: 4, item: field::Nested }, &self.labels, limits, out, paths::PACKET_LABELS)?;
         field::write(field::Sequence { limit: limits.packet_items.min(CEILINGS.packet_items), minimum: 4, item: field::Nested }, &self.items, limits, out, paths::PACKET_ITEMS)?;
+        field::write(field::Sequence { limit: limits.packet_counts.min(CEILINGS.packet_counts), minimum: 4, item: field::U32 }, &self.counts, limits, out, paths::PACKET_COUNTS)?;
+        field::write(field::Sequence { limit: limits.packet_padding.min(CEILINGS.packet_padding), minimum: 0, item: field::Nested }, &self.padding, limits, out, paths::PACKET_PADDING)?;
         field::write(field::Nested, &self.primary, limits, out, paths::PACKET_PRIMARY)?;
+        field::write(field::Optional { item: field::Sequence { limit: limits.packet_optional_items_some.min(CEILINGS.packet_optional_items_some), minimum: 4, item: field::Nested } }, &self.optional_items, limits, out, paths::PACKET_OPTIONAL_ITEMS)?;
+        field::write(field::Optional { item: field::Nested }, &self.optional_primary, limits, out, paths::PACKET_OPTIONAL_PRIMARY)?;
         field::write(field::Sequence { limit: limits.packet_events.min(CEILINGS.packet_events), minimum: 1, item: field::Nested }, &self.events, limits, out, paths::PACKET_EVENTS)?;
         field::write(field::Nested, &self.checked, limits, out, paths::PACKET_CHECKED)?;
         field::write(field::Nested, &self.choice, limits, out, paths::PACKET_CHOICE)?;
@@ -536,7 +614,11 @@ impl Record for Packet {
             references: field::read(field::Sequence { limit: limits.packet_references.min(CEILINGS.packet_references), minimum: 8, item: field::Nested }, limits, reader, paths::PACKET_REFERENCES)?,
             labels: field::read(field::Sequence { limit: limits.packet_labels.min(CEILINGS.packet_labels), minimum: 4, item: field::Nested }, limits, reader, paths::PACKET_LABELS)?,
             items: field::read(field::Sequence { limit: limits.packet_items.min(CEILINGS.packet_items), minimum: 4, item: field::Nested }, limits, reader, paths::PACKET_ITEMS)?,
+            counts: field::read(field::Sequence { limit: limits.packet_counts.min(CEILINGS.packet_counts), minimum: 4, item: field::U32 }, limits, reader, paths::PACKET_COUNTS)?,
+            padding: field::read(field::Sequence { limit: limits.packet_padding.min(CEILINGS.packet_padding), minimum: 0, item: field::Nested }, limits, reader, paths::PACKET_PADDING)?,
             primary: field::read(field::Nested, limits, reader, paths::PACKET_PRIMARY)?,
+            optional_items: field::read(field::Optional { item: field::Sequence { limit: limits.packet_optional_items_some.min(CEILINGS.packet_optional_items_some), minimum: 4, item: field::Nested } }, limits, reader, paths::PACKET_OPTIONAL_ITEMS)?,
+            optional_primary: field::read(field::Optional { item: field::Nested }, limits, reader, paths::PACKET_OPTIONAL_PRIMARY)?,
             events: field::read(field::Sequence { limit: limits.packet_events.min(CEILINGS.packet_events), minimum: 1, item: field::Nested }, limits, reader, paths::PACKET_EVENTS)?,
             checked: field::read(field::Nested, limits, reader, paths::PACKET_CHECKED)?,
             choice: field::read(field::Nested, limits, reader, paths::PACKET_CHOICE)?,
@@ -559,11 +641,11 @@ impl Record for Root {
     const TAIL: Path = paths::ROOT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 31)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 39)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 31)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 39)?.decoded)
     }
 
     #[cfg(debug_assertions)]

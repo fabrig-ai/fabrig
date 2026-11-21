@@ -11,6 +11,9 @@ pub struct Item {
     pub number: u32,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Empty {}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Positive(pub u32);
 
@@ -29,6 +32,7 @@ pub enum Event {
     Inline { total: Positive },
     Alternate { other: Positive },
     Item(Box<Item>),
+    UnboxedItem(Item),
     Label(Box<str>),
     Renamed,
     Checked(Checked),
@@ -43,7 +47,11 @@ pub struct Packet {
     pub references: List<u64>,
     pub labels: Box<[Box<str>]>,
     pub items: Box<[Item]>,
+    pub counts: List<u32>,
+    pub padding: Box<[Empty]>,
     pub primary: Box<Item>,
+    pub optional_items: Option<Box<[Item]>>,
+    pub optional_primary: Option<Box<Item>>,
     pub events: List<Event>,
     pub checked: Checked,
     pub choice: HandChoice,
@@ -52,6 +60,7 @@ pub struct Packet {
     pub age: Duration,
 }
 
+#[derive(Debug)]
 pub struct Context {
     pub permitted: u32,
 }

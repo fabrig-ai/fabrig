@@ -3,6 +3,7 @@ family mapped 1
 record Reference { id: u64 }
 record Label { text: bytes 16 }
 record Item { code: u32 }
+record Empty {}
 record Shared { count: u32 }
 record Checked { code: u32 }
 enum HandChoice { none, some }
@@ -11,6 +12,7 @@ enum Event {
     inline: Shared
     alternate: Shared
     item: boxed Item
+    unboxed_item: boxed Item
     label: Label
     old_name
     checked: Checked
@@ -23,7 +25,11 @@ record Packet {
     references: list 4 Reference
     labels: list 4 Label
     items: list 4 Item
+    counts: list 4 u32
+    padding: list 4 Empty
     primary: Item
+    optional_items: option list 4 Item
+    optional_primary: option Item
     events: list 8 Event
     checked: Checked
     choice: HandChoice
