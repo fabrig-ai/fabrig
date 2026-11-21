@@ -13,6 +13,7 @@ pub mod generated {
     pub mod component;
     pub mod core;
     pub mod notes;
+    pub mod settings;
 }
 
 use jig_protocol_store_core::core_v6;
