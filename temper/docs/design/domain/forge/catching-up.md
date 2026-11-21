@@ -71,9 +71,14 @@ forge runs on its records are `README.md`, section 9.
   (section 4), and on no other still out, is woken, as its own wake
   does: a change by its procedure's wake, a release by
   `ContinueRelease`, a making by `ContinueGoalBranch`; whatever is
-  still parked is woken at the forge's report. So one read rate-limited
-  at every attempt holds the procedures of its own repository alone.
-  Resources within one repository share its wait (section 6).
+  still parked is woken at the forge's report. So a read still owed
+  holds only the procedures of its own repository. Resources within one
+  repository share its wait (section 6). A rate refusal is different: it
+  holds every call to that forge until its reset, because the quota
+  belongs to the forge's token, not to one resource (skein's
+  `forge/client.md`, 6). While the forge refuses on rate, no repository's
+  reads go out. Once it answers, each repository's procedures go ahead
+  as soon as their own reads are in.
 - **Its settle:** at the beginning, every restored entry not held for a
   person, nor a held landing's, is handed to the client, in number
   order and before any entry kept since the restart; then
