@@ -6,7 +6,7 @@
   core's and engine-clients worlds' calls of the shared checks.
 - **Not yet:** 7: the store check: `jig_conformance::store_check`, and
   jig's test root rehearsing, with a connector's restore refusal as a
-  start refusal.
+  start refusal. [in flight: change 11641]
   7: the store check in the core's world: `World::check_store`, its
   calls at each durable commit, and its sweeps' restarts.
   7: the store check in the conformance harness: `Harness::check_store`,

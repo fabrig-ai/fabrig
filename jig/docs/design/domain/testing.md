@@ -461,9 +461,10 @@ more than one world needs them (testing-strategy.md, section 4):
     its commit's store, so a refusal there is the finding, read through
     `refused` (the core world's `start_failure()`), naming the commit it
     restarted from, and the parent counts each such commit `restarted`:
-    those sweeps check every commit, at no second start's cost. Any
-    restart the harness or the world makes that the root refuses fails
-    with the same finding.
+    those sweeps check every commit, at no second start's cost. A
+    story's own restart (`World::restart`, `Harness::crash` called by a
+    story) keeps its own reading of a refusal, since a story may be about
+    one.
   - **A story about a refused start,** whose own input is a record a
     start refuses, reads the check's `Err` as its outcome, or sets
     `StoreChecks::none` with a reason naming the refusal it tests.
