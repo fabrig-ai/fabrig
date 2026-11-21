@@ -106,6 +106,17 @@ change's due step.
   own time. `inspect` gives none: the root carries out each act in the
   step that decides it, so a change still awaiting one at the root's
   quiet point has no wake, and is a finding.
+- **What only the scripted root knows:** a decision or a wake the forge
+  has emitted and forgotten (a `Wait` decision whose timer only the
+  root arms, a fired deadline handed over as `WakeProcedure`) leaves
+  nothing in the forge's state, so `forge` can't read it. The forge
+  world, which is that root, keeps the tasks it owes an act: each task
+  of a `ChangeDecision` or `WakeProcedure` it has taken from the
+  forge's output, until it passes the forge that task's `StepChange` or
+  `StepLanding`. At its quiet point it adds `Party("root")` to the wait
+  of each such task, in the inspection `forge` gave, and to nothing
+  else. The adapter's surface stays 2.1's; the forge's state gains
+  nothing for it.
 
 - **The change's steps,** in the change procedure's words
   (`../domain/forge/change/README.md`, 2): `producing`, `opening`,
