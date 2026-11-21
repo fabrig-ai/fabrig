@@ -1,6 +1,6 @@
 # hosts: status
 
-2026-11-19. Where jig's code lags or departs from [README.md](README.md).
+2026-11-21. Where jig's code lags or departs from [README.md](README.md).
 
 
 
@@ -65,3 +65,5 @@ together; a field's bound alone does not promise that the whole fits.
   (`jig/crates/jig-domain-tasks/src/boundary.rs`) reads a `Party`, which
   holds numbers. No reason is recorded.
   7: the temper message-rendering departure remains `charters.status.md` (Departs).
+
+- **Not yet:** the agent capability's face: parts up, their acknowledgements down, and a drain's grace [in flight: change 11468].

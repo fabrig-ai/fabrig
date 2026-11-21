@@ -1,11 +1,15 @@
 # Status
 
-2026-11-16. First milestone built. Engine/worker/agent/client wire layouts
+2026-11-21. First milestone built. Engine/worker/agent/client wire layouts
 are versioned, stated/checked at opening; builds speak from wire floors;
 jig bridges engine/worker shared versions
 (`protocol/wires.md`; `draft/redeploys.md`, R1 and R4).
 Engine-only restart keeps workers' runs: stop settles placing nothing;
 worker grace covers upgrading start; engine grace exceeds worker stop bound.
+A drained worker stops its runs at their answers: the answer and each
+call's result kept as parts, the cut run's workspace kept on its worker,
+and its next attempt there resumes the cut turn, a check skipping what
+passed (`draft/worker-restarts.md`, W3; `domain/worker/checkouts.md`).
 `upgrade --check` names stayable workers from kept openings
 (`protocol/wires.md`, 10; `domain/root.md`, 8.2; R5, goal 2288).
 `temper-redeploy` stages all hosts from the operator's kept description,

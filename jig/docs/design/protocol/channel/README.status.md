@@ -1,6 +1,6 @@
 # channel: status
 
-2026-11-15. Where jig's code lags or departs from [README.md](README.md).
+2026-11-21. Where jig's code lags or departs from [README.md](README.md).
 
 
 
@@ -122,3 +122,5 @@ whose smallest resumed start passes the room (`limits.rs`). The wire's
   value or one held by a killed host. The plan chooses this limit because
   those grants arrive through the same `Assignment` and `Granted` frames as
   the covered stories; extending coverage remains section 13's question.
+
+- **Not yet:** 8, *A resumed start fits its room first*: parts measured away before any host answer is cut [in flight: change 11456].

@@ -1,6 +1,9 @@
 # Status
 
-2026-11-11. An agent whose channel is open leaves a termination signal to
+2026-11-21. A run whose host asks tells its turns' parts as they come,
+stops at its answer when a drain carries a grace, and resumes a turn a
+drain cut where it stopped (`domain/turn-parts.md`). An agent whose
+channel is open leaves a termination signal to
 its host, which its kit hands its parent, and cancels on one only after
 the host's cancel or once the channel is gone (`protocol/agent.md`, 6;
 `domain/host.md`, 4). Where smith's code lags or departs from its design, from
@@ -31,6 +34,7 @@ Design documents:
 - [`domain/session.md`](domain/session.status.md)
 - [`domain/tools.md`](domain/tools.status.md)
 - [`domain/host.md`](domain/host.status.md)
+- [`domain/turn-parts.md`](domain/turn-parts.status.md)
 - [`protocol/README.md`](protocol/README.status.md)
 - [`protocol/channel.md`](protocol/channel.status.md)
 - [`protocol/charter.md`](protocol/charter.status.md)

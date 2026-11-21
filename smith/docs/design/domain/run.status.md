@@ -1,6 +1,6 @@
 # run: status
 
-2026-11-19. Where smith's code lags or departs from [run.md](run.md).
+2026-11-21. Where smith's code lags or departs from [run.md](run.md).
 
 Section 3.3 has no known gap in omitting the workspace tool instructions
 and Checkout section when no workspace is given. The remaining Checkout
@@ -54,3 +54,6 @@ a silent check still has no output to report (section 13).
   this text is what the LLM reads, so it stays (15).
 
 - **Not yet:** 6: messages mid-work.
+
+- **Not yet:** 4, step 6, and 9, *A drain with a grace*: no part is told and a drain carries no grace, waiting for the whole turn [in flight: change 11463].
+- **Not yet:** 8.1, *A results directory*: a check is given no results directory [in flight: change 11455].

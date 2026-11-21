@@ -1,6 +1,6 @@
 # checkouts: status
 
-2026-11-19. Where the tree's code lags or departs from [checkouts.md](checkouts.md).
+2026-11-21. Where the tree's code lags or departs from [checkouts.md](checkouts.md).
 
 
 
@@ -110,3 +110,6 @@ saved start overtaken by a repair remains deferred (`../forge/README.md`, sectio
   says; what a command writes in the worker's directory, a filter driver or a URL
   rewrite, they do not (`../../protocol/git-later.md`, 1). That is acceptable only for one
   trusted person.
+
+- **Not yet:** *A workspace kept for its run*: a cut run's workspace is not marked, kept across a restart or taken up [in flight: change 11457].
+- **Not yet:** *A workspace kept for its run*, *The checks' results directory*: the worker names no results directory in the agent's start [in flight: change 11471].
