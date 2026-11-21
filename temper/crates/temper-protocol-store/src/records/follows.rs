@@ -15,17 +15,11 @@ pub(super) fn decode(row: w::FollowRow, bounds: &Bounds) -> Result<d::FollowRow,
     };
     crate::generated::store::follow_row_to_domain(row, &context).or(Err(Undecodable::Malformed))
 }
-pub fn follow_files_to_record(
-    value: &Box<[Box<[u8]>]>,
-    _context: &super::Context,
-) -> Result<w::FollowFiles, w::Problem> {
+pub fn follow_files_to_record(value: &[Box<[u8]>], _context: &super::Context) -> Result<w::FollowFiles, w::Problem> {
     Ok(w::FollowFiles { files: names::encode_piece(value) })
 }
 
-pub fn follow_files_to_domain(
-    value: w::FollowFiles,
-    context: &super::Context,
-) -> Result<Box<[Box<[u8]>]>, w::Problem> {
+pub fn follow_files_to_domain(value: w::FollowFiles, context: &super::Context) -> Result<Box<[Box<[u8]>]>, w::Problem> {
     let mut limits = w::CEILINGS;
     limits.answer_name_name = context.answer_name_bytes;
     let mut reader = Reader::new(&value.files);

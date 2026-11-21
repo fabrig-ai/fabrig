@@ -592,17 +592,11 @@ pub fn authority_hold_to_domain(
     })
 }
 
-pub fn landing_below_to_record(
-    value: &d::Below,
-    _context: &super::Context,
-) -> Result<w::LandingBelow, w::Problem> {
+pub fn landing_below_to_record(value: &d::Below, _context: &super::Context) -> Result<w::LandingBelow, w::Problem> {
     Ok(encode_below(Some(*value)).expect("present below"))
 }
 
-pub fn landing_below_to_domain(
-    value: w::LandingBelow,
-    _context: &super::Context,
-) -> Result<d::Below, w::Problem> {
+pub fn landing_below_to_domain(value: w::LandingBelow, _context: &super::Context) -> Result<d::Below, w::Problem> {
     Ok(decode_below(Some(value)).expect("present below"))
 }
 

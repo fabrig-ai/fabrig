@@ -498,17 +498,11 @@ pub(super) fn decode_landing_state(landing: w::LandingState) -> Result<d::Landin
     })
 }
 
-pub fn landing_leave_to_record(
-    value: &d::Leave,
-    _context: &super::Context,
-) -> Result<w::LandingLeave, w::Problem> {
+pub fn landing_leave_to_record(value: &d::Leave, _context: &super::Context) -> Result<w::LandingLeave, w::Problem> {
     Ok(encode_leave(*value))
 }
 
-pub fn landing_leave_to_domain(
-    value: w::LandingLeave,
-    _context: &super::Context,
-) -> Result<d::Leave, w::Problem> {
+pub fn landing_leave_to_domain(value: w::LandingLeave, _context: &super::Context) -> Result<d::Leave, w::Problem> {
     Ok(decode_leave(value))
 }
 
@@ -526,16 +520,10 @@ pub fn landing_search_tests_to_domain(
     Ok(decode_search_tests(value))
 }
 
-pub fn landing_state_to_record(
-    value: &d::Landing,
-    _context: &super::Context,
-) -> Result<w::LandingState, w::Problem> {
+pub fn landing_state_to_record(value: &d::Landing, _context: &super::Context) -> Result<w::LandingState, w::Problem> {
     Ok(encode_landing_state(value))
 }
 
-pub fn landing_state_to_domain(
-    value: w::LandingState,
-    _context: &super::Context,
-) -> Result<d::Landing, w::Problem> {
+pub fn landing_state_to_domain(value: w::LandingState, _context: &super::Context) -> Result<d::Landing, w::Problem> {
     decode_landing_state(value).or(Err(w::paths::LANDING_STATE_OWN_HOLD.problem(skein_codec::Reason::Malformed)))
 }
