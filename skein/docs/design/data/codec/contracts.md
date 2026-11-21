@@ -31,9 +31,12 @@ document and its status. The lasting design is [maps.md](maps.md).
   translation and domain types are that crate's.
 - **By-hand modules:** each family's existing module of the records
   crate, `crate::codec::<family>`, re-exporting what it keeps elsewhere.
-- **The records crate's own converters** live in
-  `jig_protocol_store_records::codec::convert`; each change adds its
-  own there.
+- **The records crate's own converters:** the first jig change's live
+  in `jig_protocol_store_records::codec::convert`; each later family's
+  in its own by-hand module, `crate::codec::<family>`, named for what it
+  converts, so that changes running side by side never define a
+  function twice in one module. Two families may each hold one for the
+  same type.
 - **Drift:** `jig/tests/codec-families.rs`'s `Family` row gains the
   family's maps text and its translation module's path, both absent for
   a family without a maps file; `check()` compares and writes the
