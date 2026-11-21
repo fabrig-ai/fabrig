@@ -1,13 +1,10 @@
 # Journeys walked in a world
 
-Provisional, 2026-11-19. A journey printed in one process, with no
-box, browser, terminal, recording or network: `../draft/journey-walks.md`,
-sections 3, 4.1, 5 and 6, with 8.3 for how a journey moves. Every
-journey on main has a `walk` of version 2 and is walked here, the
-browser's and the TUI's alike. A directory without one is still a
-recording, replayed and walked again as `web/journeys.md` and
-`tui/journeys.md` have it, and the writer takes either engine
-(`journey-writer.md`, 3) until the old engine goes (section 8).
+Provisional, 2026-11-21. A journey printed in one process, with no
+box, browser, terminal, recording or network. Every journey on main
+has a `walk` of version 2 and is walked here, the browser's and the
+TUI's alike. The writer prints them with `temper-client-walk pages`
+(`journey-writer.md`, 3); a request's landing prints them into scratch.
 
 ## 1. In one page
 
@@ -40,21 +37,16 @@ recording, replayed and walked again as `web/journeys.md` and
   [NAME]...` prints into scratch, laid out as the tree with its
   stylesheets, and `temper-client-walk pages` writes main's pages, for
   the writer alone, both roots' journeys.
-- **A journey moves** (section 6) in a change that gives it a `walk` of
-  version 2 and takes its `setup` out; the writer's next run prints it
-  in the world and removes its `recording`. `welcome-playground` moved
-  first, `welcome-set-up` second, `project-landing` third, and
-  `sign-in-approved` is the TUI's first; `chat-draft` returns as a walk
-  after `project-landing`, with its scripts; and the TUI's
-  `launchpad-chat`, `launchpad-drawn` and `design-session` follow, each
-  after `project-landing` with its own scripts, so that every journey
-  on main is a walk.
+- **The journeys' walks** (section 6): the welcome, the owned forge and
+  model's sign-in, a project landed, the browser's chat and draft, and
+  the TUI's approval, chats and design session. Each journey's sources
+  say what it walks; only the writer writes its pages.
 
 ## 2. The walk
 
 ### 2.1 Its directory
 
-A moved journey is a directory under `web/journeys/` or
+A journey is a directory under `web/journeys/` or
 `tui/journeys/` whose `walk`'s first line is exactly `walk 2`, with:
 
 - **`walk`:** 2.2's text, and **`README.md`:** what it walks and what
@@ -64,8 +56,8 @@ A moved journey is a directory under `web/journeys/` or
 - **Its pages,** `01.html` onwards, with `01.txt` beside each for a TUI
   journey, and the files beside the root: the writer's alone
   (`journey-writer.md`, 2).
-- **No `setup`.** A `recording` left from before it moved is the
-  writer's to remove (section 6).
+- **No recording is a source.** A leftover `recording` is the writer's
+  to remove once the journey prints (`journey-writer.md`, 2).
 
 A journey belongs to the client whose root holds it and prints that
 client's pages; its walk may act in the other client too, as a TUI's
@@ -73,7 +65,7 @@ sign-in is approved in the browser (`../draft/journey-walks.md`, 3.1).
 
 ### 2.2 Its lines
 
-Text, one line each, in the drive session's form (`drive.md`, 3.1):
+Text, one line each, in the drive session's form (`drive.md`, 2):
 
 | Line | What it is |
 |---|---|
@@ -94,18 +86,23 @@ Text, one line each, in the drive session's form (`drive.md`, 3.1):
   the walk, naming the journey and the line, whether it is the walked
   journey or an ancestor.
 - **`web mark`, `tui mark` and `tui approve` are a journey's lines
-  alone:** a recipe refuses each as it reads it (`recipe.md`, 3), and
-  the drive session answers each `failed: line N: tui approve is a
-  journey's line`, with its own words, keeps none and starts no TUI for
-  it (`drive.md`, 3.3 and 3.7). A recipe's walk signs its TUI in as the
-  session always has (`drive.md`, 3.3).
+  alone:** a recipe refuses each as it reads it (`recipe.md`, 3).
+  Outside a journey's session, the drive session refuses `tui mark`
+  and `tui approve` as journey lines, keeps neither and starts no TUI
+  for them (`drive.md`, 3.3). In a session started with `--journey`,
+  marks answer looks without being kept and `tui approve` approves
+  what the TUI browsed. `temper-client-journeys journey walk NAME`
+  walks the chain in one such session on a box (`drive.md`, 2). A
+  recipe's walk signs its TUI in as an ordinary session does
+  (`drive.md`, 3.3).
 - **A line's number** is its line in its file, from 1, `walk 2` the
   first.
 
 ### 2.3 `after`
 
-- **`after NAME`** names a moved journey under either root. Its lines
-  run first, its own `after` before them, and its marks print nothing.
+- **`after NAME`** names a journey under either root whose `walk` is
+  of version 2. Its lines run first, its own `after` before them, and
+  its marks print nothing.
 - **Its chain** is the journey and at most eight ancestors, root first,
   refused as a recipe's is (`recipe.md`, 3.2): a ninth ancestor, a
   cycle and a missing journey each refused, naming the journey whose
@@ -148,11 +145,11 @@ Text, one line each, in the drive session's form (`drive.md`, 3.1):
 
 `temper/crates/temper-client-walk-lines`, the `harness` profile, out
 of `temper-client-journeys-tool`, whose drive session, recipes and
-reprint read through it. It names no `skein-browser`,
+recorded-file printer read through it. It names no `skein-browser`,
 `skein-fake-person-browser` or box crate.
 
 - **`line`:** the drive session's lines, `Line`, `Record` and the rest,
-  moved as they are, with `Web::Mark`, `Tui::Mark` and `Tui::Approve`.
+  with `Web::Mark`, `Tui::Mark` and `Tui::Approve`.
 - **`walk`:** a walk's reader (2.2, 2.3):
 
   ```rust
@@ -166,21 +163,22 @@ reprint read through it. It names no `skein-browser`,
   pub fn moved(directory: &Path) -> std::io::Result<bool>;
   ```
 
-  `moved` is true where `directory/walk` exists and its first line is
-  exactly `walk 2`, false where there is no `walk` or its first line is
-  another; the writer's engines part on it (section 6). `lines` hold
+  `moved` is the header predicate: true where `directory/walk` exists
+  and its first line is exactly `walk 2`, false otherwise. The program
+  uses it to select journey directories and validate a named journey
+  (section 5). `lines` hold
   every line after the header and the `after`, empty ones left out.
   `client` is the root the journey was read from, the browser's looked
   at first, as `read` looks up a name. `Unreadable`'s `line` is 0 for
   the file as a whole.
 - **`print`:** the browser's pages (`web/journeys.md`, 5.2 and 5.3),
-  `Mark`, `Printed`, `pages`, `beside` and `SCRIPT`, moved, with
+  `Mark`, `Printed`, `pages`, `beside` and `SCRIPT`, with
   `pub fn heading(tree: &skein_ui::Tree) -> Vec<u8>`, the main region's
   level-1 heading, and `pub const STYLESHEETS: [&str; 4]`, the
   stylesheets a page links, relative to its journey's directory, which
   `pages` writes from.
 - **`tui_print`:** the TUI's pages (`tui/journeys.md`, 6), `pages`,
-  `beside`, `stylesheet` and `SCRIPT`, moved. A page links `../theme.css`,
+  `beside`, `stylesheet` and `SCRIPT`. A page links `../theme.css`,
   `../overlay.css` and `../tui-journey.js`, the files `beside` writes or
   keeps.
 
@@ -629,10 +627,10 @@ is built from, as `temper-client-journeys` does, under both roots.
 
 `temper-client-walk print [--out DIR] [NAME]...`:
 
-- **Which:** each NAME, in the order given, or every moved journey, the
+- **Which:** each NAME, in the order given, or every journey, the
   browser's root's in name order, then the TUI's. A NAME is looked up
   as `walk::read` looks it up, the browser's root first; a NAME that is
-  not a moved journey is its usage.
+  not a directory with a version-2 `walk` is its usage.
 - **Where:** DIR, made where missing; with no `--out`, a new directory
   under the platform's temporary directory, `temper-client-walk-`
   then a suffix of its own. A DIR inside either journeys root of the
@@ -653,7 +651,7 @@ is built from, as `temper-client-journeys` does, under both roots.
 
 `temper-client-walk pages`, the writer's (`journey-writer.md`, 4):
 
-- **Each moved journey** of both roots, the browser's first, each in
+- **Each journey** of both roots, the browser's first, each in
   name order, walked.
 - **Printed in place:** a walk that reached its last line writes its
   journey's pages, a file only where its bytes differ, removes a
@@ -662,8 +660,8 @@ is built from, as `temper-client-journeys` does, under both roots.
   `tui_print::beside` write go only where they differ; an `overlay.css`
   is made empty where missing and never written otherwise.
 - **A walk that stops** leaves every file of its journey as it was.
-- **It writes nothing else:** its other directories are the journeys
-  tool's (`journey-writer.md`, 3).
+- **A directory with no `walk` loses its numbered pages,** keeping its
+  other files. Nothing else is written (`journey-writer.md`, 2).
 
 ### 5.3 Its lines and exit
 
@@ -675,94 +673,77 @@ is built from, as `temper-client-journeys` does, under both roots.
   others are printed; 2, its usage; 3, the print could not finish, a
   root unreadable or DIR unwritable, the pages as it left them.
 
-## 6. A journey moves
+## 6. The journeys' walks
 
-- **Its change** gives it a `walk` of version 2 and a `README.md` saying
-  what the world draws, and takes its `setup` out where it has one. It
-  prints the journey into scratch, `temper-client-walk print NAME`, and
-  checks the pages against its README. It commits no page and removes
-  no `recording`: the delivery check keeps every change but the
-  writer's off them (`journey-writer.md`, 5).
-- **The writer** prints it in the world from that landing on, with
-  `temper-client-walk pages`, which removes its `recording`; the
-  journeys tool passes a moved journey by (`journey-writer.md`, 3).
-- **A request** for a moved journey is compared by a print into
-  scratch, `temper-client-walk print --out DIR NAME`, DIR's pages
-  against the request's commit's, equal where their facts agree
+- **Sources and pages:** each journey has a `walk` of version 2 and a
+  `README.md` saying what the world draws, with `scripts.json` where
+  it needs the fake model's turns. A change edits those sources as a
+  test, committing no page or recording (`journey-writer.md`, 5). The
+  writer prints the pages after landing, removing leftover recordings
+  and surplus pages once the walk completes.
+- **A request** is compared by a print of every journey into scratch,
+  `temper-client-walk print --out DIR`, DIR's pages against the
+  request's commit's, equal where their facts agree
   (`web/look-requests.md`, 3).
-- **`welcome-playground` moved first:** its `walk`, the welcome seen and
-  marked, "Try the playground" pressed, the playground's New chat seen
-  and marked. It had no `setup` on main: its walk was its recording's.
-- **`sign-in-approved` is the TUI's first:** its `walk` the draft's
-  (`../draft/journey-walks.md`, 3.2), the approval's frame seen by
-  "then press Approve." and marked, `tui approve`, the launchpad seen by
-  "Setting temper up makes your first project" and marked: two pages,
-  on the playground's service rather than a box. It has no `setup`; its
-  `walk` of version 1 is replaced.
-- **`welcome-set-up` moves second,** on the box's peer (4.4): its `walk`,
-  the welcome seen and marked; "Set up temper" pressed, the Forge step's
-  choices seen and marked; Forgejo's "Run on this machine" pressed, its
-  sheet seen, an empty repository chosen as it defaults, `work/hello`,
-  and marked; the sheet's "Run on this machine" pressed; then the Model
-  step marked at each of the box's steps as the peer reports it,
-  fetching at its first figure, preparing and starting; and marked once
-  its pane says the forge is connected as temper and `work/hello` made.
-  Seven pages, as before. Its `setup` goes; its `recording` is the
-  writer's to remove.
-- **`project-landing` moves third,** on the forge at `FORGE`, the box's
-  peer and a sign-in's tab (4.1, 4.4 and 4.5): its `walk` the draft's
-  (`../draft/journey-walks.md`, 3.2), Forgejo run on this machine with
+- **`welcome-playground`:** the welcome seen and marked, "Try the
+  playground" pressed, the playground's New chat seen and marked.
+  Two pages.
+- **`sign-in-approved`:** the TUI's approval frame seen by "then press
+  Approve." and marked, `tui approve`, the launchpad seen by "Setting
+  temper up makes your first project" and marked: two pages, on the
+  playground's service.
+- **`welcome-set-up`,** on the box's peer (4.4): the welcome seen and
+  marked; "Set up temper" pressed, the Forge step's choices seen and
+  marked; Forgejo's "Run on this machine" pressed, its sheet seen,
+  an empty repository chosen as it defaults, `work/hello`, and marked;
+  the sheet's "Run on this machine" pressed; then the Model step marked
+  at each of the box's steps as the peer reports it, fetching at its
+  first figure, preparing and starting; and marked once its pane says
+  the forge is connected as temper and `work/hello` made. Seven pages.
+- **`project-landing`,** on the forge at `FORGE`, the box's peer and a
+  sign-in's tab (4.1, 4.4 and 4.5): Forgejo run on this machine with
   its sample `work/hello`, "Continue with ChatGPT" pressed and its tab
   carried to the issuer and back, "Create your project" pressed once
   Ready offers it, Home's "work/hello is in Hello" seen, `/projects/1`
-  reloaded, and Home marked once it says "Hello is ready.", the words a
-  fresh project's Home draws while To begin shows, where the draft's
-  sample waits for "Nothing needs you.", which that Home does not draw.
-  One page, as before. Its `setup` goes, and its `recording` is the
-  writer's to remove.
-- **`chat-draft` returns** as a walk, `after project-landing`, with its
-  `scripts.json`, by its renewed walk (`web/journeys.md`, 9): eight
-  pages, a chat through its draft to a goal and back. Its scripts are
-  the fake model's turns for its chat, its draft's two revisions and its
-  goal's report, made from the box's own
+  reloaded, and Home marked once it says "Hello is ready.", the words
+  a fresh project's Home draws while To begin shows. One page.
+- **`chat-draft`,** `after project-landing`, with its `scripts.json`:
+  eight pages, a chat through its draft to a goal and back. Its scripts
+  are the fake model's turns for its chat, its draft's two revisions
+  and its goal's report, made from the box's own
   (`temper_fake::backends::model_document`) with the world's task and
   note numbers; its goal starts in the world on the bounds a box holds
   (4.1).
-- **The TUI's longer journeys** move after `project-landing`, each with
-  its `scripts.json`, made from the box's own
+- **The TUI's longer journeys** are each `after project-landing`, with
+  their own `scripts.json`, made from the box's own
   (`temper_fake::backends::model_document`) with the world's task and
-  note numbers. A version-2 walk prints exactly its marks, and a mark's
-  key links its page to the next (2.4), so each requested state prints
-  once: a frame the recording held only as the one before a key that
-  acts, or at its end, is now the mark's link. Each `setup` goes; each
-  `recording` is the writer's to remove.
+  note numbers. Each walk prints exactly its marks, and a mark's key
+  links its page to the next (2.4).
   - **`launchpad-chat`:** the approval walked by `tui approve`; Hello's
     launchpad seen by "Ask temper" and marked; `/` typed, the commands
     seen and marked, Escape its key; "What can you tell me about
     Hello?" typed and marked, Enter its key; the Ask temper chat seen by
     its scripted answer, "Hello from the local fake model.", and marked.
-    Four pages, as before. Its scripts are that answer alone, cued by
-    the question, where a box gave it as its model's fallback.
+    Four pages. Its scripts are that answer alone, cued by the question.
   - **`launchpad-drawn`:** `/change Add a CSV export to the report`
     typed and marked, Enter its key; the chat's reply seen, `/new` typed
     and marked, Enter its key; the launchpad with the chat's question
     under Needs you seen and marked, `n` its key; the walk's prompt seen
     and marked, Enter, taking Comma, its key; the launchpad marked once
-    it says "Nothing else needs you.". Five pages, where the recording
-    had seven. Its scripts are the chat's reply starting a goal, and
-    that goal's question to the chat, its wait and its finish once
-    answered.
+    it says "Nothing else needs you.". Five pages. Its scripts are the
+    chat's reply starting a goal, and that goal's question to the chat,
+    its wait and its finish once answered.
   - **`design-session`:** Hello's launchpad marked; `/draft Plan a
     farewell line for hello.` typed and marked, Enter its key; the
     session marked at half, at all and folded, each linked by Ctrl-P
-    (`tui/pages/design-session.md`, 1); half again with "1" typed and
-    marked, Enter its key; the reply saying nothing blocks the work
-    marked; `/goal` typed and marked, Enter its key; its ways' prompt
-    marked, Enter, taking Task by task, its key; the returned chat
-    marked with its goal linked, once `/goal`, typed and cleared, is no
-    longer offered. Ten pages, where the recording had fifteen. Its
-    scripts are the drafter's turns, cued by the opening words and by
-    the answer, and the started goal's report and finish.
+    (`tui/pages/design-session.md`, 1); half with "1" typed and marked,
+    Enter its key; the reply saying nothing blocks the work marked;
+    `/goal` typed and marked, Enter its key; its ways' prompt marked,
+    Enter, taking Task by task, its key; the returned chat marked with
+    its goal linked, once `/goal`, typed and cleared, is no longer
+    offered. Ten pages. Its scripts are the drafter's turns, cued by the
+    opening words and by the answer, and the started goal's report and
+    finish.
 
 ## 7. Its tests
 
@@ -780,9 +761,14 @@ its own process.
   the printers' tests as they were.
 - **The drive session and the recipes,** in the journeys tool's own
   tests: `web mark`, `tui mark` and `tui approve` refused in a recipe,
-  naming its line; the drive session answering `tui mark` and `tui
-  approve` as a journey's lines, keeping neither and starting no TUI;
-  a recipe's walk signing its TUI in as before.
+  naming its line; outside a journey's session, the drive session
+  refusing `tui mark` and `tui approve`, keeping neither and starting
+  no TUI; a recipe's walk signing its TUI in. A journey's session
+  starts without an implied root load or TUI approval; marks answer
+  looks without being kept, and `tui approve` signs the TUI in.
+  `journey walk NAME` walks a chain root first in one session, with
+  its scripts, without ancestors' marks or added resets; its first
+  failure names the journey and file line, and stops it.
 - **The driver,** simulated, beside the playground's stories: a control
   that appears late found within its bound; one that never does
   `Failed::Bound` at the bound's end in the world's time; a reload that
@@ -841,7 +827,7 @@ its own process.
   and a `/draft` session at half, all, folded and half again, each of
   the first three marks linked by Ctrl-P. Each printed twice, the same
   bytes.
-- **Each moved journey's scripts read:** every moved journey of the
+- **Each journey's scripts read:** every journey of the
   checkout read by `walk::read`, its chain's scripts joined as the
   walker joins them, with no world started: its sources read, never a
   page of main's or a walk of it.
@@ -856,7 +842,7 @@ its own process.
   directory with its stylesheets at their paths; fewer marks leaving
   fewer files; `pages` on a tree whose pages are current writing
   nothing, and with one word of a page changed by hand writing that
-  page alone; a directory with no `walk` of version 2 left as it was.
+  page alone; a directory without a version-2 `walk` left as it was.
   For the TUI: a TUI journey walked and printed, `NN.txt` and `NN.html`
   in DIR's TUI root with `theme.css`, `tui-journey.js` and the
   overlay; a mark's key linking, and a typed key or a `tui approve`
@@ -866,26 +852,29 @@ its own process.
 - **The binary's dependencies:** `fabrig-boundary` holds that
   `temper-client-walk`'s normal dependencies name no `skein-browser`,
   `skein-fake-person-browser` or `temper-client-journeys-tool`.
-- **The writer's second engine,** in the journeys tool's suite
+- **The writer's run,** in the journeys tool's suite
   (`journey-writer.md`, 7).
 - **No test walks main's journeys** or compares a page of main's
   (`../draft/journey-walks.md`, 10). Each test sits in its layer within
   that layer's budget as it stands; the cost of a journey's walk in a
-  world is measured as the program first prints one of a client, and
-  kept in `../../development/limits-worlds.md`, with each journey's that
-  moves after it.
+  world is kept in `../../development/limits-worlds.md`.
 
 ## 8. Later
 
-- **The drive session taking a journey's lines** on a box, `tui
-  approve` and the marks among them, a mark there a look
-  (`../draft/journey-walks.md`, 4.2).
 - **A forge's departures** carried by the world's tab as a model's
   sign-in is, once a journey walks GitHub's App or install
   (`../draft/sign-in-new-tab.md`, 6).
 - **The playground's group answered** as the box answers it, once the
   composition no longer lays that group's handover before its start
   (4.4).
-- **The old engine goes** with the last journey that moves: `again`,
-  the `setup` reader and the version 1 `walk`
-  (`../draft/journey-walks.md`, 8.1).
+- **A journey after a recipe,** so that a start QA already keeps need
+  not be walked through the client too (`recipe.md`, 3.2).
+- **The gallery's states as walks,** once a world reaches them, their
+  answers then the engine's own (`web/gallery.md`).
+- **A recorded file printed across layouts,** by the plans of
+  `../draft/layouts-both-ways.md`, 4, so that printing a person's
+  recording needs no build of the deployment's commit.
+- **The box's `mark` compared with the world's page,** by their
+  accessible text, as a check that a world draws what a box does.
+- **The writer's future** is `journey-writer.md`, 8: temper running it,
+  and the playground's `story-a.log` made by a test rather than kept.
