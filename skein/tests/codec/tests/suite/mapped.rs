@@ -77,6 +77,12 @@ fn mapped_values_round_trip_through_records_and_wire() {
         let bytes = d::encode(&value, &context).expect("owner root encode");
         assert_eq!(d::decode(&bytes, &context), Ok(value));
     }
+    for value in [d::LongChoice::Slot00, d::LongChoice::Slot98] {
+        let record = maps::long_choice_to_record(&value, &context).expect("long enum to record");
+        let bytes = record.encode(&r::CEILINGS).expect("long enum encode");
+        let decoded = r::LongChoice::decode(&r::CEILINGS, &mut Reader::new(&bytes)).expect("long enum decode");
+        assert_eq!(maps::long_choice_to_domain(decoded, &context), Ok(value));
+    }
 }
 
 #[test]
