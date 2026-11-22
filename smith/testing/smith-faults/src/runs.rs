@@ -89,6 +89,12 @@ impl Runs {
         for retry in &self.retries {
             let struck = Struck { account: Some(retry.account.clone()), ..Struck::default() };
             for injection in ledger.striking(retry.at, &struck) {
+                // A window strike installs the account policy; only a refused
+                // call's interval says that a retry is premature.
+                let fault = ledger.get(injection);
+                if fault.kind == RATE_WINDOW && fault.struck.request.is_none() {
+                    continue;
+                }
                 ledger.count(injection, retry.by.counter());
                 let count = per_call.entry((injection, &retry.call)).or_insert(0_u64);
                 *count = count.checked_add(1).expect("a world's retries fit u64");
@@ -120,7 +126,16 @@ impl Runs {
                     .max_by_key(|fault| fault.from);
                 if let Some(fault) = latest
                     && let Some(row) = row(fault.kind)
-                    && !row.ends.contains(&ended)
+                    && (!row.ends.contains(&ended)
+                        || (fault.kind == RATE_WINDOW
+                            && ended == Ended::Limited
+                            && !ledger.entries().iter().any(|refusal| {
+                                refusal.kind == RATE_WINDOW
+                                    && refusal.struck.account.as_deref() == Some(run.account.as_str())
+                                    && refusal.struck.request.is_some()
+                                    && refusal.from <= until
+                                    && refusal.until.is_some_and(|reset| reset > until)
+                            })))
                 {
                     findings.push(finding(fault, &format!("run {:?}: end {ended:?} is not allowed", run.name)));
                 }

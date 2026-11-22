@@ -71,6 +71,57 @@ fn each_fault_row_limits_retries() {
 }
 
 #[test]
+fn an_ongoing_window_strike_allows_a_retry_after_its_refusal_resets() {
+    let mut ledger = FaultLedger::new();
+    let strike = ledger.inject(
+        RATE_WINDOW,
+        time(1),
+        skein_world::faults::Struck { account: Some("a".into()), ..Default::default() },
+    );
+    let refusal = inject(&mut ledger, RATE_WINDOW, 10, Some(20), "a");
+    let mut runs = Runs::new();
+    runs.started(time(5), "run 1", "a");
+    runs.retried(time(21), "a", "run 1 call 2", Retried::Session);
+    runs.ended(time(30), "run 1", "a", Ended::Completed);
+    runs.judge(&mut ledger).expect("retry after reset, despite ongoing strike");
+    assert_eq!(ledger.get(strike).count(Counter::SessionRetries), 0);
+    assert_eq!(ledger.get(refusal).count(Counter::SessionRetries), 0);
+}
+
+#[test]
+fn an_ongoing_window_strike_finds_a_retry_before_its_refusal_resets() {
+    let mut ledger = FaultLedger::new();
+    ledger.inject(
+        RATE_WINDOW,
+        time(1),
+        skein_world::faults::Struck { account: Some("a".into()), ..Default::default() },
+    );
+    let refusal = inject(&mut ledger, RATE_WINDOW, 10, Some(20), "a");
+    let mut runs = Runs::new();
+    runs.retried(time(15), "a", "run 1 call 2", Retried::Session);
+    let finding = runs.judge(&mut ledger).expect_err("retry inside refusal");
+    assert!(finding.contains("call \"run 1 call 2\": retry 1 is not allowed"), "{finding}");
+    assert_eq!(ledger.get(refusal).count(Counter::SessionRetries), 1);
+}
+
+#[test]
+fn a_rate_limited_end_requires_a_refusal_reset_after_the_run() {
+    for (end, passes) in [(19, true), (20, false), (21, false)] {
+        let mut ledger = FaultLedger::new();
+        ledger.inject(
+            RATE_WINDOW,
+            time(1),
+            skein_world::faults::Struck { account: Some("a".into()), ..Default::default() },
+        );
+        inject(&mut ledger, RATE_WINDOW, 10, Some(20), "a");
+        let mut runs = Runs::new();
+        runs.started(time(5), "run 1", "a");
+        runs.ended(time(end), "run 1", "a", Ended::Limited);
+        assert_eq!(runs.judge(&mut ledger).is_ok(), passes, "run end {end}");
+    }
+}
+
+#[test]
 fn expired_sign_in_allows_one_retry_per_call_and_per_injection() {
     let mut ledger = FaultLedger::new();
     inject(&mut ledger, EXPIRED_SIGN_IN, 10, Some(20), "a");
@@ -91,7 +142,7 @@ fn expired_sign_in_allows_one_retry_per_call_and_per_injection() {
 #[test]
 fn each_fault_row_limits_run_ends() {
     for (kind, allowed) in [
-        (RATE_WINDOW, &[Ended::Completed, Ended::Limited][..]),
+        (RATE_WINDOW, &[Ended::Completed][..]),
         (SPENT_CREDITS, &[Ended::Limited][..]),
         (EXPIRED_SIGN_IN, &[Ended::Completed, Ended::Unauthorized][..]),
         (UNSERVED_MODEL, &[Ended::Refused][..]),

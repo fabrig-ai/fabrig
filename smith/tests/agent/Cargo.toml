@@ -8,6 +8,10 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+smith-faults.workspace = true
+smith-events.workspace = true
+smith-protocol-events.workspace = true
+smith-protocol-events-fixtures.workspace = true
 smith-domain-tools-fixtures.workspace = true
 smith-domain-session-fixtures.workspace = true
 smith-domain-run-fixtures.workspace = true

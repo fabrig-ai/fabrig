@@ -19,6 +19,8 @@
 
 pub mod backend;
 
+mod faults;
+
 pub mod fixture;
 
 pub mod host_referee;

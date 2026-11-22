@@ -62,6 +62,8 @@ struct Socket {
 
 /// One production component owns calls and connection reuse; the fixture owns only byte delivery.
 pub struct Protocol {
+    pub(crate) faults: crate::faults::Faults,
+    call_names: BTreeMap<Token, String>,
     component: Component,
     env: Env<ComponentLimits>,
     above: Queue<ToDomain>,
@@ -160,6 +162,8 @@ impl Protocol {
             .expect("fixture grant");
         let config = fake::Config { calls: 256, cache_entries: 256, accounts: 1, ..skein_llm_kit::fake::config() };
         Self {
+            faults: crate::faults::Faults::default(),
+            call_names: BTreeMap::new(),
             component,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             above: Queue::uncapped(),
@@ -192,8 +196,24 @@ impl Protocol {
         strike: fake::api::Strike,
         now: Time,
     ) -> Result<(), fake::api::Error> {
-        self.provider.strike(credential, strike, now)
+        self.provider.strike(credential, strike.clone(), now)?;
+        self.faults.strike(credential, strike, now);
+        Ok(())
     }
+    pub(crate) fn renew(&mut self, generation: u64, until: Time) {
+        let credential = self.credentials.first().expect("one fixture account");
+        let renewed = match credential.scheme {
+            skein_llm::Scheme::Bearer => skein_llm::Credential::bearer(credential.value.clone()),
+            skein_llm::Scheme::Key => panic!("the host never renews a key"),
+        };
+        self.component.grant(GrantName { account: 0, generation }, renewed, until).expect("fixture renewal");
+    }
+
+    pub(crate) fn clear(&mut self, credential: u32, strike: &fake::api::Strike, now: Time) {
+        self.provider.clear(credential, strike);
+        self.faults.clear(credential, strike, now);
+    }
+
     fn at(&mut self, now: Time, wall: Wall) {
         self.env.now = now;
         self.env.wall = wall;
@@ -355,7 +375,7 @@ impl Protocol {
             incoming.extend(event);
             while let Some(event) = socket.up.pop() {
                 if let provider::Event::Domain(event) = event {
-                    if let fake::Event::Call { query, .. } = &event {
+                    if let fake::Event::Call { query, call: token, .. } = &event {
                         let position = self
                             .pending
                             .iter()
@@ -365,6 +385,12 @@ impl Protocol {
                         let call = &mut self.calls[index];
                         call.request = core::mem::take(&mut socket.request);
                         call.received_at = Some(self.env.now);
+                        let name = self
+                            .call_names
+                            .get(&call.owner)
+                            .cloned()
+                            .unwrap_or_else(|| format!("request {}", call.owner.raw()));
+                        self.faults.call(*token, query.credential, name);
                         let seen = match crate::referee::NativeRequest::from_http(&call.request) {
                             Ok(request) => crate::referee::Seen::Request { owner: call.owner, request },
                             Err(finding) => crate::referee::Seen::RequestFinding(finding),
@@ -385,6 +411,12 @@ impl Protocol {
 }
 
 impl Backend for Protocol {
+    fn renewable(&self) -> bool {
+        self.credentials.first().is_some_and(|credential| credential.scheme == skein_llm::Scheme::Bearer)
+    }
+    fn name_call(&mut self, owner: Token, name: &str) {
+        self.call_names.insert(owner, name.into());
+    }
     fn contract(&mut self, outcome: run::outcome::OutcomeSpec, deliver: Option<run::outcome::ChangeSpec>) {
         self.contract = Some(outcome);
         self.deliver = deliver;
@@ -460,6 +492,7 @@ impl Backend for Protocol {
             fake::fire(&mut self.provider, &self.provider_env, &mut self.replies);
         }
         while let Some(reply) = self.replies.pop() {
+            let reply = self.faults.report(now, reply);
             let reply = match reply {
                 reply @ fake::Request::Hold { call, .. } => {
                     self.held.insert(call);

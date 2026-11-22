@@ -1,9 +1,9 @@
 //! Open provider failures at the real client/session boundary.
 //! Contract: temper/docs/design/draft/failure-worlds.md, sections 3.3 and 7.
-use skein_fake_llm_domain::api::{Cut, Line, Script, Strike};
+use skein_fake_llm_domain::api::{Cut, Line, Strike};
 use skein_lib::Duration;
 use smith_domain::{llm, run, tools};
-use smith_protocol_llm_world::{Boundary, Job, World, fixture};
+use smith_protocol_llm_world::{Boundary, World, fixture};
 
 const ROUNDS: u32 = 100_000;
 const READING: &[u8] = b"reading the complete reply";
@@ -19,23 +19,39 @@ fn finish() -> skein_fake_llm_domain::api::Turn {
 }
 
 fn world(configuration: fixture::Configuration, turns: Box<[skein_fake_llm_domain::api::Turn]>) -> World {
-    let mut settings = fixture::settings(127);
-    settings.job = Job::Reporting;
-    let mut limits = fixture::limits();
-    limits.client.request = 16_384;
-    limits.client.http.request = 16_384;
-    let receiving = smith_protocol_llm_fixtures::receiving(&limits.client, settings.limits.decoded_call_bytes)
-        .expect("provider receiving bounds");
-    settings.limits.session.completion_bytes = receiving.max_completion_bytes;
-    settings.limits.session.completion_blocks = receiving.max_completion_blocks;
-    settings.limits.session.failure_bytes = receiving.max_failure_bytes;
-    World::with_protocol(
-        settings,
-        None,
-        configuration,
-        limits,
-        Box::new([Script { cue: b"@report".as_slice().into(), turns }]),
-    )
+    fixture::provider_fault_world(127, configuration, turns)
+}
+
+#[test]
+fn a_key_sign_out_ends_without_retry() {
+    let mut world = world(fixture::Dialect::Anthropic.configuration(), Box::new([finish()]));
+    world.record_fault_runs("run 1", "a");
+    world.strike(0, Strike::SignedOut).expect("account fits");
+    world.run(ROUNDS);
+    world.judge_faults().expect("a key cannot refresh");
+    assert_eq!(world.protocol_calls().len(), 1);
+    assert_eq!(world.unauthorized().len(), 1);
+    assert_eq!(smith_faults::ended(world.answer()), smith_faults::Ended::Unauthorized);
+}
+
+#[test]
+fn a_bearer_sign_out_retries_after_the_host_renews() {
+    let mut world = world(fixture::Dialect::OpenAi.configuration(), Box::new([finish()]));
+    world.record_fault_runs("run 1", "a");
+    world.strike(0, Strike::SignedOut).expect("account fits");
+    for _ in 0..ROUNDS {
+        if !world.unauthorized().is_empty() {
+            break;
+        }
+        assert!(!world.drive(1), "the bearer awaits renewal");
+    }
+    assert_eq!(world.unauthorized().len(), 1);
+    world.renew_sign_in(2);
+    world.run(ROUNDS);
+    world.judge_faults().expect("one retry on the new bearer");
+    assert_eq!(world.protocol_calls().len(), 2);
+    assert!(matches!(world.answer(), run::Answer::Accepted { .. }));
+    assert!(world.fault_ledger().entries()[0].until.is_some(), "the sign-out ends with the renewal");
 }
 
 #[test]

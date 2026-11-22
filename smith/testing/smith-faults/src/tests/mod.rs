@@ -13,7 +13,15 @@ fn time(seconds: u64) -> Time {
 }
 
 fn inject(ledger: &mut FaultLedger, kind: Kind, from: u64, until: Option<u64>, account: &str) -> Injection {
-    let injection = ledger.inject(kind, time(from), Struck { account: Some(account.into()), ..Struck::default() });
+    let injection = ledger.inject(
+        kind,
+        time(from),
+        Struck {
+            account: Some(account.into()),
+            request: (kind == skein_llm_kit::faults::RATE_WINDOW).then(|| "run 1 call 2".into()),
+            ..Struck::default()
+        },
+    );
     if let Some(until) = until {
         ledger.stop(injection, time(until)).expect("test interval is ordered and stopped once");
     }

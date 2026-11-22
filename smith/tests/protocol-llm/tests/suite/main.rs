@@ -32,5 +32,6 @@ mod workspace;
 mod world_fakes;
 
 mod fuzzy {
+    mod faults;
     mod pool;
 }

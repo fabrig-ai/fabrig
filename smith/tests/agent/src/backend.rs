@@ -8,6 +8,12 @@ use smith_domain::{Event, Request, llm, run, tools};
 /// A provider face under the shared agent loop (skein/docs/foundation/testing-strategy.md, section 2).
 /// Implementations own lower progression and return only boundary observations.
 pub trait Backend: core::fmt::Debug {
+    /// Whether this fixture's credential can be renewed by its host.
+    fn renewable(&self) -> bool {
+        true
+    }
+    /// The event stream's logical name for a completion across its attempts.
+    fn name_call(&mut self, _owner: Token, _name: &str) {}
     /// Retain the host's result rules, used only after the root admits its Start.
     fn contract(&mut self, _outcome: run::outcome::OutcomeSpec, _deliver: Option<run::outcome::ChangeSpec>) {}
     /// Admit the root's complete request without reconstructing its contract.

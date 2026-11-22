@@ -24,6 +24,32 @@ pub fn settings(seed: u64) -> smith_agent_world::Settings {
     }
 }
 
+/// A finite reporting run through the direct backend, with its receiving bounds aligned.
+#[must_use]
+pub fn provider_fault_world(
+    seed: u64,
+    configuration: Configuration,
+    turns: Box<[skein_fake_llm_domain::api::Turn]>,
+) -> crate::World {
+    let mut settings = settings(seed);
+    settings.job = smith_agent_world::Job::Reporting;
+    let mut limits = limits();
+    limits.client.request = 16_384;
+    limits.client.http.request = 16_384;
+    let receiving = smith_protocol_llm_fixtures::receiving(&limits.client, settings.limits.decoded_call_bytes)
+        .expect("provider receiving bounds");
+    settings.limits.session.completion_bytes = receiving.max_completion_bytes;
+    settings.limits.session.completion_blocks = receiving.max_completion_blocks;
+    settings.limits.session.failure_bytes = receiving.max_failure_bytes;
+    crate::World::with_protocol(
+        settings,
+        None,
+        configuration,
+        limits,
+        Box::new([skein_fake_llm_domain::api::Script { cue: b"@report".as_slice().into(), turns }]),
+    )
+}
+
 /// Caller-supplied endpoint and credential data for the wire fixture.
 /// Caller owns this finite configuration; admission and terminals belong to Wire.
 #[expect(missing_debug_implementations, reason = "fixture owns caller credential bytes")]
