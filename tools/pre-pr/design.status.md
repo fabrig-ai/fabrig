@@ -1,15 +1,6 @@
 # design: status
 
-2026-11-21. Where `.temper/pre-pr`'s code lags or departs from [design.md](design.md).
-
-- **Not yet:** 1 and 4: the check's one-process runs take every layer, the real loop and end to end included, and build their binaries, since one-process doesn't yet leave them out (`tools/tiers/layers.md`, 9.1) [in flight: change 11541].
-- **Not yet:** 1, 4: the check runs no check 7: a delivery that raises a figure of `tools/tiers/budgets.toml` or adds a reason's line passes [in flight: change 8161].
-- **Not yet:** 1, 2, 3, *Changed paths*, and 9.2: the selection reads the whole base-to-tree diff, merged tips' entries included, so a merge repair selects every package the merge brought in, and no line names the merged tips [in flight: change 9656].
-- **Not yet:** 5, *The base's target is its own*, and 9.2: the base's count runs inherit the check's `CARGO_TARGET_DIR`, or none [in flight: change 9655].
-- **Not yet:** 1 and 4, *The hold*, and 9.2: the check takes the hold's first line as held, a `waiting` line included, drops a hold silent for 60 s after one, and writes no `smith-check:` line [in flight: change 9657].
-- **Not yet:** 8, the bound's bullet: smith counts a check's bound from its start, the waits it says it makes included [in flight: change 9658].
-- **Not yet:** 8: a run's new and flagged tests run alone once each, none twice more past its limit (`tools/tiers/references.md`, 4) [in flight: change 8831].
-- **Not yet:** 1, 4 and 9.2: the check runs no check 8: a delivery that changes a journey's recording or page beside any other file, or fills an `overlay.css`, passes [in flight: change 8897].
-
-No other gap in sections 1–9. Section 10's later work remains outside the
-delivery check.
+2026-11-22. The worker delivery path and its offline acceptance target are
+described in [design.md](design.md), sections 1 and 9. The full accumulated
+goal check is available by explicit dispatch. Sections 2–8 retain historical
+detail for interpreting earlier receipts.

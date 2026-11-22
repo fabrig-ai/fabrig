@@ -17,6 +17,8 @@ pub mod ring;
 pub mod sequence;
 mod snapshot;
 mod store_lock;
+#[doc(hidden)]
+pub mod testing;
 #[cfg(test)]
 mod tests;
 

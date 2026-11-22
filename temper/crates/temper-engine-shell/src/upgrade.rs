@@ -7,6 +7,7 @@ use temper_shell::directories::{self, Directories, EnvironmentEntry};
 
 mod report;
 mod scratch;
+pub(crate) mod testing;
 #[cfg(test)]
 pub(crate) mod tests;
 pub(crate) use report::job_counts;

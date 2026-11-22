@@ -11,6 +11,14 @@ A landing check checks the branch merged onto main: every check below, with
 nothing slower than the fuzzy suite (`skein/docs/design/testing/README.md`, 6;
 `skein/docs/foundation/testing-strategy.md`, 8).
 
+The dispatched Gate reads its selector, reporter and replay tests from the
+landing base. An edit confined to Gate labels, YAML comments or the reporter
+runs workflow syntax and reporting checks. A routing edit replays the selector
+with a stand-in for the runner's Gate, checking the calls and exit status.
+The replay runs the landed tests against the proposed scripts and also runs
+any changed tests. Executable workflow changes and changes that mix Gate code
+with product or build inputs also run the regular Gate. A failed replay is red.
+
 1. **Format:** `cargo fmt --all --check`. Rule: the root `rustfmt.toml`.
 2. **Clippy, warnings denied:** `cargo clippy --workspace --all-targets -- -D warnings`.
    For a selection, replace `--workspace` with a `-p` for each package the change
@@ -192,11 +200,12 @@ Each list has one entry per line; `#` starts a comment line.
 
 ## The repository's hooks and fixture readers
 
-- **`.temper/pre-pr`** runs the applicable format, counted-baseline, citation,
-  outward-name, journey and budget-figure checks on every worker delivery.
-  Builds and tests run in CI. The full repository checker accepts the candidate
-  and destination commit IDs as `.temper/goal-pre-pr HEAD DESTINATION`
-  (`tools/pre-pr/design.md`, 1–4).
+- **`.temper/pre-pr`** checks the delivery in the worker workspace using the
+  changed packages, their immediate consumers and named integration targets.
+  A checker-only Gate runs the checker's Python suite. Explicit diagnostic
+  dispatch can check an accumulated goal using `.temper/goal-pre-pr HEAD DESTINATION`
+  (`tools/pre-pr/design.md`, 1).
+
 - **`.temper/merge`:** the reference's merge job, `tools/merge/merge.py`
   (`temper/docs/design/protocol/tooling.md`, 4.1).
 - **`.temper/close`:** fabrig's close command, `tools/close/close.py`

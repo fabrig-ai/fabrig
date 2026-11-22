@@ -1106,7 +1106,7 @@ class EndToEndTests(RunnerFixture):
         self.assertEqual(len(result['processes']), 2)
         count = self.assert_ledger_counts(result, data, ledger, output.getvalue())
         counts = [] if count is None else [dict(commit=data['commit'], instructions=count)]
-        self.assertEqual(ledger, dict(ledger=4, profile='default', budgets={}, moves=[], binaries={
+        self.assertEqual(ledger, dict(ledger=5, profile='default', budgets={}, moves=[], binaries={
             'fixture::suite': dict(tree='repository', layer='checks',
                                   cpu=[sum(p['cpu_s'] for p in result['processes'])],
                                   tests={t['test_name']: [t['wall_s']] for t in result['tests']}, alone={}, counts=counts)}))

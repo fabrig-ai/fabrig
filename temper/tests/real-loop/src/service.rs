@@ -262,7 +262,6 @@ impl ServiceHost {
     pub(crate) fn github(path: PathBuf, signals: Fd, fixture: crate::github::Fixture) -> Self {
         Self::with_shape(path, signals, None, false, None, Some(fixture), None, None)
     }
-    #[cfg(test)]
     pub(crate) fn clients_occupied_by(&mut self, listener: &TcpListener) {
         let address = listener.local_addr().expect("occupied clients address");
         let mut file = fixtures::file::read(&self.path, temper_config_shell::Shape::Standalone).file;

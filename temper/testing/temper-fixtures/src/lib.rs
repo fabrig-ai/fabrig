@@ -7,3 +7,8 @@ pub mod first_run;
 pub mod memory_literal;
 pub mod milestones;
 pub mod ports;
+
+#[doc(hidden)]
+pub mod testing {
+    pub use crate::ports::blocks::{BLOCK, Blocks, LOWEST, RANGE_FILE};
+}

@@ -2,7 +2,12 @@ use super::{
     deployment::{copy, deployment},
     shell,
 };
-use shell::upgrade::{Request, run};
+use shell::{
+    testing::scratch,
+    upgrade::{Request, run},
+};
+
+mod tests;
 use std::{
     os::unix::{ffi::OsStrExt, fs::PermissionsExt},
     path::Path,

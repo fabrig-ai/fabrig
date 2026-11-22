@@ -63,3 +63,13 @@ credential and no network, and needs only Python's standard library and git.
 Run its tests with `python3 -I -B tools/close/test_close.py`: the focused
 cases and the fuzzy one, which settles random status files against random
 change ends, each seed printed so that it replays (`--seed N`).
+
+## Goal validation
+
+A project selecting `.temper/checked-close` as its close job first runs the
+settlement above. It then calls the installed `goal-close-pre-pr` from the
+repository root, even when settlement stages nothing. The verifier checks
+the staged tree against a locally supplied main revision and returns its
+exit status to the worker. A missing verifier, unavailable comparison,
+failed check or expired job prevents successful close. The worker still
+owns committing and pushing the settled tree.

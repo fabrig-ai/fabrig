@@ -11,11 +11,11 @@ pub(crate) const LISTENER: skein_shell::Variable = skein_shell::Variable {
     absent: "Choose loopback port 8370 when free, otherwise a kernel-assigned port.",
     notes: "The box passes the chosen address before composing its worker and hands the listener to the fake LLM.",
 };
-pub(crate) const ADDRESS: &[u8] = LISTENER.name.as_bytes();
+pub const ADDRESS: &[u8] = LISTENER.name.as_bytes();
 pub(crate) const PREFERRED: SocketAddr =
     SocketAddr::V4(std::net::SocketAddrV4::new(std::net::Ipv4Addr::LOCALHOST, 8370));
 
-pub(crate) fn choose() -> Result<TcpListener, String> {
+pub fn choose() -> Result<TcpListener, String> {
     TcpListener::bind(PREFERRED)
         .or_else(|_| TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)))
         .map_err(|why| format!("the scripted model's listener: {why}"))
