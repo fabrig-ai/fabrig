@@ -38,6 +38,7 @@ fn goal(seed: u64, message_family: bool) -> (World, (u64, u64)) {
 }
 
 fn directing_words(world: &mut World, run: (u64, u64)) {
+    world.store_checks(jig_core_world::world::StoreChecks::none("authorized words fixture names missing Person(42)"));
     world.send(root::Event::Core(core::Event::Tasks(tasks::Event::AuthorizedMessage {
         reply_to: ReplyTo::new(Token::new(4200)),
         project: 1,

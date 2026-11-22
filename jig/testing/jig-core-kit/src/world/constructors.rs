@@ -6,6 +6,9 @@ use super::{
 use jig_domain_link::{Form, Hello, Scheme};
 pub use jig_test_profile::effect_fixture as fixture;
 
+// Focused stories' median is 12 durable commits; sample at the next power of two.
+const STORE_CHECK_ONE_IN: u64 = 16;
+
 pub(super) fn limits() -> root::Limits {
     let mut limits = jig_test_profile::limits();
     limits.core.authority.segments = 2;
@@ -45,6 +48,7 @@ impl World {
             require_assignment,
             walking,
         } = setup;
+        eprintln!("core world seed {seed}");
         let mut configuration = configuration.unwrap_or_else(|| fixture(seed, requirement).0);
         if let Some(peers) = &peers {
             let workers = peers.workers.iter().filter(|worker| worker.channel != 0).count();
@@ -64,6 +68,7 @@ impl World {
             .unwrap_or_else(|| jig_test_profile::fixtures::account_rows(&configuration.core.settings.llm_providers));
         let mut world = Self::empty(configuration, &limits, owner_sets, disk_store);
         world.seed = seed;
+        world.store_checks = super::StoreChecks::sampled(seed, STORE_CHECK_ONE_IN);
         if let Some((now, wall)) = clock {
             world.set_clock(now, wall);
         }
@@ -203,6 +208,9 @@ impl World {
         let move_provider = configuration.core.settings.llm_providers.providers.first().map(|provider| provider.number);
         World {
             seed: 0,
+            store_checks: super::StoreChecks::sampled(0, STORE_CHECK_ONE_IN),
+            store_checks_reported: false,
+            restart_check: None,
             manual: false,
             public_referee: crate::referee::public::Referee::default(),
             returned: 0,

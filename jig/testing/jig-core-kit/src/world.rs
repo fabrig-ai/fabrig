@@ -23,7 +23,9 @@ mod walking;
 pub use walking::{Scenario, Walking};
 mod deliveries;
 mod store;
+mod store_check;
 pub use constructors::fixture;
+pub use jig_conformance::store_check::StoreChecks;
 
 /// Startup of the core world (`jig/docs/design/domain/engine/README.md`, section 9).
 #[derive(Debug)]
@@ -112,6 +114,10 @@ pub struct World {
     pub(crate) broken: bool,
     pub(crate) oracle_closed: bool,
     seed: u64,
+    /// Policy and counts for this run's cold store checks.
+    pub store_checks: StoreChecks,
+    pub(crate) store_checks_reported: bool,
+    restart_check: Option<(u64, bool)>,
     pub(crate) restart_config: (root::Config, root::Limits),
     startup: Option<fn(&mut root::Domain)>,
     fixture_rows: Box<[root::Record]>,
@@ -393,8 +399,13 @@ impl World {
     }
 
     pub fn drain(&mut self) {
+        self.try_drain().unwrap_or_else(|finding| self.fail(&finding));
+    }
+
+    /// Drain the world, returning its first finding rather than failing the story.
+    pub fn try_drain(&mut self) -> Result<(), String> {
         self.domain.script_project_releases();
-        self.drive(300, true, true).unwrap_or_else(|finding| self.fail(&finding));
+        self.drive(300, true, true)
     }
 
     /// Add the world's replay key and the last boundary events.
@@ -427,11 +438,7 @@ impl World {
             self.observer.observe(self.wall, crate::referee::Observed::Tick)?;
             let env = self.env();
             self.observer.systems(self.wall, &self.systems)?;
-            let sweep_waits = self.domain.start_phase() == Some(core::start::Phase::Sweep)
-                && !self.domain.quiescent()
-                && self.events.front().is_some_and(|event| {
-                    matches!(event, root::Event::StartRecord(_) | root::Event::StartDone(core::start::Phase::Sweep))
-                });
+            let sweep_waits = store_check::sweep_waits(&self.domain, self.events.front());
             if consume
                 && !sweep_waits
                 && let Some(mut event) = self.events.pop_front()
@@ -476,6 +483,7 @@ impl World {
             }
             let mut out = Queue::with_capacity(128);
             root::release(&mut self.domain, &env, &mut out);
+            self.check_restarted_child()?;
             let empty = out.is_empty();
             for _ in 0..out.len() {
                 let mut request = out.pop().expect("root output count");

@@ -66,12 +66,16 @@ impl World {
 
 impl World {
     pub(super) fn tick_store(&mut self) -> Result<(), String> {
+        let before = self.store.applied;
         match self.store.tick(false) {
             Ok(Some(number)) => self.events.push_front(root::Event::Committed { number, fill: self.fill }),
             Ok(None) => {}
             Err(number) => self.events.push_front(root::Event::Failed { number }),
         }
         self.observer.durable(self.wall, &self.store)?;
+        if self.store.applied != before {
+            self.check_durable()?;
+        }
         Ok(())
     }
     pub(super) fn capture(&mut self, mut delivery: root::Delivery) -> Result<(), String> {

@@ -96,6 +96,11 @@ impl World {
 
     /// Save fixture rows through a durable, externally observed numbered commit.
     pub fn seed(&mut self, rows: Box<[root::Record]>) {
+        self.try_seed(rows).unwrap_or_else(|finding| self.fail(&finding));
+    }
+
+    /// Save fixture rows, returning a refused durable store to its story.
+    pub fn try_seed(&mut self, rows: Box<[root::Record]>) -> Result<(), String> {
         let mut writes = Vec::new();
         for row in rows {
             if let root::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Live(task))) = &row {
@@ -111,15 +116,15 @@ impl World {
             }
             writes.push(root::Write::Save(row));
         }
-        self.fixture_writes(writes);
+        self.fixture_writes(writes)
     }
     /// Erase a fixture through the same durable transaction path.
     pub fn erase(&mut self, key: root::Key) -> Option<root::Record> {
         let prior = self.store.rows.get(&key).cloned();
-        self.fixture_writes(vec![root::Write::Erase(key)]);
+        self.fixture_writes(vec![root::Write::Erase(key)]).unwrap_or_else(|finding| self.fail(&finding));
         prior
     }
-    fn fixture_writes(&mut self, mut writes: Vec<root::Write>) {
+    fn fixture_writes(&mut self, mut writes: Vec<root::Write>) -> Result<(), String> {
         let header_key = root::Key::Core(core::Key::Core(core::CoreKey::Deployment));
         let root::Record::Core(core::Record::Core(core::CoreRecord::Deployment(mut header))) =
             self.store.rows[&header_key].clone()
@@ -139,10 +144,15 @@ impl World {
         header.commits = self.store.applied + 1;
         writes.push(root::Write::Save(root::Record::Core(core::Record::Core(core::CoreRecord::Deployment(header)))));
         self.store.submit(header.commits, writes.into_boxed_slice(), 0);
-        self.observer.submitted(self.wall, &self.store).unwrap_or_else(|finding| self.fail(&finding));
+        self.observer.submitted(self.wall, &self.store)?;
         assert_eq!(self.store.tick(false), Ok(Some(header.commits)));
-        self.observer.durable(self.wall, &self.store).unwrap_or_else(|finding| self.fail(&finding));
+        self.observer.durable(self.wall, &self.store)?;
+        self.check_durable()?;
+        if self.fork_cut(super::Cut::Durable(header.commits))? {
+            self.reached_cut = self.cut.take();
+        }
         self.refresh_fixture_header();
+        Ok(())
     }
     fn refresh_fixture_header(&mut self) {
         let header = self.store.rows[&root::Key::Core(core::Key::Core(core::CoreKey::Deployment))].clone();
@@ -161,10 +171,14 @@ impl World {
 
     /// Let every previously durable completion through its ordered barrier.
     pub fn release_commits(&mut self) {
+        self.try_release_commits().unwrap_or_else(|finding| self.fail(&finding));
+    }
+
+    pub(crate) fn try_release_commits(&mut self) -> Result<(), String> {
         while let Some(number) = self.store.release_held() {
             self.events.push_back(root::Event::Committed { number, fill: self.fill });
         }
-        self.drain();
+        self.try_drain()
     }
 
     /// Read each lost writer's resource and deliver its answer through the root.
@@ -235,12 +249,17 @@ impl World {
         self.restart_with(config);
     }
 
-    pub fn restart_with(&mut self, mut config: root::Config) {
+    pub fn restart_with(&mut self, config: root::Config) {
+        self.try_restart_with(config).unwrap_or_else(|finding| self.fail(&finding));
+    }
+
+    /// Cold start, returning the sweep child's finding at its checked cut.
+    pub fn try_restart_with(&mut self, mut config: root::Config) -> Result<(), String> {
         for worker in &mut config.core.defaults.workers {
             worker.places = self.limits.core.fleet.slots;
         }
         self.restart_config = (crate::oracle::configuration(&config), self.limits);
-        self.restart_configured(config).unwrap_or_else(|finding| self.fail(&finding));
+        self.restart_configured(config)
     }
 
     /// A cold start under `config`, which `restart_config` already holds a copy of.
@@ -280,6 +299,9 @@ impl World {
         self.restoring = None;
         self.move_provider = config.core.settings.llm_providers.providers.first().map(|provider| provider.number);
         self.domain = root::Domain::new(config, &self.limits);
+        if let Some((_, active)) = &mut self.restart_check {
+            *active = true;
+        }
         if let Some(setup) = self.startup {
             setup(&mut self.domain);
         }
@@ -304,10 +326,11 @@ impl World {
             self.cut = None;
         }
         self.events.push_back(root::Event::StartBegin { pending: self.store.generation_pending });
-        self.drain();
+        self.try_drain()?;
+        self.check_restarted_child()?;
         if self.domain.ready() {
             self.hello_engine();
-            self.drain();
+            self.try_drain()?;
         }
         self.lose_answer = false;
         Ok(())

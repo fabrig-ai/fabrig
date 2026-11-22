@@ -72,6 +72,7 @@ impl Drop for World {
         if !std::thread::panicking() {
             self.close();
         }
+        self.report_store_checks();
     }
 }
 
@@ -92,7 +93,16 @@ impl World {
 
     /// Run the closing cold restart and readback once, returning its first finding.
     pub fn finish(&mut self) -> Result<(), String> {
-        self.close_oracle()
+        let result = self.close_oracle();
+        self.report_store_checks();
+        result
+    }
+
+    fn report_store_checks(&mut self) {
+        if !self.store_checks_reported {
+            eprintln!("{}", self.store_checks.report());
+            self.store_checks_reported = true;
+        }
     }
 
     fn close_oracle(&mut self) -> Result<(), String> {
@@ -252,8 +262,8 @@ impl World {
 
     fn settle_oracle(&mut self) -> Result<(), String> {
         for _ in 0..300 {
-            self.drain();
-            self.release_commits();
+            self.try_drain()?;
+            self.try_release_commits()?;
             if self.stopped {
                 return Err(match self.domain.start_failure() {
                     Some((phase, failure)) => format!("restart oracle: start refused at {phase:?}: {failure:?}"),
