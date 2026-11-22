@@ -67,3 +67,5 @@ fn workspace_reuse_reads_nonempty_values_from_the_given_environment() {
 mod pin;
 
 mod figures;
+
+pub(crate) mod machine;

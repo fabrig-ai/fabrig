@@ -38,6 +38,8 @@ skein-shell.workspace = true
 skein-oauth.workspace = true
 
 [dev-dependencies]
+skein-fake-checkout.workspace = true
+skein-fake-machine.workspace = true
 smith-events-fixtures.workspace = true
 smith-bench-fixtures.workspace = true
 skein-scratch.workspace = true

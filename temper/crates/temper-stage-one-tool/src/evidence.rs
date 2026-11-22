@@ -60,43 +60,73 @@ impl std::error::Error for EvidenceError {}
 fn failure(file: &Path, reason: impl fmt::Display) -> EvidenceError {
     EvidenceError { file: file.into(), reason: reason.to_string() }
 }
-fn read_text(path: &Path) -> Result<String, EvidenceError> {
-    fs::read_to_string(path).map_err(|e| failure(path, e))
+pub(super) trait EvidenceSource {
+    fn read_text(&mut self, path: &Path) -> std::io::Result<String>;
+    fn read_documents(
+        &mut self,
+        dir: &Path,
+        out: &mut BTreeMap<String, String>,
+        recursive: bool,
+    ) -> Result<(), EvidenceError>;
 }
-fn optional_text(path: &Path) -> Result<Option<String>, EvidenceError> {
-    match fs::read_to_string(path) {
+
+struct Disk;
+
+impl EvidenceSource for Disk {
+    fn read_text(&mut self, path: &Path) -> std::io::Result<String> {
+        fs::read_to_string(path)
+    }
+
+    fn read_documents(
+        &mut self,
+        dir: &Path,
+        out: &mut BTreeMap<String, String>,
+        recursive: bool,
+    ) -> Result<(), EvidenceError> {
+        read_documents(dir, dir, out, recursive)
+    }
+}
+
+fn read_text(path: &Path, source: &mut impl EvidenceSource) -> Result<String, EvidenceError> {
+    source.read_text(path).map_err(|e| failure(path, e))
+}
+fn optional_text(path: &Path, source: &mut impl EvidenceSource) -> Result<Option<String>, EvidenceError> {
+    match source.read_text(path) {
         Ok(text) => Ok(Some(text)),
         Err(e) if e.kind() == ErrorKind::NotFound => Ok(None),
         Err(e) => Err(failure(path, e)),
     }
 }
-fn read_json(path: &Path) -> Result<Value, EvidenceError> {
-    serde_json::from_str(&read_text(path)?).map_err(|e| failure(path, e))
-}
-fn read_settings(path: &Path) -> Result<SettingsFile, EvidenceError> {
-    golden::decode_settings(read_text(path)?.as_bytes()).map_err(|e| failure(path, e))
+fn read_settings(path: &Path, source: &mut impl EvidenceSource) -> Result<SettingsFile, EvidenceError> {
+    golden::decode_settings(read_text(path, source)?.as_bytes()).map_err(|e| failure(path, e))
 }
 /// Read the required evidence and any optional description, documents or judge verdict.
 ///
 /// # Errors
 /// Names the file that cannot be read or decoded.
 pub fn read(dir: &Path) -> Result<Evidence, EvidenceError> {
+    read_with(dir, &mut Disk)
+}
+
+pub(super) fn read_with(dir: &Path, source: &mut impl EvidenceSource) -> Result<Evidence, EvidenceError> {
     let path = dir.join("box.json");
-    let facts = serde_json::from_str(&read_text(&path)?).map_err(|e| failure(&path, e))?;
-    let revision = read_json(&dir.join("revision.json"))?;
-    let items = read_settings(&dir.join("items.json"))?;
-    let current = read_settings(&dir.join("current.json"))?;
-    let proposal = read_text(&dir.join("proposal.txt"))?;
-    let chat = read_text(&dir.join("chat.txt"))?;
+    let facts = serde_json::from_str(&read_text(&path, source)?).map_err(|e| failure(&path, e))?;
+    let path = dir.join("revision.json");
+    let revision = serde_json::from_str(&read_text(&path, source)?).map_err(|e| failure(&path, e))?;
+    let items = read_settings(&dir.join("items.json"), source)?;
+    let current = read_settings(&dir.join("current.json"), source)?;
+    let proposal = read_text(&dir.join("proposal.txt"), source)?;
+    let chat = read_text(&dir.join("chat.txt"), source)?;
     let path = dir.join("confirmed.json");
-    let confirmed: Confirmed = serde_json::from_str(&read_text(&path)?).map_err(|e| failure(&path, e))?;
-    let description = optional_text(&dir.join("description.txt"))?;
+    let confirmed: Confirmed = serde_json::from_str(&read_text(&path, source)?).map_err(|e| failure(&path, e))?;
+    let description = optional_text(&dir.join("description.txt"), source)?;
     let mut documents = BTreeMap::new();
-    read_documents(&dir.join("documents"), &dir.join("documents"), &mut documents, true)?;
+    source.read_documents(&dir.join("documents"), &mut documents, true)?;
     let mut person = BTreeMap::new();
-    read_documents(&dir.join("person"), &dir.join("person"), &mut person, false)?;
+    source.read_documents(&dir.join("person"), &mut person, false)?;
     let path = dir.join("judge.json");
-    let judge = optional_text(&path)?.map(|s| serde_json::from_str(&s).map_err(|e| failure(&path, e))).transpose()?;
+    let judge =
+        optional_text(&path, source)?.map(|s| serde_json::from_str(&s).map_err(|e| failure(&path, e))).transpose()?;
     Ok(Evidence {
         facts,
         revision,
@@ -134,7 +164,7 @@ fn read_documents(
         } else if kind.is_file() && (recursive || path.extension().is_some_and(|s| s == "md")) {
             let relative = path.strip_prefix(base).expect("entry below document root");
             let name = relative.to_str().ok_or_else(|| failure(&path, "file name is not UTF-8"))?;
-            out.insert(name.to_owned(), read_text(&path)?);
+            out.insert(name.to_owned(), read_text(&path, &mut Disk)?);
         }
     }
     Ok(())

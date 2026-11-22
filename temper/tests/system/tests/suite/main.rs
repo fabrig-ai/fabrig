@@ -7,6 +7,7 @@ mod parked;
 mod simulation;
 
 mod fuzzy {
+    mod accounts;
     mod composed;
 }
 mod running_revision;

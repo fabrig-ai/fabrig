@@ -16,6 +16,20 @@ const LINKS_PASSED: u8 = 8;
 /// Rewrites trusted links among the parents, leaving the first unwalkable
 /// component and everything after it as given. `dir` is borrowed, or `AT_FDCWD`.
 pub(crate) fn pass_links(dir: i32, path: &[u8], owner: u32) -> Option<Box<[u8]>> {
+    walk(path, owner, |name| stat_at(dir, name), |name| read_link(dir, name))
+}
+
+struct Entry {
+    mode: libc::mode_t,
+    owner: libc::uid_t,
+}
+
+fn walk(
+    path: &[u8],
+    owner: u32,
+    mut lookup: impl FnMut(&[u8]) -> Option<Entry>,
+    mut read: impl FnMut(&[u8]) -> Option<Box<[u8]>>,
+) -> Option<Box<[u8]>> {
     let mut path: Box<[u8]> = path.into();
     let mut start = 0;
     let mut passed = 0_u8;
@@ -33,17 +47,17 @@ pub(crate) fn pass_links(dir: i32, path: &[u8], owner: u32) -> Option<Box<[u8]>>
         }
         if !component.is_empty() && component != b"." {
             let name = path.get(..end).expect("prefix lies within path");
-            let Some(entry) = stat_at(dir, name) else { break };
-            if entry.st_mode & libc::S_IFMT == libc::S_IFLNK {
-                if passed == LINKS_PASSED || entry.st_uid != owner {
+            let Some(entry) = lookup(name) else { break };
+            if entry.mode & libc::S_IFMT == libc::S_IFLNK {
+                if passed == LINKS_PASSED || entry.owner != owner {
                     break;
                 }
                 let prefix = path.get(..start).expect("holding directory lies within path");
-                let Some(parent) = stat_at(dir, if prefix.is_empty() { b"." } else { prefix }) else { break };
-                if parent.st_uid != owner || parent.st_mode & 0o022 != 0 {
+                let Some(parent) = lookup(if prefix.is_empty() { b"." } else { prefix }) else { break };
+                if parent.owner != owner || parent.mode & 0o022 != 0 {
                     break;
                 }
-                let Some(target) = read_link(dir, name) else { break };
+                let Some(target) = read(name) else { break };
                 let absolute = target.starts_with(b"/");
                 path = [if absolute { b"" } else { prefix }, &target, rest].concat().into_boxed_slice();
                 if absolute {
@@ -52,7 +66,7 @@ pub(crate) fn pass_links(dir: i32, path: &[u8], owner: u32) -> Option<Box<[u8]>>
                 passed = passed.checked_add(1).expect("at most eight links passed");
                 continue;
             }
-            if entry.st_mode & libc::S_IFMT != libc::S_IFDIR {
+            if entry.mode & libc::S_IFMT != libc::S_IFDIR {
                 break;
             }
         }
@@ -61,7 +75,7 @@ pub(crate) fn pass_links(dir: i32, path: &[u8], owner: u32) -> Option<Box<[u8]>>
     if passed == 0 { None } else { Some(path) }
 }
 
-fn stat_at(dir: i32, path: &[u8]) -> Option<libc::stat> {
+fn stat_at(dir: i32, path: &[u8]) -> Option<Entry> {
     let path = CString::new(path).ok()?;
     // SAFETY: all-zero stat storage is valid and remains exclusive until return.
     let mut stat: libc::stat = unsafe { mem::zeroed() };
@@ -70,7 +84,7 @@ fn stat_at(dir: i32, path: &[u8]) -> Option<libc::stat> {
         status(unsafe { libc::fstatat(dir, path.as_ptr(), ptr::from_mut(&mut stat), libc::AT_SYMLINK_NOFOLLOW) })
     })
     .ok()?;
-    Some(stat)
+    Some(Entry { mode: stat.st_mode, owner: stat.st_uid })
 }
 
 fn read_link(dir: i32, path: &[u8]) -> Option<Box<[u8]>> {

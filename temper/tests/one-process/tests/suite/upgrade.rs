@@ -1,4 +1,6 @@
 //! Baseline owner admission, coverage and a registry and job upgrade.
+mod live_opening;
+
 #[test]
 fn an_opened_worker_may_stay_after_its_deployment_stops() {
     temper_one_process_world::upgrade::check::opened_worker_rehearsal();
@@ -6,6 +8,10 @@ fn an_opened_worker_may_stay_after_its_deployment_stops() {
 #[test]
 fn prebaseline_rehearsals_without_wires_report_the_older_layout() {
     temper_one_process_world::upgrade::check::prebaseline_rehearsals();
+}
+#[test]
+fn pre_settings_refusals_leave_the_whole_directory_unchanged() {
+    temper_one_process_world::testing::pre_settings_refusals_leave_the_whole_directory_unchanged();
 }
 #[test]
 fn a_corrupt_store_open_reaches_a_report_and_empties_scratch() {
