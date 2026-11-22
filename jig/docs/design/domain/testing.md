@@ -513,6 +513,24 @@ application's adapter names a task as jig's does.
   shared check finds it (`skein/docs/design/testing/inspection.md`, 4.1).
   A task's grace, and the authority's deadline that will hold an idle
   task, are a wake and a bound of each of its waits.
+- **A timer the core withholds bounds nothing.** From `Event::Settling`
+  the core fires no `Timer::Tasks`, and from `Event::Stopping` none of
+  the timers `vocabulary::waits` names: a backoff or a wake that passes
+  stays due for the next start to decide afresh
+  (`engine/restart.md`, *Settling before the stop*). `core` asks the core
+  which timers it withholds, by the rule its routing fires them by, never
+  a copy of it. While a timer is withheld, each wait and each queue's
+  waiter that timer's alarm would bound has no bound and the added party
+  wake `the next start`, and a kept answer past its expiry, once the
+  people's timer is withheld, is kept, not due. `tasks` alone knows no
+  core, so it reports every alarm as a bound.
+- **A rejected escalation** leaves its task held (`tasks/proposals.md`,
+  *An escalation's decider has its kind*): it is `held: <hold>`, its wake
+  the decider the escalation records, `task N` or `person N`, as a
+  waiting escalation's holder, beside the hold's own sources. It has no
+  bound unless an alarm is armed for it. A `Routing` escalation is
+  resolved in the same decision that makes it, so no quiet point sees one:
+  `routing escalation` stays undeclared, and so does `unheld escalation`.
 - **The parties a policy names** are a party wake, `policy <kind> of
   project P`, in the component's words for the proposal's kind: the tasks
   child keeps the policy's project and kind, not its roles. A proposal or
