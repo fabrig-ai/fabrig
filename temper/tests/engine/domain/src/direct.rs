@@ -406,6 +406,14 @@ impl Driver {
         self.root.reclaim();
     }
 
+    /// Make one pending commit durable and check it, leaving its acknowledgement to the caller.
+    pub fn apply_commit(&mut self) -> u64 {
+        let previous = self.store.applied;
+        let number = self.store.apply();
+        self.check_commit(previous);
+        number
+    }
+
     /// Choose which of this run's subsequent commits rehearse a start.
     pub fn store_checks(&mut self, checks: StoreChecks) {
         self.checks = checks;

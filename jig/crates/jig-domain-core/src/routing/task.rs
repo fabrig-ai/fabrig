@@ -165,6 +165,11 @@ pub(crate) fn route_tasks(
     work: &mut Queue<Work>,
     event: tasks::Event,
 ) -> Queue<Request> {
+    if let tasks::Event::Claim { task, attempt, .. } = &event
+        && !super::run::preparation::claim_fits(core, *task, *attempt)
+    {
+        return super::run::preparation::route_claim_refused(core, work, *task);
+    }
     route_batch(core, env, work, event, None)
 }
 

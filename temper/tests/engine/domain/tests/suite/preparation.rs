@@ -1,6 +1,7 @@
 //! A run's preparation and its answer at awkward moments: a store read that
 //! lands after the preparation it served was dropped, and an answer whose
 //! parts exceed their bounds.
+use jig_conformance::store_check::StoreChecks;
 use jig_domain_host as host;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -91,7 +92,7 @@ fn open_preparations(driver: &mut Driver) {
             }
         }
         if !driver.store.pending.is_empty() {
-            let number = driver.store.apply();
+            let number = driver.apply_commit();
             engine::try_step(
                 &mut driver.root,
                 &driver.env,
@@ -157,15 +158,20 @@ fn park_turns(driver: &mut Driver, run: &engine::Assignment, turns: usize, key: 
     driver.pump();
 }
 
-fn parked_chats(window_len: usize) -> (Driver, Vec<(engine::Assignment, u8)>) {
-    parked_windows(&[window_len; CHAT_KEYS.len()])
-}
-
 fn parked_windows(lengths: &[usize]) -> (Driver, Vec<(engine::Assignment, u8)>) {
     parked_windows_with_results(lengths, false)
 }
 
 fn parked_windows_with_results(lengths: &[usize], with_results: bool) -> (Driver, Vec<(engine::Assignment, u8)>) {
+    let (driver, parked, _) = parked_windows_checked(lengths, with_results, None);
+    (driver, parked)
+}
+
+fn parked_windows_checked(
+    lengths: &[usize],
+    with_results: bool,
+    checks: Option<StoreChecks>,
+) -> (Driver, Vec<(engine::Assignment, u8)>, u64) {
     // Take the shipped task/request capacities; leave the world's other bounds,
     // including root.loads.loads=2, unchanged.
     let jig = jig_protocol_config_fixtures::small();
@@ -179,6 +185,10 @@ fn parked_windows_with_results(lengths: &[usize], with_results: bool) -> (Driver
     limits.people.requests = shipped.people.requests;
     assert_eq!(limits.loads.loads, 2);
     let mut driver = Driver::configured(Store::new(), [walking::config(91), walking::config(91)], &limits);
+    let initial_commit = driver.store.applied;
+    if let Some(checks) = checks {
+        driver.store_checks(checks);
+    }
     driver.hello(CHANNEL);
     driver.settle();
     driver.sign_in();
@@ -207,7 +217,7 @@ fn parked_windows_with_results(lengths: &[usize], with_results: bool) -> (Driver
         park_turns(&mut driver, &run, *turns, key);
         parked.push((run, key));
     }
-    (driver, parked)
+    (driver, parked, initial_commit)
 }
 
 /// temper/docs/design/domain/root.md, 7: a large window turn starts fresh,
@@ -331,9 +341,19 @@ fn large_window_row(limits: &engine::Limits, name: &str, bytes: u32, around: boo
 /// temper/docs/design/domain/root.md, 7 and 8.1: due windows wait for load room.
 #[test]
 fn tasks_due_together_past_the_load_slots_each_load_their_window() {
+    due_windows(None);
+}
+
+#[test]
+fn tasks_due_together_check_every_committed_window() {
+    due_windows(Some(&StoreChecks::every()));
+}
+
+fn due_windows(checks: Option<&StoreChecks>) {
     for window_len in [1, 3] {
         eprintln!("restart window length {window_len}");
-        let (mut driver, parked) = parked_chats(window_len);
+        let (mut driver, parked, initial_commit) =
+            parked_windows_checked(&[window_len; CHAT_KEYS.len()], false, checks.cloned());
         no_transcript_failure(&mut driver);
         // Commit all three wakes before answering any transcript read, then restart
         // the parked chats together with their wake messages durable.
@@ -341,7 +361,7 @@ fn tasks_due_together_past_the_load_slots_each_load_their_window() {
             driver.send(say_ask(driver.session(), run.task, key + 20));
         }
         while !driver.store.pending.is_empty() {
-            let number = driver.store.apply();
+            let number = driver.apply_commit();
             driver.send(engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
         }
         for (run, _) in &parked {
@@ -380,6 +400,11 @@ fn tasks_due_together_past_the_load_slots_each_load_their_window() {
             driver.pump();
         }
         no_transcript_failure(&mut driver);
+        if checks.is_some() {
+            assert!(driver.store_check_counts().commits() > 0);
+            assert_eq!(driver.store_check_counts().checked(), driver.store_check_counts().commits());
+            assert_eq!(driver.store_check_counts().commits(), driver.store.applied - initial_commit);
+        }
         for (run, _) in &parked {
             let row = driver.task(run.task).expect("chat remains live");
             assert_eq!(row.tries, tasks::Tries::NONE, "room spends no try");
@@ -436,7 +461,7 @@ fn drain_result_preparations(driver: &mut Driver) {
             }
         }
         if !driver.store.pending.is_empty() {
-            let number = driver.store.apply();
+            let number = driver.apply_commit();
             engine::try_step(
                 &mut driver.root,
                 &driver.env,
@@ -480,7 +505,7 @@ fn tasks_due_together_past_the_load_slots_each_read_their_ended_dependency() {
         driver.send(say_ask(driver.session(), run.task, key + 20));
     }
     while !driver.store.pending.is_empty() {
-        let number = driver.store.apply();
+        let number = driver.apply_commit();
         driver.send(engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
     }
     no_brief_failure(&mut driver);
@@ -542,7 +567,7 @@ fn preparation_commits(driver: &mut Driver) {
         if driver.store.pending.is_empty() {
             return;
         }
-        let number = driver.store.apply();
+        let number = driver.apply_commit();
         preparation_step(driver, engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
     }
     panic!("preparation writes drained");
