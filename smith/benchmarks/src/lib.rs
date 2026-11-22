@@ -20,6 +20,9 @@ mod tokens;
 
 pub mod fault;
 
+#[doc(hidden)]
+pub mod testing;
+
 pub use fault::{Fault, FaultKind};
 
 pub(crate) use fault::FaultKind::{Bound, Credential, Input, Io, Mismatch, Stream};
