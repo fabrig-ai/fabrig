@@ -395,10 +395,10 @@ The core runs restart as a script (engine/restart.md). The root:
    ranges, loads them, restores them into it, and says done;
 3. tells the core when the fleet's claims have been given, and passes on
    workers' hellos as they dial in;
-4. asks each connector to read afresh, and says done when each has;
-5. asks each connector to settle its outbox, and says done when each
-   has;
-6. lets the core open decisions.
+4. lets the core open decisions;
+5. asks each connector to catch up as the core asks it at the opening,
+   and passes each connector's report of its fresh reads and of its
+   settle to the core as it comes, while it serves every other event.
 
 The root does only the step it is asked for, and the core asks for the
 next only once this one is done, so the order is the core's.

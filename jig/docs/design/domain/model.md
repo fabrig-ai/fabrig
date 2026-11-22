@@ -242,10 +242,14 @@ tasks, inboxes and authority know none of them.
 - **Facts are read afresh.** What a connector's system owns is read again
   before a decision that depends on it, as level-triggered state. Events
   are hints that something changed, never the state itself.
-- **A restart reads the store,** then has each connector read afresh what
-  its system owns of the live work, and look for what uncertain effects
-  may have made, before deciding anything new. The core runs it as a
-  script (engine/restart.md).
+- **A restart reads the store,** adopts its runs and opens; then each
+  connector catches up while the engine serves: it reads afresh what its
+  system owns of the live work, and looks for what uncertain effects
+  may have made. A decision that depends on one of those facts waits
+  for its fresh read, a resource at a time, and a write for the
+  uncertain effects before it on its resource; nothing is decided from
+  what the store held alone. The core runs it as a script
+  (engine/restart.md).
 - **A commit that fails stops the engine.** The store is assumed to do
   what the engine needs; when it cannot, the engine stops rather than act
   on state it could not keep, and a restart starts from the last commit.

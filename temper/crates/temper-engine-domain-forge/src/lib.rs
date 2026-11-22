@@ -83,9 +83,9 @@ pub use away::{
     OverturnAnswer, SetAwayAnswer, decided_subject,
 };
 pub use findings::{
-    AreaRow, FileFinding, FileFindingAnswer, Filer, Finding, FindingAnswer, FindingDone, FindingKind, FindingRefusal,
-    FindingReply, FindingRow, FindingState, FindingWrite, Findings, HandFinding, HandFindingAnswer, Holder, Severity,
-    Triage, TriageFinding, TriageFindingAnswer, VerdictFiling, findings_subject, owner,
+    AreaRow, BlameAct, FileFinding, FileFindingAnswer, Filer, Finding, FindingAnswer, FindingDone, FindingKind,
+    FindingRefusal, FindingReply, FindingRow, FindingState, FindingWrite, Findings, HandFinding, HandFindingAnswer,
+    Holder, RepairAct, Severity, Triage, TriageFinding, TriageFindingAnswer, VerdictFiling, findings_subject, owner,
 };
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 mod dismissed;

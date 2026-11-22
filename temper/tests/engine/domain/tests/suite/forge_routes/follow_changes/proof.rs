@@ -5,6 +5,11 @@ use skein_forge::api::{self, Commit};
 pub(crate) fn fixture() -> World {
     configured_follow(s::FollowStart::Owner, 1000, Gate::default(), true)
 }
+pub(crate) fn opening_fixture() -> World {
+    let mut world = unaccepted_follow_with_tables(1000, Gate::default(), true, true, true);
+    keep(&mut world, Some(s::FollowStart::Owner), 110);
+    world
+}
 pub(crate) fn follow(world: &World) -> &FollowRow {
     row(world)
 }

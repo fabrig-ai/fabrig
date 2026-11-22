@@ -58,5 +58,6 @@ judged by the same role (`jig/crates/jig-domain-authority/src/check.rs`,
   (`temper/crates/temper-engine-domain/src/route/goal.rs`); `RepairSeed::goal`
   checks its money, room and depth, and `Make` its closer's kind and `llm`
   [in flight: change 10349].
+- **Not yet:** 6.3: `Core::check_make`, a seeded goal's making checked before it is sent [in flight: change 10621].
 
 

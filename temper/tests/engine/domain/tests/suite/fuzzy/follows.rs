@@ -13,7 +13,7 @@ use temper_engine_domain_world::{
     replay::{same_digest, same_text},
 };
 #[path = "follows/referee.rs"]
-mod referee;
+pub(super) mod referee;
 use referee::Referee;
 
 const SEEDS: u64 = 16;
