@@ -100,7 +100,7 @@ pub fn run_prepared(
                 owned.push(root);
                 working_root = Some(root);
                 let checkpoint = path(working).join(path(deployment)).join("checkpoints").join(path(&name.bytes()));
-                let spawn = spawn(command, environment, working, &checkpoint, root);
+                let spawn = spawn(command, environment, working, &checkpoint, root, &executable_facts);
                 (
                     Adoption::HoldCheckpoint { name: *name },
                     Some((command.first().expect("hold command").clone(), spawn)),
@@ -137,10 +137,17 @@ pub fn run_prepared(
     }
 }
 
-fn executable(file: &std::path::Path) -> bool {
-    std::fs::metadata(file).is_ok_and(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
+fn executable_facts(file: &std::path::Path) -> Option<(bool, u32)> {
+    let metadata = std::fs::metadata(file).ok()?;
+    Some((metadata.is_file(), metadata.permissions().mode()))
 }
-fn program(command: &[u8], environment: &[EnvironmentEntry], working: &[u8]) -> Option<Box<[u8]>> {
+fn program(
+    command: &[u8],
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    facts: &impl Fn(&std::path::Path) -> Option<(bool, u32)>,
+) -> Option<Box<[u8]>> {
+    let executable = |file: &std::path::Path| facts(file).is_some_and(|(regular, mode)| regular && mode & 0o111 != 0);
     let file = if command.contains(&b'/') {
         let file = path(working).join(path(command));
         executable(&file).then_some(file)?
@@ -159,10 +166,11 @@ fn spawn(
     working: &[u8],
     checkpoint: &std::path::Path,
     root: skein_io::kernel::Fd,
+    facts: &impl Fn(&std::path::Path) -> Option<(bool, u32)>,
 ) -> Result<skein_io::kernel::Spawn, ()> {
     use skein_io::kernel::{Pipe, Spawn, Way};
     let (name, args) = command.split_first().ok_or(())?;
-    let program = program(name, environment, working).ok_or(())?;
+    let program = program(name, environment, working, facts).ok_or(())?;
     let mut env: Vec<Box<[u8]>> = environment
         .iter()
         .filter(|(name, _)| name.as_ref() != DIRECTORY.name.as_bytes())

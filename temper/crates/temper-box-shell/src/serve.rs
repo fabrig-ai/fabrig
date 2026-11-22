@@ -58,7 +58,7 @@ pub fn prepare_with_store(
     clippy::too_many_lines,
     reason = "the standalone start supplies the binary beside the resolved process facts"
 )]
-pub(crate) fn prepare_with_limits(
+pub fn prepare_with_limits(
     _binary: &str,
     environment: &[EnvironmentEntry],
     working: &[u8],
@@ -164,7 +164,7 @@ pub(crate) fn prepare_with_limits(
     };
     let accounts = engine::accounts(&engine)?;
     let seeds = engine::seeds(link_secret, local_secret)?;
-    let git = programs.git.clone().or_else(|| temper_shell::lookup::find(environment, b"git"));
+    let git = git_program(programs, || temper_shell::lookup::find(environment, b"git"));
     let landing = engine::landing_hold(path(&directories.data))?;
     let sources = agent
         .as_ref()
@@ -306,7 +306,14 @@ pub(crate) fn prepare_with_limits(
     }
     Ok((service, named.deployment, box_limits.line_bytes))
 }
-pub(crate) fn configured_agent(
+pub(super) fn git_program(
+    programs: &temper_config_shell::Programs,
+    find: impl FnOnce() -> Option<std::path::PathBuf>,
+) -> Option<std::path::PathBuf> {
+    programs.git.clone().or_else(find)
+}
+
+pub fn configured_agent(
     bytes: &[u8],
     directories: &Directories,
     environment: &[EnvironmentEntry],

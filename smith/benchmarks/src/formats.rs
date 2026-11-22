@@ -12,7 +12,7 @@ pub(crate) fn read_document<T: DeserializeOwned>(file: &Path) -> Result<T, Refus
     parse_document(file, &text)
 }
 
-pub(crate) fn parse_document<T: DeserializeOwned>(file: &Path, text: &str) -> Result<T, Refusal> {
+pub fn parse_document<T: DeserializeOwned>(file: &Path, text: &str) -> Result<T, Refusal> {
     let deserializer =
         toml::de::Deserializer::parse(text).map_err(|error| Refusal::new(file, "document", error.to_string()))?;
     serde_path_to_error::deserialize(deserializer).map_err(|error| {

@@ -201,6 +201,7 @@ pub(super) fn make_service(
         | Ask::SetVisibility { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
+        | Ask::ReissueService { .. }
         | Ask::ChangeSettings { .. }
         | Ask::PauseWorker { .. }
         | Ask::MoveToNewest { .. }
@@ -415,6 +416,51 @@ pub(super) fn arm(domain: &mut Domain, env: &Env<Limits>, number: u64, expires: 
     assert!(domain.expiries.insert((expires, number)).is_ok(), "one saved expiry per sign-in");
     let armed = domain.alarms.arm(number, deadline(env, expires));
     assert!(armed.is_ok(), "one alarm per admitted sign-in");
+}
+
+pub(super) fn reissue_service(domain: &mut Domain, env: &Env<Limits>, request: Token, out: &mut Queue<Request>) {
+    let id = Id::from_token(request);
+    let flight = domain.party_pending(id).expect("pending service reissue");
+    let Ask::ReissueService { party } = flight.ask else { unreachable!("service reissue flight") };
+    let outcome = match may_reissue(domain, flight.key.person, party) {
+        Ok(()) => {
+            let mut ending = List::with_capacity(domain.sign_ins.len());
+            for (number, signin) in &domain.sign_ins {
+                if signin.person == party {
+                    ending.push(*number).expect("at most one entry per sign-in");
+                }
+            }
+            for number in ending.into_boxed() {
+                end_signin(domain, number, out);
+            }
+            Outcome::ServiceReissued { party }
+        }
+        Err(why) => Outcome::Refused(why),
+    };
+    super::answer_decided(domain, env, id, outcome, out);
+}
+
+fn may_reissue(domain: &Domain, asker: u64, service: u64) -> Result<(), Refusal> {
+    match domain.kind(service) {
+        None => return Err(Refusal::Unknown),
+        Some(Kind::Person) => return Err(Refusal::NotOffered),
+        Some(Kind::Service) if asker == service => return Err(Refusal::NotOffered),
+        Some(Kind::Service) => {}
+    }
+    let held = role(domain, asker, crate::DEPLOYMENT);
+    if held == Some(Role::Owner) {
+        return Ok(());
+    }
+    let mut has_project = false;
+    for (project, holdings) in &domain.roles {
+        if *project != crate::DEPLOYMENT && has_person(holdings, service) {
+            if role(domain, asker, *project) != Some(Role::Owner) {
+                return Err(Refusal::Role { held });
+            }
+            has_project = true;
+        }
+    }
+    if has_project { Ok(()) } else { Err(Refusal::Role { held }) }
 }
 
 pub(super) fn end_signin(domain: &mut Domain, number: u64, out: &mut Queue<Request>) {

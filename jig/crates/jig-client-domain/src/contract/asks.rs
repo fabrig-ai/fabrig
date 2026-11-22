@@ -278,6 +278,10 @@ pub enum Ask {
         project: u32,
         public: bool,
     },
+    /// End a service’s sign-ins and replace its credential.
+    ReissueService {
+        party: u64,
+    },
 }
 
 /// The holder of an LLM account sign-in.
@@ -323,6 +327,8 @@ pub enum Made {
     Note { note: u64, scope: NoteScope },
     /// An account record delivered once (client/domain/client/requests.md).
     MovingOut { account: u32, number: u32, record: skein_lib::Secret },
+    /// A service whose credential was replaced.
+    Reissued { party: u64 },
 }
 
 /// The one terminal the request table hands to this domain.

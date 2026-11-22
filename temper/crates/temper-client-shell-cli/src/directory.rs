@@ -65,6 +65,7 @@ pub(crate) struct Directory {
     record_path: Option<Box<[u8]>>,
     record_given: Option<Box<[u8]>>,
     record_bytes: Option<Box<[u8]>>,
+    reissue_output: Option<()>,
     pub(crate) created: bool,
     pub(crate) checked_output: Option<()>,
     service_input: Option<()>,
@@ -131,6 +132,7 @@ impl Directory {
             record_path: None,
             record_given: None,
             record_bytes: None,
+            reissue_output: None,
             created: false,
             checked_output: None,
             service_input: None,
@@ -614,6 +616,10 @@ impl Directory {
         self.record_bytes = Some(bytes.expose().into());
         self.stage = Stage::RecordCreate;
     }
+    pub(crate) fn store_service_link(&mut self, bytes: &skein_lib::Secret) {
+        self.reissue_output = Some(());
+        self.store_service(bytes);
+    }
     pub(crate) fn create_record(&mut self, path: &[u8]) {
         if self.file_root.is_none() {
             self.fail(b"record file could not be created: file has no parent");
@@ -645,7 +651,9 @@ impl Directory {
             (Stage::RecordCreate, file::Event::Opened { .. }) => {
                 self.stage = if self.record_bytes.is_some() { Stage::RecordWrite } else { Stage::Ready };
             }
-            (Stage::RecordCreate, file::Event::Failed { error, .. }) if self.class != Class::Link => {
+            (Stage::RecordCreate, file::Event::Failed { error, .. })
+                if self.class != Class::Link && self.reissue_output.is_none() =>
+            {
                 let mut message = self.record_given.as_deref().expect("record path").to_vec();
                 message.extend_from_slice(if matches!(error, Error::Exists | Error::TooManyLinks) {
                     b" exists"

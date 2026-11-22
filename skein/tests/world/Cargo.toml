@@ -19,6 +19,7 @@ skein-shell.workspace = true
 skein-fake-machine.workspace = true
 
 [dev-dependencies]
+skein-fake-person-browser.workspace = true
 skein-scratch.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2

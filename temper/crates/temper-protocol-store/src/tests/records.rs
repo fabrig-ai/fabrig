@@ -1682,6 +1682,7 @@ fn landing_rows_preserve_phases_proofs_asks_and_effects() {
                     last_event: None,
                     turn_since: None,
                     waiting: None,
+                    follows: None,
                     flake_reruns: Box::new([]),
                     room: Some(11),
                     job: Some(forge::history::JobRecord {
@@ -1754,6 +1755,7 @@ fn landing_with_clock(clock: Option<temper_engine_domain_forge_change::Clock>) -
         last_event: None,
         turn_since: None,
         waiting: None,
+        follows: None,
         flake_reruns: Box::new([]),
         room: None,
         job: None,
@@ -1798,6 +1800,35 @@ fn a_landing_runs_execution_clock_round_trips() {
         at: Wall::from_nanos(53),
         seen: Execution::Running,
     }));
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    assert_eq!(records::decode(&records::encode(&stored), &bounds), Ok(stored));
+}
+
+#[test]
+fn a_landing_follow_round_trips_without_an_outbox_entry() {
+    use skein_lib::{Time, Wall};
+    let forge::Stored::Landing(mut row) = landing_with_clock(None) else { unreachable!() };
+    let mut entry = *row.entries.first().expect("fixture run");
+    entry.operation = forge::Operation::Rerun;
+    row.entries = Box::new([]);
+    row.keep_follows(Box::new([forge::LandingFollow {
+        entry,
+        dispatch: Some(forge::LandingDispatch {
+            workflow: b"gate.yml".as_slice().into(),
+            branch: b"temper/1/l61".as_slice().into(),
+            inputs: Box::new([skein_forge::api::Input {
+                name: b"temper_key".as_slice().into(),
+                value: b"00".as_slice().into(),
+            }]),
+        }),
+        start: Some(Time::from_nanos(4)),
+        since: Some(Time::from_nanos(9)),
+        wall: Some(Wall::from_nanos(13)),
+        try_number: 2,
+        failed: false,
+        reruns: Box::new([skein_forge::api::JobAttempt { head: [5; 32], run: 23, job: 29, attempt: 1 }]),
+    }]));
+    let stored = forge::Stored::Landing(row);
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     assert_eq!(records::decode(&records::encode(&stored), &bounds), Ok(stored));
 }
@@ -1872,6 +1903,7 @@ fn landing_faults_and_own_holds_are_mutually_exclusive() {
                 last_event: None,
                 turn_since: None,
                 waiting: None,
+                follows: None,
                 flake_reruns: List::with_capacity(0),
                 room: None,
                 landing,

@@ -129,64 +129,52 @@ pub(crate) fn collected(build: &Build, results: &[AttemptResult], batch: &Batch)
     })
 }
 
-#[cfg(test)]
-pub(crate) fn probe_cases() {
-    prepare::comparison_case();
-    tests::rerun_quarantine_cannot_be_evidence_of_a_fix_or_calibration();
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub(crate) fn probe_cases(mut value: crate::AttemptResult) {
     use crate::ProbeVerdict;
     use std::collections::BTreeMap;
 
-    pub(super) fn rerun_quarantine_cannot_be_evidence_of_a_fix_or_calibration() {
-        let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-        let mut value = crate::read_result(&root.join("tests/recorded/results/attempt.json")).expect("fixture");
-        value.outcome.end = End::Completed;
-        value.outcome.grade = None;
-        value.outcome.deciding = vec!["answer".into()];
-        value.outcome.checks = vec![crate::CheckVerdict {
-            check: "answer".into(),
-            passed: crate::Measure::Observed { value: false },
-            evidence: vec![],
-        }];
-        let build = Build {
-            directory: "/nonexecuted-identity-fixture".into(),
-            arm: crate::arm::BuiltArm {
-                version: 1,
-                commit: value.identity.agent_version.clone(),
-                sha256: value.identity.binary_sha256.clone(),
-                toolchain: "not a build; report identity fixture".into(),
-                binaries: vec![],
-            },
-        };
-        let key = format!("{}/{}", value.identity.task, value.identity.arm);
-        let mut batch =
-            crate::batch::Batch { results: vec![value.clone()], incomplete: false, probes: BTreeMap::new() };
-        assert_eq!(collected(&build, &batch.results, &batch).expect("unknown rerun").verdict, Judgment::Incomplete);
-        for verdict in [ProbeVerdict::Rerun, ProbeVerdict::Quarantined] {
-            batch.probes.insert(key.clone(), verdict);
-            assert_eq!(collected(&build, &batch.results, &batch).expect("quarantine").verdict, Judgment::Incomplete);
-        }
-        batch.probes.insert(key.clone(), ProbeVerdict::Regression);
-        assert_eq!(collected(&build, &batch.results, &batch).expect("two failures").verdict, Judgment::Fail);
-        batch.results[0].outcome.checks[0].passed = crate::Measure::Observed { value: true };
-        batch.probes.insert(key, ProbeVerdict::Passed);
-        assert_eq!(collected(&build, &batch.results, &batch).expect("pass").verdict, Judgment::Pass);
-        batch.results[0].outcome.end = End::Refused { setup: "named refusal".into() };
-        batch.results[0].timing.process_wall_ms = crate::Measure::unavailable("product invocation did not run");
-        assert!(
-            collected(&build, &batch.results, &batch).expect("setup refusal").setup_refused,
-            "neutral named checks survive even when setup refuses"
-        );
-        batch.results[0].timing.process_wall_ms = crate::Measure::Observed { value: 1 };
-        assert!(!collected(&build, &batch.results, &batch).expect("measured product refusal").setup_refused);
-        batch.results[0].identity.binary_sha256.push('0');
-        assert!(
-            collected(&build, &batch.results, &batch).is_err(),
-            "a changed binary identity is never reported as a pass"
-        );
+    prepare::comparison_case(&value.identity);
+    value.outcome.end = End::Completed;
+    value.outcome.grade = None;
+    value.outcome.deciding = vec!["answer".into()];
+    value.outcome.checks = vec![crate::CheckVerdict {
+        check: "answer".into(),
+        passed: crate::Measure::Observed { value: false },
+        evidence: vec![],
+    }];
+    let build = Build {
+        directory: "/nonexecuted-identity-fixture".into(),
+        arm: crate::arm::BuiltArm {
+            version: 1,
+            commit: value.identity.agent_version.clone(),
+            sha256: value.identity.binary_sha256.clone(),
+            toolchain: "not a build; report identity fixture".into(),
+            binaries: vec![],
+        },
+    };
+    let key = format!("{}/{}", value.identity.task, value.identity.arm);
+    let mut batch = crate::batch::Batch { results: vec![value.clone()], incomplete: false, probes: BTreeMap::new() };
+    assert_eq!(collected(&build, &batch.results, &batch).expect("unknown rerun").verdict, Judgment::Incomplete);
+    for verdict in [ProbeVerdict::Rerun, ProbeVerdict::Quarantined] {
+        batch.probes.insert(key.clone(), verdict);
+        assert_eq!(collected(&build, &batch.results, &batch).expect("quarantine").verdict, Judgment::Incomplete);
     }
+    batch.probes.insert(key.clone(), ProbeVerdict::Regression);
+    assert_eq!(collected(&build, &batch.results, &batch).expect("two failures").verdict, Judgment::Fail);
+    batch.results[0].outcome.checks[0].passed = crate::Measure::Observed { value: true };
+    batch.probes.insert(key, ProbeVerdict::Passed);
+    assert_eq!(collected(&build, &batch.results, &batch).expect("pass").verdict, Judgment::Pass);
+    batch.results[0].outcome.end = End::Refused { setup: "named refusal".into() };
+    batch.results[0].timing.process_wall_ms = crate::Measure::unavailable("product invocation did not run");
+    assert!(
+        collected(&build, &batch.results, &batch).expect("setup refusal").setup_refused,
+        "neutral named checks survive even when setup refuses"
+    );
+    batch.results[0].timing.process_wall_ms = crate::Measure::Observed { value: 1 };
+    assert!(!collected(&build, &batch.results, &batch).expect("measured product refusal").setup_refused);
+    batch.results[0].identity.binary_sha256.push('0');
+    assert!(
+        collected(&build, &batch.results, &batch).is_err(),
+        "a changed binary identity is never reported as a pass"
+    );
 }

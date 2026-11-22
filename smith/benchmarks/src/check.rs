@@ -3,13 +3,14 @@
 //! seeds and design guards, following ../../docs/design/benchmarks/README.md, sections 5.2, 6.1 and 13.
 
 mod events;
+mod seed;
+
+pub use seed::seed_digest;
+pub use seed::testing::{SeedEntry, SeedFiles, SeedKind, seed_digest_with};
 
 use std::collections::BTreeSet;
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
 use std::path::{Component, Path, PathBuf};
-
-use sha2::{Digest, Sha256};
 
 use crate::task::{Kind, OutcomeCheck, Refusal, Task, read_task};
 
@@ -139,7 +140,16 @@ pub(crate) fn find_manifests(directory: &Path, manifests: &mut Vec<PathBuf>) -> 
 
 /// Verify one task's frozen inputs and return its parsed specification.
 pub fn check_task(file: &Path, design: &Path) -> Result<Task, Refusal> {
-    let task = read_task(file)?;
+    check_task_with(file, read_task(file)?, |path| fs::read_to_string(design.join(path)), seed_digest)
+}
+
+/// Validate one task with the design texts and seed digest supplied by the caller.
+pub fn check_task_with(
+    file: &Path,
+    task: Task,
+    read_guard: impl Fn(&Path) -> std::io::Result<String>,
+    digest_seed: impl FnOnce(&Path) -> Result<String, Refusal>,
+) -> Result<Task, Refusal> {
     if !valid_name(&task.id) {
         return Err(Refusal::new(file, "id", "expected a nonempty lowercase task name"));
     }
@@ -218,13 +228,13 @@ pub fn check_task(file: &Path, design: &Path) -> Result<Task, Refusal> {
         calibration(file, &format!("variant[{index}].calibration"), &selected)?;
     }
     for (index, guard) in task.guards.iter().enumerate() {
-        check_guard(file, &format!("guards[{index}]"), guard, design)?;
+        check_guard(file, &format!("guards[{index}]"), guard, &read_guard)?;
     }
     if !valid_digest(&task.seed_sha256) {
         return Err(Refusal::new(file, "seed_sha256", "expected 64 lowercase hexadecimal digits"));
     }
     let directory = file.parent().ok_or_else(|| Refusal::new(file, "seed", "task needs a directory"))?;
-    let observed = seed_digest(&directory.join("seed"))?;
+    let observed = digest_seed(&directory.join("seed"))?;
     if observed != task.seed_sha256 {
         return Err(Refusal::new(
             file,
@@ -397,13 +407,17 @@ fn check_outcomes(file: &Path, key: &str, outcomes: &[OutcomeCheck]) -> Result<(
     Ok(())
 }
 
-fn check_guard(file: &Path, key: &str, guard: &str, design: &Path) -> Result<(), Refusal> {
+fn check_guard(
+    file: &Path,
+    key: &str,
+    guard: &str,
+    read: &impl Fn(&Path) -> std::io::Result<String>,
+) -> Result<(), Refusal> {
     let Some((name, section)) = guard.split_once(", section ") else {
         return Err(Refusal::new(file, key, "expected '<design file>, section <number>'"));
     };
     check_path(file, key, Path::new(name))?;
-    let text =
-        fs::read_to_string(design.join(name)).map_err(|error| Refusal::new(file, key, format!("{guard}: {error}")))?;
+    let text = read(Path::new(name)).map_err(|error| Refusal::new(file, key, format!("{guard}: {error}")))?;
     let found = text.lines().any(|line| {
         let Some(heading) = line.strip_prefix('#') else {
             return false;
@@ -419,60 +433,6 @@ fn check_guard(file: &Path, key: &str, guard: &str, design: &Path) -> Result<(),
         || !found
     {
         return Err(Refusal::new(file, key, format!("guarded section does not exist: {guard}")));
-    }
-    Ok(())
-}
-
-/// Hash a frozen seed by sorted relative names, executable bits and file bytes.
-pub fn seed_digest(directory: &Path) -> Result<String, Refusal> {
-    let mut files = Vec::new();
-    seed_files(directory, directory, &mut files)?;
-    files.sort();
-    let mut digest = Sha256::new();
-    for path in files {
-        let relative = path.strip_prefix(directory).expect("walked files remain under seed");
-        let name = relative.to_str().ok_or_else(|| Refusal::new(&path, "seed", "file name must be UTF-8"))?;
-        let bytes = fs::read(&path).map_err(|error| Refusal::new(&path, "seed", error.to_string()))?;
-        let metadata = fs::metadata(&path).map_err(|error| Refusal::new(&path, "seed", error.to_string()))?;
-        digest.update(skein_lib::len_u64(name.len()).to_be_bytes());
-        digest.update(name.as_bytes());
-        digest.update([u8::from(metadata.permissions().mode() & 0o111 != 0)]);
-        digest.update(skein_lib::len_u64(bytes.len()).to_be_bytes());
-        digest.update(bytes);
-    }
-    Ok(format!("{:x}", digest.finalize()))
-}
-
-fn seed_files(root: &Path, directory: &Path, files: &mut Vec<PathBuf>) -> Result<(), Refusal> {
-    let metadata =
-        fs::symlink_metadata(directory).map_err(|error| Refusal::new(directory, "seed", error.to_string()))?;
-    if !metadata.is_dir() || metadata.is_symlink() {
-        return Err(Refusal::new(directory, "seed", "expected an ordinary seed directory"));
-    }
-    for entry in fs::read_dir(directory).map_err(|error| Refusal::new(directory, "seed", error.to_string()))? {
-        let entry = entry.map_err(|error| Refusal::new(directory, "seed", error.to_string()))?;
-        let path = entry.path();
-        let relative = path.strip_prefix(root).expect("walk remains under seed");
-        if relative.components().any(|part| {
-            matches!(
-                part.as_os_str().to_str(),
-                Some("benchmarks" | "grader" | "grading" | "reference" | "reference-solutions" | ".git")
-            )
-        }) {
-            return Err(Refusal::new(
-                &path,
-                "seed",
-                "benchmark, grader, reference and git files stay outside the seed",
-            ));
-        }
-        let kind = entry.file_type().map_err(|error| Refusal::new(&path, "seed", error.to_string()))?;
-        if kind.is_dir() {
-            seed_files(root, &path, files)?;
-        } else if kind.is_file() {
-            files.push(path);
-        } else {
-            return Err(Refusal::new(&path, "seed", "symlinks and special files are not frozen inputs"));
-        }
     }
     Ok(())
 }

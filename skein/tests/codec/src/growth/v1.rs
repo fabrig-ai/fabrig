@@ -96,6 +96,11 @@ pub struct Growth {
 }
 
 // Record: Growth.
+impl Growth {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for Growth {
     type Limits = Limits;
     const TAIL: Path = paths::GROWTH_TAIL;

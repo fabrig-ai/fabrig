@@ -178,6 +178,29 @@ fn inherited_listener(which: Which, environment: &[EnvironmentEntry]) -> Result<
 /// A binary shell supplies the checked document shape it serves (protocol/services.md, 7).
 pub type Reader = fn(&[u8], &jig_protocol_config::Directories) -> Result<super::setup::Deployment, String>;
 
+type SetupFile = temper_forge_setup::setup_file::SetupFile;
+type Configuration = temper_service_shell::configuration::Read;
+type Named = temper_engine_service::startup::Named;
+type ReadSetup<'a> = dyn Fn(&super::Directories, u16, &str, &[OsString]) -> Result<SetupFile, String> + 'a;
+type ReadConfiguration<'a> =
+    dyn Fn(&super::Directories, temper_config_shell::Shape) -> Result<Configuration, String> + 'a;
+type SignIn<'a> = dyn Fn(&super::Directories, &[u8], &Named, u16, &[EnvironmentEntry]) -> Result<u8, String> + 'a;
+
+pub(super) struct Inputs<'a> {
+    pub(super) reader: Reader,
+    pub(super) setup: &'a ReadSetup<'a>,
+    pub(super) configuration: &'a ReadConfiguration<'a>,
+    pub(super) sign_in: &'a SignIn<'a>,
+}
+
+type PrepareDirectory<'a> = dyn Fn(&std::path::Path, bool) -> Result<u32, String> + 'a;
+type PrepareFake<'a> = dyn Fn(&std::path::Path) -> Result<(), String> + 'a;
+
+pub(super) struct Preparation<'a> {
+    pub(super) directory: &'a PrepareDirectory<'a>,
+    pub(super) fake: &'a PrepareFake<'a>,
+}
+
 pub fn start(
     directories: &super::Directories,
     arguments: &[OsString],
@@ -215,10 +238,6 @@ fn start_with_binary(
     )
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "one forge command dispatches its binary-shaped document, checked setup and process lifecycle"
-)]
 fn start_with_binary_reader(
     binary: &str,
     shape: temper_config_shell::Shape,
@@ -227,6 +246,55 @@ fn start_with_binary_reader(
     ssl_cert_file: Option<std::path::PathBuf>,
     environment: &[EnvironmentEntry],
     reader: Reader,
+) -> Result<u8, Refused> {
+    start_with_inputs(
+        binary,
+        shape,
+        directories,
+        arguments,
+        ssl_cert_file,
+        environment,
+        &Inputs {
+            reader,
+            setup: &setup_file,
+            configuration: &temper_service_shell::configuration::read,
+            sign_in: &super::forge_sign_in::run,
+        },
+    )
+}
+
+pub(super) fn start_with_inputs(
+    binary: &str,
+    shape: temper_config_shell::Shape,
+    directories: &super::Directories,
+    arguments: &[OsString],
+    ssl_cert_file: Option<std::path::PathBuf>,
+    environment: &[EnvironmentEntry],
+    inputs: &Inputs<'_>,
+) -> Result<u8, Refused> {
+    start_with_preparation(
+        binary,
+        shape,
+        directories,
+        arguments,
+        ssl_cert_file,
+        environment,
+        (inputs, &Preparation { directory: &prepare_directory, fake: &prepare_fake }),
+    )
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "one forge command dispatches its binary-shaped document, checked setup and process lifecycle"
+)]
+pub(super) fn start_with_preparation(
+    binary: &str,
+    shape: temper_config_shell::Shape,
+    directories: &super::Directories,
+    arguments: &[OsString],
+    ssl_cert_file: Option<std::path::PathBuf>,
+    environment: &[EnvironmentEntry],
+    (inputs, preparation): (&Inputs<'_>, &Preparation<'_>),
 ) -> Result<u8, Refused> {
     let usage = || Refused {
         verb: "prepare",
@@ -261,7 +329,7 @@ fn start_with_binary_reader(
     // Inspect before reading the document or opening the lock: neither may occupy fd 3.
     let listener = which.map(|which| inherited_listener(which, environment)).transpose().map_err(refused)?.flatten();
     let dirs = jig_directories(directories);
-    let setup = setup_file(directories, number, verb, setup_flags).map_err(refused)?;
+    let setup = (inputs.setup)(directories, number, verb, setup_flags).map_err(refused)?;
     let entry = setup.entry(number, &dirs).ok_or_else(|| refused("invalid setup directory".into()))?;
     if verb == "remove" {
         return remove_directory(
@@ -272,13 +340,13 @@ fn start_with_binary_reader(
         .map(|()| 0)
         .map_err(refused);
     }
-    let read = temper_service_shell::configuration::read(directories, shape).map_err(refused)?;
+    let read = (inputs.configuration)(directories, shape).map_err(refused)?;
     let bytes = &read.document;
     let refused = |why: String| refused(read.problems(&why));
     let super::setup::Deployment { named, checked, .. } =
-        reader(bytes, &jig_directories(directories)).map_err(refused)?;
+        (inputs.reader)(bytes, &jig_directories(directories)).map_err(refused)?;
     if verb == "sign-in" {
-        return super::forge_sign_in::run(directories, bytes, &named, number, environment).map_err(refused);
+        return (inputs.sign_in)(directories, bytes, &named, number, environment).map_err(refused);
     }
     let owned = match &entry.mode {
         Mode::Owned(owned) => Some(owned),
@@ -292,19 +360,9 @@ fn start_with_binary_reader(
         return fetch(owned.expect("fetch requires owned"), checked.fetch_bytes, ssl_cert_file).map_err(refused);
     }
     let directory = super::path(&entry.directory);
-    if which.is_none() && !directory.exists() {
-        fs::DirBuilder::new()
-            .recursive(true)
-            .mode(0o700)
-            .create(directory)
-            .map_err(|why| refused(format!("{}: {why}", directory.display())))?;
-    }
-    let user = skein_shell::effective_user();
-    if directory.exists() {
-        super::private_root(directory, user).map_err(|why| refused(format!("{}: {why}", directory.display())))?;
-    }
+    let user = (preparation.directory)(directory, which.is_none()).map_err(refused)?;
     let Some(owned) = owned else {
-        prepare_fake(&directory.join("admin_token")).map_err(refused)?;
+        (preparation.fake)(&directory.join("admin_token")).map_err(refused)?;
         return Ok(0);
     };
     let place =
@@ -373,6 +431,17 @@ fn setup_file(
         Ok(setup)
     }
 }
+
+pub(crate) mod testing {
+    pub fn setup_file(
+        directories: &super::super::Directories,
+        number: u16,
+        verb: &str,
+        flags: &[std::ffi::OsString],
+    ) -> Result<temper_forge_setup::setup_file::SetupFile, String> {
+        super::setup_file(directories, number, verb, flags)
+    }
+}
 fn fetch(
     owned: &temper_forge_setup::setup::Owned,
     fetch_bytes: u64,
@@ -424,6 +493,21 @@ fn run_process(
     }
     Err(run_failure(binary, host::run(limits, &launch), &launch, number, directories))
 }
+fn prepare_directory(directory: &std::path::Path, create: bool) -> Result<u32, String> {
+    if create && !directory.exists() {
+        fs::DirBuilder::new()
+            .recursive(true)
+            .mode(0o700)
+            .create(directory)
+            .map_err(|why| format!("{}: {why}", directory.display()))?;
+    }
+    let user = skein_shell::effective_user();
+    if directory.exists() {
+        super::private_root(directory, user).map_err(|why| format!("{}: {why}", directory.display()))?;
+    }
+    Ok(user)
+}
+
 /// The fake shares only the private directory and token with an owned forge (protocol/setup/playground.md).
 fn prepare_fake(path: &std::path::Path) -> Result<(), String> {
     match fs::symlink_metadata(path) {
@@ -472,7 +556,18 @@ pub fn run_with_shape_reader(
     environment: &[EnvironmentEntry],
     reader: Reader,
 ) -> u8 {
-    match start_with_binary_reader(binary, shape, directories, arguments, ssl_cert_file, environment, reader) {
+    let result = start_with_binary_reader(binary, shape, directories, arguments, ssl_cert_file, environment, reader);
+    report_exit(binary, arguments, result, |line| println!("{line}"), |line| eprint!("{line}"))
+}
+
+pub(super) fn report_exit(
+    binary: &str,
+    arguments: &[OsString],
+    result: Result<u8, Refused>,
+    stdout: impl FnOnce(String),
+    stderr: impl FnOnce(String),
+) -> u8 {
+    match result {
         Ok(code) => code,
         Err(why) => {
             if arguments.first().is_some_and(|verb| verb == "source") {
@@ -482,10 +577,10 @@ pub fn run_with_shape_reader(
                     .take(1024)
                     .map(|c| if c.is_ascii_graphic() || c == b' ' { char::from(c) } else { ' ' })
                     .collect();
-                println!("source failed {reason}");
+                stdout(format!("source failed {reason}"));
                 0
             } else {
-                eprint!("{}", why.line_with_binary(binary));
+                stderr(why.line_with_binary(binary));
                 1
             }
         }

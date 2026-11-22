@@ -330,6 +330,7 @@ members = [
     "temper/testing/temper-limits-fixtures",
     "temper/testing/temper-agent-fixtures",
     "temper/testing/temper-landing-fixtures",
+    "temper/testing/temper-blame",
     "temper/testing/temper-test-env",
     "temper/testing/temper-deployment-fixtures",
     "temper/crates/temper-box-shell",
@@ -394,8 +395,6 @@ members = [
     "temper/bin/temper-twin",
     "temper/crates/temper-qa-tool",
     "temper/bin/temper-qa",
-    "temper/crates/temper-redeploy-tool",
-    "temper/bin/temper-redeploy",
     "temper/crates/temper-protocol-worker-wire",
     "temper/tests/codecs",
     "temper/crates/temper-protocol-store",
@@ -562,8 +561,6 @@ io-uring = { version = "0.7.15" }
 libc = { version = "0.2.186" }
 rustix = { version = "1.1.6", features = ["stdio", "fs"] }
 ring = { version = "0.17", features = ["wasm32_unknown_unknown_js"] }
-rsa = { version = "0.9.9", default-features = false, features = ["pem", "u64_digit"] }
-rand_chacha = { version = "0.3.1", default-features = false }
 # rustls, pinned, without std and with ring for its cryptography (skein/docs/design/net/tls.md, 4).
 # Named in wasm32-unknown-unknown tables alone (skein/docs/foundation/cli.md, 3).
 rustls = { version = "=0.23.41", default-features = false, features = ["ring", "tls12"] }
@@ -781,7 +778,6 @@ temper-client-journeys-tool = { path = "temper/crates/temper-client-journeys-too
 temper-client-walk-lines = { path = "temper/crates/temper-client-walk-lines" }
 temper-twin-tool = { path = "temper/crates/temper-twin-tool" }
 temper-qa-tool = { path = "temper/crates/temper-qa-tool" }
-temper-redeploy-tool = { path = "temper/crates/temper-redeploy-tool" }
 temper-stage-one-tool = { path = "temper/crates/temper-stage-one-tool" }
 temper-client-tools = { path = "temper/crates/temper-client-tools" }
 temper-client-tools-jig = { path = "temper/crates/temper-client-tools-jig" }
@@ -959,13 +955,6 @@ opt-level = 3
 debug-assertions = false
 
 [profile.dev.package.sha2]
-opt-level = 3
-
-# Walks generate a seeded 3072-bit provider key for each world.
-[profile.dev.package.num-bigint-dig]
-opt-level = 3
-
-[profile.dev.package.rsa]
 opt-level = 3
 
 [profile.dev.package.jig-boundary]

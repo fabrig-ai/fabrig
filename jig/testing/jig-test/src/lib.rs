@@ -461,5 +461,8 @@ fn serve(path: &Path) -> Result<Exit, String> {
     Ok(exit)
 }
 
+#[doc(hidden)]
+pub mod testing;
+
 #[cfg(test)]
 mod tests;

@@ -367,8 +367,9 @@ owner writes in the file, such as `public` or `[sign_in.google]`.
   build's, so a copy restores only at the place that made it, as a
   box's does.
 - **Upgraded at open:** the engine plans the store's registry and runs
-  pending jobs in a copy before restoring and switching, as a redeploy
-  does (`../../protocol/store.md`, 4 and 5; `../../redeploy.md`). A
+  pending jobs in a copy before restoring and switching, as a new
+  build's start does (`../../protocol/store.md`, 4 and 5;
+  `../../protocol/binaries.md`, section 2). A
   store below the floor is refused by name (`../../protocol/floor.md`,
   4), status 3, and the place makes the copy again. The fake Forgejo restores its state; a state it
   cannot read is refused by name, status 3, too.

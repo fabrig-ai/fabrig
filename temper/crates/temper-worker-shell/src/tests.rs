@@ -24,7 +24,7 @@ pub(crate) fn worker_start(file: &temper_config_shell::File) -> Box<[u8]> {
 #[test]
 fn a_programs_owner_refusal_identifies_the_directory_ownership_conflict() {
     use smith_agent_document::program::{Refusal, Unsafe};
-    let other = skein_shell::effective_user().wrapping_add(1);
+    let other = 1001;
     let why = super::agent::program_directory_refusal(&Refusal::Unsafe {
         path: "/programs".into(),
         found: Unsafe::Owner { found: other },
@@ -67,3 +67,5 @@ fn workspace_reuse_reads_nonempty_values_from_the_given_environment() {
 mod pin;
 
 mod figures;
+
+pub(crate) mod machine;

@@ -5,5 +5,7 @@ pub mod proxy;
 pub use mirror::{CACHE, Mirror, Missing};
 pub use pin::{Pin, PinError, Target, Wrong};
 pub use proxy::{HEAD, Method, ORIGIN, Proxy, Served, target};
+#[doc(hidden)]
+pub mod testing;
 #[cfg(test)]
 mod tests;

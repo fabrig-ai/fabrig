@@ -54,43 +54,28 @@ pub(super) fn one_arm(requests: &[Request], repetitions: usize) -> Result<Build,
     Ok(first)
 }
 
-#[cfg(test)]
-pub(super) fn comparison_case() {
-    tests::comparison_inputs_keep_task_seed_model_and_configuration_immutable();
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::path::Path;
-
-    pub(super) fn comparison_inputs_keep_task_seed_model_and_configuration_immutable() {
-        let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-        let value = crate::read_result(&root.join("tests/recorded/results/attempt.json")).expect("fixture").identity;
-        let mut other = value.clone();
-        other.agent_version = "another verified arm".into();
-        other.binary_sha256 = "another binary digest".into();
-        other.run = "another run".into();
-        other.attempt = "another attempt".into();
-        assert!(same_input(&value, &other), "arm/run identity is recorded separately");
-        for field in
-            ["task", "version", "seed", "prompt", "configuration", "model", "effort", "harness", "host", "cpus"]
-        {
-            let mut changed = other.clone();
-            match field {
-                "task" => changed.task.push_str("/different"),
-                "version" => changed.task_version += 1,
-                "seed" => changed.seed_sha256.push('0'),
-                "prompt" => changed.prompt_sha256.push('0'),
-                "configuration" => changed.configuration_sha256.push('0'),
-                "model" => changed.model.requested_model.push_str("-different"),
-                "effort" => changed.model.requested_effort.push_str("-different"),
-                "harness" => changed.harness_commit.push('0'),
-                "host" => changed.host.push_str("-different"),
-                "cpus" => changed.cpus.push(100),
-                _ => panic!("named comparison field"),
-            }
-            assert!(!same_input(&value, &changed), "{field}");
+pub(super) fn comparison_case(value: &Identity) {
+    let mut other = value.clone();
+    other.agent_version = "another verified arm".into();
+    other.binary_sha256 = "another binary digest".into();
+    other.run = "another run".into();
+    other.attempt = "another attempt".into();
+    assert!(same_input(value, &other), "arm/run identity is recorded separately");
+    for field in ["task", "version", "seed", "prompt", "configuration", "model", "effort", "harness", "host", "cpus"] {
+        let mut changed = other.clone();
+        match field {
+            "task" => changed.task.push_str("/different"),
+            "version" => changed.task_version += 1,
+            "seed" => changed.seed_sha256.push('0'),
+            "prompt" => changed.prompt_sha256.push('0'),
+            "configuration" => changed.configuration_sha256.push('0'),
+            "model" => changed.model.requested_model.push_str("-different"),
+            "effort" => changed.model.requested_effort.push_str("-different"),
+            "harness" => changed.harness_commit.push('0'),
+            "host" => changed.host.push_str("-different"),
+            "cpus" => changed.cpus.push(100),
+            _ => panic!("named comparison field"),
         }
+        assert!(!same_input(value, &changed), "{field}");
     }
 }

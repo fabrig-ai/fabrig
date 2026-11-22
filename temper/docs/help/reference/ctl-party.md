@@ -2,7 +2,7 @@
 
 Kind: reference
 
-Parties: make a service with a project's role.
+Parties: make a service and reissue its credential.
 
 ## party make
 
@@ -21,4 +21,21 @@ FILE existing refuses the call before anything is sent, exit 1.
 The host writes FILE at 0o600, with this engine's address and
 the credential answered once. The credential is never printed
 or passed in argv. A key replay prints the party and writes nothing.
+```
+
+## party reissue
+
+```
+party reissue PARTY --out FILE [--key KEY]
+  PARTY (party): a number; required. The service's party number
+  --out FILE: a file; required. A new private file for sign-in, or - for stdout
+Reissue a service's credential and write its service link
+Prints: `reissued: party N; its sign-ins have ended`, then how to sign its directory in again
+--json: the record reissue-service.
+Key: --key KEY, optional.
+An owner of the deployment or of every project the service holds
+a role in reissues it, not the service itself. Its sign-ins end at once.
+FILE must not exist; the service link is written at 0o600.
+With --out -, stdout holds only the service link and the answer goes
+to stderr. Sign the service directory in again with sign-in FILE.
 ```

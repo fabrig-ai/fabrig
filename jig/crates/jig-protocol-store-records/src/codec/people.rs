@@ -14,10 +14,10 @@ pub(in crate::codec) mod pieces;
 pub(crate) mod policy;
 pub use asks::{decode_ask, encode_ask};
 use pieces::{
-    EMPTY, decode_authority_note_resources, decode_delegation_kinds, decode_grant_piece, decode_numbers,
-    decode_permissions, decode_requirement_piece, decode_segments, decode_spec_parameters,
-    encode_authority_note_resources, encode_delegation_kinds, encode_grant_piece, encode_numbers, encode_permissions,
-    encode_requirement_piece, encode_segments, encode_spec_parameters, permission_sum, piece_bound, shared_sum,
+    decode_authority_note_resources, decode_delegation_kinds, decode_grant_piece, decode_numbers, decode_permissions,
+    decode_requirement_piece, decode_segments, decode_spec_parameters, encode_authority_note_resources,
+    encode_delegation_kinds, encode_grant_piece, encode_numbers, encode_permissions, encode_requirement_piece,
+    encode_segments, encode_spec_parameters, permission_sum, piece_bound, shared_sum,
 };
 
 /// Derive and admit the people family's bounds against its schema ceilings.
@@ -149,9 +149,9 @@ pub fn derived_limits(domain: &core::Limits) -> Option<wire::Limits> {
 
 fn derive_verdicts(amendment_bytes: u32, limits: &mut wire::Limits) -> Option<()> {
     limits.verdict_fields =
-        piece_bound(amendment_bytes, size_of::<domain::FieldRule>(), wire::FieldRule::encoded_bound(&EMPTY)?, true)?;
+        piece_bound(amendment_bytes, size_of::<domain::FieldRule>(), wire::FieldRule::ENCODED_AT_ZERO, true)?;
     limits.contract_verdict_choices =
-        piece_bound(amendment_bytes, size_of::<domain::Verdict>(), wire::Verdict::encoded_bound(&EMPTY)?, true)?;
+        piece_bound(amendment_bytes, size_of::<domain::Verdict>(), wire::Verdict::ENCODED_AT_ZERO, true)?;
     Some(())
 }
 
@@ -438,33 +438,29 @@ fn derive_shared(domain: &core::Limits, limits: &mut wire::Limits) -> Option<()>
     limits.pattern_segments = piece_bound(
         people.amendment_bytes.max(policy_bytes),
         size_of::<Box<[u8]>>(),
-        wire::Segment::encoded_bound(&EMPTY)?,
+        wire::Segment::ENCODED_AT_ZERO,
         true,
     )?;
     limits.delegation_kinds = piece_bound(
         people.amendment_bytes.max(policy_bytes),
         size_of::<domain::Executor>(),
-        wire::Executor::encoded_bound(&EMPTY)?,
+        wire::Executor::ENCODED_AT_ZERO,
         false,
     )?;
     limits.authority_grants = piece_bound(
         people.amendment_bytes.max(policy_bytes),
         size_of::<domain::Grant>(),
-        wire::Grant::encoded_bound(&EMPTY)?,
+        wire::Grant::ENCODED_AT_ZERO,
         true,
     )?;
     limits.authority_note_resources = piece_bound(
         people.amendment_bytes.max(policy_bytes),
         size_of::<domain::ResourceScope>(),
-        wire::ResourceScope::encoded_bound(&EMPTY)?,
+        wire::ResourceScope::ENCODED_AT_ZERO,
         true,
     )?;
-    limits.policy_value_permissions = piece_bound(
-        policy_bytes,
-        size_of::<domain::PermissionRole>(),
-        wire::PermissionRole::encoded_bound(&EMPTY)?,
-        false,
-    )?;
+    limits.policy_value_permissions =
+        piece_bound(policy_bytes, size_of::<domain::PermissionRole>(), wire::PermissionRole::ENCODED_AT_ZERO, false)?;
     Some(())
 }
 
@@ -473,41 +469,39 @@ fn derive_amendment(domain: &core::Limits, limits: &mut wire::Limits) -> Option<
     limits.policy_change_requirements_requirements = piece_bound(
         people.amendment_bytes,
         size_of::<domain::Requirement>(),
-        wire::Requirement::encoded_bound(&EMPTY)?,
+        wire::Requirement::ENCODED_AT_ZERO,
         true,
     )?;
     limits.policy_change_projections_grants =
-        piece_bound(people.amendment_bytes, size_of::<domain::Grant>(), wire::Grant::encoded_bound(&EMPTY)?, true)?;
+        piece_bound(people.amendment_bytes, size_of::<domain::Grant>(), wire::Grant::ENCODED_AT_ZERO, true)?;
     limits.policy_change_permissions_mappings = piece_bound(
         people.amendment_bytes,
         size_of::<domain::PermissionRole>(),
-        wire::PermissionRole::encoded_bound(&EMPTY)?,
+        wire::PermissionRole::ENCODED_AT_ZERO,
         false,
     )?;
     limits.note_change_correct_references =
-        piece_bound(people.amendment_bytes, size_of::<u64>(), wire::Number64::encoded_bound(&EMPTY)?, false)?;
+        piece_bound(people.amendment_bytes, size_of::<u64>(), wire::Number64::ENCODED_AT_ZERO, false)?;
     limits.resource_name_path =
-        piece_bound(people.amendment_bytes, size_of::<Box<[u8]>>(), wire::Segment::encoded_bound(&EMPTY)?, true)?;
+        piece_bound(people.amendment_bytes, size_of::<Box<[u8]>>(), wire::Segment::ENCODED_AT_ZERO, true)?;
     limits.adoption_options =
-        piece_bound(people.amendment_bytes, size_of::<Box<[u8]>>(), wire::Segment::encoded_bound(&EMPTY)?, true)?;
+        piece_bound(people.amendment_bytes, size_of::<Box<[u8]>>(), wire::Segment::ENCODED_AT_ZERO, true)?;
     limits.spec_parameters = piece_bound(
         people.amendment_bytes,
         size_of::<domain::Parameter>(),
-        wire::ParameterBytes::encoded_bound(&EMPTY)?.checked_add(
-            wire::Parameter::encoded_bound(&EMPTY)?.checked_sub(wire::ParameterResource::encoded_bound(&EMPTY)?)?,
-        )?,
+        wire::ParameterBytes::ENCODED_AT_ZERO
+            .checked_add(wire::Parameter::ENCODED_AT_ZERO.checked_sub(wire::ParameterResource::ENCODED_AT_ZERO)?)?,
         true,
     )?
     .max(piece_bound(
         people.amendment_bytes,
         size_of::<domain::Parameter>(),
-        wire::Parameter::encoded_bound(&EMPTY)?,
+        wire::Parameter::ENCODED_AT_ZERO,
         false,
     )?);
-    limits.spec_inputs =
-        piece_bound(people.amendment_bytes, size_of::<u64>(), wire::Number64::encoded_bound(&EMPTY)?, false)?;
+    limits.spec_inputs = piece_bound(people.amendment_bytes, size_of::<u64>(), wire::Number64::ENCODED_AT_ZERO, false)?;
     limits.amendment_dependencies_some =
-        piece_bound(people.amendment_bytes, size_of::<u64>(), wire::Number64::encoded_bound(&EMPTY)?, false)?;
+        piece_bound(people.amendment_bytes, size_of::<u64>(), wire::Number64::ENCODED_AT_ZERO, false)?;
     Some(())
 }
 

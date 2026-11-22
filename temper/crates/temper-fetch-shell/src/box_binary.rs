@@ -135,6 +135,9 @@ fn remove(file: &Path) -> Result<(), Failed> {
     }
 }
 fn clean(directory: &Path) -> Result<(), Failed> {
+    clean_with(directory, remove)
+}
+fn clean_with(directory: &Path, mut remove: impl FnMut(&Path) -> Result<(), Failed>) -> Result<(), Failed> {
     for name in ["temper-box.gz.part", "temper-box.part", "temper-box.sha256.part"] {
         remove(&directory.join(name))?;
     }
@@ -184,24 +187,43 @@ fn cached(file: &Path) -> Result<Event, Failed> {
         Ok(input) => {
             let mut bytes = Vec::new();
             input.take(66).read_to_end(&mut bytes).map_err(|why| file_error(&sum_file, &why))?;
-            // Parse precisely the stored 64 lowercase digits and line feed.
-            if bytes.len() == 65 && bytes.last() == Some(&b'\n') {
-                bytes.pop();
-                bytes.extend_from_slice(b"  temper-box\n");
-                machine::sum(&bytes, b"temper-box").ok()
-            } else {
-                None
-            }
+            stored_sum(bytes)
         }
         Err(why) if why.kind() == io::ErrorKind::NotFound => None,
         Err(why) => return Err(file_error(&sum_file, &why)),
     };
     Ok(Event::Cached { file: digest, sum })
 }
+fn stored_sum(mut bytes: Vec<u8>) -> Option<[u8; 32]> {
+    // The stored form is 64 lowercase digits and a line feed.
+    if bytes.len() != 65 || bytes.pop() != Some(b'\n') {
+        return None;
+    }
+    bytes.extend_from_slice(b"  temper-box\n");
+    machine::sum(&bytes, b"temper-box").ok()
+}
 fn unpack(archive: &Path, part: &Path, bound: u64) -> Result<Unpacked, Failed> {
     let input = fs::File::open(archive).map_err(|why| file_error(archive, &why))?;
-    let mut decoder = flate2::bufread::GzDecoder::new(io::BufReader::new(input));
     let mut output = open(part)?;
+    let unpacked = decode_gzip(io::BufReader::new(input), &mut output, bound).map_err(|why| match why {
+        UnpackError::Input(why) => file_error(archive, &why),
+        UnpackError::Output(why) => file_error(part, &why),
+    })?;
+    if let Unpacked::File { .. } = unpacked {
+        output.set_permissions(fs::Permissions::from_mode(0o755)).map_err(|why| file_error(part, &why))?;
+        output.sync_all().map_err(|why| file_error(part, &why))?;
+    }
+    Ok(unpacked)
+}
+
+#[derive(Debug)]
+enum UnpackError {
+    Input(io::Error),
+    Output(io::Error),
+}
+
+fn decode_gzip(input: impl io::BufRead, output: &mut impl Write, bound: u64) -> Result<Unpacked, UnpackError> {
+    let mut decoder = flate2::bufread::GzDecoder::new(input);
     let mut hash = Sha256::new();
     let mut total = 0_u64;
     let mut buffer = [0; 16_384];
@@ -215,13 +237,13 @@ fn unpack(archive: &Path, part: &Path, bound: u64) -> Result<Unpacked, Failed> {
             return Ok(Unpacked::TooLong);
         }
         total += n64;
-        output.write_all(&buffer[..n]).map_err(|why| file_error(part, &why))?;
+        output.write_all(&buffer[..n]).map_err(UnpackError::Output)?;
         hash.update(&buffer[..n]);
     }
     // A single member is allowed. Zero padding is allowed; another member is not.
     let mut rest = decoder.into_inner();
     loop {
-        let n = rest.read(&mut buffer).map_err(|why| file_error(archive, &why))?;
+        let n = rest.read(&mut buffer).map_err(UnpackError::Input)?;
         if n == 0 {
             break;
         }
@@ -229,8 +251,6 @@ fn unpack(archive: &Path, part: &Path, bound: u64) -> Result<Unpacked, Failed> {
             return Ok(Unpacked::Invalid);
         }
     }
-    output.set_permissions(fs::Permissions::from_mode(0o755)).map_err(|why| file_error(part, &why))?;
-    output.sync_all().map_err(|why| file_error(part, &why))?;
     Ok(Unpacked::File { digest: hash.finish(), bytes: total })
 }
 fn write_sum(file: &Path, digest: &[u8; 32]) -> Result<(), Failed> {
@@ -346,10 +366,8 @@ impl Files {
         }
     }
 }
-/// Find beside the executable, then under the cache lock, downloading only a clean build.
-#[expect(clippy::too_many_lines, reason = "the driver keeps its exhaustive requests and locked cleanup in one scope")]
-pub fn find(limits: &skein_io::Limits, find: &Find<'_>, out: &mut dyn Write) -> Result<PathBuf, Failed> {
-    let build = Build {
+fn build(find: &Find<'_>, executable: impl FnOnce(&Path) -> bool) -> Build {
+    Build {
         beside: find.beside.as_os_str().as_bytes().into(),
         cache: find.cache.as_os_str().as_bytes().into(),
         site: find.site.clone(),
@@ -357,89 +375,118 @@ pub fn find(limits: &skein_io::Limits, find: &Find<'_>, out: &mut dyn Write) -> 
         commit: find.commit.into(),
         platform: platform().into_bytes().into_boxed_slice(),
         beside_exists: executable(&find.beside.join("temper-box")),
-    };
-    let mut machine = machine::Find::new(build);
-    let mut event = Event::Begin;
-    let mut requests = Queue::uncapped();
+    }
+}
+
+/// Find beside the executable, then under the cache lock, downloading only a clean build.
+pub fn find(limits: &skein_io::Limits, find: &Find<'_>, out: &mut dyn Write) -> Result<PathBuf, Failed> {
+    let build = build(find, executable);
     let mut files = Files::default();
     let mut connection: Option<Connection> = None;
     let mut config = None;
+    let (result, downloading) = drive(build, out, |request| match request {
+        request @ (Request::Identity { .. }
+        | Request::Lock { .. }
+        | Request::Clean { .. }
+        | Request::Cached { .. }
+        | Request::RemoveCached { .. }
+        | Request::Open { .. }
+        | Request::Write(_)
+        | Request::Unpack { .. }
+        | Request::WriteSum { .. }
+        | Request::RenameSum { .. }
+        | Request::Publish { .. }) => files.answer(request),
+        Request::Get { origin, path } => {
+            if let Some(mut old) = connection.take() {
+                old.close();
+            }
+            let next = if let Some(config) = &config {
+                Ok(config)
+            } else {
+                match tls_config(find.trust) {
+                    Ok(new) => {
+                        config = Some(new);
+                        Ok(config.as_ref().expect("new config"))
+                    }
+                    Err(why) => Err(why),
+                }
+            };
+            match next {
+                Ok(config) => match Connection::new(limits, config, &origin, &path, None) {
+                    Ok(new) => {
+                        connection = Some(new);
+                        connection
+                            .as_mut()
+                            .expect("new connection")
+                            .answer()
+                            .map(transport)
+                            .map_err(|why| Failed { words: why.words() })
+                    }
+                    Err(why) => Err(Failed { words: why.words() }),
+                },
+                Err(why) => Err(why),
+            }
+        }
+        Request::Read => {
+            let connection = connection.as_mut().expect("read follows get");
+            connection.demand();
+            connection.answer().map(transport).map_err(|why| Failed { words: why.words() })
+        }
+        Request::Say(_) | Request::End(_) => unreachable!("driver handles output and terminal requests"),
+    });
+    if let Some(mut connection) = connection {
+        connection.close();
+    }
+    let result = finish(find, result, downloading, || files.cleanup());
+    drop(files);
+    result
+}
+
+fn drive(
+    build: Build,
+    out: &mut dyn Write,
+    mut answer: impl FnMut(Request) -> Result<Event, Failed>,
+) -> (Result<PathBuf, Failed>, Option<Box<[u8]>>) {
+    let mut machine = machine::Find::new(build);
+    let mut event = Event::Begin;
+    let mut requests = Queue::uncapped();
     let mut downloading = None;
     let result = loop {
         machine::step(&mut machine, event, &mut requests);
         assert_eq!(requests.len(), 1, "one request per event");
         let request = requests.pop().expect("one request");
-        let answer = match request {
-            request @ (Request::Identity { .. }
-            | Request::Lock { .. }
-            | Request::Clean { .. }
-            | Request::Cached { .. }
-            | Request::RemoveCached { .. }
-            | Request::Open { .. }
-            | Request::Write(_)
-            | Request::Unpack { .. }
-            | Request::WriteSum { .. }
-            | Request::RenameSum { .. }
-            | Request::Publish { .. }) => files.answer(request),
-            Request::Get { origin, path } => {
-                downloading = Some(temper_fetch::fetch::url(&origin, &path));
-                if let Some(mut old) = connection.take() {
-                    old.close();
-                }
-                let next = if let Some(config) = &config {
-                    Ok(config)
-                } else {
-                    match tls_config(find.trust) {
-                        Ok(new) => {
-                            config = Some(new);
-                            Ok(config.as_ref().expect("new config"))
-                        }
-                        Err(why) => Err(why),
-                    }
-                };
-                match next {
-                    Ok(config) => match Connection::new(limits, config, &origin, &path, None) {
-                        Ok(new) => {
-                            connection = Some(new);
-                            connection
-                                .as_mut()
-                                .expect("new connection")
-                                .answer()
-                                .map(transport)
-                                .map_err(|why| Failed { words: why.words() })
-                        }
-                        Err(why) => Err(Failed { words: why.words() }),
-                    },
-                    Err(why) => Err(why),
-                }
+        if let Request::End(result) = request {
+            break result
+                .map(|file| path(&file).to_path_buf())
+                .map_err(|why| Failed { words: String::from_utf8_lossy(&why.words()).into_owned() });
+        }
+        let next = if let Request::Say(progress) = request {
+            match out.write_all(&progress.line()) {
+                Ok(()) | Err(_) => {}
             }
-            Request::Read => {
-                let connection = connection.as_mut().expect("read follows get");
-                connection.demand();
-                connection.answer().map(transport).map_err(|why| Failed { words: why.words() })
+            Ok(Event::Done)
+        } else {
+            if let Request::Get { origin, path } = &request {
+                downloading = Some(temper_fetch::fetch::url(origin, path));
             }
-            Request::Say(progress) => {
-                match out.write_all(&progress.line()) {
-                    Ok(()) | Err(_) => {}
-                }
-                Ok(Event::Done)
-            }
-            Request::End(result) => {
-                break result
-                    .map(|file| path(&file).to_path_buf())
-                    .map_err(|why| Failed { words: String::from_utf8_lossy(&why.words()).into_owned() });
-            }
+            answer(request)
         };
-        match answer {
+        match next {
             Ok(next) => event = next,
             Err(why) => break Err(why),
         }
     };
-    if let Some(mut connection) = connection {
-        connection.close();
-    }
-    let result = if let Err(mut why) = result {
-        if let Err(cleanup) = files.cleanup() {
+    (result, downloading)
+}
+
+fn finish(
+    find: &Find<'_>,
+    result: Result<PathBuf, Failed>,
+    downloading: Option<Box<[u8]>>,
+    cleanup: impl FnOnce() -> Result<(), Failed>,
+) -> Result<PathBuf, Failed> {
+    if let Err(mut why) = result {
+        if let Err(cleanup) = cleanup() {
             why.words.push_str("; cleanup: ");
             why.words.push_str(&cleanup.words());
         }
@@ -454,10 +501,11 @@ pub fn find(limits: &skein_io::Limits, find: &Find<'_>, out: &mut dyn Write) -> 
         Err(why)
     } else {
         result
-    };
-    drop(files);
-    result
+    }
 }
 
 #[cfg(test)]
 mod tests;
+
+#[path = "box_binary/testing.rs"]
+pub(crate) mod testing;

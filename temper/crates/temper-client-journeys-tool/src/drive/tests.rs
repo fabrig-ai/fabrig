@@ -1,31 +1,16 @@
+pub(super) use super::testing::plan;
 use super::*;
 pub(crate) mod forge;
 mod harness_reports;
 mod logging;
 mod page;
 mod places;
+mod preflight;
+use super::options::PreflightDisk;
+use preflight::{BOX_PROGRAMS, Disk as Preflight, ROOT as PREFLIGHT_ROOT};
 mod requests;
 use skein_fake_person::Target;
 use std::{collections::VecDeque, ffi::OsStr, os::unix::ffi::OsStrExt, path::Path};
-pub(super) fn plan() -> Plan {
-    Plan::new(
-        Options {
-            bin: "/build/bin".into(),
-            bundle: Some("/build/bundle".into()),
-            deployment: None,
-            scratch: "/scratch".into(),
-            scripts: vec!["/build/one.script".into(), "/build/two.script".into()],
-            strict: true,
-            ctl: false,
-            journey: false,
-            widths: vec![],
-            ports: None,
-            files: None,
-        },
-        "/browser/chromium".into(),
-        OsStr::new("/bin"),
-    )
-}
 fn journey_ready() -> Machine {
     let mut plan = plan();
     plan.options.journey = true;
@@ -210,57 +195,47 @@ fn deployment_options_require_ports_accept_ctl_and_make_bundle_optional() {
 
 #[test]
 fn deployment_preflight_requires_each_extra_executable_without_starting_it() {
-    use std::{fs, os::unix::fs::PermissionsExt};
-    let scratch = skein_scratch::Scratch::new("drive-deployment-preflight");
-    let root = scratch.path();
-    fs::set_permissions(root, fs::Permissions::from_mode(0o700)).expect("private scratch");
-    for directory in ["bin", "deployment", "session"] {
-        fs::create_dir(root.join(directory)).expect("directory");
-    }
-    fs::write(root.join("session/lines"), b"previous").expect("previous session");
-    for name in ["temper-box", "fake-claude", "temper"] {
-        let file = root.join("bin").join(name);
-        fs::write(&file, b"not executed").expect("binary fixture");
-        fs::set_permissions(file, fs::Permissions::from_mode(0o700)).expect("executable");
-    }
-    let root_path = root;
+    let root = Path::new(PREFLIGHT_ROOT);
+    let mut disk = Preflight::new(&["bin", "deployment", "session"]);
+    disk.write(&root.join("session/lines"), b"previous");
+    disk.programs(&BOX_PROGRAMS);
     let mut options = plan().options;
-    options.bin = root_path.join("bin");
+    options.bin = root.join("bin");
     options.bundle = None;
-    options.deployment = Some(root_path.join("deployment"));
-    options.scratch = root_path.into();
+    options.deployment = Some(root.join("deployment"));
+    options.scratch = root.into();
     options.scripts.clear();
     options.ports = Some("4101,4102,4103,4104,4105,4106,4107,4108,4109".into());
     for name in ["temper-engine", "temper-worker", "temper-agent"] {
         let file = root.join("bin").join(name);
-        let why = super::options::prepare(options.clone(), &[]).expect_err("missing executable");
+        let why = disk.prepare(options.clone(), &[]).expect_err("missing executable");
         assert!(why.contains(name), "{why}");
-        fs::create_dir(&file).expect("not a regular file");
-        assert!(super::options::prepare(options.clone(), &[]).expect_err("directory").contains(name));
-        fs::remove_dir(&file).expect("remove directory");
-        fs::write(&file, b"not executed").expect("binary fixture");
-        fs::set_permissions(&file, fs::Permissions::from_mode(0o600)).expect("not executable");
-        assert!(super::options::prepare(options.clone(), &[]).expect_err("not executable").contains(name));
-        fs::set_permissions(file, fs::Permissions::from_mode(0o700)).expect("executable");
-        assert_eq!(fs::read(root.join("session/lines")).expect("unmodified session"), b"previous");
+        disk.directory(&file);
+        assert!(disk.prepare(options.clone(), &[]).expect_err("directory").contains(name));
+        disk.remove_dir_all(&file).expect("remove directory");
+        disk.program(&file, 0o600);
+        assert!(disk.prepare(options.clone(), &[]).expect_err("not executable").contains(name));
+        disk.remove_file(&file).expect("remove non-executable fixture");
+        disk.program(&file, 0o700);
+        assert_eq!(disk.read(&root.join("session/lines")), b"previous");
     }
-    let why = super::options::prepare(options.clone(), &[]).expect_err("full deployment needs Chromium");
+    let why = disk.prepare(options.clone(), &[]).expect_err("full deployment needs Chromium");
     assert!(why.contains("SKEIN_TEST_CHROMIUM"), "{why}");
-    assert_eq!(fs::read(root.join("session/lines")).expect("unmodified session"), b"previous");
+    assert_eq!(disk.read(&root.join("session/lines")), b"previous");
     let chromium = root.join("bin/temper");
     let environment = vec![(b"SKEIN_TEST_CHROMIUM".as_slice().into(), chromium.as_os_str().as_bytes().into())];
-    let full = super::options::prepare(options.clone(), &environment).expect("full deployment with Chromium");
-    assert_eq!(full.chromium, chromium.canonicalize().expect("absolute Chromium"));
+    let full = disk.prepare(options.clone(), &environment).expect("full deployment with Chromium");
+    assert_eq!(full.chromium, chromium);
     assert!(full.options.bundle.is_none());
     options.ctl = true;
-    let plan = super::options::prepare(options, &[]).expect("ctl deployment needs neither bundle nor Chromium");
-    assert_eq!(plan.options.deployment, Some(root.join("deployment").canonicalize().expect("absolute deployment")));
+    let plan = disk.prepare(options, &[]).expect("ctl deployment needs neither bundle nor Chromium");
+    assert_eq!(plan.options.deployment, Some(root.join("deployment")));
     assert!(plan.options.bundle.is_none());
     assert!(plan.chromium.as_os_str().is_empty());
-    fs::create_dir(root.join("config")).expect("held config");
-    fs::create_dir(root.join("data")).expect("held data");
-    fs::remove_dir(root.join("deployment")).expect("held needs no source directory");
-    super::options::prepare(plan.options, &[]).expect("held preflight never reads the recipe");
+    disk.directory(&root.join("config"));
+    disk.directory(&root.join("data"));
+    disk.remove_dir_all(&root.join("deployment")).expect("held needs no source directory");
+    disk.prepare(plan.options, &[]).expect("held preflight never reads the recipe");
 }
 
 #[test]
@@ -695,19 +670,12 @@ fn ctl_destinations_cannot_escape_scratch() {
 
 #[test]
 fn preflight_validates_before_reset_and_preserves_box_directories() {
-    use skein_scratch::Scratch;
-    use std::{fs, os::unix::fs::PermissionsExt};
-    let s = Scratch::new("drive-preflight");
-    let root = s.path();
-    // The session takes a private scratch directory alone, whatever the umask made it.
-    fs::set_permissions(root, fs::Permissions::from_mode(0o700)).expect("private scratch");
-    for dir in ["bin", "bundle", "session", "config", "data", "cache", "files"] {
-        fs::create_dir(root.join(dir)).expect("fixture directory");
-    }
-    fs::write(root.join("bundle/index.html"), b"index").expect("index");
-    fs::write(root.join("session/lines"), b"previous").expect("old session");
+    let root = Path::new(PREFLIGHT_ROOT);
+    let mut disk = Preflight::new(&["bin", "bundle", "session", "config", "data", "cache", "files"]);
+    disk.write(&root.join("bundle/index.html"), b"index");
+    disk.write(&root.join("session/lines"), b"previous");
     for dir in ["config", "data", "cache"] {
-        fs::write(root.join(dir).join("kept"), dir).expect("box bytes");
+        disk.write(&root.join(dir).join("kept"), dir.as_bytes());
     }
     let options = Options {
         bin: root.join("bin"),
@@ -722,35 +690,26 @@ fn preflight_validates_before_reset_and_preserves_box_directories() {
         ports: None,
         files: Some(root.join("files")),
     };
-    let why = super::options::prepare(options.clone(), &[]).expect_err("missing binary before any process");
+    let why = disk.prepare(options.clone(), &[]).expect_err("missing binary before any process");
     assert!(why.contains("temper-box"));
     assert_eq!(Exit::own(why).status, 1);
-    assert_eq!(fs::read(root.join("session/lines")).expect("old session"), b"previous");
-    for name in ["temper-box", "fake-claude", "temper", "chromium"] {
-        let file = root.join("bin").join(name);
-        fs::write(&file, b"not executed").expect("fixture");
-        fs::set_permissions(file, fs::Permissions::from_mode(0o700)).expect("executable");
-    }
+    assert_eq!(disk.read(&root.join("session/lines")), b"previous");
+    disk.programs(&BOX_PROGRAMS);
+    disk.programs(&["chromium"]);
     let environment = vec![
         (b"SKEIN_TEST_CHROMIUM".as_slice().into(), root.join("bin/chromium").as_os_str().as_encoded_bytes().into()),
         (b"DISPLAY".as_slice().into(), b":7".as_slice().into()),
     ];
-    let plan = super::options::prepare(options, &environment).expect("preflight only");
-    assert_eq!(
-        plan.options.files.as_deref(),
-        Some(root.join("files").canonicalize().expect("files directory").as_path())
-    );
+    let plan = disk.prepare(options, &environment).expect("preflight only");
+    assert_eq!(plan.options.files.as_deref(), Some(root.join("files").as_path()));
     let tui = plan.tui(b"http://127.0.0.1:9").expect("TUI plan");
     assert!(tui.environment.iter().any(|(name, value)| name == "DISPLAY" && value == ":7"));
     for opener in ["xdg-open", "open"] {
-        assert_eq!(
-            fs::read_link(root.join("session/bin").join(opener)).expect("opener link"),
-            Path::new("/usr/bin/true")
-        );
+        assert_eq!(disk.read_link(&root.join("session/bin").join(opener)), Path::new("/usr/bin/true"));
     }
-    assert_eq!(fs::read(root.join("session/lines")).expect("fresh lines"), b"");
+    assert_eq!(disk.read(&root.join("session/lines")), b"");
     for dir in ["config", "data", "cache"] {
-        assert_eq!(fs::read(root.join(dir).join("kept")).expect("unchanged"), dir.as_bytes());
+        assert_eq!(disk.read(&root.join(dir).join("kept")), dir.as_bytes());
     }
 }
 
@@ -832,17 +791,9 @@ fn ctl_session_refuses_web_tui_and_looks_unkept_and_keeps_numbering() {
 
 #[test]
 fn ctl_preflight_needs_no_chromium_but_keeps_the_box_bundle_requirement() {
-    use std::{fs, os::unix::fs::PermissionsExt};
-    let scratch = skein_scratch::Scratch::new("drive-ctl-preflight");
-    let root = scratch.path();
-    fs::set_permissions(root, fs::Permissions::from_mode(0o700)).expect("private scratch");
-    fs::create_dir(root.join("bin")).expect("bin");
-    fs::create_dir(root.join("bundle")).expect("bundle");
-    for name in ["temper-box", "fake-claude", "temper"] {
-        let path = root.join("bin").join(name);
-        fs::write(&path, b"not executed").expect("binary fixture");
-        fs::set_permissions(path, fs::Permissions::from_mode(0o700)).expect("executable");
-    }
+    let root = Path::new(PREFLIGHT_ROOT);
+    let mut disk = Preflight::new(&["bin", "bundle"]);
+    disk.programs(&BOX_PROGRAMS);
     let args = ["--ctl", "--bin", "bin", "--bundle", "bundle", "--scratch", "scratch"]
         .iter()
         .map(|word| word.as_bytes().into())
@@ -851,20 +802,16 @@ fn ctl_preflight_needs_no_chromium_but_keeps_the_box_bundle_requirement() {
     options.bin = root.join("bin");
     options.bundle = Some(root.join("bundle"));
     options.scratch = root.into();
-    let why = super::options::prepare(options.clone(), &[]).expect_err("box needs bundle");
+    let why = disk.prepare(options.clone(), &[]).expect_err("box needs bundle");
     assert!(why.contains("index.html"), "{why}");
-    fs::write(root.join("bundle/index.html"), b"index").expect("box bundle");
-    let plan = super::options::prepare(options.clone(), &[]).expect("no Chromium configured or present");
+    disk.write(&root.join("bundle/index.html"), b"index");
+    let plan = disk.prepare(options.clone(), &[]).expect("no Chromium configured or present");
     assert!(plan.chromium.as_os_str().is_empty());
     assert!(plan.options.ctl);
     let invalid_chromium = vec![(b"SKEIN_TEST_CHROMIUM".as_slice().into(), b"/missing/chromium".as_slice().into())];
-    super::options::prepare(options.clone(), &invalid_chromium).expect("Chromium is not sought in ctl mode");
+    disk.prepare(options.clone(), &invalid_chromium).expect("Chromium is not sought in ctl mode");
     options.ctl = false;
-    assert!(
-        super::options::prepare(options, &[])
-            .expect_err("web mode still needs Chromium")
-            .contains("SKEIN_TEST_CHROMIUM")
-    );
+    assert!(disk.prepare(options, &[]).expect_err("web mode still needs Chromium").contains("SKEIN_TEST_CHROMIUM"));
 }
 
 #[test]
