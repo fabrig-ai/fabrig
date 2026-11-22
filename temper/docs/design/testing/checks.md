@@ -604,14 +604,19 @@ the providers' faults (`smith/docs/design/faults.md`).
   - **3.3 for runs:** no task try is spent for the fault:
     `Counter::TaskTries`, counted from jig's failed attempts
     (`jig/docs/design/domain/tasks/lifecycle.md`, 6) of the struck
-    account's tasks within the fault's interval, stays at zero; a fault
-    that is never cleared holds the struck goal's tasks with words naming
-    the account (`jig/docs/design/domain/accounts.md`, 3.5); and smith's
+    account's tasks within the fault's interval, stays at zero; spent
+    credits or an expired sign-in that is never cleared holds the struck
+    goal's tasks with words naming the account
+    (`jig/docs/design/domain/accounts.md`, 3.5); and smith's
     half, by `smith_faults::Runs::judge` over the runs' attempts and ends
     (`smith/docs/design/faults.md`, 4).
   - **3.4:** the other account's goal lands as if the fault weren't
     there, within its bound; the struck goal ends within its bound past
-    the clear, or, never cleared, is held naming the account.
+    the clear, or, spent credits or a sign-in never cleared, is held
+    naming the account. A rate window, cleared or not, lets each window's
+    first prompt through, and it is shorter than the first backoff, so a
+    retry meets a fresh window: the struck goal ends within the same
+    bound, whether or not the window is ever cleared.
   - **Each fault it configures fell** (`Sweep::check_fell`), over the
     seeds its budget allows.
 
