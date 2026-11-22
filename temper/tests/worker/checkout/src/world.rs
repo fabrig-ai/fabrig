@@ -1086,11 +1086,18 @@ impl World {
 
     fn start_op(&mut self, owner: Token, op: Op, deadline: Time) {
         let name = *self.holds.get(&owner).expect("an operation is a hold's");
-        let client = self.clients.get(&name).expect("a hold's client");
+        let client = self.clients.get_mut(&name).expect("a hold's client");
         assert!(client.release != Release::Done, "no operation touches a workspace after its release");
-        assert!(client.operation.is_some(), "an operation runs only while its client waits for one to end");
+        let operation = client.operation;
+        assert!(operation.is_some(), "an operation runs only while its client waits for one to end");
         let limits = self.settings.checkout;
-        if client.operation == Some(Operation::Prepare) {
+        if let Op::Pack { at, store } = &op {
+            assert_eq!(operation, Some(Operation::Prepare), "only a prepare packs");
+            client.packs.push((at.clone(), *store));
+        } else if operation == Some(Operation::Prepare) {
+            assert!(client.packs.is_empty(), "packing follows all other operations of a prepare");
+        }
+        if operation == Some(Operation::Prepare) {
             assert!(self.preparing_io.insert(owner), "one operation per prepare");
             let count = u32::try_from(self.preparing_io.len()).expect("small");
             assert!(count <= limits.preparations, "io never holds more prepares than preparation permits");
@@ -1114,7 +1121,7 @@ impl World {
             }
             assert!(self.making.insert(owner, *store).is_none());
         }
-        let verifies = self.attempt(owner, client.operation, &op);
+        let verifies = self.attempt(owner, operation, &op);
         let span = if op.is_remote() { self.settings.remote } else { self.settings.local };
         let mut ends = self.now.saturating_add(span.draw(&mut self.rng));
         let mut work = if self.rng.chance(self.settings.broken) {

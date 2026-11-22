@@ -1,12 +1,15 @@
 //! Transfer accounting (temper/docs/design/domain/worker/checkouts.md).
-use skein_lib::{Duration, Time};
+use skein_lib::{Duration, Time, Token};
 use std::collections::BTreeSet;
 use temper_fake_checkout::{git::Remote, in_git};
 use temper_worker_checkout_world::{
     LIMITS, Settings, World,
     client::{Pick, Plan},
 };
-use temper_worker_domain_checkout::{Landing, Limits, Prepared, git::Kind};
+use temper_worker_domain_checkout::{
+    Landing, Limits, Prepared,
+    git::{Kind, Place},
+};
 const ITERATIONS: u32 = 100_000;
 fn plan(workstream: u32) -> Plan {
     Plan { start: Some(Pick::Branch), pushes: 0, ..Plan::simple(workstream) }
@@ -171,4 +174,77 @@ fn a_restart_finds_the_second_remote_first_by_its_own_token() {
     assert!(
         transfers.iter().filter(|transfer| transfer.kind == Kind::Store).all(|transfer| transfer.commits.is_empty())
     );
+}
+
+fn packing_world(workspaces: u32) -> World {
+    let mut world = World::new(Settings {
+        checkout: Limits { workspaces, preparations: workspaces, ..LIMITS },
+        repositories: 1,
+        workstreams: 2,
+        ..Settings::calm(1)
+    });
+    for branch in [b"base/0", b"base/1"] {
+        world.advance_at(world.now(), 0, branch);
+    }
+    world.run(ITERATIONS);
+    world
+}
+
+/// Fetch the existing push branch once, as both start and pin, and release.
+fn prepare_base(world: &mut World, workstream: u32) -> u64 {
+    let client = world.submit(world.now(), Plan { start: Some(Pick::Base), ..plan(workstream) });
+    world.run(ITERATIONS);
+    ready(world, client);
+    assert_eq!(world.transfers(client, b"r0").iter().filter(|transfer| transfer.kind == Kind::Fetch).count(), 1);
+    client
+}
+
+fn assert_pack(world: &World, client: u64, store: Option<Token>) {
+    let client = world.client(client);
+    let at =
+        Place { workspace: client.workspace.expect("ready workspace"), repository: b"r0".as_slice().into(), git: None };
+    assert_eq!(client.packs, [(at, store)]);
+}
+
+fn store_of(world: &World) -> Token {
+    let hash = skein_lib::sha256::digest(world.repository(0));
+    Token::new(u64::from_be_bytes(*hash.first_chunk::<8>().expect("first eight bytes")))
+}
+
+#[test]
+fn the_first_twenty_four_fetches_ask_no_pack() {
+    let mut world = packing_world(1);
+    for _ in 0..24 {
+        let client = prepare_base(&mut world, 0);
+        assert_eq!(world.client(client).packs, [], "not yet 25 fetches");
+    }
+}
+
+#[test]
+fn the_twenty_fifth_fetch_packs_the_store_and_resets_both_counts() {
+    let mut world = packing_world(1);
+    for _ in 0..24 {
+        prepare_base(&mut world, 0);
+    }
+    let due = prepare_base(&mut world, 0);
+    assert_pack(&world, due, Some(store_of(&world)));
+    let next = prepare_base(&mut world, 0);
+    assert_eq!(world.client(next).packs, [], "the store and checkout are no longer due");
+}
+
+#[test]
+fn a_due_checkout_packs_without_its_store() {
+    let mut world = packing_world(2);
+    for workstream in (0..24).map(|place| place % 2) {
+        prepare_base(&mut world, workstream);
+    }
+    let a = prepare_base(&mut world, 0);
+    assert_pack(&world, a, Some(store_of(&world)));
+    for _ in 0..12 {
+        let b = prepare_base(&mut world, 1);
+        assert_eq!(world.client(b).packs, [], "B has not reached 25 checkouts");
+    }
+    let b = prepare_base(&mut world, 1);
+    assert_ne!(world.client(a).workspace, world.client(b).workspace);
+    assert_pack(&world, b, None);
 }

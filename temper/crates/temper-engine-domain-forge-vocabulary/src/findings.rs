@@ -1,5 +1,5 @@
 //! Findings (temper/docs/design/domain/findings.md, 2, 6, 9; domain/areas.md, 3 to 7;
-//! domain/red-findings.md, 3, 6, 7, 9).
+//! domain/red-findings.md, 3, 6, 7, 9; domain/red-repairs.md, 3, 8).
 use crate::{
     Request,
     settings::{AreaOwner, ProjectAreas},
@@ -7,7 +7,9 @@ use crate::{
 use alloc::boxed::Box;
 use skein_lib::{List, Queue, Wall};
 
+mod repair_words;
 mod words;
+pub use repair_words::repair_words;
 pub use temper_client_protocol_wire::goals::id as goal_id;
 pub use words::{cut_words, news_words, ownership_words};
 
@@ -72,6 +74,7 @@ pub struct Finding {
     pub seen: Option<u32>,
     pub blame: Option<FindingBlame>,
     pub cleared: Option<FindingCleared>,
+    pub repair: Option<FindingRepair>,
 }
 impl Finding {
     #[must_use]
@@ -92,12 +95,37 @@ impl Finding {
 pub struct FindingBlame {
     pub strength: BlameStrength,
     pub landings: Box<[BlamedLanding]>,
+    pub moved: Option<BlameMove>,
+}
+/// Repair state kept on a finding (domain/red-repairs.md, 8).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct FindingRepair {
+    pub goal: u64,
+    pub made: bool,
+    pub attempts: u8,
+    pub cancelled: bool,
+    pub failing: Box<[Box<[u8]>]>,
+    pub until: Option<Wall>,
+    pub judging: Option<RepairJudging>,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum RepairJudging {
+    Landing(skein_forge::api::Commit),
+    After(u64),
+    Release,
+}
+/// The author and words of a blame move (domain/red-repairs.md, 3).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct BlameMove {
+    pub by: Filer,
+    pub why: Box<[u8]>,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum BlameStrength {
     Owned,
     Suspected,
     Unblamed,
+    Moved,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct BlamedLanding {
@@ -200,6 +228,20 @@ pub enum Triage {
     Route(u64),
     Backlog,
     Drop(Box<[u8]>),
+    Repair(RepairAct),
+    Blame(BlameAct),
+}
+/// Repair's findings past the first, and the triager's words (domain/red-repairs.md, 8).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct RepairAct {
+    pub more: Box<[u32]>,
+    pub words: Box<[u8]>,
+}
+/// The landing and words of a blame move (domain/red-repairs.md, 3, 8).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct BlameAct {
+    pub landing: Option<skein_forge::api::Commit>,
+    pub why: Box<[u8]>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum FindingRefusal {
@@ -224,6 +266,7 @@ pub enum HandFindingAnswer {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum TriageFindingAnswer {
     Triaged,
+    Repaired(u64),
     Refused(FindingRefusal),
 }
 /// The deciding snapshot kept for an agent's named finding write (domain/agent/tools.md).
@@ -233,6 +276,8 @@ pub struct FindingReply {
     pub number: u32,
     pub area: Option<Box<[u8]>>,
     pub result: Result<FindingDone, FindingRefusal>,
+    pub more: Box<[u32]>,
+    pub landing: Option<skein_forge::api::Commit>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum FindingDone {
@@ -241,6 +286,8 @@ pub enum FindingDone {
     Routed(u64),
     Backlog,
     Dropped,
+    Repaired(u64),
+    Blamed,
 }
 #[must_use]
 pub fn reply_bytes(reply: &FindingReply) -> Option<u64> {
@@ -265,7 +312,9 @@ pub fn reply_bytes(reply: &FindingReply) -> Option<u64> {
             | FindingRefusal::Ended => {}
         }
     }
-    area.checked_add(bytes)
+    let more = skein_lib::len_u64(reply.more.len()).checked_mul(4)?;
+    // The inline landing is included by the caller's size_of_val(FindingReply).
+    area.checked_add(bytes)?.checked_add(more)
 }
 
 /// The three-step rule; standing comes from the root's snapshot of the core.
@@ -520,9 +569,15 @@ pub(crate) fn signature_bytes(signature: &FindingSignature) -> Option<u64> {
         .checked_add(skein_lib::len_u64(signature.first.len()))?
         .checked_add(crate::tiers::tests_bytes(&signature.ids)?)
 }
+pub(crate) fn repair_bytes(repair: &FindingRepair) -> Option<u64> {
+    crate::tiers::tests_bytes(&repair.failing)
+}
 pub(crate) fn blame_bytes(blame: &FindingBlame) -> Option<u64> {
     let mut held =
         skein_lib::len_u64(blame.landings.len()).checked_mul(u64::try_from(size_of::<BlamedLanding>()).ok()?)?;
+    if let Some(moved) = &blame.moved {
+        held = held.checked_add(skein_lib::len_u64(moved.why.len()))?;
+    }
     for landing in &blame.landings {
         held = held.checked_add(
             skein_lib::len_u64(landing.goals.len()).checked_mul(u64::try_from(size_of::<BlamedGoal>()).ok()?)?,

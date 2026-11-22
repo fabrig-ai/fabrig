@@ -50,8 +50,6 @@ pub(crate) fn starting(step: Option<Phase>) -> &'static [u8] {
         Some(Phase::Switch) => b"switching the store",
         Some(Phase::Wires) => b"committing the wires",
         Some(Phase::AdoptRuns) => b"adopting runs",
-        Some(Phase::ReadAfresh { .. }) => b"reading the forge afresh",
-        Some(Phase::SettleOutbox { .. }) => b"settling the forge's outbox",
         Some(Phase::Open) => b"opening decisions",
     }
 }

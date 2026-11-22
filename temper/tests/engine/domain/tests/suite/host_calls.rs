@@ -8,6 +8,79 @@ use temper_engine_domain::{self as engine, Delivery};
 use temper_engine_domain_world::direct::Driver;
 
 #[test]
+fn a_named_blame_move_and_repair_refusal_keep_their_replies_across_restart() {
+    use super::findings as fixture;
+    use temper_engine_domain_forge::{self as forge, settings::AreaOwner};
+    let mut bounds = fixture::limits();
+    bounds.call_records = 16;
+    let (mut driver, run) = fixture::driver_with_limits(&bounds);
+    fixture::settings(&mut driver, None, Some(AreaOwner::Task(run.task)));
+    decoded_task_call(
+        &mut driver,
+        &run,
+        30,
+        b"finding",
+        br#"{"act":"file","kind":"red","severity":"high","title":"boot flake","body":"reproduce"}"#,
+    );
+    let mut finding = fixture::row(&driver, 1).clone();
+    finding.signature = Some(forge::FindingSignature {
+        repository: skein_forge::api::Repository { forge: 1, repository: 2 },
+        source: b"browser".as_slice().into(),
+        ids: Box::new([b"test a::t x".as_slice().into()]),
+        first: Box::default(),
+        many: false,
+    });
+    finding.blame =
+        Some(forge::FindingBlame { strength: forge::BlameStrength::Unblamed, landings: Box::new([]), moved: None });
+    finding.state = forge::FindingState::Dropped;
+    driver.store.seed(
+        Box::new([engine::Record::Forge { row: Box::new(forge::Stored::Finding(finding.clone())) }]),
+        Box::new([]),
+    );
+    fixture::restart(&mut driver, &run);
+    let input = br#"{"act":"blame","number":1,"why":"no landing"}"#;
+    driver.protocol.defer_render = true;
+    let before = driver.transactions.len();
+    let first = decoded_task_call(&mut driver, &run, 31, b"finding", input);
+    let writes = driver.transactions[before..].iter().find(|writes| writes.iter().any(|write| matches!(write, engine::Write::Save(engine::Record::Forge { row }) if matches!(row.as_ref(), forge::Stored::Finding(_))))).expect("blame decision");
+    assert!(writes.iter().any(|write| matches!(write, engine::Write::Save(engine::Record::Forge { row }) if matches!(row.as_ref(), forge::Stored::Call { answer: forge::CallPayload::Finding(_), .. }))), "move and reply share a decision");
+    finding.blame = Some(forge::FindingBlame {
+        strength: forge::BlameStrength::Moved,
+        landings: Box::new([]),
+        moved: Some(forge::BlameMove { by: forge::Filer::Task(run.task), why: b"no landing".as_slice().into() }),
+    });
+    assert_eq!(fixture::row(&driver, 1), &finding);
+    assert_eq!(temper_engine_smith::answer(&first).text(), b"Moved finding 1/1's blame to no landing.");
+    driver.protocol.defer_render = false;
+    driver.protocol.pending_renders.clear();
+    fixture::restart(&mut driver, &run);
+    let before = driver.transactions.len();
+    assert_eq!(decoded_task_call(&mut driver, &run, 31, b"finding", input), first);
+    assert!(!driver.transactions[before..].iter().flatten().any(|write| matches!(write, engine::Write::Save(engine::Record::Forge { row }) if matches!(row.as_ref(), forge::Stored::Finding(_)))), "replay does not move blame again");
+    assert_eq!(fixture::row(&driver, 1), &finding);
+    for (call, input, more, landing) in [
+        (32, br#"{"act":"repair","numbers":[1,5],"words":"fix"}"#.as_slice(), [5].as_slice().into(), None),
+        (33, br#"{"act":"blame","number":1,"commit":"abababababababababababababababababababababababababababababababab","why":"evidence"}"#.as_slice(), Box::default(), Some([0xab; 32])),
+    ] {
+        driver.protocol.defer_render = true;
+        let first = decoded_task_call(&mut driver, &run, call, b"finding", input);
+        let engine::CallAnswer::Finding(answer) = &first else { panic!("finding reply") };
+        let engine::FindingToolAnswer::Write(reply) = answer.as_ref() else { panic!("write reply") };
+        assert!(reply.result.is_err());
+        assert_eq!(reply.more, more);
+        assert_eq!(reply.landing, landing);
+        if call == 32 {
+            assert_eq!(temper_engine_smith::answer(&first).text(), b"repairs are off in project 1");
+        }
+        driver.protocol.defer_render = false;
+        driver.protocol.pending_renders.clear();
+        fixture::restart(&mut driver, &run);
+        assert_eq!(decoded_task_call(&mut driver, &run, call, b"finding", input), first);
+        assert_eq!(fixture::row(&driver, 1), &finding);
+    }
+}
+
+#[test]
 fn a_standing_run_files_reads_hands_on_and_triages_named_findings_once() {
     use super::findings as fixture;
     use temper_engine_domain_forge::{self as forge, settings::AreaOwner};

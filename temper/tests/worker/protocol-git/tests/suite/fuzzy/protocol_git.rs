@@ -13,3 +13,10 @@ fn drawn_operations_and_faults_keep_the_referee_s_rules() {
         assert!(faults.contains(&fault), "the injected {fault:?} fell");
     }
 }
+
+#[test]
+fn drawn_sweep_runs_leave_only_the_stuck_file_until_the_retry() {
+    for seed in 1..=64 {
+        crate::protocol_git::sweep_past_a_stuck_file(seed);
+    }
+}

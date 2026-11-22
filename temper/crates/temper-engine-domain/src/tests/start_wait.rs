@@ -1,6 +1,6 @@
 use crate::{Domain, Event, Fact, Limits};
 use jig_domain_core::start::{Action, Phase};
-use skein_lib::{Duration, Env, Queue, Time, Wall};
+use skein_lib::{Duration, Env, Queue, Time};
 use temper_engine_domain_forge as forge;
 
 const REPO: skein_forge::api::Repository = skein_forge::api::Repository { forge: 1, repository: 2 };
@@ -63,108 +63,90 @@ fn repository() -> forge::Repository {
         },
     }
 }
-fn branch(parts: &[&[u8]]) -> forge::Name {
-    let mut names = skein_lib::List::with_capacity(u32::try_from(parts.len()).unwrap());
-    for part in parts {
-        names.push(Box::from(*part)).unwrap();
-    }
-    forge::Name { forge: 1, repository: 2, what: forge::What::Branch(names.into_boxed()) }
-}
-fn uncertain(number: u64, task: u64) -> skein_forge_client::Entry {
-    skein_forge_client::Entry {
-        number,
-        task,
-        repository: REPO,
-        effect: skein_forge_client::Effect {
-            write: skein_forge::api::Write::CreateBranch { branch: b"saved".as_slice().into(), commit: [3; 32] },
-            condition: skein_forge_client::Condition::None,
-        },
-        start: Some(skein_forge_client::Position { at: Time::ZERO, comment: 0, review: 0, review_page: 1 }),
-        attempt: Some(skein_forge_client::Attempt {
-            sent: Time::ZERO,
-            deadline: Time::ZERO.saturating_add(Duration::from_secs(600)),
-            wall: Wall::EPOCH,
-            expires: Wall::from_nanos(600_000_000_000),
-        }),
-        failures: 0,
-        queued: false,
-    }
-}
-
 #[test]
-fn start_reports_name_fresh_reads_and_goal_branches_then_reset_for_settling() {
-    let phase = Phase::ReadAfresh { connector: 0 };
-    let (mut domain, mut env) = super::resume::at_phase(false, phase);
+fn catching_up_reports_after_opening_and_ends_without_another_start_step() {
+    let (mut domain, mut env) = super::resume_fixture::root();
+    assert!(domain.ready());
+    domain.forge.restore_begin(env.wall);
     restore(&mut domain, &env, forge::Stored::Repository(repository()));
-    for (project, task) in [(1_u64, 40), (2, 10), (3, 30), (4, 20)] {
-        let project = skein_lib::Decimal::of(project);
-        let goal = skein_lib::bytes::concat(&[b"g", skein_lib::Decimal::of(task).as_bytes()]);
-        restore(
-            &mut domain,
-            &env,
-            forge::Stored::Hold(forge::Hold {
-                name: branch(&[b"temper", project.as_bytes(), &goal]),
-                task,
-                writer: None,
-                beside: None,
-                design_writers: Box::new([]),
-                drift: None,
-            }),
-        );
-    }
-    restore(
-        &mut domain,
-        &env,
-        forge::Stored::Names { task: 40, resources: Box::new([branch(&[b"main"]), branch(&[b"topic"])]) },
-    );
-    for (number, task) in [(9, 20), (2, 40), (7, 10), (5, 30)] {
-        restore(&mut domain, &env, forge::Stored::Entry { entry: uncertain(number, task), held: false });
-    }
     forge::step(
         &mut domain.forge,
         &env.with(env.limits.forge),
         forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic },
         &mut Queue::uncapped(),
     );
-    begin(&mut domain, &env, phase);
-    let waits =
-        b"2 fresh reads (work/hello branch main, work/hello branch topic), 4 goal branches (task 40, task 10, task 30)";
+    crate::step(
+        &mut domain,
+        &env,
+        Event::Forge(Box::new(forge::Event::Names {
+            task: 7,
+            resources: Box::new([forge::Name {
+                forge: REPO.forge,
+                repository: REPO.repository,
+                what: forge::What::Branch(Box::new([b"main".as_slice().into()])),
+            }]),
+        })),
+    );
+    crate::step(&mut domain, &env, Event::Forge(Box::new(forge::Event::CatchUp)));
+    flush(&mut domain, &env);
+    assert_eq!(
+        domain.forge.restart_waits(forge::RestartStage::ReadAfresh).as_ref(),
+        b"1 fresh read (work/hello branch main)"
+    );
+    assert_eq!(domain.forge.next_deadline(), Some(Time::ZERO.saturating_add(Duration::from_secs(30))));
     for (seconds, expected) in [(29, false), (30, true), (45, false), (60, true)] {
         at(&mut env, seconds);
         crate::fire(&mut domain, &env);
-        let fact = waiting(&mut domain);
-        if expected {
-            assert_eq!(fact, Some((phase, Duration::from_secs(seconds), waits.as_slice().into())));
+        flush(&mut domain, &env);
+        let expected = if expected {
+            Some(skein_lib::bytes::concat(&[
+                b"the forge catching up for ",
+                skein_lib::Decimal::of(seconds).as_bytes(),
+                b" s: 1 fresh read (work/hello branch main)",
+            ]))
         } else {
-            assert_eq!(fact, None);
-        }
-        assert_eq!(waiting(&mut domain), None, "one report per bound");
+            None
+        };
+        assert_eq!(forge_line(&mut domain), expected);
+        assert!(domain.ready(), "the report does not hold the opening");
+        assert_eq!(domain.start_phase(), None);
     }
-    // The fixture supplies the connector's terminal, as it supplies prior steps' terminals.
-    at(&mut env, 61);
-    crate::restart::connector_start_done(&mut domain, jig_domain_core::effects::connector::RestartStage::ReadAfresh);
-    crate::step(&mut domain, &env, Event::Resume);
-    assert_eq!(domain.start_phase(), Some(Phase::SettleOutbox { connector: 0 }));
-    at(&mut env, 90);
-    crate::fire(&mut domain, &env);
-    assert_eq!(waiting(&mut domain), None, "the next step begins at 61, not zero");
-    at(&mut env, 91);
-    crate::fire(&mut domain, &env);
-    assert_eq!(
-        waiting(&mut domain),
-        Some((
-            Phase::SettleOutbox { connector: 0 },
-            Duration::from_secs(30),
-            b"4 uncertain writes (entry 2 of task 40, entry 5 of task 30, entry 7 of task 10)".as_slice().into()
-        ))
-    );
-    crate::restart::connector_start_done(&mut domain, jig_domain_core::effects::connector::RestartStage::Settled);
-    crate::step(&mut domain, &env, Event::Resume);
-    assert_eq!(domain.start_phase(), None);
+    crate::step(&mut domain, &env, Event::Forge(Box::new(forge::Event::Names { task: 7, resources: Box::new([]) })));
+    flush(&mut domain, &env);
+    assert_eq!(forge_line(&mut domain).as_deref(), Some(b"the forge has caught up".as_slice()));
     at(&mut env, 300);
     crate::fire(&mut domain, &env);
-    assert_eq!(waiting(&mut domain), None);
+    assert_eq!(forge_line(&mut domain), None);
     assert!(domain.start_report.is_none());
+}
+
+fn flush(domain: &mut Domain, env: &Env<Limits>) {
+    let mut out = Queue::uncapped();
+    for _ in 0_u32..256 {
+        crate::release(domain, env, &mut out);
+        crate::release(domain, env, &mut out);
+        let Some(request) = out.pop() else { return };
+        if let crate::Request::Store(crate::StoreRequest::Commit { number, .. }) = request {
+            crate::step(domain, env, Event::Store(crate::StoreInput::Committed { number, fill: 0 }));
+        } else if let crate::Request::ToChild(released) = request {
+            crate::step(domain, env, Event::Released(released));
+        }
+    }
+    panic!("bounded fixture outputs");
+}
+
+fn forge_line(domain: &mut Domain) -> Option<Box<[u8]>> {
+    let mut line = None;
+    while let Some(fact) = domain.pop_fact() {
+        if let Fact::StartWaiting { .. } = &fact {
+            panic!("catching up is not a start step");
+        }
+        if let Fact::ForgeTable { words } = fact {
+            assert!(line.is_none(), "one report per bound");
+            line = Some(words);
+        }
+    }
+    line
 }
 
 #[test]
