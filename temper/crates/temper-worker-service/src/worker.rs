@@ -3,6 +3,8 @@
 pub(crate) mod credentials;
 mod diagnostics;
 mod jobs;
+#[path = "worker/testing.rs"]
+pub(crate) mod testing;
 #[cfg(test)]
 #[path = "tests/worker_jobs.rs"]
 mod tests;

@@ -85,9 +85,15 @@ skein-fake-llm-domain = { path = "../../../skein/crates/skein-fake-llm-domain" }
 skein-kv = { path = "../../../skein/crates/skein-kv" }
 
 [dev-dependencies]
+skein-forge-connection.workspace = true
+skein-forge-setup.workspace = true
 skein-scratch.workspace = true
 skein-heap.workspace = true
 jig-test-store-files.workspace = true
+temper-agent-fixtures.workspace = true
+temper-config-shell.workspace = true
+temper-protocol-records.workspace = true
+temper-protocol-records-forge.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"

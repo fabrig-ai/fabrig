@@ -852,22 +852,7 @@ pub fn attempt(guard: &Guard, machine: &Machine, state: &Path, prepared: &Reques
             &mut neutral,
         )
     };
-    let incomplete = match work {
-        Ok(()) => Incomplete::No,
-        Err(error) => {
-            let incomplete = if inference {
-                Incomplete::No
-            } else {
-                match error.kind {
-                    FaultKind::Setup(step) => Incomplete::Setup(step),
-                    _ => unreachable!("preparation calls label their faults"),
-                }
-            };
-            result.outcome.end =
-                if inference { End::HarnessError { what: error.detail } } else { End::Refused { setup: error.detail } };
-            incomplete
-        }
-    };
+    let incomplete = record_work(&mut result, work, inference);
     if !existed && root.exists() {
         let deletion = crate::isolate::remove_owned_tree(guard, &root);
         if let Err(error) = deletion {
@@ -883,6 +868,36 @@ pub fn attempt(guard: &Guard, machine: &Machine, state: &Path, prepared: &Reques
     let bytes = crate::render_result(&result)?;
     let _: Artifact = crate::grade::archive(guard, &directory, "result.json", bytes.as_bytes())?;
     Ok(Recorded { result, directory, incomplete })
+}
+
+fn record_work(result: &mut AttemptResult, work: Result<(), Fault>, inference: bool) -> Incomplete {
+    match work {
+        Ok(()) => Incomplete::No,
+        Err(error) => {
+            let incomplete = if inference {
+                Incomplete::No
+            } else {
+                match error.kind {
+                    FaultKind::Setup(step) => Incomplete::Setup(step),
+                    _ => unreachable!("preparation calls label their faults"),
+                }
+            };
+            result.outcome.end =
+                if inference { End::HarnessError { what: error.detail } } else { End::Refused { setup: error.detail } };
+            incomplete
+        }
+    }
+}
+
+pub(crate) mod testing {
+    use super::{End, Fault, Incomplete, Request, blank, record_work};
+
+    #[must_use]
+    pub fn record_preparation_refusal(prepared: &Request, fault: Fault) -> (Incomplete, End) {
+        let mut result = blank(prepared.identity.clone());
+        let incomplete = record_work(&mut result, Err(fault), false);
+        (incomplete, result.outcome.end)
+    }
 }
 
 fn archive_task(
@@ -953,20 +968,18 @@ pub fn script(task: &Task, capture: &Capture) -> crate::agent::Script {
 
 /// Archive a dispatcher-observed failure without inventing agent measurements.
 pub(crate) fn recover(
-    guard: &Guard,
-    state: &Path,
     prepared: &Request,
     process: &ProcessResult,
     reason: String,
+    entries: crate::grade::Snapshot,
+    mut archive: impl FnMut(&str, &[u8]) -> Result<Artifact, Fault>,
 ) -> Result<AttemptResult, Fault> {
-    let directory = state.join("runs").join(&prepared.identity.run).join(&prepared.identity.attempt);
-    private_parent(guard, &directory)?;
     let mut result = blank(prepared.identity.clone());
     result.outcome.end = End::HarnessError { what: reason };
     result.outcome.forced = process.forced;
     // Keep the digest of any complete archive the interrupted child wrote.
     // The dispatcher still supplies no agent measurements from its own tree.
-    for (path, entry) in crate::grade::snapshot_all(&directory)? {
+    for (path, entry) in entries {
         match entry {
             crate::grade::Entry::File { sha256, .. } => result.artifacts.push(Artifact { path, sha256 }),
             crate::grade::Entry::Directory => {}
@@ -980,10 +993,10 @@ pub(crate) fn recover(
         passed: Measure::Observed { value: true },
         evidence: vec![format!("{:?}", process.tree)],
     });
-    archive(guard, &directory, &mut result, "dispatcher-stdout.log", &process.stdout)?;
-    archive(guard, &directory, &mut result, "dispatcher-stderr.log", &process.stderr)?;
+    result.artifacts.push(archive("dispatcher-stdout.log", &process.stdout)?);
+    result.artifacts.push(archive("dispatcher-stderr.log", &process.stderr)?);
     let bytes = crate::render_result(&result)?;
-    crate::grade::archive(guard, &directory, "result.json", bytes.as_bytes())?;
+    archive("result.json", bytes.as_bytes())?;
     Ok(result)
 }
 

@@ -887,9 +887,10 @@ Relative paths are the caller's working directory's, the checkout root.
   (`tools/tiers/budgets.md`, 7).
 - `summary(directory, limits=None, pair=None, expected=None, gate=False, ledger=None, base=None)`: the verdict
   on a finished run directory, as the dictionary below. With `gate`, a
-  one-process run's layer over its budget, or test over its reference, is
-  red; without, a warning (`tools/tiers/budgets.md`, 4;
-  `tools/tiers/references.md`, 6). A one-process run is judged in the
+  one-process run's layer budget or growth finding can be red. The CPU
+  fallback for missing counts and per-test reference findings are warnings
+  (`tools/tiers/budgets.md`, 4 and 8; `tools/tiers/references.md`, 6).
+  A one-process run is judged in the
   layers its `results.json`'s `selected_layers` names alone
   (`tools/tiers/budgets.md`, 4.1); a real pair's nextest run is summed by
   layer, its layers over their figures warnings alone
@@ -920,13 +921,13 @@ Relative paths are the caller's working directory's, the checkout root.
 | `pair` | the pair, or `tools` |
 | `verdict` | `over budget`, `starved`, `within budget` (the pair has a table) or `no budget set` |
 | `failures` | `"BINARY_ID TEST_NAME"` for each test whose failure stands (7.3); for tools, `"ID suite"` |
-| `over_budget` | one entry for each CPU budget passed, naming its test or suite, and with `gate` each layer over its budget (`tools/tiers/budgets.md`, 4) and each test past its reference; every entry ends with the repair line (`tools/tiers/budgets.md`, 10.1) |
-| `warnings` | one line for each `auto_reap` declaration and each unobserved attempt; in a one-process run, each unplaced binary and, without `gate`, each layer over its budget; with a ledger, each test that swings alone at main, last (`tools/tiers/references.md`, 6) |
+| `over_budget` | one entry for each CPU budget passed, naming its test or suite, and with `gate` each layer with a red finding (`tools/tiers/budgets.md`, 4 and 8); every entry ends with the repair line (`tools/tiers/budgets.md`, 10.1) |
+| `warnings` | one line for each `auto_reap` declaration and each unobserved attempt; in a one-process run, each unplaced binary, each advisory layer comparison, missing-count and drift warnings, and tests over their references; with a ledger, each test that swings alone at main, last (`tools/tiers/references.md`, 6) |
 | `unobserved` | `{binary_id, test_name, attempt}` for each attempt cancellation stopped before its record (7.3); always empty for tools |
 | `tests` | for each test: `binary_id`, `test_name`, `attempts`, `cpu_s`, `user_s`, `system_s`, `wall_s`, `starved`, `leaked`, `incomplete` |
 | `suite` | the totals: `tests`, `attempts`, `cpu_s`, `user_s`, `system_s`, `wall_s`, `test_wall_s`, `starved`, `starved_run`, `unobserved`, `leaked`, `incomplete`, `cpu_by` |
 | `processes` | for each process of a one-process run: `binary_id`, `tests` (its tests' names, in the order they ran), `cpu_s`, `user_s`, `system_s`, `wall_s`, `exit_code` or `signal`, `kind`, `leaked`, `tree`, `layer`, `instructions` (11.4, null where uncounted); empty for a nextest run and for tools |
-| `layers` | for each tree and layer with a process in a one-process run, or with a ledger a figure at the head or at main: `tree`, `layer`, `cpu_s`, `measured_s`, `main_s`, `ceiling_s`, `budget_s`, `main_budget_s`, `lowest_s`, `ideal_s`, `reference_s`, `over`, `main_over`, `grew`, `instructions`, `main_instructions` (`tools/tiers/budgets.md`, 4 and 8); empty for a nextest run and for tools |
+| `layers` | for each tree and layer with a process in a one-process run, or with a ledger a figure at the head or at main: `tree`, `layer`, `cpu_s`, `measured_s`, `main_s`, `ceiling_s`, `budget_s`, `main_budget_s`, `lowest_s`, `ideal_s`, `reference_s`, `over`, `main_over`, `grew`, `instructions`, `main_instructions`, `instructions_ceiling`, `instructions_budget`, `instructions_lowest`, `main_instructions_budget`, `main_instructions_lowest`, `ideal_instructions`, `instructions_growth` (`tools/tiers/budgets.md`, 4 and 8). Real pairs have CPU layer rows. Other nextest runs and tools have none |
 | `trees` | for each tree with a row in `layers`: `tree`, `cpu_s`, `main_s`, `ceiling_s`, `budget_s`, `ideal_s`, `instructions`, `main_instructions` (`tools/tiers/budgets.md`, 4 and 8); empty for a nextest run and for tools |
 | `counting` | a one-process run's decision to count, `{counted, why}` as its `results.json` holds it (11.4, 11.8); null for a run that didn't count by plan or has none, for a nextest run and for tools |
 | `references` | for each test a one-process run ran alone for its reference: `binary_id`, `test_name`, `tree`, `layer`, `why`, `wall_s`, `main_wall_s`, `cpu_s`, `main_cpu_s`, `main_from`, `reference_s`, `line_s`, `limit_s`, `over`, `alone`, `main_alone`, `swinging` (`tools/tiers/references.md`, 6); empty for a nextest run, for tools and for a run that ran none alone |
@@ -1025,10 +1026,11 @@ descendants' that ended before it settled included, from a hardware
 counter opened on the process before it runs its binary (11.4,
 *Instructions*; `temper/docs/design/draft/test-budgets.md`, 3). A test that
 does the same work at every run retires the same instructions, busy
-machine or quiet, where its CPU swings. Nothing judges a count yet, and a
-test run alone for its reference isn't counted: both are later passes
-(draft, 3 and 6). A run that can't count says why in one line and runs as
-it would without counting.
+machine or quiet, where its CPU swings. A layer whose table sets an instruction
+ceiling is judged by its total instructions and its growth against main
+(`tools/tiers/budgets.md`, 8 and 9). If the run or layer lacks counts, its
+CPU comparison warns and the summary says why. A test run alone for its
+reference is measured in CPU seconds (draft, 6).
 
 ### 11.1 Entry points and refusals
 

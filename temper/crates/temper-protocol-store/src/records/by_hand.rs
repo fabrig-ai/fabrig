@@ -24,8 +24,8 @@ pub use super::history::{
     history_job_record_to_record,
 };
 pub use super::landing::{
-    landing_leave_to_domain, landing_leave_to_record, landing_search_tests_to_domain, landing_search_tests_to_record,
-    landing_state_to_domain, landing_state_to_record,
+    landing_follows_to_domain, landing_follows_to_record, landing_leave_to_domain, landing_leave_to_record,
+    landing_search_tests_to_domain, landing_search_tests_to_record, landing_state_to_domain, landing_state_to_record,
 };
 pub use super::landing_log::{logged_landing_to_domain, logged_landing_to_record};
 pub use super::landing_log::{logged_verdict_to_domain, logged_verdict_to_record};

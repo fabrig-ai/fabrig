@@ -39,6 +39,13 @@ pub fn login_problems(command: &str, lines: &str) -> String {
 impl Read {
     /// Programs are process inputs, not members of the start's document (file.md, 4).
     pub fn programs(&self) -> Result<temper_config_shell::Programs, String> {
+        self.programs_with(temper_shell::lookup::is_executable)
+    }
+
+    pub(crate) fn programs_with(
+        &self,
+        is_executable: impl Fn(&std::path::Path) -> bool,
+    ) -> Result<temper_config_shell::Programs, String> {
         let programs = self.file.programs.clone();
         let mut problems = Vec::new();
         for (key, path) in [
@@ -50,7 +57,7 @@ impl Read {
             let Some(path) = path else { continue };
             let words = if !path.is_absolute() {
                 Some(format!("{}: must be an absolute path", path.display()))
-            } else if !temper_shell::lookup::is_executable(path) {
+            } else if !is_executable(path) {
                 Some(format!("{}: must be an executable regular file", path.display()))
             } else {
                 None

@@ -10,6 +10,13 @@ use skein_lib::{Queue, Token, usize_of};
 use crate::system::Poller;
 use crate::{Config, OpenError, Wait, calls, system};
 
+pub mod testing;
+
+#[cfg(not(test))]
+type NativePoller = Poller;
+#[cfg(test)]
+type NativePoller = Option<Poller>;
+
 #[derive(Debug)]
 pub(crate) struct Readiness {
     pub(crate) helper: crate::helper::Launcher,
@@ -19,7 +26,7 @@ pub(crate) struct Readiness {
     ready: VecDeque<(u32, u32)>,
     waiters: BTreeMap<Fd, Waiters>,
     nonblocking: BTreeSet<Fd>,
-    poller: Poller,
+    poller: NativePoller,
     listing: system::Listings,
     resubmitted: u64,
 }
@@ -80,20 +87,37 @@ impl Readiness {
         crate::Kernel::warm();
         system::process::block_sigpipe().map_err(OpenError::Setup)?;
         let poller = Poller::open(config.operations).map_err(OpenError::Setup)?;
-        let capacity = usize_of(config.operations);
-        let slots = (0..config.operations).map(|_| Slot { generation: 0, record: None, result: None }).collect();
-        Ok(Self {
+        #[cfg(test)]
+        let poller = Some(poller);
+        Ok(Self::with_poller(config.operations, poller))
+    }
+
+    fn with_poller(operations: u32, poller: NativePoller) -> Self {
+        let slots = (0..operations).map(|_| Slot { generation: 0, record: None, result: None }).collect();
+        Self {
             helper: crate::helper::Launcher::new(),
             slots,
-            free: (0..config.operations).rev().collect(),
+            free: (0..operations).rev().collect(),
             tokens: BTreeMap::new(),
-            ready: VecDeque::with_capacity(capacity),
+            ready: VecDeque::with_capacity(usize_of(operations)),
             waiters: BTreeMap::new(),
             nonblocking: BTreeSet::new(),
             poller,
             listing: system::Listings::new(),
             resubmitted: 0,
-        })
+        }
+    }
+
+    #[cfg(test)]
+    fn without_poller(operations: u32) -> Self {
+        Self::with_poller(operations, None)
+    }
+
+    fn poller(&mut self) -> &mut Poller {
+        #[cfg(test)]
+        return self.poller.as_mut().expect("this operation requires a native poller");
+        #[cfg(not(test))]
+        &mut self.poller
     }
 
     pub(crate) fn in_flight(&self) -> u32 {
@@ -138,12 +162,7 @@ impl Readiness {
     }
 
     pub(crate) fn submit(&mut self, records: &mut Queue<Submit>, wait: Wait) {
-        while !self.free.is_empty() {
-            let Some(record) = records.pop() else {
-                break;
-            };
-            self.start(record);
-        }
+        self.submit_records(records, Self::attempt);
         let timeout = if self.ready.is_empty() {
             match wait {
                 Wait::No => Some(0),
@@ -161,13 +180,13 @@ impl Readiness {
         } else {
             Some(0)
         };
-        let count = match self.poller.wait(timeout) {
+        let count = match self.poller().wait(timeout) {
             Ok(count) => count,
             Err(libc::EINTR) => return,
             Err(errno) => panic!("the poller refused a wait: {errno}"),
         };
         for index in 0..count {
-            let event: system::Event = self.poller.event(index);
+            let event: system::Event = self.poller().event(index);
             let Some(waiters) = self.waiters.get(&event.fd).copied() else {
                 continue;
             };
@@ -184,7 +203,30 @@ impl Readiness {
         }
     }
 
-    fn start(&mut self, record: Submit) {
+    fn submit_records(&mut self, records: &mut Queue<Submit>, attempt: impl FnMut(&mut Self, u32, bool, bool) -> bool) {
+        self.submit_records_with(records, attempt, Self::interest);
+    }
+
+    fn submit_records_with(
+        &mut self,
+        records: &mut Queue<Submit>,
+        mut attempt: impl FnMut(&mut Self, u32, bool, bool) -> bool,
+        mut interest: impl FnMut(&mut Self, Fd, bool, Waiters) -> Result<(), i32>,
+    ) {
+        while !self.free.is_empty() {
+            let Some(record) = records.pop() else {
+                break;
+            };
+            self.start(record, &mut attempt, &mut interest);
+        }
+    }
+
+    fn start(
+        &mut self,
+        record: Submit,
+        attempt: impl FnOnce(&mut Self, u32, bool, bool) -> bool,
+        interest: impl FnOnce(&mut Self, Fd, bool, Waiters) -> Result<(), i32>,
+    ) {
         assert!(record.kind.is_valid(), "io submits only valid records (skein_io::kernel, broken invariants)");
         assert!(!self.tokens.contains_key(&record.op), "io never reuses a token in flight (skein_io::kernel)");
         calls::check_path_access(&record.kind);
@@ -198,7 +240,7 @@ impl Readiness {
         self.slot(index).record = Some(record);
         if let Op::Cancel { target } = &self.slot(index).record.as_ref().expect("just inserted").kind {
             let target = *target;
-            let result = self.cancel(target);
+            let result = self.cancel(target, interest);
             self.finish(index, result);
             return;
         }
@@ -206,21 +248,31 @@ impl Readiness {
         let attempt_now = side.is_none()
             || matches!(kind, Op::Recv { .. } | Op::Send { .. } | Op::Wait { .. })
             || side.is_some_and(|(fd, _)| self.nonblocking.contains(&fd));
-        if attempt_now && self.attempt(index, false, true) {
+        if attempt_now && attempt(self, index, false, true) {
             return;
         }
         let (fd, side) = side.expect("only a stream operation can wait");
-        self.add_waiter(fd, side, index);
+        self.add_waiter(fd, side, index, interest);
     }
 
-    fn add_waiter(&mut self, fd: Fd, side: Side, index: u32) {
+    fn interest(&mut self, fd: Fd, existed: bool, waiters: Waiters) -> Result<(), i32> {
+        self.poller().interest(fd, existed, waiters.read.is_some(), waiters.write.is_some())
+    }
+
+    fn add_waiter(
+        &mut self,
+        fd: Fd,
+        side: Side,
+        index: u32,
+        interest: impl FnOnce(&mut Self, Fd, bool, Waiters) -> Result<(), i32>,
+    ) {
         let existed = self.waiters.contains_key(&fd);
         let mut waiters = self.waiters.get(&fd).copied().unwrap_or(Waiters { read: None, write: None });
         match side {
             Side::Read => waiters.read = Some(index),
             Side::Write => waiters.write = Some(index),
         }
-        match self.poller.interest(fd, existed, waiters.read.is_some(), waiters.write.is_some()) {
+        match interest(self, fd, existed, waiters) {
             Ok(()) => {
                 let _previous = self.waiters.insert(fd, waiters);
             }
@@ -236,19 +288,19 @@ impl Readiness {
         }
     }
 
-    fn remove_waiter(&mut self, fd: Fd, side: Side) {
+    fn remove_waiter(
+        &mut self,
+        fd: Fd,
+        side: Side,
+        interest: impl FnOnce(&mut Self, Fd, bool, Waiters) -> Result<(), i32>,
+    ) {
         let waiters = self.waiters.get_mut(&fd).expect("a waiting descriptor");
         match side {
             Side::Read => waiters.read = None,
             Side::Write => waiters.write = None,
         }
-        self.update(fd, true);
-    }
-
-    fn update(&mut self, fd: Fd, existed: bool) {
-        let waiters = self.waiters.get(&fd).expect("a descriptor's waiters");
-        self.poller
-            .interest(fd, existed, waiters.read.is_some(), waiters.write.is_some())
+        let waiters = *waiters;
+        interest(self, fd, true, waiters)
             .expect("removing a waiter preserves the live descriptor and its existing interest");
         if waiters.read.is_none() && waiters.write.is_none() {
             let _removed = self.waiters.remove(&fd);
@@ -257,11 +309,15 @@ impl Readiness {
 
     fn resume(&mut self, fd: Fd, side: Side, index: u32) {
         if self.attempt(index, true, true) {
-            self.remove_waiter(fd, side);
+            self.remove_waiter(fd, side, Self::interest);
         }
     }
 
-    fn cancel(&mut self, target: Token) -> Result<Done, Error> {
+    fn cancel(
+        &mut self,
+        target: Token,
+        interest: impl FnOnce(&mut Self, Fd, bool, Waiters) -> Result<(), i32>,
+    ) -> Result<Done, Error> {
         let Some(index) = self.tokens.get(&target).copied() else {
             return Err(Error::TooLate);
         };
@@ -271,7 +327,7 @@ impl Readiness {
         }
         let (fd, side) =
             side(&slot.record.as_ref().expect("an in-flight record").kind).expect("only a stream operation waits");
-        self.remove_waiter(fd, side);
+        self.remove_waiter(fd, side, interest);
         self.finish(index, Err(Error::Cancelled));
         Ok(Done::Nothing)
     }
@@ -582,32 +638,21 @@ fn remaining(bytes: &[u8], from: u32) -> &[u8] {
 #[cfg(test)]
 mod tests {
     use super::Readiness;
-    use crate::{Clock, Config, Wait, system};
-    use skein_io::kernel::{Done, Error, Family, Fd, Op, Submit};
-    use skein_lib::{Duration, Queue, Token};
+    use skein_io::kernel::{Done, Error, Fd, Op, Submit, Usage};
+    use skein_lib::{Queue, Token};
 
-    fn submit(kernel: &mut Readiness, token: u64, kind: Op) {
-        let mut records = Queue::with_capacity(1);
-        records.push(Submit { op: Token::new(token), kind });
-        kernel.submit(&mut records, Wait::No);
-        assert!(records.is_empty(), "the test kernel has room");
-    }
-
-    fn listener() -> Fd {
-        let fd = system::socket(Family::Ipv4).expect("a test socket");
-        system::bind(fd, &"127.0.0.1:0".parse().expect("loopback address")).expect("bind loopback");
-        system::listen(fd, 1).expect("listen on loopback");
-        fd
+    fn attempt_usage(kernel: &mut Readiness, index: u32, resumed: bool, waitable: bool) -> bool {
+        kernel.attempt_with(index, resumed, waitable, |_, _, _, _| Ok(Done::Usage(Usage::ZERO)))
     }
 
     #[test]
     fn ready_records_hold_slots_until_reaped_and_preserve_order() {
-        let mut kernel = Readiness::open(Config { operations: 2 }).expect("the poller is usable");
+        let mut kernel = Readiness::without_poller(2);
         let mut records = Queue::with_capacity(3);
         for token in 1..=3 {
             records.push(Submit { op: Token::new(token), kind: Op::Usage });
         }
-        kernel.submit(&mut records, Wait::Forever);
+        kernel.submit_records(&mut records, attempt_usage);
         assert_eq!(records.len(), 1, "submit leaves the record past its capacity");
         assert_eq!((kernel.in_flight(), kernel.room()), (2, 0));
         let mut out = Queue::with_capacity(1);
@@ -616,7 +661,7 @@ mod tests {
         assert_eq!(complete.op, Token::new(1));
         assert!(matches!(complete.result, Ok(Done::Usage(_))));
         assert_eq!((kernel.in_flight(), kernel.room()), (1, 1));
-        kernel.submit(&mut records, Wait::No);
+        kernel.submit_records(&mut records, attempt_usage);
         for token in 2..=3 {
             kernel.reap(&mut out);
             let complete = out.pop().expect("the next completion");
@@ -627,211 +672,40 @@ mod tests {
     }
 
     #[test]
-    fn an_inherited_blocking_pipe_waits_before_reading() {
-        use std::io::Write;
-        use std::os::fd::AsRawFd;
-        let (reader, mut writer) = std::io::pipe().expect("a blocking test pipe");
-        let fd = Fd::new(reader.as_raw_fd());
-        let mut kernel = Readiness::open(Config { operations: 1 }).expect("the poller is usable");
-        submit(&mut kernel, 1, Op::PipeRead { fd, buf: vec![0; 8].into_boxed_slice() });
-        assert_eq!(kernel.waiters.get(&fd).expect("read interest registered").read, Some(0));
-        assert!(kernel.ready.is_empty(), "an empty blocking pipe is not called at submit");
-        assert!(!kernel.nonblocking.contains(&fd), "an inherited pipe keeps its flags");
-        writer.write_all(b"pipe").expect("four bytes fit in an empty pipe");
-        kernel.submit(&mut Queue::with_capacity(0), Wait::Forever);
-        let mut out = Queue::with_capacity(1);
-        kernel.reap(&mut out);
-        let complete = out.pop().expect("one pipe read completes");
-        assert_eq!(complete.result, Ok(Done::Count(4)));
-        let Op::PipeRead { buf, .. } = complete.kind else { unreachable!("the read record comes back") };
-        assert_eq!(buf.get(..4), Some(b"pipe".as_slice()));
-        assert!(kernel.waiters.is_empty(), "a completed read removes its interest");
-    }
-
-    #[test]
-    fn an_inherited_blocking_pipe_write_is_capped_at_pipe_buf() {
-        use std::io::Read;
-        use std::os::fd::AsRawFd;
-        let (mut reader, writer) = std::io::pipe().expect("a blocking test pipe");
-        let maximum = libc::PIPE_BUF;
-        let mut kernel = Readiness::open(Config { operations: 1 }).expect("the poller is usable");
-        submit(
-            &mut kernel,
-            1,
-            Op::PipeWrite {
-                fd: Fd::new(writer.as_raw_fd()),
-                bytes: vec![7; maximum.checked_mul(2).expect("two PIPE_BUFs fit")].into_boxed_slice(),
-                from: 0,
-            },
-        );
-        let mut out = Queue::with_capacity(1);
-        kernel.reap(&mut out);
-        let complete = out.pop().expect("the empty pipe is writable");
-        assert_eq!(complete.result, Ok(Done::Count(u32::try_from(maximum).expect("PIPE_BUF fits u32"))));
-        let mut buf = vec![0; maximum];
-        reader.read_exact(&mut buf).expect("the one write put PIPE_BUF bytes in the pipe");
-        assert!(buf.iter().all(|byte| *byte == 7));
-        assert!(kernel.waiters.is_empty());
-    }
-
-    #[test]
-    #[expect(
-        clippy::disallowed_types,
-        reason = "the inherited descriptor in this test is a std File (runtime/shell.md, 8)"
-    )]
-    fn a_regular_file_pipe_read_completes_without_interest() {
-        use std::io::{Seek, SeekFrom, Write};
-        use std::os::fd::AsRawFd;
-        let scratch = skein_scratch::Scratch::new("readiness");
-        let path = scratch.path().join("file");
-        let mut file =
-            std::fs::File::options().create_new(true).read(true).write(true).open(&path).expect("a scratch file");
-        std::fs::remove_file(path).expect("the open scratch file needs no name");
-        file.write_all(b"file").expect("four scratch bytes");
-        file.seek(SeekFrom::Start(0)).expect("read from the beginning");
-        let mut kernel = Readiness::open(Config { operations: 1 }).expect("the poller is usable");
-        submit(&mut kernel, 1, Op::PipeRead { fd: Fd::new(file.as_raw_fd()), buf: vec![0; 8].into_boxed_slice() });
-        assert!(kernel.waiters.is_empty(), "the completed file read keeps no interest");
-        assert!(kernel.nonblocking.is_empty(), "a file is not a backend stream");
-        let mut out = Queue::with_capacity(1);
-        kernel.reap(&mut out);
-        let complete = out.pop().expect("a file is always ready");
-        assert_eq!(complete.result, Ok(Done::Count(4)));
-        let Op::PipeRead { buf, .. } = complete.kind else { unreachable!("the read record comes back") };
-        assert_eq!(buf.get(..4), Some(b"file".as_slice()));
-
-        submit(&mut kernel, 2, Op::PipeRead { fd: Fd::new(file.as_raw_fd()), buf });
-        assert!(kernel.waiters.is_empty(), "a file at EOF keeps no interest either");
-        kernel.reap(&mut out);
-        let complete = out.pop().expect("EOF completes at the next reap, without waiting");
-        assert_eq!(complete.result, Ok(Done::Count(0)), "a file at its end is always ready");
-    }
-
-    #[test]
-    fn a_signal_source_waits_then_reports_its_signal() {
-        use skein_io::kernel::{ServiceSignal, Signalled};
-        let fd = system::process::open_signals(crate::Watch::Termination).expect("open the termination signal source");
-        let mut kernel = Readiness::open(Config { operations: 1 }).expect("the poller is usable");
-        submit(&mut kernel, 1, Op::ReadSignal { fd });
-        assert_eq!(kernel.waiters.get(&fd).expect("signal source read interest").read, Some(0));
-        assert!(kernel.ready.is_empty(), "a signal source waits before its first call");
-        crate::keeper::signal_current_thread(ServiceSignal::Interrupt).expect("queue SIGINT on this thread");
-        kernel.submit(&mut Queue::with_capacity(0), Wait::Forever);
-        let mut out = Queue::with_capacity(1);
-        kernel.reap(&mut out);
-        let sender = if cfg!(target_os = "linux") {
-            Some(skein_io::kernel::Sender::new(u64::from(std::process::id())))
-        } else {
-            None
-        };
-        assert_eq!(
-            out.pop().expect("one signal read").result,
-            Ok(Done::Signalled(Signalled::Termination { signal: ServiceSignal::Interrupt, sender }))
-        );
-        assert!(kernel.waiters.is_empty());
-        submit(&mut kernel, 2, Op::Close { fd });
-        kernel.reap(&mut out);
-        assert_eq!(out.pop().expect("the signal source closes").result, Ok(Done::Nothing));
-    }
-
-    #[test]
-    fn a_hangup_source_reports_hangup() {
-        use skein_io::kernel::{ServiceSignal, Signalled};
-        let fd = system::process::open_signals(crate::Watch::TerminationAndHangup).expect("open hangup signals");
-        let mut kernel = Readiness::open(Config { operations: 1 }).expect("the poller is usable");
-        submit(&mut kernel, 1, Op::ReadSignal { fd });
-        assert!(kernel.ready.is_empty(), "no signal before delivery");
-        crate::keeper::signal_current_thread(ServiceSignal::Hangup).expect("queue SIGHUP on this thread");
-        kernel.submit(&mut Queue::with_capacity(0), Wait::Forever);
-        let mut out = Queue::with_capacity(1);
-        kernel.reap(&mut out);
-        let sender = if cfg!(target_os = "linux") {
-            Some(skein_io::kernel::Sender::new(u64::from(std::process::id())))
-        } else {
-            None
-        };
-        assert_eq!(
-            out.pop().expect("one hangup read").result,
-            Ok(Done::Signalled(Signalled::Termination { signal: ServiceSignal::Hangup, sender })),
-            "the requested hangup retains its name and sender"
-        );
-        submit(&mut kernel, 2, Op::Close { fd });
-        kernel.reap(&mut out);
-        assert_eq!(out.pop().expect("signal source closes").result, Ok(Done::Nothing), "source cleanup");
-    }
-
-    #[test]
-    #[expect(
-        clippy::disallowed_types,
-        reason = "the isolated test inherits SIG_IGN from its shell (runtime/shell.md, 6.3)"
-    )]
-    #[expect(
-        clippy::disallowed_methods,
-        reason = "skein's round: reads the child marker for the isolated ignored-hangup test"
-    )]
-    fn a_hangup_ignored_at_startup_is_not_watched() {
-        use skein_io::kernel::{ServiceSignal, Signalled};
-        // Re-exec this one test with the shell's ignored disposition; no unsafe
-        // signal-disposition changes escape the system modules (runtime/readiness.md, 5).
-        const CHILD: &str = "SKEIN_TEST_IGNORED_HANGUP";
-        if std::env::var_os(CHILD).is_none() {
-            let status = std::process::Command::new("sh")
-                .args(["-c", r#"trap '' HUP; exec "$0" "$@""#])
-                .arg(std::env::current_exe().expect("test executable"))
-                .args(["--exact", "readiness::tests::a_hangup_ignored_at_startup_is_not_watched", "--nocapture"])
-                .env(CHILD, "1")
-                .status()
-                .expect("isolated ignored-hangup test");
-            assert!(status.success(), "an ignored hangup stays ignored");
-            return;
-        }
-        let fd = system::process::open_signals(crate::Watch::TerminationAndHangup).expect("open hangup signals");
-        let mut kernel = Readiness::open(Config { operations: 1 }).expect("the poller is usable");
-        submit(&mut kernel, 1, Op::ReadSignal { fd });
-        crate::keeper::signal_current_thread(ServiceSignal::Hangup).expect("send ignored SIGHUP");
-        kernel.submit(&mut Queue::with_capacity(0), Wait::No);
-        let mut out = Queue::with_capacity(1);
-        kernel.reap(&mut out);
-        assert!(out.is_empty(), "startup-ignored SIGHUP is absent from the signal source");
-        crate::keeper::signal_current_thread(ServiceSignal::Interrupt).expect("send watched SIGINT");
-        kernel.submit(&mut Queue::with_capacity(0), Wait::Forever);
-        kernel.reap(&mut out);
-        assert!(
-            matches!(
-                out.pop().expect("interrupt read").result,
-                Ok(Done::Signalled(Signalled::Termination { signal: ServiceSignal::Interrupt, .. }))
-            ),
-            "ignoring hangup still watches termination"
-        );
-        submit(&mut kernel, 2, Op::Close { fd });
-        kernel.reap(&mut out);
-        assert_eq!(out.pop().expect("signal source closes").result, Ok(Done::Nothing), "source cleanup");
-    }
-
-    // EPOLL_CTL_ADD refuses duplicate interest; kevent EV_ADD modifies it.
-    #[cfg(target_os = "linux")]
-    #[test]
-    fn a_registration_error_completes_without_calling_or_adding_a_waiter() {
-        use std::os::fd::AsRawFd;
-        let (reader, _writer) = std::io::pipe().expect("a blocking test pipe");
-        let fd = Fd::new(reader.as_raw_fd());
-        let mut kernel = Readiness::open(Config { operations: 1 }).expect("the poller is usable");
-        kernel.poller.interest(fd, false, true, false).expect("pre-register the descriptor to provoke EEXIST");
-        submit(&mut kernel, 1, Op::PipeRead { fd, buf: vec![0; 8].into_boxed_slice() });
-        assert!(kernel.waiters.is_empty(), "failed registration preserves the waiter map");
-        let mut out = Queue::with_capacity(1);
-        kernel.reap(&mut out);
-        let complete = out.pop().expect("the registration error completes the record");
-        assert_eq!(complete.result, Err(Error::Other(libc::EEXIST)));
-        let Op::PipeRead { buf, .. } = complete.kind else { unreachable!("the record comes back") };
-        assert_eq!(&*buf, &[0; 8], "a registration error makes no read");
-        kernel.poller.interest(fd, true, false, false).expect("remove the test's injected interest");
-    }
-
-    #[test]
     fn cancelled_slots_can_be_reused_without_cancelling_their_next_record() {
-        let mut kernel = Readiness::open(Config { operations: 3 }).expect("the poller is usable");
-        let fd = listener();
+        let mut kernel = Readiness::without_poller(3);
+        let fd = Fd::new(123);
+        let pending = Error::Other(libc::EAGAIN);
+        let mut calls = [
+            (Op::Accept { fd }, Err(pending)),
+            (Op::Accept { fd }, Err(pending)),
+            (Op::Close { fd }, Ok(Done::Nothing)),
+        ]
+        .into_iter();
+        let mut interests = [(false, true), (true, false), (false, true), (true, false)].into_iter();
+        let mut records = Queue::with_capacity(1);
+        let mut submit = |kernel: &mut Readiness, token, kind| {
+            records.push(Submit { op: Token::new(token), kind });
+            kernel.submit_records_with(
+                &mut records,
+                |kernel, index, resumed, waitable| {
+                    kernel.attempt_with(index, resumed, waitable, |kind, resumed, nonblocking, _| {
+                        let (expected, result) = calls.next().expect("the next scripted call");
+                        assert_eq!(*kind, expected);
+                        assert!(!resumed, "the listener receives no readiness");
+                        assert_eq!(nonblocking, matches!(kind, Op::Accept { .. }));
+                        result
+                    })
+                },
+                |_, descriptor, existed, waiters| {
+                    assert_eq!(descriptor, fd);
+                    assert_eq!(Some((existed, waiters.read.is_some())), interests.next());
+                    assert!(waiters.write.is_none());
+                    Ok(())
+                },
+            );
+            assert!(records.is_empty(), "the test kernel has room");
+        };
         assert!(kernel.nonblocking.insert(fd));
         submit(&mut kernel, 1, Op::Accept { fd });
         submit(&mut kernel, 2, Op::Cancel { target: Token::new(1) });
@@ -854,17 +728,8 @@ mod tests {
         kernel.reap(&mut out);
         assert_eq!(kernel.in_flight(), 0);
         assert!(kernel.nonblocking.is_empty(), "Close forgets the descriptor");
-    }
-
-    #[test]
-    fn an_idle_deadline_does_not_wake_early() {
-        let mut kernel = Readiness::open(Config { operations: 1 }).expect("the poller is usable");
-        let clock = Clock::new();
-        for _ in 0..4 {
-            let deadline = clock.now().now.saturating_add(Duration::from_millis(2));
-            kernel.submit(&mut Queue::with_capacity(0), Wait::Until(deadline));
-            assert!(clock.now().now >= deadline, "the poller must not wake before the deadline");
-        }
+        assert_eq!(calls.len(), 0);
+        assert_eq!(interests.len(), 0);
     }
 }
 

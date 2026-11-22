@@ -1,4 +1,4 @@
-//! The private, two-sided git vocabulary (testing/fakes/forge.md, sections 3–4).
+//! The private, two-sided git vocabulary (testing/fakes/forge.md, section 3, and testing/fakes/forgejo.md, section 1).
 use alloc::boxed::Box;
 use skein_fake_forge_domain::{self as domain, api};
 use skein_lib::List;

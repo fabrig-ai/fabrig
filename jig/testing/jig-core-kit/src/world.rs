@@ -27,6 +27,14 @@ mod store_check;
 pub use constructors::fixture;
 pub use jig_conformance::store_check::StoreChecks;
 
+pub(crate) mod testing {
+    use super::{Cut, World};
+
+    pub fn fork_cut(world: &mut World, cut: Cut) -> Result<bool, String> {
+        world.fork_cut(cut)
+    }
+}
+
 /// Startup of the core world (`jig/docs/design/domain/engine/README.md`, section 9).
 #[derive(Debug)]
 pub struct Setup {

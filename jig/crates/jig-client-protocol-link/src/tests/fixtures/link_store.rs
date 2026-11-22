@@ -131,6 +131,7 @@ pub fn store_asks() -> List<c::Ask> {
             holdings: list([c::Holding { party: u64::MAX, role: c::HeldRole::Policy { role: u32::MAX } }]),
         },
         c::Ask::MakeService { project: 7, name: store_text(), role: c::HeldRole::Member },
+        c::Ask::ReissueService { party: u64::MAX },
         c::Ask::SetPool { project: 7, party: u64::MAX, budget: u64::MAX },
         c::Ask::SignIn { holder: c::AskAccountHolder::Own, provider: u32::MAX },
         c::Ask::SignIn { holder: c::AskAccountHolder::Deployment, provider: u32::MAX },

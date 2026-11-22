@@ -15,6 +15,10 @@ pub use table::TABLE;
 type EnvironmentEntry = (Box<[u8]>, Box<[u8]>);
 
 pub mod drive;
+#[doc(hidden)]
+pub mod testing {
+    pub use crate::drive::testing::{configuration, deployment_plan, io};
+}
 pub mod journey_walk;
 pub use temper_client_walk_lines::{line, named, print};
 pub mod recipe;

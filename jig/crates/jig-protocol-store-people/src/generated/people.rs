@@ -1098,343 +1098,345 @@ pub mod paths {
     pub const OUTCOME_WORKER_PAUSE_ASKED_TAIL: Path = Path::new(212, 1);
     pub const REFUSAL_UNLINKED_WORKER: Path = Path::new(213, 0);
     pub const REFUSAL_UNLINKED_TAIL: Path = Path::new(213, 1);
-    pub const ASK_TAG: Path = Path::new(214, 0);
-    pub const STORED_PERSON_NUMBER: Path = Path::new(215, 0);
-    pub const STORED_PERSON_IDENTITY: Path = Path::new(215, 1);
-    pub const STORED_PERSON_TAIL: Path = Path::new(215, 2);
-    pub const STORED_READ_RESULTS_PARTY: Path = Path::new(216, 0);
-    pub const STORED_READ_RESULTS_THROUGH: Path = Path::new(216, 1);
-    pub const STORED_READ_RESULTS_TAIL: Path = Path::new(216, 2);
-    pub const STORED_READ_CONVERSATION_PARTY: Path = Path::new(217, 0);
-    pub const STORED_READ_CONVERSATION_TASK: Path = Path::new(217, 1);
-    pub const STORED_READ_CONVERSATION_THROUGH: Path = Path::new(217, 2);
-    pub const STORED_READ_CONVERSATION_TAIL: Path = Path::new(217, 3);
-    pub const ENDED_READ_TASK: Path = Path::new(218, 0);
-    pub const ENDED_READ_PARTY: Path = Path::new(218, 1);
-    pub const ENDED_READ_THROUGH: Path = Path::new(218, 2);
-    pub const ENDED_READ_TAIL: Path = Path::new(218, 3);
-    pub const STORED_SIGN_IN_NUMBER: Path = Path::new(219, 0);
-    pub const STORED_SIGN_IN_PERSON: Path = Path::new(219, 1);
-    pub const STORED_SIGN_IN_EXPIRES: Path = Path::new(219, 2);
-    pub const STORED_SIGN_IN_TAIL: Path = Path::new(219, 3);
-    pub const STORED_ROLES_PROJECT: Path = Path::new(220, 0);
-    pub const STORED_ROLES_HOLDINGS: Path = Path::new(220, 1);
-    pub const STORED_ROLES_TAIL: Path = Path::new(220, 2);
-    pub const MODEL_NAME_NAME: Path = Path::new(221, 0);
-    pub const MODEL_NAME_TAIL: Path = Path::new(221, 1);
-    pub const STORED_POLICY_PROJECT: Path = Path::new(222, 0);
-    pub const STORED_POLICY_NAME: Path = Path::new(222, 1);
-    pub const STORED_POLICY_VALUE: Path = Path::new(222, 2);
-    pub const STORED_POLICY_MODELS: Path = Path::new(222, 3);
-    pub const STORED_POLICY_TAIL: Path = Path::new(222, 4);
-    pub const AGAIN_TAG: Path = Path::new(223, 0);
-    pub const FAILURE_CLASS_TAG: Path = Path::new(224, 0);
-    pub const HOLD_REASON_FAILURES_CLASS: Path = Path::new(225, 0);
-    pub const HOLD_REASON_FAILURES_TAIL: Path = Path::new(225, 1);
-    pub const HOLD_REASON_DEPENDENCY_TASK: Path = Path::new(226, 0);
-    pub const HOLD_REASON_DEPENDENCY_TAIL: Path = Path::new(226, 1);
-    pub const HOLD_REASON_PLACED_HOLD: Path = Path::new(227, 0);
-    pub const HOLD_REASON_PLACED_TAIL: Path = Path::new(227, 1);
-    pub const HOLD_REASON_UNCERTAIN_ENTRY: Path = Path::new(228, 0);
-    pub const HOLD_REASON_UNCERTAIN_TAIL: Path = Path::new(228, 1);
-    pub const HOLD_REASON_POOL_LOST_POOL: Path = Path::new(229, 0);
-    pub const HOLD_REASON_POOL_LOST_TAIL: Path = Path::new(229, 1);
-    pub const BOUND_TAG: Path = Path::new(230, 0);
-    pub const EXCEEDED_BOUND: Path = Path::new(231, 0);
-    pub const EXCEEDED_VALUE: Path = Path::new(231, 1);
-    pub const EXCEEDED_TAIL: Path = Path::new(231, 2);
-    pub const HOLD_REASON_TAG: Path = Path::new(232, 0);
-    pub const MOVED_HOLD_REVISION: Path = Path::new(233, 0);
-    pub const MOVED_HOLD_REASON: Path = Path::new(233, 1);
-    pub const MOVED_HOLD_TAIL: Path = Path::new(233, 2);
-    pub const MOVED_SPEC_REVISION: Path = Path::new(234, 0);
-    pub const MOVED_SPEC_TAIL: Path = Path::new(234, 1);
-    pub const MOVED_PERSON_REVISION: Path = Path::new(235, 0);
-    pub const MOVED_PERSON_TAIL: Path = Path::new(235, 1);
-    pub const MOVED_NOTE_REVISION: Path = Path::new(236, 0);
-    pub const MOVED_NOTE_TAIL: Path = Path::new(236, 1);
-    pub const MOVED_TAG: Path = Path::new(237, 0);
-    pub const PARTY_PERSON_VALUE: Path = Path::new(238, 0);
-    pub const PARTY_PERSON_TAIL: Path = Path::new(238, 1);
-    pub const PARTY_TASK_VALUE: Path = Path::new(239, 0);
-    pub const PARTY_TASK_TAIL: Path = Path::new(239, 1);
-    pub const PARTY_DEPLOYMENT_PROJECT: Path = Path::new(240, 0);
-    pub const PARTY_DEPLOYMENT_TAIL: Path = Path::new(240, 1);
-    pub const PARTY_TAG: Path = Path::new(241, 0);
-    pub const ENDING_CANCELLED_BY: Path = Path::new(242, 0);
-    pub const ENDING_CANCELLED_AT: Path = Path::new(242, 1);
-    pub const ENDING_CANCELLED_TAIL: Path = Path::new(242, 2);
-    pub const ENDING_DECIDED_BY: Path = Path::new(243, 0);
-    pub const ENDING_DECIDED_AT: Path = Path::new(243, 1);
-    pub const ENDING_DECIDED_TAIL: Path = Path::new(243, 2);
-    pub const ENDING_TAG: Path = Path::new(244, 0);
-    pub const LACK_BUDGET_NEEDS: Path = Path::new(245, 0);
-    pub const LACK_BUDGET_LEFT: Path = Path::new(245, 1);
-    pub const LACK_BUDGET_TAIL: Path = Path::new(245, 2);
-    pub const LACK_GRANT_KIND: Path = Path::new(246, 0);
-    pub const LACK_GRANT_TAIL: Path = Path::new(246, 1);
-    pub const LACK_DEPTH_MOST: Path = Path::new(247, 0);
-    pub const LACK_DEPTH_TAIL: Path = Path::new(247, 1);
-    pub const LACK_TASKS_LEFT: Path = Path::new(248, 0);
-    pub const LACK_TASKS_TAIL: Path = Path::new(248, 1);
-    pub const LACK_AGAIN_REQUIRED: Path = Path::new(249, 0);
-    pub const LACK_AGAIN_TAIL: Path = Path::new(249, 1);
-    pub const LACK_REQUIRED_CONNECTOR: Path = Path::new(250, 0);
-    pub const LACK_REQUIRED_KIND: Path = Path::new(250, 1);
-    pub const LACK_REQUIRED_TAIL: Path = Path::new(250, 2);
-    pub const LACK_FAILED_CONNECTOR: Path = Path::new(251, 0);
-    pub const LACK_FAILED_KIND: Path = Path::new(251, 1);
-    pub const LACK_FAILED_TAIL: Path = Path::new(251, 2);
-    pub const LACK_UNGUARDED_CONNECTOR: Path = Path::new(252, 0);
-    pub const LACK_UNGUARDED_KIND: Path = Path::new(252, 1);
-    pub const LACK_UNGUARDED_TAIL: Path = Path::new(252, 2);
-    pub const LACK_TASK_KIND_EXECUTOR: Path = Path::new(253, 0);
-    pub const LACK_TASK_KIND_TAIL: Path = Path::new(253, 1);
-    pub const CEILING_ROLE_ROLE: Path = Path::new(254, 0);
-    pub const CEILING_ROLE_TAIL: Path = Path::new(254, 1);
-    pub const CEILING_HOLDER_TAG: Path = Path::new(255, 0);
-    pub const CEILING_DIMENSION_TAG: Path = Path::new(256, 0);
-    pub const LACK_CEILING_HOLDER: Path = Path::new(257, 0);
-    pub const LACK_CEILING_DIMENSION: Path = Path::new(257, 1);
-    pub const LACK_CEILING_VALUE: Path = Path::new(257, 2);
-    pub const LACK_CEILING_ASKED: Path = Path::new(257, 3);
-    pub const LACK_CEILING_TAIL: Path = Path::new(257, 4);
-    pub const LACK_TAG: Path = Path::new(258, 0);
-    pub const LIMIT_KIND_TAG: Path = Path::new(259, 0);
-    pub const REFUSAL_ROLE_HELD: Path = Path::new(260, 0);
-    pub const REFUSAL_ROLE_TAIL: Path = Path::new(260, 1);
-    pub const ACCEPTER_ROLE_ROLE: Path = Path::new(261, 0);
-    pub const ACCEPTER_ROLE_TAIL: Path = Path::new(261, 1);
-    pub const ACCEPTER_TAG: Path = Path::new(262, 0);
-    pub const REFUSAL_AUTHORITY_LACKING: Path = Path::new(263, 0);
-    pub const REFUSAL_AUTHORITY_PROPOSABLE: Path = Path::new(263, 1);
-    pub const REFUSAL_AUTHORITY_TAIL: Path = Path::new(263, 2);
-    pub const REFUSAL_LIMIT_WHICH: Path = Path::new(264, 0);
-    pub const REFUSAL_LIMIT_TAIL: Path = Path::new(264, 1);
-    pub const REFUSAL_MOVED_NOW: Path = Path::new(265, 0);
-    pub const REFUSAL_MOVED_TAIL: Path = Path::new(265, 1);
-    pub const REFUSAL_ENDED_HOW: Path = Path::new(266, 0);
-    pub const REFUSAL_ENDED_TAIL: Path = Path::new(266, 1);
-    pub const REFUSAL_TAKEN_BY: Path = Path::new(267, 0);
-    pub const REFUSAL_TAKEN_TAIL: Path = Path::new(267, 1);
-    pub const NAME_RULE_TAG: Path = Path::new(268, 0);
-    pub const MALFORMED_NAME_RULE: Path = Path::new(269, 0);
-    pub const MALFORMED_NAME_TAIL: Path = Path::new(269, 1);
-    pub const MALFORMED_TAG: Path = Path::new(270, 0);
-    pub const REFUSAL_NOT_WELL_FORMED_AT: Path = Path::new(271, 0);
-    pub const REFUSAL_NOT_WELL_FORMED_WHY: Path = Path::new(271, 1);
-    pub const REFUSAL_NOT_WELL_FORMED_TAIL: Path = Path::new(271, 2);
-    pub const LLM_WHY_TAG: Path = Path::new(272, 0);
-    pub const REFUSAL_LLM_MODEL: Path = Path::new(273, 0);
-    pub const REFUSAL_LLM_WHY: Path = Path::new(273, 1);
-    pub const REFUSAL_LLM_TAIL: Path = Path::new(273, 2);
-    pub const ACCOUNT_WHY_TAG: Path = Path::new(274, 0);
-    pub const REFUSAL_ACCOUNT_ACCOUNT: Path = Path::new(275, 0);
-    pub const REFUSAL_ACCOUNT_WHY: Path = Path::new(275, 1);
-    pub const REFUSAL_ACCOUNT_TAIL: Path = Path::new(275, 2);
-    pub const DEPENDENCY_STATUS_TAG: Path = Path::new(276, 0);
-    pub const REFUSAL_CIRCLE_TASKS: Path = Path::new(277, 0);
-    pub const REFUSAL_CIRCLE_CUT: Path = Path::new(277, 1);
-    pub const REFUSAL_CIRCLE_TAIL: Path = Path::new(277, 2);
-    pub const REFUSAL_LIVE_TASKS_TASKS: Path = Path::new(278, 0);
-    pub const REFUSAL_LIVE_TASKS_MORE: Path = Path::new(278, 1);
-    pub const REFUSAL_LIVE_TASKS_TAIL: Path = Path::new(278, 2);
-    pub const REFUSAL_DEPENDENCY_DEPENDENCY: Path = Path::new(279, 0);
-    pub const REFUSAL_DEPENDENCY_HOW: Path = Path::new(279, 1);
-    pub const REFUSAL_DEPENDENCY_TAIL: Path = Path::new(279, 2);
-    pub const REFUSAL_KEPT_PENDING: Path = Path::new(280, 0);
-    pub const REFUSAL_KEPT_TAIL: Path = Path::new(280, 1);
-    pub const SIGN_IN_REDIRECT_WHY_TAG: Path = Path::new(281, 0);
-    pub const REFUSAL_SIGN_IN_REDIRECT_WHY: Path = Path::new(282, 0);
-    pub const REFUSAL_SIGN_IN_REDIRECT_TAIL: Path = Path::new(282, 1);
-    pub const ACCOUNT_MOVE_WHY_TAG: Path = Path::new(283, 0);
-    pub const REFUSAL_ACCOUNT_MOVE_WHY: Path = Path::new(284, 0);
-    pub const REFUSAL_ACCOUNT_MOVE_TAIL: Path = Path::new(284, 1);
-    pub const REFUSAL_JUDGED_AT: Path = Path::new(285, 0);
-    pub const REFUSAL_JUDGED_SETTING: Path = Path::new(285, 1);
-    pub const REFUSAL_JUDGED_WHY: Path = Path::new(285, 2);
-    pub const REFUSAL_JUDGED_TAIL: Path = Path::new(285, 3);
-    pub const REFUSAL_FORGOTTEN_OLDEST: Path = Path::new(286, 0);
-    pub const REFUSAL_FORGOTTEN_TAIL: Path = Path::new(286, 1);
-    pub const REFUSAL_CONCLUDED_AT: Path = Path::new(287, 0);
-    pub const REFUSAL_CONCLUDED_TAIL: Path = Path::new(287, 1);
-    pub const REFUSAL_TAG: Path = Path::new(288, 0);
-    pub const PROPOSAL_CHOICE_TAG: Path = Path::new(289, 0);
-    pub const ESCALATION_CHOICE_TAG: Path = Path::new(290, 0);
-    pub const OUTCOME_COMPOUND_PROJECT: Path = Path::new(291, 0);
-    pub const OUTCOME_COMPOUND_OPERATIONS: Path = Path::new(291, 1);
-    pub const OUTCOME_COMPOUND_FIRST_MESSAGE: Path = Path::new(291, 2);
-    pub const OUTCOME_COMPOUND_TAIL: Path = Path::new(291, 3);
-    pub const OUTCOME_COMPOUND_REFUSED_AT: Path = Path::new(292, 0);
-    pub const OUTCOME_COMPOUND_REFUSED_WHY: Path = Path::new(292, 1);
-    pub const OUTCOME_COMPOUND_REFUSED_TAIL: Path = Path::new(292, 2);
-    pub const OUTCOME_MARKED_SEEN_SEEN: Path = Path::new(293, 0);
-    pub const OUTCOME_MARKED_SEEN_TAIL: Path = Path::new(293, 1);
-    pub const OUTCOME_APPLIED_CONNECTOR: Path = Path::new(294, 0);
-    pub const OUTCOME_APPLIED_TOKEN: Path = Path::new(294, 1);
-    pub const OUTCOME_APPLIED_TAIL: Path = Path::new(294, 2);
-    pub const OUTCOME_AGAIN_VALUE: Path = Path::new(295, 0);
-    pub const OUTCOME_AGAIN_TAIL: Path = Path::new(295, 1);
-    pub const OUTCOME_NOTE_EDITED_NAME: Path = Path::new(296, 0);
-    pub const OUTCOME_NOTE_EDITED_TAIL: Path = Path::new(296, 1);
-    pub const OUTCOME_SERVICE_MADE_PERSON: Path = Path::new(297, 0);
-    pub const OUTCOME_SERVICE_MADE_TAIL: Path = Path::new(297, 1);
-    pub const OUTCOME_ADOPTED_PROJECT: Path = Path::new(298, 0);
-    pub const OUTCOME_ADOPTED_TAIL: Path = Path::new(298, 1);
-    pub const OUTCOME_PROPOSED_PROPOSAL: Path = Path::new(299, 0);
-    pub const OUTCOME_PROPOSED_TO: Path = Path::new(299, 1);
-    pub const OUTCOME_PROPOSED_TAIL: Path = Path::new(299, 2);
-    pub const OUTCOME_WITHDRAWN_PROPOSAL: Path = Path::new(300, 0);
-    pub const OUTCOME_WITHDRAWN_TAIL: Path = Path::new(300, 1);
-    pub const OUTCOME_STOPPED_TASK: Path = Path::new(301, 0);
-    pub const OUTCOME_STOPPED_TAIL: Path = Path::new(301, 1);
-    pub const OUTCOME_CANCELLED_TASK: Path = Path::new(302, 0);
-    pub const OUTCOME_CANCELLED_TAIL: Path = Path::new(302, 1);
-    pub const OUTCOME_RELEASED_TASK: Path = Path::new(303, 0);
-    pub const OUTCOME_RELEASED_TAIL: Path = Path::new(303, 1);
-    pub const OUTCOME_PERSON_TAKEN_TASK: Path = Path::new(304, 0);
-    pub const OUTCOME_PERSON_TAKEN_TAIL: Path = Path::new(304, 1);
-    pub const OUTCOME_PERSON_HANDED_BACK_TASK: Path = Path::new(305, 0);
-    pub const OUTCOME_PERSON_HANDED_BACK_TAIL: Path = Path::new(305, 1);
-    pub const OUTCOME_PERSON_ANSWERED_TASK: Path = Path::new(306, 0);
-    pub const OUTCOME_PERSON_ANSWERED_TAIL: Path = Path::new(306, 1);
-    pub const OUTCOME_MOVED_TASK: Path = Path::new(307, 0);
-    pub const OUTCOME_MOVED_TAIL: Path = Path::new(307, 1);
-    pub const OUTCOME_PROPOSAL_DECIDED_PROPOSER: Path = Path::new(308, 0);
-    pub const OUTCOME_PROPOSAL_DECIDED_PROPOSAL: Path = Path::new(308, 1);
-    pub const OUTCOME_PROPOSAL_DECIDED_BY: Path = Path::new(308, 2);
-    pub const OUTCOME_PROPOSAL_DECIDED_AT: Path = Path::new(308, 3);
-    pub const OUTCOME_PROPOSAL_DECIDED_CHOICE: Path = Path::new(308, 4);
-    pub const OUTCOME_PROPOSAL_DECIDED_REPEATED: Path = Path::new(308, 5);
-    pub const OUTCOME_PROPOSAL_DECIDED_TAIL: Path = Path::new(308, 6);
-    pub const OUTCOME_SAID_TASK: Path = Path::new(309, 0);
-    pub const OUTCOME_SAID_MESSAGE: Path = Path::new(309, 1);
-    pub const OUTCOME_SAID_TAIL: Path = Path::new(309, 2);
-    pub const OUTCOME_QUESTION_ANSWERED_TASK: Path = Path::new(310, 0);
-    pub const OUTCOME_QUESTION_ANSWERED_QUESTION: Path = Path::new(310, 1);
-    pub const OUTCOME_QUESTION_ANSWERED_MESSAGE: Path = Path::new(310, 2);
-    pub const OUTCOME_QUESTION_ANSWERED_TAIL: Path = Path::new(310, 3);
-    pub const OUTCOME_AMENDED_TASK: Path = Path::new(311, 0);
-    pub const OUTCOME_AMENDED_RELEASED: Path = Path::new(311, 1);
-    pub const OUTCOME_AMENDED_TAIL: Path = Path::new(311, 2);
-    pub const OUTCOME_ROLES_SET_PROJECT: Path = Path::new(312, 0);
-    pub const OUTCOME_ROLES_SET_TAIL: Path = Path::new(312, 1);
-    pub const OUTCOME_RENAMED_PROJECT: Path = Path::new(313, 0);
-    pub const OUTCOME_RENAMED_TAIL: Path = Path::new(313, 1);
-    pub const OUTCOME_PROJECT_MADE_PROJECT: Path = Path::new(314, 0);
-    pub const OUTCOME_PROJECT_MADE_TAIL: Path = Path::new(314, 1);
-    pub const OUTCOME_POLICY_CHANGED_PROJECT: Path = Path::new(315, 0);
-    pub const OUTCOME_POLICY_CHANGED_TAIL: Path = Path::new(315, 1);
-    pub const OUTCOME_POOL_SET_PROJECT: Path = Path::new(316, 0);
-    pub const OUTCOME_POOL_SET_PERSON: Path = Path::new(316, 1);
-    pub const OUTCOME_POOL_SET_TAIL: Path = Path::new(316, 2);
-    pub const OUTCOME_ESCALATION_DECIDED_TASK: Path = Path::new(317, 0);
-    pub const OUTCOME_ESCALATION_DECIDED_REVISION: Path = Path::new(317, 1);
-    pub const OUTCOME_ESCALATION_DECIDED_BY: Path = Path::new(317, 2);
-    pub const OUTCOME_ESCALATION_DECIDED_AT: Path = Path::new(317, 3);
-    pub const OUTCOME_ESCALATION_DECIDED_CHOICE: Path = Path::new(317, 4);
-    pub const OUTCOME_ESCALATION_DECIDED_TAIL: Path = Path::new(317, 5);
-    pub const OUTCOME_REFUSED_VALUE: Path = Path::new(318, 0);
-    pub const OUTCOME_REFUSED_TAIL: Path = Path::new(318, 1);
-    pub const OUTCOME_ACCOUNT_SIGN_IN_STARTED_SOURCE: Path = Path::new(319, 0);
-    pub const OUTCOME_ACCOUNT_SIGN_IN_STARTED_ADDRESS: Path = Path::new(319, 1);
-    pub const OUTCOME_ACCOUNT_SIGN_IN_STARTED_TAIL: Path = Path::new(319, 2);
-    pub const ACCOUNT_HOST_WHY_TAG: Path = Path::new(320, 0);
-    pub const ACCOUNT_HOST_FAILURE_NAME: Path = Path::new(321, 0);
-    pub const ACCOUNT_HOST_FAILURE_WHY: Path = Path::new(321, 1);
-    pub const ACCOUNT_HOST_FAILURE_TAIL: Path = Path::new(321, 2);
-    pub const OUTCOME_ACCOUNT_PROGRAM_DECLARED_SOURCE: Path = Path::new(322, 0);
-    pub const OUTCOME_ACCOUNT_PROGRAM_DECLARED_NAME: Path = Path::new(322, 1);
-    pub const OUTCOME_ACCOUNT_PROGRAM_DECLARED_TAIL: Path = Path::new(322, 2);
-    pub const OUTCOME_ACCOUNT_SIGNED_OUT_CONFIRMED: Path = Path::new(323, 0);
-    pub const OUTCOME_ACCOUNT_SIGNED_OUT_FAILED_HOSTS: Path = Path::new(323, 1);
-    pub const OUTCOME_ACCOUNT_SIGNED_OUT_TAIL: Path = Path::new(323, 2);
-    pub const OUTCOME_ACCOUNT_KEY_KEPT_SOURCE: Path = Path::new(324, 0);
-    pub const OUTCOME_ACCOUNT_KEY_KEPT_TAIL: Path = Path::new(324, 1);
-    pub const OUTCOME_ACCOUNT_REMOVED_CONFIRMED: Path = Path::new(325, 0);
-    pub const OUTCOME_ACCOUNT_REMOVED_FAILED_HOSTS: Path = Path::new(325, 1);
-    pub const OUTCOME_ACCOUNT_REMOVED_TAIL: Path = Path::new(325, 2);
-    pub const GIVEN_TASK: Path = Path::new(326, 0);
-    pub const GIVEN_AMOUNT: Path = Path::new(326, 1);
-    pub const GIVEN_TAIL: Path = Path::new(326, 2);
-    pub const OUTCOME_CREATED_FIRST: Path = Path::new(327, 0);
-    pub const OUTCOME_CREATED_LAST: Path = Path::new(327, 1);
-    pub const OUTCOME_CREATED_GIVEN: Path = Path::new(327, 2);
-    pub const OUTCOME_CREATED_TAIL: Path = Path::new(327, 3);
-    pub const OUTCOME_ACCOUNT_MOVING_OUT_ACCOUNT: Path = Path::new(328, 0);
-    pub const OUTCOME_ACCOUNT_MOVING_OUT_NUMBER: Path = Path::new(328, 1);
-    pub const OUTCOME_ACCOUNT_MOVING_OUT_SOURCE: Path = Path::new(328, 2);
-    pub const OUTCOME_ACCOUNT_MOVING_OUT_TAIL: Path = Path::new(328, 3);
-    pub const OUTCOME_ACCOUNT_MOVED_IN_ACCOUNT: Path = Path::new(329, 0);
-    pub const OUTCOME_ACCOUNT_MOVED_IN_RENEWED: Path = Path::new(329, 1);
-    pub const OUTCOME_ACCOUNT_MOVED_IN_TAIL: Path = Path::new(329, 2);
-    pub const OUTCOME_ACCOUNT_FINISHING_SOURCE: Path = Path::new(330, 0);
-    pub const OUTCOME_ACCOUNT_FINISHING_TAIL: Path = Path::new(330, 1);
-    pub const OUTCOME_MOVED_TO_NEWEST_NEWEST: Path = Path::new(331, 0);
-    pub const OUTCOME_MOVED_TO_NEWEST_MOVED: Path = Path::new(331, 1);
-    pub const OUTCOME_MOVED_TO_NEWEST_STAYED: Path = Path::new(331, 2);
-    pub const OUTCOME_MOVED_TO_NEWEST_TAIL: Path = Path::new(331, 3);
-    pub const OUTCOME_VISIBILITY_SET_PROJECT: Path = Path::new(332, 0);
-    pub const OUTCOME_VISIBILITY_SET_PUBLIC: Path = Path::new(332, 1);
-    pub const OUTCOME_VISIBILITY_SET_TAIL: Path = Path::new(332, 2);
-    pub const OUTCOME_PROJECT_REMOVED_PROJECT: Path = Path::new(333, 0);
-    pub const OUTCOME_PROJECT_REMOVED_TAIL: Path = Path::new(333, 1);
-    pub const OUTCOME_ACCOUNT_READING_COUNT: Path = Path::new(334, 0);
-    pub const OUTCOME_ACCOUNT_READING_TAIL: Path = Path::new(334, 1);
-    pub const OUTCOME_ACCOUNT_LOGIN_ASKED_NUMBER: Path = Path::new(335, 0);
-    pub const OUTCOME_ACCOUNT_LOGIN_ASKED_TAIL: Path = Path::new(335, 1);
-    pub const OUTCOME_CONCLUDED_TASK: Path = Path::new(336, 0);
-    pub const OUTCOME_CONCLUDED_TAIL: Path = Path::new(336, 1);
-    pub const OUTCOME_TAG: Path = Path::new(337, 0);
-    pub const ACT_KEY_CONNECTOR: Path = Path::new(338, 0);
-    pub const ACT_KEY_KEY: Path = Path::new(338, 1);
-    pub const ACT_KEY_TAIL: Path = Path::new(338, 2);
-    pub const ACT_CLOSE_PROJECT: Path = Path::new(339, 0);
-    pub const ACT_CLOSE_TASK: Path = Path::new(339, 1);
-    pub const ACT_CLOSE_GRACE: Path = Path::new(339, 2);
-    pub const ACT_CLOSE_REASON: Path = Path::new(339, 3);
-    pub const ACT_CLOSE_TAIL: Path = Path::new(339, 4);
-    pub const ACT_ADD_KEY_PROVIDER: Path = Path::new(340, 0);
-    pub const ACT_ADD_KEY_JOIN: Path = Path::new(340, 1);
-    pub const ACT_ADD_KEY_DIGEST: Path = Path::new(340, 2);
-    pub const ACT_ADD_KEY_TAIL: Path = Path::new(340, 3);
-    pub const ACT_REMOVE_ACCOUNT_ACCOUNT: Path = Path::new(341, 0);
-    pub const ACT_REMOVE_ACCOUNT_TAIL: Path = Path::new(341, 1);
-    pub const ACT_ADOPT_PROJECT: Path = Path::new(342, 0);
-    pub const ACT_ADOPT_ADOPTION: Path = Path::new(342, 1);
-    pub const ACT_ADOPT_TAIL: Path = Path::new(342, 2);
-    pub const ACT_MAKE_PROJECT_MAKER: Path = Path::new(343, 0);
-    pub const ACT_MAKE_PROJECT_NAME: Path = Path::new(343, 1);
-    pub const ACT_MAKE_PROJECT_POLICY: Path = Path::new(343, 2);
-    pub const ACT_MAKE_PROJECT_TAIL: Path = Path::new(343, 3);
-    pub const ACT_REMOVE_PROJECT_PROJECT: Path = Path::new(344, 0);
-    pub const ACT_REMOVE_PROJECT_GRACE: Path = Path::new(344, 1);
-    pub const ACT_REMOVE_PROJECT_TAIL: Path = Path::new(344, 2);
-    pub const ACT_TAG: Path = Path::new(345, 0);
-    pub const STORED_ACTED_KEY: Path = Path::new(346, 0);
-    pub const STORED_ACTED_ACT: Path = Path::new(346, 1);
-    pub const STORED_ACTED_OUTCOME: Path = Path::new(346, 2);
-    pub const STORED_ACTED_AT: Path = Path::new(346, 3);
-    pub const STORED_ACTED_TAIL: Path = Path::new(346, 4);
-    pub const STORED_ANSWER_KEY: Path = Path::new(347, 0);
-    pub const STORED_ANSWER_ASK: Path = Path::new(347, 1);
-    pub const STORED_ANSWER_MODELS: Path = Path::new(347, 2);
-    pub const STORED_ANSWER_OUTCOME: Path = Path::new(347, 3);
-    pub const STORED_ANSWER_AT: Path = Path::new(347, 4);
-    pub const STORED_ANSWER_TAIL: Path = Path::new(347, 5);
-    pub const DELETION_STEP_TAG: Path = Path::new(348, 0);
-    pub const STORED_DELETION_PROJECT: Path = Path::new(349, 0);
-    pub const STORED_DELETION_STEP: Path = Path::new(349, 1);
-    pub const STORED_DELETION_GRACE: Path = Path::new(349, 2);
-    pub const STORED_DELETION_TAIL: Path = Path::new(349, 3);
-    pub const STORED_PUBLIC_PROJECT: Path = Path::new(350, 0);
-    pub const STORED_PUBLIC_TAIL: Path = Path::new(350, 1);
-    pub const STORED_DELETED_PROJECT: Path = Path::new(351, 0);
-    pub const STORED_DELETED_TAIL: Path = Path::new(351, 1);
-    pub const VALUE_TAG: Path = Path::new(352, 0);
-    pub const ROW_VALUE: Path = Path::new(353, 0);
-    pub const ROW_VERSION: Path = Path::new(353, 1);
-    pub const ROW_TAIL: Path = Path::new(353, 2);
+    pub const SERVICE_PARTY_PARTY: Path = Path::new(214, 0);
+    pub const SERVICE_PARTY_TAIL: Path = Path::new(214, 1);
+    pub const ASK_TAG: Path = Path::new(215, 0);
+    pub const STORED_PERSON_NUMBER: Path = Path::new(216, 0);
+    pub const STORED_PERSON_IDENTITY: Path = Path::new(216, 1);
+    pub const STORED_PERSON_TAIL: Path = Path::new(216, 2);
+    pub const STORED_READ_RESULTS_PARTY: Path = Path::new(217, 0);
+    pub const STORED_READ_RESULTS_THROUGH: Path = Path::new(217, 1);
+    pub const STORED_READ_RESULTS_TAIL: Path = Path::new(217, 2);
+    pub const STORED_READ_CONVERSATION_PARTY: Path = Path::new(218, 0);
+    pub const STORED_READ_CONVERSATION_TASK: Path = Path::new(218, 1);
+    pub const STORED_READ_CONVERSATION_THROUGH: Path = Path::new(218, 2);
+    pub const STORED_READ_CONVERSATION_TAIL: Path = Path::new(218, 3);
+    pub const ENDED_READ_TASK: Path = Path::new(219, 0);
+    pub const ENDED_READ_PARTY: Path = Path::new(219, 1);
+    pub const ENDED_READ_THROUGH: Path = Path::new(219, 2);
+    pub const ENDED_READ_TAIL: Path = Path::new(219, 3);
+    pub const STORED_SIGN_IN_NUMBER: Path = Path::new(220, 0);
+    pub const STORED_SIGN_IN_PERSON: Path = Path::new(220, 1);
+    pub const STORED_SIGN_IN_EXPIRES: Path = Path::new(220, 2);
+    pub const STORED_SIGN_IN_TAIL: Path = Path::new(220, 3);
+    pub const STORED_ROLES_PROJECT: Path = Path::new(221, 0);
+    pub const STORED_ROLES_HOLDINGS: Path = Path::new(221, 1);
+    pub const STORED_ROLES_TAIL: Path = Path::new(221, 2);
+    pub const MODEL_NAME_NAME: Path = Path::new(222, 0);
+    pub const MODEL_NAME_TAIL: Path = Path::new(222, 1);
+    pub const STORED_POLICY_PROJECT: Path = Path::new(223, 0);
+    pub const STORED_POLICY_NAME: Path = Path::new(223, 1);
+    pub const STORED_POLICY_VALUE: Path = Path::new(223, 2);
+    pub const STORED_POLICY_MODELS: Path = Path::new(223, 3);
+    pub const STORED_POLICY_TAIL: Path = Path::new(223, 4);
+    pub const AGAIN_TAG: Path = Path::new(224, 0);
+    pub const FAILURE_CLASS_TAG: Path = Path::new(225, 0);
+    pub const HOLD_REASON_FAILURES_CLASS: Path = Path::new(226, 0);
+    pub const HOLD_REASON_FAILURES_TAIL: Path = Path::new(226, 1);
+    pub const HOLD_REASON_DEPENDENCY_TASK: Path = Path::new(227, 0);
+    pub const HOLD_REASON_DEPENDENCY_TAIL: Path = Path::new(227, 1);
+    pub const HOLD_REASON_PLACED_HOLD: Path = Path::new(228, 0);
+    pub const HOLD_REASON_PLACED_TAIL: Path = Path::new(228, 1);
+    pub const HOLD_REASON_UNCERTAIN_ENTRY: Path = Path::new(229, 0);
+    pub const HOLD_REASON_UNCERTAIN_TAIL: Path = Path::new(229, 1);
+    pub const HOLD_REASON_POOL_LOST_POOL: Path = Path::new(230, 0);
+    pub const HOLD_REASON_POOL_LOST_TAIL: Path = Path::new(230, 1);
+    pub const BOUND_TAG: Path = Path::new(231, 0);
+    pub const EXCEEDED_BOUND: Path = Path::new(232, 0);
+    pub const EXCEEDED_VALUE: Path = Path::new(232, 1);
+    pub const EXCEEDED_TAIL: Path = Path::new(232, 2);
+    pub const HOLD_REASON_TAG: Path = Path::new(233, 0);
+    pub const MOVED_HOLD_REVISION: Path = Path::new(234, 0);
+    pub const MOVED_HOLD_REASON: Path = Path::new(234, 1);
+    pub const MOVED_HOLD_TAIL: Path = Path::new(234, 2);
+    pub const MOVED_SPEC_REVISION: Path = Path::new(235, 0);
+    pub const MOVED_SPEC_TAIL: Path = Path::new(235, 1);
+    pub const MOVED_PERSON_REVISION: Path = Path::new(236, 0);
+    pub const MOVED_PERSON_TAIL: Path = Path::new(236, 1);
+    pub const MOVED_NOTE_REVISION: Path = Path::new(237, 0);
+    pub const MOVED_NOTE_TAIL: Path = Path::new(237, 1);
+    pub const MOVED_TAG: Path = Path::new(238, 0);
+    pub const PARTY_PERSON_VALUE: Path = Path::new(239, 0);
+    pub const PARTY_PERSON_TAIL: Path = Path::new(239, 1);
+    pub const PARTY_TASK_VALUE: Path = Path::new(240, 0);
+    pub const PARTY_TASK_TAIL: Path = Path::new(240, 1);
+    pub const PARTY_DEPLOYMENT_PROJECT: Path = Path::new(241, 0);
+    pub const PARTY_DEPLOYMENT_TAIL: Path = Path::new(241, 1);
+    pub const PARTY_TAG: Path = Path::new(242, 0);
+    pub const ENDING_CANCELLED_BY: Path = Path::new(243, 0);
+    pub const ENDING_CANCELLED_AT: Path = Path::new(243, 1);
+    pub const ENDING_CANCELLED_TAIL: Path = Path::new(243, 2);
+    pub const ENDING_DECIDED_BY: Path = Path::new(244, 0);
+    pub const ENDING_DECIDED_AT: Path = Path::new(244, 1);
+    pub const ENDING_DECIDED_TAIL: Path = Path::new(244, 2);
+    pub const ENDING_TAG: Path = Path::new(245, 0);
+    pub const LACK_BUDGET_NEEDS: Path = Path::new(246, 0);
+    pub const LACK_BUDGET_LEFT: Path = Path::new(246, 1);
+    pub const LACK_BUDGET_TAIL: Path = Path::new(246, 2);
+    pub const LACK_GRANT_KIND: Path = Path::new(247, 0);
+    pub const LACK_GRANT_TAIL: Path = Path::new(247, 1);
+    pub const LACK_DEPTH_MOST: Path = Path::new(248, 0);
+    pub const LACK_DEPTH_TAIL: Path = Path::new(248, 1);
+    pub const LACK_TASKS_LEFT: Path = Path::new(249, 0);
+    pub const LACK_TASKS_TAIL: Path = Path::new(249, 1);
+    pub const LACK_AGAIN_REQUIRED: Path = Path::new(250, 0);
+    pub const LACK_AGAIN_TAIL: Path = Path::new(250, 1);
+    pub const LACK_REQUIRED_CONNECTOR: Path = Path::new(251, 0);
+    pub const LACK_REQUIRED_KIND: Path = Path::new(251, 1);
+    pub const LACK_REQUIRED_TAIL: Path = Path::new(251, 2);
+    pub const LACK_FAILED_CONNECTOR: Path = Path::new(252, 0);
+    pub const LACK_FAILED_KIND: Path = Path::new(252, 1);
+    pub const LACK_FAILED_TAIL: Path = Path::new(252, 2);
+    pub const LACK_UNGUARDED_CONNECTOR: Path = Path::new(253, 0);
+    pub const LACK_UNGUARDED_KIND: Path = Path::new(253, 1);
+    pub const LACK_UNGUARDED_TAIL: Path = Path::new(253, 2);
+    pub const LACK_TASK_KIND_EXECUTOR: Path = Path::new(254, 0);
+    pub const LACK_TASK_KIND_TAIL: Path = Path::new(254, 1);
+    pub const CEILING_ROLE_ROLE: Path = Path::new(255, 0);
+    pub const CEILING_ROLE_TAIL: Path = Path::new(255, 1);
+    pub const CEILING_HOLDER_TAG: Path = Path::new(256, 0);
+    pub const CEILING_DIMENSION_TAG: Path = Path::new(257, 0);
+    pub const LACK_CEILING_HOLDER: Path = Path::new(258, 0);
+    pub const LACK_CEILING_DIMENSION: Path = Path::new(258, 1);
+    pub const LACK_CEILING_VALUE: Path = Path::new(258, 2);
+    pub const LACK_CEILING_ASKED: Path = Path::new(258, 3);
+    pub const LACK_CEILING_TAIL: Path = Path::new(258, 4);
+    pub const LACK_TAG: Path = Path::new(259, 0);
+    pub const LIMIT_KIND_TAG: Path = Path::new(260, 0);
+    pub const REFUSAL_ROLE_HELD: Path = Path::new(261, 0);
+    pub const REFUSAL_ROLE_TAIL: Path = Path::new(261, 1);
+    pub const ACCEPTER_ROLE_ROLE: Path = Path::new(262, 0);
+    pub const ACCEPTER_ROLE_TAIL: Path = Path::new(262, 1);
+    pub const ACCEPTER_TAG: Path = Path::new(263, 0);
+    pub const REFUSAL_AUTHORITY_LACKING: Path = Path::new(264, 0);
+    pub const REFUSAL_AUTHORITY_PROPOSABLE: Path = Path::new(264, 1);
+    pub const REFUSAL_AUTHORITY_TAIL: Path = Path::new(264, 2);
+    pub const REFUSAL_LIMIT_WHICH: Path = Path::new(265, 0);
+    pub const REFUSAL_LIMIT_TAIL: Path = Path::new(265, 1);
+    pub const REFUSAL_MOVED_NOW: Path = Path::new(266, 0);
+    pub const REFUSAL_MOVED_TAIL: Path = Path::new(266, 1);
+    pub const REFUSAL_ENDED_HOW: Path = Path::new(267, 0);
+    pub const REFUSAL_ENDED_TAIL: Path = Path::new(267, 1);
+    pub const REFUSAL_TAKEN_BY: Path = Path::new(268, 0);
+    pub const REFUSAL_TAKEN_TAIL: Path = Path::new(268, 1);
+    pub const NAME_RULE_TAG: Path = Path::new(269, 0);
+    pub const MALFORMED_NAME_RULE: Path = Path::new(270, 0);
+    pub const MALFORMED_NAME_TAIL: Path = Path::new(270, 1);
+    pub const MALFORMED_TAG: Path = Path::new(271, 0);
+    pub const REFUSAL_NOT_WELL_FORMED_AT: Path = Path::new(272, 0);
+    pub const REFUSAL_NOT_WELL_FORMED_WHY: Path = Path::new(272, 1);
+    pub const REFUSAL_NOT_WELL_FORMED_TAIL: Path = Path::new(272, 2);
+    pub const LLM_WHY_TAG: Path = Path::new(273, 0);
+    pub const REFUSAL_LLM_MODEL: Path = Path::new(274, 0);
+    pub const REFUSAL_LLM_WHY: Path = Path::new(274, 1);
+    pub const REFUSAL_LLM_TAIL: Path = Path::new(274, 2);
+    pub const ACCOUNT_WHY_TAG: Path = Path::new(275, 0);
+    pub const REFUSAL_ACCOUNT_ACCOUNT: Path = Path::new(276, 0);
+    pub const REFUSAL_ACCOUNT_WHY: Path = Path::new(276, 1);
+    pub const REFUSAL_ACCOUNT_TAIL: Path = Path::new(276, 2);
+    pub const DEPENDENCY_STATUS_TAG: Path = Path::new(277, 0);
+    pub const REFUSAL_CIRCLE_TASKS: Path = Path::new(278, 0);
+    pub const REFUSAL_CIRCLE_CUT: Path = Path::new(278, 1);
+    pub const REFUSAL_CIRCLE_TAIL: Path = Path::new(278, 2);
+    pub const REFUSAL_LIVE_TASKS_TASKS: Path = Path::new(279, 0);
+    pub const REFUSAL_LIVE_TASKS_MORE: Path = Path::new(279, 1);
+    pub const REFUSAL_LIVE_TASKS_TAIL: Path = Path::new(279, 2);
+    pub const REFUSAL_DEPENDENCY_DEPENDENCY: Path = Path::new(280, 0);
+    pub const REFUSAL_DEPENDENCY_HOW: Path = Path::new(280, 1);
+    pub const REFUSAL_DEPENDENCY_TAIL: Path = Path::new(280, 2);
+    pub const REFUSAL_KEPT_PENDING: Path = Path::new(281, 0);
+    pub const REFUSAL_KEPT_TAIL: Path = Path::new(281, 1);
+    pub const SIGN_IN_REDIRECT_WHY_TAG: Path = Path::new(282, 0);
+    pub const REFUSAL_SIGN_IN_REDIRECT_WHY: Path = Path::new(283, 0);
+    pub const REFUSAL_SIGN_IN_REDIRECT_TAIL: Path = Path::new(283, 1);
+    pub const ACCOUNT_MOVE_WHY_TAG: Path = Path::new(284, 0);
+    pub const REFUSAL_ACCOUNT_MOVE_WHY: Path = Path::new(285, 0);
+    pub const REFUSAL_ACCOUNT_MOVE_TAIL: Path = Path::new(285, 1);
+    pub const REFUSAL_JUDGED_AT: Path = Path::new(286, 0);
+    pub const REFUSAL_JUDGED_SETTING: Path = Path::new(286, 1);
+    pub const REFUSAL_JUDGED_WHY: Path = Path::new(286, 2);
+    pub const REFUSAL_JUDGED_TAIL: Path = Path::new(286, 3);
+    pub const REFUSAL_FORGOTTEN_OLDEST: Path = Path::new(287, 0);
+    pub const REFUSAL_FORGOTTEN_TAIL: Path = Path::new(287, 1);
+    pub const REFUSAL_CONCLUDED_AT: Path = Path::new(288, 0);
+    pub const REFUSAL_CONCLUDED_TAIL: Path = Path::new(288, 1);
+    pub const REFUSAL_TAG: Path = Path::new(289, 0);
+    pub const PROPOSAL_CHOICE_TAG: Path = Path::new(290, 0);
+    pub const ESCALATION_CHOICE_TAG: Path = Path::new(291, 0);
+    pub const OUTCOME_COMPOUND_PROJECT: Path = Path::new(292, 0);
+    pub const OUTCOME_COMPOUND_OPERATIONS: Path = Path::new(292, 1);
+    pub const OUTCOME_COMPOUND_FIRST_MESSAGE: Path = Path::new(292, 2);
+    pub const OUTCOME_COMPOUND_TAIL: Path = Path::new(292, 3);
+    pub const OUTCOME_COMPOUND_REFUSED_AT: Path = Path::new(293, 0);
+    pub const OUTCOME_COMPOUND_REFUSED_WHY: Path = Path::new(293, 1);
+    pub const OUTCOME_COMPOUND_REFUSED_TAIL: Path = Path::new(293, 2);
+    pub const OUTCOME_MARKED_SEEN_SEEN: Path = Path::new(294, 0);
+    pub const OUTCOME_MARKED_SEEN_TAIL: Path = Path::new(294, 1);
+    pub const OUTCOME_APPLIED_CONNECTOR: Path = Path::new(295, 0);
+    pub const OUTCOME_APPLIED_TOKEN: Path = Path::new(295, 1);
+    pub const OUTCOME_APPLIED_TAIL: Path = Path::new(295, 2);
+    pub const OUTCOME_AGAIN_VALUE: Path = Path::new(296, 0);
+    pub const OUTCOME_AGAIN_TAIL: Path = Path::new(296, 1);
+    pub const OUTCOME_NOTE_EDITED_NAME: Path = Path::new(297, 0);
+    pub const OUTCOME_NOTE_EDITED_TAIL: Path = Path::new(297, 1);
+    pub const OUTCOME_SERVICE_MADE_PERSON: Path = Path::new(298, 0);
+    pub const OUTCOME_SERVICE_MADE_TAIL: Path = Path::new(298, 1);
+    pub const OUTCOME_ADOPTED_PROJECT: Path = Path::new(299, 0);
+    pub const OUTCOME_ADOPTED_TAIL: Path = Path::new(299, 1);
+    pub const OUTCOME_PROPOSED_PROPOSAL: Path = Path::new(300, 0);
+    pub const OUTCOME_PROPOSED_TO: Path = Path::new(300, 1);
+    pub const OUTCOME_PROPOSED_TAIL: Path = Path::new(300, 2);
+    pub const OUTCOME_WITHDRAWN_PROPOSAL: Path = Path::new(301, 0);
+    pub const OUTCOME_WITHDRAWN_TAIL: Path = Path::new(301, 1);
+    pub const OUTCOME_STOPPED_TASK: Path = Path::new(302, 0);
+    pub const OUTCOME_STOPPED_TAIL: Path = Path::new(302, 1);
+    pub const OUTCOME_CANCELLED_TASK: Path = Path::new(303, 0);
+    pub const OUTCOME_CANCELLED_TAIL: Path = Path::new(303, 1);
+    pub const OUTCOME_RELEASED_TASK: Path = Path::new(304, 0);
+    pub const OUTCOME_RELEASED_TAIL: Path = Path::new(304, 1);
+    pub const OUTCOME_PERSON_TAKEN_TASK: Path = Path::new(305, 0);
+    pub const OUTCOME_PERSON_TAKEN_TAIL: Path = Path::new(305, 1);
+    pub const OUTCOME_PERSON_HANDED_BACK_TASK: Path = Path::new(306, 0);
+    pub const OUTCOME_PERSON_HANDED_BACK_TAIL: Path = Path::new(306, 1);
+    pub const OUTCOME_PERSON_ANSWERED_TASK: Path = Path::new(307, 0);
+    pub const OUTCOME_PERSON_ANSWERED_TAIL: Path = Path::new(307, 1);
+    pub const OUTCOME_MOVED_TASK: Path = Path::new(308, 0);
+    pub const OUTCOME_MOVED_TAIL: Path = Path::new(308, 1);
+    pub const OUTCOME_PROPOSAL_DECIDED_PROPOSER: Path = Path::new(309, 0);
+    pub const OUTCOME_PROPOSAL_DECIDED_PROPOSAL: Path = Path::new(309, 1);
+    pub const OUTCOME_PROPOSAL_DECIDED_BY: Path = Path::new(309, 2);
+    pub const OUTCOME_PROPOSAL_DECIDED_AT: Path = Path::new(309, 3);
+    pub const OUTCOME_PROPOSAL_DECIDED_CHOICE: Path = Path::new(309, 4);
+    pub const OUTCOME_PROPOSAL_DECIDED_REPEATED: Path = Path::new(309, 5);
+    pub const OUTCOME_PROPOSAL_DECIDED_TAIL: Path = Path::new(309, 6);
+    pub const OUTCOME_SAID_TASK: Path = Path::new(310, 0);
+    pub const OUTCOME_SAID_MESSAGE: Path = Path::new(310, 1);
+    pub const OUTCOME_SAID_TAIL: Path = Path::new(310, 2);
+    pub const OUTCOME_QUESTION_ANSWERED_TASK: Path = Path::new(311, 0);
+    pub const OUTCOME_QUESTION_ANSWERED_QUESTION: Path = Path::new(311, 1);
+    pub const OUTCOME_QUESTION_ANSWERED_MESSAGE: Path = Path::new(311, 2);
+    pub const OUTCOME_QUESTION_ANSWERED_TAIL: Path = Path::new(311, 3);
+    pub const OUTCOME_AMENDED_TASK: Path = Path::new(312, 0);
+    pub const OUTCOME_AMENDED_RELEASED: Path = Path::new(312, 1);
+    pub const OUTCOME_AMENDED_TAIL: Path = Path::new(312, 2);
+    pub const OUTCOME_ROLES_SET_PROJECT: Path = Path::new(313, 0);
+    pub const OUTCOME_ROLES_SET_TAIL: Path = Path::new(313, 1);
+    pub const OUTCOME_RENAMED_PROJECT: Path = Path::new(314, 0);
+    pub const OUTCOME_RENAMED_TAIL: Path = Path::new(314, 1);
+    pub const OUTCOME_PROJECT_MADE_PROJECT: Path = Path::new(315, 0);
+    pub const OUTCOME_PROJECT_MADE_TAIL: Path = Path::new(315, 1);
+    pub const OUTCOME_POLICY_CHANGED_PROJECT: Path = Path::new(316, 0);
+    pub const OUTCOME_POLICY_CHANGED_TAIL: Path = Path::new(316, 1);
+    pub const OUTCOME_POOL_SET_PROJECT: Path = Path::new(317, 0);
+    pub const OUTCOME_POOL_SET_PERSON: Path = Path::new(317, 1);
+    pub const OUTCOME_POOL_SET_TAIL: Path = Path::new(317, 2);
+    pub const OUTCOME_ESCALATION_DECIDED_TASK: Path = Path::new(318, 0);
+    pub const OUTCOME_ESCALATION_DECIDED_REVISION: Path = Path::new(318, 1);
+    pub const OUTCOME_ESCALATION_DECIDED_BY: Path = Path::new(318, 2);
+    pub const OUTCOME_ESCALATION_DECIDED_AT: Path = Path::new(318, 3);
+    pub const OUTCOME_ESCALATION_DECIDED_CHOICE: Path = Path::new(318, 4);
+    pub const OUTCOME_ESCALATION_DECIDED_TAIL: Path = Path::new(318, 5);
+    pub const OUTCOME_REFUSED_VALUE: Path = Path::new(319, 0);
+    pub const OUTCOME_REFUSED_TAIL: Path = Path::new(319, 1);
+    pub const OUTCOME_ACCOUNT_SIGN_IN_STARTED_SOURCE: Path = Path::new(320, 0);
+    pub const OUTCOME_ACCOUNT_SIGN_IN_STARTED_ADDRESS: Path = Path::new(320, 1);
+    pub const OUTCOME_ACCOUNT_SIGN_IN_STARTED_TAIL: Path = Path::new(320, 2);
+    pub const ACCOUNT_HOST_WHY_TAG: Path = Path::new(321, 0);
+    pub const ACCOUNT_HOST_FAILURE_NAME: Path = Path::new(322, 0);
+    pub const ACCOUNT_HOST_FAILURE_WHY: Path = Path::new(322, 1);
+    pub const ACCOUNT_HOST_FAILURE_TAIL: Path = Path::new(322, 2);
+    pub const OUTCOME_ACCOUNT_PROGRAM_DECLARED_SOURCE: Path = Path::new(323, 0);
+    pub const OUTCOME_ACCOUNT_PROGRAM_DECLARED_NAME: Path = Path::new(323, 1);
+    pub const OUTCOME_ACCOUNT_PROGRAM_DECLARED_TAIL: Path = Path::new(323, 2);
+    pub const OUTCOME_ACCOUNT_SIGNED_OUT_CONFIRMED: Path = Path::new(324, 0);
+    pub const OUTCOME_ACCOUNT_SIGNED_OUT_FAILED_HOSTS: Path = Path::new(324, 1);
+    pub const OUTCOME_ACCOUNT_SIGNED_OUT_TAIL: Path = Path::new(324, 2);
+    pub const OUTCOME_ACCOUNT_KEY_KEPT_SOURCE: Path = Path::new(325, 0);
+    pub const OUTCOME_ACCOUNT_KEY_KEPT_TAIL: Path = Path::new(325, 1);
+    pub const OUTCOME_ACCOUNT_REMOVED_CONFIRMED: Path = Path::new(326, 0);
+    pub const OUTCOME_ACCOUNT_REMOVED_FAILED_HOSTS: Path = Path::new(326, 1);
+    pub const OUTCOME_ACCOUNT_REMOVED_TAIL: Path = Path::new(326, 2);
+    pub const GIVEN_TASK: Path = Path::new(327, 0);
+    pub const GIVEN_AMOUNT: Path = Path::new(327, 1);
+    pub const GIVEN_TAIL: Path = Path::new(327, 2);
+    pub const OUTCOME_CREATED_FIRST: Path = Path::new(328, 0);
+    pub const OUTCOME_CREATED_LAST: Path = Path::new(328, 1);
+    pub const OUTCOME_CREATED_GIVEN: Path = Path::new(328, 2);
+    pub const OUTCOME_CREATED_TAIL: Path = Path::new(328, 3);
+    pub const OUTCOME_ACCOUNT_MOVING_OUT_ACCOUNT: Path = Path::new(329, 0);
+    pub const OUTCOME_ACCOUNT_MOVING_OUT_NUMBER: Path = Path::new(329, 1);
+    pub const OUTCOME_ACCOUNT_MOVING_OUT_SOURCE: Path = Path::new(329, 2);
+    pub const OUTCOME_ACCOUNT_MOVING_OUT_TAIL: Path = Path::new(329, 3);
+    pub const OUTCOME_ACCOUNT_MOVED_IN_ACCOUNT: Path = Path::new(330, 0);
+    pub const OUTCOME_ACCOUNT_MOVED_IN_RENEWED: Path = Path::new(330, 1);
+    pub const OUTCOME_ACCOUNT_MOVED_IN_TAIL: Path = Path::new(330, 2);
+    pub const OUTCOME_ACCOUNT_FINISHING_SOURCE: Path = Path::new(331, 0);
+    pub const OUTCOME_ACCOUNT_FINISHING_TAIL: Path = Path::new(331, 1);
+    pub const OUTCOME_MOVED_TO_NEWEST_NEWEST: Path = Path::new(332, 0);
+    pub const OUTCOME_MOVED_TO_NEWEST_MOVED: Path = Path::new(332, 1);
+    pub const OUTCOME_MOVED_TO_NEWEST_STAYED: Path = Path::new(332, 2);
+    pub const OUTCOME_MOVED_TO_NEWEST_TAIL: Path = Path::new(332, 3);
+    pub const OUTCOME_VISIBILITY_SET_PROJECT: Path = Path::new(333, 0);
+    pub const OUTCOME_VISIBILITY_SET_PUBLIC: Path = Path::new(333, 1);
+    pub const OUTCOME_VISIBILITY_SET_TAIL: Path = Path::new(333, 2);
+    pub const OUTCOME_PROJECT_REMOVED_PROJECT: Path = Path::new(334, 0);
+    pub const OUTCOME_PROJECT_REMOVED_TAIL: Path = Path::new(334, 1);
+    pub const OUTCOME_ACCOUNT_READING_COUNT: Path = Path::new(335, 0);
+    pub const OUTCOME_ACCOUNT_READING_TAIL: Path = Path::new(335, 1);
+    pub const OUTCOME_ACCOUNT_LOGIN_ASKED_NUMBER: Path = Path::new(336, 0);
+    pub const OUTCOME_ACCOUNT_LOGIN_ASKED_TAIL: Path = Path::new(336, 1);
+    pub const OUTCOME_CONCLUDED_TASK: Path = Path::new(337, 0);
+    pub const OUTCOME_CONCLUDED_TAIL: Path = Path::new(337, 1);
+    pub const OUTCOME_TAG: Path = Path::new(338, 0);
+    pub const ACT_KEY_CONNECTOR: Path = Path::new(339, 0);
+    pub const ACT_KEY_KEY: Path = Path::new(339, 1);
+    pub const ACT_KEY_TAIL: Path = Path::new(339, 2);
+    pub const ACT_CLOSE_PROJECT: Path = Path::new(340, 0);
+    pub const ACT_CLOSE_TASK: Path = Path::new(340, 1);
+    pub const ACT_CLOSE_GRACE: Path = Path::new(340, 2);
+    pub const ACT_CLOSE_REASON: Path = Path::new(340, 3);
+    pub const ACT_CLOSE_TAIL: Path = Path::new(340, 4);
+    pub const ACT_ADD_KEY_PROVIDER: Path = Path::new(341, 0);
+    pub const ACT_ADD_KEY_JOIN: Path = Path::new(341, 1);
+    pub const ACT_ADD_KEY_DIGEST: Path = Path::new(341, 2);
+    pub const ACT_ADD_KEY_TAIL: Path = Path::new(341, 3);
+    pub const ACT_REMOVE_ACCOUNT_ACCOUNT: Path = Path::new(342, 0);
+    pub const ACT_REMOVE_ACCOUNT_TAIL: Path = Path::new(342, 1);
+    pub const ACT_ADOPT_PROJECT: Path = Path::new(343, 0);
+    pub const ACT_ADOPT_ADOPTION: Path = Path::new(343, 1);
+    pub const ACT_ADOPT_TAIL: Path = Path::new(343, 2);
+    pub const ACT_MAKE_PROJECT_MAKER: Path = Path::new(344, 0);
+    pub const ACT_MAKE_PROJECT_NAME: Path = Path::new(344, 1);
+    pub const ACT_MAKE_PROJECT_POLICY: Path = Path::new(344, 2);
+    pub const ACT_MAKE_PROJECT_TAIL: Path = Path::new(344, 3);
+    pub const ACT_REMOVE_PROJECT_PROJECT: Path = Path::new(345, 0);
+    pub const ACT_REMOVE_PROJECT_GRACE: Path = Path::new(345, 1);
+    pub const ACT_REMOVE_PROJECT_TAIL: Path = Path::new(345, 2);
+    pub const ACT_TAG: Path = Path::new(346, 0);
+    pub const STORED_ACTED_KEY: Path = Path::new(347, 0);
+    pub const STORED_ACTED_ACT: Path = Path::new(347, 1);
+    pub const STORED_ACTED_OUTCOME: Path = Path::new(347, 2);
+    pub const STORED_ACTED_AT: Path = Path::new(347, 3);
+    pub const STORED_ACTED_TAIL: Path = Path::new(347, 4);
+    pub const STORED_ANSWER_KEY: Path = Path::new(348, 0);
+    pub const STORED_ANSWER_ASK: Path = Path::new(348, 1);
+    pub const STORED_ANSWER_MODELS: Path = Path::new(348, 2);
+    pub const STORED_ANSWER_OUTCOME: Path = Path::new(348, 3);
+    pub const STORED_ANSWER_AT: Path = Path::new(348, 4);
+    pub const STORED_ANSWER_TAIL: Path = Path::new(348, 5);
+    pub const DELETION_STEP_TAG: Path = Path::new(349, 0);
+    pub const STORED_DELETION_PROJECT: Path = Path::new(350, 0);
+    pub const STORED_DELETION_STEP: Path = Path::new(350, 1);
+    pub const STORED_DELETION_GRACE: Path = Path::new(350, 2);
+    pub const STORED_DELETION_TAIL: Path = Path::new(350, 3);
+    pub const STORED_PUBLIC_PROJECT: Path = Path::new(351, 0);
+    pub const STORED_PUBLIC_TAIL: Path = Path::new(351, 1);
+    pub const STORED_DELETED_PROJECT: Path = Path::new(352, 0);
+    pub const STORED_DELETED_TAIL: Path = Path::new(352, 1);
+    pub const VALUE_TAG: Path = Path::new(353, 0);
+    pub const ROW_VALUE: Path = Path::new(354, 0);
+    pub const ROW_VERSION: Path = Path::new(354, 1);
+    pub const ROW_TAIL: Path = Path::new(354, 2);
 }
 
 const PATH_NAMES: &[&[&str]] = &[
@@ -2460,6 +2462,10 @@ const PATH_NAMES: &[&[&str]] = &[
     &[
         "RefusalUnlinked.worker",
         "RefusalUnlinked (tail)",
+    ],
+    &[
+        "ServiceParty.party",
+        "ServiceParty (tail)",
     ],
     &[
         "Ask (tag)",
@@ -3716,47 +3722,47 @@ static TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[624] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[626] },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[628] },
     skein_codec::bounds::Node::Boxed { item: 453, size: size_of::<AskAmend>() },
-    skein_codec::bounds::Node::Enum { variants: &[459, 525, 362, 365, 370, 378, 381, 384, 386, 405, 411, 417, 420, 423, 427, 431, 438, 442, 447, 628, 456, 527, 531, 535, 399, 402, 540, 542, 605, 467, 607, 10, 611, 462, 614, 442, 405, 617, 369, 623] },
+    skein_codec::bounds::Node::Enum { variants: &[459, 525, 362, 365, 370, 378, 381, 384, 386, 405, 411, 417, 420, 423, 427, 431, 438, 442, 447, 630, 456, 527, 531, 535, 399, 402, 540, 542, 605, 467, 607, 10, 611, 462, 614, 442, 405, 617, 369, 623, 629] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[630, 34] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[632, 633] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[632, 34] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[635, 636, 637] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[634, 635] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[639, 640, 641] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[637, 638, 639] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[643, 644, 645] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[641, 642, 643] },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[645, 646, 647] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::List { limit: 76, item: 28, size: size_of::<Holding>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[647, 648] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[649, 650] },
     skein_codec::bounds::Node::Bytes { limit: 77 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[650] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[652] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Bytes { limit: 78 },
-    skein_codec::bounds::Node::List { limit: 79, item: 651, size: size_of::<ModelName>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[652, 653, 128, 654] },
+    skein_codec::bounds::Node::List { limit: 79, item: 653, size: size_of::<ModelName>() },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[654, 655, 128, 656] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[656, 657] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Enum { variants: &[658, 659] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[659, 660, 661, 662, 663, 664, 665] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[666] },
-    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Enum { variants: &[661, 662, 663, 664, 665, 666, 667] },
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[668] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[670] },
@@ -3764,18 +3770,8 @@ static TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[672] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[674] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[676, 677, 678, 679, 680, 681, 682, 683, 684] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[685, 686] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[676] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
@@ -3785,77 +3781,89 @@ static TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[667, 688, 669, 689, 671, 690, 691, 692, 673, 693, 694, 695, 696, 697, 675, 698, 699, 687] },
+    skein_codec::bounds::Node::Enum { variants: &[678, 679, 680, 681, 682, 683, 684, 685, 686] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[701, 700] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[687, 688] },
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Enum { variants: &[669, 690, 671, 691, 673, 692, 693, 694, 675, 695, 696, 697, 698, 699, 677, 700, 701, 689] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[703] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[703, 702] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[705] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[707] },
-    skein_codec::bounds::Node::Enum { variants: &[702, 704, 706, 708, 1] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[710] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[707] },
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[709] },
+    skein_codec::bounds::Node::Enum { variants: &[704, 706, 708, 710, 1] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[712] },
-    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[714] },
-    skein_codec::bounds::Node::Enum { variants: &[711, 713, 715] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[716, 717] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[719, 720] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[722, 723, 718, 721, 724] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[726, 727] },
-    skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[729] },
     skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[716] },
+    skein_codec::bounds::Node::Enum { variants: &[713, 715, 717] },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[718, 719] },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[721, 722] },
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Enum { variants: &[724, 725, 720, 723, 726] },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[728, 729] },
+    skein_codec::bounds::Node::Scalar(2),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[731] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[733] },
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[735] },
-    skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[737, 738] },
-    skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[740, 741] },
-    skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[743, 744] },
-    skein_codec::bounds::Node::Option { item: 275 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[746] },
     skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[735] },
+    skein_codec::bounds::Node::Scalar(1),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[737] },
+    skein_codec::bounds::Node::Scalar(2),
+    skein_codec::bounds::Node::Scalar(2),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[739, 740] },
+    skein_codec::bounds::Node::Scalar(2),
+    skein_codec::bounds::Node::Scalar(2),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[742, 743] },
+    skein_codec::bounds::Node::Scalar(2),
+    skein_codec::bounds::Node::Scalar(2),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[745, 746] },
+    skein_codec::bounds::Node::Option { item: 275 },
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[748] },
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[750] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[750, 751, 749] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Enum { variants: &[752, 753, 751] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[753, 754, 755, 756, 757, 758, 759, 760, 761] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 763 },
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Enum { variants: &[755, 756, 757, 758, 759, 760, 761, 762, 763] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Option { item: 765 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[752, 762, 764, 766] },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Option { item: 767 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[754, 764, 766, 768] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
@@ -3868,22 +3876,7 @@ static TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[768, 728, 730, 769, 747, 732, 770, 734, 771, 772, 773, 774, 775, 776, 736, 777, 778, 739, 742, 745, 779, 15, 767] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Enum { variants: &[770, 730, 732, 771, 749, 734, 772, 736, 773, 774, 775, 776, 777, 778, 738, 779, 780, 741, 744, 747, 781, 15, 769] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
@@ -3917,90 +3910,105 @@ static TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[781, 782, 783, 784, 785, 786, 787, 788, 789, 790, 791, 792, 793, 794, 795, 796, 797, 798, 799, 800, 801, 802, 803, 804, 805, 806, 807, 808, 809, 810, 811, 812, 813, 814, 815, 816, 817, 818, 819, 820, 821, 822, 823, 824, 825, 826, 827, 828] },
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Enum { variants: &[783, 784, 785, 786, 787, 788, 789, 790, 791, 792, 793, 794, 795, 796, 797, 798, 799, 800, 801, 802, 803, 804, 805, 806, 807, 808, 809, 810, 811, 812, 813, 814, 815, 816, 817, 818, 819, 820, 821, 822, 823, 824, 825, 826, 827, 828, 829, 830] },
     skein_codec::bounds::Node::Option { item: 26 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[830] },
-    skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[832] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[834, 833] },
-    skein_codec::bounds::Node::Option { item: 835 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[780, 836] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[829] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[709] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[725] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[841] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[843, 844, 845, 846, 847] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[848] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[849, 850, 851, 852, 853, 854, 513, 855, 856] },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[858, 857] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[834] },
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Enum { variants: &[836, 835] },
+    skein_codec::bounds::Node::Option { item: 837 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[782, 838] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[831] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[711] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[727] },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[843] },
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Enum { variants: &[845, 846, 847, 848, 849] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[850] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[860, 861, 862, 863, 864, 865] },
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Enum { variants: &[851, 852, 853, 854, 855, 856, 513, 857, 858] },
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[860, 859] },
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Enum { variants: &[862, 863, 864, 865, 866, 867] },
     skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[867, 866] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[869, 868] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[869, 870, 871, 872] },
+    skein_codec::bounds::Node::Enum { variants: &[871, 872, 873, 874] },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[874, 873] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[876, 875] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[876, 877, 878] },
+    skein_codec::bounds::Node::Enum { variants: &[878, 879, 880] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::List { limit: 80, item: 880, size: size_of::<u64>() },
+    skein_codec::bounds::Node::List { limit: 80, item: 882, size: size_of::<u64>() },
     skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[881, 882] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[883, 884] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::List { limit: 81, item: 884, size: size_of::<u64>() },
+    skein_codec::bounds::Node::List { limit: 81, item: 886, size: size_of::<u64>() },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[885, 886] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[887, 888] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[888, 879] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[890, 881] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::List { limit: 82, item: 890, size: size_of::<u64>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[891] },
+    skein_codec::bounds::Node::List { limit: 82, item: 892, size: size_of::<u64>() },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[893] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[893, 894, 895, 896] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[897] },
+    skein_codec::bounds::Node::Enum { variants: &[895, 896, 897, 898] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[899] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[899, 900, 901, 902, 903] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[904] },
+    skein_codec::bounds::Node::Enum { variants: &[901, 902, 903, 904, 905] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[906] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Bytes { limit: 83 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[906, 478, 907] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[908, 478, 909] },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[909] },
-    skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[911] },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[913] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
@@ -4013,39 +4021,37 @@ static TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[913, 859, 831, 837, 838, 839, 840, 842, 914, 915, 916, 917, 918, 919, 868, 920, 875, 883, 889, 892, 905, 515, 520, 898, 908, 910, 921, 887, 922, 923, 924, 912, 627] },
+    skein_codec::bounds::Node::Enum { variants: &[915, 861, 833, 839, 840, 841, 842, 844, 916, 917, 918, 919, 920, 921, 870, 922, 877, 885, 891, 894, 907, 515, 520, 900, 910, 912, 923, 889, 924, 925, 926, 914, 627] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[926, 927, 928, 929, 930] },
+    skein_codec::bounds::Node::Enum { variants: &[928, 929, 930, 931, 932] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[932, 933, 934] },
+    skein_codec::bounds::Node::Enum { variants: &[934, 935, 936] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[936, 937, 938] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[938, 939, 940] },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[940, 925] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[942, 927] },
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[149] },
     skein_codec::bounds::Node::Scalar(2),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[943, 944] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[658] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[947] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[945, 946] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[660] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[949] },
-    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[951] },
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[953] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[953, 954] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[956] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[955, 956] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[958] },
     skein_codec::bounds::Node::Scalar(8),
@@ -4061,22 +4067,22 @@ static TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[970] },
     skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[972] },
+    skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[192, 972, 973, 974, 931, 975] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[192, 974, 975, 976, 933, 977] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[977, 978] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[979, 980] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[980, 981, 982] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[982, 983, 984] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[984, 985] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[987] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[986, 987] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[989] },
     skein_codec::bounds::Node::Scalar(4),
@@ -4084,114 +4090,116 @@ static TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[993] },
     skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[995] },
+    skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[995, 996] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[997, 998] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[998, 999, 1000, 1001, 935] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[925] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1000, 1001, 1002, 1003, 937] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[927] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Bytes { limit: 84 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1004, 1005] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1006, 1007] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1007, 1008, 1009] },
+    skein_codec::bounds::Node::Enum { variants: &[1009, 1010, 1011] },
     skein_codec::bounds::Node::Bytes { limit: 85 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1011, 1010] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1013, 1012] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Bytes { limit: 86 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1013, 1014] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1015, 1016] },
     skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::List { limit: 87, item: 1012, size: size_of::<AccountHostFailure>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1016, 1017] },
+    skein_codec::bounds::Node::List { limit: 87, item: 1014, size: size_of::<AccountHostFailure>() },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1018, 1019] },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1019] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1021] },
     skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::List { limit: 88, item: 1012, size: size_of::<AccountHostFailure>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1021, 1022] },
+    skein_codec::bounds::Node::List { limit: 88, item: 1014, size: size_of::<AccountHostFailure>() },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1023, 1024] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1024, 1025] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1026, 1027] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 1026 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1027, 1028, 1029] },
+    skein_codec::bounds::Node::Option { item: 1028 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1029, 1030, 1031] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1031, 1032, 1033] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1035, 1036] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1038] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1040, 1041, 1042] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1033, 1034, 1035] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1044, 1045] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1037, 1038] },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1047] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1040] },
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1042, 1043, 1044] },
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Scalar(1),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1046, 1047] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[1049] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[1051] },
-    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[1053] },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1055] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[990, 992, 939, 941, 1030, 942, 945, 946, 1055, 948, 950, 952, 955, 959, 961, 963, 965, 967, 969, 971, 976, 979, 983, 986, 988, 994, 997, 1002, 1003, 957, 1006, 1018, 1020, 1056, 1023, 1015, 1034, 1037, 522, 1039, 1043, 13, 1048, 482, 1046, 1050, 959, 1052, 1054, 625] },
+    skein_codec::bounds::Node::Enum { variants: &[992, 994, 941, 943, 1032, 944, 947, 948, 1057, 950, 952, 954, 957, 961, 963, 965, 967, 969, 971, 973, 978, 981, 985, 988, 990, 996, 999, 1004, 1005, 959, 1008, 1020, 1022, 1058, 1025, 1017, 1036, 1039, 522, 1041, 1045, 13, 1050, 482, 1048, 1052, 961, 1054, 1056, 625, 629] },
     skein_codec::bounds::Node::Scalar(2),
     skein_codec::bounds::Node::Scalar(16),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1058, 1059] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1060, 1061] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 1063 },
+    skein_codec::bounds::Node::Option { item: 1065 },
     skein_codec::bounds::Node::Bytes { limit: 89 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1061, 1062, 1064, 1065] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1063, 1064, 1066, 1067] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Option { item: 1068 },
+    skein_codec::bounds::Node::Option { item: 1070 },
     skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1067, 1069, 1070] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1069, 1071, 1072] },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1072] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1074] },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1074, 175] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1076, 175] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Bytes { limit: 90 },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1076, 1077, 1078] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1078, 1079, 1080] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 1081 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1080, 1082] },
-    skein_codec::bounds::Node::Enum { variants: &[1079, 1066, 1071, 1073, 1075, 1083] },
+    skein_codec::bounds::Node::Option { item: 1083 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1082, 1084] },
+    skein_codec::bounds::Node::Enum { variants: &[1081, 1068, 1073, 1075, 1077, 1085] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1060, 1084, 1057, 1085] },
-    skein_codec::bounds::Node::List { limit: 91, item: 651, size: size_of::<ModelName>() },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1062, 1086, 1059, 1087] },
+    skein_codec::bounds::Node::List { limit: 91, item: 653, size: size_of::<ModelName>() },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[37, 629, 1087, 1057, 1088] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[37, 631, 1089, 1059, 1090] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1090, 1091, 1092] },
+    skein_codec::bounds::Node::Enum { variants: &[1092, 1093, 1094] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 1095 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1094, 1093, 1096] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1098] },
+    skein_codec::bounds::Node::Option { item: 1097 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1096, 1095, 1098] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[1100] },
-    skein_codec::bounds::Node::Enum { variants: &[631, 634, 638, 646, 649, 655, 1089, 642, 1086, 1097, 1099, 1101] },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[1102] },
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1102] },
+    skein_codec::bounds::Node::Enum { variants: &[633, 636, 640, 648, 651, 657, 1091, 644, 1088, 1099, 1101, 1103] },
+    skein_codec::bounds::Node::Record { prefix: 2, fields: &[1104] },
 ];
 
 const DECLARATIONS: &[u32] = &[
@@ -4411,90 +4419,90 @@ const DECLARATIONS: &[u32] = &[
     627,
     629,
     631,
-    634,
-    638,
-    642,
-    646,
-    649,
+    633,
+    636,
+    640,
+    644,
+    648,
     651,
-    655,
-    658,
-    666,
-    667,
+    653,
+    657,
+    660,
+    668,
     669,
     671,
     673,
     675,
-    685,
+    677,
     687,
-    700,
+    689,
     702,
     704,
     706,
     708,
-    709,
+    710,
     711,
     713,
     715,
-    716,
+    717,
     718,
-    721,
-    725,
-    728,
+    720,
+    723,
+    727,
     730,
     732,
     734,
     736,
-    739,
-    742,
-    745,
+    738,
+    741,
+    744,
     747,
     749,
-    752,
-    762,
-    767,
-    780,
-    829,
+    751,
+    754,
+    764,
+    769,
+    782,
     831,
     833,
     835,
     837,
-    838,
     839,
     840,
+    841,
     842,
-    848,
-    849,
-    857,
+    844,
+    850,
+    851,
     859,
-    866,
+    861,
     868,
-    873,
+    870,
     875,
-    879,
-    883,
-    887,
+    877,
+    881,
+    885,
     889,
-    892,
-    897,
-    898,
-    904,
-    905,
-    908,
+    891,
+    894,
+    899,
+    900,
+    906,
+    907,
     910,
     912,
-    925,
-    931,
-    935,
-    939,
+    914,
+    927,
+    933,
+    937,
     941,
-    942,
-    945,
-    946,
+    943,
+    944,
+    947,
     948,
     950,
     952,
-    955,
+    954,
     957,
     959,
     961,
@@ -4503,52 +4511,53 @@ const DECLARATIONS: &[u32] = &[
     967,
     969,
     971,
-    976,
-    979,
-    983,
-    986,
+    973,
+    978,
+    981,
+    985,
     988,
     990,
     992,
     994,
-    997,
-    1002,
-    1003,
-    1006,
-    1010,
+    996,
+    999,
+    1004,
+    1005,
+    1008,
     1012,
-    1015,
-    1018,
+    1014,
+    1017,
     1020,
-    1023,
-    1026,
-    1030,
-    1034,
-    1037,
+    1022,
+    1025,
+    1028,
+    1032,
+    1036,
     1039,
-    1043,
-    1046,
+    1041,
+    1045,
     1048,
     1050,
     1052,
     1054,
-    1057,
-    1060,
-    1066,
-    1071,
+    1056,
+    1059,
+    1062,
+    1068,
     1073,
     1075,
-    1079,
-    1083,
-    1084,
+    1077,
+    1081,
+    1085,
     1086,
-    1089,
-    1093,
-    1097,
+    1088,
+    1091,
+    1095,
     1099,
     1101,
-    1102,
     1103,
+    1104,
+    1105,
 ];
 
 static CEILING_VALUES: &[u32] = &[
@@ -4663,6 +4672,11 @@ pub struct MovedPlacedHold {
 }
 
 // Record: MovedPlacedHold.
+impl MovedPlacedHold {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for MovedPlacedHold {
     type Limits = Limits;
     const TAIL: Path = paths::MOVED_PLACED_HOLD_TAIL;
@@ -4694,6 +4708,11 @@ pub struct HoldOwnerParty {
 }
 
 // Record: HoldOwnerParty.
+impl HoldOwnerParty {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for HoldOwnerParty {
     type Limits = Limits;
     const TAIL: Path = paths::HOLD_OWNER_PARTY_TAIL;
@@ -4725,6 +4744,11 @@ pub struct HoldOwnerTask {
 }
 
 // Record: HoldOwnerTask.
+impl HoldOwnerTask {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for HoldOwnerTask {
     type Limits = Limits;
     const TAIL: Path = paths::HOLD_OWNER_TASK_TAIL;
@@ -4757,6 +4781,11 @@ pub enum HoldOwner {
 }
 
 // Record: HoldOwner.
+impl HoldOwner {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
 impl Record for HoldOwner {
     type Limits = Limits;
     const TAIL: Path = paths::HOLD_OWNER_TAG;
@@ -4795,6 +4824,11 @@ pub struct AskLift {
 }
 
 // Record: AskLift.
+impl AskLift {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 17;
+}
+
 impl Record for AskLift {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_LIFT_TAIL;
@@ -4831,6 +4865,11 @@ pub struct OutcomeLifted {
 }
 
 // Record: OutcomeLifted.
+impl OutcomeLifted {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 12;
+}
+
 impl Record for OutcomeLifted {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_LIFTED_TAIL;
@@ -4865,6 +4904,11 @@ pub struct LackHoldOwner {
 }
 
 // Record: LackHoldOwner.
+impl LackHoldOwner {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 17;
+}
+
 impl Record for LackHoldOwner {
     type Limits = Limits;
     const TAIL: Path = paths::LACK_HOLD_OWNER_TAIL;
@@ -4898,6 +4942,11 @@ pub struct Segment {
 }
 
 // Record: Segment.
+impl Segment {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for Segment {
     type Limits = Limits;
     const TAIL: Path = paths::SEGMENT_TAIL;
@@ -4938,6 +4987,11 @@ pub struct Number64 {
 }
 
 // Record: Number64.
+impl Number64 {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for Number64 {
     type Limits = Limits;
     const TAIL: Path = paths::NUMBER64_TAIL;
@@ -4978,6 +5032,11 @@ pub struct RolePolicy {
 }
 
 // Record: RolePolicy.
+impl RolePolicy {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for RolePolicy {
     type Limits = Limits;
     const TAIL: Path = paths::ROLE_POLICY_TAIL;
@@ -5013,6 +5072,11 @@ pub enum Role {
 }
 
 // Record: Role.
+impl Role {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for Role {
     type Limits = Limits;
     const TAIL: Path = paths::ROLE_TAG;
@@ -5056,6 +5120,11 @@ pub struct Holding {
 }
 
 // Record: Holding.
+impl Holding {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 13;
+}
+
 impl Record for Holding {
     type Limits = Limits;
     const TAIL: Path = paths::HOLDING_TAIL;
@@ -5090,6 +5159,11 @@ pub struct IdentityKey {
 }
 
 // Record: IdentityKey.
+impl IdentityKey {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 6;
+}
+
 impl Record for IdentityKey {
     type Limits = Limits;
     const TAIL: Path = paths::IDENTITY_KEY_TAIL;
@@ -5125,6 +5199,11 @@ pub struct Identity {
 }
 
 // Record: Identity.
+impl Identity {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 14;
+}
+
 impl Record for Identity {
     type Limits = Limits;
     const TAIL: Path = paths::IDENTITY_TAIL;
@@ -5161,6 +5240,11 @@ pub struct RequestKey {
 }
 
 // Record: RequestKey.
+impl RequestKey {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 24;
+}
+
 impl Record for RequestKey {
     type Limits = Limits;
     const TAIL: Path = paths::REQUEST_KEY_TAIL;
@@ -5194,6 +5278,11 @@ pub struct LastExact {
 }
 
 // Record: LastExact.
+impl LastExact {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for LastExact {
     type Limits = Limits;
     const TAIL: Path = paths::LAST_EXACT_TAIL;
@@ -5225,6 +5314,11 @@ pub struct LastOpen {
 }
 
 // Record: LastOpen.
+impl LastOpen {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for LastOpen {
     type Limits = Limits;
     const TAIL: Path = paths::LAST_OPEN_TAIL;
@@ -5257,6 +5351,11 @@ pub enum Last {
 }
 
 // Record: Last.
+impl Last {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for Last {
     type Limits = Limits;
     const TAIL: Path = paths::LAST_TAG;
@@ -5294,6 +5393,11 @@ pub struct Pattern {
 }
 
 // Record: Pattern.
+impl Pattern {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
 impl Record for Pattern {
     type Limits = Limits;
     const TAIL: Path = paths::PATTERN_TAIL;
@@ -5329,6 +5433,11 @@ pub struct Grant {
 }
 
 // Record: Grant.
+impl Grant {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 13;
+}
+
 impl Record for Grant {
     type Limits = Limits;
     const TAIL: Path = paths::GRANT_TAIL;
@@ -5365,6 +5474,11 @@ pub struct ResourceScope {
 }
 
 // Record: ResourceScope.
+impl ResourceScope {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 11;
+}
+
 impl Record for ResourceScope {
     type Limits = Limits;
     const TAIL: Path = paths::RESOURCE_SCOPE_TAIL;
@@ -5407,6 +5521,11 @@ pub struct ExecutorCharter {
 }
 
 // Record: ExecutorCharter.
+impl ExecutorCharter {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for ExecutorCharter {
     type Limits = Limits;
     const TAIL: Path = paths::EXECUTOR_CHARTER_TAIL;
@@ -5438,6 +5557,11 @@ pub struct ExecutorProcedure {
 }
 
 // Record: ExecutorProcedure.
+impl ExecutorProcedure {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for ExecutorProcedure {
     type Limits = Limits;
     const TAIL: Path = paths::EXECUTOR_PROCEDURE_TAIL;
@@ -5469,6 +5593,11 @@ pub struct ExecutorRole {
 }
 
 // Record: ExecutorRole.
+impl ExecutorRole {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for ExecutorRole {
     type Limits = Limits;
     const TAIL: Path = paths::EXECUTOR_ROLE_TAIL;
@@ -5500,6 +5629,11 @@ pub struct ExecutorJob {
 }
 
 // Record: ExecutorJob.
+impl ExecutorJob {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for ExecutorJob {
     type Limits = Limits;
     const TAIL: Path = paths::EXECUTOR_JOB_TAIL;
@@ -5534,6 +5668,11 @@ pub enum Executor {
 }
 
 // Record: Executor.
+impl Executor {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for Executor {
     type Limits = Limits;
     const TAIL: Path = paths::EXECUTOR_TAG;
@@ -5585,6 +5724,11 @@ pub struct Delegation {
 }
 
 // Record: Delegation.
+impl Delegation {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 12;
+}
+
 impl Record for Delegation {
     type Limits = Limits;
     const TAIL: Path = paths::DELEGATION_TAIL;
@@ -5620,6 +5764,11 @@ pub struct ModelSetNamed {
 }
 
 // Record: ModelSetNamed.
+impl ModelSetNamed {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for ModelSetNamed {
     type Limits = Limits;
     const TAIL: Path = paths::MODEL_SET_NAMED_TAIL;
@@ -5652,6 +5801,11 @@ pub enum ModelSet {
 }
 
 // Record: ModelSet.
+impl ModelSet {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
 impl Record for ModelSet {
     type Limits = Limits;
     const TAIL: Path = paths::MODEL_SET_TAG;
@@ -5695,6 +5849,11 @@ pub struct Authority {
 }
 
 // Record: Authority.
+impl Authority {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 56;
+}
+
 impl Record for Authority {
     type Limits = Limits;
     const TAIL: Path = paths::AUTHORITY_TAIL;
@@ -5742,6 +5901,11 @@ pub struct Judge {
 }
 
 // Record: Judge.
+impl Judge {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for Judge {
     type Limits = Limits;
     const TAIL: Path = paths::JUDGE_TAIL;
@@ -5777,6 +5941,11 @@ pub struct GuardObserved {
 }
 
 // Record: GuardObserved.
+impl GuardObserved {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for GuardObserved {
     type Limits = Limits;
     const TAIL: Path = paths::GUARD_OBSERVED_TAIL;
@@ -5809,6 +5978,11 @@ pub enum Guard {
 }
 
 // Record: Guard.
+impl Guard {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
 impl Record for Guard {
     type Limits = Limits;
     const TAIL: Path = paths::GUARD_TAG;
@@ -5850,6 +6024,11 @@ pub struct Requirement {
 }
 
 // Record: Requirement.
+impl Requirement {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 31;
+}
+
 impl Record for Requirement {
     type Limits = Limits;
     const TAIL: Path = paths::REQUIREMENT_TAIL;
@@ -5893,6 +6072,11 @@ pub struct PermissionRole {
 }
 
 // Record: PermissionRole.
+impl PermissionRole {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for PermissionRole {
     type Limits = Limits;
     const TAIL: Path = paths::PERMISSION_ROLE_TAIL;
@@ -5941,6 +6125,11 @@ pub struct PolicyRole {
 }
 
 // Record: PolicyRole.
+impl PolicyRole {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 71;
+}
+
 impl Record for PolicyRole {
     type Limits = Limits;
     const TAIL: Path = paths::POLICY_ROLE_TAIL;
@@ -5980,6 +6169,11 @@ pub struct TemplateExecutorCharter {
 }
 
 // Record: TemplateExecutorCharter.
+impl TemplateExecutorCharter {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for TemplateExecutorCharter {
     type Limits = Limits;
     const TAIL: Path = paths::TEMPLATE_EXECUTOR_CHARTER_TAIL;
@@ -6012,6 +6206,11 @@ pub enum TemplateExecutor {
 }
 
 // Record: TemplateExecutor.
+impl TemplateExecutor {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for TemplateExecutor {
     type Limits = Limits;
     const TAIL: Path = paths::TEMPLATE_EXECUTOR_TAG;
@@ -6048,6 +6247,11 @@ pub struct TemplateBudgetAmount {
 }
 
 // Record: TemplateBudgetAmount.
+impl TemplateBudgetAmount {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for TemplateBudgetAmount {
     type Limits = Limits;
     const TAIL: Path = paths::TEMPLATE_BUDGET_AMOUNT_TAIL;
@@ -6079,6 +6283,11 @@ pub struct TemplateBudgetAsAllowed {
 }
 
 // Record: TemplateBudgetAsAllowed.
+impl TemplateBudgetAsAllowed {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
 impl Record for TemplateBudgetAsAllowed {
     type Limits = Limits;
     const TAIL: Path = paths::TEMPLATE_BUDGET_AS_ALLOWED_TAIL;
@@ -6112,6 +6321,11 @@ pub enum TemplateBudget {
 }
 
 // Record: TemplateBudget.
+impl TemplateBudget {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 10;
+}
+
 impl Record for TemplateBudget {
     type Limits = Limits;
     const TAIL: Path = paths::TEMPLATE_BUDGET_TAG;
@@ -6150,6 +6364,11 @@ pub struct TemplateDeadlineSpan {
 }
 
 // Record: TemplateDeadlineSpan.
+impl TemplateDeadlineSpan {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for TemplateDeadlineSpan {
     type Limits = Limits;
     const TAIL: Path = paths::TEMPLATE_DEADLINE_SPAN_TAIL;
@@ -6183,6 +6402,11 @@ pub enum TemplateDeadline {
 }
 
 // Record: TemplateDeadline.
+impl TemplateDeadline {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
 impl Record for TemplateDeadline {
     type Limits = Limits;
     const TAIL: Path = paths::TEMPLATE_DEADLINE_TAG;
@@ -6225,6 +6449,11 @@ pub struct TemplateOverride {
 }
 
 // Record: TemplateOverride.
+impl TemplateOverride {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 36;
+}
+
 impl Record for TemplateOverride {
     type Limits = Limits;
     const TAIL: Path = paths::TEMPLATE_OVERRIDE_TAIL;
@@ -6271,6 +6500,11 @@ pub struct PolicyValue {
 }
 
 // Record: PolicyValue.
+impl PolicyValue {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 89;
+}
+
 impl Record for PolicyValue {
     type Limits = Limits;
     const TAIL: Path = paths::POLICY_VALUE_TAIL;
@@ -6316,6 +6550,11 @@ pub struct PolicyChangeProjectSpend {
 }
 
 // Record: PolicyChangeProjectSpend.
+impl PolicyChangeProjectSpend {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for PolicyChangeProjectSpend {
     type Limits = Limits;
     const TAIL: Path = paths::POLICY_CHANGE_PROJECT_SPEND_TAIL;
@@ -6348,6 +6587,11 @@ pub struct PolicyChangeRoleSpend {
 }
 
 // Record: PolicyChangeRoleSpend.
+impl PolicyChangeRoleSpend {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 12;
+}
+
 impl Record for PolicyChangeRoleSpend {
     type Limits = Limits;
     const TAIL: Path = paths::POLICY_CHANGE_ROLE_SPEND_TAIL;
@@ -6381,6 +6625,11 @@ pub struct PolicyChangeRole {
 }
 
 // Record: PolicyChangeRole.
+impl PolicyChangeRole {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 71;
+}
+
 impl Record for PolicyChangeRole {
     type Limits = Limits;
     const TAIL: Path = paths::POLICY_CHANGE_ROLE_TAIL;
@@ -6412,6 +6661,11 @@ pub struct PolicyChangeRequirements {
 }
 
 // Record: PolicyChangeRequirements.
+impl PolicyChangeRequirements {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for PolicyChangeRequirements {
     type Limits = Limits;
     const TAIL: Path = paths::POLICY_CHANGE_REQUIREMENTS_TAIL;
@@ -6443,6 +6697,11 @@ pub struct PolicyChangeProjections {
 }
 
 // Record: PolicyChangeProjections.
+impl PolicyChangeProjections {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for PolicyChangeProjections {
     type Limits = Limits;
     const TAIL: Path = paths::POLICY_CHANGE_PROJECTIONS_TAIL;
@@ -6474,6 +6733,11 @@ pub struct PolicyChangePermissions {
 }
 
 // Record: PolicyChangePermissions.
+impl PolicyChangePermissions {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for PolicyChangePermissions {
     type Limits = Limits;
     const TAIL: Path = paths::POLICY_CHANGE_PERMISSIONS_TAIL;
@@ -6505,6 +6769,11 @@ pub struct PolicyChangeTemplates {
 }
 
 // Record: PolicyChangeTemplates.
+impl PolicyChangeTemplates {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for PolicyChangeTemplates {
     type Limits = Limits;
     const TAIL: Path = paths::POLICY_CHANGE_TEMPLATES_TAIL;
@@ -6542,6 +6811,11 @@ pub enum PolicyChange {
 }
 
 // Record: PolicyChange.
+impl PolicyChange {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 72;
+}
+
 impl Record for PolicyChange {
     type Limits = Limits;
     const TAIL: Path = paths::POLICY_CHANGE_TAG;
@@ -6588,6 +6862,11 @@ pub struct SeenResults {
 }
 
 // Record: SeenResults.
+impl SeenResults {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for SeenResults {
     type Limits = Limits;
     const TAIL: Path = paths::SEEN_RESULTS_TAIL;
@@ -6620,6 +6899,11 @@ pub struct SeenConversation {
 }
 
 // Record: SeenConversation.
+impl SeenConversation {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 16;
+}
+
 impl Record for SeenConversation {
     type Limits = Limits;
     const TAIL: Path = paths::SEEN_CONVERSATION_TAIL;
@@ -6654,6 +6938,11 @@ pub enum Seen {
 }
 
 // Record: Seen.
+impl Seen {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 17;
+}
+
 impl Record for Seen {
     type Limits = Limits;
     const TAIL: Path = paths::SEEN_TAG;
@@ -6690,6 +6979,11 @@ pub struct NoteScopeTask {
 }
 
 // Record: NoteScopeTask.
+impl NoteScopeTask {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for NoteScopeTask {
     type Limits = Limits;
     const TAIL: Path = paths::NOTE_SCOPE_TASK_TAIL;
@@ -6722,6 +7016,11 @@ pub struct NoteScopeResources {
 }
 
 // Record: NoteScopeResources.
+impl NoteScopeResources {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 11;
+}
+
 impl Record for NoteScopeResources {
     type Limits = Limits;
     const TAIL: Path = paths::NOTE_SCOPE_RESOURCES_TAIL;
@@ -6755,6 +7054,11 @@ pub struct NoteScopeParty {
 }
 
 // Record: NoteScopeParty.
+impl NoteScopeParty {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for NoteScopeParty {
     type Limits = Limits;
     const TAIL: Path = paths::NOTE_SCOPE_PARTY_TAIL;
@@ -6790,6 +7094,11 @@ pub enum NoteScope {
 }
 
 // Record: NoteScope.
+impl NoteScope {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 12;
+}
+
 impl Record for NoteScope {
     type Limits = Limits;
     const TAIL: Path = paths::NOTE_SCOPE_TAG;
@@ -6835,6 +7144,11 @@ pub struct NoteChangeCorrect {
 }
 
 // Record: NoteChangeCorrect.
+impl NoteChangeCorrect {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 16;
+}
+
 impl Record for NoteChangeCorrect {
     type Limits = Limits;
     const TAIL: Path = paths::NOTE_CHANGE_CORRECT_TAIL;
@@ -6872,6 +7186,11 @@ pub struct NoteChangeDelete {
 }
 
 // Record: NoteChangeDelete.
+impl NoteChangeDelete {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for NoteChangeDelete {
     type Limits = Limits;
     const TAIL: Path = paths::NOTE_CHANGE_DELETE_TAIL;
@@ -6904,6 +7223,11 @@ pub enum NoteChange {
 }
 
 // Record: NoteChange.
+impl NoteChange {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 17;
+}
+
 impl Record for NoteChange {
     type Limits = Limits;
     const TAIL: Path = paths::NOTE_CHANGE_TAG;
@@ -6942,6 +7266,11 @@ pub enum ResourceRole {
 }
 
 // Record: ResourceRole.
+impl ResourceRole {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for ResourceRole {
     type Limits = Limits;
     const TAIL: Path = paths::RESOURCE_ROLE_TAG;
@@ -6981,6 +7310,11 @@ pub struct ResourceName {
 }
 
 // Record: ResourceName.
+impl ResourceName {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 6;
+}
+
 impl Record for ResourceName {
     type Limits = Limits;
     const TAIL: Path = paths::RESOURCE_NAME_TAIL;
@@ -7016,6 +7350,11 @@ pub struct Adoption {
 }
 
 // Record: Adoption.
+impl Adoption {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 11;
+}
+
 impl Record for Adoption {
     type Limits = Limits;
     const TAIL: Path = paths::ADOPTION_TAIL;
@@ -7052,6 +7391,11 @@ pub struct PersonResultApproved {
 }
 
 // Record: PersonResultApproved.
+impl PersonResultApproved {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
 impl Record for PersonResultApproved {
     type Limits = Limits;
     const TAIL: Path = paths::PERSON_RESULT_APPROVED_TAIL;
@@ -7085,6 +7429,11 @@ pub struct PersonResultReport {
 }
 
 // Record: PersonResultReport.
+impl PersonResultReport {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for PersonResultReport {
     type Limits = Limits;
     const TAIL: Path = paths::PERSON_RESULT_REPORT_TAIL;
@@ -7117,6 +7466,11 @@ pub struct PersonResultVerdict {
 }
 
 // Record: PersonResultVerdict.
+impl PersonResultVerdict {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for PersonResultVerdict {
     type Limits = Limits;
     const TAIL: Path = paths::PERSON_RESULT_VERDICT_TAIL;
@@ -7150,6 +7504,11 @@ pub struct PersonResultFailure {
 }
 
 // Record: PersonResultFailure.
+impl PersonResultFailure {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for PersonResultFailure {
     type Limits = Limits;
     const TAIL: Path = paths::PERSON_RESULT_FAILURE_TAIL;
@@ -7184,6 +7543,11 @@ pub enum PersonResult {
 }
 
 // Record: PersonResult.
+impl PersonResult {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 10;
+}
+
 impl Record for PersonResult {
     type Limits = Limits;
     const TAIL: Path = paths::PERSON_RESULT_TAG;
@@ -7224,6 +7588,11 @@ pub struct ProposerTask {
 }
 
 // Record: ProposerTask.
+impl ProposerTask {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for ProposerTask {
     type Limits = Limits;
     const TAIL: Path = paths::PROPOSER_TASK_TAIL;
@@ -7255,6 +7624,11 @@ pub struct ProposerParty {
 }
 
 // Record: ProposerParty.
+impl ProposerParty {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for ProposerParty {
     type Limits = Limits;
     const TAIL: Path = paths::PROPOSER_PARTY_TAIL;
@@ -7287,6 +7661,11 @@ pub enum Proposer {
 }
 
 // Record: Proposer.
+impl Proposer {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
 impl Record for Proposer {
     type Limits = Limits;
     const TAIL: Path = paths::PROPOSER_TAG;
@@ -7323,6 +7702,11 @@ pub struct ProposalDecisionReject {
 }
 
 // Record: ProposalDecisionReject.
+impl ProposalDecisionReject {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for ProposalDecisionReject {
     type Limits = Limits;
     const TAIL: Path = paths::PROPOSAL_DECISION_REJECT_TAIL;
@@ -7356,6 +7740,11 @@ pub enum ProposalDecision {
 }
 
 // Record: ProposalDecision.
+impl ProposalDecision {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for ProposalDecision {
     type Limits = Limits;
     const TAIL: Path = paths::PROPOSAL_DECISION_TAG;
@@ -7394,6 +7783,11 @@ pub struct EscalationDecisionReject {
 }
 
 // Record: EscalationDecisionReject.
+impl EscalationDecisionReject {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for EscalationDecisionReject {
     type Limits = Limits;
     const TAIL: Path = paths::ESCALATION_DECISION_REJECT_TAIL;
@@ -7427,6 +7821,11 @@ pub enum EscalationDecision {
 }
 
 // Record: EscalationDecision.
+impl EscalationDecision {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for EscalationDecision {
     type Limits = Limits;
     const TAIL: Path = paths::ESCALATION_DECISION_TAG;
@@ -7465,6 +7864,11 @@ pub struct PersonAddressPerson {
 }
 
 // Record: PersonAddressPerson.
+impl PersonAddressPerson {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for PersonAddressPerson {
     type Limits = Limits;
     const TAIL: Path = paths::PERSON_ADDRESS_PERSON_TAIL;
@@ -7496,6 +7900,11 @@ pub struct PersonAddressRole {
 }
 
 // Record: PersonAddressRole.
+impl PersonAddressRole {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for PersonAddressRole {
     type Limits = Limits;
     const TAIL: Path = paths::PERSON_ADDRESS_ROLE_TAIL;
@@ -7528,6 +7937,11 @@ pub enum PersonAddress {
 }
 
 // Record: PersonAddress.
+impl PersonAddress {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
 impl Record for PersonAddress {
     type Limits = Limits;
     const TAIL: Path = paths::PERSON_ADDRESS_TAG;
@@ -7565,6 +7979,11 @@ pub struct AddressChange {
 }
 
 // Record: AddressChange.
+impl AddressChange {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 17;
+}
+
 impl Record for AddressChange {
     type Limits = Limits;
     const TAIL: Path = paths::ADDRESS_CHANGE_TAIL;
@@ -7599,6 +8018,11 @@ pub struct ParameterNumber {
 }
 
 // Record: ParameterNumber.
+impl ParameterNumber {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 12;
+}
+
 impl Record for ParameterNumber {
     type Limits = Limits;
     const TAIL: Path = paths::PARAMETER_NUMBER_TAIL;
@@ -7633,6 +8057,11 @@ pub struct ParameterBytes {
 }
 
 // Record: ParameterBytes.
+impl ParameterBytes {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for ParameterBytes {
     type Limits = Limits;
     const TAIL: Path = paths::PARAMETER_BYTES_TAIL;
@@ -7668,6 +8097,11 @@ pub struct ParameterResource {
 }
 
 // Record: ParameterResource.
+impl ParameterResource {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 14;
+}
+
 impl Record for ParameterResource {
     type Limits = Limits;
     const TAIL: Path = paths::PARAMETER_RESOURCE_TAIL;
@@ -7705,6 +8139,11 @@ pub enum Parameter {
 }
 
 // Record: Parameter.
+impl Parameter {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 15;
+}
+
 impl Record for Parameter {
     type Limits = Limits;
     const TAIL: Path = paths::PARAMETER_TAG;
@@ -7755,6 +8194,11 @@ pub struct Spec {
 }
 
 // Record: Spec.
+impl Spec {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 13;
+}
+
 impl Record for Spec {
     type Limits = Limits;
     const TAIL: Path = paths::SPEC_TAIL;
@@ -7793,6 +8237,11 @@ pub struct WakeRuleBatch {
 }
 
 // Record: WakeRuleBatch.
+impl WakeRuleBatch {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 12;
+}
+
 impl Record for WakeRuleBatch {
     type Limits = Limits;
     const TAIL: Path = paths::WAKE_RULE_BATCH_TAIL;
@@ -7826,6 +8275,11 @@ pub struct WakeRulePaced {
 }
 
 // Record: WakeRulePaced.
+impl WakeRulePaced {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for WakeRulePaced {
     type Limits = Limits;
     const TAIL: Path = paths::WAKE_RULE_PACED_TAIL;
@@ -7860,6 +8314,11 @@ pub enum WakeRule {
 }
 
 // Record: WakeRule.
+impl WakeRule {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 13;
+}
+
 impl Record for WakeRule {
     type Limits = Limits;
     const TAIL: Path = paths::WAKE_RULE_TAG;
@@ -7902,6 +8361,11 @@ pub enum ResultsWake {
 }
 
 // Record: ResultsWake.
+impl ResultsWake {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for ResultsWake {
     type Limits = Limits;
     const TAIL: Path = paths::RESULTS_WAKE_TAG;
@@ -7946,6 +8410,11 @@ pub struct WakePolicy {
 }
 
 // Record: WakePolicy.
+impl WakePolicy {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 43;
+}
+
 impl Record for WakePolicy {
     type Limits = Limits;
     const TAIL: Path = paths::WAKE_POLICY_TAIL;
@@ -7989,6 +8458,11 @@ pub struct TrackingTracked {
 }
 
 // Record: TrackingTracked.
+impl TrackingTracked {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for TrackingTracked {
     type Limits = Limits;
     const TAIL: Path = paths::TRACKING_TRACKED_TAIL;
@@ -8021,6 +8495,11 @@ pub enum Tracking {
 }
 
 // Record: Tracking.
+impl Tracking {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for Tracking {
     type Limits = Limits;
     const TAIL: Path = paths::TRACKING_TAG;
@@ -8058,6 +8537,11 @@ pub struct ModelEffort {
 }
 
 // Record: ModelEffort.
+impl ModelEffort {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 3;
+}
+
 impl Record for ModelEffort {
     type Limits = Limits;
     const TAIL: Path = paths::MODEL_EFFORT_TAIL;
@@ -8092,6 +8576,11 @@ pub struct LlmLater {
 }
 
 // Record: LlmLater.
+impl LlmLater {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 7;
+}
+
 impl Record for LlmLater {
     type Limits = Limits;
     const TAIL: Path = paths::LLM_LATER_TAIL;
@@ -8128,6 +8617,11 @@ pub struct LlmChoice {
 }
 
 // Record: LlmChoice.
+impl LlmChoice {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 20;
+}
+
 impl Record for LlmChoice {
     type Limits = Limits;
     const TAIL: Path = paths::LLM_CHOICE_TAIL;
@@ -8173,6 +8667,11 @@ pub struct Amendment {
 }
 
 // Record: Amendment.
+impl Amendment {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 174;
+}
+
 impl Record for Amendment {
     type Limits = Limits;
     const TAIL: Path = paths::AMENDMENT_TAIL;
@@ -8220,6 +8719,11 @@ pub struct TaskExecutorAgent {
 }
 
 // Record: TaskExecutorAgent.
+impl TaskExecutorAgent {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for TaskExecutorAgent {
     type Limits = Limits;
     const TAIL: Path = paths::TASK_EXECUTOR_AGENT_TAIL;
@@ -8252,6 +8756,11 @@ pub struct TaskExecutorProcedure {
 }
 
 // Record: TaskExecutorProcedure.
+impl TaskExecutorProcedure {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 6;
+}
+
 impl Record for TaskExecutorProcedure {
     type Limits = Limits;
     const TAIL: Path = paths::TASK_EXECUTOR_PROCEDURE_TAIL;
@@ -8285,6 +8794,11 @@ pub struct TaskExecutorPerson {
 }
 
 // Record: TaskExecutorPerson.
+impl TaskExecutorPerson {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
 impl Record for TaskExecutorPerson {
     type Limits = Limits;
     const TAIL: Path = paths::TASK_EXECUTOR_PERSON_TAIL;
@@ -8318,6 +8832,11 @@ pub enum TaskExecutor {
 }
 
 // Record: TaskExecutor.
+impl TaskExecutor {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 10;
+}
+
 impl Record for TaskExecutor {
     type Limits = Limits;
     const TAIL: Path = paths::TASK_EXECUTOR_TAG;
@@ -8356,6 +8875,11 @@ pub struct BudgetAsAllowed {
 }
 
 // Record: BudgetAsAllowed.
+impl BudgetAsAllowed {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
 impl Record for BudgetAsAllowed {
     type Limits = Limits;
     const TAIL: Path = paths::BUDGET_AS_ALLOWED_TAIL;
@@ -8388,6 +8912,11 @@ pub enum Budget {
 }
 
 // Record: Budget.
+impl Budget {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 10;
+}
+
 impl Record for Budget {
     type Limits = Limits;
     const TAIL: Path = paths::BUDGET_TAG;
@@ -8424,6 +8953,11 @@ pub struct DependencyBatch {
 }
 
 // Record: DependencyBatch.
+impl DependencyBatch {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for DependencyBatch {
     type Limits = Limits;
     const TAIL: Path = paths::DEPENDENCY_BATCH_TAIL;
@@ -8455,6 +8989,11 @@ pub struct DependencyExisting {
 }
 
 // Record: DependencyExisting.
+impl DependencyExisting {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for DependencyExisting {
     type Limits = Limits;
     const TAIL: Path = paths::DEPENDENCY_EXISTING_TAIL;
@@ -8487,6 +9026,11 @@ pub enum Dependency {
 }
 
 // Record: Dependency.
+impl Dependency {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
 impl Record for Dependency {
     type Limits = Limits;
     const TAIL: Path = paths::DEPENDENCY_TAG;
@@ -8533,6 +9077,11 @@ pub struct FieldRule {
 }
 
 // Record: FieldRule.
+impl FieldRule {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for FieldRule {
     type Limits = Limits;
     const TAIL: Path = paths::FIELD_RULE_TAIL;
@@ -8578,6 +9127,11 @@ pub struct Verdict {
 }
 
 // Record: Verdict.
+impl Verdict {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 16;
+}
+
 impl Record for Verdict {
     type Limits = Limits;
     const TAIL: Path = paths::VERDICT_TAIL;
@@ -8624,6 +9178,11 @@ pub struct ContractReport {
 }
 
 // Record: ContractReport.
+impl ContractReport {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for ContractReport {
     type Limits = Limits;
     const TAIL: Path = paths::CONTRACT_REPORT_TAIL;
@@ -8655,6 +9214,11 @@ pub struct ContractVerdict {
 }
 
 // Record: ContractVerdict.
+impl ContractVerdict {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for ContractVerdict {
     type Limits = Limits;
     const TAIL: Path = paths::CONTRACT_VERDICT_TAIL;
@@ -8688,6 +9252,11 @@ pub struct ContractChange {
 }
 
 // Record: ContractChange.
+impl ContractChange {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for ContractChange {
     type Limits = Limits;
     const TAIL: Path = paths::CONTRACT_CHANGE_TAIL;
@@ -8725,6 +9294,11 @@ pub enum Contract {
 }
 
 // Record: Contract.
+impl Contract {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
 impl Record for Contract {
     type Limits = Limits;
     const TAIL: Path = paths::CONTRACT_TAG;
@@ -8764,6 +9338,11 @@ pub enum Retention {
 }
 
 // Record: Retention.
+impl Retention {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for Retention {
     type Limits = Limits;
     const TAIL: Path = paths::RETENTION_TAG;
@@ -8801,6 +9380,11 @@ pub struct Closer {
 }
 
 // Record: Closer.
+impl Closer {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 6;
+}
+
 impl Record for Closer {
     type Limits = Limits;
     const TAIL: Path = paths::CLOSER_TAIL;
@@ -8837,6 +9421,11 @@ pub enum EndedBy {
 }
 
 // Record: EndedBy.
+impl EndedBy {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 7;
+}
+
 impl Record for EndedBy {
     type Limits = Limits;
     const TAIL: Path = paths::ENDED_BY_TAG;
@@ -8880,6 +9469,11 @@ pub struct Flags {
 }
 
 // Record: Flags.
+impl Flags {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 10;
+}
+
 impl Record for Flags {
     type Limits = Limits;
     const TAIL: Path = paths::FLAGS_TAIL;
@@ -8917,6 +9511,11 @@ pub struct DeadlineSpan {
 }
 
 // Record: DeadlineSpan.
+impl DeadlineSpan {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for DeadlineSpan {
     type Limits = Limits;
     const TAIL: Path = paths::DEADLINE_SPAN_TAIL;
@@ -8949,6 +9548,11 @@ pub enum Deadline {
 }
 
 // Record: Deadline.
+impl Deadline {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
 impl Record for Deadline {
     type Limits = Limits;
     const TAIL: Path = paths::DEADLINE_TAG;
@@ -8986,6 +9590,11 @@ pub struct Symbol {
 }
 
 // Record: Symbol.
+impl Symbol {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for Symbol {
     type Limits = Limits;
     const TAIL: Path = paths::SYMBOL_TAIL;
@@ -9034,6 +9643,11 @@ pub struct Member {
 }
 
 // Record: Member.
+impl Member {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 202;
+}
+
 impl Record for Member {
     type Limits = Limits;
     const TAIL: Path = paths::MEMBER_TAIL;
@@ -9097,6 +9711,11 @@ pub struct OperationCancel {
 }
 
 // Record: OperationCancel.
+impl OperationCancel {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 21;
+}
+
 impl Record for OperationCancel {
     type Limits = Limits;
     const TAIL: Path = paths::OPERATION_CANCEL_TAIL;
@@ -9133,6 +9752,11 @@ pub struct OperationMove {
 }
 
 // Record: OperationMove.
+impl OperationMove {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 12;
+}
+
 impl Record for OperationMove {
     type Limits = Limits;
     const TAIL: Path = paths::OPERATION_MOVE_TAIL;
@@ -9169,6 +9793,11 @@ pub struct OperationAmend {
 }
 
 // Record: OperationAmend.
+impl OperationAmend {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 199;
+}
+
 impl Record for OperationAmend {
     type Limits = Limits;
     const TAIL: Path = paths::OPERATION_AMEND_TAIL;
@@ -9208,6 +9837,11 @@ pub struct OperationRelease {
 }
 
 // Record: OperationRelease.
+impl OperationRelease {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 18;
+}
+
 impl Record for OperationRelease {
     type Limits = Limits;
     const TAIL: Path = paths::OPERATION_RELEASE_TAIL;
@@ -9244,6 +9878,11 @@ pub struct OperationMessage {
 }
 
 // Record: OperationMessage.
+impl OperationMessage {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 12;
+}
+
 impl Record for OperationMessage {
     type Limits = Limits;
     const TAIL: Path = paths::OPERATION_MESSAGE_TAIL;
@@ -9277,6 +9916,11 @@ pub struct OperationStop {
 }
 
 // Record: OperationStop.
+impl OperationStop {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for OperationStop {
     type Limits = Limits;
     const TAIL: Path = paths::OPERATION_STOP_TAIL;
@@ -9313,6 +9957,11 @@ pub enum Operation {
 }
 
 // Record: Operation.
+impl Operation {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 200;
+}
+
 impl Record for Operation {
     type Limits = Limits;
     const TAIL: Path = paths::OPERATION_TAG;
@@ -9358,6 +10007,11 @@ pub struct AskCompound {
 }
 
 // Record: AskCompound.
+impl AskCompound {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for AskCompound {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_COMPOUND_TAIL;
@@ -9392,6 +10046,11 @@ pub struct AskCreate {
 }
 
 // Record: AskCreate.
+impl AskCreate {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for AskCreate {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_CREATE_TAIL;
@@ -9427,6 +10086,11 @@ pub struct AskDelegate {
 }
 
 // Record: AskDelegate.
+impl AskDelegate {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 16;
+}
+
 impl Record for AskDelegate {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_DELEGATE_TAIL;
@@ -9462,6 +10126,11 @@ pub struct AskMarkSeen {
 }
 
 // Record: AskMarkSeen.
+impl AskMarkSeen {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 17;
+}
+
 impl Record for AskMarkSeen {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_MARK_SEEN_TAIL;
@@ -9493,6 +10162,11 @@ pub struct ScopeProject {
 }
 
 // Record: ScopeProject.
+impl ScopeProject {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for ScopeProject {
     type Limits = Limits;
     const TAIL: Path = paths::SCOPE_PROJECT_TAIL;
@@ -9526,6 +10200,11 @@ pub enum ApplicationScope {
 }
 
 // Record: ApplicationScope.
+impl ApplicationScope {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for ApplicationScope {
     type Limits = Limits;
     const TAIL: Path = paths::APPLICATION_SCOPE_TAG;
@@ -9566,6 +10245,11 @@ pub struct AskApplication {
 }
 
 // Record: AskApplication.
+impl AskApplication {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 39;
+}
+
 impl Record for AskApplication {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_APPLICATION_TAIL;
@@ -9604,6 +10288,11 @@ pub struct AskEditNote {
 }
 
 // Record: AskEditNote.
+impl AskEditNote {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 41;
+}
+
 impl Record for AskEditNote {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_EDIT_NOTE_TAIL;
@@ -9643,6 +10332,11 @@ pub struct AskMakeService {
 }
 
 // Record: AskMakeService.
+impl AskMakeService {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 13;
+}
+
 impl Record for AskMakeService {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_MAKE_SERVICE_TAIL;
@@ -9679,6 +10373,11 @@ pub struct AskAdopt {
 }
 
 // Record: AskAdopt.
+impl AskAdopt {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 15;
+}
+
 impl Record for AskAdopt {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_ADOPT_TAIL;
@@ -9712,6 +10411,11 @@ pub struct ActionBatch {
 }
 
 // Record: ActionBatch.
+impl ActionBatch {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for ActionBatch {
     type Limits = Limits;
     const TAIL: Path = paths::ACTION_BATCH_TAIL;
@@ -9745,6 +10449,11 @@ pub struct ActionAmend {
 }
 
 // Record: ActionAmend.
+impl ActionAmend {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 190;
+}
+
 impl Record for ActionAmend {
     type Limits = Limits;
     const TAIL: Path = paths::ACTION_AMEND_TAIL;
@@ -9781,6 +10490,11 @@ pub struct ActionSettings {
 }
 
 // Record: ActionSettings.
+impl ActionSettings {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 36;
+}
+
 impl Record for ActionSettings {
     type Limits = Limits;
     const TAIL: Path = paths::ACTION_SETTINGS_TAIL;
@@ -9816,6 +10530,11 @@ pub enum Action {
 }
 
 // Record: Action.
+impl Action {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 191;
+}
+
 impl Record for Action {
     type Limits = Limits;
     const TAIL: Path = paths::ACTION_TAG;
@@ -9856,6 +10575,11 @@ pub struct AskPropose {
 }
 
 // Record: AskPropose.
+impl AskPropose {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 199;
+}
+
 impl Record for AskPropose {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_PROPOSE_TAIL;
@@ -9892,6 +10616,11 @@ pub struct AskWithdraw {
 }
 
 // Record: AskWithdraw.
+impl AskWithdraw {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 12;
+}
+
 impl Record for AskWithdraw {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_WITHDRAW_TAIL;
@@ -9926,6 +10655,11 @@ pub struct AskStop {
 }
 
 // Record: AskStop.
+impl AskStop {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 12;
+}
+
 impl Record for AskStop {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_STOP_TAIL;
@@ -9962,6 +10696,11 @@ pub struct AskCancel {
 }
 
 // Record: AskCancel.
+impl AskCancel {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 25;
+}
+
 impl Record for AskCancel {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_CANCEL_TAIL;
@@ -10002,6 +10741,11 @@ pub struct AskRelease {
 }
 
 // Record: AskRelease.
+impl AskRelease {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 22;
+}
+
 impl Record for AskRelease {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_RELEASE_TAIL;
@@ -10040,6 +10784,11 @@ pub struct AskTakePerson {
 }
 
 // Record: AskTakePerson.
+impl AskTakePerson {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 12;
+}
+
 impl Record for AskTakePerson {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_TAKE_PERSON_TAIL;
@@ -10074,6 +10823,11 @@ pub struct AskHandBackPerson {
 }
 
 // Record: AskHandBackPerson.
+impl AskHandBackPerson {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 12;
+}
+
 impl Record for AskHandBackPerson {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_HAND_BACK_PERSON_TAIL;
@@ -10110,6 +10864,11 @@ pub struct AskAnswerPerson {
 }
 
 // Record: AskAnswerPerson.
+impl AskAnswerPerson {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 30;
+}
+
 impl Record for AskAnswerPerson {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_ANSWER_PERSON_TAIL;
@@ -10149,6 +10908,11 @@ pub struct AskMove {
 }
 
 // Record: AskMove.
+impl AskMove {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 16;
+}
+
 impl Record for AskMove {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_MOVE_TAIL;
@@ -10185,6 +10949,11 @@ pub enum Running {
 }
 
 // Record: Running.
+impl Running {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for Running {
     type Limits = Limits;
     const TAIL: Path = paths::RUNNING_TAG;
@@ -10225,6 +10994,11 @@ pub struct AskDecideProposal {
 }
 
 // Record: AskDecideProposal.
+impl AskDecideProposal {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 28;
+}
+
 impl Record for AskDecideProposal {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_DECIDE_PROPOSAL_TAIL;
@@ -10266,6 +11040,11 @@ pub struct AskSay {
 }
 
 // Record: AskSay.
+impl AskSay {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 16;
+}
+
 impl Record for AskSay {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_SAY_TAIL;
@@ -10304,6 +11083,11 @@ pub struct AskAnswerQuestion {
 }
 
 // Record: AskAnswerQuestion.
+impl AskAnswerQuestion {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 24;
+}
+
 impl Record for AskAnswerQuestion {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_ANSWER_QUESTION_TAIL;
@@ -10345,6 +11129,11 @@ pub struct AskAmend {
 }
 
 // Record: AskAmend.
+impl AskAmend {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 203;
+}
+
 impl Record for AskAmend {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_AMEND_TAIL;
@@ -10385,6 +11174,11 @@ pub struct AskSetRoles {
 }
 
 // Record: AskSetRoles.
+impl AskSetRoles {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for AskSetRoles {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_SET_ROLES_TAIL;
@@ -10419,6 +11213,11 @@ pub struct AskRename {
 }
 
 // Record: AskRename.
+impl AskRename {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for AskRename {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_RENAME_TAIL;
@@ -10453,6 +11252,11 @@ pub struct AskRestore {
 }
 
 // Record: AskRestore.
+impl AskRestore {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for AskRestore {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_RESTORE_TAIL;
@@ -10488,6 +11292,11 @@ pub struct AskChangeSettings {
 }
 
 // Record: AskChangeSettings.
+impl AskChangeSettings {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 40;
+}
+
 impl Record for AskChangeSettings {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_CHANGE_SETTINGS_TAIL;
@@ -10523,6 +11332,11 @@ pub struct SettingNumber {
 }
 
 // Record: SettingNumber.
+impl SettingNumber {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for SettingNumber {
     type Limits = Limits;
     const TAIL: Path = paths::SETTING_NUMBER_TAIL;
@@ -10556,6 +11370,11 @@ pub struct ApplicationSetting {
 }
 
 // Record: ApplicationSetting.
+impl ApplicationSetting {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 12;
+}
+
 impl Record for ApplicationSetting {
     type Limits = Limits;
     const TAIL: Path = paths::APPLICATION_SETTING_TAIL;
@@ -10591,6 +11410,11 @@ pub struct ProjectPolicySetting {
 }
 
 // Record: ProjectPolicySetting.
+impl ProjectPolicySetting {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for ProjectPolicySetting {
     type Limits = Limits;
     const TAIL: Path = paths::PROJECT_POLICY_SETTING_TAIL;
@@ -10631,6 +11455,11 @@ pub enum Setting {
 }
 
 // Record: Setting.
+impl Setting {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 13;
+}
+
 impl Record for Setting {
     type Limits = Limits;
     const TAIL: Path = paths::SETTING_TAG;
@@ -10685,6 +11514,11 @@ pub struct OutcomeRestored {
 }
 
 // Record: OutcomeRestored.
+impl OutcomeRestored {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 16;
+}
+
 impl Record for OutcomeRestored {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_RESTORED_TAIL;
@@ -10730,6 +11564,11 @@ pub enum SettingFault {
 }
 
 // Record: SettingFault.
+impl SettingFault {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for SettingFault {
     type Limits = Limits;
     const TAIL: Path = paths::SETTING_FAULT_TAG;
@@ -10790,6 +11629,11 @@ pub enum SettingMember {
 }
 
 // Record: SettingMember.
+impl SettingMember {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for SettingMember {
     type Limits = Limits;
     const TAIL: Path = paths::SETTING_MEMBER_TAG;
@@ -10838,6 +11682,11 @@ pub enum SettingRule {
 }
 
 // Record: SettingRule.
+impl SettingRule {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for SettingRule {
     type Limits = Limits;
     const TAIL: Path = paths::SETTING_RULE_TAG;
@@ -10881,6 +11730,11 @@ pub struct SettingDetail {
 }
 
 // Record: SettingDetail.
+impl SettingDetail {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 18;
+}
+
 impl Record for SettingDetail {
     type Limits = Limits;
     const TAIL: Path = paths::SETTING_DETAIL_TAIL;
@@ -10924,6 +11778,11 @@ pub struct MalformedSettings {
 }
 
 // Record: MalformedSettings.
+impl MalformedSettings {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 33;
+}
+
 impl Record for MalformedSettings {
     type Limits = Limits;
     const TAIL: Path = paths::MALFORMED_SETTINGS_TAIL;
@@ -10959,6 +11818,11 @@ pub struct RefusalStale {
 }
 
 // Record: RefusalStale.
+impl RefusalStale {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for RefusalStale {
     type Limits = Limits;
     const TAIL: Path = paths::REFUSAL_STALE_TAIL;
@@ -10992,6 +11856,11 @@ pub struct RefusalFull {
 }
 
 // Record: RefusalFull.
+impl RefusalFull {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 12;
+}
+
 impl Record for RefusalFull {
     type Limits = Limits;
     const TAIL: Path = paths::REFUSAL_FULL_TAIL;
@@ -11027,6 +11896,11 @@ pub struct OutcomeSettingsChanged {
 }
 
 // Record: OutcomeSettingsChanged.
+impl OutcomeSettingsChanged {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for OutcomeSettingsChanged {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_SETTINGS_CHANGED_TAIL;
@@ -11059,6 +11933,11 @@ pub struct AskMakeProject {
 }
 
 // Record: AskMakeProject.
+impl AskMakeProject {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for AskMakeProject {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_MAKE_PROJECT_TAIL;
@@ -11093,6 +11972,11 @@ pub struct AskChangePolicy {
 }
 
 // Record: AskChangePolicy.
+impl AskChangePolicy {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 76;
+}
+
 impl Record for AskChangePolicy {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_CHANGE_POLICY_TAIL;
@@ -11128,6 +12012,11 @@ pub struct AskSetPool {
 }
 
 // Record: AskSetPool.
+impl AskSetPool {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 20;
+}
+
 impl Record for AskSetPool {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_SET_POOL_TAIL;
@@ -11166,6 +12055,11 @@ pub struct AskDecideEscalation {
 }
 
 // Record: AskDecideEscalation.
+impl AskDecideEscalation {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 25;
+}
+
 impl Record for AskDecideEscalation {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_DECIDE_ESCALATION_TAIL;
@@ -11204,6 +12098,11 @@ pub enum AccountHolder {
 }
 
 // Record: AccountHolder.
+impl AccountHolder {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for AccountHolder {
     type Limits = Limits;
     const TAIL: Path = paths::ACCOUNT_HOLDER_TAG;
@@ -11241,6 +12140,11 @@ pub struct AskAccountSignIn {
 }
 
 // Record: AskAccountSignIn.
+impl AskAccountSignIn {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for AskAccountSignIn {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_ACCOUNT_SIGN_IN_TAIL;
@@ -11275,6 +12179,11 @@ pub struct AskAccountSignOut {
 }
 
 // Record: AskAccountSignOut.
+impl AskAccountSignOut {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for AskAccountSignOut {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_ACCOUNT_SIGN_OUT_TAIL;
@@ -11308,6 +12217,11 @@ pub struct AccountUseParty {
 }
 
 // Record: AccountUseParty.
+impl AccountUseParty {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for AccountUseParty {
     type Limits = Limits;
     const TAIL: Path = paths::ACCOUNT_USE_PARTY_TAIL;
@@ -11339,6 +12253,11 @@ pub struct AccountUseProject {
 }
 
 // Record: AccountUseProject.
+impl AccountUseProject {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for AccountUseProject {
     type Limits = Limits;
     const TAIL: Path = paths::ACCOUNT_USE_PROJECT_TAIL;
@@ -11371,6 +12290,11 @@ pub enum AccountUse {
 }
 
 // Record: AccountUse.
+impl AccountUse {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
 impl Record for AccountUse {
     type Limits = Limits;
     const TAIL: Path = paths::ACCOUNT_USE_TAG;
@@ -11409,6 +12333,11 @@ pub struct AccountChangeDeclareProgram {
 }
 
 // Record: AccountChangeDeclareProgram.
+impl AccountChangeDeclareProgram {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 13;
+}
+
 impl Record for AccountChangeDeclareProgram {
     type Limits = Limits;
     const TAIL: Path = paths::ACCOUNT_CHANGE_DECLARE_PROGRAM_TAIL;
@@ -11444,6 +12373,11 @@ pub struct AccountChangeCheckProgram {
 }
 
 // Record: AccountChangeCheckProgram.
+impl AccountChangeCheckProgram {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for AccountChangeCheckProgram {
     type Limits = Limits;
     const TAIL: Path = paths::ACCOUNT_CHANGE_CHECK_PROGRAM_TAIL;
@@ -11477,6 +12411,11 @@ pub struct AccountChangeAddKey {
 }
 
 // Record: AccountChangeAddKey.
+impl AccountChangeAddKey {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 13;
+}
+
 impl Record for AccountChangeAddKey {
     type Limits = Limits;
     const TAIL: Path = paths::ACCOUNT_CHANGE_ADD_KEY_TAIL;
@@ -11513,6 +12452,11 @@ pub struct AccountChangeReplaceKey {
 }
 
 // Record: AccountChangeReplaceKey.
+impl AccountChangeReplaceKey {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for AccountChangeReplaceKey {
     type Limits = Limits;
     const TAIL: Path = paths::ACCOUNT_CHANGE_REPLACE_KEY_TAIL;
@@ -11546,6 +12490,11 @@ pub struct AccountChangeRemoveKey {
 }
 
 // Record: AccountChangeRemoveKey.
+impl AccountChangeRemoveKey {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for AccountChangeRemoveKey {
     type Limits = Limits;
     const TAIL: Path = paths::ACCOUNT_CHANGE_REMOVE_KEY_TAIL;
@@ -11577,6 +12526,11 @@ pub struct AccountChangeResume {
 }
 
 // Record: AccountChangeResume.
+impl AccountChangeResume {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for AccountChangeResume {
     type Limits = Limits;
     const TAIL: Path = paths::ACCOUNT_CHANGE_RESUME_TAIL;
@@ -11608,6 +12562,11 @@ pub struct AccountChangeRemove {
 }
 
 // Record: AccountChangeRemove.
+impl AccountChangeRemove {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for AccountChangeRemove {
     type Limits = Limits;
     const TAIL: Path = paths::ACCOUNT_CHANGE_REMOVE_TAIL;
@@ -11640,6 +12599,11 @@ pub struct AccountChangeMoveAccount {
 }
 
 // Record: AccountChangeMoveAccount.
+impl AccountChangeMoveAccount {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for AccountChangeMoveAccount {
     type Limits = Limits;
     const TAIL: Path = paths::ACCOUNT_CHANGE_MOVE_ACCOUNT_TAIL;
@@ -11675,6 +12639,11 @@ pub struct AccountChangeMoveSource {
 }
 
 // Record: AccountChangeMoveSource.
+impl AccountChangeMoveSource {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 12;
+}
+
 impl Record for AccountChangeMoveSource {
     type Limits = Limits;
     const TAIL: Path = paths::ACCOUNT_CHANGE_MOVE_SOURCE_TAIL;
@@ -11711,6 +12680,11 @@ pub struct AccountChangeSetUses {
 }
 
 // Record: AccountChangeSetUses.
+impl AccountChangeSetUses {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
 impl Record for AccountChangeSetUses {
     type Limits = Limits;
     const TAIL: Path = paths::ACCOUNT_CHANGE_SET_USES_TAIL;
@@ -11744,6 +12718,11 @@ pub struct AccountChangeMoveOut {
 }
 
 // Record: AccountChangeMoveOut.
+impl AccountChangeMoveOut {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for AccountChangeMoveOut {
     type Limits = Limits;
     const TAIL: Path = paths::ACCOUNT_CHANGE_MOVE_OUT_TAIL;
@@ -11775,6 +12754,11 @@ pub struct AccountChangeWritten {
 }
 
 // Record: AccountChangeWritten.
+impl AccountChangeWritten {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for AccountChangeWritten {
     type Limits = Limits;
     const TAIL: Path = paths::ACCOUNT_CHANGE_WRITTEN_TAIL;
@@ -11806,6 +12790,11 @@ pub struct AccountChangeMoveIn {
 }
 
 // Record: AccountChangeMoveIn.
+impl AccountChangeMoveIn {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for AccountChangeMoveIn {
     type Limits = Limits;
     const TAIL: Path = paths::ACCOUNT_CHANGE_MOVE_IN_TAIL;
@@ -11838,6 +12827,11 @@ pub struct AccountChangeFinishSignIn {
 }
 
 // Record: AccountChangeFinishSignIn.
+impl AccountChangeFinishSignIn {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for AccountChangeFinishSignIn {
     type Limits = Limits;
     const TAIL: Path = paths::ACCOUNT_CHANGE_FINISH_SIGN_IN_TAIL;
@@ -11871,6 +12865,11 @@ pub struct AccountChangeReadLists {
 }
 
 // Record: AccountChangeReadLists.
+impl AccountChangeReadLists {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for AccountChangeReadLists {
     type Limits = Limits;
     const TAIL: Path = paths::ACCOUNT_CHANGE_READ_LISTS_TAIL;
@@ -11902,6 +12901,11 @@ pub struct LoginExitExited {
 }
 
 // Record: LoginExitExited.
+impl LoginExitExited {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for LoginExitExited {
     type Limits = Limits;
     const TAIL: Path = paths::LOGIN_EXIT_EXITED_TAIL;
@@ -11933,6 +12937,11 @@ pub struct LoginExitKilled {
 }
 
 // Record: LoginExitKilled.
+impl LoginExitKilled {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for LoginExitKilled {
     type Limits = Limits;
     const TAIL: Path = paths::LOGIN_EXIT_KILLED_TAIL;
@@ -11966,6 +12975,11 @@ pub enum LoginExit {
 }
 
 // Record: LoginExit.
+impl LoginExit {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 2;
+}
+
 impl Record for LoginExit {
     type Limits = Limits;
     const TAIL: Path = paths::LOGIN_EXIT_TAG;
@@ -12005,6 +13019,11 @@ pub struct AccountChangeLoginProgram {
 }
 
 // Record: AccountChangeLoginProgram.
+impl AccountChangeLoginProgram {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for AccountChangeLoginProgram {
     type Limits = Limits;
     const TAIL: Path = paths::ACCOUNT_CHANGE_LOGIN_PROGRAM_TAIL;
@@ -12038,6 +13057,11 @@ pub struct AccountChangeCancelLogin {
 }
 
 // Record: AccountChangeCancelLogin.
+impl AccountChangeCancelLogin {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for AccountChangeCancelLogin {
     type Limits = Limits;
     const TAIL: Path = paths::ACCOUNT_CHANGE_CANCEL_LOGIN_TAIL;
@@ -12070,6 +13094,11 @@ pub struct AccountChangeLoginEnded {
 }
 
 // Record: AccountChangeLoginEnded.
+impl AccountChangeLoginEnded {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 6;
+}
+
 impl Record for AccountChangeLoginEnded {
     type Limits = Limits;
     const TAIL: Path = paths::ACCOUNT_CHANGE_LOGIN_ENDED_TAIL;
@@ -12120,6 +13149,11 @@ pub enum AccountChange {
 }
 
 // Record: AccountChange.
+impl AccountChange {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 14;
+}
+
 impl Record for AccountChange {
     type Limits = Limits;
     const TAIL: Path = paths::ACCOUNT_CHANGE_TAG;
@@ -12189,6 +13223,11 @@ pub struct AskAccountChange {
 }
 
 // Record: AskAccountChange.
+impl AskAccountChange {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 15;
+}
+
 impl Record for AskAccountChange {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_ACCOUNT_CHANGE_TAIL;
@@ -12222,6 +13261,11 @@ pub struct AskMoveToNewest {
 }
 
 // Record: AskMoveToNewest.
+impl AskMoveToNewest {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for AskMoveToNewest {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_MOVE_TO_NEWEST_TAIL;
@@ -12254,6 +13298,11 @@ pub struct AskRemoveProject {
 }
 
 // Record: AskRemoveProject.
+impl AskRemoveProject {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 13;
+}
+
 impl Record for AskRemoveProject {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_REMOVE_PROJECT_TAIL;
@@ -12288,6 +13337,11 @@ pub struct AskSetVisibility {
 }
 
 // Record: AskSetVisibility.
+impl AskSetVisibility {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for AskSetVisibility {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_SET_VISIBILITY_TAIL;
@@ -12322,6 +13376,11 @@ pub struct AskConclude {
 }
 
 // Record: AskConclude.
+impl AskConclude {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 12;
+}
+
 impl Record for AskConclude {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_CONCLUDE_TAIL;
@@ -12357,6 +13416,11 @@ pub enum WorkerPauseMode {
 }
 
 // Record: WorkerPauseMode.
+impl WorkerPauseMode {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for WorkerPauseMode {
     type Limits = Limits;
     const TAIL: Path = paths::WORKER_PAUSE_MODE_TAG;
@@ -12396,6 +13460,11 @@ pub struct AskPauseWorker {
 }
 
 // Record: AskPauseWorker.
+impl AskPauseWorker {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for AskPauseWorker {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_PAUSE_WORKER_TAIL;
@@ -12429,6 +13498,11 @@ pub struct OutcomeWorkerPauseAsked {
 }
 
 // Record: OutcomeWorkerPauseAsked.
+impl OutcomeWorkerPauseAsked {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for OutcomeWorkerPauseAsked {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_WORKER_PAUSE_ASKED_TAIL;
@@ -12460,6 +13534,11 @@ pub struct RefusalUnlinked {
 }
 
 // Record: RefusalUnlinked.
+impl RefusalUnlinked {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for RefusalUnlinked {
     type Limits = Limits;
     const TAIL: Path = paths::REFUSAL_UNLINKED_TAIL;
@@ -12480,6 +13559,42 @@ impl Record for RefusalUnlinked {
     fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         Ok(Self {
             worker: field::read(field::U32, limits, reader, paths::REFUSAL_UNLINKED_WORKER)?,
+        })
+    }
+}
+
+// Type: ServiceParty.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ServiceParty {
+    pub party: u64,
+}
+
+// Record: ServiceParty.
+impl ServiceParty {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
+impl Record for ServiceParty {
+    type Limits = Limits;
+    const TAIL: Path = paths::SERVICE_PARTY_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 629)?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 629)?.decoded)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U64, &self.party, limits, out, paths::SERVICE_PARTY_PARTY)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            party: field::read(field::U64, limits, reader, paths::SERVICE_PARTY_PARTY)?,
         })
     }
 }
@@ -12527,19 +13642,25 @@ pub enum Ask {
     Conclude(AskConclude),
     Delegate(AskDelegate),
     PauseWorker(AskPauseWorker),
+    ReissueService(ServiceParty),
 }
 
 // Record: Ask.
+impl Ask {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 204;
+}
+
 impl Record for Ask {
     type Limits = Limits;
     const TAIL: Path = paths::ASK_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 629)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 631)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 629)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 631)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -12584,6 +13705,7 @@ impl Record for Ask {
             Self::Conclude(value) => { field::put(out, &[37], paths::ASK_TAG)?; value.write(limits, out) },
             Self::Delegate(value) => { field::put(out, &[38], paths::ASK_TAG)?; value.write(limits, out) },
             Self::PauseWorker(value) => { field::put(out, &[39], paths::ASK_TAG)?; value.write(limits, out) },
+            Self::ReissueService(value) => { field::put(out, &[40], paths::ASK_TAG)?; value.write(limits, out) },
         }
     }
 
@@ -12630,7 +13752,8 @@ impl Record for Ask {
             37 => Ok(Self::Conclude(AskConclude::read(limits, reader)?)),
             38 => Ok(Self::Delegate(AskDelegate::read(limits, reader)?)),
             39 => Ok(Self::PauseWorker(AskPauseWorker::read(limits, reader)?)),
-            40..=u8::MAX => Err(Problem { path: paths::ASK_TAG, reason: skein_codec::Reason::Tag }),
+            40 => Ok(Self::ReissueService(ServiceParty::read(limits, reader)?)),
+            41..=u8::MAX => Err(Problem { path: paths::ASK_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -12643,16 +13766,21 @@ pub struct StoredPerson {
 }
 
 // Record: StoredPerson.
+impl StoredPerson {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 22;
+}
+
 impl Record for StoredPerson {
     type Limits = Limits;
     const TAIL: Path = paths::STORED_PERSON_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 631)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 633)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 631)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 633)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -12677,16 +13805,21 @@ pub struct StoredReadResults {
 }
 
 // Record: StoredReadResults.
+impl StoredReadResults {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 16;
+}
+
 impl Record for StoredReadResults {
     type Limits = Limits;
     const TAIL: Path = paths::STORED_READ_RESULTS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 634)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 636)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 634)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 636)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -12712,16 +13845,21 @@ pub struct StoredReadConversation {
 }
 
 // Record: StoredReadConversation.
+impl StoredReadConversation {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 24;
+}
+
 impl Record for StoredReadConversation {
     type Limits = Limits;
     const TAIL: Path = paths::STORED_READ_CONVERSATION_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 638)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 640)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 638)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 640)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -12749,16 +13887,21 @@ pub struct EndedRead {
 }
 
 // Record: EndedRead.
+impl EndedRead {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 24;
+}
+
 impl Record for EndedRead {
     type Limits = Limits;
     const TAIL: Path = paths::ENDED_READ_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 642)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 644)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 642)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 644)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -12786,16 +13929,21 @@ pub struct StoredSignIn {
 }
 
 // Record: StoredSignIn.
+impl StoredSignIn {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 24;
+}
+
 impl Record for StoredSignIn {
     type Limits = Limits;
     const TAIL: Path = paths::STORED_SIGN_IN_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 646)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 648)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 646)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 648)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -12822,16 +13970,21 @@ pub struct StoredRoles {
 }
 
 // Record: StoredRoles.
+impl StoredRoles {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for StoredRoles {
     type Limits = Limits;
     const TAIL: Path = paths::STORED_ROLES_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 649)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 651)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 649)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 651)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -12855,16 +14008,21 @@ pub struct ModelName {
 }
 
 // Record: ModelName.
+impl ModelName {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for ModelName {
     type Limits = Limits;
     const TAIL: Path = paths::MODEL_NAME_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 651)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 653)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 651)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 653)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -12889,16 +14047,21 @@ pub struct StoredPolicy {
 }
 
 // Record: StoredPolicy.
+impl StoredPolicy {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 101;
+}
+
 impl Record for StoredPolicy {
     type Limits = Limits;
     const TAIL: Path = paths::STORED_POLICY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 655)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 657)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 655)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 657)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -12927,16 +14090,21 @@ pub enum Again {
 }
 
 // Record: Again.
+impl Again {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for Again {
     type Limits = Limits;
     const TAIL: Path = paths::AGAIN_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 658)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 660)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 658)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 660)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -12969,16 +14137,21 @@ pub enum FailureClass {
 }
 
 // Record: FailureClass.
+impl FailureClass {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for FailureClass {
     type Limits = Limits;
     const TAIL: Path = paths::FAILURE_CLASS_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 666)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 668)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 666)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 668)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13015,16 +14188,21 @@ pub struct HoldReasonFailures {
 }
 
 // Record: HoldReasonFailures.
+impl HoldReasonFailures {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for HoldReasonFailures {
     type Limits = Limits;
     const TAIL: Path = paths::HOLD_REASON_FAILURES_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 667)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 669)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 667)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 669)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13046,16 +14224,21 @@ pub struct HoldReasonDependency {
 }
 
 // Record: HoldReasonDependency.
+impl HoldReasonDependency {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for HoldReasonDependency {
     type Limits = Limits;
     const TAIL: Path = paths::HOLD_REASON_DEPENDENCY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 669)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 671)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 669)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 671)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13077,16 +14260,21 @@ pub struct HoldReasonPlaced {
 }
 
 // Record: HoldReasonPlaced.
+impl HoldReasonPlaced {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for HoldReasonPlaced {
     type Limits = Limits;
     const TAIL: Path = paths::HOLD_REASON_PLACED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 671)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 673)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 671)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 673)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13108,16 +14296,21 @@ pub struct HoldReasonUncertain {
 }
 
 // Record: HoldReasonUncertain.
+impl HoldReasonUncertain {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for HoldReasonUncertain {
     type Limits = Limits;
     const TAIL: Path = paths::HOLD_REASON_UNCERTAIN_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 673)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 675)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 673)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 675)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13139,16 +14332,21 @@ pub struct HoldReasonPoolLost {
 }
 
 // Record: HoldReasonPoolLost.
+impl HoldReasonPoolLost {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for HoldReasonPoolLost {
     type Limits = Limits;
     const TAIL: Path = paths::HOLD_REASON_POOL_LOST_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 675)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 677)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 675)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 677)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13178,16 +14376,21 @@ pub enum Bound {
 }
 
 // Record: Bound.
+impl Bound {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for Bound {
     type Limits = Limits;
     const TAIL: Path = paths::BOUND_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 685)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 687)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 685)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 687)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13229,16 +14432,21 @@ pub struct Exceeded {
 }
 
 // Record: Exceeded.
+impl Exceeded {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
 impl Record for Exceeded {
     type Limits = Limits;
     const TAIL: Path = paths::EXCEEDED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 687)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 689)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 687)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 689)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13279,16 +14487,21 @@ pub enum HoldReason {
 }
 
 // Record: HoldReason.
+impl HoldReason {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 10;
+}
+
 impl Record for HoldReason {
     type Limits = Limits;
     const TAIL: Path = paths::HOLD_REASON_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 700)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 702)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 700)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 702)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13348,16 +14561,21 @@ pub struct MovedHold {
 }
 
 // Record: MovedHold.
+impl MovedHold {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 18;
+}
+
 impl Record for MovedHold {
     type Limits = Limits;
     const TAIL: Path = paths::MOVED_HOLD_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 702)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 704)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 702)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 704)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13381,16 +14599,21 @@ pub struct MovedSpec {
 }
 
 // Record: MovedSpec.
+impl MovedSpec {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for MovedSpec {
     type Limits = Limits;
     const TAIL: Path = paths::MOVED_SPEC_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 704)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 706)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 704)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 706)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13412,16 +14635,21 @@ pub struct MovedPerson {
 }
 
 // Record: MovedPerson.
+impl MovedPerson {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for MovedPerson {
     type Limits = Limits;
     const TAIL: Path = paths::MOVED_PERSON_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 706)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 708)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 706)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 708)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13443,16 +14671,21 @@ pub struct MovedNote {
 }
 
 // Record: MovedNote.
+impl MovedNote {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for MovedNote {
     type Limits = Limits;
     const TAIL: Path = paths::MOVED_NOTE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 708)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 710)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 708)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 710)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13478,16 +14711,21 @@ pub enum Moved {
 }
 
 // Record: Moved.
+impl Moved {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 19;
+}
+
 impl Record for Moved {
     type Limits = Limits;
     const TAIL: Path = paths::MOVED_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 709)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 711)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 709)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 711)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13520,16 +14758,21 @@ pub struct PartyPerson {
 }
 
 // Record: PartyPerson.
+impl PartyPerson {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for PartyPerson {
     type Limits = Limits;
     const TAIL: Path = paths::PARTY_PERSON_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 711)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 713)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 711)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 713)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13551,16 +14794,21 @@ pub struct PartyTask {
 }
 
 // Record: PartyTask.
+impl PartyTask {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for PartyTask {
     type Limits = Limits;
     const TAIL: Path = paths::PARTY_TASK_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 713)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 715)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 713)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 715)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13582,16 +14830,21 @@ pub struct PartyDeployment {
 }
 
 // Record: PartyDeployment.
+impl PartyDeployment {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for PartyDeployment {
     type Limits = Limits;
     const TAIL: Path = paths::PARTY_DEPLOYMENT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 715)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 717)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 715)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 717)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13615,16 +14868,21 @@ pub enum Party {
 }
 
 // Record: Party.
+impl Party {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
 impl Record for Party {
     type Limits = Limits;
     const TAIL: Path = paths::PARTY_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 716)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 718)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 716)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 718)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13654,16 +14912,21 @@ pub struct EndingCancelled {
 }
 
 // Record: EndingCancelled.
+impl EndingCancelled {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 17;
+}
+
 impl Record for EndingCancelled {
     type Limits = Limits;
     const TAIL: Path = paths::ENDING_CANCELLED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 718)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 720)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 718)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 720)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13688,16 +14951,21 @@ pub struct EndingDecided {
 }
 
 // Record: EndingDecided.
+impl EndingDecided {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 16;
+}
+
 impl Record for EndingDecided {
     type Limits = Limits;
     const TAIL: Path = paths::ENDING_DECIDED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 721)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 723)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 721)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 723)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13725,16 +14993,21 @@ pub enum Ending {
 }
 
 // Record: Ending.
+impl Ending {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 18;
+}
+
 impl Record for Ending {
     type Limits = Limits;
     const TAIL: Path = paths::ENDING_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 725)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 727)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 725)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 727)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13768,16 +15041,21 @@ pub struct LackBudget {
 }
 
 // Record: LackBudget.
+impl LackBudget {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 16;
+}
+
 impl Record for LackBudget {
     type Limits = Limits;
     const TAIL: Path = paths::LACK_BUDGET_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 728)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 730)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 728)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 730)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13801,16 +15079,21 @@ pub struct LackGrant {
 }
 
 // Record: LackGrant.
+impl LackGrant {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 2;
+}
+
 impl Record for LackGrant {
     type Limits = Limits;
     const TAIL: Path = paths::LACK_GRANT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 730)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 732)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 730)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 732)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13832,16 +15115,21 @@ pub struct LackDepth {
 }
 
 // Record: LackDepth.
+impl LackDepth {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for LackDepth {
     type Limits = Limits;
     const TAIL: Path = paths::LACK_DEPTH_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 732)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 734)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 732)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 734)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13863,16 +15151,21 @@ pub struct LackTasks {
 }
 
 // Record: LackTasks.
+impl LackTasks {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for LackTasks {
     type Limits = Limits;
     const TAIL: Path = paths::LACK_TASKS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 734)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 736)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 734)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 736)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13894,16 +15187,21 @@ pub struct LackAgain {
 }
 
 // Record: LackAgain.
+impl LackAgain {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for LackAgain {
     type Limits = Limits;
     const TAIL: Path = paths::LACK_AGAIN_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 736)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 738)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 736)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 738)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13926,16 +15224,21 @@ pub struct LackRequired {
 }
 
 // Record: LackRequired.
+impl LackRequired {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for LackRequired {
     type Limits = Limits;
     const TAIL: Path = paths::LACK_REQUIRED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 739)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 741)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 739)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 741)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13960,16 +15263,21 @@ pub struct LackFailed {
 }
 
 // Record: LackFailed.
+impl LackFailed {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for LackFailed {
     type Limits = Limits;
     const TAIL: Path = paths::LACK_FAILED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 742)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 744)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 742)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 744)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13994,16 +15302,21 @@ pub struct LackUnguarded {
 }
 
 // Record: LackUnguarded.
+impl LackUnguarded {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for LackUnguarded {
     type Limits = Limits;
     const TAIL: Path = paths::LACK_UNGUARDED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 745)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 747)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 745)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 747)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14027,16 +15340,21 @@ pub struct LackTaskKind {
 }
 
 // Record: LackTaskKind.
+impl LackTaskKind {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 11;
+}
+
 impl Record for LackTaskKind {
     type Limits = Limits;
     const TAIL: Path = paths::LACK_TASK_KIND_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 747)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 749)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 747)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 749)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14058,16 +15376,21 @@ pub struct CeilingRole {
 }
 
 // Record: CeilingRole.
+impl CeilingRole {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for CeilingRole {
     type Limits = Limits;
     const TAIL: Path = paths::CEILING_ROLE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 749)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 751)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 749)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 751)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14091,16 +15414,21 @@ pub enum CeilingHolder {
 }
 
 // Record: CeilingHolder.
+impl CeilingHolder {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for CeilingHolder {
     type Limits = Limits;
     const TAIL: Path = paths::CEILING_HOLDER_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 752)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 754)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 752)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 754)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14137,16 +15465,21 @@ pub enum CeilingDimension {
 }
 
 // Record: CeilingDimension.
+impl CeilingDimension {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for CeilingDimension {
     type Limits = Limits;
     const TAIL: Path = paths::CEILING_DIMENSION_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 762)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 764)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 762)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 764)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14190,16 +15523,21 @@ pub struct LackCeiling {
 }
 
 // Record: LackCeiling.
+impl LackCeiling {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 24;
+}
+
 impl Record for LackCeiling {
     type Limits = Limits;
     const TAIL: Path = paths::LACK_CEILING_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 767)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 769)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 767)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 769)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14249,16 +15587,21 @@ pub enum Lack {
 }
 
 // Record: Lack.
+impl Lack {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 25;
+}
+
 impl Record for Lack {
     type Limits = Limits;
     const TAIL: Path = paths::LACK_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 780)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 782)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 780)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 782)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14374,16 +15717,21 @@ pub enum LimitKind {
 }
 
 // Record: LimitKind.
+impl LimitKind {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for LimitKind {
     type Limits = Limits;
     const TAIL: Path = paths::LIMIT_KIND_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 829)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 831)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 829)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 831)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14502,16 +15850,21 @@ pub struct RefusalRole {
 }
 
 // Record: RefusalRole.
+impl RefusalRole {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 6;
+}
+
 impl Record for RefusalRole {
     type Limits = Limits;
     const TAIL: Path = paths::REFUSAL_ROLE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 831)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 833)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 831)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 833)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14533,16 +15886,21 @@ pub struct AccepterRole {
 }
 
 // Record: AccepterRole.
+impl AccepterRole {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for AccepterRole {
     type Limits = Limits;
     const TAIL: Path = paths::ACCEPTER_ROLE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 833)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 835)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 833)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 835)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14565,16 +15923,21 @@ pub enum Accepter {
 }
 
 // Record: Accepter.
+impl Accepter {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for Accepter {
     type Limits = Limits;
     const TAIL: Path = paths::ACCEPTER_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 835)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 837)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 835)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 837)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14602,16 +15965,21 @@ pub struct RefusalAuthority {
 }
 
 // Record: RefusalAuthority.
+impl RefusalAuthority {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 31;
+}
+
 impl Record for RefusalAuthority {
     type Limits = Limits;
     const TAIL: Path = paths::REFUSAL_AUTHORITY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 837)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 839)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 837)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 839)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14635,16 +16003,21 @@ pub struct RefusalLimit {
 }
 
 // Record: RefusalLimit.
+impl RefusalLimit {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for RefusalLimit {
     type Limits = Limits;
     const TAIL: Path = paths::REFUSAL_LIMIT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 838)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 840)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 838)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 840)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14666,16 +16039,21 @@ pub struct RefusalMoved {
 }
 
 // Record: RefusalMoved.
+impl RefusalMoved {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 19;
+}
+
 impl Record for RefusalMoved {
     type Limits = Limits;
     const TAIL: Path = paths::REFUSAL_MOVED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 839)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 841)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 839)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 841)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14697,16 +16075,21 @@ pub struct RefusalEnded {
 }
 
 // Record: RefusalEnded.
+impl RefusalEnded {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 18;
+}
+
 impl Record for RefusalEnded {
     type Limits = Limits;
     const TAIL: Path = paths::REFUSAL_ENDED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 840)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 842)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 840)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 842)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14728,16 +16111,21 @@ pub struct RefusalTaken {
 }
 
 // Record: RefusalTaken.
+impl RefusalTaken {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for RefusalTaken {
     type Limits = Limits;
     const TAIL: Path = paths::REFUSAL_TAKEN_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 842)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 844)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 842)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 844)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14763,16 +16151,21 @@ pub enum NameRule {
 }
 
 // Record: NameRule.
+impl NameRule {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for NameRule {
     type Limits = Limits;
     const TAIL: Path = paths::NAME_RULE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 848)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 850)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 848)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 850)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14805,16 +16198,21 @@ pub struct MalformedName {
 }
 
 // Record: MalformedName.
+impl MalformedName {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for MalformedName {
     type Limits = Limits;
     const TAIL: Path = paths::MALFORMED_NAME_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 849)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 851)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 849)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 851)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14844,16 +16242,21 @@ pub enum Malformed {
 }
 
 // Record: Malformed.
+impl Malformed {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 34;
+}
+
 impl Record for Malformed {
     type Limits = Limits;
     const TAIL: Path = paths::MALFORMED_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 857)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 859)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 857)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 859)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14895,16 +16298,21 @@ pub struct RefusalNotWellFormed {
 }
 
 // Record: RefusalNotWellFormed.
+impl RefusalNotWellFormed {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 38;
+}
+
 impl Record for RefusalNotWellFormed {
     type Limits = Limits;
     const TAIL: Path = paths::REFUSAL_NOT_WELL_FORMED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 859)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 861)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 859)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 861)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14933,16 +16341,21 @@ pub enum LlmWhy {
 }
 
 // Record: LlmWhy.
+impl LlmWhy {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for LlmWhy {
     type Limits = Limits;
     const TAIL: Path = paths::LLM_WHY_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 866)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 868)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 866)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 868)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14978,16 +16391,21 @@ pub struct RefusalLlm {
 }
 
 // Record: RefusalLlm.
+impl RefusalLlm {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 2;
+}
+
 impl Record for RefusalLlm {
     type Limits = Limits;
     const TAIL: Path = paths::REFUSAL_LLM_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 868)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 870)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 868)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 870)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15014,16 +16432,21 @@ pub enum AccountWhy {
 }
 
 // Record: AccountWhy.
+impl AccountWhy {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for AccountWhy {
     type Limits = Limits;
     const TAIL: Path = paths::ACCOUNT_WHY_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 873)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 875)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 873)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 875)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15055,16 +16478,21 @@ pub struct RefusalAccount {
 }
 
 // Record: RefusalAccount.
+impl RefusalAccount {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for RefusalAccount {
     type Limits = Limits;
     const TAIL: Path = paths::REFUSAL_ACCOUNT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 875)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 877)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 875)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 877)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15090,16 +16518,21 @@ pub enum DependencyStatus {
 }
 
 // Record: DependencyStatus.
+impl DependencyStatus {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for DependencyStatus {
     type Limits = Limits;
     const TAIL: Path = paths::DEPENDENCY_STATUS_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 879)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 881)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 879)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 881)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15129,16 +16562,21 @@ pub struct RefusalCircle {
 }
 
 // Record: RefusalCircle.
+impl RefusalCircle {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for RefusalCircle {
     type Limits = Limits;
     const TAIL: Path = paths::REFUSAL_CIRCLE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 883)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 885)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 883)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 885)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15163,16 +16601,21 @@ pub struct RefusalLiveTasks {
 }
 
 // Record: RefusalLiveTasks.
+impl RefusalLiveTasks {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for RefusalLiveTasks {
     type Limits = Limits;
     const TAIL: Path = paths::REFUSAL_LIVE_TASKS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 887)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 889)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 887)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 889)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15197,16 +16640,21 @@ pub struct RefusalDependency {
 }
 
 // Record: RefusalDependency.
+impl RefusalDependency {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
 impl Record for RefusalDependency {
     type Limits = Limits;
     const TAIL: Path = paths::REFUSAL_DEPENDENCY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 889)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 891)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 889)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 891)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15230,16 +16678,21 @@ pub struct RefusalKept {
 }
 
 // Record: RefusalKept.
+impl RefusalKept {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for RefusalKept {
     type Limits = Limits;
     const TAIL: Path = paths::REFUSAL_KEPT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 892)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 894)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 892)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 894)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15264,16 +16717,21 @@ pub enum SignInRedirectWhy {
 }
 
 // Record: SignInRedirectWhy.
+impl SignInRedirectWhy {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for SignInRedirectWhy {
     type Limits = Limits;
     const TAIL: Path = paths::SIGN_IN_REDIRECT_WHY_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 897)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 899)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 897)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 899)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15304,16 +16762,21 @@ pub struct RefusalSignInRedirect {
 }
 
 // Record: RefusalSignInRedirect.
+impl RefusalSignInRedirect {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for RefusalSignInRedirect {
     type Limits = Limits;
     const TAIL: Path = paths::REFUSAL_SIGN_IN_REDIRECT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 898)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 900)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 898)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 900)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15339,16 +16802,21 @@ pub enum AccountMoveWhy {
 }
 
 // Record: AccountMoveWhy.
+impl AccountMoveWhy {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for AccountMoveWhy {
     type Limits = Limits;
     const TAIL: Path = paths::ACCOUNT_MOVE_WHY_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 904)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 906)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 904)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 906)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15381,16 +16849,21 @@ pub struct RefusalAccountMove {
 }
 
 // Record: RefusalAccountMove.
+impl RefusalAccountMove {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for RefusalAccountMove {
     type Limits = Limits;
     const TAIL: Path = paths::REFUSAL_ACCOUNT_MOVE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 905)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 907)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 905)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 907)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15414,16 +16887,21 @@ pub struct RefusalJudged {
 }
 
 // Record: RefusalJudged.
+impl RefusalJudged {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 21;
+}
+
 impl Record for RefusalJudged {
     type Limits = Limits;
     const TAIL: Path = paths::REFUSAL_JUDGED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 908)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 910)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 908)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 910)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15449,16 +16927,21 @@ pub struct RefusalForgotten {
 }
 
 // Record: RefusalForgotten.
+impl RefusalForgotten {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for RefusalForgotten {
     type Limits = Limits;
     const TAIL: Path = paths::REFUSAL_FORGOTTEN_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 910)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 912)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 910)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 912)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15480,16 +16963,21 @@ pub struct RefusalConcluded {
 }
 
 // Record: RefusalConcluded.
+impl RefusalConcluded {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for RefusalConcluded {
     type Limits = Limits;
     const TAIL: Path = paths::REFUSAL_CONCLUDED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 912)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 914)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 912)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 914)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15543,16 +17031,21 @@ pub enum Refusal {
 }
 
 // Record: Refusal.
+impl Refusal {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 39;
+}
+
 impl Record for Refusal {
     type Limits = Limits;
     const TAIL: Path = paths::REFUSAL_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 925)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 927)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 925)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 927)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15645,16 +17138,21 @@ pub enum ProposalChoice {
 }
 
 // Record: ProposalChoice.
+impl ProposalChoice {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for ProposalChoice {
     type Limits = Limits;
     const TAIL: Path = paths::PROPOSAL_CHOICE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 931)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 933)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 931)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 933)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15689,16 +17187,21 @@ pub enum EscalationChoice {
 }
 
 // Record: EscalationChoice.
+impl EscalationChoice {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for EscalationChoice {
     type Limits = Limits;
     const TAIL: Path = paths::ESCALATION_CHOICE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 935)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 937)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 935)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 937)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15729,16 +17232,21 @@ pub struct OutcomeCompound {
 }
 
 // Record: OutcomeCompound.
+impl OutcomeCompound {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 16;
+}
+
 impl Record for OutcomeCompound {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_COMPOUND_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 939)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 941)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 939)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 941)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15765,16 +17273,21 @@ pub struct OutcomeCompoundRefused {
 }
 
 // Record: OutcomeCompoundRefused.
+impl OutcomeCompoundRefused {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 43;
+}
+
 impl Record for OutcomeCompoundRefused {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_COMPOUND_REFUSED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 941)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 943)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 941)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 943)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15798,16 +17311,21 @@ pub struct OutcomeMarkedSeen {
 }
 
 // Record: OutcomeMarkedSeen.
+impl OutcomeMarkedSeen {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 17;
+}
+
 impl Record for OutcomeMarkedSeen {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_MARKED_SEEN_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 942)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 944)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 942)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 944)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15830,16 +17348,21 @@ pub struct OutcomeApplied {
 }
 
 // Record: OutcomeApplied.
+impl OutcomeApplied {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 10;
+}
+
 impl Record for OutcomeApplied {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_APPLIED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 945)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 947)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 945)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 947)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15863,16 +17386,21 @@ pub struct OutcomeAgain {
 }
 
 // Record: OutcomeAgain.
+impl OutcomeAgain {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for OutcomeAgain {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_AGAIN_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 946)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 948)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 946)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 948)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15894,16 +17422,21 @@ pub struct OutcomeNoteEdited {
 }
 
 // Record: OutcomeNoteEdited.
+impl OutcomeNoteEdited {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for OutcomeNoteEdited {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_NOTE_EDITED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 948)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 950)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 948)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 950)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15925,16 +17458,21 @@ pub struct OutcomeServiceMade {
 }
 
 // Record: OutcomeServiceMade.
+impl OutcomeServiceMade {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for OutcomeServiceMade {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_SERVICE_MADE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 950)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 952)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 950)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 952)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15956,16 +17494,21 @@ pub struct OutcomeAdopted {
 }
 
 // Record: OutcomeAdopted.
+impl OutcomeAdopted {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for OutcomeAdopted {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_ADOPTED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 952)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 954)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 952)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 954)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15988,16 +17531,21 @@ pub struct OutcomeProposed {
 }
 
 // Record: OutcomeProposed.
+impl OutcomeProposed {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 12;
+}
+
 impl Record for OutcomeProposed {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_PROPOSED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 955)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 957)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 955)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 957)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16021,16 +17569,21 @@ pub struct OutcomeWithdrawn {
 }
 
 // Record: OutcomeWithdrawn.
+impl OutcomeWithdrawn {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for OutcomeWithdrawn {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_WITHDRAWN_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 957)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 959)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 957)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 959)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16052,16 +17605,21 @@ pub struct OutcomeStopped {
 }
 
 // Record: OutcomeStopped.
+impl OutcomeStopped {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for OutcomeStopped {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_STOPPED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 959)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 961)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 959)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 961)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16083,16 +17641,21 @@ pub struct OutcomeCancelled {
 }
 
 // Record: OutcomeCancelled.
+impl OutcomeCancelled {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for OutcomeCancelled {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_CANCELLED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 961)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 963)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 961)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 963)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16114,16 +17677,21 @@ pub struct OutcomeReleased {
 }
 
 // Record: OutcomeReleased.
+impl OutcomeReleased {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for OutcomeReleased {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_RELEASED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 963)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 965)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 963)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 965)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16145,16 +17713,21 @@ pub struct OutcomePersonTaken {
 }
 
 // Record: OutcomePersonTaken.
+impl OutcomePersonTaken {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for OutcomePersonTaken {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_PERSON_TAKEN_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 965)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 967)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 965)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 967)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16176,16 +17749,21 @@ pub struct OutcomePersonHandedBack {
 }
 
 // Record: OutcomePersonHandedBack.
+impl OutcomePersonHandedBack {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for OutcomePersonHandedBack {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_PERSON_HANDED_BACK_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 967)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 969)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 967)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 969)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16207,16 +17785,21 @@ pub struct OutcomePersonAnswered {
 }
 
 // Record: OutcomePersonAnswered.
+impl OutcomePersonAnswered {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for OutcomePersonAnswered {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_PERSON_ANSWERED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 969)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 971)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 969)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 971)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16238,16 +17821,21 @@ pub struct OutcomeMoved {
 }
 
 // Record: OutcomeMoved.
+impl OutcomeMoved {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for OutcomeMoved {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_MOVED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 971)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 973)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 971)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 973)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16274,16 +17862,21 @@ pub struct OutcomeProposalDecided {
 }
 
 // Record: OutcomeProposalDecided.
+impl OutcomeProposalDecided {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 35;
+}
+
 impl Record for OutcomeProposalDecided {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_PROPOSAL_DECIDED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 976)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 978)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 976)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 978)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16316,16 +17909,21 @@ pub struct OutcomeSaid {
 }
 
 // Record: OutcomeSaid.
+impl OutcomeSaid {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 16;
+}
+
 impl Record for OutcomeSaid {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_SAID_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 979)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 981)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 979)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 981)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16351,16 +17949,21 @@ pub struct OutcomeQuestionAnswered {
 }
 
 // Record: OutcomeQuestionAnswered.
+impl OutcomeQuestionAnswered {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 24;
+}
+
 impl Record for OutcomeQuestionAnswered {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_QUESTION_ANSWERED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 983)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 985)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 983)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 985)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16387,16 +17990,21 @@ pub struct OutcomeAmended {
 }
 
 // Record: OutcomeAmended.
+impl OutcomeAmended {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
 impl Record for OutcomeAmended {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_AMENDED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 986)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 988)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 986)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 988)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16420,16 +18028,21 @@ pub struct OutcomeRolesSet {
 }
 
 // Record: OutcomeRolesSet.
+impl OutcomeRolesSet {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for OutcomeRolesSet {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_ROLES_SET_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 988)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 990)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 988)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 990)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16451,16 +18064,21 @@ pub struct OutcomeRenamed {
 }
 
 // Record: OutcomeRenamed.
+impl OutcomeRenamed {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for OutcomeRenamed {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_RENAMED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 990)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 992)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 990)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 992)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16482,16 +18100,21 @@ pub struct OutcomeProjectMade {
 }
 
 // Record: OutcomeProjectMade.
+impl OutcomeProjectMade {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for OutcomeProjectMade {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_PROJECT_MADE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 992)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 994)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 992)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 994)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16513,16 +18136,21 @@ pub struct OutcomePolicyChanged {
 }
 
 // Record: OutcomePolicyChanged.
+impl OutcomePolicyChanged {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for OutcomePolicyChanged {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_POLICY_CHANGED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 994)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 996)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 994)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 996)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16545,16 +18173,21 @@ pub struct OutcomePoolSet {
 }
 
 // Record: OutcomePoolSet.
+impl OutcomePoolSet {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 12;
+}
+
 impl Record for OutcomePoolSet {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_POOL_SET_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 997)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 999)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 997)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 999)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16582,16 +18215,21 @@ pub struct OutcomeEscalationDecided {
 }
 
 // Record: OutcomeEscalationDecided.
+impl OutcomeEscalationDecided {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 33;
+}
+
 impl Record for OutcomeEscalationDecided {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_ESCALATION_DECIDED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1002)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1004)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1002)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1004)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16621,16 +18259,21 @@ pub struct OutcomeRefused {
 }
 
 // Record: OutcomeRefused.
+impl OutcomeRefused {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 39;
+}
+
 impl Record for OutcomeRefused {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_REFUSED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1003)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1005)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1003)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1005)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16653,16 +18296,21 @@ pub struct OutcomeAccountSignInStarted {
 }
 
 // Record: OutcomeAccountSignInStarted.
+impl OutcomeAccountSignInStarted {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for OutcomeAccountSignInStarted {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_ACCOUNT_SIGN_IN_STARTED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1006)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1008)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1006)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1008)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16688,16 +18336,21 @@ pub enum AccountHostWhy {
 }
 
 // Record: AccountHostWhy.
+impl AccountHostWhy {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for AccountHostWhy {
     type Limits = Limits;
     const TAIL: Path = paths::ACCOUNT_HOST_WHY_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1010)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1012)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1010)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1012)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16727,16 +18380,21 @@ pub struct AccountHostFailure {
 }
 
 // Record: AccountHostFailure.
+impl AccountHostFailure {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for AccountHostFailure {
     type Limits = Limits;
     const TAIL: Path = paths::ACCOUNT_HOST_FAILURE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1012)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1014)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1012)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1014)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16761,16 +18419,21 @@ pub struct OutcomeAccountProgramDeclared {
 }
 
 // Record: OutcomeAccountProgramDeclared.
+impl OutcomeAccountProgramDeclared {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for OutcomeAccountProgramDeclared {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_ACCOUNT_PROGRAM_DECLARED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1015)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1017)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1015)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1017)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16795,16 +18458,21 @@ pub struct OutcomeAccountSignedOut {
 }
 
 // Record: OutcomeAccountSignedOut.
+impl OutcomeAccountSignedOut {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for OutcomeAccountSignedOut {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_ACCOUNT_SIGNED_OUT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1018)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1020)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1018)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1020)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16828,16 +18496,21 @@ pub struct OutcomeAccountKeyKept {
 }
 
 // Record: OutcomeAccountKeyKept.
+impl OutcomeAccountKeyKept {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for OutcomeAccountKeyKept {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_ACCOUNT_KEY_KEPT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1020)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1022)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1020)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1022)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16860,16 +18533,21 @@ pub struct OutcomeAccountRemoved {
 }
 
 // Record: OutcomeAccountRemoved.
+impl OutcomeAccountRemoved {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for OutcomeAccountRemoved {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_ACCOUNT_REMOVED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1023)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1025)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1023)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1025)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16894,16 +18572,21 @@ pub struct Given {
 }
 
 // Record: Given.
+impl Given {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 16;
+}
+
 impl Record for Given {
     type Limits = Limits;
     const TAIL: Path = paths::GIVEN_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1026)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1028)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1026)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1028)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16929,16 +18612,21 @@ pub struct OutcomeCreated {
 }
 
 // Record: OutcomeCreated.
+impl OutcomeCreated {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 33;
+}
+
 impl Record for OutcomeCreated {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_CREATED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1030)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1032)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1030)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1032)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16966,16 +18654,21 @@ pub struct OutcomeAccountMovingOut {
 }
 
 // Record: OutcomeAccountMovingOut.
+impl OutcomeAccountMovingOut {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 12;
+}
+
 impl Record for OutcomeAccountMovingOut {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_ACCOUNT_MOVING_OUT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1034)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1036)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1034)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1036)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17002,16 +18695,21 @@ pub struct OutcomeAccountMovedIn {
 }
 
 // Record: OutcomeAccountMovedIn.
+impl OutcomeAccountMovedIn {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for OutcomeAccountMovedIn {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_ACCOUNT_MOVED_IN_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1037)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1039)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1037)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1039)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17035,16 +18733,21 @@ pub struct OutcomeAccountFinishing {
 }
 
 // Record: OutcomeAccountFinishing.
+impl OutcomeAccountFinishing {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for OutcomeAccountFinishing {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_ACCOUNT_FINISHING_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1039)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1041)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1039)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1041)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17068,16 +18771,21 @@ pub struct OutcomeMovedToNewest {
 }
 
 // Record: OutcomeMovedToNewest.
+impl OutcomeMovedToNewest {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 12;
+}
+
 impl Record for OutcomeMovedToNewest {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_MOVED_TO_NEWEST_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1043)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1045)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1043)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1045)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17104,16 +18812,21 @@ pub struct OutcomeVisibilitySet {
 }
 
 // Record: OutcomeVisibilitySet.
+impl OutcomeVisibilitySet {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for OutcomeVisibilitySet {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_VISIBILITY_SET_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1046)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1048)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1046)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1048)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17137,16 +18850,21 @@ pub struct OutcomeProjectRemoved {
 }
 
 // Record: OutcomeProjectRemoved.
+impl OutcomeProjectRemoved {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for OutcomeProjectRemoved {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_PROJECT_REMOVED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1048)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1050)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1048)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1050)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17168,16 +18886,21 @@ pub struct OutcomeAccountReading {
 }
 
 // Record: OutcomeAccountReading.
+impl OutcomeAccountReading {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for OutcomeAccountReading {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_ACCOUNT_READING_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1050)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1052)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1050)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1052)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17199,16 +18922,21 @@ pub struct OutcomeAccountLoginAsked {
 }
 
 // Record: OutcomeAccountLoginAsked.
+impl OutcomeAccountLoginAsked {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for OutcomeAccountLoginAsked {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_ACCOUNT_LOGIN_ASKED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1052)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1054)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1052)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1054)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17230,16 +18958,21 @@ pub struct OutcomeConcluded {
 }
 
 // Record: OutcomeConcluded.
+impl OutcomeConcluded {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for OutcomeConcluded {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_CONCLUDED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1054)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1056)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1054)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1056)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17307,19 +19040,25 @@ pub enum Outcome {
     AccountLoginAsked(OutcomeAccountLoginAsked),
     Concluded(OutcomeConcluded),
     WorkerPauseAsked(OutcomeWorkerPauseAsked),
+    ServiceReissued(ServiceParty),
 }
 
 // Record: Outcome.
+impl Outcome {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 44;
+}
+
 impl Record for Outcome {
     type Limits = Limits;
     const TAIL: Path = paths::OUTCOME_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1057)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1059)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1057)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1059)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17374,6 +19113,7 @@ impl Record for Outcome {
             Self::AccountLoginAsked(value) => { field::put(out, &[47], paths::OUTCOME_TAG)?; value.write(limits, out) },
             Self::Concluded(value) => { field::put(out, &[48], paths::OUTCOME_TAG)?; value.write(limits, out) },
             Self::WorkerPauseAsked(value) => { field::put(out, &[49], paths::OUTCOME_TAG)?; value.write(limits, out) },
+            Self::ServiceReissued(value) => { field::put(out, &[50], paths::OUTCOME_TAG)?; value.write(limits, out) },
         }
     }
 
@@ -17430,7 +19170,8 @@ impl Record for Outcome {
             47 => Ok(Self::AccountLoginAsked(OutcomeAccountLoginAsked::read(limits, reader)?)),
             48 => Ok(Self::Concluded(OutcomeConcluded::read(limits, reader)?)),
             49 => Ok(Self::WorkerPauseAsked(OutcomeWorkerPauseAsked::read(limits, reader)?)),
-            50..=u8::MAX => Err(Problem { path: paths::OUTCOME_TAG, reason: skein_codec::Reason::Tag }),
+            50 => Ok(Self::ServiceReissued(ServiceParty::read(limits, reader)?)),
+            51..=u8::MAX => Err(Problem { path: paths::OUTCOME_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -17443,16 +19184,21 @@ pub struct ActKey {
 }
 
 // Record: ActKey.
+impl ActKey {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 18;
+}
+
 impl Record for ActKey {
     type Limits = Limits;
     const TAIL: Path = paths::ACT_KEY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1060)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1062)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1060)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1062)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17479,16 +19225,21 @@ pub struct ActClose {
 }
 
 // Record: ActClose.
+impl ActClose {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 25;
+}
+
 impl Record for ActClose {
     type Limits = Limits;
     const TAIL: Path = paths::ACT_CLOSE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1066)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1068)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1066)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1068)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17518,16 +19269,21 @@ pub struct ActAddKey {
 }
 
 // Record: ActAddKey.
+impl ActAddKey {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 41;
+}
+
 impl Record for ActAddKey {
     type Limits = Limits;
     const TAIL: Path = paths::ACT_ADD_KEY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1071)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1073)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1071)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1073)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17553,16 +19309,21 @@ pub struct ActRemoveAccount {
 }
 
 // Record: ActRemoveAccount.
+impl ActRemoveAccount {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for ActRemoveAccount {
     type Limits = Limits;
     const TAIL: Path = paths::ACT_REMOVE_ACCOUNT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1073)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1075)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1073)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1075)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17585,16 +19346,21 @@ pub struct ActAdopt {
 }
 
 // Record: ActAdopt.
+impl ActAdopt {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 15;
+}
+
 impl Record for ActAdopt {
     type Limits = Limits;
     const TAIL: Path = paths::ACT_ADOPT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1075)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1077)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1075)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1077)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17620,16 +19386,21 @@ pub struct ActMakeProject {
 }
 
 // Record: ActMakeProject.
+impl ActMakeProject {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 16;
+}
+
 impl Record for ActMakeProject {
     type Limits = Limits;
     const TAIL: Path = paths::ACT_MAKE_PROJECT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1079)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1081)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1079)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1081)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17656,16 +19427,21 @@ pub struct ActRemoveProject {
 }
 
 // Record: ActRemoveProject.
+impl ActRemoveProject {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 13;
+}
+
 impl Record for ActRemoveProject {
     type Limits = Limits;
     const TAIL: Path = paths::ACT_REMOVE_PROJECT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1083)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1085)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1083)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1085)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17694,16 +19470,21 @@ pub enum Act {
 }
 
 // Record: Act.
+impl Act {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 42;
+}
+
 impl Record for Act {
     type Limits = Limits;
     const TAIL: Path = paths::ACT_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1084)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1086)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1084)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1086)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17741,16 +19522,21 @@ pub struct StoredActed {
 }
 
 // Record: StoredActed.
+impl StoredActed {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 112;
+}
+
 impl Record for StoredActed {
     type Limits = Limits;
     const TAIL: Path = paths::STORED_ACTED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1086)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1088)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1086)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1088)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17782,16 +19568,21 @@ pub struct StoredAnswer {
 }
 
 // Record: StoredAnswer.
+impl StoredAnswer {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 284;
+}
+
 impl Record for StoredAnswer {
     type Limits = Limits;
     const TAIL: Path = paths::STORED_ANSWER_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1089)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1091)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1089)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1091)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17823,16 +19614,21 @@ pub enum DeletionStep {
 }
 
 // Record: DeletionStep.
+impl DeletionStep {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for DeletionStep {
     type Limits = Limits;
     const TAIL: Path = paths::DELETION_STEP_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1093)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1095)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1093)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1095)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17863,16 +19659,21 @@ pub struct StoredDeletion {
 }
 
 // Record: StoredDeletion.
+impl StoredDeletion {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 14;
+}
+
 impl Record for StoredDeletion {
     type Limits = Limits;
     const TAIL: Path = paths::STORED_DELETION_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1097)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1099)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1097)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1099)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17898,16 +19699,21 @@ pub struct StoredPublic {
 }
 
 // Record: StoredPublic.
+impl StoredPublic {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for StoredPublic {
     type Limits = Limits;
     const TAIL: Path = paths::STORED_PUBLIC_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1099)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1101)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1099)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1101)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17929,16 +19735,21 @@ pub struct StoredDeleted {
 }
 
 // Record: StoredDeleted.
+impl StoredDeleted {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for StoredDeleted {
     type Limits = Limits;
     const TAIL: Path = paths::STORED_DELETED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1101)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1103)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1101)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1103)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17971,16 +19782,21 @@ pub enum Value {
 }
 
 // Record: Value.
+impl Value {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 285;
+}
+
 impl Record for Value {
     type Limits = Limits;
     const TAIL: Path = paths::VALUE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1102)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1104)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1102)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1104)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -18027,16 +19843,21 @@ pub struct Row {
 }
 
 // Record: Row.
+impl Row {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 287;
+}
+
 impl Record for Row {
     type Limits = Limits;
     const TAIL: Path = paths::ROW_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1103)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1105)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1103)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1105)?.decoded)
     }
 
     #[cfg(debug_assertions)]

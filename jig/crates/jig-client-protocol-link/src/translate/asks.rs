@@ -574,6 +574,7 @@ pub fn ask(value: &c::Ask, limits: &w::Limits) -> Result<w::Ask, w::Problem> {
             }
             w::Ask::SetRoles(w::SetRoles { project: *project, holdings: list0 })
         }
+        c::Ask::ReissueService { party } => w::Ask::ReissueService(w::ReissueService { party: *party }),
         c::Ask::MakeService { project, name, role } => w::Ask::MakeService(w::MakeService {
             project: *project,
             name: bytes::copy_of(name.bytes()),

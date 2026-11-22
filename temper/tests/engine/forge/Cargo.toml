@@ -29,8 +29,8 @@ skein-fake-forge-domain.workspace = true
 
 temper-engine-domain-forge-landing = { path = "../../../crates/temper-engine-domain-forge-landing" }
 
-[dev-dependencies]
 skein-world.workspace = true
+temper-blame = { path = "../../../testing/temper-blame" }
 
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"

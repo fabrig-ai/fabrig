@@ -262,6 +262,7 @@ fn the_connectors_own_reads_are_outside_the_roots_range() {
                 last_event: None,
                 turn_since: None,
                 waiting: None,
+                follows: None,
                 flake_reruns: Box::new([]),
                 room: None,
                 job: None,

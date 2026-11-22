@@ -518,7 +518,7 @@ temper-engine                the engine's binary: the forge's commands through t
   machines are written on skein, under the subset, and the process tier
   provisions its Forgejo with them (`testing.md`, 4).
 - **The fake forge serves the setup's documents** too
-  (`skein-fake-forge-forgejo`, skein's `testing/fakes/forge.md`, section 4),
+  (`skein-fake-forge-forgejo`, skein's `testing/fakes/forgejo.md`, section 1),
   from the server's side of `skein-forge`, as it serves the engine's.
 - **The fakes are product,** `crates/skein-fake-*` (skein's
   `testing/fakes/forge.md`, section 1), since `temper-box fake`

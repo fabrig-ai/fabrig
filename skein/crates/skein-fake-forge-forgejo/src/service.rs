@@ -1,4 +1,4 @@
-//! Shared pending reply rights and scenario tables (testing/fakes/forge.md, 4).
+//! Shared pending reply rights and scenario tables (testing/fakes/forgejo.md, 1).
 use crate::{Config, Limits, Tally};
 use alloc::boxed::Box;
 use skein_fake_forge_domain as domain;

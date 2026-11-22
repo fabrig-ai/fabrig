@@ -1,4 +1,5 @@
 //! Dispatch-only workflows, runner faults and explicit reruns (testing/fakes/forge.md, 2.3).
+use crate::fell::Fault;
 use crate::{
     Config, Domain, Limits,
     actions::{self, Conclusion, Job, Kept, Run, RunEvent, RunState},
@@ -72,6 +73,7 @@ pub(crate) fn dispatch(
         let removed = repository.dispatched.remove(&oldest).expect("oldest retained run");
         for job in &removed.jobs {
             domain.timers.cancel(Alarm::Workflow { repository: id, run: oldest, job: job.id });
+            domain.runners.forget(job.id);
         }
     }
     domain.runs = domain.runs.checked_add(1).expect("run ids fit");
@@ -137,6 +139,7 @@ pub(crate) fn dispatch(
             .id;
         pending(domain, env, id, run, job, true);
     }
+    wake(domain, env);
     Ok(Answer::Done)
 }
 
@@ -158,8 +161,6 @@ fn pending(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>, run: u64,
     let definition = workflow(repository, file).expect("configured workflow");
     let phases = ci::phases(domain, kept.run.commit, definition.cue.as_ref(), &env.limits.limits);
     let remaining = if starting { phases.wait } else { skein_lib::Duration::ZERO };
-    let repository = domain.repositories.get_mut(id).expect("repository");
-    let kept = repository.dispatched.get_mut(&run).expect("dispatched run");
     let mut wait = if remaining == skein_lib::Duration::ZERO { None } else { Some(actions::JobWait::Runner) };
     let mut found = None;
     for entry in &kept.jobs {
@@ -183,6 +184,11 @@ fn pending(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>, run: u64,
             }
         }
     }
+    if wait.is_none() && !crate::runners::take(domain, env.now, id, run, job) {
+        wait = Some(actions::JobWait::Runner);
+    }
+    let repository = domain.repositories.get_mut(id).expect("repository");
+    let kept = repository.dispatched.get_mut(&run).expect("dispatched run");
     for entry in kept.jobs.iter_mut() {
         if entry.id == job {
             entry.wait = wait;
@@ -224,6 +230,8 @@ fn pending(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>, run: u64,
             .expect("retained job timer");
     } else if domain.rng.chance(silent) {
         domain.tally.silent = domain.tally.silent.saturating_add(1);
+        let commit = kept.run.commit;
+        domain.ci_fell(env.now, Fault::Silent, id, commit, run);
     } else {
         let span = match phases.run {
             Some(span) => span,
@@ -289,6 +297,20 @@ pub(crate) fn report(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>,
     };
     let artifact =
         crate::reports::artifact(domain, workflow, &kept.run, &env.limits.limits).expect("report inputs admitted");
+    let fault = if lost {
+        Some(Fault::Lost)
+    } else if setup {
+        Some(Fault::SetUp)
+    } else {
+        None
+    };
+    if let Some(fault) = fault {
+        let mut fell = crate::Fell::repository(domain, env.now, fault, id);
+        fell.commit = Some(commit);
+        fell.run = Some(run);
+        fell.runner = domain.runners.runner(job);
+        domain.record_fell(fell);
+    }
     let repository = domain.repositories.get_mut(id).expect("repository");
     let kept = repository.dispatched.get_mut(&run).expect("run");
     let mut attempt = None;
@@ -317,21 +339,81 @@ pub(crate) fn report(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>,
         ),
     );
     domain.tally.verdicts = domain.tally.verdicts.saturating_add(1);
+    domain.runners.forget(job);
+    wake(domain, env);
+}
+
+/// A freed runner starts the oldest ready job at this same instant.
+fn wake(domain: &mut Domain, env: &Env<Config>) {
+    for _ in 0..domain.runners.waiting_count() {
+        if !domain.runners.available() {
+            break;
+        }
+        let Some(next) = domain.runners.next() else { break };
+        domain.timers.cancel(Alarm::Workflow { repository: next.repository, run: next.run, job: next.job });
+        pending(domain, env, next.repository, next.run, next.job, false);
+        if domain.runners.waiting(next.job) {
+            break;
+        }
+    }
+}
+
+/// A pool queue is not stored: its jobs resume as ready work after decoding.
+pub(crate) fn restore_ready(domain: &mut Domain, env: &Env<Config>) {
+    let mut ready = List::with_capacity(domain.runners.capacity());
+    for (id, repository) in &domain.repositories {
+        for (&run, kept) in &repository.dispatched {
+            for job in &kept.jobs {
+                if job.state == RunState::Running && job.wait.is_none() && job.steps.is_empty() {
+                    ready.push(Alarm::Workflow { repository: id, run, job: job.id }).expect("bounded jobs");
+                }
+            }
+        }
+    }
+    for alarm in &ready {
+        domain.timers.cancel(*alarm);
+        match *alarm {
+            Alarm::Workflow { repository, run, job } => pending(domain, env, repository, run, job, false),
+            Alarm::Call(_) | Alarm::Check { .. } | Alarm::Rerun { .. } | Alarm::Hook(_) | Alarm::Queue(_) => {
+                unreachable!("ready jobs")
+            }
+        }
+    }
 }
 
 /// A person's cancellation ends dispatch-only work without blaming a workflow step.
-pub(crate) fn cancel(domain: &mut Domain, id: Id<Repository>, user: u64, run: u64) -> Result<Answer, Error> {
+pub(crate) fn cancel(
+    domain: &mut Domain,
+    env: &Env<Config>,
+    id: Id<Repository>,
+    user: u64,
+    run: u64,
+) -> Result<Answer, Error> {
     let repository = domain.repositories.get_mut(id).expect("cancel repository");
     repository.require(user, Permission::Write)?;
+    let mut commit = None;
+    for (&candidate, kept) in &repository.runs {
+        if kept.run.id == run {
+            commit = Some(candidate);
+            break;
+        }
+    }
+    if let Some(commit) = commit {
+        return ci::cancel(domain, env, id, user, commit);
+    }
     let kept = repository.dispatched.get_mut(&run).ok_or(Error::Missing(What::Job))?;
     if kept.run.state == RunState::Completed {
         return Err(Error::Refused);
     }
+    let mut waits = List::with_capacity(kept.jobs.len());
     for job in kept.jobs.iter_mut() {
         if job.state == RunState::Completed {
             continue;
         }
         domain.timers.cancel(Alarm::Workflow { repository: id, run, job: job.id });
+        if let Some(wait) = domain.runners.release(job.id) {
+            waits.push(wait).expect("at most one wait per cancelled job");
+        }
         job.state = RunState::Completed;
         job.conclusion = Some(Conclusion::Cancelled);
         job.wait = None;
@@ -340,6 +422,10 @@ pub(crate) fn cancel(domain: &mut Domain, id: Id<Repository>, user: u64, run: u6
     kept.run.cancelled_by = Some(user);
     actions::complete(kept);
     kept.artifact = None;
+    for wait in &waits {
+        crate::runners::end_wait(domain, *wait, env.now, None);
+    }
+    wake(domain, env);
     Ok(Answer::Done)
 }
 

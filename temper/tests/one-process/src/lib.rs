@@ -4,6 +4,8 @@ mod box_listener;
 pub mod fixtures;
 pub mod golden;
 pub mod held_program;
+#[doc(hidden)]
+pub mod testing;
 pub mod upgrade;
 
 mod oracle;

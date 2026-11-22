@@ -20,6 +20,8 @@ landing task is `landing.md`, 4.2; the restart is `landing.md`, section
   its branches' holds and its members' `joined` news are made in that
   same decision only where jig then holds the task. No stored row and no
   hold names a landing task that was never made.
+- **An ended landing yields its place** among the `landings` once its
+  writes have left the outbox and it follows no run (section 2.3).
 - **A refused make forms nothing** (section 3): its members stay ready
   and in no landing, keeping their places; the train stays free; the
   refusal is a warning in the engine's log naming jig's reason; and the
@@ -75,6 +77,29 @@ does, in this order:
   before.
 - **A made task** is read as jig's tasks holding it: jig sends no
   acknowledgement of a make.
+
+### 2.3 Its place among the landings
+
+From P124 (`../../development/failures-1113-1120.md`): on the reference
+deployment a cancelled landing's row kept its place for good, since it
+kept its gate's dispatch in the outbox.
+
+- **Bounded by `landings`** (`landing.md`, section 12): the admission
+  counts every landing row the forge keeps, live or ended, and the check
+  before the root makes the landing's task counts them the same way.
+- **An ended row keeps its place until a forming needs it:** a landing
+  that has ended, landed or cancelled, keeps its row, which its views
+  read, until a forming finds the rows at the bound; that forming erases
+  one ended row that yields, and takes its place.
+- **It yields** once no entry of its task is in the outbox and it
+  follows no run: its writes have left (`forge/room.md`, 2) and its runs
+  have ended, or it was cancelled (`landing.md`, 4.2). The marks of its
+  ended runs, kept on the row for its views, don't hold it.
+- **A row that doesn't yield keeps its place:** with no other, the
+  forming is refused, naming `landings`, and its changes wait ready as
+  `landing.md`, section 12 says. It is never erased sooner: an entry
+  settling later would find no landing to settle it, and a run's receipt
+  no landing to make it.
 
 ## 3. A refused make
 
@@ -176,6 +201,19 @@ the start's link pass refused that store, a hold linking a missing task.
     naming that hold's link.
 - **Focused,** `temper-engine-shell`'s lines: the warnings' words; and
   `jig-domain-core`: `RepairRefused`'s `number` and `why`.
+- **Focused,** `temper-engine-forge-world`'s `suite`, for section 2.3
+  and `forge/room.md`, 2 (P124's scenario, active, with no sweep
+  exclusion):
+  - `cancelled_landing_frees_its_write_entries`: with the outbox full
+    and the `landings` at their bound, a landing cancelled while its
+    gate's dispatch is in flight; its dispatch settles after the cancel
+    and leaves the outbox, the change waiting for room is admitted, the
+    cancelled landing's close completes, and the train's next landing
+    forms in its row's place;
+  - the same for a landing that lands: its dispatch's entry leaves at
+    its outcome while it still follows the run, a change waiting for
+    room is admitted while the gate runs, and once landed its row yields
+    to the next landing.
 - **Fuzzy:** the landing and walking suites stay green, unchanged.
 
 ## 6. Later

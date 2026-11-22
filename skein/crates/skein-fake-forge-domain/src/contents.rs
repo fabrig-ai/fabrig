@@ -1,4 +1,4 @@
-//! Atomic contents commits, including a repository's first head (skein/docs/design/testing/fakes/forge.md, 2.2, 2.3 and 4).
+//! Atomic contents commits, including a repository's first head (skein/docs/design/testing/fakes/forge.md, 2.2 and 2.3, and skein/docs/design/testing/fakes/forgejo.md, 1).
 use crate::{
     Config, Domain,
     api::{Error, Permission, What},

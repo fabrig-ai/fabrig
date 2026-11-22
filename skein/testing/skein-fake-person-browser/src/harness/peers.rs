@@ -1,13 +1,14 @@
 //! Borrowed hosts share the loop's ring but retain their local tokens.
 use super::Lent;
-use skein_io::kernel::{Complete, Done, Op};
+use skein_io::kernel::{Complete, Done, Op, Submit};
 use skein_lib::{Queue, Time, Token, Wall};
 use skein_world::ring::Ring;
 
+pub(crate) mod fixture;
 #[cfg(test)]
 mod tests;
 
-pub(super) const FIRST: usize = 2;
+pub const FIRST: usize = 2;
 #[derive(Default)]
 struct State {
     listening: Option<Token>,
@@ -18,10 +19,10 @@ struct State {
     pending: bool,
     deadline: Option<Time>,
 }
-pub(super) struct Peers<'a, 'b> {
+pub struct Peers<'a, 'b> {
     lent: &'a mut [Lent<'b>],
     states: Vec<State>,
-    pub limits: Vec<u32>,
+    pub(super) limits: Vec<u32>,
     last: Option<Vec<u8>>,
 }
 
@@ -44,14 +45,17 @@ fn call_with_report<T>(
     action()
 }
 impl<'a, 'b> Peers<'a, 'b> {
+    #[must_use]
     pub fn new(lent: &'a mut [Lent<'b>]) -> Self {
         let mut last = None;
         let limits = lent.iter().map(|lent| call(&mut last, lent.name, || lent.peer.operations())).collect();
         Self { states: (0..lent.len()).map(|_| State::default()).collect(), lent, limits, last }
     }
+    #[must_use]
     pub fn ready(&self) -> bool {
         self.states.iter().all(|state| state.address.is_some())
     }
+    #[must_use]
     pub fn addresses(&self) -> Vec<(Box<[u8]>, String)> {
         self.lent
             .iter()
@@ -59,7 +63,7 @@ impl<'a, 'b> Peers<'a, 'b> {
             .map(|(lent, state)| (lent.name.into(), state.address.clone().expect("listening")))
             .collect()
     }
-    pub fn waiting(&self) -> String {
+    pub(super) fn waiting(&self) -> String {
         self.lent
             .iter()
             .zip(&self.states)
@@ -84,12 +88,27 @@ impl<'a, 'b> Peers<'a, 'b> {
         }
         None
     }
-    pub fn drive(&mut self, ring: &mut Ring, now: Time, wall: Wall, stop: bool) {
+    pub(super) fn drive(&mut self, ring: &mut Ring, now: Time, wall: Wall, stop: bool) {
+        self.drive_with(ring, now, wall, stop, Ring::deliver, |ring, host, record| {
+            let record = ring.register(host, record);
+            ring.queue(record);
+        });
+    }
+
+    pub fn drive_with<K>(
+        &mut self,
+        kernel: &mut K,
+        now: Time,
+        wall: Wall,
+        stop: bool,
+        mut deliver: impl FnMut(&mut K, usize, &mut Queue<Complete>),
+        mut submit: impl FnMut(&mut K, usize, Submit),
+    ) {
         for (index, (lent, state)) in self.lent.iter_mut().zip(&mut self.states).enumerate() {
             let host = FIRST + index;
             let room = call(&mut self.last, lent.name, || lent.peer.completions().room());
             let mut delivered = Queue::with_capacity(room);
-            ring.deliver(host, &mut delivered);
+            deliver(kernel, host, &mut delivered);
             if let Some(token) = state.listening
                 && delivered.iter().any(|complete| complete.op == token)
             {
@@ -123,18 +142,18 @@ impl<'a, 'b> Peers<'a, 'b> {
                 submissions
             });
             for record in submissions {
-                let record = ring.register(host, record);
-                ring.queue(record);
+                submit(kernel, host, record);
             }
         }
     }
+    #[must_use]
     pub fn empty(&self) -> bool {
         self.states.iter().all(|state| state.empty)
     }
-    pub fn pending(&self) -> bool {
+    pub(super) fn pending(&self) -> bool {
         self.states.iter().any(|state| state.pending)
     }
-    pub fn deadline(&self) -> Option<Time> {
+    pub(super) fn deadline(&self) -> Option<Time> {
         self.states.iter().filter_map(|state| state.deadline).min()
     }
 }

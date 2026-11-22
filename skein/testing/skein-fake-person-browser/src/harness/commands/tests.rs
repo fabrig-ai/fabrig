@@ -1,5 +1,12 @@
 use super::*;
 use skein_lib::Duration;
+use skein_world::testing::deadline::at;
+
+fn process(command: Command, context: Context<'_>) -> Process {
+    let deadline = at("the scenario command's readiness", command.within, Time::ZERO);
+    Process::with_deadline(0, command, context, deadline)
+}
+
 fn child(opens: bool) -> Process {
     let command = Command {
         program: "/fixture".into(),
@@ -13,8 +20,7 @@ fn child(opens: bool) -> Process {
         }),
         within: Duration::from_secs(1),
     };
-    let mut child = Process::new(
-        0,
+    let mut child = process(
         command,
         Context {
             held: None,
@@ -117,7 +123,7 @@ fn a_missing_link_expires_at_the_commands_own_deadline() {
 #[test]
 fn exited_expires_at_its_own_bound() {
     let mut child = child(false);
-    child.wait = Some((Deadline::arm("the expected exit", Duration::from_millis(5)), WaitFor::Exit { code: 0 }));
+    child.wait = Some((at("the expected exit", Duration::from_millis(5), Time::ZERO), WaitFor::Exit { code: 0 }));
     let until = child.wait.as_ref().unwrap().0.until();
     assert_eq!(child.advance(Time::from_nanos(until.as_nanos().saturating_sub(1)), false, false), Progress::Idle);
     assert_eq!(child.advance(until, false, false), Progress::TimedOut("Exited deadline passed"));
@@ -132,7 +138,7 @@ fn exited_expires_at_its_own_bound() {
 #[test]
 fn exited_refuses_a_signal_instead_of_an_expected_code() {
     let mut child = child(false);
-    child.wait = Some((Deadline::arm("the expected exit", Duration::from_secs(1)), WaitFor::Exit { code: 0 }));
+    child.wait = Some((at("the expected exit", Duration::from_secs(1), Time::ZERO), WaitFor::Exit { code: 0 }));
     child.event(io::Event::Exited { owner: child.owner, exit: Exit::Signal(9) });
     assert_eq!(child.advance(Time::ZERO, false, false), Progress::Failed("exited on signal 9, expected code 0".into()));
 }
@@ -140,7 +146,7 @@ fn exited_refuses_a_signal_instead_of_an_expected_code() {
 #[test]
 fn a_bad_exit_at_the_deadline_fails_without_classifying_the_wait() {
     let mut child = child(false);
-    let deadline = Deadline::arm("the expected exit", Duration::from_secs(1));
+    let deadline = at("the expected exit", Duration::from_secs(1), Time::ZERO);
     let until = deadline.until();
     child.wait = Some((deadline, WaitFor::Exit { code: 0 }));
     child.event(io::Event::Exited { owner: child.owner, exit: Exit::Code(1) });
@@ -159,8 +165,7 @@ fn command_substitution_preserves_unix_bytes_and_leaves_program_and_keys_literal
         opens: None,
         within: Duration::from_secs(1),
     };
-    let mut child = Process::new(
-        0,
+    let mut child = process(
         command,
         Context {
             held: None,
@@ -211,8 +216,7 @@ fn printed_stdin_sends_each_granted_chunk_then_finishes() {
         opens: None,
         within: Duration::from_secs(1),
     };
-    let mut child = Process::new(
-        0,
+    let mut child = process(
         command,
         Context {
             held: Some(b"link\n"),

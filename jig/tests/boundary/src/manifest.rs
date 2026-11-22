@@ -6,6 +6,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
+#[cfg(test)]
+pub(crate) mod workspace;
+
 /// A package name and its normal and target dependencies; the workspace has no name.
 #[derive(Debug)]
 pub struct CrateManifest {

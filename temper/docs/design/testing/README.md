@@ -6,8 +6,9 @@ faults, what every fake shares, what every world checks, scenarios and
 the referee, the two suites, and where a failure is fixed. This document
 keeps what is temper's: its tiers (section 2), its neighbours and their
 fakes (`README.md`, section 3 and `fakes.md`), its scenarios, referee and its case library
-(`README.md`, section 4), what its worlds check beyond the strategy (`checks.md`; the
-worker's waits, disk and faults, `worker.md`), the
+(`README.md`, section 4), what its worlds check beyond the strategy (`checks.md`;
+blame and tries for gates, `blame.md`; the worker's waits, disk and faults,
+`worker.md`), the
 shipped settings checked against themselves (`settings-tests.md`), every commit's store
 checked against a start (`store-check.md`), its
 layout (`README.md`, section 5), its tools and fixtures as binaries (`tools.md`), what
@@ -395,7 +396,7 @@ which reaches the engine over jig's client protocol, and their fake is
 skein's fake person in front of it (`fakes.md`, 4). A peer can be a client as well as
 a server: the fake forge's protocol layer sends signed deliveries to the
 engine's webhooks' listener (../protocol/forge/README.md, section 4; skein's
-`testing/fakes/forge.md`, section 4); and reconcile meets it as the engine does,
+`testing/fakes/forgejo.md`, section 1); and reconcile meets it as the engine does,
 through the setup's routes (../protocol/setup/testing.md, 2).
 
 ### 3.2 The machine
@@ -561,6 +562,7 @@ testing/temper-github-app           the App on the fake GitHub layer's first fix
 testing/temper-fixtures             the documents, transcripts, memory literals and local browser that temper's client crates and worlds share
 testing/temper-agent-fixtures       the agents' configuration as the worker's writer makes it
 testing/temper-landing-fixtures     a project's landing settings, typed, for the engine's and client's worlds
+testing/temper-blame                the check of blame and tries for gates, over a world's fault ledger (blame.md)
 tests/<component>/<child>           a child domain's world, temper-<component>-<child>-world
 tests/<component>/domain            a component's world: the engine's, the worker's
 tests/engine/forge                  the forge connector's world
@@ -577,7 +579,6 @@ tests/*/*/tests/suite/fuzzy/*.rs          its fuzzy tests: random worlds, domain
 tests/fake-checkout                 temper-fake-checkout: working trees' git, over skein's fake checkout
 crates/temper-twin-tool             the live run's twin: bin/temper-twin, selected transcripts as a fake LLM document (fakes.md, 1)
 crates/temper-qa-tool               QA after landing: bin/temper-qa, main's landings triaged into cases and builds kept for them (qa/README.md); step holds values and seeded ledger sequences, suite keeps real scratch homes, sockets, locks and children
-crates/temper-redeploy-tool         domain holds values and fake-host/clock orchestration, suite keeps scratch journals and real sh processes (../redeploy.md, 8)
 crates/temper-git-transcripts-tool  git's transcripts, recorded by bin/temper-git-transcripts against skein's throwaway Forgejo (../protocol/git.md, section 9)
 crates/temper-client-gallery-tool    bin/temper-client-gallery: the browser's pages in named states, printed for screenshots (../client/web/gallery.md), its tests in the view's world
 crates/temper-client-journeys-tool   recorded walks replayed through the shipped hosts and printed (../client/web/journeys.md; ../client/tui/journeys.md), run by bin/temper-client-journeys, its tests on walks they record

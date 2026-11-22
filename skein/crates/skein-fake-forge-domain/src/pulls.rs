@@ -67,6 +67,7 @@ pub(crate) fn open(
         base,
         commit,
         checked: skein_lib::Time::ZERO,
+        lagging: None,
         merged: None,
         queue_merged: false,
         dequeued: None,
@@ -308,6 +309,8 @@ pub(crate) fn merge(
             return Err(Error::Refused);
         }
         // Forgejo's manual record names only the merge commit, not an expected head.
+        let base_commit = Some(*onto);
+        crate::lag::start(domain, env, id, number, base_commit, commit, crate::Fault::MergeLate);
         mark_merged(domain, env, id, number, commit, user);
         return Ok(Answer::Merged(commit));
     }
@@ -353,6 +356,7 @@ pub(crate) fn merge(
             )?
         }
     };
+    crate::lag::start(domain, env, id, number, Some(onto), commit, crate::Fault::MergeLate);
     let repository = domain.repositories.get_mut(id).expect("a repository of the forge");
     repository.has.insert(commit).expect("a repository has room for every commit");
     repository.branches.insert(copy_of(&base), commit).expect("the base branch is there");
@@ -397,9 +401,10 @@ pub(crate) fn pull(domain: &Domain, limits: &Limits, repository: &Repository, nu
     let Some(pull) = &item.pull else {
         return Err(Error::Missing(What::Pull));
     };
-    let base_commit = repository.branches.get(&*pull.base).copied();
-    let onto = if item.state == State::Closed {
-        match pull.merged {
+    let shown = projection(domain, limits, repository, item);
+    let base_commit = shown.base_commit;
+    let onto = if shown.state == State::Closed {
+        match shown.merged {
             Some(merged) => domain.object(merged).expect("a stored merge").parent,
             None => base_commit,
         }
@@ -407,24 +412,17 @@ pub(crate) fn pull(domain: &Domain, limits: &Limits, repository: &Repository, nu
         base_commit
     };
     let merge_base = match onto {
-        Some(onto) => git::merge_base(domain, pull.commit, onto),
+        Some(onto) => git::merge_base(domain, shown.commit, onto),
         None => None,
     };
-    let size = crate::next::size(domain, merge_base, pull.commit);
-    let mergeable = domain.clock >= pull.checked
-        && match base_commit {
-            Some(onto) if item.state == State::Open && !git::is_ancestor(domain, pull.commit, onto) => {
-                merged(domain, limits, pull.commit, onto).is_ok()
-            }
-            Some(_) | None => false,
-        };
+    let size = crate::next::size(domain, merge_base, shown.commit);
     let mut reviews = List::with_capacity(pull.reviews.len());
     for kept in &pull.reviews {
         if !kept.pending {
             reviews.push(kept.review.clone()).expect("a list as long as the reviews");
         }
     }
-    let statuses = statuses(repository, limits, pull.commit);
+    let statuses = statuses(repository, limits, shown.commit);
     let reviewers = numbers(&pull.requested);
     let mut queued = None;
     for entry in &repository.queue {
@@ -434,16 +432,16 @@ pub(crate) fn pull(domain: &Domain, limits: &Limits, repository: &Repository, nu
     }
     Ok(PullView {
         number,
-        state: item.state,
+        state: shown.state,
         head: copy_of(&pull.head),
         base: copy_of(&pull.base),
-        commit: pull.commit,
+        commit: shown.commit,
         base_commit,
         merge_base: match base_commit {
-            Some(onto) => git::merge_base(domain, pull.commit, onto),
+            Some(onto) => git::merge_base(domain, shown.commit, onto),
             None => None,
         },
-        merged: pull.merged,
+        merged: shown.merged,
         queue_required: match &repository.protection {
             Some(protection) => protection.queue && protection.branch == pull.base,
             None => false,
@@ -452,13 +450,51 @@ pub(crate) fn pull(domain: &Domain, limits: &Limits, repository: &Repository, nu
         group: crate::queue::Group::count(pull.group),
         dequeued: pull.dequeued,
         queue_merged: pull.queue_merged,
-        checking: domain.clock < pull.checked,
-        mergeable,
+        checking: shown.checking,
+        mergeable: shown.mergeable,
         reviewers,
         reviews: reviews.into_boxed(),
         statuses,
         size,
     })
+}
+
+pub(crate) fn projection(
+    domain: &Domain,
+    limits: &Limits,
+    repository: &Repository,
+    item: &Item,
+) -> crate::lag::Snapshot {
+    let pull = item.pull.as_ref().expect("a pull request");
+    match crate::lag::active(pull, domain.now) {
+        Some(snapshot) => snapshot,
+        None => snapshot(domain, limits, item, repository.branches.get(&*pull.base).copied()),
+    }
+}
+
+pub(crate) fn snapshot(
+    domain: &Domain,
+    limits: &Limits,
+    item: &Item,
+    base_commit: Option<u64>,
+) -> crate::lag::Snapshot {
+    let pull = item.pull.as_ref().expect("a pull request");
+    let checking = domain.clock < pull.checked;
+    let mergeable = !checking
+        && match base_commit {
+            Some(onto) if item.state == State::Open && !git::is_ancestor(domain, pull.commit, onto) => {
+                merged(domain, limits, pull.commit, onto).is_ok()
+            }
+            Some(_) | None => false,
+        };
+    crate::lag::Snapshot {
+        state: item.state,
+        commit: pull.commit,
+        base_commit,
+        merged: pull.merged,
+        checking,
+        mergeable,
+    }
 }
 
 /// The latest status of each context on `commit`, in their contexts' order.

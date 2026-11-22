@@ -252,7 +252,10 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
   unless it is recorded landed (section 8), and the train forms again.
   Either way every change that names it, member or not, stops naming
   it as it ends, an ask it still keeps for one going onto that change.
-  Either end wakes its own train's waiting changes, no other's.
+  Either end wakes its own train's waiting changes, no other's, and
+  its writes leave the outbox (`forge/room.md`, 2): its entries not
+  yet sent withdrawn, each in flight as it settles. Cancelled, it
+  follows its runs no further (7.1).
 - **No silent wait: held** when a step makes no progress past its bound,
   naming the step and what it waits on, its members' goals hearing it:
   - the prepare job failed past its tries (5.2), `prepare job: WHY`;
@@ -590,6 +593,9 @@ The default, for a project with no prepare command:
   it. A run an ended round dispatched is followed to its end for its
   key's receipt, and acts in a later round only through that receipt,
   where its key is that round's (`landing-search.md`, section 6).
+  A dispatch's or rerun's entry leaves the outbox at its outcome
+  (`forge/room.md`, 2): the landing's row keeps what following needs,
+  the dispatch, its entry's start and the run's mark.
 - **Bounded:** a run in flight that has run longer than the project's
   `gate_timeout` holds the landing (4.2), counted by a change's
   execution clock (`forge/change/stalls.md`, 2.2) from its dispatch or
@@ -915,7 +921,7 @@ Three kinds join `forge/README.md`'s section 4, each a row of its own:
   `gates`, test gates per repository; `receipts_per_gate`;
   `ignored_paths`, per gate, each within a branch name's bounds; and
   `inputs`, within skein's `INPUTS`. A landing that would pass one is
-  refused at its forming, naming the limit; its changes stay ready and
+  refused at its forming (`landing-forming.md`, 2.3), naming the limit; its changes stay ready and
   wait for room, as a change waits for a hold. Entrance constraints
   and representable counts are checked by the forge's `valid`.
 

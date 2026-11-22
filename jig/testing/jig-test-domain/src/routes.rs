@@ -1135,6 +1135,7 @@ fn application_answer(outcome: people::Outcome) -> connector::ApplicationCoreAns
         | people::Outcome::SignedOut
         | people::Outcome::NoteEdited { .. }
         | people::Outcome::ServiceMade { .. }
+        | people::Outcome::ServiceReissued { .. }
         | people::Outcome::Adopted { .. }
         | people::Outcome::Created { .. }
         | people::Outcome::Proposed { .. }

@@ -1,7 +1,8 @@
 //! Landing and receipt records (protocol/store.md, families 23 and 24).
 use super::{FITS, names, w};
 use alloc::boxed::Box;
-use skein_lib::{List, Wall};
+use skein_codec::Record;
+use skein_lib::{List, Reader, Wall, Writer};
 use temper_engine_domain_forge_change as change;
 use temper_engine_domain_forge_landing as d;
 use temper_engine_domain_forge_vocabulary as top;
@@ -169,9 +170,55 @@ pub(super) fn decode_receipt_key(key: w::ReceiptKey) -> top::ReceiptKey {
     crate::generated::store::receipt_key_to_domain(key, &super::Context::UNBOUNDED)
         .expect("infallible store translation")
 }
-pub(super) fn decode(row: w::LandingRow) -> Result<top::LandingRow, super::Undecodable> {
-    crate::generated::store::landing_row_to_domain(row, &super::Context::UNBOUNDED)
+pub(super) fn decode(row: w::LandingRow, bounds: &crate::Bounds) -> Result<top::LandingRow, super::Undecodable> {
+    crate::generated::store::landing_row_to_domain(row, &super::Context::bounded(bounds))
         .or(Err(super::Undecodable::Malformed))
+}
+/// Byte-bounded pieces let this row reuse `DispatchWrite` without multiplying
+/// that record's independent input ceilings by the number of followed runs.
+pub fn landing_follows_to_record(
+    value: &[top::LandingFollow],
+    context: &super::Context,
+) -> Result<w::LandingFollows, w::Problem> {
+    let bound = w::paths::LANDING_FOLLOWS_ITEMS.problem(skein_codec::Reason::Bound);
+    let slots = u32::try_from(value.len()).or(Err(bound))?;
+    let mut pieces = List::with_capacity(slots);
+    let mut bytes = 0_usize;
+    for follow in value {
+        let record = crate::generated::store::landing_follow_to_record(follow, context)?;
+        let piece = record.encode(&w::CEILINGS)?;
+        bytes = bytes.checked_add(piece_length(piece.len()).ok_or(bound)?).ok_or(bound)?;
+        pieces.push(piece).expect("measured follow count");
+    }
+    if bytes > skein_lib::usize_of(w::CEILINGS.landing_follows_items) {
+        return Err(bound);
+    }
+    let mut writer = Writer::new(bytes);
+    for piece in &pieces {
+        skein_codec::piece::write(&mut writer, piece).or(Err(bound))?;
+    }
+    Ok(w::LandingFollows { items: writer.finish() })
+}
+fn piece_length(bytes: usize) -> Option<usize> {
+    bytes.checked_add(4)
+}
+pub fn landing_follows_to_domain(
+    value: w::LandingFollows,
+    context: &super::Context,
+) -> Result<Box<[top::LandingFollow]>, w::Problem> {
+    let bounds = context.bounds();
+    let slots = top::landing::follow_slots(bounds.forge()).expect("checked follow bound");
+    let path = w::paths::LANDING_FOLLOWS_ITEMS;
+    let mut followed = List::with_capacity(slots);
+    let mut pieces = Reader::new(&value.items);
+    while let Some(piece) =
+        skein_codec::piece::split(&mut pieces).or(Err(path.problem(skein_codec::Reason::Malformed)))?
+    {
+        let row = w::LandingFollow::decode(bounds.limits(), &mut Reader::new(&piece))?;
+        let row = crate::generated::store::landing_follow_to_domain(row, context)?;
+        followed.push(row).or(Err(path.problem(skein_codec::Reason::Bound)))?;
+    }
+    Ok(followed.into_boxed())
 }
 pub(super) fn encode_receipt_key(key: &top::ReceiptKey) -> w::ReceiptKey {
     crate::generated::store::receipt_key_to_record(key, &super::Context::UNBOUNDED).expect(FITS)
