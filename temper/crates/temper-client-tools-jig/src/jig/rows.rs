@@ -1405,6 +1405,8 @@ pub const FINDING_HAND_AT: u8 = 92;
 pub const FINDING_ROUTE_AT: u8 = 93;
 pub const FINDING_BACKLOG_AT: u8 = 94;
 pub const FINDING_DROP_AT: u8 = 95;
+pub const FINDING_REPAIR_AT: u8 = 118;
+pub const FINDING_BLAME_AT: u8 = 119;
 pub const NEED_ASK_AT: u8 = 96;
 const FINDING: super::table::Argument = positional(
     b"finding",
@@ -1507,6 +1509,38 @@ pub const FINDING_DROP: Tool = Tool {
     keyed: Keyed::Required,
     area: 2,
     notes: b"Only its holder or a project owner may triage. Its issue, if any, closes with the reason.\n",
+};
+pub const FINDING_REPAIR: Tool = Tool {
+    name: b"finding repair",
+    line: b"Make one repair goal for findings of one project",
+    prints: b"repair goal G made for P/N, P/M",
+    result: b"finding_repaired",
+    forms: &[&[
+        positional(
+            b"findings",
+            b"FINDING",
+            Kind::Finding,
+            Repeated { most: 16 },
+            b"One to sixteen findings of one project, each named once",
+        ),
+        positional(b"words", b"TEXT", Kind::Text, Required, b"The repair's words, 1 to 4096 bytes"),
+    ]],
+    keyed: Keyed::Required,
+    area: 2,
+    notes: b"Only the holder or a project owner may triage. A refusal prints its words, exit 2.\n",
+};
+pub const FINDING_BLAME: Tool = Tool {
+    name: b"finding blame",
+    line: b"Move a finding's blame to a landing or to no landing",
+    prints: b"blamed: P/N on landing COMMIT (its first twelve digits), or blamed: P/N on no landing",
+    result: b"finding_blamed",
+    forms: &[
+        &[FINDING, flag(b"landing", b"COMMIT", Kind::Literal, Required, b"The landing's full commit, 40 or 64 hex digits"), positional(b"why", b"TEXT", Kind::Text, Required, b"Why, 1 to 200 bytes")],
+        &[FINDING, super::table::Argument { occurs: Required, ..switch(b"none", b"Blame no landing") }, positional(b"why", b"TEXT", Kind::Text, Required, b"Why, 1 to 200 bytes")],
+    ],
+    keyed: Keyed::Required,
+    area: 2,
+    notes: b"Name exactly one of --landing and --none. Only the holder or a project owner may triage. A refusal prints its words, exit 2.\n",
 };
 pub const NEED_ASK: Tool = Tool {
     name: b"need ask", line: b"Ask a person a question with choices and why", prints: b"done: task N, need", result: b"need",

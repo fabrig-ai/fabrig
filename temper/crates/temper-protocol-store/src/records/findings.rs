@@ -90,6 +90,10 @@ pub(super) fn encode(row: &d::Finding) -> w::Finding {
             Some(blame) => Some(encode_blame(blame)),
             None => None,
         },
+        repair: match &row.repair {
+            Some(repair) => Some(encode_repair(repair)),
+            None => None,
+        },
         cleared: match row.cleared {
             Some(cleared) => Some(w::FindingCleared { run: cleared.run, at: cleared.at.as_nanos() }),
             None => None,
@@ -116,6 +120,7 @@ pub(super) fn decode(row: w::Finding) -> Result<d::Finding, Undecodable> {
         seen,
         blame,
         cleared,
+        repair,
     } = row;
     if number == 0 || !d::settings::words_fit(&title, 200) || !d::findings::body_fits(&body) {
         return Err(Undecodable::Malformed);
@@ -131,7 +136,15 @@ pub(super) fn decode(row: w::Finding) -> Result<d::Finding, Undecodable> {
         return Err(Undecodable::Malformed);
     }
     if why.is_some() != hander.is_some() {
-        return Err(Undecodable::Malformed);
+        // Goal judging returns a landed red with a why but no hander. A
+        // retry keeps that why while routing the finding to the new goal.
+        let returned = match kind {
+            w::FindingKind::Red => why.is_some() && blame.is_some() && repair.is_some(),
+            w::FindingKind::Qa | w::FindingKind::Flake | w::FindingKind::Review | w::FindingKind::Feedback => false,
+        };
+        if !returned {
+            return Err(Undecodable::Malformed);
+        }
     }
     let signature = match signature {
         Some(signature) => Some(decode_signature(signature)?),
@@ -164,6 +177,10 @@ pub(super) fn decode(row: w::Finding) -> Result<d::Finding, Undecodable> {
             Some(blame) => Some(decode_blame(blame)),
             None => None,
         },
+        repair: match repair {
+            Some(repair) => Some(decode_repair(repair)),
+            None => None,
+        },
         cleared: match cleared {
             Some(cleared) => Some(d::FindingCleared { run: cleared.run, at: Wall::from_nanos(cleared.at) }),
             None => None,
@@ -176,6 +193,51 @@ fn encode_blame(blame: &d::FindingBlame) -> w::FindingBlame {
 }
 fn decode_blame(blame: w::FindingBlame) -> d::FindingBlame {
     crate::generated::store::finding_blame_to_domain(blame, &super::Context::UNBOUNDED).expect(FITS)
+}
+
+fn encode_repair(repair: &d::FindingRepair) -> w::FindingRepair {
+    let mut failing = skein_lib::List::with_capacity(d::FindingSignature::IDS);
+    for id in &repair.failing {
+        failing.push(id.clone()).expect(FITS);
+    }
+    let judging = match repair.judging {
+        Some(d::RepairJudging::Landing(commit)) => Some(w::RepairJudging::Landing(w::RepairLanding { commit })),
+        Some(d::RepairJudging::After(goal)) => Some(w::RepairJudging::After(w::RepairAfter { goal })),
+        Some(d::RepairJudging::Release) => Some(w::RepairJudging::Release),
+        None => None,
+    };
+    w::FindingRepair {
+        goal: repair.goal,
+        made: repair.made,
+        attempts: repair.attempts,
+        cancelled: repair.cancelled,
+        failing,
+        until: match repair.until {
+            Some(until) => Some(until.as_nanos()),
+            None => None,
+        },
+        judging,
+    }
+}
+fn decode_repair(repair: w::FindingRepair) -> d::FindingRepair {
+    let judging = match repair.judging {
+        Some(w::RepairJudging::Landing(landing)) => Some(d::RepairJudging::Landing(landing.commit)),
+        Some(w::RepairJudging::After(after)) => Some(d::RepairJudging::After(after.goal)),
+        Some(w::RepairJudging::Release) => Some(d::RepairJudging::Release),
+        None => None,
+    };
+    d::FindingRepair {
+        goal: repair.goal,
+        made: repair.made,
+        attempts: repair.attempts,
+        cancelled: repair.cancelled,
+        failing: repair.failing.into_boxed(),
+        until: match repair.until {
+            Some(until) => Some(Wall::from_nanos(until)),
+            None => None,
+        },
+        judging,
+    }
 }
 
 /// Waiting filings preserve their words and blame without passing through a Finding.
@@ -250,6 +312,8 @@ pub fn finding_result_to_record(
         Ok(d::FindingDone::Routed(number)) => w::FindingResult::Routed(w::Number { number: *number }),
         Ok(d::FindingDone::Backlog) => w::FindingResult::Backlog,
         Ok(d::FindingDone::Dropped) => w::FindingResult::Dropped,
+        Ok(d::FindingDone::Repaired(number)) => w::FindingResult::Repaired(w::Number { number: *number }),
+        Ok(d::FindingDone::Blamed) => w::FindingResult::Blamed,
         Err(why) => w::FindingResult::Refused(w::FindingRefused {
             why: crate::generated::store::finding_refusal_to_record(why, &super::Context::UNBOUNDED).expect(FITS),
         }),
@@ -265,6 +329,8 @@ pub fn finding_result_to_domain(
         w::FindingResult::Routed(value) => Ok(d::FindingDone::Routed(value.number)),
         w::FindingResult::Backlog => Ok(d::FindingDone::Backlog),
         w::FindingResult::Dropped => Ok(d::FindingDone::Dropped),
+        w::FindingResult::Repaired(value) => Ok(d::FindingDone::Repaired(value.number)),
+        w::FindingResult::Blamed => Ok(d::FindingDone::Blamed),
         w::FindingResult::Refused(value) => {
             Err(crate::generated::store::finding_refusal_to_domain(value.why, &super::Context::UNBOUNDED).expect(FITS))
         }

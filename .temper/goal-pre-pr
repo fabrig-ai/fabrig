@@ -1,0 +1,5 @@
+#!/bin/sh
+# The completed goal check (tools/pre-pr/design.md).
+set -eu
+cd "$(dirname "$0")/.."
+exec python3 -I -B tools/pre-pr/pre_pr.py --goal "$@"

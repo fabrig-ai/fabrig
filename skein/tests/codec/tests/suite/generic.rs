@@ -81,7 +81,7 @@ mod tests {
         // The codec fixtures contribute 388 goldens, including mapped's 234 and
         // growth's two; the UI schema contributes 12.
         assert_eq!(count, 400);
-        assert_eq!(compared, 386);
+        assert_eq!(compared, count);
     }
 }
 
