@@ -175,7 +175,7 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
 | `process` | `e2e` | the pair `process-temper`: `tools/tiers/run temper process` | in `tools/tiers/packages.toml`'s `process-temper` |
 | `browser` | `e2e` | the pairs `browser-jig` and `browser-skein`: `tools/tiers/run TREE browser` for each | in one of those pairs' lists |
 | `browser-temper` | `e2e` | the pair `browser-temper`, the one that takes the playground: `tools/tiers/run temper browser` | in `tools/tiers/packages.toml`'s `browser-temper` |
-| `skein`, `smith`, `jig`, `temper` | `suites` | the tree's focused suite, then its fuzzy one: `tools/tiers/one-process default`, then `fuzzy`, with a `-p` for each of the tree's packages | the tree's |
+| `skein`, `smith`, `jig`, `temper` | `suites` | the tree's focused suite, then its fuzzy one, every layer: `tools/tiers/one-process --layers all default`, then `fuzzy`, with a `-p` for each of the tree's packages | the tree's |
 | `live` | `live` | section 8's stories | in `live-temper`'s or `live-skein`'s list |
 
 - **`browser-temper` apart from `browser`** (6.3): the playground is that
@@ -193,7 +193,13 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
   item 4): each test binary's tests in one process (`tools/tiers/design.md`,
   11), with no `--gate`, `--walls` or `--ledger`, and no budget: `--budgets`
   names an empty file, since macOS has no budgets yet
-  (`../draft/macos-tiers.md`, section 8). The binaries
+  (`../draft/macos-tiers.md`, section 8).
+- **Every layer, the real loop and end to end with them.** The gate runs
+  the layers that replay and leaves the real-loop and end-to-end binaries
+  to after landing (`tools/tiers/layers.md`, 9); a suites part passes
+  `--layers all`, so that those binaries run on macOS's kernel as before:
+  kqueue's readiness backend, real children and files are what a macOS
+  run checks that Linux's can't (`skein/docs/design/testing/conformance.md`). The binaries
   `tools/tiers/packages.toml`'s `[test-binaries]` lists for the tree's
   packages are built first, as the delivery check builds them
   (`tools/pre-pr/design.md`, 4).

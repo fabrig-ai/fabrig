@@ -1726,6 +1726,7 @@ fn me_event(watch: u64) -> Box<[u8]> {
         key_bytes: 256,
         redirect_bytes: 256,
         words_bytes: 8192,
+        sign_in_expires: 86_400_000_000_000,
     };
     delivery_event(watch, &w::DeliveryValue::Me(me))
 }

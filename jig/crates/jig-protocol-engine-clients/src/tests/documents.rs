@@ -6,7 +6,7 @@ use skein_lib::List;
 fn me_preserves_two_projects_in_its_wire_record() {
     let limits = fixtures::wire_limits();
     assert_eq!(
-        translate::owner::frame(&fixtures::frame_two_projects(), &[], &limits),
+        translate::owner::frame(&fixtures::frame_two_projects(), fixtures::SIGN_IN_EXPIRES, &[], &limits),
         Ok(fixtures::frame_two_projects_record())
     );
 }
@@ -79,7 +79,8 @@ const PROJECT_ROOM: [u32; 2] = [2, 32];
 #[test]
 fn me_encoding_preserves_rows_despite_spare_list_capacity() {
     let limits = fixtures::wire_limits();
-    let expected = translate::owner::frame(&frame_with_creating_bounds(), &[], &limits).unwrap();
+    let expected =
+        translate::owner::frame(&frame_with_creating_bounds(), fixtures::SIGN_IN_EXPIRES, &[], &limits).unwrap();
     for project_room in PROJECT_ROOM {
         let mut frame = frame_with_creating_bounds();
         let mut projects = List::with_capacity(project_room);
@@ -96,7 +97,11 @@ fn me_encoding_preserves_rows_despite_spare_list_capacity() {
             projects.push(project).expect("fixture project room");
         }
         frame.projects = projects;
-        assert_eq!(translate::owner::frame(&frame, &[], &limits), Ok(expected.clone()), "projects room {project_room}");
+        assert_eq!(
+            translate::owner::frame(&frame, fixtures::SIGN_IN_EXPIRES, &[], &limits),
+            Ok(expected.clone()),
+            "projects room {project_room}"
+        );
     }
 }
 fn a_task_with_a_hold_becomes_its_record() {
@@ -127,7 +132,7 @@ fn me_overflow_reports_the_wire_bound_it_exceeds() {
     ];
     for (limits, path) in rows {
         assert_eq!(
-            translate::owner::frame(&frame, &[], &limits),
+            translate::owner::frame(&frame, fixtures::SIGN_IN_EXPIRES, &[], &limits),
             Err(w::Problem { path, reason: skein_codec::Reason::Bound })
         );
     }
@@ -269,7 +274,7 @@ fn a_me_document_carries_each_project_s_template() {
         template.label = 5;
         project.templates = List::from_boxed(Box::new([template]));
     }
-    let record = translate::owner::frame(&frame, &[], &w::CEILINGS).unwrap();
+    let record = translate::owner::frame(&frame, fixtures::SIGN_IN_EXPIRES, &[], &w::CEILINGS).unwrap();
     let mut reader = skein_lib::Reader::new(record.projects.as_ref());
     for source in &frame.projects {
         let bytes = skein_codec::piece::split(&mut reader).unwrap().unwrap();
@@ -288,7 +293,7 @@ fn a_me_document_carries_each_project_s_template() {
 #[test]
 fn a_me_document_carries_each_project_s_creating_bounds() {
     let frame = frame_with_creating_bounds();
-    let record = translate::owner::frame(&frame, &[], &w::CEILINGS).unwrap();
+    let record = translate::owner::frame(&frame, fixtures::SIGN_IN_EXPIRES, &[], &w::CEILINGS).unwrap();
     let mut reader = skein_lib::Reader::new(record.projects.as_ref());
     for source in &frame.projects {
         let bytes = skein_codec::piece::split(&mut reader).unwrap().unwrap();
@@ -527,7 +532,7 @@ fn a_served_template_carries_its_resources() {
     let mut template = fixtures::template();
     template.resources = Box::new(resources);
     frame.projects.get_mut(0).unwrap().templates = List::from_boxed(Box::new([template]));
-    let record = translate::owner::frame(&frame, &[], &w::CEILINGS).unwrap();
+    let record = translate::owner::frame(&frame, fixtures::SIGN_IN_EXPIRES, &[], &w::CEILINGS).unwrap();
     let bytes = skein_codec::piece::split(&mut skein_lib::Reader::new(record.projects.as_ref())).unwrap().unwrap();
     let project = w::MeProject::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&bytes)).unwrap();
     let bytes = skein_codec::piece::split(&mut skein_lib::Reader::new(project.templates.as_ref())).unwrap().unwrap();
@@ -558,7 +563,7 @@ fn me_names_no_public_identifier_until_the_names_are_held() {
         project.public = public;
         projects.push(project).expect("one project");
         frame.projects = projects;
-        let record = translate::owner::frame(&frame, &[], &limits).expect("me");
+        let record = translate::owner::frame(&frame, fixtures::SIGN_IN_EXPIRES, &[], &limits).expect("me");
         let mut pieces = skein_lib::Reader::new(record.projects.as_ref());
         let bytes = skein_codec::piece::split(&mut pieces).expect("project piece").expect("one project");
         let project = w::MeProject::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("project");

@@ -62,6 +62,7 @@ fn live() -> Client {
                 key_bytes: 256,
                 redirect_bytes: 4096,
                 words_bytes: 8192,
+                sign_in_expires: Wall::from_nanos(86_400_000_000_000),
                 party: contract::MeParty {
                     number: PARTY,
                     kind: contract::PartyKind::Person,

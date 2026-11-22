@@ -29,6 +29,26 @@ fn pending_amendments_answer_their_value_over_the_exchange() {
 }
 
 #[test]
+fn me_reports_the_reading_sign_ins_saved_expiry() {
+    let mut exchange = f::read_exchange();
+    let expires = skein_lib::Wall::from_nanos(1_800_000_000_000_000_000);
+    let (owner, reply, requested) = exchange.read_until(&w::Read::Me, expires);
+    assert_eq!(requested, reads::Read::Frame);
+    exchange.release_read(
+        reply,
+        reads::Answer::Document(Box::new(core::documents::Document::Frame(f::frame_two_projects()))),
+    );
+    let w::ReadAnswer::Value(value) = exchange.read_answer(owner) else { panic!("me read") };
+    let w::ReadValue::Me(me) =
+        w::ReadValue::decode(&exchange.env.limits.wire, &mut skein_lib::Reader::new(&value.record))
+            .expect("read value")
+    else {
+        panic!("me")
+    };
+    assert_eq!(me.sign_in_expires, expires.as_nanos());
+}
+
+#[test]
 fn a_read_is_answered_only_once_held_is_released() {
     let cases = f::held_reads();
     for (label, value, expected_read, answer, expected_answer) in cases {

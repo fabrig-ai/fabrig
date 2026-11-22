@@ -66,7 +66,7 @@ pub struct OneShot {
     #[cfg(test)]
     pub(crate) test_connections: Option<jig_client_shell_native::Limits>,
     signing: Option<Signing>,
-    service_sign_in: Option<()>,
+    service_sign_in_file: Option<()>,
     service_file: Option<service::ServiceFile>,
     link_file: Option<link::LinkFile>,
     recovery: Recovery,
@@ -112,6 +112,14 @@ impl OneShot {
         startup: Startup,
         files: Vec<(u8, Fd)>,
     ) -> Result<Self, jig_client::Unusable> {
+        Self::with_directory(call, startup, files, None)
+    }
+    pub(crate) fn with_directory(
+        call: Invocation,
+        startup: Startup,
+        files: Vec<(u8, Fd)>,
+        given: Option<&[u8]>,
+    ) -> Result<Self, jig_client::Unusable> {
         let limits = limits::native();
         let class = match &call.parsed {
             Parsed::Call { call, .. } => arguments::class(call),
@@ -139,7 +147,7 @@ impl OneShot {
             }
             Parsed::Call { .. } | Parsed::File { .. } => (false, None),
         };
-        let service_file = service::ServiceFile::for_call(&call.parsed);
+        let service_file = service::ServiceFile::for_call(&call.parsed, given.or(call.directory.as_deref()));
         let link_file = link::LinkFile::for_call(&call.parsed);
         let mut host = Self {
             exporting,
@@ -165,7 +173,7 @@ impl OneShot {
             #[cfg(test)]
             test_connections: None,
             signing: None,
-            service_sign_in: None,
+            service_sign_in_file: None,
             service_file,
             link_file,
             recovery: Recovery::new(),
@@ -374,8 +382,10 @@ impl OneShot {
                         | NotSignedIn::LinkUnknown,
                     )
                     | None) => {
-                        self.fail(if self.service_sign_in.is_some() {
+                        self.fail(if self.service_sign_in_file.is_some() {
                             b"the service credential was refused"
+                        } else if self.signing.as_ref().is_some_and(|signing| signing.service.is_some()) {
+                            b"the service link was refused: its credential was reissued since, or the service is unknown; an owner reissues it with temper ctl DIRECTORY party reissue PARTY --out FILE"
                         } else {
                             match reason {
                                 Some(NotSignedIn::LinkUsed) => b"the sign-in link was refused: it was already used; temper-box serve prints a fresh one, and a signed-in client asks one with temper ctl DIRECTORY link --out FILE",

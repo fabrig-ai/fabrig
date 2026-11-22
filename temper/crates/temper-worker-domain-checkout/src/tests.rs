@@ -3460,6 +3460,8 @@ fn prepares_and_design_deliveries_authenticate_lazy_fetches_as_the_repository() 
     }
 }
 
+#[path = "tests/packing.rs"]
+mod packing;
 #[path = "tests/packs.rs"]
 mod packs;
 #[path = "tests/reds.rs"]

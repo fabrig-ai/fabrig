@@ -18,7 +18,7 @@ const TURN_TEXT_BYTES: usize = 1;
 /// by the domain unit test `a_capabilitys_callback_is_routed_before_the_hubs_next_request`.
 #[test]
 fn a_failed_prepare_releases_its_hold_before_the_hub_answers() {
-    let report = whole::failed_prepares();
+    let report = whole::failed_prepares().expect("world checks");
     assert_eq!(report.peak_held, usize::try_from(whole::RUNS).expect("three runs"));
     let mut released = Vec::new();
     let mut answered = Vec::new();

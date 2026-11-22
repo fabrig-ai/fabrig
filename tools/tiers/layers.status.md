@@ -1,9 +1,6 @@
 # layers: status
 
-2026-11-20. Where the code lags or departs from [layers.md](layers.md).
+2026-11-21. Where the code lags or departs from [layers.md](layers.md).
 
-- **Not yet:** 6.1: skein's real-loop and end-to-end binaries `skein-codec-patches::suite`, `skein-codegen::suite`, `skein-echo-world::suite`, `skein-fake-peers-tests::suite`, `skein-kv-tests::suite`, `skein-oauth-accounts-world::suite`, `skein-ui-web-tests::suite`, `skein-world-tests::suite` and `skein-llm-world::live` still hold tests that replay. [in flight: change 11124]
-- **Not yet:** 6.1: smith's `smith-bench::suite`, `smith-fake-claude::suite`, `smith-machine-world::suite` and `smith::live_configuration` still hold tests that replay. [in flight: change 11125]
-- **Not yet:** 6.1: jig's `jig-engine-clients-world::suite` and `jig-test::live` still hold tests that replay, and the focused suite picks two of `jig-test::live`'s by name. [in flight: change 11126]
-- **Not yet:** 6.1: temper's `temper-box::suite`, `temper-forge-setup-shell::suite`, `temper-process-guard::parent`, `temper-qa-tool::suite` and `temper-redeploy-tool::suite` still hold tests that replay. [in flight: change 11127]
-- **Not yet:** 6.1: hearth's `hearth-builder-world::suite`, `hearth-conformance-world::conformance_git` and `hearth-conformance-world::conformance_resolve` still hold tests that replay. [in flight: change 11128]
+- **Not yet:** 9 and 9.1: `tools/tiers/one-process` runs every layer the focused and fuzzy profiles select, the real loop and end to end included, takes no `--layers` and writes no `selected_layers`, so the gate and the delivery check still run the real-loop and end-to-end binaries; the macOS suites parts pass no `--layers all`. [in flight: change 11541]
+- **Not yet:** 7 and 9.2: `.config/nextest.toml` and `tools/tiers/packages.toml` have no `real-TREE` pair, and the boundary check reads no profile. [in flight: change 11543]
