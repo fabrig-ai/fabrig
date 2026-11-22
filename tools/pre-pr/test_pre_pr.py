@@ -1464,12 +1464,11 @@ else:
         self.env['TIERS_LEDGER'] = '.git/main-ledgers'
         return path, content
 
-    def budget_run(self, taken, exits=None, summary=(1, None), tests=(), starved=False):
-        """Run main in its repository, faking only the one-process and summary commands."""
+    def budget_run(self, taken, exits=None, tests=(), starved=False):
+        """Run main in its repository, faking only the one-process commands."""
         self.write('api/src/lib.rs', 'pub fn changed() {}\n')
         self.write('client/src/lib.rs', 'pub fn changed() {}\n')
         exits = {} if exits is None else exits
-        directories, copies = {}, {}
         self.budget_commands, self.budget_again = [], []
 
         def fake(arguments, cwd, env, output, stdout):
@@ -1477,17 +1476,6 @@ else:
             self.assertNotIn('TIERS_LEDGER', env)
             self.assertNotIn('GIT_INDEX_FILE', env)
             self.budget_commands.append(arguments)
-            if arguments[3] == 'tools/tiers/cpu-summary':
-                profile = 'default' if Path(arguments[4]).name == 'tests' else 'fuzzy'
-                expected = ['python3', '-I', '-B', 'tools/tiers/cpu-summary', str(directories[profile])]
-                if (self.root / 'tools/tiers/budgets.toml').exists():
-                    expected += ['--budgets', 'tools/tiers/budgets.toml']
-                self.assertEqual(arguments, expected + ['--ledger', str(copies[profile]), '--gate', '--json'])
-                self.assertEqual(copies[profile].read_bytes(), taken[profile])
-                self.assertFalse(stdout)
-                code, text = summary
-                output(text.encode(), PRE_PR.Tail())
-                return code, PRE_PR.tail(text)
             self.assertTrue(stdout)
             self.assertIsNone(output)
             directory = Path(arguments[arguments.index('--out') + 1])
@@ -1503,17 +1491,15 @@ else:
                 return 0, 'passed again\n'
             profile = 'default' if directory.name == 'tests' else 'fuzzy'
             self.assertEqual(env['TIERS_PRE_PR_TARGETS'], '1')
-            directories[profile] = directory
             expected = ['python3', '-I', '-B', 'tools/tiers/one-process', '--out', str(directory)]
             if profile in taken:
                 self.assertIn('--ledger', arguments)
                 copy = Path(arguments[arguments.index('--ledger') + 1])
-                copies[profile] = copy
                 self.assertEqual(copy.name, profile + '-ledger.json')
                 self.assertNotEqual(copy, self.root / '.git/main-ledgers' / (profile + '.json'))
                 self.assertEqual(copy.parent.stat().st_mode & 0o777, 0o700)
                 self.assertEqual(copy.read_bytes(), taken[profile])
-                expected += ['--ledger', str(copy), '--gate']
+                expected += ['--ledger', str(copy)]
             self.assertEqual(arguments, expected + [profile, '-p', 'api', '-p', 'client', '--no-tests=warn'])
             selected = tests if profile in exits else []
             (directory / 'run.json').write_text(json.dumps({'starved': starved}))
@@ -1574,7 +1560,7 @@ else:
                     if state != 'taken':
                         self.assertIn(f'pre-pr: budgets: {bad_profile} warnings only ({why}', log)
                     for profile in taken:
-                        self.assertIn(f"pre-pr: budgets: {profile} judged with main's ledger "
+                        self.assertIn(f"pre-pr: budgets: {profile} warnings only with main's ledger "
                                       f'(TIERS_LEDGER/{profile}.json)\n', log)
                     self.assertEqual(len(self.budget_commands), 2)
                     self.assertFalse(any('--again' in args for args in self.budget_commands))
@@ -1610,72 +1596,31 @@ else:
                     self.assertIn(line, log)
                 self.assertNotIn('second line', log)
 
-    def test_gate_verdict_names_and_invalid_summaries(self):
-        layer = 'layer over budget: temper default domain: 12.00 CPU s, budget 10.0 s, at main 9.00 CPU s'
-        reference = 'test over its reference: temper-engine::domain forge::opens: 0.300 CPU s alone, limit 0.200 s'
-        entries = [layer + '\nbinary growth details', reference, 'another over line',
-                   'layer over budget: no separator', 'test over its reference: no separator']
-        names = ['budget temper default domain', 'reference temper-engine::domain forge::opens', 'budget PROFILE',
-                 'budget no separator', 'reference no separator']
-        rows = [(1, json.dumps({'over_budget': entries}), names)]
-        rows += [(code, json.dumps({'over_budget': [layer]}), None) for code in (0, 2)]
-        rows += [(1, text, None) for text in ('{"over_budget": []}', '{}', '[]', 'null',
-                                            '{"over_budget": [1]}', '{"over_budget": "line"}',
-                                            '{"over_budget": ["x"]}\n{}', 'not JSON')]
-        for profile in ('default', 'fuzzy'):
-            for code, text, expected in rows:
-                with self.subTest(profile=profile, code=code, text=text):
-                    self.setUp()
-                    _, content = self.main_ledger(profile)
-                    self.goal_file('reds-wait', b'temper-reds-wait 1 1\n')
-                    self.goal_file('reds', b'temper-reds 1\n- test temper-engine::domain forge::opens\n')
-                    self.goal_file('rerun', b'temper-rerun 1 4\n')
-                    if profile == 'default':
-                        self.write('tools/tiers/budgets.toml', '# present\n')
-                    result, log, _, _ = self.budget_run({profile: content}, {profile: 1}, (code, text))
-                    self.assertEqual(result, 1, log)
-                    self.assertFalse((self.root / '.git/pre-pr-passed').exists())
-                    self.assertFalse(self.budget_again)
-                    failures = json.loads((self.root / 'target/temper/pre-pr-failures.json').read_text())
-                    wanted = ([name.replace('PROFILE', profile) for name in expected] if expected else
-                              ['check one-process' + ('' if profile == 'default' else ' fuzzy')])
-                    self.assertEqual(failures['failures'], [dict(name=name, key=None, **{'class': 'new'}) for name in wanted])
-                    for name in wanted:
-                        self.assertIn('\n' + name + '\n', log)
-                    for entry in entries if expected else [text]:
-                        self.assertIn(entry, log)
-                    self.assertIn(' refused\n', (self.root / '.git/temper/check-results').read_text())
-                    self.assertEqual(len(self.budget_commands), 3)
-        self.setUp()
-        result, log, _, _ = self.budget_run({}, {'default': 1, 'fuzzy': 1})
+    def test_unexpected_one_process_exit_refuses_with_ledgers(self):
+        taken = {profile: self.main_ledger(profile)[1] for profile in ('default', 'fuzzy')}
+        result, log, _, _ = self.budget_run(taken, {'default': 1, 'fuzzy': 1})
         self.assertEqual(result, 1, log)
         self.assertIn('\ncheck one-process\nexit 1\n', log)
         self.assertIn('\ncheck one-process fuzzy\nexit 1\n', log)
-        self.assertEqual(len(self.budget_commands), 2, 'no summary without --gate')
+        self.assertEqual(len(self.budget_commands), 2)
 
-    def test_gate_failures_keep_junit_judgement_and_replay(self):
+    def test_ledgers_keep_junit_judgement_and_replay(self):
         _, content = self.main_ledger('default')
         self.goal_file('reds-wait', b'temper-reds-wait 1 1\n')
         self.goal_file('reds', b'temper-reds 1\n- test api::rules red\n- test api::rules passed\n')
         self.goal_file('rerun', b'temper-rerun 1 4\n')
         tests = [dict(binary_id='api::rules', test_name=name, outcome=outcome) for name, outcome in
                  (('red', 'failed'), ('replay', 'failed'), ('passed', 'passed'), ('stop', 'cancelled'))]
-        # Longer than run()'s tail: entries and the first entry's details must be read whole.
-        entries = ['layer over budget: temper default domain: over\n' + 'growth\n' * 300,
-                   'test over its reference: api::rules red: over']
-        result, log, _, _ = self.budget_run({'default': content}, {'default': 1},
-                                          (1, json.dumps({'over_budget': entries})), tests, starved=True)
-        self.assertEqual(result, 1, log)
+        result, log, _, _ = self.budget_run({'default': content}, {'default': 100}, tests, starved=True)
+        self.assertEqual(result, 0, log)
         self.assertEqual(len(self.budget_again), 1)
         self.assertIn('inherited: test api::rules red (red, temper/reds)', log)
         self.assertIn('flake: test api::rules replay', log)
         self.assertIn('pre-pr: tests starved: 1 starved or cancelled', log)
         failures = json.loads((self.root / 'target/temper/pre-pr-failures.json').read_text())
-        self.assertEqual(failures['counts'], dict(new=2, flake=1, inherited=1))
-        self.assertEqual(failures['failures'][:2], [dict(name=name, key=None, **{'class': 'new'}) for name in
-                                                 ('budget temper default domain', 'reference api::rules red')])
+        self.assertEqual(failures['counts'], dict(new=0, flake=1, inherited=1))
         check = (self.root / '.git/temper/check-results').read_text()
-        self.assertIn(' refused\n', check)
+        self.assertIn(' passed\n', check)
         self.assertIn('passed test api::rules passed\n', check)
         self.assertIn('failed test api::rules red\n', check)
         self.assertIn('flake test api::rules replay\n', check)
