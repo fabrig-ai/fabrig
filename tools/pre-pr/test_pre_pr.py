@@ -87,7 +87,7 @@ sys.exit(int(count > 0))
     def deliver(self, packages=('api',), expected_bundle=None,
                 clippy_answer=(0, []), one_process_answer=(0, [], None), process_answer=None,
                 build_answer=(0, ''), events=None, directories=None, dependencies=None, formatting_answer=(), hold=None,
-                metadata_forbidden=False, stderr=None, goal=None, child=None):
+                metadata_forbidden=False, stderr=None, goal=None, child=None, light=False):
         calls = []
         events = [] if events is None else events
         data = self.metadata(packages, directories, dependencies)
@@ -95,6 +95,17 @@ sys.exit(int(count > 0))
         def run(arguments, cwd, env, output=None, stdout=False):
             calls.append((arguments, cwd))
             self.assertNotIn('TIERS_LEDGER', env)
+            if arguments == ['cargo', 'fmt', '--all', '--check']:
+                self.assertEqual(env['CARGO_NET_OFFLINE'], 'true')
+                if 'CARGO_TARGET_DIR' in self.env:
+                    self.assertEqual(env['CARGO_TARGET_DIR'], self.env['CARGO_TARGET_DIR'])
+                else:
+                    target = Path(env['CARGO_TARGET_DIR'])
+                    self.assertEqual(target.name, 'format-target')
+                    self.assertTrue(target.parent.is_dir())
+                return (1, formatting_answer[0]['log']) if formatting_answer else (0, '')
+            if env.get('CARGO_TARGET_DIR', '').endswith('/format-target'):
+                self.fail('format target escaped its command')
             if arguments[:2] == ['cargo', 'build']:
                 events.append(arguments)
                 self.assertEqual(env['TEMPER_INTERNAL_BUNDLE'], 'none')
@@ -144,8 +155,11 @@ sys.exit(int(count > 0))
                 result = PRE_PR.main('goal', goal)
             elif child is not None:
                 result = PRE_PR.main('child', child)
-            else:
+            elif light:
                 result = PRE_PR.main()
+            else:
+                # Exercise the full check internals against mutable scratch fixtures.
+                result = PRE_PR.main('full')
         self.clippy_mock = clippy
         self.one_process_mock = one_process
         log.flush()
@@ -154,7 +168,78 @@ sys.exit(int(count > 0))
             self.assertTrue(one_process.called, captured.getvalue().decode())
             self.assertEqual(clippy.call_args.args[3]['TEMPER_INTERNAL_BUNDLE'], expected_bundle)
             self.assertEqual(one_process.call_args.args[2]['TEMPER_INTERNAL_BUNDLE'], expected_bundle)
-        return result, captured.getvalue().decode(), calls, (formatting.called, clippy.called, one_process.called)
+        formatted = formatting.called or any(args[:2] == ['cargo', 'fmt'] for args, _ in calls)
+        return result, captured.getvalue().decode(), calls, (formatted, clippy.called, one_process.called)
+
+    def test_default_delivery_never_builds_or_takes_a_hold_and_publishes_only_cheap_observations(self):
+        self.write('.temper/merge', '# merge change\n')
+        self.write('api/assets/fixture', 'package input\n')
+        self.write('guide.md', '# Docs\n')
+        self.write('.git/temper/reds-wait', 'temper-reds-wait 1 10\n')
+        self.write('.git/temper/reds', 'temper-reds 1\n- test fabrig-boundary::outward no_file_names_the_lab\n'
+                                      '- test api::rules expensive_case\n- lint api clippy::rule api/src/lib.rs\n')
+        self.write('.git/temper/check-results', 'prior native results')
+        self.write('.git/pre-pr-passed', 'prior full pass')
+        self.write('target/temper/pre-pr-failures.json', 'prior full receipt')
+        self.write('.git/temper/repair-trial', 'stale repair invitation')
+        self.env['TIERS_HOLD'] = 'unexpected-build-hold'
+        self.env['CARGO_TARGET_DIR'] = str(self.root / 'target/selected')
+        with mock.patch.object(PRE_PR, 'test_binaries', side_effect=AssertionError('loaded build inventory')):
+            result, log, calls, checks = self.deliver(light=True, metadata_forbidden=True,
+                                                      hold=mock.Mock(side_effect=AssertionError('took hold')))
+        self.assertEqual(result, 0, log)
+        self.assertEqual(checks, (True, False, False))
+        self.assertEqual([args for args, _ in calls if args[0] == 'cargo'], [['cargo', 'fmt', '--all', '--check']])
+        self.assertEqual(sum('scripts/old_forms.py' in args for args, _ in calls), 5)
+        self.assertTrue(any('tools/citations/citations.py' in args for args, _ in calls))
+        self.assertFalse(any('tools/merge/test_merge.py' in args for args, _ in calls))
+        record = json.loads((self.root / 'target/temper/pre-pr-light-failures.json').read_text())
+        self.assertEqual((record['scope'], record['verdict']), ('light', 'passed'))
+        self.assertEqual((self.root / '.git/pre-pr-passed').read_text(), 'prior full pass')
+        self.assertEqual((self.root / 'target/temper/pre-pr-failures.json').read_text(), 'prior full receipt')
+        self.assertEqual((self.root / '.git/temper/repair-trial').read_text(), 'stale repair invitation')
+        native = (self.root / '.git/temper/check-results').read_text().splitlines()
+        self.assertEqual(native, ['temper-check 1', f'check {record["tree"]} {record["base"]} passed',
+                                  'passed test fabrig-boundary::outward no_file_names_the_lab'])
+
+    def test_default_missing_or_unrelated_pin_retains_cheap_checks_and_refuses_format_fault(self):
+        self.write('api/src/lib.rs', 'pub fn child() {}\n')
+        self.write('temper/docs/design/client/web/journeys/example/01.html', 'written page\n')
+        self.write('tools/tiers/budgets.toml', '# edited\n')
+        self.env['TIERS_HOLD'] = 'unexpected-build-hold'
+        for pin in ('missing', 'unrelated'):
+            with self.subTest(pin=pin):
+                if pin == 'missing':
+                    self.command('git', 'update-ref', '-d', 'refs/temper/landing')
+                else:
+                    other = self.command('git', 'commit-tree', 'HEAD^{tree}', '-m', 'unrelated').strip()
+                    self.command('git', 'update-ref', 'refs/temper/landing', other)
+                result, log, calls, checks = self.deliver(light=True, metadata_forbidden=True,
+                    hold=mock.Mock(side_effect=AssertionError('took hold')),
+                    formatting_answer=[PRE_PR.failure('format', 'format fault')])
+                self.assertEqual(result, 1, log)
+                self.assertEqual(checks, (True, False, False))
+                self.assertEqual(sum('scripts/old_forms.py' in args for args, _ in calls), 5)
+                self.assertEqual([args for args, _ in calls if args[0] == 'cargo'], [['cargo', 'fmt', '--all', '--check']])
+                for script in ('tools/outward/outward.py', 'tools/citations/citations.py', 'tools/tiers/figures.py'):
+                    self.assertTrue(any(script in args for args, _ in calls), script)
+                self.assertIn('written journey file:', log)
+                receipt = json.loads((self.root / 'target/temper/pre-pr-light-failures.json').read_text())
+                self.assertIsNone(receipt['base'])
+                self.assertEqual(receipt['verdict'], 'refused')
+                self.assertIn('format', [e['name'] for e in receipt['failures']])
+
+    def test_default_package_asset_without_cargo_metadata_and_docs_without_cargo(self):
+        self.write('api/assets/input.sql', 'select 1;\n')
+        result, log, _, checks = self.deliver(light=True, metadata_forbidden=True)
+        self.assertEqual(result, 0, log)
+        self.assertEqual(checks, (True, False, False))
+        self.command('git', 'clean', '-fd')
+        self.write('temper/docs/example.md', '# Guide\n')
+        result, log, calls, checks = self.deliver(light=True, metadata_forbidden=True)
+        self.assertEqual(result, 0, log)
+        self.assertEqual(checks, (False, False, False))
+        self.assertFalse(any(args[0] == 'cargo' for args, _ in calls))
 
     def test_goal_requires_exact_commit_ids_and_one_merge_base(self):
         head = self.command('git', 'rev-parse', 'HEAD').strip()
@@ -279,7 +364,8 @@ sys.exit(int(count > 0))
         self.assertEqual(sum('scripts/old_forms.py' in args for args, _ in calls), 5)
         for tool in ('tools/citations/citations.py', 'tools/outward/outward.py'):
             self.assertTrue(any(tool in args for args, _ in calls))
-        self.assertFalse(any(args[0] == 'cargo' or 'tools/merge/test_merge.py' in args for args, _ in calls))
+        self.assertFalse(any((args[0] == 'cargo' and args[1] != 'fmt') or 'tools/merge/test_merge.py' in args
+                             for args, _ in calls))
         self.assertFalse((self.root / '.git/pre-pr-passed').exists())
         self.assertEqual((self.root / 'target/temper/pre-pr-failures.json').read_text(), 'prior full failures')
         self.assertEqual((self.root / '.git/temper/check-results').read_text(), 'prior full results')
@@ -287,7 +373,7 @@ sys.exit(int(count > 0))
         self.assertEqual((record['form'], record['scope'], record['destination'], record['verdict']),
                          ('goal-child-pre-pr 1', 'child', destination, 'passed'))
 
-        # The same candidate must still take the ordinary build path.
+        # The same candidate must still take the full build path.
         del self.env['TIERS_HOLD']
         result, log, _, checks = self.deliver()
         self.assertEqual(result, 0, log)

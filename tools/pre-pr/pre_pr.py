@@ -265,9 +265,16 @@ def documentation(path):
     return path.endswith('.md') or 'docs' in Path(path).parts[:-1]
 
 
-def code_inputs(paths, data, root):
+def code_inputs(paths, data, root, *, local_manifests=False):
     """Use package ownership and the gate's declared readers (section 3)."""
     directories = package_directories(members(data))
+    if local_manifests:
+        # Light checks need only know whether any changed file can belong to a package.
+        parents = {parent for path in paths if not documentation(path) for parent in Path(path).parents}
+        for parent in parents:
+            manifest = root / parent / 'Cargo.toml'
+            if manifest.is_file() and (parent != Path('.') or 'package' in tomllib.loads(manifest.read_text())):
+                directories[(root / parent).parts] = True
     globs = lines(root, '.config/gate/read-by-tests.txt')
     registry = root / '.config/fixture-readers.toml'
     if registry.exists():
@@ -967,9 +974,10 @@ def failure_counts(errors):
     return dict(zip(('new', 'flake', 'inherited'), map(len, failure_groups(errors))))
 
 
-def failure_file(tree_id, base_id, verdict, cached, errors, root, env, scope='delivery', commits=(), heads=None):
+def failure_file(tree_id, base_id, verdict, cached, errors, root, env, scope='full', commits=(), heads=None):
     """Keep every structured failure atomically, before the summary (sections 6–7)."""
-    relative = 'target/temper/goal-child-pre-pr.json' if scope == 'child' else 'target/temper/pre-pr-failures.json'
+    relative = {'child': 'target/temper/goal-child-pre-pr.json',
+                'delivery': 'target/temper/pre-pr-light-failures.json'}.get(scope, 'target/temper/pre-pr-failures.json')
     path = root / relative
     try:
         entries = []
@@ -987,7 +995,9 @@ def failure_file(tree_id, base_id, verdict, cached, errors, root, env, scope='de
         header = {'form': 'pre-pr-failures 1', 'tree': tree_id, 'base': base_id,
                   'cached': cached, 'verdict': 'refused' if verdict else 'passed',
                   'counts': failure_counts(errors)}
-        if scope == 'goal':
+        if scope == 'delivery':
+            header.update(form='pre-pr-light-failures 1', scope='light')
+        elif scope == 'goal':
             header.update(goal_head=commits[0], destination=commits[1])
         elif scope == 'child':
             header.update(form='goal-child-pre-pr 1', scope='child', destination=commits[0],
@@ -1023,11 +1033,13 @@ def timed(name, action, pending=None):
     return result
 
 
-def summary(base_id, lints, tests, errors, reason, failures_tail, starved=(), scope='delivery', commits=()):
+def summary(base_id, lints, tests, errors, reason, failures_tail, starved=(), scope='full', commits=()):
     """Keep the first failure whole and count what the host's tail cannot hold."""
     refused = any(not settled(e) for e in errors)
     base_text = f'base {base_id}, merge base of refs/temper/landing and HEAD' if base_id else 'no base'
-    if scope == 'goal':
+    if scope == 'delivery':
+        base_text = 'light checks, ' + base_text
+    elif scope == 'goal':
         base_text = f'goal head {commits[0]}, destination {commits[1]}, merge base {base_id}'
     elif scope == 'child':
         base_text = f'child checks, destination {commits[0]}, base {base_id}'
@@ -1071,8 +1083,10 @@ def main(scope='delivery', commits=()):
     ledger_setting = env.pop('TIERS_LEDGER', '')
     env.setdefault('TEMPER_INTERNAL_BUNDLE', 'none')
     git_dir = Path(git(['rev-parse', '--absolute-git-dir'], root, env).stdout.decode().strip())
+    lightweight = scope in ('delivery', 'child')
+    scoped = scope in ('goal', 'child')
     frozen_heads = None
-    if scope == 'delivery':
+    if not scoped:
         reds, digest, marker = goal_reds(root, env)
         base_id, why = base(root, env)
     else:
@@ -1085,7 +1099,7 @@ def main(scope='delivery', commits=()):
         reds, digest, marker, why = set(), None, False, None
         if scope == 'child':
             reds, _, _ = goal_reds(root, env)
-    rerun = rerun_bound(root, env) if scope != 'child' else 0
+    rerun = 0 if lightweight else rerun_bound(root, env)
     errors = []
     lints, tests = [], []
     starved = []
@@ -1102,7 +1116,7 @@ def main(scope='delivery', commits=()):
     def conclude():
         _, found = timed('journeys', journeys_check)
         errors.extend(found)
-        if scope != 'delivery':
+        if scoped:
             try:
                 final_base, final_heads = policy_context(scope, commits, root, git_dir, env)
                 if final_heads != frozen_heads:
@@ -1117,7 +1131,7 @@ def main(scope='delivery', commits=()):
                 errors.append(failure(f'check {scope} checkout', str(error)))
         refused = any(not settled(e) for e in errors)
         failures_tail = failure_file(tree_id, base_id, refused, False, errors, root, env, scope, commits, frozen_heads)
-        if scope != 'delivery' and failures_tail.startswith('not written'):
+        if scope != 'full' and failures_tail.startswith('not written'):
             errors.append(failure(f'check {scope} receipt', failures_tail))
         verdict = summary(base_id, lints, tests, errors, why if base_id else None, failures_tail, starved, scope, commits)
         if marker:
@@ -1131,19 +1145,21 @@ def main(scope='delivery', commits=()):
             if expected.returncode or expected.stdout.strip() != tree_id.encode():
                 print('pre-pr: refused goal: checkout snapshot differs from goal tree', flush=True)
                 return 1
-        ledgers, ledger_digest = ({}, '-') if scope == 'child' else main_ledgers(ledger_setting, Path(directory), root)
+        ledgers, ledger_digest = ({}, '-') if lightweight else main_ledgers(ledger_setting, Path(directory), root)
         cache = git_dir / 'pre-pr-passed'
         own_paths, own_paths_error = [], None
         merged = None
+        # Without a landing pin, HEAD still identifies the edits in this delivery.
+        comparison = base_id or ('HEAD' if scope == 'delivery' else None)
         try:
-            merged = merged_tips(base_id, root, env, frozen_heads) if base_id and scope != 'goal' else []
-            own_paths = delivery_paths(base_id, tree_id, root, env, merged)
+            merged = merged_tips(comparison, root, env, frozen_heads) if comparison and scope != 'goal' else []
+            own_paths = delivery_paths(comparison, tree_id, root, env, merged)
         except (OSError, RuntimeError) as error:
             own_paths_error = str(error)
         # The same tree can have different own paths after HEAD or a merge changes.
         own_digest = hashlib.sha256(os.fsencode('\0'.join(own_paths))).hexdigest()
         record = f'{tree_id} {base_id or "-"} {digest or "-"} {ledger_digest} {own_digest}'
-        if scope == 'delivery' and own_paths_error is None and cache.exists() and cache.read_text().strip() == record:
+        if scope == 'full' and own_paths_error is None and cache.exists() and cache.read_text().strip() == record:
             print(f'pre-pr: passed before (tree {tree_id}, base {base_id or "-"}, '
                   f'reds {digest or "-"}, ledgers {ledger_digest})', flush=True)
             failures_tail = failure_file(tree_id, base_id, False, True, [], root, env)
@@ -1152,8 +1168,8 @@ def main(scope='delivery', commits=()):
             print('failures: a cached pass, none observed; ' + failures_tail, flush=True)
             return 0
         paths, raw_paths, selected = [], [], []
-        if base_id:
-            diff = git(['diff-tree', '-r', '--no-renames', '--name-only', '-z', base_id, tree_id], root, env)
+        if comparison:
+            diff = git(['diff-tree', '-r', '--no-renames', '--name-only', '-z', comparison, tree_id], root, env)
             if diff.returncode:
                 errors.append(failure('check selection', diff.stderr.decode(errors='replace')))
             else:
@@ -1165,13 +1181,13 @@ def main(scope='delivery', commits=()):
             if merged:
                 print(f"pre-pr: merged tips: {' '.join(merged)}: what they hold is not the delivery's", flush=True)
             try:
-                selected = code_inputs(paths, {'packages': [], 'workspace_members': []}, root)
+                selected = code_inputs(paths, {'packages': [], 'workspace_members': []}, root, local_manifests=lightweight)
             except (OSError, ValueError, RuntimeError) as error:
                 errors.append(failure('check selection', str(error)))
-        docs = any(documentation(path) for path in paths)
+        docs = any(documentation(path) for path in paths) or (scope == 'delivery' and not base_id)
         prose_only = bool(paths) and not selected and not errors and all(
             path.endswith('.md') and 'docs' in Path(path).parts[:-1] for path in paths)
-        if prose_only or scope == 'child':
+        if prose_only or lightweight:
             hold = contextlib.nullcontext()
         else:
             runner = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'tiers/run'))
@@ -1179,12 +1195,14 @@ def main(scope='delivery', commits=()):
         with hold:
             data = None
             if not base_id:
-                print(f'pre-pr: no base ({why}): the format check and the counted baselines alone', flush=True)
+                checks = ('format, counted baselines, citations and outward names' if lightweight else
+                          'the format check and the counted baselines alone')
+                print(f'pre-pr: no base ({why}): {checks}', flush=True)
                 code_checks = True
             else:
                 try:
-                    if not prose_only and not errors and (
-                            (docs and scope != 'child') or selected or any(not documentation(path) for path in paths)):
+                    if not lightweight and not prose_only and not errors and (
+                            docs or selected or any(not documentation(path) for path in paths)):
                         data = metadata(root, private)
                         selected = code_inputs(paths, data, root)
                 except (OSError, ValueError, RuntimeError) as error:
@@ -1192,7 +1210,7 @@ def main(scope='delivery', commits=()):
                 code_checks = bool(selected)
                 kind = 'code and docs' if code_checks and docs else 'code only' if code_checks else 'docs only'
                 if code_checks:
-                    checks = ('format, counted baselines, outward names' if scope == 'child' else
+                    checks = ('format, counted baselines, outward names' if lightweight else
                               'format, counted baselines, clippy, focused and fuzzy tests')
                     print(f'pre-pr: {kind}: {checks} (code input {selected[0]!r})', flush=True)
                 if docs:
@@ -1209,6 +1227,11 @@ def main(scope='delivery', commits=()):
             def format_check():
                 nonlocal data
                 try:
+                    if lightweight:
+                        fmt_env = dict(private, CARGO_NET_OFFLINE='true')
+                        fmt_env.setdefault('CARGO_TARGET_DIR', str(Path(directory) / 'format-target'))
+                        code, log = run(['cargo', 'fmt', '--all', '--check'], root, fmt_env)
+                        return [failure('format', log)] if code else []
                     if data is None:
                         data = metadata(root, private)
                     return formatting(data, root, private)
@@ -1216,7 +1239,7 @@ def main(scope='delivery', commits=()):
                     return [failure('format', str(error))]
 
             inventory = {}
-            if scope != 'child' and base_id and data is not None and (code_checks or docs):
+            if not lightweight and base_id and data is not None and (code_checks or docs):
                 always = root / '.config/gate/always.txt'
                 always = always.read_text() if always.exists() else ''
                 lints, tests = select(data, {root / p: p for p in selected}, always) if code_checks else ([], [])
@@ -1225,7 +1248,7 @@ def main(scope='delivery', commits=()):
                 packages = boundary(data, always)
                 print('pre-pr: boundary tests: ' + (' '.join(packages) or 'none'), flush=True)
                 tests = sorted(set(tests) | set(packages))
-            if tests or (code_checks and not base_id):
+            if tests or (not lightweight and code_checks and not base_id):
                 try:
                     if data is None:
                         data = metadata(root, private)
@@ -1236,7 +1259,7 @@ def main(scope='delivery', commits=()):
 
             pending = {}
             binaries = [binary for name in tests for binary in inventory.get(name, [])]
-            repair = repair_case(git_dir, root, base_id, tree_id, tests, reds) if scope == 'delivery' else None
+            repair = repair_case(git_dir, root, base_id, tree_id, tests, reds) if scope == 'full' else None
             early = None
             if repair and code_checks and rerun and not errors and not binaries:
                 print(f'pre-pr: repair trial: focused process for {repair[0]} {repair[1]} first', flush=True)
@@ -1302,21 +1325,24 @@ def main(scope='delivery', commits=()):
             if docs:
                 _, found = timed('citations', lambda: citations(tree_id, root, env), pending)
                 errors += found
-            if prose_only or (scope == 'child' and (code_checks or docs)):
-                _, found = timed('outward', lambda: outward(root, private), pending)
+            if prose_only or (lightweight and (code_checks or docs)):
+                code, found = timed('outward', lambda: outward(root, private), pending)
                 errors += found
-            if scope != 'goal' and base_id and 'tools/tiers/budgets.toml' in raw_paths:
+                if scope == 'delivery' and code in (0, 1):
+                    outcomes['fabrig-boundary::outward', 'no_file_names_the_lab'] = {
+                        'outcome': 'passed' if code == 0 else 'failed'}
+            if scope != 'goal' and comparison and 'tools/tiers/budgets.toml' in raw_paths:
                 def figures_check():
                     try:
                         if merged is None:
                             raise RuntimeError(own_paths_error)
-                        return figures(base_id, tree_id, root, env, merged)
+                        return figures(comparison, tree_id, root, env, merged)
                     except (OSError, RuntimeError) as error:
                         return 2, [failure('check figures', str(error))]
 
                 _, found = timed('figures', figures_check, pending)
                 errors += found
-            if scope != 'child' and any(
+            if not lightweight and any(
                     path == '.temper/merge' or (path.startswith('tools/merge/') and path not in
                                                 ('tools/merge/README.md', 'tools/merge/codecs.txt')) for path in paths):
                 _, found = timed('merge', lambda: merge_tests(root, env), pending)
@@ -1329,7 +1355,7 @@ def main(scope='delivery', commits=()):
                 status = 'inherited' if found and all(settled(e) for e in found) else 'failed'
                 print(f'pre-pr: {name}: {status}, {seconds:.3f} s', flush=True)
             verdict = conclude()
-            if not verdict and scope == 'delivery':
+            if not verdict and scope == 'full':
                 temporary = git_dir / 'pre-pr-passed.tmp'
                 temporary.write_text(record + '\n')
                 temporary.replace(cache)
