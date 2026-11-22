@@ -737,23 +737,6 @@ file, and `llm.json`'s generated scripts answer again. The retained
 stay. So scripts are the start's, the same at every place, and never
 change while the box runs.
 
-**A fixed start.** `--fixed-start SECONDS,SEED`, the journeys tool's
-(`../../client/journey-clock.md`, 4.1), is refused without
-`--fake-backends`, as `--bundle`, `--scripts` and `--strict` are, and a
-value skein's `FixedStart` doesn't read is refused, naming the flag. At
-every start, of a new sandbox or a retained one, the `internal serve`
-step's arguments and the four peers', `fake github`, `fake issuer`,
-`fake model` and `fake forgejo`, add `--fixed-start` with the same
-value. Each takes it as a fixed clock (skein's `runtime/shell.md`, 5),
-and `internal serve` its seeds too, the seed itself and its three
-32-byte draws from the start, on streams 1, 2 and 3 for the
-cryptographic seed, the deployment's identifier and the installation's;
-the peers keep `--seed 7`. The box itself keeps the host's clock and
-randomness, since its fetch checks real hosts' certificates against its
-wall, and so do the agents its worker starts. A start without the flag
-gives the steps none. `internal serve` and `fake ...` take it as these
-steps give it, and are no person's commands.
-
 The box owns the peers' held listeners before spawning them. First
 preparation transfers its reservations exactly once; on reuse the ordinary
 box listener mechanism binds the retained documents' addresses. Each is
@@ -945,10 +928,10 @@ in a terminal or not, as 1 to 5 say.
   processes drawing their own ports. Focused proof holds the choice and
   retention rules; the process and browser walks hold the running box.
 
-- **A fake fetch for the fake box,** so that a journey prints the
-  percentage: a walk's fetch lasts seconds, its `fetched` lines keep the
-  page moving, and `again` takes no page while it moves
-  (`../../client/web/journeys.md`, 8.1).
+- **A fake fetch for a box's rendered walk:** a real fetch lasts seconds
+  and its `fetched` lines keep the page moving. Main's journeys print
+  the percentage through the world's box peer, on simulator time,
+  without a box or fetch process (`../../client/journey-walks.md`, 4.4).
 
 - **The other fake peers' refused connections** (`box.md`, 5): the issuer's log
   takes a line for each connection it turns away at its cap, from skein's

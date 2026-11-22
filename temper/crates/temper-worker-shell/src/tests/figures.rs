@@ -29,6 +29,38 @@ fn configured_figures_with(
     temper_engine_service_vocabulary::figures::Composer::new(&engine, &own).compose(&temper_service::stock::agents())
 }
 #[test]
+fn stock_stop_line_uses_the_applied_workers_bounds() {
+    let scratch = skein_scratch::Scratch::new("worker-stop-line");
+    let (_, document) = super::worker_document(scratch.path());
+    let directories = super::configuration::directories(scratch.path());
+    let mut part = temper_worker_service::startup::worker_part(
+        &super::worker_start(&document),
+        &temper_service_shell::jig_directories(&directories),
+        None,
+        &[],
+    )
+    .expect("worker part");
+    temper_worker_service::figures::apply(&mut part, stock_figures()).expect("applied figures");
+    assert_eq!(
+        worker::stop_line(part.worker.jig.stop_bound, part.worker.jig.graces.drain),
+        "stop bound 326 s, drain 180 s\n"
+    );
+}
+
+#[test]
+fn stop_line_rounds_both_bounds_up_to_whole_seconds() {
+    use skein_lib::Duration;
+    assert_eq!(
+        worker::stop_line(Duration::from_millis(326_001), Duration::from_millis(180_001)),
+        "stop bound 327 s, drain 181 s\n"
+    );
+    assert_eq!(
+        worker::stop_line(Duration::from_nanos(326_000_000_001), Duration::from_nanos(180_000_000_001)),
+        "stop bound 327 s, drain 181 s\n"
+    );
+}
+
+#[test]
 fn toml_worker_git_wins_over_path_and_absent_key_uses_path() {
     let scratch = skein_scratch::Scratch::new("worker-program-git");
     let root = scratch.path();

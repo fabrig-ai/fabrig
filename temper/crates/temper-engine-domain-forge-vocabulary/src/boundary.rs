@@ -712,6 +712,19 @@ pub struct Row {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Forges {
     pub rows: Box<[Row]>,
+    pub full: Box<[FullTable]>,
+}
+/// Tables full past the report bound (protocol/README.md, 6.3).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum FullKind {
+    Outbox,
+    ReadAdmission,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct FullTable {
+    pub table: FullKind,
+    pub since: u64,
+    pub words: Box<[u8]>,
 }
 /// The admitted repository and its observed collaborators.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -2540,6 +2553,12 @@ pub enum Event {
         task: u64,
         job: crate::history::JobStep,
     },
+    /// Forget a suspended attempt's pending read-back without recording a failure.
+    JobSuspended {
+        task: u64,
+        child: u64,
+        attempt: u32,
+    },
     /// Remember a committed procedure child and its role in this change.
     Delegated {
         task: u64,
@@ -2798,6 +2817,10 @@ pub fn is_root_read(owner: Token) -> bool {
 /// The connector's output to the root, including child API calls.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Request {
+    /// A table report, words after `serve: ` (protocol/README.md, 6.3).
+    FullTableFact {
+        words: Box<[u8]>,
+    },
     /// Choose a loopback port before making the record (protocol/setup/place.md, 2).
     ChoosePlace {
         request: Token,
@@ -2865,6 +2888,14 @@ pub enum Request {
     FileVerdict {
         task: u64,
         filing: crate::findings::VerdictFiling,
+    },
+    /// Return a judged finding through the root's holder and news path.
+    ReturnFinding(crate::Finding),
+    /// A live repair passed its wall deadline; ask jig to fail it once per start.
+    FailRepair {
+        project: u32,
+        task: u64,
+        until: skein_lib::Wall,
     },
     TierDecision {
         task: u64,
@@ -2974,6 +3005,10 @@ pub enum Request {
     },
     /// The deployment's forges document changed.
     MarkedForges,
+    /// A finding's blame changed a milestone's parts (domain/red-findings.md, 10).
+    MilestoneMarked {
+        task: u64,
+    },
     /// Changed panel subjects, bounded by `MARKED` (domain/root.md, 9).
     Marked {
         tasks: Box<[u64]>,
@@ -3271,6 +3306,14 @@ pub struct TierGoal {
     /// When its last run started.
     pub started: Option<skein_lib::Time>,
 }
+/// Why a tier's run is held (temper/docs/design/domain/after-landing.md, section 3).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum TierHeld {
+    /// Past the project's `tier_retries`: the last runner fault's kind.
+    Faults(landing::Fault),
+    /// Waiting or blocked for a runner past `forge.change_policy.runner_wait_ms`.
+    RunnerWait,
+}
 /// Family 28's policy and task (temper/docs/design/domain/after-landing.md, 10).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TierRow {
@@ -3293,7 +3336,7 @@ pub struct TierRow {
     /// The current or completed probe, retained until its branch is released.
     pub probe: Option<TierProbeBranch>,
     pub flight: Option<TierFlight>,
-    pub held: Option<landing::Fault>,
+    pub held: Option<TierHeld>,
     pub hold: Option<TierHold>,
     /// The final part observation or cached receipt awaiting release and judgement.
     pub result: Option<Receipt>,
@@ -3316,7 +3359,7 @@ pub struct TierPosting {
     /// Status is 0; comment i is i + 1.
     pub next: u32,
     pub entry: Option<u64>,
-    /// Zero for a verdict, a distinct positive status part at each fault hold.
+    /// Zero for a verdict, a distinct positive status part at each run hold.
     pub part: u16,
     /// Retains the rendering bound across restart and settings changes.
     pub op_bytes: u32,
@@ -3366,6 +3409,7 @@ pub struct TierProbeBranch {
 /// Durable follower progress; trees and workflow details are read again after restart.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TierFlight {
+    pub clock: Option<change::Clock>,
     pub entry: u64,
     pub start: Option<skein_lib::Time>,
     pub since: Option<skein_lib::Time>,

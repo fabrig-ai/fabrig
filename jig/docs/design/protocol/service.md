@@ -479,12 +479,12 @@ Each within jig's suites' budgets.
   root's does; whether it is copied and filled, or generated.
 - **Supervision:** what restarts an engine that stopped, and how often,
   is the deployment's; whether jig's guidance names one.
-- **A worker stopping in another process** (section 6): its Shutdown
-  cancel reaches the running engine, where an agent's cancelled answer
-  counts as `Failed(Agent)` and spends an agent try. Whether an orderly
-  worker restart should instead interrupt that attempt is left for
-  workers apart. Default: the no-try interruption applies only when
-  the engine stops its own in-process agent claims (section 5).
+- **A worker stopping in another process** (section 6): the attempts
+  its stop cuts are suspended, spending no try
+  (`../domain/engine/executors.md`, 6), but an agent's cancelled answer
+  that reaches its hub before the hub hears the stop is still the run's
+  own failure. Default: so until an agent with a live host leaves its
+  stop to its host (`../domain/engine/executors.md`, 6.7).
 - **Programs after a forced agent stop** (section 10): a second signal
   kills an agent's group, leaving a program in its own group outside the
   kill. Contained trees (README.md, section 10) must cover both, including

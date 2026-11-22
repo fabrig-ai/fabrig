@@ -85,6 +85,17 @@ impl Engine {
         &mut self.outputs
     }
 
+    /// Inject an engine command on an admitted worker channel, without a fleet placement policy.
+    pub fn send_worker(&mut self, channel: skein_lib::Token, down: jig_domain_host::LinkDown) {
+        self.workers.as_mut().expect("worker listener").send(
+            self.env.now,
+            channel,
+            down,
+            &self.values,
+            &mut self.events,
+        );
+    }
+
     /// Hold workspace completions so a test can commit a wake before the next claim.
     pub fn hold_workspaces(&mut self) {
         self.domain.script_workspaces();

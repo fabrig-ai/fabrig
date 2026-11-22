@@ -312,6 +312,31 @@ the core makes no new work and takes every commit:
 that does not settle, is as before. A crash while settling leaves the
 store as any crash does.
 
+**A stop during the start** (temper's `draft/reconciling-start.md`, 4).
+A stop may come in any phase of the start's script (`restart.md`). Told
+`Stopping` while the script runs, the core asks no further phase
+(`start_done`, `start_sweep` and `start_resume` answer `Action::Idle`)
+and commits no mark; a continuation it holds is dropped once its
+decision's commit is answered. Then:
+
+- **before the mark** (the `Wires` commit durable), it has adopted no
+  run and placed none, so it settles no claim; a root tells it
+  `Stopping` alone there, since nothing has left the process to settle,
+  so it keeps and says no restart word;
+- **after the mark,** a root that settles tells it `Settling` first,
+  once the phase it serves has ended, and the stop goes on as at any
+  settled stop, the word kept and said for the runs step 3 adopted;
+- **either way** it ends every watch saying the engine is stopping (none
+  is open before decisions open) and asks `Held::Drained` once, when
+  nothing it holds waits for a commit, the start's own commits in flight
+  answered first, as at any stop. The root's service then closes its
+  components, those that wait for the mark closing at once as closed
+  (`../../protocol/service.md`, 5, step 4).
+
+A stopped start is no refused start: it names no `start::Failure`,
+`start_phase()` still names where it stopped, and the next start begins
+again from the store.
+
 **Saying it restarts** (temper's `draft/redeploys.md`, 5.2). A settled
 stop tells the workers that the engine restarts, so that each keeps its
 runs through the restart wait rather than its grace

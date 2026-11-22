@@ -248,7 +248,7 @@ pub(super) fn forges(mode: f::Mode) -> Box<[u8]> {
         read_only: false,
         makings: List::with_capacity(0),
     };
-    wire::forges(&f::Forges { forges: List::from_boxed(Box::new([row])), linked: false })
+    wire::forges(&f::Forges { forges: List::from_boxed(Box::new([row])), full: List::with_capacity(0), linked: false })
 }
 fn dismissed(linked: bool) -> Box<[u8]> {
     let mut dismissed = List::with_capacity(wire::DISMISSED);

@@ -28,6 +28,8 @@ fn hosted_records(records: Vec<accounts::Stored>, granted: bool) -> (Core, Env<L
             worker: 0,
             channel: Token::new(77),
             hello: Hello {
+                fresh: false,
+                reads_usage: true,
                 jobs: Box::default(),
                 bounds: fixtures::bounds(),
                 stop_bound: Duration::ZERO,

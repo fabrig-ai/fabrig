@@ -34,6 +34,8 @@ mod result;
 mod resume;
 pub(super) mod resume_fixture;
 mod setup;
+mod start_stop;
+mod start_wait;
 mod validity;
 
 const LIMITS: Limits =
@@ -584,6 +586,8 @@ fn deep_child_rows_and_arbitrary_internal_payloads_are_refused_before_retention(
         worker: 0,
         channel: Token::new(1),
         hello: jig_domain_link::Hello {
+            fresh: false,
+            reads_usage: true,
             jobs: Box::default(),
             stop_bound: skein_lib::Duration::from_secs(0),
             slots: 1,
@@ -921,3 +925,5 @@ fn bulk_task_drops_cross_the_journal_without_replacing_record_erases() {
 mod room_checks;
 
 mod see;
+
+mod worker_pause;

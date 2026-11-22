@@ -59,7 +59,7 @@ fn deliver(root: &mut crate::Domain, watch: Token, row: w::ForgeRow) -> Queue<Re
                     record: jig_client::Family {
                         family: wire::FORGE,
                         version: wire::CLIENT_VERSION,
-                        bytes: wire::forges(&w::Forges { forges: rows, linked: false }),
+                        bytes: wire::forges(&w::Forges { forges: rows, full: List::with_capacity(0), linked: false }),
                     },
                 },
             },

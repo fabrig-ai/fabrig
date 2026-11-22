@@ -697,6 +697,31 @@ pub enum End {
     RefusedWithReason { reason: Box<[u8]> },
     /// Its source or checked placement requires a fresh check; release the run without a try or timer.
     Recheck,
+    /// Its worker stopped or restarted; release without a try (domain/engine/executors.md, 6).
+    Suspended(Suspended),
+}
+
+/// Why an attempt's worker cut it (domain/engine/executors.md, 6.1).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum SuspendWhy {
+    Stopped,
+    Restarted,
+}
+
+/// A worker's interruption, with the restart window at the end's decision.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Suspended {
+    pub worker: u32,
+    pub why: SuspendWhy,
+    pub window: Duration,
+}
+
+/// The task's open suspension on the engine's wall clock (domain/engine/executors.md, 6.2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Suspension {
+    pub worker: u32,
+    pub since: Wall,
+    pub until: Wall,
 }
 
 /// Root-authorized follow-ups from one verdict, admitted with its result.
@@ -1306,6 +1331,12 @@ pub struct TaskRecord {
     pub words_woken: u64,
     /// Current attempt (domain/tasks/lifecycle.md, 12.1).
     pub open_attempt: Option<crate::OpenAttempt>,
+    /// Worker and window kept until leaving due and preparing (domain/engine/executors.md, 6.2).
+    pub suspension: Option<Suspension>,
+    /// Nanoseconds spent in closed suspensions.
+    pub suspended: u64,
+    /// The latest attempt ended suspended because its worker restarted.
+    pub restarted: bool,
 }
 
 pub use crate::index::Key;
@@ -1785,6 +1816,12 @@ pub enum Event {
         reply_to: ReplyTo,
         by: Party,
         operation: crate::Cancel,
+    },
+    /// Application-only failure of a live task and cancellation of its subtree (domain/tasks/lifecycle.md, 13).
+    Fail {
+        reply_to: ReplyTo,
+        by: Party,
+        operation: crate::Fail,
     },
     /// Root-checked release of a live task.
     Release {

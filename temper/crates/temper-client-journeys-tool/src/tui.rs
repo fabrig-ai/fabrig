@@ -1,6 +1,6 @@
-//! The TUI's in-memory admission and reprint (temper/docs/design/client/tui/journeys.md, 5 to 7).
-use crate::{Added, Refusal, io_refusal, names};
-use std::{fs, path::Path};
+//! The TUI's in-memory proof and print (temper/docs/design/client/tui/journeys.md, 5 to 7).
+use crate::{Build, Printed, Refusal, io_refusal, write_assets};
+use std::{ffi::OsStr, fs, path::Path};
 use temper_client_shell_tui::journey::{self, Line, Stale};
 
 pub use temper_client_walk_lines::tui_print::{SCRIPT, beside, pages, stylesheet};
@@ -17,17 +17,35 @@ fn kind(bytes: &[u8]) -> &[u8] {
     bytes.split(u8::is_ascii_whitespace).next().unwrap_or_default()
 }
 
-pub(crate) fn add(root: &Path, name: &str, recording: &[u8], given: &[Box<[u8]>]) -> Result<Added, Refusal> {
+pub(crate) fn print(
+    out: &Path,
+    name: &str,
+    file: &OsStr,
+    recording: &[u8],
+    given: &[Box<[u8]>],
+    build: &Build,
+) -> Result<Printed, Refusal> {
+    let lines = journey::lines(recording).map_err(|why| proof_refusal(name, journey::Refusal::Unreadable(why)))?;
+    if let Some(version) =
+        lines.iter().find_map(|line| if let Line::Version(version) = line { Some(version) } else { None })
+        && version.as_ref() != build.temper.as_bytes()
+    {
+        return Err(Refusal::Layout {
+            file: file.to_string_lossy().into_owned(),
+            recorded: format!("by temper {}", String::from_utf8_lossy(version)),
+            read: format!("this is temper {}", build.temper),
+        });
+    }
     let redacted =
         journey::redact(recording, given).map_err(|why| proof_refusal(name, journey::Refusal::Unreadable(why)))?;
-    let recording = journey::prove(&redacted.recording).map_err(|why| proof_refusal(name, why))?;
-    let normalised =
-        journey::normalise(&recording).map_err(|why| proof_refusal(name, journey::Refusal::Unreadable(why)))?;
-    let recording = &normalised.recording;
-    let files = printed(name, recording)?.map_err(|why| proof_refusal(name, journey::Refusal::Stale(why)))?;
-    if let Some(found) = journey::scan(recording, &redacted.originals).map_err(|why| proof_refusal(name, why))? {
+    if let Some(found) =
+        journey::scan(&redacted.recording, &redacted.originals).map_err(|why| proof_refusal(name, why))?
+    {
         return Err(Refusal::TuiFound { name: name.to_owned(), found, file: None });
     }
+    let proved = journey::prove(&redacted.recording).map_err(|why| proof_refusal(name, why))?;
+    let recording = proved.as_ref();
+    let files = printed(name, recording)?.map_err(|why| proof_refusal(name, journey::Refusal::Stale(why)))?;
     let lines = journey::lines(recording).map_err(|why| proof_refusal(name, journey::Refusal::Unreadable(why)))?;
     let codes = journey::codes(&lines);
     let marks: Vec<_> =
@@ -48,7 +66,8 @@ pub(crate) fn add(root: &Path, name: &str, recording: &[u8], given: &[Box<[u8]>]
             }
         }
     }
-    let added = Added {
+    let printed = Printed {
+        name: name.to_owned(),
         link: redacted.originals.count(journey::Kind::Link),
         stored: redacted.originals.count(journey::Kind::Stored),
         typed: redacted.originals.count(journey::Kind::Typed),
@@ -57,37 +76,11 @@ pub(crate) fn add(root: &Path, name: &str, recording: &[u8], given: &[Box<[u8]>]
         credential: redacted.originals.count(journey::Kind::Credential),
         bearer: redacted.originals.count(journey::Kind::Bearer),
         places: redacted.places,
-        build: normalised.build,
-        port: normalised.port,
-        code: normalised.code,
-        placeholder_places: normalised.places,
-        stood: normalised.stood,
     };
-    let directory = root.join(name);
-    fs::create_dir_all(&directory).map_err(|_| io_refusal(&directory))?;
-    let path = directory.join("recording");
-    fs::write(&path, &normalised.recording).map_err(|_| io_refusal(&path))?;
+    let directory = out.join(temper_client_walk_lines::layout::TUI).join(name);
     write_files(&directory, files)?;
-    beside(root).map_err(|_| io_refusal(root))?;
-    Ok(added)
-}
-
-/// Reprint the TUI journeys, leaving each stale journey's files untouched.
-/// # Errors
-/// Refuses an unreadable recording or a filesystem failure.
-pub fn reprint(root: &Path, out: &Path) -> Result<Vec<(String, Stale)>, Refusal> {
-    let mut stale = Vec::new();
-    for name in names(root)? {
-        let path = root.join(&name).join("recording");
-        let recording = fs::read(&path).map_err(|_| io_refusal(&path))?;
-        match printed(&name, &recording)? {
-            Ok(files) => write_files(&out.join(&name), files)?,
-            Err(why) => stale.push((name, why)),
-        }
-    }
-    fs::create_dir_all(out).map_err(|_| io_refusal(out))?;
-    beside(out).map_err(|_| io_refusal(out))?;
-    Ok(stale)
+    write_assets(out, temper_client_walk_lines::walk::Client::Tui)?;
+    Ok(printed)
 }
 
 pub(crate) fn printed(name: &str, recording: &[u8]) -> Result<Result<Vec<crate::print::Printed>, Stale>, Refusal> {

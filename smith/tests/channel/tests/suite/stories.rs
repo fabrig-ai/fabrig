@@ -1492,3 +1492,23 @@ fn renewals_and_resent_grants_reach_the_domain_without_reinstalling_values() {
     );
     assert_eq!(world.agent_grant_value(3, 4), Some(initial_grant()));
 }
+
+#[test]
+fn a_signal_notice_requires_admission_and_preserves_the_signal_and_sender() {
+    let mut world = World::started();
+    assert!(
+        !world.agent_signalled(smith_channel::Signal::Terminate, Some(42)),
+        "the agent half refuses before admission"
+    );
+    world.agent_admits();
+    world.settle();
+    assert!(world.agent_signalled(smith_channel::Signal::Terminate, Some(42)));
+    world.settle();
+    assert!(world.observations().contains(&Observation::HostSignalled {
+        signal: smith_host_domain::parent::Signal::Terminate,
+        from: Some(42)
+    }));
+    world.agent_parks();
+    world.settle();
+    assert!(!world.agent_signalled(smith_channel::Signal::Interrupt, None), "the answer ended the notice window");
+}

@@ -11,6 +11,13 @@ temper/docs/design/testing/real-loop.md changes/1.md # the walk repository's fil
 temper/docs/design/draft/configuring.md process.md # a charter's document in an example, quoted
 temper/docs/design/draft/dashboards.md status-page.md # an adopted repository's document, the test's data
 # History kept on purpose.
+temper/docs/design/draft/archive/journey-walks.md ../client/journey-clock.md # the retired fixed clock's design, readable at the commit that removed it
+temper/docs/design/draft/archive/journey-walks.md ../../client/journey-placeholders.md # the retired placeholders' design, readable at the commit that removed it
+temper/docs/design/draft/archive/journey-walks.md ../journey-clock.md # the retired fixed clock's draft, readable at the commit that removed it
+temper/docs/design/draft/archive/journey-walks.md ../journey-placeholders.md # the retired placeholders' draft, readable at the commit that removed it
+temper/docs/design/draft/archive/journey-walks.md ../real-journeys.md # the retired real journeys' draft, readable at the commit that removed it
+temper/docs/design/draft/archive/journey-walks.md ../record-anywhere.md # the retired recording draft, readable at the commit that removed it
+temper/docs/design/draft/landed-qa.md real-journeys.md # the retired real journeys' draft, readable at the commit that removed it
 temper/docs/design/draft/test-budgets*.md default-wall-230.md # the retired band-aid draft, readable at the commit that removed it
 temper/docs/design/draft/branch-reds.md known-reds-merge.md # the retired stopgap draft, readable at the commit that removed it
 temper/docs/design/draft/notes.md notes/contracts.md # a plan's file name in the replay's account, not a document here

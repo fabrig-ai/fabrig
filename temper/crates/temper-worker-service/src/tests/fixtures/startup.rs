@@ -200,7 +200,7 @@ pub fn owned_worker_agent() -> settings::Agent {
                 skip: 72_105_650,
                 output_bytes: 72_105_658,
                 output_frames: 26,
-                kinds: 22,
+                kinds: u32::try_from(smith_channel::V13.len()).expect("channel kinds fit"),
             },
             start_bytes: 72_105_650,
             calls: 1,

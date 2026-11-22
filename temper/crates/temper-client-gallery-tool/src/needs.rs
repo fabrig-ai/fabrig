@@ -643,6 +643,9 @@ fn finding() -> temper_client_protocol_wire::v1::Findings {
         at: worlds::now(World::Solo).as_nanos().saturating_sub(Duration::from_secs(3600).as_nanos()),
         why: Some(b"Your area owns the view".as_slice().into()),
         hander: Some(w::Filer::Task(w::HolderTask { number: 55 })),
+        goal: None,
+        reason: None,
+        cleared: None,
     };
     let area = w::AreaRow {
         name: b"view".as_slice().into(),

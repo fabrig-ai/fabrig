@@ -1069,577 +1069,592 @@ pub mod paths {
     pub const FAILED_END_CLASS: Path = Path::new(180, 0);
     pub const FAILED_END_INVALID_RESULT: Path = Path::new(180, 1);
     pub const FAILED_END_TAIL: Path = Path::new(180, 2);
-    pub const END_KIND_TAG: Path = Path::new(181, 0);
-    pub const ATTEMPT_ROW_TASK: Path = Path::new(182, 0);
-    pub const ATTEMPT_ROW_ATTEMPT: Path = Path::new(182, 1);
-    pub const ATTEMPT_ROW_CLAIMED: Path = Path::new(182, 2);
-    pub const ATTEMPT_ROW_STARTED: Path = Path::new(182, 3);
-    pub const ATTEMPT_ROW_ENDED: Path = Path::new(182, 4);
-    pub const ATTEMPT_ROW_END: Path = Path::new(182, 5);
-    pub const ATTEMPT_ROW_PHASES: Path = Path::new(182, 6);
-    pub const ATTEMPT_ROW_TAIL: Path = Path::new(182, 7);
-    pub const OPEN_ATTEMPT_ATTEMPT: Path = Path::new(183, 0);
-    pub const OPEN_ATTEMPT_CLAIMED: Path = Path::new(183, 1);
-    pub const OPEN_ATTEMPT_STARTED: Path = Path::new(183, 2);
-    pub const OPEN_ATTEMPT_FROM: Path = Path::new(183, 3);
-    pub const OPEN_ATTEMPT_END: Path = Path::new(183, 4);
-    pub const OPEN_ATTEMPT_TAIL: Path = Path::new(183, 5);
-    pub const ACTIVITY_WORDS_MESSAGE: Path = Path::new(184, 0);
-    pub const ACTIVITY_WORDS_BY: Path = Path::new(184, 1);
-    pub const ACTIVITY_WORDS_KIND: Path = Path::new(184, 2);
-    pub const ACTIVITY_WORDS_WORDS: Path = Path::new(184, 3);
-    pub const ACTIVITY_WORDS_TAIL: Path = Path::new(184, 4);
-    pub const HEARD_MESSAGE_WORD: Path = Path::new(185, 0);
-    pub const HEARD_MESSAGE_TAIL: Path = Path::new(185, 1);
-    pub const NOTIFIED_MESSAGE_RECIPIENT: Path = Path::new(186, 0);
-    pub const NOTIFIED_MESSAGE_WORD: Path = Path::new(186, 1);
-    pub const NOTIFIED_MESSAGE_TAIL: Path = Path::new(186, 2);
-    pub const FRESH_TAG: Path = Path::new(187, 0);
-    pub const BEGAN_LINE_ATTEMPT: Path = Path::new(188, 0);
-    pub const BEGAN_LINE_WHY: Path = Path::new(188, 1);
-    pub const BEGAN_LINE_RESUMED: Path = Path::new(188, 2);
-    pub const BEGAN_LINE_FRESH: Path = Path::new(188, 3);
-    pub const BEGAN_LINE_TAIL: Path = Path::new(188, 4);
-    pub const ENDED_LINE_ATTEMPT: Path = Path::new(189, 0);
-    pub const ENDED_LINE_END: Path = Path::new(189, 1);
-    pub const ENDED_LINE_SPENT: Path = Path::new(189, 2);
-    pub const ENDED_LINE_TAIL: Path = Path::new(189, 3);
-    pub const TURN_LINE_REPLY: Path = Path::new(190, 0);
-    pub const TURN_LINE_ATTEMPT: Path = Path::new(190, 1);
-    pub const TURN_LINE_TURN: Path = Path::new(190, 2);
-    pub const TURN_LINE_READ: Path = Path::new(190, 3);
-    pub const TURN_LINE_TAIL: Path = Path::new(190, 4);
-    pub const DECIDED_PROPOSAL_NUMBER: Path = Path::new(191, 0);
-    pub const DECIDED_PROPOSAL_MADE: Path = Path::new(191, 1);
-    pub const DECIDED_PROPOSAL_TAIL: Path = Path::new(191, 2);
-    pub const DECIDED_LINE_REVISION: Path = Path::new(192, 0);
-    pub const DECIDED_LINE_PROPOSAL: Path = Path::new(192, 1);
-    pub const DECIDED_LINE_TAIL: Path = Path::new(192, 2);
-    pub const MILESTONE_LINE_POSITION: Path = Path::new(193, 0);
-    pub const MILESTONE_LINE_TAIL: Path = Path::new(193, 1);
-    pub const KEPT_LINE_ATTEMPT: Path = Path::new(194, 0);
-    pub const KEPT_LINE_PENDING: Path = Path::new(194, 1);
-    pub const KEPT_LINE_QUESTION: Path = Path::new(194, 2);
-    pub const KEPT_LINE_TAIL: Path = Path::new(194, 3);
-    pub const NOW_WRITTEN_LINE_ATTEMPT: Path = Path::new(195, 0);
-    pub const NOW_WRITTEN_LINE_LINE: Path = Path::new(195, 1);
-    pub const NOW_WRITTEN_LINE_TAIL: Path = Path::new(195, 2);
-    pub const STOOD_LINE_ATTEMPT: Path = Path::new(196, 0);
-    pub const STOOD_LINE_WORDS: Path = Path::new(196, 1);
-    pub const STOOD_LINE_TAIL: Path = Path::new(196, 2);
-    pub const SESSION_END_TAG: Path = Path::new(197, 0);
-    pub const SESSION_ENDED_LINE_ATTEMPT: Path = Path::new(198, 0);
-    pub const SESSION_ENDED_LINE_END: Path = Path::new(198, 1);
-    pub const SESSION_ENDED_LINE_TAIL: Path = Path::new(198, 2);
-    pub const TALK_OPENED_LINE_PARTY: Path = Path::new(199, 0);
-    pub const TALK_OPENED_LINE_TAIL: Path = Path::new(199, 1);
-    pub const TALK_ENDED_LINE_PARTY: Path = Path::new(200, 0);
-    pub const TALK_ENDED_LINE_LAPSED: Path = Path::new(200, 1);
-    pub const TALK_ENDED_LINE_TAIL: Path = Path::new(200, 2);
-    pub const LINE_TAG: Path = Path::new(201, 0);
-    pub const ACTIVITY_LINE_TASK: Path = Path::new(202, 0);
-    pub const ACTIVITY_LINE_POSITION: Path = Path::new(202, 1);
-    pub const ACTIVITY_LINE_AT: Path = Path::new(202, 2);
-    pub const ACTIVITY_LINE_LINE: Path = Path::new(202, 3);
-    pub const ACTIVITY_LINE_TAIL: Path = Path::new(202, 4);
-    pub const STATUS_TAG: Path = Path::new(203, 0);
-    pub const STUB_TASK: Path = Path::new(204, 0);
-    pub const STUB_PHASE: Path = Path::new(204, 1);
-    pub const STUB_RESULT: Path = Path::new(204, 2);
-    pub const STUB_TAIL: Path = Path::new(204, 3);
-    pub const REPLY_HINT_NUMBER: Path = Path::new(205, 0);
-    pub const REPLY_HINT_ACTIVITY: Path = Path::new(205, 1);
-    pub const REPLY_HINT_ATTEMPT: Path = Path::new(205, 2);
-    pub const REPLY_HINT_TURN: Path = Path::new(205, 3);
-    pub const REPLY_HINT_AT: Path = Path::new(205, 4);
-    pub const REPLY_HINT_TAIL: Path = Path::new(205, 5);
-    pub const ESCALATION_TASK_TASK: Path = Path::new(206, 0);
-    pub const ESCALATION_TASK_TAIL: Path = Path::new(206, 1);
-    pub const ESCALATION_PERSON_PERSON: Path = Path::new(207, 0);
-    pub const ESCALATION_PERSON_TAIL: Path = Path::new(207, 1);
-    pub const ESCALATION_ROLE_PROJECT: Path = Path::new(208, 0);
-    pub const ESCALATION_ROLE_ROLE: Path = Path::new(208, 1);
-    pub const ESCALATION_ROLE_TAIL: Path = Path::new(208, 2);
-    pub const ESCALATION_HOLDER_TAG: Path = Path::new(209, 0);
-    pub const UNHELD_ESCALATION_REVISION: Path = Path::new(210, 0);
-    pub const UNHELD_ESCALATION_TAIL: Path = Path::new(210, 1);
-    pub const ROUTING_ESCALATION_REVISION: Path = Path::new(211, 0);
-    pub const ROUTING_ESCALATION_TAIL: Path = Path::new(211, 1);
-    pub const WAITING_ESCALATION_REVISION: Path = Path::new(212, 0);
-    pub const WAITING_ESCALATION_HOLDER: Path = Path::new(212, 1);
-    pub const WAITING_ESCALATION_ENTRY: Path = Path::new(212, 2);
-    pub const WAITING_ESCALATION_SINCE: Path = Path::new(212, 3);
-    pub const WAITING_ESCALATION_TAIL: Path = Path::new(212, 4);
-    pub const DECIDER_KIND_TAG: Path = Path::new(213, 0);
-    pub const REJECTED_ESCALATION_REVISION: Path = Path::new(214, 0);
-    pub const REJECTED_ESCALATION_BY: Path = Path::new(214, 1);
-    pub const REJECTED_ESCALATION_REASON: Path = Path::new(214, 2);
-    pub const REJECTED_ESCALATION_BY_KIND: Path = Path::new(214, 3);
-    pub const REJECTED_ESCALATION_TAIL: Path = Path::new(214, 4);
-    pub const ESCALATION_TAG: Path = Path::new(215, 0);
-    pub const PERSON_ANSWER_BY: Path = Path::new(216, 0);
-    pub const PERSON_ANSWER_AT: Path = Path::new(216, 1);
-    pub const PERSON_ANSWER_TAIL: Path = Path::new(216, 2);
-    pub const PERSON_STALL_NOTICE_MESSAGE: Path = Path::new(217, 0);
-    pub const PERSON_STALL_NOTICE_AT: Path = Path::new(217, 1);
-    pub const PERSON_STALL_NOTICE_ACTIVITY: Path = Path::new(217, 2);
-    pub const PERSON_STALL_NOTICE_TAIL: Path = Path::new(217, 3);
-    pub const PERSON_WAIT_SINCE: Path = Path::new(218, 0);
-    pub const PERSON_WAIT_STALL: Path = Path::new(218, 1);
-    pub const PERSON_WAIT_DEADLINE: Path = Path::new(218, 2);
-    pub const PERSON_WAIT_NOTICE: Path = Path::new(218, 3);
-    pub const PERSON_WAIT_TAIL: Path = Path::new(218, 4);
-    pub const RECURRING_STATE_TEMPLATE: Path = Path::new(219, 0);
-    pub const RECURRING_STATE_LAST_BATCH: Path = Path::new(219, 1);
-    pub const RECURRING_STATE_LAST_PERIOD: Path = Path::new(219, 2);
-    pub const RECURRING_STATE_PENDING_PERIOD: Path = Path::new(219, 3);
-    pub const RECURRING_STATE_TAIL: Path = Path::new(219, 4);
-    pub const QUESTION_CREDIT_NUMBER: Path = Path::new(220, 0);
-    pub const QUESTION_CREDIT_ANSWERER: Path = Path::new(220, 1);
-    pub const QUESTION_CREDIT_ASKED: Path = Path::new(220, 2);
-    pub const QUESTION_CREDIT_LINE: Path = Path::new(220, 3);
-    pub const QUESTION_CREDIT_TAIL: Path = Path::new(220, 4);
-    pub const TASK_INTEREST_TARGET: Path = Path::new(221, 0);
-    pub const TASK_INTEREST_HELD: Path = Path::new(221, 1);
-    pub const TASK_INTEREST_RESULT: Path = Path::new(221, 2);
-    pub const TASK_INTEREST_TAIL: Path = Path::new(221, 3);
-    pub const TIMER_INTEREST_AT: Path = Path::new(222, 0);
-    pub const TIMER_INTEREST_PERIOD: Path = Path::new(222, 1);
-    pub const TIMER_INTEREST_TAIL: Path = Path::new(222, 2);
-    pub const TOPIC_INTEREST_CONNECTOR: Path = Path::new(223, 0);
-    pub const TOPIC_INTEREST_TOPIC: Path = Path::new(223, 1);
-    pub const TOPIC_INTEREST_TAIL: Path = Path::new(223, 2);
-    pub const SUBSCRIPTION_KIND_TAG: Path = Path::new(224, 0);
-    pub const SUBSCRIPTION_NUMBER: Path = Path::new(225, 0);
-    pub const SUBSCRIPTION_KIND: Path = Path::new(225, 1);
-    pub const SUBSCRIPTION_TAIL: Path = Path::new(225, 2);
-    pub const SAVED_RESOURCE_CONNECTOR: Path = Path::new(226, 0);
-    pub const SAVED_RESOURCE_PATH: Path = Path::new(226, 1);
-    pub const SAVED_RESOURCE_TAIL: Path = Path::new(226, 2);
-    pub const ANSWER_LINE_TASK: Path = Path::new(227, 0);
-    pub const ANSWER_LINE_POSITION: Path = Path::new(227, 1);
-    pub const ANSWER_LINE_TAIL: Path = Path::new(227, 2);
-    pub const QUESTION_LINE_MESSAGE: Path = Path::new(228, 0);
-    pub const QUESTION_LINE_LINE: Path = Path::new(228, 1);
-    pub const QUESTION_LINE_ANSWER: Path = Path::new(228, 2);
-    pub const QUESTION_LINE_TAIL: Path = Path::new(228, 3);
-    pub const PROPOSAL_ROW_PROPOSAL: Path = Path::new(229, 0);
-    pub const PROPOSAL_ROW_REVISION: Path = Path::new(229, 1);
-    pub const PROPOSAL_ROW_TAIL: Path = Path::new(229, 2);
-    pub const ENDINGS_DONE: Path = Path::new(230, 0);
-    pub const ENDINGS_FAILED: Path = Path::new(230, 1);
-    pub const ENDINGS_CANCELLED: Path = Path::new(230, 2);
-    pub const ENDINGS_TAIL: Path = Path::new(230, 3);
-    pub const REPLY_OBJECT_MESSAGE: Path = Path::new(231, 0);
-    pub const REPLY_OBJECT_ACTIVITY: Path = Path::new(231, 1);
-    pub const REPLY_OBJECT_TAIL: Path = Path::new(231, 2);
-    pub const PROPOSAL_UPDATE_PROPOSAL: Path = Path::new(232, 0);
-    pub const PROPOSAL_UPDATE_TAIL: Path = Path::new(232, 1);
-    pub const UPDATE_OBJECT_TAG: Path = Path::new(233, 0);
-    pub const UPDATE_PARTY: Path = Path::new(234, 0);
-    pub const UPDATE_AT: Path = Path::new(234, 1);
-    pub const UPDATE_TASK: Path = Path::new(234, 2);
-    pub const UPDATE_OBJECT: Path = Path::new(234, 3);
-    pub const UPDATE_TAIL: Path = Path::new(234, 4);
-    pub const RESULT_ROW_PARTY: Path = Path::new(235, 0);
-    pub const RESULT_ROW_POSITION: Path = Path::new(235, 1);
-    pub const RESULT_ROW_TASK: Path = Path::new(235, 2);
-    pub const RESULT_ROW_TAIL: Path = Path::new(235, 3);
-    pub const EDGE_REQUESTER: Path = Path::new(236, 0);
-    pub const EDGE_TASK: Path = Path::new(236, 1);
-    pub const EDGE_TAIL: Path = Path::new(236, 2);
-    pub const TRANSCRIPT_STATE_EVER_TURNED: Path = Path::new(237, 0);
-    pub const TRANSCRIPT_STATE_TAIL: Path = Path::new(237, 1);
-    pub const TASK_HISTORY_LAST_ACTIVITY: Path = Path::new(238, 0);
-    pub const TASK_HISTORY_ENDED_BELOW: Path = Path::new(238, 1);
-    pub const TASK_HISTORY_ENDED_DELEGATES: Path = Path::new(238, 2);
-    pub const TASK_HISTORY_QUESTION_LINES: Path = Path::new(238, 3);
-    pub const TASK_HISTORY_HOLD: Path = Path::new(238, 4);
-    pub const TASK_HISTORY_PLACED: Path = Path::new(238, 5);
-    pub const TASK_HISTORY_PROPOSAL_ROWS: Path = Path::new(238, 6);
-    pub const TASK_HISTORY_INSTRUCTIONS: Path = Path::new(238, 7);
-    pub const TASK_HISTORY_REFUSED: Path = Path::new(238, 8);
-    pub const TASK_HISTORY_GRACE: Path = Path::new(238, 9);
-    pub const TASK_HISTORY_SETTINGS: Path = Path::new(238, 10);
-    pub const TASK_HISTORY_REVISIONS: Path = Path::new(238, 11);
-    pub const TASK_HISTORY_CREATED_AT: Path = Path::new(238, 12);
-    pub const TASK_HISTORY_CHANGED: Path = Path::new(238, 13);
-    pub const TASK_HISTORY_PHASE_SINCE: Path = Path::new(238, 14);
-    pub const TASK_HISTORY_RUN_SINCE: Path = Path::new(238, 15);
-    pub const TASK_HISTORY_RETRY_NOTICE: Path = Path::new(238, 16);
-    pub const TASK_HISTORY_ENDED_AT: Path = Path::new(238, 17);
-    pub const TASK_HISTORY_REVISION: Path = Path::new(238, 18);
-    pub const TASK_HISTORY_TAIL: Path = Path::new(238, 19);
-    pub const TASK_RUN_MILESTONE: Path = Path::new(239, 0);
-    pub const TASK_RUN_ACTIVITY: Path = Path::new(239, 1);
-    pub const TASK_RUN_DUE_REASON: Path = Path::new(239, 2);
-    pub const TASK_RUN_REASONS: Path = Path::new(239, 3);
-    pub const TASK_RUN_OFFERED: Path = Path::new(239, 4);
-    pub const TASK_RUN_NARROWING: Path = Path::new(239, 5);
-    pub const TASK_RUN_LLM_CHANGED: Path = Path::new(239, 6);
-    pub const TASK_RUN_RESULT_POSITION: Path = Path::new(239, 7);
-    pub const TASK_RUN_LAST_REPLY: Path = Path::new(239, 8);
-    pub const TASK_RUN_REPLIES: Path = Path::new(239, 9);
-    pub const TASK_RUN_ESCALATION: Path = Path::new(239, 10);
-    pub const TASK_RUN_PROPOSAL: Path = Path::new(239, 11);
-    pub const TASK_RUN_RESULT_PROPOSAL: Path = Path::new(239, 12);
-    pub const TASK_RUN_NUMBER: Path = Path::new(239, 13);
-    pub const TASK_RUN_PROJECT: Path = Path::new(239, 14);
-    pub const TASK_RUN_REQUESTER: Path = Path::new(239, 15);
-    pub const TASK_RUN_RUN_SPENT: Path = Path::new(239, 16);
-    pub const TASK_RUN_RUN_RESERVED: Path = Path::new(239, 17);
-    pub const TASK_RUN_OPEN_ATTEMPT: Path = Path::new(239, 18);
-    pub const TASK_RUN_TAIL: Path = Path::new(239, 19);
-    pub const ADDED_TASK: Path = Path::new(240, 0);
-    pub const ADDED_AT: Path = Path::new(240, 1);
-    pub const ADDED_BY: Path = Path::new(240, 2);
-    pub const ADDED_TAIL: Path = Path::new(240, 3);
-    pub const TASK_DEFINITION_LABEL: Path = Path::new(241, 0);
-    pub const TASK_DEFINITION_FLAGS: Path = Path::new(241, 1);
-    pub const TASK_DEFINITION_ROOT: Path = Path::new(241, 2);
-    pub const TASK_DEFINITION_DEPTH: Path = Path::new(241, 3);
-    pub const TASK_DEFINITION_EXECUTOR: Path = Path::new(241, 4);
-    pub const TASK_DEFINITION_LLM: Path = Path::new(241, 5);
-    pub const TASK_DEFINITION_KEPT_ACCOUNT: Path = Path::new(241, 6);
-    pub const TASK_DEFINITION_TAKEN_BY: Path = Path::new(241, 7);
-    pub const TASK_DEFINITION_PERSON_ANSWER: Path = Path::new(241, 8);
-    pub const TASK_DEFINITION_PERSON_WAIT: Path = Path::new(241, 9);
-    pub const TASK_DEFINITION_RECURRING: Path = Path::new(241, 10);
-    pub const TASK_DEFINITION_TRACKED: Path = Path::new(241, 11);
-    pub const TASK_DEFINITION_SPEC: Path = Path::new(241, 12);
-    pub const TASK_DEFINITION_CONTRACT: Path = Path::new(241, 13);
-    pub const TASK_DEFINITION_AUTHORITY: Path = Path::new(241, 14);
-    pub const TASK_DEFINITION_NUMBERS: Path = Path::new(241, 15);
-    pub const TASK_DEFINITION_FUNDER: Path = Path::new(241, 16);
-    pub const TASK_DEFINITION_DEPENDENCIES: Path = Path::new(241, 17);
-    pub const TASK_DEFINITION_WAITING_ON: Path = Path::new(241, 18);
-    pub const TASK_DEFINITION_ADDED: Path = Path::new(241, 19);
-    pub const TASK_DEFINITION_TAIL: Path = Path::new(241, 20);
-    pub const INBOX_ITEM_TAG: Path = Path::new(242, 0);
-    pub const TASK_INTERESTS_HOLDINGS: Path = Path::new(243, 0);
-    pub const TASK_INTERESTS_HOLDS_TAKEN: Path = Path::new(243, 1);
-    pub const TASK_INTERESTS_HOLD_WAIT_SINCE: Path = Path::new(243, 2);
-    pub const TASK_INTERESTS_HOLD_BOUND_SINCE: Path = Path::new(243, 3);
-    pub const TASK_INTERESTS_DELEGATES: Path = Path::new(243, 4);
-    pub const TASK_INTERESTS_RESULT_FOLLOWUPS: Path = Path::new(243, 5);
-    pub const TASK_INTERESTS_REFERENCES: Path = Path::new(243, 6);
-    pub const TASK_INTERESTS_SUBSCRIPTIONS: Path = Path::new(243, 7);
-    pub const TASK_INTERESTS_WAKE: Path = Path::new(243, 8);
-    pub const TASK_INTERESTS_TURN: Path = Path::new(243, 9);
-    pub const TASK_INTERESTS_LAST_MESSAGE: Path = Path::new(243, 10);
-    pub const TASK_INTERESTS_INBOX: Path = Path::new(243, 11);
-    pub const TASK_INTERESTS_SAVED: Path = Path::new(243, 12);
-    pub const TASK_INTERESTS_EVER_TURNED: Path = Path::new(243, 13);
-    pub const TASK_INTERESTS_MADE: Path = Path::new(243, 14);
-    pub const TASK_INTERESTS_TAIL: Path = Path::new(243, 15);
-    pub const ROOM_PROJECT_PROJECT: Path = Path::new(244, 0);
-    pub const ROOM_PROJECT_TAIL: Path = Path::new(244, 1);
-    pub const LIVE_ROOM_TAG: Path = Path::new(245, 0);
-    pub const ROOM_WAIT_ROOM: Path = Path::new(246, 0);
-    pub const ROOM_WAIT_ORDER: Path = Path::new(246, 1);
-    pub const ROOM_WAIT_TAIL: Path = Path::new(246, 2);
-    pub const TASK_OUTCOME_ATTEMPT: Path = Path::new(247, 0);
-    pub const TASK_OUTCOME_LAST_ANSWER: Path = Path::new(247, 1);
-    pub const TASK_OUTCOME_TRIES: Path = Path::new(247, 2);
-    pub const TASK_OUTCOME_INVALID_RESULT: Path = Path::new(247, 3);
-    pub const TASK_OUTCOME_REFUSALS: Path = Path::new(247, 4);
-    pub const TASK_OUTCOME_PHASE: Path = Path::new(247, 5);
-    pub const TASK_OUTCOME_ROOM_WAIT: Path = Path::new(247, 6);
-    pub const TASK_OUTCOME_TAIL: Path = Path::new(247, 7);
-    pub const TALK_PARTY: Path = Path::new(248, 0);
-    pub const TALK_OPENED: Path = Path::new(248, 1);
-    pub const TALK_LAST: Path = Path::new(248, 2);
-    pub const TALK_TAIL: Path = Path::new(248, 3);
-    pub const SESSION_FIRST: Path = Path::new(249, 0);
-    pub const SESSION_REASONS: Path = Path::new(249, 1);
-    pub const SESSION_LAST: Path = Path::new(249, 2);
-    pub const SESSION_TAIL: Path = Path::new(249, 3);
-    pub const BEFORE_TALK_ACTIVATION_OPEN: Path = Path::new(250, 0);
-    pub const BEFORE_TALK_SESSION: Path = Path::new(250, 1);
-    pub const BEFORE_TALK_CLOSER: Path = Path::new(250, 2);
-    pub const BEFORE_TALK_HISTORY: Path = Path::new(250, 3);
-    pub const BEFORE_TALK_RUN: Path = Path::new(250, 4);
-    pub const BEFORE_TALK_DEFINITION: Path = Path::new(250, 5);
-    pub const BEFORE_TALK_STARTED_FROM: Path = Path::new(250, 6);
-    pub const BEFORE_TALK_INTERESTS: Path = Path::new(250, 7);
-    pub const BEFORE_TALK_OUTCOME: Path = Path::new(250, 8);
-    pub const BEFORE_TALK_ASKED_REQUESTER: Path = Path::new(250, 9);
-    pub const BEFORE_TALK_QUESTION_WOKEN: Path = Path::new(250, 10);
-    pub const BEFORE_TALK_WORDS_WOKEN: Path = Path::new(250, 11);
-    pub const BEFORE_TALK_TAIL: Path = Path::new(250, 12);
-    pub const CONCLUDED_BY: Path = Path::new(251, 0);
-    pub const CONCLUDED_AT: Path = Path::new(251, 1);
-    pub const CONCLUDED_TAIL: Path = Path::new(251, 2);
-    pub const TASK_RECORD_RECORD: Path = Path::new(252, 0);
-    pub const TASK_RECORD_TALK: Path = Path::new(252, 1);
-    pub const TASK_RECORD_CONCLUDED: Path = Path::new(252, 2);
-    pub const TASK_RECORD_TAIL: Path = Path::new(252, 3);
-    pub const HOT_HISTORY_LAST_ACTIVITY: Path = Path::new(253, 0);
-    pub const HOT_HISTORY_ENDED_BELOW: Path = Path::new(253, 1);
-    pub const HOT_HISTORY_ENDED_DELEGATES: Path = Path::new(253, 2);
-    pub const HOT_HISTORY_QUESTION_LINES: Path = Path::new(253, 3);
-    pub const HOT_HISTORY_HOLD: Path = Path::new(253, 4);
-    pub const HOT_HISTORY_PLACED: Path = Path::new(253, 5);
-    pub const HOT_HISTORY_PROPOSAL_ROWS: Path = Path::new(253, 6);
-    pub const HOT_HISTORY_REFUSED: Path = Path::new(253, 7);
-    pub const HOT_HISTORY_GRACE: Path = Path::new(253, 8);
-    pub const HOT_HISTORY_SETTINGS: Path = Path::new(253, 9);
-    pub const HOT_HISTORY_REVISIONS: Path = Path::new(253, 10);
-    pub const HOT_HISTORY_CREATED_AT: Path = Path::new(253, 11);
-    pub const HOT_HISTORY_CHANGED: Path = Path::new(253, 12);
-    pub const HOT_HISTORY_PHASE_SINCE: Path = Path::new(253, 13);
-    pub const HOT_HISTORY_RUN_SINCE: Path = Path::new(253, 14);
-    pub const HOT_HISTORY_RETRY_NOTICE: Path = Path::new(253, 15);
-    pub const HOT_HISTORY_ENDED_AT: Path = Path::new(253, 16);
-    pub const HOT_HISTORY_REVISION: Path = Path::new(253, 17);
-    pub const HOT_HISTORY_TAIL: Path = Path::new(253, 18);
-    pub const HOT_DEFINITION_LABEL: Path = Path::new(254, 0);
-    pub const HOT_DEFINITION_FLAGS: Path = Path::new(254, 1);
-    pub const HOT_DEFINITION_ROOT: Path = Path::new(254, 2);
-    pub const HOT_DEFINITION_DEPTH: Path = Path::new(254, 3);
-    pub const HOT_DEFINITION_EXECUTOR: Path = Path::new(254, 4);
-    pub const HOT_DEFINITION_LLM: Path = Path::new(254, 5);
-    pub const HOT_DEFINITION_KEPT_ACCOUNT: Path = Path::new(254, 6);
-    pub const HOT_DEFINITION_TAKEN_BY: Path = Path::new(254, 7);
-    pub const HOT_DEFINITION_PERSON_ANSWER: Path = Path::new(254, 8);
-    pub const HOT_DEFINITION_PERSON_WAIT: Path = Path::new(254, 9);
-    pub const HOT_DEFINITION_RECURRING: Path = Path::new(254, 10);
-    pub const HOT_DEFINITION_TRACKED: Path = Path::new(254, 11);
-    pub const HOT_DEFINITION_NUMBERS: Path = Path::new(254, 12);
-    pub const HOT_DEFINITION_FUNDER: Path = Path::new(254, 13);
-    pub const HOT_DEFINITION_DEPENDENCIES: Path = Path::new(254, 14);
-    pub const HOT_DEFINITION_WAITING_ON: Path = Path::new(254, 15);
-    pub const HOT_DEFINITION_ADDED: Path = Path::new(254, 16);
-    pub const HOT_DEFINITION_TAIL: Path = Path::new(254, 17);
-    pub const LIVE_HOT_ACTIVATION_OPEN: Path = Path::new(255, 0);
-    pub const LIVE_HOT_SESSION: Path = Path::new(255, 1);
-    pub const LIVE_HOT_CLOSER: Path = Path::new(255, 2);
-    pub const LIVE_HOT_HISTORY: Path = Path::new(255, 3);
-    pub const LIVE_HOT_RUN: Path = Path::new(255, 4);
-    pub const LIVE_HOT_DEFINITION: Path = Path::new(255, 5);
-    pub const LIVE_HOT_STARTED_FROM: Path = Path::new(255, 6);
-    pub const LIVE_HOT_INTERESTS: Path = Path::new(255, 7);
-    pub const LIVE_HOT_OUTCOME: Path = Path::new(255, 8);
-    pub const LIVE_HOT_ASKED_REQUESTER: Path = Path::new(255, 9);
-    pub const LIVE_HOT_QUESTION_WOKEN: Path = Path::new(255, 10);
-    pub const LIVE_HOT_TALK: Path = Path::new(255, 11);
-    pub const LIVE_HOT_CONCLUDED: Path = Path::new(255, 12);
-    pub const LIVE_HOT_WORDS_WOKEN: Path = Path::new(255, 13);
-    pub const LIVE_HOT_TAIL: Path = Path::new(255, 14);
-    pub const LIVE_COLD_SPEC: Path = Path::new(256, 0);
-    pub const LIVE_COLD_CONTRACT: Path = Path::new(256, 1);
-    pub const LIVE_COLD_AUTHORITY: Path = Path::new(256, 2);
-    pub const LIVE_COLD_INSTRUCTIONS: Path = Path::new(256, 3);
-    pub const LIVE_COLD_TAIL: Path = Path::new(256, 4);
-    pub const ENDED_BY_PARTY_PARTY: Path = Path::new(257, 0);
-    pub const ENDED_BY_PARTY_LABEL: Path = Path::new(257, 1);
-    pub const ENDED_BY_PARTY_ENDED_AT: Path = Path::new(257, 2);
-    pub const ENDED_BY_PARTY_TASK: Path = Path::new(257, 3);
-    pub const ENDED_BY_PARTY_TAIL: Path = Path::new(257, 4);
-    pub const ENDED_BY_PROJECT_PROJECT: Path = Path::new(258, 0);
-    pub const ENDED_BY_PROJECT_LABEL: Path = Path::new(258, 1);
-    pub const ENDED_BY_PROJECT_ENDED_AT: Path = Path::new(258, 2);
-    pub const ENDED_BY_PROJECT_TASK: Path = Path::new(258, 3);
-    pub const ENDED_BY_PROJECT_TAIL: Path = Path::new(258, 4);
-    pub const HOLD_OWNER_TAG: Path = Path::new(259, 0);
-    pub const HOLD_MODE_TAG: Path = Path::new(260, 0);
-    pub const SUBTREE_SCOPE_TASK: Path = Path::new(261, 0);
-    pub const SUBTREE_SCOPE_TAIL: Path = Path::new(261, 1);
-    pub const HOLD_SCOPE_TAG: Path = Path::new(262, 0);
-    pub const PLACED_HOLD_NUMBER: Path = Path::new(263, 0);
-    pub const PLACED_HOLD_PROJECT: Path = Path::new(263, 1);
-    pub const PLACED_HOLD_OWNER: Path = Path::new(263, 2);
-    pub const PLACED_HOLD_MODE: Path = Path::new(263, 3);
-    pub const PLACED_HOLD_SCOPE: Path = Path::new(263, 4);
-    pub const PLACED_HOLD_REASON: Path = Path::new(263, 5);
-    pub const PLACED_HOLD_PLACED_AT: Path = Path::new(263, 6);
-    pub const PLACED_HOLD_REVISION: Path = Path::new(263, 7);
-    pub const PLACED_HOLD_EXEMPT: Path = Path::new(263, 8);
-    pub const PLACED_HOLD_LIFTED: Path = Path::new(263, 9);
-    pub const PLACED_HOLD_TAIL: Path = Path::new(263, 10);
-    pub const SUMMARY_CANCELLED_BY: Path = Path::new(264, 0);
-    pub const SUMMARY_CANCELLED_AT: Path = Path::new(264, 1);
-    pub const SUMMARY_CANCELLED_TAIL: Path = Path::new(264, 2);
-    pub const SUMMARY_ENDING_TAG: Path = Path::new(265, 0);
-    pub const SUMMARY_VERDICT_CODE: Path = Path::new(266, 0);
-    pub const SUMMARY_VERDICT_TAIL: Path = Path::new(266, 1);
-    pub const SUMMARY_CHANGE_CONNECTOR: Path = Path::new(267, 0);
-    pub const SUMMARY_CHANGE_KIND: Path = Path::new(267, 1);
-    pub const SUMMARY_CHANGE_RESOURCE: Path = Path::new(267, 2);
-    pub const SUMMARY_CHANGE_TAIL: Path = Path::new(267, 3);
-    pub const SUMMARY_RESULT_KIND_TAG: Path = Path::new(268, 0);
-    pub const SUMMARY_RESULT_KIND: Path = Path::new(269, 0);
-    pub const SUMMARY_RESULT_WORDS: Path = Path::new(269, 1);
-    pub const SUMMARY_RESULT_TAIL: Path = Path::new(269, 2);
-    pub const SUMMARY_ENDINGS_DONE: Path = Path::new(270, 0);
-    pub const SUMMARY_ENDINGS_FAILED: Path = Path::new(270, 1);
-    pub const SUMMARY_ENDINGS_TAIL: Path = Path::new(270, 2);
-    pub const TASK_SUMMARY_NUMBER: Path = Path::new(271, 0);
-    pub const TASK_SUMMARY_ROOT: Path = Path::new(271, 1);
-    pub const TASK_SUMMARY_DEPTH: Path = Path::new(271, 2);
-    pub const TASK_SUMMARY_REQUESTER: Path = Path::new(271, 3);
-    pub const TASK_SUMMARY_PROJECT: Path = Path::new(271, 4);
-    pub const TASK_SUMMARY_LABEL: Path = Path::new(271, 5);
-    pub const TASK_SUMMARY_FLAGS: Path = Path::new(271, 6);
-    pub const TASK_SUMMARY_TRACKED: Path = Path::new(271, 7);
-    pub const TASK_SUMMARY_EXECUTOR: Path = Path::new(271, 8);
-    pub const TASK_SUMMARY_TITLE: Path = Path::new(271, 9);
-    pub const TASK_SUMMARY_ENDING: Path = Path::new(271, 10);
-    pub const TASK_SUMMARY_REASON: Path = Path::new(271, 11);
-    pub const TASK_SUMMARY_RESULT: Path = Path::new(271, 12);
-    pub const TASK_SUMMARY_CUTS: Path = Path::new(271, 13);
-    pub const TASK_SUMMARY_CREATED_AT: Path = Path::new(271, 14);
-    pub const TASK_SUMMARY_CHANGED: Path = Path::new(271, 15);
-    pub const TASK_SUMMARY_LAST_ACTIVITY: Path = Path::new(271, 16);
-    pub const TASK_SUMMARY_ENDED_AT: Path = Path::new(271, 17);
-    pub const TASK_SUMMARY_NUMBERS: Path = Path::new(271, 18);
-    pub const TASK_SUMMARY_DEADLINE: Path = Path::new(271, 19);
-    pub const TASK_SUMMARY_FUNDER: Path = Path::new(271, 20);
-    pub const TASK_SUMMARY_ENDED_DELEGATES: Path = Path::new(271, 21);
-    pub const TASK_SUMMARY_ATTEMPT: Path = Path::new(271, 22);
-    pub const TASK_SUMMARY_ACTIVITY: Path = Path::new(271, 23);
-    pub const TASK_SUMMARY_RESULT_POSITION: Path = Path::new(271, 24);
-    pub const TASK_SUMMARY_LAST_REPLY: Path = Path::new(271, 25);
-    pub const TASK_SUMMARY_TAIL: Path = Path::new(271, 26);
-    pub const RETENTION_STAGE_TAG: Path = Path::new(272, 0);
-    pub const RETENTION_ROW_STAGE: Path = Path::new(273, 0);
-    pub const RETENTION_ROW_SINCE: Path = Path::new(273, 1);
-    pub const RETENTION_ROW_NUMBER: Path = Path::new(273, 2);
-    pub const RETENTION_ROW_TAIL: Path = Path::new(273, 3);
-    pub const VALUE_TAG: Path = Path::new(274, 0);
-    pub const MODEL_NAME_VALUE: Path = Path::new(275, 0);
-    pub const MODEL_NAME_TAIL: Path = Path::new(275, 1);
-    pub const ROW_VALUE: Path = Path::new(276, 0);
-    pub const ROW_MODELS: Path = Path::new(276, 1);
-    pub const ROW_VERSION: Path = Path::new(276, 2);
-    pub const ROW_TAIL: Path = Path::new(276, 3);
-    pub const CAPACITY_ACTION_BATCH_FIRST: Path = Path::new(277, 0);
-    pub const CAPACITY_ACTION_BATCH_MEMBERS: Path = Path::new(277, 1);
-    pub const CAPACITY_ACTION_BATCH_TAIL: Path = Path::new(277, 2);
-    pub const CAPACITY_ACTION_PROPOSAL_NUMBER: Path = Path::new(278, 0);
-    pub const CAPACITY_ACTION_PROPOSAL_TAIL: Path = Path::new(278, 1);
-    pub const CAPACITY_ACTION_PERSON_PROPOSAL_NUMBER: Path = Path::new(279, 0);
-    pub const CAPACITY_ACTION_PERSON_PROPOSAL_TAIL: Path = Path::new(279, 1);
-    pub const CAPACITY_ACTION_MESSAGE_TASK: Path = Path::new(280, 0);
-    pub const CAPACITY_ACTION_MESSAGE_NUMBER: Path = Path::new(280, 1);
-    pub const CAPACITY_ACTION_MESSAGE_TAIL: Path = Path::new(280, 2);
-    pub const CAPACITY_ACTION_SOURCE_FUNDER: Path = Path::new(281, 0);
-    pub const CAPACITY_ACTION_SOURCE_TAIL: Path = Path::new(281, 1);
-    pub const CAPACITY_ACTION_INTRODUCE_LEFT: Path = Path::new(282, 0);
-    pub const CAPACITY_ACTION_INTRODUCE_RIGHT: Path = Path::new(282, 1);
-    pub const CAPACITY_ACTION_INTRODUCE_TAIL: Path = Path::new(282, 2);
-    pub const CAPACITY_ACTION_SUBSCRIPTION_NUMBER: Path = Path::new(283, 0);
-    pub const CAPACITY_ACTION_SUBSCRIPTION_TAIL: Path = Path::new(283, 1);
-    pub const CAPACITY_ACTION_EFFECT_ENTRY: Path = Path::new(284, 0);
-    pub const CAPACITY_ACTION_EFFECT_TAIL: Path = Path::new(284, 1);
-    pub const CAPACITY_ACTION_CLAIM_ATTEMPT: Path = Path::new(285, 0);
-    pub const CAPACITY_ACTION_CLAIM_TAIL: Path = Path::new(285, 1);
-    pub const CAPACITY_ACTION_PLACE_HOLD: Path = Path::new(286, 0);
-    pub const CAPACITY_ACTION_PLACE_TAIL: Path = Path::new(286, 1);
-    pub const CAPACITY_ACTION_TAG: Path = Path::new(287, 0);
-    pub const CAPACITY_CAUSE_TASKS_LIMIT: Path = Path::new(288, 0);
-    pub const CAPACITY_CAUSE_TASKS_TAIL: Path = Path::new(288, 1);
-    pub const CAPACITY_CAUSE_CREATION_FLIGHTS_LIMIT: Path = Path::new(289, 0);
-    pub const CAPACITY_CAUSE_CREATION_FLIGHTS_TAIL: Path = Path::new(289, 1);
-    pub const CAPACITY_CAUSE_RESOURCE_REPORTS_LIMIT: Path = Path::new(290, 0);
-    pub const CAPACITY_CAUSE_RESOURCE_REPORTS_TAIL: Path = Path::new(290, 1);
-    pub const CAPACITY_CAUSE_PROJECT_TASKS_LIMIT: Path = Path::new(291, 0);
-    pub const CAPACITY_CAUSE_PROJECT_TASKS_TAIL: Path = Path::new(291, 1);
-    pub const CAPACITY_CAUSE_TREE_LIMIT: Path = Path::new(292, 0);
-    pub const CAPACITY_CAUSE_TREE_TAIL: Path = Path::new(292, 1);
-    pub const CAPACITY_CAUSE_DELEGATES_LIMIT: Path = Path::new(293, 0);
-    pub const CAPACITY_CAUSE_DELEGATES_TAIL: Path = Path::new(293, 1);
-    pub const CAPACITY_CAUSE_INBOX_TASK: Path = Path::new(294, 0);
-    pub const CAPACITY_CAUSE_INBOX_MESSAGES: Path = Path::new(294, 1);
-    pub const CAPACITY_CAUSE_INBOX_BYTES: Path = Path::new(294, 2);
-    pub const CAPACITY_CAUSE_INBOX_TAIL: Path = Path::new(294, 3);
-    pub const CAPACITY_CAUSE_HOLDINGS_LIMIT: Path = Path::new(295, 0);
-    pub const CAPACITY_CAUSE_HOLDINGS_TAIL: Path = Path::new(295, 1);
-    pub const CAPACITY_CAUSE_HOLD_WAITERS_LIMIT: Path = Path::new(296, 0);
-    pub const CAPACITY_CAUSE_HOLD_WAITERS_TAIL: Path = Path::new(296, 1);
-    pub const CAPACITY_CAUSE_PROPOSALS_LIMIT: Path = Path::new(297, 0);
-    pub const CAPACITY_CAUSE_PROPOSALS_TAIL: Path = Path::new(297, 1);
-    pub const CAPACITY_CAUSE_REFERENCES_LIMIT: Path = Path::new(298, 0);
-    pub const CAPACITY_CAUSE_REFERENCES_TAIL: Path = Path::new(298, 1);
-    pub const CAPACITY_CAUSE_SUBSCRIPTIONS_LIMIT: Path = Path::new(299, 0);
-    pub const CAPACITY_CAUSE_SUBSCRIPTIONS_TAIL: Path = Path::new(299, 1);
-    pub const CAPACITY_CAUSE_FUNDERS_LIMIT: Path = Path::new(300, 0);
-    pub const CAPACITY_CAUSE_FUNDERS_TAIL: Path = Path::new(300, 1);
-    pub const CAPACITY_CAUSE_WRITERS_LIMIT: Path = Path::new(301, 0);
-    pub const CAPACITY_CAUSE_WRITERS_TAIL: Path = Path::new(301, 1);
-    pub const CAPACITY_CAUSE_PLACED_HOLDS_LIMIT: Path = Path::new(302, 0);
-    pub const CAPACITY_CAUSE_PLACED_HOLDS_TAIL: Path = Path::new(302, 1);
-    pub const CAPACITY_CAUSE_PROJECT_PLACED_HOLDS_LIMIT: Path = Path::new(303, 0);
-    pub const CAPACITY_CAUSE_PROJECT_PLACED_HOLDS_TAIL: Path = Path::new(303, 1);
-    pub const CAPACITY_CAUSE_PARTY_PLACED_HOLDS_LIMIT: Path = Path::new(304, 0);
-    pub const CAPACITY_CAUSE_PARTY_PLACED_HOLDS_TAIL: Path = Path::new(304, 1);
-    pub const CAPACITY_CAUSE_EXEMPTIONS_LIMIT: Path = Path::new(305, 0);
-    pub const CAPACITY_CAUSE_EXEMPTIONS_TAIL: Path = Path::new(305, 1);
-    pub const CAPACITY_CAUSE_TAG: Path = Path::new(306, 0);
-    pub const CAPACITY_PROJECT: Path = Path::new(307, 0);
-    pub const CAPACITY_BY: Path = Path::new(307, 1);
-    pub const CAPACITY_ACTION: Path = Path::new(307, 2);
-    pub const CAPACITY_CAUSE: Path = Path::new(307, 3);
-    pub const CAPACITY_TAIL: Path = Path::new(307, 4);
-    pub const REFUSAL_PERSON_REVISION_REVISION: Path = Path::new(308, 0);
-    pub const REFUSAL_PERSON_REVISION_TAIL: Path = Path::new(308, 1);
-    pub const LLM_FAULT_TAG: Path = Path::new(309, 0);
-    pub const REFUSAL_LLM_MODEL: Path = Path::new(310, 0);
-    pub const REFUSAL_LLM_WHY: Path = Path::new(310, 1);
-    pub const REFUSAL_LLM_TAIL: Path = Path::new(310, 2);
-    pub const ACCOUNT_WHY_TAG: Path = Path::new(311, 0);
-    pub const REFUSAL_ACCOUNT_ACCOUNT: Path = Path::new(312, 0);
-    pub const REFUSAL_ACCOUNT_WHY: Path = Path::new(312, 1);
-    pub const REFUSAL_ACCOUNT_TAIL: Path = Path::new(312, 2);
-    pub const REFUSAL_CIRCLE_CUT: Path = Path::new(313, 0);
-    pub const REFUSAL_CIRCLE_TAIL: Path = Path::new(313, 1);
-    pub const REFUSAL_DEPENDENCY_ENDED_HOW: Path = Path::new(314, 0);
-    pub const REFUSAL_DEPENDENCY_ENDED_TAIL: Path = Path::new(314, 1);
-    pub const REFUSAL_PLACED_HOLD: Path = Path::new(315, 0);
-    pub const REFUSAL_PLACED_TAIL: Path = Path::new(315, 1);
-    pub const REFUSAL_HOLD_OWNER_HOLD: Path = Path::new(316, 0);
-    pub const REFUSAL_HOLD_OWNER_TAIL: Path = Path::new(316, 1);
-    pub const REFUSAL_HOLD_REVISION_REVISION: Path = Path::new(317, 0);
-    pub const REFUSAL_HOLD_REVISION_TAIL: Path = Path::new(317, 1);
-    pub const TALK_OPEN_PARTY: Path = Path::new(318, 0);
-    pub const TALK_OPEN_TAIL: Path = Path::new(318, 1);
-    pub const REFUSAL_CONCLUDED_AT: Path = Path::new(319, 0);
-    pub const REFUSAL_CONCLUDED_TAIL: Path = Path::new(319, 1);
-    pub const REFUSAL_TAG: Path = Path::new(320, 0);
-    pub const TASK_PROBLEM_TASK: Path = Path::new(321, 0);
-    pub const TASK_PROBLEM_WHY: Path = Path::new(321, 1);
-    pub const TASK_PROBLEM_BLOCKED_BY: Path = Path::new(321, 2);
-    pub const TASK_PROBLEM_CAPACITY: Path = Path::new(321, 3);
-    pub const TASK_PROBLEM_VERSION: Path = Path::new(321, 4);
-    pub const TASK_PROBLEM_TAIL: Path = Path::new(321, 5);
-    pub const RESULT_FOLLOWUPS_DELEGATES_VALUE: Path = Path::new(322, 0);
-    pub const RESULT_FOLLOWUPS_DELEGATES_TAIL: Path = Path::new(322, 1);
-    pub const RESULT_FOLLOWUPS_PROPOSAL_VALUE: Path = Path::new(323, 0);
-    pub const RESULT_FOLLOWUPS_PROPOSAL_TAIL: Path = Path::new(323, 1);
-    pub const RESULT_FOLLOWUPS_TAG: Path = Path::new(324, 0);
-    pub const END_FINISHED_RESULT: Path = Path::new(325, 0);
-    pub const END_FINISHED_CANCEL_DELEGATES: Path = Path::new(325, 1);
-    pub const END_FINISHED_TAIL: Path = Path::new(325, 2);
-    pub const END_FINISHED_WITH_FOLLOWUPS_RESULT: Path = Path::new(326, 0);
-    pub const END_FINISHED_WITH_FOLLOWUPS_FOLLOWUPS: Path = Path::new(326, 1);
-    pub const END_FINISHED_WITH_FOLLOWUPS_TAIL: Path = Path::new(326, 2);
-    pub const END_FAILED_VALUE: Path = Path::new(327, 0);
-    pub const END_FAILED_TAIL: Path = Path::new(327, 1);
-    pub const END_FAILED_WITH_REASON_CLASS: Path = Path::new(328, 0);
-    pub const END_FAILED_WITH_REASON_REASON: Path = Path::new(328, 1);
-    pub const END_FAILED_WITH_REASON_TAIL: Path = Path::new(328, 2);
-    pub const END_REFUSED_WITH_REASON_REASON: Path = Path::new(329, 0);
-    pub const END_REFUSED_WITH_REASON_TAIL: Path = Path::new(329, 1);
-    pub const END_TAG: Path = Path::new(330, 0);
-    pub const END_RECORD_VALUE: Path = Path::new(331, 0);
-    pub const END_RECORD_VERSION: Path = Path::new(331, 1);
-    pub const END_RECORD_TAIL: Path = Path::new(331, 2);
-    pub const PHASE_RECORD_VALUE: Path = Path::new(332, 0);
-    pub const PHASE_RECORD_VERSION: Path = Path::new(332, 1);
-    pub const PHASE_RECORD_TAIL: Path = Path::new(332, 2);
-    pub const CHANGE_RECORD_VALUE: Path = Path::new(333, 0);
-    pub const CHANGE_RECORD_VERSION: Path = Path::new(333, 1);
-    pub const CHANGE_RECORD_TAIL: Path = Path::new(333, 2);
+    pub const SUSPEND_WHY_TAG: Path = Path::new(181, 0);
+    pub const SUSPENDED_END_WORKER: Path = Path::new(182, 0);
+    pub const SUSPENDED_END_WHY: Path = Path::new(182, 1);
+    pub const SUSPENDED_END_TAIL: Path = Path::new(182, 2);
+    pub const END_KIND_TAG: Path = Path::new(183, 0);
+    pub const SUSPENSION_WORKER: Path = Path::new(184, 0);
+    pub const SUSPENSION_SINCE: Path = Path::new(184, 1);
+    pub const SUSPENSION_UNTIL: Path = Path::new(184, 2);
+    pub const SUSPENSION_TAIL: Path = Path::new(184, 3);
+    pub const ATTEMPT_ROW_TASK: Path = Path::new(185, 0);
+    pub const ATTEMPT_ROW_ATTEMPT: Path = Path::new(185, 1);
+    pub const ATTEMPT_ROW_CLAIMED: Path = Path::new(185, 2);
+    pub const ATTEMPT_ROW_STARTED: Path = Path::new(185, 3);
+    pub const ATTEMPT_ROW_ENDED: Path = Path::new(185, 4);
+    pub const ATTEMPT_ROW_END: Path = Path::new(185, 5);
+    pub const ATTEMPT_ROW_PHASES: Path = Path::new(185, 6);
+    pub const ATTEMPT_ROW_TAIL: Path = Path::new(185, 7);
+    pub const OPEN_ATTEMPT_ATTEMPT: Path = Path::new(186, 0);
+    pub const OPEN_ATTEMPT_CLAIMED: Path = Path::new(186, 1);
+    pub const OPEN_ATTEMPT_STARTED: Path = Path::new(186, 2);
+    pub const OPEN_ATTEMPT_FROM: Path = Path::new(186, 3);
+    pub const OPEN_ATTEMPT_END: Path = Path::new(186, 4);
+    pub const OPEN_ATTEMPT_TAIL: Path = Path::new(186, 5);
+    pub const ACTIVITY_WORDS_MESSAGE: Path = Path::new(187, 0);
+    pub const ACTIVITY_WORDS_BY: Path = Path::new(187, 1);
+    pub const ACTIVITY_WORDS_KIND: Path = Path::new(187, 2);
+    pub const ACTIVITY_WORDS_WORDS: Path = Path::new(187, 3);
+    pub const ACTIVITY_WORDS_TAIL: Path = Path::new(187, 4);
+    pub const HEARD_MESSAGE_WORD: Path = Path::new(188, 0);
+    pub const HEARD_MESSAGE_TAIL: Path = Path::new(188, 1);
+    pub const NOTIFIED_MESSAGE_RECIPIENT: Path = Path::new(189, 0);
+    pub const NOTIFIED_MESSAGE_WORD: Path = Path::new(189, 1);
+    pub const NOTIFIED_MESSAGE_TAIL: Path = Path::new(189, 2);
+    pub const FRESH_TAG: Path = Path::new(190, 0);
+    pub const BEGAN_LINE_ATTEMPT: Path = Path::new(191, 0);
+    pub const BEGAN_LINE_WHY: Path = Path::new(191, 1);
+    pub const BEGAN_LINE_RESUMED: Path = Path::new(191, 2);
+    pub const BEGAN_LINE_FRESH: Path = Path::new(191, 3);
+    pub const BEGAN_LINE_TAIL: Path = Path::new(191, 4);
+    pub const ENDED_LINE_ATTEMPT: Path = Path::new(192, 0);
+    pub const ENDED_LINE_END: Path = Path::new(192, 1);
+    pub const ENDED_LINE_SPENT: Path = Path::new(192, 2);
+    pub const ENDED_LINE_TAIL: Path = Path::new(192, 3);
+    pub const TURN_LINE_REPLY: Path = Path::new(193, 0);
+    pub const TURN_LINE_ATTEMPT: Path = Path::new(193, 1);
+    pub const TURN_LINE_TURN: Path = Path::new(193, 2);
+    pub const TURN_LINE_READ: Path = Path::new(193, 3);
+    pub const TURN_LINE_TAIL: Path = Path::new(193, 4);
+    pub const DECIDED_PROPOSAL_NUMBER: Path = Path::new(194, 0);
+    pub const DECIDED_PROPOSAL_MADE: Path = Path::new(194, 1);
+    pub const DECIDED_PROPOSAL_TAIL: Path = Path::new(194, 2);
+    pub const DECIDED_LINE_REVISION: Path = Path::new(195, 0);
+    pub const DECIDED_LINE_PROPOSAL: Path = Path::new(195, 1);
+    pub const DECIDED_LINE_TAIL: Path = Path::new(195, 2);
+    pub const MILESTONE_LINE_POSITION: Path = Path::new(196, 0);
+    pub const MILESTONE_LINE_TAIL: Path = Path::new(196, 1);
+    pub const KEPT_LINE_ATTEMPT: Path = Path::new(197, 0);
+    pub const KEPT_LINE_PENDING: Path = Path::new(197, 1);
+    pub const KEPT_LINE_QUESTION: Path = Path::new(197, 2);
+    pub const KEPT_LINE_TAIL: Path = Path::new(197, 3);
+    pub const NOW_WRITTEN_LINE_ATTEMPT: Path = Path::new(198, 0);
+    pub const NOW_WRITTEN_LINE_LINE: Path = Path::new(198, 1);
+    pub const NOW_WRITTEN_LINE_TAIL: Path = Path::new(198, 2);
+    pub const STOOD_LINE_ATTEMPT: Path = Path::new(199, 0);
+    pub const STOOD_LINE_WORDS: Path = Path::new(199, 1);
+    pub const STOOD_LINE_TAIL: Path = Path::new(199, 2);
+    pub const SESSION_END_TAG: Path = Path::new(200, 0);
+    pub const SESSION_ENDED_LINE_ATTEMPT: Path = Path::new(201, 0);
+    pub const SESSION_ENDED_LINE_END: Path = Path::new(201, 1);
+    pub const SESSION_ENDED_LINE_TAIL: Path = Path::new(201, 2);
+    pub const TALK_OPENED_LINE_PARTY: Path = Path::new(202, 0);
+    pub const TALK_OPENED_LINE_TAIL: Path = Path::new(202, 1);
+    pub const TALK_ENDED_LINE_PARTY: Path = Path::new(203, 0);
+    pub const TALK_ENDED_LINE_LAPSED: Path = Path::new(203, 1);
+    pub const TALK_ENDED_LINE_TAIL: Path = Path::new(203, 2);
+    pub const LINE_TAG: Path = Path::new(204, 0);
+    pub const ACTIVITY_LINE_TASK: Path = Path::new(205, 0);
+    pub const ACTIVITY_LINE_POSITION: Path = Path::new(205, 1);
+    pub const ACTIVITY_LINE_AT: Path = Path::new(205, 2);
+    pub const ACTIVITY_LINE_LINE: Path = Path::new(205, 3);
+    pub const ACTIVITY_LINE_TAIL: Path = Path::new(205, 4);
+    pub const STATUS_TAG: Path = Path::new(206, 0);
+    pub const STUB_TASK: Path = Path::new(207, 0);
+    pub const STUB_PHASE: Path = Path::new(207, 1);
+    pub const STUB_RESULT: Path = Path::new(207, 2);
+    pub const STUB_TAIL: Path = Path::new(207, 3);
+    pub const REPLY_HINT_NUMBER: Path = Path::new(208, 0);
+    pub const REPLY_HINT_ACTIVITY: Path = Path::new(208, 1);
+    pub const REPLY_HINT_ATTEMPT: Path = Path::new(208, 2);
+    pub const REPLY_HINT_TURN: Path = Path::new(208, 3);
+    pub const REPLY_HINT_AT: Path = Path::new(208, 4);
+    pub const REPLY_HINT_TAIL: Path = Path::new(208, 5);
+    pub const ESCALATION_TASK_TASK: Path = Path::new(209, 0);
+    pub const ESCALATION_TASK_TAIL: Path = Path::new(209, 1);
+    pub const ESCALATION_PERSON_PERSON: Path = Path::new(210, 0);
+    pub const ESCALATION_PERSON_TAIL: Path = Path::new(210, 1);
+    pub const ESCALATION_ROLE_PROJECT: Path = Path::new(211, 0);
+    pub const ESCALATION_ROLE_ROLE: Path = Path::new(211, 1);
+    pub const ESCALATION_ROLE_TAIL: Path = Path::new(211, 2);
+    pub const ESCALATION_HOLDER_TAG: Path = Path::new(212, 0);
+    pub const UNHELD_ESCALATION_REVISION: Path = Path::new(213, 0);
+    pub const UNHELD_ESCALATION_TAIL: Path = Path::new(213, 1);
+    pub const ROUTING_ESCALATION_REVISION: Path = Path::new(214, 0);
+    pub const ROUTING_ESCALATION_TAIL: Path = Path::new(214, 1);
+    pub const WAITING_ESCALATION_REVISION: Path = Path::new(215, 0);
+    pub const WAITING_ESCALATION_HOLDER: Path = Path::new(215, 1);
+    pub const WAITING_ESCALATION_ENTRY: Path = Path::new(215, 2);
+    pub const WAITING_ESCALATION_SINCE: Path = Path::new(215, 3);
+    pub const WAITING_ESCALATION_TAIL: Path = Path::new(215, 4);
+    pub const DECIDER_KIND_TAG: Path = Path::new(216, 0);
+    pub const REJECTED_ESCALATION_REVISION: Path = Path::new(217, 0);
+    pub const REJECTED_ESCALATION_BY: Path = Path::new(217, 1);
+    pub const REJECTED_ESCALATION_REASON: Path = Path::new(217, 2);
+    pub const REJECTED_ESCALATION_BY_KIND: Path = Path::new(217, 3);
+    pub const REJECTED_ESCALATION_TAIL: Path = Path::new(217, 4);
+    pub const ESCALATION_TAG: Path = Path::new(218, 0);
+    pub const PERSON_ANSWER_BY: Path = Path::new(219, 0);
+    pub const PERSON_ANSWER_AT: Path = Path::new(219, 1);
+    pub const PERSON_ANSWER_TAIL: Path = Path::new(219, 2);
+    pub const PERSON_STALL_NOTICE_MESSAGE: Path = Path::new(220, 0);
+    pub const PERSON_STALL_NOTICE_AT: Path = Path::new(220, 1);
+    pub const PERSON_STALL_NOTICE_ACTIVITY: Path = Path::new(220, 2);
+    pub const PERSON_STALL_NOTICE_TAIL: Path = Path::new(220, 3);
+    pub const PERSON_WAIT_SINCE: Path = Path::new(221, 0);
+    pub const PERSON_WAIT_STALL: Path = Path::new(221, 1);
+    pub const PERSON_WAIT_DEADLINE: Path = Path::new(221, 2);
+    pub const PERSON_WAIT_NOTICE: Path = Path::new(221, 3);
+    pub const PERSON_WAIT_TAIL: Path = Path::new(221, 4);
+    pub const RECURRING_STATE_TEMPLATE: Path = Path::new(222, 0);
+    pub const RECURRING_STATE_LAST_BATCH: Path = Path::new(222, 1);
+    pub const RECURRING_STATE_LAST_PERIOD: Path = Path::new(222, 2);
+    pub const RECURRING_STATE_PENDING_PERIOD: Path = Path::new(222, 3);
+    pub const RECURRING_STATE_TAIL: Path = Path::new(222, 4);
+    pub const QUESTION_CREDIT_NUMBER: Path = Path::new(223, 0);
+    pub const QUESTION_CREDIT_ANSWERER: Path = Path::new(223, 1);
+    pub const QUESTION_CREDIT_ASKED: Path = Path::new(223, 2);
+    pub const QUESTION_CREDIT_LINE: Path = Path::new(223, 3);
+    pub const QUESTION_CREDIT_TAIL: Path = Path::new(223, 4);
+    pub const TASK_INTEREST_TARGET: Path = Path::new(224, 0);
+    pub const TASK_INTEREST_HELD: Path = Path::new(224, 1);
+    pub const TASK_INTEREST_RESULT: Path = Path::new(224, 2);
+    pub const TASK_INTEREST_TAIL: Path = Path::new(224, 3);
+    pub const TIMER_INTEREST_AT: Path = Path::new(225, 0);
+    pub const TIMER_INTEREST_PERIOD: Path = Path::new(225, 1);
+    pub const TIMER_INTEREST_TAIL: Path = Path::new(225, 2);
+    pub const TOPIC_INTEREST_CONNECTOR: Path = Path::new(226, 0);
+    pub const TOPIC_INTEREST_TOPIC: Path = Path::new(226, 1);
+    pub const TOPIC_INTEREST_TAIL: Path = Path::new(226, 2);
+    pub const SUBSCRIPTION_KIND_TAG: Path = Path::new(227, 0);
+    pub const SUBSCRIPTION_NUMBER: Path = Path::new(228, 0);
+    pub const SUBSCRIPTION_KIND: Path = Path::new(228, 1);
+    pub const SUBSCRIPTION_TAIL: Path = Path::new(228, 2);
+    pub const SAVED_RESOURCE_CONNECTOR: Path = Path::new(229, 0);
+    pub const SAVED_RESOURCE_PATH: Path = Path::new(229, 1);
+    pub const SAVED_RESOURCE_TAIL: Path = Path::new(229, 2);
+    pub const ANSWER_LINE_TASK: Path = Path::new(230, 0);
+    pub const ANSWER_LINE_POSITION: Path = Path::new(230, 1);
+    pub const ANSWER_LINE_TAIL: Path = Path::new(230, 2);
+    pub const QUESTION_LINE_MESSAGE: Path = Path::new(231, 0);
+    pub const QUESTION_LINE_LINE: Path = Path::new(231, 1);
+    pub const QUESTION_LINE_ANSWER: Path = Path::new(231, 2);
+    pub const QUESTION_LINE_TAIL: Path = Path::new(231, 3);
+    pub const PROPOSAL_ROW_PROPOSAL: Path = Path::new(232, 0);
+    pub const PROPOSAL_ROW_REVISION: Path = Path::new(232, 1);
+    pub const PROPOSAL_ROW_TAIL: Path = Path::new(232, 2);
+    pub const ENDINGS_DONE: Path = Path::new(233, 0);
+    pub const ENDINGS_FAILED: Path = Path::new(233, 1);
+    pub const ENDINGS_CANCELLED: Path = Path::new(233, 2);
+    pub const ENDINGS_TAIL: Path = Path::new(233, 3);
+    pub const REPLY_OBJECT_MESSAGE: Path = Path::new(234, 0);
+    pub const REPLY_OBJECT_ACTIVITY: Path = Path::new(234, 1);
+    pub const REPLY_OBJECT_TAIL: Path = Path::new(234, 2);
+    pub const PROPOSAL_UPDATE_PROPOSAL: Path = Path::new(235, 0);
+    pub const PROPOSAL_UPDATE_TAIL: Path = Path::new(235, 1);
+    pub const UPDATE_OBJECT_TAG: Path = Path::new(236, 0);
+    pub const UPDATE_PARTY: Path = Path::new(237, 0);
+    pub const UPDATE_AT: Path = Path::new(237, 1);
+    pub const UPDATE_TASK: Path = Path::new(237, 2);
+    pub const UPDATE_OBJECT: Path = Path::new(237, 3);
+    pub const UPDATE_TAIL: Path = Path::new(237, 4);
+    pub const RESULT_ROW_PARTY: Path = Path::new(238, 0);
+    pub const RESULT_ROW_POSITION: Path = Path::new(238, 1);
+    pub const RESULT_ROW_TASK: Path = Path::new(238, 2);
+    pub const RESULT_ROW_TAIL: Path = Path::new(238, 3);
+    pub const EDGE_REQUESTER: Path = Path::new(239, 0);
+    pub const EDGE_TASK: Path = Path::new(239, 1);
+    pub const EDGE_TAIL: Path = Path::new(239, 2);
+    pub const TRANSCRIPT_STATE_EVER_TURNED: Path = Path::new(240, 0);
+    pub const TRANSCRIPT_STATE_TAIL: Path = Path::new(240, 1);
+    pub const TASK_HISTORY_LAST_ACTIVITY: Path = Path::new(241, 0);
+    pub const TASK_HISTORY_ENDED_BELOW: Path = Path::new(241, 1);
+    pub const TASK_HISTORY_ENDED_DELEGATES: Path = Path::new(241, 2);
+    pub const TASK_HISTORY_QUESTION_LINES: Path = Path::new(241, 3);
+    pub const TASK_HISTORY_HOLD: Path = Path::new(241, 4);
+    pub const TASK_HISTORY_PLACED: Path = Path::new(241, 5);
+    pub const TASK_HISTORY_PROPOSAL_ROWS: Path = Path::new(241, 6);
+    pub const TASK_HISTORY_INSTRUCTIONS: Path = Path::new(241, 7);
+    pub const TASK_HISTORY_REFUSED: Path = Path::new(241, 8);
+    pub const TASK_HISTORY_GRACE: Path = Path::new(241, 9);
+    pub const TASK_HISTORY_SETTINGS: Path = Path::new(241, 10);
+    pub const TASK_HISTORY_REVISIONS: Path = Path::new(241, 11);
+    pub const TASK_HISTORY_CREATED_AT: Path = Path::new(241, 12);
+    pub const TASK_HISTORY_CHANGED: Path = Path::new(241, 13);
+    pub const TASK_HISTORY_PHASE_SINCE: Path = Path::new(241, 14);
+    pub const TASK_HISTORY_RUN_SINCE: Path = Path::new(241, 15);
+    pub const TASK_HISTORY_RETRY_NOTICE: Path = Path::new(241, 16);
+    pub const TASK_HISTORY_ENDED_AT: Path = Path::new(241, 17);
+    pub const TASK_HISTORY_REVISION: Path = Path::new(241, 18);
+    pub const TASK_HISTORY_TAIL: Path = Path::new(241, 19);
+    pub const TASK_RUN_MILESTONE: Path = Path::new(242, 0);
+    pub const TASK_RUN_ACTIVITY: Path = Path::new(242, 1);
+    pub const TASK_RUN_DUE_REASON: Path = Path::new(242, 2);
+    pub const TASK_RUN_REASONS: Path = Path::new(242, 3);
+    pub const TASK_RUN_OFFERED: Path = Path::new(242, 4);
+    pub const TASK_RUN_NARROWING: Path = Path::new(242, 5);
+    pub const TASK_RUN_LLM_CHANGED: Path = Path::new(242, 6);
+    pub const TASK_RUN_RESULT_POSITION: Path = Path::new(242, 7);
+    pub const TASK_RUN_LAST_REPLY: Path = Path::new(242, 8);
+    pub const TASK_RUN_REPLIES: Path = Path::new(242, 9);
+    pub const TASK_RUN_ESCALATION: Path = Path::new(242, 10);
+    pub const TASK_RUN_PROPOSAL: Path = Path::new(242, 11);
+    pub const TASK_RUN_RESULT_PROPOSAL: Path = Path::new(242, 12);
+    pub const TASK_RUN_NUMBER: Path = Path::new(242, 13);
+    pub const TASK_RUN_PROJECT: Path = Path::new(242, 14);
+    pub const TASK_RUN_REQUESTER: Path = Path::new(242, 15);
+    pub const TASK_RUN_RUN_SPENT: Path = Path::new(242, 16);
+    pub const TASK_RUN_RUN_RESERVED: Path = Path::new(242, 17);
+    pub const TASK_RUN_OPEN_ATTEMPT: Path = Path::new(242, 18);
+    pub const TASK_RUN_SUSPENSION: Path = Path::new(242, 19);
+    pub const TASK_RUN_SUSPENDED: Path = Path::new(242, 20);
+    pub const TASK_RUN_RESTARTED: Path = Path::new(242, 21);
+    pub const TASK_RUN_TAIL: Path = Path::new(242, 22);
+    pub const ADDED_TASK: Path = Path::new(243, 0);
+    pub const ADDED_AT: Path = Path::new(243, 1);
+    pub const ADDED_BY: Path = Path::new(243, 2);
+    pub const ADDED_TAIL: Path = Path::new(243, 3);
+    pub const TASK_DEFINITION_LABEL: Path = Path::new(244, 0);
+    pub const TASK_DEFINITION_FLAGS: Path = Path::new(244, 1);
+    pub const TASK_DEFINITION_ROOT: Path = Path::new(244, 2);
+    pub const TASK_DEFINITION_DEPTH: Path = Path::new(244, 3);
+    pub const TASK_DEFINITION_EXECUTOR: Path = Path::new(244, 4);
+    pub const TASK_DEFINITION_LLM: Path = Path::new(244, 5);
+    pub const TASK_DEFINITION_KEPT_ACCOUNT: Path = Path::new(244, 6);
+    pub const TASK_DEFINITION_TAKEN_BY: Path = Path::new(244, 7);
+    pub const TASK_DEFINITION_PERSON_ANSWER: Path = Path::new(244, 8);
+    pub const TASK_DEFINITION_PERSON_WAIT: Path = Path::new(244, 9);
+    pub const TASK_DEFINITION_RECURRING: Path = Path::new(244, 10);
+    pub const TASK_DEFINITION_TRACKED: Path = Path::new(244, 11);
+    pub const TASK_DEFINITION_SPEC: Path = Path::new(244, 12);
+    pub const TASK_DEFINITION_CONTRACT: Path = Path::new(244, 13);
+    pub const TASK_DEFINITION_AUTHORITY: Path = Path::new(244, 14);
+    pub const TASK_DEFINITION_NUMBERS: Path = Path::new(244, 15);
+    pub const TASK_DEFINITION_FUNDER: Path = Path::new(244, 16);
+    pub const TASK_DEFINITION_DEPENDENCIES: Path = Path::new(244, 17);
+    pub const TASK_DEFINITION_WAITING_ON: Path = Path::new(244, 18);
+    pub const TASK_DEFINITION_ADDED: Path = Path::new(244, 19);
+    pub const TASK_DEFINITION_TAIL: Path = Path::new(244, 20);
+    pub const INBOX_ITEM_TAG: Path = Path::new(245, 0);
+    pub const TASK_INTERESTS_HOLDINGS: Path = Path::new(246, 0);
+    pub const TASK_INTERESTS_HOLDS_TAKEN: Path = Path::new(246, 1);
+    pub const TASK_INTERESTS_HOLD_WAIT_SINCE: Path = Path::new(246, 2);
+    pub const TASK_INTERESTS_HOLD_BOUND_SINCE: Path = Path::new(246, 3);
+    pub const TASK_INTERESTS_DELEGATES: Path = Path::new(246, 4);
+    pub const TASK_INTERESTS_RESULT_FOLLOWUPS: Path = Path::new(246, 5);
+    pub const TASK_INTERESTS_REFERENCES: Path = Path::new(246, 6);
+    pub const TASK_INTERESTS_SUBSCRIPTIONS: Path = Path::new(246, 7);
+    pub const TASK_INTERESTS_WAKE: Path = Path::new(246, 8);
+    pub const TASK_INTERESTS_TURN: Path = Path::new(246, 9);
+    pub const TASK_INTERESTS_LAST_MESSAGE: Path = Path::new(246, 10);
+    pub const TASK_INTERESTS_INBOX: Path = Path::new(246, 11);
+    pub const TASK_INTERESTS_SAVED: Path = Path::new(246, 12);
+    pub const TASK_INTERESTS_EVER_TURNED: Path = Path::new(246, 13);
+    pub const TASK_INTERESTS_MADE: Path = Path::new(246, 14);
+    pub const TASK_INTERESTS_TAIL: Path = Path::new(246, 15);
+    pub const ROOM_PROJECT_PROJECT: Path = Path::new(247, 0);
+    pub const ROOM_PROJECT_TAIL: Path = Path::new(247, 1);
+    pub const LIVE_ROOM_TAG: Path = Path::new(248, 0);
+    pub const ROOM_WAIT_ROOM: Path = Path::new(249, 0);
+    pub const ROOM_WAIT_ORDER: Path = Path::new(249, 1);
+    pub const ROOM_WAIT_TAIL: Path = Path::new(249, 2);
+    pub const TASK_OUTCOME_ATTEMPT: Path = Path::new(250, 0);
+    pub const TASK_OUTCOME_LAST_ANSWER: Path = Path::new(250, 1);
+    pub const TASK_OUTCOME_TRIES: Path = Path::new(250, 2);
+    pub const TASK_OUTCOME_INVALID_RESULT: Path = Path::new(250, 3);
+    pub const TASK_OUTCOME_REFUSALS: Path = Path::new(250, 4);
+    pub const TASK_OUTCOME_PHASE: Path = Path::new(250, 5);
+    pub const TASK_OUTCOME_ROOM_WAIT: Path = Path::new(250, 6);
+    pub const TASK_OUTCOME_TAIL: Path = Path::new(250, 7);
+    pub const TALK_PARTY: Path = Path::new(251, 0);
+    pub const TALK_OPENED: Path = Path::new(251, 1);
+    pub const TALK_LAST: Path = Path::new(251, 2);
+    pub const TALK_TAIL: Path = Path::new(251, 3);
+    pub const SESSION_FIRST: Path = Path::new(252, 0);
+    pub const SESSION_REASONS: Path = Path::new(252, 1);
+    pub const SESSION_LAST: Path = Path::new(252, 2);
+    pub const SESSION_TAIL: Path = Path::new(252, 3);
+    pub const BEFORE_TALK_ACTIVATION_OPEN: Path = Path::new(253, 0);
+    pub const BEFORE_TALK_SESSION: Path = Path::new(253, 1);
+    pub const BEFORE_TALK_CLOSER: Path = Path::new(253, 2);
+    pub const BEFORE_TALK_HISTORY: Path = Path::new(253, 3);
+    pub const BEFORE_TALK_RUN: Path = Path::new(253, 4);
+    pub const BEFORE_TALK_DEFINITION: Path = Path::new(253, 5);
+    pub const BEFORE_TALK_STARTED_FROM: Path = Path::new(253, 6);
+    pub const BEFORE_TALK_INTERESTS: Path = Path::new(253, 7);
+    pub const BEFORE_TALK_OUTCOME: Path = Path::new(253, 8);
+    pub const BEFORE_TALK_ASKED_REQUESTER: Path = Path::new(253, 9);
+    pub const BEFORE_TALK_QUESTION_WOKEN: Path = Path::new(253, 10);
+    pub const BEFORE_TALK_WORDS_WOKEN: Path = Path::new(253, 11);
+    pub const BEFORE_TALK_TAIL: Path = Path::new(253, 12);
+    pub const CONCLUDED_BY: Path = Path::new(254, 0);
+    pub const CONCLUDED_AT: Path = Path::new(254, 1);
+    pub const CONCLUDED_TAIL: Path = Path::new(254, 2);
+    pub const TASK_RECORD_RECORD: Path = Path::new(255, 0);
+    pub const TASK_RECORD_TALK: Path = Path::new(255, 1);
+    pub const TASK_RECORD_CONCLUDED: Path = Path::new(255, 2);
+    pub const TASK_RECORD_TAIL: Path = Path::new(255, 3);
+    pub const HOT_HISTORY_LAST_ACTIVITY: Path = Path::new(256, 0);
+    pub const HOT_HISTORY_ENDED_BELOW: Path = Path::new(256, 1);
+    pub const HOT_HISTORY_ENDED_DELEGATES: Path = Path::new(256, 2);
+    pub const HOT_HISTORY_QUESTION_LINES: Path = Path::new(256, 3);
+    pub const HOT_HISTORY_HOLD: Path = Path::new(256, 4);
+    pub const HOT_HISTORY_PLACED: Path = Path::new(256, 5);
+    pub const HOT_HISTORY_PROPOSAL_ROWS: Path = Path::new(256, 6);
+    pub const HOT_HISTORY_REFUSED: Path = Path::new(256, 7);
+    pub const HOT_HISTORY_GRACE: Path = Path::new(256, 8);
+    pub const HOT_HISTORY_SETTINGS: Path = Path::new(256, 9);
+    pub const HOT_HISTORY_REVISIONS: Path = Path::new(256, 10);
+    pub const HOT_HISTORY_CREATED_AT: Path = Path::new(256, 11);
+    pub const HOT_HISTORY_CHANGED: Path = Path::new(256, 12);
+    pub const HOT_HISTORY_PHASE_SINCE: Path = Path::new(256, 13);
+    pub const HOT_HISTORY_RUN_SINCE: Path = Path::new(256, 14);
+    pub const HOT_HISTORY_RETRY_NOTICE: Path = Path::new(256, 15);
+    pub const HOT_HISTORY_ENDED_AT: Path = Path::new(256, 16);
+    pub const HOT_HISTORY_REVISION: Path = Path::new(256, 17);
+    pub const HOT_HISTORY_TAIL: Path = Path::new(256, 18);
+    pub const HOT_DEFINITION_LABEL: Path = Path::new(257, 0);
+    pub const HOT_DEFINITION_FLAGS: Path = Path::new(257, 1);
+    pub const HOT_DEFINITION_ROOT: Path = Path::new(257, 2);
+    pub const HOT_DEFINITION_DEPTH: Path = Path::new(257, 3);
+    pub const HOT_DEFINITION_EXECUTOR: Path = Path::new(257, 4);
+    pub const HOT_DEFINITION_LLM: Path = Path::new(257, 5);
+    pub const HOT_DEFINITION_KEPT_ACCOUNT: Path = Path::new(257, 6);
+    pub const HOT_DEFINITION_TAKEN_BY: Path = Path::new(257, 7);
+    pub const HOT_DEFINITION_PERSON_ANSWER: Path = Path::new(257, 8);
+    pub const HOT_DEFINITION_PERSON_WAIT: Path = Path::new(257, 9);
+    pub const HOT_DEFINITION_RECURRING: Path = Path::new(257, 10);
+    pub const HOT_DEFINITION_TRACKED: Path = Path::new(257, 11);
+    pub const HOT_DEFINITION_NUMBERS: Path = Path::new(257, 12);
+    pub const HOT_DEFINITION_FUNDER: Path = Path::new(257, 13);
+    pub const HOT_DEFINITION_DEPENDENCIES: Path = Path::new(257, 14);
+    pub const HOT_DEFINITION_WAITING_ON: Path = Path::new(257, 15);
+    pub const HOT_DEFINITION_ADDED: Path = Path::new(257, 16);
+    pub const HOT_DEFINITION_TAIL: Path = Path::new(257, 17);
+    pub const LIVE_HOT_ACTIVATION_OPEN: Path = Path::new(258, 0);
+    pub const LIVE_HOT_SESSION: Path = Path::new(258, 1);
+    pub const LIVE_HOT_CLOSER: Path = Path::new(258, 2);
+    pub const LIVE_HOT_HISTORY: Path = Path::new(258, 3);
+    pub const LIVE_HOT_RUN: Path = Path::new(258, 4);
+    pub const LIVE_HOT_DEFINITION: Path = Path::new(258, 5);
+    pub const LIVE_HOT_STARTED_FROM: Path = Path::new(258, 6);
+    pub const LIVE_HOT_INTERESTS: Path = Path::new(258, 7);
+    pub const LIVE_HOT_OUTCOME: Path = Path::new(258, 8);
+    pub const LIVE_HOT_ASKED_REQUESTER: Path = Path::new(258, 9);
+    pub const LIVE_HOT_QUESTION_WOKEN: Path = Path::new(258, 10);
+    pub const LIVE_HOT_TALK: Path = Path::new(258, 11);
+    pub const LIVE_HOT_CONCLUDED: Path = Path::new(258, 12);
+    pub const LIVE_HOT_WORDS_WOKEN: Path = Path::new(258, 13);
+    pub const LIVE_HOT_TAIL: Path = Path::new(258, 14);
+    pub const LIVE_COLD_SPEC: Path = Path::new(259, 0);
+    pub const LIVE_COLD_CONTRACT: Path = Path::new(259, 1);
+    pub const LIVE_COLD_AUTHORITY: Path = Path::new(259, 2);
+    pub const LIVE_COLD_INSTRUCTIONS: Path = Path::new(259, 3);
+    pub const LIVE_COLD_TAIL: Path = Path::new(259, 4);
+    pub const ENDED_BY_PARTY_PARTY: Path = Path::new(260, 0);
+    pub const ENDED_BY_PARTY_LABEL: Path = Path::new(260, 1);
+    pub const ENDED_BY_PARTY_ENDED_AT: Path = Path::new(260, 2);
+    pub const ENDED_BY_PARTY_TASK: Path = Path::new(260, 3);
+    pub const ENDED_BY_PARTY_TAIL: Path = Path::new(260, 4);
+    pub const ENDED_BY_PROJECT_PROJECT: Path = Path::new(261, 0);
+    pub const ENDED_BY_PROJECT_LABEL: Path = Path::new(261, 1);
+    pub const ENDED_BY_PROJECT_ENDED_AT: Path = Path::new(261, 2);
+    pub const ENDED_BY_PROJECT_TASK: Path = Path::new(261, 3);
+    pub const ENDED_BY_PROJECT_TAIL: Path = Path::new(261, 4);
+    pub const HOLD_OWNER_TAG: Path = Path::new(262, 0);
+    pub const HOLD_MODE_TAG: Path = Path::new(263, 0);
+    pub const SUBTREE_SCOPE_TASK: Path = Path::new(264, 0);
+    pub const SUBTREE_SCOPE_TAIL: Path = Path::new(264, 1);
+    pub const HOLD_SCOPE_TAG: Path = Path::new(265, 0);
+    pub const PLACED_HOLD_NUMBER: Path = Path::new(266, 0);
+    pub const PLACED_HOLD_PROJECT: Path = Path::new(266, 1);
+    pub const PLACED_HOLD_OWNER: Path = Path::new(266, 2);
+    pub const PLACED_HOLD_MODE: Path = Path::new(266, 3);
+    pub const PLACED_HOLD_SCOPE: Path = Path::new(266, 4);
+    pub const PLACED_HOLD_REASON: Path = Path::new(266, 5);
+    pub const PLACED_HOLD_PLACED_AT: Path = Path::new(266, 6);
+    pub const PLACED_HOLD_REVISION: Path = Path::new(266, 7);
+    pub const PLACED_HOLD_EXEMPT: Path = Path::new(266, 8);
+    pub const PLACED_HOLD_LIFTED: Path = Path::new(266, 9);
+    pub const PLACED_HOLD_TAIL: Path = Path::new(266, 10);
+    pub const SUMMARY_CANCELLED_BY: Path = Path::new(267, 0);
+    pub const SUMMARY_CANCELLED_AT: Path = Path::new(267, 1);
+    pub const SUMMARY_CANCELLED_TAIL: Path = Path::new(267, 2);
+    pub const SUMMARY_ENDING_TAG: Path = Path::new(268, 0);
+    pub const SUMMARY_VERDICT_CODE: Path = Path::new(269, 0);
+    pub const SUMMARY_VERDICT_TAIL: Path = Path::new(269, 1);
+    pub const SUMMARY_CHANGE_CONNECTOR: Path = Path::new(270, 0);
+    pub const SUMMARY_CHANGE_KIND: Path = Path::new(270, 1);
+    pub const SUMMARY_CHANGE_RESOURCE: Path = Path::new(270, 2);
+    pub const SUMMARY_CHANGE_TAIL: Path = Path::new(270, 3);
+    pub const SUMMARY_RESULT_KIND_TAG: Path = Path::new(271, 0);
+    pub const SUMMARY_RESULT_KIND: Path = Path::new(272, 0);
+    pub const SUMMARY_RESULT_WORDS: Path = Path::new(272, 1);
+    pub const SUMMARY_RESULT_TAIL: Path = Path::new(272, 2);
+    pub const SUMMARY_ENDINGS_DONE: Path = Path::new(273, 0);
+    pub const SUMMARY_ENDINGS_FAILED: Path = Path::new(273, 1);
+    pub const SUMMARY_ENDINGS_TAIL: Path = Path::new(273, 2);
+    pub const TASK_SUMMARY_NUMBER: Path = Path::new(274, 0);
+    pub const TASK_SUMMARY_ROOT: Path = Path::new(274, 1);
+    pub const TASK_SUMMARY_DEPTH: Path = Path::new(274, 2);
+    pub const TASK_SUMMARY_REQUESTER: Path = Path::new(274, 3);
+    pub const TASK_SUMMARY_PROJECT: Path = Path::new(274, 4);
+    pub const TASK_SUMMARY_LABEL: Path = Path::new(274, 5);
+    pub const TASK_SUMMARY_FLAGS: Path = Path::new(274, 6);
+    pub const TASK_SUMMARY_TRACKED: Path = Path::new(274, 7);
+    pub const TASK_SUMMARY_EXECUTOR: Path = Path::new(274, 8);
+    pub const TASK_SUMMARY_TITLE: Path = Path::new(274, 9);
+    pub const TASK_SUMMARY_ENDING: Path = Path::new(274, 10);
+    pub const TASK_SUMMARY_REASON: Path = Path::new(274, 11);
+    pub const TASK_SUMMARY_RESULT: Path = Path::new(274, 12);
+    pub const TASK_SUMMARY_CUTS: Path = Path::new(274, 13);
+    pub const TASK_SUMMARY_CREATED_AT: Path = Path::new(274, 14);
+    pub const TASK_SUMMARY_CHANGED: Path = Path::new(274, 15);
+    pub const TASK_SUMMARY_LAST_ACTIVITY: Path = Path::new(274, 16);
+    pub const TASK_SUMMARY_ENDED_AT: Path = Path::new(274, 17);
+    pub const TASK_SUMMARY_NUMBERS: Path = Path::new(274, 18);
+    pub const TASK_SUMMARY_DEADLINE: Path = Path::new(274, 19);
+    pub const TASK_SUMMARY_FUNDER: Path = Path::new(274, 20);
+    pub const TASK_SUMMARY_ENDED_DELEGATES: Path = Path::new(274, 21);
+    pub const TASK_SUMMARY_ATTEMPT: Path = Path::new(274, 22);
+    pub const TASK_SUMMARY_ACTIVITY: Path = Path::new(274, 23);
+    pub const TASK_SUMMARY_RESULT_POSITION: Path = Path::new(274, 24);
+    pub const TASK_SUMMARY_LAST_REPLY: Path = Path::new(274, 25);
+    pub const TASK_SUMMARY_TAIL: Path = Path::new(274, 26);
+    pub const RETENTION_STAGE_TAG: Path = Path::new(275, 0);
+    pub const RETENTION_ROW_STAGE: Path = Path::new(276, 0);
+    pub const RETENTION_ROW_SINCE: Path = Path::new(276, 1);
+    pub const RETENTION_ROW_NUMBER: Path = Path::new(276, 2);
+    pub const RETENTION_ROW_TAIL: Path = Path::new(276, 3);
+    pub const VALUE_TAG: Path = Path::new(277, 0);
+    pub const MODEL_NAME_VALUE: Path = Path::new(278, 0);
+    pub const MODEL_NAME_TAIL: Path = Path::new(278, 1);
+    pub const ROW_VALUE: Path = Path::new(279, 0);
+    pub const ROW_MODELS: Path = Path::new(279, 1);
+    pub const ROW_VERSION: Path = Path::new(279, 2);
+    pub const ROW_TAIL: Path = Path::new(279, 3);
+    pub const CAPACITY_ACTION_BATCH_FIRST: Path = Path::new(280, 0);
+    pub const CAPACITY_ACTION_BATCH_MEMBERS: Path = Path::new(280, 1);
+    pub const CAPACITY_ACTION_BATCH_TAIL: Path = Path::new(280, 2);
+    pub const CAPACITY_ACTION_PROPOSAL_NUMBER: Path = Path::new(281, 0);
+    pub const CAPACITY_ACTION_PROPOSAL_TAIL: Path = Path::new(281, 1);
+    pub const CAPACITY_ACTION_PERSON_PROPOSAL_NUMBER: Path = Path::new(282, 0);
+    pub const CAPACITY_ACTION_PERSON_PROPOSAL_TAIL: Path = Path::new(282, 1);
+    pub const CAPACITY_ACTION_MESSAGE_TASK: Path = Path::new(283, 0);
+    pub const CAPACITY_ACTION_MESSAGE_NUMBER: Path = Path::new(283, 1);
+    pub const CAPACITY_ACTION_MESSAGE_TAIL: Path = Path::new(283, 2);
+    pub const CAPACITY_ACTION_SOURCE_FUNDER: Path = Path::new(284, 0);
+    pub const CAPACITY_ACTION_SOURCE_TAIL: Path = Path::new(284, 1);
+    pub const CAPACITY_ACTION_INTRODUCE_LEFT: Path = Path::new(285, 0);
+    pub const CAPACITY_ACTION_INTRODUCE_RIGHT: Path = Path::new(285, 1);
+    pub const CAPACITY_ACTION_INTRODUCE_TAIL: Path = Path::new(285, 2);
+    pub const CAPACITY_ACTION_SUBSCRIPTION_NUMBER: Path = Path::new(286, 0);
+    pub const CAPACITY_ACTION_SUBSCRIPTION_TAIL: Path = Path::new(286, 1);
+    pub const CAPACITY_ACTION_EFFECT_ENTRY: Path = Path::new(287, 0);
+    pub const CAPACITY_ACTION_EFFECT_TAIL: Path = Path::new(287, 1);
+    pub const CAPACITY_ACTION_CLAIM_ATTEMPT: Path = Path::new(288, 0);
+    pub const CAPACITY_ACTION_CLAIM_TAIL: Path = Path::new(288, 1);
+    pub const CAPACITY_ACTION_PLACE_HOLD: Path = Path::new(289, 0);
+    pub const CAPACITY_ACTION_PLACE_TAIL: Path = Path::new(289, 1);
+    pub const CAPACITY_ACTION_TAG: Path = Path::new(290, 0);
+    pub const CAPACITY_CAUSE_TASKS_LIMIT: Path = Path::new(291, 0);
+    pub const CAPACITY_CAUSE_TASKS_TAIL: Path = Path::new(291, 1);
+    pub const CAPACITY_CAUSE_CREATION_FLIGHTS_LIMIT: Path = Path::new(292, 0);
+    pub const CAPACITY_CAUSE_CREATION_FLIGHTS_TAIL: Path = Path::new(292, 1);
+    pub const CAPACITY_CAUSE_RESOURCE_REPORTS_LIMIT: Path = Path::new(293, 0);
+    pub const CAPACITY_CAUSE_RESOURCE_REPORTS_TAIL: Path = Path::new(293, 1);
+    pub const CAPACITY_CAUSE_PROJECT_TASKS_LIMIT: Path = Path::new(294, 0);
+    pub const CAPACITY_CAUSE_PROJECT_TASKS_TAIL: Path = Path::new(294, 1);
+    pub const CAPACITY_CAUSE_TREE_LIMIT: Path = Path::new(295, 0);
+    pub const CAPACITY_CAUSE_TREE_TAIL: Path = Path::new(295, 1);
+    pub const CAPACITY_CAUSE_DELEGATES_LIMIT: Path = Path::new(296, 0);
+    pub const CAPACITY_CAUSE_DELEGATES_TAIL: Path = Path::new(296, 1);
+    pub const CAPACITY_CAUSE_INBOX_TASK: Path = Path::new(297, 0);
+    pub const CAPACITY_CAUSE_INBOX_MESSAGES: Path = Path::new(297, 1);
+    pub const CAPACITY_CAUSE_INBOX_BYTES: Path = Path::new(297, 2);
+    pub const CAPACITY_CAUSE_INBOX_TAIL: Path = Path::new(297, 3);
+    pub const CAPACITY_CAUSE_HOLDINGS_LIMIT: Path = Path::new(298, 0);
+    pub const CAPACITY_CAUSE_HOLDINGS_TAIL: Path = Path::new(298, 1);
+    pub const CAPACITY_CAUSE_HOLD_WAITERS_LIMIT: Path = Path::new(299, 0);
+    pub const CAPACITY_CAUSE_HOLD_WAITERS_TAIL: Path = Path::new(299, 1);
+    pub const CAPACITY_CAUSE_PROPOSALS_LIMIT: Path = Path::new(300, 0);
+    pub const CAPACITY_CAUSE_PROPOSALS_TAIL: Path = Path::new(300, 1);
+    pub const CAPACITY_CAUSE_REFERENCES_LIMIT: Path = Path::new(301, 0);
+    pub const CAPACITY_CAUSE_REFERENCES_TAIL: Path = Path::new(301, 1);
+    pub const CAPACITY_CAUSE_SUBSCRIPTIONS_LIMIT: Path = Path::new(302, 0);
+    pub const CAPACITY_CAUSE_SUBSCRIPTIONS_TAIL: Path = Path::new(302, 1);
+    pub const CAPACITY_CAUSE_FUNDERS_LIMIT: Path = Path::new(303, 0);
+    pub const CAPACITY_CAUSE_FUNDERS_TAIL: Path = Path::new(303, 1);
+    pub const CAPACITY_CAUSE_WRITERS_LIMIT: Path = Path::new(304, 0);
+    pub const CAPACITY_CAUSE_WRITERS_TAIL: Path = Path::new(304, 1);
+    pub const CAPACITY_CAUSE_PLACED_HOLDS_LIMIT: Path = Path::new(305, 0);
+    pub const CAPACITY_CAUSE_PLACED_HOLDS_TAIL: Path = Path::new(305, 1);
+    pub const CAPACITY_CAUSE_PROJECT_PLACED_HOLDS_LIMIT: Path = Path::new(306, 0);
+    pub const CAPACITY_CAUSE_PROJECT_PLACED_HOLDS_TAIL: Path = Path::new(306, 1);
+    pub const CAPACITY_CAUSE_PARTY_PLACED_HOLDS_LIMIT: Path = Path::new(307, 0);
+    pub const CAPACITY_CAUSE_PARTY_PLACED_HOLDS_TAIL: Path = Path::new(307, 1);
+    pub const CAPACITY_CAUSE_EXEMPTIONS_LIMIT: Path = Path::new(308, 0);
+    pub const CAPACITY_CAUSE_EXEMPTIONS_TAIL: Path = Path::new(308, 1);
+    pub const CAPACITY_CAUSE_TAG: Path = Path::new(309, 0);
+    pub const CAPACITY_PROJECT: Path = Path::new(310, 0);
+    pub const CAPACITY_BY: Path = Path::new(310, 1);
+    pub const CAPACITY_ACTION: Path = Path::new(310, 2);
+    pub const CAPACITY_CAUSE: Path = Path::new(310, 3);
+    pub const CAPACITY_TAIL: Path = Path::new(310, 4);
+    pub const REFUSAL_PERSON_REVISION_REVISION: Path = Path::new(311, 0);
+    pub const REFUSAL_PERSON_REVISION_TAIL: Path = Path::new(311, 1);
+    pub const LLM_FAULT_TAG: Path = Path::new(312, 0);
+    pub const REFUSAL_LLM_MODEL: Path = Path::new(313, 0);
+    pub const REFUSAL_LLM_WHY: Path = Path::new(313, 1);
+    pub const REFUSAL_LLM_TAIL: Path = Path::new(313, 2);
+    pub const ACCOUNT_WHY_TAG: Path = Path::new(314, 0);
+    pub const REFUSAL_ACCOUNT_ACCOUNT: Path = Path::new(315, 0);
+    pub const REFUSAL_ACCOUNT_WHY: Path = Path::new(315, 1);
+    pub const REFUSAL_ACCOUNT_TAIL: Path = Path::new(315, 2);
+    pub const REFUSAL_CIRCLE_CUT: Path = Path::new(316, 0);
+    pub const REFUSAL_CIRCLE_TAIL: Path = Path::new(316, 1);
+    pub const REFUSAL_DEPENDENCY_ENDED_HOW: Path = Path::new(317, 0);
+    pub const REFUSAL_DEPENDENCY_ENDED_TAIL: Path = Path::new(317, 1);
+    pub const REFUSAL_PLACED_HOLD: Path = Path::new(318, 0);
+    pub const REFUSAL_PLACED_TAIL: Path = Path::new(318, 1);
+    pub const REFUSAL_HOLD_OWNER_HOLD: Path = Path::new(319, 0);
+    pub const REFUSAL_HOLD_OWNER_TAIL: Path = Path::new(319, 1);
+    pub const REFUSAL_HOLD_REVISION_REVISION: Path = Path::new(320, 0);
+    pub const REFUSAL_HOLD_REVISION_TAIL: Path = Path::new(320, 1);
+    pub const TALK_OPEN_PARTY: Path = Path::new(321, 0);
+    pub const TALK_OPEN_TAIL: Path = Path::new(321, 1);
+    pub const REFUSAL_CONCLUDED_AT: Path = Path::new(322, 0);
+    pub const REFUSAL_CONCLUDED_TAIL: Path = Path::new(322, 1);
+    pub const REFUSAL_TAG: Path = Path::new(323, 0);
+    pub const TASK_PROBLEM_TASK: Path = Path::new(324, 0);
+    pub const TASK_PROBLEM_WHY: Path = Path::new(324, 1);
+    pub const TASK_PROBLEM_BLOCKED_BY: Path = Path::new(324, 2);
+    pub const TASK_PROBLEM_CAPACITY: Path = Path::new(324, 3);
+    pub const TASK_PROBLEM_VERSION: Path = Path::new(324, 4);
+    pub const TASK_PROBLEM_TAIL: Path = Path::new(324, 5);
+    pub const RESULT_FOLLOWUPS_DELEGATES_VALUE: Path = Path::new(325, 0);
+    pub const RESULT_FOLLOWUPS_DELEGATES_TAIL: Path = Path::new(325, 1);
+    pub const RESULT_FOLLOWUPS_PROPOSAL_VALUE: Path = Path::new(326, 0);
+    pub const RESULT_FOLLOWUPS_PROPOSAL_TAIL: Path = Path::new(326, 1);
+    pub const RESULT_FOLLOWUPS_TAG: Path = Path::new(327, 0);
+    pub const END_FINISHED_RESULT: Path = Path::new(328, 0);
+    pub const END_FINISHED_CANCEL_DELEGATES: Path = Path::new(328, 1);
+    pub const END_FINISHED_TAIL: Path = Path::new(328, 2);
+    pub const END_FINISHED_WITH_FOLLOWUPS_RESULT: Path = Path::new(329, 0);
+    pub const END_FINISHED_WITH_FOLLOWUPS_FOLLOWUPS: Path = Path::new(329, 1);
+    pub const END_FINISHED_WITH_FOLLOWUPS_TAIL: Path = Path::new(329, 2);
+    pub const END_FAILED_VALUE: Path = Path::new(330, 0);
+    pub const END_FAILED_TAIL: Path = Path::new(330, 1);
+    pub const END_FAILED_WITH_REASON_CLASS: Path = Path::new(331, 0);
+    pub const END_FAILED_WITH_REASON_REASON: Path = Path::new(331, 1);
+    pub const END_FAILED_WITH_REASON_TAIL: Path = Path::new(331, 2);
+    pub const END_REFUSED_WITH_REASON_REASON: Path = Path::new(332, 0);
+    pub const END_REFUSED_WITH_REASON_TAIL: Path = Path::new(332, 1);
+    pub const SUSPENDED_WORKER: Path = Path::new(333, 0);
+    pub const SUSPENDED_WHY: Path = Path::new(333, 1);
+    pub const SUSPENDED_WINDOW: Path = Path::new(333, 2);
+    pub const SUSPENDED_TAIL: Path = Path::new(333, 3);
+    pub const END_TAG: Path = Path::new(334, 0);
+    pub const END_RECORD_VALUE: Path = Path::new(335, 0);
+    pub const END_RECORD_VERSION: Path = Path::new(335, 1);
+    pub const END_RECORD_TAIL: Path = Path::new(335, 2);
+    pub const PHASE_RECORD_VALUE: Path = Path::new(336, 0);
+    pub const PHASE_RECORD_VERSION: Path = Path::new(336, 1);
+    pub const PHASE_RECORD_TAIL: Path = Path::new(336, 2);
+    pub const CHANGE_RECORD_VALUE: Path = Path::new(337, 0);
+    pub const CHANGE_RECORD_VERSION: Path = Path::new(337, 1);
+    pub const CHANGE_RECORD_TAIL: Path = Path::new(337, 2);
 }
 
 const PATH_NAMES: &[&[&str]] = &[
@@ -2531,7 +2546,21 @@ const PATH_NAMES: &[&[&str]] = &[
         "FailedEnd (tail)",
     ],
     &[
+        "SuspendWhy (tag)",
+    ],
+    &[
+        "SuspendedEnd.worker",
+        "SuspendedEnd.why",
+        "SuspendedEnd (tail)",
+    ],
+    &[
         "EndKind (tag)",
+    ],
+    &[
+        "Suspension.worker",
+        "Suspension.since",
+        "Suspension.until",
+        "Suspension (tail)",
     ],
     &[
         "AttemptRow.task",
@@ -2867,6 +2896,9 @@ const PATH_NAMES: &[&[&str]] = &[
         "TaskRun.run_spent",
         "TaskRun.run_reserved",
         "TaskRun.open_attempt",
+        "TaskRun.suspension",
+        "TaskRun.suspended",
+        "TaskRun.restarted",
         "TaskRun (tail)",
     ],
     &[
@@ -3390,6 +3422,12 @@ const PATH_NAMES: &[&[&str]] = &[
         "EndRefusedWithReason (tail)",
     ],
     &[
+        "Suspended.worker",
+        "Suspended.why",
+        "Suspended.window",
+        "Suspended (tail)",
+    ],
+    &[
         "End (tag)",
     ],
     &[
@@ -3416,7 +3454,7 @@ pub fn name(path: Path) -> Option<&'static str> {
 }
 
 // Table: postordered shapes, with compiler-known heap slot sizes.
-const TABLE: &[skein_codec::bounds::Node] = &[
+static TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
     skein_codec::bounds::Node::Scalar(8),
@@ -3987,32 +4025,41 @@ const TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[14, 566] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[568, 569, 570, 567, 571] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 575 },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 577 },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 579 },
-    skein_codec::bounds::Node::Option { item: 572 },
+    skein_codec::bounds::Node::Enum { variants: &[568, 569] },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Option { item: 582 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[573, 574, 576, 578, 580, 581, 583] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[571, 570] },
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Enum { variants: &[573, 574, 575, 567, 576, 572] },
+    skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[578, 579, 580] },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Option { item: 584 },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Option { item: 586 },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Option { item: 588 },
+    skein_codec::bounds::Node::Option { item: 577 },
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Option { item: 591 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[582, 583, 585, 587, 589, 590, 592] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 572 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[585, 587, 589, 590, 591] },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Option { item: 595 },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Option { item: 597 },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Option { item: 577 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[594, 596, 598, 599, 600] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Bytes { limit: 58 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[593, 6, 553, 594] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[602, 6, 553, 603] },
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[559] },
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[6, 559] },
     skein_codec::bounds::Node::Scalar(0),
@@ -4020,39 +4067,39 @@ const TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[598, 599, 600, 601, 602] },
+    skein_codec::bounds::Node::Enum { variants: &[607, 608, 609, 610, 611] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Option { item: 603 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[604, 28, 605, 606] },
+    skein_codec::bounds::Node::Option { item: 612 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[613, 28, 614, 615] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[608, 572, 609] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[617, 577, 618] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 614 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[611, 612, 613, 615] },
+    skein_codec::bounds::Node::Option { item: 623 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[620, 621, 622, 624] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[617, 618] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[626, 627] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 619 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[620, 621] },
+    skein_codec::bounds::Node::Option { item: 628 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[629, 630] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[623] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[632] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::List { limit: 59, item: 1, size: size_of::<Number>() },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 627 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[625, 626, 628] },
+    skein_codec::bounds::Node::Option { item: 636 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[634, 635, 637] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Bytes { limit: 60 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[630, 631] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[639, 640] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Bytes { limit: 61 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[633, 634] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[642, 643] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
@@ -4061,147 +4108,147 @@ const TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[636, 637, 638, 639, 640, 641, 642, 643] },
+    skein_codec::bounds::Node::Enum { variants: &[645, 646, 647, 648, 649, 650, 651, 652] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[645, 644] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[654, 653] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[647] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[656] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[649, 650] },
-    skein_codec::bounds::Node::Enum { variants: &[595, 596, 597, 607, 610, 616, 622, 624, 629, 635, 646, 648, 651, 632] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[658, 659] },
+    skein_codec::bounds::Node::Enum { variants: &[604, 605, 606, 616, 619, 625, 631, 633, 638, 644, 655, 657, 660, 641] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[653, 654, 655, 652] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[662, 663, 664, 661] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[657, 658, 659] },
+    skein_codec::bounds::Node::Enum { variants: &[666, 667, 668] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[661, 660, 662] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[670, 669, 671] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[664, 665, 666, 667, 668] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[673, 674, 675, 676, 677] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[670] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[679] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[672] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[681] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[674, 675] },
-    skein_codec::bounds::Node::Enum { variants: &[671, 673, 676] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[683, 684] },
+    skein_codec::bounds::Node::Enum { variants: &[680, 682, 685] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[678] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[687] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[680] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[689] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[682, 677, 683, 684] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[691, 686, 692, 693] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[686, 687] },
+    skein_codec::bounds::Node::Enum { variants: &[695, 696] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Bytes { limit: 62 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[689, 690, 691, 688] },
-    skein_codec::bounds::Node::Enum { variants: &[679, 681, 685, 692] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[698, 699, 700, 697] },
+    skein_codec::bounds::Node::Enum { variants: &[688, 690, 694, 701] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[694, 695] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[697, 698, 699] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[703, 704] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 700 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[701, 702, 703, 704] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[706, 707, 708] },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Option { item: 709 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[710, 711, 712, 713] },
     skein_codec::bounds::Node::List { limit: 63, item: 1, size: size_of::<Number>() },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 708 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[243, 706, 707, 709] },
+    skein_codec::bounds::Node::Option { item: 717 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[243, 715, 716, 718] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[711, 6, 6, 712] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[720, 6, 6, 721] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(1),
     skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[714, 715, 716] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[723, 724, 725] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 719 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[718, 720] },
+    skein_codec::bounds::Node::Option { item: 728 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[727, 729] },
     skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[722, 723] },
-    skein_codec::bounds::Node::Enum { variants: &[717, 721, 724] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[726, 725] },
-    skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Bytes { limit: 64 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[728, 729] },
-    skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[731, 732] },
+    skein_codec::bounds::Node::Enum { variants: &[726, 730, 733] },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[735, 734] },
+    skein_codec::bounds::Node::Scalar(2),
+    skein_codec::bounds::Node::Bytes { limit: 64 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[737, 738] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 733 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[734, 735, 736] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[740, 741] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[738, 739] },
+    skein_codec::bounds::Node::Option { item: 742 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[743, 744, 745] },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[747, 748] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[741, 742, 743] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[750, 751, 752] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[745, 746] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[754, 755] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[748] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[757] },
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[750, 747, 749] },
+    skein_codec::bounds::Node::Enum { variants: &[759, 756, 758] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[752, 753, 754, 751] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[761, 762, 763, 760] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[756, 757, 758] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[765, 766, 767] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[760, 761] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[769, 770] },
     skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[763] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[772] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::List { limit: 65, item: 737, size: size_of::<QuestionLine>() },
+    skein_codec::bounds::Node::List { limit: 65, item: 746, size: size_of::<QuestionLine>() },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 768 },
-    skein_codec::bounds::Node::List { limit: 66, item: 740, size: size_of::<ProposalRow>() },
+    skein_codec::bounds::Node::Option { item: 777 },
+    skein_codec::bounds::Node::List { limit: 66, item: 749, size: size_of::<ProposalRow>() },
     skein_codec::bounds::Node::Bytes { limit: 67 },
-    skein_codec::bounds::Node::Option { item: 771 },
+    skein_codec::bounds::Node::Option { item: 780 },
     skein_codec::bounds::Node::List { limit: 68, item: 1, size: size_of::<Number>() },
     skein_codec::bounds::Node::Option { item: 468 },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 778 },
+    skein_codec::bounds::Node::Option { item: 787 },
     skein_codec::bounds::Node::Option { item: 486 },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 781 },
+    skein_codec::bounds::Node::Option { item: 790 },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[765, 744, 744, 766, 767, 769, 770, 772, 773, 774, 472, 476, 775, 776, 777, 779, 780, 782, 783] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[774, 753, 753, 775, 776, 778, 779, 781, 782, 783, 472, 476, 784, 785, 786, 788, 789, 791, 792] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(4),
@@ -4210,266 +4257,257 @@ const TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Scalar(1),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::List { limit: 69, item: 669, size: size_of::<ReplyHint>() },
+    skein_codec::bounds::Node::List { limit: 69, item: 678, size: size_of::<ReplyHint>() },
     skein_codec::bounds::Node::Option { item: 412 },
     skein_codec::bounds::Node::Scalar(1),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 592 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[785, 786, 28, 787, 788, 789, 790, 791, 792, 793, 693, 794, 795, 796, 797, 6, 798, 799, 800] },
+    skein_codec::bounds::Node::Option { item: 601 },
+    skein_codec::bounds::Node::Option { item: 581 },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Scalar(1),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[794, 795, 28, 796, 797, 798, 799, 800, 801, 802, 702, 803, 804, 805, 806, 6, 807, 808, 809, 810, 811, 812] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[802, 803, 6] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[814, 815, 6] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Option { item: 115 },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Option { item: 809 },
+    skein_codec::bounds::Node::Option { item: 821 },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 811 },
-    skein_codec::bounds::Node::Option { item: 696 },
+    skein_codec::bounds::Node::Option { item: 823 },
     skein_codec::bounds::Node::Option { item: 705 },
-    skein_codec::bounds::Node::Option { item: 710 },
+    skein_codec::bounds::Node::Option { item: 714 },
+    skein_codec::bounds::Node::Option { item: 719 },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Option { item: 816 },
+    skein_codec::bounds::Node::Option { item: 828 },
     skein_codec::bounds::Node::List { limit: 70, item: 1, size: size_of::<Number>() },
     skein_codec::bounds::Node::List { limit: 71, item: 1, size: size_of::<Number>() },
-    skein_codec::bounds::Node::List { limit: 72, item: 804, size: size_of::<Added>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[805, 227, 806, 807, 40, 808, 810, 812, 813, 814, 815, 817, 64, 99, 145, 164, 159, 818, 819, 820] },
-    skein_codec::bounds::Node::Enum { variants: &[559, 713, 559] },
+    skein_codec::bounds::Node::List { limit: 72, item: 816, size: size_of::<Added>() },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[817, 227, 818, 819, 40, 820, 822, 824, 825, 826, 827, 829, 64, 99, 145, 164, 159, 830, 831, 832] },
+    skein_codec::bounds::Node::Enum { variants: &[559, 722, 559] },
     skein_codec::bounds::Node::List { limit: 73, item: 195, size: size_of::<Holding>() },
     skein_codec::bounds::Node::Scalar(1),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 825 },
+    skein_codec::bounds::Node::Option { item: 837 },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 827 },
+    skein_codec::bounds::Node::Option { item: 839 },
     skein_codec::bounds::Node::List { limit: 74, item: 1, size: size_of::<Number>() },
     skein_codec::bounds::Node::List { limit: 75, item: 1, size: size_of::<Number>() },
     skein_codec::bounds::Node::List { limit: 76, item: 1, size: size_of::<Number>() },
-    skein_codec::bounds::Node::List { limit: 77, item: 727, size: size_of::<Subscription>() },
+    skein_codec::bounds::Node::List { limit: 77, item: 736, size: size_of::<Subscription>() },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::List { limit: 78, item: 822, size: size_of::<InboxItem>() },
-    skein_codec::bounds::Node::List { limit: 79, item: 730, size: size_of::<SavedResource>() },
+    skein_codec::bounds::Node::List { limit: 78, item: 834, size: size_of::<InboxItem>() },
+    skein_codec::bounds::Node::List { limit: 79, item: 739, size: size_of::<SavedResource>() },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[823, 824, 826, 828, 829, 830, 831, 832, 211, 833, 834, 835, 836, 764, 837] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[835, 836, 838, 840, 841, 842, 843, 844, 211, 845, 846, 847, 848, 773, 849] },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[839] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[851] },
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[841, 840] },
+    skein_codec::bounds::Node::Enum { variants: &[853, 852] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[842, 843] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[854, 855] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 846 },
+    skein_codec::bounds::Node::Option { item: 858 },
     skein_codec::bounds::Node::Option { item: 565 },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Option { item: 844 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[845, 847, 22, 848, 849, 331, 850] },
+    skein_codec::bounds::Node::Option { item: 856 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[857, 859, 22, 860, 861, 331, 862] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[852, 853, 854] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[864, 865, 866] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[856, 857, 858] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[868, 869, 870] },
     skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Option { item: 859 },
+    skein_codec::bounds::Node::Option { item: 871 },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 862 },
+    skein_codec::bounds::Node::Option { item: 874 },
     skein_codec::bounds::Node::List { limit: 80, item: 1, size: size_of::<Number>() },
     skein_codec::bounds::Node::Scalar(1),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[860, 861, 863, 784, 801, 821, 864, 838, 851, 865, 866, 867] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[872, 873, 875, 793, 813, 833, 876, 850, 863, 877, 878, 879] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[869, 870] },
-    skein_codec::bounds::Node::Option { item: 855 },
-    skein_codec::bounds::Node::Option { item: 871 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[868, 872, 873] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[881, 882] },
+    skein_codec::bounds::Node::Option { item: 867 },
+    skein_codec::bounds::Node::Option { item: 883 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[880, 884, 885] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::List { limit: 81, item: 737, size: size_of::<QuestionLine>() },
+    skein_codec::bounds::Node::List { limit: 81, item: 746, size: size_of::<QuestionLine>() },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 878 },
-    skein_codec::bounds::Node::List { limit: 82, item: 740, size: size_of::<ProposalRow>() },
+    skein_codec::bounds::Node::Option { item: 890 },
+    skein_codec::bounds::Node::List { limit: 82, item: 749, size: size_of::<ProposalRow>() },
     skein_codec::bounds::Node::List { limit: 83, item: 1, size: size_of::<Number>() },
     skein_codec::bounds::Node::Option { item: 468 },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 886 },
+    skein_codec::bounds::Node::Option { item: 898 },
     skein_codec::bounds::Node::Option { item: 486 },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 889 },
+    skein_codec::bounds::Node::Option { item: 901 },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[875, 744, 744, 876, 877, 879, 880, 881, 882, 472, 476, 883, 884, 885, 887, 888, 890, 891] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[887, 753, 753, 888, 889, 891, 892, 893, 894, 472, 476, 895, 896, 897, 899, 900, 902, 903] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Option { item: 115 },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Option { item: 897 },
+    skein_codec::bounds::Node::Option { item: 909 },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 899 },
-    skein_codec::bounds::Node::Option { item: 696 },
+    skein_codec::bounds::Node::Option { item: 911 },
     skein_codec::bounds::Node::Option { item: 705 },
-    skein_codec::bounds::Node::Option { item: 710 },
+    skein_codec::bounds::Node::Option { item: 714 },
+    skein_codec::bounds::Node::Option { item: 719 },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Option { item: 904 },
+    skein_codec::bounds::Node::Option { item: 916 },
     skein_codec::bounds::Node::List { limit: 84, item: 1, size: size_of::<Number>() },
     skein_codec::bounds::Node::List { limit: 85, item: 1, size: size_of::<Number>() },
-    skein_codec::bounds::Node::List { limit: 86, item: 804, size: size_of::<Added>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[893, 227, 894, 895, 40, 896, 898, 900, 901, 902, 903, 905, 164, 159, 906, 907, 908] },
+    skein_codec::bounds::Node::List { limit: 86, item: 816, size: size_of::<Added>() },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[905, 227, 906, 907, 40, 908, 910, 912, 913, 914, 915, 917, 164, 159, 918, 919, 920] },
     skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Option { item: 859 },
+    skein_codec::bounds::Node::Option { item: 871 },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 912 },
+    skein_codec::bounds::Node::Option { item: 924 },
     skein_codec::bounds::Node::List { limit: 87, item: 1, size: size_of::<Number>() },
     skein_codec::bounds::Node::Scalar(1),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 855 },
-    skein_codec::bounds::Node::Option { item: 871 },
+    skein_codec::bounds::Node::Option { item: 867 },
+    skein_codec::bounds::Node::Option { item: 883 },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[910, 911, 913, 892, 801, 909, 914, 838, 851, 915, 916, 917, 918, 919] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[922, 923, 925, 904, 813, 921, 926, 850, 863, 927, 928, 929, 930, 931] },
     skein_codec::bounds::Node::Bytes { limit: 88 },
-    skein_codec::bounds::Node::Option { item: 921 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[64, 99, 145, 922] },
+    skein_codec::bounds::Node::Option { item: 933 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[64, 99, 145, 934] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[924, 925, 926, 927] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[936, 937, 938, 939] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[929, 930, 931, 932] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[941, 942, 943, 944] },
     skein_codec::bounds::Node::Enum { variants: &[3, 1] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[935, 936] },
+    skein_codec::bounds::Node::Enum { variants: &[947, 948] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[938] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[950] },
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[939, 940] },
+    skein_codec::bounds::Node::Enum { variants: &[951, 952] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Bytes { limit: 89 },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::List { limit: 90, item: 947, size: size_of::<u64>() },
+    skein_codec::bounds::Node::List { limit: 90, item: 959, size: size_of::<u64>() },
     skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[942, 943, 934, 937, 941, 944, 945, 946, 948, 949] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[954, 955, 946, 949, 953, 956, 957, 958, 960, 961] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[6, 951] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[6, 963] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[953, 954, 952] },
+    skein_codec::bounds::Node::Enum { variants: &[965, 966, 964] },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[956] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[968] },
     skein_codec::bounds::Node::Scalar(2),
     skein_codec::bounds::Node::Scalar(2),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[958, 959, 960] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[970, 971, 972] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[962, 963, 964, 957, 961, 965, 966] },
+    skein_codec::bounds::Node::Enum { variants: &[974, 975, 976, 969, 973, 977, 978] },
     skein_codec::bounds::Node::Bytes { limit: 91 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[967, 968] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[979, 980] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[970, 971] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[982, 983] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Option { item: 978 },
+    skein_codec::bounds::Node::Option { item: 990 },
     skein_codec::bounds::Node::Bytes { limit: 92 },
     skein_codec::bounds::Node::Bytes { limit: 93 },
-    skein_codec::bounds::Node::Option { item: 969 },
+    skein_codec::bounds::Node::Option { item: 981 },
     skein_codec::bounds::Node::Scalar(1),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 988 },
+    skein_codec::bounds::Node::Option { item: 1000 },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[973, 974, 975, 6, 976, 977, 227, 979, 40, 980, 955, 981, 982, 983, 984, 985, 986, 987, 164, 989, 159, 972, 990, 991, 992, 993] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[985, 986, 987, 6, 988, 989, 227, 991, 40, 992, 967, 993, 994, 995, 996, 997, 998, 999, 164, 1001, 159, 984, 1002, 1003, 1004, 1005] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[995, 996, 997, 998, 999] },
+    skein_codec::bounds::Node::Enum { variants: &[1007, 1008, 1009, 1010, 1011] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1000, 1001, 1002] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1012, 1013, 1014] },
     skein_codec::bounds::Node::Boxed { item: 442, size: size_of::<History>() },
-    skein_codec::bounds::Node::Boxed { item: 994, size: size_of::<TaskSummary>() },
-    skein_codec::bounds::Node::Enum { variants: &[173, 173, 187, 190, 1004, 460, 460, 656, 868, 663, 755, 759, 762, 762, 928, 933, 950, 874, 584, 464, 920, 923, 1005, 1003] },
+    skein_codec::bounds::Node::Boxed { item: 1006, size: size_of::<TaskSummary>() },
+    skein_codec::bounds::Node::Enum { variants: &[173, 173, 187, 190, 1016, 460, 460, 665, 880, 672, 764, 768, 771, 771, 940, 945, 962, 886, 593, 464, 932, 935, 1017, 1015] },
     skein_codec::bounds::Node::Bytes { limit: 94 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1007] },
-    skein_codec::bounds::Node::List { limit: 95, item: 1008, size: size_of::<ModelName>() },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[1006, 1009] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1019] },
+    skein_codec::bounds::Node::List { limit: 95, item: 1020, size: size_of::<ModelName>() },
+    skein_codec::bounds::Node::Record { prefix: 2, fields: &[1018, 1021] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 1011 },
+    skein_codec::bounds::Node::Option { item: 1023 },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1012, 1013] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1024, 1025] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1015] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1027] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1017] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1029] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1019, 1020] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1031, 1032] },
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[159] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1023, 1024] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1035, 1036] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1026] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1038] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1028] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1040] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1030] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1042] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1032] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1044] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1014, 1016, 1018, 1021, 1022, 1025, 1027, 1029, 1031, 1034, 1035, 1033] },
+    skein_codec::bounds::Node::Enum { variants: &[1026, 1028, 1030, 1033, 1034, 1037, 1039, 1041, 1043, 1046, 1047, 1045] },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1037] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1049] },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1039] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1041] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1043] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1045] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1047] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1049, 1050, 1051] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1051] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[1053] },
     skein_codec::bounds::Node::Scalar(4),
@@ -4478,10 +4516,10 @@ const TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[1057] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[1059] },
+    skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1061] },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1063] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1061, 1062, 1063] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[1065] },
     skein_codec::bounds::Node::Scalar(4),
@@ -4492,41 +4530,53 @@ const TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[1071] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[1073] },
-    skein_codec::bounds::Node::Enum { variants: &[1038, 1040, 1042, 1044, 1046, 1048, 1052, 1054, 1056, 1058, 1060, 1062, 1064, 1066, 1068, 1070, 1072, 1074] },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Option { item: 1076 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1077, 6, 1036, 1075] },
-    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1075] },
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1077] },
+    skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[1079] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1081, 1082, 1083, 1084, 1085, 1086] },
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1088, 1087] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1090, 1091, 1092, 1093] },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1095, 1094] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1081] },
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1083] },
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1085] },
+    skein_codec::bounds::Node::Enum { variants: &[1050, 1052, 1054, 1056, 1058, 1060, 1064, 1066, 1068, 1070, 1072, 1074, 1076, 1078, 1080, 1082, 1084, 1086] },
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Option { item: 1088 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1089, 6, 1048, 1087] },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1091] },
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Enum { variants: &[1093, 1094, 1095, 1096, 1097, 1098] },
     skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1097] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[660] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1100, 1099] },
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Enum { variants: &[1102, 1103, 1104, 1105] },
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1107, 1106] },
+    skein_codec::bounds::Node::Scalar(1),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1109] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[669] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1100] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1112] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1102] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1114] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1104] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1116] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1106] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1118] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1108] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1120] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
@@ -4564,32 +4614,35 @@ const TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1110, 1111, 1112, 1080, 1113, 1114, 1115, 1116, 1117, 1118, 1119, 1120, 1121, 1122, 1123, 1124, 1125, 1126, 1127, 1098, 1128, 1129, 1130, 1131, 1132, 1133, 1134, 1135, 1136, 1137, 1138, 1139, 1140, 1141, 1142, 1089, 1096, 1099, 1143, 1101, 1103, 1105, 537, 537, 1144, 1107, 1145, 1109, 1146] },
+    skein_codec::bounds::Node::Enum { variants: &[1122, 1123, 1124, 1092, 1125, 1126, 1127, 1128, 1129, 1130, 1131, 1132, 1133, 1134, 1135, 1136, 1137, 1138, 1139, 1110, 1140, 1141, 1142, 1143, 1144, 1145, 1146, 1147, 1148, 1149, 1150, 1151, 1152, 1153, 1154, 1101, 1108, 1111, 1155, 1113, 1115, 1117, 537, 537, 1156, 1119, 1157, 1121, 1158] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 1148 },
+    skein_codec::bounds::Node::Option { item: 1160 },
     skein_codec::bounds::Node::List { limit: 96, item: 1, size: size_of::<Number>() },
-    skein_codec::bounds::Node::Option { item: 1150 },
-    skein_codec::bounds::Node::Option { item: 1078 },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[1149, 1147, 1151, 1152] },
+    skein_codec::bounds::Node::Option { item: 1162 },
+    skein_codec::bounds::Node::Option { item: 1090 },
+    skein_codec::bounds::Node::Record { prefix: 2, fields: &[1161, 1159, 1163, 1164] },
     skein_codec::bounds::Node::Bytes { limit: 97 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1154] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1166] },
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[412] },
-    skein_codec::bounds::Node::Boxed { item: 1156, size: size_of::<ResultFollowupsProposal>() },
-    skein_codec::bounds::Node::Enum { variants: &[1155, 1157] },
+    skein_codec::bounds::Node::Boxed { item: 1168, size: size_of::<ResultFollowupsProposal>() },
+    skein_codec::bounds::Node::Enum { variants: &[1167, 1169] },
     skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[267, 1159] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[267, 1158] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[267, 1171] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[267, 1170] },
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[14] },
     skein_codec::bounds::Node::Bytes { limit: 98 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[14, 1163] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[14, 1175] },
     skein_codec::bounds::Node::Bytes { limit: 99 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1165] },
-    skein_codec::bounds::Node::Boxed { item: 1161, size: size_of::<EndFinishedWithFollowups>() },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1177] },
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1179, 570, 1180] },
+    skein_codec::bounds::Node::Boxed { item: 1173, size: size_of::<EndFinishedWithFollowups>() },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1160, 1167, 1168, 1162, 1169, 1170, 286, 1164, 1166] },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[1171] },
+    skein_codec::bounds::Node::Enum { variants: &[1172, 1182, 1183, 1174, 1184, 1185, 286, 1176, 1178, 1181] },
+    skein_codec::bounds::Node::Record { prefix: 2, fields: &[1186] },
     skein_codec::bounds::Node::Record { prefix: 2, fields: &[331] },
     skein_codec::bounds::Node::Record { prefix: 2, fields: &[424] },
 ];
@@ -4776,162 +4829,166 @@ const DECLARATIONS: &[u32] = &[
     559,
     565,
     567,
+    570,
     572,
-    584,
-    592,
-    595,
-    596,
-    597,
-    603,
-    607,
-    610,
+    577,
+    581,
+    593,
+    601,
+    604,
+    605,
+    606,
+    612,
     616,
     619,
-    622,
-    624,
-    629,
-    632,
-    635,
+    625,
+    628,
+    631,
+    633,
+    638,
+    641,
     644,
-    646,
-    648,
-    651,
-    652,
-    656,
+    653,
+    655,
+    657,
     660,
-    663,
+    661,
+    665,
     669,
-    671,
-    673,
-    676,
-    677,
-    679,
-    681,
+    672,
+    678,
+    680,
+    682,
     685,
+    686,
     688,
-    692,
-    693,
-    696,
-    700,
+    690,
+    694,
+    697,
+    701,
+    702,
     705,
-    710,
-    713,
-    717,
-    721,
-    724,
-    725,
-    727,
+    709,
+    714,
+    719,
+    722,
+    726,
     730,
     733,
-    737,
-    740,
-    744,
-    747,
+    734,
+    736,
+    739,
+    742,
+    746,
     749,
-    751,
-    755,
-    759,
-    762,
+    753,
+    756,
+    758,
+    760,
     764,
-    784,
-    801,
-    804,
-    821,
-    822,
-    838,
-    840,
-    842,
-    844,
-    851,
-    855,
-    859,
-    868,
+    768,
+    771,
+    773,
+    793,
+    813,
+    816,
+    833,
+    834,
+    850,
+    852,
+    854,
+    856,
+    863,
+    867,
     871,
-    874,
-    892,
-    909,
-    920,
-    923,
-    928,
-    933,
-    934,
-    937,
-    939,
-    941,
-    950,
-    952,
-    955,
-    957,
-    961,
+    880,
+    883,
+    886,
+    904,
+    921,
+    932,
+    935,
+    940,
+    945,
+    946,
+    949,
+    951,
+    953,
+    962,
+    964,
     967,
     969,
-    972,
-    994,
-    1000,
-    1003,
+    973,
+    979,
+    981,
+    984,
     1006,
-    1008,
-    1010,
-    1014,
-    1016,
+    1012,
+    1015,
     1018,
-    1021,
+    1020,
     1022,
-    1025,
-    1027,
-    1029,
-    1031,
+    1026,
+    1028,
+    1030,
     1033,
-    1036,
-    1038,
-    1040,
-    1042,
-    1044,
-    1046,
+    1034,
+    1037,
+    1039,
+    1041,
+    1043,
+    1045,
     1048,
+    1050,
     1052,
     1054,
     1056,
     1058,
     1060,
-    1062,
     1064,
     1066,
     1068,
     1070,
     1072,
     1074,
-    1075,
+    1076,
     1078,
     1080,
+    1082,
+    1084,
+    1086,
     1087,
-    1089,
-    1094,
-    1096,
-    1098,
+    1090,
+    1092,
     1099,
     1101,
-    1103,
-    1105,
-    1107,
-    1109,
-    1147,
-    1153,
-    1155,
-    1156,
-    1158,
-    1160,
-    1161,
-    1162,
-    1164,
-    1166,
-    1171,
+    1106,
+    1108,
+    1110,
+    1111,
+    1113,
+    1115,
+    1117,
+    1119,
+    1121,
+    1159,
+    1165,
+    1167,
+    1168,
+    1170,
     1172,
     1173,
     1174,
+    1176,
+    1178,
+    1181,
+    1186,
+    1187,
+    1188,
+    1189,
 ];
 
-const CEILING_VALUES: &[u32] = &[
+static CEILING_VALUES: &[u32] = &[
     262_144,
     262_144,
     524_288,
@@ -12044,20 +12101,54 @@ impl Record for FailedEnd {
     }
 }
 
-// Type: EndKind.
+// Type: SuspendWhy.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum EndKind {
-    Parked,
-    Finished,
-    Cancelled,
-    Failed(FailedEnd),
-    Refused,
+pub enum SuspendWhy {
+    Stopped,
+    Restarted,
 }
 
-// Record: EndKind.
-impl Record for EndKind {
+// Record: SuspendWhy.
+impl Record for SuspendWhy {
     type Limits = Limits;
-    const TAIL: Path = paths::END_KIND_TAG;
+    const TAIL: Path = paths::SUSPEND_WHY_TAG;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 570)?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 570)?.decoded)
+    }
+
+    fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        match self {
+            Self::Stopped => field::put(out, &[0], paths::SUSPEND_WHY_TAG),
+            Self::Restarted => field::put(out, &[1], paths::SUSPEND_WHY_TAG),
+        }
+    }
+
+    fn read(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: paths::SUSPEND_WHY_TAG, reason: skein_codec::Reason::Short })?;
+        match tag {
+            0 => Ok(Self::Stopped),
+            1 => Ok(Self::Restarted),
+            2..=u8::MAX => Err(Problem { path: paths::SUSPEND_WHY_TAG, reason: skein_codec::Reason::Tag }),
+        }
+    }
+}
+
+// Type: SuspendedEnd.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct SuspendedEnd {
+    pub worker: u32,
+    pub why: SuspendWhy,
+}
+
+// Record: SuspendedEnd.
+impl Record for SuspendedEnd {
+    type Limits = Limits;
+    const TAIL: Path = paths::SUSPENDED_END_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
         Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 572)?.encoded)
@@ -12068,12 +12159,51 @@ impl Record for EndKind {
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U32, &self.worker, limits, out, paths::SUSPENDED_END_WORKER)?;
+        field::write(field::Nested, &self.why, limits, out, paths::SUSPENDED_END_WHY)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            worker: field::read(field::U32, limits, reader, paths::SUSPENDED_END_WORKER)?,
+            why: field::read(field::Nested, limits, reader, paths::SUSPENDED_END_WHY)?,
+        })
+    }
+}
+
+// Type: EndKind.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum EndKind {
+    Parked,
+    Finished,
+    Cancelled,
+    Failed(FailedEnd),
+    Refused,
+    Suspended(SuspendedEnd),
+}
+
+// Record: EndKind.
+impl Record for EndKind {
+    type Limits = Limits;
+    const TAIL: Path = paths::END_KIND_TAG;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 577)?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 577)?.decoded)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         match self {
             Self::Parked => field::put(out, &[0], paths::END_KIND_TAG),
             Self::Finished => field::put(out, &[1], paths::END_KIND_TAG),
             Self::Cancelled => field::put(out, &[2], paths::END_KIND_TAG),
             Self::Failed(value) => { field::put(out, &[3], paths::END_KIND_TAG)?; value.write(limits, out) },
             Self::Refused => field::put(out, &[4], paths::END_KIND_TAG),
+            Self::Suspended(value) => { field::put(out, &[5], paths::END_KIND_TAG)?; value.write(limits, out) },
         }
     }
 
@@ -12085,8 +12215,46 @@ impl Record for EndKind {
             2 => Ok(Self::Cancelled),
             3 => Ok(Self::Failed(FailedEnd::read(limits, reader)?)),
             4 => Ok(Self::Refused),
-            5..=u8::MAX => Err(Problem { path: paths::END_KIND_TAG, reason: skein_codec::Reason::Tag }),
+            5 => Ok(Self::Suspended(SuspendedEnd::read(limits, reader)?)),
+            6..=u8::MAX => Err(Problem { path: paths::END_KIND_TAG, reason: skein_codec::Reason::Tag }),
         }
+    }
+}
+
+// Type: Suspension.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Suspension {
+    pub worker: u32,
+    pub since: u64,
+    pub until: u64,
+}
+
+// Record: Suspension.
+impl Record for Suspension {
+    type Limits = Limits;
+    const TAIL: Path = paths::SUSPENSION_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 581)?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 581)?.decoded)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U32, &self.worker, limits, out, paths::SUSPENSION_WORKER)?;
+        field::write(field::U64, &self.since, limits, out, paths::SUSPENSION_SINCE)?;
+        field::write(field::U64, &self.until, limits, out, paths::SUSPENSION_UNTIL)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            worker: field::read(field::U32, limits, reader, paths::SUSPENSION_WORKER)?,
+            since: field::read(field::U64, limits, reader, paths::SUSPENSION_SINCE)?,
+            until: field::read(field::U64, limits, reader, paths::SUSPENSION_UNTIL)?,
+        })
     }
 }
 
@@ -12108,11 +12276,11 @@ impl Record for AttemptRow {
     const TAIL: Path = paths::ATTEMPT_ROW_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 584)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 593)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 584)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 593)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -12155,11 +12323,11 @@ impl Record for OpenAttempt {
     const TAIL: Path = paths::OPEN_ATTEMPT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 592)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 601)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 592)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 601)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -12197,11 +12365,11 @@ impl Record for ActivityWords {
     const TAIL: Path = paths::ACTIVITY_WORDS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 595)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 604)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 595)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 604)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -12234,11 +12402,11 @@ impl Record for HeardMessage {
     const TAIL: Path = paths::HEARD_MESSAGE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 596)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 605)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 596)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 605)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -12266,11 +12434,11 @@ impl Record for NotifiedMessage {
     const TAIL: Path = paths::NOTIFIED_MESSAGE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 597)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 606)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 597)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 606)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -12303,11 +12471,11 @@ impl Record for Fresh {
     const TAIL: Path = paths::FRESH_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 603)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 612)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 603)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 612)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -12348,11 +12516,11 @@ impl Record for BeganLine {
     const TAIL: Path = paths::BEGAN_LINE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 607)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 616)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 607)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 616)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -12387,11 +12555,11 @@ impl Record for EndedLine {
     const TAIL: Path = paths::ENDED_LINE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 610)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 619)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 610)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 619)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -12425,11 +12593,11 @@ impl Record for TurnLine {
     const TAIL: Path = paths::TURN_LINE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 616)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 625)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 616)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 625)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -12463,11 +12631,11 @@ impl Record for DecidedProposal {
     const TAIL: Path = paths::DECIDED_PROPOSAL_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 619)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 628)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 619)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 628)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -12497,11 +12665,11 @@ impl Record for DecidedLine {
     const TAIL: Path = paths::DECIDED_LINE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 622)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 631)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 622)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 631)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -12530,11 +12698,11 @@ impl Record for MilestoneLine {
     const TAIL: Path = paths::MILESTONE_LINE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 624)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 633)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 624)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 633)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -12563,11 +12731,11 @@ impl Record for KeptLine {
     const TAIL: Path = paths::KEPT_LINE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 629)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 638)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 629)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 638)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -12599,11 +12767,11 @@ impl Record for NowWrittenLine {
     const TAIL: Path = paths::NOW_WRITTEN_LINE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 632)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 641)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 632)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 641)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -12633,11 +12801,11 @@ impl Record for StoodLine {
     const TAIL: Path = paths::STOOD_LINE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 635)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 644)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 635)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 644)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -12673,11 +12841,11 @@ impl Record for SessionEnd {
     const TAIL: Path = paths::SESSION_END_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 644)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 653)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 644)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 653)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -12722,11 +12890,11 @@ impl Record for SessionEndedLine {
     const TAIL: Path = paths::SESSION_ENDED_LINE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 646)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 655)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 646)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 655)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -12755,11 +12923,11 @@ impl Record for TalkOpenedLine {
     const TAIL: Path = paths::TALK_OPENED_LINE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 648)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 657)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 648)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 657)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -12787,11 +12955,11 @@ impl Record for TalkEndedLine {
     const TAIL: Path = paths::TALK_ENDED_LINE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 651)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 660)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 651)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 660)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -12833,11 +13001,11 @@ impl Record for Line {
     const TAIL: Path = paths::LINE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 652)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 661)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 652)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 661)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -12896,11 +13064,11 @@ impl Record for ActivityLine {
     const TAIL: Path = paths::ACTIVITY_LINE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 656)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 665)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 656)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 665)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -12935,11 +13103,11 @@ impl Record for Status {
     const TAIL: Path = paths::STATUS_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 660)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 669)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 660)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 669)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -12975,11 +13143,11 @@ impl Record for Stub {
     const TAIL: Path = paths::STUB_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 663)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 672)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 663)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 672)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13014,11 +13182,11 @@ impl Record for ReplyHint {
     const TAIL: Path = paths::REPLY_HINT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 669)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 678)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 669)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 678)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13053,11 +13221,11 @@ impl Record for EscalationTask {
     const TAIL: Path = paths::ESCALATION_TASK_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 671)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 680)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 671)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 680)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13084,11 +13252,11 @@ impl Record for EscalationPerson {
     const TAIL: Path = paths::ESCALATION_PERSON_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 673)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 682)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 673)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 682)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13116,11 +13284,11 @@ impl Record for EscalationRole {
     const TAIL: Path = paths::ESCALATION_ROLE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 676)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 685)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 676)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 685)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13151,11 +13319,11 @@ impl Record for EscalationHolder {
     const TAIL: Path = paths::ESCALATION_HOLDER_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 677)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 686)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 677)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 686)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13189,11 +13357,11 @@ impl Record for UnheldEscalation {
     const TAIL: Path = paths::UNHELD_ESCALATION_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 679)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 688)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 679)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 688)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13220,11 +13388,11 @@ impl Record for RoutingEscalation {
     const TAIL: Path = paths::ROUTING_ESCALATION_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 681)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 690)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 681)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 690)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13254,11 +13422,11 @@ impl Record for WaitingEscalation {
     const TAIL: Path = paths::WAITING_ESCALATION_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 685)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 694)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 685)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 694)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13292,11 +13460,11 @@ impl Record for DeciderKind {
     const TAIL: Path = paths::DECIDER_KIND_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 688)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 697)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 688)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 697)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13331,11 +13499,11 @@ impl Record for RejectedEscalation {
     const TAIL: Path = paths::REJECTED_ESCALATION_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 692)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 701)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 692)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 701)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13371,11 +13539,11 @@ impl Record for Escalation {
     const TAIL: Path = paths::ESCALATION_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 693)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 702)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 693)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 702)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13412,11 +13580,11 @@ impl Record for PersonAnswer {
     const TAIL: Path = paths::PERSON_ANSWER_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 696)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 705)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 696)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 705)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13447,11 +13615,11 @@ impl Record for PersonStallNotice {
     const TAIL: Path = paths::PERSON_STALL_NOTICE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 700)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 709)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 700)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 709)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13485,11 +13653,11 @@ impl Record for PersonWait {
     const TAIL: Path = paths::PERSON_WAIT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 705)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 714)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 705)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 714)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13525,11 +13693,11 @@ impl Record for RecurringState {
     const TAIL: Path = paths::RECURRING_STATE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 710)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 719)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 710)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 719)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13565,11 +13733,11 @@ impl Record for QuestionCredit {
     const TAIL: Path = paths::QUESTION_CREDIT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 713)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 722)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 713)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 722)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13604,11 +13772,11 @@ impl Record for TaskInterest {
     const TAIL: Path = paths::TASK_INTEREST_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 717)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 726)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 717)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 726)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13640,11 +13808,11 @@ impl Record for TimerInterest {
     const TAIL: Path = paths::TIMER_INTEREST_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 721)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 730)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 721)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 730)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13674,11 +13842,11 @@ impl Record for TopicInterest {
     const TAIL: Path = paths::TOPIC_INTEREST_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 724)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 733)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 724)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 733)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13709,11 +13877,11 @@ impl Record for SubscriptionKind {
     const TAIL: Path = paths::SUBSCRIPTION_KIND_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 725)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 734)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 725)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 734)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13748,11 +13916,11 @@ impl Record for Subscription {
     const TAIL: Path = paths::SUBSCRIPTION_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 727)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 736)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 727)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 736)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13782,11 +13950,11 @@ impl Record for SavedResource {
     const TAIL: Path = paths::SAVED_RESOURCE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 730)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 739)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 730)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 739)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13816,11 +13984,11 @@ impl Record for AnswerLine {
     const TAIL: Path = paths::ANSWER_LINE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 733)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 742)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 733)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 742)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13851,11 +14019,11 @@ impl Record for QuestionLine {
     const TAIL: Path = paths::QUESTION_LINE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 737)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 746)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 737)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 746)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13887,11 +14055,11 @@ impl Record for ProposalRow {
     const TAIL: Path = paths::PROPOSAL_ROW_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 740)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 749)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 740)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 749)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13922,11 +14090,11 @@ impl Record for Endings {
     const TAIL: Path = paths::ENDINGS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 744)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 753)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 744)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 753)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13958,11 +14126,11 @@ impl Record for ReplyObject {
     const TAIL: Path = paths::REPLY_OBJECT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 747)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 756)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 747)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 756)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -13991,11 +14159,11 @@ impl Record for ProposalUpdate {
     const TAIL: Path = paths::PROPOSAL_UPDATE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 749)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 758)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 749)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 758)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14024,11 +14192,11 @@ impl Record for UpdateObject {
     const TAIL: Path = paths::UPDATE_OBJECT_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 751)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 760)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 751)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 760)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14065,11 +14233,11 @@ impl Record for Update {
     const TAIL: Path = paths::UPDATE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 755)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 764)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 755)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 764)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14104,11 +14272,11 @@ impl Record for ResultRow {
     const TAIL: Path = paths::RESULT_ROW_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 759)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 768)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 759)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 768)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14140,11 +14308,11 @@ impl Record for Edge {
     const TAIL: Path = paths::EDGE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 762)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 771)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 762)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 771)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14173,11 +14341,11 @@ impl Record for TranscriptState {
     const TAIL: Path = paths::TRANSCRIPT_STATE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 764)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 773)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 764)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 773)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14222,11 +14390,11 @@ impl Record for TaskHistory {
     const TAIL: Path = paths::TASK_HISTORY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 784)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 793)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 784)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 793)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14279,6 +14447,7 @@ impl Record for TaskHistory {
 
 // Type: TaskRun.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[expect(clippy::struct_excessive_bools, reason = "the schema names each boolean independently")]
 pub struct TaskRun {
     pub milestone: u64,
     pub activity: u64,
@@ -14299,6 +14468,9 @@ pub struct TaskRun {
     pub run_spent: u64,
     pub run_reserved: u64,
     pub open_attempt: Option<OpenAttempt>,
+    pub suspension: Option<Suspension>,
+    pub suspended: u64,
+    pub restarted: bool,
 }
 
 // Record: TaskRun.
@@ -14307,11 +14479,11 @@ impl Record for TaskRun {
     const TAIL: Path = paths::TASK_RUN_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 801)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 813)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 801)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 813)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14334,6 +14506,9 @@ impl Record for TaskRun {
         field::write(field::U64, &self.run_spent, limits, out, paths::TASK_RUN_RUN_SPENT)?;
         field::write(field::U64, &self.run_reserved, limits, out, paths::TASK_RUN_RUN_RESERVED)?;
         field::write(field::Optional { item: field::Nested }, &self.open_attempt, limits, out, paths::TASK_RUN_OPEN_ATTEMPT)?;
+        field::write(field::Optional { item: field::Nested }, &self.suspension, limits, out, paths::TASK_RUN_SUSPENSION)?;
+        field::write(field::U64, &self.suspended, limits, out, paths::TASK_RUN_SUSPENDED)?;
+        field::write(field::Boolean, &self.restarted, limits, out, paths::TASK_RUN_RESTARTED)?;
         Ok(())
     }
 
@@ -14358,6 +14533,9 @@ impl Record for TaskRun {
             run_spent: field::read(field::U64, limits, reader, paths::TASK_RUN_RUN_SPENT)?,
             run_reserved: field::read(field::U64, limits, reader, paths::TASK_RUN_RUN_RESERVED)?,
             open_attempt: field::read(field::Optional { item: field::Nested }, limits, reader, paths::TASK_RUN_OPEN_ATTEMPT)?,
+            suspension: field::read(field::Optional { item: field::Nested }, limits, reader, paths::TASK_RUN_SUSPENSION)?,
+            suspended: field::read(field::U64, limits, reader, paths::TASK_RUN_SUSPENDED)?,
+            restarted: field::read(field::Boolean, limits, reader, paths::TASK_RUN_RESTARTED)?,
         })
     }
 }
@@ -14376,11 +14554,11 @@ impl Record for Added {
     const TAIL: Path = paths::ADDED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 804)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 816)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 804)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 816)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14430,11 +14608,11 @@ impl Record for TaskDefinition {
     const TAIL: Path = paths::TASK_DEFINITION_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 821)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 833)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 821)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 833)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14501,11 +14679,11 @@ impl Record for InboxItem {
     const TAIL: Path = paths::INBOX_ITEM_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 822)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 834)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 822)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 834)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14553,11 +14731,11 @@ impl Record for TaskInterests {
     const TAIL: Path = paths::TASK_INTERESTS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 838)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 850)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 838)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 850)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14612,11 +14790,11 @@ impl Record for RoomProject {
     const TAIL: Path = paths::ROOM_PROJECT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 840)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 852)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 840)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 852)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14644,11 +14822,11 @@ impl Record for LiveRoom {
     const TAIL: Path = paths::LIVE_ROOM_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 842)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 854)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 842)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 854)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14681,11 +14859,11 @@ impl Record for RoomWait {
     const TAIL: Path = paths::ROOM_WAIT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 844)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 856)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 844)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 856)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14720,11 +14898,11 @@ impl Record for TaskOutcome {
     const TAIL: Path = paths::TASK_OUTCOME_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 851)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 863)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 851)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 863)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14765,11 +14943,11 @@ impl Record for Talk {
     const TAIL: Path = paths::TALK_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 855)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 867)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 855)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 867)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14802,11 +14980,11 @@ impl Record for Session {
     const TAIL: Path = paths::SESSION_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 859)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 871)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 859)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 871)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14848,11 +15026,11 @@ impl Record for BeforeTalk {
     const TAIL: Path = paths::BEFORE_TALK_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 868)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 880)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 868)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 880)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14902,11 +15080,11 @@ impl Record for Concluded {
     const TAIL: Path = paths::CONCLUDED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 871)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 883)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 871)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 883)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14937,11 +15115,11 @@ impl Record for TaskRecord {
     const TAIL: Path = paths::TASK_RECORD_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 874)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 886)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 874)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 886)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -14989,11 +15167,11 @@ impl Record for HotHistory {
     const TAIL: Path = paths::HOT_HISTORY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 892)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 904)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 892)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 904)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15070,11 +15248,11 @@ impl Record for HotDefinition {
     const TAIL: Path = paths::HOT_DEFINITION_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 909)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 921)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 909)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 921)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15146,11 +15324,11 @@ impl Record for LiveHot {
     const TAIL: Path = paths::LIVE_HOT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 920)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 932)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 920)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 932)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15206,11 +15384,11 @@ impl Record for LiveCold {
     const TAIL: Path = paths::LIVE_COLD_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 923)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 935)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 923)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 935)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15246,11 +15424,11 @@ impl Record for EndedByParty {
     const TAIL: Path = paths::ENDED_BY_PARTY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 928)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 940)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 928)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 940)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15286,11 +15464,11 @@ impl Record for EndedByProject {
     const TAIL: Path = paths::ENDED_BY_PROJECT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 933)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 945)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 933)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 945)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15324,11 +15502,11 @@ impl Record for HoldOwner {
     const TAIL: Path = paths::HOLD_OWNER_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 934)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 946)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 934)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 946)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15361,11 +15539,11 @@ impl Record for HoldMode {
     const TAIL: Path = paths::HOLD_MODE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 937)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 949)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 937)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 949)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15397,11 +15575,11 @@ impl Record for SubtreeScope {
     const TAIL: Path = paths::SUBTREE_SCOPE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 939)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 951)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 939)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 951)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15429,11 +15607,11 @@ impl Record for HoldScope {
     const TAIL: Path = paths::HOLD_SCOPE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 941)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 953)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 941)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 953)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15474,11 +15652,11 @@ impl Record for PlacedHold {
     const TAIL: Path = paths::PLACED_HOLD_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 950)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 962)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 950)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 962)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15524,11 +15702,11 @@ impl Record for SummaryCancelled {
     const TAIL: Path = paths::SUMMARY_CANCELLED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 952)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 964)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 952)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 964)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15559,11 +15737,11 @@ impl Record for SummaryEnding {
     const TAIL: Path = paths::SUMMARY_ENDING_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 955)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 967)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 955)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 967)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15597,11 +15775,11 @@ impl Record for SummaryVerdict {
     const TAIL: Path = paths::SUMMARY_VERDICT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 957)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 969)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 957)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 969)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15630,11 +15808,11 @@ impl Record for SummaryChange {
     const TAIL: Path = paths::SUMMARY_CHANGE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 961)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 973)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 961)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 973)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15671,11 +15849,11 @@ impl Record for SummaryResultKind {
     const TAIL: Path = paths::SUMMARY_RESULT_KIND_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 967)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 979)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 967)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 979)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15718,11 +15896,11 @@ impl Record for SummaryResult {
     const TAIL: Path = paths::SUMMARY_RESULT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 969)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 981)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 969)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 981)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15752,11 +15930,11 @@ impl Record for SummaryEndings {
     const TAIL: Path = paths::SUMMARY_ENDINGS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 972)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 984)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 972)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 984)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15810,11 +15988,11 @@ impl Record for TaskSummary {
     const TAIL: Path = paths::TASK_SUMMARY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 994)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1006)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 994)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1006)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15895,11 +16073,11 @@ impl Record for RetentionStage {
     const TAIL: Path = paths::RETENTION_STAGE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1000)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1012)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1000)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1012)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15939,11 +16117,11 @@ impl Record for RetentionRow {
     const TAIL: Path = paths::RETENTION_ROW_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1003)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1015)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1003)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1015)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15997,11 +16175,11 @@ impl Record for Value {
     const TAIL: Path = paths::VALUE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1006)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1018)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1006)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1018)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16077,11 +16255,11 @@ impl Record for ModelName {
     const TAIL: Path = paths::MODEL_NAME_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1008)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1020)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1008)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1020)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16109,11 +16287,11 @@ impl Record for Row {
     const TAIL: Path = paths::ROW_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1010)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1022)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1010)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1022)?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -16154,11 +16332,11 @@ impl Record for CapacityActionBatch {
     const TAIL: Path = paths::CAPACITY_ACTION_BATCH_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1014)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1026)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1014)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1026)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16187,11 +16365,11 @@ impl Record for CapacityActionProposal {
     const TAIL: Path = paths::CAPACITY_ACTION_PROPOSAL_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1016)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1028)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1016)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1028)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16218,11 +16396,11 @@ impl Record for CapacityActionPersonProposal {
     const TAIL: Path = paths::CAPACITY_ACTION_PERSON_PROPOSAL_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1018)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1030)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1018)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1030)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16250,11 +16428,11 @@ impl Record for CapacityActionMessage {
     const TAIL: Path = paths::CAPACITY_ACTION_MESSAGE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1021)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1033)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1021)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1033)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16283,11 +16461,11 @@ impl Record for CapacityActionSource {
     const TAIL: Path = paths::CAPACITY_ACTION_SOURCE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1022)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1034)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1022)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1034)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16315,11 +16493,11 @@ impl Record for CapacityActionIntroduce {
     const TAIL: Path = paths::CAPACITY_ACTION_INTRODUCE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1025)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1037)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1025)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1037)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16348,11 +16526,11 @@ impl Record for CapacityActionSubscription {
     const TAIL: Path = paths::CAPACITY_ACTION_SUBSCRIPTION_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1027)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1039)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1027)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1039)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16379,11 +16557,11 @@ impl Record for CapacityActionEffect {
     const TAIL: Path = paths::CAPACITY_ACTION_EFFECT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1029)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1041)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1029)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1041)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16410,11 +16588,11 @@ impl Record for CapacityActionClaim {
     const TAIL: Path = paths::CAPACITY_ACTION_CLAIM_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1031)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1043)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1031)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1043)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16441,11 +16619,11 @@ impl Record for CapacityActionPlace {
     const TAIL: Path = paths::CAPACITY_ACTION_PLACE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1033)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1045)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1033)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1045)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16483,11 +16661,11 @@ impl Record for CapacityAction {
     const TAIL: Path = paths::CAPACITY_ACTION_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1036)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1048)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1036)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1048)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16539,11 +16717,11 @@ impl Record for CapacityCauseTasks {
     const TAIL: Path = paths::CAPACITY_CAUSE_TASKS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1038)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1050)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1038)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1050)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16570,11 +16748,11 @@ impl Record for CapacityCauseCreationFlights {
     const TAIL: Path = paths::CAPACITY_CAUSE_CREATION_FLIGHTS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1040)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1052)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1040)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1052)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16601,11 +16779,11 @@ impl Record for CapacityCauseResourceReports {
     const TAIL: Path = paths::CAPACITY_CAUSE_RESOURCE_REPORTS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1042)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1054)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1042)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1054)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16632,11 +16810,11 @@ impl Record for CapacityCauseProjectTasks {
     const TAIL: Path = paths::CAPACITY_CAUSE_PROJECT_TASKS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1044)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1056)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1044)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1056)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16663,11 +16841,11 @@ impl Record for CapacityCauseTree {
     const TAIL: Path = paths::CAPACITY_CAUSE_TREE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1046)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1058)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1046)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1058)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16694,11 +16872,11 @@ impl Record for CapacityCauseDelegates {
     const TAIL: Path = paths::CAPACITY_CAUSE_DELEGATES_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1048)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1060)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1048)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1060)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16727,11 +16905,11 @@ impl Record for CapacityCauseInbox {
     const TAIL: Path = paths::CAPACITY_CAUSE_INBOX_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1052)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1064)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1052)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1064)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16762,11 +16940,11 @@ impl Record for CapacityCauseHoldings {
     const TAIL: Path = paths::CAPACITY_CAUSE_HOLDINGS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1054)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1066)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1054)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1066)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16793,11 +16971,11 @@ impl Record for CapacityCauseHoldWaiters {
     const TAIL: Path = paths::CAPACITY_CAUSE_HOLD_WAITERS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1056)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1068)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1056)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1068)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16824,11 +17002,11 @@ impl Record for CapacityCauseProposals {
     const TAIL: Path = paths::CAPACITY_CAUSE_PROPOSALS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1058)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1070)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1058)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1070)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16855,11 +17033,11 @@ impl Record for CapacityCauseReferences {
     const TAIL: Path = paths::CAPACITY_CAUSE_REFERENCES_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1060)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1072)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1060)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1072)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16886,11 +17064,11 @@ impl Record for CapacityCauseSubscriptions {
     const TAIL: Path = paths::CAPACITY_CAUSE_SUBSCRIPTIONS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1062)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1074)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1062)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1074)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16917,11 +17095,11 @@ impl Record for CapacityCauseFunders {
     const TAIL: Path = paths::CAPACITY_CAUSE_FUNDERS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1064)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1076)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1064)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1076)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16948,11 +17126,11 @@ impl Record for CapacityCauseWriters {
     const TAIL: Path = paths::CAPACITY_CAUSE_WRITERS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1066)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1078)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1066)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1078)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -16979,11 +17157,11 @@ impl Record for CapacityCausePlacedHolds {
     const TAIL: Path = paths::CAPACITY_CAUSE_PLACED_HOLDS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1068)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1080)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1068)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1080)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17010,11 +17188,11 @@ impl Record for CapacityCauseProjectPlacedHolds {
     const TAIL: Path = paths::CAPACITY_CAUSE_PROJECT_PLACED_HOLDS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1070)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1082)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1070)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1082)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17041,11 +17219,11 @@ impl Record for CapacityCausePartyPlacedHolds {
     const TAIL: Path = paths::CAPACITY_CAUSE_PARTY_PLACED_HOLDS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1072)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1084)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1072)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1084)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17072,11 +17250,11 @@ impl Record for CapacityCauseExemptions {
     const TAIL: Path = paths::CAPACITY_CAUSE_EXEMPTIONS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1074)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1086)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1074)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1086)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17120,11 +17298,11 @@ impl Record for CapacityCause {
     const TAIL: Path = paths::CAPACITY_CAUSE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1075)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1087)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1075)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1087)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17191,11 +17369,11 @@ impl Record for Capacity {
     const TAIL: Path = paths::CAPACITY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1078)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1090)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1078)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1090)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17228,11 +17406,11 @@ impl Record for RefusalPersonRevision {
     const TAIL: Path = paths::REFUSAL_PERSON_REVISION_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1080)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1092)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1080)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1092)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17264,11 +17442,11 @@ impl Record for LlmFault {
     const TAIL: Path = paths::LLM_FAULT_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1087)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1099)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1087)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1099)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17309,11 +17487,11 @@ impl Record for RefusalLlm {
     const TAIL: Path = paths::REFUSAL_LLM_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1089)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1101)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1089)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1101)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17345,11 +17523,11 @@ impl Record for AccountWhy {
     const TAIL: Path = paths::ACCOUNT_WHY_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1094)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1106)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1094)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1106)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17386,11 +17564,11 @@ impl Record for RefusalAccount {
     const TAIL: Path = paths::REFUSAL_ACCOUNT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1096)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1108)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1096)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1108)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17419,11 +17597,11 @@ impl Record for RefusalCircle {
     const TAIL: Path = paths::REFUSAL_CIRCLE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1098)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1110)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1098)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1110)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17450,11 +17628,11 @@ impl Record for RefusalDependencyEnded {
     const TAIL: Path = paths::REFUSAL_DEPENDENCY_ENDED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1099)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1111)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1099)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1111)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17481,11 +17659,11 @@ impl Record for RefusalPlaced {
     const TAIL: Path = paths::REFUSAL_PLACED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1101)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1113)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1101)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1113)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17512,11 +17690,11 @@ impl Record for RefusalHoldOwner {
     const TAIL: Path = paths::REFUSAL_HOLD_OWNER_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1103)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1115)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1103)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1115)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17543,11 +17721,11 @@ impl Record for RefusalHoldRevision {
     const TAIL: Path = paths::REFUSAL_HOLD_REVISION_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1105)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1117)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1105)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1117)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17574,11 +17752,11 @@ impl Record for TalkOpen {
     const TAIL: Path = paths::TALK_OPEN_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1107)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1119)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1107)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1119)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17605,11 +17783,11 @@ impl Record for RefusalConcluded {
     const TAIL: Path = paths::REFUSAL_CONCLUDED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1109)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1121)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1109)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1121)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17684,11 +17862,11 @@ impl Record for Refusal {
     const TAIL: Path = paths::REFUSAL_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1147)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1159)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1147)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1159)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17817,11 +17995,11 @@ impl Record for TaskProblem {
     const TAIL: Path = paths::TASK_PROBLEM_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1153)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1165)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1153)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1165)?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -17865,11 +18043,11 @@ impl Record for ResultFollowupsDelegates {
     const TAIL: Path = paths::RESULT_FOLLOWUPS_DELEGATES_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1155)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1167)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1155)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1167)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17896,11 +18074,11 @@ impl Record for ResultFollowupsProposal {
     const TAIL: Path = paths::RESULT_FOLLOWUPS_PROPOSAL_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1156)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1168)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1156)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1168)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17928,11 +18106,11 @@ impl Record for ResultFollowups {
     const TAIL: Path = paths::RESULT_FOLLOWUPS_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1158)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1170)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1158)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1170)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17965,11 +18143,11 @@ impl Record for EndFinished {
     const TAIL: Path = paths::END_FINISHED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1160)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1172)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1160)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1172)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17999,11 +18177,11 @@ impl Record for EndFinishedWithFollowups {
     const TAIL: Path = paths::END_FINISHED_WITH_FOLLOWUPS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1161)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1173)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1161)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1173)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -18032,11 +18210,11 @@ impl Record for EndFailed {
     const TAIL: Path = paths::END_FAILED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1162)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1174)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1162)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1174)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -18064,11 +18242,11 @@ impl Record for EndFailedWithReason {
     const TAIL: Path = paths::END_FAILED_WITH_REASON_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1164)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1176)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1164)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1176)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -18097,11 +18275,11 @@ impl Record for EndRefusedWithReason {
     const TAIL: Path = paths::END_REFUSED_WITH_REASON_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1166)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1178)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1166)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1178)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -18112,6 +18290,43 @@ impl Record for EndRefusedWithReason {
     fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         Ok(Self {
             reason: field::read(field::Bytes { limit: limits.end_refused_with_reason_reason.min(CEILINGS.end_refused_with_reason_reason) }, limits, reader, paths::END_REFUSED_WITH_REASON_REASON)?,
+        })
+    }
+}
+
+// Type: Suspended.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Suspended {
+    pub worker: u32,
+    pub why: SuspendWhy,
+    pub window: skein_lib::Duration,
+}
+
+// Record: Suspended.
+impl Record for Suspended {
+    type Limits = Limits;
+    const TAIL: Path = paths::SUSPENDED_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1181)?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1181)?.decoded)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U32, &self.worker, limits, out, paths::SUSPENDED_WORKER)?;
+        field::write(field::Nested, &self.why, limits, out, paths::SUSPENDED_WHY)?;
+        field::write(field::Span, &self.window, limits, out, paths::SUSPENDED_WINDOW)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            worker: field::read(field::U32, limits, reader, paths::SUSPENDED_WORKER)?,
+            why: field::read(field::Nested, limits, reader, paths::SUSPENDED_WHY)?,
+            window: field::read(field::Span, limits, reader, paths::SUSPENDED_WINDOW)?,
         })
     }
 }
@@ -18128,6 +18343,7 @@ pub enum End {
     Exceeded(Exceeded),
     FailedWithReason(EndFailedWithReason),
     RefusedWithReason(EndRefusedWithReason),
+    Suspended(Suspended),
 }
 
 // Record: End.
@@ -18136,11 +18352,11 @@ impl Record for End {
     const TAIL: Path = paths::END_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1171)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1186)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1171)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1186)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -18154,6 +18370,7 @@ impl Record for End {
             Self::Exceeded(value) => { field::put(out, &[6], paths::END_TAG)?; value.write(limits, out) },
             Self::FailedWithReason(value) => { field::put(out, &[7], paths::END_TAG)?; value.write(limits, out) },
             Self::RefusedWithReason(value) => { field::put(out, &[8], paths::END_TAG)?; value.write(limits, out) },
+            Self::Suspended(value) => { field::put(out, &[9], paths::END_TAG)?; value.write(limits, out) },
         }
     }
 
@@ -18169,7 +18386,8 @@ impl Record for End {
             6 => Ok(Self::Exceeded(Exceeded::read(limits, reader)?)),
             7 => Ok(Self::FailedWithReason(EndFailedWithReason::read(limits, reader)?)),
             8 => Ok(Self::RefusedWithReason(EndRefusedWithReason::read(limits, reader)?)),
-            9..=u8::MAX => Err(Problem { path: paths::END_TAG, reason: skein_codec::Reason::Tag }),
+            9 => Ok(Self::Suspended(Suspended::read(limits, reader)?)),
+            10..=u8::MAX => Err(Problem { path: paths::END_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -18186,11 +18404,11 @@ impl Record for EndRecord {
     const TAIL: Path = paths::END_RECORD_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1172)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1187)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1172)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1187)?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -18228,11 +18446,11 @@ impl Record for PhaseRecord {
     const TAIL: Path = paths::PHASE_RECORD_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1173)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1188)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1173)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1188)?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -18270,11 +18488,11 @@ impl Record for ChangeRecord {
     const TAIL: Path = paths::CHANGE_RECORD_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1174)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1189)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1174)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1189)?.decoded)
     }
 
     #[cfg(debug_assertions)]

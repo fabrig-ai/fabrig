@@ -110,6 +110,12 @@ pub enum Request {
     FiguresTaken {
         worker: u32,
     },
+    /// A pause ask the channel's version cannot carry (protocol/channel/pause.md, 3).
+    Unpaused {
+        worker: Box<[u8]>,
+        version: u16,
+        mode: jig_domain_link::PauseMode,
+    },
     Told {
         worker: Box<[u8]>,
         version: u16,
@@ -200,6 +206,9 @@ impl core::fmt::Debug for Request {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::FiguresTaken { worker } => f.debug_tuple("FiguresTaken").field(worker).finish(),
+            Self::Unpaused { worker, version, mode } => {
+                f.debug_tuple("Unpaused").field(worker).field(version).field(mode).finish()
+            }
             Self::Told { worker, version, wait } => {
                 f.debug_tuple("Told").field(worker).field(version).field(wait).finish()
             }

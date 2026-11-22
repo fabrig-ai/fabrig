@@ -1,7 +1,7 @@
 //! The shared component bridge machine (jig/docs/design/protocol/channel/bridges.md, 5 and 9).
 use crate::translation::Translation;
-use crate::v18::Record;
-use crate::{self as channel, Agreed, Application, Carried, Kept, Root, Spoken, v18 as wire};
+use crate::v21::Record;
+use crate::{self as channel, Agreed, Application, Carried, Kept, Root, Spoken, v21 as wire};
 use skein_channel::{Frame, frame_writer};
 use skein_codec::{
     bridge::Bridge,
@@ -96,13 +96,36 @@ fn worker_value(frame: &Frame) -> wire::FromWorker {
     wire::FromWorker::decode(&wire::CEILINGS, &mut Reader::new(&bytes)).unwrap()
 }
 fn golden(text: &'static str, name: &str) -> Box<[u8]> {
-    for golden in skein_codegen::values(text).goldens.clone() {
+    fixture_golden(&skein_codegen::values(text).goldens, name)
+}
+fn fixture_golden(goldens: &[skein_codegen::Golden], name: &str) -> Box<[u8]> {
+    for golden in goldens {
         if golden.name.strip_suffix(".bin") == Some(name) {
-            return golden.bytes.into_boxed_slice();
+            return golden.bytes.clone().into_boxed_slice();
         }
     }
     panic!("missing golden {name}")
 }
+#[test]
+fn a_hello_before_twenty_one_drops_freshness_and_reads_back_not_fresh() {
+    for version in [18, 19, 20] {
+        let mut hello = super::fixtures::hello_smallest();
+        hello.fresh = true;
+        let current = worker(&wire::FromWorker::Hello(hello));
+        let current_len = current.bytes().len();
+        let mut bridge = opaque();
+        let old = bridge
+            .send(current, version, &agreed(version, smith_charter::wire::VERSION), &wire::CEILINGS)
+            .expect("hello goes down to an older worker wire");
+        assert_eq!(old.bytes().len().checked_add(1), Some(current_len), "fresh is dropped");
+        let restored = bridge
+            .receive(old.kind(), body(&old), version, &agreed(version, smith_charter::wire::VERSION), &wire::CEILINGS)
+            .expect("an older hello goes up");
+        let wire::FromWorker::Hello(hello) = worker_value(&restored) else { panic!("hello") };
+        assert!(!hello.fresh, "an older channel cannot prove a new process");
+    }
+}
+
 fn charter(contract: u16) -> Box<[u8]> {
     let bytes = golden(smith_charter::patches::kept::smith_charter::TEXTS.last().unwrap(), "record_charter_smallest");
     let mut parts = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(&bytes)).unwrap();
@@ -126,6 +149,36 @@ fn failed_answer(failure: wire::RunFailure) -> wire::FromWorker {
     failed.failure = wire::Failure::Run(wire::RunFailureValue { value: failure });
     answer.ending = wire::Ending::Failed(failed);
     wire::FromWorker::Answer(answer)
+}
+
+#[test]
+fn pause_notices_are_unheld_below_twenty() {
+    let mut translation = opaque();
+    for version in crate::wire::FLOOR..20 {
+        for record in [
+            wire::FromEngine::Pause(wire::Pause { mode: wire::PauseMode::Resume }),
+            wire::FromEngine::Pause(wire::Pause { mode: wire::PauseMode::Pause }),
+            wire::FromEngine::Pause(wire::Pause { mode: wire::PauseMode::Drain }),
+        ] {
+            let refusal = translation
+                .send(engine(&record), version, &agreed(version, 5), &wire::CEILINGS)
+                .expect_err("pause not held");
+            let Halt::Unheld(_) = refusal.halt else { panic!("new notice is unheld: {refusal:?}") };
+        }
+        for state in
+            [wire::PauseState::Taking, wire::PauseState::Paused, wire::PauseState::Draining, wire::PauseState::Drained]
+        {
+            let refusal = translation
+                .send(
+                    worker(&wire::FromWorker::Paused(wire::Paused { state })),
+                    version,
+                    &agreed(version, 5),
+                    &wire::CEILINGS,
+                )
+                .expect_err("paused not held");
+            let Halt::Unheld(_) = refusal.halt else { panic!("new notice is unheld: {refusal:?}") };
+        }
+    }
 }
 
 #[test]
@@ -160,12 +213,14 @@ fn older_run_failures_round_trip_through_sixteen_without_changing() {
 }
 
 #[test]
-fn a_worker_of_eighteen_cannot_send_whole_to_an_engine_below_eighteen() {
-    for version in [16, 17] {
+fn a_worker_of_twenty_one_sends_whole_at_nineteen_and_twenty_but_not_below() {
+    for version in [16, 17, 18] {
         let agreed = [Agreed { name: "jig-worker-wire", version }];
         assert_eq!(opaque().incomplete(&agreed).as_slice(), &agreed);
     }
-    assert!(opaque().incomplete(&[Agreed { name: "jig-worker-wire", version: 18 }]).is_empty());
+    for version in [19, 20] {
+        assert!(opaque().incomplete(&[Agreed { name: "jig-worker-wire", version }]).is_empty());
+    }
 }
 
 fn model_answer(refusal: Option<Box<[u8]>>) -> wire::FromWorker {
@@ -196,8 +251,14 @@ fn model_refusals_round_trip_at_eighteen_and_are_unheld_below_it() {
         schema::{FieldIx, Shape, parse},
         value::{Part, Path},
     };
-    let schema = parse(channel::patches::kept::jig_worker_wire::TEXTS.last().expect("current schema").as_bytes())
-        .expect("schema");
+    // The refusal is the reverse from 18: its path names that plan's source layout.
+    let mut source = None;
+    for text in channel::patches::kept::jig_worker_wire::TEXTS {
+        if text.starts_with("family jig-worker-wire 18\n") {
+            source = Some(text);
+        }
+    }
+    let schema = parse(source.expect("wire 18").as_bytes()).expect("schema");
     let decl = schema.find(b"ModelFailure").expect("model failure record");
     let first = match schema.declaration(decl).shape {
         Shape::Record { first, .. } => first,
@@ -207,12 +268,12 @@ fn model_refusals_round_trip_at_eighteen_and_are_unheld_below_it() {
     assert_eq!(schema.spelled(schema.field(field).name), b"refusal");
     for refusal in [Some(b"empty-message".as_slice().into()), None] {
         let record = model_answer(refusal.clone());
-        for version in [16, 17, 18] {
+        for version in [16, 17, 18, 19] {
             let sent = opaque().send(worker(&record), version, &agreed(version, 5), &wire::CEILINGS);
             if version < 18 && refusal.is_some() {
                 let refused = sent.expect_err("an older engine cannot hold the refusal");
                 assert_eq!(refused.wire.as_ref(), b"jig-worker-wire");
-                assert_eq!(refused.version, 18);
+                assert_eq!(refused.version, channel::VERSION);
                 assert_eq!(refused.halt, Halt::Unheld(Path { decl, part: Part::Field(field) }));
             } else {
                 let down = sent.expect("the engine holds this failure");
@@ -571,5 +632,139 @@ fn current_application_links_keep_no_plans_and_older_parts_reuse_one_bridge() {
         let up = receiver.receive(sent.kind(), body(&sent), channel::VERSION, &older, &wire::CEILINGS).unwrap();
         assert_eq!(worker_value(&up), original);
         assert_eq!((sender.planned(), receiver.planned()), (1, 1));
+    }
+}
+
+fn usage_records() -> [wire::FromWorker; 5] {
+    let window = wire::UsageWindow {
+        label: b"five_hour".as_slice().into(),
+        length: Some(skein_lib::Duration::from_secs(18_000)),
+        used: Some(2800),
+        resets: Some(123_456),
+        state: 2,
+    };
+    let mut windows = List::with_capacity(8);
+    windows.push(window.clone()).unwrap();
+    let notice = wire::Usage {
+        task: 7,
+        attempt: 2,
+        account: 3,
+        label: window.label.clone(),
+        length: window.length,
+        used: window.used,
+        resets: window.resets,
+        state: window.state,
+    };
+    let read = |outcome| wire::FromWorker::UsageRead(wire::UsageRead { read: 42, outcome });
+    [
+        wire::FromWorker::Usage(notice),
+        read(wire::UsageOutcome::Read(wire::UsageWindows { windows })),
+        read(wire::UsageOutcome::NotSignedIn),
+        read(wire::UsageOutcome::Spent),
+        read(wire::UsageOutcome::Failed(wire::SourceFailed {
+            reason: wire::SourceFailure::Unconfigured,
+            detail: Box::new([]),
+        })),
+    ]
+}
+#[test]
+fn usage_records_round_trip_at_nineteen() {
+    for record in usage_records() {
+        let frame = opaque().send(worker(&record), 19, &agreed(19, 5), &wire::CEILINGS).unwrap();
+        let up = opaque().receive(frame.kind(), body(&frame), 19, &agreed(19, 5), &wire::CEILINGS).unwrap();
+        assert_eq!(worker_value(&up), record);
+    }
+    let record = wire::FromEngine::ReadUsage(wire::ReadUsage { read: 42, source: b"personal".as_slice().into() });
+    let frame = opaque().send(engine(&record), 19, &agreed(19, 5), &wire::CEILINGS).unwrap();
+    let up = opaque().receive(frame.kind(), body(&frame), 19, &agreed(19, 5), &wire::CEILINGS).unwrap();
+    assert_eq!(engine_value(&up), record);
+}
+#[test]
+fn usage_and_usage_read_are_unheld_below_nineteen() {
+    let mut translation = opaque();
+    for version in [16, 17, 18] {
+        // One representative per new up kind; outcomes round-trip above.
+        for record in usage_records().into_iter().take(2) {
+            let refusal = translation.send(worker(&record), version, &agreed(version, 5), &wire::CEILINGS).unwrap_err();
+            assert_eq!(refusal.wire.as_ref(), b"jig-worker-wire");
+            assert_eq!(refusal.version, crate::VERSION);
+            let Halt::Unheld(_) = refusal.halt else { panic!("usage is unheld: {refusal:?}") };
+        }
+    }
+}
+#[test]
+fn older_notices_and_calls_round_trip_through_seventeen_unchanged() {
+    let mut sender = opaque();
+    let mut receiver = opaque();
+    let notice = failed_answer(wire::RunFailure::Untooled);
+    let frame = sender.send(worker(&notice), 17, &agreed(17, 5), &wire::CEILINGS).unwrap();
+    let up = receiver.receive(frame.kind(), body(&frame), 17, &agreed(17, 5), &wire::CEILINGS).unwrap();
+    assert_eq!(worker_value(&up), notice);
+    let call = wire::FromEngine::Cancel(wire::Cancel { task: 7, attempt: 2 });
+    let frame = sender.send(engine(&call), 17, &agreed(17, 5), &wire::CEILINGS).unwrap();
+    let up = receiver.receive(frame.kind(), body(&frame), 17, &agreed(17, 5), &wire::CEILINGS).unwrap();
+    assert_eq!(engine_value(&up), call);
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the bridge test formats generated fixture names")]
+fn seventeens_kept_goldens_go_up_to_eighteen_with_no_refusal_and_back() {
+    use crate::patches::kept::jig_worker_wire as kept;
+    use skein_codegen::{Declaration, snake, values};
+    let mut seventeen = None;
+    let mut eighteen = None;
+    for text in kept::TEXTS {
+        if text.starts_with("family jig-worker-wire 17\n") {
+            seventeen = Some(*text);
+        } else if text.starts_with("family jig-worker-wire 18\n") {
+            eighteen = Some(*text);
+        }
+    }
+    let old = values(seventeen.expect("kept 17"));
+    let older = &old.goldens;
+    let newer = &values(eighteen.expect("kept 18")).goldens;
+    let mut bridge = kept::bridge(Capacity {
+        versions: u32::try_from(kept::TEXTS.len()).unwrap(),
+        patches: u32::try_from(crate::patches::PATCHES.len() * 2).unwrap(),
+        text: skein_codec::schema::MAX_TEXT,
+        bytes: 65_536,
+        nodes: 65_536,
+    })
+    .unwrap();
+    for declaration in &old.schema.declarations {
+        let mut names = List::uncapped();
+        let root = match declaration {
+            Declaration::Record(record) => {
+                names.push(format!("record_{}", snake(&record.name))).unwrap();
+                &record.name
+            }
+            Declaration::Enum(value) => {
+                for variant in &value.variants {
+                    names.push(format!("enum_{}_{}", snake(&value.name), variant.name)).unwrap();
+                }
+                &value.name
+            }
+        };
+        for name in names.into_boxed() {
+            for size in ["smallest", "full"] {
+                let name = format!("{name}_{size}");
+                let before = fixture_golden(older, &name);
+                let after = fixture_golden(newer, &name);
+                let up = bridge.translate(17, 18, root.as_bytes(), before.clone()).unwrap();
+                match name.as_str() {
+                    "record_model_failure_full" | "record_failed_full" | "enum_ending_failed_full" => {
+                        // The full v18 fixture ends with a present refusal, which the v17 fixture cannot carry.
+                        let present = b"\x01\x00\x00\x00\x03abc";
+                        assert_eq!(after.strip_suffix(present.as_slice()), Some(before.as_ref()), "{name}.bin");
+                        assert_eq!(up.strip_suffix(&[0]), Some(before.as_ref()), "{name}.bin");
+                        let halt = bridge.translate(18, 17, root.as_bytes(), after).unwrap_err();
+                        let Halt::Unheld(_) = halt else { panic!("{name}.bin: {halt:?}") };
+                    }
+                    _ => assert_eq!(up, after, "{name}.bin"),
+                }
+                let down = bridge.translate(18, 17, root.as_bytes(), up).unwrap();
+                assert_eq!(down, before, "{name}.bin");
+            }
+        }
     }
 }

@@ -107,6 +107,8 @@ fn job(run: Token, attempt: Token, bound: JobBound, adopt: bool) -> Event {
 
 fn worker(h: &mut Harness, channel: Token, jobs: Box<[JobBound]>) {
     let mut hello = Hello {
+        fresh: false,
+        reads_usage: true,
         slots: 2,
         stop_bound: Duration::ZERO,
         bounds: fixtures::bounds(),
@@ -168,6 +170,8 @@ fn a_hello_with_job_kinds_out_of_order_is_not_admitted() {
     for jobs in [Box::new([JobBound { kind: JobKind(9), ..JOB }, JOB]), Box::new([JOB, JOB])] {
         let mut h = Harness::new(LIMITS);
         let mut hello = Hello {
+            fresh: false,
+            reads_usage: true,
             slots: 2,
             stop_bound: Duration::ZERO,
             bounds: fixtures::bounds(),
@@ -239,6 +243,8 @@ fn an_engine_restart_adopts_a_job_its_worker_still_hosts() {
             assert_eq!(h.step(job(R1, A1, JOB, true)).len(), 0);
         }
         let hello = Hello {
+            fresh: false,
+            reads_usage: true,
             slots: 2,
             bounds: fixtures::bounds(),
             jobs: Box::new([JOB]),
@@ -256,7 +262,14 @@ fn an_engine_restart_adopts_a_job_its_worker_still_hosts() {
         assert_eq!(h.at(11).len(), 0);
         assert_eq!(
             h.step(Event::Answer { channel: C1, run: R1, attempt: A1, answer: Answer::Ended, payload: payload(5) }),
-            &[Request::Answered { to: to(A1), run: R1, attempt: A1, answer: Answer::Ended, payload: payload(5) }]
+            &[Request::Answered {
+                to: to(A1),
+                run: R1,
+                attempt: A1,
+                answer: Answer::Ended,
+                payload: payload(5),
+                worker: Some(0)
+            }]
         );
         h.step(Event::Acknowledge { run: R1, attempt: A1 });
         assert_eq!(h.domain.attempts(), 0);

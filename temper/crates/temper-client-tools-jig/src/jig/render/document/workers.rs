@@ -3,6 +3,14 @@ use super::Text;
 use jig_client::contract as c;
 use skein_json::writer::Encoder;
 
+fn pause_word(pause: c::WorkerPause) -> &'static [u8] {
+    match pause {
+        c::WorkerPause::Taking => b"taking",
+        c::WorkerPause::Paused => b"paused",
+        c::WorkerPause::Draining => b"draining",
+        c::WorkerPause::Drained => b"drained",
+    }
+}
 fn runs(worker: &c::WorkerState, deployment: &c::Deployment) -> u64 {
     for host in &deployment.hosts {
         if host.connected && host.name.as_deref() == Some(worker.name.as_ref()) {
@@ -33,6 +41,10 @@ pub(super) fn text(deployment: &c::Deployment, out: &mut Text) {
         } else {
             out.number(count);
             out.put(if count == 1 { b" run" } else { b" runs" });
+        }
+        if worker.pause != c::WorkerPause::Taking {
+            out.put(" · ".as_bytes());
+            out.put(pause_word(worker.pause));
         }
         out.put(b"\n");
     }
@@ -72,6 +84,8 @@ pub(super) fn encode(deployment: &c::Deployment, out: &mut Encoder) {
             Some(since) => out.unsigned(since.as_nanos()),
             None => out.null(),
         }
+        out.key(b"pause");
+        out.string(pause_word(worker.pause));
         out.key(b"runs");
         out.unsigned(runs(worker, deployment));
         out.object_end();

@@ -5,6 +5,13 @@
 use skein_codec::Record;
 extern crate alloc;
 
+pub mod converters;
+
+/// Generated store translations (skein/docs/design/data/codec/maps.md, 4).
+#[rustfmt::skip]
+pub mod generated {
+    pub mod store;
+}
 mod lowering;
 mod patch_set;
 pub use patch_set::OWNER_SET;

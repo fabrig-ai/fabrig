@@ -1,0 +1,13 @@
+patch 1
+owner jig 9
+
+family jig-worker-wire 18 to 19
+add UsageWindow
+add Usage
+add UsageWindows
+add UsageOutcome
+add UsageRead
+add ReadUsage
+add FromWorker.usage
+add FromWorker.usage_read
+add FromEngine.read_usage

@@ -584,6 +584,13 @@ impl Print {
                     }
                     effects.push(self.emit(value));
                 }
+                Step::RateLimitWindow { status, rate_limit_type, resets_at, utilization } => {
+                    let mut info = json!({"status":status});
+                    if let Some(label) = rate_limit_type { info["rateLimitType"] = json!(label); }
+                    if let Some(reset) = resets_at { info["resetsAt"] = json!(reset); }
+                    if let Some(used) = utilization { info["utilization"] = used; }
+                    effects.push(self.emit(json!({"type":"rate_limit_event", "rate_limit_info":info})));
+                }
                 Step::Retry { attempt, status, delay_ms } => {
                     effects.push(self.emit(
                         json!({"type":"system", "subtype":"api_retry", "attempt":attempt, "error_status":status,"retry_delay_ms":delay_ms}),

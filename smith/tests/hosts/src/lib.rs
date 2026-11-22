@@ -426,6 +426,9 @@ impl HostService {
                 }));
             }
             host::Output::Process(host::process::Request::Send { message, .. }) => self.send(message),
+            host::Output::Process(host::process::Request::CloseChannel { .. }) => {
+                self.process.as_ref().expect("spawned child").close_channel(&mut self.io_requests);
+            }
             host::Output::Process(host::process::Request::Signal { signal, .. }) => {
                 self.seen.signals.push(signal);
                 let (signal_below, reason) = match signal {
@@ -442,12 +445,14 @@ impl HostService {
             host::Output::Process(host::process::Request::Wait { .. } | host::process::Request::Reap { .. })
             | host::Output::Parent(
                 host::parent::Request::Waiting { .. }
+                | host::parent::Request::Signalled { .. }
                 | host::parent::Request::Long { .. }
                 | host::parent::Request::LongDone { .. }
                 | host::parent::Request::Unread { .. }
                 | host::parent::Request::Withdrawn { .. }
                 | host::parent::Request::Unauthorized { .. }
                 | host::parent::Request::Refused { .. }
+                | host::parent::Request::Usage { .. }
                 | host::parent::Request::Limited { .. }
                 | host::parent::Request::Told { .. }
                 | host::parent::Request::Faulted { .. }

@@ -19,6 +19,10 @@ pub enum Accepter {
 /// A final reason a keyed request was refused.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Refusal {
+    /// The named worker has no admitted channel (domain/engine/workers.md, 5).
+    Unlinked {
+        worker: u32,
+    },
     /// No delegate joins a concluded gathering (domain/tasks/gatherings.md, 3).
     Concluded {
         at: Wall,

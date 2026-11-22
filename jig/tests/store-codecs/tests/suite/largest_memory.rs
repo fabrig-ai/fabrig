@@ -42,7 +42,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             turn_record_transcript,
         ],
         roots [
-            Row => (1_073_747_847, 1_073_747_712),
+            Row => (1_073_747_852, 1_073_747_712),
         ]
     );
     family!(
@@ -489,7 +489,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             Segment,
             Creation => (140_119_575, 140_122_496),
             ResultField,
-            Row => (420_983_896, 420_997_840),
+            Row => (420_983_928, 420_997_840),
             TaskProblem,
             EndRecord => (69_730_365, 69_730_608),
             PhaseRecord,

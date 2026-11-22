@@ -274,7 +274,8 @@ impl World {
 
     fn take(&mut self, request: Request) -> Result<(), String> {
         match request {
-            Request::ReadList { .. }
+            Request::ReadUsage { .. }
+            | Request::ReadList { .. }
             | Request::CancelRead { .. }
             | Request::Source { .. }
             | Request::ResultsIgnored { .. }
@@ -288,10 +289,13 @@ impl World {
                 assert!(hello.hosting.len() <= 1);
             }
             Request::Link(host::LinkUp::Turn { run, attempt, turn }) => self.turned(run, attempt, &turn)?,
-            Request::Git { .. }
+            Request::Paused { .. }
+            | Request::Git { .. }
+            | Request::AgentSignalled { .. }
             | Request::AgentStopped { .. }
             | Request::Unprepared { .. }
-            | Request::Link(host::LinkUp::Draining) => {}
+            // jig/docs/design/domain/hosts/hub.md, 7, Paused over the link.
+            | Request::Link(host::LinkUp::Paused { .. } | host::LinkUp::Draining) => {}
             Request::Link(up) => panic!("unscripted link record: {up:?}"),
             Request::Answer { run, attempt, answer, work, preparation } => {
                 assert_eq!((run, attempt, preparation), (RUN, ATTEMPT, None));
@@ -378,7 +382,9 @@ impl World {
             agent::process::Request::Wait { owner, process } | agent::process::Request::Reap { owner, process } => {
                 assert_eq!((Some(owner), process), (self.agent, PROCESS));
             }
-            agent::process::Request::Signal { .. } => panic!("unscripted signal"),
+            agent::process::Request::CloseChannel { .. } | agent::process::Request::Signal { .. } => {
+                panic!("unscripted signal")
+            }
         }
     }
 

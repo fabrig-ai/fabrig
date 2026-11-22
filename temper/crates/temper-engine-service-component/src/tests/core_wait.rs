@@ -158,6 +158,30 @@ fn input() -> temper_engine_domain::Event {
 }
 
 #[test]
+fn a_start_step_reports_through_the_service_without_party_input() {
+    let mut service = super::fixtures::started();
+    let engine = service.engine.as_mut().expect("engine");
+    assert_eq!(engine.domain.next_deadline(&engine.env), Some(at(30_000)));
+    for ms in [29_000, 30_000, 45_000, 60_000] {
+        crate::engine::iterate(engine, at(ms), Wall::EPOCH);
+        if ms == 30_000 || ms == 60_000 {
+            let age = if ms == 30_000 { b"30 s".as_slice() } else { b"60 s" };
+            assert_eq!(
+                engine.notes.pop(),
+                Some(Note::StartWaiting {
+                    line: skein_lib::bytes::concat(&[
+                        b"starting: loading the core's records for ",
+                        age,
+                        b": 1 store page (the core's records)"
+                    ]),
+                })
+            );
+        }
+        assert!(engine.notes.is_empty(), "no client asked and each doubling writes once");
+    }
+}
+
+#[test]
 fn a_service_names_starting_after_a_second_of_refused_inputs() {
     let mut service = super::fixtures::started();
     let engine = service.engine.as_mut().expect("engine");

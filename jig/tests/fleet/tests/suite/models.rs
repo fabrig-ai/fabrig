@@ -82,6 +82,8 @@ impl Fleet {
 
 fn hello(bounds: Bounds) -> Hello {
     Hello {
+        fresh: false,
+        reads_usage: true,
         jobs: Box::default(),
         bounds,
         stop_bound: Duration::ZERO,
@@ -221,7 +223,8 @@ fn a_probe_requires_only_the_models_retained_for_this_run() {
             WORKSTREAM,
             jig_domain_fleet::Version { charter: MODEL_CHARTER, revision: 1 },
             &main,
-            &[]
+            &[],
+            None
         ),
         Some(fleet::PlacementConstraint { channel: FIRST, kind: HostKind::Worker })
     );
@@ -240,7 +243,8 @@ fn a_probe_requires_only_the_models_retained_for_this_run() {
             WORKSTREAM,
             jig_domain_fleet::Version { charter: MODEL_CHARTER, revision: 1 },
             &retained,
-            &[]
+            &[],
+            None
         ),
         None
     );
@@ -259,6 +263,7 @@ fn a_pending_assignment_keeps_its_checked_host_when_room_is_lost() {
             jig_domain_fleet::Version { charter: MODEL_CHARTER, revision: 1 },
             &[main_need()],
             &[],
+            None,
         )
         .expect("free main-model host");
     // A different attempt takes the last slot after the read-only probe.

@@ -57,6 +57,8 @@ impl World {
             worker,
             channel,
             hello: Hello {
+                fresh: false,
+                reads_usage: true,
                 jobs: Box::default(),
                 slots: 2,
                 stop_bound: Duration::from_secs(1),
@@ -249,7 +251,7 @@ fn a_kept_login_no_longer_withholds_a_probe() {
         assert!(
             world
                 .domain
-                .probe(fleet::Kinds::Workers, 1, jig_domain_fleet::Version { charter: 0, revision: 1 }, &[], &[])
+                .probe(fleet::Kinds::Workers, 1, jig_domain_fleet::Version { charter: 0, revision: 1 }, &[], &[], None)
                 .is_some()
         );
         assert!(
@@ -604,7 +606,7 @@ fn a_held_retired_name_still_withholds_its_host() {
     assert!(
         world
             .domain
-            .probe(fleet::Kinds::Workers, 1, jig_domain_fleet::Version { charter: 0, revision: 1 }, &[], &[])
+            .probe(fleet::Kinds::Workers, 1, jig_domain_fleet::Version { charter: 0, revision: 1 }, &[], &[], None)
             .is_none()
     );
 }

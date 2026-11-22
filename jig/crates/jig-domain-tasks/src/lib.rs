@@ -100,6 +100,7 @@ pub use words::directing_words;
 mod index;
 mod questions;
 mod reasons;
+mod refusal_words;
 pub use index::{Edge, EndedByParty, EndedByProject, Endings, Newest, ResultRow, Update, UpdateObject};
 pub use reasons::{ALWAYS_OFFERED_NAMES, REASON_NAMES, Reasons, offered};
 mod limits;
@@ -159,14 +160,15 @@ pub use boundary::{
     ProcedureEnd, ProcedureInput, QuestionCredit, QuestionNotice, RecurringOverlap, RecurringState, RecurringTemplate,
     Refusal, ReplyHint, Request, ResourceAccess, ResultField, ResultFollowups, ResultKind, ResultsWake, Revisions,
     RunContext, SavedResource, SettingsRevision, Spec, Stage, Status, Stored, Stub, Subscription, SubscriptionKind,
-    Taken, TaskRecord, TaskResult, Verdict, WakePolicy, WakeRule, Was, Word, Writer, WriterSlot,
+    SuspendWhy, Suspended, Suspension, Taken, TaskRecord, TaskResult, Verdict, WakePolicy, WakeRule, Was, Word, Writer,
+    WriterSlot,
 };
 pub use boundary::{Hint, MessageFamily, Separate, Slot, Spoken};
 pub use capacity::{Capacity, CapacityAction, CapacityCause, CapacityRefusal};
 
 pub use control::{
-    AddressChange, Amend, Amendment, AmendmentHistory, AttemptRow, Cancel, Change, DependencyPlace, Held, History,
-    HoldRow, OpenAttempt, Release, Settings, Tracking, address_admit, instruction_admit,
+    AddressChange, Amend, Amendment, AmendmentHistory, AttemptRow, Cancel, Change, DependencyPlace, Fail, Held,
+    History, HoldRow, OpenAttempt, Release, Settings, Tracking, address_admit, instruction_admit,
 };
 pub use domain::{Domain, ViewTask, fire, step, view_phase};
 pub use escalation::{

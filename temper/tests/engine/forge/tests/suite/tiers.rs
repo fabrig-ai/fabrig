@@ -178,6 +178,92 @@ fn finish_news(world: &mut World, task: u64, news: &mut Vec<top::Request>) -> p:
     }
     panic!("tier did not finish: {:?}", row(world));
 }
+#[test]
+fn a_tier_waiting_for_a_runner_holds_with_its_jobs_then_releases() {
+    for goals in [false, true] {
+        let mut workflow = workflow(Box::new([]), true);
+        workflow.requirements = Box::new([raw::JobRequirements {
+            job: b"browser".as_slice().into(),
+            labels: Box::new([b"docker".as_slice().into()]),
+            needs: Box::new([]),
+        }]);
+        let mut world = following_world(93, workflow, if goals { top::Follows::Goals } else { top::Follows::Landing });
+        world.runner_labels(Some(Box::new([])));
+        if goals {
+            world.run_for(10);
+            world.restart();
+            world.run_for(10);
+            goal_push(&mut world, b"file", b"baseline");
+        }
+        attach(&mut world, 1, BASELINE);
+        start_baseline(&mut world);
+        for entry in 900..940 {
+            step(&mut world, BASELINE, entry);
+            if row(&world).flight.as_ref().and_then(|flight| flight.clock).is_some_and(|clock| clock.attempt == 1) {
+                break;
+            }
+        }
+        assert_eq!(row(&world).flight.as_ref().and_then(|flight| flight.clock).expect("run reading").attempt, 1);
+        world.run_for(100);
+        assert!(matches!(step(&mut world, BASELINE, 1002), top::TierDecision::Wait { .. }));
+        assert!(row(&world).held.is_none(), "short of the runner wait");
+        assert!(!world.take_calls().iter().any(|op| matches!(op, api::Op::Read(api::Read::JobState { .. }))));
+        world.run_for(140);
+        let mut held = None;
+        for entry in 1003..1040 {
+            if let top::TierDecision::Held { words } = step(&mut world, BASELINE, entry) {
+                held = Some(words);
+                break;
+            }
+        }
+        assert_eq!(
+            held.as_deref(),
+            Some(b"Tier browser run 1 held after 4 minutes waiting for a runner; browser: waiting for a runner labelled docker".as_slice()),
+            "goals={goals}, row={:?}", row(&world)
+        );
+        assert!(world.take_calls().iter().any(|op| matches!(op, api::Op::Read(api::Read::JobState { .. }))));
+        let tip = world.branch(if goals { b"temper/1/g201" } else { b"main" });
+        let link = row(&world).posting.as_ref().map(|posting| posting.link.clone());
+        let raw::Answer::Statuses(statuses) = world.inspect(&raw::Read::Statuses { commit: tip }) else {
+            panic!("tier statuses")
+        };
+        let status = statuses.iter().find(|status| status.context.as_ref() == b"temper/verdict/browser");
+        if goals {
+            assert!(status.is_none(), "goal runs post nothing");
+        } else {
+            let status = status.expect("pending verdict");
+            assert_eq!(status.state, raw::Check::Pending);
+            assert_eq!(status.description.as_ref(), b"held after 4 minutes waiting for a runner");
+            assert_eq!(Some(&status.link), link.as_ref());
+            assert!(!status.link.is_empty());
+        }
+        world.runner_labels(None);
+        world.take_calls();
+        world.event(top::Event::StepTier {
+            task: BASELINE,
+            entry: 1100,
+            heard: top::TierHeard { released: true, message_bytes: 4096 },
+        });
+        world.run_for(1);
+        assert_eq!(row(&world).record.run.as_ref().expect("released run").faults, 0);
+        world.event(top::Event::Committed { entry: 1100 });
+        world.run_for(1);
+        assert!(world.take_calls().iter().any(|op| matches!(op, api::Op::Write(api::Write::Dispatch { .. }))));
+        assert_eq!(finish(&mut world, BASELINE).failing, p::Failures::Tests(Box::new([])));
+        let raw::Answer::Statuses(statuses) = world.inspect(&raw::Read::Statuses { commit: tip }) else {
+            panic!("tier statuses")
+        };
+        let status = statuses.iter().find(|status| status.context.as_ref() == b"temper/verdict/browser");
+        if goals {
+            assert!(status.is_none());
+        } else {
+            let status = status.expect("green verdict");
+            assert_eq!(status.state, raw::Check::Passed);
+            assert_eq!(status.description.as_ref(), b"run 1 passed");
+        }
+    }
+}
+
 fn start_baseline(world: &mut World) {
     step(world, BASELINE, 1000);
     step(world, BASELINE, 1001);

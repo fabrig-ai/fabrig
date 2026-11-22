@@ -37,7 +37,9 @@ mod records {
             Request::Hello { .. } => Record::Hello,
             Request::Up { up, .. } => match up {
                 LinkUp::Ask { .. } => Record::Ask,
-                LinkUp::ListRead { .. } => Record::ListRead,
+                LinkUp::UsageRead { .. } | LinkUp::ListRead { .. } => Record::ListRead,
+                // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too.
+                LinkUp::Paused { .. } => panic!("pause has its own scenario"),
                 LinkUp::Draining => Record::Draining,
                 LinkUp::Logins { .. } => Record::Logins,
                 LinkUp::SignedOut { .. } => Record::SignedOut,
@@ -47,7 +49,7 @@ mod records {
                 LinkUp::Piece { .. } => Record::Piece,
                 LinkUp::Activity { .. } => Record::Activity,
                 LinkUp::Unauthorized { .. } => Record::Unauthorized,
-                LinkUp::Limited { .. } => Record::Limited,
+                LinkUp::Usage { .. } | LinkUp::Limited { .. } => Record::Limited,
                 LinkUp::AccountRefused { .. } => Record::AccountRefused,
             },
             Request::Lost { .. } => Record::Lost,
@@ -57,6 +59,7 @@ mod records {
             | Request::Lower { .. }
             | Request::Close { .. }
             | Request::Abort { .. }
+            | Request::Unpaused { .. }
             | Request::Told { .. }
             | Request::Opened { .. }
             | Request::Refused { .. }

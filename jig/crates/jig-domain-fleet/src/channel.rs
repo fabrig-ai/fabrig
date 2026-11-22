@@ -40,12 +40,14 @@ use crate::facts::Fact;
 use crate::limits::Limits;
 
 /// A worker in contact.
+#[expect(clippy::struct_excessive_bools, reason = "the negotiated usage capability is independent of placement holds")]
 #[derive(Hash, Debug)]
 pub(crate) struct Channel {
     pub(crate) jobs: Box<[jig_domain_link::JobBound]>,
     pub(crate) evidence: crate::Bounds,
     pub(crate) program_endpoints: Box<[u32]>,
     pub(crate) sources: crate::sources::Sources,
+    pub(crate) reads_usage: bool,
     pub(crate) worker: Option<u32>,
     /// Model eligibility in configured charter order, independent of free slots.
     pub(crate) eligible: Box<[bool]>,
@@ -60,6 +62,9 @@ pub(crate) struct Channel {
     pub(crate) draining: bool,
     /// The shutdown mark: no slot leaving clears it before the channel is lost.
     pub(crate) shutting_down: bool,
+    /// The owner's last ask and the worker's last word belong to this channel.
+    pub(crate) pause_mode: jig_domain_link::PauseMode,
+    pub(crate) pause_state: jig_domain_link::PauseState,
     /// A version refusal keeps placement off until this channel is lost.
     pub(crate) mismatched: bool,
     /// Tasks refused here for their values, until this channel is lost.
@@ -72,6 +77,43 @@ pub(crate) struct Channel {
     /// and the count that orders them.
     pub(crate) workstreams: Map<u64, u64>,
     pub(crate) uses: u64,
+}
+
+impl Channel {
+    pub(crate) fn pause(&self) -> jig_domain_link::PauseState {
+        use jig_domain_link::{PauseMode, PauseState};
+        match self.pause_state {
+            PauseState::Taking => match self.pause_mode {
+                PauseMode::Resume => PauseState::Taking,
+                PauseMode::Pause | PauseMode::Drain => PauseState::Paused,
+            },
+            PauseState::Paused | PauseState::Draining | PauseState::Drained => self.pause_state,
+        }
+    }
+
+    pub(crate) fn paused(&self) -> bool {
+        match self.pause() {
+            jig_domain_link::PauseState::Taking => false,
+            jig_domain_link::PauseState::Paused
+            | jig_domain_link::PauseState::Draining
+            | jig_domain_link::PauseState::Drained => true,
+        }
+    }
+}
+
+/// Carry every ask, even a repeated one; nothing here ends a hosted attempt.
+pub(crate) fn pause(domain: &mut Domain, worker: u32, mode: jig_domain_link::PauseMode, out: &mut Queue<Request>) {
+    let Some(channel) = domain.worker_channel(worker) else { return };
+    let id = *domain.tokens.get(&channel).expect("admitted worker channel");
+    domain.channels.get_mut(id).expect("named channel").pause_mode = mode;
+    out.push(Request::Pause { channel, mode });
+    domain.placing = !domain.waiting.is_empty();
+}
+
+pub(crate) fn paused(domain: &mut Domain, channel: Token, state: jig_domain_link::PauseState) {
+    let Some(&id) = domain.tokens.get(&channel) else { return };
+    domain.channels.get_mut(id).expect("named channel").pause_state = state;
+    domain.placing = !domain.waiting.is_empty();
 }
 
 /// The protocol's name for the channel `channel`, which is in contact.
@@ -240,19 +282,23 @@ pub(crate) fn hello(
     }
     let _previous = domain.worker_links.insert(worker, (true, env.wall)).expect("configured worker link bound");
     let places = domain.worker_names.places(worker).expect("admitted worker setting");
-    let Hello { slots, workstreams, hosting, stop_bound: _, bounds, jobs } = hello;
+    let Hello { slots, workstreams, hosting, stop_bound: _, bounds, jobs, fresh, reads_usage } = hello;
+    let position = worker;
     let mut worker = Channel {
         jobs,
         evidence: crate::needs::evidence(&bounds),
         program_endpoints: bounds.program_endpoints,
         worker: Some(worker),
         sources: crate::sources::Sources::new(domain.program_sources.clone(), limits.program_sources, true),
+        reads_usage,
         eligible: crate::needs::eligibility(&domain.needs, &bounds.endpoints),
         kind: HostKind::Worker,
         token: channel,
         slots: slots.min(places).min(limits.slots),
         draining: false,
         shutting_down: false,
+        pause_mode: jig_domain_link::PauseMode::Resume,
+        pause_state: jig_domain_link::PauseState::Taking,
         mismatched: false,
         untranslated: skein_lib::List::uncapped(),
         untooled: Map::uncapped(),
@@ -290,6 +336,9 @@ pub(crate) fn hello(
             attempt::listed(domain, env, id, run, attempt, answered, out);
         }
         listed = listed.saturating_add(1);
+    }
+    if fresh {
+        attempt::restarted(domain, position, out);
     }
     out.push(Request::Sources { channel, sources: domain.program_sources.clone() });
     domain.facts.push(Fact::Hello { listed });
@@ -336,6 +385,7 @@ pub(crate) fn lost(domain: &mut Domain, env: &Env<Limits>, channel: Token, out: 
         return;
     };
     domain.reads.lost(channel);
+    domain.usage_reads.lost(channel);
     let entry = domain.channels.get_mut(id).expect("a named channel is in contact");
     crate::sources::lost(&mut entry.sources, channel, out);
     let worker = entry.worker;
@@ -347,7 +397,7 @@ pub(crate) fn lost(domain: &mut Domain, env: &Env<Limits>, channel: Token, out: 
     let hosts = mem::replace(&mut entry.hosts, Set::with_capacity(0));
     let until = env.now.saturating_add(env.limits.grace);
     for &attempt in &hosts {
-        attempt::adrift(domain, attempt, channel, until);
+        attempt::adrift(domain, attempt, channel, worker, until);
     }
     domain.channels.retire(id);
     crate::history::lost(domain, crate::history::LostHost { worker, channel, slots, draining, until });
@@ -360,26 +410,13 @@ pub(crate) fn draining(domain: &mut Domain, channel: Token) {
         return;
     };
     domain.channels.get_mut(id).expect("named channel").shutting_down = true;
-    exclude_waiting(domain, channel);
+    domain.placing = !domain.waiting.is_empty();
 }
 
 /// A wire mismatch lasts for this channel, while hosted attempts continue.
 pub(crate) fn mismatch(domain: &mut Domain, channel: Id<Channel>) {
     let entry = domain.channels.get_mut(channel).expect("named channel");
     entry.mismatched = true;
-    let token = entry.token;
-    exclude_waiting(domain, token);
-}
-
-fn exclude_waiting(domain: &mut Domain, channel: Token) {
-    for (_, &id) in &domain.waiting {
-        let entry = domain.attempts.get_mut(id).expect("queued attempt");
-        if let Some(placement) = entry.placement
-            && placement.channel == channel
-        {
-            entry.placement = None;
-        }
-    }
     domain.placing = !domain.waiting.is_empty();
 }
 
@@ -405,6 +442,7 @@ pub(crate) fn choose(
         if !channel.sources.clear()
             || channel.draining
             || channel.shutting_down
+            || channel.paused()
             || channel.mismatched
             || free == 0
             || channel.untranslated.as_slice().contains(&run)
@@ -427,6 +465,7 @@ pub(crate) fn choose(
 }
 
 /// Candidate hosts in affinity/free-room order, checking only retained run models.
+/// A suspension restricts candidates to its worker's position (domain/engine/executors.md, 6.4).
 pub(crate) fn probe(
     domain: &Domain,
     workstream: u64,
@@ -434,16 +473,19 @@ pub(crate) fn probe(
     version: crate::Version,
     models: &[crate::ModelNeed],
     excluded: &[Token],
+    worker: Option<u32>,
 ) -> Option<crate::PlacementConstraint> {
     let run = Token::new(workstream);
     let mut best: Option<(&Channel, u32)> = None;
     for (_, &id) in &domain.tokens {
         let channel = domain.channels.get(id).expect("connected host");
         let free = channel.slots.saturating_sub(channel.hosts.len());
-        if !channel.sources.ready()
+        if (worker.is_some() && channel.worker != worker)
+            || !channel.sources.ready()
             || free == 0
             || channel.draining
             || channel.shutting_down
+            || channel.paused()
             || channel.mismatched
             || channel.untranslated.as_slice().contains(&run)
             || !kinds.allows(channel.kind)
@@ -473,6 +515,7 @@ pub(crate) fn constrained(domain: &Domain, placement: crate::PlacementConstraint
         || !kinds.allows(channel.kind)
         || channel.draining
         || channel.shutting_down
+        || channel.paused()
         || channel.mismatched
         || channel.slots <= channel.hosts.len()
     {
@@ -495,6 +538,7 @@ pub(crate) fn choose_job(
         if free == 0
             || channel.draining
             || channel.shutting_down
+            || channel.paused()
             || channel.mismatched
             || channel.untranslated.as_slice().contains(&run)
         {

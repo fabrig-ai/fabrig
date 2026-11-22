@@ -816,6 +816,8 @@ fn program_host(core: &mut Core, env: &Env<Limits>, worker: u32, channel: Token)
             worker,
             channel,
             hello: Hello {
+                fresh: false,
+                reads_usage: true,
                 jobs: Box::default(),
                 bounds: fixtures::bounds(),
                 stop_bound: Duration::ZERO,
@@ -876,7 +878,8 @@ fn restored_account_facts_follow_registration_and_audience() {
             // A whole fact is independent of the document's text and line limits.
             env.limits.documents.text_bytes = 1;
             env.limits.documents.lines = 1;
-            let expected: &[AccountFact] = if registered { core::slice::from_ref(&fact) } else { &[] };
+            let line = AccountFactLine { fact: fact.clone(), rate: None };
+            let expected = if registered { core::slice::from_ref(&line) } else { &[] };
             let own = document(&core, &env, ALICE);
             assert_eq!(own.accounts.get(0).unwrap().facts.as_slice(), expected, "{kind}, {origin}");
             assert_eq!(core.accounts.account_facts(OWN), core::slice::from_ref(&fact));
@@ -889,7 +892,7 @@ fn restored_account_facts_follow_registration_and_audience() {
                 };
                 assert_eq!(
                     doc.accounts.get(0).unwrap().facts.as_slice(),
-                    if shown { core::slice::from_ref(&fact) } else { &[] },
+                    if shown { core::slice::from_ref(&line) } else { &[] },
                     "{kind}, {origin}, {reader}, {bob_role:?}"
                 );
                 assert!(!doc.cut);

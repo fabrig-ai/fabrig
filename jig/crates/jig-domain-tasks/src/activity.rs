@@ -135,6 +135,10 @@ pub enum EndKind {
         invalid_result: Option<crate::InvalidResult>,
     },
     Refused,
+    Suspended {
+        worker: u32,
+        why: crate::SuspendWhy,
+    },
 }
 
 pub(crate) fn append(task: &mut TaskRecord, at: Wall, line: Line, out: &mut Queue<Request>) {

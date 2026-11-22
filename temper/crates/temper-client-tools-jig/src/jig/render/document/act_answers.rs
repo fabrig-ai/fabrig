@@ -158,6 +158,15 @@ pub(super) fn encode_outcome(value: &jig_client::contract::Outcome, out: &mut En
             out.object_end();
             out.object_end();
         }
+        jig_client::contract::Outcome::WorkerPauseAsked { worker } => {
+            out.object_start();
+            out.key(b"worker_pause_asked");
+            out.object_start();
+            out.key(b"worker");
+            out.unsigned(u64::from(*worker));
+            out.object_end();
+            out.object_end();
+        }
         jig_client::contract::Outcome::Restored { proposal, to, left_out } => {
             out.object_start();
             out.key(b"restored");

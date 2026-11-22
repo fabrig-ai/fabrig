@@ -292,6 +292,9 @@ fn llm_events_up(service: &mut Stages, mut frame: Option<&mut Frame>) {
                 }
                 lower_event(service, frame.is_some(), domain::Below::Completed { owner, completion });
             }
+            llm::ToDomain::Usage { owner, window } => {
+                lower_event(service, frame.is_some(), domain::Below::Usage { owner, window });
+            }
             llm::ToDomain::Failed { owner, failure, evidence, detail, report } => {
                 program_failure(frame.as_deref_mut(), owner, failure, &detail);
                 if let Some(events) = &mut service.events {
@@ -415,18 +418,30 @@ pub(super) fn channel_event(service: &mut Stages, frame: &mut Frame, event: chan
         }
         channel::Heard::Cancel => super::admission::cancel(service),
         channel::Heard::Drain => super::admission::drain(service),
-        channel::Heard::WriteFailed => service.mark_failed(Failure::WriteFailed),
-        channel::Heard::Ended { why: _ } => match service.teardown {
-            Teardown::Live { .. } => {
-                service.mark_failed(Failure::ChannelEnded);
-                if let Some(run) = service.admission.run() {
-                    service.domain_events.push(domain::Event::Cancel { run });
-                } else {
-                    teardown::answered(service);
+        channel::Heard::WriteFailed => {
+            service.host_word_closed = true;
+            service.mark_failed(Failure::WriteFailed);
+            if service.signalled {
+                match service.teardown {
+                    Teardown::Live { .. } => super::admission::cancel(service),
+                    Teardown::Answered { .. } | Teardown::Closing { .. } | Teardown::Closed { .. } => {}
                 }
             }
-            Teardown::Answered { .. } | Teardown::Closing { .. } | Teardown::Closed { .. } => {}
-        },
+        }
+        channel::Heard::Ended { why: _ } => {
+            service.host_word_closed = true;
+            match service.teardown {
+                Teardown::Live { .. } => {
+                    service.mark_failed(Failure::ChannelEnded);
+                    if let Some(run) = service.admission.run() {
+                        service.domain_events.push(domain::Event::Cancel { run });
+                    } else {
+                        teardown::answered(service);
+                    }
+                }
+                Teardown::Answered { .. } | Teardown::Closing { .. } | Teardown::Closed { .. } => {}
+            }
+        }
     }
 }
 
@@ -477,7 +492,8 @@ fn observe_messages(service: &mut Stages, event: &domain::Event) {
         | domain::Event::Drain { .. }
         | domain::Event::Delivered { .. }
         | domain::Event::Below(
-            smith_domain::Below::Completed { .. }
+            smith_domain::Below::Usage { .. }
+            | smith_domain::Below::Completed { .. }
             | smith_domain::Below::Failed { .. }
             | smith_domain::Below::Cancelled { .. }
             | smith_domain::Below::Done { .. }

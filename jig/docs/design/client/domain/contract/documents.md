@@ -85,7 +85,10 @@
     (unknown stays unknown), or, `Untooled { worker }`, for a source whose
     program started without its tools on that worker, the worker's setting
     number, every other place for it taken or none
-    (`../../../domain/engine/fleet.md`), or a credential or host wait. `Task.run_wait`
+    (`../../../domain/engine/fleet.md`), or a credential or host wait, or,
+    from version 40, `Worker { worker, until }`, a suspended task waiting
+    for its worker, by its setting number, until its window's end in wall
+    nanoseconds (`../../../domain/engine/executors.md`, 6.4). `Task.run_wait`
     also carries `Refused(TaskWaitRefused)`: `Hello { kind, at, why,
     figures }`, the fleet's latest observed allowed-kind refusal,
     suppressed by any admitted connected non-draining allowed-kind host;
@@ -318,6 +321,10 @@ gets the account's kinds alone. A fact is whole, at its
 own bounds: neither the document's text bound nor a line's `cut` touches it.
 The wire and the client's contract carry the registry's numbers, and the
 contract names those a client reads. The client link refuses a share past 10000.
+A window's value also carries its rate (`AccountWindow.rate`, `Option<u32>`),
+its share per hour in basis points, or none: the core's memory beside the fact
+(`../../../domain/accounts.md`, 3.7), never stored. It moved the client wire's
+version, unbridged; the wire's layouts ledger names which.
 
 The public provider catalogue in `me` carries the configured provider number,
 cut-aware name, sign-in and key offers, whole program names (at most 32 bytes

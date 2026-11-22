@@ -77,6 +77,9 @@ pub struct Seen {
     pub told: u32,
     /// One-way process signals, in order.
     pub signals: Vec<host::Signal>,
+    pub signalled: Vec<(Token, parent::Signal, Option<u32>)>,
+    pub channel_closed: bool,
+    pub controls: Vec<&'static str>,
 }
 
 /// Real host domain and generic harness machinery, with a single scripted tree.
@@ -406,16 +409,24 @@ impl World {
                         | Down::Acknowledge { .. }
                         | Down::Renewals { .. }
                         | Down::Grant { .. }
-                        | Down::Cancel
                         | Down::Drain => {}
+                        Down::Cancel => self.seen.controls.push("cancel"),
                     }
                     self.seen.down.push(message);
                 }
                 Output::Process(process::Request::Read { owner, .. }) => self.lower.open(Lower::Read, owner),
                 Output::Process(process::Request::Wait { owner, .. }) => self.lower.open(Lower::Wait, owner),
                 Output::Process(process::Request::Reap { owner, .. }) => self.lower.open(Lower::Reap, owner),
+                Output::Process(process::Request::CloseChannel { .. }) => {
+                    self.seen.channel_closed = true;
+                    self.seen.controls.push("close");
+                }
                 Output::Process(process::Request::Signal { owner, signal, .. }) => {
                     self.seen.signals.push(signal);
+                    self.seen.controls.push(match signal {
+                        host::Signal::Terminate => "terminate",
+                        host::Signal::Kill => "kill",
+                    });
                     let key = match signal {
                         host::Signal::Terminate => Lower::Terminate,
                         host::Signal::Kill => Lower::Kill,
@@ -601,6 +612,7 @@ impl Seen {
                 }
                 self.agent = Some(agent);
             }
+            parent::Request::Signalled { host_run, signal, from } => self.signalled.push((host_run, signal, from)),
             parent::Request::Admitted { .. } => {
                 if self.admitted {
                     return Err("one admission".into());
@@ -714,6 +726,9 @@ impl Seen {
             }
             parent::Request::Told { .. } => self.told += 1,
             parent::Request::Waiting { read, .. } => self.fence(read)?,
+            parent::Request::Usage { account, window, .. } => {
+                self.account_notices.push(host::Up::Usage { account, window });
+            }
             parent::Request::Limited { account, reset, .. } => {
                 self.account_notices.push(host::Up::Limited { account, reset });
             }

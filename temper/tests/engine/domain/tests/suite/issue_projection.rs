@@ -260,6 +260,8 @@ fn configured_chat(
         link: engine::Link::Hello {
             worker: 0,
             hello: jig_domain_link::Hello {
+                fresh: false,
+                reads_usage: true,
                 jobs: Box::default(),
                 slots: WORKER_SLOTS,
                 stop_bound: Duration::from_millis(100),

@@ -1499,12 +1499,14 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::Adopted { .. }
                 | top::Request::Save { .. }
                 | top::Request::MarkedForges
+                | top::Request::MilestoneMarked { .. }
                 | top::Request::Marked { .. }
                 | top::Request::Erase { .. }
                 | top::Request::Taken { .. }
                 | top::Request::Refused { .. }
                 | top::Request::ResourceRefused { .. }
                 | top::Request::HeadRefused { .. }
+                | top::Request::FullTableFact { .. }
                 | top::Request::LostReadFailed { .. }
                 | top::Request::MakeFailed { .. }
                 | top::Request::Outcome { .. }
@@ -1545,6 +1547,8 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::TierDecision { .. }
                 | top::Request::FileRedFinding { .. }
                 | top::Request::FileVerdict { .. }
+                | top::Request::ReturnFinding(_)
+                | top::Request::FailRepair { .. }
                 | top::Request::MakingCopied { .. }
                 | top::Request::MakingAct { .. }
                 | top::Request::LandingUnmade { .. }

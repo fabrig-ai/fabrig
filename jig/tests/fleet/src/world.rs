@@ -910,6 +910,8 @@ impl World {
                     worker: u32::try_from(self.channels[&channel].worker).expect("configured worker position"),
                     channel: token,
                     hello: Hello {
+                        fresh: false,
+                        reads_usage: true,
                         jobs: self.settings.job.into_iter().collect(),
                         bounds: crate::fixtures::bounds(),
                         slots,
@@ -986,11 +988,14 @@ impl World {
             Request::Ask { .. } | Request::Asked { .. } => {
                 unreachable!("the script does not make application asks")
             }
-            Request::ReadList { .. }
+            Request::ReadUsage { .. }
+            | Request::UsageRead { .. }
+            | Request::ReadList { .. }
             | Request::ListRead { .. }
             | Request::ProgramEmail { .. }
             | Request::ProgramTargets { .. }
             | Request::ProgramSignedOut { .. }
+            | Request::Pause { .. }
             | Request::Check { .. }
             | Request::SignOut { .. }
             | Request::SignedOut { .. } => {
@@ -1019,6 +1024,7 @@ impl World {
             Request::Grant { channel, run, attempt, grant } => self.record_grant(channel, run, attempt, grant),
             Request::Discharged
             | Request::Unauthorized { .. }
+            | Request::Usage { .. }
             | Request::Limited { .. }
             | Request::AccountRefused { .. } => {}
             Request::Assign { channel, run, attempt, .. } | Request::AssignJob { channel, run, attempt } => {
@@ -1060,7 +1066,7 @@ impl World {
                 }
             }
             Request::Placed { run, attempt } => self.placed(run.raw(), attempt.raw()),
-            Request::Answered { to, run, attempt, answer: _, payload } => {
+            Request::Answered { to, run, attempt, answer: _, payload, worker: _ } => {
                 let said = match self.payloads.end(payload.raw()) {
                     Payload::Answer(said) => said,
                     Payload::Inbound | Payload::Body { .. } | Payload::Reply => {
@@ -1074,6 +1080,7 @@ impl World {
             }
             Request::Listed { .. } => self.end("listed"),
             Request::NotStarted { .. } => panic!("worker-only world cannot lose an engine slot"),
+            Request::Suspended { .. } => panic!("scripted workers reconnect as the same process"),
             Request::Lost { to, run, attempt } => self.ended(to, run, attempt, End::Lost),
             Request::Withdrawn { to, run, attempt, withdrawal } => {
                 let end = match withdrawal {
@@ -1370,6 +1377,7 @@ impl World {
                         adopt: true,
                     },
                     None => Event::Adopt {
+                        worker: None,
                         holds: Box::new([]),
                         grants: Box::new([]),
                         reply_to: ReplyTo::new(token),
@@ -1404,7 +1412,10 @@ fn describe(event: &Event) -> String {
         Event::Hello { worker: _, channel, hello } => {
             format!("Hello {} slots {} hosting {:?}", channel.raw(), hello.slots, hello.hosting)
         }
-        Event::ReadList { .. }
+        Event::CancelUsage { .. }
+        | Event::ReadUsage { .. }
+        | Event::ReadList { .. }
+        | Event::UsageRead { .. }
         | Event::ListRead { .. }
         | Event::Needs(_)
         | Event::CleanupPrograms { .. }
@@ -1421,6 +1432,7 @@ fn describe(event: &Event) -> String {
         | Event::Inbound { .. }
         | Event::Grant { .. }
         | Event::Unauthorized { .. }
+        | Event::Usage { .. }
         | Event::Limited { .. }
         | Event::AccountRefused { .. }
         | Event::Turn { .. }
@@ -1439,6 +1451,8 @@ fn describe(event: &Event) -> String {
         | Event::Observe { .. }
         | Event::Acknowledge { .. }
         | Event::Restarting { .. }
+        | Event::PauseWorker { .. }
+        | Event::Paused { .. }
         | Event::Loaded => format!("{event:?}"),
     }
 }

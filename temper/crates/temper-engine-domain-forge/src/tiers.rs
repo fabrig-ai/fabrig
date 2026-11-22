@@ -1,6 +1,8 @@
 //! Tiers follow their configured branches (temper/docs/design/domain/after-landing.md, 2, 3, 4 and 10).
 //! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
-use crate::{Domain, Follows, Limits, Name, Request, Stored, Tier, TierBranch, TierLanding, TierRow, Topic, What};
+use crate::{
+    Domain, Follows, Limits, Name, Request, Stored, Tier, TierBranch, TierHeld, TierLanding, TierRow, Topic, What,
+};
 use alloc::boxed::Box;
 use skein_forge::api::{self, Commit, Repository, Write};
 use skein_lib::{Env, List, Map, Queue, Set, Time, Token, Wall};
@@ -50,6 +52,7 @@ impl State {
 pub(crate) struct Read {
     pub(crate) tier: (Repository, Box<[u8]>),
     pub(crate) baseline: bool,
+    pub(crate) job_state: bool,
 }
 #[derive(Hash, Debug)]
 struct Walk {
@@ -81,7 +84,7 @@ fn configured(d: &Domain, row: &TierRow) -> Option<Tier> {
     }
     None
 }
-fn followed(d: &Domain, repository: Repository, tier: &Tier) -> Option<Box<[u8]>> {
+pub(crate) fn followed(d: &Domain, repository: Repository, tier: &Tier) -> Option<Box<[u8]>> {
     match &tier.follows {
         Follows::Branch(branch) => Some(branch.clone()),
         Follows::Landing => Some(d.repositories.get(&repository)?.landing.clone()),
@@ -248,6 +251,7 @@ fn empty(repository: Repository, tier: Box<[u8]>) -> TierRow {
         tier,
         record: p::Record {
             sequence: 0,
+            last_run: None,
             judged: None,
             failing: p::Failures::Tests(Box::new([])),
             flakes: Box::new([]),
@@ -317,7 +321,10 @@ pub(crate) fn start_due(d: &mut Domain, env: &Env<Limits>, repository: Repositor
             if !d.stopping && !reading(d, &key) && !d.tier_ops.walks.contains_key(&key) {
                 d.sequence = d.sequence.checked_add(1).expect("tier baseline read sequence");
                 let owner = Token::new(d.sequence | (1_u64 << 59));
-                d.tier_ops.reads.insert(owner, Read { tier: key.clone(), baseline: true }).expect("one read per tier");
+                d.tier_ops
+                    .reads
+                    .insert(owner, Read { tier: key.clone(), baseline: true, job_state: false })
+                    .expect("one read per tier");
                 crate::domain::child(
                     d,
                     env,
@@ -425,7 +432,10 @@ fn ask_tree(d: &mut Domain, env: &Env<Limits>, key: (Repository, Box<[u8]>), wal
     let read = api::Read::Tree { object: walk.object, page: walk.page };
     let owner = walk.owner;
     let repository = key.0;
-    d.tier_ops.reads.insert(owner, Read { tier: key.clone(), baseline: false }).expect("walk and follower per tier");
+    d.tier_ops
+        .reads
+        .insert(owner, Read { tier: key.clone(), baseline: false, job_state: false })
+        .expect("walk and follower per tier");
     d.tier_ops.walks.insert(key, walk).expect("one walk per tier");
     crate::domain::child(d, env, skein_forge_client::Event::Read { owner, repository, read }, out);
 }
@@ -828,21 +838,20 @@ fn advance(
         }
         p::Next::Held(run) => {
             row.record.run = Some(run);
-            row.held = Some(match follow.outcome {
+            row.held = Some(TierHeld::Faults(match follow.outcome {
                 Some(landing::Verdict::Fault(fault)) => fault,
                 Some(landing::Verdict::Failed | landing::Verdict::Passed | landing::Verdict::Running) | None => {
                     landing::Fault::NoStep
                 }
-            });
+            }));
         }
         p::Next::Judged(_) => {
             row.result = observation;
             row.received = false;
         }
     }
-    if row.held.is_some() && row.goal.is_none() {
-        let posting = post::pending(d, row, follow);
-        row.posting = Some(Box::new(posting));
+    if row.held.is_some() {
+        holding(d, row, follow);
     }
     remember(row, follow);
     if row.held.is_some()
@@ -858,23 +867,100 @@ fn decision(task: u64, decision: crate::TierDecision, entry: Option<u64>, out: &
 fn wait(task: u64, out: &mut Queue<Request>) {
     decision(task, crate::TierDecision::Wait { until: None }, None, out);
 }
-fn held(d: &Domain, row: &TierRow, out: &mut Queue<Request>) {
+fn hold_reason(d: &Domain, row: &TierRow) -> Box<[u8]> {
+    match row.held.expect("held tier") {
+        TierHeld::Faults(fault) => {
+            let run = row.record.run.as_ref().expect("held run");
+            joined(&[
+                b"held after ",
+                skein_lib::Decimal::of(u64::from(run.faults)).as_bytes(),
+                b" runner faults, last: ",
+                &fault_words(run, &configured(d, row).expect("configured tier").workflow, fault),
+            ])
+        }
+        TierHeld::RunnerWait => joined(&[
+            b"held after ",
+            skein_lib::Decimal::of(
+                d.landing.limits.change_policy.runner_wait.as_nanos().checked_div(60_000_000_000).expect("minute"),
+            )
+            .as_bytes(),
+            b" minutes waiting for a runner",
+        ]),
+    }
+}
+fn holding(d: &mut Domain, row: &mut TierRow, follow: &crate::runs::Follow) {
+    if row.goal.is_none() {
+        row.posting = Some(Box::new(post::pending(d, row, follow)));
+    }
+    if let Some(run) = &follow.run {
+        d.stall_words
+            .insert(row.task.expect("held tier task"), crate::stall::Report::run(run))
+            .expect("bounded held tasks");
+    }
+}
+fn runner_wait(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    row: &mut TierRow,
+    follow: &crate::runs::Follow,
+    out: &mut Queue<Request>,
+) {
+    if row.held.is_none()
+        && row.result.is_none()
+        && follow.run.is_some()
+        && follow.outcome.is_none()
+        && let Some(clock) = follow.clock
+        && clock.waited(env.wall) >= env.limits.change_policy.runner_wait
+    {
+        row.held = Some(TierHeld::RunnerWait);
+        holding(d, row, follow);
+        remember(row, follow);
+        row.flight.as_mut().expect("held flight").next = None;
+        save(row, out);
+    }
+}
+fn poll_at(d: &Domain, env: &Env<Limits>, follow: &crate::runs::Follow) -> Time {
+    let poll = d.poll_at(env, follow.repository);
+    match follow.clock {
+        Some(clock) if clock.seen == temper_engine_domain_forge_change::Execution::Waiting => {
+            poll.min(env.now.saturating_add(skein_lib::Duration::from_nanos(
+                env.limits.change_policy.runner_wait.as_nanos().saturating_sub(clock.waited(env.wall).as_nanos()),
+            )))
+        }
+        Some(_) | None => poll,
+    }
+}
+fn held(d: &mut Domain, env: &Env<Limits>, row: &TierRow, out: &mut Queue<Request>) {
+    let task = row.task.expect("tier task");
+    let key = (row.repository, row.tier.clone());
+    if reading(d, &key) {
+        wait(task, out);
+        return;
+    }
+    if let Some(report) = d.stall_words.get_mut(&task)
+        && let Some(read) = report.next()
+    {
+        d.sequence = d.sequence.checked_add(1).expect("tier job-state read sequence");
+        let owner = Token::new(d.sequence | (1_u64 << 59));
+        d.tier_ops
+            .reads
+            .insert(owner, Read { tier: key, baseline: false, job_state: true })
+            .expect("one read per tier");
+        crate::domain::child(d, env, skein_forge_client::Event::Read { owner, repository: row.repository, read }, out);
+        wait(task, out);
+        return;
+    }
     let run = row.record.run.as_ref().expect("held run");
-    let words = joined(&[
+    let base = joined(&[
         b"Tier ",
         &row.tier,
         b" run ",
         skein_lib::Decimal::of(run.number).as_bytes(),
-        b" held after ",
-        skein_lib::Decimal::of(u64::from(run.faults)).as_bytes(),
-        b" runner faults, last: ",
-        &fault_words(
-            run,
-            &configured(d, row).expect("configured tier").workflow,
-            row.held.unwrap_or(landing::Fault::Lost),
-        ),
+        b" ",
+        &hold_reason(d, row),
     ]);
-    decision(row.task.expect("tier task"), crate::TierDecision::Held { words }, None, out);
+    let words = d.ci_stall_words(task, &base, jig_domain_tasks::HOLD_ACCOUNT_BYTES);
+    decision(task, crate::TierDecision::Held { words }, None, out);
 }
 fn effect(d: &mut Domain, row: &mut TierRow, entry: u64, write: Write, release: bool, out: &mut Queue<Request>) {
     let operation = match &write {
@@ -1149,6 +1235,7 @@ pub(crate) fn step(
         row.held = None;
         row.flight = None;
         d.tier_ops.follows.remove(&key);
+        d.stall_words.remove(&task);
         save(&row, out);
     }
     if row.flight.is_some() && !d.tier_ops.follows.contains_key(&key) && row.result.is_none() && row.held.is_none() {
@@ -1159,12 +1246,13 @@ pub(crate) fn step(
         && let Some(mut follow) = d.tier_ops.follows.remove(&key)
     {
         observed_part(d, env, &mut row, &mut follow, out);
+        runner_wait(d, env, &mut row, &follow, out);
         d.tier_ops.follows.insert(key.clone(), follow).expect("bounded follower");
     }
     if post::active(&row) {
         post::step(d, env, &mut row, entry, out);
     } else if row.held.is_some() {
-        held(d, &row, out);
+        held(d, env, &row, out);
     } else if cleanup_probe(d, env, &mut row, entry, out) {
         // A completed probe releases its branch before the next part starts.
     } else if row.result.is_some() {
@@ -1226,7 +1314,7 @@ pub(crate) fn step(
                     let owner = Token::new(d.sequence | (1_u64 << 59));
                     d.tier_ops
                         .reads
-                        .insert(owner, Read { tier: key.clone(), baseline: false })
+                        .insert(owner, Read { tier: key.clone(), baseline: false, job_state: false })
                         .expect("one read per tier");
                     d.tier_ops.follows.insert(key.clone(), follow).expect("bounded follower");
                     d.tiers.insert(key.clone(), row).expect("replaces tier");
@@ -1271,6 +1359,17 @@ pub(crate) fn answered(
     let Some(read) = d.tier_ops.reads.remove(&owner) else { return };
     let key = read.tier;
     if !d.repositories.contains_key(&key.0) {
+        return;
+    }
+    if read.job_state {
+        if let Some(row) = d.tiers.get(&key)
+            && row.held.is_some()
+            && let Some(task) = row.task
+            && let Some(report) = d.stall_words.get_mut(&task)
+        {
+            report.answered(answer);
+            out.push(Request::WakeProcedure { task });
+        }
         return;
     }
     if read.baseline {
@@ -1328,25 +1427,52 @@ pub(crate) fn answered(
     let ended = if reporting {
         reported_part(d, env, &mut row, &mut follow, answer, out)
     } else {
-        let ended = follow.answered(answer, writer, env.now, env.wall, env.limits.client.lifetime).is_some();
+        let ended = run_answered(&mut follow, answer, writer, env);
         words::observe(&mut row, &follow);
         if row.held.is_none() && row.result.is_none() {
             observed_part(d, env, &mut row, &mut follow, out);
+            runner_wait(d, env, &mut row, &follow, out);
         }
         ended
     };
     remember(&mut row, &follow);
+    if let Some(flight) = &mut row.flight {
+        flight.next = if row.held.is_some() || ended { None } else { Some(poll_at(d, env, &follow)) };
+    }
     save(&row, out);
-    if ended || (listing && follow.run.is_some()) {
-        if let Some(task) = row.task {
-            out.push(Request::WakeProcedure { task });
-        }
-    } else if let Some(flight) = &mut row.flight {
-        flight.next = Some(d.poll_at(env, row.repository));
-        save(&row, out);
+    if (row.held.is_some() || ended || (listing && follow.run.is_some()))
+        && let Some(task) = row.task
+    {
+        out.push(Request::WakeProcedure { task });
     }
     d.tiers.insert(key.clone(), row).expect("replaces tier");
     d.tier_ops.follows.insert(key, follow).expect("replaces follower");
+}
+fn run_answered(
+    follow: &mut crate::runs::Follow,
+    answer: Result<api::Answer, api::Error>,
+    writer: u64,
+    env: &Env<Limits>,
+) -> bool {
+    let previous = follow.clock;
+    let ended = follow.answered(answer, writer, env.now, env.wall, env.limits.client.lifetime).is_some();
+    // A listing names no job attempts. Its first job reading continues that
+    // wait; before the first listing, the tier waited from its dispatch.
+    if let Some(clock) = &mut follow.clock {
+        match previous {
+            None => {
+                clock.waited =
+                    skein_lib::Duration::from_nanos(clock.at.as_nanos().saturating_sub(clock.since.as_nanos()));
+            }
+            Some(previous) if previous.run == clock.run && previous.attempt == 0 => {
+                clock.ran = previous.ran(env.wall);
+                clock.waited = previous.waited(env.wall);
+                clock.unknown = previous.unknown(env.wall);
+            }
+            Some(_) => {}
+        }
+    }
+    ended
 }
 pub(crate) fn hinted(d: &Domain, hint: &api::Hint, out: &mut Queue<Request>) {
     if let api::Change::Commit(commit) = hint.change {
@@ -1548,7 +1674,7 @@ pub(crate) fn outcome(d: &mut Domain, entry: u64, outcome: skein_forge_client::O
             out.push(Request::Erase { key: crate::Key::BranchHead(name(row.repository, named)) });
         }
         if !made {
-            row.held = Some(landing::Fault::Lost);
+            row.held = Some(TierHeld::Faults(landing::Fault::Lost));
         }
     } else {
         let mut follow = match d.tier_ops.follows.remove(&key) {
@@ -2124,6 +2250,7 @@ fn drop_run(d: &mut Domain, row: &mut TierRow, limits: &Limits) {
         d.tier_ops.reads.remove(&owner);
     }
     if let Some(task) = row.task.take() {
+        d.stall_words.remove(&task);
         d.offered_tier(task);
     }
     if let Some(run) = row.record.run.take() {

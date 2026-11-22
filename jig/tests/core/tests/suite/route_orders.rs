@@ -328,6 +328,8 @@ fn reconnect_with_stale_attempt(driver: &mut World, task: u64, attempt: u64) {
         worker: WORKER_NUMBER,
         channel: RECONNECTED_WORKER,
         hello: Hello {
+            fresh: false,
+            reads_usage: true,
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: STOP_BOUND,

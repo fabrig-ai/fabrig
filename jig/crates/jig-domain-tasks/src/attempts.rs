@@ -7,6 +7,17 @@ pub(crate) fn names(phase: &Phase) -> Option<u64> {
 }
 
 pub(crate) fn changed(record: &mut TaskRecord, at: Wall, out: &mut Queue<Request>) {
+    let keeps_suspension = match record.phase {
+        Phase::Active(Active::Due | Active::Preparing) => true,
+        Phase::Waiting
+        | Phase::Active(Active::Idle | Active::Claimed { .. } | Active::Running { .. } | Active::BackingOff { .. })
+        | Phase::Held { .. }
+        | Phase::Closing(_)
+        | Phase::Ended(_) => false,
+    };
+    if !keeps_suspension && let Some(suspension) = record.suspension.take() {
+        record.suspended = record.suspended.saturating_add(at.as_nanos().saturating_sub(suspension.since.as_nanos()));
+    }
     let next = names(&record.phase);
     let closes = match &record.open_attempt {
         Some(open) => Some(open.attempt) != next,

@@ -1,6 +1,6 @@
 # tui: status
 
-2026-11-15. Where the design lags or departs from [tui.md](tui.md).
+2026-11-21. Where the design lags or departs from [tui.md](tui.md).
 
 - **Design lags:** 3, 6 and 7, from 2026-11-08: the launchpad as drawn, design sessions with the side pane and talking with a standing role are v0.1.0's through `surfaces.md`, section 11, whose status holds their lags; the side pane and drafting are
   `../client/tui/pages/design-session.md`, 1, as `surfaces.md`, 11.2
@@ -19,9 +19,10 @@
   read-once requirement remains `chat-reading.status.md`, 3, for temper/ui.
   `tui.md`, sections 4 and 5 have no lag: 4.2's TUI side is `../client/tui/README.md`, 3 and `../client/README.md`, 4.1 and `../client/view.md`
    is `../client/tui/journeys.md`. `tui.md`, section 8's journey-format
-  default is settled by that design: the browser's versioned syntax and
-  common records, with the TUI's own records and codec, sharing the
-  browser's redaction and last scan (its sections 3 and 5).
+  default is settled by version-2 walks, printed in a world
+  (`../client/journey-walks.md`, 2 and 3.3). A person's recording keeps
+  the browser's common records with the TUI's own records and codec,
+  sharing redaction and the last scan (`../client/tui/journeys.md`, 3 and 5).
   `tui.md`, section 8's other defaults stand as the user confirmed them on
   2026-11-08: bare `temper` runs the TUI, with no subcommand
   (`../client/tui/README.md`, 1); the code rides the approval tab's
@@ -95,7 +96,7 @@
     landing account's explained differences: the quiet line names a
     failing step as the box names it ("forgejo-3 restarting"), where the
     request's frame 05 has "forge restarting", and `/log` shows the box's
-    own lines as it wrote them, where the frame's are hand-made; its journey recording remains `../client/tui/journeys.status.md`, 8.3; and
+    own lines as it wrote them, where the frame's are hand-made; its journey still needs a front-host driver and a walk (`../client/tui/journeys.status.md`, 8.3); and
     the render check and a real terminal's walk, Linux and macOS, follow
     landing (`../client/README.md`, section 5).
   - 3, 4.4 and 5: the user's requests of 2026-11-08, from a walk on
@@ -118,9 +119,9 @@
     front tells it (`../client/tui/box.md`), and bare `temper`
     keeps the file (`../client/README.md`, section 5, *On a box, told
     by the box*); `launchpad-chat/04` names the place
-    `127.0.0.1:PORT`, not the request's "box:40691", because its walk
-    keeps the TUI apart from the box's link file to walk the approval
-    (`../client/tui/journeys.md`, 8.2 and 11). The render check and the
+    `127.0.0.1:PORT`, not the request's "box:40691": the world's TUI
+    starts at the service's address with no local link file and explicit
+    approval (`../client/journey-walks.md`, 3.3 and 4.1). The render check and the
     walk follow landing (`../client/README.md`, section 5).
   - 4.1, 4.3, 4.4 and 5, the user's requests of 2026-11-09 (plan
     `tui-box-polish`), after a night of `temper box` with the TUI in

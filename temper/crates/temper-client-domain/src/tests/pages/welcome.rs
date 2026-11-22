@@ -151,7 +151,7 @@ fn forge_rows(root: &mut Domain, watch: Token, number: Option<u16>, adopted: boo
             record: jig_client::Family {
                 family: wire::FORGE,
                 version: wire::CLIENT_VERSION,
-                bytes: wire::forges(&w::Forges { forges, linked: false }),
+                bytes: wire::forges(&w::Forges { forges, full: List::with_capacity(0), linked: false }),
             },
         },
     )
@@ -511,7 +511,7 @@ fn strip_forges(root: &mut Domain, watch: Token, connection: Option<w::Connectio
             record: jig_client::Family {
                 family: wire::FORGE,
                 version: wire::CLIENT_VERSION,
-                bytes: wire::forges(&w::Forges { forges, linked: false }),
+                bytes: wire::forges(&w::Forges { forges, full: List::with_capacity(0), linked: false }),
             },
         },
     );

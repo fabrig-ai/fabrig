@@ -487,7 +487,8 @@ pub mod paths {
     pub const RUN_PROOF_OUTSTANDING: Path = Path::new(117, 13);
     pub const RUN_PROOF_TURN: Path = Path::new(117, 14);
     pub const RUN_PROOF_TERMINAL: Path = Path::new(117, 15);
-    pub const RUN_PROOF_TAIL: Path = Path::new(117, 16);
+    pub const RUN_PROOF_WORKER: Path = Path::new(117, 16);
+    pub const RUN_PROOF_TAIL: Path = Path::new(117, 17);
     pub const TURN_RECORD_OPENS_WINDOW: Path = Path::new(118, 0);
     pub const TURN_RECORD_TASK: Path = Path::new(118, 1);
     pub const TURN_RECORD_ATTEMPT: Path = Path::new(118, 2);
@@ -1076,6 +1077,7 @@ const PATH_NAMES: &[&[&str]] = &[
         "RunProof.outstanding",
         "RunProof.turn",
         "RunProof.terminal",
+        "RunProof.worker",
         "RunProof (tail)",
     ],
     &[
@@ -1137,7 +1139,7 @@ pub fn name(path: Path) -> Option<&'static str> {
 }
 
 // Table: postordered shapes, with compiler-known heap slot sizes.
-const TABLE: &[skein_codec::bounds::Node] = &[
+static TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
     skein_codec::bounds::Node::Scalar(8),
@@ -1515,36 +1517,38 @@ const TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::List { limit: 24, item: 146, size: size_of::<Number>() },
     skein_codec::bounds::Node::Option { item: 347 },
     skein_codec::bounds::Node::Option { item: 342 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[358, 359, 360, 362, 363, 365, 367, 368, 369, 370, 371, 101, 373, 374, 375, 376] },
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Option { item: 377 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[358, 359, 360, 362, 363, 365, 367, 368, 369, 370, 371, 101, 373, 374, 375, 376, 378] },
     skein_codec::bounds::Node::Scalar(1),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 383 },
+    skein_codec::bounds::Node::Option { item: 385 },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Bytes { limit: 25 },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[378, 379, 380, 381, 382, 384, 385, 386] },
+    skein_codec::bounds::Node::Record { prefix: 2, fields: &[380, 381, 382, 383, 384, 386, 387, 388] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[388, 389] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[390, 391] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 390 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[391, 15, 392, 33, 393, 394, 21, 395] },
+    skein_codec::bounds::Node::Option { item: 392 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[393, 15, 394, 33, 395, 396, 21, 397] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[397, 398, 399, 400, 401, 402, 26] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[399, 400, 401, 402, 403, 404, 26] },
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[338] },
-    skein_codec::bounds::Node::Enum { variants: &[280, 294, 404, 377, 387, 342, 396, 403] },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[405] },
+    skein_codec::bounds::Node::Enum { variants: &[280, 294, 406, 379, 389, 342, 398, 405] },
+    skein_codec::bounds::Node::Record { prefix: 2, fields: &[407] },
 ];
 
 const DECLARATIONS: &[u32] = &[
@@ -1665,17 +1669,17 @@ const DECLARATIONS: &[u32] = &[
     351,
     353,
     357,
-    377,
-    387,
-    390,
-    396,
-    403,
-    404,
+    379,
+    389,
+    392,
+    398,
     405,
     406,
+    407,
+    408,
 ];
 
-const CEILING_VALUES: &[u32] = &[
+static CEILING_VALUES: &[u32] = &[
     8_192,
     1_048_576,
     1_048_576,
@@ -6147,6 +6151,7 @@ pub struct RunProof {
     pub outstanding: List<Number>,
     pub turn: Option<TurnProof>,
     pub terminal: Option<TerminalRecord>,
+    pub worker: Option<u32>,
 }
 
 // Record: RunProof.
@@ -6155,11 +6160,11 @@ impl Record for RunProof {
     const TAIL: Path = paths::RUN_PROOF_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 377)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 379)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 377)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 379)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -6179,6 +6184,7 @@ impl Record for RunProof {
         field::write(field::Sequence { limit: limits.run_proof_outstanding.min(CEILINGS.run_proof_outstanding), minimum: 8, item: field::Nested }, &self.outstanding, limits, out, paths::RUN_PROOF_OUTSTANDING)?;
         field::write(field::Optional { item: field::Nested }, &self.turn, limits, out, paths::RUN_PROOF_TURN)?;
         field::write(field::Optional { item: field::Nested }, &self.terminal, limits, out, paths::RUN_PROOF_TERMINAL)?;
+        field::write(field::Optional { item: field::U32 }, &self.worker, limits, out, paths::RUN_PROOF_WORKER)?;
         Ok(())
     }
 
@@ -6200,6 +6206,7 @@ impl Record for RunProof {
             outstanding: field::read(field::Sequence { limit: limits.run_proof_outstanding.min(CEILINGS.run_proof_outstanding), minimum: 8, item: field::Nested }, limits, reader, paths::RUN_PROOF_OUTSTANDING)?,
             turn: field::read(field::Optional { item: field::Nested }, limits, reader, paths::RUN_PROOF_TURN)?,
             terminal: field::read(field::Optional { item: field::Nested }, limits, reader, paths::RUN_PROOF_TERMINAL)?,
+            worker: field::read(field::Optional { item: field::U32 }, limits, reader, paths::RUN_PROOF_WORKER)?,
         })
     }
 }
@@ -6223,11 +6230,11 @@ impl Record for TurnRecord {
     const TAIL: Path = paths::TURN_RECORD_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 387)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 389)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 387)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 389)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -6271,11 +6278,11 @@ impl Record for Created {
     const TAIL: Path = paths::CREATED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 390)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 392)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 390)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 392)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -6311,11 +6318,11 @@ impl Record for ProposalDecisionRecord {
     const TAIL: Path = paths::PROPOSAL_DECISION_RECORD_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 396)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 398)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 396)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 398)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -6362,11 +6369,11 @@ impl Record for EscalationDecisionRecord {
     const TAIL: Path = paths::ESCALATION_DECISION_RECORD_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 403)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 405)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 403)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 405)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -6405,11 +6412,11 @@ impl Record for ProjectionValue {
     const TAIL: Path = paths::PROJECTION_VALUE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 404)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 406)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 404)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 406)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -6443,11 +6450,11 @@ impl Record for Value {
     const TAIL: Path = paths::VALUE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 405)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 407)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 405)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 407)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -6491,11 +6498,11 @@ impl Record for Row {
     const TAIL: Path = paths::ROW_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 406)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 408)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 406)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 408)?.decoded)
     }
 
     #[cfg(debug_assertions)]

@@ -129,10 +129,13 @@ impl Driver {
                         self.immediate.push_back(Event::RelayCancelled { run, attempt, call: call.clone() });
                         self.requests.push(Request::CancelRelay { run, attempt, call });
                     }
-                    request @ (Request::ReadList { .. }
+                    request @ (Request::ReadUsage { .. }
+                    | Request::ReadList { .. }
                     | Request::CancelRead { .. }
                     | Request::Source { .. }
+                    | Request::Paused { .. }
                     | Request::Git { .. }
+                    | Request::AgentSignalled { .. }
                     | Request::AgentStopped { .. }
                     | Request::Unprepared { .. }
                     | Request::ResultsIgnored { .. }
@@ -165,6 +168,7 @@ impl Driver {
             agent::process::Request::Signal { owner, .. } => agent::process::Event::Signalled { owner: *owner },
             agent::process::Request::Read { .. }
             | agent::process::Request::Wait { .. }
+            | agent::process::Request::CloseChannel { .. }
             | agent::process::Request::Reap { .. } => return,
         };
         self.immediate.push_back(Event::Process(Box::new(event)));

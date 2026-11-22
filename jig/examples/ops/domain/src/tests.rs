@@ -744,7 +744,7 @@ fn either_start_refusal_cause_assembles_a_permanent_end() {
         jig_domain_hub_link::step(
             &mut domain.hub_link,
             Time::ZERO,
-            jig_domain_hub_link::Event::AnswerPayload { run, attempt, payload },
+            jig_domain_hub_link::Event::AnswerPayload { run, attempt, payload, worker: None, window: Duration::ZERO },
             &mut work,
         );
         let Some(jig_domain_hub_link::Request::Core(core::Event::AnswerPayload {

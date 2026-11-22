@@ -22,7 +22,21 @@ pub enum Note {
         repository: Box<[u8]>,
         what: temper_worker_domain::Git,
     },
-    FiguresChanged,
+    /// A link pause's operator line (domain/worker/README.md, 2).
+    Paused {
+        state: jig_domain_link::PauseState,
+        drain: skein_lib::Duration,
+    },
+    /// The three parts of a figures change (configuration/figures.md, 3.2).
+    FiguresTaken {
+        figures: Box<[jig_protocol_worker_wire::Limit]>,
+    },
+    FiguresWaiting {
+        figures: Box<[jig_protocol_worker_wire::Limit]>,
+    },
+    FiguresRefused {
+        problem: Box<[u8]>,
+    },
     Cancelling {
         run: u64,
         attempt: u64,
@@ -30,6 +44,13 @@ pub enum Note {
     /// The longer of the word and this worker's grace (protocol/wires.md, 4).
     Restarting {
         keep: skein_lib::Duration,
+    },
+    /// An agent signal left to this worker to decide; no stop follows it.
+    AgentSignalled {
+        run: u64,
+        attempt: u64,
+        signal: &'static str,
+        from: Option<u32>,
     },
     /// An agent fault, when reported, once per attempt (domain/worker/README.md, 4.3).
     AgentStopped {
@@ -44,6 +65,11 @@ pub enum Note {
         attempt: u64,
         failure: jig_domain_host::Failure,
         detail: Box<[u8]>,
+    },
+    /// An entry the git sweep could not remove (protocol/git-sweep.md, 3).
+    Unswept {
+        path: Box<[u8]>,
+        error: skein_io::kernel::Error,
     },
     ResultsIgnored {
         owner: u64,

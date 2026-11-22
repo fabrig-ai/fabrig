@@ -7,15 +7,19 @@ Findings: file, read, hand on and triage them.
 ## finding list
 
 ```
-finding list --project PROJECT [--state new|routed|backlog|dropped] [--mine]
+finding list --project PROJECT [--state new|routed|backlog|dropped] [--mine] [--goal TASK] [--milestone TASK]
   --project PROJECT: a project's name or number; required. The project
   --state new|routed|backlog|dropped: one of new, routed, backlog or dropped; optional. Only this state
   --mine: a switch. Only findings held by you or a role you hold
+  --goal TASK: a number; optional. Blamed on this goal; not with --milestone, --state or --mine
+  --milestone TASK: a number; optional. Blamed on this milestone's goals; not with --goal, --state or --mine
 Read a project's areas, triager and findings, newest first
-Prints: Each area's NAME owner OWNER, held by HOLDER: WORDS, the triager, then P/N, state, kind, severity, area or -, holder and title per finding
+Prints: Each area's NAME owner OWNER, held by HOLDER: WORDS, the triager, then P/N, state, kind, severity, area or -, holder and title per finding; cleared rows end with cleared by TIER run N
 --json: the record findings.
 Key: none.
 Reads the findings subject once. At most 128 findings; a cut is marked.
+--goal and --milestone take neither each other nor --state or --mine.
+--json rows carry goal, reason and cleared, null where absent.
 ```
 
 ## finding show
@@ -24,7 +28,7 @@ Reads the findings subject once. At most 128 findings; a cut is marked.
 finding show FINDING
   FINDING (finding): P/N: a project name or number, then a finding number; required. P/N: the project's name or number and its finding number
 Read one finding whole
-Prints: Its line, filer, filing time, last hand-off's why, goal and drop reason, then its body
+Prints: Its line, filer, filing time, last hand-off's why, goal and drop reason, blame and its landings, clearing, then its body
 --json: the record finding.
 Key: none.
 FINDING is P/N, P the project's name or number.
@@ -97,4 +101,35 @@ Prints: dropped: P/N
 --json: the record finding_dropped.
 Key: --key KEY, required.
 Only its holder or a project owner may triage. Its issue, if any, closes with the reason.
+```
+
+## finding repair
+
+```
+finding repair FINDING... TEXT --key KEY
+  FINDING (findings): P/N: a project name or number, then a finding number; repeated, at most 16. One to sixteen findings of one project, each named once
+  TEXT (words): text, at most 1048576 bytes, or - to read stdin; required. The repair's words, 1 to 4096 bytes
+Make one repair goal for findings of one project
+Prints: repair goal G made for P/N, P/M
+--json: the record finding_repaired.
+Key: --key KEY, required.
+Only the holder or a project owner may triage. A refusal prints its words, exit 2.
+```
+
+## finding blame
+
+```
+finding blame FINDING --landing COMMIT TEXT --key KEY
+  FINDING (finding): P/N: a project name or number, then a finding number; required. P/N: the project's name or number and its finding number
+  --landing COMMIT: text, at most 1048576 bytes; required. The landing's full commit, 40 or 64 hex digits
+  TEXT (why): text, at most 1048576 bytes, or - to read stdin; required. Why, 1 to 200 bytes
+finding blame FINDING --none TEXT --key KEY
+  FINDING (finding): P/N: a project name or number, then a finding number; required. P/N: the project's name or number and its finding number
+  --none: a switch. Blame no landing
+  TEXT (why): text, at most 1048576 bytes, or - to read stdin; required. Why, 1 to 200 bytes
+Move a finding's blame to a landing or to no landing
+Prints: blamed: P/N on landing COMMIT (its first twelve digits), or blamed: P/N on no landing
+--json: the record finding_blamed.
+Key: --key KEY, required.
+Name exactly one of --landing and --none. Only the holder or a project owner may triage. A refusal prints its words, exit 2.
 ```

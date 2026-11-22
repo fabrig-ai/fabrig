@@ -1,6 +1,7 @@
 # records: status
 
-2026-11-20. Where the tree's code lags or departs from [records.md](records.md).
+2026-11-21. Where the tree's code lags or departs from [records.md](records.md).
+
 
 
 
@@ -8,6 +9,11 @@
   empty, `landing` and the `default_branch` flag mean the forge's
   default branch rather than the repository's landing branch [in flight:
   change 8087].
+- **Not yet:** *A project's findings*, *One finding*, *A milestone's
+  totals* and *Reds on goals and milestones*: no `FindingsFilter`, no
+  `FindingRow` `goal`, `reason` or `cleared`, no `FindingAnswer`
+  `blame`, no `MilestoneTotals` `reds`, and `CLIENT_VERSION` unmoved
+  [in flight: change 10345].
 
 
 - **Not yet:** *A project's ways, the subject `ways`*: `WaysPanel`'s
@@ -122,9 +128,9 @@ map the new tokens in both schemes, which establishes no rendered look.
 The quiet line names a step as the box names it ("forgejo-3
 restarting"), where the request's frame 05 has "forge restarting", and
 `/log` shows the box's own lines, as `../tui/box.md` has them
-(`../../draft/tui.status.md`). The journey `box-welcome` waits for
-`again` (`../tui/journeys.status.md`, 8.3), and the real terminal's check,
-Linux and macOS, is `../README.md`, section 5's after-landing work, owned by temper/tui.
+(`../../draft/tui.status.md`). A journey with the TUI in front of a box
+has no driver (`../drive.md`, 7); the real terminal's check, Linux and
+macOS, is `../README.md`, section 5's after-landing work, owned by temper/tui.
 
 - **Design departs:** *The program's environment*, from the request `box-small-2`
   of 2026-11-06, item 1, decided by its plan's cut, which takes `resolve` as all or
@@ -145,4 +151,4 @@ Linux and macOS, is `../README.md`, section 5's after-landing work, owned by tem
 
 - **Not yet:** the subject `approvals`: `ApprovalRow`'s `size` and `ApprovalSize` on the wire [in flight: change 533].
 - **Not yet:** the subject `approvals`: `size` filled from the change's approval evidence [in flight: change 534].
-- **Not yet:** `TriageFinding`'s `repair` and `blame`, the triaged outcome's `goal` and `FindingRefusal`'s longer `words`, in the wire's next layout [in flight: change 10374].
+- **Not yet:** `TriageFinding`'s `repair` and `blame`, the triaged outcome's `goal` and `FindingRefusal`'s longer `words`, in the wire's next layout [in flight: change 10620].

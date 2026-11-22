@@ -1014,6 +1014,7 @@ fn workers_deployment() -> contract::Deployment {
     let mut doc = jig_client_kit::stories::deployment();
     doc.worker_settings = skein_lib::List::from_boxed(Box::new([
         contract::WorkerState {
+            pause: contract::WorkerPause::Taking,
             number: 1,
             name: b"local".as_slice().into(),
             places: 2,
@@ -1023,6 +1024,7 @@ fn workers_deployment() -> contract::Deployment {
             since: None,
         },
         contract::WorkerState {
+            pause: contract::WorkerPause::Taking,
             number: 2,
             name: b"w1".as_slice().into(),
             places: 4,

@@ -306,7 +306,7 @@ pub enum Event {
     Lost { channel: Token },
     Receive { channel: Token, payload: Payload },
     ResultRead { payload: Token, end: tasks::End },
-    AnswerPayload { run: Token, attempt: Token, payload: Token },
+    AnswerPayload { run: Token, attempt: Token, payload: Token, worker: Option<u32>, window: Duration },
     TurnPayload { run: Token, attempt: Token, turn: u32, body: Token },
     AcceptedTurn { payload: Token, task: u64, attempt: u64, turn: u32, accepted: tasks::Accepted },
     RefusedPayload { request: Token, problem: tasks::Problem },
@@ -417,7 +417,9 @@ pub fn step(link: &mut Link, now: Time, event: Event, out: &mut Queue<Request>) 
                 out.push(Request::Core(event));
             }
         }
-        Event::AnswerPayload { run, attempt, payload } => answer(link, run, attempt, payload, out),
+        Event::AnswerPayload { run, attempt, payload, worker, window } => {
+            answer(link, run, attempt, payload, worker, window, out);
+        }
         Event::TurnPayload { run, attempt, turn, body } => {
             let value = link.payload(body).expect("fleet retained the turn body");
             let (cumulative, read, refused) = match value {
@@ -564,7 +566,15 @@ pub fn fire(link: &mut Link, now: Time, out: &mut Queue<Request>) {
 pub fn next_deadline(link: &Link) -> Option<Time> {
     link.turn_backoffs.next()
 }
-fn answer(domain: &mut Link, run: Token, attempt: Token, payload: Token, work: &mut Queue<Request>) {
+fn answer(
+    domain: &mut Link,
+    run: Token,
+    attempt: Token,
+    payload: Token,
+    worker: Option<u32>,
+    window: Duration,
+    work: &mut Queue<Request>,
+) {
     let Some(Payload::Answer { task, attempt: retained, end, .. }) = domain.payloads.get(&payload) else {
         unreachable!("fleet retained the answer body");
     };
@@ -576,9 +586,9 @@ fn answer(domain: &mut Link, run: Token, attempt: Token, payload: Token, work: &
         }
         Ending::Link(
             other @ (host::Ending::Refused(_) | host::Ending::Parked { .. } | host::Ending::Failed { .. }),
-        ) => payload::ending(other),
+        ) => payload::ending(other, worker, window),
         Ending::Scripted(end) => end.clone(),
-        Ending::Job(ending) => payload::job_end(ending),
+        Ending::Job(ending) => payload::job_end(ending, worker, window),
     };
     domain.jobs.remove(&run.raw());
     work.push(Request::Core(result_event(domain, payload, end).expect("retained answer")));

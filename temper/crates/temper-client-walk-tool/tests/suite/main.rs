@@ -1,4 +1,4 @@
-//! Walks of the tests' own, never the checkout's journeys (journey-walks.md, 7).
+//! Walks of the tests' own, never the checkout's journeys (client/journey-walks.md, 7).
 use std::{
     collections::BTreeMap,
     fs,

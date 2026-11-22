@@ -29,7 +29,7 @@ pub fn answer(ending: jig_domain_host::Ending) -> jig_domain_host::LinkUp {
 pub(crate) fn assert_worker_only(service: &crate::worker_alone::Service) {
     let crate::worker_alone::Service { process: _, worker: _, held_listeners: _, listeners_closing: _ } = service;
 }
-fn charter() -> smith_domain_run::Charter {
+pub(crate) fn charter() -> smith_domain_run::Charter {
     use skein_lib::Duration;
     use smith_domain_run::{self as run, charter, outcome};
     run::Charter {

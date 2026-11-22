@@ -199,6 +199,7 @@ pub(crate) fn refused(record: &w::Ask, limits: &w::Limits) -> Result<Option<w::K
         | w::Ask::Rename(_)
         | w::Ask::MakeProject(_)
         | w::Ask::ChangeSettings(_)
+        | w::Ask::PauseWorker(_)
         | w::Ask::MoveToNewest(_)
         | w::Ask::Lift(_)
         | w::Ask::RemoveProject(_)

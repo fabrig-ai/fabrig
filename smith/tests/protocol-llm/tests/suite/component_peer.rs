@@ -378,7 +378,7 @@ fn run_story(
             && let Some(event) = up.pop()
         {
             match event {
-                ToDomain::BuiltinResult { .. } | ToDomain::ReadVersion { .. } => {
+                ToDomain::Usage { .. } | ToDomain::BuiltinResult { .. } | ToDomain::ReadVersion { .. } => {
                     panic!("a direct backend emits no program result")
                 }
                 ToDomain::Text { owner, bytes } => {

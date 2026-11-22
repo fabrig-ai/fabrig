@@ -16,9 +16,10 @@ A look request's round trip: drawing it, landing it, accounting for it and check
   page change into the stylesheets and view, for every state the
   request names, at every width, in the browser and the terminal
   (section 3).
-- **Compared by a reprint, never committed:** whoever lands a request
-  reprints in its own tree and compares; main's pages follow from the
-  journeys' writer (`../journey-writer.md`) after the landing (section 3).
+- **Compared by a print into scratch, never committed:** whoever lands
+  a request prints every journey in its own tree and compares; main's
+  pages follow from the journeys' writer (`../journey-writer.md`)
+  after the landing (section 3).
 - **The render check follows the writer's print:** the request's pages
   under their overlay against main's pages under the landed stylesheets,
   at three widths with each disclosure and menu open; what differs goes
@@ -37,8 +38,10 @@ A look request's round trip: drawing it, landing it, accounting for it and check
 - **On the latest prints.** Before a request is drawn, its branch is on
   `origin/main` through `look-refresh.sh`, on main's pages as the
   journeys' writer last printed them (`../journey-writer.md`, 6). A
-  journey whose print lags a landing is the writer's to walk again,
-  never the person's.
+  journey whose print lags a landing is the writer's to print in the
+  world, never the person's. Whoever lands the request prints every
+  journey into scratch with `cargo run -p temper-client-walk -- print
+  --out DIR` and compares there (section 3).
 - **The diff is the request:** the overlay's rules and the pages'
   changes. The browser's print, selectors, stylesheet and overlay files
   are `journeys.md`, 7; the TUI's frames and theme are
@@ -69,7 +72,7 @@ A look request's round trip: drawing it, landing it, accounting for it and check
 - **A state no journey reaches** may be drawn on a hand-made page, in a
   directory of its own under `journeys/` whose `README.md` says it is
   hand-made and from what. Its values are written in by hand, and no
-  reprint will equal it.
+  journey's print will equal it.
 - **Checked before it is committed:** screenshots at 1440 and 420
   pixels wide, and of each open state through a throwaway copy.
 
@@ -104,18 +107,16 @@ compare, and is complete when it lands:
 5. **The terminal:** a region, heading or order the request moves or
    removes is checked in the terminal's prints, which keep their
    meaning: a heading the browser drops by style stays a heading.
-6. **Compare by a reprint,** `cargo run -p temper-client-journeys`, in
-   the landing's own tree: each page the request changes against the
-   request's commit's. They are equal where their facts agree; a
-   hand-made page's values need not be a journey's. Then restore the
-   journeys' files to the base's: the landing commits no recording,
-   page or file printed beside them, which the journeys' writer prints
-   after it lands (`../journey-writer.md`, 6). A journey the reprint
-   finds stale is the writer's to walk again; its comparison is the
-   render check's (section 4). A journey whose `walk` is of version 2
-   is compared by a print into scratch instead, `cargo run -p
-   temper-client-walk -- print --out DIR NAME`, DIR's pages against the
-   request's commit's (`../journey-walks.md`, 6); it commits nothing.
+6. **Compare by a print into scratch,** `cargo run -p
+   temper-client-walk -- print --out DIR`, in the landing's own tree,
+   for every journey (`../journey-walks.md`, 5.1): each page the request
+   changes, from DIR, against the request's commit's. They are equal
+   where their facts agree; a hand-made page's values need not be a
+   journey's. The print walks in a world, with no box or replay of a
+   committed recording. A walk that stops is repaired, not replaced by
+   a comparison against main's earlier pages. The landing commits no
+   recording, page or file printed beside them: the journeys' writer
+   writes main's pages after it lands (`../journey-writer.md`, 6).
 7. **Account** (section 5), and bring the design text in line: the
    client's `../README.md` and `README.md`, the journeys' `README.md`
    files, `journeys.md`, 9, and the mockups' `../mockups/STATUS.md`.
@@ -124,13 +125,13 @@ Each commit of the landing carries the request's `Look-request: NAME`
 trailer, a later fix of what it missed included; one that lacks it hides
 the fix from `look-refresh.sh` and from whoever reads the request's
 history. Where the landing departs, the account says why, and later
-requests take the reprint as it is.
+requests take the print as it is.
 
 ## 4. The render check
 
 After the landing, once the journeys' writer has printed it on main
 (`../journey-writer.md`, 4), outside the plan. Whoever owns the
-after-landing check carries out this comparison; a reprint compared
+after-landing check carries out this comparison; a world print compared
 byte for byte establishes no rendered equality with a request.
 
 - **What is compared:** each page the request changes, from its own
@@ -200,9 +201,6 @@ per page change and per state the message names.
 - **A render-check command:** in `temper-client-journeys`, taking a
   request's name, so that section 4 is one command rather than each
   after-landing check's own script.
-- **Journeys reaching further:** the fake box's Forgejo set up
-  finishing, a walk across the ChatGPT sign-in's departure, and the
-  welcome's Ready, so that fewer states are hand-made.
 
 ## 9. Open questions
 

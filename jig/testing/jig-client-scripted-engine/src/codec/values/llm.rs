@@ -67,6 +67,9 @@ pub(in crate::codec) fn wire_task_run_wait(
         }),
         c::TaskRunWait::Credential => w::TaskRunWait::Credential,
         c::TaskRunWait::Host => w::TaskRunWait::Host,
+        c::TaskRunWait::Worker { worker, until } => {
+            w::TaskRunWait::Worker(w::TaskWaitWorker { worker: *worker, until: until.as_nanos() })
+        }
         c::TaskRunWait::Refused(value) => {
             w::TaskRunWait::Refused(w::TaskRunWaitRefused { value: wire_task_wait_refused(value, limits)? })
         }

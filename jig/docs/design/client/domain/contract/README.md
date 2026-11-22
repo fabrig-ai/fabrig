@@ -360,7 +360,8 @@ party reads is therefore never lost by a crash.
   An attempt's times are wall nanoseconds, none where the store did not
   record them (an attempt restored without its opening evidence,
   or still live); `end` is how its run ended, as the activity's
-  `run_ended` line says it; `phases` how many phase changes it took. A
+  `run_ended` line says it, `suspended` from version 40
+  (`../../../domain/engine/executors.md`, 6.2); `phases` how many phase changes it took. A
   hold's `before`, `why`, `source` and `ending` are a held chip's
   (`../objects.md`, 5). An escalation's `hold` is the hold row at its
   task's latest hold. The activity's `milestone` line stays, its

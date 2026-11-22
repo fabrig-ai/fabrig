@@ -24,9 +24,11 @@ pub(super) fn too_large(message: &Up, limits: &Limits) -> bool {
         | Up::Withdraw { .. }
         | Up::Long { .. }
         | Up::LongDone
+        | Up::Signalled { .. }
         | Up::Waiting { .. }
         | Up::Unauthorized { .. }
         | Up::Refused { .. }
+        | Up::Usage { .. }
         | Up::Limited { .. } => false,
     }
 }
@@ -112,12 +114,13 @@ pub(super) fn valid_record(agent: &Agent, message: &Up, env: &Env<Limits>) -> bo
             agent.word.admitted() && *span <= limits.long_span && agent.long.open < limits.long_open
         }
         Up::LongDone => agent.word.admitted() && agent.long.open > 0,
+        Up::Signalled { .. } => agent.word.admitted() && !agent.signalled,
         Up::Waiting { read } => agent.word.admitted() && agent.unread.known(*read),
         Up::Unauthorized { account, generation } => match agent.accounts.get(account) {
             Some(account) => agent.word.admitted() && *generation > 0 && *generation <= account.emitted,
             None => false,
         },
-        Up::Refused { account, .. } | Up::Limited { account, .. } => {
+        Up::Usage { account, .. } | Up::Refused { account, .. } | Up::Limited { account, .. } => {
             agent.word.admitted() && agent.accounts.contains_key(account)
         }
     }

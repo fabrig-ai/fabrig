@@ -24,7 +24,7 @@ fn credentials_have_one_layout_from_the_floor() {
 }
 
 #[test]
-fn current_kinds_are_total_but_worker_sends_are_not_at_sixteen() {
+fn current_kinds_are_total_but_not_at_older_versions() {
     let versions = u32::try_from(kept::TEXTS.len()).expect("kept version count");
     let forwards = u32::try_from(crate::patches::PATCHES.len()).expect("forward plans");
     let reverses = u32::from(wire::VERSION.checked_sub(wire::FLOOR).expect("kept floor"));
@@ -40,7 +40,7 @@ fn current_kinds_are_total_but_worker_sends_are_not_at_sixteen() {
     assert_eq!(bridge.total(wire::VERSION, b"FromEngine"), Some(true));
     assert_eq!(bridge.total(wire::VERSION, b"FromWorker"), Some(true));
     assert_eq!(bridge.total(16, b"FromWorker"), Some(false));
-    assert_eq!(bridge.total(16, b"FromEngine"), Some(true));
+    assert_eq!(bridge.total(16, b"FromEngine"), Some(false));
     assert_eq!(smith_channel::pieces::wire::FLOOR, smith_channel::pieces::wire::VERSION);
 }
 
@@ -73,7 +73,7 @@ fn kept_terms_exclude_fields_and_kinds_the_version_does_not_have() {
                 let bound = text
                     .most_bytes_within(
                         variant.record.expect("record"),
-                        crate::v18::LIMIT_NAMES,
+                        crate::v21::LIMIT_NAMES,
                         limits.values().as_slice(),
                     )
                     .expect("bound");

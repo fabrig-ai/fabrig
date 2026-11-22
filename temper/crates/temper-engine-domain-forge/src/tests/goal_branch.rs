@@ -334,7 +334,8 @@ fn a_goal_branch_making_waits_for_room_but_holds_for_each_unmendable_cause() {
             None => {
                 assert_no_making(&requests);
                 assert!(!d.is_ready(), "{case}: no busy loop");
-                assert_eq!(d.next_deadline(), None, "{case}: no polling timer");
+                let report = env().now.saturating_add(WAIT_REPORT);
+                assert_eq!(d.next_deadline(), Some(report), "{case}: only a report, no polling");
                 assert_no_making(&ready(&mut d));
                 assert_eq!(
                     outputs(

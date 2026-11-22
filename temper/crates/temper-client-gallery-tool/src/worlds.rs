@@ -1327,7 +1327,7 @@ fn repositories_making_watched(root: &mut Domain, watch: Token, out: &mut Queue<
     let record = jig_client::Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::forges(&w::Forges { forges: rows, linked: false }),
+        bytes: wire::forges(&w::Forges { forges: rows, full: List::with_capacity(0), linked: false }),
     };
     step(
         root,
@@ -1351,7 +1351,7 @@ fn copies_watched(root: &mut Domain, watch: Token, out: &mut Queue<Request>) {
     let record = jig_client::Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::forges(&w::Forges { forges: rows, linked: false }),
+        bytes: wire::forges(&w::Forges { forges: rows, full: List::with_capacity(0), linked: false }),
     };
     step(
         root,
@@ -1499,7 +1499,7 @@ fn forges(world: World) -> Box<[u8]> {
         })
         .expect("forge row");
     }
-    wire::forges(&w::Forges { forges: rows, linked: false })
+    wire::forges(&w::Forges { forges: rows, full: List::with_capacity(0), linked: false })
 }
 fn change_panel(w: World, task: u64) -> Option<temper_client_protocol_wire::v1::ChangePanel> {
     use temper_client_protocol_wire::v1 as w;
@@ -3809,6 +3809,10 @@ fn activity(w: World, task: u64) -> c::ActivityPage {
     c::ActivityPage { rows, after: None, before: None, cut: false }
 }
 /// Held facts for the usage gallery; no account read is simulated (client/pages/accounts.md, 2, Usage).
+#[expect(
+    clippy::type_complexity,
+    reason = "literal gallery windows keep their served rate beside the held fact fields"
+)]
 pub(super) fn account_usage(doc: &mut c::Accounts, name: &str, now: Wall) {
     doc.accounts.truncate(1);
     let account = doc.accounts.get_mut(0).expect("reference Claude account");
@@ -3828,20 +3832,21 @@ pub(super) fn account_usage(doc: &mut c::Accounts, name: &str, now: Wall) {
             origin: 5,
         })
         .expect("sample email");
-    let windows: &[(&[u8], u64, u64, u16, u16)] = match name {
-        "accounts-usage-filling" => &[(b"seven_day", 168, 48 * 60, 8300, 1), (b"five_hour", 5, 120, 7500, 1)],
-        "accounts-usage-calm" => &[(b"seven_day", 168, 48 * 60, 4200, 1), (b"five_hour", 5, 60, 1000, 1)],
-        "accounts-usage-limited" => &[(b"five_hour", 5, 40, 10000, c::WINDOW_LIMITED)],
-        "accounts-usage" => &[(b"seven_day", 168, 110 * 60, 2900, 1)],
+    let windows: &[(&[u8], u64, u64, u16, u16, u32)] = match name {
+        "accounts-usage-filling" => &[(b"seven_day", 168, 48 * 60, 8300, 1, 70), (b"five_hour", 5, 120, 7500, 1, 2500)],
+        "accounts-usage-calm" => &[(b"seven_day", 168, 48 * 60, 4200, 1, 35), (b"five_hour", 5, 60, 1000, 1, 250)],
+        "accounts-usage-limited" => &[(b"five_hour", 5, 40, 10000, c::WINDOW_LIMITED, 0)],
+        "accounts-usage" => &[(b"seven_day", 168, 110 * 60, 2900, 1, 50)],
         other => panic!("not a usage sample: {other}"),
     };
-    for &(label, hours, remaining, used, state) in windows {
+    for &(label, hours, remaining, used, state, rate) in windows {
         account
             .facts
             .push(c::AccountFact {
                 kind: c::FACT_USAGE,
                 label: Box::from(label),
                 value: c::AccountFactValue::Window(c::AccountWindow {
+                    rate: Some(rate),
                     length: Some(skein_lib::Duration::from_secs(hours.checked_mul(3600).expect("sample hours"))),
                     used: Some(used),
                     resets: Some(Wall::from_nanos(
@@ -5513,6 +5518,7 @@ fn worker_settings(since: Wall) -> List<c::WorkerState> {
         [(1, "Workshop", true, None), (2, "Finishing", true, Some([0xab; 32])), (3, "Away", false, Some([0xcd; 32]))]
     {
         rows.push(c::WorkerState {
+            pause: c::WorkerPause::Taking,
             number,
             name: name.as_bytes().into(),
             places: 2,

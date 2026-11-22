@@ -10,6 +10,8 @@ fn job(run: Token, attempt: Token, bound: JobBound, adopt: bool) -> Event {
 
 fn worker(h: &mut Harness, channel: Token, jobs: Box<[JobBound]>) {
     let mut hello = Hello {
+        fresh: false,
+        reads_usage: true,
         slots: 2,
         stop_bound: Duration::ZERO,
         bounds: fixtures::bounds(),
@@ -45,7 +47,14 @@ fn a_busy_job_is_placed_again_and_its_answer_is_acknowledged() {
         h.step(Event::Answer { channel: C2, run: R1, attempt: A1, answer: Answer::Ended, payload: payload(2) });
     assert_eq!(
         &*result,
-        &[Request::Answered { to: to(A1), run: R1, attempt: A1, answer: Answer::Ended, payload: payload(2) }]
+        &[Request::Answered {
+            to: to(A1),
+            run: R1,
+            attempt: A1,
+            answer: Answer::Ended,
+            payload: payload(2),
+            worker: Some(1)
+        }]
     );
     assert_eq!(
         &*h.step(Event::Acknowledge { run: R1, attempt: A1 }),
@@ -59,6 +68,8 @@ fn a_job_prefers_its_workstream_and_waits_for_a_free_slot() {
     let mut h = Harness::new(LIMITS);
     worker(&mut h, C1, Box::new([JOB]));
     let hello = Hello {
+        fresh: false,
+        reads_usage: true,
         slots: 1,
         bounds: fixtures::bounds(),
         jobs: Box::new([JOB]),
@@ -78,6 +89,8 @@ fn a_job_prefers_its_workstream_and_waits_for_a_free_slot() {
 fn adopting_a_job_drops_a_turn_retained_before_its_claim() {
     let mut h = Harness::new(Limits { turns: 2, ..LIMITS });
     let hello = Hello {
+        fresh: false,
+        reads_usage: true,
         slots: 1,
         bounds: fixtures::bounds(),
         jobs: Box::new([JOB]),
@@ -95,6 +108,8 @@ fn adopting_a_job_drops_a_turn_retained_before_its_claim() {
 fn a_job_needs_no_run_models_or_login_inventory() {
     let mut h = Harness::new(LIMITS);
     let hello = Hello {
+        fresh: false,
+        reads_usage: true,
         slots: 1,
         bounds: fixtures::bounds(),
         jobs: Box::new([JOB]),

@@ -99,7 +99,7 @@ fn a_fenced_result_is_handed_out_before_the_answer_is_read() {
     let (run, attempt, payload, answer) = received_answer(&mut domain, fixtures::answer());
     assert_eq!(answer, fleet::Answer::Ended);
     let mut work = fixtures::work();
-    link::answer(&mut domain, run, attempt, payload, &mut work);
+    link::answer(&mut domain, run, attempt, payload, None, Duration::ZERO, &mut work);
     assert!(work.is_empty());
     let Request::ReadResult { payload: handed, outcome } = domain.now.pop().expect("fenced result handout") else {
         panic!("opaque result leaves for reading");
@@ -157,7 +157,7 @@ fn a_start_refusal_reaches_the_core_as_permanent_without_reading_a_result() {
             received_answer(&mut domain, host::LinkUp::Answer { run, attempt, answer });
         assert_eq!(answer, fleet::Answer::Invalid);
         let mut work = fixtures::work();
-        link::answer(&mut domain, run, attempt, payload, &mut work);
+        link::answer(&mut domain, run, attempt, payload, None, Duration::ZERO, &mut work);
         assert!(domain.now.is_empty());
         let Some(crate::Work::Core(core::Event::AnswerPayload { end, .. })) = work.pop() else {
             panic!("invalid start reaches the core without a result codec");
@@ -678,7 +678,7 @@ fn a_bound_failure_reaches_the_core_with_its_configured_value() {
         };
         let (run, attempt, payload, _) = received_answer(&mut domain, host::LinkUp::Answer { run, attempt, answer });
         let mut work = fixtures::work();
-        link::answer(&mut domain, run, attempt, payload, &mut work);
+        link::answer(&mut domain, run, attempt, payload, None, Duration::ZERO, &mut work);
         let Some(crate::Work::Core(core::Event::AnswerPayload { end, .. })) = work.pop() else {
             panic!("bound terminal")
         };

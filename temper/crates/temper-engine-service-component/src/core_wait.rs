@@ -40,7 +40,7 @@ impl CoreWait {
         }
     }
 }
-fn starting(step: Option<Phase>) -> &'static [u8] {
+pub(crate) fn starting(step: Option<Phase>) -> &'static [u8] {
     match step {
         None | Some(Phase::LoadCore) => b"loading the core's records",
         Some(Phase::LoadInbox) => b"loading the inbox",

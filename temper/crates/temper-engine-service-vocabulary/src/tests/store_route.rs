@@ -994,6 +994,7 @@ fn startup_calls_and_proofs_with_zero_identities_reach_the_root_unchanged() {
         settled: None,
     }));
     let proof = core::Record::Core(core::CoreRecord::RunProof(core::RunProof {
+        worker: None,
         task: 0,
         attempt: 0,
         conversation: 0,

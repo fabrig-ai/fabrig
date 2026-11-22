@@ -254,6 +254,13 @@ pub(in crate::codec) fn wire_run_end(value: &c::RunEnd, limits: &w::Limits) -> R
             invalid_reason: invalid_reason.map(wire_invalid_reason),
         }),
         c::RunEnd::Refused => w::RunEnd::Refused,
+        c::RunEnd::Suspended { worker, why } => w::RunEnd::Suspended(w::RunEndSuspended {
+            worker: *worker,
+            why: match why {
+                c::SuspendWhy::Stopped => w::SuspendWhy::Stopped,
+                c::SuspendWhy::Restarted => w::SuspendWhy::Restarted,
+            },
+        }),
     })
 }
 

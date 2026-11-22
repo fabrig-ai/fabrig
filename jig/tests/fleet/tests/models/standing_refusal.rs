@@ -19,6 +19,8 @@ impl Fleet {
             channel: Token::new(channel),
             worker,
             hello: Hello {
+                fresh: false,
+                reads_usage: true,
                 jobs: Box::default(),
                 slots: 1,
                 stop_bound,
@@ -96,7 +98,8 @@ fn admission_clears_only_its_kind_and_an_ineligible_host_suppresses_both() {
                 1,
                 jig_domain_fleet::Version { charter: jig_fleet_world::fixtures::MODEL_CHARTER, revision: 1 },
                 &jig_fleet_world::fixtures::model_needs().charters[0].models,
-                &[]
+                &[],
+                None
             )
             .is_none()
     );

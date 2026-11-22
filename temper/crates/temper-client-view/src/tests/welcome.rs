@@ -1854,7 +1854,8 @@ fn ready_with_pending_playground() -> (d::Domain, skein_lib::Token, skein_lib::T
                     },
                 );
             } else if Some(subject.clone()) == d::forge::forges::watch(&f::limits().forge) {
-                let doc = w::Forges { forges: owned_adopted_rows(), linked: true };
+                let doc =
+                    w::Forges { forges: owned_adopted_rows(), full: skein_lib::List::with_capacity(0), linked: true };
                 f::root_event(
                     &mut root,
                     d::Event::Client {

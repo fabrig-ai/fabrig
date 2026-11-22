@@ -195,6 +195,8 @@ impl Core {
         }
         self.start.waiting = None;
         if self.stopping {
+            self.start.held.clear();
+            self.start.waiting_tasks.clear();
             return Action::Idle;
         }
         match continuation.phase {

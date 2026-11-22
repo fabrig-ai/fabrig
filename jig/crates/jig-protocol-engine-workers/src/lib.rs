@@ -14,7 +14,7 @@ mod unencoded;
 mod wires;
 pub use boundary::{Bound, Event, GrantValue, Loss, Request, Scheme, Unsent, Worker};
 pub use component::{Component, Unusable};
-pub use limits::{Limits, valid};
+pub use limits::{Limits, Timers, valid};
 pub use statement::{Stated, Statement, Unfit, judge};
 pub use unencoded::Unencoded;
 #[cfg(test)]

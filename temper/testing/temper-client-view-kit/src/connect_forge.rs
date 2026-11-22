@@ -213,7 +213,11 @@ pub fn deliver(root: &mut d::Domain, watch: skein_lib::Token, rows: List<w::Forg
                     record: jig_client::Family {
                         family: temper_client_protocol_wire::FORGE,
                         version: temper_client_protocol_wire::CLIENT_VERSION,
-                        bytes: temper_client_protocol_wire::forges(&w::Forges { forges: rows, linked: false }),
+                        bytes: temper_client_protocol_wire::forges(&w::Forges {
+                            forges: rows,
+                            full: List::with_capacity(0),
+                            linked: false,
+                        }),
                     },
                 },
             },

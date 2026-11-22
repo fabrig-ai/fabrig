@@ -173,6 +173,7 @@ impl Timing {
             }
             process::Request::Spawn { .. }
             | process::Request::Read { .. }
+            | process::Request::CloseChannel { .. }
             | process::Request::Signal { .. }
             | process::Request::Wait { .. }
             | process::Request::Reap { .. }
@@ -213,8 +214,10 @@ impl Timing {
                 | host::Up::Long { .. }
                 | host::Up::LongDone
                 | host::Up::Unauthorized { .. }
+                | host::Up::Usage { .. }
                 | host::Up::Limited { .. }
                 | host::Up::Refused { .. }
+                | host::Up::Signalled { .. }
                 | host::Up::Answer { .. } => {}
             },
             process::Event::Received { .. }

@@ -19,29 +19,7 @@ use jig_domain_link::{SignOutResult, SourceName};
 use jig_domain_people as people;
 use skein_lib::{Decision as SkeinDecision, Journal as SkeinJournal, List, Queue, ReplyTo, Token};
 
-/// Store edges and admission bounds supplied by the root, immutable across
-/// journal calls (domain/root.md, 4 and 9). Its journal is uncapped.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct Limits {
-    /// The store's commits in flight: sent and unanswered, an edge enforced
-    /// by the root. Also counted in the default admission watermark.
-    pub commits: u32,
-    /// Held-delivery count retained in root configuration; the root's uncapped journal
-    /// does not use it for admission.
-    pub held: u32,
-    /// Maximum unique writes per commit, including its automatically saved deployment header; a
-    /// decision has one fewer slot.
-    pub writes: u32,
-    /// The door's outputs, counted in the admission watermark's default; no decision's cap.
-    pub deliveries: u32,
-    /// Maximum transcript bytes or deep owned bytes in a wrapped child row; excess writes return
-    /// ownership.
-    pub transcript_bytes: u32,
-    /// Maximum owned result text or assignment section text admitted to a held delivery.
-    pub result_bytes: u32,
-    /// Maximum deeply owned run charter bytes in a held assignment.
-    pub run_bytes: u32,
-}
+pub use temper_engine_domain_limits::{JournalLimits as Limits, journal_valid as valid};
 
 /// Owned root effects held after the decision they follow (domain/root.md, section 4). External notices have no acknowledgement of their own; web
 /// replies consume one reply destination. Internal fleet/load deliveries are
@@ -547,6 +525,11 @@ impl Decision {
             }
             Delivery::Forges { forges, .. } => {
                 let mut owned = forges.rows.len().saturating_mul(size_of::<temper_engine_domain_forge::Row>());
+                for table in &forges.full {
+                    owned = owned
+                        .saturating_add(size_of::<temper_engine_domain_forge::FullTable>())
+                        .saturating_add(table.words.len());
+                }
                 for row in &forges.rows {
                     use temper_engine_domain_forge::Connection;
                     owned = owned.saturating_add(
@@ -773,15 +756,6 @@ pub fn uncommitted(journal: &mut Journal, number: u64, out: &mut Queue<Output>) 
     out.push(Output::Stop);
 }
 
-/// Whether the journal's store and admission limits are usable
-/// (temper/docs/design/domain/root.md, sections 4 and 9).
-/// Commits, writes, deliveries and run bytes must be nonzero; one write slot
-/// is reserved for the deployment header. Heap sums do not constrain admission.
-#[must_use]
-pub const fn valid(limits: &Limits) -> bool {
-    limits.commits != 0 && limits.writes != 0 && limits.deliveries != 0 && limits.run_bytes != 0
-}
-
 fn fleet_delivery_within(event: &jig_domain_fleet::Event) -> bool {
     use jig_domain_fleet::Event;
     match event {
@@ -793,6 +767,8 @@ fn fleet_delivery_within(event: &jig_domain_fleet::Event) -> bool {
         | Event::Relayed { .. } => true,
         Event::Ask { .. }
         | Event::Asked { .. }
+        | Event::CancelUsage { .. }
+        | Event::ReadUsage { .. }
         | Event::ReadList { .. }
         | Event::ListRead { .. }
         | Event::Needs(_)
@@ -816,6 +792,8 @@ fn fleet_delivery_within(event: &jig_domain_fleet::Event) -> bool {
         | Event::Loaded
         | Event::Grant { .. }
         | Event::Unauthorized { .. }
+        | Event::Usage { .. }
+        | Event::UsageRead { .. }
         | Event::Limited { .. }
         | Event::AccountRefused { .. }
         | Event::Hello { .. }
@@ -823,6 +801,8 @@ fn fleet_delivery_within(event: &jig_domain_fleet::Event) -> bool {
         | Event::Answer { .. }
         | Event::Turn { .. }
         | Event::TurnBusy { .. }
+        | Event::PauseWorker { .. }
+        | Event::Paused { .. }
         | Event::Observe { .. } => false,
     }
 }

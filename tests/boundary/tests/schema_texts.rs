@@ -29,6 +29,10 @@ fn owners(list: &str) -> BTreeMap<PathBuf, Vec<PathBuf>> {
         let Some(module) = paths.next() else { continue };
         let codec = module.split("/src/").next().expect("codec crate");
         for schema in paths {
+            // Translation rows end in maps, which are not embedded schema texts.
+            if Path::new(schema).extension().is_some_and(|extension| extension == "maps") {
+                continue;
+            }
             let owner = schema.split("/schema/").next().expect("schema owner");
             owners.insert(
                 PathBuf::from(schema),
@@ -157,8 +161,10 @@ fn inspect(file: &Path, source: &str, owners: &BTreeMap<PathBuf, Vec<PathBuf>>) 
 
 #[test]
 fn schema_includes_are_confined_to_the_owner_constant() {
-    let owners =
-        owners("owner/src/generated/current.rs owner/schema/current-v1.schema owner/schema/current-v1-part1.schema");
+    let owners = owners(
+        "owner/src/generated/current.rs owner/schema/current-v1.schema owner/schema/current-v1-part1.schema owner/schema/current.maps",
+    );
+    assert_eq!(owners.len(), 2, "maps are not schema texts");
     let owner = Path::new("owner/src/lib.rs");
     let good = r#"pub const SCHEMA: &str = concat!(include_str!("../schema/current-v1.schema"), include_str!("../schema/current-v1-part1.schema"));"#;
     let (seen, failures) = inspect(owner, good, &owners);

@@ -1285,7 +1285,7 @@ impl World {
             Request::Process(_) => panic!("in-process local world cannot spawn an external agent"),
             Request::SelectChat { .. } => panic!("this world's stories keep their configured chat"),
             Request::Answered { .. } => self.answers += 1,
-            Request::Unanswered { .. } => {}
+            Request::Log { .. } | Request::Unanswered { .. } => {}
             Request::Exit { status } => {
                 self.exit = Some(status);
                 self.reached.insert(Goal::Exit);

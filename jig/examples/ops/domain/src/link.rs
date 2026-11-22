@@ -133,14 +133,14 @@ pub(crate) fn host_out(
                 work.push(Work::Host(host::Event::RelayCancelled { run, attempt, call }));
             }
             // This root never asks and configures its engine host directly.
-            host::Request::Asked { .. } | host::Request::Hello { .. } => {}
+            host::Request::Asked { .. } | host::Request::Hello { .. } | host::Request::Paused { .. } => {}
             host::Request::Prepare { owner, .. } => work.push(Work::Host(host::Event::Unprepared {
                 owner,
                 failure: host::Preparation::Permanent { resource: None },
                 detail: Box::new([]),
             })),
-            host::Request::ReadList { .. } | host::Request::CancelRead { .. } => {
-                unreachable!("the host answers list reads without a machine")
+            host::Request::ReadUsage { .. } | host::Request::ReadList { .. } | host::Request::CancelRead { .. } => {
+                unreachable!("the host refuses reads without a source machine")
             }
             host::Request::Source { .. } | host::Request::SourceFault => {
                 unreachable!("engine hub has no program sources")

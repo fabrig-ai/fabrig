@@ -30,6 +30,9 @@ fn stock_profiles_make_both_links_and_fit_every_nonstart_frame() {
                 | Kind::Answer
                 | Kind::Fact
                 | Kind::Unauthorized
+                | Kind::Usage
+                | Kind::UsageRead
+                | Kind::ReadUsage
                 | Kind::Limited
                 | Kind::AccountRefused
                 | Kind::Message
@@ -49,6 +52,8 @@ fn stock_profiles_make_both_links_and_fit_every_nonstart_frame() {
                 | Kind::SignedOut
                 | Kind::JobAnswer
                 | Kind::Ask
+                | Kind::Pause
+                | Kind::Paused
                 | Kind::Restarting
                 | Kind::Asked
                 | Kind::Wires => false,

@@ -9,8 +9,7 @@ before the engine reports drained. The one-process drain story checks
 one interrupted terminal at the stop, no claim left to settle at restart
 and no lost try. This claim settlement is separate from cancelling the
 worker's agents before closing it; the reference-service gap below
-remains. A worker stopping in another process retains section 9's
-deferred failure accounting.
+remains.
 
 - **Not yet:** 2, 6, 10: agents in a host's own process (`smith-inline-agent`). 10: a client the process holds, over an in-process transport. 6, 7: contained process trees, and TLS between hosts. 7, 8: `ops`'s service and `ops` standalone: `jig/examples/ops` has no service. 8: the live story fails on a real plan.
 - **Not yet:** 10: the test service's workers cancelled before they are closed: `jig/testing/jig-test-service/src/lib.rs` aborts each worker once the engine has ended, killing its agent processes' groups with no cancel first. This remains outside the temper-service repair: the reference agents use skein's fake LLM, with no program of their own to leave running. Temper's service cancels and waits for its agents before closing its worker.

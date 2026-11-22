@@ -54,7 +54,7 @@ fn document(root: &mut Domain, watch: Token, row: w::ForgeRow) -> Queue<Request>
                     record: Family {
                         family: wire::FORGE,
                         version: wire::CLIENT_VERSION,
-                        bytes: wire::forges(&w::Forges { forges: rows, linked: false }),
+                        bytes: wire::forges(&w::Forges { forges: rows, full: List::with_capacity(0), linked: false }),
                     },
                 },
             },

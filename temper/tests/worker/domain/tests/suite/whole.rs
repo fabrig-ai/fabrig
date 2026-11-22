@@ -134,6 +134,28 @@ fn the_drain_bound_cancels_a_run_still_in_its_turn() {
 }
 
 #[test]
+fn a_link_drain_saves_the_turn_and_stays_linked_after_every_acknowledgement() {
+    let report = run(118, Case::LinkDrained);
+    assert_eq!((report.drains, report.cancellations, report.saves), (1, 0, 1));
+}
+
+#[test]
+fn the_link_drain_bound_counts_from_the_ask_and_cancels_a_turn_still_running() {
+    let report = run(119, Case::LinkDrainExpired);
+    assert_eq!((report.drains, report.cancellations, report.saves), (1, 1, 1));
+}
+
+#[test]
+fn a_link_pause_keeps_the_run_live_refuses_busy_and_a_resume_admits_again() {
+    temper_worker_domain_world::whole::pause::pause_and_resume(120);
+}
+
+#[test]
+fn a_stop_during_a_link_drain_keeps_only_the_signals_deadlines() {
+    temper_worker_domain_world::whole::pause::stop_during_link_drain(121);
+}
+
+#[test]
 fn the_contact_stop_bound_cuts_a_save_push_that_never_answers() {
     assert_eq!(temper_worker_domain_world::whole::contact_bound(114, true).io_cuts, 1);
 }

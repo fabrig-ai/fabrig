@@ -1,5 +1,7 @@
 //! Clearing, many ids and durable waiting, in judged-run order (red-findings.md, 2, 5–7).
 use super::*;
+mod judging;
+pub(crate) mod repairs;
 
 fn next(d: &mut Domain, mut failing: p::Failures, originally: &[&[u8]]) {
     if let p::Failures::Tests(ids) = &mut failing {
@@ -134,6 +136,7 @@ fn enumerated_runs_give_only_unheld_ids_to_the_oldest_many() {
     let mut first = kept(&mut d, signature(&[], true), FindingKind::Red);
     first.title = b"many tests fail in browser since R3 landed".as_slice().into();
     first.blame = Some(FindingBlame {
+        moved: None,
         strength: BlameStrength::Owned,
         landings: Box::new([BlamedLanding {
             commit: NEXT_TIP,
@@ -160,7 +163,7 @@ fn enumerated_runs_give_only_unheld_ids_to_the_oldest_many() {
         title: b"Waiting".as_slice().into(),
         body: b"Whole".as_slice().into(),
         signature: signature(&[OWN], false),
-        blame: Some(FindingBlame { strength: BlameStrength::Unblamed, landings: Box::new([]) }),
+        blame: Some(FindingBlame { moved: None, strength: BlameStrength::Unblamed, landings: Box::new([]) }),
         follow: Some(9),
     };
     d.tiers.get_mut(&(REPO, TIER.into())).unwrap().waiting = Box::new([waiting.clone()]);
@@ -270,8 +273,9 @@ pub(crate) fn random_runs(seed: u64) -> (Vec<Finding>, Box<[VerdictFiling]>, u32
                 _ => Triage::Drop(b"triaged".as_slice().into()),
             };
             if !finding.state.ended() {
-                let write =
-                    d.prepare_triage_finding(TriageFinding { project: 5, number: finding.number, act }).unwrap();
+                let write = d
+                    .prepare_triage_finding(Filer::Task(40), TriageFinding { project: 5, number: finding.number, act })
+                    .unwrap();
                 finding = write.row.clone();
                 d.commit_finding(&env.limits, write, &mut Queue::uncapped());
             }
@@ -302,4 +306,26 @@ pub(crate) fn random_runs(seed: u64) -> (Vec<Finding>, Box<[VerdictFiling]>, u32
         }
     }
     (d.findings(5).map(|(_, finding)| finding.clone()).collect(), row(&d).waiting.clone(), row(&d).unkept)
+}
+
+#[test]
+fn enumerating_a_many_finding_keeps_moved_blame() {
+    use crate::findings::BlameMove;
+    let mut d = one();
+    let mut first = kept(&mut d, signature(&[], true), FindingKind::Red);
+    first.title = b"many tests fail in browser since R3 landed".as_slice().into();
+    first.blame = Some(FindingBlame {
+        strength: BlameStrength::Moved,
+        landings: Box::new([BlamedLanding { commit: NEXT_TIP, goals: Box::new([]) }]),
+        moved: Some(BlameMove { by: Filer::Party(8), why: b"the landing log".as_slice().into() }),
+    });
+    outputs(&mut d, Event::Restore { record: Stored::Finding(first.clone()) });
+    next(&mut d, failures(&[B, C]), &[B, C]);
+    let (calls, _) = judged(&mut d, &env());
+    assert_eq!(calls.len(), 0);
+    let given = d.finding(5, first.number).expect("enumerated finding");
+    assert_eq!(given.signature, Some(signature(&[C, B], false)));
+    assert_eq!(given.blame, first.blame);
+    assert_eq!(given.body, first.body);
+    assert_eq!(given.title.as_ref(), b"2 tests fail in browser since R3 landed");
 }

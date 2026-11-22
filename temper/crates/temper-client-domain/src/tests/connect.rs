@@ -517,7 +517,7 @@ fn deliver_first_record(
             record: client::Family {
                 family: wire::FORGE,
                 version: wire::CLIENT_VERSION,
-                bytes: wire::forges(&w::Forges { forges: rows, linked: false }),
+                bytes: wire::forges(&w::Forges { forges: rows, full: List::with_capacity(0), linked: false }),
             },
         },
     )
@@ -783,7 +783,7 @@ fn deliver_picker(root: &mut crate::Domain, watch: Token, changed: bool) -> Queu
             record: client::Family {
                 family: wire::FORGE,
                 version: wire::CLIENT_VERSION,
-                bytes: wire::forges(&w::Forges { forges: rows, linked: false }),
+                bytes: wire::forges(&w::Forges { forges: rows, full: List::with_capacity(0), linked: false }),
             },
         },
     )
@@ -1193,7 +1193,7 @@ fn go_on_uses_a_kept_github_and_its_recorded_app_way() {
                 record: client::Family {
                     family: wire::FORGE,
                     version: wire::CLIENT_VERSION,
-                    bytes: wire::forges(&w::Forges { forges: rows, linked: false }),
+                    bytes: wire::forges(&w::Forges { forges: rows, full: List::with_capacity(0), linked: false }),
                 },
             },
         );
@@ -1361,7 +1361,7 @@ fn set_up_again_keeps_copies_or_nothing_from_the_row_and_last_ask() {
         let record = client::Family {
             family: wire::FORGE,
             version: wire::CLIENT_VERSION,
-            bytes: wire::forges(&w::Forges { forges, linked: false }),
+            bytes: wire::forges(&w::Forges { forges, full: List::with_capacity(0), linked: false }),
         };
         up(&mut root, Up::FamilyDelivered { watch, record });
         for _attempt in 0_u32..2 {

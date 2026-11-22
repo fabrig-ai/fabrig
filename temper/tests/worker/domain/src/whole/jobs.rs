@@ -172,13 +172,17 @@ impl World {
                 self.owed.push_back(Event::Done { owner, done });
             }
             Request::Job { owner, op } => self.operations.push_back((owner, op)),
-            Request::Git { .. }
+            Request::Paused { .. }
+            | Request::Git { .. }
+            | Request::AgentSignalled { .. }
             | Request::AgentStopped { .. }
             | Request::Unprepared { .. }
-            | Request::Link(host::LinkUp::Draining) => {}
+            // jig/docs/design/domain/hosts/hub.md, 7, Paused over the link.
+            | Request::Link(host::LinkUp::Paused { .. } | host::LinkUp::Draining) => {}
             Request::Abandon => panic!("unexpected stop bound"),
             Request::Stop => self.stops += 1,
-            Request::ReadList { .. }
+            Request::ReadUsage { .. }
+            | Request::ReadList { .. }
             | Request::CancelRead { .. }
             | Request::Source { .. }
             | Request::ResultsIgnored { .. }

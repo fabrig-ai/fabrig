@@ -12,7 +12,7 @@ pub(crate) fn owns(owner: Token) -> bool {
 }
 
 pub(crate) fn request(engine: &mut Engine, forge: u16) {
-    if !engine.store.host.mark_durable() {
+    if !crate::stop::marked(engine) {
         engine.forge.erase_waiting.insert(forge, ()).expect("bounded restored removals");
         return;
     }
@@ -44,7 +44,7 @@ pub(crate) fn request(engine: &mut Engine, forge: u16) {
 
 /// A restored removal waits for this start's durable store mark.
 pub(crate) fn advance(engine: &mut Engine) {
-    if !engine.store.host.mark_durable() {
+    if !crate::stop::marked(engine) {
         return;
     }
     for _ in 0..engine.forge.erase_waiting.len() {

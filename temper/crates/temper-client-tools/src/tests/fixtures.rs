@@ -88,6 +88,20 @@ pub(crate) const OPEN_CHANGE: &[&str] = &[
     "--key",
     "open-change",
 ];
+pub(crate) const FINDING_REPAIR_CALL: &[&str] =
+    &["finding", "repair", "1/3", "shop/5", "repair together", "--key", "repair"];
+pub(crate) const FINDING_BLAME_LANDING_CALL: &[&str] = &[
+    "finding",
+    "blame",
+    "1/3",
+    "--landing",
+    "1234567890abcdef1234567890abcdef12345678",
+    "this landing",
+    "--key",
+    "blame-landing",
+];
+pub(crate) const FINDING_BLAME_NONE_CALL: &[&str] =
+    &["finding", "blame", "1/3", "--none", "no landing", "--key", "blame-none"];
 pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["link", "--out", "record"],
     &["deployment", "checkpoint"],
@@ -110,6 +124,9 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["finding", "route", "3/12", "--goal", "41", "--key", "route"],
     &["finding", "backlog", "3/12", "--key", "backlog"],
     &["finding", "drop", "3/12", "duplicate", "--key", "drop"],
+    FINDING_REPAIR_CALL,
+    FINDING_BLAME_LANDING_CALL,
+    FINDING_BLAME_NONE_CALL,
     &[
         "need",
         "ask",
@@ -130,6 +147,7 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["role", "start", "--project", "2", "--budget", "0.50", "Owns the tests", "--key", "k"],
     &["role", "list", "--project", "shop"],
     &["role", "show", "41"],
+    &["goal", "show", "820"],
     &["role", "talk", "41", "Hello", "--key", "talk"],
     &["role", "talk", "41", "--leave", "--key", "leave"],
     &["project", "make", "Second", "--key", "second-project"],
@@ -279,6 +297,9 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     WORKER_ADD,
     WORKER_PLACES,
     WORKER_REMOVE,
+    &["worker", "pause", "w1"],
+    &["worker", "drain", "w1"],
+    &["worker", "resume", "w1"],
 ];
 
 pub(crate) const WORKER_ADD: &[&str] = &[
@@ -755,6 +776,7 @@ impl Harness {
         let count = if (call.tool == crate::jig::rows::GOAL_START_AT && crate::jig::call::number(&call, 11).is_some())
             || crate::table::TOOLS[usize::from(call.tool)].name == b"change show"
             || crate::table::TOOLS[usize::from(call.tool)].name == b"landing history"
+            || call.tool == crate::jig::rows::WORKER_LIST_AT
         {
             SINGLE_READ
         } else if crate::jig::call::waiting(crate::table::TOOLS[usize::from(call.tool)], &call) {
@@ -780,7 +802,9 @@ impl Harness {
                 | crate::jig::rows::TASK_NOTES_AT
                 | crate::jig::rows::DEPLOYMENT_CENSUS_AT
                 | crate::jig::rows::WORKER_LIST_AT..=crate::jig::rows::WORKER_REMOVE_AT
+                | crate::jig::rows::WORKER_PAUSE_AT..=crate::jig::rows::WORKER_RESUME_AT
                 | crate::jig::rows::MILESTONE_LIST_AT
+                | crate::jig::rows::GOAL_SHOW_AT
                 | crate::jig::rows::MILESTONE_SHOW_AT
                 | crate::jig::rows::MILESTONE_WHOLE_AT
                 | crate::jig::rows::ROLE_LIST_AT

@@ -716,6 +716,12 @@ pub fn waiting(b: &mut Builder, root: &Domain, task: &c::Task, w: &Words, bindin
             b.close();
         }
         Some(c::TaskRunWait::Host) => line(b, w, host_wait(root), &[]),
+        Some(c::TaskRunWait::Worker { worker, until }) => line(
+            b,
+            w,
+            W::WaitReturningWorker,
+            &[Hole::Name(run_worker(Some(root), w, worker)), Hole::Name(times.say(w, TimeForm::Clock, until))],
+        ),
         Some(c::TaskRunWait::Account { .. }) => {
             account_wait(b, root, task, w, bindings);
         }
@@ -1053,7 +1059,23 @@ fn untooled(
         w.say(W::WaitUntooledNext, &[Hole::Name(worker)]),
     )
 }
+/// A worker reference for suspended attempts and their waits (jig's engine/executors.md, 6.2).
+#[must_use]
+pub fn run_worker(root: Option<&Domain>, w: &Words, number: u32) -> Box<[u8]> {
+    if let Some(root) = root
+        && let Some(name) = worker_name(root, number)
+    {
+        return w.say(W::RunWorker, &[Hole::Name(skein_lib::bytes::copy_of(name))]);
+    }
+    w.say(W::WaitWorker, &[Hole::Number(u64::from(number))])
+}
 fn wait_worker(root: &Domain, w: &Words, number: u32) -> Box<[u8]> {
+    if let Some(name) = worker_name(root, number) {
+        return skein_lib::bytes::copy_of(name);
+    }
+    w.say(W::WaitWorker, &[Hole::Number(u64::from(number))])
+}
+fn worker_name(root: &Domain, number: u32) -> Option<&[u8]> {
     let deployment = if let Some(page) = root.pages().accounts() {
         page.deployment(root.client())
     } else if let Some(page) = root.pages().builders()
@@ -1066,11 +1088,11 @@ fn wait_worker(root: &Domain, w: &Words, number: u32) -> Box<[u8]> {
     if let Some(deployment) = deployment {
         for worker in &deployment.worker_settings {
             if worker.number == number {
-                return skein_lib::bytes::copy_of(&worker.name);
+                return Some(&worker.name);
             }
         }
     }
-    w.say(W::WaitWorker, &[Hole::Number(u64::from(number))])
+    None
 }
 fn source_wait(b: &mut Builder, w: &Words, word: crate::accounts::words::Word, until: Option<skein_lib::Wall>) {
     use crate::accounts::words::{self, Word as A};
@@ -1089,6 +1111,15 @@ pub(crate) fn wait_why(root: &Domain, w: &Words, wait: &c::TaskRunWait) -> Box<[
     let (word, until) = match *wait {
         c::TaskRunWait::Credential => return w.say(W::WaitCredential, &[]),
         c::TaskRunWait::Host => return w.say(host_wait(root), &[]),
+        c::TaskRunWait::Worker { worker, until } => {
+            return w.say(
+                W::WaitReturningWorker,
+                &[
+                    Hole::Name(run_worker(Some(root), w, worker)),
+                    Hole::Name(Times::new(until).say(w, TimeForm::Clock, until)),
+                ],
+            );
+        }
         c::TaskRunWait::Refused(why) => {
             let at = match why {
                 c::TaskWaitRefused::Hello { at, .. } => at,
@@ -1174,6 +1205,7 @@ pub(crate) const fn wait_settles(wait: &c::TaskRunWait) -> bool {
         }
         | c::TaskRunWait::Credential
         | c::TaskRunWait::Host
+        | c::TaskRunWait::Worker { .. }
         | c::TaskRunWait::Refused(_) => false,
     }
 }

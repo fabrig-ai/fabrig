@@ -681,6 +681,7 @@ mod worker_tests {
             withdrawn,
             linked: false,
             since: None,
+            pause: super::super::WorkerPause::Taking,
         }
     }
     #[test]

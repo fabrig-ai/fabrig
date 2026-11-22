@@ -9,7 +9,7 @@ use temper_client_domain_forge::{milestones as facts, parts};
 use temper_client_protocol_wire::v1 as w;
 
 mod words;
-pub use words::{Count, Headline, Mark, Segment, State, count, headline, state, strip};
+pub use words::{Count, Headline, HeadlineCase, Mark, Segment, State, count, headline, state, strip};
 
 pub const DRAWN: u32 = 16;
 const PAGES: u32 = 4;

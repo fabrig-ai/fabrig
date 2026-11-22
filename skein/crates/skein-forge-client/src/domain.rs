@@ -156,6 +156,11 @@ impl Domain {
     pub fn has_room(&self) -> bool {
         !self.calls.is_full()
     }
+    /// Calls holding admission places, oldest admitted first; changes nothing.
+    #[must_use]
+    pub fn holders(&self) -> Box<[crate::Holder]> {
+        self.calls.holders()
+    }
     #[must_use]
     pub fn cached(&self, resource: &Resource) -> Option<&crate::Cached> {
         self.keep.cached(resource)
@@ -165,6 +170,18 @@ impl Domain {
     #[must_use]
     pub fn live_keys(&self) -> Box<[Resource]> {
         self.keep.live_keys()
+    }
+    /// Fresh resources, then listings (`What::Repository`), still owed, in table order.
+    /// Observes only; bounded by the keep's tables (forge/client.md, 8).
+    #[must_use]
+    pub fn fresh_resources_owed(&self) -> Box<[Resource]> {
+        keep::restore::fresh_owed(self)
+    }
+    /// Unchecked restored entries, as (entry number, task), in number order.
+    /// Observes only; bounded by the outbox (forge/client.md, 8).
+    #[must_use]
+    pub fn unsettled(&self) -> Box<[(u64, u64)]> {
+        outbox::unsettled(self)
     }
     /// A stored record exceeded this root's configured capacities or was
     /// structurally inconsistent. The root must reconcile the store/limits;

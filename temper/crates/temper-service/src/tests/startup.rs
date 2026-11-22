@@ -87,13 +87,13 @@ fn a_read_bound_set_to_the_refusals_number_starts() {
             document.jig.hub.transcript_bytes = u64::from(turn + 4) * 4;
             document.jig.hub.turn_queue_bytes = u64::from(turn) * 8;
             document.own.root.journal.transcript_bytes = turn + 4;
-            let bodies = jig_protocol_worker_wire::v18::Limits {
+            let bodies = jig_protocol_worker_wire::v21::Limits {
                 turn_body: turn,
                 turn_refused: document.jig.core.tasks.run_inbox,
-                ..jig_protocol_worker_wire::v18::CEILINGS
+                ..jig_protocol_worker_wire::v21::CEILINGS
             };
             document.jig.io.output =
-                u32::try_from(jig_protocol_worker_wire::v18::Turn::encoded_bound(&bodies).unwrap() + 8).unwrap();
+                u32::try_from(jig_protocol_worker_wire::v21::Turn::encoded_bound(&bodies).unwrap() + 8).unwrap();
         }
         let store =
             fixtures::document_store_limits(&document, &config::Directories::working(), Some(&agent.declaration()))

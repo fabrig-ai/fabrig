@@ -1,5 +1,8 @@
 //! Shared bounded reads and pieces for codecs (data/codec/README.md, sections 2 to 4).
 //! Generated decoders call the read helpers after choosing a limit.
+//! This crate takes lib's exception for its codecs (skein/docs/foundation/programming-model.md, 10.2):
+//! [`Record`], the sealed [`field::Field`] and their generic helpers.
+//! Generated records implement `Record` and call the helpers.
 //! Schemas are read into bounded tables (data/codec/README.md, section 7).
 //! Family patches are read and planned by [`patch`] (data/codec/patches.md).
 
@@ -14,6 +17,7 @@ use alloc::boxed::Box;
 use skein_lib::Reader;
 
 pub mod bounds;
+pub mod convert;
 pub mod field;
 mod record;
 pub use record::{Path, Problem, Record};

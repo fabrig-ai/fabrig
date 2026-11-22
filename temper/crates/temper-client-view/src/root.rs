@@ -438,6 +438,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             &mut view.forge,
             &view.forge_sign_in,
             rail_project,
+            &mut times,
         );
     }
     if let Some(project) = rail_project

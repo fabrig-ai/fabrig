@@ -68,6 +68,7 @@ pub(crate) fn action(ask: &Ask, person: u64) -> CapacityAction {
         Ask::Adopt { .. } => CapacityAction::Adoption,
         Ask::SetRoles { .. } => CapacityAction::Roles,
         Ask::ChangeSettings { .. }
+        | Ask::PauseWorker { .. }
         | Ask::MoveToNewest { .. }
         | Ask::ChangePolicy { .. }
         | Ask::RemoveProject { .. }
@@ -186,6 +187,7 @@ fn room(refusal: &Refusal) -> Option<CapacityCause> {
         | Refusal::Authority { .. }
         | Refusal::Moved { .. }
         | Refusal::Taken { .. }
+        | Refusal::Unlinked { .. }
         | Refusal::Concluded { .. }
         | Refusal::Ended { .. }
         | Refusal::NotWaiting

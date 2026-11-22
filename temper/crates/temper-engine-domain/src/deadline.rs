@@ -7,10 +7,21 @@ impl Domain {
     /// monotonic time. Stopped roots have no policy timer left to fire.
     #[must_use]
     pub fn next_deadline(&self, env: &Env<Limits>) -> Option<Time> {
-        if self.journal.stopped() || self.start_stop().is_some() || !self.start_runtime() {
+        if self.journal.stopped() || self.start_stop().is_some() {
             return None;
         }
-        let mut next = self.core.next_deadline(env.now, env.wall);
+        let report = if self.core.stopping() || self.settling.active() {
+            None
+        } else {
+            match &self.start_report {
+                Some(clock) => Some(clock.deadline()),
+                None => None,
+            }
+        };
+        if !self.start_runtime() {
+            return report;
+        }
+        let mut next = earliest(report, self.core.next_deadline(env.now, env.wall));
         if self.core.stopping() {
             return next;
         }

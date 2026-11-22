@@ -18,6 +18,7 @@ use crate::{
     Attempt, Condition, Entry, Fact, Limits, Made, Outcome, Position, Priority, Recovery, RecoveryClock, Request,
     bounds, recovery,
 };
+use alloc::boxed::Box;
 use skein_forge::api::{self, Answer, Commit, Error, Op, Read, Repository, Write};
 use skein_lib::{Duration, Env, Map, Queue, Time, Wall};
 
@@ -247,6 +248,19 @@ pub(crate) fn start_settle(d: &mut Domain) {
     assert!(d.outbox.ready, "settle follows restore");
     d.outbox.settling = true;
 }
+/// Entry number and task for each restored write not yet looked for (forge/client.md, 8).
+pub(crate) fn unsettled(d: &Domain) -> Box<[(u64, u64)]> {
+    let mut owed = skein_lib::List::with_capacity(d.outbox.entries.len());
+    if d.outbox.settling && !stop::active(&d.outbox) {
+        for (number, row) in &d.outbox.entries {
+            if !row.restart_checked {
+                owed.push((*number, row.entry.task)).expect("bounded by outbox table");
+            }
+        }
+    }
+    owed.into_boxed()
+}
+
 pub(crate) fn settle_done(d: &mut Domain) -> bool {
     if !d.outbox.settling {
         return false;

@@ -173,6 +173,8 @@ impl Harness {
             keys.push(*key).unwrap();
         }
         let hello = Hello {
+            fresh: false,
+            reads_usage: true,
             jobs: Box::default(),
             bounds: fixtures::bounds(),
             stop_bound: Duration::from_secs(0),
@@ -264,8 +266,15 @@ fn hosted(run: Token, attempt: Token, phase: Phase) -> Hosting {
     Hosting { run, attempt, phase }
 }
 
-fn answered(attempt: Token, run: Token, answer: Answer, raw: u64) -> Request {
-    Request::Answered { to: to(attempt), run, attempt, answer, payload: payload(raw) }
+fn answered(channel: Token, attempt: Token, run: Token, answer: Answer, raw: u64) -> Request {
+    Request::Answered {
+        to: to(attempt),
+        run,
+        attempt,
+        answer,
+        payload: payload(raw),
+        worker: Some(u32::try_from(channel.raw()).unwrap().checked_rem(LIMITS.configured_workers).unwrap()),
+    }
 }
 
 fn ack(channel: Token, run: Token, attempt: Token) -> Request {
@@ -431,7 +440,7 @@ fn a_start_waits_for_a_worker_then_for_a_slot() {
     assert_eq!(&*h.hello(C1, 1, &[], &[]), &[]);
     assert_eq!(&*h.settle(), &[assign(C1, R1, A1), placed(R1, A1)]);
     assert_eq!(h.domain.waiting(), 1);
-    assert_eq!(&*h.answer(C1, R1, A1, Answer::Ended, 1), &[answered(A1, R1, Answer::Ended, 1)]);
+    assert_eq!(&*h.answer(C1, R1, A1, Answer::Ended, 1), &[answered(C1, A1, R1, Answer::Ended, 1)]);
     // The worker keeps the answer, and its slot, until the parent has it
     // durably.
     assert!(h.settle().is_empty());
@@ -478,6 +487,8 @@ fn retained_host_and_hello_history_is_bounded_and_independent_of_diagnostics() {
         worker: 0,
         channel: C3,
         hello: Hello {
+            fresh: false,
+            reads_usage: true,
             jobs: Box::default(),
             bounds: fixtures::bounds(),
             stop_bound: LIMITS.grace,
@@ -591,6 +602,8 @@ fn a_draining_worker_takes_nothing_even_once_it_frees_a_slot() {
             worker: u32::try_from(channel.raw()).expect("fixture channel").checked_rem(64).expect("membership"),
             channel,
             hello: Hello {
+                fresh: false,
+                reads_usage: true,
                 slots: 2,
                 stop_bound: Duration::ZERO,
                 bounds: fixtures::bounds(),
@@ -632,6 +645,8 @@ fn a_draining_workers_next_channel_is_placed_on() {
     h.step(Event::Lost { channel: C1 });
     // The same configured worker returns on a new channel; the harness answers its logins.
     let hello = Hello {
+        fresh: false,
+        reads_usage: true,
         slots: 1,
         stop_bound: Duration::ZERO,
         bounds: fixtures::bounds(),
@@ -644,13 +659,11 @@ fn a_draining_workers_next_channel_is_placed_on() {
 }
 
 #[test]
-fn a_chosen_attempt_on_a_draining_channel_is_placed_again_unrefused() {
-    for another in [false, true] {
+fn a_checked_channel_loss_returns_the_queued_claim_for_recheck() {
+    for loss in [Event::Draining { channel: C1 }, Event::Mismatch { channel: C1 }, Event::Lost { channel: C1 }] {
         let mut h = Harness::new(LIMITS);
         h.hello(C1, 1, &[], &[]);
-        if another {
-            h.hello(C2, 1, &[], &[]);
-        }
+        h.hello(C2, 1, &[], &[]);
         h.step(Event::Start {
             placement: Some(crate::PlacementConstraint { channel: C1, kind: HostKind::Worker }),
             version: crate::Version { charter: 1, revision: 1 },
@@ -662,14 +675,49 @@ fn a_chosen_attempt_on_a_draining_channel_is_placed_again_unrefused() {
             kinds: Kinds::Workers,
             assignment: references(),
         });
-        h.step(Event::Draining { channel: C1 });
-        if another {
-            assert_eq!(&*h.settle(), &[assign(C2, R1, A1), placed(R1, A1)]);
-        } else {
-            assert!(h.settle().is_empty(), "the chosen attempt waits without a recheck refusal");
-            h.hello(C2, 1, &[], &[]);
-            assert_eq!(&*h.settle(), &[assign(C2, R1, A1), placed(R1, A1)]);
-        }
+        h.step(loss);
+        assert_eq!(
+            &*h.settle(),
+            &[Request::Refused { to: to(A1), run: R1, attempt: A1, refusal: Refusal::Recheck }],
+            "another host cannot replace the checked channel"
+        );
+        assert_eq!(h.domain.waiting(), 0);
+    }
+}
+
+#[test]
+fn a_worker_restricted_probe_ignores_other_hosts_affinity_and_room() {
+    let version = crate::Version { charter: 1, revision: 1 };
+    for affinity in [false, true] {
+        let mut h = Harness::new(Limits { engine_slots: 2, ..LIMITS });
+        h.hello(Token::new(0), 2, &[], &[]);
+        h.hello(C1, 2, if affinity { &[1] } else { &[] }, &[]);
+        h.hello(C2, 1, &[], &[]);
+        let restricted = h.domain.probe(Kinds::Both, 1, version, &[], &[], Some(38));
+        assert_eq!(restricted, Some(crate::PlacementConstraint { channel: C2, kind: HostKind::Worker }));
+        assert_eq!(h.domain.probe(Kinds::Both, 1, version, &[], &[C2], Some(38)), None);
+        assert_eq!(h.domain.probe(Kinds::Engine, 1, version, &[], &[], Some(38)), None);
+        h.step(Event::Lost { channel: C2 });
+        assert_eq!(h.domain.probe(Kinds::Both, 1, version, &[], &[], Some(38)), None);
+        assert!(h.domain.probe(Kinds::Both, 1, version, &[], &[], None).is_some());
+        h.step(Event::Hello {
+            worker: 38,
+            channel: C3,
+            hello: Hello {
+                fresh: false,
+                reads_usage: true,
+                slots: 1,
+                stop_bound: Duration::ZERO,
+                bounds: fixtures::bounds(),
+                jobs: Box::new([]),
+                workstreams: Box::new([]),
+                hosting: Box::new([]),
+            },
+        });
+        assert_eq!(
+            h.domain.probe(Kinds::Both, 1, version, &[], &[], Some(38)),
+            Some(crate::PlacementConstraint { channel: C3, kind: HostKind::Worker })
+        );
     }
 }
 
@@ -687,7 +735,7 @@ fn an_invalid_refusal_is_handed_on_and_keeps_no_slot() {
     let mut h = Harness::new(LIMITS);
     h.hello(C1, 1, &[], &[]);
     h.place(R1, A1, 1);
-    assert_eq!(&*h.answer(C1, R1, A1, Answer::Invalid, 1), &[answered(A1, R1, Answer::Invalid, 1)]);
+    assert_eq!(&*h.answer(C1, R1, A1, Answer::Invalid, 1), &[answered(C1, A1, R1, Answer::Invalid, 1)]);
     h.start(R2, A2, 2);
     assert_eq!(&*h.settle(), &[assign(C1, R2, A2), placed(R2, A2)]);
     // The parent's acknowledgement changes nothing.
@@ -716,7 +764,7 @@ fn an_answer_is_handed_on_once_and_acknowledged_once_the_parent_has_it() {
     let mut h = Harness::new(LIMITS);
     h.hello(C1, 2, &[], &[]);
     h.place(R1, A1, 1);
-    assert_eq!(&*h.answer(C1, R1, A1, Answer::Parked, 1), &[answered(A1, R1, Answer::Parked, 1)]);
+    assert_eq!(&*h.answer(C1, R1, A1, Answer::Parked, 1), &[answered(C1, A1, R1, Answer::Parked, 1)]);
     // Sent again after a hello, before the parent has it durably: dropped,
     // not acknowledged.
     assert_eq!(&*h.answer(C1, R1, A1, Answer::Parked, 2), &[drop(2)]);
@@ -736,7 +784,7 @@ fn an_answer_from_a_channel_not_in_contact_is_dropped_unacknowledged() {
     assert_eq!(&*h.answer(C1, R1, A1, Answer::Ended, 2), &[drop(2)]);
     // Still the claim, adrift: the hello brings its answer.
     h.hello(C2, 2, &[], &[hosted(R1, A1, Phase::Answered)]);
-    assert_eq!(&*h.answer(C2, R1, A1, Answer::Ended, 3), &[answered(A1, R1, Answer::Ended, 3)]);
+    assert_eq!(&*h.answer(C2, R1, A1, Answer::Ended, 3), &[answered(C2, A1, R1, Answer::Ended, 3)]);
 }
 
 #[test]
@@ -782,7 +830,7 @@ fn a_cancelled_attempt_is_fenced_but_its_answer_ends_its_call() {
         &[Request::DropCall { call: host_call(Token::new(7), payload(6)) }]
     );
     assert_eq!(&*active_report(&mut h, C1), &[]);
-    assert_eq!(&*h.answer(C1, R1, A1, FAILED, 8), &[answered(A1, R1, FAILED, 8)]);
+    assert_eq!(&*h.answer(C1, R1, A1, FAILED, 8), &[answered(C1, A1, R1, FAILED, 8)]);
     // Answered: a cancel changes nothing.
     assert!(h.step(Event::Cancel { run: R1, attempt: A1 }).is_empty());
     assert_eq!(&*h.acknowledge(R1, A1), &[ack(C1, R1, A1)]);
@@ -831,7 +879,7 @@ fn a_waiting_attempt_a_worker_lists_is_not_assigned_again() {
     h.start(R1, A1, 1);
     assert_eq!(&*h.hello(C1, 2, &[], &[hosted(R1, A1, Phase::Active)]), &[placed(R1, A1)]);
     assert!(h.settle().is_empty());
-    assert_eq!(&*h.answer(C1, R1, A1, Answer::Ended, 1), &[answered(A1, R1, Answer::Ended, 1)]);
+    assert_eq!(&*h.answer(C1, R1, A1, Answer::Ended, 1), &[answered(C1, A1, R1, Answer::Ended, 1)]);
 }
 
 // Relaying.
@@ -1042,7 +1090,7 @@ fn a_worker_back_within_the_grace_keeps_what_is_claimed_and_cancels_the_rest() {
         &*h.step(Event::Inbound { run: R1, attempt: A1, message: message(event) }),
         &[Request::Inbound { channel: C2, run: R1, attempt: A1, message: message(event) }]
     );
-    assert_eq!(&*h.answer(C2, R2, A2, FAILED, 2), &[answered(A2, R2, FAILED, 2)]);
+    assert_eq!(&*h.answer(C2, R2, A2, FAILED, 2), &[answered(C2, A2, R2, FAILED, 2)]);
 }
 
 #[test]
@@ -1057,7 +1105,7 @@ fn an_answer_held_while_the_channel_was_down_follows_the_hello() {
     h.start(R2, A2, 2);
     // Its answer keeps the slot until the parent has it durably.
     assert!(h.settle().is_empty());
-    assert_eq!(&*h.answer(C2, R1, A1, FAILED, 1), &[answered(A1, R1, FAILED, 1)]);
+    assert_eq!(&*h.answer(C2, R1, A1, FAILED, 1), &[answered(C2, A1, R1, FAILED, 1)]);
     assert!(h.settle().is_empty());
     assert_eq!(&*h.acknowledge(R1, A1), &[ack(C2, R1, A1)]);
     assert_eq!(&*h.settle(), &[assign(C2, R2, A2), placed(R2, A2)]);
@@ -1115,6 +1163,98 @@ fn an_attempt_listed_for_a_run_claimed_otherwise_is_fenced_at_once() {
     assert_eq!(&*h.settle(), &[assign(C1, R1, A2), placed(R1, A2)]);
 }
 
+#[test]
+fn a_fresh_process_suspends_only_its_unlisted_adrift_claims() {
+    for fresh in [false, true] {
+        let mut h = Harness::new(LIMITS);
+        let hello = || Hello {
+            fresh: false,
+            reads_usage: true,
+            slots: 2,
+            stop_bound: Duration::ZERO,
+            bounds: fixtures::bounds(),
+            jobs: Box::new([]),
+            workstreams: Box::new([]),
+            hosting: Box::new([]),
+        };
+        h.step(Event::Hello { channel: C1, worker: 1, hello: hello() });
+        h.place(R1, A1, 1);
+        h.place(R2, A2, 2);
+        h.step(Event::Lost { channel: C1 });
+        assert!(h.at(1).is_empty());
+        let mut report = hello();
+        report.fresh = fresh;
+        report.hosting = Box::new([hosted(R1, A1, Phase::Active)]);
+        let out = h.step(Event::Hello { channel: C2, worker: 1, hello: report });
+        if fresh {
+            assert_eq!(&*out, &[Request::Suspended { to: to(A2), run: R2, attempt: A2, worker: 1 }]);
+            assert!(h.at(10).is_empty(), "suspension removed the grace alarm");
+        } else {
+            assert!(out.is_empty());
+            assert!(h.at(9).is_empty());
+            assert_eq!(&*h.at(10), &[lost(R2, A2)]);
+        }
+        assert_eq!(
+            &*h.step(Event::Inbound { run: R1, attempt: A1, message: message(payload(1)) }),
+            &[Request::Inbound { channel: C2, run: R1, attempt: A1, message: message(payload(1)) }],
+        );
+    }
+}
+
+#[test]
+fn a_fresh_process_suspends_restored_claims_even_under_a_restart_hold() {
+    for fresh in [false, true] {
+        let mut h = Harness::new(LIMITS);
+        h.step(Event::Restarting { wait: Duration::from_secs(20) });
+        let mut adoption = fixtures::adopt(R1, A1, 0);
+        let Event::Adopt { worker, .. } = &mut adoption else { panic!("adoption") };
+        *worker = Some(1);
+        h.step(adoption);
+        h.step(Event::Cross { reply_to: to(A2), run: R2, attempt: A2, worker: Some(1), worked: true });
+        h.step(Event::StartJob {
+            reply_to: to(A3),
+            run: R3,
+            attempt: A3,
+            workstream: 3,
+            job: jig_domain_link::JobBound {
+                kind: jig_domain_link::JobKind(1),
+                spec: 8,
+                result: 8,
+                deadline: Duration::from_secs(1),
+            },
+            adopt: true,
+        });
+        h.step(Event::Loaded);
+        let report = Hello {
+            fresh,
+            reads_usage: true,
+            slots: 2,
+            stop_bound: Duration::ZERO,
+            bounds: fixtures::bounds(),
+            jobs: Box::new([]),
+            workstreams: Box::new([]),
+            hosting: Box::new([]),
+        };
+        let out = h.step(Event::Hello { channel: C2, worker: 1, hello: report });
+        if fresh {
+            assert_eq!(
+                &*out,
+                &[
+                    Request::Suspended { to: to(A1), run: R1, attempt: A1, worker: 1 },
+                    Request::Suspended { to: to(A2), run: R2, attempt: A2, worker: 1 },
+                ]
+            );
+            // Only the restored job, with no proof of a worker, keeps its hold.
+            assert_eq!(&*h.at(30), &[lost(R3, A3), Request::Discharged]);
+        } else {
+            assert!(out.is_empty());
+            assert!(h.at(29).is_empty());
+            assert_eq!(&*h.at(30), &[lost(R1, A1), lost(R2, A2), lost(R3, A3), Request::Discharged]);
+        }
+        assert_eq!(h.domain.attempts(), 0);
+    }
+}
+
 // Restarts.
 
 #[test]
@@ -1136,7 +1276,7 @@ fn an_adopted_claim_a_worker_lists_is_placed() {
     h.adopt(R1, A1);
     assert_eq!(&*h.hello(C1, 2, &[], &[hosted(R1, A1, Phase::Active)]), &[placed(R1, A1)]);
     assert!(h.at(30).is_empty());
-    assert_eq!(&*h.answer(C1, R1, A1, Answer::Ended, 1), &[answered(A1, R1, Answer::Ended, 1)]);
+    assert_eq!(&*h.answer(C1, R1, A1, Answer::Ended, 1), &[answered(C1, A1, R1, Answer::Ended, 1)]);
 }
 
 #[test]
@@ -1161,7 +1301,7 @@ fn a_stray_adopted_within_the_grace_is_the_claim() {
     h.at(5);
     assert_eq!(&*h.adopt(R1, A1), &[placed(R1, A1)]);
     assert!(h.at(30).is_empty());
-    assert_eq!(&*h.answer(C1, R1, A1, Answer::Ended, 1), &[answered(A1, R1, Answer::Ended, 1)]);
+    assert_eq!(&*h.answer(C1, R1, A1, Answer::Ended, 1), &[answered(C1, A1, R1, Answer::Ended, 1)]);
 }
 
 #[test]
@@ -1172,7 +1312,7 @@ fn a_stray_s_answer_is_kept_unacknowledged_for_its_adoption() {
     assert_eq!(&*h.answer(C1, R1, A1, Answer::Ended, 2), &[drop(2)]);
     assert!(h.answer(C1, R2, A2, Answer::Parked, 3).is_empty());
     h.loaded();
-    assert_eq!(&*h.adopt(R1, A1), &[answered(A1, R1, Answer::Ended, 1)]);
+    assert_eq!(&*h.adopt(R1, A1), &[answered(C1, A1, R1, Answer::Ended, 1)]);
     assert_eq!(&*h.acknowledge(R1, A1), &[ack(C1, R1, A1)]);
     // Not adopted in time: forgotten, by the parent and by its worker.
     assert_eq!(&*h.at(10), &[drop(3), ack(C1, R2, A2)]);
@@ -1190,7 +1330,7 @@ fn a_kept_answer_listed_again_keeps_its_slot() {
     // The worker keeps the answer, so its one slot is taken.
     h.start(R2, A2, 2);
     assert!(h.settle().is_empty());
-    assert_eq!(&*h.adopt(R1, A1), &[answered(A1, R1, Answer::Ended, 1)]);
+    assert_eq!(&*h.adopt(R1, A1), &[answered(C1, A1, R1, Answer::Ended, 1)]);
     assert_eq!(&*h.acknowledge(R1, A1), &[ack(C2, R1, A1)]);
     assert_eq!(&*h.settle(), &[assign(C2, R2, A2), placed(R2, A2)]);
 }
@@ -1262,7 +1402,7 @@ fn an_adopted_claim_cancelled_is_cancelled_once_found() {
     h.adopt(R1, A1);
     assert!(h.step(Event::Cancel { run: R1, attempt: A1 }).is_empty());
     assert_eq!(&*h.hello(C1, 2, &[], &[hosted(R1, A1, Phase::Active)]), &[cancel(C1, R1, A1)]);
-    assert_eq!(&*h.answer(C1, R1, A1, FAILED, 1), &[answered(A1, R1, FAILED, 1)]);
+    assert_eq!(&*h.answer(C1, R1, A1, FAILED, 1), &[answered(C1, A1, R1, FAILED, 1)]);
 }
 
 // Facts and memory.
@@ -1407,6 +1547,8 @@ fn declared_stop_bounds_must_be_strictly_below_the_engine_grace() {
     ] {
         let mut h = Harness::new(LIMITS);
         let hello = Hello {
+            fresh: false,
+            reads_usage: true,
             jobs: Box::default(),
             bounds: fixtures::bounds(),
             stop_bound,
@@ -1490,6 +1632,8 @@ fn a_version_refusal_excludes_runs_and_jobs_until_the_next_channel() {
         deadline: Duration::from_secs(3),
     };
     let hello = || Hello {
+        fresh: false,
+        reads_usage: true,
         slots: 2,
         stop_bound: Duration::ZERO,
         bounds: fixtures::bounds(),
@@ -1500,9 +1644,9 @@ fn a_version_refusal_excludes_runs_and_jobs_until_the_next_channel() {
     h.step(Event::Hello { worker: 37, channel: C1, hello: hello() });
     assert_eq!(h.place(R1, A1, 1), C1);
     assert_eq!(h.place(R2, A2, 2), C1);
-    assert_eq!(&*h.answer(C1, R1, A1, Answer::Version, 1), &[answered(A1, R1, Answer::Version, 1)]);
+    assert_eq!(&*h.answer(C1, R1, A1, Answer::Version, 1), &[answered(C1, A1, R1, Answer::Version, 1)]);
     assert!(h.acknowledge(R1, A1).is_empty());
-    assert!(h.domain.probe(Kinds::Workers, 1, crate::Version { charter: 1, revision: 1 }, &[], &[]).is_none());
+    assert!(h.domain.probe(Kinds::Workers, 1, crate::Version { charter: 1, revision: 1 }, &[], &[], None).is_none());
     h.start(R1, A3, 1);
     let job_run = Token::new(4);
     let job_attempt = Token::new(4);
@@ -1516,7 +1660,7 @@ fn a_version_refusal_excludes_runs_and_jobs_until_the_next_channel() {
     });
     assert!(h.settle().is_empty());
     // A hosted run still answers, and freeing it cannot clear the mismatch mark.
-    assert_eq!(&*h.answer(C1, R2, A2, Answer::Ended, 2), &[answered(A2, R2, Answer::Ended, 2)]);
+    assert_eq!(&*h.answer(C1, R2, A2, Answer::Ended, 2), &[answered(C1, A2, R2, Answer::Ended, 2)]);
     h.acknowledge(R2, A2);
     assert!(h.settle().is_empty());
     h.step(Event::Lost { channel: C1 });
@@ -1543,6 +1687,8 @@ fn an_untranslated_task_avoids_only_its_channel_until_loss_for_runs_and_jobs() {
             deadline: Duration::from_secs(3),
         };
         let hello = || Hello {
+            fresh: false,
+            reads_usage: true,
             slots: 2,
             stop_bound: Duration::ZERO,
             bounds: fixtures::bounds(),
@@ -1572,7 +1718,17 @@ fn an_untranslated_task_avoids_only_its_channel_until_loss_for_runs_and_jobs() {
         let placed_first = h.settle();
         let first = if job { Request::AssignJob { channel: C1, run: R1, attempt: A1 } } else { assign(C1, R1, A1) };
         assert_eq!(&*placed_first, &[first, placed(R1, A1)]);
-        assert_eq!(&*h.answer(C1, R1, A1, Answer::Untranslated, 1), &[answered(A1, R1, Answer::Untranslated, 1)]);
+        assert_eq!(
+            &*h.answer(C1, R1, A1, Answer::Untranslated, 1),
+            &[Request::Answered {
+                to: to(A1),
+                run: R1,
+                attempt: A1,
+                answer: Answer::Untranslated,
+                payload: payload(1),
+                worker: Some(1),
+            }]
+        );
         assert!(h.acknowledge(R1, A1).is_empty(), "local refusal never needs acknowledgement");
         h.step(start(A2));
         assert!(h.settle().is_empty(), "the task waits without another channel");
@@ -1623,7 +1779,7 @@ fn a_running_record_mismatch_excludes_placement_while_its_hosted_run_finishes() 
     h.step(Event::Mismatch { channel: C1 });
     h.start(R2, A2, 2);
     assert!(h.settle().is_empty());
-    assert_eq!(&*h.answer(C1, R1, A1, Answer::Ended, 1), &[answered(A1, R1, Answer::Ended, 1)]);
+    assert_eq!(&*h.answer(C1, R1, A1, Answer::Ended, 1), &[answered(C1, A1, R1, Answer::Ended, 1)]);
     h.acknowledge(R1, A1);
     assert!(h.settle().is_empty());
     h.hello(C2, 2, &[], &[]);
@@ -1643,6 +1799,8 @@ fn resume_without_placement_keeps_waiting_runs_and_jobs_for_a_later_start() {
         worker: 0,
         channel: C1,
         hello: Hello {
+            fresh: false,
+            reads_usage: true,
             slots: 1,
             stop_bound: Duration::ZERO,
             bounds: fixtures::bounds(),
@@ -1698,6 +1856,8 @@ fn settings_hello(channel: Token, worker: u32) -> Event {
         channel,
         worker,
         hello: Hello {
+            fresh: false,
+            reads_usage: true,
             jobs: Box::new([]),
             bounds: fixtures::bounds(),
             stop_bound: Duration::ZERO,
@@ -1737,3 +1897,5 @@ fn settings_admit_sparse_positions_and_keep_places_until_the_next_channel() {
     assert_eq!(workers.first().expect("live").number(), 2);
     assert_eq!(workers.get(1).expect("offline").number(), 3);
 }
+
+mod pause;

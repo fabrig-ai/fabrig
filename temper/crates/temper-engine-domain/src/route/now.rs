@@ -216,7 +216,9 @@ fn link_now(domain: &mut Domain, value: core::LinkNow) {
         core::LinkNow::TurnPayload { run, attempt, turn, body } => {
             crate::link::route(domain, jig_domain_hub_link::Event::TurnPayload { run, attempt, turn, body });
         }
-        core::LinkNow::AnswerPayload { run, attempt, payload } => crate::link::answer(domain, run, attempt, payload),
+        core::LinkNow::AnswerPayload { run, attempt, payload, worker, window } => {
+            crate::link::answer(domain, run, attempt, payload, worker, window);
+        }
         core::LinkNow::AcceptedTurn { payload, task, attempt, turn, accepted } => {
             crate::link::route(
                 domain,

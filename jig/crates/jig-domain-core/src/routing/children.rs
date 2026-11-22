@@ -143,6 +143,13 @@ pub(crate) fn tag_fleet(
                 })));
                 continue;
             }
+            fleet::Request::ReadUsage { channel, read, source } => {
+                Request::Held(Box::new(Held::ReadUsage { channel, read, source }))
+            }
+            fleet::Request::UsageRead { read, outcome } => {
+                append_account(core, env, accounts::Event::UsageRead { read, outcome }, &mut out);
+                continue;
+            }
             fleet::Request::ReadList { channel, read, endpoint, grant } => {
                 Request::Held(Box::new(Held::ReadList { channel, read, endpoint, grant }))
             }
@@ -156,6 +163,7 @@ pub(crate) fn tag_fleet(
                 continue;
             }
             fleet::Request::Sources { channel, sources } => Request::Held(Box::new(Held::Sources { channel, sources })),
+            fleet::Request::Pause { channel, mode } => Request::Held(Box::new(Held::PauseWorker { channel, mode })),
             fleet::Request::Check { channel, name } => Request::Held(Box::new(Held::CheckSource { channel, name })),
             fleet::Request::SignOut { channel, name } => Request::Held(Box::new(Held::SignOutSource { channel, name })),
             fleet::Request::SignedOut { to, channel, name, result } => {
@@ -249,6 +257,31 @@ pub(crate) fn tag_fleet(
                         task: run.raw(),
                         attempt: attempt.raw(),
                         end: tasks::End::Refused,
+                        saved: None,
+                        cause: tasks::Cause::Unpriced,
+                    },
+                    &mut out,
+                );
+                continue;
+            }
+            fleet::Request::Suspended { to, run, attempt, worker } => {
+                let _answered = to.into_token();
+                let _: Option<u64> = core.unreported_restored.remove(&run.raw());
+                let end = tasks::End::Suspended(tasks::Suspended {
+                    worker: worker.checked_add(1).expect("worker setting number"),
+                    why: tasks::SuspendWhy::Restarted,
+                    window: env.limits.fleet.restart_wait,
+                });
+                core.remember_unpriced_terminal(run, attempt, end.clone());
+                let token = core.internal(super::flight::Internal::Acknowledge);
+                append_tasks(
+                    core,
+                    env,
+                    tasks::Event::Activation {
+                        reply_to: ReplyTo::new(token),
+                        task: run.raw(),
+                        attempt: attempt.raw(),
+                        end,
                         saved: None,
                         cause: tasks::Cause::Unpriced,
                     },
@@ -413,6 +446,13 @@ pub(crate) fn tag_fleet(
                 append_account(core, env, accounts::Event::Unauthorized { account, generation }, &mut out);
                 continue;
             }
+            fleet::Request::Usage { run, attempt, account, window } => {
+                if !has_source(core, run, attempt, account) {
+                    continue;
+                }
+                append_account(core, env, accounts::Event::Usage { source: account, window }, &mut out);
+                continue;
+            }
             fleet::Request::Limited { run, attempt, account, reset } => {
                 if !claim_source(core, run, attempt, account, false, &mut out) {
                     continue;
@@ -446,7 +486,7 @@ pub(crate) fn tag_fleet(
             fleet::Request::Answered { payload, .. } if core.stopping => {
                 Request::Now(Box::new(Now::Link(LinkNow::DropPayload { payload })))
             }
-            fleet::Request::Answered { run, attempt, payload, to, answer } => {
+            fleet::Request::Answered { run, attempt, payload, to, answer, worker } => {
                 let _answered = to.into_token();
                 let _: Option<u64> = core.unreported_restored.remove(&run.raw());
                 assert!(core.current_proof(run.raw(), attempt.raw()), "current answer has reserved proof");
@@ -458,7 +498,13 @@ pub(crate) fn tag_fleet(
                         append_account(core, env, run_failed(env.now, turned), &mut out);
                     }
                 }
-                Request::Now(Box::new(Now::Link(LinkNow::AnswerPayload { run, attempt, payload })))
+                Request::Now(Box::new(Now::Link(LinkNow::AnswerPayload {
+                    run,
+                    attempt,
+                    payload,
+                    worker,
+                    window: env.limits.fleet.restart_wait,
+                })))
             }
         };
         out.push(request);
@@ -505,6 +551,12 @@ pub(crate) fn tag_account(
     let mut out = Queue::uncapped();
     for _ in 0..child.len() {
         match child.pop().expect("account output count") {
+            accounts::Request::CancelUsage { read } => {
+                append_fleet(core, env, work, fleet::Event::CancelUsage { read }, &mut out);
+            }
+            accounts::Request::ReadUsage { read, source } => {
+                append_fleet(core, env, work, fleet::Event::ReadUsage { read, source }, &mut out);
+            }
             accounts::Request::ReadList { read, provider, grant, .. } => {
                 let endpoint = match core.settings.direct_endpoint(provider) {
                     Some(facts) => Some(facts.number),
@@ -631,6 +683,8 @@ fn account_party(core: &Core, event: &accounts::Event) -> Option<u64> {
         | accounts::Event::Opened { .. }
         | accounts::Event::NotOurs { .. }
         | accounts::Event::Adopted { .. }
+        | accounts::Event::UsageRead { .. }
+        | accounts::Event::Usage { .. }
         | accounts::Event::ProgramSaid { .. }
         | accounts::Event::ProgramTargets { .. }
         | accounts::Event::ProgramSignedOut { .. }
@@ -673,7 +727,7 @@ pub(crate) fn route_account(
     }
     let party = account_party(core, &event);
     let refresh = match &event {
-        accounts::Event::ProgramSaid { .. } => true,
+        accounts::Event::UsageRead { .. } | accounts::Event::Usage { .. } | accounts::Event::ProgramSaid { .. } => true,
         accounts::Event::Component(event) => match event {
             accounts::FromComponent::Refreshed { .. } => true,
             accounts::FromComponent::Granted { .. }
@@ -715,7 +769,10 @@ pub(crate) fn route_account(
     let mut facts_changed = false;
     for request in &out {
         match request {
-            accounts::Request::ReadList { .. } | accounts::Request::Answer { .. } => {}
+            accounts::Request::CancelUsage { .. }
+            | accounts::Request::ReadUsage { .. }
+            | accounts::Request::ReadList { .. }
+            | accounts::Request::Answer { .. } => {}
             accounts::Request::Save { record: accounts::Stored::Facts { .. } }
             | accounts::Request::Erase { key: accounts::Key::Facts { .. } } => {
                 changes = true;
@@ -748,6 +805,10 @@ pub(crate) fn route_account(
         core.touch_deployment();
         core.touch_run_waits();
         core.touch_accounts(party);
+    }
+    if !facts_changed && let Some(account) = core.accounts.window_rates_changed() {
+        let holder = core.accounts.account(account).expect("a rate belongs to a held account").holder();
+        core.touch_account_rate(holder);
     }
     tag_account(core, env, work, out)
 }
@@ -804,6 +865,8 @@ pub(crate) fn route_fleet(
     }
     let touched = match &event {
         fleet::Event::CleanupPrograms { .. }
+        | fleet::Event::PauseWorker { .. }
+        | fleet::Event::Paused { .. }
         | fleet::Event::CheckProgram { .. }
         | fleet::Event::SignOutProgram { .. }
         | fleet::Event::Sources { .. }
@@ -826,7 +889,9 @@ pub(crate) fn route_fleet(
         | fleet::Event::Hello { .. }
         | fleet::Event::Lost { .. }
         | fleet::Event::Answer { .. } => true,
-        fleet::Event::ReadList { .. }
+        fleet::Event::CancelUsage { .. }
+        | fleet::Event::ReadUsage { .. }
+        | fleet::Event::ReadList { .. }
         | fleet::Event::ListRead { .. }
         | fleet::Event::Inbound { .. }
         | fleet::Event::Relay { .. }
@@ -835,6 +900,8 @@ pub(crate) fn route_fleet(
         | fleet::Event::Relayed { .. }
         | fleet::Event::Grant { .. }
         | fleet::Event::Unauthorized { .. }
+        | fleet::Event::Usage { .. }
+        | fleet::Event::UsageRead { .. }
         | fleet::Event::Limited { .. }
         | fleet::Event::AccountRefused { .. }
         | fleet::Event::Turn { .. }
@@ -872,19 +939,10 @@ fn claim_source(
     terminal: bool,
     out: &mut Queue<Request>,
 ) -> bool {
-    let Some(proof) = core.proofs.get_mut(&run.raw()) else { return false };
-    if proof.attempt != attempt.raw() {
+    if !has_source(core, run, attempt, source) {
         return false;
     }
-    let mut held = false;
-    for binding in &proof.accounts {
-        if binding.source == source {
-            held = true;
-        }
-    }
-    if !held {
-        return false;
-    }
+    let proof = core.proofs.get_mut(&run.raw()).expect("source binding checked");
     if proof.account_failure != Some(source) || (terminal && !proof.account_terminal) {
         proof.account_failure = Some(source);
         if terminal {
@@ -895,11 +953,28 @@ fn claim_source(
     true
 }
 
+/// Usage is a report, not an account failure; it checks the same source binding without changing the claim.
+fn has_source(core: &Core, run: Token, attempt: Token, source: u32) -> bool {
+    let Some(proof) = core.proofs.get(&run.raw()) else { return false };
+    if proof.attempt != attempt.raw() {
+        return false;
+    }
+    let mut held = false;
+    for binding in &proof.accounts {
+        if binding.source == source {
+            held = true;
+        }
+    }
+    held
+}
+
 /// Account readiness ignores attempt occupancy; only host eligibility can change it.
 fn host_shape(event: &fleet::Event) -> bool {
     match event {
         fleet::Event::Sources { .. }
         | fleet::Event::CleanupPrograms { .. }
+        | fleet::Event::PauseWorker { .. }
+        | fleet::Event::Paused { .. }
         | fleet::Event::CheckProgram { .. }
         | fleet::Event::SignOutProgram { .. }
         | fleet::Event::Mismatch { .. }
@@ -913,6 +988,8 @@ fn host_shape(event: &fleet::Event) -> bool {
         | fleet::Event::Hello { .. }
         | fleet::Event::Lost { .. } => true,
         fleet::Event::Untooled { .. }
+        | fleet::Event::CancelUsage { .. }
+        | fleet::Event::ReadUsage { .. }
         | fleet::Event::ReadList { .. }
         | fleet::Event::ListRead { .. }
         | fleet::Event::StartJob { .. }
@@ -930,6 +1007,8 @@ fn host_shape(event: &fleet::Event) -> bool {
         | fleet::Event::Relayed { .. }
         | fleet::Event::Grant { .. }
         | fleet::Event::Unauthorized { .. }
+        | fleet::Event::Usage { .. }
+        | fleet::Event::UsageRead { .. }
         | fleet::Event::Limited { .. }
         | fleet::Event::AccountRefused { .. }
         | fleet::Event::Turn { .. }
@@ -952,7 +1031,7 @@ fn draining_hosts(core: &Core) -> u32 {
     draining
 }
 
-fn append_fleet(
+pub(crate) fn append_fleet(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,

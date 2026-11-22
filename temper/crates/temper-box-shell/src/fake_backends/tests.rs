@@ -236,84 +236,50 @@ fn configure(words: &[&[u8]]) -> Result<crate::Command, String> {
 }
 
 #[test]
-fn fixed_start_requires_fake_backends_and_a_canonical_value() {
-    let crate::Command::BoxFakeBackends { fixed_start, .. } =
-        configure(&[b"--fake-backends", b"--fixed-start", b"1767690000,7"]).expect("fixed fake box")
-    else {
-        panic!("fake box");
-    };
-    assert_eq!(fixed_start.as_deref(), Some(b"1767690000,7".as_slice()));
-    let refusal = configure(&[b"--fixed-start", b"1767690000,7"]).expect_err("fake only");
-    assert_eq!(
-        refusal.lines().next(),
-        Some("temper-box: --bundle, --scripts, --strict and --fixed-start require --fake-backends")
-    );
-    for value in [b"1767690000".as_slice(), b"x,7", b"01,7"] {
-        let refusal = configure(&[b"--fake-backends", b"--fixed-start", value]).expect_err("canonical start");
-        assert!(refusal.contains("--fixed-start: expected SECONDS,SEED"), "{refusal}");
-    }
-    for flags in [
-        vec![b"--fake-backends".as_slice(), b"--fixed-start"],
-        vec![b"--fake-backends", b"--fixed-start", b"1767690000,7", b"--fixed-start", b"1767690000,7"],
-    ] {
-        assert!(configure(&flags).is_err(), "{flags:?}");
+fn fake_box_refuses_the_removed_start_flag() {
+    let refusal = configure(&[b"--fake-backends", b"--fixed\x2dstart", b"1767690000,7"]).expect_err("removed flag");
+    assert_eq!(refusal.lines().next(), Some("temper-box: unknown flag --fixed\x2dstart"));
+}
+
+#[test]
+fn box_only_options_name_the_three_requirements() {
+    for words in [vec![b"--bundle".as_slice(), b"assets"], vec![b"--scripts", b"scripts.json"], vec![b"--strict"]] {
+        let refusal = configure(&words).expect_err("fake backends required");
+        assert_eq!(
+            refusal.lines().next(),
+            Some("temper-box: --bundle, --scripts and --strict require --fake-backends")
+        );
     }
 }
 
 #[test]
-fn fixed_start_reaches_only_serve_and_peers_on_new_and_retained_starts() {
-    let scratch = Scratch::new("fixed-start");
+fn fake_box_steps_have_no_removed_start_flag_on_new_and_retained_starts() {
+    let scratch = Scratch::new("step-arguments");
     let (source, bundle) = bundled_empty_source(&scratch);
-    let options = Options {
-        bundle: Some(bundle),
-        fixed_start: Some(b"1767690000,7".as_slice().into()),
-        strict: true,
-        ..Options::default()
-    };
+    let options = Options { bundle: Some(bundle), strict: true, ..Options::default() };
     for _ in 0..2 {
         let prepared = start_options(&source, &options, None).expect("prepare only, new then retained");
         let deployment = crate::setup::check(&prepared.bytes, &jig_directories(&prepared.directories))
-            .expect("admit the effective deployment once for both argument variants");
+            .expect("admit the effective deployment");
         for record in [false, true] {
-            let baseline = backends::steps(
-                &prepared.directories.config,
-                &prepared.directories.data,
-                &prepared.peers,
-                None,
-                true,
-                None,
-            );
-            let (baseline, _) = crate::box_command::configuration_steps_checked(
-                &prepared.directories,
-                &deployment,
-                baseline,
-                record,
-                None,
-            )
-            .expect("ordinary arguments");
-            let (fixed, _) = crate::box_command::configuration_steps_checked(
+            let (steps, _) = crate::box_command::configuration_steps_checked(
                 &prepared.directories,
                 &deployment,
                 prepared.steps.clone(),
                 record,
-                options.fixed_start.as_deref(),
             )
-            .expect("fixed arguments");
-            assert_eq!(fixed.asked, baseline.asked, "setup and agent arguments stay unchanged");
-            assert_eq!(fixed.always.len(), 5, "four peers and serve");
-            for (step, plain) in fixed.always.iter().zip(&baseline.always) {
-                assert_eq!(step.name(), plain.name());
-                let mut expected = plain.arguments().to_vec();
-                expected.extend([Box::from(b"--fixed-start".as_slice()), Box::from(b"1767690000,7".as_slice())]);
-                assert_eq!(step.arguments(), expected, "{:?}, record={record}", step.name());
+            .expect("ordinary arguments");
+            assert_eq!(steps.always.len(), 5, "four peers and serve");
+            for step in steps
+                .always
+                .iter()
+                .chain(steps.asked.iter().flat_map(|group| group.steps.iter().map(|(_, step)| step)))
+                .chain(steps.asked.iter().filter_map(|group| group.remover.as_ref()))
+            {
+                assert!(!step.arguments().iter().any(|word| word.as_ref() == b"--fixed\x2dstart"), "{:?}", step.name());
             }
         }
     }
-    let plain = start(&source, None).expect("later start without the flag");
-    assert_eq!(
-        plain.steps,
-        backends::steps(&plain.directories.config, &plain.directories.data, &plain.peers, None, false, None)
-    );
 }
 
 #[test]
@@ -1069,11 +1035,11 @@ fn effective_commands_reopen_the_retained_directories() {
     let (steps, _) = crate::box_command::configuration_steps(
         &prepared.directories,
         &prepared.bytes,
-        backends::steps(&prepared.directories.config, &prepared.directories.data, &prepared.peers, None, false, None),
+        backends::steps(&prepared.directories.config, &prepared.directories.data, &prepared.peers, None, false),
     )
     .expect("steps");
     let prefix =
-        backends::steps(&prepared.directories.config, &prepared.directories.data, &prepared.peers, None, false, None);
+        backends::steps(&prepared.directories.config, &prepared.directories.data, &prepared.peers, None, false);
     assert_eq!(&steps.always[..prefix.len()], prefix.as_ref());
     for step in steps.always[prefix.len()..]
         .iter()

@@ -314,6 +314,21 @@ Independent checks continue after a failure so the delivery reports their
 results together. The test phases below share build prerequisites. Section 6
 defines the verdict.
 
+An optional single-retry trial moves the focused profile before formatting,
+counted baselines and Clippy. A checkout-local `temper/repair-trial` in
+the Git directory names one exact new focused failure in the preceding
+uncached refusal in the last hour. Its base and HEAD write must match and the candidate
+tree must have changed. Consume the invitation once. A known red, disabled
+replay, selection error or required helper build keeps the ordinary order.
+An absent case in the current listing resumes the ordinary order before
+executing any tests. The runner prioritizes the existing process containing
+the case, preserving its predecessors, the full profile and its ledger.
+On a serial replay that reproduces that exact new failure, report the
+observed results, defer the remaining checks and leave the pass cache empty.
+Otherwise complete each selected profile once and use the ordinary verdict.
+Record the case, tree, base, focused duration and elapsed time to a confirmed
+failure, when observed, in the Git directory’s `temper/repair-trial-result.json`.
+
 1. **The format check:** `tools/pre-pr/pre_pr.py`'s batched `rustfmt
    --check` over every workspace target, as before
    (`temper/docs/design/protocol/configuration/reference.md`). No build.
@@ -564,12 +579,21 @@ defines the verdict.
      recording, pages and the files beside them are written on main by
      the journeys' writer alone (AGENTS.md, 4): restore them with git
      checkout BASE -- PATH..., and compare pages by cargo run -p
-     temper-client-journeys in your own tree, or, for a journey whose walk
-     is of version 2, by cargo run -p temper-client-walk -- print --out
-     DIR`, BASE the base or
+     temper-client-walk -- print --out DIR in your own tree`, BASE the base or
      `HEAD`. It is the delivery's own, never inherited (section 5).
    - **Passed:** neither; a delivery whose own paths are written files
      alone among them.
+9. **The merge job's tests,** where section 3's changed paths include
+   `.temper/merge` or a path under `tools/merge/` other than its
+   `README.md` and `codecs.txt`: `python3 -I -B tools/merge/test_merge.py`
+   from the tree's root, after check 7 and before check 8, announced
+   `pre-pr: merge …` and ended `pre-pr: merge: passed|failed, <seconds>
+   s`. Its test with the real generator builds `skein-codegen` under the
+   check's hold (`tools/merge/README.md`). Its exit decides:
+   - **0:** passed;
+   - **any other:** one failure, `merge`, its log the tests' output. It
+     is the delivery's own, never inherited (section 5): it runs only
+     for a delivery that changes the job.
 
 **The environment** is the check's, with `TEMPER_INTERNAL_BUNDLE=none` set where it
 is unset (`AGENTS.md`, 5), and `TIERS_LEDGER` removed, as `TIERS_HOLD` is

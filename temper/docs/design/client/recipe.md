@@ -29,6 +29,11 @@ names it. Section 2 is the directory, 3 the format, 4 the chain's hash,
 - **Its hash** is SHA-256 over the chain from its root, each recipe's
   name, `recipe`, `scripts.json` and files, so it changes with any
   parent's (section 4).
+- **A drive session walks either chain:** `recipe walk` walks a recipe's
+  (`recipe 1`); `journey walk` walks a journey's (`walk 2`, `drive.md`,
+  2.7). The first line says which rules hold: a recipe keeps the
+  session's own sign-in and its resets between steps and checks; a
+  journey has explicit approval and marks, with no added resets.
 - **Its walk** is one drive session: from a fresh place, every recipe of
   the chain in turn, or from an ancestor's restored copy, that
   ancestor's check and then the recipes after it. Each recipe's steps
@@ -84,9 +89,10 @@ names it. Section 2 is the directory, 3 the format, 4 the chain's hash,
 
 ### 3.1 Its records
 
-Text, one record per line, as the journeys' file (`web/journeys.md`,
-3.2): its kind first, then its fields, each after one space, a word
-bare, bytes in double quotes.
+Text, one record per line, in the drive grammar (`drive.md`, 3.1): its
+kind first, then its fields, each after one space, a word bare, bytes
+in double quotes. The first line, `recipe 1`, selects the recipe's
+rules, not a journey's `walk 2` (`journey-walks.md`, 2.2).
 
 | Record | Fields | Where |
 |---|---|---|
@@ -192,7 +198,10 @@ temper-client-journeys recipe walk NAME --bin DIR [--bundle DIR] --scratch DIR [
   with it, it holds `data/`, and `config/` where its box made one (a box
   with fake backends keeps its configuration under `data/`), or the walk
   refuses.
-- **One drive session** (`drive.md`, 2) on `--bin`, `--bundle` and
+- **One drive session, not a journey's** (`drive.md`, 2 and 2.7): it
+  keeps the session's own TUI sign-in and adds the resets below,
+  including `tui stop` between steps and checks. `journey walk` does
+  neither. On `--bin`, `--bundle` and
   `--scratch`, its box given each `scripts.json` of the whole chain,
   root first, as `--scripts`, and `--strict` and `--ports` as given: on
   a pass's box `--strict` is (`../draft/landed-qa.md`, 6), and a place

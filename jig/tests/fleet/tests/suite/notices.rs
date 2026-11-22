@@ -33,6 +33,8 @@ fn hello(channel: Token) -> Event {
         worker: u32::try_from(channel.raw()).expect("fixture channel") % jig_fleet_world::LIMITS.configured_workers,
         channel,
         hello: Hello {
+            fresh: false,
+            reads_usage: true,
             jobs: Box::default(),
             bounds: jig_fleet_world::fixtures::bounds(),
             slots: 1,
@@ -136,7 +138,14 @@ fn a_failed_answer_carries_the_account_it_turned_on_to_the_parent() {
         let payload = Token::new(9);
         assert_eq!(
             step(&mut domain, Event::Answer { channel: WORKER, run: RUN, attempt: ATTEMPT, answer, payload }),
-            [Request::Answered { to: ReplyTo::new(ATTEMPT), run: RUN, attempt: ATTEMPT, answer, payload }]
+            [Request::Answered {
+                to: ReplyTo::new(ATTEMPT),
+                run: RUN,
+                attempt: ATTEMPT,
+                answer,
+                payload,
+                worker: Some(5)
+            }]
         );
     }
 }

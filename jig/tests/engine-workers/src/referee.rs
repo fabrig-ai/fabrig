@@ -20,7 +20,8 @@ pub fn judge(root: &[Request]) -> Result<(), &'static str> {
                     return Err("Hello once");
                 }
             }
-            Request::Told { .. }
+            Request::Unpaused { .. }
+            | Request::Told { .. }
             | Request::Unsent { .. }
             | Request::Ended { .. }
             | Request::Opened { .. }

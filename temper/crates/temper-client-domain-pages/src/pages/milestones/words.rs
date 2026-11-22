@@ -133,7 +133,12 @@ pub fn strip(goals: &[c::TaskLine], needing: &[u64]) -> List<Segment> {
     segments
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Headline {
+pub struct Headline {
+    pub case: HeadlineCase,
+    pub reds: u32,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum HeadlineCase {
     Count(Count),
     Complete(Count),
     Closed(Count),
@@ -148,10 +153,24 @@ pub fn headline(
     totals: Option<&w::MilestoneTotals>,
     needs: bool,
 ) -> Headline {
+    Headline {
+        case: headline_case(line, goals, totals, needs),
+        reds: match totals {
+            Some(totals) => totals.reds,
+            None => 0,
+        },
+    }
+}
+fn headline_case(
+    line: &c::TaskLine,
+    goals: &[c::TaskLine],
+    totals: Option<&w::MilestoneTotals>,
+    needs: bool,
+) -> HeadlineCase {
     let count = count(goals, totals);
     match state(line, goals, totals, needs) {
-        State::Closed => return Headline::Closed(count),
-        State::Complete => return Headline::Complete(count),
+        State::Closed => return HeadlineCase::Closed(count),
+        State::Complete => return HeadlineCase::Complete(count),
         State::Ended => {
             let failed = totals.expect("ended has totals").failed;
             let mut first = None;
@@ -165,10 +184,10 @@ pub fn headline(
                     first = Some(goal.chip.task);
                 }
             }
-            return Headline::Ended { count, failed, first };
+            return HeadlineCase::Ended { count, failed, first };
         }
-        State::Done => return Headline::Count(count),
-        State::Open => return Headline::Open(count),
+        State::Done => return HeadlineCase::Count(count),
+        State::Open => return HeadlineCase::Open(count),
         State::Needs | State::Paused | State::Running | State::Waits => {}
     }
     let mut newest: Option<&c::TaskLine> = None;
@@ -185,9 +204,11 @@ pub fn headline(
         }
     }
     match newest {
-        Some(goal) => {
-            Headline::Running { count, goal: goal.chip.task, more: running.checked_sub(1).expect("one started goal") }
-        }
-        None => Headline::Count(count),
+        Some(goal) => HeadlineCase::Running {
+            count,
+            goal: goal.chip.task,
+            more: running.checked_sub(1).expect("one started goal"),
+        },
+        None => HeadlineCase::Count(count),
     }
 }

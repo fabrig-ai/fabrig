@@ -1147,6 +1147,20 @@ fn worker_preparation_refuses_unusable_io_and_overflowing_operation_counts() {
 }
 
 #[test]
+fn pause_notes_follow_each_root_state_with_the_configured_drain() {
+    use jig_domain_link::PauseState;
+    let mut stand = socket_stand();
+    for state in [PauseState::Paused, PauseState::Draining, PauseState::Drained, PauseState::Taking] {
+        stand.worker.route(temper_worker_domain::Request::Paused { state });
+        assert_eq!(
+            stand.worker.notes().pop(),
+            Some(crate::worker_alone::Note::Paused { state, drain: fixtures::worker_settings().jig.graces.drain })
+        );
+        assert!(stand.worker.notes().is_empty(), "one line per change");
+    }
+}
+
+#[test]
 fn restart_notes_keep_the_longer_of_the_word_and_the_configured_grace() {
     use skein_lib::Duration;
     let mut stand = socket_stand();
@@ -1155,5 +1169,74 @@ fn restart_notes_keep_the_longer_of_the_word_and_the_configured_grace() {
         stand.worker.link(fixtures::NOW, link::Request::Restarting { wait });
         assert_eq!(stand.worker.notes().pop(), Some(crate::worker_alone::Note::Restarting { keep: wait.max(grace) }));
         assert!(stand.worker.notes().is_empty(), "once per word");
+    }
+}
+
+#[test]
+fn usage_commands_reach_the_adapter_and_return_through_the_hub() {
+    use jig_domain_link::{SourceFailure, SourceName, UsageOutcome};
+    for parent_missing in [false, true] {
+        let mut worker = fixtures::started_worker().worker;
+        if parent_missing {
+            worker
+                .configure_program_sources(
+                    crate::program_sources::Resources::new(
+                        smith_protocol_program::Programs {
+                            claude: b"/private/program".as_slice().into(),
+                            directory: b"/private/programs".as_slice().into(),
+                        },
+                        Box::new([]),
+                        crate::settings::PROGRAM_PATH_BYTES,
+                        1000,
+                        None,
+                        None,
+                    )
+                    .unwrap(),
+                )
+                .unwrap();
+        }
+        let mut peer = LinkPeer::new();
+        peer.open(&mut worker);
+        worker.link(
+            fixtures::NOW,
+            link::Request::Down { down: hub::LinkDown::Sources { sources: Box::new([]) }, parts: Box::new([]) },
+        );
+        worker.link(
+            fixtures::NOW,
+            link::Request::Down {
+                down: hub::LinkDown::ReadUsage { read: 73, source: SourceName::new(b"alice").unwrap() },
+                parts: Box::new([]),
+            },
+        );
+        let mut answer = None;
+        for _ in 0_u32..100 {
+            if let Some(jig_protocol_engine_workers::Request::Up {
+                up: hub::LinkUp::UsageRead { read, outcome }, ..
+            }) = peer.turn(&mut worker)
+            {
+                answer = Some((read, outcome));
+                break;
+            }
+        }
+        assert_eq!(
+            answer,
+            Some((
+                73,
+                UsageOutcome::Failed {
+                    reason: SourceFailure::Unconfigured,
+                    detail: Box::from(if parent_missing {
+                        b"programs parent directory is unavailable".as_slice()
+                    } else {
+                        b"no program configured".as_slice()
+                    })
+                }
+            ))
+        );
+        assert_eq!(worker.root.host().hosted(), 0);
+        for request in &*worker.io() {
+            if let io::Request::Spawn { .. } | io::Request::SpawnAlone { .. } = request {
+                panic!("an unconfigured usage read starts no program: {request:?}");
+            }
+        }
     }
 }

@@ -7,6 +7,8 @@
 mod jobs;
 mod simulated_jobs;
 
+pub mod job_requests;
+
 use std::cell::RefCell;
 use std::collections::{BTreeSet, VecDeque};
 use std::rc::Rc;

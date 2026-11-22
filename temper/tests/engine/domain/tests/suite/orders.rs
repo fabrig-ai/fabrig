@@ -690,13 +690,16 @@ fn assert_releases_durable(driver: &Driver, assignment: &engine::Assignment) {
             host::LinkDown::Acknowledge { .. } => {
                 core::CoreKey::Terminal { task: assignment.task, attempt: assignment.attempt }
             }
-            other @ (host::LinkDown::ReadList { .. }
+            other @ (host::LinkDown::ReadUsage { .. }
+            | host::LinkDown::ReadList { .. }
             | host::LinkDown::Sources { .. }
             | host::LinkDown::Check { .. }
             | host::LinkDown::SignOut { .. }
             | host::LinkDown::Assign { .. }
             | host::LinkDown::Message { .. }
             | host::LinkDown::Relayed { .. }
+            // jig/docs/design/domain/hosts/hub.md, 7, Paused over the link.
+            | host::LinkDown::Pause { .. }
             | host::LinkDown::Cancel { .. }
             | host::LinkDown::AssignJob { .. }
             | host::LinkDown::Asked { .. }

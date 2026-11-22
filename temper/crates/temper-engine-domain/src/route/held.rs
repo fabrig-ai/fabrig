@@ -26,6 +26,9 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
         core::Held::PublicRead { .. } => {}
         core::Held::Restarting { wait } => emit(decision, &env.limits, Delivery::Restarting { wait }),
         core::Held::PublicWait { read } => emit(decision, &env.limits, Delivery::PublicWait { read }),
+        core::Held::ReadUsage { channel, read, source } => {
+            emit(decision, &env.limits, Delivery::Link { channel, down: host::LinkDown::ReadUsage { read, source } });
+        }
         core::Held::ReadList { channel, read, endpoint, grant } => {
             emit(
                 decision,
@@ -35,6 +38,9 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
         }
         core::Held::Sources { channel, sources } => {
             emit(decision, &env.limits, Delivery::Link { channel, down: host::LinkDown::Sources { sources } });
+        }
+        core::Held::PauseWorker { channel, mode } => {
+            emit(decision, &env.limits, Delivery::Link { channel, down: host::LinkDown::Pause { mode } });
         }
         core::Held::CheckSource { channel, name } => {
             emit(decision, &env.limits, Delivery::Link { channel, down: host::LinkDown::Check { name } });

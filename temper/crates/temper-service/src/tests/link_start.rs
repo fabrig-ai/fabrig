@@ -141,6 +141,7 @@ impl Joint {
                     | kit::Request::Hello { .. }
                     | kit::Request::Up { .. }
                     | kit::Request::Lost { .. }
+                    | kit::Request::Unpaused { .. }
                     | kit::Request::Told { .. }
                     | kit::Request::Opened { .. }
                     | kit::Request::Refused { .. }
@@ -163,6 +164,7 @@ impl Joint {
                     other @ (temper_worker_domain::Event::RedsAsk { .. }
                     | temper_worker_domain::Event::RedsAnswer { .. }
                     | temper_worker_domain::Event::SourceAnswered { .. }
+                    | temper_worker_domain::Event::UsageRead { .. }
                     | temper_worker_domain::Event::ListRead { .. }
                     | temper_worker_domain::Event::AssignJob { .. }
                     | temper_worker_domain::Event::Job { .. }
@@ -357,7 +359,7 @@ fn cannot_encode_words(
             reason: None,
             figure: Some(settings.jig.limits.hub.transcript_bytes.checked_add(u64::try_from(extra).unwrap()).unwrap()),
             bound: Some(settings.jig.limits.hub.transcript_bytes),
-            ceiling: Some(u64::from(wire::v18::CEILINGS.assignment_transcript)),
+            ceiling: Some(u64::from(wire::v21::CEILINGS.assignment_transcript)),
         }
         .words(b"assignment"),
         Part::Inbox => Box::from(b"assignment cannot encode: Message.words too large".as_slice()),
@@ -384,7 +386,7 @@ fn cannot_encode_words(
                 reason: None,
                 figure: Some(figure),
                 bound: Some(bound),
-                ceiling: Some(u64::from(wire::v18::CEILINGS.assignment_charter)),
+                ceiling: Some(u64::from(wire::v21::CEILINGS.assignment_charter)),
             }
             .words(b"assignment")
         }

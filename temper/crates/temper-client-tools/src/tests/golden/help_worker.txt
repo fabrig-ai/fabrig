@@ -1,0 +1,14 @@
+worker list [--since DIGEST] [--until CONDITION] [--timeout DURATION]
+  Read the workers not withdrawn, in number order
+worker add WORKER --places PLACES --digest SHA256 --key KEY
+  Add a worker, or bring a withdrawn one back at its number
+worker places WORKER PLACES --key KEY
+  Change a worker's places
+worker remove WORKER --key KEY
+  Remove a worker, withdrawn at its number
+worker pause WORKER
+  Ask a linked worker to take no new run or job; its runs go on
+worker drain WORKER
+  Ask a linked worker to take no new work and drain
+worker resume WORKER
+  Ask a linked worker to take work again

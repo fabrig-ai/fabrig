@@ -1499,6 +1499,8 @@ fn workers_restore_replace_and_refuse_removing_a_linked_channel() {
             channel,
             worker: 0,
             hello: jig_domain_link::Hello {
+                fresh: false,
+                reads_usage: true,
                 jobs: Box::new([]),
                 bounds: crate::tests::fixtures::bounds(),
                 stop_bound: Duration::ZERO,

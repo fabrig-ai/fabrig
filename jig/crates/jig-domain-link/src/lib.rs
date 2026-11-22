@@ -5,7 +5,7 @@
 #![forbid(unsafe_code)]
 extern crate alloc;
 use alloc::boxed::Box;
-use skein_lib::{Duration, Token};
+use skein_lib::{Duration, Token, Wall};
 
 /// How a root takes an event (jig/docs/design/domain/root.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -24,6 +24,23 @@ impl Class {
     pub const fn of(new_work: bool) -> Self {
         if new_work { Self::New } else { Self::Admitted }
     }
+}
+
+/// The engine's pause ask (jig/docs/design/protocol/channel/pause.md, 2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum PauseMode {
+    Resume,
+    Pause,
+    Drain,
+}
+
+/// The worker's pause state (jig/docs/design/protocol/channel/pause.md, 2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum PauseState {
+    Taking,
+    Paused,
+    Draining,
+    Drained,
 }
 
 /// A configuration-directory name (accounts.md, 3.4), never an account number.
@@ -293,6 +310,8 @@ pub enum GrantTable {
 pub struct Hello {
     /// Job kinds this host runs, ascending and unique (jig/docs/design/domain/hosts/hub.md, 9).
     pub jobs: Box<[JobBound]>,
+    /// Whether the agreed channel carries usage reads (protocol/channel/records.md, 1).
+    pub reads_usage: bool,
     pub bounds: Bounds,
     /// The worker's longest stop time after losing contact. It must be
     /// strictly below the engine's grace.
@@ -302,6 +321,8 @@ pub struct Hello {
     pub workstreams: Box<[u64]>,
     /// The runs it hosts, and those whose answers it holds.
     pub hosting: Box<[Hosting]>,
+    /// No hello of this worker process has yet been admitted (domain/engine/executors.md, 6.5).
+    pub fresh: bool,
 }
 
 /// A run a worker hosts, or whose answer it holds.
@@ -443,4 +464,31 @@ pub enum ListOutcome {
 pub enum AskAnswer {
     Bytes(Box<[u8]>),
     Refused,
+}
+
+/// A program's usage window (jig/docs/design/domain/accounts.md, 3.7).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct FactWindow {
+    pub length: Option<Duration>,
+    pub used: Option<u16>,
+    pub resets: Option<Wall>,
+    pub state: u16,
+}
+pub const WINDOW_OPEN: u16 = 1;
+pub const WINDOW_WARNED: u16 = 2;
+pub const WINDOW_LIMITED: u16 = 3;
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct UsageWindow {
+    pub label: Box<[u8]>,
+    pub window: FactWindow,
+}
+pub const USAGE_WINDOWS: u32 = 8;
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum UsageOutcome {
+    Read(Box<[UsageWindow]>),
+    NotSignedIn,
+    Spent,
+    Failed { reason: SourceFailure, detail: Box<[u8]> },
 }

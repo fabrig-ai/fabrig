@@ -245,6 +245,39 @@ impl Worker {
     }
     pub fn built_from(&mut self, figures: jig_protocol_worker_wire::Figures) {
         self.figures = Some(figures);
+        self.last_figures = None;
+    }
+
+    /// Take only the live part, or none of it (configuration/figures.md, 3.2).
+    fn hear_figures(&mut self, heard: jig_protocol_worker_wire::Figures) {
+        use crate::{figures, worker_alone::Note};
+        let Some(in_force) = &self.figures else { return };
+        if &heard == self.last_figures.as_ref().unwrap_or(in_force) {
+            return;
+        }
+        let plan = figures::plan(in_force, &heard, &self.env.limits, self.git.component.limits());
+        self.last_figures = Some(heard);
+        match plan.live {
+            Ok(Some(take)) => {
+                // The link checks before mutating its timers. Git's check was
+                // done on the copy; its construction bounds have not moved.
+                if let Some(timers) = take.timers
+                    && !self.link.retime(timers)
+                {
+                    self.notes.push(Note::FiguresRefused { problem: figures::bound_line() });
+                } else {
+                    assert!(self.git.component.take_limits(&take.git), "checked live git bounds");
+                    self.env.limits = take.root;
+                    self.figures = Some(take.figures);
+                    self.notes.push(Note::FiguresTaken { figures: take.names.into_boxed() });
+                }
+            }
+            Ok(None) => {}
+            Err(problem) => self.notes.push(Note::FiguresRefused { problem }),
+        }
+        if !plan.waiting.is_empty() {
+            self.notes.push(Note::FiguresWaiting { figures: plan.waiting.into_boxed() });
+        }
     }
     pub fn reuse_workspaces(&mut self) {
         self.root.reuse_workspaces();
@@ -542,15 +575,7 @@ impl Worker {
             link::Request::Untranslated { kind, halt } => {
                 self.notes.push(crate::worker_alone::Note::Untranslated { kind, halt });
             }
-            link::Request::Figures { figures } => {
-                if let Some(built) = &self.figures {
-                    let previous = self.last_figures.as_ref().unwrap_or(built);
-                    if figures != *previous && figures != *built {
-                        self.notes.push(crate::worker_alone::Note::FiguresChanged);
-                    }
-                    self.last_figures = Some(figures);
-                }
-            }
+            link::Request::Figures { figures } => self.hear_figures(figures),
             link::Request::Ready => {
                 if let Connection::Socket(remote) = &mut self.connection {
                     remote.hello_pending = true;
@@ -851,6 +876,23 @@ impl Worker {
         let settled = self.sources.read(read, io_owner, endpoint, credential, deadline, &mut self.io);
         self.answered(settled);
     }
+    fn read_usage(&mut self, read: u64, source: SourceName) {
+        let io_owner = Token::new(self.prefix.checked_add(self.next).expect("source owner range"));
+        self.next = self.next.checked_add(1).expect("source owner sequence");
+        assert!(self.next < (1_u64 << 48_u32), "worker owner range");
+        let deadline = self.env.now.saturating_add(self.env.limits.host.source_timeout);
+        let settled = self.sources.read_usage(
+            read,
+            io_owner,
+            source,
+            self.directory.expect("worker root"),
+            deadline,
+            self.env.wall,
+            &mut self.io,
+            self.source_files.requests(),
+        );
+        self.answered(settled);
+    }
     fn note_unprepared(&mut self, run: Token, attempt: Token, failure: hub::Preparation, detail: &[u8]) {
         let detail = hosted_detail(&self.name, detail, self.env.limits.host.detail_bytes);
         self.notes.push(crate::worker_alone::Note::Unprepared {
@@ -899,8 +941,23 @@ impl Worker {
     #[expect(clippy::too_many_lines, reason = "the root boundary routes each request exhaustively")]
     pub(crate) fn route(&mut self, request: root::Request) {
         match request {
+            root::Request::Paused { state } => {
+                self.notes.push(crate::worker_alone::Note::Paused { state, drain: self.env.limits.drain });
+            }
             root::Request::Git { run, attempt, job, repository, what } => {
                 self.note_git(run, attempt, job, repository, what);
+            }
+            root::Request::AgentSignalled { run, attempt, signal, from } => {
+                let signal = match signal {
+                    smith::parent::Signal::Interrupt => "SIGINT",
+                    smith::parent::Signal::Terminate => "SIGTERM",
+                };
+                self.notes.push(crate::worker_alone::Note::AgentSignalled {
+                    run: run.raw(),
+                    attempt: attempt.raw(),
+                    signal,
+                    from,
+                });
             }
             root::Request::AgentStopped { run, attempt, failure } => {
                 self.note_agent_stopped(run, attempt, failure);
@@ -919,6 +976,7 @@ impl Worker {
                 let answer = translate::answer(&bytes, &self.payload);
                 root::step(&mut self.root, &self.env, root::Event::RedsAnswer { owner, check, answer }, &mut self.out);
             }
+            root::Request::ReadUsage { read, source } => self.read_usage(read, source),
             root::Request::ReadList { read, endpoint, grant } => self.read_list(read, endpoint, grant),
             root::Request::CancelRead { read } => {
                 let settled = self.sources.cancel_read(read, &mut self.io);
@@ -1004,6 +1062,9 @@ impl Worker {
         match request {
             smith::process::Request::Spawn { owner, deadline, .. } => self.process_spawn(owner, deadline),
             smith::process::Request::Send { owner, message, .. } => self.process_send(owner, message),
+            smith::process::Request::CloseChannel { owner, .. } => {
+                self.processes.get(&owner).expect("root owns process").close_channel(&mut self.io);
+            }
             smith::process::Request::Signal { owner, signal, .. } => self.process_signal(owner, signal),
             smith::process::Request::Read { owner, .. } => self.process_read(owner),
             smith::process::Request::Wait { .. } => Self::process_wait(),
@@ -1109,6 +1170,7 @@ impl Worker {
     fn answered(&mut self, settled: Option<(Token, jig_domain_host::sources::Answer)>) {
         if let Some((owner, answer)) = settled {
             let event = match answer {
+                hub::sources::Answer::Usage(outcome) => root::Event::UsageRead { read: owner.raw(), outcome },
                 hub::sources::Answer::Read(outcome) => root::Event::ListRead { read: owner.raw(), outcome },
                 answer @ (hub::sources::Answer::Checked { .. } | hub::sources::Answer::SignedOut(_)) => {
                     root::Event::SourceAnswered { owner, answer }
@@ -1601,7 +1663,7 @@ mod prepared_tests {
                     assert_eq!((lowest, highest), (16, 16));
                     opening = Some(
                         jig_protocol_worker_wire::Credential::decode(
-                            &jig_protocol_worker_wire::v18::CEILINGS,
+                            &jig_protocol_worker_wire::v21::CEILINGS,
                             &mut Reader::new(&credential),
                         )
                         .expect("worker credential"),
@@ -1670,6 +1732,8 @@ mod prepared_tests {
     }
 }
 
+#[cfg(test)]
+mod figures_tests;
 #[cfg(test)]
 mod stopping_tests;
 

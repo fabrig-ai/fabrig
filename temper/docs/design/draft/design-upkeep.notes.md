@@ -1,0 +1,15 @@
+# design-upkeep: the reasons behind it
+
+The reasons behind `design-upkeep.md`, from the user, 2026-11-20. They sit beside the draft, since `draft/notes.md` is at the size limit.
+
+- **The ask:** goal 5993's landing went ahead after the user accepted a repair's recommendation to condense temper's `STATUS.md`, to unblock it. The user was "surprised that we still have STATUS.md at all", having understood that the status had moved to the files beside each document. A "docs/design overhaul and prompt changes" were "supposed to keep docs/design in order, mechanically and by prompting". The user asked whether that overhaul had left leftovers behind, or hadn't had the effect wanted.
+- **The answer:** mostly the second (`design-upkeep.md`, 2). The 11-02 cleanup kept `STATUS.md` on purpose, as an index under a one-paragraph summary. But every goal is asked to write its summaries, and nothing checks the page's shape except the size limit. Documents meet the limit and leave it by the smallest cut. The leftovers are smaller: 13 drafts the design already carries in full.
+- **Their word:** "please go ahead with the draft", on three fixes: a fixed page with the roll-up made by code, splits instead of cuts, and finished drafts removed.
+- **The go-ahead,** 2026-11-21: "everything approved, U1 U2 U3, you can go". On later passes: "For now I'd say you run the first few passes by hand, I'll checkin with you once in a while and you'll remind me and we decide whether to run a pass, after we get some experience we'll automate" (`design-upkeep.md`, 4.3 and 7.1).
+- **The review:** one round on Codex, 2026-11-20. Its findings shaped `design-upkeep.md`, 3.1's sorting of the page's text, 3.2's reading of a status file, 3.3's whole-text check, 4.2's kept numbers and moved text, 4.3's one area at a time, and the charter's move on dev in 6.
+- **Left out:**
+  - **A roll-up committed to the page** by one writer after each landing, as main's journey files have. It gives a page to browse, but costs a commit on main after every landing and a job to run it. The script prints the same thing when asked.
+  - **Keeping the index, with checks:** index lines alone, no notes, and a summary under 2 KB. That keeps a file that 3 in 10 landings would still edit, and the index repeats what each directory's README and its file names already say.
+  - **A refusal at the mark,** or refusing any shrink of a document over the mark unless the change splits it. The first would be met by the same smallest cut, only sooner. The second would refuse a correction that deletes stale text from a large document, and teach goals to leave that text in.
+  - **A size cap on the page,** 2 KB, in the first version of this draft. It holds the page's size, not its text: a goal could still add a summary under the cap, and the next goal trim it to make room. The page's whole text is checked instead (`design-upkeep.md`, 3.3).
+  - **Dropping `STATUS.md` altogether:** every tree's README and hearth's `AGENTS.md` link to it, and a reader who lands there is told where the status went.

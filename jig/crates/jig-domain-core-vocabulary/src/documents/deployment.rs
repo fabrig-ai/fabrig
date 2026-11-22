@@ -112,7 +112,7 @@ pub struct Account {
     pub display: super::Text,
     pub holder: accounts::Holder,
     pub sources: List<super::SourceLine>,
-    pub facts: List<accounts::AccountFact>,
+    pub facts: List<super::AccountFactLine>,
     pub generation: Option<u64>,
     pub state: AccountState,
     pub usable: bool,
@@ -247,6 +247,7 @@ pub struct WorkerState {
     pub withdrawn: bool,
     pub linked: bool,
     pub since: Option<Wall>,
+    pub pause: jig_domain_link::PauseState,
 }
 
 #[cfg(test)]

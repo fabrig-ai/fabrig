@@ -58,6 +58,9 @@ pub(crate) fn opened(
     }
     out.push(Request::Hello {
         hello: Hello {
+            // The worker link sets process freshness when it sends the hello.
+            fresh: false,
+            reads_usage: true,
             slots,
             stop_bound,
             workstreams,

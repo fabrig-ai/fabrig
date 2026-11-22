@@ -25,6 +25,7 @@ pub enum Usage {
     Rows { tool: u8, form: u8, argument: u8 },
     Long { tool: u8, form: u8, argument: u8 },
     Many { tool: u8, form: u8, argument: u8 },
+    Together { tool: u8, form: u8, first: u8, second: u8 },
     Stdin,
     Key,
     KeyName { tool: u8 },
@@ -44,7 +45,8 @@ impl Usage {
             | Self::Long { tool: t, form: f, .. }
             | Self::Missing { tool: t, form: f, .. }
             | Self::Twice { tool: t, form: f, .. }
-            | Self::Many { tool: t, form: f, .. } => {
+            | Self::Many { tool: t, form: f, .. }
+            | Self::Together { tool: t, form: f, .. } => {
                 *t = tool;
                 *f = form;
             }
@@ -182,6 +184,41 @@ fn tool_index(table: &[&Tool], word: &[u8]) -> Option<u8> {
     }
     None
 }
+// Reserve the trailing required positionals after a repeated positional (FINDING... TEXT).
+fn positional_count(arguments: &[Argument], words: &[&[u8]]) -> usize {
+    let mut count = 0_usize;
+    let mut skip = false;
+    let mut positional = false;
+    for word in words {
+        if skip {
+            skip = false;
+            continue;
+        }
+        if !positional && *word == b"--" {
+            positional = true;
+        } else if !positional && word.starts_with(b"--") {
+            skip = *word == b"--key";
+            for argument in arguments {
+                if word.get(2..) == Some(argument.name) {
+                    skip = argument.place == Place::Flag;
+                    break;
+                }
+            }
+        } else {
+            count = count.checked_add(1).expect("bounded argv");
+        }
+    }
+    count
+}
+fn trailing_positionals(arguments: &[Argument], slot: usize) -> usize {
+    let mut count = 0_usize;
+    for argument in arguments.iter().skip(slot.checked_add(1).expect("bounded arguments")) {
+        if argument.place == Place::Positional && super::table::required(argument) {
+            count = count.checked_add(1).expect("bounded arguments");
+        }
+    }
+    count
+}
 fn form_values(
     table: &[&Tool],
     arguments: &[Argument],
@@ -198,6 +235,7 @@ fn form_values(
     let mut result = Form { values: Box::from([]), key: None, json };
     let mut skip = None;
     let mut positional = false;
+    let mut positionals = positional_count(arguments, words);
     for (index, word) in words.iter().enumerate() {
         if skip == Some(index) {
             continue;
@@ -234,7 +272,8 @@ fn form_values(
                     break;
                 }
             } else if argument.place == Place::Positional
-                && (values.get(u32::from(id)) == Some(&None) || repeated(argument.occurs))
+                && (values.get(u32::from(id)) == Some(&None)
+                    || (repeated(argument.occurs) && positionals > trailing_positionals(arguments, slot)))
             {
                 found = Some(id);
                 break;
@@ -264,6 +303,9 @@ fn form_values(
         };
         valid(table, spec, &value, argument, limits)?;
         store(slot, spec.occurs, value, argument)?;
+        if !flag {
+            positionals = positionals.checked_sub(1).expect("counted positional");
+        }
     }
     for (index, argument) in arguments.iter().enumerate() {
         let index = u32::try_from(index).or(Err(Usage::Tool))?;
@@ -478,7 +520,7 @@ fn check_watch(row: &Tool, call: &Call) -> Result<(), Usage> {
     }
     if let Some(Value::Condition(condition)) = super::call::argument(row, call, b"until") {
         let subject = subject::of(call).ok_or(Usage::Condition)?;
-        subject::check(&subject, *condition)?;
+        subject::check(&subject, condition)?;
     }
     Ok(())
 }

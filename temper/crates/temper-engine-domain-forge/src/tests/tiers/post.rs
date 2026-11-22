@@ -39,6 +39,7 @@ fn red_finding(d: &mut Domain, number: u32, blamed: &[api::Commit]) {
             many: false,
         },
         blame: Some(FindingBlame {
+            moved: None,
             strength: if blamed.is_empty() { BlameStrength::Unblamed } else { BlameStrength::Owned },
             landings: blamed.iter().map(|commit| BlamedLanding { commit: *commit, goals: Box::new([]) }).collect(),
         }),

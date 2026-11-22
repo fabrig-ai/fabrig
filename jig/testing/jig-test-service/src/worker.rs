@@ -397,6 +397,23 @@ impl Worker {
                     root::Request::Asked { run, attempt, number, answer } => {
                         self.asked.push((run, attempt, number, answer));
                     }
+                    root::Request::ReadUsage { read, source } => {
+                        let io_owner = Token::new(self.prefix.checked_add(self.next).expect("source owner range"));
+                        self.next = self.next.checked_add(1).expect("source owner sequence");
+                        assert!(self.next < (1_u64 << 48_u32), "worker owner range");
+                        let deadline = self.env.now.saturating_add(self.env.limits.hub.source_timeout);
+                        let settled = self.sources.read_usage(
+                            read,
+                            io_owner,
+                            source,
+                            self.directory.expect("worker root"),
+                            deadline,
+                            self.env.wall,
+                            &mut self.io,
+                            self.source_files.requests(),
+                        );
+                        self.answered(settled);
+                    }
                     root::Request::ReadList { read, endpoint, grant } => {
                         let io_owner = Token::new(self.prefix.checked_add(self.next).expect("source owner range"));
                         self.next = self.next.checked_add(1).expect("source owner sequence");
@@ -461,6 +478,9 @@ impl Worker {
         match request {
             smith::process::Request::Spawn { owner, deadline, .. } => self.process_spawn(owner, deadline),
             smith::process::Request::Send { owner, message, .. } => self.process_send(owner, message),
+            smith::process::Request::CloseChannel { owner, .. } => {
+                self.processes.get(&owner).expect("root owns process").close_channel(&mut self.io);
+            }
             smith::process::Request::Signal { owner, signal, .. } => self.process_signal(owner, signal),
             smith::process::Request::Read { owner, .. } => self.process_read(owner),
             smith::process::Request::Wait { .. } => Self::process_wait(),
@@ -612,6 +632,9 @@ impl Worker {
     fn answered(&mut self, settled: Option<(Token, jig_domain_host::sources::Answer)>) {
         if let Some((owner, answer)) = settled {
             let event = match answer {
+                jig_domain_host::sources::Answer::Usage(outcome) => {
+                    jig_domain_host::Event::UsageRead { read: owner.raw(), outcome }
+                }
                 jig_domain_host::sources::Answer::Read(outcome) => {
                     jig_domain_host::Event::ListRead { read: owner.raw(), outcome }
                 }
@@ -704,6 +727,11 @@ impl Worker {
                 self.values.release_key(*account, *generation);
             }
         }
+    }
+    /// Run slots held while a source command is in progress.
+    #[must_use]
+    pub fn hosted(&self) -> u32 {
+        self.root.hosted()
     }
     /// Credential generations retained below the root, for channel lifetime assertions.
     #[must_use]
@@ -1092,7 +1120,7 @@ mod admission_tests {
                     .push(wire::AgreedWire { name: spoken.name.as_bytes().into(), version: spoken.highest() })
                     .expect("four wires");
             }
-            let record = wire::v18::Agreed { wires };
+            let record = wire::v21::Agreed { wires };
             let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(
                 record.measure(&wire::CEILINGS).expect("statement within limits"),
             ));
@@ -1212,6 +1240,7 @@ mod admission_tests {
                     }
                     root::Request::Process(_) => {}
                     other @ (root::Request::Asked { .. }
+                    | root::Request::ReadUsage { .. }
                     | root::Request::ReadList { .. }
                     | root::Request::CancelRead { .. }
                     | root::Request::Source { .. }

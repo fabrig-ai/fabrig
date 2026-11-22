@@ -2,6 +2,8 @@
 
 #![forbid(unsafe_code)]
 
+pub mod start_values;
+
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
 use jig_domain_core as core;
@@ -169,7 +171,7 @@ fn profile() -> root::Limits {
                 text_bytes: 256,
                 chips: 32,
                 lines: 32,
-                versions: core::documents::Versions { minimum: 39, maximum: 39 },
+                versions: core::documents::Versions { minimum: 42, maximum: 42 },
             },
             connectors: 2,
             resume_bytes: 256,

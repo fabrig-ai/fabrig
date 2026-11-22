@@ -142,7 +142,7 @@ fn a_rows_makings_are_delivered_in_order() {
     let record = jig_client::Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::forges(&w::Forges { forges, linked: false }),
+        bytes: wire::forges(&w::Forges { forges, full: List::with_capacity(0), linked: false }),
     };
     let rows = forge::forges::rows(&record, &fixtures::limits().forge).unwrap();
     assert_eq!(rows.len(), 2);

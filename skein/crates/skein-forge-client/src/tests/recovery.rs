@@ -229,9 +229,13 @@ fn catching_up() -> kept::Harness {
     h.event(Event::Restore { record: Stored::Repository(fixture::repository()) });
     h.event(Event::Restored { clock: RecoveryClock::Monotonic });
     let saved = fixture::uncertain_comment().store.get(&1).expect("saved attempt").clone();
+    let task = saved.task;
     h.event(Event::Make { entry: saved });
     h.event(Event::ReadAfresh);
+    assert_eq!(h.domain.fresh_resources_owed().as_ref(), &[kept::branch()]);
+    assert!(h.domain.unsettled().is_empty(), "the outbox has not started settling");
     h.event(Event::SettleOutbox);
+    assert_eq!(h.domain.unsettled().as_ref(), &[(1, task)]);
     h
 }
 
@@ -254,10 +258,12 @@ fn restart_settles_while_the_fresh_pass_is_still_out() {
     assert_eq!((h.outbox_done, h.fresh_done), (0, 0));
     h.answer(find, fixture::empty_item());
     assert_eq!((h.outbox_done, h.fresh_done), (1, 0), "the first find alone ends the settle");
+    assert!(h.domain.unsettled().is_empty());
     assert_eq!(h.outcomes.as_slice(), &[Outcome::Uncertain]);
     assert!(h.send().is_none());
     h.answer(fresh, Answer::Commit([1; 32]));
     assert_eq!((h.outbox_done, h.fresh_done), (1, 1));
+    assert!(h.domain.fresh_resources_owed().is_empty());
     assert!(h.send().is_none());
 }
 

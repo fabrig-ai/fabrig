@@ -33,6 +33,13 @@ impl World {
             }
         }
         match delivery {
+            root::Delivery::Core(core::Held::PauseWorker { channel, mode })
+            | root::Delivery::Link { channel, down: jig_domain_host::LinkDown::Pause { mode } } => {
+                self.worker_pauses.push((channel, mode));
+            }
+            root::Delivery::Link { channel, down: jig_domain_host::LinkDown::ReadUsage { read, source } } => {
+                self.usage_reads.push((channel, read, source));
+            }
             root::Delivery::Core(core::Held::ReadList { channel, read, endpoint, grant }) => {
                 self.list_reads.push(crate::lists::Reading { channel, read, endpoint, grant });
             }
@@ -224,7 +231,8 @@ impl World {
             root::Delivery::ApplicationDocument { .. }
             | root::Delivery::Link { .. }
             | root::Delivery::Core(
-                core::Held::Delivery { .. }
+                core::Held::ReadUsage { .. }
+                | core::Held::Delivery { .. }
                 | core::Held::PublicRead { .. }
                 | core::Held::SettledCall { .. }
                 | core::Held::Assign { .. }

@@ -1,6 +1,6 @@
 //! Walk lines and page printers (temper/docs/design/client/journey-walks.md, 3.1).
 //! Static pages and the files beside them (client/web/journeys.md, 5.2 and 5.3),
-//! with page-local generated ids (client/journey-placeholders.md, 5).
+//! with page-local generated ids (client/web/journeys.md, 5.3).
 
 use skein_ui::{NodeId, Role};
 use std::{collections::BTreeMap, fmt::Write, fs, io, path::Path};

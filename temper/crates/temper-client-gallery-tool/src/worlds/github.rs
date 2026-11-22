@@ -49,7 +49,7 @@ pub(super) fn forges(world: World) -> Box<[u8]> {
     }
     let mut forges = List::with_capacity(1);
     forges.push(parts).expect("row room");
-    wire::forges(&w::Forges { forges, linked: false })
+    wire::forges(&w::Forges { forges, full: List::with_capacity(0), linked: false })
 }
 pub(super) fn answer_page(root: &mut Domain, attempt: Token, out: &mut Queue<Request>) {
     let mut rows = List::with_capacity(4);

@@ -2,9 +2,6 @@
 
 2026-11-20. Where the design lags or departs from [reconciling-start.md](reconciling-start.md).
 
-- **Design lags:**
-  - 4: `../domain/root.md`, 8.2, hears a stop only once the root is ready; `../../help/server.md` sets no unit timeout from the engine's bounds.
-  - 5: no design names a start's waiters, or a catching-up forge's past a report bound by its oldest; `../domain/forge/catching-up.md`, 5, shows its counts alone.
 - **Design departs:**
   - 3, 5: the forge's work after the opening is "catching up", its report "caught up" and its pages' words "Catching up", where the draft says "reconciling" and "reconciled", as the goal that built section 3 was asked (2026-11-20; its designer's choice on the request's words).
   - 3: a procedure that waits on the forge waits for its fresh reads, the first half of catching up, not for the whole: one uncertain write whose find keeps failing would otherwise hold every procedure, which the draft's own test 4 rules out (`../domain/forge/catching-up.md`, 2 and 4).
@@ -12,6 +9,9 @@
   - 3: a write waits behind every earlier entry on its lane, the outbox's order in steady state, not only until each restored one has had its first look: the lane is the fence, and no second order is kept (`../domain/forge/catching-up.md`, 3; skein's `forge/client.md`, 7.2).
   - 7, test 2: a making found missing with room is made in the room line's order from the beginning of catching up, its write behind its lane, not after the settle: section 3 has the line order writes as soon as the outbox's table is restored, which the test's "after the settle" predates; what the test guards, that no read waits on the making's write, holds (`../domain/forge/branches.md`, 1).
   - 6: the check has no bound of its own past which it fails: the start's work up to the opening is local and finite, and a bound would be a timeout the user has not set (`../protocol/binaries.md`, 2).
+  - 4: the bounds are printed by `temper-engine versions`, not `--version`: `--version` stays the one line the redeploy tool and the binary's test read whole, and `versions` is the engine's version details, reading no configuration, store or settings, so it prints the bounds at the stock limits (`../protocol/binaries.md`, 2). The goal's designer, 2026-11-20.
+  - 5: the report bound is one fixed figure, 30 s, for every step of a start and every full table, not one derived from each step's work on the deployment's store: `versions` reads no store, and dev.fabrig.ai's whole start took ten seconds once its cycle was cut (`../protocol/configuration/derived.md`, 5.6). The goal's designer, 2026-11-20.
+  - 5: "the health census" and "the deployment census" are the deployment's forges, the forges' document on the client's Deployment page and `temper ctl forge list`: no census of waits exists, and the outbox and read admission are the forge connector's, one for every forge (`../protocol/README.md`, 6.3; `../client/forge/deployment.md`, *A full table*). The goal's designer, 2026-11-20.
 - **Open:** none.
 
 Section 2's check of every term that ends reading afresh (S1, 2026-11-20;

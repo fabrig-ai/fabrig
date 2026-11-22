@@ -66,7 +66,7 @@ fn record_first(connection: w::Connection, first: Option<w::FirstRepository>) ->
     client::Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::forges(&w::Forges { forges, linked: false }),
+        bytes: wire::forges(&w::Forges { forges, full: List::with_capacity(0), linked: false }),
     }
 }
 fn deliver(root: &mut f::Harness, record: client::Family) {
@@ -806,7 +806,7 @@ fn settled_wait_with_installations(count: u32) {
         client::Family {
             family: wire::FORGE,
             version: wire::CLIENT_VERSION,
-            bytes: wire::forges(&w::Forges { forges, linked: false }),
+            bytes: wire::forges(&w::Forges { forges, full: List::with_capacity(0), linked: false }),
         },
     );
     let printed = root.answer(call).expect("settled wait completes");
@@ -948,7 +948,7 @@ fn human_forges_bounds_the_wire_maximum_installations_with_longest_logins() {
         let record = client::Family {
             family: wire::FORGE,
             version: wire::CLIENT_VERSION,
-            bytes: wire::forges(&w::Forges { forges: rows, linked: false }),
+            bytes: wire::forges(&w::Forges { forges: rows, full: List::with_capacity(0), linked: false }),
         };
         let mut domain_limits = limits.domain.forge;
         domain_limits.field_bytes = bounds.account_login;
@@ -1395,7 +1395,7 @@ fn sixteen_forges_with_sixteen_copy_addresses_fit_the_client_document() {
         row.starts_with = w::StartsWith::Copies(copies.clone());
         rows.push(row).unwrap();
     }
-    let forges = w::Forges { forges: rows, linked: false };
+    let forges = w::Forges { forges: rows, full: List::with_capacity(0), linked: false };
     let encoded = wire::forges(&forges);
     assert!(w::Forges::decoded_bound(&bounds).is_some());
     let request = w::Requesting::encoded_bound(&bounds).unwrap();
@@ -1473,4 +1473,44 @@ pub(super) fn project_forge(root: &mut f::Harness) {
             Some(first_record(made())),
         ),
     );
+}
+
+#[test]
+fn forge_list_prints_full_tables_before_rows_and_keeps_their_json_fields() {
+    for json in [false, true] {
+        let mut root = f::signed_in(f::PARTY);
+        root.wall = skein_lib::Wall::from_nanos(200_000_000_000);
+        let call = root.submit_prepared(f::call(&["forge", "list"]), json, None);
+        let mut record = record(w::Connection::NotConnected);
+        let limits = forge::wire_limits(&root.limits.domain.forge).unwrap();
+        let mut document = wire::decode_forges(&record.bytes, &limits).unwrap();
+        document.full = List::with_capacity(2);
+        let since = root.wall.as_nanos().saturating_sub(Duration::from_secs(120).as_nanos());
+        document
+            .full
+            .push(w::FullTable {
+                table: w::FullKind::Outbox,
+                since,
+                words: b"2 of 2, held by entry 7 (task 1), entry 9 (task 2)".as_slice().into(),
+            })
+            .unwrap();
+        document
+            .full
+            .push(w::FullTable {
+                table: w::FullKind::ReadAdmission,
+                since,
+                words: b"2 of 2, held by pull 12 of work/hello, branch main of work/hello".as_slice().into(),
+            })
+            .unwrap();
+        record.bytes = wire::forges(&document);
+        deliver(&mut root, record);
+        let printed = root.answer(call).unwrap();
+        assert_eq!(printed.status, 0);
+        if json {
+            assert!(skein_lib::bytes::find(&printed.stdout, br#""full":[{"table":"outbox","since":80000000000,"words":"2 of 2, held by entry 7 (task 1), entry 9 (task 2)"}"#).is_some());
+            assert!(skein_lib::bytes::find(&printed.stdout, br#""table":"read_admission""#).is_some());
+        } else {
+            assert!(printed.stdout.starts_with(b"the forge's outbox full for 2 min: 2 of 2, held by entry 7 (task 1), entry 9 (task 2)\nthe forge's read admission full for 2 min: 2 of 2, held by pull 12 of work/hello, branch main of work/hello\nforge 3"));
+        }
+    }
 }

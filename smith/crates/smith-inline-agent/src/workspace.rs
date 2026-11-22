@@ -124,7 +124,7 @@ pub(crate) fn terminal(slot: &mut Slot, terminal: Below) -> Option<smith::Event>
             }
             Machine::Read { .. } | Machine::Probe { .. } => return None,
         },
-        Below::BuiltinResult { .. } | Below::ReadVersion { .. } => {}
+        Below::Usage { .. } | Below::BuiltinResult { .. } | Below::ReadVersion { .. } => {}
     }
     Some(smith::Event::Below(terminal))
 }

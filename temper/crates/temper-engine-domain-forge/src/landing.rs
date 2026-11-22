@@ -45,7 +45,7 @@ pub(crate) struct State {
 }
 #[derive(Hash, Debug)]
 pub(crate) struct Pending {
-    task: u64,
+    pub(crate) task: u64,
     repository: api::Repository,
     resource: Option<GatherRead>,
     read: api::Read,

@@ -2,10 +2,7 @@
 mod cli;
 mod files;
 pub use cli::{TABLE, answer, main};
-use std::{
-    fs, io,
-    path::{Component, Path, PathBuf},
-};
+use std::{fs, io, path::Path};
 use temper_client_walk_lines::{
     print, tui_print,
     walk::{self, Client, Roots},
@@ -15,8 +12,8 @@ use temper_client_walk_world::{
     walk::{Marks, Stopped, walk as execute},
 };
 
-pub const WEB: &str = "temper/docs/design/client/web/journeys";
-pub const TUI: &str = "temper/docs/design/client/tui/journeys";
+use temper_client_walk_lines::layout::resolve;
+pub use temper_client_walk_lines::layout::{TUI, WEB};
 
 /// Captured output lets tests use their own repository and no child process.
 #[derive(Debug)]
@@ -41,29 +38,6 @@ fn moved(root: &Path) -> io::Result<Vec<String>> {
     }
     names.sort();
     Ok(names)
-}
-
-// Canonicalize existing prefixes before following .., including a link before .. .
-// Missing suffixes remain usable without creating an output before usage is checked.
-fn resolve(path: &Path) -> io::Result<PathBuf> {
-    let mut resolved = PathBuf::new();
-    for component in path.components() {
-        match component {
-            Component::ParentDir => {
-                resolved.pop();
-            }
-            Component::CurDir => {}
-            Component::Prefix(_) | Component::RootDir | Component::Normal(_) => {
-                resolved.push(component.as_os_str());
-                match fs::canonicalize(&resolved) {
-                    Ok(path) => resolved = path,
-                    Err(error) if error.kind() == io::ErrorKind::NotFound => {}
-                    Err(error) => return Err(error),
-                }
-            }
-        }
-    }
-    Ok(resolved)
 }
 
 pub(crate) fn run(

@@ -734,11 +734,49 @@ each step the core asks for:
 Until decisions open, the forge's hints are dropped; its own timers
 fire from the beginning of its catching up.
 
+**A step that runs long.** The root keeps the time the core asked for
+each step, and what the step waits on: the store's page or switch, its
+commits in flight, and in step 5 the forge's reads and finds still owed
+(`forge/README.md`, section 9). Past the report bound, and again at each
+doubling of the step's age, it reports them by kind, with counts and the
+oldest by name, as a fact the service writes
+(`../protocol/README.md`, 6.3). The report is no deadline: the step
+goes on as before.
+
 ### 8.2 Stopping
 
 A stop settles first (`../draft/upgrades.md`, section 8), then the core
 drains as jig's `domain/engine/restart.md`, 1 says.
 
+- **In every step of the start** (8.1) a stop is heard: the service
+  routes the root's stop as soon as it is told, opened or not, before
+  anything else it would hand the root (`../draft/reconciling-start.md`,
+  4). What it does depends on the start's mark, the wires commit of step
+  3:
+  - **Before the mark,** the start ends at once. The root tells the core
+    `Stopping` alone and the forge nothing, since nothing has been read
+    or written to settle; the core says it has drained once the start's
+    commits in flight are answered (jig's `domain/engine/restart.md`, 1,
+    *A stop during the start*). The service makes none of the components
+    that wait for the mark and closes each at once as closed (jig's
+    `protocol/service.md`, 5, step 4), the store last, and the engine
+    ends drained. No forge is read, no secret served, no run adopted, no
+    worker told; the next start begins again, a pending generation still
+    pending (jig's `protocol/store/opening.md`, 2, step 7). A stop heard
+    while the wires commit is in flight is before the mark: the commit is
+    answered, and nothing that waits for the mark follows it.
+  - **After the mark and before decisions open,** the start ends at the
+    end of the step the root serves, then settles as below, the restart
+    word kept and said for the runs step 4 adopted. Adopting runs and
+    opening decisions end at once; so do reading the forge afresh and
+    settling its outbox, whose reads and finds are the next start's to
+    do again (`forge/README.md`, section 9), a write the settle sent
+    finishing within the settled stop's bound.
+  - **After decisions open,** the settled stop below, as before.
+  - **While the store opens,** before the root's start, a stop ends the
+    engine once the store lets it close, with no step of the start.
+
+  A second signal aborts in every one of them, as below.
 - **Settling.** Told to stop, the root tells the core it settles
   (jig's `domain/engine/restart.md`, 1, *Settling before the stop*),
   then tells the forge to settle (forge/README.md, section 4), and holds
@@ -771,7 +809,10 @@ drains as jig's `domain/engine/restart.md`, 1 says.
   (`Request::Unsettled`);
   the service prints each as it ends (`../protocol/binaries.md`
   ), and the next start settles it as its class says (forge/README.md,
-  section 9).
+  section 9). The bound is `skein_forge_client::stop_bound`, 602 s at
+  the stock limits; `temper-engine versions` prints it, and a unit takes
+  its stop timeout from it (`../protocol/configuration/derived.md`,
+  5.6).
 - **Then it says it restarts** (jig's `domain/engine/restart.md`, 1,
   *Saying it restarts*; `../draft/redeploys.md`, 5.2). Settled or past
   its bound, the root tells the core it stops; the core keeps the word

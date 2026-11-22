@@ -17,6 +17,7 @@ pub fn bounds() -> crate::Bounds {
 
 pub fn adopt(run: skein_lib::Token, attempt: skein_lib::Token, kept: u32) -> crate::Event {
     crate::Event::Adopt {
+        worker: None,
         reply_to: skein_lib::ReplyTo::new(attempt),
         run,
         attempt,

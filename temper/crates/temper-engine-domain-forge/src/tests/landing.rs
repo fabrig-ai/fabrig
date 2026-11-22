@@ -277,7 +277,7 @@ fn tier_limits_are_nonzero_and_failure_lists_fit_the_store_row() {
     }
 }
 
-pub(super) fn landing_fixture() -> Domain {
+pub(crate) fn landing_fixture() -> Domain {
     landing_fixture_with(domain())
 }
 fn landing_fixture_with(mut d: Domain) -> Domain {
@@ -1433,7 +1433,7 @@ fn landing_hearing_row((hint, fallback, elapsed, other, delay): (bool, u64, u64,
     assert_eq!(until, Some(expected), "missing fact wait");
 }
 
-fn member_landing(d: &mut Domain) {
+pub(crate) fn member_landing(d: &mut Domain) {
     member_landing_with_gates(d, Box::new([]));
 }
 

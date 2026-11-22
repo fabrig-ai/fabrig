@@ -85,8 +85,26 @@ fn ran_lines_include_declared_counts_in_order_or_no_suffix() {
 fn accepted_worker_lines_name_each_agreed_wire_in_statement_order() {
     use jig_protocol_worker_wire::Agreed;
     assert_eq!(
-        note_line("custom", temper_engine_service::Note::WorkerFigures { limits: 440, endpoints: 2, revision: 7 }),
+        note_line(
+            "custom",
+            temper_engine_service::Note::WorkerFigures {
+                limits: 440,
+                endpoints: 2,
+                revision: temper_engine_service::FiguresRevision::Agents(7),
+            }
+        ),
         "custom serve: figures for workers: 440 limits, 2 endpoints, agents setting revision 7\n"
+    );
+    assert_eq!(
+        note_line(
+            "custom",
+            temper_engine_service::Note::WorkerFigures {
+                limits: 440,
+                endpoints: 2,
+                revision: temper_engine_service::FiguresRevision::Limits(8),
+            }
+        ),
+        "custom serve: figures for workers: 440 limits, 2 endpoints, limit settings revision 8\n"
     );
     assert_eq!(
         note_line("custom", temper_engine_service::Note::WorkerFiguresTaken { worker: b"worker-a".as_slice().into() }),
@@ -1484,6 +1502,28 @@ fn job_stderr_forms_escape_and_bound_their_why() {
     }
 }
 #[test]
+fn a_start_wait_note_is_one_bounded_stderr_line() {
+    use temper_engine_service::Note;
+    let line = b"starting: reading the forge afresh for 30 s: 2 fresh reads (work/hello branch main, work/hello pull 7), 4 goal branches (task 40, task 10, task 30)";
+    assert_eq!(
+        note_line("temper-engine", Note::StartWaiting { line: line.as_slice().into() }),
+        "temper-engine serve: starting: reading the forge afresh for 30 s: 2 fresh reads (work/hello branch main, work/hello pull 7), 4 goal branches (task 40, task 10, task 30)\n"
+    );
+    for text in ["starting: a name\nwith\rcontrols\0and é", &"界".repeat(1024)] {
+        let line = note_line("temper", Note::StartWaiting { line: text.as_bytes().into() });
+        assert!(line.len() <= 1024);
+        assert_eq!(line.lines().count(), 1);
+        assert!(line.ends_with('\n'));
+        assert!(!line.contains('\r'));
+        assert!(!line.contains('\0'));
+    }
+    assert_eq!(
+        note_line("custom", Note::StartWaiting { line: b"starting: link for 30 s: task A\ntask B".as_slice().into() }),
+        "custom serve: starting: link for 30 s: task A\\ntask B\n"
+    );
+}
+
+#[test]
 fn core_wait_notes_name_the_reason_and_recovery() {
     use temper_engine_service::{CoreWait, Note};
     for (binary, note, expected) in [
@@ -1575,6 +1615,20 @@ fn a_version_refusal_names_the_wire_and_both_versions() {
 }
 
 #[test]
+fn unsent_pause_lines_name_the_mode_worker_and_wire_version() {
+    use jig_domain_link::PauseMode;
+    use temper_engine_service::Note;
+    for (mode, text) in [(PauseMode::Resume, "resume"), (PauseMode::Pause, "pause"), (PauseMode::Drain, "drain")] {
+        assert_eq!(
+            note_line("temper", Note::WorkerUnpaused { worker: b"w2".as_slice().into(), version: 18, mode }),
+            format!(
+                "temper serve: worker w2 not told to {text}: jig-worker-wire 18; the engine's placement follows the ask\n"
+            )
+        );
+    }
+}
+
+#[test]
 fn restart_lines_name_the_wait_or_the_workers_older_wire() {
     use temper_engine_service::Note;
     for (wait, version, expected) in [
@@ -1627,4 +1681,44 @@ fn the_playground_start_makes_a_private_random_key_before_reading_it() {
     assert_eq!(std::fs::read(target).expect("target unchanged"), b"kept");
     assert!(!std::fs::symlink_metadata(&path).expect("key").is_symlink());
     assert_eq!(std::fs::metadata(&path).expect("key").mode() & 0o777, 0o600);
+}
+
+#[test]
+fn a_shutdown_run_is_logged_suspended_but_other_cancellations_stay_failed() {
+    use jig_domain_host::{Failure, Reason};
+    let note = temper_engine_service::Note::RunFailed(temper_engine_domain::RunDiagnostic {
+        task: 812,
+        run: 812,
+        attempt: 3,
+        failure: Failure::Cancelled(Reason::Shutdown),
+        detail: b"cut by stop".as_slice().into(),
+    });
+    assert_eq!(note_line("temper", note), "temper serve: task 812 run 812 attempt 3 suspended: its worker stopped\n");
+    assert_eq!(
+        note_line("temper", failed_run_note(b"person stopped it", Failure::Cancelled(Reason::Engine))),
+        "temper serve: task 3 run 7 attempt 2 failed Cancelled(Engine): person stopped it\n"
+    );
+}
+
+#[test]
+fn full_table_notes_are_single_bounded_serve_lines() {
+    for words in [
+        "the forge's outbox full for 30 s: 2 of 2, held by entry 7 (task 1), entry 9 (task 2); 1 waiting for room",
+        "the forge's read admission full for 60 s: 2 of 2, held by pull 12 of work/hello for task 42, branch main of work/hello",
+        "the forge's outbox has room again",
+        "the forge's read admission has room again",
+    ] {
+        let line =
+            note_line("temper-engine", temper_engine_service::Note::ForgeTable { words: words.as_bytes().into() });
+        assert_eq!(line, format!("temper-engine serve: {words}\n"));
+        assert_eq!(line.lines().count(), 1);
+        assert!(line.len() <= 1024);
+    }
+    let words = format!("the forge's outbox full for 2 min: {}\n{}", "é".repeat(1000), "z".repeat(100));
+    let line = note_line(
+        "temper-box",
+        temper_engine_service::Note::ForgeTable { words: words.into_bytes().into_boxed_slice() },
+    );
+    assert!(line.len() <= 1024);
+    assert_eq!(line.lines().count(), 1);
 }

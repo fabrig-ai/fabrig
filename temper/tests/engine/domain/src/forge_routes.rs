@@ -101,6 +101,10 @@ pub struct World {
     pub oracle_documents: Vec<(Token, forge_top::Document)>,
     /// Delivered deployment forge rows, including updates to a live watch.
     pub forges_documents: Vec<(Token, forge_top::Forges)>,
+    /// Core query documents, including parts-watch updates.
+    pub documents: Vec<(Token, jig_domain_core::documents::Document)>,
+    /// Answers to milestone totals reads at the party boundary.
+    pub milestone_reads: Vec<Option<forge_top::MilestoneTotals>>,
     oracle_watcher: u64,
     broken: bool,
     oracle_running: bool,
@@ -131,6 +135,7 @@ pub struct World {
     /// Durable limit-setting words at the service face.
     pub limit_settings: Vec<engine::Request>,
     pub follow_answers: Vec<Option<Box<[u8]>>>,
+    pub finding_triages: Vec<forge_top::TriageFindingAnswer>,
     pub signed_in: Option<u64>,
     pub web_replies: Vec<people::Reply>,
     pub assigned: Vec<engine::Assignment>,
@@ -233,6 +238,8 @@ pub struct StoryLimits {
     pub forge_tasks: Option<u32>,
     pub close_job: Option<(Option<Box<[u8]>>, bool)>,
     pub goal_closer: bool,
+    /// Ceiling for a scripted change tree deeper than the default four levels.
+    pub delegation_depth: Option<u32>,
     pub landing_attempts: Option<u8>,
     pub landing_deployment: Option<Box<[engine::LandingRule]>>,
     pub project_landing: Option<(u32, temper_landing_fixtures::ProjectLanding)>,
@@ -880,7 +887,7 @@ impl World {
                         authority::Executor::Procedure(2),
                     ]);
                     rules.ceiling.delegation.tasks = tree_tasks.unwrap_or(12);
-                    rules.ceiling.delegation.depth = 4;
+                    rules.ceiling.delegation.depth = timing.delegation_depth.unwrap_or(4);
                 }
                 let mut policy = config.core.seed_projects[0].policy.policy.clone();
                 policy.ceiling.tools = authority::Tools(tools.unwrap_or(1023));
@@ -1426,6 +1433,7 @@ impl World {
             for worker in &mut config.core.defaults.workers {
                 worker.places = limits.fleet.slots;
             }
+            config.core.parts = forge_top::parts::kinds(*config.core.connectors.first().expect("forge connector"));
             (config, limits)
         };
         let mut runtime = crate::oracle::config::copy(&bootstrap);
@@ -1672,6 +1680,8 @@ impl World {
             idle_revision: None,
             oracle_documents: Vec::new(),
             forges_documents: Vec::new(),
+            documents: Vec::new(),
+            milestone_reads: Vec::new(),
             oracle_watcher: 0x4e33,
             broken: false,
             oracle_running: false,
@@ -1698,6 +1708,7 @@ impl World {
             adopted: Vec::new(),
             limit_settings: Vec::new(),
             follow_answers: Vec::new(),
+            finding_triages: Vec::new(),
             signed_in: None,
             web_replies: Vec::new(),
             assigned: Vec::new(),
@@ -1764,6 +1775,16 @@ impl World {
     pub fn with_forge_pages(mut self, pages: &[u8]) -> Self {
         assert_eq!(self.env.now, Time::ZERO);
         self.restart_config.forges[0].web = Some(pages.into());
+        self
+    }
+
+    /// Keep a scripted watch session valid across a simulated tier workflow.
+    #[must_use]
+    pub fn with_sign_in_lifetime(mut self, lifetime: Duration) -> Self {
+        assert_eq!(self.env.now, Time::ZERO);
+        self.env.limits.people.sign_in_lifetime = lifetime;
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("valid sign-in configuration");
         self
     }
 
@@ -2806,6 +2827,10 @@ impl World {
                         self.jobs.push(job);
                     }
                     Delivery::Read { reply, answer } => self.reads.push((reply, answer)),
+                    Delivery::Document { watcher, document } => self.documents.push((watcher, *document)),
+                    Delivery::ForgeRead { answer: engine::ForgeReadAnswer::Milestone(totals), .. } => {
+                        self.milestone_reads.push(totals);
+                    }
                     Delivery::Link { down: host::LinkDown::Message { run, attempt, name, .. }, .. } => {
                         self.delivered_messages.entry((run.raw(), attempt.raw())).or_default().push(name.raw());
                     }
@@ -2846,6 +2871,7 @@ impl World {
                     Delivery::Application { outcome, .. } => match outcome {
                         Some(engine::ApplicationAnswer::Adopt(outcome)) => self.adopted.push(outcome),
                         Some(engine::ApplicationAnswer::Follow(outcome)) => self.follow_answers.push(outcome),
+                        Some(engine::ApplicationAnswer::TriageFinding(outcome)) => self.finding_triages.push(outcome),
                         Some(
                             engine::ApplicationAnswer::Looked(_)
                             | engine::ApplicationAnswer::FileFinding(_)
@@ -4105,7 +4131,11 @@ impl World {
     }
 
     pub(super) fn stored_read(&mut self, request: engine::Request) -> Option<engine::Request> {
-        if let engine::Request::Store(engine::StoreRequest::Read { load, range }) = request {
+        if let engine::Request::Store(engine::StoreRequest::PartRead { waiter, range }) = request {
+            let result = self.store.read(range);
+            self.immediate.push_back(engine::Event::Store(engine::StoreInput::PartLoaded { waiter, result }));
+            None
+        } else if let engine::Request::Store(engine::StoreRequest::Read { load, range }) = request {
             let result = self.store.read(range);
             self.immediate.push_back(engine::Event::Store(engine::StoreInput::ReadLoaded { load, result }));
             None

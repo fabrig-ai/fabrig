@@ -190,6 +190,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::FollowAct { .. }
             | forge::Event::TierAct { .. }
             | forge::Event::JobHistory { .. }
+            | forge::Event::JobSuspended { .. }
             | forge::Event::SetupPerson { .. }
             | forge::Event::PlaceChosen { .. }
             | forge::Event::Milestone { .. } => true,

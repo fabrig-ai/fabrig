@@ -128,7 +128,7 @@ fn a_projections_room_is_reserved_until_kept_or_dropped() {
             }
         }
         let (projection, entry) = staged.expect("projection stages its entry");
-        assert!(!d.reserve_call(&env().limits, Token::new(501)), "projection owns the last room");
+        assert!(!d.reserve_call(&env(), Token::new(501), 1), "projection owns the last room");
         outputs(&mut d, Event::Change { row: row(FIRST) });
         assert_wait(&open(&mut d, FIRST, 22), FIRST);
         assert_eq!(room::reserved(&d), 1);

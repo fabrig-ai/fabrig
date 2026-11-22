@@ -70,6 +70,16 @@ pub enum RunEnd {
         invalid_reason: Option<InvalidReason>,
     },
     Refused,
+    Suspended {
+        worker: u32,
+        why: SuspendWhy,
+    },
+}
+/// Why the attempt was suspended (domain/engine/executors.md, 6.2).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum SuspendWhy {
+    Stopped,
+    Restarted,
 }
 /// Public cause of an invalid run result (protocol/client/wire.md, 1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

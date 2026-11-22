@@ -441,6 +441,8 @@ pub(super) fn settings_run_with_limits(
         worker: 0,
         channel: Token::new(7),
         hello: Hello {
+            fresh: false,
+            reads_usage: true,
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),

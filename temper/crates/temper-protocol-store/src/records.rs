@@ -2,8 +2,40 @@
 use crate::{Bounds, Undecodable, v25 as w};
 use alloc::boxed::Box;
 use skein_codec::Record;
-use skein_lib::{Reader, Writer};
+use skein_lib::Reader;
 use temper_engine_domain_forge_vocabulary as d;
+pub mod by_hand;
+
+/// Context for owner-shaped maps (skein/docs/design/data/codec/maps.md, 4.1).
+/// Piece bounds, old-log acceptance and a posting's failing IDs stay the owner's.
+/// Translations needing none of those use `UNBOUNDED`.
+#[derive(Debug)]
+pub struct Context {
+    bounds: Option<Bounds>,
+    follow_files: u32,
+    answer_name_bytes: u32,
+    logged_landing_tiers: u32,
+    posted_failures: temper_engine_domain_forge_tiers::Failures,
+}
+impl Context {
+    /// No extra owner bounds; used for encoding and context-free translations.
+    pub const UNBOUNDED: Self = Self {
+        bounds: None,
+        follow_files: u32::MAX,
+        answer_name_bytes: w::CEILINGS.answer_name_name,
+        logged_landing_tiers: w::CEILINGS.logged_landing_tiers,
+        posted_failures: temper_engine_domain_forge_tiers::Failures::Many,
+    };
+
+    fn bounded(bounds: &Bounds) -> Self {
+        Self { bounds: Some(bounds.clone()), ..Self::UNBOUNDED }
+    }
+
+    fn bounds(&self) -> &Bounds {
+        self.bounds.as_ref().expect("bounded store translation")
+    }
+}
+
 mod answers;
 mod api;
 mod application;
@@ -86,24 +118,16 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
         d::Stored::Entry { entry, held } => w::Value::Entry(entries::encode_entry_row(entry, *held)),
         d::Stored::Call { key, answer } => w::Value::Call(entries::encode_call(key, answer)),
         d::Stored::Dismissed { party, what } => {
-            let what = match what {
-                d::PersonFact::KeepAsking { project, subject, at } => w::PersonFact::KeepAsking(w::KeepAsking {
-                    project: *project,
-                    subject: encode_subject(*subject),
-                    at: *at,
-                }),
-                d::PersonFact::ToBegin { project } => w::PersonFact::ToBegin(w::ToBegin { project: *project }),
-                d::PersonFact::GoalFrom { project, chat, goal, at } => {
-                    w::PersonFact::GoalFrom(w::GoalFrom { project: *project, chat: *chat, goal: *goal, at: *at })
-                }
-            };
+            let what = crate::generated::store::person_fact_to_record(what, &Context::UNBOUNDED).expect(FITS);
             w::Value::Dismissed(w::Dismissed { party: *party, what })
         }
         d::Stored::Binding { address, subject } => {
             w::Value::Binding(w::Binding { address: address.clone(), subject: subject.clone() })
         }
         d::Stored::Flight { task, entry } => w::Value::Flight(w::Flight { task: *task, entry: *entry }),
-        d::Stored::Writer(value) => w::Value::Writer(w::ForgeWriter { forge: value.forge, author: value.author }),
+        d::Stored::Writer(value) => {
+            w::Value::Writer(crate::generated::store::forge_writer_to_record(value, &Context::UNBOUNDED).expect(FITS))
+        }
         d::Stored::Client(value) => w::Value::Client(client::encode(value)),
         d::Stored::ChangeCold(value) => w::Value::ChangeCold(Box::new(change::encode_change_cold(value))),
         d::Stored::ChangeHot(value) => w::Value::ChangeHot(Box::new(change::encode_change_hot(value))),
@@ -163,22 +187,13 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
         w::Value::Landing(row) => d::Stored::Landing(landing::decode(*row)?),
         w::Value::Receipt(row) => landing::decode_receipt(row)?,
         w::Value::Application(value) => application::decode(value, bounds)?,
-        w::Value::Issue(value) => d::Stored::Issue(issues::decode(*value)),
+        w::Value::Issue(value) => d::Stored::Issue(issues::decode(*value)?),
         w::Value::ChangeCold(value) => d::Stored::ChangeCold(Box::new(change::decode_change_cold(*value))),
         w::Value::ChangeHot(value) => d::Stored::ChangeHot(Box::new(change::decode_change_hot(*value)?)),
         w::Value::Dismissed(value) => {
             let w::Dismissed { party, what } = value;
-            let what = match what {
-                w::PersonFact::KeepAsking(value) => d::PersonFact::KeepAsking {
-                    project: value.project,
-                    subject: decode_subject(&value.subject)?,
-                    at: value.at,
-                },
-                w::PersonFact::ToBegin(value) => d::PersonFact::ToBegin { project: value.project },
-                w::PersonFact::GoalFrom(value) => {
-                    d::PersonFact::GoalFrom { project: value.project, chat: value.chat, goal: value.goal, at: value.at }
-                }
-            };
+            let what = crate::generated::store::person_fact_to_domain(what, &Context::UNBOUNDED)
+                .or(Err(Undecodable::Malformed))?;
             d::Stored::Dismissed { party, what }
         }
         w::Value::Binding(value) => {
@@ -189,10 +204,10 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
             let w::Flight { task, entry } = row;
             d::Stored::Flight { task, entry }
         }
-        w::Value::Writer(value) => {
-            let w::ForgeWriter { forge, author } = value;
-            d::Stored::Writer(skein_forge_client::Writer { forge, author })
-        }
+        w::Value::Writer(value) => d::Stored::Writer(
+            crate::generated::store::forge_writer_to_domain(value, &Context::UNBOUNDED)
+                .or(Err(Undecodable::Malformed))?,
+        ),
         w::Value::Client(value) => d::Stored::Client(client::decode(value, bounds)?),
         w::Value::Call(value) => entries::decode_call(value, bounds)?,
         w::Value::ProposedEffect(value) => d::Stored::ProposedEffect(entries::decode_proposed(value, bounds)?),
@@ -408,22 +423,4 @@ fn tier_limits(forge: &d::Limits) -> Option<w::Limits> {
         history_proved_proofs: forge.gates,
         ..w::CEILINGS
     })
-}
-
-fn encode_subject(subject: temper_protocol_reaches::Subject) -> w::ClassSubject {
-    let record = temper_protocol_reaches::subject_record(subject);
-    let mut writer = Writer::new(
-        usize::try_from(
-            record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("admitted client record within ceilings"),
-        )
-        .expect("subject measure"),
-    );
-    record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured subject room");
-    w::ClassSubject::decode(&w::CEILINGS, &mut Reader::new(&writer.finish())).expect("matching subject records")
-}
-fn decode_subject(record: &w::ClassSubject) -> Result<temper_protocol_reaches::Subject, Undecodable> {
-    use temper_client_protocol_wire::v1;
-    let bytes = record.encode(&w::CEILINGS).or(Err(Undecodable::Malformed))?;
-    let record = v1::ClassSubject::decode(&v1::CEILINGS, &mut Reader::new(&bytes)).or(Err(Undecodable::Malformed))?;
-    Ok(temper_protocol_reaches::subject_from(&record))
 }

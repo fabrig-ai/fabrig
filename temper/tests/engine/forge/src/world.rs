@@ -1790,6 +1790,7 @@ impl World {
                 | top::Request::MakingAct { .. }
                 | top::Request::ApplicationDone { .. }
                 | top::Request::MarkedForges
+                | top::Request::MilestoneMarked { .. }
                 | top::Request::Marked { .. } => {}
                 top::Request::ApplicationAgain { .. } => panic!("application capacity available"),
                 top::Request::Adopted { reply_to, result } => {
@@ -1879,6 +1880,7 @@ impl World {
                 | top::Request::Refused { .. }
                 | top::Request::ResourceRefused { .. }
                 | top::Request::HeadRefused { .. }
+                | top::Request::FullTableFact { .. }
                 | top::Request::LostReadFailed { .. }
                 | top::Request::MakeFailed { .. }
                 | top::Request::Outcome { .. }
@@ -1906,6 +1908,8 @@ impl World {
                 | top::Request::TierDecision { .. }
                 | top::Request::FileRedFinding { .. }
                 | top::Request::FileVerdict { .. }
+                | top::Request::ReturnFinding(_)
+                | top::Request::FailRepair { .. }
                 | top::Request::ChangeDecision { .. }
                 | top::Request::Reviewed { .. }
                 | top::Request::News { .. }

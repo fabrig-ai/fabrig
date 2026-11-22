@@ -100,6 +100,12 @@ pub(in crate::codec) fn wire_deployment(
                 digest: row.digest,
                 withdrawn: row.withdrawn,
                 linked: row.linked,
+                pause: match row.pause {
+                    c::WorkerPause::Taking => w::WorkerPause::Taking,
+                    c::WorkerPause::Paused => w::WorkerPause::Paused,
+                    c::WorkerPause::Draining => w::WorkerPause::Draining,
+                    c::WorkerPause::Drained => w::WorkerPause::Drained,
+                },
                 since: row.since.map(skein_lib::Wall::as_nanos),
             })
             .expect("worker row count");

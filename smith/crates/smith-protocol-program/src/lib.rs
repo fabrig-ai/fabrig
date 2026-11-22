@@ -17,6 +17,7 @@ pub mod mcp;
 pub mod relay;
 mod source;
 mod status;
+mod usage;
 
 #[cfg(test)]
 mod tests;
@@ -27,7 +28,12 @@ pub use source::{
     ANTHROPIC_DIRECTORY, ENVIRONMENT_BYTES, ENVIRONMENT_ENTRIES, Error, Programs, configuration_directory, environment,
     keeps,
 };
-pub use status::{EMAIL_BYTES, Method, SIGN_IN, SIGN_OUT, STATUS, STATUS_BYTES, SUBSCRIPTION, Status, email, status};
+pub use status::{
+    EMAIL_BYTES, Method, SIGN_IN, SIGN_OUT, STATUS, STATUS_BYTES, SUBSCRIPTION, Status, USAGE, USAGE_BYTES, email,
+    status,
+};
+
+pub use usage::usage_result;
 
 /// The agent binary mode that execs a program to die with its agent (protocol/programs.md, 5.1).
 pub const PROGRAM_CHILD_FLAG: &str = "--program-child";

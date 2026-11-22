@@ -110,6 +110,8 @@ fn settled_delivery_evidence_survives_restart_and_resume_until_a_turn_carries_it
         worker: 0,
         channel: Token::new(7),
         hello: Hello {
+            fresh: false,
+            reads_usage: true,
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: skein_lib::Duration::from_millis(100),
@@ -711,6 +713,8 @@ fn untooled_hello(world: &mut World, channel: Token, worker: u32) {
         worker,
         channel,
         hello: Hello {
+            fresh: false,
+            reads_usage: true,
             jobs: Box::new([]),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: skein_lib::Duration::from_millis(100),
@@ -1157,11 +1161,13 @@ fn raise_run_funding(world: &mut World) {
     );
 }
 
-fn funding_wait(world: &mut World, task: u64) -> Option<core::documents::TaskRunWait> {
+pub(super) fn funding_wait(world: &mut World, task: u64) -> Option<core::documents::TaskRunWait> {
     use jig_core_world::reads;
     world.reads = Some(reads::Parties::new(world.store.applied));
     reads::ask(world, 160, core::reads::Read::Task { task });
-    let core::reads::Answer::Document(document) = reads::latest(world) else { panic!("task document") };
+    let core::reads::Answer::Document(document) = reads::latest(world) else {
+        panic!("task document: {:?}", reads::latest(world))
+    };
     let core::documents::Document::Task(document) = document.as_ref() else { panic!("task document") };
     document.run_wait
 }

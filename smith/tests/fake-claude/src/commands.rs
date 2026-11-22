@@ -49,6 +49,11 @@ impl Command {
         config: Config,
         directory: &std::path::Path,
     ) -> (Self, Vec<Effect>) {
+        if arguments.first().is_some_and(|argument| argument == "-p")
+            && arguments.get(1).is_some_and(|argument| argument == "/usage")
+        {
+            return (Self::Unknown, usage(arguments, story.usage_read, config));
+        }
         match arguments {
             [auth, command] if auth == "auth" => match command.as_str() {
                 "status" => {
@@ -211,6 +216,22 @@ impl LogoutCommand {
             }
             _ => error("cannot remove login", 1),
         }
+    }
+}
+
+fn usage(arguments: &[String], answer: crate::UsageReply, config: Config) -> Vec<Effect> {
+    let short = ["-p", "/usage", "--output-format", "json"];
+    let full = ["-p", "/usage", "--output-format", "json", "--setting-sources", "user", "--tools", ""];
+    if arguments != short && arguments != full {
+        return error("invalid usage arguments", 2);
+    }
+    if config.root.is_none() {
+        return error("configuration directory does not exist", 1);
+    }
+    match answer {
+        crate::UsageReply::Result(value) => reply(format!("{value}\n").into_bytes(), 0),
+        crate::UsageReply::Exit { code, detail } => vec![Effect::Error(detail.into_bytes()), Effect::End(code)],
+        crate::UsageReply::Silent => Vec::new(),
     }
 }
 

@@ -92,12 +92,16 @@ pub(crate) fn keeps_payload(input: &WorkerInput) -> bool {
                 Link::Up {
                     up:
                         host::LinkUp::Piece { .. }
+                        | host::LinkUp::UsageRead { .. }
                         | host::LinkUp::ListRead { .. }
+                        // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too.
+                        | host::LinkUp::Paused { .. }
                         | host::LinkUp::Draining
                         | host::LinkUp::Logins { .. }
                         | host::LinkUp::SignedOut { .. }
                         | host::LinkUp::Activity { .. }
                         | host::LinkUp::Unauthorized { .. }
+                        | host::LinkUp::Usage { .. }
                         | host::LinkUp::Limited { .. }
                         | host::LinkUp::AccountRefused { .. }
                         | host::LinkUp::Ask { .. }
@@ -125,7 +129,14 @@ fn parts_within(parts: &Parts, limits: &crate::Limits) -> bool {
 }
 
 /// Interpret worker endings with forge parts and the change's failed-review policy.
-pub(crate) fn answer(domain: &mut Domain, run: Token, attempt: Token, payload: Token) {
+pub(crate) fn answer(
+    domain: &mut Domain,
+    run: Token,
+    attempt: Token,
+    payload: Token,
+    worker: Option<u32>,
+    window: skein_lib::Duration,
+) {
     if let Some(Payload::Answer { task, end, .. }) = domain.hub_link.payload(payload) {
         match end {
             hub::Ending::Link(host::Ending::Failed { failure, detail, .. }) => {
@@ -183,7 +194,7 @@ pub(crate) fn answer(domain: &mut Domain, run: Token, attempt: Token, payload: T
         domain.work.push(Work::Core(event));
         return;
     }
-    route(domain, hub::Event::AnswerPayload { run, attempt, payload });
+    route(domain, hub::Event::AnswerPayload { run, attempt, payload, worker, window });
 }
 
 /// The root applies immediate outputs to its work queue and protocol door.
@@ -514,7 +525,16 @@ mod tests {
             domain.answer_parts.insert(payload, Parts::none()).unwrap();
             assert!(current_review(&domain, task));
             assert!(domain.core.current_proof(task, 1));
-            route(&mut domain, hub::Event::AnswerPayload { run: Token::new(task), attempt: Token::new(1), payload });
+            route(
+                &mut domain,
+                hub::Event::AnswerPayload {
+                    run: Token::new(task),
+                    attempt: Token::new(1),
+                    payload,
+                    worker: None,
+                    window: skein_lib::Duration::ZERO,
+                },
+            );
             let Some(Work::Core(core::Event::AnswerPayload { end, .. })) = domain.work.pop() else {
                 panic!("core answer")
             };
@@ -558,6 +578,7 @@ mod tests {
             .insert(
                 task,
                 core::RunProof {
+                    worker: None,
                     task,
                     attempt: 1,
                     conversation: 1,

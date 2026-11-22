@@ -5,23 +5,80 @@ use skein_lib::{Duration, Token};
 
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum LinkDown {
-    Asked { run: Token, attempt: Token, number: u64, answer: crate::AskAnswer },
-    ReadList { read: u64, endpoint: u32, grant: Grant },
-    Sources { sources: Box<[SourceName]> },
-    Check { name: SourceName },
-    SignOut { name: SourceName },
-    Assign { assignment: Assignment },
-    AssignJob { job: crate::JobAssignment },
-    Message { run: Token, attempt: Token, name: Token, sender: Box<[u8]>, words: Box<[u8]>, finish_requested: bool },
-    Relayed { run: Token, attempt: Token, call: Box<[u8]>, answer: Relayed },
-    TurnKept { run: Token, attempt: Token, turn: u32 },
-    Acknowledge { run: Token, attempt: Token },
-    Cancel { run: Token, attempt: Token },
-    Grant { run: Token, attempt: Token, grant: Grant },
+    /// The engine's pause ask (jig/docs/design/protocol/channel/pause.md, 2).
+    Pause {
+        mode: jig_domain_link::PauseMode,
+    },
+    Asked {
+        run: Token,
+        attempt: Token,
+        number: u64,
+        answer: crate::AskAnswer,
+    },
+    ReadUsage {
+        read: u64,
+        source: SourceName,
+    },
+    ReadList {
+        read: u64,
+        endpoint: u32,
+        grant: Grant,
+    },
+    Sources {
+        sources: Box<[SourceName]>,
+    },
+    Check {
+        name: SourceName,
+    },
+    SignOut {
+        name: SourceName,
+    },
+    Assign {
+        assignment: Assignment,
+    },
+    AssignJob {
+        job: crate::JobAssignment,
+    },
+    Message {
+        run: Token,
+        attempt: Token,
+        name: Token,
+        sender: Box<[u8]>,
+        words: Box<[u8]>,
+        finish_requested: bool,
+    },
+    Relayed {
+        run: Token,
+        attempt: Token,
+        call: Box<[u8]>,
+        answer: Relayed,
+    },
+    TurnKept {
+        run: Token,
+        attempt: Token,
+        turn: u32,
+    },
+    Acknowledge {
+        run: Token,
+        attempt: Token,
+    },
+    Cancel {
+        run: Token,
+        attempt: Token,
+    },
+    Grant {
+        run: Token,
+        attempt: Token,
+        grant: Grant,
+    },
 }
 
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum LinkUp {
+    /// The worker's pause state (jig/docs/design/protocol/channel/pause.md, 2).
+    Paused {
+        state: jig_domain_link::PauseState,
+    },
     Ask {
         run: Token,
         attempt: Token,
@@ -30,6 +87,16 @@ pub enum LinkUp {
     },
     /// The host has started to shut down (domain/hosts/hub.md, 7).
     Draining,
+    Usage {
+        run: Token,
+        attempt: Token,
+        account: u32,
+        window: jig_domain_link::UsageWindow,
+    },
+    UsageRead {
+        read: u64,
+        outcome: jig_domain_link::UsageOutcome,
+    },
     ListRead {
         read: u64,
         outcome: jig_domain_link::ListOutcome,
@@ -104,7 +171,10 @@ impl LinkUp {
     pub const fn new_work(&self) -> bool {
         match self {
             Self::Call { .. } | Self::Ask { .. } => true,
-            Self::Draining
+            Self::Paused { .. }
+            | Self::Draining
+            | Self::Usage { .. }
+            | Self::UsageRead { .. }
             | Self::ListRead { .. }
             | Self::JobAnswer { .. }
             | Self::Piece { .. }

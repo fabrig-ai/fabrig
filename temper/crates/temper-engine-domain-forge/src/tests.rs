@@ -33,7 +33,7 @@ mod held_branch;
 mod history;
 mod kinds;
 #[path = "tests/landing.rs"]
-mod landing_routes;
+pub(crate) mod landing_routes;
 mod limits;
 mod link;
 mod make;
@@ -608,6 +608,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::LandingUnmade { .. }
         | Request::HoldDropped { .. }
         | Request::LinkNoted { .. }
+        | Request::MilestoneMarked { .. }
         | Request::Marked { .. }
         | Request::Adopted { .. }
         | Request::Save { .. }
@@ -652,6 +653,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ApplicationPart { .. }
         | Request::ApplicationDone { .. }
         | Request::ApplicationAgain { .. }
+        | Request::FullTableFact { .. }
         | Request::MarkedForges
         | Request::Connect { .. }
         | Request::Replace { .. }
@@ -679,6 +681,8 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::TierDecision { .. }
         | Request::FileRedFinding { .. }
         | Request::FileVerdict { .. }
+        | Request::ReturnFinding(_)
+        | Request::FailRepair { .. }
         | Request::MakingCopied { .. }
         | Request::MakingAct { .. }
         | Request::Decided { .. }
@@ -713,6 +717,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::LandingUnmade { .. }
         | Request::HoldDropped { .. }
         | Request::LinkNoted { .. }
+        | Request::MilestoneMarked { .. }
         | Request::Marked { .. }
         | Request::Resource { .. }
         | Request::Adopted { .. }
@@ -758,6 +763,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ApplicationPart { .. }
         | Request::ApplicationDone { .. }
         | Request::ApplicationAgain { .. }
+        | Request::FullTableFact { .. }
         | Request::MarkedForges
         | Request::Connect { .. }
         | Request::Replace { .. }
@@ -785,6 +791,8 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::TierDecision { .. }
         | Request::FileRedFinding { .. }
         | Request::FileVerdict { .. }
+        | Request::ReturnFinding(_)
+        | Request::FailRepair { .. }
         | Request::MakingCopied { .. }
         | Request::MakingAct { .. }
         | Request::Decided { .. }
@@ -812,6 +820,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::LandingUnmade { .. }
         | Request::HoldDropped { .. }
         | Request::LinkNoted { .. }
+        | Request::MilestoneMarked { .. }
         | Request::Marked { .. }
         | Request::Resource { .. }
         | Request::Adopted { .. }
@@ -857,6 +866,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ApplicationPart { .. }
         | Request::ApplicationDone { .. }
         | Request::ApplicationAgain { .. }
+        | Request::FullTableFact { .. }
         | Request::MarkedForges
         | Request::Connect { .. }
         | Request::Replace { .. }
@@ -884,6 +894,8 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::TierDecision { .. }
         | Request::FileRedFinding { .. }
         | Request::FileVerdict { .. }
+        | Request::ReturnFinding(_)
+        | Request::FailRepair { .. }
         | Request::MakingCopied { .. }
         | Request::MakingAct { .. }
         | Request::Decided { .. }
@@ -2196,6 +2208,7 @@ fn a_fetched_line_is_on_the_row_while_the_step_is_fetch() {
     ] {
         assert_eq!(outputs(&mut d, Event::Fetched { forge: 1, fetched }).as_ref(), [Request::MarkedForges]);
         let expected = Forges {
+            full: Box::new([]),
             rows: Box::new([
                 Row { fetched: Some(fetched), ..setup_row(1, Kind::Forgejo, connection.clone(), Offer::Offered) },
                 setup_row(2, Kind::GitHub, Connection::NotSetUp, Offer::Offered),

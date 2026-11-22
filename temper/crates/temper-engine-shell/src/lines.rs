@@ -493,6 +493,7 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
         temper_engine_service::Note::ClientStreamFailed { sign_in, why } => {
             format!("{binary} serve: client stream closed: sign_in={sign_in} reason={why:?}\n")
         }
+        temper_engine_service::Note::StartWaiting { line } => start_wait_line(binary, &line),
         temper_engine_service::Note::CoreWaiting { why } => temper_service_shell::core_wait_line(binary, &why.words()),
         temper_engine_service::Note::CoreAnswers => temper_service_shell::core_answers_line(binary),
         temper_engine_service::Note::StartupWarning { line } => {
@@ -603,6 +604,17 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
                 String::from_utf8_lossy(section)
             )
         }
+        temper_engine_service::Note::ForgeTable { words } => {
+            let mut line = format!("{binary} serve: {}", String::from_utf8_lossy(&words));
+            line = line.replace(['\r', '\n'], " ");
+            let mut end = line.len().min(1023);
+            while !line.is_char_boundary(end) {
+                end = end.saturating_sub(1);
+            }
+            line.truncate(end);
+            line.push('\n');
+            line
+        }
         temper_engine_service::Note::HeadRefused { task, words } => {
             let task = match task {
                 Some(task) => format!(" task={task}"),
@@ -640,12 +652,27 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
         }
 
         temper_engine_service::Note::WorkerFigures { limits, endpoints, revision } => {
+            let (setting, revision) = match revision {
+                temper_engine_service::FiguresRevision::Agents(revision) => ("agents setting", revision),
+                temper_engine_service::FiguresRevision::Limits(revision) => ("limit settings", revision),
+            };
             format!(
-                "{binary} serve: figures for workers: {limits} limits, {endpoints} endpoints, agents setting revision {revision}\n"
+                "{binary} serve: figures for workers: {limits} limits, {endpoints} endpoints, {setting} revision {revision}\n"
             )
         }
         temper_engine_service::Note::WorkerFiguresTaken { worker } => {
             format!("{binary} serve: worker {} took its figures\n", String::from_utf8_lossy(&worker))
+        }
+        temper_engine_service::Note::WorkerUnpaused { worker, version, mode } => {
+            let worker = String::from_utf8_lossy(&worker);
+            let mode = match mode {
+                jig_domain_link::PauseMode::Resume => "resume",
+                jig_domain_link::PauseMode::Pause => "pause",
+                jig_domain_link::PauseMode::Drain => "drain",
+            };
+            format!(
+                "{binary} serve: worker {worker} not told to {mode}: jig-worker-wire {version}; the engine's placement follows the ask\n"
+            )
         }
         temper_engine_service::Note::WorkerTold { worker, version, wait } => {
             let worker = String::from_utf8_lossy(&worker);
@@ -698,6 +725,9 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
                 Kind::Answer => "answer",
                 Kind::Fact => "fact",
                 Kind::Unauthorized => "unauthorized",
+                Kind::Usage => "usage",
+                Kind::UsageRead => "usage-read",
+                Kind::ReadUsage => "read-usage",
                 Kind::Limited => "limited",
                 Kind::AccountRefused => "account-refused",
                 Kind::Assignment => "assignment",
@@ -721,6 +751,8 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
                 Kind::Figures => "figures",
                 Kind::Wires => "wires",
                 Kind::Ask => "ask",
+                Kind::Pause => "pause",
+                Kind::Paused => "paused",
                 Kind::Restarting => "restarting",
                 Kind::Asked => "asked",
             };
@@ -804,6 +836,22 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
         }
     }
 }
+// protocol/README.md, 6.3: names cannot introduce another operator line.
+fn start_wait_line(binary: &str, words: &[u8]) -> String {
+    let text = format!("{binary} serve: {}", String::from_utf8_lossy(words));
+    let mut line = String::new();
+    for ch in text.chars() {
+        let part = if ch.is_control() { ch.escape_default().to_string() } else { ch.to_string() };
+        if line.len().saturating_add(part.len()) > 1020 {
+            line.push_str("...");
+            break;
+        }
+        line.push_str(&part);
+    }
+    line.push('\n');
+    line
+}
+
 // temper/docs/design/domain/worker/README.md, 4.3: one bounded, escaped operator line.
 fn run_refusal_line(binary: &str, diagnostic: temper_engine_service::RunRefusalDiagnostic) -> String {
     let temper_engine_service::RunRefusalDiagnostic { task, run, attempt, reason } = diagnostic;
@@ -837,6 +885,9 @@ fn run_failure_line(
     failure: jig_domain_host::Failure,
     detail: &[u8],
 ) -> String {
+    if failure == jig_domain_host::Failure::Cancelled(jig_domain_host::Reason::Shutdown) {
+        return format!("{binary} serve: task {task} run {run} attempt {attempt} suspended: its worker stopped\n");
+    }
     run_detail_head_line(
         format!("{binary} serve: task {task} run {run} attempt {attempt} failed {failure:?}: "),
         detail,

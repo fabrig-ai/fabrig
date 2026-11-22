@@ -49,7 +49,9 @@ pub(super) fn cancelling(event: &root::Event) -> Option<crate::worker_alone::Not
             hub::LinkDown::Cancel { run, attempt } => {
                 Some(crate::worker_alone::Note::Cancelling { run: run.raw(), attempt: attempt.raw() })
             }
-            hub::LinkDown::Asked { .. }
+            hub::LinkDown::Pause { .. }
+            | hub::LinkDown::Asked { .. }
+            | hub::LinkDown::ReadUsage { .. }
             | hub::LinkDown::ReadList { .. }
             | hub::LinkDown::Sources { .. }
             | hub::LinkDown::Check { .. }
@@ -65,6 +67,7 @@ pub(super) fn cancelling(event: &root::Event) -> Option<crate::worker_alone::Not
         root::Event::RedsAsk { .. }
         | root::Event::RedsAnswer { .. }
         | root::Event::SourceAnswered { .. }
+        | root::Event::UsageRead { .. }
         | root::Event::ListRead { .. }
         | root::Event::Assign { .. }
         | root::Event::AssignJob { .. }
@@ -87,11 +90,14 @@ pub(super) fn cancelling(event: &root::Event) -> Option<crate::worker_alone::Not
 fn event_tag(event: &root::Event) -> WorkerEvent {
     match event {
         root::Event::RedsAsk { .. } | root::Event::RedsAnswer { .. } => WorkerEvent::Link(LinkEvent::Asked),
-        root::Event::SourceAnswered { .. } | root::Event::ListRead { .. } => WorkerEvent::SourceAnswered,
+        root::Event::SourceAnswered { .. } | root::Event::UsageRead { .. } | root::Event::ListRead { .. } => {
+            WorkerEvent::SourceAnswered
+        }
         root::Event::Assign { .. } | root::Event::AssignJob { .. } => WorkerEvent::Assign,
         root::Event::Link(link) => match link {
+            hub::LinkDown::Pause { .. } => WorkerEvent::Link(LinkEvent::Pause),
             hub::LinkDown::Asked { .. } => WorkerEvent::Link(LinkEvent::Asked),
-            hub::LinkDown::ReadList { .. } => WorkerEvent::Link(LinkEvent::ReadList),
+            hub::LinkDown::ReadUsage { .. } | hub::LinkDown::ReadList { .. } => WorkerEvent::Link(LinkEvent::ReadList),
             hub::LinkDown::Sources { .. } => WorkerEvent::Link(LinkEvent::Sources),
             hub::LinkDown::Check { .. } => WorkerEvent::Link(LinkEvent::Check),
             hub::LinkDown::SignOut { .. } => WorkerEvent::Link(LinkEvent::SignOut),

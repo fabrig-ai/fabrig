@@ -405,6 +405,8 @@ fn check_engine_hello(domain: &mut fleet::Domain, limits: &fleet::Limits, agent_
             worker: 0,
             channel: Token::new(0),
             hello: Hello {
+                fresh: false,
+                reads_usage: true,
                 jobs: Box::default(),
                 slots,
                 stop_bound: skein_lib::Duration::ZERO,

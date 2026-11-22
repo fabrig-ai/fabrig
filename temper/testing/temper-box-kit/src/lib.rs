@@ -9,12 +9,16 @@ pub mod batch_landing;
 #[expect(clippy::must_use_candidate, reason = "the box fixture callers assert on commands and captured output")]
 pub mod box_link;
 pub mod boxed;
+pub mod bundle_fixture;
 pub mod case;
 pub mod cluster;
 pub mod cluster_turn;
 pub mod configuration;
+pub mod configuration_fixture;
 pub mod csv_repair;
 pub mod ctl;
+#[expect(clippy::must_use_candidate, reason = "shared opening fixtures retain their helpers' signatures")]
+pub mod fake_opening;
 pub mod fetch;
 pub mod first_repository;
 pub mod github;
@@ -23,9 +27,13 @@ pub mod held_login;
 pub mod landing_by_turn;
 pub mod limit_settings;
 pub mod owned;
+#[expect(clippy::must_use_candidate, reason = "shared relay fixture retains its helper's signature")]
+pub mod relay_fixture;
 pub mod screen;
 pub mod socket;
 pub mod terminal;
+#[expect(clippy::must_use_candidate, reason = "shared rendering fixtures retain their helpers' signatures")]
+pub mod turn_landing_fixture;
 pub mod turn_restart;
 pub mod webhooks;
 pub use temper_process_guard::WITHIN;

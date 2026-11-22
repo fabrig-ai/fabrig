@@ -12,6 +12,7 @@ impl Service {
                     credentials = credentials.checked_add(1).expect("bounded request queue");
                 }
                 local::Request::Input { .. }
+                | local::Request::Log { .. }
                 | local::Request::Notice { .. }
                 | local::Request::Load
                 | local::Request::SelectChat { .. }

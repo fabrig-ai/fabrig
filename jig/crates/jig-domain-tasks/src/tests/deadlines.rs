@@ -311,6 +311,98 @@ fn backoff_arms_the_earlier_of_retry_and_wall() {
     }
 }
 
+/// An open gap keeps moving the deadline; a claim commits its final age (executors.md, 6.3).
+#[test]
+fn a_tasks_deadline_moves_with_its_open_and_closed_suspensions() {
+    let mut h = running_at_a_wall();
+    h.env.wall = Wall::from_nanos(1020);
+    h.send(Event::Activation {
+        reply_to: super::revisions::to(),
+        task: 1,
+        attempt: 1,
+        cause: crate::Cause::Unpriced,
+        saved: None,
+        end: crate::End::Suspended(crate::Suspended {
+            worker: 2,
+            why: crate::SuspendWhy::Stopped,
+            window: Duration::from_nanos(50),
+        }),
+    });
+    assert_eq!(h.domain.deadline(1, Wall::from_nanos(1105)), Some(Wall::from_nanos(1185)));
+    h.env.wall = Wall::from_nanos(1040);
+    h.send(Event::Prepare { reply_to: super::revisions::to(), task: 1 });
+    h.send(Event::Claim {
+        reply_to: super::revisions::to(),
+        task: 1,
+        attempt: 2,
+        fresh: None,
+        session_end: None,
+        reasons: crate::Reasons::FIRST,
+        offered: crate::Reasons::ALL,
+        resumed: false,
+        budget: 10,
+        account: None,
+        writes: Box::new([]),
+    });
+    let row = h.domain.task(1).unwrap();
+    assert_eq!(row.phase, Phase::Active(Active::Claimed { attempt: 2 }));
+    assert_eq!((row.suspended, row.suspension), (20, None));
+    assert_eq!(row.authority.budget.deadline, Some(TASK_WALL));
+    assert_eq!(h.domain.deadline(1, Wall::from_nanos(1200)), Some(Wall::from_nanos(1120)));
+    assert_eq!(h.domain.deadline(999, Wall::EPOCH), None);
+}
+
+/// The task is activated again exactly at its worker window, even after restoration (executors.md, 6.4).
+#[test]
+fn a_suspensions_window_rearms_on_restore_and_activates_once_at_its_end() {
+    let mut h = running_at_a_wall();
+    h.send(Event::Activation {
+        reply_to: super::revisions::to(),
+        task: 1,
+        attempt: 1,
+        cause: crate::Cause::Unpriced,
+        saved: None,
+        end: crate::End::Suspended(crate::Suspended {
+            worker: 2,
+            why: crate::SuspendWhy::Stopped,
+            window: Duration::from_nanos(50),
+        }),
+    });
+    assert_eq!(h.domain.next_deadline(), Some(Time::from_nanos(150)));
+    h.env.now = Time::from_nanos(120);
+    h.env.wall = Wall::from_nanos(1020);
+    let mut h = restore(h);
+    assert_eq!(h.domain.next_deadline(), Some(Time::from_nanos(150)));
+    let row = h.domain.task(1).unwrap().clone();
+    assert_eq!(fire(&mut h, 1049).len(), 0);
+    let out = fire(&mut h, 1050);
+    assert_eq!(
+        out.iter().filter(|r| if let Request::Activate { context } = r { context.task == 1 } else { false }).count(),
+        1
+    );
+    assert_eq!(h.domain.task(1), Some(&row));
+    assert_eq!(h.domain.next_deadline(), None);
+    assert_eq!(fire(&mut h, 1051).len(), 0);
+}
+
+/// Both alarm owners use the moved task deadline, not the authority's (executors.md, 6.3).
+#[test]
+fn a_closed_gap_moves_idle_and_backoff_deadline_alarms() {
+    for phase in [Phase::Active(Active::Idle), Phase::Active(Active::BackingOff { until: Wall::from_nanos(1500) })] {
+        let mut h = parked_at_a_wall();
+        let mut row = h.domain.task(1).unwrap().clone();
+        row.phase = phase;
+        row.suspended = 100;
+        h.stored.insert(Key::Live(1), Stored::Live(Box::new(row)));
+        let mut h = restore(h);
+        assert_eq!(h.domain.next_deadline(), Some(Time::from_nanos(301)));
+        assert_eq!(fire(&mut h, 1101).len(), 0);
+        let out = fire(&mut h, 1201);
+        assert!(out.iter().any(|r| if let Request::Activate { context } = r { context.task == 1 } else { false }));
+        assert_eq!(h.domain.task(1).unwrap().phase, Phase::Active(Active::Due));
+    }
+}
+
 #[test]
 fn a_pace_requires_a_positive_span_in_each_channel() {
     use crate::WakePolicy;

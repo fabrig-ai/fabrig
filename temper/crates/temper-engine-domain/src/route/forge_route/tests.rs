@@ -1020,7 +1020,7 @@ fn a_parked_answers_checked_push_reaches_the_change_before_lost_writer_reads() {
             },
         )
         .unwrap();
-    crate::link::answer(&mut domain, Token::new(41), Token::new(1), payload);
+    crate::link::answer(&mut domain, Token::new(41), Token::new(1), payload, None, skein_lib::Duration::ZERO);
     let Some(Work::Core(core::Event::AnswerPayload { end, .. })) = domain.work.pop() else { panic!("parked answer") };
     assert_eq!(end, jig_domain_tasks::End::Parked);
     // The core's terminal acknowledgement asks Lost for parked and ended answers alike.
@@ -1764,6 +1764,22 @@ fn restored_change(
         drop(request);
     }
     (domain, env, out)
+}
+
+#[test]
+fn a_finding_blame_mark_reaches_the_core_as_a_milestone_parts_mark() {
+    use super::{Decision, Work, forge};
+    let (mut domain, env) = two_forges();
+    let mut out = skein_lib::Queue::uncapped();
+    out.push(forge::Request::MilestoneMarked { task: 812 });
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+    super::outputs(&mut domain, &env, &mut decision, &mut out);
+    let Some(Work::Core(jig_domain_core::Event::PartsMarked { connector, tasks })) = domain.work.pop() else {
+        panic!("finding marks the milestone's parts")
+    };
+    assert_eq!(connector, domain.config.forge_connector);
+    assert_eq!(tasks.as_slice(), &[812]);
+    assert!(domain.work.is_empty());
 }
 
 #[test]

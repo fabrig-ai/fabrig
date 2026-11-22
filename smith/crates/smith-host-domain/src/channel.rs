@@ -300,6 +300,8 @@ pub struct Answer {
 /// Decoded agent records; one record terminates each Read.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Up {
+    /// A live agent leaves its termination signal to the parent, once.
+    Signalled { signal: crate::parent::Signal, from: Option<u32> },
     /// Independent run admission after process Started, exactly once.
     Admitted,
     /// The run refused one sent message before a fence read it.
@@ -345,6 +347,8 @@ pub enum Up {
         /// Known positive generation.
         generation: u64,
     },
+    /// One program allowance observation for a known account.
+    Usage { account: u32, window: crate::UsageWindow },
     /// Protocol exhausted a known account.
     Limited {
         /// Known credential account.

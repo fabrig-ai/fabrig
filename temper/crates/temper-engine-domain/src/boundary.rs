@@ -651,6 +651,16 @@ pub enum Missing {
 /// An observation of the root, which decides nothing (domain/root.md, 3 and 6.4).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Fact {
+    /// A forge table full past its bound or free again (protocol/README.md, 6.3).
+    ForgeTable {
+        words: Box<[u8]>,
+    },
+    /// A start step past the report bound (protocol/README.md, 6.3).
+    StartWaiting {
+        step: jig_domain_core::start::Phase,
+        age: skein_lib::Duration,
+        waits: Box<[u8]>,
+    },
     /// A forge's link changed or was refused (temper/docs/design/domain/forge/adoption.md, 6).
     ForgeLink {
         forge: u16,
@@ -870,7 +880,8 @@ pub enum ForgeReadAnswer {
     },
     Milestone(Option<forge::MilestoneTotals>),
     History(forge::history::Reply),
-    Finding(Option<forge::FindingAnswer>),
+    /// Keep finding detail out of every journal delivery slot's inline size.
+    Finding(Option<Box<forge::FindingAnswer>>),
     View(Box<temper_engine_domain_ways::View>),
     ProgramEnvironment,
     Setting {
@@ -1260,6 +1271,7 @@ pub(crate) enum Work {
     ForgeRead { reply: ReplyTo, sign_in: u64, scope: people::ApplicationScope, query: ForgeRead },
     Core(jig_domain_core::Event),
     Tasks(tasks::Event),
+    RepairFindings { goal: u64, writes: Box<[forge::FindingWrite]> },
     People(people::Event),
     Fleet(fleet::Event),
     Brief(brief::GatherEvent),

@@ -543,6 +543,7 @@ pub fn fixture(seed: u64, engine_slots: u32) -> (root::Config, root::Limits) {
 
 fn party_refusal(why: people::Refusal) -> parties::Refusal {
     match why {
+        people::Refusal::Unlinked { worker } => parties::Refusal::Unlinked { worker },
         people::Refusal::Concluded { at } => parties::Refusal::Concluded { at },
         people::Refusal::Judged { at, setting, why } => parties::Refusal::Judged {
             at,

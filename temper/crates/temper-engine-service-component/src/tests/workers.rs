@@ -59,9 +59,10 @@ fn application_grants_answer_either_retained_generation() {
 fn identities_are_announced_after_the_durable_start_wires() {
     let mut service = fixtures::started();
     service.engine.as_mut().expect("engine").store.hold_mark = true;
+    let engine = service.engine.as_ref().expect("engine");
     assert_eq!(
-        service.engine.as_ref().expect("engine").domain.next_deadline(&service.engine.as_ref().expect("engine").env),
-        None
+        engine.domain.next_deadline(&engine.env),
+        Some(engine.env.now.saturating_add(temper_engine_domain_forge::WAIT_REPORT))
     );
     for _ in 0_u32..256 {
         fixtures::turn(&mut service);
@@ -1387,6 +1388,8 @@ fn hello_for_loss_notes(worker: u32) -> jig_protocol_engine_workers::host::Outpu
         worker,
         channel: Token::new(7),
         hello: jig_domain_link::Hello {
+            fresh: false,
+            reads_usage: true,
             jobs: Box::new([]),
             slots: 1,
             stop_bound: skein_lib::Duration::from_millis(100),
@@ -1420,6 +1423,25 @@ fn worker_loss_notes_wait_for_the_operator_sink_without_blocking_the_link() {
     assert_eq!(engine.notes.pop(), Some(crate::Note::WorkerOpeningEnded { worker: None, why: Loss::NoRoom }));
     assert!(engine.workers.notes.is_empty());
     assert!(engine.notes.is_empty());
+}
+
+#[test]
+fn each_unsent_pause_reaches_a_shell_note_not_the_domain() {
+    use jig_domain_link::PauseMode;
+    use jig_protocol_engine_workers::host::Output;
+    let mut service = fixtures::started();
+    let workers = &mut service.engine.as_mut().unwrap().workers;
+    let worker: Box<[u8]> = b"w2".as_slice().into();
+    let mut events = skein_lib::Queue::uncapped();
+    for mode in [PauseMode::Resume, PauseMode::Pause, PauseMode::Drain] {
+        workers.route(Output::Unpaused { worker: worker.clone(), version: 18, mode }, &mut events);
+        assert_eq!(
+            workers.notes.pop(),
+            Some(crate::Note::WorkerUnpaused { worker: worker.clone(), version: 18, mode })
+        );
+        assert!(workers.notes.is_empty(), "one note per ask");
+        assert!(events.is_empty(), "the outcome is a log note, not a domain input");
+    }
 }
 
 #[test]

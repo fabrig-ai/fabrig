@@ -49,6 +49,7 @@ fn operation(value: &c::Operation, limits: &w::Limits) -> Result<w::Operation, w
         | w::Ask::ReadLists(_)
         | w::Ask::ChangeModel(_)
         | w::Ask::ChangeSettings(_)
+        | w::Ask::PauseWorker(_)
         | w::Ask::MoveToNewest(_)
         | w::Ask::Restore(_)
         | w::Ask::Propose(_)
@@ -112,6 +113,7 @@ pub(super) fn restore(value: w::Compound, limits: &Limits) -> Result<c::Ask, w::
             | c::Ask::ReadLists { .. }
             | c::Ask::ChangeModel(_)
             | c::Ask::ChangeSettings(_)
+            | c::Ask::PauseWorker { .. }
             | c::Ask::MoveToNewest(_)
             | c::Ask::Restore { .. }
             | c::Ask::Propose { .. }

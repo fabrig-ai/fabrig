@@ -52,6 +52,30 @@ cleanup wait the same way, in the same line.
   its withdrawal or its settling as not made, and as a reservation ends
   without an entry.
 
+### 2.1 A full outbox names its holders
+
+From `../../draft/reconciling-start.md`, 5: the 11-20 start waited on an
+outbox whose eight places cancelled landings held, and no line said so.
+
+- **Full** while free room is zero. The forge keeps the time it filled,
+  and forgets it once a place frees.
+- **Its holders, oldest first:** its entries by number, which follow
+  commit order, then its reservations in the order they were made; each
+  named by its entry and task or by whom its room is promised to, in the
+  words of `../../protocol/README.md`, 6.3, with the room line's waiters
+  counted (section 3).
+- **Past the report bound,** and again at each doubling of how long it
+  has been full, the forge reports them, the root's fact the service
+  writes; after such a report, one more when a place frees
+  (`../../protocol/README.md`, 6.3). The forges' document carries it
+  while it lasts, past the bound (`../../client/forge/deployment.md`,
+  *Its load*).
+- **Read admission** is reported the same way, from the client's calls
+  holding its places, oldest admitted first (skein's `forge/client.md`,
+  5, *Its holders*).
+- **A report changes nothing:** no holder is released, no waiter moved,
+  and the figure stays the user's (section 6).
+
 ## 3. The line
 
 - **Its waiters:** a change's effect (`change/README.md`, 2), a

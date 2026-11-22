@@ -446,6 +446,7 @@ fn run_root() -> (Domain, Env<Limits>, u64) {
         .insert(
             task,
             core::RunProof {
+                worker: None,
                 task,
                 attempt: 1,
                 conversation: 1,

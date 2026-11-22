@@ -93,7 +93,9 @@ impl Operation {
         }
     }
     pub(crate) fn worker_name(&mut self, call: &crate::jig::call::Call) {
-        if (crate::jig::rows::WORKER_ADD_AT..=crate::jig::rows::WORKER_REMOVE_AT).contains(&call.tool) {
+        if (crate::jig::rows::WORKER_ADD_AT..=crate::jig::rows::WORKER_REMOVE_AT).contains(&call.tool)
+            || (crate::jig::rows::WORKER_PAUSE_AT..=crate::jig::rows::WORKER_RESUME_AT).contains(&call.tool)
+        {
             let Some(crate::jig::call::Value::Text(name)) = crate::jig::call::value(call, 0) else {
                 unreachable!("worker name argument")
             };
@@ -111,6 +113,7 @@ impl Operation {
         let (word, task): (&[u8], Option<u64>) = match ask {
             Ask::Family { .. } => (b"adopt", None),
             Ask::Jig(ask) => match ask.as_ref() {
+                c::Ask::PauseWorker { .. } => (b"pause-worker", None),
                 c::Ask::Restore { .. } => (b"restore", None),
                 c::Ask::Propose { action: c::ProposeAction::Settings(_), .. } => (b"propose_settings", None),
                 c::Ask::MoveToNewest(_) => (b"move-to-newest", None),
@@ -451,6 +454,27 @@ fn text(
     out.put(b"\n");
 }
 fn done_text(done: &c::Outcome, operation: &Operation, out: &mut Text) {
+    if let c::Outcome::WorkerPauseAsked { worker } = done {
+        if let Some(name) = &operation.worker {
+            out.put(b"worker ");
+            out.put(name);
+            out.put(b": asked to ");
+            let tool = operation.tool.expect("worker ask's tool");
+            if tool.name == crate::jig::rows::WORKER_DRAIN.name {
+                out.put(b"drain\nworker list --until drained:");
+                out.put(name);
+            } else if tool.name == crate::jig::rows::WORKER_PAUSE.name {
+                out.put(b"pause");
+            } else {
+                out.put(b"take work again");
+            }
+        } else {
+            out.put(b"done: worker ");
+            out.number(u64::from(*worker));
+            out.put(b" pause asked");
+        }
+        return;
+    }
     if let c::Outcome::Document(c::DocumentOutcome::ServiceMade { person: party })
     | c::Outcome::Made { what: c::Made::Service { party } } = done
     {
@@ -486,6 +510,7 @@ fn done_text(done: &c::Outcome, operation: &Operation, out: &mut Text) {
         }
         c::Outcome::Made { what: c::Made::Tasks { tasks } } => tasks.get(0).copied(),
         c::Outcome::Document(c::DocumentOutcome::Created { first, .. }) => Some(*first),
+        c::Outcome::WorkerPauseAsked { .. } => None,
         c::Outcome::Account(_) | c::Outcome::Document(_) | c::Outcome::Made { .. } => operation.task,
     };
     if let Some(task) = task {
@@ -895,6 +920,9 @@ pub(crate) fn act_tool(tool: u8) -> &'static crate::jig::table::Tool {
         rows::WORKER_ADD_AT => &rows::WORKER_ADD,
         rows::WORKER_PLACES_AT => &rows::WORKER_PLACES,
         rows::WORKER_REMOVE_AT => &rows::WORKER_REMOVE,
+        rows::WORKER_PAUSE_AT => &rows::WORKER_PAUSE,
+        rows::WORKER_DRAIN_AT => &rows::WORKER_DRAIN,
+        rows::WORKER_RESUME_AT => &rows::WORKER_RESUME,
         rows::PROPOSE_SETTINGS_AT => &rows::PROPOSE_SETTINGS,
         rows::MOVE_TO_NEWEST_AT => &rows::MOVE_TO_NEWEST,
         rows::RESTORE_AT => &rows::RESTORE,
@@ -1180,6 +1208,10 @@ fn worker_refusal(operation: &Operation, refusal: &c::Refusal, out: &mut Text) -
             out.number(u64::from(value.newest));
             out.put(b"; run it again");
         }
+        c::Refusal::Unlinked { .. } => {
+            out.put(worker);
+            out.put(b" is not linked");
+        }
         c::Refusal::Concluded { .. }
         | c::Refusal::Judged { .. }
         | c::Refusal::SignInRedirect { .. }
@@ -1384,6 +1416,7 @@ fn proposal_project(ask: &Ask) -> Option<u32> {
         Ask::Jig(ask) => match ask.as_ref() {
             c::Ask::Propose { project, .. } => Some(*project),
             c::Ask::Restore { .. }
+            | c::Ask::PauseWorker { .. }
             | c::Ask::MoveToNewest(_)
             | c::Ask::ReadLists { .. }
             | c::Ask::ChangeModel(_)
@@ -1503,6 +1536,7 @@ fn ended_refusal(refusal: &c::Refusal, archived: bool) -> bool {
         | c::Refusal::NotLending
         | c::Refusal::NotOffered
         | c::Refusal::KeyConflict
+        | c::Refusal::Unlinked { .. }
         | c::Refusal::Concluded { .. }
         | c::Refusal::Llm { .. } => false,
     }

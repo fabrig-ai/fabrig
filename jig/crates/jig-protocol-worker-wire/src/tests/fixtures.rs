@@ -1,25 +1,25 @@
-use crate::v18::Record;
-use crate::{Bounds, Credential, EndpointBound, Hello, Hosting, Phase, v18};
+use crate::v21::Record;
+use crate::{Bounds, Credential, EndpointBound, Hello, Hosting, Phase, v21};
 use alloc::boxed::Box;
 use skein_lib::{Duration, List, Secret, Writer};
 
 pub const WORKER_A: &[u8] = b"worker-a";
 pub const WORKER_B: &[u8] = b"worker-b";
 
-pub const LIMITS: v18::Limits = v18::Limits {
+pub const LIMITS: v21::Limits = v21::Limits {
     ask_bytes: 4,
     ask_bytes_bytes: 4,
     agreed_wire_name: 32,
     agreed_wires: 16,
-    model_failure_endpoint: v18::CEILINGS.model_failure_endpoint,
-    model_failure_model: v18::CEILINGS.model_failure_model,
-    model_failure_refusal_some: v18::CEILINGS.model_failure_refusal_some,
+    model_failure_endpoint: v21::CEILINGS.model_failure_endpoint,
+    model_failure_model: v21::CEILINGS.model_failure_model,
+    model_failure_refusal_some: v21::CEILINGS.model_failure_refusal_some,
     mismatch_wire: 32,
-    list_row_name: v18::CEILINGS.list_row_name,
-    list_row_shown_some: v18::CEILINGS.list_row_shown_some,
-    list_row_efforts: v18::CEILINGS.list_row_efforts,
-    list_row_efforts_item: v18::CEILINGS.list_row_efforts_item,
-    listed_rows_rows: v18::CEILINGS.listed_rows_rows,
+    list_row_name: v21::CEILINGS.list_row_name,
+    list_row_shown_some: v21::CEILINGS.list_row_shown_some,
+    list_row_efforts: v21::CEILINGS.list_row_efforts,
+    list_row_efforts_item: v21::CEILINGS.list_row_efforts_item,
+    listed_rows_rows: v21::CEILINGS.listed_rows_rows,
     input_call_id: 256,
     input_call_tool: 64,
     piece_bytes: 32,
@@ -33,13 +33,13 @@ pub const LIMITS: v18::Limits = v18::Limits {
     login_email_some: 255,
     logins_logins: 2,
     signed_out_name: 32,
-    wire_name: v18::CEILINGS.wire_name,
-    wire_layouts: v18::CEILINGS.wire_layouts,
-    credential_wires: v18::CEILINGS.credential_wires,
+    wire_name: v21::CEILINGS.wire_name,
+    wire_layouts: v21::CEILINGS.wire_layouts,
+    credential_wires: v21::CEILINGS.credential_wires,
     credential_name: 16,
     credential_secret: 32,
     bounds_endpoints: 2,
-    bounds_program_endpoints: v18::CEILINGS.bounds_program_endpoints,
+    bounds_program_endpoints: v21::CEILINGS.bounds_program_endpoints,
     hello_jobs: 2,
     job_spec: 32,
     job_grants: 2,
@@ -81,7 +81,7 @@ pub const LIMITS: v18::Limits = v18::Limits {
     inbound_words: 32,
     relay_text_text: 32,
     relayed_name: 16,
-    ..v18::CEILINGS
+    ..v21::CEILINGS
 };
 
 pub fn encode(hello: &Hello) -> Box<[u8]> {
@@ -109,8 +109,8 @@ pub fn hello_fullest() -> Hello {
     let mut models = List::with_capacity(2);
     models.push(model()).expect("first model slot");
     models.push(model()).expect("second model slot");
-    let mut program_endpoints = List::with_capacity(v18::CEILINGS.bounds_program_endpoints);
-    for endpoint in 0..v18::CEILINGS.bounds_program_endpoints {
+    let mut program_endpoints = List::with_capacity(v21::CEILINGS.bounds_program_endpoints);
+    for endpoint in 0..v21::CEILINGS.bounds_program_endpoints {
         program_endpoints.push(endpoint).unwrap();
     }
     let bounds = Bounds {
@@ -133,12 +133,20 @@ pub fn hello_fullest() -> Hello {
     for phase in [Phase::Active, Phase::Answered] {
         hosting.push(Hosting { task: 3, attempt: 4, phase }).expect("two hosting slots");
     }
-    Hello { slots: 2, stop_bound: Duration::from_secs(95), workstreams, hosting, bounds, jobs: List::with_capacity(0) }
+    Hello {
+        fresh: false,
+        slots: 2,
+        stop_bound: Duration::from_secs(95),
+        workstreams,
+        hosting,
+        bounds,
+        jobs: List::with_capacity(0),
+    }
 }
 
 pub fn hello_smallest() -> Hello {
-    // Five empty counts, the fixed fields and the absent reply bound's tag.
-    Hello::decode(&LIMITS, &mut skein_lib::Reader::new(&[0; 81])).expect("smallest hello")
+    // Five empty counts, the fixed fields, absent reply bound's tag and freshness.
+    Hello::decode(&LIMITS, &mut skein_lib::Reader::new(&[0; 82])).expect("smallest hello")
 }
 
 pub const MESSAGE_FIRST: u64 = 41;
@@ -355,7 +363,7 @@ pub const SIZES_LARGE: crate::sizes::Sizes = crate::sizes::Sizes {
     facts: 4470,
 };
 
-fn one_slot_limits() -> v18::Limits {
+fn one_slot_limits() -> v21::Limits {
     crate::sizes::limits(&SIZES_ONE_SLOT).expect("small size bounds")
 }
 
@@ -383,7 +391,7 @@ fn fullest_call() -> crate::AnsweredCall {
     crate::AnsweredCall { name: full_bytes(), tool: full_bytes(), answer: crate::SettledAnswer::Host(answer) }
 }
 
-fn fullest_grants(limits: &v18::Limits) -> List<crate::Grant> {
+fn fullest_grants(limits: &v21::Limits) -> List<crate::Grant> {
     let mut grants = List::with_capacity(2);
     for number in [5, 6] {
         let mut name = skein_lib::bytes::zeroed(skein_lib::length::usize_of(limits.program_value_name));

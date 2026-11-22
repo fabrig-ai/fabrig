@@ -198,6 +198,13 @@ impl<'a, T> IntoIterator for &'a List<T> {
     }
 }
 
+/// Move a list into its exact-sized boxed slice without copying items.
+impl<T> From<List<T>> for Box<[T]> {
+    fn from(items: List<T>) -> Self {
+        items.into_boxed()
+    }
+}
+
 impl<T: Clone> Clone for List<T> {
     fn clone(&self) -> List<T> {
         let mut items = Vec::with_capacity(self.items.len());

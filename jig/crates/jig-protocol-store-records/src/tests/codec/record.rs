@@ -69,6 +69,45 @@ fn a_live_task_record_reads_back_whole() {
         assert_eq!(saved_tasks(&row), Ok(row));
     }
 }
+/// Suspensions keep their cause, window and clock accounting in all task rows (executors.md, 6.2).
+#[test]
+fn suspended_ends_and_task_gaps_read_back() {
+    for why in [domain::SuspendWhy::Stopped, domain::SuspendWhy::Restarted] {
+        let end = domain::EndKind::Suspended { worker: 2, why };
+        let mut record = current_record();
+        record.suspension =
+            Some(domain::Suspension { worker: 2, since: Wall::from_nanos(100), until: Wall::from_nanos(130) });
+        record.suspended = 17;
+        record.restarted = why == domain::SuspendWhy::Restarted;
+        record.open_attempt = Some(domain::OpenAttempt {
+            attempt: 3,
+            claimed: Some(Wall::from_nanos(80)),
+            started: Some(Wall::from_nanos(90)),
+            from: 1,
+            end: Some(end),
+        });
+        let row = live_record(record);
+        assert_eq!(saved_tasks(&row), Ok(row));
+        let row = activity(domain::Line::RunEnded { attempt: 3, end, spent: 7 });
+        assert_eq!(saved_tasks(&row), Ok(row));
+        let row = domain::Stored::Attempt(domain::AttemptRow {
+            task: 17,
+            attempt: 3,
+            claimed: Some(Wall::from_nanos(80)),
+            started: Some(Wall::from_nanos(90)),
+            ended: Some(Wall::from_nanos(100)),
+            end: Some(end),
+            phases: Some(2),
+        });
+        assert_eq!(saved_tasks(&row), Ok(row));
+        super::end_round_trip(domain::End::Suspended(domain::Suspended {
+            worker: 2,
+            why,
+            window: Duration::from_secs(30),
+        }));
+    }
+}
+
 #[test]
 fn a_tasks_question_wake_watermark_reads_back() {
     for question_woken in [0, 37, u64::MAX] {

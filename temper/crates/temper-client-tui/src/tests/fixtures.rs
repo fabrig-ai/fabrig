@@ -407,9 +407,11 @@ impl GoalCase {
                 },
                 Down::Open { watch, subject: Watchable::Family { record, .. } } => {
                     let bytes = match &wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch {
-                        w::Watch::Forges => {
-                            wire::forges(&w::Forges { forges: goal_forges(self.repository), linked: false })
-                        }
+                        w::Watch::Forges => wire::forges(&w::Forges {
+                            forges: goal_forges(self.repository),
+                            full: List::with_capacity(0),
+                            linked: false,
+                        }),
                         w::Watch::Dismissed => {
                             let mut dismissed = List::with_capacity(wire::DISMISSED);
                             if self.linked {

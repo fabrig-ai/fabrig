@@ -279,7 +279,11 @@ pub(crate) fn terminal(store: &Store, task: u64, attempt: u64, scenario: crate::
             answer.end == jig_domain_tasks::End::Failed(jig_domain_tasks::Class::Transient)
         } else if matches!(scenario, crate::stories::Story::InvalidTranscript) || matches!(scenario, crate::stories::Story::Window) && attempt <= 2 {
             answer.end == jig_domain_tasks::End::Parked
-        } else if matches!(scenario, crate::stories::Story::BeyondGrace) || matches!(scenario, crate::stories::Story::Shutdown) && attempt == 1 { answer.end == jig_domain_tasks::End::Recheck } else { matches!(answer.end, jig_domain_tasks::End::Finished { .. }) }
+        } else if matches!(scenario, crate::stories::Story::BeyondGrace) {
+            answer.end == jig_domain_tasks::End::Recheck
+        } else if matches!(scenario, crate::stories::Story::Shutdown) && attempt == 1 {
+            matches!(answer.end, jig_domain_tasks::End::Suspended(jig_domain_tasks::Suspended { worker: 1, why: jig_domain_tasks::SuspendWhy::Stopped, .. }))
+        } else { matches!(answer.end, jig_domain_tasks::End::Finished { .. }) }
     ))
 }
 pub(crate) fn pending_turn(store: &Store) -> bool {

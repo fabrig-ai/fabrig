@@ -248,6 +248,10 @@ terminal client, the captures and the faults.
   - people: skein's fake person in front of temper's terminal client,
     its domain, view and jig's native transport (../client/README.md, section 2;
     `fakes.md`, 4).
+- **Journeys' prints** use this composition too: the browser's shipped
+  host and the TUI's shipped host on the simulated service, with no box
+  and no terminal (`../client/journey-walks.md`, 3.2, 3.3 and 4). The
+  walker feeds their lines and prints their marks as pages.
 - **Stories:**
   - a person signs in by the link `temper-box serve` prints, and a chat is
     answered;
@@ -513,17 +517,32 @@ tens of MB, so a quarter's headroom over one story cost a repair at
 each milestone's added state, while three times still catches a leak.
 The worker's child domain worlds keep their checks inline.
 
+**Beside the referee, the harness's invariants.** The referee never
+reads a domain's state. What must hold of a component's frozen state, its
+waits and its bounded tables, is a harness invariant: the world reads the
+component through its inspection adapter at its driver's quiet point and
+returns the shared checks' findings as its run's (skein's
+`testing/inspection.md`; `checks.md`, 6.1). A world that injects faults
+records each in its run's fault ledger, draws its workload, faults,
+parties and scheduling from independent streams of its seed, and a sweep
+over its seeds fails when a fault it configures never falls; its only
+exclusions name ignored scenarios (skein's `testing/sweeps.md`;
+`checks.md`, 6.2).
+
 ## 5. Layout
 
 ```
 crates/*/src/tests.rs               step tests
 tests/codecs                        temper-codecs-world: the generated codecs and the foreign documents' decoders
+bin/temper-box/tests/domain          step and domain harness checks over values, committed fixtures and scripted client-tool reads
+bin/temper-box/tests/suite           real scratch files, sockets, locks, clocks, shell children and shipped wiring
+crates/temper-forge-setup-shell/tests/step  process-boundary checks over committed source and sample calls; suite keeps real files, locks, commands and TLS peers
 bin/temper-box/tests/process.rs      owned Forgejo integration and OS process boundaries (2.6); nextest profile process-temper
 bin/temper-box/tests/proof_live.rs   B0's offline driver proofs (2.6, 2.7), nextest profile process-temper; scripts/proof-live.sh rung-b0-offline runs them
 testing/temper-box-kit              what temper-box's test binaries share, compiled once for them all (tools/crates/design.md, 3.2): the stories' processes, forges, people and fixtures
 testing/temper-box-kit/src/github.rs   GitHub's App as processes (2.6): the fake GitHub, the fake LLM, an engine alone and a worker alone, the App made on the layer and connected through ctl
 testing/temper-box-kit/src/cluster.rs  the cluster's reader: `bin/temper-box/tests/fixtures/cluster/` started, awaited and stopped on skein-world's `Binary` (../protocol/cluster.md, 5)
-testing/temper-process-guard        the kit's process guard, its tests on real processes
+testing/temper-process-guard        the kit's process guard: step observes scripted read/exit results, parent observes real /bin/cat identities
 bin/temper-box/tests/fixtures/cluster  the retained cluster's description, read by the process tier
 bin/temper-box/tests/fixtures/github   the GitHub App's documents, its key and its workers' secrets, read by the kit's GitHub stories
 bin/temper-box/tests/live.rs         the live tier (2.7), nextest profile live-temper
@@ -554,7 +573,8 @@ tests/*/*/tests/suite/*.rs                a world's focused tests
 tests/*/*/tests/suite/fuzzy/*.rs          its fuzzy tests: random worlds, domains driven at random
 tests/fake-checkout                 temper-fake-checkout: working trees' git, over skein's fake checkout
 crates/temper-twin-tool             the live run's twin: bin/temper-twin, selected transcripts as a fake LLM document (fakes.md, 1)
-crates/temper-qa-tool               QA after landing: bin/temper-qa, main's landings triaged into cases and builds kept for them (qa/README.md)
+crates/temper-qa-tool               QA after landing: bin/temper-qa, main's landings triaged into cases and builds kept for them (qa/README.md); step holds values and seeded ledger sequences, suite keeps real scratch homes, sockets, locks and children
+crates/temper-redeploy-tool         domain holds values and fake-host/clock orchestration, suite keeps scratch journals and real sh processes (../redeploy.md, 8)
 crates/temper-git-transcripts-tool  git's transcripts, recorded by bin/temper-git-transcripts against skein's throwaway Forgejo (../protocol/git.md, section 9)
 crates/temper-client-gallery-tool    bin/temper-client-gallery: the browser's pages in named states, printed for screenshots (../client/web/gallery.md), its tests in the view's world
 crates/temper-client-journeys-tool   recorded walks replayed through the shipped hosts and printed (../client/web/journeys.md; ../client/tui/journeys.md), run by bin/temper-client-journeys, its tests on walks they record

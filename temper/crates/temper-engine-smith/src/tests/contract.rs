@@ -123,8 +123,8 @@ fn calls_choose_current_unchanged_or_adapted_decoding() {
 }
 
 #[test]
-fn previous_note_contract_defaults_records_and_cannot_call_mark_read() {
-    let old = wire::VERSION - 1;
+fn v10_note_contract_defaults_records_and_cannot_call_mark_read() {
+    let old = 10;
     let input = br#"{"scope":{"kind":"project","project":1},"description":"plan","body":"kept"}"#;
     assert!(!CONTRACT.unchanged(old, b"note"));
     assert!(CONTRACT.adapter(old, b"note").is_some());
@@ -204,6 +204,20 @@ fn kept_propose_settings_calls_preserve_the_current_input() {
             crate::call_for_contract(version, NAME, b"propose_settings", &input, &[], &[], &[]).unwrap()
         else {
             panic!("kept call decodes")
+        };
+        assert_eq!(kept, current, "version {version}: input unchanged");
+    }
+}
+
+#[test]
+fn kept_finding_calls_preserve_the_current_input() {
+    let input = br#"{"act":"hand","number":3,"area":"tests","why":"its suite"}"#;
+    let Decoded::Call(current) = decode(&CONTRACT, wire::VERSION, b"finding", input).unwrap() else {
+        panic!("current finding call decodes")
+    };
+    for version in wire::FLOOR..wire::VERSION {
+        let Decoded::Call(kept) = decode(&CONTRACT, version, b"finding", input).unwrap() else {
+            panic!("kept finding call decodes")
         };
         assert_eq!(kept, current, "version {version}: input unchanged");
     }

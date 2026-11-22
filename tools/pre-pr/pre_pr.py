@@ -287,6 +287,12 @@ def figures(base_id, tree_id, root, env, merged):
     return code, errors
 
 
+def merge_tests(root, env):
+    """Run check 9 for deliveries changing the merge job (tools/pre-pr/design.md, 4)."""
+    code, log = run(['python3', '-I', '-B', 'tools/merge/test_merge.py'], root, env, stdout=True)
+    return code, [failure('merge', log)] if code else []
+
+
 JOURNEY_ROOTS = tuple(f'temper/docs/design/client/{kind}/journeys' for kind in ('web', 'tui'))
 JOURNEY_WRITTEN = re.compile(
     r'(?:[^/]+/(?:recording|[0-9]{2,}\.(?:html|txt))|skein-ui\.css|journey\.js|theme\.css|tui-journey\.js)')
@@ -337,8 +343,7 @@ def journeys(base_id, tree_id, paths, root, env):
     lines.append("a journey's recording, pages and the files beside them are written on main by "
                  "the journeys' writer alone (AGENTS.md, 4): restore them with git "
                  f"checkout {base_id or 'HEAD'} -- PATH..., and compare pages by cargo run -p "
-                 "temper-client-journeys in your own tree, or, for a journey whose walk is of version 2, "
-                 "by cargo run -p temper-client-walk -- print --out DIR")
+                 "temper-client-walk -- print --out DIR in your own tree")
     log = '\n'.join(lines) + '\n'
     print(log, end='', flush=True)
     return 1, [failure('journeys', tail(log))]
@@ -564,7 +569,33 @@ def budget_failures(directory, ledger, profile, root, env):
     return errors
 
 
-def one_process(packages, root, env, reds=(), rerun=0, outcomes=None, profile='default', ledger=None):
+def repair_case(git_dir, root, base_id, tree_id, packages, reds):
+    """Consume a checkout-local, one-attempt invitation tied to the last refusal."""
+    marker = git_dir / 'temper/repair-trial'
+    try:
+        entry = json.loads(marker.read_bytes())
+        marker.unlink()
+        receipt = root / 'target/temper/pre-pr-failures.json'
+        previous = json.loads(receipt.read_bytes())
+        refused_ns = receipt.stat().st_mtime_ns
+        binary, name = entry['binary'], entry['test']
+        head = git_dir / 'HEAD'
+        if (entry['form'] == 'pre-pr-repair 1' and entry['head'] == head.read_text().strip()
+                and entry['head_ns'] == head.stat().st_mtime_ns and entry['base'] == base_id
+                and entry['refused_ns'] == refused_ns and 0 <= time.time_ns() - refused_ns <= 3600 * 10**9
+                and entry['previous'] == previous['tree'] != tree_id and previous['base'] == base_id
+                and previous['form'] == 'pre-pr-failures 1' and previous['cached'] is False
+                and previous['verdict'] == 'refused' and binary.partition('::')[0] in packages
+                and not name.startswith('fuzzy::') and ('test', binary, name) not in reds
+                and any(f.get('class') == 'new' and f.get('key') ==
+                        dict(kind='test', binary=binary, test=name) for f in previous['failures'])):
+            return binary, name
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        pass
+    return None
+
+
+def one_process(packages, root, env, reds=(), rerun=0, outcomes=None, profile='default', ledger=None, repair=None):
     """Read one-process's exit and run directory, keeping starvation a warning (section 4)."""
     check_name = 'tests' if profile == 'default' else 'fuzzy tests'
     suffix = '' if profile == 'default' else ' fuzzy'
@@ -574,7 +605,12 @@ def one_process(packages, root, env, reds=(), rerun=0, outcomes=None, profile='d
         if ledger is not None:
             arguments += ['--ledger', str(ledger), '--gate']
         arguments += [profile] + package_args(packages) + ['--no-tests=warn']
-        code, log = run(arguments, root, dict(env, TIERS_PRE_PR_TARGETS='1'), stdout=True)
+        test_env = dict(env, TIERS_PRE_PR_TARGETS='1')
+        if repair:
+            test_env['TIERS_PRE_PR_REPAIR_CASE'] = json.dumps(repair)
+        code, log = run(arguments, root, test_env, stdout=True)
+        if repair and code == 2 and (directory / 'repair-case-missing').is_file():
+            return None, [], None
         if code == 2 and log.rstrip('\r\n').split('\n')[-1] == 'one-process: nextest listing exited with 101':
             return code, [failure('build' + suffix, 'no tests ran\n' + log)], None
         gated = code == 1 and ledger is not None
@@ -670,6 +706,9 @@ def tests_again(errors, observed, bound, directory, root, env):
                 results = json.loads((again / 'results.json').read_text())
                 passed = any(test['binary_id'] == binary and test['test_name'] == name
                              and test['outcome'] == 'passed' for test in results['tests'])
+                if code == 100 and any(test['binary_id'] == binary and test['test_name'] == name
+                                       and test['outcome'] in ('failed', 'crashed') for test in results['tests']):
+                    error['confirmed_at'] = time.monotonic()
             except (OSError, ValueError, KeyError, TypeError):
                 pass
         seconds = time.monotonic() - start
@@ -945,8 +984,10 @@ def summary(base_id, lints, tests, errors, reason, failures_tail, starved=()):
 
 
 def main():
+    started = time.monotonic()
     root = Path.cwd()
     env = os.environ.copy()
+    env.pop('TIERS_PRE_PR_REPAIR_CASE', None)
     prefix = env.pop('TIERS_HOLD', '').split()
     ledger_setting = env.pop('TIERS_LEDGER', '')
     env.setdefault('TEMPER_INTERNAL_BUNDLE', 'none')
@@ -1081,6 +1122,43 @@ def main():
                     return conclude()
 
             pending = {}
+            binaries = [binary for name in tests for binary in inventory.get(name, [])]
+            repair = repair_case(git_dir, root, base_id, tree_id, tests, reds)
+            early = None
+            if repair and code_checks and rerun and not errors and not binaries:
+                print(f'pre-pr: repair trial: focused process for {repair[0]} {repair[1]} first', flush=True)
+                start = time.monotonic()
+                early = one_process(tests, root, env, reds, rerun, outcomes, 'default', ledgers.get('default'), repair)
+                seconds = time.monotonic() - start
+                confirmed = next((e['confirmed_at'] for e in early[1] if e['key'] == repair
+                                  and 'confirmed_at' in e and not settled(e)), None)
+                try:
+                    observation = dict(tree=tree_id, base=base_id, case=repair, focused_s=seconds,
+                                       observed=outcomes.get(repair, {}).get('outcome'),
+                                       confirmed_s=confirmed - started if confirmed is not None else None,
+                                       missing=early[0] is None)
+                    dest = git_dir / 'temper/repair-trial-result.json'
+                    tmp = dest.with_suffix('.tmp')
+                    tmp.write_text(json.dumps(observation) + '\n')
+                    tmp.replace(dest)
+                except OSError as error:
+                    print(f'pre-pr: repair trial: observation unavailable ({error})', flush=True)
+                if early[0] is None:
+                    print('pre-pr: repair trial: case absent from focused listing, resuming normal order', flush=True)
+                    early = None
+                else:
+                    code, found, warning = early
+                    status = 'failed' if code else 'passed'
+                    if found and all(settled(error) for error in found):
+                        status = 'inherited'
+                    print(f'pre-pr: tests: {status}, {seconds:.3f} s', flush=True)
+                    errors += found
+                    if warning:
+                        starved.append(warning)
+                    if confirmed is not None:
+                        print('pre-pr: repair trial: confirmed prior failure; remaining checks deferred', flush=True)
+                        lints = []
+                        return conclude()
             if code_checks:
                 errors += timed('format', format_check)
                 for name in ('skein', 'smith', 'jig', 'temper', 'hearth'):
@@ -1089,13 +1167,17 @@ def main():
                 if lints:
                     _, found = timed('clippy', lambda: clippy(lints, data, root, env), pending)
                     errors += found
-            binaries = [binary for name in tests for binary in inventory.get(name, [])]
             build_code = 0
             if binaries:
                 build_code, found = timed('test binaries', lambda: build_test_binaries(binaries, root, env), pending)
                 errors += found
             if tests and not build_code:
                 for profile, name in (('default', 'tests'), ('fuzzy', 'fuzzy tests')):
+                    if profile == 'default' and early is not None:
+                        if any(e['name'] == 'build' for e in early[1]):
+                            print('pre-pr: fuzzy tests: skipped (focused test build failed)', flush=True)
+                            break
+                        continue
                     _, found, warning = timed(name, lambda: one_process(
                         tests, root, env, reds, rerun, outcomes, profile, ledgers.get(profile)), pending)
                     errors += found
@@ -1120,6 +1202,11 @@ def main():
                         return 2, [failure('check figures', str(error))]
 
                 _, found = timed('figures', figures_check, pending)
+                errors += found
+            if any(path == '.temper/merge' or
+                   (path.startswith('tools/merge/') and path not in
+                    ('tools/merge/README.md', 'tools/merge/codecs.txt')) for path in paths):
+                _, found = timed('merge', lambda: merge_tests(root, env), pending)
                 errors += found
             inherited(reds, errors)
             count_errors = [e for e in errors if e['name'].startswith('old-forms ') and e['key']]

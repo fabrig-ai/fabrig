@@ -64,6 +64,8 @@ pub fn hello_with(channel: Token, worker: u32, slots: u32, bounds: Bounds, hosti
         engine::Link::Hello {
             worker,
             hello: jig_domain_link::Hello {
+                fresh: false,
+                reads_usage: true,
                 jobs: Box::new([JobBound { kind: JobKind(1), ..merge_bound() }, merge_bound()]),
                 slots,
                 stop_bound: Duration::from_millis(100),
@@ -129,6 +131,31 @@ pub fn failed_preparation(channel: Token, task: u64, attempt: u64, preparation: 
     let answer = host::RunAnswer { read: None, refused: Box::new([]), turns: 0, spent: 1, ending };
     let parts = engine::Parts { saved: None, pushed: Box::new([]), preparation: Some(preparation) };
     up(channel, host::LinkUp::Answer { run: Token::new(task), attempt: Token::new(attempt), answer }, parts)
+}
+
+/// A worker's run cut by its shutdown, without an agent outcome or check results.
+#[must_use]
+pub fn shutdown(channel: Token, task: u64, attempt: u64, spent: u64) -> engine::Event {
+    up(
+        channel,
+        host::LinkUp::Answer {
+            run: Token::new(task),
+            attempt: Token::new(attempt),
+            answer: host::RunAnswer {
+                read: None,
+                refused: Box::new([]),
+                turns: 0,
+                spent,
+                ending: host::Ending::Failed {
+                    failure: host::Failure::Cancelled(host::Reason::Shutdown),
+                    detail: Box::new([]),
+                    work: host::Work { left: None, saved: None },
+                    model: None,
+                },
+            },
+        },
+        engine::Parts::none(),
+    )
 }
 
 /// One hub record with no application part.
@@ -467,6 +494,8 @@ impl Protocol {
             }
             accounts::Request::Component(accounts::ToComponent::Release { .. } | accounts::ToComponent::Close)
             | accounts::Request::Programs { .. }
+            | accounts::Request::CancelUsage { .. }
+            | accounts::Request::ReadUsage { .. }
             | accounts::Request::ReadList { .. }
             | accounts::Request::CheckProgram { .. }
             | accounts::Request::SignOutProgram { .. }

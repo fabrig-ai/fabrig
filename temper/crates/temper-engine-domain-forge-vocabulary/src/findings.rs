@@ -1,5 +1,5 @@
 //! Findings (temper/docs/design/domain/findings.md, 2, 6, 9; domain/areas.md, 3 to 7;
-//! domain/red-findings.md, 3, 6, 7, 9).
+//! domain/red-findings.md, 3, 6, 7, 9; domain/red-repairs.md, 3, 8).
 use crate::{
     Request,
     settings::{AreaOwner, ProjectAreas},
@@ -7,7 +7,9 @@ use crate::{
 use alloc::boxed::Box;
 use skein_lib::{List, Queue, Wall};
 
+mod repair_words;
 mod words;
+pub use repair_words::repair_words;
 pub use temper_client_protocol_wire::goals::id as goal_id;
 pub use words::{cut_words, news_words, ownership_words};
 
@@ -72,6 +74,7 @@ pub struct Finding {
     pub seen: Option<u32>,
     pub blame: Option<FindingBlame>,
     pub cleared: Option<FindingCleared>,
+    pub repair: Option<FindingRepair>,
 }
 impl Finding {
     #[must_use]
@@ -92,12 +95,37 @@ impl Finding {
 pub struct FindingBlame {
     pub strength: BlameStrength,
     pub landings: Box<[BlamedLanding]>,
+    pub moved: Option<BlameMove>,
+}
+/// Repair state kept on a finding (domain/red-repairs.md, 8).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct FindingRepair {
+    pub goal: u64,
+    pub made: bool,
+    pub attempts: u8,
+    pub cancelled: bool,
+    pub failing: Box<[Box<[u8]>]>,
+    pub until: Option<Wall>,
+    pub judging: Option<RepairJudging>,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum RepairJudging {
+    Landing(skein_forge::api::Commit),
+    After(u64),
+    Release,
+}
+/// The author and words of a blame move (domain/red-repairs.md, 3).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct BlameMove {
+    pub by: Filer,
+    pub why: Box<[u8]>,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum BlameStrength {
     Owned,
     Suspected,
     Unblamed,
+    Moved,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct BlamedLanding {
@@ -200,6 +228,20 @@ pub enum Triage {
     Route(u64),
     Backlog,
     Drop(Box<[u8]>),
+    Repair(RepairAct),
+    Blame(BlameAct),
+}
+/// Repair's findings past the first, and the triager's words (domain/red-repairs.md, 8).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct RepairAct {
+    pub more: Box<[u32]>,
+    pub words: Box<[u8]>,
+}
+/// The landing and words of a blame move (domain/red-repairs.md, 3, 8).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct BlameAct {
+    pub landing: Option<skein_forge::api::Commit>,
+    pub why: Box<[u8]>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum FindingRefusal {
@@ -224,6 +266,7 @@ pub enum HandFindingAnswer {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum TriageFindingAnswer {
     Triaged,
+    Repaired(u64),
     Refused(FindingRefusal),
 }
 /// The deciding snapshot kept for an agent's named finding write (domain/agent/tools.md).
@@ -233,6 +276,8 @@ pub struct FindingReply {
     pub number: u32,
     pub area: Option<Box<[u8]>>,
     pub result: Result<FindingDone, FindingRefusal>,
+    pub more: Box<[u32]>,
+    pub landing: Option<skein_forge::api::Commit>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum FindingDone {
@@ -241,6 +286,8 @@ pub enum FindingDone {
     Routed(u64),
     Backlog,
     Dropped,
+    Repaired(u64),
+    Blamed,
 }
 #[must_use]
 pub fn reply_bytes(reply: &FindingReply) -> Option<u64> {
@@ -265,7 +312,9 @@ pub fn reply_bytes(reply: &FindingReply) -> Option<u64> {
             | FindingRefusal::Ended => {}
         }
     }
-    area.checked_add(bytes)
+    let more = skein_lib::len_u64(reply.more.len()).checked_mul(4)?;
+    // The inline landing is included by the caller's size_of_val(FindingReply).
+    area.checked_add(bytes)?.checked_add(more)
 }
 
 /// The three-step rule; standing comes from the root's snapshot of the core.
@@ -302,9 +351,23 @@ pub fn standing(owner: AreaOwner, stands: &[(AreaOwner, Holder)]) -> Option<Hold
     }
     None
 }
-/// Filters are part of the subject identity; each write marks every filter.
+/// Filters of the findings document (domain/red-findings.md, 9 and 10).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum FindingsFilter {
+    Triage { state: Option<FindingState>, mine: bool },
+    Goal(u64),
+    Milestone(u64),
+}
+/// Filters are part of the subject identity; each write marks the ten triage keys.
 #[must_use]
-pub fn findings_subject(project: u32, state: Option<FindingState>, mine: bool) -> u64 {
+pub fn findings_subject(project: u32, filter: FindingsFilter) -> Option<u64> {
+    let (state, mine) = match filter {
+        FindingsFilter::Triage { state, mine } => (state, mine),
+        FindingsFilter::Goal(goal) => return if goal < (1 << 41) { Some((1 << 62) | (1 << 41) | goal) } else { None },
+        FindingsFilter::Milestone(milestone) => {
+            return if milestone < (1 << 41) { Some((1 << 62) | (1 << 42) | milestone) } else { None };
+        }
+    };
     let state = match state {
         None => 0,
         Some(FindingState::New) => 1,
@@ -312,10 +375,17 @@ pub fn findings_subject(project: u32, state: Option<FindingState>, mine: bool) -
         Some(FindingState::Backlog) => 3,
         Some(FindingState::Dropped) => 4,
     };
-    (1 << 59) | (state << 33) | (u64::from(mine) << 32) | u64::from(project)
+    Some((1 << 59) | (state << 33) | (u64::from(mine) << 32) | u64::from(project))
 }
 #[must_use]
-pub fn findings_filter(subject: u64, project: u32) -> Option<(Option<FindingState>, bool)> {
+pub fn findings_filter(subject: u64, project: u32) -> Option<FindingsFilter> {
+    let number = subject & ((1_u64 << 41).saturating_sub(1));
+    if subject == ((1_u64 << 62_u32) | (1_u64 << 41_u32) | number) {
+        return Some(FindingsFilter::Goal(number));
+    }
+    if subject == ((1_u64 << 62_u32) | (1_u64 << 42_u32) | number) {
+        return Some(FindingsFilter::Milestone(number));
+    }
     for state in [
         None,
         Some(FindingState::New),
@@ -324,8 +394,9 @@ pub fn findings_filter(subject: u64, project: u32) -> Option<(Option<FindingStat
         Some(FindingState::Dropped),
     ] {
         for mine in [false, true] {
-            if subject == findings_subject(project, state, mine) {
-                return Some((state, mine));
+            let filter = FindingsFilter::Triage { state, mine };
+            if Some(subject) == findings_subject(project, filter) {
+                return Some(filter);
             }
         }
     }
@@ -341,7 +412,9 @@ pub fn mark_findings(project: u32, out: &mut Queue<Request>) {
         Some(FindingState::Dropped),
     ] {
         for mine in [false, true] {
-            subjects.push(findings_subject(project, state, mine)).expect("ten finding subjects");
+            subjects
+                .push(findings_subject(project, FindingsFilter::Triage { state, mine }).expect("triage key"))
+                .expect("ten finding subjects");
         }
     }
     out.push(Request::Marked { tasks: subjects.into_boxed() });
@@ -358,6 +431,16 @@ pub struct FindingRow {
     pub at: Wall,
     pub why: Option<Box<[u8]>>,
     pub hander: Option<Filer>,
+    pub goal: Option<u64>,
+    pub reason: Option<Box<[u8]>>,
+    pub cleared: Option<FindingClearing>,
+}
+/// Clearing shown beside a finding (domain/red-findings.md, 6 and 10).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct FindingClearing {
+    pub tier: Box<[u8]>,
+    pub run: u64,
+    pub at: Wall,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct AreaRow {
@@ -380,11 +463,11 @@ pub struct FindingAnswer {
     pub row: FindingRow,
     pub body: Box<[u8]>,
     pub filer: Filer,
-    pub goal: Option<u64>,
-    pub reason: Option<Box<[u8]>>,
+    pub blame: Option<FindingBlame>,
 }
 impl Finding {
     #[must_use]
+    #[expect(clippy::manual_map, reason = "step code lists options without closures")]
     pub fn row(&self, holder: Holder) -> FindingRow {
         FindingRow {
             number: self.number,
@@ -397,6 +480,19 @@ impl Finding {
             at: self.at,
             why: self.why.clone(),
             hander: self.hander,
+            goal: self.goal,
+            reason: self.reason.clone(),
+            cleared: match self.cleared {
+                Some(cleared) => Some(FindingClearing {
+                    tier: match &self.signature {
+                        Some(signature) => signature.source.clone(),
+                        None => Box::default(),
+                    },
+                    run: cleared.run,
+                    at: cleared.at,
+                }),
+                None => None,
+            },
         }
     }
 }
@@ -473,9 +569,15 @@ pub(crate) fn signature_bytes(signature: &FindingSignature) -> Option<u64> {
         .checked_add(skein_lib::len_u64(signature.first.len()))?
         .checked_add(crate::tiers::tests_bytes(&signature.ids)?)
 }
+pub(crate) fn repair_bytes(repair: &FindingRepair) -> Option<u64> {
+    crate::tiers::tests_bytes(&repair.failing)
+}
 pub(crate) fn blame_bytes(blame: &FindingBlame) -> Option<u64> {
     let mut held =
         skein_lib::len_u64(blame.landings.len()).checked_mul(u64::try_from(size_of::<BlamedLanding>()).ok()?)?;
+    if let Some(moved) = &blame.moved {
+        held = held.checked_add(skein_lib::len_u64(moved.why.len()))?;
+    }
     for landing in &blame.landings {
         held = held.checked_add(
             skein_lib::len_u64(landing.goals.len()).checked_mul(u64::try_from(size_of::<BlamedGoal>()).ok()?)?,

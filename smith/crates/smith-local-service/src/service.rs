@@ -825,6 +825,7 @@ impl Service {
                 self.effects.as_mut().expect("native IO belongs to inline mode").request(request);
             }
             local::Request::Input { reading } => self.io.input(reading),
+            request @ local::Request::Log { .. } => self.shell.push(request),
             local::Request::Notice { notice } => self.notice(now, notice),
             local::Request::Load => {
                 self.lower_agent = None;
@@ -1069,6 +1070,7 @@ impl Service {
             },
             host::process::Request::Spawn { .. }
             | host::process::Request::Read { .. }
+            | host::process::Request::CloseChannel { .. }
             | host::process::Request::Signal { .. }
             | host::process::Request::Wait { .. }
             | host::process::Request::Reap { .. } => {}

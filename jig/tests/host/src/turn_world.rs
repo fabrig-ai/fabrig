@@ -625,20 +625,29 @@ impl World {
     fn route(&mut self, request: Request) -> Result<(), String> {
         self.refusals.request(&request)?;
         match request {
+            Request::Paused { .. } => {}
             Request::Asked { .. } | Request::Up(LinkUp::Ask { .. }) => {
                 unreachable!("the script does not make application asks")
             }
             Request::Job(_) | Request::DeliverJob { .. } | Request::Up(LinkUp::JobAnswer { .. }) => {
                 unreachable!("jobs are exercised in the host world")
             }
-            Request::ReadList { .. } | Request::CancelRead { .. } | Request::Source { .. } | Request::SourceFault => {
+            Request::ReadUsage { .. }
+            | Request::ReadList { .. }
+            | Request::CancelRead { .. }
+            | Request::Source { .. }
+            | Request::SourceFault => {
                 unreachable!("source scheduling has its own world")
             }
             Request::Up(
                 record @ (LinkUp::Unauthorized { .. }
+                | LinkUp::Usage { .. }
                 | LinkUp::Limited { .. }
                 | LinkUp::AccountRefused { .. }
+                | LinkUp::UsageRead { .. }
                 | LinkUp::ListRead { .. }
+                // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too.
+                | LinkUp::Paused { .. }
                 | LinkUp::Draining
                 | LinkUp::Logins { .. }
                 | LinkUp::SignedOut { .. }

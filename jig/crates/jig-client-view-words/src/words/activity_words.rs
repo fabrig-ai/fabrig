@@ -135,9 +135,11 @@ pub enum ActivityPhrase {
     QuestionAnswered,
     QuestionOwed,
     NothingAwaited,
+    SuspendedStopped,
+    SuspendedRestarted,
 }
 // Activity captions include question outcomes and the requester obligation.
-pub const ALL: [ActivityPhrase; 126] = [
+pub const ALL: [ActivityPhrase; 128] = [
     ActivityPhrase::Activity,
     ActivityPhrase::Task,
     ActivityPhrase::Position,
@@ -264,6 +266,8 @@ pub const ALL: [ActivityPhrase; 126] = [
     ActivityPhrase::QuestionAnswered,
     ActivityPhrase::QuestionOwed,
     ActivityPhrase::NothingAwaited,
+    ActivityPhrase::SuspendedStopped,
+    ActivityPhrase::SuspendedRestarted,
 ];
 impl ActivityPhrase {
     #[must_use]
@@ -399,6 +403,8 @@ impl ActivityPhrase {
             Self::QuestionAnswered => 7310,
             Self::QuestionOwed => 7311,
             Self::NothingAwaited => 7312,
+            Self::SuspendedStopped => 7327,
+            Self::SuspendedRestarted => 7328,
         };
         PhraseId { owner: Owner::Jig.opaque(), number }
     }
@@ -495,7 +501,9 @@ impl ActivityPhrase {
             | Self::ResultCancelled
             | Self::ResultJob
             | Self::QuestionOwed
-            | Self::NothingAwaited => None,
+            | Self::NothingAwaited
+            | Self::SuspendedStopped
+            | Self::SuspendedRestarted => None,
             Self::Task
             | Self::Position
             | Self::Message
@@ -665,6 +673,7 @@ impl ActivityPhrase {
             Self::QuestionAnswered => b"Person answered question in inbox: ",
             Self::QuestionOwed => b"Owes a question: ask your requester",
             Self::NothingAwaited => b"Nothing left to await: finish with your result",
+            Self::SuspendedStopped | Self::SuspendedRestarted => b"Run ",
         }
     }
 }
@@ -672,9 +681,15 @@ impl ActivityPhrase {
 pub fn shapes() -> Box<[PhraseShape]> {
     let mut result = List::with_capacity(u32::try_from(ALL.len()).expect("activity phrase count fits"));
     for phrase in ALL {
-        let holes: Box<[HoleShape]> = match phrase.hole() {
-            Some(kind) => Box::new([HoleShape { kind, bytes: 0 }]),
-            None => Box::new([]),
+        let holes: Box<[HoleShape]> = if phrase == ActivityPhrase::SuspendedStopped
+            || phrase == ActivityPhrase::SuspendedRestarted
+        {
+            Box::new([HoleShape { kind: HoleKind::Number, bytes: 0 }, HoleShape { kind: HoleKind::Number, bytes: 0 }])
+        } else {
+            match phrase.hole() {
+                Some(kind) => Box::new([HoleShape { kind, bytes: 0 }]),
+                None => Box::new([]),
+            }
         };
         result.push(PhraseShape { id: phrase.id(), holes, plural: None }).expect("closed activity shapes fit");
     }
@@ -684,10 +699,25 @@ pub fn shapes() -> Box<[PhraseShape]> {
 pub fn language() -> Language {
     let mut result = List::with_capacity(u32::try_from(ALL.len()).expect("activity phrase count fits"));
     for phrase in ALL {
-        let segments: Box<[Segment]> = match phrase.hole() {
-            Some(kind) => Box::new([Segment::Text(copy_of(phrase.label())), Segment::Hole { index: 0, kind }]),
-            None => Box::new([Segment::Text(copy_of(phrase.label()))]),
-        };
+        let segments: Box<[Segment]> =
+            if phrase == ActivityPhrase::SuspendedStopped || phrase == ActivityPhrase::SuspendedRestarted {
+                Box::new([
+                    Segment::Text(copy_of(b"Run ")),
+                    Segment::Hole { index: 0, kind: HoleKind::Number },
+                    Segment::Text(copy_of(b" suspended: worker ")),
+                    Segment::Hole { index: 1, kind: HoleKind::Number },
+                    Segment::Text(copy_of(if phrase == ActivityPhrase::SuspendedStopped {
+                        b" stopped"
+                    } else {
+                        b" restarted without it"
+                    })),
+                ])
+            } else {
+                match phrase.hole() {
+                    Some(kind) => Box::new([Segment::Text(copy_of(phrase.label())), Segment::Hole { index: 0, kind }]),
+                    None => Box::new([Segment::Text(copy_of(phrase.label()))]),
+                }
+            };
         result
             .push(Phrase { id: phrase.id(), forms: Box::new([Form { class: PluralClass::Other, segments }]) })
             .expect("closed activity sayings fit");

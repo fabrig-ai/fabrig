@@ -1,15 +1,9 @@
 #[global_allocator]
 static HEAP: skein_heap::Counting = skein_heap::Counting;
 
-mod support;
-
-mod acts;
 mod binary;
-mod cues;
-mod encodings;
-mod mcp;
-mod relay;
 mod sign_in;
-mod simulated;
-mod stream;
-mod turns;
+
+mod support {
+    pub use smith_fake_claude::invocation as print;
+}

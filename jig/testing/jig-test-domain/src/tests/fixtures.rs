@@ -14,6 +14,8 @@ pub const ATTEMPT: Token = Token::new(3);
 
 pub fn hello() -> jig_domain_link::Hello {
     jig_domain_link::Hello {
+        fresh: false,
+        reads_usage: true,
         jobs: Box::default(),
         slots: 2,
         stop_bound: Duration::from_secs(10),

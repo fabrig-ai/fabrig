@@ -19,6 +19,8 @@ fn hello_endpoints(channel: Token, slots: u32, endpoints: &[u32]) -> Event {
         channel,
         worker: u32::from(channel == SECOND),
         hello: Hello {
+            fresh: false,
+            reads_usage: true,
             slots,
             bounds: jig_domain_link::Bounds {
                 endpoints: endpoints.iter().map(|&endpoint| EndpointBound { endpoint, window: 0, output: 0 }).collect(),
@@ -88,6 +90,9 @@ fn assigned() -> Vec<Request> {
     ]
 }
 
+#[path = "usage_reads.rs"]
+mod usage_reads;
+
 struct World {
     fleet: fleet::Domain,
     env: Env<fleet::Limits>,
@@ -117,7 +122,15 @@ impl World {
         )
     }
     fn send(&mut self, event: Event) -> Vec<Request> {
-        let unchanged = matches!(&event, Event::ReadList { .. } | Event::ListRead { .. } | Event::Grant { .. });
+        let unchanged = matches!(
+            &event,
+            Event::CancelUsage { .. }
+                | Event::ReadUsage { .. }
+                | Event::UsageRead { .. }
+                | Event::ReadList { .. }
+                | Event::ListRead { .. }
+                | Event::Grant { .. }
+        );
         let before = self.snapshot();
         let mut out = Queue::uncapped();
         fleet::step(&mut self.fleet, &self.env, event, &mut out);

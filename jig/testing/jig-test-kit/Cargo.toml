@@ -12,6 +12,9 @@ test = false
 doctest = false
 
 [dependencies]
+jig-protocol-config-fixtures.workspace = true
+jig-protocol-config.workspace = true
+jig-protocol-store.workspace = true
 jig-client-protocol-http.workspace = true
 jig-channel-kit.workspace = true
 jig-client.workspace = true

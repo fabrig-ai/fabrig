@@ -422,6 +422,9 @@ impl Local {
                         self.operator_line(line);
                     }
                 }
+                domain::Request::Log { text } => {
+                    drop(write!(self.errors, "smith: {}", String::from_utf8_lossy(&text)));
+                }
                 domain::Request::Notice { notice } => {
                     let text = if let Some(text) = self.credential_notice(&notice) {
                         self.service.output().push(text.clone());

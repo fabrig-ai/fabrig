@@ -106,6 +106,7 @@ pub(crate) fn to_agent(domain: &mut Domain, env: &Env<Limits>, request: host::To
 }
 
 /// One of smith's notices: to the hub, or out by hand-out.
+#[expect(clippy::too_many_lines, reason = "the parent face routes each notice without changing worker policy")]
 pub(crate) fn up(domain: &mut Domain, env: &Env<Limits>, request: smith::parent::Request, out: &mut Queue<Request>) {
     let event = match request {
         smith::parent::Request::Started { client, agent } => {
@@ -134,6 +135,10 @@ pub(crate) fn up(domain: &mut Domain, env: &Env<Limits>, request: smith::parent:
                 route::agent_step(domain, env, smith::Input::Parent(smith::parent::Event::Drop { agent }));
             }
             return;
+        }
+        smith::parent::Request::Signalled { host_run, signal, from } => {
+            let hosting = domain.host.hosting(host_run).expect("a signal belongs to a hosted attempt");
+            return out.push(Request::AgentSignalled { run: hosting.run, attempt: hosting.attempt, signal, from });
         }
         smith::parent::Request::Admitted { client } => {
             let bound = domain.agents.get_mut(&client).expect("started before admitted");
@@ -178,6 +183,26 @@ pub(crate) fn up(domain: &mut Domain, env: &Env<Limits>, request: smith::parent:
         }
         smith::parent::Request::Unauthorized { client, account, generation } => {
             host::Event::Agent(host::FromAgent::Unauthorized { owner: client, account, generation })
+        }
+        smith::parent::Request::Usage { client, account, window } => {
+            let state = match window.state {
+                smith::UsageState::Open => jig_domain_link::WINDOW_OPEN,
+                smith::UsageState::Warned => jig_domain_link::WINDOW_WARNED,
+                smith::UsageState::Limited => jig_domain_link::WINDOW_LIMITED,
+            };
+            host::Event::Agent(host::FromAgent::Usage {
+                owner: client,
+                account,
+                window: jig_domain_link::UsageWindow {
+                    label: window.label,
+                    window: jig_domain_link::FactWindow {
+                        length: window.length,
+                        used: window.used,
+                        resets: window.resets,
+                        state,
+                    },
+                },
+            })
         }
         smith::parent::Request::Limited { client, account, reset } => {
             host::Event::Agent(host::FromAgent::Limited { owner: client, account, reset })
