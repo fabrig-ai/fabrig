@@ -5,6 +5,7 @@ mod chat_words;
 mod composed;
 mod parked;
 mod simulation;
+mod store_check;
 
 mod fuzzy {
     mod composed;
