@@ -1,14 +1,31 @@
 //! Deployed layouts, not generated-code drift (temper/docs/design/protocol/floor.md, 6).
 use jig_protocol_store::{self as store, JobLayout, KeptFamily, OwnerSets};
+use sha2::{Digest, Sha256};
 use skein_codec::{
     patch::{Capacity, Patcher},
     schema::{self, DeclIx, Schema},
 };
-use std::{collections::BTreeMap, fs, path::Path, process::Command};
+use std::collections::BTreeMap;
 use temper_engine_service_vocabulary::store::OWNER_SETS;
 
 const BRIDGE: &str = "3d1c717d379e7987fb088a3756d937079bd8e074";
 const RUNNING: &str = "13efa774615022299aea9ed57b2577df517494ad";
+
+type Sources = BTreeMap<(String, u16), String>;
+
+struct Deployed {
+    directory: &'static str,
+    inventory: &'static str,
+    texts: &'static [(&'static str, &'static str)],
+}
+
+struct History {
+    current: &'static [&'static str],
+    kept: &'static [&'static str],
+    patches: &'static [&'static str],
+}
+
+include!(concat!(env!("OUT_DIR"), "/stored_layout_fixtures.rs"));
 
 fn name(schema: &Schema) -> &str {
     str::from_utf8(schema.spelled(schema.family())).expect("ASCII family")
@@ -16,49 +33,35 @@ fn name(schema: &Schema) -> &str {
 fn parsed(text: &str) -> Schema {
     schema::parse(text.as_bytes()).expect("schema parses")
 }
-fn git(args: &[&str]) -> String {
-    let output = Command::new("git").current_dir(skein_scratch::paths::workspace()).args(args).output().expect("git");
-    assert!(output.status.success(), "git {args:?}: {}", String::from_utf8_lossy(&output.stderr));
-    String::from_utf8(output.stdout).expect("schema texts are UTF-8")
-}
-
-// Discover the build's families from its tree, not a second owner-set inventory.
-// This also distinguishes a new family from an accidentally removed fixture.
-fn sources(build: &str) -> BTreeMap<(String, u16), String> {
-    let lines = git(&["grep", "^family ", build, "--", "*/crates/*/schema/*.schema", ":!*/schema/kept/*"]);
+fn sources(build: &str, inventory: &'static str) -> Sources {
+    let mut lines = inventory.lines();
+    assert_eq!(lines.next(), Some(build));
     let mut sources = BTreeMap::new();
-    for line in lines.lines() {
-        let mut parts = line.splitn(3, ':');
-        assert_eq!(parts.next(), Some(build));
-        let path = parts.next().expect("schema path");
-        let mut family = parts.next().expect("family line").split_whitespace();
-        assert_eq!(family.next(), Some("family"));
-        let family_name = family.next().expect("family name");
-        let version = family.next().expect("version").parse().expect("u16 version");
-        sources.insert((family_name.to_owned(), version), path.to_owned());
+    for line in lines {
+        let mut fields = line.split_whitespace();
+        let family = fields.next().expect("family name");
+        let version = fields.next().expect("family version").parse().expect("u16 version");
+        let _path = fields.next().expect("historical schema path");
+        let digest = fields.next().expect("historical schema digest");
+        assert!(fields.next().is_none(), "one source per line");
+        assert!(
+            sources.insert((family.to_owned(), version), digest.to_owned()).is_none(),
+            "one source per family and version"
+        );
     }
     sources
 }
 
-fn load(build: &str, directory: &str, sources: &BTreeMap<(String, u16), String>) -> BTreeMap<String, Schema> {
-    let directory = skein_scratch::paths::package().join("deployed").join(directory);
+fn load(build: &str, deployed: &Deployed, sources: &Sources) -> BTreeMap<String, Schema> {
     let mut texts = BTreeMap::new();
-    for entry in fs::read_dir(directory).expect("deployed texts") {
-        let path = entry.expect("directory entry").path();
-        if path.extension().is_none_or(|ext| ext != "schema") {
-            continue;
-        }
-        let text = fs::read_to_string(&path).expect("kept schema text");
-        let schema = parsed(&text);
+    for &(filename, text) in deployed.texts {
+        let schema = parsed(text);
         let family = name(&schema).to_owned();
+        assert_eq!(filename, format!("{family}-v{}.schema", schema.version()));
+        let digest = sources.get(&(family.clone(), schema.version())).expect("family at deployed build");
         assert_eq!(
-            path.file_name().expect("filename").to_str(),
-            Some(format!("{family}-v{}.schema", schema.version()).as_str())
-        );
-        let source = sources.get(&(family.clone(), schema.version())).expect("family at deployed build");
-        assert_eq!(
-            text,
-            git(&["show", &format!("{build}:{source}")]),
+            format!("{:x}", Sha256::digest(text)),
+            *digest,
             "{build} {family}: nothing rewrites a deployed text"
         );
         assert!(texts.insert(family, schema).is_none(), "one text per family at a build");
@@ -66,12 +69,7 @@ fn load(build: &str, directory: &str, sources: &BTreeMap<(String, u16), String>)
     texts
 }
 
-fn inventory(
-    build: &str,
-    family: &str,
-    texts: &BTreeMap<String, Schema>,
-    sources: &BTreeMap<(String, u16), String>,
-) -> Result<(), String> {
+fn inventory(build: &str, family: &str, texts: &BTreeMap<String, Schema>, sources: &Sources) -> Result<(), String> {
     if !texts.contains_key(family) && sources.keys().any(|(found, _)| found == family) {
         return Err(format!("{build} {family}: inventory: keep the family's deployed text in this build's directory"));
     }
@@ -135,42 +133,14 @@ fn unchanged(
     failures
 }
 
-fn schema_files(directory: &Path, extension: &str) -> Vec<String> {
-    if !directory.is_dir() {
-        return vec![];
-    }
-    let mut paths: Vec<_> =
-        fs::read_dir(directory).expect("schema directory").map(|entry| entry.expect("entry").path()).collect();
-    paths.sort();
-    paths
-        .iter()
-        .filter(|path| path.extension().is_some_and(|ext| ext == extension))
-        .map(|path| fs::read_to_string(path).expect("schema or patch text"))
-        .collect()
-}
-
 // Non-frame families keep their histories beside the crate's current schema.
-fn history(family: &str) -> (Vec<String>, Vec<String>) {
-    let root = skein_scratch::paths::workspace();
-    for tree in ["skein", "smith", "jig", "temper"] {
-        for entry in fs::read_dir(root.join(tree).join("crates")).expect("crates") {
-            let owner = entry.expect("crate").path();
-            let directory = owner.join("schema");
-            for path in fs::read_dir(&directory).into_iter().flatten() {
-                let path = path.expect("schema entry").path();
-                if path.extension().is_some_and(|ext| ext == "schema") {
-                    let text = fs::read_to_string(path).expect("schema text");
-                    if name(&parsed(&text)) == family {
-                        return (
-                            schema_files(&directory.join("kept"), "schema"),
-                            schema_files(&owner.join("patches"), "patch"),
-                        );
-                    }
-                }
-            }
+fn history(family: &str) -> (&'static [&'static str], &'static [&'static str]) {
+    for owner in CURRENT {
+        if owner.current.iter().any(|text| name(&parsed(text)) == family) {
+            return (owner.kept, owner.patches);
         }
     }
-    (vec![], vec![])
+    (&[], &[])
 }
 
 fn patched(old: &Schema, new: &Schema, texts: &[String], patches: &[String]) -> bool {
@@ -232,12 +202,11 @@ fn outside(
         return unchanged(build, old, old_held, new, new_held, only);
     }
     let (texts, patches) = match family.frames {
-        Some(frames) => (
-            frames.texts.iter().map(|text| (*text).to_owned()).collect(),
-            frames.patches.iter().map(|text| (*text).to_owned()).collect(),
-        ),
+        Some(frames) => (frames.texts, frames.patches),
         None => history(family.name),
     };
+    let texts: Vec<_> = texts.iter().map(|text| (*text).to_owned()).collect();
+    let patches: Vec<_> = patches.iter().map(|text| (*text).to_owned()).collect();
     if patched(old, new, &texts, &patches) {
         vec![]
     } else {
@@ -251,12 +220,7 @@ fn outside(
     }
 }
 
-fn guard(
-    build: &str,
-    sets: &OwnerSets,
-    texts: &BTreeMap<String, Schema>,
-    sources: &BTreeMap<(String, u16), String>,
-) -> Vec<String> {
+fn guard(build: &str, sets: &OwnerSets, texts: &BTreeMap<String, Schema>, sources: &Sources) -> Vec<String> {
     let mut current = BTreeMap::new();
     let client = KeptFamily {
         name: "jig-client-view-records",
@@ -307,8 +271,9 @@ fn guard(
 }
 
 fn deployed(build: &str, directory: &str) {
-    let sources = sources(build);
-    let texts = load(build, directory, &sources);
+    let deployed = DEPLOYED.iter().find(|fixture| fixture.directory == directory).expect("deployed build");
+    let sources = sources(build, deployed.inventory);
+    let texts = load(build, deployed, &sources);
     let failures = guard(build, &OWNER_SETS, &texts, &sources);
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }

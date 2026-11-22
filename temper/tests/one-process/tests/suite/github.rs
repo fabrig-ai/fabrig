@@ -11,3 +11,5 @@ fn another_accounts_refusal_preserves_the_installed_read_only_checkout() {
 fn a_delivered_edit_authenticates_every_git_request_with_its_installation() {
     github::run(Scenario::Delivered);
 }
+
+mod records;

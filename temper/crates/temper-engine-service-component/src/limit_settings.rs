@@ -547,6 +547,8 @@ fn forge_fit(failure: &forge::RestoreFit) -> Option<&'static [u8]> {
         | S::LandingGates
         | S::LandingAsks
         | S::LandingEntries
+        | S::LandingFollows
+        | S::LandingReruns
         | S::LandingFlakeReruns
         | S::LandingFlakeFindings
         | S::LandingFlakeJobs

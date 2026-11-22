@@ -165,6 +165,7 @@ pub struct World {
     writes: u32,
     lose_writes: bool,
     timeout_merges: u32,
+    dispatch_latency: Option<Duration>,
     lose_rerun_answer: bool,
     unavailable: Option<(Wall, Wall)>,
     calls: u32,
@@ -403,6 +404,11 @@ impl World {
         self.top.landing_hold_words(task)
     }
     #[must_use]
+    pub fn change_panel(&self, task: u64, project: u32) -> Option<top::Panel> {
+        self.top.panel(task, jig_domain_people::ApplicationScope::Project(project), self.env.wall, &self.env.limits)
+    }
+
+    #[must_use]
     pub fn landing(&self, task: u64) -> &top::LandingRow {
         self.top.landing(task).expect("fixture landing")
     }
@@ -621,10 +627,20 @@ impl World {
     #[must_use]
     pub fn with_entries(seed: u64, entries: u32) -> World {
         let mut world = Self::new(seed);
-        world.env.limits.entries = entries;
-        world.env.limits.client.entries = entries;
-        world.restart();
+        world.limit_entries(entries);
         world
+    }
+
+    /// Rebuild a fixture with the same write limit in the connector and client.
+    pub fn limit_entries(&mut self, entries: u32) {
+        self.env.limits.entries = entries;
+        self.env.limits.client.entries = entries;
+        self.restart();
+    }
+
+    pub fn limit_landings(&mut self, landings: u32) {
+        self.env.limits.landings = landings;
+        self.restart();
     }
 
     /// Include entry saves in `seen` to check their order against restart stages.
@@ -829,6 +845,7 @@ impl World {
             writes: 0,
             lose_writes: false,
             timeout_merges: 0,
+            dispatch_latency: None,
             lose_rerun_answer: false,
             unavailable: None,
             calls: 0,
@@ -1297,6 +1314,11 @@ impl World {
         self.env.limits.client.fallback = interval;
     }
 
+    /// Delay only dispatch answers, so other reads can proceed while a write is in flight.
+    pub fn slow_dispatches(&mut self, delay: Duration) {
+        self.dispatch_latency = Some(delay);
+    }
+
     pub fn slow_calls(&mut self, delay: Duration) {
         self.call_latencies(delay, delay);
     }
@@ -1703,6 +1725,12 @@ impl World {
             {
                 self.timeout_merges -= 1;
                 env.limits.timeouts = 1000;
+            }
+            if let Some(delay) = self.dispatch_latency
+                && matches!(&event, forge::Event::Call { op: raw::Op::Write(raw::Write::Dispatch { .. }), .. })
+            {
+                env.limits.latency_min = delay;
+                env.limits.latency_max = delay;
             }
             forge::step(&mut self.forge, &env, event, &mut self.forge_out);
             self.take_forge();
