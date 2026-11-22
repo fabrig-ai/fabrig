@@ -96,7 +96,7 @@ change's due step.
 | `change: held` | `Party("person")`: a person's release |
 | `change: ready`, `change: preparing` | `Waiter(task L)`, its landing |
 | `change: ready` with no landing | while the forge's limits refuse its train a landing, `Waiter(task L)` for each live landing; otherwise its landing's making, as the root's turn below |
-| every other `change:` step | its live delegate (producer, repair, resolution, gate or merge job), `Waiter(task D)`; its write in flight, `Party("forge: entry N")`; its read in flight, `Party("forge: call N")`; its open question's answerer, `Waiter(task R)` or `Party("person")`; else the root's turn below |
+| every other `change:` step | its live delegate (producer, repair, resolution, gate or merge job), `Waiter(task D)`; its write in flight, `Party("forge: entry N")`; its write still settling, `Party("forge: entry N")` (below); its read in flight, `Party("forge: call N")`; its open question's answerer, `Waiter(task R)` or `Party("person")`; else the root's turn below |
 
 - **The root's turn:** a change the forge has decided an act for that
   the root carries out (a delegate to make, a landing task to make,
@@ -131,6 +131,15 @@ change's due step.
   write's `Party("forge: entry N")` from the outbox. A call answered or
   closed names nothing, and no read stands in for a wait it can't
   name. A read still waiting for admission is not in flight.
+- **A write still settling:** a change's procedure can move on from a
+  write it no longer needs before the forge's client has answered it:
+  containment takes a landed merge while the client still withdraws its
+  uncertain attempt. The change's release still waits for that entry's
+  answer before its effects settle, so each outbox entry of the change,
+  not held, while its release's effects are unsettled, wakes it:
+  `Party("forge: entry N")`, read from the forge's releases and outbox,
+  once beside its step's own write. A release whose effects have settled
+  names none, and no entry stands in for a wait it can't name.
 
 - **The change's steps,** in the change procedure's words
   (`../domain/forge/change/README.md`, 2): `producing`, `opening`,
