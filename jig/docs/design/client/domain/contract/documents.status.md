@@ -2,7 +2,6 @@
 
 2026-11-21. Where the tree's code lags or departs from [documents.md](documents.md).
 
-- **Not yet:** 1: `me`'s `sign_in_expires`, set by the clients' component for each exchange [in flight: change 11704].
 
 - **Not yet:** 1: the omitted-count mark gap remains `../../../domain/engine/settings.status.md`, 12.
 

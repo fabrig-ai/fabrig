@@ -2,8 +2,6 @@
 
 2026-11-21. Where the tree's code lags or departs from [sign-in.md](sign-in.md).
 
-- **Not yet:** the whole document, a service's credential, *Replaced*: its records on jig's client wire 43 [in flight: change 11704].
-- **Not yet:** the whole document, a service's credential, *Replaced*: the component's draw at each `ServiceReissued`, its keep in the old digest's place and its busy answer to the service's sign-ins meanwhile [in flight: change 11706].
 
 - **Departs:** the whole document, *Never taken, nothing made*: a take admitted before
   expiry remains reserved until the core answers, even past the approval's
