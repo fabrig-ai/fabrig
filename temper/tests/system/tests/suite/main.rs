@@ -4,6 +4,7 @@ mod brief;
 mod budget;
 mod chat_words;
 mod composed;
+mod fresh_run;
 mod parked;
 mod qa;
 mod question_answer;

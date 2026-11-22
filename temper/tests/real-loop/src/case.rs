@@ -355,18 +355,12 @@ pub fn fixture_4_6() -> forge::Fixture {
 // Act 2, step 5.1 (testing/reference-case.md)
 pub const RULES: u64 = 1;
 pub const SCOPE: u64 = 2;
-pub const SCOPE_QUESTION_NUMBER: u64 = 2;
 pub const RULES_HOLD_REVISION: u64 = 1;
-pub const RULES_PERSON: &str = "@case_rules Delegate A to ask about x3's scope and wait for its report.";
-pub const SCOPE_SPEC: &str = "@case_scope Own x3's scope; ask the director and report on its answer.";
-pub const SCOPE_QUESTION: &str = "What is x3's scope in the next milestone?";
-pub const SCOPE_ANSWER: &str = "x3 owns the next milestone's design and its defined end.";
-pub const RULES_DELEGATED: &str = "A owns the scope question.";
-pub const RULES_ANSWERED: &str = "A has its scope answer.";
-pub const SCOPE_ASKED: &str = "The scope question awaits the director.";
-pub const SCOPE_REPORT: &str = "x3's scope has its direction.";
-pub const RULES_REPORT: &str = "A reported x3's scope under the new process.";
-pub const SCOPE_QUESTION_HOLD: &[u8] = b"case-scope-question";
+pub const RULES_PERSON: &str = "@case_rules Delegate A to report under kit's process and wait for its report.";
+pub const SCOPE_SPEC: &str = "@case_scope Read kit's process and report.";
+pub const RULES_DELEGATED: &str = "A owns the process report.";
+pub const SCOPE_REPORT: &str = "The current process has been read.";
+pub const RULES_REPORT: &str = "A reported under the new process.";
 pub const RULES_FILE: &str = "AGENTS.md";
 pub const DROPPED_RULE: &str = "Owners check shared version numbers before they land.";
 pub const OLD_RULES: &str = "# Process\n\nOwners check shared version numbers before they land.\n";

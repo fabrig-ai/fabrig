@@ -17,6 +17,8 @@ fn opening() -> (Driver, Cast) {
     bounds.authority.executors = 2;
     bounds.documents.executors = 2;
     bounds.journal.writes = CAST_WRITES;
+    // Two delegations, release and proposal, then the resumed owner's question.
+    bounds.call_records = 5;
     for config in &mut configuration {
         let mut coordinator = config.core.defaults.charters[0].clone();
         coordinator.policy.model.name = b"claude".as_slice().into();
@@ -150,6 +152,7 @@ fn the_persons_stop_requires_its_owners_acceptance_and_resumes_the_subtrees_tran
     let stopped: Vec<_> = runs.iter().map(|run| history(&driver, run.task)).collect();
     assert_eq!(live(&driver, cast.director.task).placed, None);
     assert!(!cancelled(&driver).contains(&(cast.director.task, cast.director.attempt)));
+    assert!(live(&driver, cast.p.task).questions.is_empty(), "no delegate question before resuming");
     let revision = live(&driver, cast.p.task).revisions.hold;
     tool_call(&mut driver, &cast.director, 932, engine::Tool::Release { target: cast.p.task, revision, again: None });
     let person = signed_in(&driver, 101).0;
@@ -241,4 +244,51 @@ fn the_persons_stop_requires_its_owners_acceptance_and_resumes_the_subtrees_tran
         assert!(matches!(live(&driver, run.task).phase,
             tasks::Phase::Active(tasks::Active::Running { attempt }) if attempt == resumed.attempt));
     }
+    resumed_question(&mut driver, &cast);
+}
+
+fn resumed_question(driver: &mut Driver, cast: &Cast) {
+    const QUESTION: &[u8] = b"What is the scope of my part?";
+    let resumed = |task| {
+        driver
+            .delivered
+            .iter()
+            .rev()
+            .find_map(|item| match item {
+                Delivery::Assigned { assignment, .. } if assignment.task == task => Some(assignment.clone()),
+                _ => None,
+            })
+            .expect("resumed assignment")
+    };
+    let p = resumed(cast.p.task);
+    driver.call(
+        Token::new(7),
+        p.task,
+        p.attempt,
+        934,
+        engine::Call {
+            completion: 2,
+            position: 0,
+            tool: engine::Tool::Message {
+                target: cast.director.task,
+                form: engine::MessageForm::Question,
+                words: QUESTION.into(),
+            },
+        },
+    );
+    driver.settle();
+    let Some(engine::CallAnswer::Sent { message }) = driver.answered(934) else {
+        panic!("numbered question: {:?}", driver.answered(934))
+    };
+    assert!(live(driver, cast.director.task).inbox.iter().any(|question| question.number == *message
+        && question.from == tasks::Party::Task(p.task)
+        && question.kind == tasks::MessageKind::Question
+        && question.words.as_ref() == QUESTION));
+    let delivered = messages_to(driver, &cast.director);
+    assert_eq!(delivered.iter().filter(|(number, _)| number == message).count(), 1);
+    assert!(
+        delivered
+            .iter()
+            .any(|(number, words)| number == message && words.windows(QUESTION.len()).any(|part| part == QUESTION))
+    );
 }

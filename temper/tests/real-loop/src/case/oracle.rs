@@ -91,21 +91,13 @@ impl Told {
 impl Observed {
     #[must_use]
     pub fn from_ran(ran: &Ran, reads: &[(Read, usize)]) -> Self {
-        let (mut documents, observed_at) = read_documents(ran.calls(), reads);
+        let (documents, observed_at) = read_documents(ran.calls(), reads);
         let mut told = Vec::new();
         for observation in ran.llm() {
             let skein_fake_peers::llm::Observation::Query { query, .. } = observation else { continue };
             if let Some(query) = Told::new(&query.system, &query.model, query.credential, &query.messages) {
                 told.push(query);
             }
-        }
-        // The model peer observes the delivered brief even when the run ends
-        // before a ctl read could see it. Keep the first query after Release.
-        if let Some(fresh) =
-            told.iter().find(|query| query.agent == Agent::Rules && contains(&query.system, super::NEW_RULES))
-        {
-            documents
-                .insert(Read::RulesFreshBrief, serde_json::json!({"system": String::from_utf8_lossy(&fresh.system)}));
         }
         Self {
             activity_aliases: reads
@@ -997,337 +989,81 @@ mod restart_tests {
 }
 
 // Act 2, step 5.1 (testing/reference-case.md)
-const RULES_CONTROL: Promise = Promise::Must("Stop and Release on the chat (exact)");
-const RULES_INBOX: Promise = Promise::Must("questions wait in its inbox (exact)");
 const RULES_CONVENTIONS: Promise = Promise::Must("the rules land as conventions that every later run reads (exact)");
-const RULES_FRESH: Promise = Promise::Must("the director's next run starts fresh and reads them (exact)");
-const RULES_NO_NOTICE: Promise = Promise::Add("no message telling anyone to re-read a rule");
 const RULES_DROPPED: Promise = Promise::Add("a held owner needs no notice that a rule was dropped");
 
 #[must_use]
 pub fn step_5_1(observed: &Observed) -> Vec<Miss> {
+    use super::{DROPPED_RULE, NEW_RULES, OLD_RULES, RULES_FILE};
     let mut misses = Vec::new();
-    rules_controls(&mut misses, observed);
-    rules_director(&mut misses, observed);
-    rules_fresh_tail(&mut misses, observed);
-    rules_owner(&mut misses, observed);
-    rules_messages_and_endings(&mut misses, observed);
+    step_check(
+        &mut misses,
+        "5.1",
+        observed.kit.main.get(RULES_FILE.as_bytes()).is_some_and(|words| words == NEW_RULES.as_bytes()),
+        RULES_CONVENTIONS,
+        "kit's main must hold the new guide",
+    );
+    for (agent, promise) in [(Agent::Rules, RULES_CONVENTIONS), (Agent::Scope, RULES_DROPPED)] {
+        let queries: Vec<_> = observed.told.iter().filter(|told| told.agent == agent).collect();
+        // System text stays fixed within a run; the fresh checkout starts the next one.
+        let fresh = if agent == Agent::Scope {
+            usize::from(!queries.is_empty())
+        } else {
+            queries.first().map_or(0, |first| queries.iter().take_while(|told| told.system == first.system).count())
+        };
+        let (opening, later) = queries.split_at(fresh);
+        step_check(
+            &mut misses,
+            "5.1",
+            !opening.is_empty() && opening.iter().all(|told| contains(&told.system, OLD_RULES)),
+            promise,
+            "the opening run must read the old guide, including the dropped rule",
+        );
+        step_check(
+            &mut misses,
+            "5.1",
+            (agent == Agent::Scope || !later.is_empty())
+                && later.iter().all(|told| contains(&told.system, NEW_RULES) && !contains(&told.system, DROPPED_RULE)),
+            promise,
+            "every query after release must read the new guide without the dropped rule",
+        );
+    }
     misses
-}
-
-fn rules_controls(misses: &mut Vec<Miss>, observed: &Observed) {
-    use super::{NEW_RULES, RULES, RULES_FILE, RULES_HOLD_REVISION, SCOPE, SCOPE_QUESTION, SCOPE_QUESTION_NUMBER};
-    let waiting = task_document(observed, Read::RulesWaiting);
-    let held = task_document(observed, Read::RulesHeld);
-    let question = task_document(observed, Read::RulesQuestionWaiting);
-    let scope = task_document(observed, Read::ScopeHeld);
-    for (met, promise, what) in [
-        (
-            number(waiting, "/chip/task") == Some(RULES)
-                && text(waiting, "/chip/details/owner/details/observation/work") == "waiting"
-                && waiting["delegates"]
-                    .as_array()
-                    .is_some_and(|rows| rows.iter().any(|row| number(row, "/chip/task") == Some(SCOPE))),
-            RULES_CONTROL,
-            "the director must wait in its run with A delegated",
-        ),
-        (rules_held(held), RULES_CONTROL, "the chat must be held, stopped by the person at its hold revision"),
-        (
-            number(question, "/chip/task") == Some(RULES)
-                && question["hold"].is_null()
-                && check_activity(observed, Read::RulesQuestionWaiting).iter().any(|row| {
-                    number(row, "/task") == Some(RULES)
-                        && number(row, "/line/words/message") == Some(SCOPE_QUESTION_NUMBER)
-                        && number(row, "/line/words/by/task") == Some(SCOPE)
-                        && text(row, "/line/words/kind") == "question"
-                        && text(row, "/line/words/words") == SCOPE_QUESTION
-                }),
-            RULES_INBOX,
-            "A's numbered question must reach the director after the subtree resumes",
-        ),
-        (
-            number(scope, "/chip/task") == Some(SCOPE)
-                && text(scope, "/chip/phase") == "held"
-                && number(scope, "/hold/reason/placed/hold") == number(held, "/hold/reason/placed/hold")
-                && number(scope, "/hold/revision") == Some(RULES_HOLD_REVISION),
-            RULES_INBOX,
-            "the same hold must stop A before its question can be sent",
-        ),
-        (
-            observed.kit.main.get(RULES_FILE.as_bytes()).is_some_and(|words| words == NEW_RULES.as_bytes()),
-            RULES_CONVENTIONS,
-            "kit's main must hold the new guide",
-        ),
-    ] {
-        step_check(misses, "5.1", met, promise, what);
-    }
-}
-
-fn rules_director(misses: &mut Vec<Miss>, observed: &Observed) {
-    use super::{DROPPED_RULE, NEW_RULES, OLD_RULES, SCOPE_QUESTION};
-    use skein_fake_llm_domain::api::Role;
-    let director: Vec<_> = observed.told.iter().filter(|told| told.agent == Agent::Rules).collect();
-    let resumed = director.iter().position(|told| {
-        contains(&told.system, NEW_RULES) || user_words(told).any(|words| contains(words, SCOPE_QUESTION))
-    });
-    let before = resumed.map_or(&director[..], |at| &director[..at]);
-    let after = resumed.map_or(&director[director.len()..], |at| &director[at..]);
-    for (met, promise, what) in [
-        (
-            !before.is_empty()
-                && before.iter().all(|told| contains(&told.system, OLD_RULES))
-                && before.first().is_some_and(|first| before.iter().all(|told| told.system == first.system))
-                && before.windows(2).all(|pair| pair[1].history.starts_with(&pair[0].history)),
-            RULES_CONVENTIONS,
-            "the director's opening run must read the old guide",
-        ),
-        (
-            !after.is_empty()
-                && after.iter().all(|told| contains(&told.system, NEW_RULES) && !contains(&told.system, DROPPED_RULE)),
-            RULES_CONVENTIONS,
-            "every director query told the question must read the new guide without the dropped rule",
-        ),
-        (
-            after.first().is_some_and(|first| first.history.iter().all(|message| message.role != Role::Assistant)),
-            RULES_FRESH,
-            "the director's first query after release must contain none of its earlier assistant turns",
-        ),
-        (
-            after.first().is_some_and(|first| {
-                after.iter().all(|told| told.system == first.system)
-                    && after.windows(2).all(|pair| pair[1].history.starts_with(&pair[0].history))
-                    && after.iter().any(|told| user_words(told).any(|words| contains(words, SCOPE_QUESTION)))
-                    && after.iter().all(|told| {
-                        let count = user_words(told)
-                            .map(|words| calls::occurrences(words, SCOPE_QUESTION.as_bytes()))
-                            .sum::<usize>();
-                        count <= 1
-                    })
-            }),
-            RULES_INBOX,
-            "the question must be delivered once in one director run's growing history",
-        ),
-    ] {
-        step_check(misses, "5.1", met, promise, what);
-    }
-}
-
-fn rules_fresh_tail(misses: &mut Vec<Miss>, observed: &Observed) {
-    let system = text(document(observed, Read::RulesFreshBrief), "/system");
-    let tail = system.split_once("Transcript tail").map(|(_, rest)| rest.split("\n#").next().unwrap_or(rest));
-    step_check(
-        misses,
-        "5.1",
-        tail.is_some_and(|tail| {
-            tail.contains("call delegate:")
-                && tail.contains(super::SCOPE_SPEC)
-                && tail.contains(&format!("result: Delegated tasks: {}", super::SCOPE))
-                && !tail.contains("[earlier bytes not text, cut]")
-        }),
-        RULES_FRESH,
-        "the director's fresh brief must have a Transcript tail holding its earlier committed turn text",
-    );
-}
-
-fn rules_owner(misses: &mut Vec<Miss>, observed: &Observed) {
-    use super::{DROPPED_RULE, NEW_RULES, SCOPE_ANSWER};
-    let a: Vec<_> = observed.told.iter().filter(|told| told.agent == Agent::Scope).collect();
-    step_check(
-        misses,
-        "5.1",
-        a.first().is_some_and(|told| contains(&told.system, DROPPED_RULE)),
-        RULES_DROPPED,
-        "A's opening query must read the dropped rule while it is in force",
-    );
-    let answered: Vec<_> =
-        a.iter().filter(|told| user_words(told).any(|words| contains(words, SCOPE_ANSWER))).collect();
-    step_check(
-        misses,
-        "5.1",
-        answered.len() == 1
-            && answered.iter().all(|told| {
-                contains(&told.system, NEW_RULES)
-                    && !contains(&told.system, DROPPED_RULE)
-                    && user_words(told).map(|words| calls::occurrences(words, SCOPE_ANSWER.as_bytes())).sum::<usize>()
-                        == 1
-            }),
-        RULES_DROPPED,
-        "A must hear the answer once in a run reading the new guide without the dropped rule",
-    );
-}
-
-fn rules_messages_and_endings(misses: &mut Vec<Miss>, observed: &Observed) {
-    use super::{DROPPED_RULE, NEW_RULES, RULES, RULES_REPORT, SCOPE, SCOPE_REPORT};
-    step_check(
-        misses,
-        "5.1",
-        observed.told.iter().all(|told| {
-            message_words(told).all(|words| {
-                NEW_RULES
-                    .lines()
-                    .filter(|line| !line.is_empty() && !line.starts_with('#'))
-                    .all(|line| !contains(words, line))
-                    && !contains(words, "re-read")
-                    && !contains(words, "reread")
-            })
-        }),
-        RULES_NO_NOTICE,
-        "no query's messages may carry the new rules or a request to re-read them",
-    );
-    step_check(
-        misses,
-        "5.1",
-        observed.told.iter().all(|told| message_words(told).all(|words| !contains(words, DROPPED_RULE))),
-        RULES_DROPPED,
-        "no message may tell an owner the dropped rule",
-    );
-    for read in [Read::RulesActivity, Read::ScopeActivity] {
-        let endings: Vec<_> =
-            check_activity(observed, read).into_iter().filter_map(|row| row.pointer("/line/run_ended")).collect();
-        step_check(
-            misses,
-            "5.1",
-            !endings.is_empty()
-                && endings
-                    .iter()
-                    .all(|ended| ended.pointer("/end/failed/class").and_then(Value::as_str) != Some("invalid")),
-            RULES_CONTROL,
-            "no run of the director or A may start invalid: a fresh start refused and retried would pass unseen",
-        );
-    }
-    for (read, task, report) in [(Read::RulesEnded, RULES, RULES_REPORT), (Read::ScopeEnded, SCOPE, SCOPE_REPORT)] {
-        let ended = task_document(observed, read);
-        step_check(
-            misses,
-            "5.1",
-            number(ended, "/chip/task") == Some(task)
-                && text(ended, "/chip/phase") == "ended"
-                && text(ended, "/result/value/report/bytes") == report,
-            RULES_CONTROL,
-            "the original director and A must end with their reports",
-        );
-    }
-}
-
-fn rules_held(task: &Value) -> bool {
-    use super::{RULES, RULES_HOLD_REVISION};
-    number(task, "/chip/task") == Some(RULES)
-        && text(task, "/chip/phase") == "held"
-        && number(task, "/hold/reason/placed/hold").is_some_and(|hold| hold != 0)
-        && number(task, "/hold/revision") == Some(RULES_HOLD_REVISION)
-}
-
-fn message_words(told: &Told) -> impl Iterator<Item = &[u8]> {
-    use skein_fake_llm_domain::api::Part;
-    told.history.iter().flat_map(|message| &message.parts).filter_map(|part| match part {
-        Part::Text { text } | Part::ToolOutput { output: text, .. } => Some(text.as_ref()),
-        Part::ToolCall { arguments, .. } => Some(arguments.as_ref()),
-        Part::Opaque { .. } => None,
-    })
 }
 
 #[cfg(test)]
 mod rules_tests {
     use super::*;
-    use crate::case::{
-        DROPPED_RULE, NEW_RULES, OLD_RULES, RULES, RULES_FILE, RULES_HOLD_REVISION, RULES_REPORT, SCOPE, SCOPE_ANSWER,
-        SCOPE_QUESTION, SCOPE_QUESTION_NUMBER, SCOPE_REPORT,
-    };
-    use serde_json::json;
-    use skein_fake_llm_domain::api::{Message, Part, Role};
+    use crate::case::{DROPPED_RULE, NEW_RULES, OLD_RULES, RULES_FILE};
 
-    const OPENING: usize = 0;
-    const OPENING_FOLLOWUP: usize = 1;
-    const FRESH: usize = 2;
-    const LATER: usize = 3;
-    const A_OPENING: usize = 4;
-    const A_ANSWERED: usize = 5;
-
-    fn user(words: &str) -> Message {
-        Message { role: Role::User, parts: Box::new([Part::Text { text: words.as_bytes().into() }]) }
-    }
-    fn assistant(words: &str) -> Message {
-        Message { role: Role::Assistant, parts: Box::new([Part::Text { text: words.as_bytes().into() }]) }
-    }
-    fn told(agent: Agent, guide: &str, history: &[Message]) -> Told {
+    fn told(agent: Agent, guide: &str) -> Told {
         let mut system = agent.cue().to_vec();
         system.extend_from_slice(guide.as_bytes());
-        Told::new(&system, b"fake", Some(0), history).expect("case cue")
+        Told::new(&system, b"fake", Some(0), &[]).expect("case cue")
     }
-    fn held() -> Value {
-        json!({"chip":{"task":RULES,"phase":"held"}, "hold":{
-            "reason":{"placed":{"hold":1}},"revision":RULES_HOLD_REVISION}})
-    }
-    fn ended(task: u64, report: &str) -> Value {
-        json!({"task":{"chip":{"task":task,"phase":"ended"},"result":{"value":{"report":{"bytes":report}}}}})
-    }
-    fn endings(task: u64, ends: &[Value]) -> Value {
-        let rows: Vec<Value> = ends
-            .iter()
-            .map(|end| json!({"event":{"owner":{"source":{"task":task,"line":{"run_ended":{"end":end}}}}}}))
-            .collect();
-        json!({"task":{"chip":{"task":task}},"activity":{"rows":rows}})
-    }
-    fn fresh_tail() -> String {
-        format!(
-            "## Transcript tail\n\ncall delegate: {}\nresult: Delegated tasks: {}\n",
-            super::super::SCOPE_SPEC,
-            SCOPE
-        )
-    }
+
     fn met() -> Observed {
-        let fresh = vec![user(&format!(
-            "{SCOPE} asks (question {SCOPE_QUESTION_NUMBER}; answer with message target={SCOPE}, form=answer, question={SCOPE_QUESTION_NUMBER}): {SCOPE_QUESTION}"
-        ))];
-        let mut later = fresh.clone();
-        later.extend([assistant("Answer A."), user("Answer sent")]);
         Observed {
-            activity_aliases: std::collections::BTreeSet::new(),
+            activity_aliases: BTreeSet::new(),
             observed_at: BTreeMap::new(),
-            documents: BTreeMap::from([
-                (
-                    Read::RulesWaiting,
-                    json!({"chip":{"task":RULES,"details":{"owner":{"details":{
-                    "observation":{"work":"waiting"}}}}},"delegates":[{"chip":{"task":SCOPE}}]}),
-                ),
-                (Read::RulesHeld, held()),
-                (
-                    Read::ScopeHeld,
-                    json!({"chip":{"task":SCOPE,"phase":"held"},"hold":{"reason":{"placed":{"hold":1}},"revision":RULES_HOLD_REVISION}}),
-                ),
-                (
-                    Read::RulesQuestionWaiting,
-                    json!({"task":{"chip":{"task":RULES,"phase":"running"},"hold":null},"activity":{"rows":[{"event":{"owner":{"source":{
-                    "task":RULES,"line":{"words":{"message":SCOPE_QUESTION_NUMBER,"by":{"task":SCOPE},
-                        "kind":"question","words":SCOPE_QUESTION}}}}}}]}}),
-                ),
-                (Read::RulesFreshBrief, json!({"system": fresh_tail()})),
-                (Read::RulesEnded, ended(RULES, RULES_REPORT)),
-                (Read::ScopeEnded, ended(SCOPE, SCOPE_REPORT)),
-                (Read::RulesActivity, endings(RULES, &[json!("finished"), json!({"failed":{"class":"agent"}})])),
-                (Read::ScopeActivity, endings(SCOPE, &[json!("finished"), json!("parked")])),
-            ]),
+            documents: BTreeMap::new(),
             told: vec![
-                told(Agent::Rules, OLD_RULES, &[user("Begin the work your brief describes.")]),
-                told(
-                    Agent::Rules,
-                    OLD_RULES,
-                    &[user("Begin the work your brief describes."), assistant("Delegate A.")],
-                ),
-                told(Agent::Rules, NEW_RULES, &fresh),
-                told(Agent::Rules, NEW_RULES, &later),
-                told(Agent::Scope, OLD_RULES, &[user("Begin the work your brief describes.")]),
-                told(Agent::Scope, NEW_RULES, &[user(SCOPE_ANSWER)]),
+                told(Agent::Rules, OLD_RULES),
+                told(Agent::Rules, NEW_RULES),
+                told(Agent::Rules, NEW_RULES),
+                told(Agent::Scope, OLD_RULES),
+                told(Agent::Scope, NEW_RULES),
             ],
             commands: Vec::new(),
             kit: Kit {
                 records: Vec::new(),
                 pulls: Vec::new(),
-                main: BTreeMap::from([(RULES_FILE.as_bytes().to_vec(), NEW_RULES.as_bytes().to_vec())]),
                 merged_green: false,
+                main: BTreeMap::from([(RULES_FILE.as_bytes().to_vec(), NEW_RULES.as_bytes().to_vec())]),
             },
         }
     }
+
     fn rejects(observed: &Observed, promise: Promise, what: &str) {
         let misses = step_5_1(observed);
         assert!(misses.iter().all(|miss| miss.step == "5.1"));
@@ -1337,180 +1073,34 @@ mod rules_tests {
             misses.iter().map(ToString::to_string).collect::<Vec<_>>().join("; ")
         );
     }
+
     #[test]
-    fn held_chat_and_fresh_rules_meet_the_checkpoint() {
+    fn pushed_rules_and_fresh_checkouts_meet_the_checkpoint() {
         assert_met(&step_5_1(&met()));
     }
-    #[test]
-    fn the_wait_and_both_hold_reads_are_checked() {
-        let mut passing = met();
-        for (read, path, promise, what) in [
-            (Read::RulesWaiting, "/chip/task", RULES_CONTROL, "wait in its run"),
-            (Read::RulesWaiting, "/chip/details/owner/details/observation/work", RULES_CONTROL, "wait in its run"),
-            (Read::RulesWaiting, "/delegates/0/chip/task", RULES_CONTROL, "wait in its run"),
-            (Read::RulesHeld, "/chip/task", RULES_CONTROL, "stopped by the person"),
-            (Read::RulesHeld, "/chip/phase", RULES_CONTROL, "stopped by the person"),
-            (Read::RulesHeld, "/hold/reason/placed/hold", RULES_CONTROL, "stopped by the person"),
-            (Read::RulesHeld, "/hold/revision", RULES_CONTROL, "stopped by the person"),
-            (Read::RulesQuestionWaiting, "/task/chip/task", RULES_INBOX, "numbered question"),
-            (Read::ScopeHeld, "/chip/phase", RULES_INBOX, "same hold"),
-            (Read::ScopeHeld, "/hold/revision", RULES_INBOX, "same hold"),
-        ] {
-            let saved = passing.documents.get_mut(&read).expect("document").pointer_mut(path).expect("field").take();
-            rejects(&passing, promise, what);
-            *passing.documents.get_mut(&read).expect("document").pointer_mut(path).expect("field") = saved;
-        }
-    }
-    #[test]
-    fn the_waiting_question_has_its_recipient_sender_number_and_words() {
-        let mut passing = met();
-        for path in ["/task", "/line/words/message", "/line/words/by/task", "/line/words/kind", "/line/words/words"] {
-            let saved = passing.documents.get_mut(&Read::RulesQuestionWaiting).expect("question")["activity"]["rows"]
-                [0]["event"]["owner"]["source"]
-                .pointer_mut(path)
-                .expect("question field")
-                .take();
-            rejects(&passing, RULES_INBOX, "numbered question");
-            *passing.documents.get_mut(&Read::RulesQuestionWaiting).expect("question")["activity"]["rows"][0]
-                ["event"]["owner"]["source"].pointer_mut(path).expect("question field") = saved;
-        }
-    }
+
     #[test]
     fn main_and_every_relevant_query_must_have_the_right_system_guide() {
-        let passing = met();
-        let mut observed = passing.clone();
+        let mut observed = met();
         observed.kit.main.clear();
         rejects(&observed, RULES_CONVENTIONS, "kit's main");
-        for at in [OPENING, FRESH, LATER, A_OPENING, A_ANSWERED] {
-            let mut observed = passing.clone();
+        for (at, promise, what) in [
+            (0, RULES_CONVENTIONS, "opening run"),
+            (1, RULES_CONVENTIONS, "every query after release"),
+            (2, RULES_CONVENTIONS, "every query after release"),
+            (3, RULES_DROPPED, "opening run"),
+            (4, RULES_DROPPED, "every query after release"),
+        ] {
+            let mut observed = met();
             observed.told[at].system = Box::new([]);
-            let (promise, what) = match at {
-                OPENING => (RULES_CONVENTIONS, "opening run"),
-                A_OPENING => (RULES_DROPPED, "while it is in force"),
-                A_ANSWERED => (RULES_DROPPED, "hear the answer once"),
-                _ => (RULES_CONVENTIONS, "every director query"),
-            };
             rejects(&observed, promise, what);
         }
-        for at in [FRESH, LATER, A_ANSWERED] {
-            let mut observed = passing.clone();
+        for (at, promise) in [(1, RULES_CONVENTIONS), (2, RULES_CONVENTIONS), (4, RULES_DROPPED)] {
+            let mut observed = met();
             let mut system = observed.told[at].system.to_vec();
             system.extend_from_slice(DROPPED_RULE.as_bytes());
             observed.told[at].system = system.into();
-            rejects(
-                &observed,
-                if at == A_ANSWERED { RULES_DROPPED } else { RULES_CONVENTIONS },
-                if at == A_ANSWERED { "hear the answer once" } else { "every director query" },
-            );
-        }
-    }
-    #[test]
-    fn the_directors_history_must_be_fresh_then_grow_in_one_run() {
-        let passing = met();
-        let mut observed = passing.clone();
-        let mut history = observed.told[FRESH].history.to_vec();
-        history.push(assistant("Delegate A."));
-        observed.told[FRESH].history = history.into();
-        rejects(&observed, RULES_FRESH, "earlier assistant turns");
-        let mut observed = passing.clone();
-        observed.told[LATER].system = OLD_RULES.as_bytes().into();
-        rejects(&observed, RULES_INBOX, "one director run");
-        let mut observed = passing.clone();
-        observed.told[LATER].history = Box::new([user("Another run"), user(SCOPE_QUESTION)]);
-        rejects(&observed, RULES_INBOX, "one director run");
-        for replacement in ["No question", &format!("{SCOPE_QUESTION} {SCOPE_QUESTION}")] {
-            let mut observed = passing.clone();
-            observed.told[FRESH].history = Box::new([user(replacement)]);
-            rejects(&observed, RULES_INBOX, "delivered once");
-        }
-    }
-    #[test]
-    fn the_opening_queries_must_also_belong_to_one_run() {
-        let passing = met();
-        let mut observed = passing.clone();
-        observed.told[OPENING_FOLLOWUP].system = format!("{OLD_RULES}another run").into_bytes().into();
-        rejects(&observed, RULES_CONVENTIONS, "opening run");
-        let mut observed = passing.clone();
-        observed.told[OPENING_FOLLOWUP].history = Box::new([user("Another opening")]);
-        rejects(&observed, RULES_CONVENTIONS, "opening run");
-    }
-
-    #[test]
-    fn a_must_receive_the_answer_once() {
-        let passing = met();
-        let mut observed = passing.clone();
-        observed.told[A_ANSWERED].history = Box::new([]);
-        rejects(&observed, RULES_DROPPED, "hear the answer once");
-        let mut observed = passing.clone();
-        observed.told.push(observed.told[A_ANSWERED].clone());
-        rejects(&observed, RULES_DROPPED, "hear the answer once");
-        let mut observed = passing.clone();
-        observed.told[A_ANSWERED].history = Box::new([user(&format!("{SCOPE_ANSWER} {SCOPE_ANSWER}"))]);
-        rejects(&observed, RULES_DROPPED, "hear the answer once");
-    }
-    #[test]
-    fn messages_cannot_supply_rules_or_reread_notices() {
-        let passing = met();
-        for words in NEW_RULES
-            .lines()
-            .filter(|line| !line.is_empty() && !line.starts_with('#'))
-            .chain(["Please re-read the guide", "Please reread the guide"])
-        {
-            let mut observed = passing.clone();
-            observed.told[A_ANSWERED].history = Box::new([user(words), user(SCOPE_ANSWER)]);
-            rejects(&observed, RULES_NO_NOTICE, "no query's messages");
-        }
-        let mut observed = passing.clone();
-        observed.told[A_ANSWERED].history = Box::new([user(DROPPED_RULE), user(SCOPE_ANSWER)]);
-        rejects(&observed, RULES_DROPPED, "no message");
-    }
-    #[test]
-    fn a_fresh_tail_must_hold_committed_turn_text_without_a_binary_marker() {
-        for system in [
-            String::new(),
-            "Transcript tail\n[earlier bytes not text, cut]\n".into(),
-            "Transcript tail\n[a turn not readable as text]\n".into(),
-            format!("{}[earlier bytes not text, cut]\n", fresh_tail()),
-            fresh_tail().replace("Transcript tail", "Task"),
-            fresh_tail().replace(super::super::SCOPE_SPEC, "other task"),
-            fresh_tail().replace("result: Delegated tasks: 2", "result: delegation refused"),
-            format!("## Transcript tail\n\n## Notes\n{}", fresh_tail()),
-        ] {
-            let mut observed = met();
-            observed.documents.get_mut(&Read::RulesFreshBrief).expect("fresh brief")["system"] = system.into();
-            rejects(&observed, RULES_FRESH, "Transcript tail");
-        }
-        let mut observed = met();
-        observed.documents.remove(&Read::RulesFreshBrief);
-        rejects(&observed, RULES_FRESH, "Transcript tail");
-    }
-
-    #[test]
-    fn no_run_may_start_invalid_and_hide_behind_its_retry() {
-        let passing = met();
-        for read in [Read::RulesActivity, Read::ScopeActivity] {
-            let mut observed = passing.clone();
-            let rows =
-                observed.documents.get_mut(&read).expect("activity")["activity"]["rows"].as_array_mut().expect("rows");
-            rows.insert(
-                1,
-                json!({"event":{"owner":{"source":{"line":{"run_ended":{"end":{"failed":{"class":"invalid"}}}}}}}}),
-            );
-            rejects(&observed, RULES_CONTROL, "start invalid");
-            let mut observed = passing.clone();
-            observed.documents.remove(&read);
-            rejects(&observed, RULES_CONTROL, "start invalid");
-        }
-    }
-    #[test]
-    fn both_original_tasks_must_end_with_their_reports() {
-        let mut passing = met();
-        for read in [Read::RulesEnded, Read::ScopeEnded] {
-            for path in ["/task/chip/task", "/task/chip/phase", "/task/result/value/report/bytes"] {
-                let saved = passing.documents.get_mut(&read).expect("ended").pointer_mut(path).expect("field").take();
-                rejects(&passing, RULES_CONTROL, "original director and A");
-                *passing.documents.get_mut(&read).expect("ended").pointer_mut(path).expect("field") = saved;
-            }
+            rejects(&observed, promise, "every query after release");
         }
     }
 }

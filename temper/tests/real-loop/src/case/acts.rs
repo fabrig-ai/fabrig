@@ -28,18 +28,6 @@ pub enum Read {
     BenchmarkWaiting,
     BenchmarkEnded,
     BEnded,
-    RulesWaiting,
-    RulesHeld,
-    ScopeHeld,
-    RulesQuestionWaiting,
-    ScopeEnded,
-    RulesEnded,
-    /// The director's whole activity once ended: its runs' endings.
-    RulesActivity,
-    /// The first fresh director brief after Release, read from the scripted model's received system text.
-    RulesFreshBrief,
-    /// A's whole activity once ended: its runs' endings.
-    ScopeActivity,
     ShapeEnded,
     MoverEnded,
     X3Open,
@@ -253,22 +241,9 @@ pub fn step_4_6(base: usize) -> Vec<calls::Step> {
 
 // Act 2, step 5.1 (testing/reference-case.md)
 const RULES_ENDED: usize = 3;
-pub const READS_5_1: &[(Read, usize)] = &[
-    (Read::RulesWaiting, 5),
-    (Read::RulesHeld, 8),
-    (Read::ScopeHeld, 9),
-    (Read::RulesQuestionWaiting, 12),
-    (Read::RulesEnded, RULES_ENDED),
-    (Read::ScopeEnded, 14),
-    (Read::RulesActivity, 15),
-    (Read::ScopeActivity, 16),
-];
-
 #[must_use]
 pub fn step_5_1() -> Vec<calls::Step> {
-    use super::{
-        NEW_RULES, RULES, RULES_FILE, RULES_HOLD_REVISION, RULES_PERSON, SCOPE, SCOPE_QUESTION, SCOPE_QUESTION_HOLD,
-    };
+    use super::{NEW_RULES, RULES, RULES_FILE, RULES_HOLD_REVISION, RULES_PERSON, SCOPE};
     vec![
         sign_in(D1),
         call(
@@ -292,49 +267,18 @@ pub fn step_5_1() -> Vec<calls::Step> {
             ],
         ),
         call(D1, argv!["chat", "start", "--project", number(PROJECT), "--key", "rules", RULES_PERSON]),
-        // Keep the ended watch across Stop and Release instead of polling the
-        // full task document through the director's answer and both reports.
         start(D1, argv!["task", "show", number(RULES), "--until", "ended", "--json"]),
+        // The committed delegation creates A before its opening turn is watched.
         call(D1, argv!["task", "show", number(RULES), "--until", "replied"]),
-        until(D1, argv!["task", "show", number(RULES), "--json"], b"\"work\":\"waiting\"", b"\"phase\":\"running\""),
-        // Hold the owner's response, not its checkout preparation: stopping
-        // during setup would exercise cancellation before it can ask anything.
-        calls::writing_task(D1, SCOPE),
+        // A's completed opening run witnesses the old checkout before Stop.
+        call(D1, argv!["task", "show", number(SCOPE), "--until", "ended"]),
         call(D1, argv!["task", "stop", number(RULES), "--key", "rules-stop"]),
-        until(D1, argv!["task", "show", number(RULES), "--json"], b"\"placed\"", b"\"phase\":\"running\""),
-        until(D1, argv!["task", "show", number(SCOPE), "--json"], b"\"phase\":\"held\"", b"\"task\""),
-        // Both old responses and the resumed response have their own fake hold.
-        calls::release_hold(SCOPE_QUESTION_HOLD),
         calls::push(RULES_FILE.as_bytes(), NEW_RULES.as_bytes()),
         call(
             D1,
             argv!["task", "release", number(RULES), "--hold", number(RULES_HOLD_REVISION), "--key", "rules-release"],
         ),
-        calls::writing_task(D1, SCOPE),
-        calls::release_hold(SCOPE_QUESTION_HOLD),
-        until(
-            D1,
-            argv!["task", "show", number(RULES), "--activity", "32", "--json"],
-            SCOPE_QUESTION.as_bytes(),
-            b"\"task\"",
-        ),
-        call(
-            D1,
-            argv![
-                "task",
-                "answer",
-                number(RULES),
-                number(super::SCOPE_QUESTION_NUMBER),
-                super::SCOPE_ANSWER,
-                "--key",
-                "scope-answer"
-            ],
-        ),
         join(RULES_ENDED),
-        call(D1, argv!["task", "show", number(SCOPE), "--json"]),
-        // Every run's ending: a fresh start refused and retried would pass unseen.
-        call(D1, argv!["task", "show", number(RULES), "--activity", "32", "--json"]),
-        call(D1, argv!["task", "show", number(SCOPE), "--activity", "32", "--json"]),
     ]
 }
 

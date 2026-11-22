@@ -1005,9 +1005,10 @@ fn a_person_stops_a_run_and_releases_it() {
     assert!(replied(&driver, &people::Outcome::Stopped { task: assignment.task }));
     assert_eq!(cancelled(&driver), [(assignment.task, assignment.attempt)]);
     let row = live(&driver, assignment.task);
+    let hold = row.placed.expect("person's placed hold");
+    assert!(matches!(row.phase, tasks::Phase::Held { why: tasks::Hold::Placed { hold: found }, .. } if found == hold));
+    assert_eq!(row.revisions.hold, 1, "the person's first hold revision");
     let stopped_revision = row.revisions.hold;
-    assert_eq!(stopped_revision, 1);
-    assert!(matches!(row.phase, tasks::Phase::Held { why: tasks::Hold::Placed { .. }, .. }));
     driver.answer(Token::new(7), assignment.task, assignment.attempt, 0, tasks::End::Parked, engine::Parts::none());
     driver.settle();
     let revision = live(&driver, assignment.task).revisions.hold;
@@ -5349,6 +5350,7 @@ mod ended_read;
 #[path = "root_routes/proposal_archive.rs"]
 mod proposal_archive;
 
+mod held_director;
 #[path = "root_routes/second_edition.rs"]
 mod second_edition;
 

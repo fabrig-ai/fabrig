@@ -306,57 +306,22 @@ pub fn step_4_6(_forge: SocketAddr) -> Box<[Script]> {
 // Act 2, step 5.1 (testing/reference-case.md)
 #[must_use]
 pub fn step_5_1(_forge: SocketAddr) -> Box<[Script]> {
-    use super::{
-        RULES, RULES_ANSWERED, RULES_DELEGATED, RULES_REPORT, SCOPE, SCOPE_ASKED, SCOPE_QUESTION, SCOPE_QUESTION_HOLD,
-        SCOPE_REPORT, SCOPE_SPEC,
-    };
-    use skein_fake_llm_domain::api::Piece;
-    let mut question = call(b"message", &json!({"target":RULES,"form":"question","words":SCOPE_QUESTION}));
-    let mut lines = vec![Line::Pieces {
-        pieces: Box::new([Piece {
-            text: b"Ask x3's scope after the director is held.".as_slice().into(),
-            hold: Some(SCOPE_QUESTION_HOLD.into()),
-        }]),
-    }];
-    lines.extend(question.lines);
-    question.lines = lines.into();
     let director: Box<[Turn]> =
-        Box::new([owner(SCOPE_SPEC, false), wait(RULES_DELEGATED), wait(RULES_ANSWERED), report(RULES_REPORT)]);
+        Box::new([owner(super::SCOPE_SPEC, false), wait(super::RULES_DELEGATED), report(super::RULES_REPORT)]);
     Box::new([
-        // The committed delegation in the fresh brief selects the resumed
-        // script before the ordinary director cue. Its Begin waits, instead
-        // of repeating the delegation while A's cancelled turn resumes.
-        Script { cue: format!("result: Delegated tasks: {SCOPE}").into_bytes().into(), turns: director.clone() },
-        Script { cue: super::Agent::Rules.cue().into(), turns: director },
-        Script {
-            cue: super::Agent::Scope.cue().into(),
-            turns: Box::new([question, wait(SCOPE_ASKED), report(SCOPE_REPORT)]),
-        },
+        // Only the director remains live after A's report. Its next checkout reads the pushed guide.
+        Script { cue: super::NEW_RULES.as_bytes().into(), turns: director.clone() },
+        Script { cue: super::OLD_RULES.as_bytes().into(), turns: director },
+        Script { cue: super::Agent::Scope.cue().into(), turns: Box::new([report(super::SCOPE_REPORT)]) },
     ])
 }
 
 #[must_use]
 pub fn step_5_1_rules() -> Box<[Box<[Rule]>]> {
-    // The trial with counted turns delegated again after Release: the fresh
-    // conversation resets its assistant count. Select only the director by
-    // fresh input; A retains its counted conversation across its parked wait.
-    let director = [
-        (super::SCOPE_REPORT, 3),
-        (CROSSED, 3),
-        (super::SCOPE_QUESTION, 2),
-        (MESSAGE, 2),
-        (DELEGATED, 1),
-        (DELIVERY, 1),
-        (BEGIN, 0),
-        ("", 1),
-    ]
-    .map(|(cue, turn)| Rule { cue: cue.as_bytes().into(), turn });
-    let mut resumed = director.clone();
-    for rule in &mut resumed {
-        if rule.cue.as_ref() == BEGIN.as_bytes() {
-            rule.turn = 1;
-        }
-    }
+    let director = [(CROSSED, 2), (DELEGATED, 1), (DELIVERY, 1), (BEGIN, 0), ("", 1)]
+        .map(|(cue, turn)| Rule { cue: cue.as_bytes().into(), turn });
+    // The fresh checkout's brief selects the report without another conversation turn.
+    let resumed = [Rule { cue: Box::new([]), turn: 2 }];
     Box::new([Box::new(resumed), Box::new(director), Box::new([])])
 }
 
