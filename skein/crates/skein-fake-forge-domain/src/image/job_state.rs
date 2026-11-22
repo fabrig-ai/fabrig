@@ -23,7 +23,9 @@ pub(super) fn put(out: &mut Sink, domain: &Domain) {
                 for job in &kept.jobs {
                     fields::put_contexts(out, &job.labels);
                     fields::put_contexts(out, &job.needs);
-                    out.u8(match job.wait {
+                    // Pool admission is ephemeral; labels, needs and declared waits are not.
+                    let wait = if domain.runners.waiting(job.id) { None } else { job.wait };
+                    out.u8(match wait {
                         None => 0,
                         Some(JobWait::Runner) => 1,
                         Some(JobWait::Needs) => 2,

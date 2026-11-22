@@ -22,7 +22,7 @@
 - **Not yet:** 1.2: `Read::Range` and its answer, in
   neither dialect. 2: no fact records the three
   narrowing filters; the fake honours them by design
-  (../testing/fakes/forge.md, 4).
+  (../testing/fakes/forgejo.md, 1).
 - **Not yet:** 1.1, 1.2: `Runs` sent with `workflow=` in place of
   `workflow_id=` (`skein-forge/src/forgejo/client/files.rs`); `Pull`'s CI
   folds every page's rows where a short first page's `state` serves, and

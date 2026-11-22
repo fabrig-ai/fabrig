@@ -170,6 +170,24 @@ fn striking_matches_each_field_only_when_both_name_it() {
 }
 
 #[test]
+fn fallen_keeps_stopped_and_active_faults_in_fall_order_only_through_at() {
+    let mut ledger = FaultLedger::new();
+    let stopped = ledger.inject(LOST_RUNNER, Time::from_nanos(7), runner());
+    ledger.stop(stopped, STOP).expect("stopped before the query");
+    let active = ledger.inject(RATE_WINDOW, START, runner());
+    let at = Time::from_nanos(10);
+    let boundary = ledger.inject(LOST_RUNNER, at, runner());
+    ledger.inject(LOST_RUNNER, Time::from_nanos(11), runner());
+    ledger.inject(LOST_RUNNER, START, Struck { gate_run: Some("8".into()), ..Struck::default() });
+    ledger.inject(LOST_RUNNER, START, Struck { runner: Some("7".into()), ..Struck::default() });
+    assert_eq!(
+        ledger.fallen(at, &Struck { gate_run: Some("7".into()), ..Struck::default() }),
+        vec![stopped, active, boundary]
+    );
+    assert_eq!(ledger.fallen(at, &Struck::default()), vec![]);
+}
+
+#[test]
 fn counters_are_independent_and_default_to_zero() {
     let (mut ledger, entry) = started(runner());
     ledger.count(entry, Counter::TaskTries);

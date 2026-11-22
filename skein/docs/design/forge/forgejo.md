@@ -161,7 +161,7 @@ Notes on the table:
   default is `latest`, newest *created* first, and a GitHub-style
   `sort=updated&direction=asc` is not in its vocabulary: a client that
   sends the wrong words gets the wrong order with no error. The fake
-  forge answers the same way (../testing/fakes/forge.md, section 4), and section 2
+  forge answers the same way (../testing/fakes/forgejo.md, section 1), and `forgejo.md`, section 2
   names the real one's facts.
 - **An item's comments are not paged by Forgejo.** The call reads the
   thread Forgejo sends, keeps the comments with ids above `after` as the

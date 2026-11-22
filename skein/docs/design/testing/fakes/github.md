@@ -4,7 +4,7 @@
 
 `crates/skein-fake-forge-github` serves github.com's API, at the
 dialect's pin (../../forge/github.md), over the same domain, beside the Forgejo
-layer and in its shape (`forge.md`, section 4): a `Server` per connection, a
+layer and in its shape (`forgejo.md`, section 1): a `Server` per connection, a
 `Service` that owns routing, the tally and the layer's own stores, a
 `Config` of the scenario's tables, and `Limits` checked by `valid`.
 Each route is decoded by the server side of `skein_forge::github` and
@@ -37,7 +37,7 @@ faults; the service and the hosted peer each have an allocator binary.
   answered `200` with an `errors` entry. This is a difference from
   github.com, which answers any query.
 - **Credentials.** `Authorization: Bearer <t>` names one of three kinds:
-  - a person's token (the scenario's `tokens`, as in `forge.md`, section 4);
+  - a person's token (the scenario's `tokens`, as in `forgejo.md`, section 1);
   - an installation's token, which the layer mints;
   - the App's JSON Web Token, whose signature the layer checks with
     `skein_tls::verify_rs256`, by the public half of the App's key
@@ -51,7 +51,7 @@ faults; the service and the hosted peer each have an allocator binary.
 
   The App's routes on another kind are `401`. `GET /user` on an
   installation's token is `403`. Tokens stay in the layer, as in
-  `forge.md`, section 4. Each person secret names a configured account's domain user;
+  `forgejo.md`, section 1. Each person secret names a configured account's domain user;
   repository permissions and write authorship follow that user. An optional
   expiry on each configured person token emits
   `github-authentication-token-expiration` on that token's answers, in
@@ -313,7 +313,7 @@ faults; the service and the hosted peer each have an allocator binary.
   place. Tokens on App routes are charged before their credential-class refusal.
   The primary message "API rate limit exceeded" is inferred and
   unrecorded; `texts.rs` marks it. Both rate refusals supply `Retry-After`.
-- **Faults** are `forge.md`, section 4's, at the bytes, with GitHub's statuses. Built:
+- **Faults** are `forgejo.md`, section 1's, at the bytes, with GitHub's statuses. Built:
   `Config::faults` uses the Forgejo face's `Faults` type. Reset closes before
   reading the next request, including on reuse. Drop and server-error draws
   follow the final domain continuation, so an applied write survives the
@@ -333,7 +333,7 @@ These are small:
   head, as a merge does. An entry's group commit is the squash of its
   head onto the base's tip, or onto the entry ahead of it. That commit
   becomes the head of `gh-readonly-queue/<base>/pr-<n>-<head>`, with `<head>`
-  in `forge.md`, section 4's SHA-1 spelling, so the domain's CI runs on it as on any head.
+  in `forgejo.md`, section 1's SHA-1 spelling, so the domain's CI runs on it as on any head.
   Every queue group is modelled as a squash, regardless of merge_method.
   Its message follows
   COMMIT_OR_PR_TITLE: one commit relative to the pull's base uses that
@@ -617,7 +617,7 @@ masking and refusal of leaked secrets are `throwaway.md`, section 2's.
 
 ## 3. What the two layers share
 
-Forgejo's layer (`forge.md`, section 4) and GitHub's (`github.md`, section 1) serve different
+Forgejo's layer (`forgejo.md`, section 1) and GitHub's (`github.md`, section 1) serve different
 APIs from one domain, and speak HTTP the same way. What they have in
 common sits in `skein-fake-forge-http`, which depends on skein-lib,
 skein-http, skein-json, `skein-forge`'s neutral root (../../forge/README.md, 4.4) and
@@ -637,11 +637,11 @@ says what it is.
   event at a time, and answers it by its own routing. So a layer keeps
   its events, its body's reading, its headers, its fault draws and its
   order of work, and the core draws no chance and calls no one.
-- **The git route** (`forge.md`, section 4) is typed here: `git::Limits` holds the
+- **The git route** (`forgejo.md`, section 1) is typed here: `git::Limits` holds the
   HTTP server's limits and the documents' (`skein_forge::limits::Limits`),
   all the route reads. `git::status` answers a domain error's status
   on the route. Each layer serves the route through its own entrance,
-  with its own credential rule (`forge.md`, section 4, and `github.md`, section 1.1).
+  with its own credential rule (`forgejo.md`, section 1, and `github.md`, section 1.1).
 - **`Hosted` and `Faults`,** the forge lent for one pass and the byte
   faults' chances, are the layers' alike, so they sit here and each
   layer's `Config` names `Faults`.

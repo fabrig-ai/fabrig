@@ -893,7 +893,7 @@ is cited by its probe's number across this document.
   reconcile without orgs' teams and hooks (12.2); its host, as an
   in-process one too.
 - **skein, the fakes:** a GitHub protocol layer over the fake forge's
-  domain (skein's `testing/fakes/forge.md`, section 4): the REST and GraphQL
+  domain (skein's `testing/fakes/forgejo.md`, section 1): the REST and GraphQL
   temper uses, the manifest's form and conversion, installations and
   their tokens with expiry on the fake's clock, the delivery log, the
   merge queue, rulesets; the forge peer serving it.
