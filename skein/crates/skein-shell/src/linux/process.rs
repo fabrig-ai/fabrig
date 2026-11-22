@@ -104,9 +104,8 @@ pub(crate) fn spawn_dying_with_parent(
     })
 }
 
-/// Unit tests exercise the POSIX watcher over Linux's process-exit handles.
+/// The real-loop watcher tests use Linux's process-exit handles.
 /// Raw descriptors keep the post-fork watcher free of Rust destructors.
-#[cfg(test)]
 pub(crate) fn open_exit_watch(parent: i32, program: i32) -> Result<(i32, i32), i32> {
     let open = |pid: i32| {
         // SAFETY: pidfd_open takes a numeric pid and returns a fresh descriptor.
@@ -125,7 +124,6 @@ pub(crate) fn open_exit_watch(parent: i32, program: i32) -> Result<(i32, i32), i
 }
 
 /// Bits 1 and 2 name the parent's and program's exits respectively.
-#[cfg(test)]
 pub(crate) fn wait_exit_watch(first: i32, second: i32, _parent: i32, _program: i32) -> Result<i32, i32> {
     let mut events = [
         libc::pollfd { fd: first, events: libc::POLLIN, revents: 0 },

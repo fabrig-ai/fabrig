@@ -4,6 +4,7 @@ use skein_io::kernel::{Complete, Done, Op};
 use skein_lib::{Queue, Time, Token, Wall};
 use skein_world::ring::Ring;
 
+pub(crate) mod fixture;
 #[cfg(test)]
 mod tests;
 

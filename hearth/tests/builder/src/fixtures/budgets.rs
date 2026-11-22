@@ -4,6 +4,7 @@ use crate::domain;
 use hearth_domain_builder::vocabulary::{Call, Request};
 use hearth_domain_render::{revision::Oid, vocabulary::Request as RenderRequest};
 use hearth_test_render::golden;
+use skein_scratch::paths;
 use std::collections::BTreeSet;
 
 /// Session 47 compares three generated repositories through eight pipe schedules.
@@ -96,12 +97,15 @@ pub const PROGRAMS: &[Programs] = &[
     Programs { repository: Repository::Fleet, git: 4, mmdebstrap: 0 },
     Programs { repository: Repository::Resolution, git: 3, mmdebstrap: 0 },
 ];
+const FLEET_MODES: &[(&str, u32)] =
+    &[("tasks/desktop/tree/usr/local/bin/desktop-user.j2", 0o755), ("tasks/locale/tree/etc/localtime", 0o120_000)];
 #[must_use]
 pub fn files(repository: Repository) -> Vec<File> {
+    let hearth = paths::tree();
     match repository {
         Repository::Thin => super::THIN.to_vec(),
-        Repository::Fleet => fleet(),
-        Repository::Resolution => super::files_of(&super::resolution_golden().tree),
+        Repository::Fleet => super::goldens::fixture_files(&hearth.join("tests/render/fleet"), FLEET_MODES),
+        Repository::Resolution => super::goldens::fixture_files(&hearth.join("testing/repos/test"), &[]),
     }
 }
 #[must_use]

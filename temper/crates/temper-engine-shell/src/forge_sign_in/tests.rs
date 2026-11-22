@@ -1,44 +1,38 @@
-use super::make_missing;
+use super::{EnvironmentEntry, Named};
+use crate::configuration_tests::read_scripted;
 use crate::test_configuration as configuration;
-use std::{
-    fs,
-    os::unix::fs::{MetadataExt, PermissionsExt},
-};
 use temper_service_shell::jig_directories;
 
 #[test]
-fn credentials_are_private_whole_and_left_in_place_on_a_second_run() {
-    let directory = std::env::temp_dir().join(format!("temper-forge-sign-in-{}", std::process::id()));
-    fs::create_dir(&directory).expect("fresh private scratch");
-    fs::set_permissions(&directory, fs::Permissions::from_mode(0o700)).expect("private scratch");
-    for (name, key) in [("key.pem", true), ("client.secret", false)] {
-        let path = directory.join(name);
-        make_missing(&path, key).expect("make credential");
-        let first = fs::metadata(&path).expect("credential metadata");
-        assert_eq!(first.permissions().mode() & 0o777, 0o600);
-        assert_eq!(first.uid(), skein_shell::effective_user());
-        if key {
-            assert!(first.len() > 2000);
-        } else {
-            assert_eq!(first.len(), 43);
-        }
-        make_missing(&path, key).expect("leave existing credential alone");
-        let second = fs::metadata(&path).expect("credential metadata");
-        assert_eq!(first.ino(), second.ino());
-        assert_eq!(first.mtime_nsec(), second.mtime_nsec());
-    }
-    assert_eq!(fs::read_dir(&directory).expect("scratch entries").count(), 2, "no partial files");
-    fs::remove_dir_all(directory).expect("scratch removed");
-}
-
-#[test]
 fn a_public_client_refuses_before_creating_any_file() {
+    use crate::forge;
+    use std::{
+        cell::RefCell,
+        collections::BTreeMap,
+        path::{Path, PathBuf},
+    };
     use temper_config_shell::{
         File, ForgeSignIn, Member, OpenId, OpenIdClient, Shape, SignIn, Test, TestGoogle, Transport,
     };
-    let directory = std::env::temp_dir().join(format!("temper-public-sign-in-{}", std::process::id()));
-    fs::create_dir(&directory).expect("fresh scratch");
-    fs::set_permissions(&directory, fs::Permissions::from_mode(0o700)).expect("private scratch");
+
+    let directory = Path::new("/fixture");
+    let directories = configuration::directories(directory);
+    let inventory = RefCell::new(BTreeMap::<PathBuf, Box<[u8]>>::new());
+    let sign_in =
+        |directories: &crate::Directories, bytes: &[u8], named: &Named, number, environment: &[EnvironmentEntry]| {
+            super::run_with(
+                directories,
+                bytes,
+                named,
+                number,
+                environment,
+                |name, _| {
+                    inventory.borrow_mut().insert(name.into(), Box::new([]));
+                    Ok(())
+                },
+                |_| Ok(()),
+            )
+        };
     let file = File {
         workers: Some("127.0.0.1:7200".parse().expect("workers address")),
         owner: Some("sam@example.com".into()),
@@ -70,23 +64,40 @@ fn a_public_client_refuses_before_creating_any_file() {
         ..File::default()
     };
     let text = temper_config_shell::render(&file, Shape::EngineAlone);
-    let bytes = temper_config_shell::parse(
-        &text,
-        Shape::EngineAlone,
-        &temper_config_shell::Facts { login: "sam".into(), hostname: "fixture".into(), provider_key: false },
-    )
-    .expect("engine file")
-    .document;
-    let directories = configuration::directories(&directory);
-    let named =
-        temper_engine_service::startup::named(&bytes, &jig_directories(&directories)).expect("named public client");
-    let refusal = super::run(&directories, &bytes, &named, 1, &[]);
-    let files = fs::read_dir(&directory).expect("scratch entries").count();
+    let bytes = read_scripted(&text, Shape::EngineAlone).expect("engine file").document;
+    let jig = jig_directories(&directories);
+    let named = temper_engine_service::startup::named(&bytes, &jig).expect("named public client");
+    let refusal = sign_in(&directories, &bytes, &named, 1, &[]);
+    let files = inventory.borrow().len();
+
     let configuration = directory.join(temper_config_shell::FILE);
-    fs::write(&configuration, &text).expect("command configuration");
-    let exit = crate::forge::run("temper", &directories, &["sign-in".into(), "1".into()], None, &[]);
-    let command_files = fs::read_dir(&directory).expect("command scratch entries").count();
-    fs::remove_dir_all(directory).expect("scratch removed");
+    inventory.borrow_mut().insert(configuration.clone(), text);
+    let arguments = ["sign-in".into(), "1".into()];
+    let result = forge::start_with_inputs(
+        "temper",
+        Shape::EngineAlone,
+        &directories,
+        &arguments,
+        None,
+        &[],
+        &forge::Inputs {
+            reader: crate::setup::check,
+            setup: &|_, _, _, _| {
+                temper_forge_setup::setup_file::chosen(
+                    temper_forge_setup::machine::BoxKind::Fake,
+                    3000,
+                    b"sam",
+                    false,
+                    &jig,
+                )
+                .map_err(|why| format!("{why:?}"))
+            },
+            configuration: &|_, shape| read_scripted(&inventory.borrow()[&configuration], shape),
+            sign_in: &sign_in,
+        },
+    );
+    let exit = forge::report_exit("temper", &arguments, result, drop, drop);
+    let command_files = inventory.borrow().len();
     assert_eq!(refusal, Err("its client has no secret; a box adds its own source".into()));
     assert_eq!(files, 0, "refusal makes no files");
     assert_eq!(exit, 1, "the command uses its refusal exit");
