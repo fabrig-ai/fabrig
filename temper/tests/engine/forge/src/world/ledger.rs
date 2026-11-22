@@ -25,6 +25,7 @@ impl World {
             LIMITS.landing_members,
             None,
             Some(streams),
+            None,
         )
     }
 
@@ -47,6 +48,39 @@ impl World {
             4,
             None,
             Some(streams),
+            None,
+        )
+    }
+
+    /// A CI sweep lends the batch workload a forge that also runs head CI.
+    #[must_use]
+    pub fn ci_sweep_in(streams: &Streams, workflows: Box<[raw::Workflow]>, mut config: forge::Config) -> World {
+        config.limits.files = 16;
+        Self::configured_repositories(
+            streams.seed(),
+            LIMITS.facts,
+            false,
+            Some(skein_forge_client::Writer { forge: REPO.forge, author: 1 }),
+            None,
+            false,
+            12,
+            true,
+            Some(workflows),
+            config,
+            None,
+            4,
+            None,
+            Some(streams),
+            Some(raw::Checks {
+                contexts: Box::new([b"build".as_slice().into()]),
+                cues: Box::new([]),
+                latency_min: skein_lib::Duration::ZERO,
+                latency_max: skein_lib::Duration::ZERO,
+                silent: 0,
+                passes: 1000,
+                reruns: 0,
+                cue: Some(raw::Cue::Declared { path: b"ci".as_slice().into() }),
+            }),
         )
     }
 
@@ -79,6 +113,7 @@ impl World {
         assert_eq!(lost, 0, "seed {}: forge lost {lost} fault records", self.seed);
         while let Some(fell) = self.forge.pop_fell() {
             self.track_lag(&fell);
+            self.after_gate_fault(Kind { family: fell.fault.family(), name: fell.fault.name() });
             self.track_sweep_call(&fell);
             let entry = self.ledger.inject(
                 Kind { family: fell.fault.family(), name: fell.fault.name() },
@@ -96,5 +131,6 @@ impl World {
             );
             self.ledger.stop(entry, fell.until.unwrap_or(fell.at)).expect("fake fault interval");
         }
+        self.record_ci_completions();
     }
 }

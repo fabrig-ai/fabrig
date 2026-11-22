@@ -89,6 +89,46 @@ pub(crate) fn start(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>, 
     }
 }
 
+/// Cancel a commit's in-flight CI, leaving completed jobs alone (testing/fakes/forge.md, 2.3).
+pub(crate) fn cancel(
+    domain: &mut Domain,
+    env: &Env<Config>,
+    id: Id<Repository>,
+    user: u64,
+    commit: u64,
+) -> Result<Answer, Error> {
+    let repository = domain.repositories.get_mut(id).expect("CI repository");
+    let kept = repository.runs.get_mut(&commit).expect("CI run");
+    if kept.run.state == crate::api::RunState::Completed {
+        return Err(Error::Refused);
+    }
+    let mut cancelled = List::with_capacity(kept.jobs.len());
+    for job in kept.jobs.iter_mut() {
+        domain.timers.cancel(Alarm::Check { repository: id, commit, context: job.index });
+        domain.timers.cancel(Alarm::Rerun { repository: id, commit, context: job.index });
+        if job.state == crate::api::RunState::Completed {
+            continue;
+        }
+        job.state = crate::api::RunState::Completed;
+        job.conclusion = Some(crate::api::Conclusion::Cancelled);
+        job.wait = None;
+        cancelled.push(copy_of(&job.name)).expect("one cancelled context per job");
+    }
+    kept.run.cancelled_by = Some(user);
+    crate::actions::complete(kept);
+    for context in cancelled.into_boxed() {
+        let repository = domain.repositories.get_mut(id).expect("CI repository");
+        let status = repository.statuses.get_mut(&commit).expect("CI statuses").get_mut(&context).expect("CI context");
+        status.state = Check::Failed;
+        status.at = domain::clock(env).max(domain.floor);
+        status.description = copy_of(b"CI cancelled");
+        status.rerun = true;
+        reported(domain, env, id, commit, context, Check::Failed, env.limits.ci);
+    }
+    crate::queue::verdict(domain, env, id, commit);
+    Ok(Answer::Done)
+}
+
 /// A check's timer: CI reports the context `context` on `commit`, as cued
 /// by the commit's file content or message, or by chance.
 pub(crate) fn report(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>, commit: u64, context: u32) {

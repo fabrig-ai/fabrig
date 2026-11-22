@@ -80,7 +80,7 @@ fn run_workload(world: World, seed: u64, horizon: u64, workload: Workload) -> (W
         let path = format!("member{}", if conflict == Some(index) { 0 } else { index });
         world.push_file(branch.as_bytes(), path.as_bytes(), &index.to_be_bytes());
         if red && index == red_member {
-            world.push_file(branch.as_bytes(), b"file", b"broken");
+            world.push_wrong_tree(branch.as_bytes(), b"file", b"broken");
         }
         landings::ready_change(&mut world, 51 + index, branch.as_bytes());
     }

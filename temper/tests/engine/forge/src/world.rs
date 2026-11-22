@@ -2,6 +2,7 @@ use skein_world::{
     faults::FaultLedger,
     streams::{Stream, Streams},
 };
+mod blame;
 mod bounds;
 mod interleaving;
 mod ledger;
@@ -171,6 +172,7 @@ pub struct World {
     seed: u64,
     engine_seed: u64,
     ledger: FaultLedger,
+    blame: Option<blame::Blame>,
     sweep_faults: sweeps::Faults,
     lagging: Option<interleaving::Lagging>,
     after_write: Option<interleaving::AfterWrite>,
@@ -255,6 +257,7 @@ impl World {
             4,
             None,
             None,
+            None,
         )
     }
     /// Three simultaneous trains, with one spare branch per prepared member.
@@ -276,6 +279,7 @@ impl World {
             config,
             None,
             4,
+            None,
             None,
             None,
         );
@@ -306,6 +310,7 @@ impl World {
             config,
             None,
             5,
+            None,
             None,
             None,
         )
@@ -516,6 +521,7 @@ impl World {
             LIMITS.landing_members,
             None,
             None,
+            None,
         );
         forge::set_failing(&mut world.forge, b"org/repo", b"build", fault);
         world
@@ -578,12 +584,20 @@ impl World {
             LIMITS.landing_members,
             None,
             None,
+            None,
         )
     }
 
     /// Judge head checks by a cue in the repository's checked tree.
     #[must_use]
     pub fn with_check_cue(seed: u64, cue: raw::Cue) -> World {
+        Self::check_cue(seed, cue, None)
+    }
+    #[must_use]
+    pub fn check_cue_in(streams: &Streams, cue: raw::Cue) -> World {
+        Self::check_cue(streams.seed(), cue, Some(streams))
+    }
+    fn check_cue(seed: u64, cue: raw::Cue, streams: Option<&Streams>) -> World {
         Self::configured_repositories(
             seed,
             LIMITS.facts,
@@ -598,6 +612,7 @@ impl World {
             None,
             LIMITS.landing_members,
             Some(cue),
+            streams,
             None,
         )
     }
@@ -622,6 +637,7 @@ impl World {
             config,
             None,
             LIMITS.landing_members,
+            None,
             None,
             None,
         )
@@ -739,6 +755,7 @@ impl World {
             LIMITS.landing_members,
             None,
             None,
+            None,
         )
     }
     #[expect(
@@ -761,6 +778,7 @@ impl World {
         members: u32,
         cue: Option<raw::Cue>,
         streams: Option<&Streams>,
+        head_checks: Option<raw::Checks>,
     ) -> World {
         let tiered = tier.is_some();
         let limits = top::Limits {
@@ -791,7 +809,7 @@ impl World {
                 default: Box::from(&b"main"[..]),
                 tree: Box::new([]),
                 labels: Box::new([]),
-                checks: raw::Checks {
+                checks: head_checks.unwrap_or_else(|| raw::Checks {
                     cues: Box::new([]),
                     contexts: if turn { Box::new([]) } else { Box::new([Box::from(&b"build"[..])]) },
                     latency_min: Duration::ZERO,
@@ -800,7 +818,7 @@ impl World {
                     passes: passes.unwrap_or(1000),
                     reruns: 0,
                     cue,
-                },
+                }),
                 protection,
                 hooked,
             },
@@ -851,6 +869,7 @@ impl World {
             seed,
             engine_seed,
             ledger: FaultLedger::new(),
+            blame: None,
             sweep_faults: sweeps::Faults::default(),
             lagging: None,
             after_write: None,
@@ -1034,6 +1053,7 @@ impl World {
             LIMITS.landing_members,
             None,
             None,
+            None,
         );
         world.second_repository(Box::new([workflow]));
         world
@@ -1054,6 +1074,7 @@ impl World {
             repository_config(2),
             None,
             LIMITS.landing_members,
+            None,
             None,
             None,
         );
@@ -1175,6 +1196,7 @@ impl World {
     }
 
     pub fn event(&mut self, event: top::Event) {
+        self.observe_blame_event(&event);
         top::step(&mut self.top, &self.env, event, &mut self.top_out);
         self.take_top();
         self.top.reclaim();
@@ -1499,6 +1521,7 @@ impl World {
         let commit = forge::commit_tree(&mut self.forge, &self.forge_env.limits, parent, None, files, b"landing")
             .expect("fixture tree fits");
         self.external(raw::Op::Git(raw::Git::Push { branch: Box::from(branch), commit, expected: Some(parent) }), 1);
+        self.record_wrong_candidate(commit);
     }
 
     pub fn push_file(&mut self, branch: &[u8], path: &[u8], content: &[u8]) {
@@ -1507,6 +1530,7 @@ impl World {
     pub fn push_as(&mut self, branch: &[u8], path: &[u8], content: &[u8], actor: u64) {
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.forge_env.limits.clone() };
         forge::advance(&mut self.forge, &env, b"org/repo", branch, path, content, actor).expect("scripted push");
+        self.record_wrong_candidate(self.branch(branch));
     }
     pub fn status(&mut self, branch: &[u8], check: raw::Check) {
         self.external(
@@ -1664,6 +1688,7 @@ impl World {
                 self.seed,
                 row.landing
             );
+            self.record_wrong_candidate(candidate);
             base = candidate;
         }
         base
@@ -1802,6 +1827,7 @@ impl World {
         let mut calls = List::with_capacity(self.top_out.len());
         let mut restart = None;
         while let Some(request) = self.top_out.pop() {
+            self.observe_blame_request(&request);
             match request {
                 top::Request::ChoosePlace { request, kind, .. } => {
                     let port = match kind {
@@ -1989,6 +2015,7 @@ impl World {
         assert_eq!(repository.forge, REPO.forge);
         assert!(repository.repository == REPO.repository || repository.repository == 0 || repository.repository == 3);
         self.calls += 1;
+        self.observe_blame_call(repository, &op);
         self.call_ops.push(op.clone());
         if let Some((from, until)) = self.unavailable
             && self.env.wall >= from

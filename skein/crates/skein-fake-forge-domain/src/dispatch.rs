@@ -391,6 +391,16 @@ pub(crate) fn cancel(
 ) -> Result<Answer, Error> {
     let repository = domain.repositories.get_mut(id).expect("cancel repository");
     repository.require(user, Permission::Write)?;
+    let mut commit = None;
+    for (&candidate, kept) in &repository.runs {
+        if kept.run.id == run {
+            commit = Some(candidate);
+            break;
+        }
+    }
+    if let Some(commit) = commit {
+        return ci::cancel(domain, env, id, user, commit);
+    }
     let kept = repository.dispatched.get_mut(&run).ok_or(Error::Missing(What::Job))?;
     if kept.run.state == RunState::Completed {
         return Err(Error::Refused);

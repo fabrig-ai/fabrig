@@ -1,6 +1,8 @@
 #[global_allocator]
 static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
 
+mod blame;
+mod blame_open;
 mod brief;
 mod catching_up_outbox;
 mod change_history;
@@ -50,6 +52,7 @@ mod fuzzy {
     mod bounds;
     mod branch_patterns;
     mod busy;
+    mod ci;
     mod gate_keys;
     mod history;
     mod lagging;
