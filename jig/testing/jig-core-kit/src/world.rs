@@ -354,6 +354,7 @@ impl World {
     }
 
     /// Advance simulated time, firing fleet and task deadlines through the root.
+    /// Drain at the resulting clock pair, without implicit iteration ticks.
     pub fn advance(&mut self, by: Duration) {
         self.wall = self.wall.checked_add(by.as_nanos()).expect("world time fits");
         self.supplied_wall = self
@@ -364,7 +365,7 @@ impl World {
         self.events.push_back(root::Event::Timer(core::Timer::People));
         self.events.push_back(root::Event::ConnectorTimer { number: 1 });
         self.events.push_back(root::Event::ConnectorTimer { number: 2 });
-        self.drain();
+        self.try_drain_at_clock().unwrap_or_else(|finding| self.fail(&finding));
     }
 
     /// Set the fake tool decoder's bounds independently of the core's admission bounds.
@@ -408,8 +409,22 @@ impl World {
 
     /// Drain immediate work, returning the first referee or quiet-point finding.
     pub fn try_drain(&mut self) -> Result<(), String> {
+        self.try_drain_restarting(false)
+    }
+
+    fn try_drain_restarting(&mut self, restarting: bool) -> Result<(), String> {
         self.domain.script_project_releases();
-        self.drive(300, true, true)
+        self.drive(300, true, true, restarting)
+    }
+
+    /// Explicit advancement keeps one clock pair through its drain.
+    /// Ordinary drains resume implicit iteration ticks when no clock was supplied.
+    fn try_drain_at_clock(&mut self) -> Result<(), String> {
+        let supplied = self.supplied_wall;
+        self.supplied_wall = Some(self.env().wall);
+        let result = self.try_drain();
+        self.supplied_wall = supplied;
+        result
     }
 
     /// Number of quiet-point inspections, across drains and restarts.
@@ -430,7 +445,7 @@ impl World {
     }
 
     #[expect(clippy::too_many_lines, reason = "one loop routes root, store and peer work in order")]
-    fn drive(&mut self, steps: usize, tick: bool, consume: bool) -> Result<(), String> {
+    fn drive(&mut self, steps: usize, tick: bool, consume: bool, restarting: bool) -> Result<(), String> {
         if let Some(Cut::Disk { from: from @ jig_test_store_files::KillFrom::Commit(_), operation }) = self.cut {
             self.store.fault(jig_test_store_files::Fault::Kill { from, operation });
         }
@@ -443,7 +458,15 @@ impl World {
             if self.stopped {
                 return Ok(());
             }
-            if self.supplied_wall.is_none() {
+            // Loading and switching may take simulated time; adoption and its
+            // following drains share the clock that arms the restored claims.
+            let adoption_clock = restarting
+                && (self.domain.ready()
+                    || matches!(
+                        self.domain.start_phase(),
+                        Some(core::start::Phase::AdoptRuns | core::start::Phase::Open)
+                    ));
+            if self.supplied_wall.is_none() && !adoption_clock {
                 self.wall += 1_000_000;
             }
             self.observer.observe(self.wall, crate::referee::Observed::Tick)?;
