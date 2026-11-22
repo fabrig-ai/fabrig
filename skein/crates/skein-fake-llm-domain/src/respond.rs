@@ -120,7 +120,10 @@ fn before_reset(
 }
 
 #[cfg(test)]
-#[expect(clippy::result_large_err, reason = "the response retains owned failure evidence and its stream position")]
+#[cfg_attr(
+    target_pointer_width = "64",
+    expect(clippy::result_large_err, reason = "the response retains owned failure evidence and its stream position")
+)]
 pub(crate) fn respond(
     rng: &mut Rng,
     minted: &mut u64,
@@ -133,7 +136,10 @@ pub(crate) fn respond(
     by_input(rng, minted, config, played, &Rules { cued: Box::new([]), asked: Box::new([]) }, menu, query, now)
 }
 
-#[expect(clippy::result_large_err, reason = "the response retains owned failure evidence and its stream position")]
+#[cfg_attr(
+    target_pointer_width = "64",
+    expect(clippy::result_large_err, reason = "the response retains owned failure evidence and its stream position")
+)]
 #[expect(clippy::too_many_arguments, reason = "response inputs include independent script rules and injected time")]
 pub(crate) fn by_input(
     rng: &mut Rng,
@@ -165,7 +171,10 @@ pub(crate) fn by_input(
     }
 }
 
-#[expect(clippy::result_large_err, reason = "the response retains owned failure evidence and its stream position")]
+#[cfg_attr(
+    target_pointer_width = "64",
+    expect(clippy::result_large_err, reason = "the response retains owned failure evidence and its stream position")
+)]
 #[expect(clippy::too_many_arguments, reason = "response inputs include independent script rules and injected time")]
 fn unstruck(
     rng: &mut Rng,
