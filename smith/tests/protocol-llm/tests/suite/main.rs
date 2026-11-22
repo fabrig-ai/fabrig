@@ -20,6 +20,7 @@ mod jobs;
 mod nesting;
 mod pool_waiting;
 mod prefix;
+mod provider_faults;
 mod referee;
 mod render;
 mod replay;

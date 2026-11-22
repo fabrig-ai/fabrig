@@ -5155,6 +5155,7 @@ dependencies = [
  "smith-inline-agent",
  "smith-inline-agent-fixtures",
  "smith-machine-world",
+ "smith-protocol-llm-world",
  "smith-protocol-machine",
  "smith-protocol-machine-fixtures",
 ]

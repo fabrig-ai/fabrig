@@ -582,6 +582,11 @@ impl<B: Backend> World<B> {
         &self.backend
     }
 
+    /// Configure the selected fake backend at a boundary between iterations.
+    pub fn backend_mut(&mut self) -> &mut B {
+        &mut self.backend
+    }
+
     /// Inject the host wall clock independently of monotonic time.
     pub fn wall_at(&mut self, wall: skein_lib::Wall) {
         self.stage.env.wall = wall;
