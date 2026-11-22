@@ -43,7 +43,10 @@
     number in words, "Three changes are on the way to BRANCH."; from ten
     in digits, "12 changes are on the way to BRANCH.";
   - the lede: "Each change is checked on top of BRANCH before it lands.";
-    the landing's line is Work's head's. **The landing's line,** one function's,
+    then, while the document's `catching_up` is there, a line of its own
+    in the muted colour, its words `../../domain/forge/catching-up.md`, 5's,
+    "Catching up: 6 goal-branch reads, 2 uncertain writes"; the
+    landing's line is Work's head's. **The landing's line,** one function's,
     its parts joined by " · ": with something queued, "3 queued" and, once
     anything has landed, "last landed 6 min ago"; with nothing queued and
     something landed, "main last moved 1 h ago" and "nothing queued"; with

@@ -23,11 +23,16 @@ pub const PATIENCE: skein_lib::Duration = skein_world::real::host_bound(skein_li
 mod agent;
 pub mod calls;
 mod cancel_kills;
+mod deadline;
 pub mod ending;
 mod patience;
 pub use patience::{Frozen, Judge as FrozenJudge};
 pub mod service;
 pub mod world;
+#[doc(hidden)]
+pub mod testing {
+    pub use crate::world::teardown::{Receipt, startup};
+}
 pub use skein_io::kernel::Exit;
 pub use skein_lib::Time;
 pub use skein_scratch::Scratch;

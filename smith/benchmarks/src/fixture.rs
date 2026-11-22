@@ -7,4 +7,4 @@ pub mod events;
 
 pub mod json;
 
-pub mod request;
+pub(crate) use crate::testing::request_fixture as request;

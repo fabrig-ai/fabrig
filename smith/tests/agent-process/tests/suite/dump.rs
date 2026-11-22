@@ -1,66 +1,12 @@
 //! Private request files beside an otherwise simulated agent process.
-use std::fs;
-use std::os::unix::fs::PermissionsExt;
-use std::path::{Path, PathBuf};
-
-use skein_fake_llm_domain::api;
 use skein_scratch::Scratch;
-use smith_agent_process_world::{PRIVATE_GRANT, World, charter, program_world, wire};
+use smith_agent_process_world::{
+    World, program_world,
+    testing::dump::{BOUND, SEED, accepted, dump_errors, files, finish, policy, world},
+    wire,
+};
 use smith_channel::RunResult;
-
-const SEED: u64 = 71;
-const BOUND: u64 = 1_048_576;
-// One text response followed by finish; the budget admits both calls.
-const TURNS: u32 = 2;
-const SPEND: u64 = 20;
-
-fn policy() -> Box<[u8]> {
-    wire::edit_charter(&charter(), |parts| wire::budget(parts, TURNS, SPEND))
-}
-
-fn finish() -> api::Turn {
-    smith_agent_world::fixture::calls(
-        Box::new([api::Line::Call {
-            name: b"finish".as_slice().into(),
-            arguments: br#"{"form":"report","text":"done","fields":{}}"#.as_slice().into(),
-        }]),
-        1,
-    )
-}
-
-fn world(directory: PathBuf, bound: u64, anthropic: bool, two: bool) -> World {
-    let mut world = World::new(SEED, &policy());
-    world.private_grant();
-    if anthropic {
-        world.anthropic();
-    }
-    let turns = if two {
-        vec![
-            smith_agent_world::fixture::says(Box::new([api::Line::Text { text: b"continuing".as_slice().into() }]), 1),
-            finish(),
-        ]
-    } else {
-        vec![finish()]
-    };
-    world.script(turns.into());
-    world.dump_to(directory, bound);
-    world
-}
-
-fn files(directory: &Path) -> Vec<(PathBuf, Vec<u8>)> {
-    let mut paths: Vec<_> = fs::read_dir(directory)
-        .expect("list dump directory")
-        .map(|entry| entry.expect("dump directory entry").path())
-        .collect();
-    paths.sort();
-    paths
-        .into_iter()
-        .map(|path| {
-            let bytes = fs::read(&path).expect("read dump file");
-            (path, bytes)
-        })
-        .collect()
-}
+use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf};
 
 fn named<'a>(files: &'a [(PathBuf, Vec<u8>)], suffix: &str) -> &'a [u8] {
     &files
@@ -68,59 +14,6 @@ fn named<'a>(files: &'a [(PathBuf, Vec<u8>)], suffix: &str) -> &'a [u8] {
         .find(|(path, _)| path.file_name().expect("dump filename").to_str().expect("UTF-8 dump path").ends_with(suffix))
         .expect("dump file")
         .1
-}
-
-fn accepted(world: &World) {
-    assert!(
-        matches!(&world.answer().expect("answer").result, RunResult::Accepted(_)),
-        "{:?}: {}",
-        world.answer(),
-        String::from_utf8_lossy(&world.errors())
-    );
-    world.assert_agent_clean();
-}
-
-fn dump_errors(world: &World) -> Vec<String> {
-    String::from_utf8(world.errors())
-        .expect("valid dump fixture")
-        .lines()
-        .filter(|line| line.starts_with("smith: request dump: "))
-        .map(str::to_owned)
-        .collect()
-}
-
-#[test]
-fn a_request_s_file_holds_the_bytes_the_provider_read() {
-    for (anthropic, suffix) in [(false, "-openai.json"), (true, "-anthropic.json")] {
-        let scratch = Scratch::new("request-dump-body");
-        let directory = scratch.path().join("private/dumps");
-        let mut world = world(directory.clone(), BOUND, anthropic, true);
-        assert!(world.settle());
-        accepted(&world);
-        let files = files(&directory);
-        let requests: Vec<_> =
-            files.iter().filter(|(path, _)| path.to_str().expect("UTF-8 dump path").ends_with(suffix)).collect();
-        assert_eq!(requests.len(), usize::try_from(TURNS).expect("valid dump fixture"));
-        assert_eq!(world.bodies().len(), requests.len());
-        for ((path, bytes), body) in requests.into_iter().zip(world.bodies()) {
-            assert_eq!(bytes.as_slice(), body.as_ref(), "{}", path.display());
-        }
-        for (path, bytes) in files {
-            assert!(skein_lib::bytes::find(&bytes, PRIVATE_GRANT).is_none());
-            assert_eq!(fs::metadata(&path).expect("dump file metadata").permissions().mode() & 0o777, 0o600);
-            assert!(!path.file_name().expect("dump filename").to_str().expect("UTF-8 dump path").starts_with(".dump-"));
-        }
-        assert_eq!(fs::metadata(&directory).expect("dump directory metadata").permissions().mode() & 0o777, 0o700);
-        assert_eq!(
-            fs::metadata(directory.parent().expect("nested dump directory"))
-                .expect("valid dump fixture")
-                .permissions()
-                .mode()
-                & 0o777,
-            0o700
-        );
-        assert_eq!(dump_errors(&world).len(), 0);
-    }
 }
 
 #[test]

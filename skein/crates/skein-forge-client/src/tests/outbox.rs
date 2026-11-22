@@ -627,7 +627,7 @@ fn revised_or_unknown_comments_do_not_settle_an_uncertain_creation() {
             body: Box::new([]),
         };
         h.answer(find, Ok(Answer::Item { item: summary(), comments: Box::new([row]), more: false }));
-        assert_eq!(h.outcomes.as_slice(), &[(1, Outcome::Uncertain)]);
+        assert_eq!(h.outcomes.as_slice(), &[(1, Outcome::Uncertain), (1, Outcome::Uncertain)]);
         assert_eq!(h.writes, 1);
         assert_eq!(h.domain.next_deadline(), Some(at(111)));
         assert!(h.send().is_none());
@@ -646,7 +646,11 @@ fn revised_or_unknown_comments_do_not_settle_an_uncertain_creation() {
         assert_eq!(h.writes, 1);
         assert_eq!(
             h.outcomes.as_slice(),
-            &[(1, Outcome::Uncertain), (1, Outcome::Made { made: Made::Commented(43), found: true }),]
+            &[
+                (1, Outcome::Uncertain),
+                (1, Outcome::Uncertain),
+                (1, Outcome::Made { made: Made::Commented(43), found: true }),
+            ]
         );
     }
 }
@@ -664,7 +668,7 @@ fn review_recovery_rejects_revised_or_unknown_rows_before_classifying_the_head()
                     cut: false,
                 }),
             );
-            assert_eq!(h.outcomes.as_slice(), &[(1, Outcome::Uncertain)]);
+            assert_eq!(h.outcomes.as_slice(), &[(1, Outcome::Uncertain), (1, Outcome::Uncertain)]);
             assert_eq!(h.writes, 1);
             assert_eq!(h.store.get(&1).expect("unknown entry remains").start.expect("durable boundary").review, 5);
             assert_eq!(h.domain.next_deadline(), Some(at(111)));

@@ -439,6 +439,34 @@
   - *Replaced* when an owner reissues it: a new credential is drawn, its
     digest replaces the old, durable before the answer, which carries it
     once; the sign-ins made with the old end.
+    - *Asked:* `ReissueService { party }`, keyed, as any of jig's
+      requests; the component hands it to people as
+      `Ask::ReissueService { party }`, which ends the service's sign-ins
+      in the decision that admits it and answers `ServiceReissued {
+      party }` (`../../domain/people/acts.md`, 1).
+    - *Drawn at each answer:* at `ServiceReissued`, the component draws
+      a credential of the shape above, keeps its digest under the
+      service's number with the store's `Keep`, which replaces the one
+      kept, and once it is kept answers `Made::reissued`, the party and
+      the credential, as a made service's. People keeps no answer for a
+      reissue, so a request sent again under its key reissues again and
+      is answered a credential of its own. A keep for the same service
+      in flight, a make's or another reissue's, is waited for before the
+      draw, so the digest kept last is the credential answered last.
+    - *No sign-in outlives it:* from the moment the component sends a
+      reissue of a service to the core until that reissue's digest is
+      kept, or the reissue is answered otherwise, a sign-in as that
+      service is answered busy once its credential is checked, and never
+      sent to the core; its client signs in again after its backoff,
+      against the new digest. A service's sign-in sent to the core before
+      the reissue is the core's before it, since the component's events
+      reach the core in the order sent, and the reissue ends it.
+    - *Its records,* in `jig-client-protocol-wire`'s schema, from jig's
+      client wire 43, unbridged (`README.md`, section 6), each appended
+      last: `record ReissueService { party: u64 }`, `Ask`'s
+      `reissue_service: ReissueService`, and `Made`'s `reissued:
+      MadeService`, the record a made service is answered with, since
+      both are a service's party and its credential, answered once.
   - *Ended* when an owner removes the service: its digest is erased and
     its sign-ins end.
 - **Where a sign-in's credential is held:** by the client, as a secret,

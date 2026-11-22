@@ -19,6 +19,7 @@ fn me() -> c::Delivery {
         key_bytes: 256,
         redirect_bytes: 256,
         words_bytes: 8192,
+        sign_in_expires: Wall::from_nanos(86_400_000_000_000),
         party: c::MeParty { number: 1, kind: c::PartyKind::Person, login: text(b"owner"), name: text(b"Owner") },
         projects: List::with_capacity(0),
         needs: c::Needs { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 },

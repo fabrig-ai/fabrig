@@ -1597,6 +1597,11 @@ pub struct Blank {
 }
 
 // Record: Blank.
+impl Blank {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 2;
+}
+
 impl Record for Blank {
     type Limits = Limits;
     const TAIL: Path = paths::BLANK_TAIL;
@@ -1634,6 +1639,11 @@ pub struct Numbers {
 }
 
 // Record: Numbers.
+impl Numbers {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 27;
+}
+
 impl Record for Numbers {
     type Limits = Limits;
     const TAIL: Path = paths::NUMBERS_TAIL;
@@ -1679,6 +1689,11 @@ pub struct Texts {
 }
 
 // Record: Texts.
+impl Texts {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 12;
+}
+
 impl Record for Texts {
     type Limits = Limits;
     const TAIL: Path = paths::TEXTS_TAIL;
@@ -1717,6 +1732,11 @@ pub enum Light {
 }
 
 // Record: Light.
+impl Light {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for Light {
     type Limits = Limits;
     const TAIL: Path = paths::LIGHT_TAG;
@@ -1759,6 +1779,11 @@ pub struct Stamp {
 }
 
 // Record: Stamp.
+impl Stamp {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 19;
+}
+
 impl Record for Stamp {
     type Limits = Limits;
     const TAIL: Path = paths::STAMP_TAIL;
@@ -1799,6 +1824,11 @@ pub enum Shape {
 }
 
 // Record: Shape.
+impl Shape {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 28;
+}
+
 impl Record for Shape {
     type Limits = Limits;
     const TAIL: Path = paths::SHAPE_TAG;
@@ -1848,6 +1878,11 @@ pub struct Nest {
 }
 
 // Record: Nest.
+impl Nest {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 66;
+}
+
 impl Record for Nest {
     type Limits = Limits;
     const TAIL: Path = paths::NEST_TAIL;
@@ -1906,6 +1941,11 @@ pub struct Every {
 }
 
 // Record: Every.
+impl Every {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 170;
+}
+
 impl Record for Every {
     type Limits = Limits;
     const TAIL: Path = paths::EVERY_TAIL;
@@ -1966,6 +2006,11 @@ pub struct Kinds {
 }
 
 // Record: Kinds.
+impl Kinds {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for Kinds {
     type Limits = Limits;
     const TAIL: Path = paths::KINDS_TAIL;
@@ -2019,6 +2064,11 @@ pub struct Lists {
 }
 
 // Record: Lists.
+impl Lists {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 56;
+}
+
 impl Record for Lists {
     type Limits = Limits;
     const TAIL: Path = paths::LISTS_TAIL;
@@ -2098,6 +2148,11 @@ pub struct Options {
 }
 
 // Record: Options.
+impl Options {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 87;
+}
+
 impl Record for Options {
     type Limits = Limits;
     const TAIL: Path = paths::OPTIONS_TAIL;
@@ -2168,6 +2223,11 @@ pub struct Grouped {
 }
 
 // Record: Grouped.
+impl Grouped {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for Grouped {
     type Limits = Limits;
     const TAIL: Path = paths::GROUPED_TAIL;
@@ -2219,6 +2279,11 @@ pub struct Held {
 }
 
 // Record: Held.
+impl Held {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 24;
+}
+
 impl Record for Held {
     type Limits = Limits;
     const TAIL: Path = paths::HELD_TAIL;
@@ -2368,6 +2433,11 @@ pub struct LongRecord {
 }
 
 // Record: LongRecord.
+impl LongRecord {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 400;
+}
+
 impl Record for LongRecord {
     type Limits = Limits;
     const TAIL: Path = paths::LONG_RECORD_TAIL;

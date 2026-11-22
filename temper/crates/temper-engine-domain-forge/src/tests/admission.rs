@@ -9,8 +9,8 @@ const RESOURCES: u32 = 1;
 
 fn small() -> (Domain, Env<Limits>) {
     let (mut d, env) = small_restored(None);
-    send(&mut d, &env, Event::ReadAfresh);
-    send(&mut d, &env, Event::SettleOutbox);
+    send(&mut d, &env, Event::CatchUp);
+
     (d, env)
 }
 
@@ -143,8 +143,8 @@ fn gathering() -> Domain {
     row.pull = Some(1);
     outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     fixtures::step_change(&mut d);
     d
 }
@@ -360,8 +360,8 @@ fn change_steps_wait_without_reads_until_their_forge_connects() {
         outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
         outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(fixtures::opening_row())) });
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        outputs(&mut d, Event::ReadAfresh);
-        outputs(&mut d, Event::SettleOutbox);
+        outputs(&mut d, Event::CatchUp);
+
         let mut env = env();
         let connecting = state == Some(Connection::Connecting);
         if let Some(state) = state {
@@ -420,7 +420,7 @@ fn pending_watch_names_resume_after_restart_without_client_rows() {
         }
     }
     let (mut restarted, env) = small_restored(Some(saved.expect("desired names are durable while waiting")));
-    let mut out = send(&mut restarted, &env, Event::ReadAfresh);
+    let mut out = send(&mut restarted, &env, Event::CatchUp);
     resume(&mut restarted, &env, &mut out);
     let mut watching = false;
     for request in &out {

@@ -55,6 +55,46 @@ fn the_client_domain_never_holds_a_service_credential() {
     }
 }
 #[test]
+fn reissue_sends_the_party_and_hands_the_credential_to_the_host_before_the_answer() {
+    for credential in [&fixtures::SERVICE_CREDENTIAL[..], &[]] {
+        let mut h = fixtures::Harness::new(&fixtures::limits());
+        let party = 7;
+        let exchange = h.send(fixtures::ATTEMPT, fixtures::KEY, c::Ask::ReissueService { party });
+        let Some(Request::Exchange { message: Message::Request(body), .. }) = h.out.pop() else {
+            panic!("expected reissue exchange")
+        };
+        let limits = fixtures::limits();
+        let keyed = w::Keyed::decode(limits.wire(), &mut Reader::new(&body)).expect("keyed ask");
+        assert_eq!(keyed.key, fixtures::KEY);
+        assert_eq!(keyed.version, w::VERSION);
+        assert_eq!(keyed.owner, w::Owner::Jig);
+        assert!(keyed.value.is_none());
+        assert_eq!(
+            w::Ask::decode(limits.wire(), &mut Reader::new(&keyed.request)),
+            Ok(w::Ask::ReissueService(w::ReissueService { party }))
+        );
+
+        let body = fixtures::answer_reissued_service(credential);
+        h.answer(exchange, &body);
+        if !credential.is_empty() {
+            assert_eq!(
+                h.out.pop(),
+                Some(Request::ServiceCredential { party, credential: skein_lib::Secret::new(Box::from(credential)) })
+            );
+        }
+        assert_eq!(h.out.len(), 1, "only the answer remains");
+        assert_eq!(
+            h.answered(fixtures::ATTEMPT),
+            Some((
+                RequestEnvelope::Final,
+                Some(&Answered::Jig(c::Answer::Done(c::Outcome::Made { what: c::Made::Reissued { party } })))
+            ))
+        );
+        h.answer(exchange, &body);
+        assert_eq!(h.out.len(), 1, "a repeated reply hands up nothing");
+    }
+}
+#[test]
 fn busy_is_handed_up_as_again_with_no_answer() {
     let (mut h, exchange) = fixtures::Harness::sending();
     h.answer(exchange, &fixtures::answer_busy());

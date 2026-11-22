@@ -187,6 +187,7 @@ pub fn me(names: &[&[u8]]) -> c::Me {
         key_bytes: 256,
         redirect_bytes: 256,
         words_bytes: 8192,
+        sign_in_expires: Wall::from_nanos(86_400_000_000_000),
         party: MeParty {
             number: 73,
             kind: PartyKind::Person,
@@ -510,6 +511,7 @@ pub(super) fn goal_forges(repository: bool) -> List<temper_client_protocol_wire:
             .unwrap();
     }
     List::from_boxed(Box::new([w::ForgeRow {
+        catching_up: None,
         number: 2,
         host: b"git.example".as_slice().into(),
         kind: w::Kind::Forgejo,

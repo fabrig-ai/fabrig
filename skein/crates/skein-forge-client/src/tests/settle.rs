@@ -15,7 +15,7 @@ fn settle_with_nothing_sent_is_settled_at_once() {
     assert_eq!(h.settled.as_deref(), Some([].as_slice()));
     h.step(Event::Settle);
     assert!(h.send().is_none());
-    // Stopping before restoration is also empty and does not require PauseOutbox.
+    // Stopping before restoration is also empty and has no outbox work.
     let mut d = configured(&LIMITS);
     let env = Env { now: at(100), wall: Wall::from_nanos(0), limits: LIMITS };
     let mut out = Queue::uncapped();

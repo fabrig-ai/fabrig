@@ -85,8 +85,8 @@ fn kept() -> Domain {
     let mut d = domain();
     restore_forge(&mut d, removal::record(FORGE, Mode::Owned));
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     d
 }
 fn restore_forge(d: &mut Domain, record: ForgeRecord) {

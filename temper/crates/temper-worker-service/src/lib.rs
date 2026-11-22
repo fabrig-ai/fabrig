@@ -25,3 +25,6 @@ pub use worker::{Worker, WorkerRuntime, translate};
 pub use worker_job_ending::JobEnding as WorkerJobEnding;
 #[cfg(test)]
 mod tests;
+
+#[doc(hidden)]
+pub mod testing;

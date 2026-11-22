@@ -40,13 +40,16 @@ pub struct Component {
     pub(crate) settings: Settings,
     slots: Slab<Operation>,
     index: Map<Token, Id<Operation>>,
-    /// Arrival-ordered store waiters; each is one admitted operation (git.md, 4.13).
+    /// Arrival-ordered store waiters; each is one admitted operation (git.md, 4.14).
     store_waiters: Map<Token, Id<Operation>>,
     serial: u64,
     start: Start,
     shutting_down: bool,
     directories: Directories,
     background: Option<Task>,
+    sweep_refused_removal: bool,
+    sweep_ended_serial: Option<u64>,
+    sweep_failures: u64,
     sweep_at: Option<Time>,
     sweep_again: bool,
     sweep_reports: List<Reported>,
@@ -79,11 +82,44 @@ impl Component {
             shutting_down: false,
             directories,
             background: None,
+            sweep_refused_removal: false,
+            sweep_ended_serial: None,
+            sweep_failures: 0,
             sweep_at: None,
             sweep_again: false,
             sweep_reports: List::with_capacity(SWEEP_REPORTS),
             checked: None,
         })
+    }
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    /// A running or scheduled pass, the counted failures, whether the last pass met a refused removal,
+    /// and the serial number that was next when that pass ended, if one has ended.
+    #[must_use]
+    pub fn sweep_state(&self) -> (bool, u64, bool, Option<u64>) {
+        let pending = match &self.background {
+            Some(task) => match &task.phase {
+                crate::files::Phase::Sweep(_) => true,
+                crate::files::Phase::Reds(_)
+                | crate::files::Phase::Results(_)
+                | crate::files::Phase::Layout(_)
+                | crate::files::Phase::Make(_)
+                | crate::files::Phase::Look(_)
+                | crate::files::Phase::Store(_)
+                | crate::files::Phase::Alternates(_)
+                | crate::files::Phase::View(_)
+                | crate::files::Phase::Scan(_)
+                | crate::files::Phase::Index(_)
+                | crate::files::Phase::Closing => false,
+            },
+            None => false,
+        };
+        let due = !self.shutting_down && (self.start == Start::Checking || self.start == Start::Layout);
+        (
+            pending || due || self.sweep_again || self.sweep_at.is_some(),
+            self.sweep_failures,
+            self.sweep_refused_removal,
+            self.sweep_ended_serial,
+        )
     }
     /// Take the next operation's bounds, keeping slots and work already in flight
     /// (temper/docs/design/protocol/configuration/figures.md, 3.2).
@@ -158,7 +194,7 @@ impl Component {
         }
         self.wake_stores(now, out);
     }
-    /// Lock holders and waiters are operations, bounded by `Limits::operations` (git.md, 4.13).
+    /// Lock holders and waiters are operations, bounded by `Limits::operations` (git.md, 4.14).
     fn store_step(&mut self, id: Id<Operation>, command: &Command) -> bool {
         let operation = self.slots.get(id).expect("live operation");
         let access = match &operation.op {
@@ -634,6 +670,10 @@ impl Component {
     }
     fn background_action(&mut self, now: Time, mut task: Task, action: Action, out: &mut Outputs) {
         if let Some(entry) = task.take_set_aside() {
+            // A nonempty parent of a stuck child is the same failure, not a second one.
+            if entry.report {
+                self.sweep_failures = self.sweep_failures.saturating_add(1);
+            }
             self.sweep_report(entry, out);
         }
         match action {
@@ -653,7 +693,11 @@ impl Component {
                 }
                 self.maintain(result.is_ok(), out);
             }
-            Action::Swept { changed, set_aside } => self.sweep_end(now, changed, set_aside, out),
+            Action::Swept { changed, set_aside, refused_removal } => {
+                self.sweep_refused_removal = refused_removal;
+                self.sweep_ended_serial = Some(self.directories.serial);
+                self.sweep_end(now, changed, set_aside, out);
+            }
             Action::Closed => {}
             Action::Operation(_) => unreachable!("background file task"),
         }

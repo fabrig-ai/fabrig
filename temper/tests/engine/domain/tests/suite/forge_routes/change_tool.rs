@@ -22,7 +22,7 @@ fn chat_world_in(mut world: World, adopt: bool, words: &[u8]) -> (World, engine:
     (world, chat)
 }
 
-pub(super) fn change(
+pub(crate) fn change(
     world: &mut World,
     chat: &engine::Assignment,
     name: u64,
@@ -32,7 +32,7 @@ pub(super) fn change(
     change_landing(world, chat, name, repository, words, None)
 }
 
-pub(super) fn change_landing(
+pub(crate) fn change_landing(
     world: &mut World,
     chat: &engine::Assignment,
     name: u64,
@@ -1315,7 +1315,7 @@ pub(super) fn land_change(world: &mut World, producer: &engine::Assignment, bran
     land_titled_change(world, producer, branch, b"Small fix");
 }
 
-pub(super) fn deliver_change(world: &mut World, producer: &engine::Assignment, branch: &[u8], title: &[u8]) {
+pub(crate) fn deliver_change(world: &mut World, producer: &engine::Assignment, branch: &[u8], title: &[u8]) {
     push_change(world, branch);
     let tasks::Contract::Change { connector, .. } = live(world, producer.task).contract else {
         panic!("change contract")

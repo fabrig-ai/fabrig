@@ -50,12 +50,12 @@ fn identity(bytes: &[u8]) {
 fn worker_wire_decoders_never_panic_and_reencode_the_same() {
     let decoders: [fn(&[u8]); 6] = [items, repository, left, saved, preparation, identity];
     let mut rng = Rng::new(0x7e3d_0301);
-    let goldens = values::worker();
-    for golden in [
-        values::named(values::worker(), "enum_kind_forgejo_full.bin"),
-        values::named(values::worker(), "enum_kind_github_full.bin"),
+    let fixed_values = values::worker();
+    for fixed_value in [
+        values::fixed_value(values::worker(), "enum_kind_forgejo_full.bin"),
+        values::fixed_value(values::worker(), "enum_kind_github_full.bin"),
     ] {
-        let kind = v1::Kind::decode(&v1::CEILINGS, &mut Reader::new(golden)).expect("kind golden");
+        let kind = v1::Kind::decode(&v1::CEILINGS, &mut Reader::new(fixed_value)).expect("kind fixed-rule value");
         let value = v1::Identity {
             kind,
             login: b"bot".as_slice().into(),
@@ -74,13 +74,13 @@ fn worker_wire_decoders_never_panic_and_reencode_the_same() {
             decode(&bytes);
         }
     }
-    for golden in goldens {
-        let golden = &golden.bytes;
+    for fixed_value in fixed_values {
+        let fixed_value = &fixed_value.bytes;
         for decode in decoders {
-            decode(golden);
+            decode(fixed_value);
         }
         for _ in 0..8 {
-            let bytes = temper_codecs_world::mutated(&mut rng, golden);
+            let bytes = temper_codecs_world::mutated(&mut rng, fixed_value);
             for decode in decoders {
                 decode(&bytes);
             }

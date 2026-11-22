@@ -301,6 +301,7 @@ pub fn forges_document(bytes: &[u8], limits: &w::Limits) -> Option<forge::forges
                 .ok()?;
         }
         rows.push(Row {
+            catching_up: row.catching_up,
             makings: makings.into_boxed(),
             read_only: row.read_only,
             number: row.number,

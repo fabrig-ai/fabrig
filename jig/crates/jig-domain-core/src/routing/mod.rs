@@ -410,10 +410,7 @@ pub fn want_accounts(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
 fn takes_connector_resource(phase: crate::start::Phase, connector: u16) -> bool {
     match phase {
         crate::start::Phase::RestoreConnector { connector: expected } => connector == expected,
-        crate::start::Phase::AdoptRuns
-        | crate::start::Phase::ReadAfresh { .. }
-        | crate::start::Phase::SettleOutbox { .. }
-        | crate::start::Phase::Open => true,
+        crate::start::Phase::AdoptRuns | crate::start::Phase::Open => true,
         crate::start::Phase::LoadCore
         | crate::start::Phase::LoadInbox
         | crate::start::Phase::Link

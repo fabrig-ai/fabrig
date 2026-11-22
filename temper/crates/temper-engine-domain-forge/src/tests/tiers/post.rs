@@ -211,7 +211,8 @@ fn finding_repair_posting_survives_restart_without_repeating_comments() {
     let mut cold = restoring(None);
     outputs(&mut cold, Event::Restore { record: Stored::Tier(saved.clone()) });
     outputs(&mut cold, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut cold, Event::ReadAfresh);
+    outputs(&mut cold, Event::CatchUp);
+    fresh_reads(&mut cold, BASE);
     assert_eq!(row(&cold).posting, saved.posting, "kept without rereading findings or the landing log");
     tier_step(&mut cold, COMMENT + 2, false);
     let api::Write::Post { number, key, body } =
@@ -406,7 +407,8 @@ fn many_comments_resume_with_the_same_words_and_keys() {
     let mut cold = restoring(None);
     outputs(&mut cold, Event::Restore { record: Stored::Tier(saved) });
     outputs(&mut cold, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut cold, Event::ReadAfresh);
+    outputs(&mut cold, Event::CatchUp);
+    fresh_reads(&mut cold, BASE);
     tier_step(&mut cold, COMMENT + 1, false);
     let actual = cold.describe_tier_effect(TIER_TASK, COMMENT + 1).unwrap().2.effect.write;
     assert_eq!(actual, expected);
