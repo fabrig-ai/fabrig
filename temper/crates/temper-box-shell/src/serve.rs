@@ -164,7 +164,7 @@ pub fn prepare_with_limits(
     };
     let accounts = engine::accounts(&engine)?;
     let seeds = engine::seeds(link_secret, local_secret)?;
-    let git = programs.git.clone().or_else(|| temper_shell::lookup::find(environment, b"git"));
+    let git = git_program(programs, || temper_shell::lookup::find(environment, b"git"));
     let landing = engine::landing_hold(path(&directories.data))?;
     let sources = agent
         .as_ref()
@@ -306,6 +306,13 @@ pub fn prepare_with_limits(
     }
     Ok((service, named.deployment, box_limits.line_bytes))
 }
+pub(super) fn git_program(
+    programs: &temper_config_shell::Programs,
+    find: impl FnOnce() -> Option<std::path::PathBuf>,
+) -> Option<std::path::PathBuf> {
+    programs.git.clone().or_else(find)
+}
+
 pub fn configured_agent(
     bytes: &[u8],
     directories: &Directories,

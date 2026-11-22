@@ -184,7 +184,7 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
             d::Stored::ForgeNumber { last }
         }
         w::Value::Playground(row) => d::Stored::Playground(forges::decode_playground(row)),
-        w::Value::Landing(row) => d::Stored::Landing(landing::decode(*row)?),
+        w::Value::Landing(row) => d::Stored::Landing(landing::decode(*row, bounds)?),
         w::Value::Receipt(row) => landing::decode_receipt(row)?,
         w::Value::Application(value) => application::decode(value, bounds)?,
         w::Value::Issue(value) => d::Stored::Issue(issues::decode(*value)?),
@@ -368,6 +368,7 @@ fn tier_limits(forge: &d::Limits) -> Option<w::Limits> {
         landing_member_branch: forge.name_bytes,
         landing_row_asks: forge.landing_members,
         landing_row_entries: forge.entries,
+        landing_follow_reruns: forge.client.rows,
         landing_row_flake_reruns: forge.entries,
         receipt_name_name: 32,
         receipt_run_url: 2048,

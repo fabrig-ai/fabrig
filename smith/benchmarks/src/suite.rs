@@ -169,6 +169,18 @@ pub fn validate_suite(
     agents: &Path,
     models: &ModelTiers,
 ) -> Result<Vec<String>, Refusal> {
+    validate_suite_with(file, suite, tasks, agents, models, read_configuration)
+}
+
+/// Check a suite using the configuration pins supplied by the reader.
+pub fn validate_suite_with(
+    file: &Path,
+    suite: &Suite,
+    tasks: &[CatalogueTask],
+    agents: &Path,
+    models: &ModelTiers,
+    read_pin: impl Fn(&Path) -> Result<crate::PinnedConfiguration, Refusal>,
+) -> Result<Vec<String>, Refusal> {
     if suite.name.is_empty()
         || suite.repetitions == 0
         || suite.attempts == Some(0)
@@ -221,7 +233,7 @@ pub fn validate_suite(
         if agent.tasks.iter().any(|name| !selected.contains(name)) {
             return Err(Refusal::new(file, "agents.tasks", "agent task must be selected by the suite"));
         }
-        validate_agent(file, agent, &suite.tier, agents, models)?;
+        validate_agent(file, agent, &suite.tier, agents, models, &read_pin)?;
     }
     let mut arm_names = BTreeSet::new();
     if suite.arms.iter().any(|arm| matches!(arm, Arm::Override { .. }))
@@ -247,6 +259,7 @@ pub fn validate_suite(
                     &suite.tier,
                     agents,
                     models,
+                    &read_pin,
                 )?;
                 name
             }
@@ -313,13 +326,14 @@ fn validate_agent(
     tier: &str,
     agents: &Path,
     models: &ModelTiers,
+    read_pin: &impl Fn(&Path) -> Result<crate::PinnedConfiguration, Refusal>,
 ) -> Result<(), Refusal> {
     crate::check::check_path(file, "agents.config", Path::new(&agent.config))?;
     if agent.config.contains('/') {
         return Err(Refusal::new(file, "agents.config", "configuration is a name within the agent directory"));
     }
     let pin_file = agents.join(agent.agent.directory()).join(format!("{}.pin.toml", agent.config));
-    let pin = read_configuration(&pin_file)?;
+    let pin = read_pin(&pin_file)?;
     if pin.pin.agent != agent.agent || pin.pin.provider != agent.provider || pin.pin.name != agent.config {
         return Err(Refusal::new(file, "agents", "suite agent/provider/name disagrees with its configuration pin"));
     }

@@ -1,7 +1,11 @@
-use super::{self as tui, Refused};
+mod disk;
+
+use super::{self as tui, Refused, deployment::Files};
 use crate::testing::origin;
+use disk::{Disk, USER};
+use skein_fake_machine::Item;
 use skein_ui_screen_terminal::Depth;
-use std::{fs, os::unix::fs::PermissionsExt};
+use std::{fs, os::unix::fs::PermissionsExt, path::Path};
 use temper_client_tui::{Note, Origin, Scheme};
 
 const LINK: &str = "http://127.0.0.1:8367/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
@@ -364,6 +368,10 @@ fn the_link_path_is_the_same_deployments_as_the_box() {
     }
 }
 
+fn prepare(scratch: &skein_scratch::Scratch) -> (std::path::PathBuf, bool) {
+    super::deployment::prepare(scratch.path(), &origin(), skein_shell::effective_user()).expect("origin directory")
+}
+
 #[test]
 fn the_note_is_private_and_only_for_its_address() {
     let scratch = skein_scratch::Scratch::new("tui-note");
@@ -494,135 +502,133 @@ fn the_lines_name_the_binary() {
     }
 }
 
-fn private_file(path: &std::path::Path, bytes: &[u8]) {
-    fs::write(path, bytes).expect("fixture bytes");
-    fs::set_permissions(path, fs::Permissions::from_mode(0o600)).expect("private fixture");
-}
+const FLAT: [(&str, &[u8]); 3] =
+    [("token", b"fake-token"), ("store", b"fake-store"), ("sign-in", b"127.0.0.1:8367 until 123")];
+const STAGING: &str = "tui/at/127.0.0.1/8367.new";
+const SAVED: &[u8] = b"http://127.0.0.1:8367";
 
-fn flat(scratch: &skein_scratch::Scratch) {
-    for (file, bytes) in
-        [("token", b"fake-token".as_slice()), ("store", b"fake-store"), ("sign-in", b"127.0.0.1:8367 until 123")]
-    {
-        private_file(&scratch.path().join(file), bytes);
+fn lay_flat(disk: &mut Disk, address: Option<&[u8]>, note: bool) {
+    for (file, bytes) in FLAT {
+        if file != "sign-in" || note {
+            disk.write(&Path::new("tui").join(file), bytes);
+        }
     }
-    private_file(&scratch.path().join("address"), b"http://127.0.0.1:8367");
-}
-
-fn prepare(scratch: &skein_scratch::Scratch) -> (std::path::PathBuf, bool) {
-    super::deployment::prepare(scratch.path(), &origin(), skein_shell::effective_user()).expect("origin directory")
-}
-
-fn no_flat(scratch: &skein_scratch::Scratch) {
-    for file in ["token", "store", "sign-in"] {
-        assert!(!scratch.path().join(file).exists(), "{file} removed from the flat directory");
+    if let Some(address) = address {
+        disk.write(Path::new("tui/address"), address);
     }
+}
+
+fn flat(address: Option<&[u8]>, note: bool) -> Disk {
+    let mut disk = Disk::new(&[]);
+    lay_flat(&mut disk, address, note);
+    disk
+}
+
+fn no_flat(disk: &mut Disk) {
+    for (file, _) in FLAT {
+        assert!(!disk.exists(&Path::new("tui").join(file)), "{file} removed from the flat directory");
+    }
+}
+
+fn staged(moved: &[&str]) -> Disk {
+    let mut disk = Disk::new(&[
+        Item::directory(b"tui/at").mode(0o700),
+        Item::directory(b"tui/at/127.0.0.1").mode(0o700),
+        Item::directory(STAGING.as_bytes()).mode(0o700),
+    ]);
+    lay_flat(&mut disk, Some(SAVED), true);
+    for file in moved {
+        disk.rename(&Path::new("tui").join(file), &Path::new(STAGING).join(file)).expect("staged");
+    }
+    disk
 }
 
 #[test]
 fn flat_files_move_only_with_both_matching_witnesses() {
-    let scratch = skein_scratch::Scratch::new("tui-move");
-    flat(&scratch);
-    let (destination, made) = prepare(&scratch);
+    let mut disk = flat(Some(SAVED), true);
+    let (destination, made) = disk.prepare(&origin());
     assert!(!made, "migration made the directory, not this origin's first start");
-    for (file, bytes) in
-        [("token", b"fake-token".as_slice()), ("store", b"fake-store"), ("sign-in", b"127.0.0.1:8367 until 123")]
-    {
-        assert_eq!(fs::read(destination.join(file)).expect("moved"), bytes);
+    for (file, bytes) in FLAT {
+        assert_eq!(disk.read(&destination.join(file)), bytes);
     }
-    no_flat(&scratch);
-    assert_eq!(fs::read(scratch.path().join("address")).expect("address kept"), b"http://127.0.0.1:8367");
+    no_flat(&mut disk);
+    assert_eq!(disk.read(Path::new("tui/address")), SAVED);
 }
 
 #[test]
 fn flat_files_with_a_different_address_are_removed() {
-    let scratch = skein_scratch::Scratch::new("tui-mismatch");
-    flat(&scratch);
-    private_file(&scratch.path().join("address"), b"http://127.0.0.1:9000");
-    let (destination, made) = prepare(&scratch);
+    let mut disk = flat(Some(b"http://127.0.0.1:9000"), true);
+    let (destination, made) = disk.prepare(&origin());
     assert!(made);
-    assert!(!destination.join("token").exists());
-    no_flat(&scratch);
+    assert!(!disk.exists(&destination.join("token")));
+    no_flat(&mut disk);
 }
 
 #[test]
 fn flat_files_without_an_address_are_removed() {
-    let scratch = skein_scratch::Scratch::new("tui-no-address");
-    flat(&scratch);
-    fs::remove_file(scratch.path().join("address")).expect("no address");
-    prepare(&scratch);
-    no_flat(&scratch);
+    let mut disk = flat(None, true);
+    disk.prepare(&origin());
+    no_flat(&mut disk);
 }
 
 #[test]
 fn flat_files_without_a_note_are_removed() {
-    let scratch = skein_scratch::Scratch::new("tui-no-note");
-    flat(&scratch);
-    fs::remove_file(scratch.path().join("sign-in")).expect("no note");
-    prepare(&scratch);
-    no_flat(&scratch);
+    let mut disk = flat(Some(SAVED), false);
+    disk.prepare(&origin());
+    no_flat(&mut disk);
 }
 
 #[test]
 fn an_interrupted_move_finishes_before_opening_the_origin() {
-    let scratch = skein_scratch::Scratch::new("tui-resume");
-    flat(&scratch);
-    let staging = scratch.path().join("at/127.0.0.1/8367.new");
-    temper_shell::directories::make_private(&staging, skein_shell::effective_user()).expect("staging");
-    for file in ["token", "store", "sign-in"] {
-        fs::rename(scratch.path().join(file), staging.join(file)).expect("staged");
-    }
-    let (destination, made) = prepare(&scratch);
+    let mut disk = staged(&["token", "store", "sign-in"]);
+    let (destination, made) = disk.prepare(&origin());
     assert!(!made);
-    assert!(!staging.exists());
-    assert_eq!(fs::read(destination.join("token")).expect("finished token"), b"fake-token");
-    assert_eq!(fs::read(destination.join("store")).expect("finished store"), b"fake-store");
-    assert_eq!(fs::read(destination.join("sign-in")).expect("finished note"), b"127.0.0.1:8367 until 123");
-    no_flat(&scratch);
+    assert!(!disk.exists(Path::new(STAGING)));
+    for (file, bytes) in FLAT {
+        assert_eq!(disk.read(&destination.join(file)), bytes);
+    }
+    no_flat(&mut disk);
 }
 
 #[test]
 fn a_partial_move_finishes_with_the_remaining_flat_files() {
-    let scratch = skein_scratch::Scratch::new("tui-partial");
-    flat(&scratch);
-    let staging = scratch.path().join("at/127.0.0.1/8367.new");
-    temper_shell::directories::make_private(&staging, skein_shell::effective_user()).expect("staging");
-    fs::rename(scratch.path().join("token"), staging.join("token")).expect("first rename");
-    let (destination, _) = prepare(&scratch);
-    for file in ["token", "store", "sign-in"] {
-        assert!(destination.join(file).is_file());
+    let mut disk = staged(&["token"]);
+    let (destination, _) = disk.prepare(&origin());
+    for (file, _) in FLAT {
+        assert!(disk.is_file(&destination.join(file)));
     }
-    assert!(!staging.exists());
-    no_flat(&scratch);
+    assert!(!disk.exists(Path::new(STAGING)));
+    no_flat(&mut disk);
 }
 
 #[test]
 fn an_existing_destination_keeps_its_files_and_discards_the_flat_files() {
-    let scratch = skein_scratch::Scratch::new("tui-existing");
-    let (destination, _) = prepare(&scratch);
-    private_file(&destination.join("token"), b"destination-token");
-    flat(&scratch);
-    prepare(&scratch);
-    assert_eq!(fs::read(destination.join("token")).expect("kept"), b"destination-token");
-    assert!(!destination.join("store").exists());
-    no_flat(&scratch);
+    let mut disk = Disk::new(&[]);
+    let (destination, _) = disk.prepare(&origin());
+    disk.write(&destination.join("token"), b"destination-token");
+    lay_flat(&mut disk, Some(SAVED), true);
+    disk.prepare(&origin());
+    assert_eq!(disk.read(&destination.join("token")), b"destination-token");
+    assert!(!disk.exists(&destination.join("store")));
+    no_flat(&mut disk);
 }
 
 #[test]
 fn a_new_origin_takes_only_the_last_origins_theme() {
-    let scratch = skein_scratch::Scratch::new("tui-theme");
-    let user = skein_shell::effective_user();
-    let (previous, _) = prepare(&scratch);
+    let mut disk = Disk::new(&[]);
+    let (previous, _) = disk.prepare(&origin());
     let store = b"\0\0\0\x02\0\0\0\x05theme\0\0\0\x04dark\0\0\0\x05other\0\0\0\x03bad";
-    private_file(&previous.join("store"), store);
-    private_file(&scratch.path().join("address"), b"http://127.0.0.1:8367");
-    let other = temper_client_tui::Origin::Http("[::1]:9000".parse().expect("other"));
-    let (_, made) = super::deployment::prepare(scratch.path(), &other, user).expect("new origin");
-    let record = super::deployment::theme(scratch.path(), &other, user, made).expect("theme carried");
+    disk.write(&previous.join("store"), store);
+    disk.write(Path::new("tui/address"), SAVED);
+    let other = Origin::Http("[::1]:9000".parse().expect("other"));
+    let (_, made) = disk.prepare(&other);
+    let theme = |disk: &mut Disk, made| super::deployment::theme_with(Path::new("tui"), &other, USER, made, disk);
+    let record = theme(&mut disk, made).expect("theme carried");
     assert_eq!(record.key.as_ref(), temper_client_tui::theme::THEME_KEY);
     assert_eq!(record.bytes.as_ref(), b"dark");
-    assert!(super::deployment::theme(scratch.path(), &other, user, false).is_none(), "only on first start");
-    fs::remove_file(previous.join("store")).expect("no store");
-    assert!(super::deployment::theme(scratch.path(), &other, user, true).is_none(), "Auto without a store");
+    assert!(theme(&mut disk, false).is_none(), "only on first start");
+    disk.remove_file(&previous.join("store")).expect("no store");
+    assert!(theme(&mut disk, true).is_none(), "Auto without a store");
 }
 
 #[test]

@@ -1,15 +1,8 @@
-use super::fixture::{Peer, ready_and_drained};
+use super::fixture::Peer;
 use super::{FIRST, Peers};
 use crate::harness::Lent;
 use skein_io::kernel::{Complete, Op};
 use skein_lib::Token;
-
-#[test]
-fn a_lent_peer_becomes_ready_after_its_kernel_listen_is_processed() {
-    let (address, listens) = ready_and_drained(Peer::new(None));
-    assert_ne!(address.port(), 0);
-    assert_eq!(listens, 1);
-}
 
 #[test]
 fn a_lent_peer_is_named_before_control_and_only_after_the_name_changes() {

@@ -1,7 +1,11 @@
 use super::*;
 use crate::directories::jig_directories;
 use crate::testing::init_fixtures::{directories, environment, scratch};
-use std::{fs, net::TcpListener, os::unix::fs::MetadataExt};
+use skein_fake_machine::Item;
+use std::fs;
+
+mod startup;
+use startup::{ListenerScript, Startup};
 
 #[test]
 fn path_lookup_uses_only_absolute_executable_candidates_in_order() {
@@ -21,87 +25,58 @@ fn path_lookup_uses_only_absolute_executable_candidates_in_order() {
 }
 #[test]
 fn taken_webhooks_ports_get_distinct_kernel_ports() {
-    for at in [1] {
-        let holder = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).expect("hold preferred port");
-        let preferred_port = holder.local_addr().expect("held address").port();
-        let mut io = Io::open().expect("startup io");
-        let mut preferred = [0; 2];
-        preferred[at] = preferred_port;
-        let held = io.ports(&preferred).expect("reserved ports");
-        let chosen = held.iter().map(|(_, port)| *port).collect::<Vec<_>>();
-        assert_ne!(chosen[at].get(), preferred_port);
-        for (index, port) in chosen.iter().enumerate() {
-            assert!(!chosen[..index].contains(port), "two distinct ports");
-        }
-        for (fd, _) in held {
-            io.close(fd);
-        }
-        drop(holder);
+    let preferred_port = 7101;
+    let preferred = [0, preferred_port];
+    let mut io = ListenerScript::new(preferred, true);
+    let held = deployment_ports(&mut io, &preferred).expect("reserved ports");
+    let chosen = held.iter().map(|(_, port)| *port).collect::<Vec<_>>();
+    assert_ne!(chosen[1].get(), preferred_port);
+    for (index, port) in chosen.iter().enumerate() {
+        assert!(!chosen[..index].contains(port), "two distinct ports");
     }
+    io.finish();
 }
 
 #[test]
 fn init_refusals_leave_every_file_and_directory_untouched() {
-    for (row, data, dangling) in [
-        (temper_config_shell::FILE, false, false),
-        (temper_config_shell::FORMER, false, false),
-        ("worker.secret", true, false),
-        ("demo/bin/git", true, true),
+    for (row, directory, parents, dangling) in [
+        (temper_config_shell::FILE, "config", vec![b"config".as_slice()], false),
+        (temper_config_shell::FORMER, "config", vec![b"config"], false),
+        ("worker.secret", "data", vec![b"data"], false),
+        ("demo/bin/git", "data", vec![b"data", b"data/demo", b"data/demo/bin"], true),
     ] {
-        let root = scratch(&row.replace('/', "-"));
-        let dirs = directories(&root);
-        let env = environment(&root, false);
-        let destination = path(if data { &dirs.data } else { &dirs.config }).join(row);
-        fs::create_dir_all(destination.parent().expect("parent")).expect("parent");
+        let destination = format!("{directory}/{row}");
+        let destination = destination.as_bytes();
+        let mut items: Vec<_> = parents.into_iter().map(Item::directory).collect();
         if dangling {
-            std::os::unix::fs::symlink("/nonexistent/temper-init-demo", &destination).expect("dangling link");
+            items.push(Item::link(destination, b"/nonexistent/temper-init-demo"));
         } else {
-            fs::write(&destination, b"kept").expect("existing file");
+            items.push(Item::file(destination, b"kept"));
         }
-        let before = snapshot(&root);
-        if !row.starts_with("demo/") {
-            let why = write_bare(&dirs, &env, &root.join("bin/temper"), [0; 2]).expect_err("bare refused");
-            assert_eq!(why, format!("{}: already exists", destination.display()));
-            assert_eq!(snapshot(&root), before, "{row}: bare refusal changes nothing");
+        let mut startup = Startup::new(&items, false);
+        let before = startup.snapshot();
+        let refused = format!("/fixture/{}: already exists", String::from_utf8_lossy(destination));
+        if !dangling {
+            assert_eq!(startup.init(false, None).expect_err("bare refused"), refused);
+            assert_eq!(startup.snapshot(), before, "{row}: bare refusal changes nothing");
         }
-        let why = write(&dirs, &env, &root.join("bin/temper"), [0; 2]).expect_err("refused");
-        assert_eq!(why, format!("{}: already exists", destination.display()));
-        assert_eq!(snapshot(&root), before, "{row}: every file and directory untouched");
-        fs::remove_dir_all(root).expect("cleanup");
+        assert_eq!(startup.init(true, None).expect_err("refused"), refused);
+        assert_eq!(startup.snapshot(), before, "{row}: every file and directory untouched");
     }
 }
 
 #[test]
 fn init_leaves_an_existing_playground_key_alone() {
-    let root = scratch("existing-playground-key");
-    let dirs = directories(&root);
-    let env = environment(&root, false);
-    let key = path(&dirs.data).join("demo/llm.key");
-    fs::create_dir_all(key.parent().expect("demo directory")).expect("directory");
-    fs::write(&key, b"kept").expect("existing fixture");
-    let written = write(&dirs, &env, &root.join("bin/temper"), [0; 2]).expect("key is not an init destination");
-    assert_eq!(fs::read(&key).expect("existing fixture"), b"kept");
-    crate::close(written.listeners.into_iter().map(|(fd, _)| fd).collect());
-    fs::remove_dir_all(root).expect("cleanup");
-}
-
-fn snapshot(root: &Path) -> Vec<(PathBuf, u32, Vec<u8>)> {
-    let mut pending = vec![root.to_path_buf()];
-    let mut entries = Vec::new();
-    while let Some(path) = pending.pop() {
-        let metadata = fs::symlink_metadata(&path).expect("entry");
-        let content = if metadata.is_dir() {
-            pending.extend(fs::read_dir(&path).expect("directory").map(|entry| entry.expect("child").path()));
-            Vec::new()
-        } else if metadata.is_symlink() {
-            fs::read_link(&path).expect("link").as_os_str().as_bytes().to_vec()
-        } else {
-            fs::read(&path).expect("file")
-        };
-        entries.push((path, metadata.mode(), content));
-    }
-    entries.sort();
-    entries
+    let mut startup = Startup::new(
+        &[
+            Item::directory(b"data").mode(0o700),
+            Item::directory(b"data/demo").mode(0o700),
+            Item::file(b"data/demo/llm.key", b"kept"),
+        ],
+        true,
+    );
+    startup.init(true, None).expect("key is not an init destination");
+    assert_eq!(startup.read(Path::new("/fixture/data/demo/llm.key")), b"kept");
 }
 
 #[test]
@@ -150,36 +125,24 @@ fn the_person_diagnostic_names_the_login_or_the_uid() {
 
 #[test]
 fn explicit_program_fact_precedes_path_discovery() {
-    let root = scratch("program-fact");
-    let dirs = directories(&root);
-    let env = environment(&root, true);
-    let binary = root.join("temper");
-    let adapter = root.join("fake-claude");
-    let written = write_with_program(&dirs, &env, &binary, [0; 2], Some(&adapter)).expect("injected init fact");
-    let document: serde_json::Value = serde_json::from_slice(
-        &temper_config_shell::read(&dirs, temper_config_shell::Shape::Standalone).expect("init file").document,
-    )
-    .expect("JSON");
+    let mut startup = Startup::new(
+        &[Item::directory(b"bin"), Item::file(b"bin/git", b"").mode(0o755), Item::file(b"bin/claude", b"").mode(0o755)],
+        true,
+    );
+    startup.init(true, Some(Path::new("/fixture/fake-claude"))).expect("injected init fact");
+    assert_eq!(startup.lookups, [Box::from(b"git".as_slice()), Box::from(b"openssl".as_slice())]);
+    let document = startup.document();
     assert!(!document["application"].as_object().unwrap().contains_key("workers"));
-    assert!(!path(&dirs.config).join("agent.json").exists());
-    crate::close(written.listeners.into_iter().map(|(fd, _)| fd).collect());
-    fs::remove_dir_all(root).expect("fixture cleanup");
+    assert!(!startup.exists(Path::new("/fixture/config/agent.json")));
 }
 
 #[test]
 fn a_path_without_openssl_writes_a_box_without_sign_in_and_keeps_running() {
-    let root = scratch("no-openssl");
-    let dirs = directories(&root);
-    let env = environment(&root, false);
-    let written = write(&dirs, &env, &root.join("temper"), [0; 2]).expect("init succeeds without openssl");
+    let mut startup = Startup::new(&[Item::directory(b"bin"), Item::file(b"bin/git", b"").mode(0o755)], true);
+    let written = startup.init(true, None).expect("init succeeds without openssl");
     assert_eq!(written.no_sign_in.as_deref(), Some("openssl is not on PATH"));
-    let value: serde_json::Value = serde_json::from_slice(
-        &temper_config_shell::read(&dirs, temper_config_shell::Shape::Standalone).expect("init file").document,
-    )
-    .unwrap();
+    let value = startup.document();
     assert!(value["engine"]["clients"]["provider"].is_null());
     assert!(value["application"].get("machine").is_none());
-    assert!(!path(&dirs.data).join("provider.key").exists());
-    crate::close(written.listeners.into_iter().map(|(fd, _)| fd).collect());
-    fs::remove_dir_all(root).unwrap();
+    assert!(!startup.exists(Path::new("/fixture/data/provider.key")));
 }

@@ -1,9 +1,7 @@
+use super::machine::{Disk, ROOT};
 use crate::{agent, worker};
 use serde_json::json;
-use std::{
-    fs,
-    os::unix::{ffi::OsStrExt, fs::PermissionsExt},
-};
+use std::{os::unix::ffi::OsStrExt, path::Path};
 fn stock_figures() -> jig_protocol_worker_wire::Figures {
     let input: serde_json::Value =
         serde_json::from_slice(&temper_config_shell::init_document(false)).expect("stock document");
@@ -62,26 +60,23 @@ fn stop_line_rounds_both_bounds_up_to_whole_seconds() {
 
 #[test]
 fn toml_worker_git_wins_over_path_and_absent_key_uses_path() {
-    let scratch = skein_scratch::Scratch::new("worker-program-git");
-    let root = scratch.path();
+    let root = Path::new(ROOT);
     let directories = super::configuration::directories(root);
     let named = root.join("named-git");
     let found = root.join("git");
-    fs::copy("/bin/sh", &named).expect("named executable");
-    fs::copy("/bin/sh", &found).expect("PATH executable");
+    let executable = [(found.clone(), true)];
     for explicit in [true, false] {
         let text = if explicit {
             format!("engine = \"127.0.0.1:7200\"\n[programs]\ngit = {named:?}\n")
         } else {
             "engine = \"127.0.0.1:7200\"\n".into()
         };
-        fs::write(root.join(temper_config_shell::FILE), text).expect("worker file");
+        let read = super::configuration::parse(text.as_bytes(), temper_config_shell::Shape::WorkerAlone);
         for environment in [Vec::new(), vec![(Box::from(b"PATH".as_slice()), Box::from(root.as_os_str().as_bytes()))]] {
-            let read = temper_service_shell::configuration::read(&directories, temper_config_shell::Shape::WorkerAlone)
-                .expect("worker read");
-            let part =
-                worker::part(&directories, &read.document, &environment, &read.programs().expect("checked programs"))
-                    .expect("worker part");
+            let part = worker::part_with(&directories, &read.document, &environment, &read.file.programs, || {
+                temper_shell::lookup::lookup(&environment, b"git", &executable)
+            })
+            .expect("worker part");
             let expected = if explicit {
                 Some(&named)
             } else if environment.is_empty() {
@@ -96,29 +91,28 @@ fn toml_worker_git_wins_over_path_and_absent_key_uses_path() {
 
 #[test]
 fn toml_worker_claude_wins_then_path_then_fetched_in_written_configuration() {
-    let scratch = skein_scratch::Scratch::new("worker-program-claude");
-    let root = scratch.path();
+    let root = Path::new(ROOT);
     let directories = super::configuration::directories(root);
     let named = root.join("named-claude");
     let found = root.join("claude");
-    fs::copy("/bin/sh", &named).expect("named executable");
-    fs::copy("/bin/sh", &found).expect("PATH executable");
     for explicit in [true, false] {
         let text = if explicit {
             format!("engine = \"127.0.0.1:7200\"\n[programs]\nclaude = {named:?}\n")
         } else {
             "engine = \"127.0.0.1:7200\"\n".into()
         };
-        fs::write(root.join(temper_config_shell::FILE), text).expect("worker file");
+        let read = super::configuration::parse(text.as_bytes(), temper_config_shell::Shape::WorkerAlone);
         for environment in [Vec::new(), vec![(Box::from(b"PATH".as_slice()), Box::from(root.as_os_str().as_bytes()))]] {
-            let read = temper_service_shell::configuration::read(&directories, temper_config_shell::Shape::WorkerAlone)
-                .expect("worker read");
-            let mut part =
-                worker::part(&directories, &read.document, &environment, &read.programs().expect("checked programs"))
-                    .expect("worker part");
+            let mut part = worker::part_with(&directories, &read.document, &environment, &read.file.programs, || {
+                temper_shell::lookup::lookup(&environment, b"git", &[])
+            })
+            .expect("worker part");
             let unknown = temper_worker_service::figures::apply(&mut part, stock_figures()).expect("applied figures");
             assert!(unknown.is_empty());
-            let bytes = worker::configuration(&part, &directories, &environment).expect("agent configuration");
+            let bytes = worker::configuration_with(&part, &directories, || {
+                worker::find_claude_with(&environment, |candidate| candidate == found)
+            })
+            .expect("agent configuration");
             let written: serde_json::Value = serde_json::from_slice(&bytes).expect("agent JSON");
             let expected = if explicit {
                 named.to_str().expect("named path")
@@ -233,8 +227,8 @@ fn written_figures_decode_as_the_stock_agent_and_keep_machine_members() {
 }
 #[test]
 fn worker_inputs_refuse_the_old_file_and_validate_derived_program_and_claude() {
-    let scratch = skein_scratch::Scratch::new("worker-inputs");
-    let data = scratch.path();
+    let data = Path::new(ROOT);
+    let disk = Disk::new(&[]);
     let (_, document) = super::worker_document(data);
     let directories = super::configuration::directories(data);
     let mut part = temper_worker_service::startup::worker_part(
@@ -246,27 +240,25 @@ fn worker_inputs_refuse_the_old_file_and_validate_derived_program_and_claude() {
     .expect("worker part");
     let executable = data.join("temper-worker");
     let program = data.join("temper-agent");
-    let why = worker::inputs(&mut part, &directories, &executable).expect_err("missing derived program");
+    let inputs = |part: &mut temper_worker_service::startup::WorkerPart| {
+        worker::inputs_with(part, &executable, disk.former_agent(), |path| disk.executable(path))
+    };
+    let why = inputs(&mut part).expect_err("missing derived program");
     assert!(why.contains(program.to_str().expect("path")), "{why}");
-    fs::write(&program, b"agent").expect("program");
-    assert!(
-        worker::inputs(&mut part, &directories, &executable).expect_err("not executable").contains("executable file")
-    );
-    fs::set_permissions(&program, fs::Permissions::from_mode(0o700)).expect("executable");
-    worker::inputs(&mut part, &directories, &executable).expect("derived agent");
+    disk.create(&program, b"agent", 0o600);
+    assert!(inputs(&mut part).expect_err("not executable").contains("executable file"));
+    disk.remove(&program);
+    disk.create(&program, b"agent", 0o700);
+    inputs(&mut part).expect("derived agent");
     assert_eq!(part.named.program.as_ref(), program.as_os_str().as_bytes());
     assert_eq!(part.named.arguments.as_ref(), [part.named.agent.clone()]);
     part.claude = Some(data.join("missing-claude").as_os_str().as_bytes().into());
-    assert!(
-        worker::inputs(&mut part, &directories, &executable)
-            .expect_err("missing claude")
-            .starts_with("application.workers[0].claude:")
-    );
+    assert!(inputs(&mut part).expect_err("missing claude").starts_with("application.workers[0].claude:"));
     part.claude = Some(program.as_os_str().as_bytes().into());
-    worker::inputs(&mut part, &directories, &executable).expect("explicit executable");
-    fs::write(data.join("agent.json"), b"never read").expect("old file");
+    inputs(&mut part).expect("explicit executable");
+    disk.create(&data.join("agent.json"), b"never read", 0o600);
     assert_eq!(
-        worker::inputs(&mut part, &directories, &executable).expect_err("moved file"),
+        inputs(&mut part).expect_err("moved file"),
         "agent.json: moved: temper writes the agent's configuration under the worker's root; remove it"
     );
 }

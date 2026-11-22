@@ -1,6 +1,8 @@
 # worker-restarts: status
 
-2026-11-20. Where the design lags or departs from [worker-restarts.md](worker-restarts.md).
+2026-11-22. Where the design lags or departs from [worker-restarts.md](worker-restarts.md).
+
+Section 10's redeploy tool is the deployments' operator's, outside this repository, as the draft has it (the user, 2026-11-20): fabrig ships none. What it runs on a worker's host is temper's: the engine's request that the worker drain, `temper ctl DIR worker drain WORKER`, and the wait for it (`../client/ctl/workers.md`), the worker's stop, a drain within its stop bound (`../domain/worker/README.md`, section 2), and its start.
 
 - **Design lags:**
   - 3: `smith/docs/design/domain/run.md` and `smith/docs/design/protocol/transcript.md` commit a turn only whole; `redeploys.md`, 6.1, waits for the whole turn.

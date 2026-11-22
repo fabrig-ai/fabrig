@@ -14,8 +14,10 @@ pub mod arm {
 }
 
 pub mod batch {
-    pub use crate::batch::testing::run;
+    pub use crate::batch::testing::{DispatchFiles, dispatch_result, run};
 }
+
+pub mod task;
 
 pub mod validate {
     pub use crate::validate::testing::validate_catalogue;

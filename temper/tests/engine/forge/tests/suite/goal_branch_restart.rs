@@ -83,6 +83,7 @@ fn cancelled_landing() -> top::LandingRow {
                 run: None,
             })
             .into(),
+        follows: None,
         flake_reruns: Box::new([]),
     }
 }
