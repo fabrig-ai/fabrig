@@ -23,7 +23,7 @@ impl World {
 
     /// Release one batch without offering queued inputs or applying commits.
     pub fn collect(&mut self) {
-        self.drive(1, false, false).unwrap_or_else(|finding| self.fail(&finding));
+        self.drive(1, false, false, false).unwrap_or_else(|finding| self.fail(&finding));
     }
 
     /// Apply and offer the oldest store completion without releasing outputs.
