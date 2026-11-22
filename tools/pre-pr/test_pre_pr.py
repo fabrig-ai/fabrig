@@ -21,6 +21,7 @@ def module(path):
 HERE = Path(__file__).resolve().parent
 PRE = module(HERE / 'pre_pr.py')
 PLAN = module(HERE / 'workspace.py')
+CPU = module(HERE.parent / 'tiers/cpu.py')
 GATE = module(HERE.parents[1] / '.forgejo/scripts/gate_scope.py')
 
 
@@ -104,7 +105,7 @@ class Delivery(unittest.TestCase):
         with mock.patch.object(PRE, 'run', return_value=(0, '')) as run, \
              mock.patch.object(PRE, 'outward', return_value=(0, [])) as outward, \
              mock.patch.object(PRE, 'journeys', return_value=(0, [])):
-            selected = PRE.workspace_checks(self.root, ['tools/pre-pr/pre_pr.py'], 'tree', 'base', [],
+            selected = PRE.workspace_checks(self.root, ['tools/pre-pr/pre_pr.py'], 'tree', 'base',
                                             self.env, self.env, self.errors, self.outcomes)
         self.assertEqual([call.args[0][3] for call in run.call_args_list],
                          ['tools/pre-pr/test_pre_pr.py'])
@@ -134,7 +135,7 @@ class Delivery(unittest.TestCase):
         for check in ('baselines', 'outward', 'journeys'):
             self.enterContext(mock.patch.object(PRE, check, return_value=(0, [])))
         run = self.enterContext(mock.patch.object(PRE, 'run', return_value=(0, '')))
-        args = (self.root, [generated, handwritten], 'tree', 'base', [], {}, {}, self.errors, {})
+        args = (self.root, [generated, handwritten], 'tree', 'base', {}, {}, self.errors, {})
         self.assertEqual(PRE.workspace_checks(*args), [])
         fmt, = [call.args[0] for call in run.call_args_list]
         self.assertEqual(fmt[0], 'rustfmt')
@@ -151,20 +152,38 @@ class Delivery(unittest.TestCase):
         with mock.patch.object(PRE, 'run', side_effect=[(1, 'fixture failed'), (0, '')]), \
              mock.patch.object(PRE, 'outward', return_value=(0, [])) as outward, \
              mock.patch.object(PRE, 'journeys', return_value=(0, [])):
-            PRE.workspace_checks(self.root, ['.temper/pre-pr'], 'tree', None, [], {}, {}, self.errors, {})
+            PRE.workspace_checks(self.root, ['.temper/pre-pr'], 'tree', None, {}, {}, self.errors, {})
         self.assertEqual(PRE.finish('tree', None, self.errors, self.root, {}, 'delivery', (), None), 1)
         self.assertIn('fixture failed', self.log.getvalue())
 
-    def test_text_change_and_budget_rules(self):
-        with mock.patch.object(PRE, 'run', return_value=(0, '')) as run, \
-             mock.patch.object(PRE, 'outward', return_value=(0, [])) as outward, \
-             mock.patch.object(PRE, 'journeys', return_value=(0, [])):
-            PRE.workspace_checks(self.root, ['doc.md', 'tools/tiers/budgets.toml'], 'snapshot', 'start', [],
-                                 {}, {}, self.errors, {})
-        commands = [call.args[0] for call in run.call_args_list]
-        self.assertEqual(commands, [
-            ['python3', '-I', '-B', 'tools/citations/citations.py', '--all', '--head', 'snapshot'],
-            ['python3', '-I', '-B', 'tools/tiers/figures.py', '--base', 'start', '--head', 'snapshot']])
+    def test_budget_validation_reads_only_the_delivered_tree(self):
+        paths = ['doc.md', 'tools/tiers/budgets.toml']
+        layers = b'layers = ["step"]\n'
+        for seconds in (1, 0):
+            with self.subTest(seconds=seconds):
+                budgets = f'[gate.default]\nreferences = {{ step = {seconds} }}\n'.encode()
+                blobs = [subprocess.CompletedProcess([], 0, blob, b'') for blob in (budgets, layers)]
+                errors = []
+                with mock.patch.object(PRE, 'git', side_effect=blobs) as git, \
+                     mock.patch.object(PRE, 'run', return_value=(0, '')) as run, \
+                     mock.patch.object(PRE, 'outward', return_value=(0, [])), \
+                     mock.patch.object(PRE, 'journeys', return_value=(0, [])):
+                    PRE.workspace_checks(self.root, paths, 'snapshot', 'start', self.env, self.env, errors, {})
+                run.assert_called_once_with(
+                    ['python3', '-I', '-B', 'tools/citations/citations.py', '--all', '--head', 'snapshot'],
+                    self.root, self.env, stdout=True)
+                self.assertEqual(git.call_args_list, [
+                    mock.call(['cat-file', 'blob', 'snapshot:tools/tiers/budgets.toml'], self.root, self.env),
+                    mock.call(['cat-file', 'blob', 'snapshot:tools/tiers/layers.toml'], self.root, self.env),
+                ])
+                if seconds:
+                    self.assertEqual(errors, [])
+                else:
+                    error, = errors
+                    self.assertEqual(error['name'], 'budgets')
+                    self.assertEqual(error['log'].splitlines(), [
+                        'gate.default.references.step must be finite positive seconds', CPU.REPAIR_LINE,
+                    ])
 
     def test_changed_paths_include_deletions_and_exclude_cleanly_imported_entries(self):
         results = [subprocess.CompletedProcess([], 0, value, b'') for value in
@@ -317,7 +336,7 @@ class Delivery(unittest.TestCase):
         with mock.patch.object(PRE, 'run', return_value=(0, '')) as run, \
              mock.patch.object(PRE, 'journeys', return_value=(0, [])), mock.patch.object(PRE, 'outward', return_value=(0, [])):
             args = (self.root, ['tools/example/rules.py', 'tools/example/test_rules.py'],
-                    'tree', 'base', [], {}, {}, self.errors, {})
+                    'tree', 'base', {}, {}, self.errors, {})
             PRE.workspace_checks(*args)
             run.assert_not_called()
             PRE.workspace_checks(*args, completed_goal=True)
@@ -335,11 +354,11 @@ class Delivery(unittest.TestCase):
 
     def test_goal_close_checks_the_whole_tree_without_reapplying_delivery_mixing(self):
         with mock.patch.object(PRE, 'outward', return_value=(0, [])), \
-             mock.patch.object(PRE, 'figures') as figures, \
+             mock.patch.object(PRE, 'check_budgets') as budgets, \
              mock.patch.object(PRE, 'journeys', return_value=(0, [])) as journeys:
             PRE.workspace_checks(self.root, ['tools/tiers/budgets.toml', 'notes'], 'tree', 'base',
-                                 [], {}, {}, self.errors, {}, completed_goal=True)
-        figures.assert_not_called()
+                                 {}, {}, self.errors, {}, completed_goal=True)
+        budgets.assert_not_called()
         journeys.assert_called_once_with('base', 'tree', [], self.root, {})
 
     def test_close_receipt_identifies_pre_settlement_head_and_post_settlement_tree(self):
@@ -352,7 +371,7 @@ class Delivery(unittest.TestCase):
         key = ('test', 'fabrig-boundary::outward', 'no_file_names_the_lab')
         with mock.patch.object(PRE, 'outward', return_value=(0, [])) as outward, \
              mock.patch.object(PRE, 'journeys', return_value=(0, [])):
-            PRE.workspace_checks(self.root, ['other'], 'tree', 'base', [], {}, {}, self.errors, self.outcomes, [key])
+            PRE.workspace_checks(self.root, ['other'], 'tree', 'base', {}, {}, self.errors, self.outcomes, [key])
         outward.assert_called_once_with(self.root, {}, None)
         self.assertEqual(self.outcomes[key[1:]], {'outcome': 'passed'})
 
