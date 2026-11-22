@@ -369,7 +369,12 @@ impl Exchange {
         provider::scripts(&peer_config, &credentials, &scripts).expect("scripts represented on the peer route");
         let service = provider::Service::new(peer_config, &peer_limits).expect("bounded independent peer");
         let server = provider::Server::new(Token::new(2), &peer_limits).expect("bounded peer connection");
-        let domain_config = fake::Config { accounts: provider::MAX_CREDENTIALS, unserved: 4, ..config() };
+        let mut domain_config = fake::Config { accounts: provider::MAX_CREDENTIALS, unserved: 4, ..config() };
+        let account_bytes = domain_config.account_bytes().expect("bounded account bytes");
+        domain_config.script_bytes = u32::try_from(
+            u64::from(domain_config.script_bytes).checked_add(account_bytes).expect("script and account bytes fit u64"),
+        )
+        .expect("script and account bytes fit u32");
         Self {
             machine,
             seen: Vec::new(),

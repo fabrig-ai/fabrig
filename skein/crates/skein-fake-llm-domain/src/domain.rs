@@ -114,6 +114,16 @@ pub struct Config {
     pub unscoped_reads: u32,
 }
 
+impl Config {
+    /// Bytes reserved for the account table, or `None` if its price overflows.
+    ///
+    /// Contract: docs/design/testing/fakes/llm.md, section 2.7.
+    #[must_use]
+    pub fn account_bytes(&self) -> Option<u64> {
+        crate::accounts::Accounts::price(self)
+    }
+}
+
 /// protocol -> domain
 ///
 /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.

@@ -380,7 +380,9 @@ pub enum Error { /* today's */, Spent, SignedOut, Unserved, Window { reset: Dura
   credentials, with at most `Config.unserved` models each, reserved at
   configuration under `script_bytes`; configuration's defaults (`accounts:
   0`, `unserved: 0`, `cut: 0`) keep a fake with no account faults as
-  before. A strike past that room is refused by `strike`, never dropped.
+  before. `Config::account_bytes` gives the table's reserved bytes; a world
+  which reserves accounts adds them to the room it gives its scripts.
+  A strike past that room is refused by `strike`, never dropped.
 - **At the peer,** before any stream, each with the route's request id
   and never a `retry-after`:
 

@@ -135,6 +135,23 @@ fn strike_admission_refuses_credentials_models_and_bytes_without_dropping_them()
 }
 
 #[test]
+fn account_reservation_keeps_the_exact_script_cap() {
+    let scripts = Box::new([script(b"cue", Box::new([says(b"whole turn")]))]);
+    let script_bytes =
+        size_of::<crate::api::Script>() + size_of::<Turn>() + size_of::<Line>() + b"cue".len() + b"whole turn".len();
+    let mut config =
+        Config { accounts: 2, unserved: 1, script_bytes: u32::try_from(script_bytes).expect("small script"), ..CONFIG };
+    let account_bytes = config.account_bytes().expect("small account reservation");
+    config.script_bytes =
+        u32::try_from(u64::from(config.script_bytes).checked_add(account_bytes).expect("script and account bytes fit"))
+            .expect("small combined cap");
+    for (cap, expected) in [(config.script_bytes, None), (config.script_bytes - 1, Some(Error::ContextTooLong))] {
+        let got = Domain::try_scripted(&Config { script_bytes: cap, ..config }, 1, scripts.clone());
+        assert_eq!(got.err(), expected, "{cap}");
+    }
+}
+
+#[test]
 fn cuts_keep_their_place_parts_and_count_then_replay_whole() {
     for (before, place, expected) in [
         (None, Cut::BeforeOutput, None),
