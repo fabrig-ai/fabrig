@@ -112,6 +112,8 @@ pub struct World {
     pub(crate) broken: bool,
     pub(crate) oracle_closed: bool,
     seed: u64,
+    iteration: u64,
+    inspections: u64,
     pub(crate) restart_config: (root::Config, root::Limits),
     startup: Option<fn(&mut root::Domain)>,
     fixture_rows: Box<[root::Record]>,
@@ -393,8 +395,19 @@ impl World {
     }
 
     pub fn drain(&mut self) {
+        self.try_drain().unwrap_or_else(|finding| self.fail(&finding));
+    }
+
+    /// Drain immediate work, returning the first referee or quiet-point finding.
+    pub fn try_drain(&mut self) -> Result<(), String> {
         self.domain.script_project_releases();
-        self.drive(300, true, true).unwrap_or_else(|finding| self.fail(&finding));
+        self.drive(300, true, true)
+    }
+
+    /// Number of quiet-point inspections, across drains and restarts.
+    #[must_use]
+    pub fn inspections(&self) -> u64 {
+        self.inspections
     }
 
     /// Add the world's replay key and the last boundary events.
@@ -414,6 +427,7 @@ impl World {
             self.store.fault(jig_test_store_files::Fault::Kill { from, operation });
         }
         for _ in 0..steps {
+            self.iteration = self.iteration.checked_add(1).expect("world iteration fits");
             if self.store.reached_kill() {
                 self.reached_cut = self.cut.take();
                 return Ok(());
@@ -698,6 +712,19 @@ impl World {
                     || self.reads.as_ref().is_some_and(crate::reads::Parties::paused))
                 && self.watches.as_ref().is_none_or(crate::peers::WatchParties::quiescent)
             {
+                if !self.store.loading() && self.domain.ready() {
+                    if let Some(timer) = self.domain.core().due(env.now, env.wall) {
+                        self.events.push_back(root::Event::Timer(timer));
+                        continue;
+                    }
+                    let mut inspection = skein_world::inspect::Inspection::new("jig", jig_inspect::KINDS);
+                    jig_inspect::core(self.domain.core(), &mut inspection);
+                    let moment =
+                        skein_world::inspect::Moment { seed: self.seed, at: env.now, iteration: self.iteration };
+                    self.inspections = self.inspections.checked_add(1).expect("world inspection count fits");
+                    skein_world::inspect::check_waits(&[&inspection], moment)?;
+                    skein_world::inspect::check_tables(&[&inspection], moment)?;
+                }
                 return Ok(());
             }
         }
@@ -927,7 +954,7 @@ impl World {
 
     /// A scripted executor takes a timer so its later park can await input.
     pub fn await_timer(&mut self, task: u64) {
-        const SUBSCRIPTION: u64 = u64::MAX;
+        let subscription = u64::MAX.checked_sub(task).expect("scripted subscription number");
         if self
             .domain
             .core()
@@ -936,15 +963,15 @@ impl World {
             .expect("timer task")
             .subscriptions
             .iter()
-            .any(|item| item.number == SUBSCRIPTION)
+            .any(|item| item.number == subscription)
         {
             return;
         }
         self.send(root::Event::Core(core::Event::Tasks(tasks::Event::Subscribe {
-            reply_to: ReplyTo::new(Token::new(SUBSCRIPTION)),
+            reply_to: ReplyTo::new(Token::new(subscription)),
             task,
             subscription: tasks::Subscription {
-                number: SUBSCRIPTION,
+                number: subscription,
                 kind: tasks::SubscriptionKind::Timer { at: Wall::from_nanos(u64::MAX), period: None },
             },
         })));

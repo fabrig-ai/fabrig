@@ -28,7 +28,7 @@ fn party(domain: &Domain, party: Party) -> Wake {
     }
 }
 
-fn emit(domain: &Domain, row: &TaskRecord, mut wait: Wait, into: &mut Inspection) {
+fn emit(domain: &Domain, core: Option<&Core>, row: &TaskRecord, mut wait: Wait, into: &mut Inspection) {
     let authority = match row.executor {
         Executor::Person(_) => None, // This alarm is the person's stall notice, not an authority deadline.
         Executor::Agent { .. } | Executor::Procedure { .. } | Executor::Job { .. } => {
@@ -41,6 +41,11 @@ fn emit(domain: &Domain, row: &TaskRecord, mut wait: Wait, into: &mut Inspection
             wait.wakes.push(timer);
         }
         wait.bound = Some(wait.bound.map_or(due, |old| old.min(due)));
+    }
+    if wait.bound.is_some() && core.is_some_and(|core| core.inspection_timer_withheld(jig_domain_core::Timer::Tasks)) {
+        wait.bound = None;
+        wait.wakes.retain(|wake| !matches!(wake, Wake::Timer(_)));
+        wait.wakes.push(Wake::Party("the next start".into()));
     }
     into.wait(wait);
 }
@@ -66,31 +71,33 @@ pub(crate) fn tasks(domain: &Domain, core: Option<&Core>, into: &mut Inspection)
         match &row.phase {
             Phase::Waiting => {
                 if row.waiting_on.is_empty() {
-                    queued(domain, row, into);
+                    queued(domain, core, row, into);
                 } else {
-                    dependencies(domain, row, into);
+                    dependencies(domain, core, row, into);
                 }
             }
             Phase::Active(active) => {
-                dependencies(domain, row, into);
-                proposal(domain, row, into);
+                dependencies(domain, core, row, into);
+                proposal(domain, core, row, into);
                 match active {
-                    Active::Idle => idle(domain, row, into),
+                    Active::Idle => idle(domain, core, row, into),
                     Active::Due => {
                         if row.suspension.is_some() {
                             emit(
                                 domain,
+                                core,
                                 row,
                                 wait(row, "suspended", vec![], alarm(domain.inspection_alarms(), row.number), true),
                                 into,
                             );
                         } else if let Executor::Person(_) = row.executor {
-                            person(domain, row, into);
+                            person(domain, core, row, into);
                         }
                     }
                     Active::Preparing | Active::Claimed { .. } | Active::Running { .. } => {}
                     Active::BackingOff { .. } => emit(
                         domain,
+                        core,
                         row,
                         wait(row, "backing off", vec![], alarm(domain.inspection_alarms(), row.number), true),
                         into,
@@ -103,11 +110,11 @@ pub(crate) fn tasks(domain: &Domain, core: Option<&Core>, into: &mut Inspection)
                         || Wake::Party(format!("host of task {}", row.number)),
                         |host| Wake::Party(format!("host {}", host.raw())),
                     );
-                    emit(domain, row, wait(row, "closing on its run", vec![wake], None, false), into);
+                    emit(domain, core, row, wait(row, "closing on its run", vec![wake], None, false), into);
                 }
                 Stage::Delegates => {
-                    delegates(domain, row, into);
-                    proposal(domain, row, into);
+                    delegates(domain, core, row, into);
+                    proposal(domain, core, row, into);
                 }
                 Stage::Effects | Stage::Releases => {
                     let mut wakes = Vec::new();
@@ -126,16 +133,16 @@ pub(crate) fn tasks(domain: &Domain, core: Option<&Core>, into: &mut Inspection)
                     } else {
                         "closing on its releases"
                     };
-                    emit(domain, row, wait(row, kind, wakes, None, false), into);
+                    emit(domain, core, row, wait(row, kind, wakes, None, false), into);
                 }
-                Stage::Settled => emit(domain, row, wait(row, "closing settled", vec![], None, false), into),
+                Stage::Settled => emit(domain, core, row, wait(row, "closing settled", vec![], None, false), into),
             },
             Phase::Held { why, source, .. } => {
-                held(domain, row, *why, source.as_deref(), into);
+                held(domain, core, row, *why, source.as_deref(), into);
                 if let Some(hold) = row.placed
                     && !matches!(why, Hold::Placed { .. })
                 {
-                    held(domain, row, Hold::Placed { hold }, None, into);
+                    held(domain, core, row, Hold::Placed { hold }, None, into);
                 }
             }
             Phase::Ended(_) => {}
@@ -143,7 +150,7 @@ pub(crate) fn tasks(domain: &Domain, core: Option<&Core>, into: &mut Inspection)
     }
 }
 
-fn queued(domain: &Domain, row: &TaskRecord, into: &mut Inspection) {
+fn queued(domain: &Domain, core: Option<&Core>, row: &TaskRecord, into: &mut Inspection) {
     let mut wakes = Vec::new();
     for ((name, number), ()) in domain.inspection_waiters() {
         if *number == row.number && super::tables::blocked(domain, name) {
@@ -159,16 +166,18 @@ fn queued(domain: &Domain, row: &TaskRecord, into: &mut Inspection) {
     }
     emit(
         domain,
+        core,
         row,
         wait(row, "in a resource's queue", wakes, alarm(domain.inspection_hold_alarms(), row.number), true),
         into,
     );
 }
 
-fn dependencies(domain: &Domain, row: &TaskRecord, into: &mut Inspection) {
+fn dependencies(domain: &Domain, core: Option<&Core>, row: &TaskRecord, into: &mut Inspection) {
     if !row.waiting_on.is_empty() {
         emit(
             domain,
+            core,
             row,
             wait(
                 row,
@@ -182,10 +191,11 @@ fn dependencies(domain: &Domain, row: &TaskRecord, into: &mut Inspection) {
     }
 }
 
-fn delegates(domain: &Domain, row: &TaskRecord, into: &mut Inspection) {
+fn delegates(domain: &Domain, core: Option<&Core>, row: &TaskRecord, into: &mut Inspection) {
     if !row.delegates.is_empty() {
         emit(
             domain,
+            core,
             row,
             wait(row, "on its delegates", row.delegates.iter().map(|n| task_wake(domain, *n)).collect(), None, false),
             into,
@@ -193,7 +203,7 @@ fn delegates(domain: &Domain, row: &TaskRecord, into: &mut Inspection) {
     }
 }
 
-fn person(domain: &Domain, row: &TaskRecord, into: &mut Inspection) {
+fn person(domain: &Domain, core: Option<&Core>, row: &TaskRecord, into: &mut Inspection) {
     if let Executor::Person(address) = row.executor {
         let wake = match row.taken_by.map_or(address, task::PersonAddress::Person) {
             task::PersonAddress::Person(number) => Wake::Party(format!("person {number}")),
@@ -203,20 +213,26 @@ fn person(domain: &Domain, row: &TaskRecord, into: &mut Inspection) {
         if let Some(due) = alarm(domain.inspection_alarms(), row.number) {
             wakes.push(Wake::Timer(due));
         }
-        emit(domain, row, wait(row, "on a person's answer", wakes, None, false), into);
+        emit(domain, core, row, wait(row, "on a person's answer", wakes, None, false), into);
     }
 }
 
-fn idle(domain: &Domain, row: &TaskRecord, into: &mut Inspection) {
+fn idle(domain: &Domain, core: Option<&Core>, row: &TaskRecord, into: &mut Inspection) {
     match row.executor {
-        Executor::Person(_) => person(domain, row, into),
+        Executor::Person(_) => person(domain, core, row, into),
         Executor::Procedure { .. } | Executor::Job { .. } => {}
         Executor::Agent { .. } => {
             let before = into.waits().len();
             if task::own_question(row).is_some() {
-                emit(domain, row, wait(row, "on its requester", vec![party(domain, row.requester)], None, false), into);
+                emit(
+                    domain,
+                    core,
+                    row,
+                    wait(row, "on its requester", vec![party(domain, row.requester)], None, false),
+                    into,
+                );
             }
-            delegates(domain, row, into);
+            delegates(domain, core, row, into);
             for subscription in &row.subscriptions {
                 let (kind, wakes, due, required) = match subscription.kind {
                     SubscriptionKind::Task { target, .. } => {
@@ -229,15 +245,21 @@ fn idle(domain: &Domain, row: &TaskRecord, into: &mut Inspection) {
                         ("on a timer", vec![], alarm(domain.inspection_timers(), subscription.number), true)
                     }
                 };
-                emit(domain, row, wait(row, kind, wakes, due, required), into);
+                emit(domain, core, row, wait(row, kind, wakes, due, required), into);
             }
             if row.flags.conversation
                 || matches!(row.flags.ended_by, task::EndedBy::Requester | task::EndedBy::Standing)
             {
-                emit(domain, row, wait(row, "on its party", vec![party(domain, row.requester)], None, false), into);
+                emit(
+                    domain,
+                    core,
+                    row,
+                    wait(row, "on its party", vec![party(domain, row.requester)], None, false),
+                    into,
+                );
             }
             if let Some(due) = alarm(domain.inspection_wakes(), row.number) {
-                emit(domain, row, wait(row, "paced", vec![], Some(due), true), into);
+                emit(domain, core, row, wait(row, "paced", vec![], Some(due), true), into);
             }
             if before == into.waits().len()
                 && row.waiting_on.is_empty()
@@ -246,7 +268,7 @@ fn idle(domain: &Domain, row: &TaskRecord, into: &mut Inspection) {
                     .as_ref()
                     .is_some_and(|proposal| matches!(proposal.state, ProposalState::Pending { .. }))
             {
-                emit(domain, row, wait(row, "idle with nothing left to await", vec![], None, false), into);
+                emit(domain, core, row, wait(row, "idle with nothing left to await", vec![], None, false), into);
             }
         }
     }
@@ -264,7 +286,7 @@ fn policy(project: u32, kind: ProposalKind) -> Wake {
     Wake::Party(format!("policy {kind} of project {project}"))
 }
 
-fn proposal(domain: &Domain, row: &TaskRecord, into: &mut Inspection) {
+fn proposal(domain: &Domain, core: Option<&Core>, row: &TaskRecord, into: &mut Inspection) {
     let Some(proposal) = &row.proposal else { return };
     if let ProposalState::Pending { holder, .. } = proposal.state {
         let (wake, required) = match holder {
@@ -272,22 +294,21 @@ fn proposal(domain: &Domain, row: &TaskRecord, into: &mut Inspection) {
             ProposalHolder::Person(number) => (Wake::Party(format!("person {number}")), true),
             ProposalHolder::Policy { project, kind } => (policy(project, kind), false),
         };
-        emit(
-            domain,
-            row,
-            wait(
-                row,
-                "on its proposal's decision",
-                vec![wake],
-                alarm(domain.inspection_proposal_alarms(), row.number),
-                required,
-            ),
-            into,
-        );
+        let bound = alarm(domain.inspection_proposal_alarms(), row.number);
+        let spent = bound.is_none()
+            && core.is_some_and(|core| !core.inspection_proposal_has_further(row.number, proposal.number));
+        emit(domain, core, row, wait(row, "on its proposal's decision", vec![wake], bound, required && !spent), into);
     }
 }
 
-fn held(domain: &Domain, row: &TaskRecord, why: Hold, source: Option<&HoldSource>, into: &mut Inspection) {
+fn held(
+    domain: &Domain,
+    core: Option<&Core>,
+    row: &TaskRecord,
+    why: Hold,
+    source: Option<&HoldSource>,
+    into: &mut Inspection,
+) {
     let kind = match why {
         Hold::Exceeded(_) => "held: exceeded",
         Hold::Failures(_) => "held: failures",
@@ -316,7 +337,7 @@ fn held(domain: &Domain, row: &TaskRecord, why: Hold, source: Option<&HoldSource
                 task::Owner::Task { task } => task_wake(domain, task),
             });
         }
-        emit(domain, row, wait(row, kind, wakes, None, false), into);
+        emit(domain, core, row, wait(row, kind, wakes, None, false), into);
         return;
     }
     let mut required = false;
@@ -335,9 +356,19 @@ fn held(domain: &Domain, row: &TaskRecord, why: Hold, source: Option<&HoldSource
             });
             kind.to_owned()
         }
+        Escalation::Unheld { .. } | Escalation::Routing { .. } if row.project == 0 => {
+            wakes.push(party(domain, row.requester));
+            kind.to_owned()
+        }
         Escalation::Unheld { .. } => format!("{kind}, unheld escalation"),
         Escalation::Routing { .. } => format!("{kind}, routing escalation"),
-        Escalation::Rejected { .. } => format!("{kind}, rejected escalation"),
+        Escalation::Rejected { by, .. } => {
+            wakes.push(match by {
+                task::EscalationDecider::Task(number) => task_wake(domain, number),
+                task::EscalationDecider::Person(number) => Wake::Party(format!("person {number}")),
+            });
+            kind.to_owned()
+        }
     };
     match source {
         Some(HoldSource::Circle(circle)) => {
@@ -355,6 +386,7 @@ fn held(domain: &Domain, row: &TaskRecord, why: Hold, source: Option<&HoldSource
     }
     emit(
         domain,
+        core,
         row,
         wait(row, &kind, wakes, alarm(domain.inspection_escalation_alarms(), row.number), required),
         into,

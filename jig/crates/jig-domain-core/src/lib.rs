@@ -143,6 +143,8 @@ pub struct Core {
     person_answers: bool,
     routes: u32,
     run_inbox: u32,
+    /// Configured task depth and tree size used by proposal-holder inspection.
+    proposal_bounds: (u32, u32),
     pub(crate) run_now: skein_lib::Time,
     pub(crate) run_wall: Wall,
     /// Last reported store map bytes (protocol/store/README.md, 6.2).
@@ -399,6 +401,7 @@ impl Core {
             deletions: deletion::Deletions::new(limits.people.projects),
             routes: limits.routes,
             run_inbox: limits.tasks.run_inbox,
+            proposal_bounds: (limits.tasks.depth, limits.tasks.tree_tasks),
             fill: 0,
             census: None,
             person_answers: false,

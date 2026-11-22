@@ -158,10 +158,14 @@ impl World {
 
     /// Let every previously durable completion through its ordered barrier.
     pub fn release_commits(&mut self) {
+        self.try_release_commits().unwrap_or_else(|finding| self.fail(&finding));
+    }
+
+    pub(crate) fn try_release_commits(&mut self) -> Result<(), String> {
         while let Some(number) = self.store.release_held() {
             self.events.push_back(root::Event::Committed { number, fill: self.fill });
         }
-        self.drain();
+        self.try_drain()
     }
 
     /// Read each lost writer's resource and deliver its answer through the root.
@@ -299,10 +303,10 @@ impl World {
             self.cut = None;
         }
         self.events.push_back(root::Event::StartBegin { pending: self.store.generation_pending });
-        self.drain();
+        self.try_drain()?;
         if self.domain.ready() {
             self.hello_engine();
-            self.drain();
+            self.try_drain()?;
         }
         self.lose_answer = false;
         Ok(())

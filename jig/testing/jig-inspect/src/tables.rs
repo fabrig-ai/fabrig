@@ -94,7 +94,7 @@ pub(crate) fn tasks(domain: &Domain, core: Option<&Core>, into: &mut Inspection)
         refused: vec![],
     });
     for (resource, pool) in domain.inspection_pools() {
-        holding_table(domain, resource, "pools", u64::from(pool.slots), into);
+        holding_table(domain, core, resource, "pools", u64::from(pool.slots), into);
     }
     let mut writes = BTreeSet::new();
     for ((resource, _), ()) in domain.inspection_holders() {
@@ -103,11 +103,18 @@ pub(crate) fn tasks(domain: &Domain, core: Option<&Core>, into: &mut Inspection)
         }
     }
     for resource in writes {
-        holding_table(domain, resource, "write holds", 1, into);
+        holding_table(domain, core, resource, "write holds", 1, into);
     }
 }
 
-fn holding_table(domain: &Domain, resource: &Name, table: &'static str, capacity: u64, into: &mut Inspection) {
+fn holding_table(
+    domain: &Domain,
+    core: Option<&Core>,
+    resource: &Name,
+    table: &'static str,
+    capacity: u64,
+    into: &mut Inspection,
+) {
     let entries = domain
         .inspection_holders()
         .iter()
@@ -133,7 +140,11 @@ fn holding_table(domain: &Domain, resource: &Name, table: &'static str, capacity
                 key: format!("task {task}"),
                 // The child's saved wait start is Wall, not monotonic Time (testing.md, 7.1).
                 since: Time::ZERO,
-                bound: alarm(domain.inspection_hold_alarms(), *task),
+                bound: if core.is_some_and(|core| core.inspection_timer_withheld(jig_domain_core::Timer::Tasks)) {
+                    None
+                } else {
+                    alarm(domain.inspection_hold_alarms(), *task)
+                },
             });
         }
     }
@@ -163,21 +174,26 @@ fn act_key(key: &jig_domain_people::ActKey) -> String {
     format!("connector {} request {}", key.connector, hex(&key.key))
 }
 
-fn answer(key: String, due: Time, now: Time) -> Entry {
-    Entry { key, rule: "their retention's expiry", release: if due <= now { Release::Due } else { Release::Kept } }
+fn answer(key: String, due: Time, now: Time, withheld: bool) -> Entry {
+    Entry {
+        key,
+        rule: "their retention's expiry",
+        release: if due <= now && !withheld { Release::Due } else { Release::Kept },
+    }
 }
 
 pub(crate) fn answers(core: &Core, into: &mut Inspection) {
     let people = &core.people;
     let now = core.inspection_now();
+    let withheld = core.inspection_timer_withheld(jig_domain_core::Timer::People);
     let capacity = people.inspection_answer_capacity();
     let mut entries = Vec::new();
     for index in 0..people.inspection_answer_count().max(people.inspection_act_answer_count()) {
         if let Some((key, due)) = people.inspection_answer(index) {
-            entries.push(answer(request_key(key), due, now));
+            entries.push(answer(request_key(key), due, now, withheld));
         }
         if let Some((key, due)) = people.inspection_act_answer(index) {
-            entries.push(answer(act_key(key), due, now));
+            entries.push(answer(act_key(key), due, now, withheld));
         }
     }
     for index in 0..people.inspection_request_count() {

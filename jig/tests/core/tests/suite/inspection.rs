@@ -65,9 +65,8 @@ fn dependencies_name_the_pending_task() {
     assert!(wait.wakes.contains(&Wake::Waiter(format!("task {dependency}"))));
 }
 
-#[test]
-fn a_pool_queue_has_the_holders_and_its_armed_bound() {
-    let mut world = super::stories::plan_world(11728);
+fn pool_queue(seed: u64) -> (World, u64, u64) {
+    let mut world = super::stories::plan_world(seed);
     configure_resources(&mut world);
     world.send(root::Event::Connector {
         number: 1,
@@ -82,6 +81,12 @@ fn a_pool_queue_has_the_holders_and_its_armed_bound() {
     let holder = delegate(&mut world, parent, 1, child);
     let child = resource_member(&world, 2, b"queue for the pool");
     let task = delegate(&mut world, parent, 2, child);
+    (world, holder, task)
+}
+
+#[test]
+fn a_pool_queue_has_the_holders_and_its_armed_bound() {
+    let (world, holder, task) = pool_queue(11728);
     let inspection = inspect(&world, 11728);
     let wait = waiting(&inspection, task, "in a resource's queue");
     let bound = world
@@ -107,6 +112,103 @@ fn a_pool_queue_has_the_holders_and_its_armed_bound() {
     assert_eq!(pool.refused[0].key, format!("task {task}"));
     assert_eq!(pool.refused[0].bound, Some(bound));
     assert_eq!(pool.refused[0].since, skein_lib::Time::ZERO);
+}
+
+#[test]
+fn each_drain_inspects_once() {
+    let mut world = super::stories::plan_world(11951);
+    let before = world.inspections();
+    world.drain();
+    assert_eq!(world.inspections(), before + 1);
+    world.drain();
+    assert_eq!(world.inspections(), before + 2);
+}
+
+#[test]
+fn a_settling_backoff_waits_for_the_next_start() {
+    let seed = 11955;
+    let mut world = World::new(jig_core_world::world::Setup { seed, ..Default::default() });
+    world.end(tasks::End::Failed(tasks::Class::Transient), 0);
+    let task = world.task();
+    world.send(root::Event::Core(core::Event::Settling));
+    world.advance(Duration::from_secs(60));
+    let inspection = inspect(&world, seed);
+    let wait = waiting(&inspection, task, "backing off");
+    assert_eq!(wait.bound, None);
+    assert!(wait.wakes.contains(&Wake::Party("the next start".into())));
+    let mut child = Inspection::new("jig", jig_inspect::KINDS);
+    jig_inspect::tasks(&world.domain.core().tasks, &mut child);
+    let wait = waiting(&child, task, "backing off");
+    assert!(wait.bound.is_some_and(|bound| bound < world.clocks().0));
+    world.restart(seed, false);
+    world.retry_due();
+    jig_core_world::fixtures::finish_chat(&mut world, 0, b"retry finished after settling");
+}
+
+#[test]
+fn an_overdue_pool_wait_is_found_then_its_timer_holds_it() {
+    let seed = 11952;
+    let (mut world, _, task) = pool_queue(seed);
+    let inspection = inspect(&world, seed);
+    let bound = waiting(&inspection, task, "in a resource's queue").bound.expect("hold deadline");
+    let at = bound.saturating_add(Duration::from_millis(1));
+    let moment = Moment { seed, at, iteration: 1 };
+    let finding = check_waits(&[&inspection], moment).expect_err("overdue hold wait");
+    for text in [format!("task {task}"), "in a resource's queue".into(), bound.as_nanos().to_string()] {
+        assert!(finding.contains(&text), "{finding}");
+    }
+    let finding = check_tables(&[&inspection], moment).expect_err("overdue admission");
+    for text in ["pools".to_string(), format!("task {task}"), bound.as_nanos().to_string()] {
+        assert!(finding.contains(&text), "{finding}");
+    }
+    let now = world.clocks().0;
+    world.advance(Duration::from_nanos(at.as_nanos() - now.as_nanos()));
+    let inspection = inspect(&world, seed);
+    assert_eq!(waiting(&inspection, task, "held: holds waited").waiter, format!("task {task}"));
+}
+
+#[test]
+fn a_pool_admits_its_waiter_when_the_holder_ends() {
+    let seed = 11953;
+    let (mut world, holder, task) = pool_queue(seed);
+    let run = super::stories::running(&world, holder);
+    super::stories::finish(&mut world, run, b"release the pool");
+    assert!(world.assignments.iter().any(|(number, _)| *number == task));
+    let inspection = inspect(&world, seed);
+    let pool = inspection
+        .tables()
+        .iter()
+        .find(|table| table.name == "pools" && !table.entries.is_empty())
+        .expect("occupied pool");
+    assert_eq!(pool.refused.len(), 0);
+    assert_eq!(pool.entries[0].key, format!("task {task}"));
+}
+
+#[test]
+fn drain_and_finish_return_quiet_point_findings() {
+    let seed = 11954;
+    let mut world = super::stories::plan_world(seed);
+    world.enable_tracing();
+    let task = world.task();
+    let (at, wall) = world.clocks();
+    world.set_clock(at, wall);
+    let env = skein_lib::Env { now: at, wall, limits: jig_core_world::faults::plan_fixture(seed).1.core.tasks };
+    // Drop the child's outputs deliberately: the root never routes its escalation.
+    // This malformed fixture has a wait no timer can repair.
+    tasks::step(
+        &mut world.domain.core_mut().tasks,
+        &env,
+        tasks::Event::Hold { task, why: tasks::Hold::Budget },
+        &mut skein_lib::Queue::uncapped(),
+    );
+    let finding = world.try_drain().expect_err("drain returns wait finding");
+    assert!(finding.starts_with(&format!("seed {seed}: at {} ns, iteration ", at.as_nanos())), "{finding}");
+    assert!(finding.contains("held: budget, routing escalation"), "{finding}");
+    let diagnostic = world.diagnostic(&finding);
+    assert!(diagnostic.contains(&finding));
+    assert!(diagnostic.ends_with(&world.trace[world.trace.len().saturating_sub(30)..].join("\n")));
+    let finding = world.finish().expect_err("oracle returns wait finding");
+    assert!(finding.contains("held: budget, routing escalation"), "{finding}");
 }
 
 #[test]
@@ -282,8 +384,25 @@ fn answers_are_kept_until_the_core_clock_reaches_their_expiry() {
         .expect("answer retained before its timer");
     assert_eq!(entry.release, Release::Due);
     assert_eq!(entry.rule, "their retention's expiry");
-    // Resume the world's driver at that same time for its ordinary cleanup.
-    world.fire_due(env.now, env.wall);
+    let moment = Moment { seed: 11735, at: expiry, iteration: 1 };
+    let finding = check_tables(&[&inspection], moment).expect_err("expired answer has not been released");
+    for text in ["kept answers", key.as_str(), "their retention's expiry"] {
+        assert!(finding.contains(text), "{finding}");
+    }
+    world.set_clock(env.now, env.wall);
+    // The ordinary drain fires all due owners before it inspects.
+    let before = world.inspections();
+    world.drain();
+    assert_eq!(world.inspections(), before + 1);
+    let inspection = inspect(&world, 11735);
+    assert!(
+        inspection
+            .tables()
+            .iter()
+            .filter(|table| table.name == "kept answers")
+            .flat_map(|table| &table.entries)
+            .all(|entry| entry.key != key)
+    );
 }
 
 #[test]

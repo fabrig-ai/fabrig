@@ -1,9 +1,15 @@
 //! Borrow the core-owned facts an inspection of its children cannot know.
-use crate::{Core, routing::flight::Flight};
+use crate::{Core, Timer, routing::flight::Flight};
 use jig_domain_tasks::New;
 use skein_lib::{Map, ReplyTo, Time, Token};
 
 impl Core {
+    /// For the inspection adapter: timers held for the next start (domain/testing.md, 7.1).
+    #[must_use]
+    pub fn inspection_timer_withheld(&self, timer: Timer) -> bool {
+        (self.stopping && timer.waits_while_stopping()) || (self.settling && timer.new_work())
+    }
+
     /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
     #[must_use]
     pub const fn inspection_now(&self) -> Time {

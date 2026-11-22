@@ -252,8 +252,8 @@ impl World {
 
     fn settle_oracle(&mut self) -> Result<(), String> {
         for _ in 0..300 {
-            self.drain();
-            self.release_commits();
+            self.try_drain()?;
+            self.try_release_commits()?;
             if self.stopped {
                 return Err(match self.domain.start_failure() {
                     Some((phase, failure)) => format!("restart oracle: start refused at {phase:?}: {failure:?}"),
