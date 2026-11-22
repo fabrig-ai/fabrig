@@ -4031,49 +4031,65 @@ fn a_tracked_goals_changes_install_their_landing_topic_alone_without_agent_calls
     world.close();
 }
 
+fn planned_goal() -> (World, engine::Assignment, engine::Assignment) {
+    let (mut world, goal, producer, _) = change_world_with_policy(true, 1000, None, false, false, false, true);
+    let event =
+        world.protocol.answer(Token::new(7), goal.task, goal.attempt, 0, tasks::End::Parked, engine::Parts::none());
+    world.send(event);
+    world.advance_ticks(30);
+    (world, goal, producer)
+}
+
+fn landing_over(world: &mut World, path: &[u8]) {
+    assert!(fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", path, b"changed", 1).is_ok());
+    world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
+        hint: skein_forge::api::Hint {
+            repository: forge_world::REPO,
+            change: skein_forge::api::Change::Branch(Box::from(&b"main"[..])),
+            key: None,
+        },
+    })));
+    world.advance_ticks(200);
+}
+
+#[test]
+fn a_planned_change_names_its_footprint_before_producing_a_pull() {
+    let (mut world, goal, producer) = planned_goal();
+    let owner = live_task(&world, goal.task);
+    assert_ne!(owner.root, goal.task, "the tracked goal is delegated");
+    assert!(matches!(owner.requester, tasks::Party::Task(_)));
+    let tasks::Party::Task(change) = live_task(&world, producer.task).requester else {
+        panic!("producer belongs to its planned change")
+    };
+    assert_eq!(live_task(&world, change).requester, tasks::Party::Task(goal.task));
+    assert!(
+        live_task(&world, change).spec.parameters.iter().any(
+            |parameter| matches!(parameter, tasks::Parameter::Bytes { name: 6, value } if value.as_ref() == b"file")
+        )
+    );
+    assert!(
+        world.store.rows.values().all(|stored| !matches!(stored,
+        Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(row)
+            if row.task == change && row.pull.is_some()))),
+        "change has no produced pull"
+    );
+    world.close();
+}
+
 #[test]
 fn a_delegated_goal_is_woken_by_a_landing_over_its_planned_path() {
     for (path, class, wakes) in
         [(b"file".as_slice(), tasks::NewsClass::Wakes, true), (b"other".as_slice(), tasks::NewsClass::Kept, false)]
     {
-        let (mut world, goal, producer, _) = change_world_with_policy(true, 1000, None, false, false, false, true);
-        let owner = live_task(&world, goal.task);
-        assert_ne!(owner.root, goal.task, "the tracked goal is delegated");
-        assert!(matches!(owner.requester, tasks::Party::Task(_)));
-        let tasks::Party::Task(change) = live_task(&world, producer.task).requester else {
-            panic!("producer belongs to its planned change")
-        };
-        assert_eq!(live_task(&world, change).requester, tasks::Party::Task(goal.task));
-        assert!(live_task(&world, change).spec.parameters.iter().any(
-            |parameter| matches!(parameter, tasks::Parameter::Bytes { name: 6, value } if value.as_ref() == b"file")
-        ));
-        assert!(
-            world.store.rows.values().all(|stored| !matches!(stored,
-            Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(row)
-                if row.task == change && row.pull.is_some()))),
-            "change has no produced pull"
-        );
-        let event =
-            world.protocol.answer(Token::new(7), goal.task, goal.attempt, 0, tasks::End::Parked, engine::Parts::none());
-        world.send(event);
-        world.advance_ticks(30);
+        let (mut world, goal, _) = planned_goal();
         let assigned = world.assigned.len();
-        assert!(fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", path, b"changed", 1).is_ok());
-        world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
-            hint: skein_forge::api::Hint {
-                repository: forge_world::REPO,
-                change: skein_forge::api::Change::Branch(Box::from(&b"main"[..])),
-                key: None,
-            },
-        })));
-        world.advance_ticks(200);
+        landing_over(&mut world, path);
         assert!(
             live_task(&world, goal.task)
                 .inbox
                 .iter()
                 .any(|word| matches!(word.kind, tasks::MessageKind::News { class: actual, .. } if actual == class)),
-            "landing classification for {path:?}: {:?}",
-            live_task(&world, goal.task).inbox
+            "landing classification for {path:?}"
         );
         assert_eq!(
             world.assigned[assigned..].iter().any(|run| run.task == goal.task),
@@ -4082,6 +4098,69 @@ fn a_delegated_goal_is_woken_by_a_landing_over_its_planned_path() {
         );
         world.close();
     }
+}
+
+#[test]
+fn an_overlapping_landing_waits_in_a_held_goals_inbox_until_release() {
+    let (mut world, goal, producer) = planned_goal();
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(801)),
+        sign_in: world.signed_in.expect("person"),
+        key: [81; 16],
+        ask: people::Ask::Stop { project: 1, task: goal.task },
+    }));
+    world.advance_ticks(30);
+    let terminal = world.protocol.answer(
+        Token::new(7),
+        producer.task,
+        producer.attempt,
+        0,
+        tasks::End::Parked,
+        engine::Parts::none(),
+    );
+    world.send(terminal);
+    world.advance_ticks(30);
+    let assigned = world.assigned.len();
+    landing_over(&mut world, b"file");
+    let row = live_task(&world, goal.task);
+    assert!(matches!(row.phase, tasks::Phase::Held { .. }));
+    let revision = row.revisions.hold;
+    let news: Vec<_> = row
+        .inbox
+        .iter()
+        .filter(|word| matches!(word.kind, tasks::MessageKind::News { class: tasks::NewsClass::Wakes, .. }))
+        .cloned()
+        .collect();
+    assert_eq!(news.len(), 1, "one overlapping landing waits in the held inbox");
+    let number = news[0].number;
+    assert!(!world.assigned[assigned..].iter().any(|run| run.task == goal.task), "no run while held");
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(802)),
+        sign_in: world.signed_in.expect("person"),
+        key: [82; 16],
+        ask: people::Ask::Release { project: 1, task: goal.task, revision, again: None },
+    }));
+    world.advance_ticks(100);
+    // The ancestor acknowledges the hold/release notice and returns its slot.
+    let root = live_task(&world, goal.task).root;
+    let notified = world.assigned.iter().rev().find(|run| run.task == root).expect("notified owner").clone();
+    let terminal =
+        world.protocol.answer(Token::new(7), root, notified.attempt, 0, tasks::End::Parked, engine::Parts::none());
+    world.send(terminal);
+    world.advance_ticks(100);
+    let resumed: Vec<_> = world.assigned[assigned..].iter().filter(|run| run.task == goal.task).collect();
+    assert_eq!(resumed.len(), 1, "release wakes the goal once");
+    assert_eq!(resumed[0].messages.iter().filter(|word| word.number == number).count(), 1);
+    assert!(
+        !world
+            .delivered_messages
+            .get(&(goal.task, resumed[0].attempt))
+            .is_some_and(|numbers| numbers.contains(&number)),
+        "the start's news is not delivered again"
+    );
+    world.close();
 }
 
 /// The task's current specification revision, as its durable row shows it.

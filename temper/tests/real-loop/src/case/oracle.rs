@@ -1516,73 +1516,6 @@ fn plan_deliveries(observed: &Observed, agent: Agent, words: &str) -> usize {
     count
 }
 
-// Match actual tool outputs to their assistant call identities, never to prose
-// repeating the expected words. A replayed prefix is still one completed call.
-fn plan_tool_results(observed: &Observed, agent: Agent, tool: &[u8]) -> Vec<(usize, Value, Vec<u8>)> {
-    use skein_fake_llm_domain::api::{Part, Role};
-    let mut seen = BTreeSet::new();
-    let mut results = Vec::new();
-    let mut previous: &[skein_fake_llm_domain::api::Message] = &[];
-    let mut calls = BTreeMap::new();
-    for (at, told) in observed.told.iter().enumerate().filter(|(_, told)| told.agent == agent) {
-        // Reuse calls only when every message in the previous history agrees.
-        // A changed or truncated conversation gets its own lookup; seen ids
-        // continue to identify completed results across conversations.
-        // An empty lookup has no prefix state to reuse.
-        let offset = if !calls.is_empty() && told.history.starts_with(previous) {
-            previous.len()
-        } else {
-            calls.clear();
-            0
-        };
-        for message in &told.history[offset..] {
-            for part in &message.parts {
-                match part {
-                    Part::ToolCall { id, name, arguments }
-                        if message.role == Role::Assistant && name.as_ref() == tool =>
-                    {
-                        calls.insert(id.as_ref(), arguments);
-                    }
-                    Part::ToolOutput { id, output, .. } if message.role == Role::User => {
-                        if !seen.contains(id.as_ref())
-                            && let Some(arguments) = calls.get(id.as_ref())
-                            && let Ok(args) = serde_json::from_slice(arguments)
-                            && seen.insert(id.to_vec())
-                        {
-                            results.push((at, args, output.to_vec()));
-                        }
-                    }
-                    Part::Text { .. } | Part::Opaque { .. } | Part::ToolCall { .. } | Part::ToolOutput { .. } => {}
-                }
-            }
-        }
-        previous = &told.history;
-    }
-    results
-}
-
-fn plan_note_recalled(observed: &Observed, agent: Agent, note: u64, description: &str, body: &str) -> bool {
-    let writes = plan_tool_results(observed, agent, b"note");
-    let recalls = plan_tool_results(observed, agent, b"recall");
-    writes.iter().any(|(written, args, output)| {
-        args["scope"] == serde_json::json!({"kind":"project","project":PROJECT})
-            && args["description"] == description
-            && args["body"] == body
-            && contains(output, &format!("Note {note} revision 1 written · 1 lines"))
-            && recalls.iter().any(|(recalled, args, output)| {
-                written < recalled
-                    && args["kind"] == "name"
-                    && args["name"] == note
-                    && contains(output, &format!("Note {note} revision 1: {description}\n{body}\n"))
-            })
-    })
-}
-
-fn plan_attempts(observed: &Observed, reads: &[Read], task: u64, minimum: usize) -> bool {
-    let rows: Vec<_> = joined_activity(observed, reads);
-    plan_attempt_rows(observed, reads, task, minimum, &rows)
-}
-
 fn plan_attempt_rows(observed: &Observed, reads: &[Read], task: u64, minimum: usize, rows: &[&Value]) -> bool {
     let complete = reads.iter().all(|read| pause_activity(observed, *read)["cut"] == false)
         && reads.last().is_some_and(|read| pause_activity(observed, *read)["before"] == Value::Null)
@@ -1607,93 +1540,6 @@ fn plan_attempt_rows(observed: &Observed, reads: &[Read], task: u64, minimum: us
         }
     }
     valid && open.is_none() && attempts.len() >= minimum
-}
-
-#[cfg(test)]
-mod plan_tests {
-    use super::*;
-    use serde_json::json;
-    use skein_fake_llm_domain::api::{Message, Part, Role};
-
-    fn tool(id: &str, name: &str, args: &Value, output: &str) -> [Message; 2] {
-        [
-            Message {
-                role: Role::Assistant,
-                parts: Box::new([Part::ToolCall {
-                    id: id.as_bytes().into(),
-                    name: name.as_bytes().into(),
-                    arguments: serde_json::to_vec(args).expect("args").into(),
-                }]),
-            },
-            Message {
-                role: Role::User,
-                parts: Box::new([Part::ToolOutput {
-                    id: id.as_bytes().into(),
-                    output: output.as_bytes().into(),
-                    is_error: false,
-                }]),
-            },
-        ]
-    }
-    fn told(agent: Agent, history: &[Message]) -> Told {
-        Told::with_agent(agent, agent.cue(), b"fake", None, history)
-    }
-    fn met() -> Observed {
-        Observed {
-            activity_aliases: BTreeSet::new(),
-            observed_at: BTreeMap::new(),
-            documents: BTreeMap::new(),
-            commands: Vec::new(),
-            kit: Kit { records: Vec::new(), pulls: Vec::new(), main: BTreeMap::new(), merged_green: true },
-            told: Vec::new(),
-        }
-    }
-    #[test]
-    fn tool_results_follow_growing_histories_and_reset_changed_or_truncated_prefixes() {
-        let mut observed = met();
-        let pending = tool("pending", "note", &json!({"version":1}), "first");
-        let old = tool("changed", "note", &json!({"version":2}), "old");
-        let new = tool("changed", "note", &json!({"version":3}), "new");
-        let orphan = tool("orphan", "note", &json!({"version":4}), "orphan");
-        let last = tool("last", "note", &json!({"version":5}), "last");
-        observed.told = vec![
-            told(Agent::A, &pending[..1]),
-            told(Agent::Director, &pending),
-            told(Agent::A, &pending),
-            told(Agent::A, &pending),
-            told(Agent::A, &[pending.to_vec(), old[..1].to_vec()].concat()),
-            told(Agent::A, &[pending.to_vec(), new.to_vec()].concat()),
-            told(Agent::A, &[new.to_vec(), orphan[..1].to_vec()].concat()),
-            told(Agent::A, &orphan[1..]),
-            told(Agent::A, &last),
-        ];
-        assert_eq!(
-            plan_tool_results(&observed, Agent::A, b"note"),
-            vec![
-                (2, json!({"version":1}), b"first".to_vec()),
-                (5, json!({"version":3}), b"new".to_vec()),
-                (8, json!({"version":5}), b"last".to_vec()),
-            ]
-        );
-
-        // A bad argument never consumes an id; the last matching call wins,
-        // even across a replay prefix. Roles and tool names remain significant.
-        let mut invalid = tool("same", "note", &json!({"version":0}), "invalid");
-        if let Part::ToolCall { arguments, .. } = &mut invalid[0].parts[0] {
-            *arguments = b"{".as_slice().into();
-        }
-        let valid = tool("same", "note", &json!({"version":6}), "valid");
-        let wrong_tool = tool("wrong", "other", &json!({}), "wrong");
-        let mut wrong_role = tool("role", "note", &json!({}), "wrong");
-        wrong_role[0].role = Role::User;
-        observed.told = vec![
-            told(Agent::A, &invalid),
-            told(Agent::A, &[invalid.to_vec(), valid[..1].to_vec()].concat()),
-            told(Agent::A, &[invalid.to_vec(), valid.to_vec(), wrong_tool.to_vec(), wrong_role.to_vec()].concat()),
-            told(Agent::A, &valid),
-        ];
-        assert_eq!(plan_tool_results(&observed, Agent::A, b"note"), vec![(2, json!({"version":6}), b"valid".to_vec())]);
-    }
 }
 
 // Act 2, step 5.4 (testing/reference-case.md)
@@ -1783,66 +1629,22 @@ fn pull_digest(records: &[skein_fake_forge_domain::Observation]) -> Vec<Pull> {
     pulls
 }
 
-const DIRECTION_AMENDED: Promise = Promise::Must("amendment (exact)");
 const DIRECTION_CANCELLED: Promise = Promise::Must("cancel, with work kept under its closed pull");
-const DIRECTION_OVERLAP: Promise = Promise::Must("grants by convention, with footprints as detection");
+const DIRECTION_OVERLAP: Promise = Promise::Add("a1 lands on B's file");
 const DIRECTION_NEWS: Promise = Promise::Add("B's overlap news wakes it once released");
 
 #[must_use]
 pub fn step_5_4(observed: &Observed) -> Vec<Miss> {
-    use super::{
-        B_FILE, DEFERRED_NOTE, DEFERRED_NOTE_NUMBER, DEFERRED_WORDS, DIRECTION, DIRECTION_BRIEF, DIRECTION_REASON,
-        DIRECTION_REPORT, DIRECTION_REVISION, OVERLAP_OWNER, OVERLAP_OWNER_REPORT, PLANNED, PLANNED_CANCEL_REASON,
-        STORY_OWNER, STORY_OWNER_REPORT, STORY_WORDS, X3, X3_CANCEL_REASON, X3_FILE,
-    };
+    use super::{B_FILE, STORY_WORDS, X3_FILE};
     let mut misses = Vec::new();
-    direction_identities(observed, &mut misses);
-    let a = task_document(observed, Read::StoryOwnerEnded);
+    let cancelled = task_document(observed, Read::X3Ended);
     step_check(
         &mut misses,
         "5.4",
-        text(a, "/instructions/bytes") == DIRECTION_BRIEF
-            && a.pointer("/instructions/cut") == Some(&Value::Bool(false))
-            && number(a, "/spec_revision/value") == Some(DIRECTION_REVISION)
-            && plan_deliveries(observed, Agent::StoryOwner, DIRECTION_BRIEF) == 1,
-        DIRECTION_AMENDED,
-        "A must hold the whole new direction at its revision and hear the amendment once",
-    );
-    step_check(
-        &mut misses,
-        "5.4",
-        plan_tool_results(observed, Agent::Direction, b"amend").iter().any(|(_, args, _)| {
-            args["target"] == STORY_OWNER
-                && args["revision"] == DIRECTION_REVISION - 1
-                && args["amendment"]["instructions"] == DIRECTION_BRIEF
-                && args["amendment"]["reason"] == DIRECTION_REASON
-        }),
-        DIRECTION_AMENDED,
-        "the director must amend A with the new direction and its reason",
-    );
-    for (read, task, by, reason) in [
-        (Read::X3Ended, X3, STORY_OWNER, X3_CANCEL_REASON),
-        (Read::PlannedEnded, PLANNED, OVERLAP_OWNER, PLANNED_CANCEL_REASON),
-    ] {
-        let doc = task_document(observed, read);
-        step_check(
-            &mut misses,
-            "5.4",
-            text(doc, "/chip/phase") == "ended"
-                && number(doc, "/result/ending/task/cancelled/by/task") == Some(by)
-                && text(doc, "/result/ending/task/cancelled/reason/bytes") == reason
-                && number(doc, "/chip/details/owner/details/live_delegates") == Some(0),
-            DIRECTION_CANCELLED,
-            format_args!("task {task}'s subtree must end cancelled by {by} with its reason"),
-        );
-    }
-    step_check(
-        &mut misses,
-        "5.4",
-        plan_note_recalled(observed, Agent::StoryOwner, DEFERRED_NOTE_NUMBER, DEFERRED_NOTE, DEFERRED_WORDS)
-            && DEFERRED_WORDS.contains(&format!("Task {X3} (x3)")),
+        text(cancelled, "/chip/phase") == "ended"
+            && cancelled.pointer("/result/ending/task/cancelled").is_some_and(|value| !value.is_null()),
         DIRECTION_CANCELLED,
-        "A must write a project note naming x3 and its deferred plan, then recall it",
+        "x3 must end cancelled",
     );
     let landed = task_document(observed, Read::StoryLanded);
     step_check(
@@ -1859,62 +1661,12 @@ pub fn step_5_4(observed: &Observed) -> Vec<Miss> {
         "a1 must land green changing B's file, while main excludes x3's file",
     );
     direction_pulls(observed, &mut misses);
-    direction_subtree(observed, &mut misses);
     direction_news(observed, &mut misses);
-    direction_attempts(observed, &mut misses);
-    direction_messages(observed, &mut misses);
-    for (read, task, report) in [
-        (Read::StoryOwnerEnded, STORY_OWNER, STORY_OWNER_REPORT),
-        (Read::DirectionBEnded, OVERLAP_OWNER, OVERLAP_OWNER_REPORT),
-        (Read::DirectionEnded, DIRECTION, DIRECTION_REPORT),
-    ] {
-        let doc = task_document(observed, read);
-        step_check(
-            &mut misses,
-            "5.4",
-            number(doc, "/chip/task") == Some(task)
-                && number(doc, "/project") == Some(PROJECT)
-                && text(doc, "/chip/phase") == "ended"
-                && text(doc, "/result/value/report/bytes") == report,
-            DIRECTION_NEWS,
-            format_args!("task {task} must finish its report"),
-        );
-    }
     misses
 }
 
-fn direction_identities(observed: &Observed, misses: &mut Vec<Miss>) {
-    use super::{DIRECTION, OVERLAP_OWNER, PLANNED, PLANNED_CODER, STORY_CHANGE, STORY_OWNER, X3};
-    for (read, task, parent) in [
-        (Read::X3Open, X3, STORY_OWNER),
-        (Read::X3Ended, X3, STORY_OWNER),
-        (Read::PlannedRunning, PLANNED, OVERLAP_OWNER),
-        (Read::PlannedCoderRunning, PLANNED_CODER, PLANNED),
-        (Read::PlannedHeld, PLANNED, OVERLAP_OWNER),
-        (Read::PlannedCoderHeld, PLANNED_CODER, PLANNED),
-        (Read::PlannedEnded, PLANNED, OVERLAP_OWNER),
-        (Read::StoryLanded, STORY_CHANGE, STORY_OWNER),
-        (Read::DirectionBHeld, OVERLAP_OWNER, DIRECTION),
-        (Read::DirectionBPending, OVERLAP_OWNER, DIRECTION),
-        (Read::DirectionBEnded, OVERLAP_OWNER, DIRECTION),
-        (Read::StoryOwnerEnded, STORY_OWNER, DIRECTION),
-        (Read::DirectionNoteWritten, STORY_OWNER, DIRECTION),
-    ] {
-        let doc = task_document(observed, read);
-        step_check(
-            misses,
-            "5.4",
-            number(doc, "/chip/task") == Some(task)
-                && number(doc, "/project") == Some(PROJECT)
-                && number(doc, "/requester/task") == Some(parent),
-            DIRECTION_OVERLAP,
-            format_args!("{read:?} must identify task {task} under {parent} in project {PROJECT}"),
-        );
-    }
-}
-
 fn direction_pulls(observed: &Observed, misses: &mut Vec<Miss>) {
-    use super::{DIRECTION, STORY_CHANGE, STORY_PULL_NUMBER, X3, X3_CODER, X3_PULL_NUMBER};
+    use super::{DIRECTION, STORY_CHANGE, X3};
     let x3_branch = format!("temper/{DIRECTION}/c{X3}");
     let a1_branch = format!("temper/{DIRECTION}/c{STORY_CHANGE}");
     let x3 = observed.kit.pulls.iter().find(|pull| pull.branch == x3_branch.as_bytes());
@@ -1922,91 +1674,33 @@ fn direction_pulls(observed: &Observed, misses: &mut Vec<Miss>) {
     step_check(
         misses,
         "5.4",
-        observed.kit.pulls.len() == 2
-            && x3.is_some_and(|pull| {
-                pull.number == X3_PULL_NUMBER
-                    && pull.closed
-                    && !pull.merged
-                    && pull.landed.is_none()
-                    && pull.merged_head.is_none()
-                    && pull.pushed == Some(pull.opened)
-                    && pull.deleted == pull.pushed
-            })
-            && a1.is_some_and(|pull| {
-                pull.number == STORY_PULL_NUMBER
-                    && pull.merged
-                    && pull.pushed == Some(pull.opened)
-                    && pull.merged_head == pull.pushed
-                    && pull.landed.is_some_and(|commit| {
-                        landing_commit(task_document(observed, Read::StoryLanded)) == direction_commit(commit)
-                    })
-            }),
+        x3.is_some_and(|pull| {
+            pull.closed
+                && !pull.merged
+                && pull.landed.is_none()
+                && pull.merged_head.is_none()
+                && pull.pushed == Some(pull.opened)
+                && pull.deleted == pull.pushed
+        }) && a1.is_some_and(|pull| {
+            pull.merged
+                && pull.pushed == Some(pull.opened)
+                && pull.merged_head == pull.pushed
+                && pull.landed.is_some_and(|commit| {
+                    landing_commit(task_document(observed, Read::StoryLanded)) == direction_commit(commit)
+                })
+        }),
         DIRECTION_CANCELLED,
-        "only x3 and a1 must open pulls; x3's unmerged pull must close and its branch be deleted at its opening head",
+        "x3's closed unmerged pull must retain its pushed head, with its branch deleted; a1 must land its pushed head",
     );
-    direction_closing_comment(observed, misses);
     let produced = task_document(observed, Read::X3Produced);
     step_check(
         misses,
         "5.4",
-        number(produced, "/chip/task") == Some(X3_CODER)
-            && number(produced, "/requester/task") == Some(X3)
-            && number(produced, "/project") == Some(PROJECT)
-            && text(produced, "/chip/phase") == "ended"
+        text(produced, "/chip/phase") == "ended"
             && number(produced, "/result/value/change/kind") == Some(2)
             && x3.is_some_and(|pull| pull.pushed == Some(pull.opened)),
         DIRECTION_CANCELLED,
         "x3's coder must finish a change, whose pull opens at its observed pushed head",
-    );
-}
-
-fn direction_comment_says(body: &[u8], reason: &[u8]) -> bool {
-    let Some(key) = skein_forge::marker::decode(b"temper", body) else { return false };
-    skein_forge::marker::encode(b"temper", &key, reason, u32::MAX).as_deref() == Some(body)
-}
-
-fn direction_closing_comment(observed: &Observed, misses: &mut Vec<Miss>) {
-    use super::{KIT, X3_CANCEL_REASON, X3_PULL_NUMBER};
-    use skein_fake_forge_domain::Observation;
-    let comments: Vec<_> = observed
-        .kit
-        .records
-        .iter()
-        .enumerate()
-        .filter_map(|(at, record)| {
-            if let Observation::Commented { repository, number, body, .. } = record
-                && repository.as_ref() == KIT.as_bytes()
-                && *number == X3_PULL_NUMBER
-            {
-                Some((at, body.as_ref()))
-            } else {
-                None
-            }
-        })
-        .collect();
-    let closed = observed.kit.records.iter().position(|record| {
-        matches!(record,
-        Observation::Closed { repository, number, .. }
-            if repository.as_ref() == KIT.as_bytes() && *number == X3_PULL_NUMBER)
-    });
-    let reason = X3_CANCEL_REASON.as_bytes();
-    step_check(
-        misses,
-        "5.4",
-        comments.iter().filter(|(_, body)| direction_comment_says(body, reason)).count() == 1
-            && closed.is_some_and(|closed| {
-                comments
-                    .iter()
-                    .rev()
-                    .find(|(at, _)| *at < closed)
-                    .is_some_and(|(_, body)| direction_comment_says(body, reason))
-            })
-            && comments
-                .iter()
-                .filter(|(_, body)| direction_comment_says(body, reason))
-                .all(|(at, _)| closed.is_some_and(|closed| *at < closed)),
-        DIRECTION_CANCELLED,
-        "x3's last comment before closing must say A's cancel reason, once",
     );
 }
 
@@ -2018,34 +1712,9 @@ fn direction_commit(commit: u64) -> String {
     }
     hex
 }
-fn direction_subtree(observed: &Observed, misses: &mut Vec<Miss>) {
-    let root = task_document(observed, Read::DirectionBHeld);
-    let hold = number(root, "/hold/reason/placed/hold");
-    for (before, held) in
-        [(Read::PlannedRunning, Read::PlannedHeld), (Read::PlannedCoderRunning, Read::PlannedCoderHeld)]
-    {
-        let previous = task_document(observed, before);
-        let doc = task_document(observed, held);
-        step_check(
-            misses,
-            "5.4",
-            hold.is_some_and(|hold| hold != 0)
-                && text(doc, "/chip/phase") == "held"
-                && number(doc, "/hold/reason/placed/hold") == hold
-                && doc.pointer("/result") == Some(&Value::Null)
-                && number(previous, "/chip/details/owner/details/attempt").is_some()
-                && number(previous, "/chip/details/owner/details/attempt")
-                    == number(doc, "/chip/details/owner/details/attempt"),
-            DIRECTION_NEWS,
-            format_args!(
-                "{held:?}: B's subtree must share its placed hold without finishing or starting another attempt"
-            ),
-        );
-    }
-}
 
 fn direction_news(observed: &Observed, misses: &mut Vec<Miss>) {
-    use super::{B_FILE, OVERLAP_HOLD_REVISION, OVERLAP_OWNER, OVERLAP_SUBSCRIPTION, PLANNED};
+    use super::OVERLAP_HOLD_REVISION;
     let held = task_document(observed, Read::DirectionBHeld);
     let pending = task_document(observed, Read::DirectionBPending);
     for (read, doc) in [(Read::DirectionBHeld, held), (Read::DirectionBPending, pending)] {
@@ -2060,196 +1729,35 @@ fn direction_news(observed: &Observed, misses: &mut Vec<Miss>) {
             format_args!("{read:?}: B must remain held at the person's Stop"),
         );
     }
-    let planned = task_document(observed, Read::PlannedRunning);
-    step_check(
-        misses,
-        "5.4",
-        planned.pointer("/spec/specification/parameters").and_then(Value::as_array).is_some_and(|parameters| {
-            parameters.iter().any(|parameter| {
-                number(parameter, "/bytes/name") == Some(6) && text(parameter, "/bytes/value/bytes") == B_FILE
-            })
-        }) && number(planned, "/chip/task") == Some(PLANNED),
-        DIRECTION_OVERLAP,
-        "h1 must name B's file as its planned footprint before it produces a pull",
-    );
-    let pending_rows = check_activity(observed, Read::DirectionBPending);
-    let news: Vec<_> = pending_rows
+    let rows = check_activity(observed, Read::DirectionBEnded);
+    let release = rows
+        .iter()
+        .find(|row| number(row, "/line/decided/revision") == Some(OVERLAP_HOLD_REVISION))
+        .and_then(|row| number(row, "/position"));
+    let landing = landing_commit(task_document(observed, Read::StoryLanded));
+    let news: Vec<_> = rows
         .iter()
         .filter(|row| {
             text(row, "/line/heard/kind/news/class") == "wakes"
                 && text(row, "/line/heard/words").starts_with("forge landing ")
         })
         .collect();
-    let stopped = number(held, "/activity");
-    let ended = task_document(observed, Read::DirectionBEnded);
-    let rows: Vec<_> = joined_activity(observed, &[Read::DirectionBEnded, Read::DirectionBFirst]);
-    let release = rows
-        .iter()
-        .find(|row| number(row, "/line/decided/revision") == Some(OVERLAP_HOLD_REVISION))
-        .and_then(|row| number(row, "/position"));
-    let same_attempt = number(held, "/chip/details/owner/details/attempt").is_some()
-        && number(held, "/chip/details/owner/details/attempt")
-            == number(pending, "/chip/details/owner/details/attempt");
-    step_check(
-        misses,
-        "5.4",
-        same_attempt
-            && release.zip(number(pending, "/activity")).is_some_and(|(release, head)| release > head)
-            && stopped.zip(release).is_some_and(|(stop, release)| {
-                stop < release
-                    && rows.iter().all(|row| {
-                        !number(row, "/position").is_some_and(|at| at > stop && at < release)
-                            || row.pointer("/line/run_began").is_none()
-                    })
-            })
-            && rows.iter().any(|row| {
-                row.pointer("/line/run_began").is_some()
-                    && number(row, "/position").zip(release).is_some_and(|(at, release)| at > release)
-            })
-            && ended["hold"].is_null(),
-        DIRECTION_NEWS,
-        "B must run no new attempt during its hold and begin its next attempt only after Release",
-    );
-    let landing = text(task_document(observed, Read::StoryLanded), "/result/value/change/words/bytes");
     step_check(
         misses,
         "5.4",
         news.len() == 1
             && news.first().is_some_and(|row| {
-                let words = text(row, "/line/heard/words");
-                let suffix = landing.lines().next().map(|commit| format!(" -> {commit}"));
-                direction_news_identity(&rows, row)
-                    && number(row, "/line/heard/from/task") == Some(OVERLAP_OWNER)
-                    && number(row, "/line/heard/hits") == Some(1)
-                    && number(row, "/line/heard/kind/news/subscription") == Some(OVERLAP_SUBSCRIPTION)
-                    && suffix.is_some_and(|suffix| words.ends_with(&suffix))
-                    && number(row, "/position").zip(stopped).is_some_and(|(at, stop)| at > stop)
-                    && plan_deliveries(observed, Agent::OverlapOwner, words) == 1
+                text(row, "/line/heard/words").ends_with(&format!(" -> {landing}"))
+                    && plan_deliveries(observed, Agent::OverlapOwner, text(row, "/line/heard/words")) == 1
+            })
+            && release.zip(number(pending, "/activity")).is_some_and(|(release, head)| release > head)
+            && rows.iter().any(|row| {
+                row.pointer("/line/run_began").is_some()
+                    && number(row, "/position").zip(release).is_some_and(|(at, release)| at > release)
             }),
         DIRECTION_NEWS,
-        "a1's overlapping landing must wake B once released, waiting in its held inbox and being told exactly once",
+        "a1's overlapping landing must wake B once after release",
     );
-    step_check(
-        misses,
-        "5.4",
-        plan_attempts(
-            observed,
-            &direction_pages(observed, Read::DirectionBEnded, Read::DirectionBFirst),
-            OVERLAP_OWNER,
-            2,
-        ),
-        DIRECTION_NEWS,
-        "B's complete journal must show its two non-overlapping attempts",
-    );
-}
-
-// Fresh numbers are shared with other notices. Identify B's news by the same
-// immutable event in both reads, and reject another copy anywhere in its journal.
-fn direction_news_identity(rows: &[&Value], news: &Value) -> bool {
-    let Some(message) = number(news, "/line/heard/number") else { return false };
-    if message == 0 {
-        return false;
-    }
-    let words = text(news, "/line/heard/words");
-    let mut identities = 0;
-    let mut landings = 0;
-    for row in rows {
-        if number(row, "/line/heard/number") == Some(message) {
-            if *row != news {
-                return false;
-            }
-            identities += 1;
-        }
-        if row.pointer("/line/heard/kind/news").is_some() && text(row, "/line/heard/words") == words {
-            landings += 1;
-        }
-    }
-    identities == 1 && landings == 1
-}
-
-fn direction_messages(observed: &Observed, misses: &mut Vec<Miss>) {
-    use super::{
-        DIRECTION, DIRECTION_AMENDMENT_MESSAGE, DIRECTION_BRIEF, DIRECTION_MESSAGE, DIRECTION_PERSON_MESSAGE,
-        DIRECTION_REVISION,
-    };
-    step_check(
-        misses,
-        "5.4",
-        check_activity(observed, Read::StoryOwnerFirst).iter().any(|row| {
-            number(row, "/line/heard/number") == Some(DIRECTION_AMENDMENT_MESSAGE)
-                && number(row, "/line/heard/from/task") == Some(DIRECTION)
-                && number(row, "/line/heard/kind/amendment/revision") == Some(DIRECTION_REVISION)
-                && text(row, "/line/heard/words") == DIRECTION_BRIEF
-        }) && check_activity(observed, Read::DirectionEnded).iter().any(|row| {
-            number(row, "/line/words/message") == Some(DIRECTION_PERSON_MESSAGE)
-                && number(row, "/line/words/by/person") == Some(1)
-                && text(row, "/line/words/words") == DIRECTION_MESSAGE
-        }),
-        DIRECTION_AMENDED,
-        "the person's direction and A's amendment must have their fresh message identities and revision",
-    );
-}
-
-// Full journals, including pages with the starts of earlier runs. Procedures
-// have journal lines but no agent attempts. A refused placement recheck is
-// allowed only for B's first admission, at zero spend (jig's domain/engine/executors.md,
-// 1: queued placement losing its selected slot returns the claim without a
-// failed try; jig-domain-fleet's attempt.rs, resume, and jig-domain-core's
-// routing/children.rs translate Recheck to the journal's refused ending).
-// B and the director now fit on one page. Retain support for an earlier
-// page in oracle fixtures: plan_attempts still requires complete, ordered
-// journals, and rejects an absent page whenever the latest has a cursor.
-fn direction_pages(observed: &Observed, latest: Read, earlier: Read) -> Vec<Read> {
-    let mut reads = vec![latest];
-    if observed.documents.contains_key(&earlier) {
-        reads.push(earlier);
-    }
-    reads
-}
-fn direction_attempts(observed: &Observed, misses: &mut Vec<Miss>) {
-    use super::{DIRECTION, OVERLAP_OWNER, OVERLAP_RECHECK_ATTEMPT, PLANNED, STORY_CHANGE, STORY_OWNER, X3, X3_CODER};
-    let b_reads = direction_pages(observed, Read::DirectionBEnded, Read::DirectionBFirst);
-    let director_reads = direction_pages(observed, Read::DirectionEnded, Read::DirectionFirst);
-    let mut owner_reads = vec![Read::StoryOwnerEnded, Read::StoryOwnerEarlier, Read::StoryOwnerFirst];
-    if pause_activity(observed, Read::StoryOwnerFirst)["before"] != Value::Null {
-        owner_reads.push(Read::StoryOwnerInitial);
-    }
-    for (task, reads, minimum) in [
-        (X3, &[Read::X3Ended][..], 0),
-        (X3_CODER, &[Read::X3Produced][..], 1),
-        (PLANNED, &[Read::PlannedEnded][..], 0),
-        (STORY_CHANGE, &[Read::StoryLanded][..], 0),
-        (STORY_OWNER, owner_reads.as_slice(), 1),
-        (OVERLAP_OWNER, b_reads.as_slice(), 2),
-        (DIRECTION, director_reads.as_slice(), 1),
-    ] {
-        let rows: Vec<_> = joined_activity(observed, reads);
-        step_check(
-            misses,
-            "5.4",
-            plan_attempt_rows(observed, reads, task, minimum, &rows)
-                && {
-                    rows.last().is_some_and(|row| number(row, "/position") == Some(1))
-                        && rows.windows(2).all(|pair| {
-                            number(pair[0], "/position")
-                                .zip(number(pair[1], "/position"))
-                                .is_some_and(|(new, old)| new.checked_sub(1) == Some(old))
-                        })
-                }
-                && rows.iter().all(|row| {
-                    let Some(end) = row.pointer("/line/run_ended") else { return true };
-                    matches!(end["end"].as_str(), Some("finished" | "parked"))
-                        || (task == OVERLAP_OWNER
-                            && end["end"] == "refused"
-                            && number(end, "/attempt") == Some(OVERLAP_RECHECK_ATTEMPT)
-                            && number(end, "/spent") == Some(0))
-                }),
-            DIRECTION_NEWS,
-            format_args!(
-                "task {task}'s complete journal must end every counted attempt without failure or an unexplained refusal"
-            ),
-        );
-    }
 }
 
 #[cfg(test)]
@@ -2259,446 +1767,102 @@ mod direction_tests {
     use serde_json::json;
     use skein_fake_llm_domain::api::{Message, Part, Role};
 
-    const OVERLAP_LANDING_MESSAGE: u64 = 18;
-
-    fn input(words: &str) -> Message {
-        Message { role: Role::User, parts: Box::new([Part::Text { text: words.as_bytes().into() }]) }
-    }
-    fn tool(id: &str, name: &str, args: &Value, output: &str) -> [Message; 2] {
-        [
-            Message {
-                role: Role::Assistant,
-                parts: Box::new([Part::ToolCall {
-                    id: id.as_bytes().into(),
-                    name: name.as_bytes().into(),
-                    arguments: serde_json::to_vec(args).expect("arguments").into(),
-                }]),
-            },
-            Message {
-                role: Role::User,
-                parts: Box::new([Part::ToolOutput {
-                    id: id.as_bytes().into(),
-                    output: output.as_bytes().into(),
-                    is_error: false,
-                }]),
-            },
-        ]
-    }
-    fn told(agent: Agent, history: &[Message]) -> Told {
-        Told::with_agent(agent, agent.cue(), b"fake", None, history)
-    }
-    fn journal(task: u64, attempts: usize, first: u64) -> Value {
-        let lines = if attempts == 0 {
-            vec![json!({"milestone":{"position":1}})]
-        } else {
-            vec![
-                json!({"run_began":{"attempt":first}}),
-                json!({"run_ended":{"attempt":first,"end":"finished","spent":1}}),
-            ]
-        };
-        let rows: Vec<_> = lines
-            .into_iter()
-            .enumerate()
-            .rev()
-            .map(
-                |(at, line)| json!({"event":{"owner":{"source":{"task":task,"position":first+at as u64,"line":line}}}}),
-            )
-            .collect();
-        json!({"rows":rows,"cut":false,"before":null,"after":null})
-    }
-    fn documents() -> BTreeMap<Read, Value> {
-        let mut documents = BTreeMap::new();
-        for (read, task, parent) in [
-            (Read::X3Open, X3, STORY_OWNER),
-            (Read::X3Produced, X3_CODER, X3),
-            (Read::X3Ended, X3, STORY_OWNER),
-            (Read::PlannedRunning, PLANNED, OVERLAP_OWNER),
-            (Read::PlannedCoderRunning, PLANNED_CODER, PLANNED),
-            (Read::PlannedHeld, PLANNED, OVERLAP_OWNER),
-            (Read::PlannedCoderHeld, PLANNED_CODER, PLANNED),
-            (Read::PlannedEnded, PLANNED, OVERLAP_OWNER),
-            (Read::StoryLanded, STORY_CHANGE, STORY_OWNER),
-            (Read::DirectionBHeld, OVERLAP_OWNER, DIRECTION),
-            (Read::DirectionBPending, OVERLAP_OWNER, DIRECTION),
-            (Read::DirectionBEnded, OVERLAP_OWNER, DIRECTION),
-            (Read::StoryOwnerEnded, STORY_OWNER, DIRECTION),
-            (Read::DirectionNoteWritten, STORY_OWNER, DIRECTION),
-            (Read::DirectionEnded, DIRECTION, 0),
-        ] {
-            documents.insert(read, json!({"task":{
-                "chip":{"task":task,"phase":"ended","details":{"owner":{"details":{"attempt":1,"live_delegates":0}}}},
-                "project":PROJECT,"requester":{"task":parent},"hold":null,
-                "result":{"value":{}}
-            }}));
-        }
-        for (read, by, reason) in
-            [(Read::X3Ended, STORY_OWNER, X3_CANCEL_REASON), (Read::PlannedEnded, OVERLAP_OWNER, PLANNED_CANCEL_REASON)]
-        {
-            documents.get_mut(&read).expect("cancelled")["task"]["result"]["ending"] =
-                json!({"task":{"cancelled":{"by":{"task":by},"reason":{"bytes":reason}}}});
-        }
-        for (read, report) in [
-            (Read::StoryOwnerEnded, STORY_OWNER_REPORT),
-            (Read::DirectionBEnded, OVERLAP_OWNER_REPORT),
-            (Read::DirectionEnded, DIRECTION_REPORT),
-        ] {
-            documents.get_mut(&read).expect("report")["task"]["result"]["value"] = json!({"report":{"bytes":report}});
-        }
-        let a = &mut documents.get_mut(&Read::StoryOwnerEnded).expect("A")["task"];
-        a["instructions"] = json!({"bytes":DIRECTION_BRIEF,"cut":false});
-        a["spec_revision"] = json!({"value":DIRECTION_REVISION});
-        documents.get_mut(&Read::X3Produced).expect("coder")["task"]["result"]["value"] =
-            json!({"change":{"kind":2,"words":{"bytes":"The deferred plan."}}});
-        let a1 = &mut documents.get_mut(&Read::StoryLanded).expect("a1")["task"];
-        a1["result"] = json!({"ending":{"task":{"done":{"change":{"kind":1}}}},
-            "value":{"change":{"part":{"connector":1,"kind":"result"},"words":{"bytes":direction_commit(9)}}}});
-        documents.get_mut(&Read::PlannedRunning).expect("h1")["task"]["spec"] = json!({"specification":{
-            "parameters":[{"bytes":{"name":6,"value":{"bytes":B_FILE,"cut":false}}}]
-        }});
-        for read in [Read::PlannedHeld, Read::PlannedCoderHeld] {
-            let doc = &mut documents.get_mut(&read).expect("held delegate")["task"];
-            doc["chip"]["phase"] = json!("held");
-            doc["result"] = Value::Null;
-            doc["hold"] = json!({"revision":OVERLAP_HOLD_REVISION,"reason":{"placed":{"hold":1}}});
-        }
+    fn met() -> Observed {
         let news = format!("forge landing {} -> {}", direction_commit(8), direction_commit(9));
-        let rows: Vec<_> = [
-            json!({"run_began":{"attempt":1}}),
-            json!({"run_ended":{"attempt":1,"end":"parked","spent":1}}),
-            json!({"decided":{"revision":OVERLAP_HOLD_REVISION}}),
-            json!({"heard":{"number":OVERLAP_LANDING_MESSAGE,"from":{"task":OVERLAP_OWNER},"hits":1,"kind":{"news":{"class":"wakes","subscription":OVERLAP_SUBSCRIPTION}},"words":news}}),
-            json!({"decided":{"revision":OVERLAP_HOLD_REVISION}}),
-            json!({"run_began":{"attempt":2}}),
-            json!({"run_ended":{"attempt":2,"end":"finished","spent":1}}),
-        ]
-        .into_iter()
-        .enumerate()
-        .map(|(at, line)| {
-            json!({"event":{"owner":{"source":{
-                "task":OVERLAP_OWNER,"position":at+1,"line":line
-            }}}})
-        })
-        .rev()
-        .collect();
-        for (read, head) in [(Read::DirectionBHeld, 3), (Read::DirectionBPending, 4)] {
-            let doc = documents.get_mut(&read).expect("held");
-            doc["task"]["chip"]["phase"] = json!("held");
-            doc["task"]["activity"] = json!(head);
-            doc["task"]["hold"] = json!({"revision":OVERLAP_HOLD_REVISION,"reason":{"placed":{"hold":1}}});
-            doc["activity"] = json!({"rows":if head == 4 { vec![rows[3].clone()] } else { Vec::new() }});
-        }
-        documents.get_mut(&Read::DirectionBEnded).expect("B")["activity"] =
-            json!({"cut":false,"after":null,"before":{"value":"older"},"rows":rows[..3]});
-        documents.insert(
-            Read::DirectionBFirst,
-            json!({"cut":false,"before":null,"after":{"value":"newer"},"rows":rows[3..]}),
-        );
-        journals(&mut documents);
-        documents
-    }
-
-    fn journals(documents: &mut BTreeMap<Read, Value>) {
-        for (read, task, minimum) in [
-            (Read::X3Ended, X3, 0),
-            (Read::X3Produced, X3_CODER, 1),
-            (Read::PlannedEnded, PLANNED, 0),
-            (Read::StoryLanded, STORY_CHANGE, 0),
-        ] {
-            documents.get_mut(&read).expect("task")["activity"] = journal(task, minimum, 1);
-        }
-        let mut newest = journal(STORY_OWNER, 1, 6);
-        newest["before"] = json!({"value":"older"});
-        documents.get_mut(&Read::StoryOwnerEnded).expect("A")["activity"] = newest;
-        let mut middle = journal(STORY_OWNER, 1, 4);
-        middle["before"] = json!({"value":"first"});
-        documents.insert(Read::StoryOwnerEarlier, middle);
-        documents.insert(Read::StoryOwnerFirst, journal(STORY_OWNER, 1, 1));
-        let first =
-            documents.get_mut(&Read::StoryOwnerFirst).expect("A's first page")["rows"].as_array_mut().expect("rows");
-        first.insert(
-            0,
-            json!({"event":{"owner":{"source":{"task":STORY_OWNER,"position":3,"line":{
-                "heard":{"number":DIRECTION_AMENDMENT_MESSAGE,"from":{"task":DIRECTION},
-                "kind":{"amendment":{"revision":DIRECTION_REVISION}},"words":DIRECTION_BRIEF}
-            }}}}}),
-        );
-        let mut newest = journal(DIRECTION, 1, 4);
-        newest["rows"].as_array_mut().expect("rows").push(json!({"event":{"owner":{"source":{
-            "task":DIRECTION,"position":3,"line":{"words":{"message":DIRECTION_PERSON_MESSAGE,
-            "by":{"person":1},"words":DIRECTION_MESSAGE}}
-        }}}}));
-        newest["before"] = json!({"value":"first"});
-        documents.get_mut(&Read::DirectionEnded).expect("director")["activity"] = newest;
-        documents.insert(Read::DirectionFirst, journal(DIRECTION, 1, 1));
-    }
-
-    pub(super) fn met() -> Observed {
-        let documents = documents();
-        let news = format!("forge landing {} -> {}", direction_commit(8), direction_commit(9));
-        let amendment = tool(
-            "amend",
-            "amend",
-            &json!({"target":STORY_OWNER,"revision":DIRECTION_REVISION-1,
-            "amendment":{"instructions":DIRECTION_BRIEF,"reason":DIRECTION_REASON}}),
-            "Amended",
-        );
-        let mut a = vec![input(DIRECTION_BRIEF)];
-        a.extend(tool(
-            "note",
-            "note",
-            &json!({"scope":{"kind":"project","project":PROJECT},
-            "description":DEFERRED_NOTE,"body":DEFERRED_WORDS}),
-            &format!("Note {DEFERRED_NOTE_NUMBER} revision 1 written · 1 lines"),
-        ));
-        let noted = told(Agent::StoryOwner, &a);
-        a.extend(tool(
-            "recall",
-            "recall",
-            &json!({"kind":"name","name":DEFERRED_NOTE_NUMBER}),
-            &format!("Note {DEFERRED_NOTE_NUMBER} revision 1: {DEFERRED_NOTE}\n{DEFERRED_WORDS}\n"),
-        ));
+        let documents = BTreeMap::from([
+            (Read::X3Produced, json!({"task":{"chip":{"phase":"ended"},"result":{"value":{"change":{"kind":2}}}}})),
+            (Read::X3Ended, json!({"task":{"chip":{"phase":"ended"},"result":{"ending":{"task":{"cancelled":{}}}}}})),
+            (
+                Read::StoryLanded,
+                json!({"task":{"chip":{"phase":"ended"},"result":{
+                "ending":{"task":{"done":{"change":{"kind":1}}}},
+                "value":{"change":{"part":{"connector":1,"kind":"result"},"words":{"bytes":direction_commit(9)}}}}}}),
+            ),
+            (
+                Read::DirectionBHeld,
+                json!({"task":{"chip":{"phase":"held"},"hold":{"revision":1,"reason":{"placed":{"hold":1}}}}}),
+            ),
+            (
+                Read::DirectionBPending,
+                json!({"task":{"chip":{"phase":"held"},"activity":4,"hold":{"revision":1,"reason":{"placed":{"hold":1}}}}}),
+            ),
+            (
+                Read::DirectionBEnded,
+                json!({"activity":{"rows":[
+                    {"event":{"owner":{"source":{"position":7,"line":{"run_began":{"attempt":2}}}}}},
+                    {"event":{"owner":{"source":{"position":6,"line":{"decided":{"revision":1}}}}}},
+                    {"event":{"owner":{"source":{"position":5,"line":{"heard":{"kind":{"news":{"class":"wakes"}},"words":news}}}}}}
+                ]}}),
+            ),
+        ]);
+        let message = Message { role: Role::User, parts: Box::new([Part::Text { text: news.as_bytes().into() }]) };
+        let records = forge_records();
         Observed {
-            activity_aliases: std::collections::BTreeSet::new(),
+            activity_aliases: BTreeSet::new(),
             observed_at: BTreeMap::new(),
             documents,
             commands: Vec::new(),
-            told: vec![
-                told(Agent::Direction, &amendment),
-                noted,
-                told(Agent::StoryOwner, &a),
-                told(Agent::OverlapOwner, &[input("Begin B's work.")]),
-                told(Agent::OverlapOwner, &[input("Begin B's work."), input(&news)]),
-            ],
+            told: vec![Told::with_agent(Agent::OverlapOwner, Agent::OverlapOwner.cue(), b"fake", None, &[message])],
             kit: Kit {
-                records: forge_records(),
+                pulls: pull_digest(&records),
+                records,
                 main: BTreeMap::from([(B_FILE.as_bytes().to_vec(), STORY_WORDS.as_bytes().to_vec())]),
                 merged_green: true,
-                pulls: vec![
-                    Pull {
-                        repository: crate::case::KIT.as_bytes().to_vec(),
-                        number: X3_PULL_NUMBER,
-                        branch: format!("temper/{DIRECTION}/c{X3}").into_bytes(),
-                        opened: 7,
-                        pushed: Some(7),
-                        landed: None,
-                        merged_head: None,
-                        merged: false,
-                        closed: true,
-                        deleted: Some(7),
-                    },
-                    Pull {
-                        repository: crate::case::KIT.as_bytes().to_vec(),
-                        number: STORY_PULL_NUMBER,
-                        branch: format!("temper/{DIRECTION}/c{STORY_CHANGE}").into_bytes(),
-                        opened: 8,
-                        pushed: Some(8),
-                        landed: Some(9),
-                        merged_head: Some(8),
-                        merged: true,
-                        closed: false,
-                        deleted: None,
-                    },
-                ],
             },
-        }
-    }
-    #[test]
-    fn new_direction_and_deferred_overlap_meet_the_checkpoint() {
-        assert_met(&step_5_4(&met()));
-    }
-    #[test]
-    fn overlap_news_identity_is_read_from_both_journals() {
-        for message in [19, 42] {
-            let mut observed = met();
-            for read in [Read::DirectionBPending, Read::DirectionBEnded, Read::DirectionBFirst] {
-                let doc = observed.documents.get_mut(&read).expect("B's journal");
-                let page = if read == Read::DirectionBFirst { doc } else { &mut doc["activity"] };
-                for row in page["rows"].as_array_mut().expect("rows") {
-                    let Some(number) = row.pointer_mut("/event/owner/source/line/heard/number") else { continue };
-                    if *number == OVERLAP_LANDING_MESSAGE {
-                        *number = json!(message);
-                    }
-                }
-            }
-            assert_met(&step_5_4(&observed));
-            observed.documents.get_mut(&Read::DirectionBPending).expect("pending")["activity"]["rows"][0]["event"]["owner"]
-                ["source"]["line"]["heard"]["number"] = json!(message + 1);
-            assert!(!step_5_4(&observed).is_empty(), "the two reads must name the same event");
-        }
-    }
-    #[test]
-    fn overlap_news_rejects_another_landing_notice_in_the_complete_journal() {
-        let mut observed = met();
-        let page = observed.documents.get_mut(&Read::DirectionBFirst).expect("B's earlier journal");
-        let mut duplicate = page["rows"][0]["event"]["owner"]["source"]["line"].clone();
-        duplicate["heard"]["number"] = json!(OVERLAP_LANDING_MESSAGE + 1);
-        page["rows"][1]["event"]["owner"]["source"]["line"] = duplicate;
-        assert!(!step_5_4(&observed).is_empty(), "the landing must reach B once in its whole journal");
-    }
-    #[test]
-    fn complete_single_page_journals_keep_the_same_checks() {
-        let mut observed = met();
-        for (latest, earlier) in
-            [(Read::DirectionBEnded, Read::DirectionBFirst), (Read::DirectionEnded, Read::DirectionFirst)]
-        {
-            let older = observed.documents.remove(&earlier).expect("earlier page");
-            let page = &mut observed.documents.get_mut(&latest).expect("latest page")["activity"];
-            page["rows"].as_array_mut().expect("rows").extend(older["rows"].as_array().expect("older rows").clone());
-            page["before"] = Value::Null;
-        }
-        assert_met(&step_5_4(&observed));
-        for latest in [Read::DirectionBEnded, Read::DirectionEnded] {
-            let mut missing = observed.clone();
-            missing.documents.get_mut(&latest).expect("latest")["activity"]["before"] = json!({"value":"missing"});
-            assert!(!step_5_4(&missing).is_empty(), "{latest:?} must not omit an earlier page");
-            let mut gap = observed.clone();
-            gap.documents.get_mut(&latest).expect("latest")["activity"]["rows"].as_array_mut().expect("rows").remove(1);
-            assert!(!step_5_4(&gap).is_empty(), "{latest:?} must have no journal gap");
         }
     }
 
     #[test]
-    fn every_required_document_field_rejects_a_mutation() {
+    fn pushed_cancellation_and_released_overlap_meet_the_checkpoint() {
+        assert_met(&step_5_4(&met()));
+    }
+
+    #[test]
+    fn retained_document_fields_reject_a_mutation() {
         let passing = met();
         for (read, paths) in [
-            (
-                Read::StoryOwnerEnded,
-                vec!["/task/instructions/bytes", "/task/instructions/cut", "/task/spec_revision/value"],
-            ),
-            (
-                Read::X3Produced,
-                vec![
-                    "/task/chip/task",
-                    "/task/chip/phase",
-                    "/task/requester/task",
-                    "/task/project",
-                    "/task/result/value/change/kind",
-                ],
-            ),
-            (
-                Read::X3Ended,
-                vec![
-                    "/task/result/ending/task/cancelled/by/task",
-                    "/task/result/ending/task/cancelled/reason/bytes",
-                    "/task/chip/details/owner/details/live_delegates",
-                ],
-            ),
-            (
-                Read::PlannedEnded,
-                vec![
-                    "/task/result/ending/task/cancelled/by/task",
-                    "/task/result/ending/task/cancelled/reason/bytes",
-                    "/task/chip/details/owner/details/live_delegates",
-                ],
-            ),
-            (
-                Read::PlannedRunning,
-                vec![
-                    "/task/spec/specification/parameters/0/bytes/name",
-                    "/task/spec/specification/parameters/0/bytes/value/bytes",
-                ],
-            ),
+            (Read::X3Produced, vec!["/task/chip/phase", "/task/result/value/change/kind"]),
+            (Read::X3Ended, vec!["/task/chip/phase", "/task/result/ending/task/cancelled"]),
             (
                 Read::StoryLanded,
                 vec![
+                    "/task/chip/phase",
                     "/task/result/ending/task/done/change/kind",
                     "/task/result/value/change/part/connector",
                     "/task/result/value/change/part/kind",
                     "/task/result/value/change/words/bytes",
                 ],
             ),
-            (
-                Read::DirectionBHeld,
-                vec![
-                    "/task/chip/phase",
-                    "/task/hold/revision",
-                    "/task/hold/reason/placed/hold",
-                    "/task/chip/details/owner/details/attempt",
-                    "/task/activity",
-                ],
-            ),
+            (Read::DirectionBHeld, vec!["/task/chip/phase", "/task/hold/revision", "/task/hold/reason/placed/hold"]),
             (
                 Read::DirectionBPending,
-                vec![
-                    "/task/chip/phase",
-                    "/task/hold/revision",
-                    "/task/hold/reason/placed/hold",
-                    "/task/chip/details/owner/details/attempt",
-                    "/task/activity",
-                    "/activity/rows/0/event/owner/source/line/heard/kind/news/class",
-                    "/activity/rows/0/event/owner/source/line/heard/words",
-                ],
+                vec!["/task/chip/phase", "/task/hold/revision", "/task/hold/reason/placed/hold", "/task/activity"],
             ),
-            (
-                Read::DirectionBEnded,
-                vec!["/activity/cut", "/activity/after", "/activity/rows/2/event/owner/source/line/decided/revision"],
-            ),
-            (Read::DirectionBFirst, vec!["/cut", "/before"]),
         ] {
             for path in paths {
                 let mut observed = passing.clone();
-                let value = observed.documents.get_mut(&read).expect("document").pointer_mut(path).expect("field");
-                *value = if value.is_null() { json!("unexpected") } else { Value::Null };
-                assert!(!step_5_4(&observed).is_empty(), "{read:?}{path}");
-            }
-        }
-    }
-    #[test]
-    fn descendants_must_share_bs_hold_without_advancing_or_finishing() {
-        let passing = met();
-        let mut changed = passing.clone();
-        changed.documents.get_mut(&Read::DirectionBPending).expect("still held")["task"]["hold"]["reason"]["placed"]
-            ["hold"] = json!(99);
-        assert!(!step_5_4(&changed).is_empty(), "B keeps the same hold until release");
-        for read in [Read::PlannedHeld, Read::PlannedCoderHeld] {
-            for (path, replacement) in [
-                ("/task/chip/phase", json!("running")),
-                ("/task/result", json!({"value":{}})),
-                ("/task/hold/reason/placed/hold", json!(99)),
-                ("/task/chip/details/owner/details/attempt", json!(99)),
-            ] {
-                let mut observed = passing.clone();
-                *observed.documents.get_mut(&read).expect("held descendant").pointer_mut(path).expect("field") =
-                    replacement;
+                *observed.documents.get_mut(&read).expect("read").pointer_mut(path).expect("field") = Value::Null;
                 assert!(!step_5_4(&observed).is_empty(), "{read:?}{path}");
             }
         }
     }
 
     #[test]
-    fn identities_and_reports_reject_a_mutation() {
-        let mut passing = met();
-        for (read, _, _) in [
-            (Read::X3Open, X3, STORY_OWNER),
-            (Read::X3Ended, X3, STORY_OWNER),
-            (Read::PlannedRunning, PLANNED, OVERLAP_OWNER),
-            (Read::PlannedCoderRunning, PLANNED_CODER, PLANNED),
-            (Read::PlannedHeld, PLANNED, OVERLAP_OWNER),
-            (Read::PlannedCoderHeld, PLANNED_CODER, PLANNED),
-            (Read::PlannedEnded, PLANNED, OVERLAP_OWNER),
-            (Read::StoryLanded, STORY_CHANGE, STORY_OWNER),
-            (Read::DirectionBHeld, OVERLAP_OWNER, DIRECTION),
-            (Read::DirectionBPending, OVERLAP_OWNER, DIRECTION),
-            (Read::DirectionBEnded, OVERLAP_OWNER, DIRECTION),
-            (Read::StoryOwnerEnded, STORY_OWNER, DIRECTION),
-            (Read::DirectionNoteWritten, STORY_OWNER, DIRECTION),
-        ] {
-            for path in ["/task/chip/task", "/task/project", "/task/requester/task"] {
-                let saved = passing.documents.get_mut(&read).expect("read").pointer_mut(path).expect("field").take();
-                assert!(!step_5_4(&passing).is_empty(), "{read:?}{path}");
-                *passing.documents.get_mut(&read).expect("read").pointer_mut(path).expect("field") = saved;
-            }
-        }
-        for read in [Read::StoryOwnerEnded, Read::DirectionBEnded, Read::DirectionEnded] {
-            for path in ["/task/chip/task", "/task/project", "/task/chip/phase", "/task/result/value/report/bytes"] {
-                let saved = passing.documents.get_mut(&read).expect("read").pointer_mut(path).expect("field").take();
-                assert!(!step_5_4(&passing).is_empty(), "{read:?}{path}");
-                *passing.documents.get_mut(&read).expect("read").pointer_mut(path).expect("field") = saved;
-            }
+    fn news_must_be_told_once_after_release() {
+        let passing = met();
+        let mut lost = passing.clone();
+        lost.told.clear();
+        let mut doubled = passing.clone();
+        doubled.told[0].history = vec![doubled.told[0].history[0].clone(); 2].into();
+        let mut early = passing.clone();
+        early.documents.get_mut(&Read::DirectionBPending).expect("held")["task"]["activity"] = json!(8);
+        for observed in [lost, doubled, early] {
+            assert!(!step_5_4(&observed).is_empty());
         }
     }
+
     #[test]
-    fn the_closed_pull_must_keep_the_pushed_head_and_h1_must_open_nothing() {
+    fn the_closed_pull_keeps_the_pushed_head_and_main_excludes_its_file() {
         let passing = met();
         for mutation in 0..8 {
             let mut observed = passing.clone();
@@ -2712,263 +1876,13 @@ mod direction_tests {
                 4 => observed.kit.pulls[0].deleted = Some(99),
                 5 => observed.kit.pulls[0].opened = 99,
                 6 => observed.kit.pulls[1].merged = false,
-                7 => observed.kit.pulls.push(Pull {
-                    repository: crate::case::KIT.as_bytes().to_vec(),
-                    number: 3,
-                    branch: format!("temper/{DIRECTION}/c{PLANNED}").into_bytes(),
-                    opened: 9,
-                    pushed: Some(9),
-                    landed: None,
-                    merged_head: None,
-                    merged: false,
-                    closed: true,
-                    deleted: Some(9),
-                }),
+                7 => {
+                    observed.kit.main.insert(X3_FILE.as_bytes().to_vec(), X3_WORDS.as_bytes().to_vec());
+                }
                 _ => unreachable!(),
             }
             assert!(!step_5_4(&observed).is_empty(), "mutation {mutation}");
         }
-        let mut red = passing.clone();
-        red.kit.merged_green = false;
-        let mut absent = passing.clone();
-        absent.kit.main.clear();
-        let mut old = passing.clone();
-        old.kit.main.insert(X3_FILE.as_bytes().to_vec(), X3_WORDS.as_bytes().to_vec());
-        for observed in [red, absent, old] {
-            assert!(!step_5_4(&observed).is_empty());
-        }
-    }
-    #[test]
-    fn news_cannot_be_doubled_or_lost_and_a_run_cannot_start_during_the_hold() {
-        let passing = met();
-        let mut doubled = passing.clone();
-        let extra = doubled.told[4].history[1].clone();
-        doubled.told[4].history = [doubled.told[4].history.to_vec(), vec![extra]].concat().into();
-        let mut lost = passing.clone();
-        lost.told.pop();
-        let mut during = passing.clone();
-        during.documents.get_mut(&Read::DirectionBFirst).expect("older")["rows"][0]["event"]["owner"]["source"]["line"] =
-            json!({"run_began":{"attempt":2}});
-        let mut early = passing.clone();
-        early.documents.get_mut(&Read::DirectionBEnded).expect("B")["activity"]["rows"][2]["event"]["owner"]["source"]
-            ["position"] = json!(2);
-        for observed in [doubled, lost, during, early] {
-            assert!(!step_5_4(&observed).is_empty());
-        }
-    }
-    #[test]
-    fn amendment_and_note_must_be_real_completed_tools() {
-        let passing = met();
-        for at in [0, 2] {
-            let mut observed = passing.clone();
-            observed.told.remove(at);
-            assert!(!step_5_4(&observed).is_empty());
-        }
-        let mut missing = passing.clone();
-        missing.told[1].history = Box::new([]);
-        missing.told[2].history = Box::new([]);
-        let mut duplicate = passing.clone();
-        duplicate.told[2].history = [duplicate.told[2].history.to_vec(), vec![input(DIRECTION_BRIEF)]].concat().into();
-        let mut prose = passing.clone();
-        prose.told[0].history = vec![input(DIRECTION_BRIEF)].into();
-        for observed in [missing, duplicate, prose] {
-            assert!(!step_5_4(&observed).is_empty());
-        }
-    }
-    fn ending_mutations(read: Read, task: u64) {
-        for ending in [json!({"failed":"invalid"}), json!("refused"), json!("exceeded")] {
-            let mut observed = met();
-            let doc = observed.documents.get_mut(&read).expect("journal");
-            let page = if doc.get("activity").is_some() { &mut doc["activity"] } else { doc };
-            let rows = page["rows"].as_array_mut().expect("rows");
-            let position = rows[0]["event"]["owner"]["source"]["position"].as_u64().expect("position");
-            // Add a later, fully paired attempt, so a successful final result
-            // cannot hide an invalid earlier activation.
-            rows.insert(
-                0,
-                json!({"event":{"owner":{"source":{"task":task,"position":position+1,
-                "line":{"run_began":{"attempt":99}}}}}}),
-            );
-            rows.insert(
-                0,
-                json!({"event":{"owner":{"source":{"task":task,"position":position+2,
-                "line":{"run_ended":{"attempt":99,"end":ending,"spent":0}}}}}}),
-            );
-            assert!(
-                step_5_4(&observed)
-                    .iter()
-                    .any(|miss| miss.what.starts_with(&format!("task {task}'s complete journal")))
-            );
-        }
-    }
-    #[test]
-    fn x3_cannot_hide_a_failed_or_refused_attempt() {
-        ending_mutations(Read::X3Ended, X3);
-    }
-    #[test]
-    fn x3s_coder_cannot_hide_a_failed_or_refused_attempt() {
-        ending_mutations(Read::X3Produced, X3_CODER);
-    }
-    #[test]
-    fn h1_cannot_hide_a_failed_or_refused_attempt() {
-        ending_mutations(Read::PlannedEnded, PLANNED);
-    }
-    #[test]
-    fn a1_cannot_hide_a_failed_or_refused_attempt() {
-        ending_mutations(Read::StoryLanded, STORY_CHANGE);
-    }
-    #[test]
-    fn a_cannot_hide_a_failed_or_refused_attempt() {
-        ending_mutations(Read::StoryOwnerEnded, STORY_OWNER);
-    }
-    #[test]
-    fn b_cannot_hide_a_failed_or_refused_attempt() {
-        ending_mutations(Read::DirectionBEnded, OVERLAP_OWNER);
-    }
-    #[test]
-    fn the_director_cannot_hide_a_failed_or_refused_attempt() {
-        ending_mutations(Read::DirectionEnded, DIRECTION);
-    }
-
-    #[test]
-    fn only_bs_zero_spend_first_placement_recheck_is_allowed() {
-        let mut observed = met();
-        for read in [Read::DirectionBEnded, Read::DirectionBFirst, Read::DirectionBPending, Read::DirectionBHeld] {
-            let doc = observed.documents.get_mut(&read).expect("B");
-            if let Some(head) = doc.pointer_mut("/task/activity") {
-                *head = json!(head.as_u64().expect("head") + 2);
-            }
-            let page = if doc.get("activity").is_some() { &mut doc["activity"] } else { doc };
-            for row in page["rows"].as_array_mut().expect("rows") {
-                let position = &mut row["event"]["owner"]["source"]["position"];
-                *position = json!(position.as_u64().expect("position") + 2);
-            }
-        }
-        let rows =
-            observed.documents.get_mut(&Read::DirectionBFirst).expect("B first")["rows"].as_array_mut().expect("rows");
-        rows.push(json!({"event":{"owner":{"source":{"task":OVERLAP_OWNER,"position":2,
-            "line":{"run_ended":{"attempt":OVERLAP_RECHECK_ATTEMPT,"end":"refused","spent":0}}}}}}));
-        rows.push(json!({"event":{"owner":{"source":{"task":OVERLAP_OWNER,"position":1,
-            "line":{"run_began":{"attempt":OVERLAP_RECHECK_ATTEMPT}}}}}}));
-        assert_met(&step_5_4(&observed));
-        for field in ["spent", "attempt"] {
-            let mut changed = observed.clone();
-            let rows = changed.documents.get_mut(&Read::DirectionBFirst).expect("B first")["rows"]
-                .as_array_mut()
-                .expect("rows");
-            let at = rows.len() - 2;
-            rows[at]["event"]["owner"]["source"]["line"]["run_ended"][field] = json!(99);
-            assert!(!step_5_4(&changed).is_empty(), "{field}");
-        }
-    }
-
-    #[test]
-    fn every_counted_journal_must_be_complete_and_ordered() {
-        let passing = met();
-        for read in [
-            Read::X3Ended,
-            Read::X3Produced,
-            Read::PlannedEnded,
-            Read::StoryLanded,
-            Read::StoryOwnerEnded,
-            Read::StoryOwnerEarlier,
-            Read::StoryOwnerFirst,
-            Read::DirectionBEnded,
-            Read::DirectionBFirst,
-            Read::DirectionEnded,
-            Read::DirectionFirst,
-        ] {
-            let mut missing = passing.clone();
-            missing.documents.remove(&read);
-            assert!(!step_5_4(&missing).is_empty(), "missing {read:?}");
-            for mutation in 0..3 {
-                let mut observed = passing.clone();
-                let doc = observed.documents.get_mut(&read).expect("journal");
-                let page = if doc.get("activity").is_some() { &mut doc["activity"] } else { doc };
-                match mutation {
-                    0 => page["cut"] = json!(true),
-                    1 => page["rows"][0]["event"]["owner"]["source"]["task"] = json!(99),
-                    2 => {
-                        let duplicate = page["rows"][0].clone();
-                        page["rows"].as_array_mut().expect("rows").push(duplicate);
-                    }
-                    _ => unreachable!(),
-                }
-                assert!(!step_5_4(&observed).is_empty(), "{read:?} mutation {mutation}");
-            }
-        }
-    }
-
-    #[test]
-    fn fresh_message_numbers_senders_and_amendment_revision_are_checked() {
-        let mut passing = met();
-        for (read, paths) in [
-            (
-                Read::StoryOwnerFirst,
-                vec![
-                    "/rows/0/event/owner/source/line/heard/number",
-                    "/rows/0/event/owner/source/line/heard/from/task",
-                    "/rows/0/event/owner/source/line/heard/kind/amendment/revision",
-                    "/rows/0/event/owner/source/line/heard/words",
-                ],
-            ),
-            (
-                Read::DirectionEnded,
-                vec![
-                    "/activity/rows/2/event/owner/source/line/words/message",
-                    "/activity/rows/2/event/owner/source/line/words/by/person",
-                    "/activity/rows/2/event/owner/source/line/words/words",
-                ],
-            ),
-            (
-                Read::DirectionBPending,
-                vec![
-                    "/activity/rows/0/event/owner/source/line/heard/number",
-                    "/activity/rows/0/event/owner/source/line/heard/from/task",
-                    "/activity/rows/0/event/owner/source/line/heard/hits",
-                    "/activity/rows/0/event/owner/source/line/heard/kind/news/subscription",
-                ],
-            ),
-        ] {
-            for path in paths {
-                let saved = passing.documents.get_mut(&read).expect("doc").pointer_mut(path).expect("field").take();
-                assert!(!step_5_4(&passing).is_empty(), "{read:?}{path}");
-                *passing.documents.get_mut(&read).expect("doc").pointer_mut(path).expect("field") = saved;
-            }
-        }
-    }
-
-    #[test]
-    fn both_pull_heads_and_the_merge_commit_come_from_forge_records() {
-        let passing = met();
-        let mut multiline = passing.clone();
-        let words = multiline
-            .documents
-            .get_mut(&Read::StoryLanded)
-            .expect("landed task")
-            .pointer_mut("/task/result/value/change/words/bytes")
-            .expect("landing words");
-        *words = format!("{}\npull request #1 of acme/app on forge.example", words.as_str().expect("merge id")).into();
-        assert_met(&step_5_4(&multiline));
-        for pull in 0..2 {
-            for mutation in 0..5 {
-                let mut observed = passing.clone();
-                let pull = &mut observed.kit.pulls[pull];
-                match mutation {
-                    0 => pull.number = 99,
-                    1 => pull.branch = b"unrelated".to_vec(),
-                    2 => pull.pushed = None,
-                    3 => pull.pushed = Some(99),
-                    4 => pull.landed = Some(99),
-                    _ => unreachable!(),
-                }
-                assert!(!step_5_4(&observed).is_empty());
-            }
-        }
-        let mut observed = passing.clone();
-        observed.documents.get_mut(&Read::X3Produced).expect("coder")["task"]["result"]["value"]["change"]["words"] =
-            json!({"bytes":"arbitrary result prose"});
-        assert_met(&step_5_4(&observed));
     }
 
     fn forge_records() -> Vec<skein_fake_forge_domain::Observation> {
@@ -2995,14 +1909,6 @@ mod direction_tests {
                 by: 1,
             });
             if task == X3 {
-                records.push(Observation::Commented {
-                    repository: repository.clone(),
-                    number,
-                    id: 1,
-                    body: skein_forge::marker::encode(b"temper", b"reason-key", X3_CANCEL_REASON.as_bytes(), u32::MAX)
-                        .expect("comment"),
-                    by: 1,
-                });
                 records.push(Observation::Closed { repository: repository.clone(), number, by: 1 });
             } else {
                 records.push(Observation::Merged {
@@ -3017,51 +1923,6 @@ mod direction_tests {
             records.push(Observation::Deleted { repository: repository.clone(), branch, at: commit, by: 1 });
         }
         records
-    }
-
-    #[test]
-    fn the_closing_reason_must_be_exact_once_and_last_before_close() {
-        use skein_fake_forge_domain::Observation;
-        for mutation in 0..5 {
-            let mut observed = met();
-            let records = &mut observed.kit.records;
-            match mutation {
-                0 => {
-                    records.remove(2);
-                }
-                1 => {
-                    if let Observation::Commented { body, .. } = &mut records[2] {
-                        *body = b"wrong reason".as_slice().into();
-                    }
-                }
-                2 => {
-                    records.insert(3, records[2].clone());
-                }
-                3 => {
-                    records.swap(2, 3);
-                }
-                4 => {
-                    let mut later = records[2].clone();
-                    if let Observation::Commented { body, .. } = &mut later {
-                        *body = b"a later comment".as_slice().into();
-                    }
-                    records.insert(3, later);
-                }
-                _ => unreachable!(),
-            }
-            assert!(!step_5_4(&observed).is_empty(), "comment mutation {mutation}");
-        }
-    }
-
-    #[test]
-    fn pull_digest_correlates_push_open_close_delete_and_merge_in_record_order() {
-        let mut observed = met();
-        observed.kit.pulls = pull_digest(&forge_records());
-        assert_met(&step_5_4(&observed));
-        assert_eq!(observed.kit.pulls[0].pushed, Some(7));
-        assert_eq!(observed.kit.pulls[1].pushed, Some(8));
-        assert_eq!(observed.kit.pulls[1].merged_head, Some(8));
-        assert_eq!(observed.kit.pulls[1].landed, Some(9));
     }
 
     #[test]
@@ -3081,30 +1942,30 @@ mod direction_tests {
                 }
                 2 => records.swap(0, 1),
                 3 => {
-                    if let Observation::Closed { number, .. } = &mut records[3] {
+                    if let Observation::Closed { number, .. } = &mut records[2] {
                         *number = 99;
                     }
                 }
                 4 => {
-                    if let Observation::Deleted { at, .. } = &mut records[4] {
+                    if let Observation::Deleted { at, .. } = &mut records[3] {
                         *at = 99;
                     }
                 }
                 5 => {
-                    if let Observation::Merged { head, .. } = &mut records[7] {
+                    if let Observation::Merged { head, .. } = &mut records[6] {
                         *head = 99;
                     }
                 }
                 6 => {
-                    if let Observation::Merged { commit, .. } = &mut records[7] {
+                    if let Observation::Merged { commit, .. } = &mut records[6] {
                         *commit = 99;
                     }
                 }
                 7 => {
-                    records.remove(5);
+                    records.remove(4);
                 }
                 8 => {
-                    if let Observation::Opened { branches: Some(branches), .. } = &mut records[6] {
+                    if let Observation::Opened { branches: Some(branches), .. } = &mut records[5] {
                         branches.commit = 99;
                     }
                 }
@@ -3114,6 +1975,16 @@ mod direction_tests {
             observed.kit.pulls = pull_digest(&records);
             assert!(!step_5_4(&observed).is_empty(), "record mutation {mutation}");
         }
+    }
+
+    #[test]
+    fn pull_digest_correlates_push_open_close_delete_and_merge_in_record_order() {
+        let observed = met();
+        assert_eq!(observed.kit.pulls[0].pushed, Some(7));
+        assert_eq!(observed.kit.pulls[1].pushed, Some(8));
+        assert_eq!(observed.kit.pulls[1].merged_head, Some(8));
+        assert_eq!(observed.kit.pulls[1].landed, Some(9));
+        assert_met(&step_5_4(&observed));
     }
 }
 

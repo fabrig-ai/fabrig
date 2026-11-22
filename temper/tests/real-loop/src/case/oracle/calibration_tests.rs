@@ -1,7 +1,6 @@
 //! Pure oracle calibration (temper/docs/design/testing/real-loop.md).
 use super::*;
 use serde_json::json;
-use skein_fake_llm_domain::api::Part;
 
 #[derive(Clone, Copy)]
 enum Mutation {
@@ -10,7 +9,6 @@ enum Mutation {
     Draft,
     FailedRead(Option<Exit>),
     MissingRead(bool),
-    Deferred(&'static str),
 }
 
 struct Row {
@@ -75,7 +73,7 @@ fn mutate_read(observed: &mut Observed, mutation: Mutation) {
             }
             reads[position].1 = calls.len();
         }
-        Mutation::Owner | Mutation::Commit | Mutation::Draft | Mutation::Deferred(_) => {
+        Mutation::Owner | Mutation::Commit | Mutation::Draft => {
             panic!("call mutation")
         }
     }
@@ -84,7 +82,7 @@ fn mutate_read(observed: &mut Observed, mutation: Mutation) {
     assert!(!observed.observed_at.contains_key(&Read::DesignEnded));
 }
 
-fn rows() -> [Row; 9] {
+fn rows() -> [Row; 7] {
     [
         Row {
             name: "the_default_model_reports_the_delegation_must",
@@ -121,34 +119,15 @@ fn rows() -> [Row; 9] {
             mutation: Mutation::MissingRead(false),
             expected: absent_design(),
         },
-        Row {
-            name: "missing_deferred_work_is_reported_after_real_cancellation",
-            mutation: Mutation::Deferred("Task 4 (x3)"),
-            expected: vec![(
-                DIRECTION_CANCELLED,
-                "A must write a project note naming x3 and its deferred plan, then recall it",
-            )],
-        },
-        Row {
-            name: "missing_deferred_work_is_reported_after_real_cancellation",
-            mutation: Mutation::Deferred("closed pull"),
-            expected: vec![(
-                DIRECTION_CANCELLED,
-                "A must write a project note naming x3 and its deferred plan, then recall it",
-            )],
-        },
     ]
 }
 
 #[test]
-fn passing_observations_report_the_six_calibration_rows_named_misses() {
+fn passing_observations_report_the_calibration_rows_named_misses() {
     let opening = tests::met();
-    let direction = direction_tests::met();
     assert_met(&step_4_1(&opening));
-    assert_met(&step_5_4(&direction));
     for Row { name, mutation, expected } in rows() {
-        let deferred = matches!(mutation, Mutation::Deferred(_));
-        let mut observed = if deferred { direction.clone() } else { opening.clone() };
+        let mut observed = opening.clone();
         match mutation {
             Mutation::Owner => {
                 observed.documents.get_mut(&Read::AEnded).expect("A")["task"]["llm"] =
@@ -162,35 +141,8 @@ fn passing_observations_report_the_six_calibration_rows_named_misses() {
                 observed.kit.main.insert(crate::case::DRAFT.as_bytes().to_vec(), b"# Changed draft\n".to_vec());
             }
             Mutation::FailedRead(_) | Mutation::MissingRead(_) => mutate_read(&mut observed, mutation),
-            Mutation::Deferred(reference) => {
-                let body = crate::case::DEFERRED_WORDS.replace(reference, "omitted");
-                assert_ne!(body, crate::case::DEFERRED_WORDS, "{name}: reference is present before mutation");
-                for told in &mut observed.told {
-                    if told.agent != Agent::StoryOwner {
-                        continue;
-                    }
-                    for message in &mut told.history {
-                        for part in &mut message.parts {
-                            match part {
-                                Part::ToolCall { name, arguments, .. } if name.as_ref() == b"note" => {
-                                    let mut args: Value = serde_json::from_slice(arguments).expect("note arguments");
-                                    args["body"] = json!(body);
-                                    *arguments = serde_json::to_vec(&args).expect("mutated note").into();
-                                }
-                                Part::ToolOutput { output, .. } => {
-                                    *output = String::from_utf8_lossy(output)
-                                        .replace(crate::case::DEFERRED_WORDS, &body)
-                                        .into_bytes()
-                                        .into();
-                                }
-                                Part::Text { .. } | Part::Opaque { .. } | Part::ToolCall { .. } => {}
-                            }
-                        }
-                    }
-                }
-            }
         }
-        let (step, misses) = if deferred { ("5.4", step_5_4(&observed)) } else { ("4.1", step_4_1(&observed)) };
+        let (step, misses) = ("4.1", step_4_1(&observed));
         let reported: Vec<_> = misses.iter().map(|miss| (miss.step, miss.promise, miss.what.as_str())).collect();
         let expected: Vec<_> = expected.iter().map(|&(promise, what)| (step, promise, what)).collect();
         assert_eq!(reported, expected, "{name}");

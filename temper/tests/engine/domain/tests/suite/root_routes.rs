@@ -989,6 +989,94 @@ fn a_person_task_addressed_to_a_role_taken_by_one_handed_back_answered_by_anothe
 }
 
 #[test]
+fn zero_spend_placement_rechecks_do_not_fail_the_two_working_attempts() {
+    for rechecks in [0, 1, 3] {
+        let (mut driver, first) = running_fixture();
+        tool_call(
+            &mut driver,
+            &first,
+            90,
+            engine::Tool::Subscribe {
+                kind: tasks::SubscriptionKind::Timer { at: Wall::from_nanos(2_000_000_000), period: None },
+            },
+        );
+        assert!(
+            matches!(driver.answered(90), Some(engine::CallAnswer::Subscribed { .. })),
+            "{:?}",
+            driver.answered(90)
+        );
+        driver.answer(Token::new(7), first.task, first.attempt, 3, tasks::End::Parked, engine::Parts::none());
+        driver.settle();
+        driver.fire_at(Duration::from_secs(2));
+        driver.settle();
+        for _ in 0..rechecks {
+            let run = driver.last_assignment();
+            driver.answer(Token::new(7), run.task, run.attempt, 0, tasks::End::Recheck, engine::Parts::none());
+            driver.settle();
+
+            assert!(driver.last_assignment().attempt > run.attempt, "a recheck retries on the domain clock");
+            assert_eq!(live(&driver, run.task).tries, tasks::Tries::NONE);
+        }
+        let last = driver.last_assignment();
+        driver.answer(
+            Token::new(7),
+            last.task,
+            last.attempt,
+            1,
+            tasks::End::Finished {
+                result: tasks::TaskResult::Report { words: b"B finished".as_slice().into() },
+                cancel_delegates: false,
+            },
+            engine::Parts::none(),
+        );
+        driver.settle();
+        let lines: Vec<_> = driver
+            .transactions
+            .iter()
+            .flatten()
+            .filter_map(|write| {
+                if let Write::Save(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Activity(row)))) = write
+                    && row.task == first.task
+                {
+                    Some(&row.line)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        let starts: Vec<_> = lines
+            .iter()
+            .filter_map(|line| if let tasks::Line::RunBegan { attempt, .. } = line { Some(*attempt) } else { None })
+            .collect();
+        let ends: Vec<_> = lines
+            .iter()
+            .filter_map(|line| {
+                if let tasks::Line::RunEnded { attempt, end, spent } = line {
+                    Some((*attempt, *end, *spent))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert_eq!(starts.len(), ends.len(), "every attempt has its terminal");
+        assert!(starts.iter().all(|start| ends.iter().filter(|(end, _, _)| end == start).count() == 1));
+        assert_eq!(
+            ends.iter().filter(|(_, end, _)| matches!(end, tasks::EndKind::Parked | tasks::EndKind::Finished)).count(),
+            2
+        );
+        assert_eq!(
+            ends.iter().filter(|(_, end, _)| *end == tasks::EndKind::Refused).count(),
+            usize::try_from(rechecks).expect("small recheck count")
+        );
+        assert!(
+            ends.iter().all(|(_, end, spent)| matches!(end, tasks::EndKind::Parked | tasks::EndKind::Finished)
+                || (*end == tasks::EndKind::Refused && *spent == 0)),
+            "no failure or spent refusal: {ends:?}"
+        );
+    }
+}
+
+#[test]
 fn a_person_stops_a_run_and_releases_it() {
     let (mut driver, assignment) = running_fixture();
     let session = driver.session();
@@ -2836,7 +2924,8 @@ fn a_narrowing_stops_the_old_run_and_offers_the_amendment_to_the_next() {
     narrower.budget.spend = 5;
     let child = call_batch(&mut driver, &parent, 90, Box::new([member]))[0];
     let first = assigned_task(&driver, child);
-    let amendment = task_amendment(None, Some(narrower), b"smaller scope");
+    let mut amendment = task_amendment(None, Some(narrower), b"smaller scope");
+    amendment.instructions = Some(b"Take the new direction".as_slice().into());
     let revision = live(&driver, child).revisions.spec;
     tool_call(
         &mut driver,
@@ -2850,10 +2939,20 @@ fn a_narrowing_stops_the_old_run_and_offers_the_amendment_to_the_next() {
     let second = driver.last_assignment();
     assert_eq!(second.task, child);
     assert!(second.attempt > first.attempt);
-    assert!(second.messages.iter().any(
-        |word| matches!(word.kind, tasks::MessageKind::Amendment { .. }) && word.words.as_ref() == b"smaller scope"
-    ));
+    assert_eq!(
+        second
+            .messages
+            .iter()
+            .filter(
+                |word| matches!(word.kind, tasks::MessageKind::Amendment { revision: found } if found == revision + 1)
+                    && word.words.as_ref() == b"Take the new direction"
+            )
+            .count(),
+        1
+    );
     let task = live(&driver, child);
+    assert_eq!(task.revisions.spec, revision + 1);
+    assert_eq!(task.instructions.as_deref(), Some(b"Take the new direction".as_slice()));
     assert_eq!(task.numbers.budget, 5);
     assert!(!task.narrowing);
 }

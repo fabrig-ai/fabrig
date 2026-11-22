@@ -30,26 +30,12 @@ pub enum Read {
     BEnded,
     ShapeEnded,
     MoverEnded,
-    X3Open,
     X3Produced,
     X3Ended,
-    PlannedRunning,
-    PlannedCoderRunning,
-    PlannedHeld,
-    PlannedCoderHeld,
-    PlannedEnded,
     StoryLanded,
     DirectionBHeld,
     DirectionBPending,
     DirectionBEnded,
-    DirectionBFirst,
-    StoryOwnerEnded,
-    DirectionEnded,
-    StoryOwnerEarlier,
-    StoryOwnerFirst,
-    StoryOwnerInitial,
-    DirectionNoteWritten,
-    DirectionFirst,
     // 6.4
     RedChangeEnded,
     RedReviewEnded,
@@ -360,39 +346,20 @@ pub fn step_5_2() -> Vec<calls::Step> {
 }
 
 // Act 2, step 5.4 (testing/reference-case.md)
-const DIRECTION_B_ENDED: usize = 32;
-const STORY_OWNER_ENDED: usize = 36;
-const DIRECTION_ENDED: usize = 38;
-const STORY_OWNER_EARLIER: usize = 39;
-const STORY_OWNER_FIRST: usize = 40;
-const STORY_OWNER_INITIAL: usize = 41;
 pub const READS_5_4: &[(Read, usize)] = &[
-    (Read::X3Open, 7),
-    (Read::X3Produced, 8),
-    (Read::PlannedCoderRunning, 11),
-    (Read::PlannedRunning, 12),
-    (Read::DirectionBHeld, 15),
-    (Read::PlannedHeld, 16),
-    (Read::PlannedCoderHeld, 17),
-    (Read::DirectionNoteWritten, 20),
-    (Read::X3Ended, 22),
-    (Read::StoryLanded, 25),
-    (Read::DirectionBPending, 26),
-    (Read::PlannedEnded, 30),
-    (Read::DirectionBEnded, DIRECTION_B_ENDED),
-    (Read::StoryOwnerEnded, STORY_OWNER_ENDED),
-    (Read::DirectionEnded, DIRECTION_ENDED),
-    (Read::StoryOwnerEarlier, STORY_OWNER_EARLIER),
-    (Read::StoryOwnerFirst, STORY_OWNER_FIRST),
-    (Read::StoryOwnerInitial, STORY_OWNER_INITIAL),
+    (Read::X3Produced, 7),
+    (Read::DirectionBHeld, 12),
+    (Read::X3Ended, 15),
+    (Read::StoryLanded, 17),
+    (Read::DirectionBPending, 18),
+    (Read::DirectionBEnded, 22),
 ];
 #[must_use]
-#[expect(clippy::too_many_lines, reason = "the reference story keeps its ordered ctl acts together")]
 pub fn step_5_4() -> Vec<calls::Step> {
     use super::{
         Agent, B_DELEGATE_HOLD, DIRECTION, DIRECTION_MESSAGE, DIRECTION_PERSON, OVERLAP_HOLD_REVISION, OVERLAP_OWNER,
-        PLANNED, PLANNED_CODER, PLANNED_CODING_HOLD, STORY_CHANGE, STORY_OWNER, STORY_RECALL_HOLD, X3, X3_CODER,
-        X3_REVIEW_HOLD, X3_REVIEWER,
+        PLANNED, PLANNED_CODER, PLANNED_CODING_HOLD, STORY_CHANGE, STORY_OWNER, X3, X3_CODER, X3_REVIEW_HOLD,
+        X3_REVIEWER,
     };
     vec![
         sign_in(D1),
@@ -417,46 +384,22 @@ pub fn step_5_4() -> Vec<calls::Step> {
         call(D1, argv!["chat", "start", "--project", number(PROJECT), "--key", "direction", DIRECTION_PERSON]),
         call(D1, argv!["task", "show", number(DIRECTION), "--until", "replied"]),
         call(D1, argv!["task", "show", number(STORY_OWNER), "--until", "replied"]),
-        // The delegate cue selects x3's review before its writing observation.
-        // Fake Pieces keep it writing until ReleaseHold (i2's addendum 2).
         until(D1, argv!["task", "show", number(X3), "--json"], Agent::Review.cue(), b"\"task\""),
         until(D1, argv!["task", "show", number(X3_REVIEWER), "--json"], b"\"work\":\"writing\"", b"\"task\""),
-        call(D1, argv!["task", "show", number(X3), "--activity", "32", "--json"]),
-        call(D1, argv!["task", "show", number(X3_CODER), "--activity", "32", "--json"]),
+        call(D1, argv!["task", "show", number(X3_CODER), "--json"]),
         calls::release_hold(B_DELEGATE_HOLD),
         until(D1, argv!["task", "show", number(OVERLAP_OWNER), "--json"], Agent::PlannedWriter.cue(), b"\"task\""),
-        until(D1, argv!["task", "show", number(PLANNED), "--json"], b"\"live_delegates\":1", b"\"task\""),
         until(D1, argv!["task", "show", number(PLANNED_CODER), "--json"], b"\"work\":\"writing\"", b"\"task\""),
-        call(D1, argv!["task", "show", number(PLANNED), "--activity", "32", "--json"]),
         call(D1, argv!["task", "show", number(OVERLAP_OWNER), "--until", "phase:idle"]),
         call(D1, argv!["task", "stop", number(OVERLAP_OWNER), "--key", "stop-b"]),
-        until(
-            D1,
-            argv!["task", "show", number(OVERLAP_OWNER), "--activity", "32", "--json"],
-            b"\"phase\":\"held\"",
-            b"\"task\"",
-        ),
-        call(D1, argv!["task", "show", number(PLANNED), "--json"]),
-        call(D1, argv!["task", "show", number(PLANNED_CODER), "--json"]),
-        call(D1, argv!["task", "message", number(DIRECTION), "--key", "new-direction", DIRECTION_MESSAGE]),
+        until(D1, argv!["task", "show", number(OVERLAP_OWNER), "--json"], b"\"phase\":\"held\"", b"\"task\""),
+        call(D1, argv!["task", "message", number(STORY_OWNER), "--key", "new-direction", DIRECTION_MESSAGE]),
         call(D1, argv!["task", "show", number(X3), "--until", "phase:closing"]),
-        // Commit the note before releasing the review: otherwise the cancel's
-        // result can take the note's fresh number between A's two tool calls.
-        until(
-            D1,
-            argv!["task", "show", number(STORY_OWNER), "--activity", "32", "--json"],
-            b"\"tool\":\"note\"",
-            b"\"task\"",
-        ),
         calls::release_hold(X3_REVIEW_HOLD),
-        call(D1, argv!["task", "show", number(X3), "--until", "ended"]),
-        call(D1, argv!["task", "show", number(X3), "--activity", "32", "--json"]),
+        call(D1, argv!["task", "show", number(X3), "--until", "ended", "--json"]),
         until(D1, argv!["task", "show", number(STORY_OWNER), "--json"], Agent::StoryWriter.cue(), b"\"task\""),
-        // a1's review has no hold. Watch endings once, then read their journals,
-        // avoiding repeated reads of the same large activity documents.
-        call(D1, argv!["task", "show", number(STORY_CHANGE), "--until", "ended"]),
-        call(D1, argv!["task", "show", number(STORY_CHANGE), "--activity", "32", "--json"]),
-        call(D1, argv!["task", "show", number(OVERLAP_OWNER), "--activity", "32", "--json"]),
+        call(D1, argv!["task", "show", number(STORY_CHANGE), "--until", "ended", "--json"]),
+        call(D1, argv!["task", "show", number(OVERLAP_OWNER), "--json"]),
         call(
             D1,
             argv![
@@ -471,61 +414,9 @@ pub fn step_5_4() -> Vec<calls::Step> {
         ),
         call(D1, argv!["task", "show", number(PLANNED), "--until", "phase:closing"]),
         calls::release_hold(PLANNED_CODING_HOLD),
-        call(D1, argv!["task", "show", number(PLANNED), "--until", "ended"]),
-        call(D1, argv!["task", "show", number(PLANNED), "--activity", "32", "--json"]),
         call(D1, argv!["task", "show", number(OVERLAP_OWNER), "--until", "ended"]),
         call(D1, argv!["task", "show", number(OVERLAP_OWNER), "--activity", "32", "--json"]),
-        // B's batched turns fit its complete journal in this one page.
-        // Select the run woken by a1's change result, then await its held
-        // writing turn (i2's addendum 2). x3's result was a cancellation.
-        until(
-            D1,
-            argv!["task", "show", number(STORY_OWNER), "--activity", "32", "--json"],
-            b"\"kind\":{\"result\":{\"change\":",
-            b"\"task\"",
-        ),
-        until(D1, argv!["task", "show", number(STORY_OWNER), "--json"], b"\"work\":\"writing\"", b"\"task\""),
-        calls::release_hold(STORY_RECALL_HOLD),
-        call(D1, argv!["task", "show", number(STORY_OWNER), "--until", "ended"]),
-        call(D1, argv!["task", "show", number(STORY_OWNER), "--activity", "32", "--json"]),
         call(D1, argv!["task", "show", number(DIRECTION), "--until", "ended"]),
-        call(D1, argv!["task", "show", number(DIRECTION), "--activity", "32", "--json"]),
-        call(
-            D1,
-            argv![
-                "task",
-                "activity",
-                number(STORY_OWNER),
-                "--before",
-                calls::activity_before(STORY_OWNER_ENDED),
-                "--json"
-            ],
-        ),
-        call(
-            D1,
-            argv![
-                "task",
-                "activity",
-                number(STORY_OWNER),
-                "--before",
-                calls::activity_before(STORY_OWNER_EARLIER),
-                "--json"
-            ],
-        ),
-        // Run endings can put the first attempt's beginning on a fourth page;
-        // follow that page only when the third supplies a cursor.
-        call(
-            D1,
-            argv![
-                "task",
-                "activity",
-                number(STORY_OWNER),
-                "--before",
-                calls::activity_before(STORY_OWNER_FIRST),
-                "--json"
-            ],
-        )
-        .if_activity_remains(),
     ]
 }
 

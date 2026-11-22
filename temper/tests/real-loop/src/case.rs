@@ -493,21 +493,9 @@ pub const X3_REVIEWER: u64 = 6;
 pub const PLANNED: u64 = 7;
 pub const PLANNED_CODER: u64 = 8;
 pub const STORY_CHANGE: u64 = 9;
-pub const STORY_CODER: u64 = 10;
-pub const STORY_REVIEWER: u64 = 11;
-pub const DIRECTION_REVISION: u64 = 1;
 pub const OVERLAP_HOLD_REVISION: u64 = 1;
-// Landing subscriptions precede the direction, amendment and deferred note.
-pub const DEFERRED_NOTE_NUMBER: u64 = 7;
-pub const DIRECTION_PERSON_MESSAGE: u64 = 5;
-pub const DIRECTION_AMENDMENT_MESSAGE: u64 = 6;
-pub const OVERLAP_SUBSCRIPTION: u64 = 3;
-pub const OVERLAP_RECHECK_ATTEMPT: u64 = 3;
 pub const DIRECTION_PERSON: &str = "@case_direction Delegate A and B as owners on kit and wait for my direction.";
 pub const DIRECTION_MESSAGE: &str = "The end-to-end story first; cut it to one path; placeholders are fine. Stop x3. B's files are A's where the story needs them.";
-pub const DIRECTION_BRIEF: &str = "The end-to-end story first, one path with placeholders. Stop x3 and defer its plan in a project note. B's files are A's where the story needs them.";
-pub const DIRECTION_REASON: &str =
-    "The person wants the end-to-end story first; stop x3 and use B's files where needed.";
 pub const STORY_OWNER_SPEC: &str =
     "@case_story_owner Own A's work: delegate x3, then await the director's new instructions.";
 pub const OVERLAP_OWNER_SPEC: &str =
@@ -523,17 +511,13 @@ pub const STORY_WORDS: &str = "# B\n\nThe end-to-end story takes one path throug
 pub const STORY_GREEN: &str = "The end-to-end story takes one path through B's file.";
 pub const X3_CANCEL_REASON: &str = "Defer x3: the person's end-to-end story comes first.";
 pub const PLANNED_CANCEL_REASON: &str = "A's landing overlaps h1; cancel the plan to go again from the new main.";
-pub const DEFERRED_NOTE: &str = "x3's deferred plan";
-pub const DEFERRED_WORDS: &str =
-    "Task 4 (x3) is deferred under its closed pull; return to its old plan after the end-to-end story.";
-pub const STORY_OWNER_REPORT: &str = "The story landed; x3's deferred plan was recalled.";
+pub const STORY_OWNER_REPORT: &str = "The story landed; x3 was cancelled.";
 pub const OVERLAP_OWNER_REPORT: &str = "B heard A's overlapping landing after release and cancelled h1.";
 pub const DIRECTION_REPORT: &str = "A's story landed and B reported after release.";
 pub const DIRECTION_HELD_WORDS: &str = "Waiting at the story's event.";
 pub const B_DELEGATE_HOLD: &[u8] = b"case-5-4-b-delegate";
 pub const X3_REVIEW_HOLD: &[u8] = b"case-5-4-x3-review";
 pub const PLANNED_CODING_HOLD: &[u8] = b"case-5-4-h1-code";
-pub const STORY_RECALL_HOLD: &[u8] = b"case-5-4-recall";
 
 #[must_use]
 pub fn fixture_5_4() -> forge::Fixture {
@@ -548,7 +532,7 @@ pub fn fixture_5_4() -> forge::Fixture {
         },
         configure: |value, agent, forge| {
             (fixture().configure)(value, agent, forge);
-            // Delegate/amend/cancel and their wait share one LLM completion.
+            // Delegate/cancel and their wait share one LLM completion.
             agent["profile"]["declared"]["calls_per_response"] = 2.into();
             small_two_call_window(value, agent);
             value.jig_over("hub.run_calls", 2);

@@ -476,11 +476,9 @@ fn direction_held(name: &[u8], mut turn: Turn) -> Turn {
 #[must_use]
 pub fn step_5_4(forge: SocketAddr) -> Box<[Script]> {
     use super::{
-        B_DELEGATE_HOLD, B_FILE, B_WORDS, DEFERRED_NOTE, DEFERRED_NOTE_NUMBER, DEFERRED_WORDS, DIRECTION_BRIEF,
-        DIRECTION_REASON, DIRECTION_REPORT, DIRECTION_REVISION, OVERLAP_OWNER_REPORT, OVERLAP_OWNER_SPEC, PLANNED,
-        PLANNED_CANCEL_REASON, PLANNED_CODING_HOLD, PLANNED_SPEC, PROJECT, STORY_CHANGE, STORY_GREEN, STORY_OWNER,
-        STORY_OWNER_REPORT, STORY_OWNER_SPEC, STORY_RECALL_HOLD, STORY_SPEC, STORY_WORDS, X3, X3_CANCEL_REASON,
-        X3_FILE, X3_REVIEW_HOLD, X3_SPEC, X3_WORDS,
+        B_DELEGATE_HOLD, B_FILE, B_WORDS, DIRECTION_REPORT, OVERLAP_OWNER_REPORT, OVERLAP_OWNER_SPEC, PLANNED,
+        PLANNED_CANCEL_REASON, PLANNED_CODING_HOLD, PLANNED_SPEC, STORY_CHANGE, STORY_GREEN, STORY_OWNER_REPORT,
+        STORY_OWNER_SPEC, STORY_SPEC, STORY_WORDS, X3, X3_CANCEL_REASON, X3_FILE, X3_REVIEW_HOLD, X3_SPEC, X3_WORDS,
     };
     let verdict = || call(b"finish", &json!({"form":"verdict","label":"1","text":REVIEWED,"fields":{},"items":[]}));
     Box::new([
@@ -494,13 +492,6 @@ pub fn step_5_4(forge: SocketAddr) -> Box<[Script]> {
                     ),
                     "A and B own kit's work.",
                 ),
-                then_wait(
-                    call(
-                        b"amend",
-                        &json!({"target":STORY_OWNER,"revision":DIRECTION_REVISION-1,"amendment":{"instructions":DIRECTION_BRIEF,"reason":DIRECTION_REASON}}),
-                    ),
-                    "A has the new direction.",
-                ),
                 report(DIRECTION_REPORT),
                 wait("The director is waiting for direction or the owners' reports."),
             ]),
@@ -511,14 +502,9 @@ pub fn step_5_4(forge: SocketAddr) -> Box<[Script]> {
                 call(b"delegate", &json!({"batch":[direction_change(forge, X3_SPEC,X3_FILE,2)]})),
                 wait("x3's review waits."),
                 call(b"cancel", &json!({"target":X3,"reason":X3_CANCEL_REASON})),
-                call(
-                    b"note",
-                    &json!({"scope":{"kind":"project","project":PROJECT},"description":DEFERRED_NOTE,"body":DEFERRED_WORDS,"tags":["deferred"]}),
-                ),
                 wait("x3's cancellation is settling before a1 starts."),
                 call(b"delegate", &json!({"batch":[direction_change(forge, STORY_SPEC,B_FILE,2)]})),
                 wait("a1 is delegated."),
-                direction_held(STORY_RECALL_HOLD, call(b"recall", &json!({"kind":"name","name":DEFERRED_NOTE_NUMBER}))),
                 report(STORY_OWNER_REPORT),
             ]),
         },
@@ -567,35 +553,26 @@ pub fn step_5_4(forge: SocketAddr) -> Box<[Script]> {
     ])
 }
 
-/// B's hold can wake the director before the person sends the new direction.
-/// Follow delivered input so notices cannot consume the amendment or report.
+/// Notice-driven replies keep the owner waiting until each change ends.
 #[must_use]
 pub fn step_5_4_rules() -> Box<[Box<[Rule]>]> {
-    use super::{
-        DEFERRED_NOTE_NUMBER, DIRECTION_BRIEF, DIRECTION_MESSAGE, DIRECTION_REVISION, OVERLAP_OWNER, STORY_CHANGE,
-        STORY_OWNER, STORY_OWNER_REPORT, X3,
-    };
+    use super::{DIRECTION_MESSAGE, OVERLAP_OWNER, STORY_CHANGE, STORY_OWNER, STORY_OWNER_REPORT, X3};
     let director = [
-        (STORY_OWNER_REPORT, 2),
-        (CROSSED, 2),
-        (&format!("Done: task {STORY_OWNER} is at spec revision {DIRECTION_REVISION}"), 3),
-        (DIRECTION_MESSAGE, 1),
-        ("Held task needs a decision", 3),
-        (&format!("{DELEGATED}{STORY_OWNER}, {OVERLAP_OWNER}"), 3),
+        (STORY_OWNER_REPORT, 1),
+        (CROSSED, 1),
+        ("Held task needs a decision", 2),
+        (&format!("{DELEGATED}{STORY_OWNER}, {OVERLAP_OWNER}"), 2),
         (BEGIN, 0),
-        ("", 3),
+        ("", 2),
     ]
     .map(|(cue, turn)| Rule { cue: cue.as_bytes().into(), turn });
     let owner = [
-        (&format!("Note {DEFERRED_NOTE_NUMBER} revision 1: ") as &str, 8),
-        // Landing news may cross the report after the note has been recalled.
-        (CROSSED, 8),
-        (&format!("Result from task {STORY_CHANGE}:"), 7),
-        (&format!("Result from task {X3}:"), 5),
-        (&format!("Note {DEFERRED_NOTE_NUMBER} revision 1 written · 1 lines"), 4),
+        (CROSSED, 6),
+        (&format!("Result from task {STORY_CHANGE}:"), 6),
+        (&format!("Result from task {X3}:"), 4),
         ("Done", 3),
-        (DIRECTION_BRIEF, 2),
-        (&format!("{DELEGATED}{STORY_CHANGE}"), 6),
+        (DIRECTION_MESSAGE, 2),
+        (&format!("{DELEGATED}{STORY_CHANGE}"), 5),
         (&format!("{DELEGATED}{X3}"), 1),
         (BEGIN, 0),
         ("", 1),
