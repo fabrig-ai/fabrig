@@ -6,7 +6,8 @@ faults, what every fake shares, what every world checks, scenarios and
 the referee, the two suites, and where a failure is fixed. This document
 keeps what is temper's: its tiers (section 2), its neighbours and their
 fakes (`README.md`, section 3 and `fakes.md`), its scenarios, referee and its case library
-(`README.md`, section 4), what its worlds check beyond the strategy (`checks.md`), its
+(`README.md`, section 4), what its worlds check beyond the strategy (`checks.md`; the
+worker's waits, disk and faults, `worker.md`), its
 layout (`README.md`, section 5), its tools and fixtures as binaries (`tools.md`), what
 macOS tests (`macos.md`), QA after landing beside the deployment (`qa/README.md`), and what
 is still open (`README.md`, section 6).

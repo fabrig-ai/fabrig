@@ -7646,6 +7646,7 @@ name = "temper-fake-checkout"
 version = "0.0.0"
 dependencies = [
  "skein-fake-checkout",
+ "skein-lib",
 ]
 
 [[package]]
@@ -8673,6 +8674,7 @@ dependencies = [
  "temper-fake-git",
  "temper-test-env",
  "temper-worker-domain-checkout",
+ "temper-worker-inspect",
  "temper-worker-protocol-git",
 ]
 
@@ -8724,6 +8726,20 @@ dependencies = [
  "temper-fake-checkout",
  "temper-worker-checkout-world",
  "temper-worker-domain",
+ "temper-worker-inspect",
+]
+
+[[package]]
+name = "temper-worker-inspect"
+version = "0.0.0"
+dependencies = [
+ "skein-fake-checkout",
+ "skein-lib",
+ "skein-world",
+ "temper-fake-checkout",
+ "temper-worker-domain",
+ "temper-worker-domain-checkout",
+ "temper-worker-protocol-git",
 ]
 
 [[package]]
@@ -8745,6 +8761,7 @@ dependencies = [
  "skein-scratch",
  "skein-world",
  "temper-worker-domain-checkout",
+ "temper-worker-inspect",
  "temper-worker-protocol-git",
 ]
 
