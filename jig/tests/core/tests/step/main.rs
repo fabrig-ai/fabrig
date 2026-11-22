@@ -7,6 +7,7 @@ use jig_core_world::test_support::first as first_support;
 
 mod inbox_selection_memory;
 mod memory;
+mod open;
 mod procedure_seeds;
 mod referee;
 mod settings_memory;

@@ -5,7 +5,10 @@ impl World {
     #[expect(clippy::too_many_lines, reason = "one exhaustive delivery handler drives the script's independent peers")]
     pub(super) fn delivered(&mut self, mut delivery: root::Delivery) -> Result<(), String> {
         self.observer.delivered(self.wall, &mut delivery)?;
-        if !matches!(delivery, root::Delivery::System { .. } | root::Delivery::LostRead { .. })
+        let internal_read =
+            matches!(&delivery, root::Delivery::Core(core::Held::ReadLoad { range, .. }) if range.party == 0);
+        if !internal_read
+            && !matches!(delivery, root::Delivery::System { .. } | root::Delivery::LostRead { .. })
             && let Some(mut walking) = self.walking.take()
         {
             walking.delivered(self, delivery);

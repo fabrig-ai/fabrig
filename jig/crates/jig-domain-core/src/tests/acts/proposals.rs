@@ -63,6 +63,49 @@ fn procedure_fixture() -> (Core, Limits, connector::EffectDescription) {
 }
 
 #[test]
+fn inspection_uses_the_stalls_next_holder_rule() {
+    let (mut core, limits, description) = procedure_fixture();
+    let needed = authority::needs(&authority::Action::Effect(description.effect)).unwrap();
+    let action = tasks::ProposalAction::ProcedureEffect {
+        connector: 1,
+        authority: task_authority(&needed),
+        step: 1,
+        purpose: 19,
+    };
+    let current = tasks::ProposalHolder::Person(1);
+    let since = core.run_wall;
+    send_task(
+        &mut core,
+        &limits,
+        tasks::Event::Propose {
+            reply_to: ReplyTo::new(Token::new(122)),
+            proposal: tasks::Proposal {
+                number: 10,
+                proposer: 1,
+                project: 1,
+                action: action.clone(),
+                reason: Box::new([]),
+                as_holder: false,
+                state: tasks::ProposalState::Pending { holder: current, since },
+            },
+        },
+    );
+    assert!(core.inspection_proposal_has_further(1, 10));
+    assert_eq!(
+        core.inspection_proposal_has_further(1, 10),
+        core.proposal_holder(&limits, 1, &action, Some(current), core.run_wall).is_some()
+    );
+    let mut policy = core.authority.policy(1).unwrap().clone();
+    policy.ceiling.grants = Box::new([]);
+    authority::step(&mut core.authority, authority::Event::Policy { project: 1, policy }, &mut Queue::uncapped());
+    assert!(!core.inspection_proposal_has_further(1, 10));
+    assert_eq!(
+        core.inspection_proposal_has_further(1, 10),
+        core.proposal_holder(&limits, 1, &action, Some(current), core.run_wall).is_some()
+    );
+}
+
+#[test]
 fn a_procedure_step_proposing_what_nobody_may_accept_is_refused() {
     let (mut core, limits, description) = procedure_fixture();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };

@@ -285,12 +285,16 @@ fn reading_an_ended_conversations_replies_then_forgets_it() {
     let through = row.result_position;
     crate::read_support::request(&mut world, 62, people::Ask::MarkSeen { seen: people::Seen::Results { through } });
     assert!(world.store.rows.contains_key(&ended_key));
+    let (_, before_forget) = world.clocks();
     mark_conversation(&mut world, task);
     let read_key = root::Key::Core(core::Key::People(people::Key::EndedRead { party: 1, task }));
     assert!(!world.store.rows.contains_key(&ended_key));
     assert!(!world.store.rows.contains_key(&read_key));
     assert!(world.commits.iter().any(|writes| writes.contains(&root::Write::Erase(ended_key.clone()))
         && writes.contains(&root::Write::Erase(read_key.clone()))));
+    // A wall correction keeps the forgotten remains ahead of restart's retention pass.
+    let (now, _) = world.clocks();
+    world.set_clock(now, before_forget);
     world.restart(508, false);
     jig_core_world::reads::ask(&mut world, 81, core::reads::Read::Task { task });
     assert_eq!(jig_core_world::reads::latest(&world), &core::reads::Answer::None(core::reads::Why::Gone));

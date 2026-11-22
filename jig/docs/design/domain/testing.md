@@ -371,25 +371,22 @@ more than one world needs them (testing-strategy.md, section 4):
   (`jig-test-kit`);
 - **jig's inspection adapter,** `jig/testing/jig-inspect`, of skein's form
   (`skein/docs/design/testing/inspection.md`, 2;
-  `temper/docs/design/draft/failure-worlds.md`, 3.1 and 3.2), component
-  `jig`, over the children's `pub` reads, each private table gaining a
+  `temper/docs/design/draft/failure-worlds.md`, 3.1 and 3.2), over its
+  crates' `pub` reads, each private table or alarm it needs gaining a
   `pub` read documented as its adapter's:
   - `jig_inspect::tasks(tasks: &jig_domain_tasks::Domain, into: &mut
-    Inspection)` gives each live task's wait, named `task N`: on its
-    requester, standing, on its dependencies or delegates, on a timer or
-    a watch (`tasks/lifecycle.md`), or held, its kind `held: <hold's
-    kind>` (`tasks/holds.md`), each with its wakes and bound; and the
-    tasks' tables: subscriptions, released by the subscriber's end or
-    unsubscribing, and creation reports, released by the batch's answer,
-    pinned while a batch that hasn't answered needs them;
+    Inspection)` gives each live task's waits and the tasks child's
+    tables;
   - `jig_inspect::core(core: &jig_domain_core::Core, into: &mut
-    Inspection)` adds to `tasks` the people's kept answers to change
-    requests, released by their retention's expiry or eviction
-    (`people/acts.md`), and a sign-in's pending exchanges, released by
-    each request's answer;
-  - the core's world calls `core` at its driver's quiet point, the
-    engine-clients world at its own, and an application's worlds call
-    `tasks` over the arena their root holds, beside their own adapter.
+    Inspection)` calls `tasks` over the core's and adds the core's parked
+    batches and the people's kept answers;
+  - `jig_inspect::engine_clients(clients:
+    &jig_protocol_engine_clients::Component, into: &mut Inspection)` gives
+    the clients' component's waits and a sign-in's pending exchanges,
+    which that component holds, not the core;
+  - what each reports is 7.1, where the worlds call them 7.2; an
+    application's worlds call `tasks` over the arena their root holds, or
+    `core` over the core, beside their own adapter.
 - **the store check** (`temper/docs/design/draft/failure-worlds.md`,
   3.7): a start over a committed snapshot, apart from the live world, so
   that a record a start would refuse fails the world at the commit that
@@ -584,6 +581,217 @@ reads its kit through its library, which re-exports it.
 are kits by design: skein's world harness, `skein-world`
 (`skein/docs/design/testing/README.md`, 6), and smith's `smith-agent-process-world`.
 
+### 7.1 What jig's adapter reports
+
+Written from `temper/docs/design/draft/failure-worlds.md`, 3.1 and 3.2.
+`tasks` and `core` fill one inspection, component `jig`, whose kinds are
+`jig_inspect::KINDS`, the strings below; `engine_clients` fills its own,
+component `jig engine clients`, kinds `jig_inspect::ENGINE_CLIENTS_KINDS`.
+A waiter is `task N`, `batch N` for a batch the core has parked, or
+`exchange N` for a clients' exchange, by its number, so that an
+application's adapter names a task as jig's does.
+
+**Waits:** each live task's, from its phase and its record
+(`tasks/lifecycle.md`; `tasks/holds.md`), one for each reason it waits:
+
+| Kind | Who is in it | Wakes | Bound |
+|---|---|---|---|
+| `on its dependencies` | waiting, or kept, with pending dependencies | each pending dependency, `Ended` once it has ended | none |
+| `in a resource's queue` | waiting for holds, its dependencies done | each holder of a resource it needs that isn't free; its hold deadline | that deadline, `tasks.hold_wait` after its wait began |
+| `on its delegates` | closing on its delegates, or idle with live delegates | each live delegate | none |
+| `on its requester` | idle, its question to its requester unanswered | its requester | none |
+| `on a watch` | idle, for each task watch and topic | the watched task, `Ended` once it has ended; a topic's connector | none |
+| `on a timer` | idle, for each timer | the timer | the timer's deadline |
+| `on its party` | idle: a conversation, a standing task, or one its requester ends | the person, or the party, it waits on | none |
+| `on a person's answer` | a person task | the person or role it waits on; its stall deadline | none |
+| `on its proposal's decision` | its proposal pending | the holder deciding it; its stall deadline | that deadline |
+| `held: <hold>` | held: one kind for each `Hold`, in its design's words (`held: holds waited`) | the holder its escalation reaches; what lifts that hold by itself, as a circle's tasks or a connector's facts; its stall deadline | that deadline, where its design arms one |
+| `closing on its run` | closing, its run ending | the run's host | none |
+| `closing on its effects`, `closing on its releases` | closing on its connectors | each connector it waits on | none |
+| `backing off` | active, between tries | its retry | the retry's deadline |
+| `suspended` | due, its run suspended | the suspension's end | that end |
+| `paced` | idle, with messages its wake policy holds back | its wake | the wake's deadline |
+| `a batch awaiting its creation reports` | a batch the core parked (`tasks/holds.md`, 2) | each connector whose report it lacks; its deadline | that deadline, `tasks.hold_wait` after it parked |
+
+- **Wakes:** a task is a waiter, `task N`; a person, role, host or
+  connector a party (`person 3`, `role 1 of project 2`, `connector 2`); an
+  armed deadline a timer; a task that has ended `Ended`.
+- **A bound is the component's own armed deadline,** read from the alarm
+  the tasks child or the core keeps for that wait. A wait its design
+  bounds with no deadline armed is reported under its kind followed by
+  `, with no deadline armed`, which no inspection declares, so that the
+  shared check finds it (`skein/docs/design/testing/inspection.md`, 4.1).
+  A task's grace, and the authority's deadline that will hold an idle
+  task, are a wake and a bound of each of its waits.
+- **A timer the core withholds bounds nothing.** From `Event::Settling`
+  the core fires no `Timer::Tasks`, and from `Event::Stopping` none of
+  the timers `vocabulary::waits` names: a backoff or a wake that passes
+  stays due for the next start to decide afresh
+  (`engine/restart.md`, *Settling before the stop*). `core` asks the core
+  which timers it withholds, by the rule its routing fires them by, never
+  a copy of it. While a timer is withheld, each wait and each queue's
+  waiter that timer's alarm would bound has no bound and the added party
+  wake `the next start`, and a kept answer past its expiry, once the
+  people's timer is withheld, is kept, not due. `tasks` alone knows no
+  core, so it reports every alarm as a bound.
+- **A rejected escalation** leaves its task held (`tasks/proposals.md`,
+  *An escalation's decider has its kind*): it is `held: <hold>`, its wake
+  the decider the escalation records, `task N` or `person N`, as a
+  waiting escalation's holder, beside the hold's own sources. It has no
+  bound unless an alarm is armed for it. A `Routing` escalation is
+  resolved in the same decision that makes it, so no quiet point sees one:
+  `routing escalation` stays undeclared, and so does `unheld escalation`.
+- **A held task in no project** has no one to escalate to: its hold
+  "stays with its task until the application cancels it"
+  (`authority.md`, 6.1), its escalation left `Routing` or `Unheld`. It
+  is `held: <hold>`, its wake its requester, `deployment of project 0`,
+  with no bound unless an alarm is armed for it. Only a task of project
+  0 is read so; elsewhere both stay undeclared.
+- **A proposal past its last holder** stays with that holder once its
+  stall finds no one further who covers it, its stall spent
+  (`tasks/README.md`, 8: "a pending proposal whose holders go" is an
+  open question). It is `on its proposal's decision`, its wake that
+  holder, with no bound, as at a policy's parties. `core` asks the core
+  whether anyone is further, by the rule its stall routes by, through a
+  read, never a copy of it; a proposal with someone further and no
+  alarm armed is still `, with no deadline armed`. `tasks` alone, which
+  knows no routing, reports every holder's missing alarm so.
+- **The parties a policy names** are a party wake, `policy <kind> of
+  project P`, in the component's words for the proposal's kind: the tasks
+  child keeps the policy's project and kind, not its roles. A proposal or
+  an escalation waiting there has no bound, since it waits for them
+  however long (`tasks/proposals.md`: "At the parties the policy
+  names") and its design arms no alarm.
+- **A closing task's parties** are named by what knows them. The tasks
+  child keeps a run's attempt, not its host, and not the connectors its
+  effects and releases wait on, so `tasks` names them in the task's own
+  words: `host of task N`, `connectors of task N`. `core` walks the same
+  tasks with the core's placement and closing connectors at hand, and
+  names each exactly, `host 4`, `connector 2`, one wake for each; where
+  the core knows none, it keeps the task's words. An application's
+  adapter that calls `tasks` alone takes the task's words.
+- **Words are no wake.** A parked agent task that is no conversation,
+  doesn't stand and isn't ended by its requester waits on what it asked,
+  delegated, watches or proposed (`tasks/lifecycle.md`, 2): words may
+  come, and nothing promises them. One idle with none of these is
+  reported `idle with nothing left to await`, which no inspection
+  declares: its design makes it due again.
+- **Not waits:** a task whose executor is engaged or owed (due, preparing,
+  claimed, running), an ended task, and a procedure's own step, which its
+  application's adapter reports (`temper/docs/design/testing/checks.md`,
+  6.1): of a procedure task jig reports only the waits above, so that
+  jig's wake never stands in for its connector's.
+- **The clients' component's waits:** each exchange `awaiting the
+  engine's answer`, its wake the party `engine`; and each wait it arms a
+  deadline for, in `../protocol/client/README.md`'s words, that deadline
+  its bound.
+
+**Tables,** as the draft's 3.2 names them, each entry keyed in its
+table's words, its rule the table's:
+
+| Table | Capacity | Entries and their rule | Release | Refused newcomers |
+|---|---|---|---|---|
+| `subscriptions`, one for each subscriber | the allowance admission refuses past: `tasks.subscriptions` with its reserved one (`subscriptions::kept_capacity`), which the tasks `Domain` keeps from its limits as a count no store or wire carries | each subscription: `the subscriber's end, or unsubscribing` | pending; a one-shot timer with no timer armed, due | none: refused `Busy` |
+| `creation reports` | `tasks.resource_reports` | each report: `the batch's answer; pinned while a batch that hasn't answered needs it; evictable otherwise` | pending while a live task's holdings name it or a batch pins it, kept otherwise; pinned by a batch the core no longer holds, due (`core` alone) | none: refused `Busy` |
+| `pools`, one for each pool | its slots, as last reported | each holder: `the holder's end` | pending; a holder that has ended, due | each task in its queue waiting on that pool alone, its bound its hold deadline |
+| `write holds`, one for each held resource | 1 | its holder, as a pool's | as a pool's | as a pool's |
+| `kept answers` | `people.requests` | each kept answer, a connector act's among them: `their retention's expiry`; each pending request's reservation: `its answer` | an answer kept, due once its expiry is at or before the core's clock; a reservation pending | none: refused `Full` |
+| `a sign-in's pending exchanges`, one for each sign-in | `clients.exchanges_per_client` | each exchange: `each request's answer` | pending | none: refused busy |
+
+- **Admission's progress** is checked where newcomers wait, the pools' and
+  write holds' queues. A waiter takes its holds all at once
+  (`tasks/holds.md`, 2), so it is refused only in a table it waits on
+  alone, where room that frees must admit it. Its bound is its hold
+  alarm's due; its `since` is `Time::ZERO`, the start unknown, because
+  the tasks child keeps a wait's start as wall time alone and the
+  checks read `since` only to describe a finding.
+- **jig's kept answers** go by their retention alone: an unexpired one is
+  never evicted (`people/acts.md`, 1); the draft's eviction is a
+  connector's own.
+
+### 7.2 Where the checks run
+
+- **The core kit's `World`** (`jig_core_kit::world::World`) calls both
+  shared checks (`skein/docs/design/testing/inspection.md`, 4) over
+  `jig_inspect::core` at its driver's quiet point: where its loop returns
+  settled, nothing left to step before time moves, with no restore held:
+  a start the world holds at one of its steps, its root not yet ready,
+  is a restore held, so its deadlines not yet rebuilt are no findings.
+  A timer the core reports due at the world's time is something left to
+  step: before it returns settled, the loop fires each due timer the core
+  does not withhold (7.1), one at a time and draining after each, until
+  none is due, in every drain and not only `advance` and `fire_due`. A
+  withheld timer stays unfired. Each check's own tests judge a snapshot
+  before the world fires it.
+  Its moment is the world's seed, its time and a count of its iterations.
+  A finding is the loop's `Err`: a drain fails with it and the trace's
+  tail, and the restart oracle's settling returns it from `finish`. Every
+  world that drives the core through that `World` runs them: the core
+  world, and stories of the engine-clients, client, client-protocol and
+  accounts worlds and of temper's client world.
+- **The world's clock:** with no clock supplied, each drain iteration moves
+  the clock by one implicit tick. A restart ticks through its load and switch
+  phases, so slow pages still take simulated time, then holds the clock from
+  the claim's adoption until the restart returns. `advance` holds the clock
+  pair it reached throughout its draining; ordinary drains still tick. Thus
+  a deadline the restart arms at adoption, and a boundary `advance` is given,
+  are not moved past by the driver's own iterations. The core world's
+  `joint_clock::restart_and_advance_keep_the_implicit_clock_at_their_boundary`
+  pins this rule.
+- **The engine-clients world:** `jig_engine_clients_kit::Peer` calls both
+  over `jig_inspect::engine_clients` where its pump finds nothing left to
+  do; its moment is the peer's seed, its time and a count of its passes.
+  The peer fails with a finding at the entry point that pumped.
+- **Outside the heap's count:** the inspection is made and dropped between
+  the world's heap readings.
+- **The bounded waits' deadlines** are the component's own alarms, checked
+  at each quiet point. These worlds settle within each drain or fail, so a
+  wait starved past its bound is found at the first quiet point after it.
+- **Each check's own tests,** in the core world, withhold a deadline: a
+  wait, and a queue's waiter, judged past their bound are findings, and
+  pass once it has fired; a kept answer past its retention is a finding,
+  and passes within it and once the people's timer has fired. Small
+  stories pin the adapter's record of each kind and table.
+
+### 7.3 The open problems
+
+Each open problem of the draft's section 7 that a jig world shows has its
+scenario, named as the draft names it, ignored with the problem and the
+work that fixes it (`#[ignore = "P43, open: bounded waits
+(jig/docs/design/domain/testing.md, 7.3)"]`), and an exclusion of
+skein's form (`skein/docs/design/testing/sweeps.md`, 5) in the kit of the
+world whose sweeps draw its fault: `jig_core_kit::open::EXCLUSIONS` and
+`jig_engine_clients_kit::open::EXCLUSIONS`, each fault's kind beside them,
+its family as the draft's section 4 names it. No jig sweep draws these
+faults yet; those that will (the draft's section 5) take them, and a step
+test holds that a sweep configuring each fault accepts each.
+
+| Problem | Scenario | World | Fixed by | Fault left out, and while |
+|---|---|---|---|---|
+| P43 | `a_coordinator_watching_its_asker_is_woken` | core | bounded waits | runs that park, resume and move: `a run parks with a question to its requester open`, while `its requester watches it` |
+| P117 | `a_parked_act_holds_no_exchange` | engine-clients | bounded waits | people and parties: `a sign-in sends a request again while the first is pending`, while `the first is parked` |
+| S15 | `a_party_extends_its_goals_deadline` | core | provider failures | people and parties: `amending a deadline after it has passed`, while `the amending party started the goal` |
+| P77 | `an_owners_widening_is_never_proposed_to_itself` | core; its reading and decision, client-protocol | provider failures | people and parties: `a party widens a goal's authority`, while `the widening party is the project's owner` |
+| P76 | `a_new_party_gets_account_uses` | core | provider failures | people and parties: `a new service party runs on an account`, while `the account's uses were set before the service was made` |
+| P93 | `a_start_without_a_budget_leaves_room` | core | provider failures | the engine's own bounds: `a start with no budget`, while `its pool funds another request` |
+| P98 | `a_full_period_is_named_as_funding` | core | provider failures | the engine's own bounds: `a new party asks for funds`, while `its period is fully allocated` |
+| P82 residual | `a_small_delegating_task_funds_its_delegates` | core | provider failures | the engine's own bounds: `a delegating task's run at its minimum`, while `half its budget is at most the minimum run spend` |
+
+- **The reason cites this section,** whose table leads to the draft's
+  rows: jig's sources name no temper path or word, in an attribute, a
+  literal or a comment (jig's vocabulary boundary,
+  `jig/tests/boundary`), so neither a scenario nor its doc comment cites
+  the draft.
+- **What each asserts** is the draft's row. P76's runs in the core world,
+  where the accounts and the runs' coverage are: the people world answers
+  account changes with a fixed outcome.
+- **P77's client part** reads a party's widening proposal and decides it
+  through the client's wire (`Read::Proposal`, `Ask::Decide`). Where it
+  passes today, it runs, as a regression of P77's repaired part, and the
+  row's ignored scenario is the core world's.
+- **The fixing work** removes the `#[ignore]` and the exclusion together
+  (the draft, 6).
+
 ## 8. What an application adds
 
 - **its connectors' worlds,** each with its system's fake below and the
@@ -726,3 +934,7 @@ than cutting the cover.
 - **Smith's world kit** (7): `smith-agent-process-world` is a kit by name, as
   smith has no `testing/`. Default: as it stands, until a debt item of smith's
   names it.
+- **More waits and tables** (7.1): whether the fleet's due tasks, the
+  views' watchers, placed holds, inboxes and the people's flights join the
+  inspection, and the tasks, people and conformance worlds call it.
+  Default: not until a finding needs them.

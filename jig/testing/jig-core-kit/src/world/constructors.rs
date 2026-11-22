@@ -211,6 +211,8 @@ impl World {
             store_checks: super::StoreChecks::sampled(0, STORE_CHECK_ONE_IN),
             store_checks_reported: false,
             restart_check: None,
+            iteration: 0,
+            inspections: 0,
             manual: false,
             public_referee: crate::referee::public::Referee::default(),
             returned: 0,
