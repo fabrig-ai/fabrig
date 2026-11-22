@@ -12,6 +12,7 @@ pub use ended::EndedMark;
 pub(crate) mod acts;
 mod applications;
 mod asks;
+mod inspect;
 mod parties;
 mod requests;
 use applications::admission;
