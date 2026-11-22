@@ -36,7 +36,7 @@ deleted once no pass can need them.
   the builds directory's filesystem, from a clean checkout of the tip:
   - `bin/temper-box`: the box, its client and its embedded bundle;
   - `bin/fake-claude`: the fake coding agent the box finds beside itself
-    (`../../protocol/setup/box.md`, 5);
+    (`../../protocol/setup/box-backends.md`, 1);
   - `bin/temper`: the TUI, with its recorder built in, whose saves the
     drive session's TUI lines read (`../../client/drive.md`, 2.1;
     `../../client/tui/journeys.md`, 2);

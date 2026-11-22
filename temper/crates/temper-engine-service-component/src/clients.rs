@@ -13,7 +13,7 @@ use skein_io as io;
 use skein_lib::{Env, List, Map, Queue, Time, Token, Wall};
 use temper_engine_domain as root;
 
-/// The URL a printed link's secret opens, as serve prints it, with no line feed (protocol/setup/box.md, 2).
+/// The URL a printed link's secret opens, as serve prints it, with no line feed (protocol/setup/box-supervision.md, 1).
 #[must_use]
 pub fn first_link_url(
     address: ::core::net::SocketAddr,

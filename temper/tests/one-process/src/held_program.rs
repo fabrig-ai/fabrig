@@ -1,5 +1,5 @@
 //! Stop with a program turn held (temper/docs/design/testing/README.md, 2.5;
-//! temper/docs/design/protocol/setup/box.md, 2).
+//! temper/docs/design/protocol/setup/box-supervision.md, 1).
 use crate::{
     ctl::{Caller, Command},
     fixtures,

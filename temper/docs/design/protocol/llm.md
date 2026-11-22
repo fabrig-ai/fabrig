@@ -57,7 +57,7 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
   `temper-box internal agent AGENT.json` or a deployment's `temper-agent
   AGENT.json` (binaries.md, 3), spawned by the worker's protocol layer for
   each run
-  (configuration/README.md, section 4; jig's `protocol/service.md`, section 6).
+  (configuration/worker.md, section 2; jig's `protocol/service.md`, section 6).
   It reads smith's agent configuration, dials the endpoints it declares,
   and takes its run's grants from smith's host half (smith's
   `protocol/host.md`, section 2).
@@ -91,15 +91,15 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
   accounts driver's with an LLM provider's sign-in, token and
   revocation endpoints (credentials-llm-accounts.md, section 1).
 - **On the worker, smith's agent configuration** (smith's
-  `protocol/agent.md`, section 4; configuration/README.md, section 4): the
+  `protocol/agent.md`, section 4; configuration/worker.md, section 2): the
   endpoints the agents dial, the models they serve, and the programs
   they may run, each with its programs directory. The worker's routing
   decodes each charter against these endpoints (jig's
   `protocol/channel/README.md`, 5.1).
 - **The same names on both.** `temper-box serve` refuses a start whose
   engine names an endpoint, a model or a program the agent's
-  configuration does not declare the same way (configuration/README.md, section
-  4), so no run's charter fails for a name.
+  configuration does not declare the same way (configuration/worker.md, section
+  2), so no run's charter fails for a name.
 - **Which LLM providers:** OpenAI, with keys and ChatGPT's sign-in, in
   the owned example (setup/init.md, 1), Anthropic, with Claude Code's
   program and keys in one provider, a run's source choosing its endpoint

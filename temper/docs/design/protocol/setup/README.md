@@ -93,7 +93,7 @@ NAME`). What comes later is `README.md`, section 9; what is open,
   the box, its group asked when the person sets it up (`owned.md`, 5, `box.md`, 1), and
   GitHub or a Forgejo elsewhere connected (`github.md`, `reconcile.md`, section 5); none needs
   a restart.
-- **A set up writes as it goes, and starts over by removal** (`owned.md`, 7): the
+- **A set up writes as it goes, and starts over by removal** (`owned-repositories.md`, 1): the
   forge's record and its first repository's intent are kept as it goes;
   an unfinished forge found later is removed and set up again, Forgejo's
   binaries kept in the cache.
@@ -126,8 +126,8 @@ NAME`). What comes later is `README.md`, section 9; what is open,
   comments, reviews and each CI job's end. Adoption and reconcile make
   the hooks; an owned Forgejo is allowed to deliver to the engine's
   listener, and a managed one's settings are the person's (`reconcile.md`, 6). Polling
-  is unchanged, the fallback for a delivery lost or refused (section
-  6).
+  is unchanged, the fallback for a delivery lost or refused (`webhooks.md`, section 1
+  ).
 - **Loopback.** An owned Forgejo listens on loopback, as temper's
   clients' and webhooks' listeners do; a person on another machine
   reaches them through a tunnel. A forge on another host polls: its
@@ -135,6 +135,25 @@ NAME`). What comes later is `README.md`, section 9; what is open,
 - **Not here:** webhooks from another host, the isolation of CI's jobs,
   provisioning at runtime and the forge as people's sign-in provider
   (section 9).
+
+Documents:
+
+- `box.md`: the box's steps and arrangements.
+- `box-supervision.md`: step supervision, restarts, stops and output.
+- `box-backends.md`: the retained sandbox and fake backends.
+- `box-front.md`: the box beneath its terminal front.
+- `owned.md`: preparing, running and fetching an owned forge.
+- `owned-repositories.md`: the first repository and later makes or copies.
+- `owned-sign-in.md`: signing in through temper to an owned forge.
+- `webhooks.md`: webhook delivery on a box.
+- `crate-layout.md`: the setup crates and their dependencies.
+
+- `github.md`: connecting GitHub.
+- `init.md`: the configuration and init.
+- `place.md`: a forge's place.
+- `playground.md`: the playground's setup.
+- `reconcile.md`: managed reconcile.
+- `testing.md`: testing the setup.
 
 ## 2. The modes
 
@@ -201,7 +220,7 @@ connected  the forge component       ◄── its access, built from the record
   number beneath the data directory, `forge-N` for an owned forge and
   `playground-N` for the playground's fake one, and removed with the
   forge (`box.md`, 1): private, `0o700`, the user's own and not reached through a link,
-  as a worker's root is (../configuration/README.md, section 3). `temper-box forge
+  as a worker's root is (../configuration/worker.md, section 1). `temper-box forge
   prepare` makes it so when it is absent; a directory that is not so
   refuses the command, naming it. A managed or connected forge has none.
   A fake forge's holds `admin_token` until the engine takes it; `temper-box
@@ -348,181 +367,11 @@ connected  the forge component       ◄── its access, built from the record
 
 ## 6. Webhooks on a box
 
-The listener is skein's (`forge/connection.md`, section 6), and so are
-the signature, the events and the hints they become (`../forge/README.md`, section
-6). This section says what makes them reach the engine on a box, and
-that they cover what its work waits on.
-
-- **Made at adoption, checked at each start** (`reconcile.md`; skein's
-  `forge/setup/forgejo.md`, 1.5, and 1.3, step 6): one hook per adopted
-  repository, to `http://<listener>/hooks/<number>`, with the events of
-  skein's `forge/README.md`, section 6, and the forge's secret. An owned
-  Forgejo's `app.ini` allows the listener's address (`owned.md`, 2). On a box,
-  nothing is left to the person. A managed Forgejo on this host has the
-  same hooks and its `app.ini` is the person's (`reconcile.md`, 6); one on another
-  host has none (`reconcile.md`, 5).
-- **What a box's work waits on, and what ends each wait,** with the keep
-  reading the forge within `hinted` of the hint, which gathers one
-  change's hints into one read (`../../domain/forge/keeping-up.md`, 2):
-
-  | The domain waits on | Done on the forge by | Its delivery | Its hint |
-  |---|---|---|---|
-  | a landing branch's tip | a merge, a person's push | `push` | the branch moved |
-  | a pull request's head, base or state | a push to its head or base; closing, reopening, retargeting or editing it | `push`; `pull_request` | the branch moved; the item |
-  | CI on a head | each Actions job ending | the job's end | the commit |
-  | a participating object's comments and reviews | a comment, a review, an approval or a rejection | the item's comment or review events | the item |
-  | an issue of a live goal | editing, closing, labelling or assigning it | `issues` | the item |
-  | drift of a branch temper holds | a push, a deletion, a creation | `push`; `delete`; `create` | the branch moved; the branch |
-
-- **Echoes go up too.** Forgejo delivers temper's own writes. The client
-  reads on every hint it holds a resource for, so each costs one read;
-  temper, the owner, drops its own echoes by key and by pusher (skein's
-  `forge/client.md`, section 4; `../../domain/forge/keeping-up.md`, 2).
-- **What Forgejo settles after it delivers,** a pull request's
-  mergeability, which it answers not mergeable while it checks (skein's
-  `forge/forgejo.md`, section 2), is read again at `hinted`, doubling up to
-  `poll` apart, within `settle` of the move, as is a hinted job's CI
-  that reads pending.
-  These are the owner's fresh reads: the client runs no window (skein's
-  `forge/client.md`, sections 4 and 5). A pull request that reads not
-  mergeable within `settle` of the move is never taken as conflicted
-  (`../../domain/forge/keeping-up.md`, 2).
-- **What sends no delivery,** and so is found by polling alone: a
-  commit status that a system other than Actions posts, which a
-  box has none of.
-- **Polling is unchanged** (skein's `forge/client.md`, section 4): the
-  keep's alarms, its paces and the slow pass are what they are with no
-  webhook. A delivery lost while `temper-box serve` is down, refused for its
-  size, or never sent is found by them; Forgejo does not send a failed
-  delivery again (skein's `forge/forgejo.md`, section 2).
-- **GitHub sends no delivery to temper:** its App's changes come from
-  the App's delivery log, read by the forge component, with no address
-  GitHub must reach and no webhook secret (../forge/README.md, a GitHub App's
-  delivery log; `github.md`, 6).
-- **Checked:** the process tier's hinted story (`testing.md`, 4) checks the
-  table's third row, CI on a head: the one wait of its landing that the
-  forge ends. Its other waits end on temper's own writes, its push, its
-  pull request and its merge, whose deliveries are echoes. Within its
-  budget, only the job's end delivery brings a read of its CI:
-  - the keep's `poll`, `poll_max` and `slow` are raised past the budget
-    (../configuration/limits.md);
-  - so is the change's `stall`, whose end reads its pull request afresh
-    before it holds the change (`../../domain/forge/keeping-up.md`, 3 and `../../domain/forge/change/repairs.md`);
-  - its job outlasts `settle` from its change's push, so the rereads
-    within `settle` end before CI does (`../../domain/forge/keeping-up.md`, 2).
-
-  The first two rows, moved by someone else's push or edit, and the
-  others, comments, reviews, issues and drift, are checked from hints
-  in the worlds (`../../testing/README.md`, 2.2, and `../../testing/checks.md`, 3).
+Moved to [`webhooks.md`](webhooks.md), section 1.
 
 ## 7. The crates
 
-```
-skein-forge                  + the setup's documents: admin users and their tokens, orgs, repositories'
-│                              collaborators and hooks, GitHub's App documents; both sides, as its
-│                              others; the pins, the versions and the fetched binaries' digests
-│                              (skein's forge/README.md, section 4, and skein/docs/design/forge/forgejo.md, section 1)
-skein-forge-setup            the setup's plans, their types and checks, the access they end with, and the
-│                              host component a service runs them on (skein's forge/setup/README.md, section 4)
-├── skein-forge
-└── skein-lib, skein-json
-temper-fetch                 step code: a pinned binary's fetch: its machine, its pins' fields and
-│                              their origin, Forgejo's and Claude Code's alike; Claude Code's pin and
-│                              the word "fetched" (6.6). Names no host
-├── skein-forge
-└── skein-lib
-temper-forge-setup           step code: the setup's types and checks; the machine's part, read from the
-│                              configuration, and a forge's setup entry by its kind; the setup mapped
-│                              onto the plans' given values, and the kit's check of them; Forgejo's
-│                              pins, on temper-fetch's machine, and the preparation's machine;
-│                              app.ini and the runner's files; the processes' specs; the kinds' steps
-│                              and the group's file. Names no host
-├── temper-fetch, skein-forge-setup, skein-forge
-└── jig-protocol-config, skein-lib, skein-json
-temper-fetch-shell           ordinary Rust: the fetch's host, its requests over TLS, on skein-io;
-│                              Claude Code's fetch, under its lock (6.6); no smith crate
-├── temper-fetch
-└── skein-io, skein-http, skein-tls, skein-lib, skein-shell
-temper-launcher              ordinary Rust: Claude Code's launcher, the placing of its links in a
-│                              private directory and the substitution of "fetched" in an agent's
-│                              document (6.6); for the box's binary, a worker's and the agent's
-├── temper-fetch-shell, temper-fetch, smith-agent-document
-└── skein-io, skein-lib, skein-json, skein-shell, skein-forge
-temper-forge-setup-shell     ordinary Rust: the hosts of fetch, prepare and run: commands, files, the
-│                              forge's locks, the exec; Forgejo's fetch on temper-fetch-shell's host,
-│                              with its bottle's extraction
-├── temper-forge-setup, temper-fetch-shell
-└── skein-io, skein-http, skein-tls, skein-lib, skein-json, skein-shell
-temper-box-machine           the box's machine (step code), its kinds' groups, their files and records
-│                              and its pipe to temper-box serve among it, and its host (ordinary Rust) on
-│                              skein-io's processes; nothing of setup but its steps and its kinds
-│                              (7.3); one crate, under the subset's
-│                              lints, its host written within the subset
-├── temper-forge-setup
-└── skein-lib, skein-io, skein-shell
-temper-init                  step code: the default document and the files temper-box init writes, from
-│                              the facts the binary finds (8.2, 8.3); reads, writes and binds nothing
-├── temper-fetch
-└── skein-lib, skein-json
-temper-fake                  step code: the playground's member, application.demo, its types and
-│                              checks; the fakes' configurations and seeds; the fake kind's group (8.4).
-│                              Names no host
-├── temper-forge-setup
-├── skein-fake-forge-domain, skein-fake-forge-forgejo, skein-fake-forge-http, skein-fake-llm-domain, skein-fake-peers
-└── jig-protocol-config, skein-lib, skein-json
-temper-fake-git              ordinary Rust: the fake git program's core, temper-box fake git, its replay and
-│                              its two remotes (../../testing/fakes.md, 3)
-├── skein-fake-checkout, skein-fake-forge-domain, skein-fake-forge-forgejo, skein-fake-forge-http, skein-fake-peers
-└── skein-lib, skein-io, skein-http, skein-json
-temper-engine-shell          ordinary Rust: temper-box forge fetch|prepare|run|sign-in|source|remove and
-│                              internal forge-child, their rows and the checks they make, for both
-│                              binaries below (../binaries.md, 1)
-├── temper-forge-setup-shell, temper-forge-setup, temper-box-machine, temper-fake (the demo member's check)
-└── temper-service, temper-shell
-temper-agent                 the deployment's agent: its table, its modes, its help and --version,
-│                              temper-version's (../binaries.md, 3); Claude Code's launcher by its name
-├── temper-shell, temper-version, smith-agent-shell, temper-launcher
-└── skein-shell, skein-io, skein-fail-stop
-temper-box                   the box's binary: the forge's commands through temper-engine-shell,
-                               the bare form, temper-box init, temper-box fake llm|forge|git; Claude Code's
-                               launcher by its name, temper-launcher's (6.6)
-temper-engine                the engine's binary: the forge's commands through temper-engine-shell,
-                               on an engine alone's document (../binaries.md, 2)
-```
-
-- **The engine runs the setup host** in its protocol layer (`reconcile.md`, 1):
-  temper-service maps each forge's setup onto the plans' given values
-  through `temper-forge-setup` (`reconcile.md`), and depends on no
-  `temper-forge-setup-shell`, and on `temper-box-machine` only for the `box.`
-  limits' reference page (`temper-service/src/limits/reference.rs`).
-- **The agent's binary links no forge setup:** `temper-agent` reaches
-  Claude Code's fetch through `temper-launcher`, `temper-fetch-shell`
-  and `temper-fetch` alone, so neither `temper-forge-setup` nor its
-  shell is in its closure (`../binaries.md`, 3).
-- **The forge's setup links no launcher:** `temper-forge-setup-shell`
-  links `temper-fetch-shell`, the fetch's host, which links no smith
-  crate, so `temper-engine`'s closure holds none of smith's agent
-  document through it (`../binaries.md`, 1 and 2).
-- **The binary checks the machine's part and its limits** for every
-  command, `temper-box serve`'s included, the box's and the engine's
-  through `temper-engine-shell`: `temper-forge-setup` checks
-  `application.machine` and the `setup.` limits, and `temper-box-machine` the `box.` limits, beside
-  temper-service's startup.
-- **Machines, not scripts.** The plans (skein's) and the preparation
-  decide from what they read, and say each request or command they need;
-  a host runs it and hands back its outcome. Step tests drive them with
-  answers; the plans' world, skein's, drives them against the fake forge
-  (`testing.md`, 2).
-- **Not the throwaway's code.** `testing/skein-throwaway-forgejo` is a
-  test crate (skein's `testing/fakes/throwaway.md`, section 1). The production
-  machines are written on skein, under the subset, and the process tier
-  provisions its Forgejo with them (`testing.md`, 4).
-- **The fake forge serves the setup's documents** too
-  (`skein-fake-forge-forgejo`, skein's `testing/fakes/forgejo.md`, section 1),
-  from the server's side of `skein-forge`, as it serves the engine's.
-- **The fakes are product,** `crates/skein-fake-*` (skein's
-  `testing/fakes/forge.md`, section 1), since `temper-box fake`
-  ships them; the worlds and the real loop use them as before.
+Moved to [`crate-layout.md`](crate-layout.md), section 1.
 
 ## 8. Where it serves
 
@@ -545,7 +394,7 @@ Each is intended; what it needs is named with it.
   without it the project's stock still asks CI and review on goal
   branches (`../configuration/reference.status.md`).
 
-- **The TUI's fresh-box terminal check** (`box.md`, 2, `init.md`, 3): after landing,
+- **The TUI's fresh-box terminal check** (`box-supervision.md`, 1, `init.md`, 3): after landing,
   check local sign-in with nothing pasted, then the pasted-link and
   browser-approval fallbacks, refusal and asking again
   (`../../client/README.md`, section 5). The recorded approval journey
@@ -568,7 +417,7 @@ Each is intended; what it needs is named with it.
   story checks another ownership link; it does not replace killing a
   box whose playground steps run (`../../testing/process-tier.md` and `../../testing/README.md`, 7).
 
-- **The owned-forge Claude Code lifetime proof** (`box.md`, 2): after landing,
+- **The owned-forge Claude Code lifetime proof** (`box-supervision.md`, 1): after landing,
   run the live landing story with its no-survivor assertion and the box's
   stop bounds unchanged. For any survivor, use its rows and stop snapshot
   to identify the spawning owner, then repair that lifetime at its lowest
@@ -587,15 +436,15 @@ Each is intended; what it needs is named with it.
 
 - The terminal after a front killed outright: `box.md`, section 7.
 
-- **A `temper box` started in the background of a terminal** (`box.md`,
-  6): `temper box &` from a shell with job control has a terminal on its
+- **A `temper box` started in the background of a terminal** (`box-front.md`,
+  1): `temper box &` from a shell with job control has a terminal on its
   standard input and output, so it runs its TUI, which job control stops
   at its first read. `temper-box` runs the box alone. Telling a
   background start from a foreground one needs `temper` to read its
   terminal's foreground group, which skein's `runtime/shell.md`, 6.3 does
   not give yet.
 
-- **The terminal after `temper box` killed outright** (`box.md`, 6): its
+- **The terminal after `temper box` killed outright** (`box-front.md`, 1): its
   TUI's modes and screen stay on the terminal, as any program's killed
   outright do (skein's `runtime/shell.md`, 6.3); the box stops at its
   life pipe's end.
@@ -603,7 +452,7 @@ Each is intended; what it needs is named with it.
 - A start holding the engine's documents to temper's clients: `init.md`, section 4.
 - The deployment's own UX: `init.md`, section 4.
 - Flags of their own: `init.md`, section 4.
-- **After the first repository** (`owned.md`, 7): "New repository" on a connected owned or managed card is the general
+- **After the first repository** (`owned-repositories.md`, 1): "New repository" on a connected owned or managed card is the general
   form of the same flow, with the same fields and `Create`, a managed
   forge's org needing an owner, and like it adopting nothing. The
   first repository is adopted by the welcome's Ready, by the person
@@ -619,9 +468,6 @@ Each is intended; what it needs is named with it.
 - The LLM providers out of the document,: `init.md`, section 4.
 - A lock and an exec in skein's shell,: `owned.md`, section 10.
 - A story of Reconcile over TLS: `reconcile.md`, section 7.
-- **Webhooks from another host,** over TLS (skein's
-  `forge/connection.md`, section 6), once skein has TLS's server side.
-  Until then a managed Forgejo on another host polls (`reconcile.md`, 5).
 - A secret drawn at a reconcile with no repository,: `reconcile.md`, section 7.
 - **CI's isolation.** An owned runner's jobs in host mode run as the
   box's user, who can read every file of temper's as ../credentials.md,
@@ -640,7 +486,7 @@ Each is intended; what it needs is named with it.
   on an owned Forgejo (`../../domain/forge/adoption-person.md`, 1); several members need
   separate sign-in and account evidence.
 - A launchd agent for the box: `box.md`, section 7.
-- **The box's link on a terminal, as a story** (`box.md`, 2; `testing.md`, 4): the box's process
+- **The box's link on a terminal, as a story** (`box-supervision.md`, 1; `testing.md`, 4): the box's process
   stories start it on pipes, and the request `box-small-2` of 2026-11-06 leaves
   a real terminal to the user's try. skein's end-to-end kit starts a binary
   under a pseudo-terminal (skein's `examples.md`, section 6), so a story started
@@ -662,13 +508,13 @@ Each is intended; what it needs is named with it.
 - The other fake peers' refused connections: `box.md`, section 7.
 - A Forgejo's own links at its `web`: `../../client/forge/served.md`, section 3.
 - An adopted row's kinds after the forge changes: `reconcile.md`, section 7.
-- **Agents in contained trees** (`box.md`, 2; ../service-process.md, section 1, and ../README.md, section 11): a
+- **Agents in contained trees** (`box-supervision.md`, 1; ../service-process.md, section 1, and ../README.md, section 11): a
   serve the box closes, or one a second signal aborts, kills its agents'
   groups, and a program an agent started, in a group of its own,
   outlives it. Ending both needs skein's contained trees (skein's
   `runtime/io/processes.md`, 3 and 4), or a parent-death signal skein-io's spawn can
   ask for. Default: serve's first signal stops its agents, which end
-  their programs (`box.md`, 2).
+  their programs (`box-supervision.md`, 1).
 - Reading a runner's row: `owned.md`, section 10.
 
 ## 10. Open questions
@@ -677,17 +523,13 @@ Each is intended; what it needs is named with it.
 - Overrides of `app.ini`: `owned.md`, section 10.
 - **A token for the person's scripts and agents.** Settled: the
   preparation makes two, the person's read and write header files
-  (`owned.md`, 3, 5), which the box names (`box.md`, 2); the person may make others on
+  (`owned.md`, 3, 5), which the box names (`box-supervision.md`, 1); the person may make others on
   Forgejo's web, with the scopes they choose; never the preparation's
-  `admin_token`, which the engine's setup host alone takes (section
-  5).
+  `admin_token`, which the engine's setup host alone takes (`README.md`, section 5
+  ).
 - Backups beyond an upgrade's: `owned.md`, section 10.
 - Two deployments on one managed forge: `reconcile.md`, section 7.
-- **A hook left at an old listener's address,** after the listener
-  moves, is skein's question (skein's `forge/setup/README.md`, section 6).
-  Default: left alone; the person deletes it.
 - A task's text past what the clients receive: `init.md`, section 4.
-- A managed forge whose host list refuses the listener: `reconcile.md`, section 7.
 - **The managed picker's departure.** On a managed or owned Forgejo the
   picker lists every repository the site admin can see, not those the
   bot can write, as a connected forge's does, since adoption grants the
@@ -714,20 +556,20 @@ Each is intended; what it needs is named with it.
   deleted by the reset, and reuses nothing but the name. The user's to
   confirm. Default: as `playground.md`'s start makes it, the reading the draft's
   status records while the user is away.
-- **A progress page while the box starts** (`box.md`, 2;
+- **A progress page while the box starts** (`box-supervision.md`, 1;
   `../../draft/box-link-first.md`, 6): a page the box would serve until it
   hands the port to serve. A start takes a few seconds, and a browser's
   own loading covers them. The user's, who chose the block over it for
   now. Default: none.
 - The time of day on the terminal's error lines: `box.md`, section 7.
 - **Forgejo serving a source it listed when its discovery failed**
-  (`box.md`, 2; `../openid-provider.md`, 9): the source step relies on Forgejo loading its
+  (`box-supervision.md`, 1; `../openid-provider.md`, 9): the source step relies on Forgejo loading its
   sources again at a sign-in naming one it holds no provider for, which
   Forgejo's sign-in does and which no walk has measured on Forgejo 17;
   the process tier's story pins it after landing. Default: the step's
   request; if Forgejo does not serve the source after it, the step keeps
   failing, saying so, and Forgejo's next start serves it.
-- **A sign-in source for `temper-box serve`'s owned Forgejo** (`owned.md`, 8): its
+- **A sign-in source for `temper-box serve`'s owned Forgejo** (`owned-sign-in.md`, 1): its
   command is printed, not run, so nothing retries it; a source whose
   discovery failed at Forgejo's start serves at a person's first sign-in,
-  as above. Default: as `owned.md`, 8 says.
+  as above. Default: as `owned-sign-in.md`, 1 says.

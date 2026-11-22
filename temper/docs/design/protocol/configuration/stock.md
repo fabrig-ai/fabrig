@@ -28,8 +28,8 @@ init`'s document carries none of them (`../setup/init.md`, 3).
 | policy 1 | no requirements; owner 0 is the escalation role; forge admin (3) maps to maintainer 1, write (2) to member 2, read (1) to observer 3; no forge permission maps to owner. Maintainer: owner authority and period spend, requests 255 (no policy changes), decisions 31. Member: owner task authority, period spend 24K, requests 185 (create, amend, cancel, release, watch), no decisions. Observer: watch alone (128), no decisions, spend, tools, models, grants or delegation. The project and owner: role 0 requests and decides everything, a period's spend of 80 × 24K, 1,920K, for role 0 and of 81 × 24K, 1,944K, for the project, an authority's spend of 24K (below), with the rules' grants and delegation; its ceiling's and role 0's tool families 4,007, delegation, messages, control, subscriptions, reads, settings, notes, recall and asking (jig's `ToolFamilies` Delegate, Message, Control, Subscribe, Read, Settings, Note, Recall and Ask), so that a standing role sets its timers and subscribes (`../../domain/agent/standing.md`, sections 2 and 8), a chat reads the forge it works on, answers its delegates' questions and keeps its document, a goal writes its report (`../../domain/agent/agents.md`, 3), a goal's `change` names its plan's members (`../../domain/agent/tools-change.md`, 1), and an Ask temper chat (template 5) reads the settings through the asking family's `see` and proposes, a proposal changing nothing until an owner decides it (jig's `domain/engine/settings.md`, 6; `../../domain/agent/agents.md`, 1 and `../../domain/agent/ask-temper.md`); its ceiling's and every role's note scopes a goal's, `Scopes(1)`, but an observer's, none, so that a chat writes its own scope and only it (jig's `domain/engine/briefs.md`, section 2; `../../domain/agent/agents.md`, 3); a goal has its own scope for its report, while an advisor and a change have none (`../../domain/agent/tools-goal.md`, 1); its ceiling's and role 0's delegation 384 tasks 32 deep, jig's `standard` tree and depth, so that one goal's tree holds five times the largest fabrig's development has made, 73 tasks, and five times its depth, 5 |
 | the rules | today's: tools 4,007, delegation, messages, control, subscriptions, reads, settings, notes, recall and asking, note scopes a goal's, the forge's grants under `forge`, delegation to charters 1, 2, 4, 5, 9, 11, 12, 13, 14, 15 and 16, procedures 2, 3 and 4 and the goal's closer (procedure 6), roles 0, 1 and 2, the merge job (job 3) and the close job (job 4), so that a goal for a draft runs and closes on any project (`../../draft/stock-ways.md`, 3.3), 384 tasks 32 deep, a spend of 1,920K and a period's spend of 1,944K, a run's spend from 2C to K (below); and `settings.md`, 3's two requirements |
 | kind 1 | no rule: the rules a deployment's owners add, which every project's merges meet beside its own (`settings.md`, 3) |
-| kind 2, rule 1 | for every project: every branch of each of its repositories (`branch`, open: `settings.md`, 2), enforced: CI passed, up to date, and gate 1, an agent's review, blocking, fresh at a clean head; no approvals (`../../draft/stock-ways.md`, 3.1) |
-| kind 3 | number 1, the change's charter: charter 2; number 2, its reviews' charter: charter 4; no number 3, the foreman being retired (`settings.md`, 2) |
+| kind 2, rule 1 | for every project: every branch of each of its repositories (`branch`, open: `settings-kinds.md`, 1), enforced: CI passed, up to date, and gate 1, an agent's review, blocking, fresh at a clean head; no approvals (`../../draft/stock-ways.md`, 3.1) |
+| kind 3 | number 1, the change's charter: charter 2; number 2, its reviews' charter: charter 4; no number 3, the foreman being retired (`settings-kinds.md`, 1) |
 | kind 6 | none for every project: a change asks no one unless its maker names `up`, the one other route (`../../domain/forge/change/questions.md`, 1) |
 | kind 7 | for every project: `drafts` true; `goals` and `changes` false; `way` 0, so that a fresh project shows Home, Needs you and Chats and its chats can write drafts, which it can turn off |
 | kind 8 | for every project: Agents review's table (`../../domain/forge/attention.md`, 6): `wording`, `retry` and `tests` decided and listed, `implementation`, `dependency`, `departure` and `findings` asking, which Away may decide; no path set |
@@ -37,7 +37,7 @@ init`'s document carries none of them (`../setup/init.md`, 3).
 
 - **Kind 9, each stock charter's words,** given to the forge at each start
   beside kind 3's, each a line in the person's terms, as How work runs'
-  Roles says it after when the role runs (`settings.md`, 2):
+  Roles says it after when the role runs (`settings-kinds.md`, 1):
 
   | Charter | Its words |
   |---|---|
@@ -143,7 +143,7 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   any template. Its runs read and propose settings; they never change
   one, since jig's `settings` family proposes and an owner accepts
   (jig's `domain/engine/settings.md`, 6).
-- **Template 4's work,** kind 11 (`settings.md`, 2), at scope 0 and number 4: no
+- **Template 4's work,** kind 11 (`settings-kinds.md`, 1), at scope 0 and number 4: no
   design and no close-out, since the stock's charter 5 designs the
   draft itself, delivering its design and status straight to the goal's
   branch, and cuts it into changes it specifies itself, with no
@@ -245,9 +245,9 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   (skein's `llm/README.md`, 4.7), as OpenAI's reasoning models' output
   already does. Up to Anthropic's 128,000 would raise every Claude run's
   worst-case completion, and so C and every budget below, and the
-  agent's largest turn (`settings.md`, 7), for a cut no run has shown; the
+  agent's largest turn (`settings-output.md`, 1), for a cut no run has shown; the
   walk on a real key after `claude-api.md`'s step 1 shows whether a
-  delegated change at the stock's efforts is cut (section 1).
+  delegated change at the stock's efforts is cut (`stock.md`, section 1).
 - **The box's limits for that work.** `temper-box init`'s document, and
   `docs/examples/owned.json`, name the `standard` profiles, jig's and
   temper's (`limits.md`; jig's `protocol/limits.md`),
@@ -293,7 +293,7 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   `protocol/store/records.md`, 1 and 3). The document's overrides say only
   what differs from the profiles: temper's client's documents
   (`documents.rows` 2, `documents.text_bytes` 512; `../setup/init.md`, 1), the agent's carriers
-  (`settings.md`, 7; `../setup/init.md`, 1) with the bounds that follow its message
+  (`settings-output.md`, 1; `../setup/init.md`, 1) with the bounds that follow its message
   (`../setup/init.md`, 1), the forge's repositories and output (`../setup/init.md`,
   3), and the machine's
   concurrency, which is the machine's to size: the worker's 4 slots, so
@@ -309,14 +309,14 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   at once, and the engine's watch rooms follow them (`limits.md`). One call's arguments are bounded by its model's output, not
   by the message bound: the agent's `tool_payload`, and
   `checkout.message_bytes` with it, is the largest smith admits at
-  init's models (`settings.md`, 7). smith offers a run a message within the same
+  init's models (`settings-output.md`, 1). smith offers a run a message within the same
   payload, two bytes less for its separator, and the fleet holds a
   host's agent to the engine's message bound at its hello (jig's
   `protocol/limits.md`), so the box's `tasks.message_bytes`
   and `tasks.result_bytes` are its agent's message, the payload less
   two, overridden below the profile's 262,144: a report or message of
   the table's size reaches a run only from a model whose output admits
-  that payload (`settings.md`, 7).
+  that payload (`settings-output.md`, 1).
 - **The stock sets floors under the limits.** Its own values must fit
   the limits they are checked against: a configuration whose
   `core.policy_bytes` is below policy 1's encoding, or whose

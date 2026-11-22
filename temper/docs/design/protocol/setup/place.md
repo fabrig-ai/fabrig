@@ -191,7 +191,7 @@ flags a person gives:
 - **A test gives a fake's,** in `application.test`'s `github`, with the
   members, forms and bounds `machine.github` had
   (`../configuration/engine.md`): the fake backends'
-  rewriter (`box.md`, 5), the live tier's relay
+  rewriter (`box-backends.md`, 1), the live tier's relay
   (`../../testing/live-tier.md`) and the process tier's fixtures write
   it. `application.test` holds nothing else, help lists none of it, and
   the TOML file's `[test]` takes it over (`../../draft/config.md`, 4.4).

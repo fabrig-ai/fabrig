@@ -418,7 +418,7 @@ sizes and never reads them (jig's `domain/connectors.md`, section 17).
 - **It judges them in the change's decision,** from its own state: a
   rule decodes, its pattern is a landing branch's within jig's pattern
   bounds, its gates and approvals within their bounds, and the forge's
-  charter a charter's number (`../../../protocol/configuration/settings.md`, 2). A
+  charter a charter's number (`../../../protocol/configuration/settings-kinds.md`, 1). A
   refusal names the item and what fails, and the whole change is
   refused with it.
 - **The root checks approval eligibility** when a rule is set, after the
@@ -426,7 +426,7 @@ sizes and never reads them (jig's `domain/connectors.md`, section 17).
   For each project in the setting's scope, and each adopted writable
   repository of it whose branch names overlap the pattern, each of them
   for a project's pattern beginning at `branch`
-  (`../../../protocol/configuration/settings.md`, 2), each enforcing
+  (`../../../protocol/configuration/settings-kinds.md`, 1), each enforcing
   approval needs at least its required count of distinct project members
   with the named role who count as people on **that repository's forge**,
   `forge_human` (`../adoption.md`): an account known on another forge of the

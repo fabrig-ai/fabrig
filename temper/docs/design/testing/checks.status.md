@@ -68,7 +68,7 @@ Sections 4 and 5.3 have no gap in scripted note-backed proposals and single-revi
 
 `macos.md`, section 3 lists the killed-box lifetime test as Linux-only, matching its
 parent-death mechanism. The combined default-runner browser and terminal
-proof is not established by the supplied inventory (`../protocol/setup/box.status.md`, 1 and 2, and `../protocol/setup/testing.status.md`, 4
+proof is not established by the supplied inventory (`../protocol/setup/box.status.md`, 1, and `../protocol/setup/box-supervision.status.md`, 1, and `../protocol/setup/testing.status.md`, 4
 ); the existing real-box sign-in story still awaits its
 after-landing execution (`../protocol/openid-provider.status.md`, 9).
 

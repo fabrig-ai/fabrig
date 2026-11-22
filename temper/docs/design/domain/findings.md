@@ -302,7 +302,7 @@ findings, kept in the store and never read back. What is open is `findings.md`, 
   goal's so refused is not filed, and a red finding so refused waits on
   its tier's record (`red-findings.md`, section 7).
 - **Settings:** the project's areas and its triager are kinds 12 and 13
-  (`../protocol/configuration/settings.md`, 2). The issue's projection
+  (`../protocol/configuration/settings-kinds.md`, 1). The issue's projection
   on or off, the chooser and the tester charter come with the issue and
   QA: until then, in the document's `landing` member, as `by` is
   (`landing-settings.md`, 1.1), `findings`, true or false (false by default).

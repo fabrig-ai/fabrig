@@ -25,7 +25,7 @@ result its run leaves unread is judged again when the run ends.
 
 The change's agents run under the charters the change was made with,
 kept on it whatever later changes of settings make them
-(`../../protocol/configuration/settings.md`, 2): its producing, repairs and
+(`../../protocol/configuration/settings-kinds.md`, 1): its producing, repairs and
 resolutions under its producer's charter, the one its `change` named
 (`tools-change.md`, 1) or else the forge's change charter, a coding agent's; its reviews
 under the forge's review charter, a reviewer's, whose instructions are
@@ -148,7 +148,7 @@ otherwise teach.
   charters are. `see` reads them at the chat's own project (`ask-temper.md`, 1); a
   project's own policy is no address of its (`README.md`, section 8).
 - **A goal template's work,** `template-goal` with the template's number
-  (`../../protocol/configuration/settings.md`, 2, kind 11), `{"design": BOOL,
+  (`../../protocol/configuration/settings-kinds.md`, 1, kind 11), `{"design": BOOL,
   "close_out": BOOL}`, is read and proposed as a template is, beside it:
   a proposal of a goal template whose charter designs the goal first or
   makes a close-out carries the template's work saying so, and a read of
@@ -676,7 +676,7 @@ conversation its person ends, kept, listed among the project's chats.
   path is independent of the stock and reference instructions, their
   wakes and their location. Those words and settings are folded into the
   reference workflow together. Calls, briefs and reports take the room
-  of `../../protocol/configuration/settings.md`, 7, with the reference's fallback.
+  of `../../protocol/configuration/settings-output.md`, 1, with the reference's fallback.
   Default: the existing stock and reference words and wakes; test charters
   exercise goal delivery.
 

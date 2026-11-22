@@ -391,7 +391,7 @@ fn forge_result(bytes: u32, result: u32, problems: &mut Problems) {
     short(problems, own(b"forge.client.op_bytes"), u64::from(bytes), b"tasks.result_bytes", Some(u64::from(result)));
 }
 /// Each process checks the turn bounds its own document can know
-/// (protocol/configuration/settings.md, 7). A worker alone knows its agent and hub.
+/// (protocol/configuration/settings-output.md, 1). A worker alone knows its agent and hub.
 pub fn turns(
     engine: Option<&config::Limits>,
     workers: &[config::Worker],
@@ -644,7 +644,7 @@ pub fn agent(engine: &config::Engine, agent: &Declaration, problems: &mut Proble
     }
 }
 /// Charter settings warn; deployment receiving bounds still refuse
-/// (temper/docs/design/protocol/configuration/README.md, 3).
+/// (temper/docs/design/protocol/configuration/worker.md, 1).
 pub fn admission(
     core: &jig_domain_core::Config,
     engine: &config::Engine,

@@ -10,7 +10,7 @@ goals decide and a project keeps 64 decided rows; `../domain/forge/change/questi
 branch's queue; `../domain/agent/tools.md`'s `decided`; `stock-ways.md`,
 section 2, where a way sets how work starts and lands and nothing else, as a
 way now also sets the classes' defaults (`what-reaches-you.md`, section 2); what kind 6, a project's
-question route (`../protocol/configuration/settings.md`, 2), and Start goal's
+question route (`../protocol/configuration/settings-kinds.md`, 1), and Start goal's
 "Always ask" (`Asks: always`, `../domain/forge/attention.md`, 5;
 `../client/pages/goal.md`, 3) mean beside the classes (`what-reaches-you.md`, section 2); and
 `../client/pages/README.md`'s Away and Needs you, and it gives 5.13's
@@ -57,7 +57,7 @@ passes them by.
 ## 2. Three classes
 
 A project's setting, decided by its owners and proposed by Ask temper like
-any other (`../protocol/configuration/settings.md`, 2; `../domain/agent/ask-temper.md`,
+any other (`../protocol/configuration/settings-kinds.md`, 1; `../domain/agent/ask-temper.md`,
 2): a table of kinds, each in one class.
 
 - **Agents decide, then tell you:** the asker decides, and the decision is
@@ -98,7 +98,7 @@ The kinds, each named in the asker's call (section 4):
   settings and an escalation still wait for their decider, whatever the
   table says (jig's `domain/tasks/proposals.md`).
 - **Kind 6 stays the route,** the classes the gate: a project's question
-  route (`../protocol/configuration/settings.md`, 2) still says which way a
+  route (`../protocol/configuration/settings-kinds.md`, 1) still says which way a
   change's question goes up the tree, through a foreman or to its maker
   (`../domain/forge/change/questions.md`, 1). The classes judge only where a question
   would reach a person.
@@ -183,7 +183,7 @@ agents decide is the project's table.
   sent it and its class, from the decision that said ask: "Reached you
   because it changes vsr's protocol core, which asks you, even when away."
   A need with no item, a question routed to its person by kind 6
-  (`../protocol/configuration/settings.md`, 2), says so.
+  (`../protocol/configuration/settings-kinds.md`, 1), says so.
 - **Stop asking** is one link on the line. It opens, in place, the
   narrowest change that would have decided this need: the item moved to
   "agents decide, then tell you"; or, for a path set, the item with words

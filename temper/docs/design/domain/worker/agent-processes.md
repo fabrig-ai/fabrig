@@ -23,7 +23,7 @@ process has exited and its tree is empty. temper's choices:
   build and smith's channel never spans two (`../../draft/redeploys.md`,
   4.4). As it starts, before its loop, the worker writes the agent's
   configuration from its engine's figures, checks it and takes its
-  bounds from it (`../../protocol/configuration/README.md`, section 4;
+  bounds from it (`../../protocol/configuration/worker.md`, section 2;
   `../../protocol/configuration/figures.md`, section 6), then writes
   those same bytes, and a copy of its derived agent program,
   into `agent/` under its root directory (`../../protocol/git.md`,
@@ -64,7 +64,7 @@ process has exited and its tree is empty. temper's choices:
   directory only while a cargo command runs could reclaim it between the
   two, and a test's executable would vanish under the check. The worker
   gives a check nothing but the agent's `environment`
-  (`../../protocol/configuration/README.md`, section 4), so the hold is the
+  (`../../protocol/configuration/worker.md`, section 2), so the hold is the
   check's and that environment's: one hold for the check, taken by its
   outermost entry point from before its first build to its last test,
   released at its end or by its process's death. fabrig's own check takes
@@ -104,8 +104,8 @@ process has exited and its tree is empty. temper's choices:
   merge job re-records the recordings it knows in its own job's checkout
   and delivers them itself (`../../protocol/tooling.md`, 4.1).
 - **Its limits** are smith's host limits, and the bounds the hello
-  states, from the agent's configuration (`../../protocol/configuration/README.md`,
-  section 4). The one number that isn't the agent's is how many agents
+  states, from the agent's configuration (`../../protocol/configuration/worker.md`,
+  section 2). The one number that isn't the agent's is how many agents
   the host holds at once: a run is one agent process, so that number is
   the worker's slots, set where the worker composes its limits, and
   nothing in the agent's configuration raises it. Each of the host's

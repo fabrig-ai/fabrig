@@ -2,7 +2,7 @@ use std::{fs, path::Path};
 fn forbidden(source: &str) -> bool {
     let compact: String = source.chars().filter(|c| !c.is_whitespace()).collect();
     // Calls through the setup's process boundary are not std process operations
-    // (temper/docs/design/protocol/setup/README.md, 7).
+    // (temper/docs/design/protocol/setup/crate-layout.md, 1).
     let compact = compact.replace("temper_forge_setup_shell::process::", "ForgeProcess::");
     compact.contains("std::process")
         || compact.contains("process::") && compact.contains("usestd::{")

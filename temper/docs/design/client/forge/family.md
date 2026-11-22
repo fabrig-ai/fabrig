@@ -159,7 +159,7 @@ request state and refusals remain above the foot.
 4 and 5): the chats page's "Adopt a repository" opens this form into
 its project, always a project's: no form makes a project. While a
 set up's first repository is made and adopted nowhere
-(`../../protocol/setup/owned.md`, 7), as the `forges` watch's rows say it (a
+(`../../protocol/setup/owned-repositories.md`, 1), as the `forges` watch's rows say it (a
 real forge's row whose `first` is made, and no row's `repositories`
 naming its organization and name, `records.md`), the form opens filled for it,
 so that adopting it is one choice away: its forge's number, its

@@ -86,7 +86,7 @@ fn setup_refused_without_the_box() {
 
 #[test]
 fn invalid_names_are_refused_before_any_box_request() {
-    // client/forge/records.md; protocol/setup/owned.md, 7: both grammars checked at admission.
+    // client/forge/records.md; protocol/setup/owned-repositories.md, 1: both grammars checked at admission.
     let cases: &[(&[u8], &[u8])] = &[
         (b"", b"hello"),
         (b"work", b""),
@@ -139,7 +139,7 @@ fn exact_grammar_limits_and_repository_punctuation_are_admitted() {
 
 #[test]
 fn a_second_setup_is_busy_and_cannot_replace_the_first_intent() {
-    // domain/forge/adoption-connection.md, 1; protocol/setup/owned.md, 7: one setup at a time, intent only replaced on admission.
+    // domain/forge/adoption-connection.md, 1; protocol/setup/owned-repositories.md, 1: one setup at a time, intent only replaced on admission.
     let mut driver = driver(true);
     assert_eq!(setup(&mut driver, 55, b"work", b"hello"), None);
     event(&mut driver, forge::Event::Connection { forge: 1, state: forge::Connection::SettingUp { step: None } });
@@ -204,7 +204,7 @@ fn forges(driver: &mut Driver) -> forge::Forges {
 
 #[test]
 fn first_repository_row_is_volatile_across_restart() {
-    // protocol/setup/owned.md, 7: even made(id) is volatile, never recovered as an adoption.
+    // protocol/setup/owned-repositories.md, 1: even made(id) is volatile, never recovered as an adoption.
     let mut driver = driver(true);
     let _ = setup(&mut driver, 58, b"work", b"hello");
     event(&mut driver, forge::Event::FirstMade { forge: 1, id: 2 });
@@ -245,7 +245,7 @@ fn first_repository_row_is_volatile_across_restart() {
 
 #[test]
 fn every_create_failure_names_its_step_and_allows_a_fresh_setup() {
-    // protocol/setup/owned.md, 7: admin/org/repository/file failures are named and offered again.
+    // protocol/setup/owned-repositories.md, 1: admin/org/repository/file failures are named and offered again.
     for step in
         [forge::CreateStep::Admin, forge::CreateStep::Org, forge::CreateStep::Repository, forge::CreateStep::File]
     {
@@ -300,7 +300,7 @@ fn replay_of_an_answered_setup_does_not_start_the_box_twice() {
 
 #[test]
 fn first_row_moves_from_none_to_making_to_the_created_id() {
-    // protocol/setup/owned.md, 7; client/forge/records.md: row transitions preserve the created id.
+    // protocol/setup/owned-repositories.md, 1; client/forge/records.md: row transitions preserve the created id.
     let mut driver = driver(true);
     assert!(forges(&mut driver).rows[0].first.is_none());
     let _ = setup(&mut driver, 63, b"work", b"hello");

@@ -100,7 +100,7 @@ this document says how settings lie over it.
 
 ### 2.3 temper's kind, 22, `temper-limits`
 
-- **An application kind** of temper's (`settings.md`, section 2):
+- **An application kind** of temper's (`settings-kinds.md`, section 1):
   number 22, the deployment's scope, the forge connector's, one value,
   naming no charter. Its value is a list of overrides of temper's names,
   kept and judged by the forge child as every temper kind is; its judge

@@ -1085,7 +1085,7 @@ fn review_rule() -> temper_engine_domain_forge::settings::LandingRule {
 }
 
 /// The welcome's default comes from the box flag at each start
-/// (temper/docs/design/protocol/configuration/settings.md, 2).
+/// (temper/docs/design/protocol/configuration/settings-kinds.md, 1).
 #[must_use]
 pub fn with_welcome(
     stock: Box<[temper_engine_domain_forge::settings::Stock]>,

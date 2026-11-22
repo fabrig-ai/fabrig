@@ -359,7 +359,7 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   by spending a held login.
   - **What runs:** a fresh box as the help makes one, its owned Forgejo
     set up through ctl with the playground's copy
-    (`../protocol/setup/owned.md`, 7); the model a held ChatGPT record,
+    (`../protocol/setup/owned-repositories.md`, 1); the model a held ChatGPT record,
     `TEMPER_TEST_LIVE_ACCOUNT`, moved in by `temper ctl account import` and
     moved back by `account export` over the same path before the box
     stops; on any ending that comes first, a pass, a failure or a

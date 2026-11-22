@@ -222,7 +222,7 @@ This document holds a forge's connection, access state and removal, split from [
   context stays, with everything that names it: its writer becomes the
   first of those projects, its other contexts kept, and only the deleted
   project's own receipts of it go. temper's kinds' settings in the
-  project's scope go as `../../protocol/configuration/settings.md`, 2 says, and so do
+  project's scope go as `../../protocol/configuration/settings-kinds.md`, 1 says, and so do
   the project's own records: its follows, findings, facts, looks,
   aways, decisions, dismissals, landed drafts and receipts; its landing
   history is swept after the answer, in pages, under its own mark

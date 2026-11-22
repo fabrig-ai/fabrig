@@ -99,7 +99,7 @@ directory, never in a suite or at the gate. The user's own token is never used.
 
 The fake-backend welcome's configuration and issuer contracts are tested
 at their lowest owning layer (../protocol/configuration/directories.md, 1;
-../protocol/setup/box.md, 5): CLI and filesystem preparation in temper's unit
+../protocol/setup/box-backends.md, 1): CLI and filesystem preparation in temper's unit
 tests, document rewriting and issuer plans in temper-fake, and welcome
 acts in the client and setup worlds. Compatible retained edits remain
 untouched; a changed source requires explicit reset. The focused binary
@@ -280,7 +280,7 @@ terminal client, the captures and the faults.
     coding run;
   - a stop while a chat's run holds a turn of smith's fake `claude` on a
     program's source: the turn interrupted, the engine drained, and no
-    program left running (`../protocol/setup/box.md`, 2); a program's
+    program left running (`../protocol/setup/box-supervision.md`, 1); a program's
     own cancel is smith's agent-process world's;
   - the service is killed, or the machine's power lost, at a drawn
     moment, then started again on the same disk, an adoption pending
@@ -871,7 +871,7 @@ scripts/proof-live.sh               the live tier
   process can take one first. Keeping a listener through transfer would
   remove that race, but needs a different closure assertion. Default:
   this test keeps its assertion until a failure or a test change reaches
-  it; the sandbox's reservation retries are `../protocol/setup/box.md`, 5's.
+  it; the sandbox's reservation retries are `../protocol/setup/box-backends.md`, 1's.
 - **Reusable ports on macOS** (`process-tier.md`, `macos.md`): read its configured ephemeral
   range before drawing ports. With no Linux range file, the chooser uses
   49152, macOS's default; a machine configured with a lower boundary can
@@ -895,7 +895,7 @@ scripts/proof-live.sh               the live tier
   removal cut use the box's sign-in.
 
 - **A default box's combined browser and terminal proof** (`process-tier.md`;
-  `../protocol/setup/box.md`, 1 and 2, and `../protocol/setup/testing.md`, 4): one 1440-pixel walk with the
+  `../protocol/setup/box.md`, 1, and `../protocol/setup/box-supervision.md`, 1, and `../protocol/setup/testing.md`, 4): one 1440-pixel walk with the
   default runner and separate configuration, data and cache directories,
   signing in by one click on a fresh start, after a restart and after a
   moved temper port, then closing its pseudo-terminal and checking that

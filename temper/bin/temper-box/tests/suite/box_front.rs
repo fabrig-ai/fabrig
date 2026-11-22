@@ -1,4 +1,4 @@
-//! The box as its parent's child (temper/docs/design/protocol/setup/box.md, 6).
+//! The box as its parent's child (temper/docs/design/protocol/setup/box-front.md, 1).
 use crate::support::{self, patience::Patience};
 use skein_io::kernel::{Complete, Done, Exit, Fd, Op, Pipe, Signal, Spawn, Submit, Target, Way};
 use skein_lib::{Queue, Token};

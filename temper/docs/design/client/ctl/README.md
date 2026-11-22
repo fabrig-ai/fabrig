@@ -659,7 +659,7 @@ directory of its harness's:
   adopt --ids`.
 - **Logs:** each step's, the engine's and the worker's among them, in
   its file under `<data>/box/logs/`, and on the box's stderr prefixed
-  by its step with `--echo steps` (`../../protocol/setup/box.md`, 2);
+  by its step with `--echo steps` (`../../protocol/setup/box-supervision.md`, 1);
   Forgejo's in its directory. Outside the tools.
 - **Thrown away** by stopping the box with a termination signal and
   removing its directory: the harness's, never a tool's.

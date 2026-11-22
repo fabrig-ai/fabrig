@@ -207,7 +207,7 @@
   (`bin/temper-box/tests/suite/box_listeners.rs`).
 
 - **A box at its place restarted with a newer build**
-  (`../protocol/setup/box.md`, 1 and 5; `../draft/landed-qa.md`, 10 and
+  (`../protocol/setup/box.md`, 1, and `../protocol/setup/box-backends.md`, 1; `../draft/landed-qa.md`, 10 and
   11), one story on `temper box --fake-backends` on its fake backends
   alone, as a QA place runs it: the box started from a `bin/` of its
   own, holding copies of `temper-box` and `fake-claude` and a bundle's
@@ -293,7 +293,7 @@
     path at smith's fake `claude` (`fakes.md`, 1);
   - an owned Forgejo and its runner (below);
   - real git, the machine's, at the absolute path configuration gives it
-    (../protocol/configuration/README.md, section 3; ../protocol/git.md,
+    (../protocol/configuration/worker.md, section 1; ../protocol/git.md,
     section 3);
   - the person: skein's fake person in front of temper's client, over
     jig's native transport (../client/README.md, section 2); and, in a
@@ -554,7 +554,7 @@
   as a retained deployment's across a stop, is `temper_fixtures::ports`'
   (`support::free_addresses`, `support::own_listener_files`), and a fake
   box's are the story's too, through `TEMPER_INTERNAL_FAKE_BOX_PORTS`
-  (`../protocol/setup/box.md`, 5). Such a port is:
+  (`../protocol/setup/box-backends.md`, 1). Such a port is:
   - **below the kernel's ephemeral range,** as
     `/proc/sys/net/ipv4/ip_local_port_range` reads, so that no outgoing
     socket and no bind of port 0 lands on it while nothing listens there;
@@ -617,7 +617,7 @@
     the account the sign-in makes reads usable from the engine, where
     before it read not.
   - **The fake issuer's held sockets,** in temper-fake's own tests on
-    skein's simulator (`../protocol/setup/box.md`, 5),
+    skein's simulator (`../protocol/setup/box-backends.md`, 1),
     on the issuer `temper_fake::oauth::Document::peer` makes: a browser's
     held authorize socket and an idle spare don't block the engine's
     sign-in, and past `CONNECTIONS` the issuer turns a connection away;

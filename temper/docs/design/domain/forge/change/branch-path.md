@@ -19,8 +19,8 @@ Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
     on and `way` names a template whose resources hold *its own goal
     branch*, as template 4's do (`../../../protocol/configuration/stock.md`);
     otherwise as a chat's change;
-  - that template's work (kind 11; `../../../protocol/configuration/settings.md`,
-    2): whether its coordinator designs first and whether it makes a
+  - that template's work (kind 11; `../../../protocol/configuration/settings-kinds.md`,
+    1): whether its coordinator designs first and whether it makes a
     close-out, neither where it has none;
   - the project's landing, by queue or by turn, whether it names a
     merge job (`repairs.md`, *The merge job*), and the repository's CI, its test
@@ -280,7 +280,7 @@ Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
   the model and effort a run of it would take now for the reader, "Can"
   (*What an agent can*) and "Asked to", its instructions' first
   sentence. What it does is its charter's words as the settings hold
-  them (`../../../protocol/configuration/settings.md`, 2, kind 9; the
+  them (`../../../protocol/configuration/settings-kinds.md`, 1, kind 9; the
   forge's `charter_words`); where none are kept, its instructions'
   first sentence, as "Asked to" takes it but unquoted; where its
   instructions give no sentence either, `who` is when it runs alone.

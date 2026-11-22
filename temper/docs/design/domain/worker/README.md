@@ -79,7 +79,7 @@ agent    smith: LLM work, one run per agent process, reporting to the worker
   grace after it, and the drain's bound; then the longer of the time
   smith's agent may take to be gone after a stop and a push's deadline,
   then a save's commit and push. The worker's configuration derives it
-  (`../../protocol/configuration/README.md`, section 3); the domain takes
+  (`../../protocol/configuration/worker.md`, section 1); the domain takes
   it whole, with the drain's bound beside it, and keeps it as a deadline.
 - **The stop bound is printed** at each start, once the engine's figures
   apply, on standard error after the figures' line: `stop bound S s,
@@ -165,7 +165,7 @@ agent    smith: LLM work, one run per agent process, reporting to the worker
   (`../../protocol/service-process.md`, section 1).
 - **An engine's restart costs a run nothing.** The grace is the
   engine-away bound, `graces.grace_ms` in the worker's configuration
-  (`../../protocol/configuration/README.md`, section 3), sized to outlast an
+  (`../../protocol/configuration/worker.md`, section 1), sized to outlast an
   engine's restart. While it runs, the worker keeps hosting every run,
   keeps what they send, and redials no further apart than a quarter of
   the grace; it stops only once the engine admits a hello (jig's
@@ -179,7 +179,7 @@ agent    smith: LLM work, one run per agent process, reporting to the worker
   again.
 - **A restart said is waited for longer.** An engine's settled stop
   tells its workers it restarts, with its restart wait, 20 minutes by
-  default (`../../protocol/configuration/README.md`, section 3): a
+  default (`../../protocol/configuration/worker.md`, section 1): a
   worker that heard it keeps its runs, at its link's loss, for the
   longer of that wait and its grace, then the same tail as past the
   grace (jig's `protocol/channel/restart.md`, 4). Meanwhile its runs'
@@ -374,7 +374,7 @@ table and the git component.
   in git's environment only, never in an argument, a URL or a file
   (`../../protocol/git.md`, section 5).
 - **Files:** workspace directories under the worker's `root`
-  (`../../protocol/configuration/README.md`, section 3). Making one empties it
+  (`../../protocol/configuration/worker.md`, section 1). Making one empties it
   first, so what the cache evicted, or a worker left behind before a
   restart, cannot fail a prepare. The stores sit beside them, one bare
   repository each, and outlive a restart (`../../protocol/git.md`,

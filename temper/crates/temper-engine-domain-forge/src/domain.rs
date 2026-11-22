@@ -10662,7 +10662,7 @@ pub(crate) fn keep_panel_ci(d: &mut Domain, task: u64, read: change::Ci, out: &m
 }
 
 // Admission mirrors skein's Create grammar without an io dependency in this domain.
-// The tests pin both grammars to the same boundary cases (protocol/setup/owned.md, 7).
+// The tests pin both grammars to the same boundary cases (protocol/setup/owned-repositories.md, 1).
 fn setup_login(name: &[u8]) -> bool {
     temper_client_protocol_wire::source::org(name)
 }

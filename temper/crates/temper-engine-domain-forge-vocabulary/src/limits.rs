@@ -71,7 +71,7 @@ pub struct Limits {
     pub history_events: u64,
     /// Criteria in each deployment or project judge table.
     pub judge_criteria: u32,
-    /// Rules per scope, configured by `forge.landing_rules` (protocol/configuration/settings.md, 2).
+    /// Rules per scope, configured by `forge.landing_rules` (protocol/configuration/settings-kinds.md, 1).
     pub landing_rules: u32,
     /// A project's follows and their bounded work (temper/docs/design/domain/forge/follows.md, 10).
     pub follows: u32,

@@ -289,8 +289,8 @@
       name in the strong weight, its words, and muted its owner's name,
       the first chosen; then, while the project has fewer than 16, "A new
       area", which shows two fields, "Name" and "What it covers", judged
-      as kind 14 judges them (`../../protocol/configuration/settings.md`,
-      2): "A name is 1 to 32 lowercase letters, digits and -, starting
+      as kind 14 judges them (`../../protocol/configuration/settings-kinds.md`,
+      1): "A name is 1 to 32 lowercase letters, digits and -, starting
       with a letter.", "PROJECT has an area named NAME already." and "What
       it covers is 1 to 480 bytes, on one line.", each under its field
       once the act is pressed, as Start a goal's sheet judges its fields:
@@ -465,15 +465,15 @@
   gives it. Default: none is drawn until it is built, and a person's line
   is what *Team* counts.
 - **A role's card, where a read lacks** (1, *A role's card*): its rules as
-  the words kept with its charter (`../../protocol/configuration/settings.md`,
-  2, kind 9), once the `charter N` view carries them, where it has the
+  the words kept with its charter (`../../protocol/configuration/settings-kinds.md`,
+  1, kind 9), once the `charter N` view carries them, where it has the
   "Asked to" fact, its instructions' first sentence; a forge topic in
   words, "A landing on vsr's main touching tests/", once a read gives
   temper's subscriptions of a task; what a timer is for, "Its weekly
   report", which a timer doesn't say; and
   "written at 06:58, when its last session ended", once the client reads
   a session's record (jig's `domain/tasks/standing.md`, 7). Default: each
-  as section 1 has it, the gap recorded in
+  as `team.md`, section 1 has it, the gap recorded in
   `../../draft/surfaces.status.md`, 6.
 - **A week's sign-offs past the rows** (1, *What each signed*): the
   count reads the changes' `landed_default` rows, at most

@@ -70,7 +70,7 @@ in the lower world that owns it, never here.
   (../client/testing.md); and the fake issuer's admission beside a
   browser's held sockets, and past its cap, is temper-fake's, on
   skein's simulator (`process-tier.md`, *The fake box keeps two walks*;
-  `../protocol/setup/box.md`, 5). Two goals' changes released
+  `../protocol/setup/box-backends.md`, 1). Two goals' changes released
   together, forming one landing by `turn` at a `batch` of two and
   landing on one green gate, are the engine's domain world's
   (`../domain/landing.md`, 16).

@@ -392,7 +392,7 @@ Moved to [`credentials-git-identities.md`](credentials-git-identities.md), secti
 - **People's credentials are jig's** (jig's `protocol/client/sign-in.md`
   ): jig mints, verifies, expires and revokes them. Its printed
   link signs in the deployment's first owner: `temper-box serve` prints the
-  link at start, or `temper box` before it starts serve (`setup/box.md`, 2),
+  link at start, or `temper box` before it starts serve (`setup/box-supervision.md`, 1),
   `temper-box open` signs in by it; its client holds the
   bearer token it is given and sends it with every exchange, and the
   terminal keeps it in its private directory, to sign in with it again

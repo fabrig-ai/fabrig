@@ -289,13 +289,13 @@ trips".
   the box's own Forgejo included (the user, 2026-11-12: QA on the fakes
   stays the rule). A pass's box or deployment runs on its fake backends:
   the person's forges, GitHub and Forgejo alike, are fake forges
-  (`../protocol/setup/box.md`, 5) keeping their state in the place's data
-  across a restart (section 10), so that a copy keeps their repositories,
+  (`../protocol/setup/box-backends.md`, 1) keeping their state in the place's data
+  across a restart (`landed-qa.md`, section 10), so that a copy keeps their repositories,
   pull requests and checks. A deployment runs the same fakes as processes
   of their own, as a box runs them as its steps. No place runs a Forgejo
   or a runner. What only a real forge shows, the box's own Forgejo set up
-  on the person's machine among it, waits for real backends (section
-  12).
+  on the person's machine among it, waits for real backends (`landed-qa.md`, section 12
+  ).
 - **CI is the fake forge's,** decided by a file's content
   (`../testing/fakes.md`, 2), so that a recipe makes a head pass or fail
   by what its `forge` lines commit; a landing's gate is a workflow the

@@ -88,7 +88,7 @@ Kind: overlap. Owner: `temper/docs/design/domain/forge/change/gates.md`.
 
 Kind: overlap. Owner: `temper/docs/design/domain/forge/keeping-up.md`.
 
-`temper/docs/design/protocol/setup/README.md`, 6 retells the mergeability/CI settling loop (hinted, doubling to poll, within settle), while `temper/docs/design/domain/forge/keeping-up.md`, 2 specifies it in full, including that the change procedure, not the keep, does those fresh reads. The setup text also speaks of the keep reading the hints. Suggest keeping the algorithm in keeping-up and retaining only box provisioning, delivery coverage and its proof in setup; the different descriptions of its actor need the owner's reconciliation. `temper/docs/design/protocol/forge/README.md`, 4 is a forwarding summary and is not a third finding.
+`temper/docs/design/protocol/setup/webhooks.md`, 1 retells the mergeability/CI settling loop (hinted, doubling to poll, within settle), while `temper/docs/design/domain/forge/keeping-up.md`, 2 specifies it in full, including that the change procedure, not the keep, does those fresh reads. The setup text also speaks of the keep reading the hints. Suggest keeping the algorithm in keeping-up and retaining only box provisioning, delivery coverage and its proof in setup; the different descriptions of its actor need the owner's reconciliation. `temper/docs/design/protocol/forge/README.md`, 4 is a forwarding summary and is not a third finding.
 
 ### 2.5 O5: Two contracts for a change task page
 
@@ -130,13 +130,13 @@ The item in `temper/docs/design/client/forge/family.md`, 8 says the client has n
 
 Kind: answered question. Owner: `temper/docs/design/protocol/setup/README.md`.
 
-"A token for the person's scripts and agents" in `temper/docs/design/protocol/setup/README.md`, 10 starts "Settled" and specifies the two read/write headers and the prohibition on using admin_token. It cites the design that settles it: `temper/docs/design/protocol/setup/owned.md`, 3, `temper/docs/design/protocol/setup/owned.md`, 5 and `temper/docs/design/protocol/setup/box.md`, 2. Suggest retiring the closed question; no token policy is changed here.
+"A token for the person's scripts and agents" in `temper/docs/design/protocol/setup/README.md`, 10 starts "Settled" and specifies the two read/write headers and the prohibition on using admin_token. It cites the design that settles it: `temper/docs/design/protocol/setup/owned.md`, 3, `temper/docs/design/protocol/setup/owned.md`, 5 and `temper/docs/design/protocol/setup/box-supervision.md`, 1. Suggest retiring the closed question; no token policy is changed here.
 
 ### 2.12 A6: The first project and the later repository
 
 Kind: answered question. Owner: `temper/docs/design/protocol/setup/README.md`.
 
-"After the first repository" in `temper/docs/design/protocol/setup/README.md`, 9 states a complete flow and the runtime project-creation rule, rather than identifying what is deferred. The first repository's creation and separate adoption are already `temper/docs/design/protocol/setup/owned.md`, 7, and the New repository act is specified in the preamble's act table in `temper/docs/design/client/forge/deployment.md`. Suggest removing the settled project/adoption account from Later; if a further generic-form design is intended, name only that remaining work. The owner must separate those parts, not move this mixed item wholesale.
+"After the first repository" in `temper/docs/design/protocol/setup/README.md`, 9 states a complete flow and the runtime project-creation rule, rather than identifying what is deferred. The first repository's creation and separate adoption are already `temper/docs/design/protocol/setup/owned-repositories.md`, 1, and the New repository act is specified in the preamble's act table in `temper/docs/design/client/forge/deployment.md`. Suggest removing the settled project/adoption account from Later; if a further generic-form design is intended, name only that remaining work. The owner must separate those parts, not move this mixed item wholesale.
 
 ### 2.13 A7: The pinned Claude download walked once
 
@@ -522,23 +522,23 @@ Map item 71: `temper/docs/design/protocol/configuration/README.md`, 9 → `tempe
 
 ### 3.72 The real-browser check of watch sizing
 
-Map item 72: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/limits.md`, 1.
+Map item 72: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/limits.md`, 8.
 
 ### 3.73 A party's fair share of the watch rooms
 
-Map item 73: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/limits.md`, 1.
+Map item 73: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/limits.md`, 8.
 
 ### 3.74 `views.`'s other names
 
-Map item 74: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/limits.md`, 1.
+Map item 74: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/limits.md`, 8.
 
 ### 3.75 Profiles' numbers
 
-Map item 75: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/limits.md`, 1.
+Map item 75: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/limits.md`, 8.
 
 ### 3.76 The rest of an assignment's transcript and of a person's read
 
-Map item 76: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/limits.md`, 1.
+Map item 76: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/limits.md`, 8.
 
 ### 3.77 A configuration directory moved or copied
 

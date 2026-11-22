@@ -357,7 +357,7 @@ impl Domain {
         self.core.current.newest()
     }
 
-    /// The deployment's current welcome (protocol/configuration/settings.md, 2).
+    /// The deployment's current welcome (protocol/configuration/settings-kinds.md, 1).
     #[must_use]
     pub fn welcome(&self) -> bool {
         self.forge.welcome()

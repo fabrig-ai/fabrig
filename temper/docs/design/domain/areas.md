@@ -40,7 +40,7 @@ Routing by path is later (`../draft/standing-roles.md`, section 13).
 - **Its owner:** an owner (section 3).
 - **A project's areas** are the value of kind 14, at most 16, in the
   order their owners wrote them
-  (`../protocol/configuration/settings.md`, 2). With none, every
+  (`../protocol/configuration/settings-kinds.md`, 1). With none, every
   finding is the triager's.
 - **Changed as any setting:** by the project's owners, or by proposal
   (jig's `domain/engine/settings.md`, 6). Handing an area to a role, or
@@ -66,11 +66,11 @@ Routing by path is later (`../draft/standing-roles.md`, section 13).
   the project labelled 3 (`agent/standing.md`, section 2) runs under
   charter N, the one with the lowest number. An owner that does not
   stand gives none.
-- **Judged when saved** (`../protocol/configuration/settings.md`, 2):
+- **Judged when saved** (`../protocol/configuration/settings-kinds.md`, 1):
   `task N` must be a live task of the project, `party N` a party with a
   role in it, `role N` within jig's `authority.roles`, and `charter N`
   within 1 to 64, a charter's numbers (jig's `domain/engine/settings.md`,
-  1), read by the root from the core as a way's template is. What stands later is section 4's to read.
+  1), read by the root from the core as a way's template is. What stands later is `areas.md`, section 4's to read.
 
 ## 4. Who owns a finding
 

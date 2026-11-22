@@ -494,7 +494,7 @@ fn connected(calls: &mut ctl::Calls, root: &Path, restarted: bool) -> Result<(),
         }
     }
     if restarted {
-        // temper/docs/design/protocol/setup/owned.md, 7: keep the first intent across restarts.
+        // temper/docs/design/protocol/setup/owned-repositories.md, 1: keep the first intent across restarts.
         {
             let (left, right) = (&(row["first"]["state"]), &("made"));
             if left != right {

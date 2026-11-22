@@ -70,7 +70,7 @@ sources in its holder's order. temper configures the LLM providers
     signed in on each host by `temper-box program-login` (below). The login
     is the program's own, in the source's configuration directory,
     `<directory>/NAME` under the agent's programs directory
-    (configuration/README.md, section 4), and temper never reads it;
+    (configuration/worker.md, section 2), and temper never reads it;
   - **none:** an LLM provider whose endpoint takes no credential, such
     as a local model's on loopback; its one account is the deployment's.
 - **The engine makes no LLM call** (llm.md, section 2): only agent
@@ -111,7 +111,7 @@ sources in its holder's order. temper configures the LLM providers
     shows it.
   - It reads and checks the document in its configuration directory
     (configuration/directories.md) as `temper-box serve` does
-    (configuration/README.md, section 6), and the agent's configuration it
+    (configuration/startup.md, section 1), and the agent's configuration it
     names, reading no secret file; it opens no store, starts no service
     and sends nothing to the engine, which need not run.
   - It refuses, exit 1, before it makes anything: a name out of its
@@ -168,7 +168,7 @@ sources in its holder's order. temper configures the LLM providers
   - A worker on another host is signed in on that host, with that host's
     configuration.
 - **A login kept elsewhere, used in place.** The programs directory is
-  the configuration's (configuration/README.md, section 4), any private
+  the configuration's (configuration/worker.md, section 2), any private
   directory of the user's, and a source's login is `<directory>/NAME`
   whatever signed it in. A person who keeps a signed-in configuration
   directory of the program's, carried from another deployment or held

@@ -111,7 +111,7 @@ each a `temper.toml` of its binary's shape
   and 5).
 - **Its ports** are the place's nine (`places.md`, 2), in the order
   `TEMPER_INTERNAL_FAKE_BOX_PORTS` lists a box's
-  (`../../protocol/setup/box.md`, 5), each position bound by the
+  (`../../protocol/setup/box-backends.md`, 1), each position bound by the
   deployment as a box binds it where they share a use:
 
   | Position | A box binds | A deployment binds |
@@ -195,7 +195,7 @@ nowhere. Each within its bound; a failure is the deployment's (section
    SCRATCH/config/model.json --ready "listening "`, with `--scripts
    SCRATCH/session/scripts.json` where the session was given scripts,
    its files joined into that one as the box joins its `--scripts`
-   (`../../protocol/setup/box.md`, 5), and `--strict` as given; ready at
+   (`../../protocol/setup/box-backends.md`, 1), and `--strict` as given; ready at
    `listening `, within 60 seconds.
 3. **The engine:** `temper-engine serve --config SCRATCH/config/engine
    --data SCRATCH/data/engine --cache SCRATCH/cache/engine`, ready once

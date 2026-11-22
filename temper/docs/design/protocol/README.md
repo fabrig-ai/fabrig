@@ -272,8 +272,8 @@ section 8 give them. temper's sit beside them:
     preparation writes it before the engine starts, so it follows the
     forge's own upgrade, whose going back is its dump (setup/owned.md, 3).
     The worker's secret and digest (hex digits and a newline), the
-    scripted model's key, the forge's sign-in client secret (setup/owned.md,
-    8), the box's group files and started markers (setup/box.md, 1) and the admin token's
+    scripted model's key, the forge's sign-in client secret (setup/owned-sign-in.md,
+    1), the box's group files and started markers (setup/box.md, 1) and the admin token's
     handover are fixed forms, never versioned: a change is a new file
     name, read beside the old one for as long as a release may find it.
     The engine writes no small file before its start's wires are durable

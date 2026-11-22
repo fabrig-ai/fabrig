@@ -95,7 +95,7 @@ place (jig's `domain/engine/overlays.md`).
   rule on every branch, since rules add (`../../domain/forge/change/gates.md`, 2) and
   such a rule's CI would hold every merge into a goal's branch. So the
   case's project sets its own rule 1 in `project.json`, main's rule
-  naming a branch (`branch`, exactly `main`, as above: `settings.md`, 2), in place
+  naming a branch (`branch`, exactly `main`, as above: `settings-kinds.md`, 1), in place
   of the stock's rule 1 over every branch, whose CI and review would
   hold every merge into a goal's branch (`stock.md`).
   `docs/examples/reference/landing.json` is the document's
@@ -121,7 +121,7 @@ place (jig's `domain/engine/overlays.md`).
     the stock (`limit-settings.md`, 2), confirmed through ctl, never merged
     into the deployment document. In-process checks give these figures to
     the start typed, through `temper-limits-fixtures::reference_over`;
-  - `room.json`, a call's room (`settings.md`, 7): its `agent` member,
+  - `room.json`, a call's room (`settings-output.md`, 1): its `agent` member,
     `tool_payload` and `output`, which `jq` sets on the box's `agent.json`,
     the output on every endpoint; its `worker` member, merged over each
     worker of the document's array. The stock derives the engine's and
@@ -152,7 +152,7 @@ place (jig's `domain/engine/overlays.md`).
   |---|---|---|---|
   | `tasks.tree_tasks` | 384 | 1,024 | a goal's tree over its life: about a hundred changes of about eight tasks each, G and its person tasks (N21) |
   | `forge.change_policy.questions` | 80 | 4 | questions per change (`../../draft/reference-code-production.md`, sections 8 and 14) |
-  | the agent's `tool_payload`, its endpoints' and charters' `output`, and what moves with them | 10,662, 8,192 | 63,740, 48,000 | a call's room, a whole spec (`settings.md`, 7) |
+  | the agent's `tool_payload`, its endpoints' and charters' `output`, and what moves with them | 10,662, 8,192 | 63,740, 48,000 | a call's room, a whole spec (`settings-output.md`, 1) |
 
   Every other limit the case needs the box's `standard` profiles hold
   (`stock.md`): G's live delegates (80) with the operations and the inbox
@@ -162,7 +162,7 @@ place (jig's `domain/engine/overlays.md`).
   the forge follows (128), a change's twelve tasks with four foremen
   (80), the executors and charters (16 and 12), and the agent's turns
   (800). The limit settings hold `tasks.tree_tasks` and the engine's and
-  application's share of `settings.md`, 7's room; `room.json` holds the
+  application's share of `settings-output.md`, 1's room; `room.json` holds the
   agent's and workers' figures. `forge.change_policy.questions` at 4 is
   a separate box prerequisite.
 
@@ -178,7 +178,7 @@ place (jig's `domain/engine/overlays.md`).
   which jig's settings schema holds; template 4 names the forge's *its
   own goal branch* (`../../client/ctl/tools.md`, 3). Charter 5 makes its
   changes in `change` calls each within one call's payload,
-  which its model's output bounds (`settings.md`, 7), a later call naming an
+  which its model's output bounds (`settings-output.md`, 1), a later call naming an
   earlier one's changes in `after` by the task numbers its answer gave,
   and fewer changes to a call where a call is refused for its size.
   A batch reserves one task per change and shares descendant capacity
@@ -235,7 +235,7 @@ place (jig's `domain/engine/overlays.md`).
   a walk meets it; and a test merges `room.json`'s worker figures over
   `temper-box init`'s document and gives the reference's limits to the
   start typed, running its checks with init's
-  agent configuration as `room.json` sets it, holds its figures to `settings.md`, 7's
+  agent configuration as `room.json` sets it, holds its figures to `settings-output.md`, 1's
   relations from that agent, and holds the settings file to them,
   applied over the stock at the reference's room: the charters its
   overlays make within `tasks.charters`, their documents within

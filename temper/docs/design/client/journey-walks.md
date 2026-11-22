@@ -401,7 +401,7 @@ service, over HTTP, rather than joined to the engine's root.
   `127.0.0.1:10002`, as `project-landing`'s does. Story A's own start,
   the page's and its stories', keeps `documents::FORGE`.
 - **The model's plan as a box's fake backends give it**
-  (`../protocol/setup/box.md`, 5): the deployment's providers made by
+  (`../protocol/setup/box-backends.md`, 1): the deployment's providers made by
   `temper_fake::backends::providers`, provider 1's sign-in registered
   against the fake issuer at `ISSUER` and its callback at
   `127.0.0.1:1455`, `auth/callback`, every model endpoint at the world's
@@ -601,7 +601,7 @@ the client (`../draft/archive/journey-walks.md`, 4.1).
   bound, or a ninth redirect, is kept as the last. The tab draws
   nothing a mark prints.
 - **The way there and back:** the fake issuer grants at once
-  (`../protocol/setup/box.md`, 5) and redirects to the engine's
+  (`../protocol/setup/box-backends.md`, 1) and redirects to the engine's
   callback, `http://127.0.0.1:1455/auth/callback?code=…&state=…`; the
   engine's listener answers "Sign-in received. You can close this
   tab." and exchanges the code with the issuer; the page, still on its

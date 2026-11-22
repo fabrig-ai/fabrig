@@ -99,7 +99,7 @@ pub fn agents_environment(given: Option<&[EnvironmentEntry]>, own: &[Environment
     }
     entries.into_boxed()
 }
-/// Read the same entries for a worker alone and the box (configuration/README.md, 3).
+/// Read the same entries for a worker alone and the box (protocol/configuration/worker.md, 1).
 pub fn environment(document: &Document, at: u32, path: &Path, problems: &mut Problems) -> Box<[EnvironmentEntry]> {
     let mut entries = List::with_capacity(document.len());
     match read::list(document, at, document.len()) {

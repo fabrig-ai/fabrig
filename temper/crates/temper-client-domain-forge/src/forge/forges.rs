@@ -165,7 +165,7 @@ pub struct Row {
     pub admin: bool,
     pub ended_stop: Option<AdminStop>,
 }
-/// What the forge starts with (temper/docs/design/protocol/setup/owned.md, 7).
+/// What the forge starts with (temper/docs/design/protocol/setup/owned-repositories.md, 1).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum StartsWith {
     Repository,

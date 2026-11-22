@@ -69,7 +69,7 @@ here is adopted, and nothing here is a part of v0.1.0 (`v0.1.0.md`).
   it the settings family proposes a set (17.6). A dashboard and the
   metrics it shows are items of one set, accepted or refused together.
 - **On temper's kinds.** temper's kinds are all the forge's
-  (`../protocol/configuration/settings.md`, 2). This draft adds a
+  (`../protocol/configuration/settings-kinds.md`, 1). This draft adds a
   dashboard kind, scoped to the deployment or to each project, owned by
   a small child of temper's root, the dashboards child, and the forge's
   metrics kind (`dashboards.md`, section 4). jig adds a metric kind of its own.

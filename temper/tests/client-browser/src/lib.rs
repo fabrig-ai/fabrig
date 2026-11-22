@@ -411,7 +411,7 @@ impl Tier {
     pub fn setup(&self) -> Setup<'_> {
         configuration::install(self.scratch.path(), &temper());
         // The box supplies serve's pipe and --box at every start, including its welcome default
-        // (temper/docs/design/protocol/configuration/settings.md, 2, kind 20).
+        // (temper/docs/design/protocol/configuration/settings-kinds.md, 1, kind 20).
         let args = configuration::flags(self.scratch.path());
         Setup {
             server: temper(),

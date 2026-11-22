@@ -194,7 +194,7 @@ This document holds the store's records and version changes, split from [`store.
   move `active`, `generations/` and `transcripts/` aside together in
   the deployment's directory that jig's `deployment` member names
   (configuration/README.md, section 2; jig's `protocol/store/README.md`, section 2),
-  and start afresh, a first start (configuration/README.md, section 6). What
+  and start afresh, a first start (configuration/startup.md, section 1). What
   survives:
   - the configuration and its private files, which no store holds;
   - no forge: each is set up or connected again, numbered afresh in the
@@ -203,7 +203,7 @@ This document holds the store's records and version changes, split from [`store.
     of, so LLM accounts are signed in again (jig's `protocol/store/secrets.md`
     ); owners and projects are seeded again from `engine`, and
     each repository is adopted again through the client
-    (configuration/README.md, section 6); tasks, goals and temper's families
+    (configuration/startup.md, section 1); tasks, goals and temper's families
     stay in the store moved aside, and the deployment's id is drawn
     again, so its branch namespace is new.
 - **Sizes.** `temper-protocol-store` computes, from the forge's limits,

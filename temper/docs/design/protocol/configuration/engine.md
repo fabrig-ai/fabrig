@@ -47,7 +47,7 @@ the machine, read the forge's setup file. Each:
 **`landing`** is no member now: a start refuses it (`moved.md`,
 section 3). Each project's way of landing is temper's kind 4, and its
 repositories' gates and tiers kind 5, settings taken at the next start
-(`../../domain/landing-settings.md`, 1.1; `settings.md`, 2). What follows gives
+(`../../domain/landing-settings.md`, 1.1; `settings-kinds.md`, 1). What follows gives
 their fields' forms, bounds and defaults, as the member had them: a
 project's entry is kind 4's value with its `gates` as kind 5's
 `repositories`. Where a bullet says a value refuses the start at its
@@ -96,7 +96,7 @@ field. The landing rules were settings already, temper's kinds 1 and 2
   UTF-8 or holding a control character refuses the start at its member.
   It is the words saved with a tier (`../../draft/whole-story.execution.md`,
   P3e), kept in the document as the tier is until kind 5 holds tiers
-  (`settings.md`, 2), so that whoever writes the tier writes them; Ask temper, which
+  (`settings-kinds.md`, 1), so that whoever writes the tier writes them; Ask temper, which
   proposes no tier, writes none. The engine decides nothing by them.
 - **The delivery checks' bound,** beside `by`, by either way:
   `check_timeout_ms`, a u64 of milliseconds from 1,000 to 86,400,000,
@@ -176,7 +176,7 @@ field. The landing rules were settings already, temper's kinds 1 and 2
   `pins_follow_main`, false when absent; `dependencies_join`, true when
   absent (`../../domain/landing.md`, 4.1, and `../../domain/landing-prepare.md`, 1.3).
 
-A landing rule, the value of kinds 1 and 2 (`settings.md`, 2), is a `LandingRule`,
+A landing rule, the value of kinds 1 and 2 (`settings-kinds.md`, 1), is a `LandingRule`,
 member for member:
 
 | Member | Type | Meaning, and bounds |
@@ -210,7 +210,7 @@ member for member:
   (`../../domain/forge/queues.md`).
 - **Bounds:** a project appears in `projects` at most once, and must be
   one of `engine.projects`; a rule's bounds are those the forge judges
-  it by (`settings.md`, 2).
+  it by (`settings-kinds.md`, 1).
 - **Feeds** `Config.landings`: each project's way, gates, tiers, merge
   job, close job, goal closer's attempts and turn's settings.
 
@@ -262,7 +262,7 @@ answer not found.
 | `members` | a list | 1 to `sign_in.members` | who may sign in, each `{"address", "login"}` |
 | `members[].address` | a string | 3 to 254 bytes of visible ASCII, one `@` with bytes on both sides; unique among members with ASCII letters folded to lower case | the identity's subject, exactly as written; compared with Google's verified `email`, folded |
 | `members[].login` | a string | 1 to 40 bytes of ASCII letters, digits, `-`, `_` and `.`, its first and last a letter or a digit; unique, folded | the login in `Mint`, and the name where Google gives none |
-| `forges` | a list, or absent for none | each `{"forge", "client"}`: `forge` a forge's number, as the Forges page and the `temper-box forge` commands name it, `client` the id of one of jig's `engine.clients.provider.clients`, in visible ASCII (the page's metas carry it); each forge and each client at most once; with no provider, refused naming `engine.clients.provider`. The forge, a record, is checked once its records load: a Forgejo, whose browser origin's `/user/oauth2/temper/callback` is exactly the client's `redirect_uri` (`../openid-provider.md`, 7) | the forges that sign their people in through temper (`../openid-provider.md`): the page's `temper-forge-sign-in` metas, "Open Forgejo ↗", an owned Forgejo's `app.ini` (../setup/owned.md, 2) and `temper-box forge sign-in` (../setup/owned.md, 8) |
+| `forges` | a list, or absent for none | each `{"forge", "client"}`: `forge` a forge's number, as the Forges page and the `temper-box forge` commands name it, `client` the id of one of jig's `engine.clients.provider.clients`, in visible ASCII (the page's metas carry it); each forge and each client at most once; with no provider, refused naming `engine.clients.provider`. The forge, a record, is checked once its records load: a Forgejo, whose browser origin's `/user/oauth2/temper/callback` is exactly the client's `redirect_uri` (`../openid-provider.md`, 7) | the forges that sign their people in through temper (`../openid-provider.md`): the page's `temper-forge-sign-in` metas, "Open Forgejo ↗", an owned Forgejo's `app.ini` (../setup/owned.md, 2) and `temper-box forge sign-in` (../setup/owned-sign-in.md, 1) |
 
 - **jig's owners of Google's provider are members:** each of
   `engine.owners` whose provider is `google.provider` has a member's
@@ -341,7 +341,7 @@ any member it doesn't know.
 |---|---|
 | `core` | `engine`, by `jig-protocol-config`, with the deployment's id and seed |
 | `landings` | `application.landing`'s `projects` |
-| `kinds_stock` | not configured: the stock defaults of temper's kinds 1 to 3 (`stock.md`), which the root gives the forge at each start (`settings.md`, 2); kinds 6 and 7 have none |
+| `kinds_stock` | not configured: the stock defaults of temper's kinds 1 to 3 (`stock.md`), which the root gives the forge at each start (`settings-kinds.md`, 1); kinds 6 and 7 have none |
 | `forge.writers` | not configured: each forge's writer comes from its connect, its user as the routing tells the root (../credentials.md, section 5) |
 | `forge.namespace` | not configured: the root derives it from the deployment's id |
 | `identities` | not configured: each kept forge's `GitIdentity { forge, credential }`, its credential the forge's number, comes with its record (../forge/engine.md, 1) |

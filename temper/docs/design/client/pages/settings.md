@@ -274,7 +274,7 @@ Ask temper is reached from the rail and tab bar (`../view.md`, 3), and from this
     (`../../draft/whole-story.execution.md`, P3e): the heading is the `ways`
     read's `headline` of the way the project runs ("You approve every
     change"); where it runs no stock way, the project's words' `headline`
-    the read carries (`../../protocol/configuration/settings.md`, 2, kind 10),
+    the read carries (`../../protocol/configuration/settings-kinds.md`, 1, kind 10),
     else "A way of its own". The project's words name the way and its
     chief departure, as a rule by path makes one, "Draft first, with the
     protocol core asking you": Ask temper writes them with the proposal
@@ -444,7 +444,7 @@ Ask temper is reached from the rail and tab bar (`../view.md`, 3), and from this
     session's `settings` watch names a newer revision; until it answers,
     or where it is refused or `not_drawn`, the section isn't drawn. What
     a role does is its charter's words
-    (`../../protocol/configuration/settings.md`, 2, kind 9), or its
+    (`../../protocol/configuration/settings-kinds.md`, 1, kind 9), or its
     instructions' first sentence where none are kept, which the root
     puts in `who`: the page draws `who` as it comes and composes
     nothing.
@@ -533,7 +533,7 @@ Ask temper is reached from the rail and tab bar (`../view.md`, 3), and from this
   card *Needs you* shows where that card's project is another, and kind 6 on
   the tab, through the forge's reads in that project's scope (`../forge/served.md`
   ). Each read answers with the revision it read, none at the default
-  (`../../protocol/configuration/settings.md`, 2, *Read from the
+  (`../../protocol/configuration/settings-kinds.md`, 1, *Read from the
   forge*), and the setting is read again only when the document's line
   names a newer one (`last`), or none where the read named one, whichever
   of the two came first; and when the link comes back from offline. Kind 8 decodes to the kit's table
@@ -586,7 +586,7 @@ Ask temper is reached from the rail and tab bar (`../view.md`, 3), and from this
   once more against the revision it names; a refusal is said in jig's
   words with the forge's reason, as an approval too few people can give
   names the forge, the role, how many it asks and how many can
-  (`../../protocol/configuration/settings.md`, 2); answered, a toast names the way
+  (`../../protocol/configuration/settings-kinds.md`, 1); answered, a toast names the way
   and the revision, "You approve is this project's way now, as revision
   12." or, kept, "Agents review is now this project's own, as revision
   12.", and the subject's next document shows the way current. The tab
@@ -632,7 +632,7 @@ Ask temper is reached from the rail and tab bar (`../view.md`, 3), and from this
   application's items and project's policies from the proposal's review, and
   those values from the forge's read of a proposal's items under the review's
   `key`, which takes a role in the deployment
-  (`../../protocol/configuration/settings.md`, 2). Until those values arrive, kinds
+  (`../../protocol/configuration/settings-kinds.md`, 1). Until those values arrive, kinds
   6, 7 and 8 are named as `temper ctl` names them. With no review, no application
   or project-policy rows can be recovered from the heads. A decided card has
   no review: it keeps the kind 6, 7 and 8 values it read in this session, and
@@ -798,7 +798,7 @@ the document gives them; the client hides nothing of its own.
   runs"; in the chat, the card's line "Accepted at 14:03: new work
   takes it now." A refusal of Accept (out of shape, judged, full) is
   said under the acts in jig's words, the forge's for a landing rule
-  it refused (`../../protocol/configuration/settings.md`, 2), and the proposal
+  it refused (`../../protocol/configuration/settings-kinds.md`, 1), and the proposal
   stays pending; full names the oldest revision held and offers "Move
   them" there.
 - **Drawn ahead of jig:** the names of a revision's tasks, "Show them"

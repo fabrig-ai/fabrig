@@ -56,8 +56,8 @@ As read from the providers' pages on 2026-11-06 (section 8's sources):
   picker's scale out of order.
 - **The window and output** stay the stock's (`../protocol/configuration/stock.md`
   ), whatever a provider allows. Declaring efforts changes what the
-  start checks as the agent's largest turn (`../protocol/configuration/settings.md`,
-  7), so its measure is taken again.
+  start checks as the agent's largest turn (`../protocol/configuration/settings-output.md`,
+  1), so its measure is taken again.
 - **The playground's scripted model** stays with its own provider. It is
   offered only while the playground runs, and never to connect.
 

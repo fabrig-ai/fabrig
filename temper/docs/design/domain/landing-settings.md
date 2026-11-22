@@ -11,7 +11,7 @@ lets a deployment set them before anything lands. Moved out of
 
 ### 1.1 Kinds
 
-Two kinds of temper's join `../protocol/configuration/settings.md`, 2, each
+Two kinds of temper's join `../protocol/configuration/settings-kinds.md`, 1, each
 the forge's, judged in the change's decision:
 
 | Kind | Scope | Numbers | Value |

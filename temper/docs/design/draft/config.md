@@ -202,7 +202,7 @@ The public keys, which help lists:
 
 ### 6.3 The workers' and agents' figures
 
-- **A worker's figures come from its engine:** the hub's, the checkout's and the git component's limits, and its agents' profile and endpoints. They arrive in the answer to its opening. The workers' wire moves its version, declared breaking, so an engine and its workers move together (`../protocol/wires.md`, 3.2; section 8). A worker pins them for its agents as today's file is pinned (`../protocol/configuration/README.md`, section 4).
+- **A worker's figures come from its engine:** the hub's, the checkout's and the git component's limits, and its agents' profile and endpoints. They arrive in the answer to its opening. The workers' wire moves its version, declared breaking, so an engine and its workers move together (`../protocol/wires.md`, 3.2; section 8). A worker pins them for its agents as today's file is pinned (`../protocol/configuration/worker.md`, section 2).
 - **No person writes `agent.json`.** temper writes the pinned configuration in the worker's data directory, from what the engine sent and what the machine found: its programs and its environment.
 - **A worker's places are its setting's** (6.7). The engine admits each worker at them and sends them with its figures, and the worker derives its workspaces, git operations and hub slots from them (section 7). A change reaches the worker at its next opening, without restarting the engine.
 - **A worker's document loses its copies:** its limits, its `agent` and its `agent.json` are refused by name, and its operators remove them (section 8).

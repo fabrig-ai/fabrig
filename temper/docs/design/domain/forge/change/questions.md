@@ -19,7 +19,7 @@ retired (`../../../draft/stock-charters.md`, 3), since the implementer
 now checks its spec itself before it asks. A `change` naming it, alone
 or in a batch, is refused by name (`../../agent/tools-change.md`, 1), and a
 stored setting naming it is refused, not read, naming the setting
-(`../../../protocol/configuration/settings.md`, 2).
+(`../../../protocol/configuration/settings-kinds.md`, 1).
 
 - **Its agents may ask.** It delegates its producing, its repairs and
   its resolutions with the Message family kept, so that each may ask
@@ -660,7 +660,7 @@ rest of the branch lands while a sign-off waits a night
 - **The client** merges the rows with jig's inbox and draws each as a card
   (`../../../client/pages/README.md` and `../../../client/forge/records.md`; `../../../client/forge/README.md`, 4.1).
 - **What a proposal says of such a rule:** the forge's read of a pending
-  proposal's items (`../../../protocol/configuration/settings.md`, 2, *Read from the
+  proposal's items (`../../../protocol/configuration/settings-kinds.md`, 1, *Read from the
   forge*) answers too whether one of its landing rules has an enforcing
   approval covering a writable repository on an owned Forgejo, a box's
   (`../../../protocol/setup/box.md`, 1), the root judging the coverage as it does for

@@ -174,7 +174,7 @@ back:
 |---|---|
 | the engine | each worker keeps hosting its runs within its engine-away bound, or the restart wait its engine's settled stop told it (`worker/README.md`, section 2), redials, and its hello waits for the stored settings; the restart adopts each run its store holds as claimed, by its attempt, and the run goes on (`worker/README.md`, section 2; jig's `domain/engine/restart.md`, step 3 and `root.md`, section 7). Past the bound a run is interrupted, never failed, and resumes. The forge reads afresh and settles its outbox, each write in flight found or sent again as its class says, a goal's own branch made again (`forge/effects.md`, section 1, and `forge/branches.md`, section 1, and `forge/effects.md`, section 2) |
 | a worker | its runs, stopped or lost, are resumed on it or another worker from their transcripts and saved work, their start messages kept (`worker/README.md`, section 2) |
-| a forge | its reads and writes wait out the outage and its CI is read again (`forge/keeping-up.md`, 5); an owned Forgejo on a box gets its sign-in source once the engine answers, without its own restart (`../protocol/setup/box.md`, 2) |
+| a forge | its reads and writes wait out the outage and its CI is read again (`forge/keeping-up.md`, 5); an owned Forgejo on a box gets its sign-in source once the engine answers, without its own restart (`../protocol/setup/box-supervision.md`, 1) |
 
 The root itself adds no step: steps 4 and 5 of 1.1 are where the engine's
 side happens, and the rest is the worker's, the forge's and the box's.

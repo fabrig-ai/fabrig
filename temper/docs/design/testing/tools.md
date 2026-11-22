@@ -241,8 +241,8 @@ it byte for byte in its crate's tests.
   (`tests/suite/boundary.rs`, which reads every crate under
   `temper/crates/`) skips the tools' crates by name, as it never read
   `temper/tools/`: the tools spawn builds, browsers, git and agents by design,
-  outside the setup's process boundary (`../protocol/setup/README.md`,
-  7). Every other crate stays scanned as before, and the twin's per-file
+  outside the setup's process boundary (`../protocol/setup/crate-layout.md`,
+  1). Every other crate stays scanned as before, and the twin's per-file
   `ExitCode` exemption goes with the skip.
 
 ## 6. Its tests

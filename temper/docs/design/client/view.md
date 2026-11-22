@@ -794,7 +794,7 @@ the change's chip in a chat (`forge/README.md`, 2.4 and 2.5).
 ## 7. Open questions
 
 - **A line past `long_text`** (4): `standard` with no override takes a message of
-  262,144 bytes (`../protocol/configuration/settings.md`, 7), past `long_text`, and a page
+  262,144 bytes (`../protocol/configuration/settings-output.md`, 1), past `long_text`, and a page
   of its `documents.rows` lines can pass `document_bytes`. Its read ends and says so
   (`pages/chat/conversation.md`, 2), where a line would otherwise draw whole. Only a deployment with larger
   models reaches it. Default: so; or `long_text` and `document_bytes` grow with such

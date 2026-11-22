@@ -7,7 +7,7 @@ variable, else its default.
 | Directory | Flag, variable | Default | Holds | Kept |
 |---|---|---|---|---|
 | configuration | `--config DIR`, `TEMPER_CONFIG` | `$XDG_CONFIG_HOME/temper` | the document, `temper.json`, with no `agent.json` beside it, which a start refuses (`figures.md`, section 7); the charters' instructions, until `settings.md` moves them into the binary; trusted roots' files | as a person's own files are: copied, synced or published, so it holds no secret |
-| data | `--data DIR`, `TEMPER_DATA` | `$XDG_DATA_HOME/temper` | the deployment's directory, with the store, transcripts and jig's secrets' store; the worker's secret and its digest; the worker's root; each set-up forge's directory, named by its number (../setup/README.md, section 3); the scripted model's key and the fake git's link, in `demo/` (../setup/playground.md); the box's groups, in `box/groups/`, and its records of the groups it has started, in `box/started/` (../setup/box.md, 1); the box's logs of its last two runs, in `box/logs/` and `box/logs.previous/` (../setup/box.md, 2); the programs directory | the deployment: backed up whole |
+| data | `--data DIR`, `TEMPER_DATA` | `$XDG_DATA_HOME/temper` | the deployment's directory, with the store, transcripts and jig's secrets' store; the worker's secret and its digest; the worker's root; each set-up forge's directory, named by its number (../setup/README.md, section 3); the scripted model's key and the fake git's link, in `demo/` (../setup/playground.md); the box's groups, in `box/groups/`, and its records of the groups it has started, in `box/started/` (../setup/box.md, 1); the box's logs of its last two runs, in `box/logs/` and `box/logs.previous/` (../setup/box-supervision.md, 1); the programs directory | the deployment: backed up whole |
 | cache | `--cache DIR`, `TEMPER_CACHE` | `$XDG_CACHE_HOME/temper` | binaries fetched again at will: an owned forge's Forgejo and runner, `temper-box forge fetch`'s in `forgejo/VERSION/` and `forgejo-runner/RUNNER_VERSION/` (../setup/owned.md, 6) | never backed up |
 
 - **The document is `temper.json` in the configuration directory,**
@@ -25,7 +25,7 @@ variable, else its default.
   must be the process's user's, private, and not reached through a link
   at its name, or the start is refused, naming it (skein's `runtime/io/files.md`,
   3). A linked parent is accepted, as the programs directory's is
-  (`README.md`, section 4). The configuration directory must hold the document; only
+  (`worker.md`, section 2). The configuration directory must hold the document; only
   `temper-box init` makes it.
 - **Each path member's kind:**
   - *configuration paths:* jig's charters' instructions and trusted
@@ -35,7 +35,7 @@ variable, else its default.
     standalone requires absolute (below);
   - *data paths:* jig's `engine.deployment.directory` and the worker's
     `secret`; each of
-    `application.workers`' `root` (`README.md`, section 3); `application.machine`'s
+    `application.workers`' `root` (`worker.md`, section 1); `application.machine`'s
     `fake.git` and `github.git` (`engine.md`); and `application.demo`'s
     `llm.key` (../setup/playground.md);
   - *cache paths:* `application.machine.owned`'s `forgejo` and
@@ -44,7 +44,7 @@ variable, else its default.
   - *absolute paths,* refused when relative: each of
     `application.workers`' `git` but a null one,
     `application.clients.bundle`, and the agent's `program`,
-    `configuration` and `arguments` (`README.md`, section 4), which are installed
+    `configuration` and `arguments` (`worker.md`, section 2), which are installed
     programs and files, or the spawn's own; every path in smith's agent
     configuration, which is smith's format.
 - **No secret in the configuration directory:** a worker's secret, an owned or fake forge's handover, every set-up forge's
@@ -62,7 +62,7 @@ variable, else its default.
 ## 1. The fake-backend sandbox
 
 temper box --fake-backends prepares effective configuration for the
-welcome's local peers (../setup/box.md, 5). The flag belongs to configuration
+welcome's local peers (../setup/box-backends.md, 1). The flag belongs to configuration
 preparation and box supervision alone; the client, service and engine use
 their ordinary configuration and paths.
 
@@ -99,7 +99,7 @@ login is imported.
   override, the retained bundle is authoritative. The box prints these
   effective directories. Compatible v1 peer documents are revalidated and
   retained; the seeded output files follow ../setup/playground.md. The fake
-  forges' state is kept in D' across launches (../setup/box.md, 5); the
+  forges' state is kept in D' across launches (../setup/box-backends.md, 1); the
   other peers' in-memory state lasts one launch, independently of
   retained configuration and data.
   A later required document or adapter schema that cannot safely reuse an
@@ -125,7 +125,7 @@ login is imported.
   is required. The ordinary embedded bundle cannot replace it. Startup
   neither builds a bundle nor accesses a remote service.
 
-After the sign-in block (`../setup/box.md`, 2), before starting its supervised
+After the sign-in block (`../setup/box-supervision.md`, 1), before starting its supervised
 processes, the box prints these lines on stderr, for the person and for the
 process harness, which captures them by prefix:
 
@@ -218,7 +218,7 @@ name with reset instructions, without generating a replacement on reuse.
 ## 2. Open questions
 
 - **A configuration directory moved or copied.** The agent's paths are
-  absolute (`README.md`, section 4), so they still name the old place: the agent's
+  absolute (`worker.md`, section 2), so they still name the old place: the agent's
   configuration is read there, or the start is refused, naming the
   member, when it is gone. Default: the person edits the two members;
   standalone could derive them from its own binary and its

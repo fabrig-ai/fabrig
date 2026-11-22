@@ -190,7 +190,7 @@ smith's are smith's.
 | push | temper's delivery: the tree the run checked, committed and pushed as a fast-forward, never forced (agent/README.md, section 5) |
 | git identity | a forge's token and commit author for git, one per forge, one of temper's application credentials (`../protocol/credentials-git-identities.md`, section 1) |
 | failed preparation | a repository the worker could not prepare, for good: the forge lacks it, its branch or its commit, or refused the identity (worker/hosted-runs.md, 1.3; root-translation.md, 2.4) |
-| the forge's charters | temper's kind 3: the charters the agent tasks of a change are made under, its producer's by default and its reviews' (`../protocol/configuration/settings.md`, 2; root-translation.md, section 1) |
+| the forge's charters | temper's kind 3: the charters the agent tasks of a change are made under, its producer's by default and its reviews' (`../protocol/configuration/settings-kinds.md`, 1; root-translation.md, section 1) |
 | standalone | one engine and one worker in one process on one person's machine (`../protocol/service-process.md`, section 1) |
 
 ## 5. Decisions this design takes
@@ -252,7 +252,7 @@ What temper decides within jig's design, with where each is answered:
   `AGENTS.md`); notes are jig's, a repository's a resource scope on the
   forge (root-translation.md, section 1; agent/charter.md, 4).
 - **Periods from the smallest source:** one per configured project at
-  the first start (`../protocol/configuration/README.md`, section 6), each
+  the first start (`../protocol/configuration/startup.md`, section 1), each
   renewed by the root's calendar (routing.md, 7).
 
 ## 6. What is open

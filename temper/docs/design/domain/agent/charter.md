@@ -137,7 +137,7 @@ A change's `body` holds the producer's report, what its brief asks it to
 report, whole, within the contract's words (jig's `domain/hosts/charters.md`), which
 for a change the `change` tool or its procedure makes are `tasks.result_bytes`:
 so a report follows the call's payload and is a setting
-(`../../protocol/configuration/settings.md`, 7). Smith's outcome holds the `title`, the
+(`../../protocol/configuration/settings-output.md`, 1). Smith's outcome holds the `title`, the
 `body` and their framing together, at the payload; its `title` and the
 contract's other texts stay within 1,024. The run's contract prints
 the bound. The coding charter's words say that the report goes there, and that
@@ -355,7 +355,7 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
   the separate combined ownership bound, shortening the brief when needed
   (`tools.md`). A message offered a run is at
   most an offer and the agent's tool payload, which the model's output
-  bounds (`../../protocol/configuration/settings.md`, 7).
+  bounds (`../../protocol/configuration/settings-output.md`, 1).
 - **Waiting and resuming:** the waiting time is the charter's; a
   coordinator's is zero. A chat resumes its transcript, and a
   coordinator starts fresh from its brief (jig's `domain/engine/executors.md`,

@@ -234,7 +234,7 @@ reference runs the stock's words; charters 6, 7 and 8 go. Its template
 
 - `../protocol/configuration/stock.md`: charters 5 and 2 from the stock's
   files, charter 6 gone, kinds 3, 6 and 9.
-- `../protocol/configuration/settings.md`, 2 and
+- `../protocol/configuration/settings-kinds.md`, 1 and
   `../domain/forge/change/questions.md`, 1: no foreman.
 - jig's `domain/engine/settings.md`, 1, 2 and 7: an overlay as a change
   kept over its default.

@@ -74,7 +74,7 @@ once all of it works, with no part of the page drawn by hand.
 ### 3.2 A project's rule names a branch
 
 - **Today** a rule's pattern begins at `forge`, a host, an owner and a
-  name (`../protocol/configuration/settings.md`, 2), so a project's rule names
+  name (`../protocol/configuration/settings-kinds.md`, 1), so a project's rule names
   one repository, and Draft first would take two rules a repository,
   against four a project.
 - **Then** a pattern of kind 2 may begin at `branch` instead, and covers
@@ -168,7 +168,7 @@ once all of it works, with no part of the page drawn by hand.
   of one item is (`../client/pages/settings.md`, 2). Its refusals are the
   forge's and jig's, in words: an approval with too few eligible people
   names the forge, the role, how many it asks and how many can
-  (`../protocol/configuration/settings.md`, 2). A person who may not change
+  (`../protocol/configuration/settings-kinds.md`, 1). A person who may not change
   settings sees no act.
 - **"Keep it"** does the same for the way the project runs, so that its
   values become the project's own and a release's new stock leaves

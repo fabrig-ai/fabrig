@@ -41,7 +41,7 @@ pub struct Repository {
     pub landing: Box<[u8]>,
     pub ci: Option<Ci>,
 }
-/// A source repository and its public catalogue address (protocol/setup/box.md, 5).
+/// A source repository and its public catalogue address (protocol/setup/box-backends.md, 1).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Source {
     pub address: Box<[u8]>,

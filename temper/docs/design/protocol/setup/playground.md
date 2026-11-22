@@ -33,7 +33,7 @@ them as it does any Forgejo.
 - **Offered while no real forge is kept:** `StartPlayground` is
   refused *not offered* while any forge but the playground's own is
   kept, whatever its state but ended: an unfinished one is started over
-  first (`owned.md`, 7), and a whole one is not; one ended, being removed
+  first (`owned-repositories.md`, 1), and a whole one is not; one ended, being removed
   (`../../domain/forge/adoption-connection.md`, 1), is in no list and counts for nothing, as
   the welcome counts it (`../../client/pages/README.md`); also while the
   row reads resetting, and when the document shows no welcome
@@ -351,7 +351,7 @@ them as it does any Forgejo.
   section 1): each event goes to each hook a repository's setup holds
   that takes it, signed by that hook's secret. A repository's hook is
   made at adoption when the deployment has a webhooks' listener
-  (`README.md`, section 6), at `http://<listener>/hooks/<number>`, so the fake
+  (`webhooks.md`, section 1), at `http://<listener>/hooks/<number>`, so the fake
   reaches serve's listener as a Forgejo does: a push, a pull request's
   change, CI's end and the merge each send one. The box's listener is
   on loopback (`init.md`, 3), and its fake draws no loss and no latency; it
@@ -497,7 +497,7 @@ them as it does any Forgejo.
   checked as the document's are; any other member is refused, naming
   it. With `--strict`, the domain's `Config.strict` is on (skein's
   `testing/fakes/llm.md`, 2.5). The box's fake backends give both
-  (`box.md`, 5).
+  (`box-backends.md`, 1).
 - **Its outputs,** in a document's form, where the box's fakes read the
   files `temper-box init` and the preparation drew: the fake writes each
   file the document names before it binds, so that each exists before
@@ -633,7 +633,7 @@ them as it does any Forgejo.
   decisions, the forge connector's, in `temper-engine-domain-forge`, the
   acts they make routed by `temper-engine-domain`, and the row kept by
   `temper-protocol-store`; the fakes' in `temper-fake`, step code
-  (`README.md`, section 7): the member's
+  (`crate-layout.md`, section 1): the member's
   types and checks; the fake LLM's and the fake forge's configurations
   and seeds, from the deployment's document or from one of their own;
   the fake kind's group, its slot among the box's steps. It names no host. Its dependencies:

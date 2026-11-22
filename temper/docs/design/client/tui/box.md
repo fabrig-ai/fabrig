@@ -5,7 +5,7 @@ behind it, as its child: it finds `temper-box` of its own build,
 downloading it once if it must (`../box-binary.md`), starts `temper-box
 --front`, signs in by the link the box hands it, and stops the box when
 the person quits (`../../draft/cli.md`, section 5). The box's side is
-`../../protocol/setup/box.md`, 6. The TUI is the one of `README.md`, 1
+`../../protocol/setup/box-front.md`, 1. The TUI is the one of `README.md`, 1
 to 3 and `pages/README.md` and `theme.md` and `README.md`, 4 but where this
 section says otherwise. Its pages are drawn from the user's hand-made
 frames of the look request `tui-box-front` (2026-11-08), at 80 by 24 in
@@ -33,7 +33,7 @@ start and stop are this section's own.
      --front ARGUMENT...`, the arguments unchanged, with the captured
      environment and working directory, in a process group of its own as
      skein's spawn makes every child's (skein-io's `kernel::Spawn`),
-     handing it five descriptors (`../../protocol/setup/box.md`, 6): 0,
+     handing it five descriptors (`../../protocol/setup/box-front.md`, 1): 0,
      the read end of a pipe whose write end the run holds and never
      writes, its life; 1 and 2, the write ends of two pipes the run reads
      into the box's one tail, its last 8 KiB, in the order their reads
@@ -105,7 +105,7 @@ start and stop are this section's own.
   gain the box's stop and its second stop, which the run carries out
   (*Quitting*, below).
 - **The box's lines,** one a line on the lines' pipe
-  (`../../protocol/setup/box.md`, 6): a word, one space, a field that
+  (`../../protocol/setup/box-front.md`, 1): a word, one space, a field that
   runs to the line feed, bytes with spaces and no escapes, never empty;
   at most 8,192 bytes with the line feed, `BoxLine::MOST`. A line past
   it, with an unknown word, or with no field after its word and a space
@@ -155,7 +155,7 @@ start and stop are this section's own.
   - a termination signal of `temper`'s own closes the run as
     `README.md`, 4 says, exit 1: the box's life pipe closes with
     `temper`, and the box stops by itself
-    (`../../protocol/setup/box.md`, 6).
+    (`../../protocol/setup/box-front.md`, 1).
 
 **The box's stages**, illustrative (a first run's start, then a stop):
 
@@ -356,7 +356,7 @@ first rows at 150 by 39, dark; and 02, after):
     window's columns, then one blank row (the user's request `tui-14`);
     and "It signs you in as this temper's owner, once, within 2 hours."
     (`tui-hint`), the box's own words for it
-    (`../../protocol/setup/box.md`, 2). Before the box's first `link`
+    (`../../protocol/setup/box-supervision.md`, 1). Before the box's first `link`
     line, the link's place holds "The link comes here once the box has
     started.", or a failed start's lines (*The box's stages*, above).
     Each of them, the link, its pending and failed lines and the line
@@ -601,7 +601,7 @@ Stop the box? csv-export's running task stops with it.
   the question stands; else the box stops at once. **The box stops**
   when the host asks it, a duty the run carries out by closing the box's
   life pipe, which the box takes as its first termination signal,
-  draining (`../../protocol/setup/box.md`, 6): the stage is `Stopping`,
+  draining (`../../protocol/setup/box-front.md`, 1): the stage is `Stopping`,
   its note stands (*The box's stages*), and the TUI closes once the box
   has ended. While it stops, Ctrl+C or `/quit` again is the second
   stop: the run sends the box `SIGTERM`, its second termination signal,
@@ -674,7 +674,7 @@ Stop the box? csv-export's running task stops with it.
   group's failure being the browser's to say (*The welcome*, *The forge
   under way*) and `/log`'s.
 - **A give up and an end:** the box stops its steps, says `gave-up`, and
-  exits 1 (`../../protocol/setup/box.md`, 6). The TUI stays open and says
+  exits 1 (`../../protocol/setup/box-front.md`, 1). The TUI stays open and says
   so in a note of its own, after the others and standing for good: "The
   box gave up: STEP. /log shows why; Ctrl+C closes." (`tui-refused`).
   The link goes offline as the engine stops. A box that ends unasked
@@ -725,8 +725,8 @@ and `/web`'s note, with no opener):
 ```
 
 - **Why:** in front the box prints no block: its printed link reaches
-  the TUI alone, as its `link` line (`../../protocol/setup/box.md`, 2
-  and 6), and the welcome, the one page that draws it, stands only
+  the TUI alone, as its `link` line (`../../protocol/setup/box-supervision.md`, 1, and `../../protocol/setup/box-front.md`, 1
+  ), and the welcome, the one page that draws it, stands only
   while `me` names no project. On a box set up before the launchpad
   stands from the start, so the link a browser needs to sign in was in
   the TUI's memory alone. `/web` hands it to the browser.
@@ -802,7 +802,7 @@ and `/web`'s note, with no opener):
   `/web` where the TUI did not see it spent, is answered why, and serve
   prints a fresh one (jig's `protocol/client/sign-in.md`, *The printed
   link*), which the box gives as a `link` line
-  (`../../protocol/setup/box.md`, 6). The browser's page says "This link
+  (`../../protocol/setup/box-front.md`, 1). The browser's page says "This link
   was already used. A fresh one is in your terminal." or "This link has
   expired. A fresh one is in your terminal." (`../view.md`, 1): in front
   that terminal is the TUI, whose printed link the fresh line makes

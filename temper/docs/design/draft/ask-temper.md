@@ -212,7 +212,7 @@ tools.
 | `settings` | the inventory: each setting by kind, number and name, with the revision that last changed it; the models the person may offer; the project's repositories; its people, each with their forge identity and whether they can approve, and why not | `settings show`, the `settings` read |
 | `settings KIND N` | a charter, template, policy, model or forge charter, whole | `settings show`; `model list` for a model |
 | `settings rules`, `settings landing-rule N [project]`, `settings project-ways`, `settings project-questions` | the rules; a landing rule, the deployment's, or the project's with `project`; the project's ways and questions | `settings show` |
-| `settings landing`, `settings gates OWNER/NAME` | the project's landing, by queue or by turn; a repository's test gates | the forge's kinds 4 and 5 (`../protocol/configuration/settings.md`, 2), which no client reads |
+| `settings landing`, `settings gates OWNER/NAME` | the project's landing, by queue or by turn; a repository's test gates | the forge's kinds 4 and 5 (`../protocol/configuration/settings-kinds.md`, 1), which no client reads |
 | `ways` | the stock ways, each with its words and its path over the project, and which one the project runs (`stock-ways.md`, section 5) | the forge's `ways` |
 | `revisions`, `revision N` | the history; one revision: who decided it, when, from which proposal, its items | `revision list`, `revision show` |
 | `proposal tN/K`, `proposal pN/K` | a proposal, a task's or a party's, with its review and its outcome | `proposal show` |
@@ -242,7 +242,7 @@ teach a model done by the tool instead:
 - **Approvals:** a landing rule whose role has too few eligible approvers on a
   forge is refused at the call, naming the project, the forge, the role, how
   many it requires and how many are eligible, as acceptance would refuse it
-  (`../protocol/configuration/settings.md`, 2); the inventory says who is eligible,
+  (`../protocol/configuration/settings-kinds.md`, 1); the inventory says who is eligible,
   and for anyone who is not, why.
 - **A large set** is given in parts by the tool's own calls, with no note to
   write.

@@ -3,7 +3,7 @@
 Provisional, 2026-11-16. The figures temper computes from their sources
 when it starts, instead of reading them from a document: the turn's and
 the payload's carriers, a worker's places, and the clients' carriers
-(`../../draft/config.md`, section 7). `settings.md`, section 7 gives the
+(`../../draft/config.md`, section 7). `settings-output.md`, section 1 gives the
 relations, and this document makes them computed. The derivations start
 from the stock (`limits.md`, one stock).
 
@@ -41,7 +41,7 @@ from the stock (`limits.md`, one stock).
   dev.fabrig.ai's agent's of 2026-11-16, which is the reference's: the
   declared figures and endpoints that `temper-box init` writes in
   `agent.json` (`../setup/init.md`, 3), with `tool_payload` 63,740 and
-  every endpoint's `output` 48,000 (`settings.md`, 7, the reference's
+  every endpoint's `output` 48,000 (`settings-output.md`, 1, the reference's
   room).
 - **Its payload is 63,740, not 64 KiB.** skein's rule between a call's
   payload and an answer, (payload + 260) × 6 ≤ output × 8, makes 63,740
@@ -77,7 +77,7 @@ from the stock (`limits.md`, one stock).
 
 ### 5.1 From T and P
 
-The relations of `settings.md`, section 7, computed. "Both" means the
+The relations of `settings-output.md`, section 1, computed. "Both" means the
 engine's and each worker's.
 
 | Figure | Computed as |

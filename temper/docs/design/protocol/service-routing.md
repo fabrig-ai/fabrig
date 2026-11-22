@@ -109,7 +109,7 @@ Starting, ending, `iterate`'s passes, room and timers are jig's
   request on the party's behalf (`../domain/routing.md`, 4;
   `../domain/forge/adoption.md`).
 - **Periods,** from the smallest source, as jig's reference service gives
-  them (configuration/README.md, section 6).
+  them (configuration/startup.md, section 1).
 
 ## 2. The worker's service
 
@@ -131,7 +131,7 @@ No store; starting, ending and smith's payloads are jig's (jig's
 `protocol/service.md`, section 6). What temper adds:
 
 - **Agents run as the agent's program:** the worker's `agent` member
-  (configuration/README.md, section 4), with the arguments it gives, its
+  (configuration/worker.md, section 2), with the arguments it gives, its
   environment holding no credential: the box's `temper-box internal agent
   AGENT.json`, or a deployment's `temper-agent AGENT.json` (`binaries.md`, 3),
   each spawned from the copies the worker pinned at its start, the

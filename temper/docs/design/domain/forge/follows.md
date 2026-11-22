@@ -52,7 +52,7 @@ follow's a change in another repository. What is still open is `follows.md`, sec
 ## 2. A follow
 
 A follow is a setting of the target's project, temper's kind 12
-(`../../protocol/configuration/settings.md`, 2), at the project's scope,
+(`../../protocol/configuration/settings-kinds.md`, 1), at the project's scope,
 numbered from 1 to the forge's `follows`, proposed and accepted as
 every setting is, its decision that project's owners'. Its value, a
 `Follow`:
@@ -67,7 +67,7 @@ every setting is, its decision that project's owners'. Its value, a
 | `check` | `workflow`, a workflow file of the target, as a tier names one; `artifact`, the name of the artifact its run uploads; `format`, `junit` or `lines` (`../after-landing-runs.md`, 1) | refused |
 
 - **Its form in a settings file,** binding for `temper ctl` and the
-  host tools' settings (`../../protocol/configuration/settings.md`, 2):
+  host tools' settings (`../../protocol/configuration/settings-kinds.md`, 1):
   ```json
   {"source": {"forge": 1, "repository": 12, "branch": "main", "paths": ["src", "include"]},
    "target": {"forge": 1, "repository": 13, "branch": ""},

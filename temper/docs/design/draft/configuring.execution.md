@@ -12,7 +12,7 @@ the reference's M1 to M10.
 - **Five phases,** P1 to P5 (section 3), set with the user on
   2026-11-02 so that no two designers write one section at once: the
   reference's M1 and M3 write jig's `domain/engine/settings.md`, 5 to 7
-  , temper's `../protocol/configuration/settings.md`, 2 to 3 and `../protocol/configuration/stock.md`
+  , temper's `../protocol/configuration/settings-kinds.md`, 1, and `../protocol/configuration/settings.md`, 3 and `../protocol/configuration/stock.md`
   and the section M1 adds after 13.8, and `../domain/agent/tools-change.md`, 1,
   and P2 and P3 follow M3 beside them.
 - **P1 first,** landed 2026-11-03: what was designed and touched

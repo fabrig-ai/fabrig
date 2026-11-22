@@ -236,12 +236,12 @@ command; temper-box help pages lists the pages.`
 
 - **The bare form is the box without a TUI,** what `temper box --no-tui`
   was: in a terminal or not, it prints its sign-in block and its lines
-  as `../protocol/setup/box.md`, 2 says. Its internal switches
+  as `../protocol/setup/box-supervision.md`, 1 says. Its internal switches
   `--fake-backends` and `--front` and its internal setting `--bundle
   BUNDLE` give its other forms. `--front` is `temper box`'s alone: the
   box run as the child of `temper`'s TUI, its link and its lines on the
   descriptors `temper` hands it, and nothing on its terminal
-  (`../protocol/setup/box.md`, 6). `--echo` is a flag of every form,
+  (`../protocol/setup/box-front.md`, 1). `--echo` is a flag of every form,
   the fake backends' among them. `--no-tui` and `internal tui` are gone:
   the TUI is `temper`'s alone (`../draft/cli.md`, section 5).
 - **No `box` words and no TUI:** `temper box` is the client's (7.4),

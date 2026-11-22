@@ -287,7 +287,7 @@ Every mode internal: one run, the list mode, `--mcp-relay`, `--program-child`, a
 - **`temper box [ARGUMENT...]`, in a terminal, runs the TUI in front of a box,** as `temper box` does today (the user, 11-08):
   1. The TUI starts at once.
   2. It finds `temper-box` (5.1), downloading it if it must (5.2), with its progress on the TUI's first screen.
-  3. **It starts `temper-box --front` as its child,** with the arguments, and hands it two pipes, as the box hands its front two today (`../protocol/setup/box.md`, 6):
+  3. **It starts `temper-box --front` as its child,** with the arguments, and hands it two pipes, as the box hands its front two today (`../protocol/setup/box-front.md`, 1):
      - **On the first,** the box writes the local link, then closes it. That's a one-time link of its own, drawn beside the printed one, and it never goes in an argument, the environment, a log or a file.
      - **On the second,** the box writes its lines. The TUI shows the box's steps as they come, and the lines go to `DATA/box/logs/box.log`, as today.
      - **The box writes nothing on the terminal,** which stays the TUI's.
@@ -371,7 +371,7 @@ For the plans, each in its area (`cli.execution.md`):
 
    The libraries holding their names are renamed: `temper`, the box's machine `temper-box`, and `temper-client`.
 5. **Each binary's table,** with its sets, help, `--version`, pre-table modes as rows, and generated documents.
-6. **`temper box`** (section 5): the TUI's first screen showing the download and the box's steps, `temper-box --front` as its child with the two pipes of `../protocol/setup/box.md`, 6, reversed, the identity check, the cache and the download, and the box's stop. `temper-box` loses `--no-tui` and `internal tui`, and the box stops when its front dies.
+6. **`temper box`** (section 5): the TUI's first screen showing the download and the box's steps, `temper-box --front` as its child with the two pipes of `../protocol/setup/box-front.md`, 1, reversed, the identity check, the cache and the download, and the box's stop. `temper-box` loses `--no-tui` and `internal tui`, and the box stops when its front dies.
 7. **The environment's renames** (4.6), with their setters in scripts, `tools/tiers/`, CI and the docs.
 8. **The features out** (section 6), with the recorder's shared journey and redaction code first moved into a crate of its own.
 9. **The site:** `temper` at the short link, and `temper-box` in each commit's directory.

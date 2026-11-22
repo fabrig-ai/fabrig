@@ -48,7 +48,7 @@ test doubles   temper-box fake llm|forge|oauth|git ...
   person or an agent never runs it.
 - **The TUI is the client's,** `temper`'s, below: on an engine,
   `temper [ADDRESS]`, and in front of a box, `temper box`, which runs
-  `temper-box --front` as its child (`setup/box.md`, 6;
+  `temper-box --front` as its child (`setup/box-front.md`, 1;
   `../client/tui/box.md`). The box runs no TUI of its own.
 ## 2. The box's commands
 
@@ -110,7 +110,7 @@ default; the document is `temper.json` in the configuration directory
     one, and its ended root settles each worker's pending release at
     once, so neither a listener nor a worker keeps it open.
   - Under the box, a refused start is a long step's exit like any other
-    (setup/box.md, 2): restarted after its backoff, its refusal printed
+    (setup/box-supervision.md, 1): restarted after its backoff, its refusal printed
     at each exit, the box giving up, exit 1, past `box.restarts` within
     `box.window_ms`. No refusal is told apart as lasting. The box reads
     no step's reasons, and a retry is a restart, which makes nothing
@@ -126,7 +126,7 @@ default; the document is `temper.json` in the configuration directory
 - **`temper-box internal agent AGENT.json`:** smith's agent shell,
   `smith_agent_shell::run_decoded`, on smith's agent configuration as
   temper reads it, a `"fetched"` program naming its launcher
-  (configuration/README.md, section 4; setup/owned.md, 6). The worker's protocol layer spawns it,
+  (configuration/worker.md, section 2; setup/owned.md, 6). The worker's protocol layer spawns it,
   one process per run; a person never does. `temper-agent` runs the
   same modes as a binary of its own (3): this command and `internal
   agent-list` call `temper-agent-shell`'s run and list, under the box's
@@ -310,7 +310,7 @@ default; the document is `temper.json` in the configuration directory
   `temper-box serve` writes as it asks for the group (setup/box.md, 1), a
   forge with none taking the machine's `owned` part (setup/box.md, 4), and
   each reads and checks the whole document as `temper-box serve` does
-  (configuration/README.md, section 6):
+  (configuration/startup.md, section 1):
   - `temper-box forge prepare`: an owned forge's preparation, before its
     Forgejo runs; it ends when done (setup/owned.md, 3);
   - `temper-box forge run`: checks the binary and the preparation, takes
@@ -331,7 +331,7 @@ default; the document is `temper.json` in the configuration directory
     stdout is `temper-box serve`'s sign-in links, each line whole; its
     stderr, a terminal's, the box's own lines alone, each step's lines
     in its log under the data directory, and on stderr too, prefixed by
-    the step's name, with `--echo steps` (setup/box.md, 2).
+    the step's name, with `--echo steps` (setup/box-supervision.md, 1).
 - **Exit status:** 0 after a drained shutdown, a worker alone's ending
   or a finished command; 1 on
   any failure (a refused start, a usage error, a failed commit, an

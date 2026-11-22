@@ -99,8 +99,8 @@ file the site serves beside it (5.1). The site that links them is
 
 ## 4. What the machine must have
 
-- **Programs:** git 2.41 or later (`protocol/configuration/README.md`, 3 and
-  6; `protocol/git.md`, 3); `/usr/bin/rg` and `/bin/sh`, at those paths,
+- **Programs:** git 2.41 or later (`protocol/configuration/worker.md`, 1, and `protocol/configuration/startup.md`, 1
+  ; `protocol/git.md`, 3); `/usr/bin/rg` and `/bin/sh`, at those paths,
   which the agents' machine tools run; `claude`, Claude Code, only for
   Claude (`protocol/credentials-llm-accounts.md`, 1).
 - **CA certificates:** the system's, or the file `SSL_CERT_FILE` names,
@@ -116,7 +116,7 @@ file the site serves beside it (5.1). The site that links them is
   starts anything: git, `/usr/bin/rg` and `/bin/sh` where a worker runs
   agents. A missing or too old one stops it with one line naming the
   program, the version found and the one needed; where
-  `protocol/configuration/README.md` 3 and 6 let a deployment run with a
+  `protocol/configuration/worker.md`, 1, and `protocol/configuration/startup.md`, 1 let a deployment run with a
   warning, the warning stands. Forgejo's binaries are checked when a
   set up fetches them, and `claude` when a program's source is declared.
   Nothing is installed by temper.

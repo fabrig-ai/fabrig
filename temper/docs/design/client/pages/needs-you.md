@@ -435,7 +435,7 @@
     - *A question with no row,* its project's document delivered and not
       `cut`: "Reached you because it was asked of you directly.": no call
       judged it, so it came by its route (kind 6,
-      `../../protocol/configuration/settings.md`, 2) or without the tool. With no
+      `../../protocol/configuration/settings-kinds.md`, 1) or without the tool. With no
       row and the document cut, refused, ended or not yet delivered, no
       line. A row whose reach says decided, which an option past the call's
       leaves, reads as none.
@@ -551,7 +551,7 @@
       any kind's, by OBJECT.
     - *Its act:* an owner of the card's project (`me`'s row for it `Owner`)
       has "Apply": jig's `ChangeSettings` of one item, kind 8 of that
-      project (`../../protocol/configuration/settings.md`, 2), set to the offer's
+      project (`../../protocol/configuration/settings-kinds.md`, 1), set to the offer's
       table, running work staying, against the newest revision the person
       has, as `settings.md`, 2's controls send it, a `stale` refusal sent once more
       against the revision it names. Anyone else has "Propose": jig's

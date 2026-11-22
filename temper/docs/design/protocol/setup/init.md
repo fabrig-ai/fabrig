@@ -24,13 +24,13 @@ and `--box` still makes `demo/` and `demo/bin/git`.
 - **One document,** `temper-box serve`'s, `temper.json` in the
   configuration directory (../configuration/README.md, section 2 and ../configuration/directories.md). Every
   `temper-box forge` command and `temper box` read it whole, check it
-  as ../configuration/README.md, section 6 says, `application.machine` among it,
+  as ../configuration/startup.md, section 1 says, `application.machine` among it,
   and act on their part: they read no file but their own part's.
 - **It names no forge.** A forge is a record of the forge connector,
   made by the act that sets it up or connects it, and numbered next when
   it is made (../forge/engine.md, 1 and 2): its kind, mode, place, git
   program, bot and first repository's intent are its record's, carried
-  by the act that makes it, `SetUp` for an owned Forgejo (`owned.md`, 5, 7),
+  by the act that makes it, `SetUp` for an owned Forgejo (`owned.md`, 5, `owned-repositories.md`, 1),
   `Connect` for a Forgejo elsewhere (`reconcile.md`, 5) or GitHub (`github.md`), and
   `StartPlayground` for the playground's fake one (`playground.md`). A first run's
   document names none (3).
@@ -76,7 +76,7 @@ and `--box` still makes `demo/` and `demo/bin/git`.
   | `fake.listen` | an address, jig's format | as `owned.listen` |
   | `fake.remote` | an HTTP base | `http://<listen>` |
   | `fake.git` | a data path | the playground's git, a link to `temper-box fake git` (`init.md`, 2, `playground.md`): the program the engine names in each of the fake forge's repositories' records, for the worker to spawn in place of `workers[].git` (../channel.md, section 4) |
-  | `github` | GitHub's place, `{"api", "transport", "remote", "web", "git"}`, or null | null for github.com's (`github.md`, 1); a place only to point at a fake (`box.md`, 5) |
+  | `github` | GitHub's place, `{"api", "transport", "remote", "web", "git"}`, or null | null for github.com's (`github.md`, 1); a place only to point at a fake (`box-backends.md`, 1) |
 
 - **Runner slots:** change CI and tiers whose workflows use `temper-host`
   share the owned runner's capacity, including other repositories' jobs.
@@ -98,7 +98,7 @@ and `--box` still makes `demo/` and `demo/bin/git`.
   alone: its records are made when the person connects as its admin
   (`reconcile.md`, 5), and its admin token's name is `admin`, not the owned forge's
   `temper-admin`. No entry names an org: an owned forge's org is its
-  first repository's, made by `Create` (`owned.md`, 7).
+  first repository's, made by `Create` (`owned-repositories.md`, 1).
 - **A Forgejo connected** with its bot's tokens has no setup entry
   (`README.md`, section 4); GitHub takes none (`github.md`).
 - **The page's actions are the engine domain's offers**
@@ -219,7 +219,7 @@ QA's host starts from a copy and `temper box --config COPY` runs it
   for a project of fabrig's scale (../configuration/stock.md): smith's
   `standard`, with `declared` `memory` 2,147,483,648, `tool_payload`
   the largest smith admits at its model's output of 8,192 tokens (about
-  10,662 bytes; ../configuration/settings.md, 7), `read_window` 256,
+  10,662 bytes; ../configuration/settings-output.md, 1), `read_window` 256,
   `conversations` 26 (room for a run and 25 sub-agents, smith's
   `protocol/limits.md`, 2.2: a run's main conversation and its
   sub-agents', each a program session of its own on Claude Code, smith's
@@ -290,7 +290,7 @@ QA's host starts from a copy and `temper box --config COPY` runs it
   `reasoning_item`, is 65,536 bytes: a plan's model's reasoning items
   stay within it in ordinary use, so a chat on a plan is not held for
   its reasoning, and a person may lower it, with these bounds
-  (../configuration/README.md, section 4). Each bound is the least the turn's
+  (../configuration/worker.md, section 2). Each bound is the least the turn's
   check takes, past jig's `standard` profile's:
   - both hubs, `engine.limits` and the worker's `limits`:
     `hub.turn_bytes` T; `hub.transcript_bytes`
@@ -318,7 +318,7 @@ QA's host starts from a copy and `temper box --config COPY` runs it
 
   jig's `standard` store page admits the frame of any turn smith admits,
   up to 33,554,432 bytes, and the store's frame and the worker wire
-  carry it (../configuration/settings.md, 7; jig's `protocol/store/transcripts.md`, 1).
+  carry it (../configuration/settings-output.md, 1; jig's `protocol/store/transcripts.md`, 1).
   The other KV bounds stay as they are: a turn's body is a transcript
   file's, never a KV value. Startup refuses a figure past its wire
   field's ceiling.
@@ -395,7 +395,7 @@ playground and no Forgejo on this machine.
   | File | Directory | Mode | What it is |
   |---|---|---|---|
   | `worker.secret` | data | 0o600 | 32 bytes from the kernel's random source, as 64 lowercase hexadecimal digits and a newline |
-  | `provider.key` | data | 0o600 | with `--box`, the OpenID provider's signing key, made as `owned.md`, 8's first step, and kept if already there (`../openid-provider.md`, 9); no such file when it can't be made |
+  | `provider.key` | data | 0o600 | with `--box`, the OpenID provider's signing key, made as `owned-sign-in.md`, 1's first step, and kept if already there (`../openid-provider.md`, 9); no such file when it can't be made |
   | `demo/bin/git` | data | a link | the playground's git, `temper-box fake git` (`playground.md`): a symbolic link to the binary |
   | `temper.toml` | configuration | 0o644 | the default file (3) |
 
@@ -425,7 +425,7 @@ playground and no Forgejo on this machine.
     `email` `LOGIN@localhost`. With no entry, or a name that is not a
     Forgejo login, is one of Forgejo's reserved names (such as `admin`),
     or is the bot's, `temper-admin` or `work`, the first repository's
-    default org (`owned.md`, 7), the login is `person`, and init says so: no owned
+    default org (`owned-repositories.md`, 1), the login is `person`, and init says so: no owned
     forge is set up until the person asks, so the person's login is
     never a reason the first run does not start;
   - *the bundle:* none to find. `clients.bundle` is always `null`, the
@@ -478,7 +478,7 @@ playground and no Forgejo on this machine.
   forges and repositories are the client's (../credentials-llm-accounts.md, section 1;
   `../../client/forge/README.md`), and the playground's forge, account, project
   and repository its start's (`playground.md`).
-- **Its code:** `temper-init`, step code (`README.md`, section 7): given the facts
+- **Its code:** `temper-init`, step code (`crate-layout.md`, section 1): given the facts
   above, git's and `claude`'s paths or none among them, the box's parts' or none, those
   being the person's login, the machine's ports and the scripted key's
   32 bytes, the three directories and the secret's 32 bytes, it answers
@@ -492,7 +492,7 @@ playground and no Forgejo on this machine.
   `local` and its document names no `engine.hosts.workers` (`../cluster.md`, 1), the files' names, directories and order, and the
   machine's part with the person's login found and fallen back. The binary's
   crate tests, on scratch directories, check that each document init writes
-  passes ../configuration/README.md, section 6, as `temper-box serve` checks it, with
+  passes ../configuration/startup.md, section 1, as `temper-box serve` checks it, with
   the agent's configuration generated at start, at the fixed ports and at kernel's
   ports, always distinct, with and without `claude` and git, the
   Anthropic provider, its sources, its program, both its endpoints and
@@ -536,8 +536,8 @@ holds is a default, a constant or a derivation of the file's reader
   with no override: limits, LLM providers and the agents' figures are
   settings with the stock's defaults (`../configuration/limit-settings.md`;
   `../configuration/providers.md`; `../configuration/figures.md`,
-  section 5), the welcome is the box's (`../configuration/settings.md`,
-  2), and a forge's place is chosen at its set-up (`place.md`).
+  section 5), the welcome is the box's (`../configuration/settings-kinds.md`,
+  1), and a forge's place is chosen at its set-up (`place.md`).
 - **No forge, no project:** a first run's store holds none; the person
   makes each from the client, none needing a restart (`owned.md`, 5;
   `github.md`; `reconcile.md`, section 5; `playground.md`).

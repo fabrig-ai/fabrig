@@ -21,7 +21,7 @@ pub const PUBLIC_SCHEMA: &str = include_str!("../schema/public-v1.schema");
 pub mod v1;
 
 /// Kinds with typed settings values at temper's entrances
-/// (temper/docs/design/protocol/configuration/settings.md, 2).
+/// (temper/docs/design/protocol/configuration/settings-kinds.md, 1).
 #[must_use]
 pub const fn settings_kind(kind: u32) -> bool {
     kind == 1
@@ -150,7 +150,7 @@ pub const DISMISSED: u32 = 8192;
 pub const INSTALLATIONS: u32 = 64;
 /// The maximum repository makings per forge (temper/docs/design/client/forge/records.md).
 pub const MAKINGS: u32 = 64;
-/// The set up's maximum number of deferred copies (protocol/setup/owned.md, 7).
+/// The set up's maximum number of deferred copies (protocol/setup/owned-repositories.md, 1).
 pub const FIRST_COPIES: u32 = 16;
 /// The last connect's maximum stop reason length (client/forge/records.md).
 pub const CONNECT_WHY_BYTES: u32 = 256;

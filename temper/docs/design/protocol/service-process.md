@@ -17,7 +17,7 @@ Standalone is jig's one process (jig's `protocol/service.md`, section 10):
   between hosts, in plaintext, with no TLS.
 - **A client on loopback,** over TCP to the clients' listener: `temper-box
   open`, signing in by the link `temper-box serve` prints at start, or
-  `temper box` before it starts serve (`setup/box.md`, 2).
+  `temper box` before it starts serve (`setup/box-supervision.md`, 1).
 - **Agents and git as child processes,** each in a process group of its
   own, which a stop signals whole (jig's `protocol/README.md`, section
   10); containment after a forced stop remains open (`README.md`, section 11). An
@@ -84,7 +84,7 @@ log says when that happened; nothing else about the loop changes.
   whole read was 1.95 s, so a healthy box writes few of these lines or none.
   A pass of exactly the bound writes nothing.
 - **The line** is one stderr line, which the box keeps in `serve.log`
-  (`setup/box.md`, 2), naming the pass, its longest stage and the bound,
+  (`setup/box-supervision.md`, 1), naming the pass, its longest stage and the bound,
   with no payload:
   `temper-box serve: long pass: 1250 ms, engine 1200 ms of it, past the 1000 ms bound`.
 - **At most one line in 10 s,** `long_pass::LINE_EVERY`. The first long pass
@@ -104,7 +104,7 @@ log says when that happened; nothing else about the loop changes.
 The engine's service hands a party's input to the root only while its
 gate is open: the root started and its decisions open
 (`../domain/root-restart.md`, 1.1), the forges' records loaded and connected,
-the first periods given (configuration/README.md, section 6) and the forges'
+the first periods given (configuration/startup.md, section 1) and the forges'
 names resolved (forge/engine.md, 2). While the gate is shut, the clients'
 component answers a party's input not ready and a public read busy, at
 once. A watch refused while the gate is shut says not ready, distinct
@@ -116,7 +116,7 @@ the client wire (`README.md`, section 11).
 
 - **The line.** When the gate has kept a party's input from the root for
   1 s or more, answered not ready or held, the service writes one stderr
-  line, which the box keeps in `serve.log` (setup/box.md, 2):
+  line, which the box keeps in `serve.log` (setup/box-supervision.md, 1):
   `temper-box serve: the core is not answering: REASON`. It writes it again
   only when the reason changes, and once the gate passes a party's
   input again after such a line, `temper-box serve: the core answers
@@ -272,7 +272,7 @@ cancelled landings held.
   unexplained.
 - **Supervision** (jig's `protocol/service.md`, section 9): what
   restarts `temper-box serve` after a failed commit or a crash. Default:
-  nothing of `temper-box serve`'s own; a box restarts it (setup/box.md, 2),
+  nothing of `temper-box serve`'s own; a box restarts it (setup/box-supervision.md, 1),
   and otherwise the person or the machine's
   service manager starts it again, and it recovers from the last
   durable commit.

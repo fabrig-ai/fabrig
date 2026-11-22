@@ -365,7 +365,7 @@ fn provider_settings(directory: &Path, settings: &mut serde_json::Value) {
 }
 
 /// Persist the prospective startup figures through the owner's settings decision as well
-/// (temper/docs/design/draft/config.md, 6.3; protocol/configuration/settings.md, 2, kind 21).
+/// (temper/docs/design/draft/config.md, 6.3; protocol/configuration/settings-kinds.md, 1, kind 21).
 fn agent_settings(agent: &serde_json::Value) -> serde_json::Value {
     let mut profile = serde_json::Map::new();
     for group in ["declared", "policy"] {

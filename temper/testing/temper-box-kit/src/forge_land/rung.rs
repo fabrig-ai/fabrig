@@ -118,7 +118,7 @@ pub fn task_digest(value: &Value) -> Result<&str, String> {
 }
 
 /// The guide's init and the existing owned-forge fixture, with QA's model/room
-/// recipe (temper/docs/development/qa.md, 3; protocol/configuration/settings.md, 7),
+/// recipe (temper/docs/development/qa.md, 3; protocol/configuration/settings-output.md, 1),
 /// before the first start.
 #[expect(
     clippy::must_use_candidate,

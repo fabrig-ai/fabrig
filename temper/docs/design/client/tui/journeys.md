@@ -585,7 +585,7 @@ not terminal escape sequences, give the frame.
 ### 8.3 A box with the TUI in front
 
 `temper box` can put the TUI in front of its child box (`box.md`;
-`../../protocol/setup/box.md`, 6). A person can record that TUI by hand
+`../../protocol/setup/box-front.md`, 1). A person can record that TUI by hand
 and print the saved file with 6.1's recording command.
 
 - **The printed link:** the host hears the box's `link` line as a

@@ -201,7 +201,7 @@ record Writable    { push: bytes  expected: option fixed 32  landing: option byt
   alone, as a fake forge's listener is loopback's (setup/playground.md):
   standalone's worker, and the cluster's workers alone (`cluster.md`,
   2). A worker on another host takes its own machine's git for every
-  repository (configuration/README.md, section 3).
+  repository (configuration/worker.md, section 1).
 - **Checked at the worker's entrance:** names, remotes, programs and
   branches within its limits, a program that is not an absolute path,
   and a repository named twice are refused as an

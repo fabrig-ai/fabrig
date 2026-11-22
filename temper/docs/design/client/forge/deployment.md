@@ -233,8 +233,8 @@ and `connect-forge.html`.
     without isolation, and that Forgejo stops with temper box while its
     repositories stay in temper’s data directory. Run sends `SetUp` of a
     new or kept owned Forgejo (`records.md`). The sample is `work/hello`,
-    its names not shown and never written (`../../protocol/setup/owned.md`,
-    7); refusals stay under the act, with the choice and the copies'
+    its names not shown and never written (`../../protocol/setup/owned-repositories.md`,
+    1); refusals stay under the act, with the choice and the copies'
     addresses kept for repair. Accepted, Settings opens Forges with its row expanded;
     setup adopts nothing. The made repository waits for adoption into a
     project; the welcome’s Ready handles its own adoption. “Set up again”
@@ -350,7 +350,7 @@ and `connect-forge.html`.
   fifth, done once the first repository is made, unadopted. Before the
   target is known, the fifth reads "Making the first repository". A set up
   asked with copies or nothing has four steps, the row's `starts_with`
-  saying so (`../../protocol/setup/owned.md`, 7).
+  saying so (`../../protocol/setup/owned-repositories.md`, 1).
   GitHub rows never list Forgejo's steps. No step names a version: the
   Details alone name one, Forgejo's as the row's `owned` pins it, "temper
   box downloads Forgejo 17.0.1 and its runner, ..."; the person's
@@ -488,7 +488,7 @@ and `connect-forge.html`.
     The forge reads as its row says, Connecting or cut short, whose "Go
     on" or "Install on GitHub" starts a fresh way.
 - **Completion** lands on Forges with a confirmation line and the newly
-  connected row open, adopting nothing (`../../protocol/setup/owned.md`, 7).
+  connected row open, adopting nothing (`../../protocol/setup/owned-repositories.md`, 1).
   The row holds “Connected as LOGIN.”, the made first repository where
   supplied, its external link and “Adopt a repository”, opening the sheet
   for the current project. No project means no adoption link. The made
@@ -556,13 +556,13 @@ says:
   the App still lacks. The line is kept in memory alone: a restart drops
   it, and the start's reconcile names it again while the App still lacks
   it. A forge other than a fake, connected while a worker's `git` is
-  null (`../../protocol/configuration/README.md`, section 3), says beside
+  null (`../../protocol/configuration/worker.md`, section 1), says beside
   "Connected as LOGIN": "No git on this machine: install git 2.41 or
   later and set workers[].git, then restart"; its repositories' commands
   fail on that worker, naming the forge's host, until it has one
   (`../../protocol/git.md`, section 3).
 - **Its first repository,** when its set up asked for one
-  (`../../protocol/setup/owned.md`, 7): "Making ORG/NAME" from the ask until
+  (`../../protocol/setup/owned-repositories.md`, 1): "Making ORG/NAME" from the ask until
   it is made; once made and connected, the body's "Repositories" row
   says "ORG/NAME · project PROJECT", resolving PROJECT to its name,
   as the summary does, ORG/NAME the repository's link (`deployment.md`, *A repository's
@@ -573,7 +573,7 @@ says:
   up failed". Made and failed are the engine's memory alone; the
   intent is the forge's record's, so after a restart the line says
   "Making ORG/NAME" until the repository is made again
-  (`../../protocol/setup/owned.md`, 7). The welcome’s Ready step and
+  (`../../protocol/setup/owned-repositories.md`, 1). The welcome’s Ready step and
   `temper ctl forge setup` adopt the made repository into its project
   (`../ctl/areas.md`).
 - **Its mode** (`../../protocol/setup/README.md`, the modes): owned, where the
@@ -646,7 +646,7 @@ every offer; the client reads it (`../../domain/forge/adoption-connection.md`, 1
 | Install the App; Install on another account | GitHub, connected: "Install on GitHub" before any accepted installation (Connecting), "Install on another account" after one, and the row’s "Choose its repositories on GitHub" | a fresh link to temper's App's install page, asked with no `back`, where the browser goes in a new tab (*GitHub's way, in a new tab*, above); the person picks the account and its repositories on GitHub, keeping GitHub's default, all of them, or choosing some, and the setup route ends the tab on its own page, while temper's page waits and moves on by itself |
 | New repository | Forgejo owned or managed, connected | the set up's same fields: organization (default `work`), repository (default `hello`) and a project, one of the person's or a new one; the general form of the first repository (`../../protocol/setup/README.md`, section 9) |
 | Forget the admin's token | managed | the admin's token erased; the forge is connected, its bot and tokens kept, and adopting a repository grants nothing more: the person makes the bot a collaborator |
-| Set up a Forgejo here | an owned Forgejo to make, under the box, or the row's offer offered, not set up (`records.md`) | its organization (default `work`), its repository (default `hello`) and its project, a new one named as the repository (`../../draft/archive/first-run.md`, 2.4), on `ConnectForge` and the welcome alike (`../pages/README.md`); then the box asked to run the forge's steps (`../../protocol/setup/box.md`, 1): its binaries fetched, its preparation, Forgejo and its runner started, then its handover taken and reconciled, the repository made with the starter workflow (`../../protocol/setup/owned.md`, 7), and, once the row says it made, the client's `MakeProject` and `Adopt` into it; the card names the path of `person_password`, never its password (`../../protocol/setup/owned.md`, 5) |
+| Set up a Forgejo here | an owned Forgejo to make, under the box, or the row's offer offered, not set up (`records.md`) | its organization (default `work`), its repository (default `hello`) and its project, a new one named as the repository (`../../draft/archive/first-run.md`, 2.4), on `ConnectForge` and the welcome alike (`../pages/README.md`); then the box asked to run the forge's steps (`../../protocol/setup/box.md`, 1): its binaries fetched, its preparation, Forgejo and its runner started, then its handover taken and reconciled, the repository made with the starter workflow (`../../protocol/setup/owned-repositories.md`, 1), and, once the row says it made, the client's `MakeProject` and `Adopt` into it; the card names the path of `person_password`, never its password (`../../protocol/setup/owned.md`, 5) |
 | Set up again | the row's offer offered, set up failed | the same ask again: what the last one left is kept, a fetched binary hashed and not fetched again |
 | Remove | every forge of the person's, the playground's aside | "Remove", confirmed in its row, its words naming what goes and what stays on the forge (Removing a forge, above); then `RemoveForge`, which ends the forge at once and removes it whole (`../../domain/forge/adoption-connection.md`, 1) |
 

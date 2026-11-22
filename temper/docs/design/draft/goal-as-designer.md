@@ -123,7 +123,7 @@ Then the goal parks (jig's `domain/engine/executors.md`, 4).
 ## 6. Room
 
 - **A call:** `tool_payload` follows a model's declared `output`, about 10,662
-  bytes at 8,192 tokens (`../protocol/configuration/settings.md`, 7). `output` isn't sent
+  bytes at 8,192 tokens (`../protocol/configuration/settings-output.md`, 1). `output` isn't sent
   to the providers we use, so it changes no model's behaviour. The reference
   takes about 98,500 tokens, 128 KB, as the user sized a message on 2026-11-03,
   and 48,000 tokens, 64 KB, if the start's checks refuse it: the agent's largest

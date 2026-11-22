@@ -205,7 +205,7 @@ jig's types (jig's `domain/hosts/hub.md`, 3), with temper's detail:
 
 When the hub accepts a run's failed or refused answer, serve writes one operator line
 on stderr, which the box keeps in `<data>/box/logs/serve.log`
-(`../../protocol/setup/box.md`, 2). The line names the task, run, attempt and
+(`../../protocol/setup/box-supervision.md`, 1). The line names the task, run, attempt and
 failure class or typed refusal reason. A refusal distinguishes a busy host,
 an oversized charter, transcript, grants or messages, and an invalid start;
 the invalid start names its cause and carries its decoding words. A

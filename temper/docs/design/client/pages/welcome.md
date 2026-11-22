@@ -55,13 +55,13 @@
     moves on, to the chats page, as `/welcome` does.
   - *The store's state* is judged at `/welcome`, once each time
     the page opens, when its facts are in, from the forges the store
-    keeps, the accounts and `me`'s projects (`../../protocol/setup/owned.md`, 7 and `../../protocol/setup/playground.md`
+    keeps, the accounts and `me`'s projects (`../../protocol/setup/owned-repositories.md`, 1 and `../../protocol/setup/playground.md`
     ; `../../draft/first-run-projects.md`, 4). A
     real forge is one of the `forges` watch's rows other than the
     playground's (`../forge/family.md`, 7); it is connected when its row says connected
     and, on GitHub, an installation is accepted (`../forge/deployment.md`), an
     owned or managed Forgejo's first repository being made before it
-    connects (`../../protocol/setup/owned.md`, 7); a model is usable as below;
+    connects (`../../protocol/setup/owned-repositories.md`, 1); a model is usable as below;
     and the person has a project when `me` lists one in which they hold
     a role. No adoption is read.
     - *Empty:* no real forge kept and no model usable. The step shows
@@ -156,7 +156,7 @@
     - "A sample project", "A short shell script with tests and CI. Use
       it to explore temper’s features.", the default, with no fields and
       no name shown: the repository is `work/hello`
-      (`../../protocol/setup/owned.md`, 7, *The sample*);
+      (`../../protocol/setup/owned-repositories.md`, 1, *The sample*);
     - "Copies of public repositories", "Copied into your local forge
       from GitHub or another git host, to play around with. Nothing is
       sent back.", its addresses "one per line", `github.com/owner/name`;
@@ -166,11 +166,11 @@
 
     The empty repository is not among them: Home's "Add a repository"
     keeps it (`home.md`, 1), and ctl's `forge setup` asks it
-    (`../../protocol/setup/owned.md`, 7).
+    (`../../protocol/setup/owned-repositories.md`, 1).
     Its foot is "Cancel", also Escape, back to Choose, then the primary
     "Run on this machine". Run sends the `SetUp` that makes the forge
     (`../forge/deployment.md`), its first repository as the choice says
-    (`../../protocol/setup/owned.md`, 7):
+    (`../../protocol/setup/owned-repositories.md`, 1):
     - the sample, `empty` with `work`, `hello` and `sample`
       (`../forge/records.md`), the repository made unadopted, with
       nothing to write and so no alert of its own;
@@ -193,7 +193,7 @@
     *A forge cut short:* a forge of the person's kept and not finished,
     not connected, or on GitHub connected with no accepted
     installation, is no choice. Forge's Choose shows it in their place
-    (`../../protocol/setup/owned.md`, 7), in a card headed "not finished":
+    (`../../protocol/setup/owned-repositories.md`, 1), in a card headed "not finished":
     "FORGE · not finished", FORGE its name (`../forge/deployment.md`); what its
     removal leaves, in the words of Remove on its row (`../forge/deployment.md`
     ); then "Start over", which sends `RemoveForge` with no
@@ -592,7 +592,7 @@
       forge numbered lowest, as the rows read when the project is made.
       With one, the act sends, once and in the project's scope, the
       forge's family's `Adopt`, the one `temper ctl forge setup
-      --project` sends (`../../protocol/setup/owned.md`, 7), under the same
+      --project` sends (`../../protocol/setup/owned-repositories.md`, 1), under the same
       key's name: owned, the project's home, its prefix `temper/`,
       landing on `main`, with CI and no checks. With none, nothing is
       sent. It is out until its answer, and Home says it (`home.md`, 1);

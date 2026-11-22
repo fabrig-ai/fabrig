@@ -162,7 +162,7 @@ section 14 it adds.
   spec, a revision of the design) and 12 (the close-out).
 - **Design:** `../domain/agent/tools-change.md`, 1 and `../domain/forge/change/README.md`, 1, and `../domain/forge/change/gates.md`, 3 (`change`
   naming its producer's charter and an LLM choice per role); temper's
-  `../protocol/configuration/settings.md`, 2 (the forge's charters); jig's
+  `../protocol/configuration/settings-kinds.md`, 1 (the forge's charters); jig's
   `domain/tasks/README.md`, section 4, jig's `protocol/configuration.md`, 3.1
   and jig's `domain/engine/settings.md`, 4 (a batch's LLM choices checked
   against its charter's models); jig's `domain/model.md`, 7.1 (a plan's
@@ -172,11 +172,11 @@ section 14 it adds.
   kinds as settings, on jig's application settings (jig's
   `domain/engine/settings.md`, 5 to 7), built once for both: the landing
   rules, out of `Config`'s `landing` member (`../domain/routing.md`, 5 and 6, and `../domain/root-translation.md`, 1
-  ; `../domain/forge/change/gates.md`, 3; temper's `../protocol/configuration/settings.md`,
-  2 and 3), and the forge's charters, out of `Config`'s
+  ; `../domain/forge/change/gates.md`, 3; temper's `../protocol/configuration/settings-kinds.md`, 1, and `../protocol/configuration/settings.md`, 3
+  ), and the forge's charters, out of `Config`'s
   `forge_charter`, so a change's producer and foreman each take a
   charter of their own (`../domain/root-translation.md`, 1; `../domain/forge/change/README.md`, 1, and `../domain/forge/change/gates.md`, 3;
-  temper's `../protocol/configuration/settings.md`, 2), moved here from M1
+  temper's `../protocol/configuration/settings-kinds.md`, 1), moved here from M1
   (the user, 2026-11-02); M4's sub-agents reachable from temper: the
   box's smith profile declares one conversation, so every `sub_agent` is refused as too
   many, and `ctl`'s LLM choice for a task names no sub-agents.
@@ -213,8 +213,8 @@ section 14 it adds.
   up to the person), and 13's wakes on them.
 - **Design:** `../domain/agent/agents.md`, 2 and `../domain/forge/change/README.md`, 1 (a change's questions;
   the Message family for its producer, repairs and resolutions);
-  `../domain/agent/tools-change.md`, 1 (`questions`); temper's `../protocol/configuration/settings.md`,
-  2 (the foreman's charter) and `../protocol/configuration/settings.md` (the `questions` setting
+  `../domain/agent/tools-change.md`, 1 (`questions`); temper's `../protocol/configuration/settings-kinds.md`,
+  1 (the foreman's charter) and `../protocol/configuration/settings.md` (the `questions` setting
   and its bound).
 - **Builds:** temper's change procedure: the relay, a foreman per
   question, the bound, an answer held until a dependency lands; a

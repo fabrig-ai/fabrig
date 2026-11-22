@@ -7,7 +7,7 @@ Milestone Q1 is designed in `../testing/qa/README.md` and its documents: the wat
 Milestone Q2, what the first passes need of temper, is designed and
 built: the drive session (`../client/drive.md`), recipes and their walk
 (`../client/recipe.md`), the fake model's given scripts and strict
-switch (`../protocol/setup/box.md`, 5; skein's `testing/fakes/llm.md`,
+switch (`../protocol/setup/box-backends.md`, 1; skein's `testing/fakes/llm.md`,
 2.5), a box started again with a newer build (`../protocol/setup/box.md`,
 1) and a store below the floor refused by name, naming bridge build
 `3d1c717d379e`, with no finding (`../protocol/store-restart.md`, 1). The draft
@@ -30,7 +30,7 @@ with their own ports (`../testing/qa/places.md`, 2), the figures bounds
 and places are tuned from (`../testing/qa/ledger.md`, 2.10, 4.17 and
 6), fake forges that keep their state across a restart (skein's
 `testing/fakes/forge.md`, 2.7 and 5, `testing/fakes/github.md`, 1.7;
-`../testing/fakes.md`, 2; `../protocol/setup/box.md`, 5), and scripts
+`../testing/fakes.md`, 2; `../protocol/setup/box-backends.md`, 1), and scripts
 that take values from the conversation (skein's `testing/fakes/llm.md`,
 2.6; `../protocol/setup/playground.md`; `../testing/fakes.md`, 1).
 
@@ -43,7 +43,7 @@ recipe's files to the fake Forgejo as the person, no credential named),
 pass's `files/` (`../testing/qa/passes.md`, 2; `../testing/qa/places.md`,
 5 and 6), a head's CI declared by what it holds (skein's
 `testing/fakes/forge.md`, 2.3, and `testing/fakes/forgejo.md`, 1; `../testing/fakes.md`, 2;
-`../protocol/setup/box.md`, 5), and the process-tier story of a box at
+`../protocol/setup/box-backends.md`, 1), and the process-tier story of a box at
 its place on its fake forges' state (`../testing/process-tier.md`).
 
 Milestone Q6, ctl on a deployment, is designed in

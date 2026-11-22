@@ -26,8 +26,8 @@ credentials.md's (`credentials-git-identities.md`, section 1). What is open is l
   (components.md).
 - **git as it ships, told exactly what to do.** git is run by an absolute
   path: the one a repository's item names, a fake forge's program
-  (channel.md, section 4), or else `workers[].git` (configuration/README.md,
-  section 3); with neither, the invocation fails, naming the forge's host.
+  (channel.md, section 4), or else `workers[].git` (configuration/worker.md,
+  section 1); with neither, the invocation fails, naming the forge's host.
   It runs in an environment given whole, with settings on the command line
   that turn off what could run another program or outlive the invocation:
   hooks, credential helpers, the file system monitor, background
@@ -148,7 +148,7 @@ the worker's root directory     workers[].root
 Every invocation has this shape:
 
 ```
-program    the repository's item's git, else workers[].git: an absolute path (configuration/README.md, section 3)
+program    the repository's item's git, else workers[].git: an absolute path (configuration/worker.md, section 1)
 argv       git -c <setting> … [--git-dir=<dir> [--work-tree=<tree>]] <command> <options> [--] <operands>
 directory  the worker's root, always
 environment  given whole (section 5)

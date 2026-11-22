@@ -28,7 +28,7 @@ section 6; what waits, section 7.
 ## 2. A dependency
 
 A dependency is a setting of the dependent's project, temper's kind 13
-(`../../protocol/configuration/settings.md`, 2), at the project's scope,
+(`../../protocol/configuration/settings-kinds.md`, 1), at the project's scope,
 numbered from 1 to the forge's `dependencies`
 (`../../protocol/configuration/limits.md`), proposed and accepted as
 every setting is, its decision that project's owners'. Its value, a
@@ -39,7 +39,7 @@ every setting is, its decision that project's owners'. Its value, a
 | `project` | the project depended on, by its number: a project of the deployment other than the dependent | refused |
 
 - **Its form in a settings file,** binding for `temper ctl` and the
-  host tools' settings (`../../protocol/configuration/settings.md`, 2),
+  host tools' settings (`../../protocol/configuration/settings-kinds.md`, 1),
   named `dependency`, with the dependent's `project` and its `number`:
   ```json
   {"setting": {"kind": "dependency", "project": 3, "number": 1}, "set": {"project": 7}}
@@ -139,7 +139,7 @@ judgement a pure function of the deployment's projects.
 
 - **Words with it:** whether a dependency keeps a line of why, "which
   will replicate skein-kv", as a charter's words are kept
-  (`../../protocol/configuration/settings.md`, 2, kind 9).
+  (`../../protocol/configuration/settings-kinds.md`, 1, kind 9).
 
 ## 7. Later
 

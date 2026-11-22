@@ -253,7 +253,7 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
     of it: at its start, and each time the component draws the next,
     after a TUI spent the last or a sign-in found it expired. A `Link` is
     printed alone and never written, and `temper box`'s first secret,
-    the printed link's (`../../protocol/setup/box.md`, 2), is never written
+    the printed link's (`../../protocol/setup/box-supervision.md`, 1), is never written
     either. A write that fails is one line on stderr, `temper-box serve: link
     file PATH: WHY`, naming no secret, and serve goes on.
   - *Removed* when serve exits, by any way out it has. An engine killed

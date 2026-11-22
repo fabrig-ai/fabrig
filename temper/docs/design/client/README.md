@@ -623,7 +623,7 @@ temper's:
 
 - **The printed link** (jig's `protocol/client/sign-in.md`): at
   start, `temper-box serve`, or `temper box` before it starts serve
-  (`../protocol/setup/box.md`, 2), prints a sign-in link for the deployment's
+  (`../protocol/setup/box-supervision.md`, 1), prints a sign-in link for the deployment's
   first owner (`../protocol/binaries.md`), at the link's page (below),
   `http://HOST:PORT/sign-in?secret=SECRET`. `temper-box open
   DIRECTORY LINK` checks that the link names the engine's address on
@@ -643,7 +643,7 @@ temper's:
   - **Printed and shown at the page:** every link temper makes is in
     the page's form, by jig's ends given that page
     (`default-http.md`, 4): the box's block and every fresh link
-    (`../protocol/setup/box.md`, 2), serve's line, and at a public
+    (`../protocol/setup/box-supervision.md`, 1), serve's line, and at a public
     origin `https://NAME/sign-in?secret=SECRET`; the engine's local
     link at rest (`tui/README.md`, 2); the link the box hands the TUI
     in front of it, which its welcome and `/web`'s note show as given

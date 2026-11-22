@@ -199,7 +199,7 @@ pub enum Note {
         sign_in: u64,
         why: StreamFailure,
     },
-    /// A configured charter may differ from the store's settings (protocol/configuration/README.md, 3).
+    /// A configured charter may differ from the store's settings (protocol/configuration/worker.md, 1).
     StartupWarning {
         line: Box<[u8]>,
     },

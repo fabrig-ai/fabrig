@@ -437,7 +437,7 @@ token makes an App:
   hook to it (6.4); pushed deliveries, checked by `X-Hub-Signature-256`,
   and the log's are told apart by `guid`, and each hints once.
 - **QA does not need it.** QA's boxes run an owned Forgejo, whose
-  webhooks are on loopback (`../protocol/setup/README.md`, section 6).
+  webhooks are on loopback (`../protocol/setup/webhooks.md`, section 1).
 
 ## 8. Credentials that expire
 

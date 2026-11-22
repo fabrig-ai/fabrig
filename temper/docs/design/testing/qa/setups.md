@@ -47,7 +47,7 @@ and adds to them is `places.md`.
 ## 2. The first recipes
 
 - **Their forge** is the box's fake Forgejo elsewhere
-  (`../../protocol/setup/box.md`, 5), the person's
+  (`../../protocol/setup/box-backends.md`, 1), the person's
   (`../../draft/landed-qa.md`, 6): its state kept in the box's data,
   its repositories reached by the box's fake git, its CI a head's own,
   `check` passing unless the head's `.fake-forge/ci` says otherwise
@@ -66,7 +66,7 @@ and adds to them is `places.md`.
   2), so `project-landing` uses `ctl account add-key 1 {model.key}` and
   `ctl account list --until usable`, as `ctl-hello` does.
 - **No `scripts.json`** of their own, so the box's generated scripts
-  answer, strict (`../../protocol/setup/box.md`, 5).
+  answer, strict (`../../protocol/setup/box-backends.md`, 1).
 
 | Recipe | After | Its lines | Reaches |
 |---|---|---|---|
@@ -167,7 +167,7 @@ and adds to them is `places.md`.
   (4.4), as the fixtures' own replays judge them
   (`../real-loop.md`, the ladder's twins).
 - **Strict:** every turn the box asks for is the twin's or fails
-  (`../../protocol/setup/box.md`, 5), so a twin that no longer covers a
+  (`../../protocol/setup/box-backends.md`, 1), so a twin that no longer covers a
   run blocks the cases on it, naming its scripts, and is never a
   finding against temper (`../../draft/landed-qa.md`, 6).
 

@@ -207,7 +207,7 @@ With the user, 2026-10-23. Amends 1, 2.2, 2.3 and 3.4. Mockups:
 ### 2.5 The box's terminal
 
 With the user, 2026-10-23. Amends 3.9; the mechanics are
-`../../protocol/setup/box.md`, 2.
+`../../protocol/setup/box-supervision.md`, 1.
 
 - **Why it changed.** A run on a terminal printed serve's notes and the
   sign-in link mixed, and the link itself cut by them: serve writes it
@@ -292,7 +292,7 @@ deployment that starts:
 - **The clients' listener's port, chosen once:** the default port when
   it can be bound, or one the kernel assigns, written into the
   document. The document always names a fixed port, as a configured
-  GitHub forge requires (../../protocol/configuration/README.md, section 6); a later start on
+  GitHub forge requires (../../protocol/configuration/startup.md, section 1); a later start on
   a port taken refuses, naming it and the document, as any start does.
   An owned forge's port is chosen the same way, and so are the fakes'
   and the webhooks'. Under `temper box` the sockets init chose are
@@ -351,7 +351,7 @@ experience; good defaults for a person's real work are open (section 8).
 - **The repository** is the fake forge's seed: `playground/widget`, a few
   files and a check workflow the fake's CI answers.
 - **Adoption is the demo's start's,** never configuration's:
-  repositories are never configured (../../protocol/configuration/README.md, section 6). The
+  repositories are never configured (../../protocol/configuration/startup.md, section 1). The
   engine adds the demo model's key and adopts `playground/widget` at
   the person's choice (2.3; ../../protocol/setup/playground.md), where the box's seed once
   ran `temper ctl` to do it.
@@ -389,7 +389,7 @@ experience; good defaults for a person's real work are open (section 8).
   argument; init when empty (3.3).
 - **Its steps,** from the document: the fakes' (3.5), fetch, prepare
   and run for each started owned forge, then `temper serve`; a dormant
-  forge's when asked (3.8). Its policy is that of ../../protocol/setup/box.md, 2, unchanged.
+  forge's when asked (3.8). Its policy is that of ../../protocol/setup/box-supervision.md, 1, unchanged.
 - **Its stdout** is `temper serve`'s links alone, each whole; its
   terminal is quiet, and each step's lines are in its log (2.5).
 
@@ -429,7 +429,7 @@ experience; good defaults for a person's real work are open (section 8).
    whole").
 5. **The welcome and the demo's end** (2.3): adopted, closed here.
    The demo's state, the fakes asked, the seed's acts and the end in
-   the engine, `stop` on the pipe (../../protocol/setup/box.md, 1 and 2 and ../../protocol/setup/playground.md;
+   the engine, `stop` on the pipe (../../protocol/setup/box.md, 1, and ../../protocol/setup/box-supervision.md, 1 and ../../protocol/setup/playground.md;
    `../../domain/forge/adoption-connection.md`, 1), the welcome, its wizard and the halves
    in the client (`../../client/pages/README.md` and `../../client/forge/family.md`, 7), and the
    playground's words in the fake's scripts, `temper init`'s document
@@ -442,7 +442,7 @@ experience; good defaults for a person's real work are open (section 8).
   link signs in and the demo project's chat answers a suggested
   request. No test uses the defaults under `$HOME`.
 - **`temper init`** in step tests: the document it writes checks as
-  ../../protocol/configuration/README.md, section 6 says, port chosen and port fallen back.
+  ../../protocol/configuration/startup.md, section 1 says, port chosen and port fallen back.
 - **The arguments' rule** in skein's own tests: flag, variable, default,
   an empty variable.
 - **Fetch** against a local file server with a wrong digest, refused.

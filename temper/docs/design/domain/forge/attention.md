@@ -444,8 +444,8 @@ no brief or wake (`../../draft/what-reaches-you.md`, sections 4 and 6).
 ## 6. What reaches a person
 
 What an agent may decide for a person, and what reaches them, is one
-setting of a project's, its classes (`../../protocol/configuration/settings.md`,
-2, kind 8), judged by one pure function that the forge's `decided`
+setting of a project's, its classes (`../../protocol/configuration/settings-kinds.md`,
+1, kind 8), judged by one pure function that the forge's `decided`
 (5) and the client (`../../client/pages/README.md`) both call: the crate
 `temper-protocol-reaches`, a step crate on `skein-lib` and the client
 wire's records alone (`../../draft/what-reaches-you.md`, sections 2 to 5).
@@ -467,7 +467,7 @@ wire's records alone (`../../draft/what-reaches-you.md`, sections 2 to 5).
     as the triager's question over a group asks it (`../areas.md`, 6,
     *Its groups*). On the wire and in the store it is `ReachKind`'s last
     variant, `findings`, appended so that every earlier value keeps its
-    encoding (`../../protocol/configuration/settings.md`, 2): the
+    encoding (`../../protocol/configuration/settings-kinds.md`, 1): the
     client wire's version moves with its layout
     (`../../protocol/wires.md`, 9), and `temper-store`, a registered
     family, takes the variant in place, its version unmoved and no
@@ -544,7 +544,7 @@ wire's records alone (`../../draft/what-reaches-you.md`, sections 2 to 5).
   bit `i` for its pattern `i`, 0 for any other reason; `away` whether Away
   was on. `Reach::decided` says which. On the wire and in the store a
   reach is the record `Reach`, and a table `ProjectClasses`
-  (`../../protocol/configuration/settings.md`, 2).
+  (`../../protocol/configuration/settings-kinds.md`, 1).
 - **Away may decide** while the table holds an item of `Ask`
   (`Classes::away_may_decide`): what the client's switch is shown by
   (`../../client/pages/README.md`).

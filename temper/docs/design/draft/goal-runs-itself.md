@@ -52,7 +52,7 @@ a model for judgement, code for mechanisms. This draft wins over
 ## 3. temper's goal closer
 
 - **Named by the goal's template:** a goal template's work, kind 11
-  (`../protocol/configuration/settings.md`, 2), gains `closes`, which makes the
+  (`../protocol/configuration/settings-kinds.md`, 1), gains `closes`, which makes the
   goal with temper's closer. Template 4, the reference's and the stock's,
   sets it. A goal without it keeps today's wakes.
 - **In order,** each a step of one procedure:

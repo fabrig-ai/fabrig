@@ -86,8 +86,8 @@ exhaustively with no `_` arm (jig's `domain/root.md`, section 6).
 - **A change's delegates,** in the core's terms: an agent task under the
   forge's charter for producing, repairs, resolutions, and agents' and
   checks' gates (the charter the change was made with, kept on it, which
-  its procedure's delegation grants; `../protocol/configuration/settings.md`,
-  2); a person task for the project's maintainers for a person's
+  its procedure's delegation grants; `../protocol/configuration/settings-kinds.md`,
+  1); a person task for the project's maintainers for a person's
   gate. Its parameters name the repository, its base and the change's
   branch, and a resolution's base commit or a gate's number and head,
   each commit as text: its id in lowercase hexadecimal, 40 digits for a

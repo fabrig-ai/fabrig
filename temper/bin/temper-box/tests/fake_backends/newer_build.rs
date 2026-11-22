@@ -1,4 +1,4 @@
-//! A newer build at the same paths: temper/docs/design/protocol/setup/box.md, 1 and 5.
+//! A newer build at the same paths: temper/docs/design/protocol/setup/box.md, 1, and temper/docs/design/protocol/setup/box-backends.md, 1.
 //! The worker's pin follows temper/docs/design/domain/worker/agent-processes.md, 1;
 //! live executable observations follow temper/docs/design/testing/process-tier.md's newer-build story.
 use crate::support::{

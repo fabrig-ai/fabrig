@@ -48,7 +48,7 @@ shape, below (`binaries.md`, 1): `temper-engine serve` an engine alone (`binarie
   as configuration/README.md, section 2 gives them; an engine alone's the same, but for its
   listener and its workers, by the table's rule, and the root's for
   every shape with an engine; a worker alone's, its worker part's and its
-  entry of `application.workers` (configuration/README.md, section 3), then,
+  entry of `application.workers` (configuration/worker.md, section 1), then,
   once its engine has sent its figures, the limits' checks its side
   holds over them (configuration/figures.md, section 3; configuration/limits.md).
 - **The service** has an optional engine and an optional worker:
@@ -286,8 +286,8 @@ no more; the cluster's workers of several slots are later (7).
 - **A task on each worker, on the deployment's binaries:** the same
   story on the same description, its engine started by
   `temper-engine serve`, each worker by `temper-worker serve`, and each
-  worker's agent `temper-agent AGENT.json` (configuration/README.md, section
-  4) in place of the box's `temper-box internal agent`; the fakes and the
+  worker's agent `temper-agent AGENT.json` (configuration/worker.md, section
+  2) in place of the box's `temper-box internal agent`; the fakes and the
   client stay the box's `temper-box`. The process tier builds the three
   beside the box's binary (`tools/tiers/design.md`). Written and
   compiled in its plan, and run after landing

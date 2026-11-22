@@ -477,7 +477,7 @@ pub struct EmptyIntent {
     pub repository: Box<[u8]>,
     pub label: Box<[u8]>,
 }
-/// The set up's durable choice (temper/docs/design/protocol/setup/owned.md, 7).
+/// The set up's durable choice (temper/docs/design/protocol/setup/owned-repositories.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum FirstIntent {
     Empty(EmptyIntent),
@@ -491,7 +491,7 @@ pub enum SetUpFirst {
     Copies { addresses: Box<[Box<[u8]>]> },
     Nothing,
 }
-/// The row's first-repository choice (temper/docs/design/protocol/setup/owned.md, 7).
+/// The row's first-repository choice (temper/docs/design/protocol/setup/owned-repositories.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum StartsWith {
     Repository,

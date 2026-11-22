@@ -157,7 +157,7 @@ delegate from what it knows:
 - **`producer`:** the number of the charter the change's producing
   task, its repairs, its resolutions and its checks' gates run under
   (../forge/change/README.md, 1); left out, the forge's change charter, kind 3's number
-  1 (`../../protocol/configuration/settings.md`, 2). A charter the newest
+  1 (`../../protocol/configuration/settings-kinds.md`, 1). A charter the newest
   settings do not offer (jig's `domain/engine/settings.md`, 3), or one the
   run's authority may not delegate to (jig's `domain/authority.md`,
   section 3), refuses the call, naming it, as a `delegate` naming it
@@ -210,7 +210,7 @@ delegate from what it knows:
 - **`questions`:** how the change takes its agents' questions (../forge/change/questions.md,
   1): `"none"`, a change that asks no one (`agents.md`, 2); `"up"`, each
   passed straight to the requester; left out, the
-  project's setting (`../../protocol/configuration/settings.md`, 2, kind 6), whose
+  project's setting (`../../protocol/configuration/settings-kinds.md`, 1, kind 6), whose
   default is `"none"`. Any other value is refused, naming it, `"foreman"`
   among them, alone and in a batch's member alike: that route is retired
   (`../../draft/stock-charters.md`, 3), and the schema offers `"none"` and

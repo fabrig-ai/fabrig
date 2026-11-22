@@ -90,14 +90,14 @@
   on the `forges` watch's rows once the request is answered.
 - **`SetUp`:** of the deployment's scope (`../engine.md`): the forge,
   `Making`, a kept owned Forgejo or a new one; and `first`, `SetUpFirst`,
-  with no project (`../../protocol/setup/owned.md`, 7): `empty`, `FirstEmpty`, the
+  with no project (`../../protocol/setup/owned-repositories.md`, 1): `empty`, `FirstEmpty`, the
   org and the name (byte strings, bounded as `Adopt`'s owner and name), made
   unadopted, and `playground`, a bool, the repository made as the
   playground's copy, `playground/widget` with its files, the org and name then
   `playground` and `widget`, and `sample`, a bool, appended, the
   repository made as the sample with its files, the org and name then
   `work` and `hello`, as the welcome's sheet sends it; neither set, the
-  starter workflow alone (`../../protocol/setup/owned.md`, 7); `copies`, `CopyAddresses`, at most
+  starter workflow alone (`../../protocol/setup/owned-repositories.md`, 1); `copies`, `CopyAddresses`, at most
   `FIRST_COPIES` (16) addresses, each at most 512 bytes in the form the
   client's check gives (`../../draft/repository-copies.md`, 5.4), which make no
   repository at set up; or `nothing`. Its outcome, `Answer`'s: *setting up*, the box asked
@@ -528,7 +528,7 @@
   label (at most 64 bytes) and its state, `FirstState`, with no project:
   making; made, with the repository's id (u64);
   or failed, with its step, `CreateStep`: admin, org, repository (its
-  bot's access with it) or file (`../../protocol/setup/owned.md`, 7); its
+  bot's access with it) or file (`../../protocol/setup/owned-repositories.md`, 1); its
   intent, `starts_with`, `StartsWith`: `repository`, that `first` or none
   known yet; `copies`, `CopyAddresses`, the set up's, kept after they are asked;
   or `nothing`; its
@@ -618,8 +618,8 @@
   took, why, overturned, reach }`, `took` the option's words; `asked`, at most
   128, each `Asked { number, task, at, reach }`, a call that was answered ask;
   each list the asking party's alone, newest last; and `cut`, whether either
-  left older rows out. `reach` is a `Reach` (`../../protocol/configuration/settings.md`,
-  2): the kind, the class, the reason, the item used, the sets touched, the
+  left older rows out. `reach` is a `Reach` (`../../protocol/configuration/settings-kinds.md`,
+  1): the kind, the class, the reason, the item used, the sets touched, the
   patterns matched and whether Away was on. *The client watches it* per
   project while a page that shows it is open, at most `DECIDED_PROJECTS`, 4,
   at once (`../pages/home.md`, 1, *Decided for you*), and decodes each reach by the kit's
@@ -647,7 +647,7 @@
   of 400; `cleared`, option, a `FindingClearing { tier, run, at }`, the
   tier, its signature's source, bytes of 64, the run that cleared it
   and when (`../../domain/red-findings.md`, section 6); `areas`, at most 16, each
-  `AreaRow { name, words, owner, holder }`, `owner` an `AreaOwner` (`../../protocol/configuration/settings.md`, 2) and
+  `AreaRow { name, words, owner, holder }`, `owner` an `AreaOwner` (`../../protocol/configuration/settings-kinds.md`, 1) and
   `holder` an option of `Holder`, none where its owner does not stand;
   `triager`, its owner, option, and its holder; and `cut`, whether rows
   were left out. Marked at each committed decision that writes one of
@@ -901,7 +901,7 @@
   - `current`, option, the index of the way the project runs; `own`, the
     project's own path; `words`, option, the project's words, kind 10, a
     `ProjectWords`, `headline` at most 120 bytes and `lede` at most 480
-    (`../../protocol/configuration/settings.md`, 2); `rules`, a `PathRules`,
+    (`../../protocol/configuration/settings-kinds.md`, 1); `rules`, a `PathRules`,
     the project's rules by path (`../../domain/forge/change/branch-path.md`,
     *Rules by path*): `rows`, at most 9, each a `PathRule`, `paths` at most
     256 bytes, `review`, `sign_off` and `lands` at most 64 each, an empty

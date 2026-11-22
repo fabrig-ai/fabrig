@@ -39,7 +39,7 @@ and `forge_setting_commands_print_removed_and_unset_values_and_preserve_refusals
 shown, accepted and restored (`tests/client`'s `settings_tools.rs`,
 `each_kind_through_ctl_proposed_shown_accepted_and_restored`) runs
 through its restart: a project's rule 1 reset to the every-project
-default keeps its retained state (`../../protocol/configuration/settings.status.md`, 2 and `../../protocol/configuration/stock.status.md`
+default keeps its retained state (`../../protocol/configuration/settings-kinds.status.md`, 1 and `../../protocol/configuration/stock.status.md`
 ).
 
 `tools.md`, section 2, and `results.md`, section 1 have no known gap in next-run bounds explanations,

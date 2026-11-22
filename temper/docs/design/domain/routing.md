@@ -5,7 +5,7 @@
 Each event goes to the child it is for, by its variant: the store's
 answers to the journal and to the load that asked (`root.md`, section 7); a
 worker's hello and records, a party's requests, reads and watches, a
-project's period (`../protocol/configuration/README.md`, section 6), accounts'
+project's period (`../protocol/configuration/startup.md`, section 1), accounts'
 events and a git identity's generation to the core; the forge's events
 to the forge; a timer to the child that armed it. What temper adds:
 
@@ -245,7 +245,7 @@ child, the calendar, which renews each project's period.
   funded. The calendar decides; the protocol layer only fires its
   deadline.
 - **At a deployment's first start** the smallest source's periods open
-  as they do now (`../protocol/configuration/README.md`, section 6), and the
+  as they do now (`../protocol/configuration/startup.md`, section 1), and the
   calendar says each one's next start, a span after its start.
 - **A project made after it** has its first period opened by the core
   in the decision that makes it, with no next start (jig's

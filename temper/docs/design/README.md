@@ -246,6 +246,19 @@ forge, temper adds:
   - `protocol/store-restart.md`: the store's restart and restore protocol.
   - `protocol/git.md`: git invocation mechanics, processes and testing.
   - `protocol/git-operations.md`: the checkout's git operations.
+  - `protocol/configuration/settings-kinds.md`: the settings kinds and their values.
+  - `protocol/configuration/settings-output.md`: output-derived bounds for larger models.
+  - `protocol/configuration/worker.md`: the worker and agent configuration.
+  - `protocol/configuration/startup.md`: configuration at the first and later starts.
+  - `protocol/configuration/limits-startup.md`: cross-limit startup checks.
+  - `protocol/configuration/limits-client.md`: engine and client bounds and watch rooms.
+  - `protocol/setup/box-supervision.md`: step supervision, restarts, stops and output.
+  - `protocol/setup/box-backends.md`: the retained sandbox and fake backends.
+  - `protocol/setup/box-front.md`: the box beneath its terminal front.
+  - `protocol/setup/owned-repositories.md`: the first repository and later makes or copies.
+  - `protocol/setup/owned-sign-in.md`: signing in through temper to an owned forge.
+  - `protocol/setup/webhooks.md`: webhook delivery on a box.
+  - `protocol/setup/crate-layout.md`: the setup crates and their dependencies.
 - **`client/`:** temper's client on `jig-client`. Its `README.md` is the
   client: its client root and pages, the forge's client family, its view,
   the terminal, signing in, and the clients' listener; `client/forge/README.md` is the

@@ -25,7 +25,7 @@ skein-io socket
   vocabulary; `skein-forge-connection` depends on the crates below it in
   the diagram. `skein-forge-setup` is the setup's: its host component
   runs in the engine beside the forge component (6). temper runs the
-  plans there alone: no command of temper's drives one (../setup/reconcile.md and ../setup/README.md, section 7
+  plans there alone: no command of temper's drives one (../setup/reconcile.md and ../setup/crate-layout.md, section 1
   ).
 - **The forge component,** `skein-forge-connection`, is a child of the
   engine's protocol layer, beside jig's components, with its own limits,
@@ -111,7 +111,7 @@ skein-io socket
     `web`: GitHub's, and a Forgejo's where a connect gives them apart
     from `git` (`../openid-provider.md`, 7);
   - its git program, the executable workers run for its repositories,
-    or none for their own (../configuration/README.md, section 3): a Forgejo's as
+    or none for their own (../configuration/worker.md, section 1): a Forgejo's as
     its admin's `Connect` gives it, GitHub's none but a test's
     (../setup/place.md, 7); a fake forge runs `demo/bin/git` in the
     data directory (../setup/place.md, 2);
@@ -122,9 +122,9 @@ skein-io socket
     its tokens answer as, written over the one the record was made with
     at each `Check` done (2); a GitHub forge commits as its App's bot,
     from its `AppSlug` and `User` records (5);
-  - for a first set up, its intent, and no project (../setup/owned.md, 7):
+  - for a first set up, its intent, and no project (../setup/owned-repositories.md, 1):
     `Empty`'s organization, name, runner label and whether it is the
-    playground's copy or the sample (../setup/owned.md, 7), kept so that a restart
+    playground's copy or the sample (../setup/owned-repositories.md, 1), kept so that a restart
     before the repository is made makes it at the next connect; `Copies`'
     addresses, kept for the client to ask them at Ready and after a restart;
     or `Nothing`;
@@ -240,7 +240,7 @@ skein-io socket
   - `SetUp` of a new owned Forgejo, under the box alone and while no
     owned forge is kept, chooses its place, a free port on loopback
     (../setup/place.md, 2), and keeps its intent, its row saying
-    it (../setup/owned.md, 7);
+    it (../setup/owned-repositories.md, 1);
   - `Connect` of a new GitHub forge takes github.com's place, or a
     test's fake's (../setup/place.md, 7);
   - `Connect` as a Forgejo's admin (../setup/reconcile.md, 5) takes the address,
@@ -479,7 +479,7 @@ entrance limits and settings before it builds it, with room for
 | `Reconcile { forge, adopted }` | each start of a managed or owned Forgejo; a managed connect; the box's `started`, after its `TakeOver` (2) | converges the forge on what the deployment needs (../setup/reconcile.md), then the forge connects |
 | `TakeOver { forge, admin_token }` | an owned or fake forge's start, or the box's `started`, whenever the handover file is present, even with a kept `AdminToken` (../setup/owned.md, 5) | keeps the handover's admin token; only after its `Done` and the record kept is the file removed, before reconcile |
 | `Adopt { forge, repository }` | a managed or owned forge's adoption, before its reads | gives the bot access to the repository (`../../domain/forge/adoption.md`, 2) |
-| `Create { forge, org, repository, files }` | an owned or managed forge's first repository, at its set up (../setup/owned.md, 7) | the repository made in its organization, the bot given access, the owner's files put on its main (skein's `forge/setup/forgejo.md`, 1.9) |
+| `Create { forge, org, repository, files }` | an owned or managed forge's first repository, at its set up (../setup/owned-repositories.md, 1) | the repository made in its organization, the bot given access, the owner's files put on its main (skein's `forge/setup/forgejo.md`, 1.9) |
 | `Check { forge }` | a connected Forgejo's `Connect` with its pasted tokens, and each `Replace` of them | both tokens answer as one user, not a site admin, and as the kept `User` when there is one, else it writes `User`; it ends `Done(Identity { id, login })`, the login kept as the record's bot's (2) |
 | `Manifest { forge, target }` | GitHub's Connect, always for `Personal`: the App is the person's, public, and installs on any account GitHub offers them (../setup/github.md, 2) | a fresh state, the form's target and the manifest; it ends `Done(Manifest { state, target, manifest })`, from which temper renders the manifest's page (../../client/forge/served.md, 1) |
 | `Convert { forge, code, state }` | GitHub's redirect back | the code exchanged for the App's id, slug and key, the conversion's webhook secret and OAuth pair never kept; the bot user found; it writes `AppId`, `AppSlug`, `AppKey` and `User` |
@@ -674,7 +674,7 @@ service's io.
   tells the root `BoxClosed`: the forge domain fails an ask in flight,
   "the box closed the pipe", and offers no set up after it
   (`../../domain/forge/adoption-connection.md`, 1). serve's own end is
-  the box's to make (../setup/box.md, 2).
+  the box's to make (../setup/box-supervision.md, 1).
 - **Nothing kept.** The link's ask and the states it tells are in
   memory alone (`README.md`, 7.1): a restart makes a pipe and a link afresh, with no
   ask, and a group the box still runs answers the next ask by its own

@@ -56,7 +56,7 @@ deployment: every name here is an example, temper at
   with `sub` the identity, `<provider>:<address>`, which outlives the
   store (`openid-provider.md`, 4).
 - **The source is added on Forgejo's host by a printed command** (`openid-provider.md`, 5;
-  `setup/owned.md`, 8), for a managed Forgejo and `temper-box serve`'s owned one
+  `setup/owned-sign-in.md`, 1), for a managed Forgejo and `temper-box serve`'s owned one
   alike. A box's owned Forgejo sets all of this up by itself (`openid-provider.md`, 9).
 - **No single sign-out** (`openid-provider.md`, 6): the signed-out page says that Forgejo
   keeps its own sign-in.

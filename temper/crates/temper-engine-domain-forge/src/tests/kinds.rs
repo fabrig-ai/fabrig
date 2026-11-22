@@ -1,4 +1,4 @@
-//! The forge's held kinds (temper/docs/design/protocol/configuration/settings.md, 2;
+//! The forge's held kinds (temper/docs/design/protocol/configuration/settings-kinds.md, 1;
 //! temper/docs/design/domain/forge/change/gates.md, 3, and temper/docs/design/domain/forge/effects.md, 2).
 use super::fixtures::{CHANGE, opening_row};
 use super::*;

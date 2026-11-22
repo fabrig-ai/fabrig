@@ -288,7 +288,7 @@ configuring form's calls (`tools.md`) decode as they do, and one answer serves b
     proposing call refused, once, so that a set half lost is never proposed.
   - **Only an asking charter's run** gives parts, the runs the form is declared
     to; another's `more` is refused.
-- **Words with the settings** (`../../protocol/configuration/settings.md`, 2, kinds
+- **Words with the settings** (`../../protocol/configuration/settings-kinds.md`, 1, kinds
   9 and 10): a proposal carries, beside the settings it proposes, the words
   the pages say them by, as items of their own: for each charter it sets,
   its `charter-words`, a line of what the charter does; for a change of
@@ -309,7 +309,7 @@ configuring form's calls (`tools.md`) decode as they do, and one answer serves b
   is given back in.
 - **Approvals at the call:** for an asking charter's run, each landing rule of
   the set, held or its own, that enforces approvals is judged as acceptance judges
-  it (`../../protocol/configuration/settings.md`, 2; `../forge/change/gates.md`, 3), for the chat's
+  it (`../../protocol/configuration/settings-kinds.md`, 1; `../forge/change/gates.md`, 3), for the chat's
   project alone: on a forge of the project's repositories the rule covers, a role
   with fewer eligible people than it requires refuses the call in acceptance's
   words, as does a rule covering the playground's fake forge. Another project's

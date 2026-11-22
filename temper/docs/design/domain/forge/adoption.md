@@ -316,7 +316,7 @@ public address, adopted into a project when `into` names one
   service sees the forge's writing runs, so it pulls: when no writing
   run is live on a connected forge, it asks the connector for the
   forge's oldest `Waiting` row, starts its plan and tells the connector
-  (`../../protocol/setup/owned.md`, 9). So a row waits for reconcile, a set up,
+  (`../../protocol/setup/owned-repositories.md`, 2). So a row waits for reconcile, a set up,
   an adoption's access or another copy, and restarts need no path of
   their own.
 - **`Copying`** (skein's `forge/setup/forgejo.md`, 1.10) is the row's `copying`:

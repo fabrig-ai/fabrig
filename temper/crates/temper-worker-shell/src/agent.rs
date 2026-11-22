@@ -1,4 +1,4 @@
-//! The worker's agent: its document read and preflighted (protocol/binaries.md, 5; protocol/configuration/README.md, 4).
+//! The worker's agent: its document read and preflighted (protocol/binaries.md, 5; protocol/configuration/worker.md, 2).
 pub mod figures;
 use jig_domain_link::{Bounds, EndpointBound};
 use std::{

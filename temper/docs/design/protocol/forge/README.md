@@ -303,7 +303,7 @@ alone (../setup/README.md, section 9).
   the keep's first listing finds what it told of.
 - **Hooks are set up by reconcile, or by the person,** at
   `http://<listener>/hooks/<number>`, with the forge's secret, the
-  events of skein's `forge/README.md`, section 6, JSON and active (../setup/README.md, section 4 and ../setup/reconcile.md and ../setup/README.md, section 6
+  events of skein's `forge/README.md`, section 6, JSON and active (../setup/README.md, section 4 and ../setup/reconcile.md and ../setup/webhooks.md, section 1
   ; skein's `forge/setup/forgejo.md`, section 1.3, step 6).
   A repository with no hook polls (`../../domain/forge/adoption.md`).
 

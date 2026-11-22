@@ -736,7 +736,7 @@ presses the switch across projects: the render check and the walk remain
   including one with no role in the deployment, where the request has their
   values for everyone: the heads omit application items, and the review and
   proposal-value read keep the deployment role because items span scopes
-  (`../../protocol/configuration/settings.md`, 2).
+  (`../../protocol/configuration/settings-kinds.md`, 1).
 
 - **Design departs:** *The welcome* and *Home*, from the request `ui-welcome`
   of 2026-11-05, decided by its plan's cut. A plan's way at its address, with no
@@ -747,7 +747,7 @@ presses the switch across projects: the render check and the walk remain
   reads as any in the project, "ORG/NAME is in PROJECT" and "Chats can change its
   code now.", where the request has each copy ticked and then "Chats can change its
   code now…": `../README.md`, section 5 holds it. The sheet alerts past 16 addresses, where the request
-  names no bound: the wire and the store need one (`../../protocol/setup/owned.md`, 7).
+  names no bound: the wire and the store need one (`../../protocol/setup/owned-repositories.md`, 1).
 
 - **Design departs:** *Goals*, and `goal.md`, 2, from the mock's `goals.html` and
   `goal.html`, by the request `ui-goal-asks-2`, decided by its cut: a row and a goal's
