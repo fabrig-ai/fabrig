@@ -6,6 +6,13 @@ mod http;
 mod instance;
 pub use binary::{Forgejo, Refusal};
 pub use instance::Instance;
+
+#[cfg(target_os = "linux")]
+#[doc(hidden)]
+pub mod testing {
+    pub use crate::cli::testing::run_user;
+}
+
 use std::{fmt, path::PathBuf};
 #[derive(Debug, Clone)]
 pub struct Settings {

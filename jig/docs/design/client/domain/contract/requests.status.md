@@ -1,7 +1,6 @@
 # requests: status
 
-2026-11-16. Where the tree's code lags or departs from [requests.md](requests.md).
-
+2026-11-21. Where the tree's code lags or departs from [requests.md](requests.md).
 
 
 - **Not yet:** 2: `RemoveProject` of a project with a live task is admitted, not refused *live tasks* [in flight: change 628].

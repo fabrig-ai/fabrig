@@ -3,7 +3,7 @@ use crate::{Limits, translate::watches as translate};
 use alloc::boxed::Box;
 use jig_client_protocol_wire as w;
 use jig_domain_core_vocabulary as core;
-use skein_lib::{Env, Map, Time, Token};
+use skein_lib::{Env, Map, Time, Token, Wall};
 #[derive(Debug)]
 pub(crate) struct Watch {
     pub name: u64,
@@ -43,6 +43,7 @@ pub(crate) enum Phase {
 pub(crate) struct Stream {
     pub name: [u8; 16],
     pub sign_in: u64,
+    pub sign_in_expires: Wall,
     pub me: Option<Token>,
     pub hello: Option<w::Hello>,
     pub opened: bool,
@@ -60,10 +61,11 @@ impl Stream {
     pub fn closing(&self) -> bool {
         self.phase == Phase::Closing
     }
-    pub fn new(name: [u8; 16], sign_in: u64, env: &Env<Limits>) -> Self {
+    pub fn new(name: [u8; 16], sign_in: u64, sign_in_expires: Wall, env: &Env<Limits>) -> Self {
         Self {
             name,
             sign_in,
+            sign_in_expires,
             me: None,
             hello: None,
             opened: false,

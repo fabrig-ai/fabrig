@@ -431,7 +431,7 @@ among the forge's; 16 is the report's ceiling of flakes (5.6).
   replacements, ends and goal releases over a few goals and keys keep each
   goal within `forge.branch_reds`, each key once, its generations
   increasing, and every answer naming only the live records of its goal.
-- **The store:** the families' records drift, pinned constructs, built-value
+- **The store:** the families' records drift, built-value
   round trips and registered value types, with no patch
   (`../../protocol/floor.md`, 6).
 - **The tool:** each act decoded, each refusal, each answer rendered,

@@ -118,21 +118,27 @@ ideal_s = 40
 
 [gate.default.skein.step]
 cpu_s = 7
+instructions = 42_000_000_000
 
 [gate.default.skein.domain]
 cpu_s = 2
+instructions = 9_600_000_000
 
 [gate.default.skein.machine]
 cpu_s = 5
+instructions = 37_500_000_000
 
 [gate.default.skein.protocol]
 cpu_s = 7
+instructions = 45_800_000_000
 
 [gate.default.skein.io]
 cpu_s = 2
+instructions = 10_600_000_000
 
 [gate.default.skein.simulated]
 cpu_s = 3
+instructions = 48_100_000_000
 
 [gate.default.skein.real-loop]
 cpu_s = 7
@@ -151,18 +157,23 @@ ideal_s = 30
 
 [gate.default.smith.step]
 cpu_s = 7
+instructions = 62_500_000_000
 
 [gate.default.smith.domain]
 cpu_s = 3
+instructions = 17_200_000_000
 
 [gate.default.smith.system]
 cpu_s = 2
+instructions = 7_100_000_000
 
 [gate.default.smith.protocol]
 cpu_s = 3
+instructions = 22_200_000_000
 
 [gate.default.smith.simulated]
 cpu_s = 11
+instructions = 73_200_000_000
 
 [gate.default.smith.real-loop]
 cpu_s = 2
@@ -193,23 +204,33 @@ ideal_s = 30
 
 [gate.default.jig.step]
 cpu_s = 47
+instructions = 343_100_000_000
 ideal_s = 1
+ideal_instructions = 7_200_000_000
 
 [gate.default.jig.domain]
 cpu_s = 4
+instructions = 301_600_000_000
 ideal_s = 17
+ideal_instructions = 84_600_000_000
 
 [gate.default.jig.machine]
 cpu_s = 2
+instructions = 17_900_000_000
 ideal_s = 1
+ideal_instructions = 8_900_000_000
 
 [gate.default.jig.protocol]
 cpu_s = 13
+instructions = 49_700_000_000
 ideal_s = 8
+ideal_instructions = 51_600_000_000
 
 [gate.default.jig.simulated]
 cpu_s = 110
+instructions = 275_900_000_000
 ideal_s = 3
+ideal_instructions = 13_900_000_000
 
 [gate.default.jig.real-loop]
 cpu_s = 2
@@ -234,28 +255,40 @@ ideal_s = 100
 
 [gate.default.temper.step]
 cpu_s = 253
+instructions = 1_932_500_000_000
 ideal_s = 25
+ideal_instructions = 189_800_000_000
 
 [gate.default.temper.domain]
 cpu_s = 136
+instructions = 641_400_000_000
 ideal_s = 20
+ideal_instructions = 89_800_000_000
 
 [gate.default.temper.system]
 cpu_s = 111
+instructions = 633_000_000_000
 ideal_s = 25
+ideal_instructions = 142_600_000_000
 
 [gate.default.temper.machine]
 cpu_s = 4
+instructions = 29_400_000_000
 ideal_s = 1
+ideal_instructions = 7_300_000_000
 
 [gate.default.temper.protocol]
 cpu_s = 9
+instructions = 50_400_000_000
 ideal_s = 1
+ideal_instructions = 5_600_000_000
 reference_s = 1
 
 [gate.default.temper.simulated]
 cpu_s = 470
+instructions = 2_321_400_000_000
 ideal_s = 15
+ideal_instructions = 74_100_000_000
 reference_s = 2
 
 [gate.default.temper.real-loop]
@@ -291,18 +324,24 @@ ideal_s = 30
 
 [gate.default.hearth.step]
 cpu_s = 2
+instructions = 8_700_000_000
 
 [gate.default.hearth.domain]
 cpu_s = 4
+instructions = 27_200_000_000
 
 [gate.default.hearth.machine]
 cpu_s = 13
+instructions = 119_200_000_000
 
 [gate.default.hearth.real-loop]
 cpu_s = 11
 
 [gate.default.hearth.end-to-end]
 cpu_s = 2
+
+[gate.default.hearth.simulated]
+instructions = 25_300_000_000
 
 [[gate.default.moves]]
 from = "hearth.real-loop"
@@ -315,6 +354,7 @@ ideal_s = 30
 
 [gate.default.repository.checks]
 cpu_s = 72
+instructions = 633_400_000_000
 
 [[gate.default.moves]]
 from = "jig.simulated"
@@ -366,21 +406,27 @@ ideal_s = 120
 
 [gate.fuzzy.skein.step]
 cpu_s = 32
+instructions = 215_700_000_000
 
 [gate.fuzzy.skein.domain]
 cpu_s = 2
+instructions = 11_500_000_000
 
 [gate.fuzzy.skein.machine]
 cpu_s = 43
+instructions = 345_400_000_000
 
 [gate.fuzzy.skein.protocol]
 cpu_s = 23
+instructions = 149_000_000_000
 
 [gate.fuzzy.skein.io]
 cpu_s = 21
+instructions = 115_000_000_000
 
 [gate.fuzzy.skein.simulated]
 cpu_s = 2
+instructions = 123_300_000_000
 
 [gate.fuzzy.skein.real-loop]
 cpu_s = 20
@@ -399,18 +445,23 @@ ideal_s = 120
 
 [gate.fuzzy.smith.step]
 cpu_s = 3
+instructions = 35_700_000_000
 
 [gate.fuzzy.smith.domain]
 cpu_s = 16
+instructions = 100_100_000_000
 
 [gate.fuzzy.smith.system]
 cpu_s = 2
+instructions = 9_600_000_000
 
 [gate.fuzzy.smith.protocol]
 cpu_s = 3
+instructions = 22_500_000_000
 
 [gate.fuzzy.smith.simulated]
 cpu_s = 13
+instructions = 77_900_000_000
 
 [gate.fuzzy.smith.real-loop]
 cpu_s = 2
@@ -435,18 +486,23 @@ ideal_s = 120
 
 [gate.fuzzy.jig.step]
 cpu_s = 4
+instructions = 21_600_000_000
 
 [gate.fuzzy.jig.domain]
 cpu_s = 9
+instructions = 354_200_000_000
 
 [gate.fuzzy.jig.machine]
 cpu_s = 2
+instructions = 16_700_000_000
 
 [gate.fuzzy.jig.protocol]
 cpu_s = 55
+instructions = 206_100_000_000
 
 [gate.fuzzy.jig.simulated]
 cpu_s = 72
+instructions = 181_900_000_000
 
 [gate.fuzzy.jig.real-loop]
 cpu_s = 2
@@ -465,21 +521,27 @@ ideal_s = 180
 
 [gate.fuzzy.temper.step]
 cpu_s = 13
+instructions = 175_700_000_000
 
 [gate.fuzzy.temper.domain]
 cpu_s = 78
+instructions = 366_600_000_000
 
 [gate.fuzzy.temper.system]
 cpu_s = 13
+instructions = 71_700_000_000
 
 [gate.fuzzy.temper.machine]
 cpu_s = 2
+instructions = 9_700_000_000
 
 [gate.fuzzy.temper.protocol]
 cpu_s = 2
+instructions = 7_800_000_000
 
 [gate.fuzzy.temper.simulated]
 cpu_s = 196
+instructions = 966_800_000_000
 
 [gate.fuzzy.temper.real-loop]
 cpu_s = 198
@@ -507,15 +569,20 @@ cpu_s = 1
 
 [gate.fuzzy.hearth.domain]
 cpu_s = 32
+instructions = 221_800_000_000
 
 [gate.fuzzy.hearth.machine]
 cpu_s = 50
+instructions = 427_000_000_000
 
 [gate.fuzzy.hearth.real-loop]
 cpu_s = 9
 
 [gate.fuzzy.hearth.end-to-end]
 cpu_s = 1
+
+[gate.fuzzy.hearth.simulated]
+instructions = 59_800_000_000
 
 [[gate.fuzzy.moves]]
 from = "hearth.real-loop"

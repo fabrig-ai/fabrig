@@ -55,11 +55,11 @@ fn arbitrary(seed: u64, rng: &mut Rng, limits: &Limits, bounds: &str) {
     }
 }
 
-fn mutated(seed: u64, rng: &mut Rng, limits: &Limits, bounds: &str, golden: &[u8], golden_index: usize) {
-    decoders(seed, golden, limits, bounds, format_args!("golden {golden_index} original"));
+fn mutated(seed: u64, rng: &mut Rng, limits: &Limits, bounds: &str, fixed_value: &[u8], fixed_value_index: usize) {
+    decoders(seed, fixed_value, limits, bounds, format_args!("fixed_value {fixed_value_index} original"));
     for mutation in 0..MUTATIONS {
-        let mut bytes = golden.to_vec();
-        let position = index(rng, bytes.len().checked_add(1).expect("golden length"));
+        let mut bytes = fixed_value.to_vec();
+        let position = index(rng, bytes.len().checked_add(1).expect("fixed-rule value length"));
         match mutation {
             0 | 1 => {
                 if let Some(value) = bytes.get_mut(position) {
@@ -87,20 +87,20 @@ fn mutated(seed: u64, rng: &mut Rng, limits: &Limits, bounds: &str, golden: &[u8
             }
             _ => unreachable!("bounded mutations"),
         }
-        decoders(seed, &bytes, limits, bounds, format_args!("golden {golden_index} mutation {mutation}"));
+        decoders(seed, &bytes, limits, bounds, format_args!("fixed_value {fixed_value_index} mutation {mutation}"));
     }
 }
 
-fn public_values() -> Vec<skein_codegen::Golden> {
+fn public_values() -> Vec<skein_codegen::FixedValue> {
     let text = jig_client_protocol_wire::PUBLIC_SCHEMA;
-    skein_codegen::values(text).goldens.clone()
+    skein_codegen::values(text).fixed.clone()
 }
 
 #[test]
 fn public_records_decode_without_panic_and_re_encode_what_they_decode() {
-    let mut goldens = public_values();
-    goldens.sort_by(|left, right| left.name.cmp(&right.name));
-    assert!(!goldens.is_empty(), "public golden corpus, seed {FIRST_SEED:#x}");
+    let mut fixed_values = public_values();
+    fixed_values.sort_by(|left, right| left.name.cmp(&right.name));
+    assert!(!fixed_values.is_empty(), "public fixed_value corpus, seed {FIRST_SEED:#x}");
     for seed in FIRST_SEED..FIRST_SEED.checked_add(SEEDS).expect("seed range") {
         let mut rng = Rng::new(seed);
         for (bounds_name, bounds) in [
@@ -111,8 +111,8 @@ fn public_records_decode_without_panic_and_re_encode_what_they_decode() {
         ] {
             let limits = public_limits(&bounds).expect("public bounds within ceilings");
             arbitrary(seed, &mut rng, &limits, bounds_name);
-            for (golden_index, golden) in goldens.iter().enumerate() {
-                mutated(seed, &mut rng, &limits, bounds_name, &golden.bytes, golden_index);
+            for (fixed_value_index, fixed_value) in fixed_values.iter().enumerate() {
+                mutated(seed, &mut rng, &limits, bounds_name, &fixed_value.bytes, fixed_value_index);
             }
         }
     }

@@ -291,6 +291,7 @@ fn request(ask: &people::Ask) -> Option<(Act, Subject)> {
         | people::Ask::PauseWorker { .. }
         | people::Ask::MoveToNewest { .. }
         | people::Ask::MakeProject { .. }
+        | people::Ask::ReissueService { .. }
         | people::Ask::Compound { .. }
         | people::Ask::Propose { .. }
         | people::Ask::Create { .. }

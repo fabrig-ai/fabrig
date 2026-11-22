@@ -162,7 +162,9 @@ pub(crate) fn client_me_with_models(
 ) -> c::Me {
     let reads::Answer::Document(document) = read(driver, reads::Read::Frame) else { panic!("party frame") };
     let d::Document::Frame(frame) = *document else { panic!("frame document") };
-    let frame = clients::translate::owner::frame(&frame, models, &w::CEILINGS).expect("encoded frame");
+    let frame =
+        clients::translate::owner::frame(&frame, skein_lib::Wall::from_nanos(86_400_000_000_000), models, &w::CEILINGS)
+            .expect("encoded frame");
     let limits = jig_client_protocol_link::Limits::new(bounds, 8).expect("client bounds");
     jig_client_protocol_link::translate::documents::frame(frame, &limits).expect("client frame")
 }

@@ -256,6 +256,18 @@ impl Decoded {
     /// Resolve names and load trust after the caller blocks termination signals.
     /// Trust diagnostics go only to the supplied operator writer.
     pub fn resolve(self, errors: &mut dyn std::io::Write) -> Result<Configuration, ConfigurationRefusal> {
+        #[cfg(unix)]
+        let lookup = find_rg;
+        #[cfg(not(unix))]
+        let lookup = |_: Option<&[u8]>| None;
+        self.resolve_with_rg(errors, lookup)
+    }
+
+    fn resolve_with_rg(
+        self,
+        errors: &mut dyn std::io::Write,
+        lookup: impl FnOnce(Option<&[u8]>) -> Option<std::path::PathBuf>,
+    ) -> Result<Configuration, ConfigurationRefusal> {
         let Self {
             program,
             program_endpoints,
@@ -268,16 +280,10 @@ impl Decoded {
             trace,
             endpoints,
         } = self;
-        #[cfg(unix)]
-        let rg = find_rg(path.as_deref()).map_or_else(
+        let rg = lookup(path.as_deref()).map_or_else(
             || Box::from(b"/usr/bin/rg".as_slice()),
             |path| path.into_os_string().into_encoded_bytes().into(),
         );
-        #[cfg(not(unix))]
-        let rg = {
-            drop(path);
-            Box::from(b"/usr/bin/rg".as_slice())
-        };
         let llm_endpoints =
             llm::Endpoints::new(native::endpoints(endpoints.llm, &limits.llm.connection, errors)?, ENDPOINTS)
                 .map_err(|error| format!("LLM endpoints: {error:?}"))?;

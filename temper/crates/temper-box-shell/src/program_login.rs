@@ -54,7 +54,8 @@ pub(crate) fn run(
     temper_worker_shell::program_login::run_command(command(directories, name, environment)?)
 }
 /// The box's POSIX command, without NAME (client/forge/records.md, *The printed command*).
-pub(crate) fn line(directories: &super::Directories, binary: &[u8], home: Option<&[u8]>) -> Option<String> {
+#[must_use]
+pub fn line(directories: &super::Directories, binary: &[u8], home: Option<&[u8]>) -> Option<String> {
     use std::fmt::Write;
     let mut command = format!("{} program-login", std::str::from_utf8(binary).ok()?);
     for (flag, path) in [("config", &directories.config), ("data", &directories.data), ("cache", &directories.cache)] {

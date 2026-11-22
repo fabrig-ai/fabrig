@@ -3,12 +3,12 @@ use skein_lib::{List, Writer};
 use smith_transcript::Record;
 use smith_transcript::v7 as smith;
 
-// The golden's first text is "abc"; the second fills another three bytes.
+// The fixed-rule value's first text is "abc"; the second fills another three bytes.
 const FIELD_TEXT: u32 = 3;
 const TURN_TEXT: u32 = 6;
-const TEXT_BLOCKS: u32 = 2; // The golden's text followed by the added text.
+const TEXT_BLOCKS: u32 = 2; // The fixed_value's text followed by the added text.
 
-// The golden turn with a second text block appended.
+// The fixed-rule value turn with a second text block appended.
 fn turn_with(second: &[u8]) -> Box<[u8]> {
     let source = smith_transcript::decode_archived(&smith::CEILINGS, &fixtures::full_turn()).unwrap();
     let mut source = source;

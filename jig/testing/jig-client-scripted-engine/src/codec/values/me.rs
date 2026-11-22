@@ -66,6 +66,7 @@ pub(in crate::codec) fn wire_me(value: &c::Me, limits: &w::Limits) -> Result<w::
         key_bytes: value.key_bytes,
         redirect_bytes: value.redirect_bytes,
         words_bytes: value.words_bytes,
+        sign_in_expires: value.sign_in_expires.as_nanos(),
     })
 }
 

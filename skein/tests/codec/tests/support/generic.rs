@@ -47,7 +47,7 @@ impl Oracle<'_> {
             }
             (Err(Refusal::Problem(problem)), generated::Decoded::Problem { path, reason }) => {
                 if valid {
-                    return Err(format!("draw or golden refused: {problem:?}"));
+                    return Err(format!("draw or fixed-rule value refused: {problem:?}"));
                 }
                 if !self.value.bytes().is_empty() {
                     return Err("refusal empties the value".into());
@@ -133,7 +133,7 @@ fn render_type(schema: &Schema, value: &Value, node: Node, ty: TypeIx) -> String
 }
 
 #[must_use]
-pub fn golden_root(schema: &Schema, name: &str) -> DeclIx {
+pub fn named_root(schema: &Schema, name: &str) -> DeclIx {
     (0..schema.declarations())
         .map(DeclIx::new)
         .find(|decl| {
@@ -144,7 +144,7 @@ pub fn golden_root(schema: &Schema, name: &str) -> DeclIx {
             };
             name.starts_with(&format!("{prefix}_{}_", snake(spelling(schema, declaration.name))))
         })
-        .expect("golden names its declaration")
+        .expect("value or file names its declaration")
 }
 
 // Every's largest tree has fewer than 128 nodes at its ceilings; all other
