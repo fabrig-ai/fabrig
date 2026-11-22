@@ -1,4 +1,5 @@
 use crate::{View, landing_ended, task_name};
+use jig_domain_tasks as tasks;
 use skein_lib::Time;
 use skein_world::inspect::{Inspection, Wait, Wake};
 use temper_engine_domain_forge::{LandingRow, Operation};
@@ -32,6 +33,7 @@ fn landing_wait(view: &View<'_>, row: &LandingRow) -> Option<Wait> {
     let (kind, mut wakes) =
         if row.room.is_some() { ("landing: room".to_owned(), room(view)) } else { landing(view, row, awaited?) };
     if row.room.is_none() {
+        person_release(view, task, &mut wakes);
         wakes.extend(view.read_wakes(task));
         if let Some(due) = view.forge.inspection_landing_due(task) {
             wakes.push(Wake::Timer(Time::from_nanos(due.as_nanos())));
@@ -53,6 +55,7 @@ fn change_wait(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) -> 
         ("change: room", room(view))
     } else {
         let mut wakes = change_wakes(view, row);
+        person_release(view, task, &mut wakes);
         // Containment detaches a merge from the change before its withdrawal
         // settles. The release still waits for that outbox entry's answer.
         for entry in view.forge.inspection_settling_entries(task) {
@@ -74,6 +77,37 @@ fn change_wait(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) -> 
         (kind, wakes)
     };
     Some(Wait { waiter: task_name(task), kind: kind.into(), wakes, bound: bound(view, row) })
+}
+
+// A person's hold can stop jig without changing the forge procedure's step.
+// Resource and circle holds need their own wake; a person is not their fallback.
+fn person_release(view: &View<'_>, task: u64, wakes: &mut Vec<Wake>) {
+    let Some(row) = view.root.and_then(|root| root.tasks().task(task)) else { return };
+    let tasks::Phase::Held { why, .. } = row.phase else { return };
+    let released = match why {
+        tasks::Hold::Exceeded(_)
+        | tasks::Hold::Failures(_)
+        | tasks::Hold::Stalled
+        | tasks::Hold::Stopped
+        | tasks::Hold::Placed { .. }
+        | tasks::Hold::Drift
+        | tasks::Hold::Effects
+        | tasks::Hold::EffectFailed
+        | tasks::Hold::Uncertain { .. }
+        | tasks::Hold::Budget
+        | tasks::Hold::Deadline
+        | tasks::Hold::Procedure => true,
+        tasks::Hold::Dependency(_)
+        | tasks::Hold::HoldsWaited
+        | tasks::Hold::ResourceUnavailable
+        | tasks::Hold::ResourceAccess
+        | tasks::Hold::PoolLost { .. }
+        | tasks::Hold::Circle => false,
+    };
+    let wake = Wake::Party("person".into());
+    if released && !wakes.contains(&wake) {
+        wakes.push(wake);
+    }
 }
 
 fn change_wakes(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) -> Vec<Wake> {

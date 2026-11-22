@@ -83,6 +83,125 @@ fn a_restored_prepare_wait_without_its_job_is_a_root_finding() {
     assert_eq!(checks.quiet(&world.root, world.env.now, 4), Err(finding));
 }
 
+fn held_producing(why: tasks::Hold) -> (World, u64, u64) {
+    let (mut world, _, producer, _) = temper_engine_domain_world::forge_routes::change_world(true, 1000, None);
+    let tasks::Party::Task(change) = world.root.tasks().task(producer.task).expect("producer").requester else {
+        panic!("change requester")
+    };
+    world.hold_reads_at_any_step = true;
+    world.held_reads = Some(Vec::new());
+    let branch = world.root.forge().change(change).expect("change row").branch.clone();
+    let base = world.root.forge().change(change).expect("change row").base.clone();
+    let tip = world.fake.branch(b"org/repo", &base).expect("base");
+    world.external(
+        2,
+        skein_fake_forge_domain::api::Op::Git(skein_fake_forge_domain::api::Git::Create {
+            branch: branch.clone(),
+            commit: tip,
+        }),
+    );
+    let head =
+        skein_fake_forge_domain::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"fixed", 1)
+            .expect("push");
+    let event = world.protocol.answer(
+        skein_lib::Token::new(7),
+        producer.task,
+        producer.attempt,
+        5,
+        tasks::End::Finished {
+            result: tasks::TaskResult::Change {
+                title: tasks::ChangeTitle::new(b"Change".as_slice().into()),
+                connector: 0,
+                kind: 2,
+                resource: forge::tag(1, 2),
+                words: b"pushed".as_slice().into(),
+            },
+            cancel_delegates: false,
+        },
+        engine::Parts {
+            pushed: Box::new([forge::Pushed {
+                tag: producer.workspace.repositories[0].tag,
+                commit: temper_engine_forge_world::translate::commit(head),
+                checked: true,
+            }]),
+            ..engine::Parts::none()
+        },
+    );
+    world.send(event);
+    for _ in 0..1000 {
+        world.tick();
+        if world.root.tasks().task(producer.task).is_none() && world.root.tasks().procedure_due(change).is_some() {
+            break;
+        }
+    }
+    let producer = producer.task;
+    let (connector, code, step) = world.root.tasks().procedure_due(change).expect("change gathering reads");
+    engine::step(
+        &mut world.root,
+        &world.env,
+        engine::Event::Party(engine::PartyInput::ProcedureStep {
+            task: change,
+            step,
+            connector,
+            code,
+            decision: engine::ProcedureStep::new(engine::StepEnd::Hold(why)),
+        }),
+    );
+    assert!(matches!(world.root.tasks().task(change).expect("held task").phase,
+        tasks::Phase::Held { why: reason, .. } if reason == why));
+    // Drain the old gather while the procedure itself is held, then freeze an
+    // unheld procedure beside the independently held jig task.
+    let mut row = world.root.forge().change(change).expect("change row").clone();
+    row.change.state = temper_engine_domain_forge_change::State::Held {
+        was: Box::new(row.change.state),
+        why: temper_engine_domain_forge_change::Hold::Stalled,
+    };
+    engine::step(
+        &mut world.root,
+        &world.env,
+        engine::Event::Forge(Box::new(forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) })),
+    );
+    world.oracle_settle();
+    assert!(matches!(world.root.tasks().task(change).expect("held task").phase,
+        tasks::Phase::Held { why: reason, .. } if reason == why));
+    let mut row = world.root.forge().change(change).expect("change row").clone();
+    row.change.state = temper_engine_domain_forge_change::State::Producing { requested: true };
+    row.delegate = Some((producer, temper_engine_domain_forge_change::Delegate::Produce));
+    row.delegate_status = temper_engine_domain_forge_change::Status::Unknown;
+    row.pending = None;
+    engine::step(
+        &mut world.root,
+        &world.env,
+        engine::Event::Forge(Box::new(forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) })),
+    );
+    engine::fire(&mut world.root, &world.env);
+    (world, change, producer)
+}
+
+#[test]
+fn a_resource_held_change_with_an_ended_producer_has_no_live_wake() {
+    let (world, change, producer) = held_producing(tasks::Hold::ResourceUnavailable);
+    let finding = Checks::new(71).quiet(&world.root, world.env.now, 1).expect_err("resource hold has no release wake");
+    assert_eq!(
+        finding,
+        format!(
+            "seed 71: at {} ns, iteration 1: engine task {change}: waits on change: producing with no live wake: [ended task {producer}]",
+            world.env.now.as_nanos(),
+        )
+    );
+}
+
+#[test]
+fn a_person_stopped_change_with_an_ended_producer_has_a_release_wake() {
+    let (world, change, producer) = held_producing(tasks::Hold::Stopped);
+    let mut inspection = Inspection::new("engine", temper_engine_inspect::KINDS);
+    temper_engine_inspect::inspect(&world.root, &mut inspection);
+    let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {change}")).expect("change wait");
+    assert_eq!(wait.kind, "change: producing");
+    assert_eq!(wait.wakes, vec![Wake::Ended(format!("task {producer}")), Wake::Party("person".into())]);
+    assert_eq!(Checks::new(71).quiet(&world.root, world.env.now, 1), Ok(()));
+}
+
 #[test]
 fn a_goals_change_lands_with_checks_at_every_quiet_point() {
     use temper_engine_domain_world::kinds;
