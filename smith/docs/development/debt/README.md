@@ -23,9 +23,9 @@ to read.
 Not here:
 
 - **Where the code lags or departs from its design:** that is the
-  document's status file (`smith/docs/design/STATUS.md` lists them). An
-  item that is also a gap covers the code's side and names the status
-  file.
+  document's status file (`smith/docs/design/STATUS.md` tells how to
+  roll them up). An item that is also a gap covers the code's side and
+  names the status file.
 - **Bugs,** and **features not built yet:** the backlog.
 - **Mechanical forms the ratchet already counts** (`smith/scripts/old-forms.txt`),
   unless paying them needs more than a sweep.

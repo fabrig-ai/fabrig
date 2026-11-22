@@ -53,7 +53,7 @@ pub(crate) fn closer(reason: &[u8], limits: &Limits) -> Box<[u8]> {
     bounded(&[b"Its closer failed, past its ", tries.as_bytes(), suffix, reason], limits)
 }
 
-fn bounded(parts: &[&[u8]], limits: &Limits) -> Box<[u8]> {
+pub(crate) fn bounded(parts: &[&[u8]], limits: &Limits) -> Box<[u8]> {
     let bound = usize_of(limits.result_bytes);
     let mut length = 0_usize;
     for part in parts {

@@ -87,7 +87,7 @@ sys.exit(int(count > 0))
     def deliver(self, packages=('api',), expected_bundle=None,
                 clippy_answer=(0, []), one_process_answer=(0, [], None), process_answer=None,
                 build_answer=(0, ''), events=None, directories=None, dependencies=None, formatting_answer=(), hold=None,
-                metadata_forbidden=False, stderr=None):
+                metadata_forbidden=False, stderr=None, goal=None, child=None, light=False):
         calls = []
         events = [] if events is None else events
         data = self.metadata(packages, directories, dependencies)
@@ -95,6 +95,17 @@ sys.exit(int(count > 0))
         def run(arguments, cwd, env, output=None, stdout=False):
             calls.append((arguments, cwd))
             self.assertNotIn('TIERS_LEDGER', env)
+            if arguments == ['cargo', 'fmt', '--all', '--check']:
+                self.assertEqual(env['CARGO_NET_OFFLINE'], 'true')
+                if 'CARGO_TARGET_DIR' in self.env:
+                    self.assertEqual(env['CARGO_TARGET_DIR'], self.env['CARGO_TARGET_DIR'])
+                else:
+                    target = Path(env['CARGO_TARGET_DIR'])
+                    self.assertEqual(target.name, 'format-target')
+                    self.assertTrue(target.parent.is_dir())
+                return (1, formatting_answer[0]['log']) if formatting_answer else (0, '')
+            if env.get('CARGO_TARGET_DIR', '').endswith('/format-target'):
+                self.fail('format target escaped its command')
             if arguments[:2] == ['cargo', 'build']:
                 events.append(arguments)
                 self.assertEqual(env['TEMPER_INTERNAL_BUNDLE'], 'none')
@@ -140,7 +151,15 @@ sys.exit(int(count > 0))
                 mock.patch.object(PRE_PR, 'one_process', side_effect=test_check) as one_process, \
                 mock.patch.object(PRE_PR, 'run', side_effect=run), \
                 contextlib.redirect_stdout(log), contextlib.redirect_stderr(stderr if stderr is not None else log):
-            result = PRE_PR.main()
+            if goal is not None:
+                result = PRE_PR.main('goal', goal)
+            elif child is not None:
+                result = PRE_PR.main('child', child)
+            elif light:
+                result = PRE_PR.main()
+            else:
+                # Exercise the full check internals against mutable scratch fixtures.
+                result = PRE_PR.main('full')
         self.clippy_mock = clippy
         self.one_process_mock = one_process
         log.flush()
@@ -149,7 +168,338 @@ sys.exit(int(count > 0))
             self.assertTrue(one_process.called, captured.getvalue().decode())
             self.assertEqual(clippy.call_args.args[3]['TEMPER_INTERNAL_BUNDLE'], expected_bundle)
             self.assertEqual(one_process.call_args.args[2]['TEMPER_INTERNAL_BUNDLE'], expected_bundle)
-        return result, captured.getvalue().decode(), calls, (formatting.called, clippy.called, one_process.called)
+        formatted = formatting.called or any(args[:2] == ['cargo', 'fmt'] for args, _ in calls)
+        return result, captured.getvalue().decode(), calls, (formatted, clippy.called, one_process.called)
+
+    def test_default_delivery_never_builds_or_takes_a_hold_and_publishes_only_cheap_observations(self):
+        self.write('.temper/merge', '# merge change\n')
+        self.write('api/assets/fixture', 'package input\n')
+        self.write('guide.md', '# Docs\n')
+        self.write('.git/temper/reds-wait', 'temper-reds-wait 1 10\n')
+        self.write('.git/temper/reds', 'temper-reds 1\n- test fabrig-boundary::outward no_file_names_the_lab\n'
+                                      '- test api::rules expensive_case\n- lint api clippy::rule api/src/lib.rs\n')
+        self.write('.git/temper/check-results', 'prior native results')
+        self.write('.git/pre-pr-passed', 'prior full pass')
+        self.write('target/temper/pre-pr-failures.json', 'prior full receipt')
+        self.write('.git/temper/repair-trial', 'stale repair invitation')
+        self.env['TIERS_HOLD'] = 'unexpected-build-hold'
+        self.env['CARGO_TARGET_DIR'] = str(self.root / 'target/selected')
+        with mock.patch.object(PRE_PR, 'test_binaries', side_effect=AssertionError('loaded build inventory')):
+            result, log, calls, checks = self.deliver(light=True, metadata_forbidden=True,
+                                                      hold=mock.Mock(side_effect=AssertionError('took hold')))
+        self.assertEqual(result, 0, log)
+        self.assertEqual(checks, (True, False, False))
+        self.assertEqual([args for args, _ in calls if args[0] == 'cargo'], [['cargo', 'fmt', '--all', '--check']])
+        self.assertEqual(sum('scripts/old_forms.py' in args for args, _ in calls), 5)
+        self.assertTrue(any('tools/citations/citations.py' in args for args, _ in calls))
+        self.assertFalse(any('tools/merge/test_merge.py' in args for args, _ in calls))
+        record = json.loads((self.root / 'target/temper/pre-pr-light-failures.json').read_text())
+        self.assertEqual((record['scope'], record['verdict']), ('light', 'passed'))
+        self.assertEqual((self.root / '.git/pre-pr-passed').read_text(), 'prior full pass')
+        self.assertEqual((self.root / 'target/temper/pre-pr-failures.json').read_text(), 'prior full receipt')
+        self.assertEqual((self.root / '.git/temper/repair-trial').read_text(), 'stale repair invitation')
+        native = (self.root / '.git/temper/check-results').read_text().splitlines()
+        self.assertEqual(native, ['temper-check 1', f'check {record["tree"]} {record["base"]} passed',
+                                  'passed test fabrig-boundary::outward no_file_names_the_lab'])
+
+    def test_default_missing_or_unrelated_pin_retains_cheap_checks_and_refuses_format_fault(self):
+        self.write('api/src/lib.rs', 'pub fn child() {}\n')
+        self.write('temper/docs/design/client/web/journeys/example/01.html', 'written page\n')
+        self.write('tools/tiers/budgets.toml', '# edited\n')
+        self.env['TIERS_HOLD'] = 'unexpected-build-hold'
+        for pin in ('missing', 'unrelated'):
+            with self.subTest(pin=pin):
+                if pin == 'missing':
+                    self.command('git', 'update-ref', '-d', 'refs/temper/landing')
+                else:
+                    other = self.command('git', 'commit-tree', 'HEAD^{tree}', '-m', 'unrelated').strip()
+                    self.command('git', 'update-ref', 'refs/temper/landing', other)
+                result, log, calls, checks = self.deliver(light=True, metadata_forbidden=True,
+                    hold=mock.Mock(side_effect=AssertionError('took hold')),
+                    formatting_answer=[PRE_PR.failure('format', 'format fault')])
+                self.assertEqual(result, 1, log)
+                self.assertEqual(checks, (True, False, False))
+                self.assertEqual(sum('scripts/old_forms.py' in args for args, _ in calls), 5)
+                self.assertEqual([args for args, _ in calls if args[0] == 'cargo'], [['cargo', 'fmt', '--all', '--check']])
+                for script in ('tools/outward/outward.py', 'tools/citations/citations.py', 'tools/tiers/figures.py'):
+                    self.assertTrue(any(script in args for args, _ in calls), script)
+                self.assertIn('written journey file:', log)
+                receipt = json.loads((self.root / 'target/temper/pre-pr-light-failures.json').read_text())
+                self.assertIsNone(receipt['base'])
+                self.assertEqual(receipt['verdict'], 'refused')
+                self.assertIn('format', [e['name'] for e in receipt['failures']])
+
+    def test_default_package_asset_without_cargo_metadata_and_docs_without_cargo(self):
+        self.write('api/assets/input.sql', 'select 1;\n')
+        result, log, _, checks = self.deliver(light=True, metadata_forbidden=True)
+        self.assertEqual(result, 0, log)
+        self.assertEqual(checks, (True, False, False))
+        self.command('git', 'clean', '-fd')
+        self.write('temper/docs/example.md', '# Guide\n')
+        result, log, calls, checks = self.deliver(light=True, metadata_forbidden=True)
+        self.assertEqual(result, 0, log)
+        self.assertEqual(checks, (False, False, False))
+        self.assertFalse(any(args[0] == 'cargo' for args, _ in calls))
+
+    def test_goal_requires_exact_commit_ids_and_one_merge_base(self):
+        head = self.command('git', 'rev-parse', 'HEAD').strip()
+        tree = self.command('git', 'rev-parse', 'HEAD^{tree}').strip()
+        def commit(*parents):
+            return self.command('git', 'commit-tree', tree, *parents, '-m', 'goal fixture').strip()
+        unrelated = commit()
+        child = commit('-p', head)
+        for goal, why in (
+                ([], 'expected the full goal head and destination'),
+                ([head[:8], head], 'full commit ID'),
+                ([head, 'refs/temper/landing'], 'full commit ID'),
+                ([head, '0' * 40], 'commit unavailable'),
+                ([head, tree], 'commit unavailable'),
+                ([child, head], 'checkout HEAD differs'),
+                ([head, unrelated], 'one common merge base')):
+            with self.subTest(goal=goal):
+                result, log, calls, checks = self.deliver(goal=goal)
+                self.assertEqual(result, 1, log)
+                self.assertIn(why, log)
+                self.assertFalse(calls or any(checks))
+        # Two independently made merges of the same pair have two merge bases.
+        left = commit('-p', child, '-p', unrelated)
+        right = commit('-p', unrelated, '-p', child)
+        self.command('git', 'checkout', '--detach', left)
+        result, log, _, checks = self.deliver(goal=[left, right])
+        self.assertEqual(result, 1, log)
+        self.assertIn('one common merge base', log)
+        self.assertFalse(any(checks))
+
+    def test_goal_rejects_dirty_checkout_and_a_change_during_checks(self):
+        self.write('api/src/lib.rs', 'fn changed() {}\n')
+        self.command('git', 'commit', '-qam', 'goal')
+        goal = [self.command('git', 'rev-parse', ref).strip() for ref in ('HEAD', 'HEAD^')]
+        for state in ('dirty', 'staged', 'staged and restored', 'untracked', 'merge'):
+            with self.subTest(state=state):
+                if state == 'merge':
+                    self.write('.git/MERGE_HEAD', goal[1] + '\n')
+                else:
+                    self.write('new.txt' if state == 'untracked' else 'guide.md', state)
+                    if state.startswith('staged'):
+                        self.command('git', 'add', 'guide.md')
+                    if state == 'staged and restored':
+                        self.write('guide.md', '# Guide\n')
+                result, log, _, checks = self.deliver(goal=goal)
+                self.assertEqual(result, 1, log)
+                self.assertIn('pending merge' if state == 'merge' else 'clean index and worktree', log)
+                self.assertFalse(any(checks))
+                self.command('git', 'reset', '--hard', goal[0])
+                self.command('git', 'clean', '-fd')
+        @contextlib.contextmanager
+        def moved(*args, **kwargs):
+            # Same tree, different commit while waiting for the builder.
+            self.command('git', 'commit', '--allow-empty', '-qm', 'moved')
+            yield
+        result, log, _, _ = self.deliver(goal=goal, hold=moved)
+        self.assertEqual(result, 1, log)
+        self.assertIn('checkout HEAD differs', log)
+
+    def test_goal_binds_diverged_destination_without_delivery_local_rules_or_cache(self):
+        base = self.command('git', 'rev-parse', 'HEAD').strip()
+        self.command('git', 'checkout', '-qb', 'destination')
+        self.write('api/src/lib.rs', 'fn destination_only() {}\n')
+        self.command('git', 'commit', '-qam', 'destination advanced')
+        destination = self.command('git', 'rev-parse', 'HEAD').strip()
+        self.command('git', 'checkout', '-qb', 'goal', base)
+        self.write('temper/docs/design/client/web/journeys/fixture/01.html', 'recorded page\n')
+        self.command('git', 'add', '.')
+        self.command('git', 'commit', '-qm', 'writer')
+        self.write('tools/tiers/budgets.toml', '# approved budget change\n')
+        self.command('git', 'add', '.')
+        self.command('git', 'commit', '-qm', 'budgets')
+        head = self.command('git', 'rev-parse', 'HEAD').strip()
+        self.command('git', 'update-ref', '-d', 'refs/temper/landing')
+        # A stale delivery cache and its red list cannot supply aggregate evidence.
+        cache = 'ordinary receipt'
+        self.write('.git/pre-pr-passed', cache)
+        self.write('.git/temper/reds', 'temper-reds 1\n- test fabrig-boundary::t sibling\n')
+        error = PRE_PR.failure('test fabrig-boundary::t sibling', 'sibling failed',
+                               ('fabrig-boundary::t', 'sibling'), 'fabrig-boundary')
+        result, log, calls, checks = self.deliver(goal=[head, destination], packages=('api', 'fabrig-boundary'),
+                                                  one_process_answer=(1, [error], None))
+        self.assertEqual(result, 1, log)
+        self.assertTrue(checks[2])
+        self.assertIn(f'goal head {head}, destination {destination}, merge base {base}', log)
+        self.assertIn('test fabrig-boundary::t sibling', log)
+        self.assertIn('pre-pr: journeys: passed', log)
+        self.assertFalse(any('tools/tiers/figures.py' in args for args, _ in calls))
+        self.assertEqual((self.root / '.git/pre-pr-passed').read_text(), cache)
+        record = json.loads((self.root / 'target/temper/pre-pr-failures.json').read_text())
+        self.assertEqual((record['goal_head'], record['destination'], record['base']), (head, destination, base))
+        self.assertEqual(record['counts']['new'], 1)
+        self.assertEqual(record['counts']['inherited'], 0)
+        result, log, calls, checks = self.deliver(goal=[head, destination], packages=('api', 'fabrig-boundary'))
+        self.assertEqual(result, 0, log)
+        self.assertTrue(checks[2])
+        self.assertEqual((self.root / '.git/pre-pr-passed').read_text(), cache)
+        self.assertFalse(self.clippy_mock.called, 'the only Rust change was on the destination')
+        self.assertEqual(self.one_process_mock.call_args.args[0], ['fabrig-boundary'])
+        self.write('temper/docs/design/client/web/journeys/overlay.css', 'body {}\n')
+        self.command('git', 'add', '.')
+        self.command('git', 'commit', '-qm', 'nonempty overlay')
+        changed = self.command('git', 'rev-parse', 'HEAD').strip()
+        result, log, _, _ = self.deliver(goal=[changed, destination], packages=('api', 'fabrig-boundary'))
+        self.assertEqual(result, 1, log)
+        self.assertIn('nonempty overlay:', log)
+
+    def test_child_runs_only_cheap_checks_without_publishing_a_full_pass(self):
+        self.write('api/src/lib.rs', 'pub fn child_edit() {}\n')
+        self.write('tools/merge/merge.py', '# merge edit\n')
+        self.write('guide.md', '# Child guide\n')
+        self.write('tools/merge/test_merge.py', 'raise SystemExit(0)\n')
+        destination = self.command('git', 'rev-parse', 'HEAD').strip()
+        self.env['TIERS_HOLD'] = 'unexpected-builder-hold'
+        self.write('.git/temper/check-results', 'prior full results')
+        self.write('target/temper/pre-pr-failures.json', 'prior full failures')
+        def forbidden(*args, **kwargs):
+            self.fail('child requested the builder hold')
+        result, log, calls, checks = self.deliver(child=[destination], hold=forbidden)
+        self.assertEqual(result, 0, log)
+        self.assertEqual(checks, (True, False, False))
+        self.assertEqual(sum('scripts/old_forms.py' in args for args, _ in calls), 5)
+        for tool in ('tools/citations/citations.py', 'tools/outward/outward.py'):
+            self.assertTrue(any(tool in args for args, _ in calls))
+        self.assertFalse(any((args[0] == 'cargo' and args[1] != 'fmt') or 'tools/merge/test_merge.py' in args
+                             for args, _ in calls))
+        self.assertFalse((self.root / '.git/pre-pr-passed').exists())
+        self.assertEqual((self.root / 'target/temper/pre-pr-failures.json').read_text(), 'prior full failures')
+        self.assertEqual((self.root / '.git/temper/check-results').read_text(), 'prior full results')
+        record = json.loads((self.root / 'target/temper/goal-child-pre-pr.json').read_text())
+        self.assertEqual((record['form'], record['scope'], record['destination'], record['verdict']),
+                         ('goal-child-pre-pr 1', 'child', destination, 'passed'))
+
+        # The same candidate must still take the full build path.
+        del self.env['TIERS_HOLD']
+        result, log, _, checks = self.deliver()
+        self.assertEqual(result, 0, log)
+        self.assertEqual(checks, (True, True, True))
+        cache = (self.root / '.git/pre-pr-passed').read_text()
+        result, log, _, checks = self.deliver(child=[destination], hold=forbidden)
+        self.assertEqual(result, 0, log)
+        self.assertEqual(checks, (True, False, False))
+        self.assertNotIn('passed before', log)
+        self.assertEqual((self.root / '.git/pre-pr-passed').read_text(), cache)
+
+    def test_child_mixed_journey_and_raised_budget_refuse_the_delivery(self):
+        tools = Path(__file__).resolve().parents[1] / 'tiers'
+        self.write('tools/citations/citations.py', 'raise SystemExit(0)\n')
+        for name in ('figures.py', 'cpu.py'):
+            self.write('tools/tiers/' + name, (tools / name).read_text())
+        budgets = 'tools/tiers/budgets.toml'
+        self.write(budgets, '[browser-skein]\ncpu_suite_s = 10\n')
+        self.write('tools/tiers/layers.toml', 'layers = ["step"]\n')
+        self.pin()
+        destination = self.command('git', 'rev-parse', 'HEAD').strip()
+        self.write(budgets, '[browser-skein]\ncpu_suite_s = 11\n')
+        result, log, _, _ = self.deliver(child=[destination])
+        self.assertEqual(result, 0, log)
+        self.write('temper/docs/design/client/web/journeys/fixture/01.html', 'generated page\n')
+        result, log, _, checks = self.deliver(child=[destination])
+        self.assertEqual(result, 1, log)
+        self.assertEqual(checks, (True, False, False))
+        self.assertIn('figure raised: browser-skein cpu_suite_s: 10 to 11', log)
+        self.assertIn('written journey file:', log)
+        record = json.loads((self.root / 'target/temper/goal-child-pre-pr.json').read_text())
+        self.assertEqual(record['verdict'], 'refused')
+        self.assertEqual([e['name'] for e in record['failures']], ['figures', 'journeys'])
+
+    def test_child_requires_the_exact_landing_pin_and_a_valid_diff_base(self):
+        destination = self.command('git', 'rev-parse', 'HEAD').strip()
+        tree = self.command('git', 'rev-parse', 'HEAD^{tree}').strip()
+        other = self.command('git', 'commit-tree', tree, '-m', 'unrelated history').strip()
+        for args, pin, why in (([], destination, 'expected a full child destination'),
+                               ([destination[:10]], destination, 'expected a full child destination'),
+                               ([destination, other], destination, 'expected a full child destination'),
+                               ([other], destination, 'differs from the worker landing pin'),
+                               ([other], other, 'no merge base'), ([destination], None, 'no refs/temper/landing')):
+            with self.subTest(args=args, pin=pin):
+                if pin is None:
+                    self.command('git', 'update-ref', '-d', 'refs/temper/landing')
+                else:
+                    self.command('git', 'update-ref', 'refs/temper/landing', pin)
+                result, log, calls, checks = self.deliver(child=args)
+                self.assertEqual(result, 1, log)
+                self.assertIn(why, log)
+                self.assertFalse(calls or any(checks))
+        self.command('git', 'update-ref', 'refs/temper/landing', destination)
+        self.write('api/src/lib.rs', 'pub fn changed() {}\n')
+        original = PRE_PR.outward
+        def move_pin(*args):
+            self.command('git', 'update-ref', 'refs/temper/landing', other)
+            return original(*args)
+        with mock.patch.object(PRE_PR, 'outward', side_effect=move_pin):
+            result, log, _, _ = self.deliver(child=[destination])
+        self.assertEqual(result, 1, log)
+        self.assertIn('destination differs from the worker landing pin', log)
+
+    def test_child_refuses_when_the_checked_tree_changes(self):
+        destination = self.command('git', 'rev-parse', 'HEAD').strip()
+        self.write('api/src/lib.rs', 'pub fn child() {}\n')
+        def change_tree(*args):
+            self.write('api/src/lib.rs', 'pub fn later_edit() {}\n')
+            return 0, []
+        with mock.patch.object(PRE_PR, 'outward', side_effect=change_tree):
+            result, log, _, _ = self.deliver(child=[destination])
+        self.assertEqual(result, 1, log)
+        self.assertIn('child delivery tree changed during checks', log)
+
+    def test_child_binds_same_tree_head_and_all_pending_merge_parents(self):
+        head = self.command('git', 'rev-parse', 'HEAD').strip()
+        tree = self.command('git', 'rev-parse', 'HEAD^{tree}').strip()
+        parents = [self.command('git', 'commit-tree', tree, '-p', head, '-m', tag).strip()
+                   for tag in ('first', 'second', 'third')]
+        self.write('api/src/lib.rs', 'pub fn child_edit() {}\n')
+        for changed in ('head', 'second merge parent'):
+            with self.subTest(changed=changed):
+                self.command('git', 'update-ref', 'HEAD', head)
+                self.write('.git/MERGE_HEAD', '\n'.join(parents[:2]) + '\n')
+                def move(*args):
+                    if changed == 'head':
+                        self.command('git', 'update-ref', 'HEAD', parents[2])
+                    else:
+                        self.write('.git/MERGE_HEAD', parents[0] + '\n' + parents[2] + '\n')
+                    return 0, []
+                with mock.patch.object(PRE_PR, 'outward', side_effect=move):
+                    result, log, _, _ = self.deliver(child=[head])
+                self.assertEqual(result, 1, log)
+                self.assertIn('child HEAD or pending merge heads changed during checks', log)
+                receipt = json.loads((self.root / 'target/temper/goal-child-pre-pr.json').read_text())
+                self.assertEqual(receipt['delivery_head'], head)
+                self.assertEqual(receipt['merge_heads'], parents[:2])
+
+    def test_child_outward_inherits_goal_red_without_publishing_check_results(self):
+        head = self.command('git', 'rev-parse', 'HEAD').strip()
+        entries = (self.root / 'tools/outward/names.txt').read_text().splitlines()
+        name = next(line[4:] for line in entries if line and not line.startswith('#'))
+        self.write('api/src/lib.rs', f'// {name}\n')
+        self.write('.git/temper/reds-wait', 'temper-reds-wait 1 10\n')
+        self.write('.git/temper/reds', 'temper-reds 1\n- test fabrig-boundary::outward no_file_names_the_lab\n')
+        result, log, _, _ = self.deliver(child=[head])
+        self.assertEqual(result, 0, log)
+        self.assertIn('inherited: test fabrig-boundary::outward no_file_names_the_lab', log)
+        receipt = json.loads((self.root / 'target/temper/goal-child-pre-pr.json').read_text())
+        self.assertEqual(receipt['counts']['inherited'], 1)
+        self.assertFalse((self.root / '.git/temper/check-results').exists())
+
+    def test_goal_and_child_refuse_if_they_cannot_replace_their_receipt(self):
+        head = self.command('git', 'rev-parse', 'HEAD').strip()
+        for context, filename in ((dict(child=[head]), 'goal-child-pre-pr.json'),
+                                  (dict(goal=[head, head]), 'pre-pr-failures.json')):
+            with self.subTest(context=context):
+                result, log, _, _ = self.deliver(**context)
+                self.assertEqual(result, 0, log)
+                receipt = self.root / 'target/temper' / filename
+                previous = receipt.read_bytes()
+                receipt.with_name(filename + '.tmp').mkdir()
+                result, log, _, _ = self.deliver(**context)
+                self.assertEqual(result, 1, log)
+                self.assertIn('not written to target/temper/' + filename, log)
+                self.assertEqual(previous, receipt.read_bytes())
 
     def test_base_table(self):
         for row in ('no pin', 'unrelated', 'behind'):

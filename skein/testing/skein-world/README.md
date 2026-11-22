@@ -26,6 +26,13 @@ child's roots; a kill closes every descriptor still owned by the child.
 Parent and child may select the same directory, but never share descriptor
 ownership.
 
+The `streams` module derives independent workload, fault, party and scheduling RNGs, each with named parts, from a world's seed (`skein/docs/design/testing/sweeps.md`, 2).
+
+The `faults` module keeps one run's injected faults, closed intervals, struck
+identities and six independent counters (`skein/docs/design/testing/sweeps.md`, 3).
+
+The `sweep` module checks that configured faults fell across seeds and leaves out named exclusions' combinations before injection, never findings (`skein/docs/design/testing/sweeps.md`, 4 and 5).
+
 The `domain` module is the shared machinery of domain worlds:
 
 - `Schedule`, `Key` and latency `Span`: deterministic delivery times,
@@ -39,6 +46,9 @@ The `domain` module is the shared machinery of domain worlds:
   observation referee is separate from the crate-root process referee.
 - `domain::heap`: explicit reexports of `skein-heap`'s existing `Counting`,
   `Meter` and `Measured`; there is one allocator implementation.
+
+`inspect` supplies frozen component records and shared wait and table checks,
+filled by each component's own adapter (`skein/docs/design/testing/inspection.md`).
 
 These helpers are ordinary Rust used only by tests. The world supplies
 clock values, limits and observations, bounds the work it scripts and

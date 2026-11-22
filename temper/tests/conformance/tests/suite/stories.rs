@@ -115,6 +115,12 @@ fn an_issue_creation_recovers_its_focused_commit_cuts() {
 }
 
 #[test]
+fn a_ci_repair_keeps_a_push_reported_while_catching_up() {
+    let outcome = stories::run(Story::RepairCi, Cut::AfterCommit(42), 101).expect("the pending push survives restart");
+    assert!(outcome.crashes.contains(&42));
+}
+
+#[test]
 fn a_ci_repair_keeps_its_settle_wait_across_restart() {
     let cut = 32 + Temper::store(&Config::for_story(101, Story::RepairCi)).applied - 1;
     let outcome = stories::run(Story::RepairCi, Cut::AfterCommit(cut), 101).expect("settling survives restart");

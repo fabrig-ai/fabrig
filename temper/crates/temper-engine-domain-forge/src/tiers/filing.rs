@@ -1,7 +1,7 @@
 //! A landing verdict files only failures not held by its tier (domain/red-findings.md, 2–5 and 9).
 use super::{Domain, Env, Limits, List, Request, TierRow, p, red};
 use crate::findings::{
-    BlameStrength, BlamedGoal, BlamedLanding, FindingBlame, FindingKind, FindingState, FindingWrite, VerdictFiling,
+    BlameStrength, BlamedLanding, FindingBlame, FindingKind, FindingState, FindingWrite, VerdictFiling,
 };
 use alloc::boxed::Box;
 use skein_forge::api::Commit;
@@ -22,6 +22,7 @@ pub(super) fn finish(
     out: &mut Queue<Request>,
 ) -> bool {
     clearing::judged(d, env, row, verdict, out);
+    crate::findings::judging::judged(d, env, row, verdict, out);
     let mut filings = prepare(d, row, verdict, &env.limits, &[]);
     let mut needs_logs = false;
     for filing in &filings.rows {
@@ -86,6 +87,7 @@ pub(crate) fn switched(d: &mut Domain, task: u64, verification: &crate::Verifica
         let (held, many_held) = held(d, &row, project);
         if let Some(failures) = remaining(failures, held.as_slice(), many_held) {
             let blame = FindingBlame {
+                moved: None,
                 strength,
                 landings: Box::new([landing(d, &row, verification.commit, &d.landing.limits)]),
             };
@@ -159,19 +161,7 @@ fn remaining(failing: &p::Failures, held: &[Box<[u8]>], many_held: bool) -> Opti
     }
 }
 fn landing(d: &Domain, row: &TierRow, commit: Commit, limits: &Limits) -> BlamedLanding {
-    let mut goals = List::with_capacity(limits.landing_members);
-    for member in words::members(d, row, commit) {
-        let Some(goal) = member.goal else { continue };
-        let mut seen = false;
-        for kept in &goals {
-            let kept: &BlamedGoal = kept;
-            seen |= kept.goal == goal;
-        }
-        if !seen && goals.room() > 0 {
-            goals.push(BlamedGoal { goal, milestone: member.milestone, person: member.person }).expect("goal room");
-        }
-    }
-    BlamedLanding { commit, goals: goals.into_boxed() }
+    crate::findings::blamed_landing(commit, &words::members(d, row, commit), limits.landing_members)
 }
 
 fn prepare(d: &Domain, row: &TierRow, verdict: &p::Verdict, limits: &Limits, logs: &[crate::JobLog]) -> Filings {
@@ -203,6 +193,7 @@ fn prepare(d: &Domain, row: &TierRow, verdict: &p::Verdict, limits: &Limits, log
             p::Blame::Owns(_) => {
                 if let Some(failing) = remaining(failing, held.as_slice(), many_held) {
                     let blame = FindingBlame {
+                        moved: None,
                         strength: BlameStrength::Owned,
                         landings: Box::new([landing(d, row, candidate.commit, limits)]),
                     };
@@ -231,7 +222,7 @@ fn prepare(d: &Domain, row: &TierRow, verdict: &p::Verdict, limits: &Limits, log
     suspected.sort();
     let suspected = if suspect_many { p::Failures::Many } else { p::Failures::Tests(suspected) };
     if let Some(failing) = remaining(&suspected, held.as_slice(), many_held) {
-        let blame = FindingBlame { strength: BlameStrength::Suspected, landings: suspects.into_boxed() };
+        let blame = FindingBlame { moved: None, strength: BlameStrength::Suspected, landings: suspects.into_boxed() };
         filings.rows.push(words::red(d, row, verdict, failing, blame, logs)).expect("one suspected filing");
     }
     let mut excluded = held;
@@ -239,7 +230,7 @@ fn prepare(d: &Domain, row: &TierRow, verdict: &p::Verdict, limits: &Limits, log
         excluded.push(id).expect("held and blamed ids");
     }
     if let Some(failing) = remaining(&verdict.failing, excluded.as_slice(), many_held || blamed_many) {
-        let blame = FindingBlame { strength: BlameStrength::Unblamed, landings: Box::new([]) };
+        let blame = FindingBlame { moved: None, strength: BlameStrength::Unblamed, landings: Box::new([]) };
         filings.rows.push(words::red(d, row, verdict, failing, blame, logs)).expect("one unblamed filing");
     }
     flakes(d, row, verdict, project, &mut filings);

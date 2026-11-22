@@ -14,15 +14,25 @@ with no build, `temper/docs/design/draft/small-fixes-1116.md`, 1 and 3,
 and, for the budgets it holds where its builder keeps main's ledgers,
 `temper/docs/design/draft/test-budgets.md`, 3, and for the layers it
 runs, the same draft's 4.
-Coding agents run no build
-or test; this check runs what the delivery changed, on the agent's warm
-checkout, before anything is pushed. A pull request into a goal's branch runs
-no CI, so this is a change's only check before it lands there; the landing's
-CI into main, the project's full gate (`.config/gate/README.md`), is the
-guard. An agent can change what this check runs: it is not a security
-boundary (smith's run.md, 8.1).
 
 ## 1. In one page
+
+Every worker `deliver` and `finish` runs `.temper/pre-pr` in the checkout.
+This is the light check for changes, direct deliveries and repairs on every
+destination. It uses the format and counted-baseline checks for code and the
+applicable citation, outward-name, journey and budget-figure rules. Formatting uses offline `cargo fmt --all --check`. The light
+check invokes the formatter directly through Cargo's fmt subcommand and
+skips the build hold, Clippy, test builds and test suites, including when
+the checkout has no landing pin. It writes its own diagnostics to
+`target/temper/pre-pr-light-failures.json` and its observed results for the
+worker to `temper/check-results` when the worker requests them.
+
+The designated CI job invokes `.temper/goal-pre-pr HEAD DESTINATION` for
+the full selected builds and tests against the accumulated diff (section 2).
+Main's landing Gate has its own workflow. Both repository commands run
+afresh. The older combined driver's selection, hold, cache and repair
+behavior is documented below for interpreting earlier checkouts and tests.
+A light pass certifies the checks that ran on that delivery.
 
 - **A base the worker pins.** The worker writes `refs/temper/landing`, the
   landing branch's tip as fetched at prepare, in each change producer's
@@ -191,6 +201,30 @@ boundary (smith's run.md, 8.1).
   The worker writes it at prepare alone, and the next hold writes it
   afresh.
 
+### Delivery and CI entry points
+
+The default light check requires no goal ID, destination argument or
+worker upgrade. A checkout with a landing pin uses it for the per-change
+comparison. The explicit `.temper/goal-child-pre-pr DESTINATION` command
+also checks light rules and verifies that the supplied commit matches the
+worker's pin. Its scoped report is `target/temper/goal-child-pre-pr.json`.
+
+`.temper/goal-pre-pr HEAD DESTINATION` checks a completed goal in an
+isolated checkout at HEAD. The caller supplies both full commit IDs and
+the history needed to find their common ancestor. The command requires a
+clean index and worktree, the specified head, and a single merge base.
+It selects the entire diff from that base to HEAD, including changes
+introduced by merged children. An independent advance on the destination
+leaves the comparison at the fork. The selected packages run through the
+ordinary build, lint and test commands with the same builder hold.
+
+Journey file mixing and budget figure changes are judged on each delivery.
+The whole-tree empty-overlay rule also applies at goal completion.
+The completed-goal command runs afresh and records the goal head,
+destination and comparison base in its verdict. The CI caller uses the
+exit status and validates the receipt against the exact pair it requested.
+A later head or destination requires a fresh invocation.
+
 ## 3. What it selects
 
 - **The tree** is the working tree as git sees it, untracked files
@@ -220,7 +254,8 @@ boundary (smith's run.md, 8.1).
 - **Code inputs:** Rust (`.rs`); Cargo manifests and locks; rustfmt,
   clippy and Rust toolchain configuration, including under `docs/`;
   non-docs paths under a `.cargo/` directory, `.config/` and `tools/`;
-  `.temper/pre-pr`; `skein/scripts/*.sh` (the boundary profile check's
+  `.temper/pre-pr`, `.temper/goal-child-pre-pr` and `.temper/goal-pre-pr`;
+  `skein/scripts/*.sh` (the boundary profile check's
   inputs); each tree's
   `scripts/old_forms.py` and `scripts/old-forms.txt`; and non-docs paths
   owned by workspace packages or matching a prefixed path reader below.

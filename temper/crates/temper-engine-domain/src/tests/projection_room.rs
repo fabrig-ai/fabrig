@@ -101,11 +101,8 @@ fn full_outbox() -> (crate::Domain, Env<crate::Limits>, u64, u64) {
             &mut out,
         );
     }
-    for event in [
-        forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic },
-        forge::Event::ReadAfresh,
-        forge::Event::SettleOutbox,
-    ] {
+    for event in [forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic }, forge::Event::CatchUp]
+    {
         forge::step(&mut domain.forge, &env.with(env.limits.forge), event, &mut out);
     }
     assert!(!domain.forge.effect_room(&env.limits.forge));

@@ -245,7 +245,13 @@ default; the document is `temper.json` in the configuration directory
   kind, `kind KIND`, KIND the name of its `std::io::ErrorKind` variant
   (`kind Other`). The open
   registers layouts, runs jobs and checks as a start would, restores,
-  and stops before its switch step. After the floor check and before
+  and runs on to the opening with no network (jig's
+  `protocol/store/opening.md`, 5, *On to the opening*): the switch and
+  the wires inside the scratch, the runs adopted with no worker, the
+  calendar given its periods, decisions opened, and the forge's
+  catching up begun with every forge call answered `Unavailable` at
+  once, its connection closed as the check prepares
+  (`../domain/forge/catching-up.md`); it ends at the opening. After the floor check and before
   its plan it decodes every record by its registry layout, or by the
   current text for a family outside the registry (jig's
   `protocol/store/opening.md`, 5, "Every record decoded"); the first
@@ -256,13 +262,19 @@ default; the document is `temper.json` in the configuration directory
   job as a start's (below), ending `; time unavailable`, and the
   `whole rehearsal/tool time: {nanoseconds} ns`. It prints the refusal
   a start would meet, in a start's words, or `registry commit, jobs and
-  restores pass; what follows the switch is not rehearsed`; then
+  restores pass; opened in {milliseconds} ms`, the time from the
+  store's open to the opening on the check's clock; then, for each
+  forge kept and not ended, by number, `forge {n} would catch up:
+  {words}`, its `CatchingUp` at the opening in
+  `../domain/forge/catching-up.md`, 5's words after "Catching up: ",
+  or `forge {n} would catch up: nothing` where every count is zero; then
   whether each worker may stay, by the opening the copy keeps of it,
+  read before the check's own wires commit,
   and whether the workers may: yes when every worker the configuration
   names may, no naming each that may not and why, unknown when
   the copy keeps no wires (`wires.md`, 10.2; `../draft/upgrades.md`,
   section 3.1; `../draft/redeploys.md`, 5.1). Exit 0 when the
-  registry commit, jobs and restores pass, 1 when a start would be refused there.
+  start opens, 1 when a start would be refused before it.
 - **`temper-box upgrade --workers DIRECTORY`:** `--check`'s verdict on
   the workers alone, for a redeploy's stop (`../redeploy.md`, 4.2) and
   once before it, over the check's checkpoint while the engine serves

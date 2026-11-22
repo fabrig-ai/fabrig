@@ -709,20 +709,30 @@ each step the core asks for:
    commits before it land in the copy alone, and a refusal before the
    switch leaves the source generation active (jig's
    `domain/engine/restart.md`). A rehearsing root
-   (`../protocol/binaries.md`, `temper-box upgrade --check`) ends
-   before this step, reporting the restores whole.
+   (`../protocol/binaries.md`, `temper-box upgrade --check`) takes
+   this step inside its scratch and runs on with no network to the
+   opening (step 6), where it ends, reporting the restores whole, the
+   opening and what the forge would catch up (jig's
+   `protocol/store/opening.md`, 5).
 4. **Runs adopted:** the claims to the fleet, those on in-process
    workers settled at once (section 2).
-5. **The forge reads afresh,** then **settles its outbox** (forge/README.md,
-   section 9).
-6. **The calendar is given the periods** (`routing.md`, 7): for each restored
+5. **The calendar is given the periods** (`routing.md`, 7): for each restored
    project, its current period's number, start and next start, and its
    policy's spend per period, from the core; it says what each needs and
    arms its deadline.
-7. **Decisions open:** every due task is activated.
+6. **Decisions open:** every due task is activated, and the service
+   admits its clients.
+7. **The forge catches up** (`forge/catching-up.md`): as the core asks
+   it at the opening, the root gives the forge `Event::CatchUp`, and
+   passes its `RestartDone` reports of its fresh reads and its settle
+   to the core, which records them by connector; the forge reads afresh
+   and settles its outbox (forge/README.md, section 9) while the engine
+   serves. The root's own procedures on the forge's facts, the trains'
+   forming (`form_landings`) and the limit holds' reconcile, wait for
+   the forge's fresh reads (`forge/catching-up.md`, 4).
 
-Until decisions open, the forge's hints are dropped and its timers fire
-from its restore on.
+Until decisions open, the forge's hints are dropped; its own timers
+fire from the beginning of its catching up.
 
 **A step that runs long.** The root keeps the time the core asked for
 each step, and what the step waits on: the store's page or switch, its

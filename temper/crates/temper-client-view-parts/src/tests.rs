@@ -1,6 +1,7 @@
 //! Tests staged for the parts (temper/docs/design/client/view-crates.md, 4.3).
 mod accounts;
 pub(crate) mod cards;
+mod catching_up;
 mod chat;
 mod chat_line;
 mod chats;

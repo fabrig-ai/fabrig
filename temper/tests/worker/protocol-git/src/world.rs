@@ -79,6 +79,18 @@ fn deliver(component: &mut Component, below: &mut Below, now: Time, input: Input
     }
     component.reclaim();
 }
+/// Drain submitted work, without advancing the world's time to future deadlines.
+pub fn settle(component: &mut Component, below: &mut Below, now: Time, draw: &mut u64) {
+    for _ in 0..10_000 {
+        below.drain();
+        let Some(input) = below.next(draw) else {
+            return;
+        };
+        deliver(component, below, now, input);
+    }
+    panic!("git world did not settle");
+}
+
 /// Run to the terminal, then shut down and settle every owned descriptor.
 #[must_use]
 pub fn run(scenario: &Scenario, seed: u64) -> Outcome {
@@ -93,19 +105,11 @@ pub fn run_on_tree(scenario: &Scenario, seed: u64, tree: BTreeMap<Vec<u8>, Node>
         Component::new(&fixtures::limits(), &fixtures::checkout(), fixtures::settings()).expect("valid limits");
     let mut draw = seed;
     component.start(Time::ZERO, &mut below.out);
-    let mut started = false;
-    for _ in 0..10_000 {
-        below.drain();
-        if let Some(event) = below.out.events.pop() {
-            assert_eq!(event, Event::Started);
-            started = true;
-        }
-        let Some(input) = below.next(&mut draw) else {
-            break;
-        };
-        deliver(&mut component, &mut below, Time::ZERO, input);
+    settle(&mut component, &mut below, Time::ZERO, &mut draw);
+    assert_eq!(below.out.events.pop(), Some(Event::Started));
+    while let Some(event) = below.out.events.pop() {
+        assert!(matches!(event, Event::Unswept { .. }), "unexpected startup event: {event:?}");
     }
-    assert!(started);
     below.reset(fixtures::copy_script(&scenario.script));
     below.tree.extend(scenario.files.clone());
     let mut now = Time::ZERO;
@@ -169,13 +173,7 @@ pub fn run_on_tree(scenario: &Scenario, seed: u64, tree: BTreeMap<Vec<u8>, Node>
     }
     let verdict = referee.finish(&scenario.expected);
     component.down(now, Request::Shutdown, &mut below.out);
-    for _ in 0..10_000 {
-        below.drain();
-        let Some(input) = below.next(&mut draw) else {
-            break;
-        };
-        deliver(&mut component, &mut below, now, input);
-    }
+    settle(&mut component, &mut below, now, &mut draw);
     assert!(component.is_empty() && below.settled(), "teardown has no live resources");
     Outcome {
         verdict,
