@@ -92,12 +92,6 @@ pub enum Agent {
     X3Writer,
     PlannedWriter,
     StoryWriter,
-    // Act 3, step 6.5 (testing/reference-case.md)
-    BudgetDirector,
-    BudgetOwner,
-    BudgetSubowner,
-    BudgetInvestigator,
-    BudgetAdvisor,
     // 6.6
     WaitingStarter,
     WaitingKitCoder,
@@ -114,12 +108,6 @@ impl Agent {
     #[must_use]
     pub fn cue(self) -> &'static [u8] {
         match self {
-            // Act 3, step 6.5 (testing/reference-case.md)
-            Self::BudgetDirector => b"@case_budget_director",
-            Self::BudgetOwner => b"@case_budget_owner",
-            Self::BudgetSubowner => b"@case_budget_subowner",
-            Self::BudgetInvestigator => b"@case_budget_investigator",
-            Self::BudgetAdvisor => b"@case_budget_advisor",
             // 6.6
             Self::WaitingStarter => b"@case_waiting_start",
             Self::WaitingKitCoder => b"@case_waiting_kit",
@@ -602,81 +590,9 @@ pub fn fixture_5_4() -> forge::Fixture {
     }
 }
 
-pub const BATCH_WRITING: &str = "The batch delegate is writing.";
-
 // The mission and sub-owner deadlines shared by the Act 3 stories.
 pub const A_DEADLINE: u64 = 4_102_444_800_000_000_000;
 pub const A1_DEADLINE: u64 = A_DEADLINE - 14_400_000_000_000;
-
-// Act 3, step 6.5 (testing/reference-case.md)
-pub const BUDGET_DIRECTOR: u64 = 1;
-pub const BUDGET_OWNER: u64 = 2;
-pub const BUDGET_SUBOWNER: u64 = 3;
-pub const BUDGET_A5: u64 = 4;
-pub const BUDGET_ADVISOR: u64 = 5;
-pub const BUDGET_QUESTION_NUMBER: u64 = 1;
-pub const BUDGET_UP_QUESTION_NUMBER: u64 = 2;
-pub const BUDGET_PERSON_ANSWER_NUMBER: u64 = 3;
-pub const BUDGET_NOTICE_NUMBER: u64 = 4;
-pub const BUDGET_ANSWER_NUMBER: u64 = 5;
-pub const BUDGET_TIMER_NUMBER: u64 = 6;
-pub const BUDGET_FINDING_NUMBER: u64 = 7;
-pub const BUDGET_AMENDMENT_NUMBER: u64 = 8;
-pub const BUDGET_A5_REPORT_NUMBER: u64 = 9;
-pub const BUDGET_ADVISOR_REPORT_NUMBER: u64 = 10;
-pub const BUDGET_REVISION: u64 = 1;
-pub const BUDGET_MEDIUM_NUMBER: u8 = 0;
-pub const BUDGET_HIGH_NUMBER: u8 = 1;
-pub const BUDGET_MEDIUM: &str = "medium";
-pub const BUDGET_HIGH: &str = "high";
-pub const BUDGET_PERSON: &str = "@case_budget_director Delegate A to own M1's budget question and wait for its report.";
-pub const BUDGET_QUESTION: &str =
-    "A1 asks A: a4's story takes 70 s against its suite's 60 s. May the budget be raised?";
-pub const BUDGET_UP_QUESTION: &str =
-    "A asks the director: may a4's story take 70 s against its suite's 60 s? Recommend no raise, make it cheaper.";
-pub const BUDGET_PERSON_ANSWER: &str = "The person agrees: no raise, make it cheaper.";
-pub const BUDGET_ANSWER: &str = "A answers A1: the person allows no raise; make the story cheaper.";
-pub const BUDGET_FINDING: &str = "a5 found no cause at medium; evidence: the story's repeated document reads.";
-pub const BUDGET_REASON: &str = "Try the investigation again at high effort, using the repeated-read evidence.";
-pub const BUDGET_A5_REPORT: &str = "a5 found none again at high; evidence: repeated document reads dominate the story.";
-pub const BUDGET_ADVISOR_SPEC: &str = "@case_budget_advisor Read a5's report and evidence in this brief, name the cause, and report once: a5 found none again at high; evidence: repeated document reads dominate the story.";
-pub const BUDGET_ADVISOR_REPORT: &str = "The cause is redundant document polling; await the event and read once.";
-pub const BUDGET_SUBOWNER_REPORT: &str = "A1 reports the advisor named the cause of a4's cost.";
-pub const BUDGET_OWNER_REPORT: &str = "A reports M1's budget question answered and its investigation advised.";
-pub const BUDGET_DIRECTOR_REPORT: &str = "The director reports A resolved the budget question.";
-pub const BUDGET_AMEND_HOLD: &[u8] = b"case-6-5-amend";
-pub const BUDGET_HIGH_HOLD: &[u8] = b"case-6-5-high";
-
-#[must_use]
-pub fn fixture_6_5() -> forge::Fixture {
-    forge::Fixture {
-        configure: |value, agent, forge| {
-            (fixture().configure)(value, agent, forge);
-            value["world_settings"]["llm"]["models"][0]["efforts"] = json!([BUDGET_MEDIUM, BUDGET_HIGH]);
-            // Small profile; default engine/agent model efforts [medium, high].
-            // Singleton delegations, five tasks, parked owners and investigator.
-            // Two calls carry a tool and wait in one completion; three fleet
-            // calls admit PAUSE_WORKERS. Spend: a5 10, advisor 9; A1 25
-            // (3 spent itself + a5's 3 + 9 advisor + 10 run reserve),
-            // A 35 (25 + 10 run reserve), director 45 (35 + 10 reserve).
-            // The base eight-task allowance holds this five-task tree.
-            // landing.projects is empty: no repository or change is adopted.
-            agent["profile"]["declared"]["calls_per_response"] = 2.into();
-            small_two_call_window(value, agent);
-            value.jig_over("hub.run_calls", 2);
-            value.jig_over("fleet.calls", PAUSE_WORKERS.len());
-            value["world_settings"]["cap"] = 45.into();
-            for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {
-                project["policy"]["roles"][0]["authority"]["budget"]["spend"] = 45.into();
-                project["policy"]["ceiling"]["tools"] = (0x0187 | 0x20).into();
-                project["policy"]["roles"][0]["authority"]["tools"] = (0x0187 | 0x20).into();
-            }
-            value["world_settings"]["landing"]["projects"] = json!([]);
-            landing::admit(value);
-        },
-        ..fixture()
-    }
-}
 
 // Act 3, step 6.4 (testing/reference-case.md)
 pub const RED_CHANGE: u64 = 1;

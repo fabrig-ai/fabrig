@@ -1,6 +1,7 @@
 mod absence;
 mod accounts;
 mod brief;
+mod budget;
 mod chat_words;
 mod composed;
 mod parked;

@@ -15,6 +15,8 @@ mod qa;
 #[path = "root_routes/standing.rs"]
 mod standing;
 
+#[path = "root_routes/budget.rs"]
+mod budget;
 #[path = "root_routes/stopped_worker.rs"]
 mod stopped_worker;
 
@@ -3058,9 +3060,16 @@ fn a_delegate_result_enters_its_requesters_inbox_with_the_end() {
     let child_assignment = assigned_task(&driver, child);
     let result = tasks::TaskResult::Report { words: b"spike complete".as_slice().into() };
     finish_task(&mut driver, &child_assignment, result);
-    assert!(live(&driver, parent.task).inbox.iter().any(|message| message.from == tasks::Party::Task(child)
-        && message.kind == tasks::MessageKind::Result(tasks::ResultKind::Report)
-        && message.words.as_ref() == b"spike complete"));
+    assert_eq!(
+        live(&driver, parent.task)
+            .inbox
+            .iter()
+            .filter(|message| message.from == tasks::Party::Task(child)
+                && message.kind == tasks::MessageKind::Result(tasks::ResultKind::Report)
+                && message.words.as_ref() == b"spike complete")
+            .count(),
+        1
+    );
     assert!(driver.transactions.iter().any(|writes| {
         writes.iter().any(|write| matches!(write, Write::Save(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(task)))) if task.number == child))
             && writes.iter().any(|write| matches!(write, Write::Save(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task))))

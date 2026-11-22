@@ -62,19 +62,6 @@ pub enum Read {
     StoryOwnerInitial,
     DirectionNoteWritten,
     DirectionFirst,
-    // Act 3, step 6.5 (testing/reference-case.md)
-    BudgetAsked,
-    BudgetInboxAnswered,
-    BudgetMedium,
-    BudgetHigh,
-    BudgetA5Ended,
-    BudgetAdvisorEnded,
-    BudgetSubownerEnded,
-    BudgetOwnerEnded,
-    BudgetDirectorEnded,
-    BudgetSubownerFirst,
-    BudgetOwnerFirst,
-    BudgetDirectorFirst,
     // 6.4
     RedChangeEnded,
     RedReviewEnded,
@@ -596,81 +583,6 @@ pub fn step_5_4() -> Vec<calls::Step> {
         )
         .if_activity_remains(),
     ]
-}
-
-// Act 3, step 6.5 (testing/reference-case.md)
-pub const READS_6_5: &[(Read, usize)] = &[
-    (Read::BudgetAsked, 5),
-    (Read::BudgetMedium, 10),
-    (Read::BudgetHigh, 11),
-    (Read::BudgetA5Ended, 12),
-    (Read::BudgetAdvisorEnded, 13),
-    (Read::BudgetSubownerEnded, 14),
-    (Read::BudgetOwnerEnded, 15),
-    (Read::BudgetDirectorEnded, 16),
-    (Read::BudgetInboxAnswered, 17),
-    (Read::BudgetSubownerFirst, 18),
-    (Read::BudgetOwnerFirst, 19),
-    (Read::BudgetDirectorFirst, 20),
-];
-
-#[must_use]
-pub fn step_6_5() -> Vec<calls::Step> {
-    use super::{
-        Agent, BUDGET_A5, BUDGET_ADVISOR, BUDGET_AMEND_HOLD, BUDGET_DIRECTOR, BUDGET_HIGH_HOLD, BUDGET_OWNER,
-        BUDGET_PERSON, BUDGET_PERSON_ANSWER, BUDGET_SUBOWNER, BUDGET_UP_QUESTION_NUMBER, PROJECT,
-    };
-    let mut steps = vec![
-        sign_in(D1),
-        call(D1, argv!["chat", "start", "--project", number(PROJECT), "--key", "budget", BUDGET_PERSON]),
-        start(D1, argv!["task", "show", number(BUDGET_DIRECTOR), "--until", "ended", "--json"]),
-        call(D1, argv!["inbox", "--until", "waiting"]),
-        call(D1, argv!["task", "show", number(BUDGET_DIRECTOR), "--until", "phase:idle"]),
-        call(D1, argv!["inbox", "--kind", "questions", "--json"]),
-        call(
-            D1,
-            argv![
-                "task",
-                "answer",
-                number(BUDGET_DIRECTOR),
-                number(BUDGET_UP_QUESTION_NUMBER),
-                BUDGET_PERSON_ANSWER,
-                "--key",
-                "budget-answer"
-            ],
-        ),
-        until(
-            D1,
-            argv!["task", "show", number(BUDGET_SUBOWNER), "--json"],
-            Agent::BudgetInvestigator.cue(),
-            b"\"task\"",
-        ),
-        until(D1, argv!["task", "show", number(BUDGET_SUBOWNER), "--json"], b"\"work\":\"writing\"", b"\"task\""),
-        call(D1, argv!["task", "show", number(BUDGET_A5), "--until", "phase:idle"]),
-        call(D1, argv!["task", "show", number(BUDGET_A5), "--activity", "32", "--json"]),
-        calls::release_hold(BUDGET_AMEND_HOLD),
-        until(
-            D1,
-            argv!["task", "show", number(BUDGET_A5), "--activity", "32", "--json"],
-            b"\"work\":\"writing\"",
-            b"\"task\"",
-        ),
-        calls::release_hold(BUDGET_HIGH_HOLD),
-        join(2),
-    ];
-    for task in [BUDGET_A5, BUDGET_ADVISOR, BUDGET_SUBOWNER, BUDGET_OWNER, BUDGET_DIRECTOR] {
-        steps.push(call(D1, argv!["task", "show", number(task), "--activity", "32", "--json"]));
-    }
-    steps.push(call(D1, argv!["inbox", "--kind", "questions", "--json"]));
-    // Follow each supplied cursor; never infer a complete journal from a
-    // latest page whose first attempts have fallen outside the window.
-    for (task, latest) in [(BUDGET_SUBOWNER, 14), (BUDGET_OWNER, 15), (BUDGET_DIRECTOR, 16)] {
-        steps.push(call(
-            D1,
-            argv!["task", "activity", number(task), "--before", calls::activity_before(latest), "--json"],
-        ));
-    }
-    steps
 }
 
 // Act 3, step 6.4 (testing/reference-case.md)
