@@ -126,7 +126,7 @@ python3 -I -B tools/citations/test_status.py
   - **Over the mark:** every Markdown file under the tree's `docs/design/` over 49,152 bytes
     (`DESIGN.md`, 5), status files and `draft/archive/` included, largest first, then by path.
   - **Drafts done:** each draft whose status file is done, outside `draft/archive/`, named by
-    the draft's own path (`DESIGN.md`, 4).
+    the draft's own path (`DESIGN.md`, 4); a draft's notes file and execution file are never drafts.
   - **Unread status files.**
 - **The page,** printed by `--page TREE` and returned by `page(tree)`, TREE one of the five:
   the text below, less the two spaces that indent it here, with `TREE` replaced by the tree's
