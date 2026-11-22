@@ -56,9 +56,18 @@ fn run(seed: u64) -> Replay {
     run_in(world, seed, 160).1
 }
 /// Run the same workload and checks, retaining the world for a sweep's ledger.
-#[expect(clippy::too_many_lines, reason = "batch effects and search invariants share one bounded replay loop")]
 pub(crate) fn run_in(world: World, seed: u64, horizon: u64) -> (World, Replay) {
-    let Workload { mut rng, count, squash, red, conflict, moving, red_member } = Workload::new(seed);
+    run_workload(world, seed, horizon, Workload::new(seed))
+}
+
+/// Keep this workload's draws and checks, with a red member for repair sweeps.
+pub(crate) fn run_repairing_in(world: World, seed: u64, horizon: u64) -> (World, Replay) {
+    run_workload(world, seed, horizon, Workload { red: true, ..Workload::new(seed) })
+}
+
+#[expect(clippy::too_many_lines, reason = "batch effects and search invariants share one bounded replay loop")]
+fn run_workload(world: World, seed: u64, horizon: u64, workload: Workload) -> (World, Replay) {
+    let Workload { mut rng, count, squash, red, conflict, moving, red_member } = workload;
     let mut world = landings::turn_in(world);
     world.batch(u16::try_from(count).expect("small batch"));
     world.push_file(b"main", b"file", b"fixed");

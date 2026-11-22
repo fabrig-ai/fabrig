@@ -47,6 +47,7 @@ mod workflow_flights;
 mod writer;
 
 mod fuzzy {
+    mod bounds;
     mod branch_patterns;
     mod gate_keys;
     mod history;
