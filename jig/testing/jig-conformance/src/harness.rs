@@ -5,8 +5,8 @@ use crate::referee::{Observed, Policy, PolicySnapshot, Referee, Violation};
 use crate::store_check::{self, StoreChecks};
 use crate::trace::Trace;
 
-// The twenty conformance stories' median is 18.5 commits (seed 31 in jig,
-// 71 in temper). Round it up to a power of two for about one check per run.
+// The twenty conformance stories' median is 18.5 commits (seeds 31 and 71).
+// Round it up to a power of two for about one check per run.
 const STORE_CHECK_ONE_IN: u64 = 32;
 use std::collections::VecDeque;
 use std::fmt::Debug;
