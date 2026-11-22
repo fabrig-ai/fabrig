@@ -93,7 +93,7 @@ pub(crate) enum Action {
     Run(Op),
     Layout(Result<(), Error>),
     Operation(Next),
-    Swept { changed: bool, set_aside: bool },
+    Swept { changed: bool, set_aside: bool, refused_removal: bool },
     Closed,
 }
 fn open(root: Fd, path: Box<[u8]>, how: OpenHow) -> Op {

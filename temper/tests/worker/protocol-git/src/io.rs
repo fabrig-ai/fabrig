@@ -395,6 +395,11 @@ impl Below {
         path.extend_from_slice(name);
         path
     }
+    /// The names immediately beneath trash, in the fake disk's listing order.
+    #[must_use]
+    pub fn trash(&self) -> Vec<Vec<u8>> {
+        self.children_of(b"trash")
+    }
     fn children_of(&self, path: &[u8]) -> Vec<Vec<u8>> {
         let mut prefix = path.to_vec();
         if !prefix.is_empty() {

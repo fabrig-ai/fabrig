@@ -8739,6 +8739,7 @@ dependencies = [
  "temper-fake-checkout",
  "temper-worker-domain",
  "temper-worker-domain-checkout",
+ "temper-worker-protocol-git",
 ]
 
 [[package]]
@@ -8760,6 +8761,7 @@ dependencies = [
  "skein-scratch",
  "skein-world",
  "temper-worker-domain-checkout",
+ "temper-worker-inspect",
  "temper-worker-protocol-git",
 ]
 

@@ -9,6 +9,8 @@ use temper_fake_checkout::layout;
 use temper_worker_domain_checkout::{Domain, Limits};
 
 pub mod faults;
+mod trash;
+pub use trash::inspect_trash;
 
 pub const COMPONENT: &str = "worker";
 pub const KINDS: &[&str] =
