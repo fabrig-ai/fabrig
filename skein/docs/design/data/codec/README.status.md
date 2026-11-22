@@ -1,6 +1,6 @@
 # codec: status
 
-2026-11-19. Where skein's code lags or departs from [README.md](README.md).
+2026-11-21. Where skein's code lags or departs from [README.md](README.md).
 
 - **Departs:**
   - 6: skein-codegen's construct tests read `every-v3` from its file, because its owner is a private world whose library no other package may name (`fabrig-boundary`'s `skein_worlds` test). Decided by the goal's coordinator, 2026-11-19.

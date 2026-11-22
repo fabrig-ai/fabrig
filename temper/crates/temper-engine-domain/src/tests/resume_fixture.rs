@@ -250,8 +250,6 @@ pub fn root_with_records(
                 | jig_domain_core::start::Phase::Switch
                 | jig_domain_core::start::Phase::Wires
                 | jig_domain_core::start::Phase::AdoptRuns
-                | jig_domain_core::start::Phase::ReadAfresh { .. }
-                | jig_domain_core::start::Phase::SettleOutbox { .. }
                 | jig_domain_core::start::Phase::Open) => {
                     root.core.start_done(&crate::limits::environment_core(&env), phase, &mut output)
                 }

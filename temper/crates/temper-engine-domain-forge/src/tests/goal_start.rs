@@ -21,7 +21,7 @@ fn name(branch: &[u8]) -> Name {
 }
 
 fn held_goal() -> Domain {
-    let mut d = domain();
+    let mut d = active_domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(
         &mut d,
@@ -111,8 +111,8 @@ fn a_modifying_goal_waits_for_its_drifted_branch_to_be_released() {
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     outputs(&mut d, Event::Hold { entry: 0, task: GOAL, resource: name(G), from: None });
     fixtures::answer_next(&mut d, Ok(skein_forge::api::Answer::Commit(TIP)));
     d.holds.get_mut(&name(G)).expect("held goal").drift =
@@ -145,8 +145,8 @@ fn a_modifying_goal_waits_while_its_branch_is_being_made() {
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     head(&mut d, G, TIP);
     outputs(&mut d, Event::Hold { entry: 0, task: GOAL, resource: name(G), from: None });
     assert!(selection(&d, true, false).is_none(), "the taking's read must finish before the workspace");

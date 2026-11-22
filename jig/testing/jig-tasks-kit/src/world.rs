@@ -605,6 +605,7 @@ impl World {
             | Event::AnswerPerson { .. }
             | Event::Conclude { .. }
             | Event::Cancel { .. }
+            | Event::Fail { .. }
             | Event::Release { .. }
             | Event::Propose { .. }
             | Event::ProposePerson { .. }
@@ -712,6 +713,7 @@ impl World {
             | Event::AnswerPerson { .. }
             | Event::Conclude { .. }
             | Event::Cancel { .. }
+            | Event::Fail { .. }
             | Event::Release { .. }
             | Event::MoveToNewest { .. }
             | Event::Move { .. }

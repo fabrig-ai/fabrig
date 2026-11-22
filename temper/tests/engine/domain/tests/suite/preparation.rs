@@ -20,12 +20,7 @@ fn restart_runtime(driver: &Driver) -> bool {
     driver.root.ready()
         || matches!(
             driver.root.start_phase(),
-            Some(
-                jig_domain_core::start::Phase::AdoptRuns
-                    | jig_domain_core::start::Phase::ReadAfresh { .. }
-                    | jig_domain_core::start::Phase::SettleOutbox { .. }
-                    | jig_domain_core::start::Phase::Open
-            )
+            Some(jig_domain_core::start::Phase::AdoptRuns | jig_domain_core::start::Phase::Open)
         )
 }
 

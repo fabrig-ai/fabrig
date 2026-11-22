@@ -31,6 +31,7 @@ fn blame(rng: &mut Rng) -> Option<forge::FindingBlame> {
         return None;
     }
     Some(forge::FindingBlame {
+        moved: None,
         strength: if rng.below(2) == 0 { forge::BlameStrength::Owned } else { forge::BlameStrength::Suspected },
         landings: (0..rng.below(3))
             .map(|n| forge::BlamedLanding {

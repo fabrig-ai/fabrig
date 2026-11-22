@@ -69,7 +69,9 @@
 //!             done, base absent         Preparing   io: merge
 //!             done, producer merged     Preparing   io: commit merge with both parents
 //!             done, merge committed     Preparing   io: check out merge, clearing its state
-//!             done, all checked out     Ready       prepared: ready
+//!             done, ready, pack due     Preparing   io: pack the next due repository
+//!             done, pack settled        Preparing   io: pack the next due repository, if any
+//!             done, no packs due        Ready       prepared: ready or candidate
 //!             done, failed              Unprepared  prepared: failed
 //!             done, aborting            Unprepared  prepared: aborted
 //!             done, releasing           Closed      prepared: aborted, released
@@ -131,8 +133,8 @@
 //! its repository damaged (git was killed, or failed half way), so the
 //! workspace is not trusted again: the next prepare makes it again.
 //!
-//! What a transition tells as facts is derived from the requests it made, in
-//! one place ([`tell`]), and what the new state implies (a closed hold is
+//! A transition's requests account for operations and tell facts in one
+//! place ([`sent`]), and what the new state implies (a closed hold is
 //! retired, and its workspace idle again) in another ([`follow`]).
 
 mod candidate;
@@ -299,6 +301,10 @@ enum State {
 /// place in the spec.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum PrepareStep {
+    /// Best-effort maintenance before ready (domain/worker/checkouts.md, *Kept packed*).
+    Pack {
+        repository: u32,
+    },
     Reds {
         repository: u32,
     },
@@ -494,7 +500,7 @@ enum Asked {
 enum Next {
     Step(PrepareStep),
     Stores { from: u32, look: bool },
-    Ready,
+    Ready { pack_from: u32 },
     Failed(Failure),
 }
 
@@ -553,7 +559,7 @@ fn admit(domain: &mut Domain, env: &Env<Limits>, id: Id<Hold>, cached: Cached, o
     hold.holding.admitted = env.now;
     hold.state = match cached {
         Cached::Reused | Cached::Kept => {
-            prepare_step(&hold.holding, id, PrepareStep::Fetch { repository: 0 }, env, out)
+            prepare_step(&hold.holding, &domain.cache, id, PrepareStep::Fetch { repository: 0 }, env, out)
         }
         Cached::Looking | Cached::Rebuilt | Cached::Evicted | Cached::New => {
             stores_step(&hold.holding, &mut domain.cache, id, 0, cached == Cached::Looking, env, out)
@@ -766,7 +772,7 @@ fn ask(domain: &mut Domain, env: &Env<Limits>, hold: Token, now: Asked, out: &mu
 
 fn optional(state: &State) -> bool {
     match state {
-        State::Reds(_) | State::Preparing { step: PrepareStep::Reds { .. }, .. } => true,
+        State::Reds(_) | State::Preparing { step: PrepareStep::Reds { .. } | PrepareStep::Pack { .. }, .. } => true,
         State::Queued { .. }
         | State::Preparing { .. }
         | State::Waiting { .. }
@@ -803,7 +809,8 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
                 PrepareStep::Store { repository, .. } => {
                     waiters = domain.cache.finished(borrowed(holding, repository).store, id, store_succeeded);
                 }
-                PrepareStep::Reds { .. }
+                PrepareStep::Pack { .. }
+                | PrepareStep::Reds { .. }
                 | PrepareStep::Candidate { .. }
                 | PrepareStep::Look { .. }
                 | PrepareStep::Make
@@ -920,7 +927,7 @@ fn conclude(domain: &mut Domain, id: Id<Hold>, was_active: bool, out: &Queue<Req
             | Request::ResultsEnd { .. } => {}
         }
     }
-    tell(&mut domain.facts, hold.holding.client, out, mark);
+    sent(&mut domain.facts, &mut domain.cache, &hold.holding, out, mark);
     if was_active && !active(&hold.state) {
         domain.active = domain.active.checked_sub(1).expect("a settled prepare returns its permit once");
     }
@@ -940,10 +947,15 @@ fn active(state: &State) -> bool {
     }
 }
 
-/// What a transition tells, derived from the requests it made: a fact for
-/// each but `Held`, which the prepare tells with how the cache found its
-/// workspace.
-fn tell(facts: &mut Facts, client: Token, out: &Queue<Request>, mark: u32) {
+fn io(id: Id<Hold>, op: Op, env: &Env<Limits>, out: &mut Queue<Request>) {
+    let timeout = operation_timeout(&op, &env.limits);
+    out.push(Request::Io { owner: id.token(), op, deadline: env.now.saturating_add(timeout) });
+}
+
+/// Account for the operations this transition asked for, before another hold
+/// can advance, and tell the facts its requests carry.
+fn sent(facts: &mut Facts, cache: &mut Cache, holding: &Holding, out: &Queue<Request>, mark: u32) {
+    let client = holding.client;
     let made = usize::try_from(mark).expect("a u32 fits in a usize");
     for request in out.iter().skip(made) {
         let fact = match request {
@@ -957,7 +969,10 @@ fn tell(facts: &mut Facts, client: Token, out: &Queue<Request>, mark: u32) {
             Request::Pushed { client, outcome } => pushed_fact(*client, Target::Push, outcome),
             Request::Saved { client, outcome } => pushed_fact(*client, Target::Saved, outcome),
             Request::Released { client } => Fact::Released { client: *client },
-            Request::Io { owner: _, op, deadline: _ } => Fact::Started { client, op: op.kind() },
+            Request::Io { owner: _, op, deadline: _ } => {
+                cache.asked(holding.workspace, &holding.stores, op);
+                Fact::Started { client, op: op.kind() }
+            }
             Request::Cancel { owner: _ } => Fact::Aborting { client },
         };
         facts.push(fact);
@@ -1119,6 +1134,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
     }
     let last = count(holding.repositories.len()).checked_sub(1).expect("a spec names a repository");
     match step {
+        PrepareStep::Pack { repository, .. } => Next::Ready { pack_from: after(repository) },
         PrepareStep::Reds { .. } => unreachable!("reds settled above"),
         PrepareStep::Candidate { .. } => unreachable!("candidate preparation was dispatched before the fetch memo"),
         PrepareStep::Store { repository, look } => match done {
@@ -1631,7 +1647,8 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Merged
             | Done::Conflicted { .. } => unreachable!("io ends a checkout with its own terminals"),
         },
-        PrepareStep::Reds { .. }
+        PrepareStep::Pack { .. }
+        | PrepareStep::Reds { .. }
         | PrepareStep::Candidate { .. }
         | PrepareStep::Store { .. }
         | PrepareStep::Look { .. }
@@ -1703,6 +1720,7 @@ fn remember_fetch(holding: &mut Holding, step: PrepareStep, commit: Commit) {
         ),
         PrepareStep::FetchLanding { repository, .. } => (repository, pin_want(nth(holding, repository))),
         PrepareStep::FetchBase { repository, base, .. } => (repository, Want::Commit { commit: base }),
+        PrepareStep::Pack { .. } => return,
         PrepareStep::Reds { .. }
         | PrepareStep::Candidate { .. }
         | PrepareStep::Store { .. }
@@ -1979,9 +1997,12 @@ fn prepare_next(
     let client = holding.client;
     match asked {
         Asked::Nothing => match next {
-            Next::Step(step) => prepare_step(holding, id, step, env, out),
+            Next::Step(step) => prepare_step(holding, cache, id, step, env, out),
             Next::Stores { from, look } => stores_step(holding, cache, id, from, look, env, out),
-            Next::Ready => {
+            Next::Ready { pack_from } => {
+                if let Some(step) = next_pack(holding, cache, pack_from) {
+                    return prepare_step(holding, cache, id, step, env, out);
+                }
                 holding.fetched = List::uncapped();
                 let conflicts = mem::replace(&mut holding.conflicts, List::with_capacity(0));
                 let prepared = match &holding.candidate {
@@ -2009,10 +2030,24 @@ fn prepare_next(
     }
 }
 
+/// Check each repository when it is reached: a previous Pack may already
+/// have reset its store, or another hold may since have asked a fetch.
+fn next_pack(holding: &Holding, cache: &Cache, from: u32) -> Option<PrepareStep> {
+    for repository in from..count(holding.repositories.len()) {
+        if cache.store_due(borrowed(holding, repository).store)
+            || cache.repository_due(holding.workspace, &nth(holding, repository).name)
+        {
+            return Some(PrepareStep::Pack { repository });
+        }
+    }
+    None
+}
+
 /// Asks io for the prepare's operation `step`.
 #[expect(clippy::too_many_lines, reason = "each preparation step builds its operation in one table")]
 fn prepare_step(
     holding: &Holding,
+    cache: &Cache,
     id: Id<Hold>,
     step: PrepareStep,
     env: &Env<Limits>,
@@ -2020,6 +2055,11 @@ fn prepare_step(
 ) -> State {
     let workspace = holding.workspace.token();
     let op = match step {
+        PrepareStep::Pack { repository } => {
+            let borrowed = borrowed(holding, repository);
+            let store = if cache.store_due(borrowed.store) { Some(borrowed.token) } else { None };
+            Op::Pack { at: place(workspace, nth(holding, repository)), store }
+        }
         PrepareStep::Reds { repository } => Op::Reds {
             at: place(workspace, nth(holding, repository)),
             action: crate::git::Reds::Prepare {
@@ -2730,11 +2770,6 @@ fn operation_timeout(op: &Op, limits: &Limits) -> Duration {
     if op.is_remote() { limits.remote_timeout } else { limits.local_timeout }
 }
 
-fn io(id: Id<Hold>, op: Op, env: &Env<Limits>, out: &mut Queue<Request>) {
-    let timeout = operation_timeout(&op, &env.limits);
-    out.push(Request::Io { owner: id.token(), op, deadline: env.now.saturating_add(timeout) });
-}
-
 /// Whether an operation that ended so may have left its repository damaged:
 /// git was killed, or failed on the worker's side.
 const fn damages(done: &Done) -> bool {
@@ -3005,12 +3040,12 @@ fn stores_step(
     for repository in from..count(holding.stores.len()) {
         match cache.claim(borrowed(holding, repository).store, id) {
             Claim::Made => {}
-            Claim::Make => return prepare_step(holding, id, PrepareStep::Store { repository, look }, env, out),
+            Claim::Make => return prepare_step(holding, cache, id, PrepareStep::Store { repository, look }, env, out),
             Claim::Waiting => return State::Waiting { repository, look },
         }
     }
     let step = if look { PrepareStep::Look { repository: 0 } } else { PrepareStep::Make };
-    prepare_step(holding, id, step, env, out)
+    prepare_step(holding, cache, id, step, env, out)
 }
 
 fn reds_prepare(holding: &Holding, from: u32) -> Next {
@@ -3019,7 +3054,7 @@ fn reds_prepare(holding: &Holding, from: u32) -> Next {
             return Next::Step(PrepareStep::Reds { repository });
         }
     }
-    Next::Ready
+    Next::Ready { pack_from: 0 }
 }
 pub(crate) fn reds(
     domain: &mut Domain,

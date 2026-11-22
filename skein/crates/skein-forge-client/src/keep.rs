@@ -199,6 +199,41 @@ impl Keep {
         }
         false
     }
+    pub(crate) fn fresh_owed(&self, forge: u16) -> u32 {
+        if !self.fresh_active {
+            return 0;
+        }
+        let mut owed = 0_u32;
+        for (resource, row) in &self.live {
+            if resource.repository.forge == forge && row.active && row.fresh == Fresh::Pending {
+                owed = owed.checked_add(1).expect("fresh resources fit their limit");
+            }
+        }
+        for (repository, row) in &self.repos {
+            if repository.forge == forge && row.active && row.fresh == Fresh::Pending {
+                owed = owed.checked_add(1).expect("fresh resources and listings fit u32");
+            }
+        }
+        owed
+    }
+    pub(crate) fn fresh_owed_in(&self, repository: Repository) -> u32 {
+        if !self.fresh_active {
+            return 0;
+        }
+        let mut owed = 0_u32;
+        for (resource, row) in &self.live {
+            if resource.repository == repository && row.active && row.fresh == Fresh::Pending {
+                owed = owed.checked_add(1).expect("fresh resources fit their limit");
+            }
+        }
+        if let Some(row) = self.repos.get(&repository)
+            && row.active
+            && row.fresh == Fresh::Pending
+        {
+            owed = owed.checked_add(1).expect("fresh resources and listing fit u32");
+        }
+        owed
+    }
     pub(crate) const fn failed(&self) -> bool {
         self.failed
     }

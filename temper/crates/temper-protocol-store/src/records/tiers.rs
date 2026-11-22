@@ -462,6 +462,7 @@ fn encode_record(record: &p::Record) -> w::TierRecord {
     };
     w::TierRecord {
         sequence: record.sequence,
+        last_run: record.last_run,
         judged,
         failing: verification::encode_failures(&record.failing),
         flakes,
@@ -470,7 +471,7 @@ fn encode_record(record: &p::Record) -> w::TierRecord {
 }
 
 fn decode_record(record: w::TierRecord) -> Result<p::Record, Undecodable> {
-    let w::TierRecord { sequence, judged, failing, flakes, run } = record;
+    let w::TierRecord { sequence, judged, failing, flakes, run, last_run } = record;
     let judged = match judged {
         Some(j) => Some(crate::generated::store::tier_judged_to_domain(j, &super::Context::UNBOUNDED).expect(FITS)),
         None => None,
@@ -497,6 +498,7 @@ fn decode_record(record: w::TierRecord) -> Result<p::Record, Undecodable> {
     }
     Ok(p::Record {
         sequence,
+        last_run,
         judged,
         failing: verification::decode_failures(failing)?,
         flakes: values.into_boxed(),

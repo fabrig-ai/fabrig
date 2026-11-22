@@ -218,7 +218,7 @@ impl Engine {
     pub(crate) fn start_runtime(&self) -> bool {
         use jig_domain_core::start::Phase;
         match self.domain.start_phase() {
-            Some(Phase::AdoptRuns | Phase::ReadAfresh { .. } | Phase::SettleOutbox { .. } | Phase::Open) => true,
+            Some(Phase::AdoptRuns | Phase::Open) => true,
             Some(
                 Phase::LoadCore
                 | Phase::LoadInbox
@@ -737,7 +737,7 @@ pub(crate) fn release(engine: &mut Engine) {
         if let Some(trace) = &mut engine.release_trace {
             trace.released(&engine.requests, before, engine.store.host.above.len());
         }
-        if engine.requests.is_empty() {
+        if engine.requests.is_empty() && !engine.domain.rehearsed() {
             stop::advance(engine);
             root::try_step(&mut engine.domain, &engine.env, root::Event::Resume).expect("owner continuation admitted");
             engine.restored_limit_revision();
@@ -760,6 +760,9 @@ pub(crate) fn release(engine: &mut Engine) {
             empty = 0;
         }
         if !dispatch(engine) {
+            break;
+        }
+        if engine.domain.rehearsed() {
             break;
         }
         if empty == 2 {

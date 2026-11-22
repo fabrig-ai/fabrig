@@ -43,7 +43,11 @@ fn suspected_and_many_verdicts_name_only_the_released_landing() {
         let [call] = calls.as_ref() else { panic!("one switched filing: {calls:?}") };
         assert_eq!(
             call.blame,
-            Some(FindingBlame { strength, landings: Box::new([BlamedLanding { commit: LAST, goals: Box::new([]) }]) })
+            Some(FindingBlame {
+                moved: None,
+                strength,
+                landings: Box::new([BlamedLanding { commit: LAST, goals: Box::new([]) }])
+            })
         );
         assert_eq!(call.signature.many, many);
         if many {

@@ -855,6 +855,7 @@ fn setting(step: Option<w::SetUpStep>) -> w::Connection {
 }
 fn row(kind: w::Kind, connection: w::Connection) -> w::ForgeRow {
     w::ForgeRow {
+        catching_up: None,
         number: 2,
         host: b"git.example".as_slice().into(),
         kind,

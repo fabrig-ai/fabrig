@@ -77,30 +77,12 @@ pub(crate) fn defer(
         out.push(tasks::Request::Refused { reply_to, problem: tasks::Problem::new(None, tasks::Refusal::Busy) });
         return None;
     }
-    for member in &batch {
-        for holding in &member.holdings {
-            let name = match holding {
-                tasks::Holding::Write { resource, .. } => resource,
-                tasks::Holding::Slot { pool, .. } => pool,
-            };
-            let role = core.resource_roles.get(&Key { project: member.project, name: name.clone() });
-            if role == Some(&connector::ResourceRole::Unavailable) || role.is_none() && core.resource_roles_full {
-                let problem = if role.is_none() && core.resource_roles_full {
-                    let capacity = tasks::Capacity::batch(
-                        kind.by(),
-                        &batch,
-                        Some(member.number),
-                        tasks::CapacityCause::ResourceReports { limit: core.resource_roles.capacity() },
-                    );
-                    core.tasks.remember_capacity(env.wall, capacity);
-                    tasks::Problem::capacity(Some(member.number), tasks::Refusal::ResourceUnavailable, capacity)
-                } else {
-                    tasks::Problem::new(Some(member.number), tasks::Refusal::ResourceUnavailable)
-                };
-                out.push(tasks::Request::Refused { reply_to, problem });
-                return None;
-            }
+    if let Some(problem) = role_problem(core, kind.by(), &batch) {
+        if let Some(capacity) = problem.capacity {
+            core.tasks.remember_capacity(env.wall, capacity);
         }
+        out.push(tasks::Request::Refused { reply_to, problem });
+        return None;
     }
     let owner = reply_to.into_token();
     let reply_to = ReplyTo::new(owner);
@@ -114,28 +96,9 @@ pub(crate) fn defer(
         return None;
     }
     if reported {
-        let mut members = List::with_capacity(env.limits.tasks.batch);
-        for mut member in batch {
-            let mut holdings = List::with_capacity(env.limits.tasks.holdings);
-            for holding in member.holdings {
-                let (name, kind) = match holding {
-                    tasks::Holding::Write { resource, kind } => (resource, kind),
-                    tasks::Holding::Slot { pool, kind } => (pool, kind),
-                };
-                match core.tasks.resource_hold(&name).expect("every resource reported") {
-                    tasks::HoldKind::Shared => {}
-                    tasks::HoldKind::Exclusive { .. } => {
-                        holdings.push(tasks::Holding::Write { resource: name, kind }).expect("bounded holdings");
-                    }
-                    tasks::HoldKind::Pooled { .. } => {
-                        holdings.push(tasks::Holding::Slot { pool: name, kind }).expect("bounded holdings");
-                    }
-                }
-            }
-            member.holdings = holdings.into_boxed();
-            members.push(member).expect("bounded batch");
-        }
-        return Some(kind.event(reply_to, members.into_boxed()));
+        let mut batch = batch;
+        normalize(core, &env.limits.tasks, &mut batch);
+        return Some(kind.event(reply_to, batch));
     }
     if core.awaiting_resources_flights() == core.flight_tasks_capacity {
         let capacity = tasks::Capacity::batch(
@@ -155,6 +118,81 @@ pub(crate) fn defer(
     let batch = Batch { reply_to, kind, members: batch, deadline };
     let _flight = core.fly(crate::routing::flight::Flight::AwaitingResources(batch));
     None
+}
+
+/// An application decision cannot park behind an unreported resource.
+pub(crate) fn check_make(
+    core: &Core,
+    limits: &tasks::Limits,
+    creator: tasks::Party,
+    batch: &mut [tasks::New],
+) -> Result<(), tasks::Refusal> {
+    let reported = reported(core, batch);
+    if !tasks::bounded_batch(limits, batch) {
+        return if reported { Ok(()) } else { Err(tasks::Refusal::Busy) };
+    }
+    if let Some(problem) = role_problem(core, creator, batch) {
+        return Err(problem.why);
+    }
+    if core.tasks.check_report_pins(batch).is_err() {
+        return Err(tasks::Refusal::Busy);
+    }
+    if !reported {
+        return Err(tasks::Refusal::Unreported);
+    }
+    normalize(core, limits, batch);
+    Ok(())
+}
+
+fn role_problem(core: &Core, creator: tasks::Party, batch: &[tasks::New]) -> Option<tasks::Problem> {
+    for member in batch {
+        for holding in &member.holdings {
+            let name = match holding {
+                tasks::Holding::Write { resource, .. } => resource,
+                tasks::Holding::Slot { pool, .. } => pool,
+            };
+            let role = core.resource_roles.get(&Key { project: member.project, name: name.clone() });
+            if role == Some(&connector::ResourceRole::Unavailable) {
+                return Some(tasks::Problem::new(Some(member.number), tasks::Refusal::ResourceUnavailable));
+            }
+            if role.is_none() && core.resource_roles_full {
+                let capacity = tasks::Capacity::batch(
+                    creator,
+                    batch,
+                    Some(member.number),
+                    tasks::CapacityCause::ResourceReports { limit: core.resource_roles.capacity() },
+                );
+                return Some(tasks::Problem::capacity(
+                    Some(member.number),
+                    tasks::Refusal::ResourceUnavailable,
+                    capacity,
+                ));
+            }
+        }
+    }
+    None
+}
+
+fn normalize(core: &Core, limits: &tasks::Limits, batch: &mut [tasks::New]) {
+    for member in batch {
+        let mut holdings = List::with_capacity(limits.holdings);
+        for holding in core::mem::replace(&mut member.holdings, Box::new([])) {
+            let (name, kind) = match holding {
+                tasks::Holding::Write { resource, kind } => (resource, kind),
+                tasks::Holding::Slot { pool, kind } => (pool, kind),
+            };
+            match core.tasks.resource_hold(&name).expect("every resource reported") {
+                tasks::HoldKind::Shared => {}
+                tasks::HoldKind::Exclusive { .. } => {
+                    holdings.push(tasks::Holding::Write { resource: name, kind }).expect("bounded holdings");
+                }
+                tasks::HoldKind::Pooled { .. } => {
+                    holdings.push(tasks::Holding::Slot { pool: name, kind }).expect("bounded holdings");
+                }
+            }
+        }
+        member.holdings = holdings.into_boxed();
+    }
 }
 
 pub(crate) fn resume(core: &mut Core, work: &mut Queue<Work>) {

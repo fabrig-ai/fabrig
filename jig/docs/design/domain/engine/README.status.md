@@ -1,6 +1,7 @@
 # engine: status
 
-2026-11-14. Where jig's code lags or departs from [README.md](README.md).
+2026-11-20. Where jig's code lags or departs from [README.md](README.md).
+
 
 `executors.md`, section 5's failed-job cause accompanies its retry class through the hub
 link and terminal proof into the task's notice and exhausted hold. The

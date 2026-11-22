@@ -91,7 +91,7 @@ fn upgrade_check_names_settings_out_of_their_numbers_without_switching_generatio
         assert_eq!(output.status.code(), Some(i32::from(refused)), "{out}\n{err}");
         assert!(err.lines().all(engine_long_pass), "{err}");
         if !refused {
-            assert!(out.contains("registry commit, jobs and restores pass"), "{out}");
+            assert!(out.contains("registry commit, jobs and restores pass; opened in "), "{out}");
             assert!(!out.contains("settings out of their numbers"), "{out}");
         } else if numbers == Numbers::Past {
             let refusal = out.lines().find(|line| line.contains("settings out of their numbers")).expect(&out);
@@ -151,7 +151,7 @@ fn upgrade_check_restores_under_the_limits_a_start_takes_from_the_copy() {
         if stock {
             assert!(out.contains(&refusal), "{out}");
         } else {
-            assert!(out.contains("registry commit, jobs and restores pass"), "{out}");
+            assert!(out.contains("registry commit, jobs and restores pass; opened in "), "{out}");
             assert!(!out.contains("restart refused"), "{out}");
         }
         assert_eq!(std::fs::read(&active_path).expect("active after check"), active);
