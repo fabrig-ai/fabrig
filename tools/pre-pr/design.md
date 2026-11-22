@@ -26,18 +26,19 @@ It uses the workspace's existing Cargo target and works offline.
 
 Delivery formats changed handwritten Rust files with rustfmt and skips codec
 outputs listed in `tools/merge/codecs.txt`. It reads offline Cargo metadata
-for their editions. In the worker hook rustfmt writes private copies taken
-from the delivery snapshot. On success the hook applies the formatting patch
-to the checkout. The remaining checks, receipt and worker publication use
-the formatted tree. A formatter error or a concurrent change refuses delivery.
-The explicit child and goal-close checks verify their inputs without edits.
+for their editions. The worker hook inspects the files in place with rustfmt.
+When a file needs formatting it renders the original snapshot blob, updates
+the private index and applies the resulting patch once. A clean selection
+needs one formatter pass per edition and configuration. The remaining checks
+and publication use the formatted tree. Explicit child and goal-close
+checks are read-only.
 
-For each passing delivery with merge inputs, the hook remembers their
-commit IDs in the checkout's Git directory under the comparison base and
-formatted tree ID. When publication rebuilds the commit, the next check
-can recover those inputs from the published tree in its first-parent
-history. It selects paths again against their current contents and runs
-the checks again.
+The worker can establish the scope at its comparison base, from the last
+check of the same base and exact published tree in this checkout, or from
+a main fetch made since the worker installed the checkout and integrated
+at HEAD or in the pending merge. Without that evidence delivery refuses
+before Cargo metadata or rustfmt. Fetching main and merging it reestablishes
+the scope. The hook does no fetch and writes no source-tree receipt.
 
 Counted baselines, citations, outward names, journey and
 budget rules apply to the changed paths. Checker changes also run its
