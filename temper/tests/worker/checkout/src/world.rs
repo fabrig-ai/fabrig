@@ -306,6 +306,7 @@ pub struct World {
     stage: Stage<Limits, Event, Request>,
     wire: Schedule<Delivery>,
     disk: Checkout,
+    kept: BTreeMap<Token, temper_worker_domain_checkout::git::Kept>,
     forge: Forge,
     /// The forge's repositories.
     repositories: Vec<Hosted>,
@@ -383,6 +384,7 @@ impl World {
             stage: Stage::uncapped(settings.checkout),
             wire: Schedule::new(),
             disk,
+            kept: BTreeMap::new(),
             forge,
             repositories,
             workstreams,
@@ -416,13 +418,26 @@ impl World {
         self.domain = Domain::new(&self.settings.checkout);
         if self.settings.reuse {
             self.domain.reuse_workspaces();
-        } else {
-            self.disk.remove(b"ws");
         }
+        let marks: Vec<_> =
+            self.kept.values().filter(|mark| self.disk.exists(&translate::dir(mark.workspace))).cloned().collect();
+        if !self.settings.reuse {
+            for workspace in &self.workspaces {
+                if !marks.iter().any(|mark| mark.workspace == *workspace) {
+                    self.disk.remove(&translate::dir(*workspace));
+                }
+            }
+        }
+        self.domain.restore_workspaces(marks.into_boxed_slice());
         self.stage = Stage::uncapped(self.settings.checkout);
         self.holds.clear();
         self.workspaces.clear();
         self.checked_out.clear();
+    }
+
+    #[must_use]
+    pub fn kept(&self) -> Vec<temper_worker_domain_checkout::git::Kept> {
+        self.kept.values().cloned().collect()
     }
 
     /// The fault sweep's world: workload and fault draws have independent streams.
@@ -874,7 +889,7 @@ impl World {
         let client = self.clients.get_mut(&name).expect("a client submitted");
         let hold = client.hold.expect("a client releases what it holds");
         client.release = Release::Asked;
-        self.stage.push(Event::Release { hold });
+        self.stage.push(if client.plan.keep { Event::Keep { hold } } else { Event::Release { hold } });
     }
 
     /// The client interrupts at a moment of its own.
@@ -1000,13 +1015,23 @@ impl World {
         let hold = client.hold.expect("a prepared client holds a workspace");
         let mut start = Vec::new();
         for repo in &client.repos {
-            let commit = *self.checked_out.get(&(hold, repo.name.clone())).expect("each repository was checked out");
+            let commit = self.checked_out.get(&(hold, repo.name.clone())).copied().unwrap_or_else(|| {
+                let at = [translate::dir(workspace).as_slice(), b"/", &repo.name, b"/.git/temper-head"].concat();
+                u64::from_le_bytes(self.disk.content(&at).expect("preserved head").try_into().expect("fake commit"))
+            });
             if let Some(named) = repo.commit {
                 assert_eq!(commit, named, "a repository starts at the commit its spec names");
             }
             let tree = self.tree(workspace, &repo.name);
-            assert_eq!(tree, self.forge.tree(commit), "a repository is checked out at its starting point");
-            start.push(tree);
+            let expected = self.forge.tree(commit);
+            if self.checked_out.contains_key(&(hold, repo.name.clone())) {
+                assert_eq!(tree, expected, "a repository is checked out at its starting point");
+            } else {
+                for (path, content) in &expected {
+                    assert_eq!(tree.get(path), Some(content), "preserved tracked file");
+                }
+            }
+            start.push(expected);
         }
         let client = self.clients.get_mut(&name).expect("a client submitted");
         client.pushed.clone_from(&start);
@@ -1146,7 +1171,10 @@ impl World {
         let client = self.clients.get_mut(&name).expect("a hold's client");
         assert!(client.release != Release::Done, "no operation touches a workspace after its release");
         let operation = client.operation;
-        assert!(operation.is_some(), "an operation runs only while its client waits for one to end");
+        assert!(
+            operation.is_some() || client.release == Release::Asked,
+            "an operation runs while its client waits, including the kept release"
+        );
         let limits = self.settings.checkout;
         if let Op::Pack { at, store } = &op {
             assert_eq!(operation, Some(Operation::Prepare), "only a prepare packs");
@@ -1238,6 +1266,7 @@ impl World {
             | Op::Pack { .. }
             | Op::Point { .. }
             | Op::Fetch { .. }
+            | Op::Keep { .. }
             | Op::Make { .. }
             | Op::Clone { .. }
             | Op::Create { .. }
@@ -1335,7 +1364,10 @@ impl World {
         }
         let client = self.clients.get(self.holds.get(&owner).expect("a hold's")).expect("a hold's client");
         assert!(client.release != Release::Done, "nothing touches a workspace once its hold is released");
-        assert!(client.operation.is_some(), "nothing touches a workspace once its client has heard the end");
+        assert!(
+            client.operation.is_some() || client.release == Release::Asked,
+            "workspace operations settle before release ends"
+        );
         if op.kind() == Kind::Make && self.disk.exists(&translate::dir(workspace.expect("Make has a workspace"))) {
             self.stats.made_over += 1;
         }
@@ -1358,6 +1390,7 @@ impl World {
                 Some((at.repository.to_vec(), path, tree))
             }
             Op::Store { .. }
+            | Op::Keep { .. }
             | Op::Make { .. }
             | Op::Clone { .. }
             | Op::Reds { .. }
@@ -1402,6 +1435,7 @@ impl World {
         let kind = op.kind();
         let creates = kind == Kind::Create;
         self.forge.at(self.now);
+        let keep = if let Op::Keep { workspace, mark } = &op { Some((*workspace, mark.clone())) } else { None };
         let used = if self.faults.capacity.is_some() { self.disk_used() } else { 0 };
         let done = if cut && self.faults.capacity.is_none_or(|capacity| used < capacity) {
             let done = translate::cut(&mut self.forge, &mut self.disk, op);
@@ -1412,6 +1446,15 @@ impl World {
         } else {
             translate::perform_with_capacity(&mut self.forge, &mut self.disk, op, self.faults.capacity)
         };
+        if done == Done::Succeeded
+            && let Some((workspace, mark)) = keep
+        {
+            if let Some(mark) = mark {
+                self.kept.insert(workspace, mark);
+            } else {
+                self.kept.remove(&workspace);
+            }
+        }
         self.faults.answered(owner, kind, self.now, used, &done);
         if let Some((repository, objects, before)) = transfer {
             let after = object_markers(&self.disk, &objects);
@@ -1502,7 +1545,8 @@ impl World {
                 match op {
                     Kind::Make => told.makes += 1,
                     Kind::Clone => told.clones += 1,
-                    Kind::Reds
+                    Kind::Keep
+                    | Kind::Reds
                     | Kind::Reset
                     | Kind::Pack
                     | Kind::Point
@@ -1637,6 +1681,7 @@ fn describe_event(event: &Event) -> String {
         Event::Save { hold, .. } => format!("save {}", hold.raw()),
         Event::Abort { hold } => format!("abort {}", hold.raw()),
         Event::Cut { hold } => format!("cut {}", hold.raw()),
+        Event::Keep { hold } => format!("keep {}", hold.raw()),
         Event::Release { hold } => format!("release {}", hold.raw()),
         Event::PushUnchecked { hold } => format!("save unchecked {}", hold.raw()),
         Event::Reds { hold, action } => format!("reds {} {action:?}", hold.raw()),

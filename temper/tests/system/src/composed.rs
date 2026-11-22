@@ -1731,6 +1731,7 @@ fn forge_operation(mut op: worker::checkout::git::Op) -> worker::checkout::git::
         | Op::Reset { .. }
         | Op::Pack { .. }
         | Op::Point { .. }
+        | Op::Keep { .. }
         | Op::Make { .. }
         | Op::CheckOut { .. }
         | Op::Look { .. }

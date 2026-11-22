@@ -116,6 +116,7 @@ fn git(h: &mut Harness, initial: Box<[Request]>, stale: bool) -> Box<[Request]> 
                 | Op::Pack { .. }
                 | Op::Point { .. }
                 | Op::Store { .. }
+                | Op::Keep { .. }
                 | Op::Make { .. }
                 | Op::Clone { .. }
                 | Op::Create { .. }

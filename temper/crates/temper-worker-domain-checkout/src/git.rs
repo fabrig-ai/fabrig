@@ -58,6 +58,8 @@ pub struct Place {
 /// names, in [`Done::Succeeded`] if it names none, or in [`Done::Failed`].
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Op {
+    /// Write or consume the mark for a cut run (domain/worker/checkouts.md).
+    Keep { workspace: Token, mark: Option<Kept> },
     /// Move HEAD and the index to a local commit, keeping all working files. Ends Committed.
     Reset { at: Place, commit: Commit },
     /// Best-effort check files (domain/forge/reds.md, 5.2).
@@ -138,6 +140,22 @@ pub enum Op {
         identity: u32,
         account: Option<u64>,
     },
+}
+
+/// The mark beside a workspace, private to this worker, versioned by its file.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Kept {
+    pub workspace: Token,
+    pub key: Box<[u8]>,
+    pub repositories: Box<[KeptRepository]>,
+    pub when: u64,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct KeptRepository {
+    pub name: Box<[u8]>,
+    pub remote: Box<[u8]>,
+    pub commit: Commit,
 }
 
 /// Check files resolved by git rev-parse --git-path (domain/forge/reds.md, 5.2).
@@ -273,6 +291,7 @@ pub enum Missing {
 /// An operation's kind, for the facts.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Kind {
+    Keep,
     Reset,
     Reds,
     Store,
@@ -296,6 +315,7 @@ impl Op {
     #[must_use]
     pub const fn kind(&self) -> Kind {
         match self {
+            Op::Keep { .. } => Kind::Keep,
             Op::Reset { .. } => Kind::Reset,
             Op::Reds { .. } => Kind::Reds,
             Op::Store { .. } => Kind::Store,
@@ -336,6 +356,7 @@ impl Op {
             | Op::Brings { .. }
             | Op::IsAncestor { .. }
             | Op::DiffPaths { .. }
+            | Op::Keep { .. }
             | Op::Make { .. } => false,
         }
     }

@@ -113,7 +113,9 @@ fn a_clean_repair_without_its_own_delivery_gets_nothing_when_finishing() {
 
 #[test]
 fn a_landed_change_saves_nothing() {
-    assert_eq!(run(111, Case::Delivered).expect("world checks").saves, 0);
+    let report = run(111, Case::Delivered).expect("world checks");
+    assert_eq!(report.saves, 0);
+    assert!(report.kept.is_empty(), "finished runs leave no workspace mark");
 }
 
 #[test]

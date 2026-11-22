@@ -7,7 +7,7 @@ use temper_worker_domain_checkout::git;
 
 // Completions before opening kept workspaces or making fresh ones.
 const KEPT_BEFORE_OPEN: u8 = 9;
-const FRESH_BEFORE_WORKSPACES: u8 = 6;
+const FRESH_BEFORE_WORKSPACES: u8 = 4;
 
 fn directory(dir: Fd, name: &[u8]) -> Op {
     Op::MakeDirectory { dir, name: Box::from(name), mode: 0o700 }
@@ -44,10 +44,8 @@ fn the_start_keeps_stores_and_replaces_workspaces_making_and_home() {
         for (operation, error) in [
             (directory(Fd::new(3), b"trash"), exists),
             (open(b"trash", OpenHow::DirectoryNoFollow), None),
-            (rename(Fd::new(3), b"workspaces", b"1000"), missing),
-            (rename(Fd::new(3), b"gitdirs", b"1001"), missing),
-            (rename(Fd::new(3), b"making", b"1002"), missing),
-            (rename(Fd::new(3), b"home", b"1003"), missing),
+            (rename(Fd::new(3), b"making", b"1000"), missing),
+            (rename(Fd::new(3), b"home", b"1001"), missing),
             (directory(Fd::new(3), b"workspaces"), None),
             (directory(Fd::new(3), b"gitdirs"), None),
             (directory(Fd::new(3), b"stores"), exists),
@@ -66,6 +64,7 @@ fn the_start_keeps_stores_and_replaces_workspaces_making_and_home() {
                 component.complete_ok();
             }
         }
+        component.finish_layout();
         assert_eq!(component.below.out.events.pop(), Some(Event::Started));
     }
 }
@@ -77,11 +76,11 @@ fn a_start_skips_a_trash_name_left_by_an_earlier_start() {
     component.complete_err(Error::Exists);
     component.file_operation();
     component.complete_ok();
-    assert_eq!(component.file_operation(), rename(Fd::new(3), b"workspaces", b"1000"));
+    assert_eq!(component.file_operation(), rename(Fd::new(3), b"making", b"1000"));
     component.complete_err(Error::Exists);
-    assert_eq!(component.file_operation(), rename(Fd::new(3), b"workspaces", b"1001"));
+    assert_eq!(component.file_operation(), rename(Fd::new(3), b"making", b"1001"));
     component.complete_ok();
-    assert_eq!(component.file_operation(), rename(Fd::new(3), b"gitdirs", b"1002"));
+    assert_eq!(component.file_operation(), rename(Fd::new(3), b"home", b"1002"));
 }
 
 #[test]
@@ -544,6 +543,7 @@ fn a_kept_start_replaces_making_and_home_and_keeps_workspaces_and_stores() {
                 component.complete_ok();
             }
         }
+        component.finish_layout();
         assert_eq!(component.below.out.events.pop(), Some(Event::Started));
     }
 }
@@ -564,7 +564,7 @@ fn a_kept_start_refuses_workspaces_reached_through_a_link() {
 }
 
 #[test]
-fn an_unset_start_refuses_existing_workspaces_after_the_rename() {
+fn an_unset_start_opens_existing_workspaces_for_the_selective_sweep() {
     let mut component = fixtures::Started::version_checked();
     for _ in 0..FRESH_BEFORE_WORKSPACES {
         component.file_operation();
@@ -572,10 +572,8 @@ fn an_unset_start_refuses_existing_workspaces_after_the_rename() {
     }
     assert_eq!(component.file_operation(), directory(Fd::new(3), b"workspaces"));
     component.complete_err(Error::Exists);
-    assert_eq!(
-        component.below.out.events.pop(),
-        Some(Event::Unusable { why: Unusable::Layout { error: Error::Exists } })
-    );
+    component.finish_layout();
+    assert_eq!(component.below.out.events.pop(), Some(Event::Started));
 }
 
 #[test]
@@ -588,15 +586,16 @@ fn the_layout_never_names_the_pinned_agent_or_its_files() {
         let mut component =
             if keep { fixtures::Started::version_checked_keeping() } else { fixtures::Started::version_checked() };
         let mut started = false;
-        for _ in 0_u8..16 {
+        for _ in 0_u8..40 {
             let operation = component.file_operation();
             let name = match &operation {
                 Op::MakeDirectory { name, .. } | Op::Remove { name, .. } => name,
                 Op::Open { path, .. } => path,
                 Op::Rename { from, .. } => from,
+                Op::List { .. } | Op::Close { .. } => b"".as_slice(),
                 _ => panic!("unexpected layout operation: {operation:?}"),
             };
-            assert!(name.as_ref() != b"agent" && !name.starts_with(b"agent/"), "pinned agent touched: {operation:?}");
+            assert!(name != b"agent" && !name.starts_with(b"agent/"), "pinned agent touched: {operation:?}");
             component.complete_ok();
             if component.below.out.events.pop() == Some(Event::Started) {
                 started = true;

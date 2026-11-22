@@ -433,10 +433,18 @@ pub(crate) enum Write {
 pub(crate) fn release(domain: &mut Domain, env: &Env<Limits>, workspace: Token) {
     let id = Id::<Workspace>::from_token(workspace);
     let record = domain.workspaces.get_mut(id).expect("a workspace lives until it is released");
+    let keep = cut_saved(&domain.host, record.items);
     let mut then = Then::NOTHING;
     let state = mem::replace(&mut record.state, State::Closed);
     record.state = match state {
-        State::Ready { hold, directory: _, asked: None } => releasing(hold, &mut then),
+        State::Ready { hold, directory: _, asked: None } => {
+            if keep {
+                then.checkout = Some(checkout::Event::Keep { hold });
+                State::Releasing
+            } else {
+                releasing(hold, &mut then)
+            }
+        }
         State::Ready { asked: Some(_), .. } => unreachable!("the host releases a workspace with nothing in flight"),
         State::Preparing { .. } | State::Releasing | State::Closed => {
             unreachable!("the host releases a workspace it was given, once")
@@ -903,6 +911,46 @@ pub(crate) fn reds(domain: &mut Domain, env: &Env<Limits>, owner: Token, action:
     } else {
         false
     }
+}
+
+/// The hub has made its answer before emitting Release. Only a shutdown cut
+/// with a completed save may keep the workspace.
+fn cut_saved(hub: &host::Hub, items: Token) -> bool {
+    for index in 0..hub.kept_answers() {
+        let Some(answer) = hub.answer_at(index) else { continue };
+        let answer = match answer {
+            host::LinkUp::Answer { answer, .. } => answer,
+            host::LinkUp::Paused { .. }
+            | host::LinkUp::Ask { .. }
+            | host::LinkUp::Draining
+            | host::LinkUp::Usage { .. }
+            | host::LinkUp::UsageRead { .. }
+            | host::LinkUp::ListRead { .. }
+            | host::LinkUp::JobAnswer { .. }
+            | host::LinkUp::Piece { .. }
+            | host::LinkUp::Logins { .. }
+            | host::LinkUp::SignedOut { .. }
+            | host::LinkUp::Activity { .. }
+            | host::LinkUp::Unauthorized { .. }
+            | host::LinkUp::Limited { .. }
+            | host::LinkUp::AccountRefused { .. }
+            | host::LinkUp::Part { .. }
+            | host::LinkUp::Turn { .. }
+            | host::LinkUp::Call { .. } => continue,
+        };
+        match answer.ending {
+            host::Ending::Failed { failure: host::Failure::Cancelled(host::Reason::Shutdown), work, .. }
+                if work.saved == Some(items) =>
+            {
+                return true;
+            }
+            host::Ending::Refused(_)
+            | host::Ending::Ended { .. }
+            | host::Ending::Parked { .. }
+            | host::Ending::Failed { .. } => {}
+        }
+    }
+    false
 }
 
 #[cfg(test)]

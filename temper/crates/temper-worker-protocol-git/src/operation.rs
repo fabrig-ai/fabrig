@@ -323,6 +323,7 @@ impl Operation {
                 Some(git::Op::Commit { title, body, .. }) if self.has_input() => invocation::message(title, body),
                 Some(
                     git::Op::Store { .. }
+                    | git::Op::Keep { .. }
                     | git::Op::Make { .. }
                     | git::Op::Clone { .. }
                     | git::Op::Reds { .. }
@@ -373,6 +374,7 @@ impl Operation {
                 | Next::Run(_)
                 | Next::Snapshot { .. }
                 | Next::Look { .. }
+                | Next::Keep
                 | Next::Make
                 | Next::Store
                 | Next::InstallStore { .. }
@@ -418,6 +420,7 @@ impl Operation {
                 Some(git::Op::Merge { .. } | git::Op::Commit { .. }) => true,
                 Some(
                     git::Op::Store { .. }
+                    | git::Op::Keep { .. }
                     | git::Op::Make { .. }
                     | git::Op::Look { .. }
                     | git::Op::Clone { .. }

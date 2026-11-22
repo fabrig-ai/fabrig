@@ -10,6 +10,7 @@ pub(crate) fn enabled(op: &git::Op) -> bool {
     match op {
         git::Op::Commit { snapshot, .. } => snapshot.is_some(),
         git::Op::Store { .. }
+        | git::Op::Keep { .. }
         | git::Op::Make { .. }
         | git::Op::Look { .. }
         | git::Op::Clone { .. }
@@ -134,6 +135,7 @@ fn parameters(op: &git::Op) -> (&git::Commit, &Option<git::Commit>, &git::Snapsh
         git::Op::Commit { parent, merging, snapshot: Some(snapshot), .. } => (parent, merging, snapshot),
         git::Op::Commit { snapshot: None, .. }
         | git::Op::Store { .. }
+        | git::Op::Keep { .. }
         | git::Op::Make { .. }
         | git::Op::Look { .. }
         | git::Op::Clone { .. }

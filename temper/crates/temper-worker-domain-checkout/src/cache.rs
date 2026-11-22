@@ -41,6 +41,8 @@ const PACK_DUE: u32 = 25;
 pub struct Workspace {
     /// The workstream it is for, also its key in [`Cache::keys`].
     key: Box<[u8]>,
+    token: Token,
+    kept: Option<crate::git::Kept>,
     disk: Disk,
     used: Use,
     borrowing: Box<[Box<[u8]>]>,
@@ -92,6 +94,8 @@ pub(crate) enum Claim {
 pub(crate) struct Granted {
     pub workspace: Id<Workspace>,
     pub cached: Cached,
+    pub token: Token,
+    pub kept: Option<crate::git::Kept>,
     pub stores: Box<[Borrowed]>,
 }
 #[derive(Clone, Copy, Debug)]
@@ -118,6 +122,7 @@ pub(crate) struct Cache {
     idle: Map<u64, Id<Workspace>>,
     /// Releases so far, which order the idle workspaces.
     releases: u64,
+    next_token: u64,
     reuse: bool,
     stores: Slab<Store>,
 }
@@ -176,7 +181,14 @@ impl Store {
 
 impl Cache {
     pub(crate) fn workspace_uses_store(&self, workspace: Token, store: Token) -> bool {
-        let Some(workspace) = self.workspaces.get(Id::from_token(workspace)) else {
+        let mut found = None;
+        for (_, entry) in &self.workspaces {
+            if entry.token == workspace {
+                found = Some(entry);
+                break;
+            }
+        }
+        let Some(workspace) = found else {
             return false;
         };
         let repositories = match &workspace.disk {
@@ -207,6 +219,7 @@ impl Cache {
             keys: Map::with_capacity(workspaces),
             idle: Map::with_capacity(workspaces),
             releases: 0,
+            next_token: 0,
             reuse: false,
             stores: Slab::with_capacity(stores),
         }
@@ -218,6 +231,54 @@ impl Cache {
 
     pub(crate) const fn reuses_workspaces(&self) -> bool {
         self.reuse
+    }
+
+    pub(crate) fn keep(&mut self, id: Id<Workspace>, mark: crate::git::Kept) {
+        self.workspaces.get_mut(id).expect("held workspace").kept = Some(mark);
+    }
+
+    /// Layout has checked these marks against the disk. Restore oldest first.
+    pub(crate) fn restore(&mut self, marks: Box<[crate::git::Kept]>) {
+        assert!(self.workspaces.is_empty(), "restore precedes prepares");
+        let mut ordered = Map::uncapped();
+        for mark in marks {
+            ordered.insert((mark.when, mark.workspace.raw()), mark).expect("unique marks");
+        }
+        for _ in 0..ordered.len() {
+            let Some((key, _)) = ordered.first() else { break };
+            let key = *key;
+            let mark = ordered.remove(&key).expect("oldest mark");
+            if self.workspaces.is_full() || self.keys.get(mark.key.as_ref()).is_some() {
+                continue;
+            }
+            self.next_token =
+                self.next_token.max(mark.workspace.raw().checked_add(1_u64 << 32).expect("workspace token lifetime"));
+            let mut clones = List::with_capacity(count(mark.repositories.len()));
+            for repository in &mark.repositories {
+                let store = self.store(&repository.remote);
+                clones
+                    .push(Cloned {
+                        name: repository.name.clone(),
+                        remote: repository.remote.clone(),
+                        store,
+                        pack_operations: 0,
+                    })
+                    .expect("marked repositories");
+            }
+            self.releases = self.releases.checked_add(1).expect("workspace count");
+            let key = mark.key.clone();
+            let workspace = Workspace {
+                key: key.clone(),
+                token: mark.workspace,
+                kept: Some(mark),
+                disk: Disk::Holds { repositories: clones.into_boxed() },
+                used: Use::Idle { since: self.releases },
+                borrowing: Box::new([]),
+            };
+            let id = self.workspaces.insert(workspace).expect("checked capacity");
+            self.keys.insert(key, id).expect("workspace capacity");
+            self.idle.insert(self.releases, id).expect("workspace capacity");
+        }
     }
 
     /// Workspaces made so far.
@@ -261,7 +322,8 @@ impl Cache {
             let entry = self.stores.get(store).expect("assigned store");
             stores.push(Borrowed { store, token: entry.token, aside: entry.aside }).expect("spec room");
         }
-        Ok(Granted { workspace, cached, stores: stores.into_boxed() })
+        let entry = self.workspaces.get_mut(workspace).expect("held workspace");
+        Ok(Granted { workspace, cached, token: entry.token, kept: entry.kept.take(), stores: stores.into_boxed() })
     }
     fn store(&mut self, remote: &[u8]) -> Id<Store> {
         for (id, store) in &self.stores {
@@ -380,6 +442,9 @@ impl Cache {
             };
             self.idle.remove(&since);
             workspace.used = Use::Held;
+            if workspace.kept.is_some() {
+                return Ok((id, Cached::Reused));
+            }
             // Restoring a saved commit starts with an empty directory. Local untracked
             // leftovers never accompany the retained transcript into its saved tree.
             if !starts_saved(repositories) && holds_exactly(&workspace.disk, repositories) {
@@ -389,8 +454,15 @@ impl Cache {
             return Ok((id, Cached::Rebuilt));
         }
         if !self.workspaces.is_full() {
-            let workspace =
-                Workspace { key: copy_of(&key), disk: Disk::Unknown, used: Use::Held, borrowing: Box::new([]) };
+            let workspace = Workspace {
+                key: copy_of(&key),
+                token: Token::new(self.next_token),
+                kept: None,
+                disk: Disk::Unknown,
+                used: Use::Held,
+                borrowing: Box::new([]),
+            };
+            self.next_token = self.next_token.checked_add(1_u64 << 32).expect("workspace token lifetime");
             let id = self.workspaces.insert(workspace).expect("checked for room above");
             let made = self.keys.insert(key, id).expect("a key for each workspace");
             assert!(made.is_none(), "a workstream has one workspace");
@@ -405,9 +477,19 @@ impl Cache {
         let workspace = self.workspaces.get_mut(id).expect("an idle workspace is of the cache");
         let gone = self.keys.remove(&*workspace.key);
         assert!(gone == Some(id), "a workspace is keyed by its workstream");
-        let kept = self.reuse && !starts_saved(repositories) && holds_exactly(&workspace.disk, repositories);
+        let kept = workspace.kept.is_none()
+            && self.reuse
+            && !starts_saved(repositories)
+            && holds_exactly(&workspace.disk, repositories);
         let disk = if kept { mem::replace(&mut workspace.disk, Disk::Unknown) } else { Disk::Unknown };
-        *workspace = Workspace { key: copy_of(&key), disk, used: Use::Held, borrowing: Box::new([]) };
+        *workspace = Workspace {
+            key: copy_of(&key),
+            token: workspace.token,
+            kept: workspace.kept.take(),
+            disk,
+            used: Use::Held,
+            borrowing: Box::new([]),
+        };
         let made = self.keys.insert(key, id).expect("room for the key of the workspace evicted");
         assert!(made.is_none(), "a workstream has one workspace");
         Ok((id, if kept { Cached::Kept } else { Cached::Evicted }))
@@ -467,7 +549,8 @@ impl Cache {
                     clone.pack_operations = 0;
                 }
             }
-            Op::Reset { .. }
+            Op::Keep { .. }
+            | Op::Reset { .. }
             | Op::Reds { .. }
             | Op::Make { .. }
             | Op::Store { .. }

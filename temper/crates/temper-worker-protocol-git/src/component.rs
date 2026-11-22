@@ -101,7 +101,9 @@ impl Component {
                 crate::files::Phase::Sweep(_) => true,
                 crate::files::Phase::Reds(_)
                 | crate::files::Phase::Results(_)
-                | crate::files::Phase::Layout(_)
+                | crate::files::Phase::Layout(_, _)
+                | crate::files::Phase::KeptLayout(_)
+                | crate::files::Phase::Keep(_)
                 | crate::files::Phase::Make(_)
                 | crate::files::Phase::Look(_)
                 | crate::files::Phase::Store(_)
@@ -160,7 +162,7 @@ impl Component {
         assert_eq!(self.start, Start::Idle, "start once");
         if self.settings.git.is_none() {
             self.start = Start::Layout;
-            self.background(Task::layout(), out);
+            self.background(Task::layout(self.checkout), out);
             return;
         }
         self.start = Start::Checking;
@@ -286,6 +288,7 @@ impl Component {
             | git::Op::Reset { .. }
             | git::Op::Pack { .. }
             | git::Op::Point { .. }
+            | git::Op::Keep { .. }
             | git::Op::Make { .. }
             | git::Op::Clone { .. }
             | git::Op::Look { .. }
@@ -369,7 +372,7 @@ impl Component {
                 self.checked = Some((program.clone(), version));
                 if usable(version) {
                     self.start = Start::Layout;
-                    self.background(Task::layout(), out);
+                    self.background(Task::layout(self.checkout), out);
                 } else {
                     self.start = Start::Unusable;
                     event(out, Event::Unusable { why: Unusable::Version { found: version } });
@@ -470,6 +473,7 @@ impl Component {
             other @ (Next::Results { .. }
             | Next::Reds { .. }
             | Next::Run(_)
+            | Next::Keep
             | Next::Make
             | Next::Look { .. }
             | Next::Store
@@ -547,6 +551,12 @@ impl Component {
                 unreachable!("continuations were resolved before dispatch")
             }
             Next::End(done) => self.finish(id, done, out),
+            Next::Keep => {
+                let Some(git::Op::Keep { workspace, mark }) = &self.slots.get(id).expect("live operation").op else {
+                    unreachable!("keep sequence")
+                };
+                self.file_start(id, Task::keep(*workspace, mark.as_ref()), out);
+            }
             Next::Make => {
                 let Some(git::Op::Make { workspace, stores }) = &self.slots.get(id).expect("live index").op else {
                     unreachable!("Make sequence")
@@ -597,6 +607,7 @@ impl Component {
                     | git::Op::Pack { .. }
                     | git::Op::Point { .. }
                     | git::Op::Store { .. }
+                    | git::Op::Keep { .. }
                     | git::Op::Make { .. }
                     | git::Op::Clone { .. }
                     | git::Op::Fetch { .. }
@@ -835,6 +846,10 @@ impl Component {
         }
         self.wake_stores(Time::ZERO, out);
         self.maintain(false, out);
+    }
+    #[must_use]
+    pub fn take_kept(&mut self) -> Box<[git::Kept]> {
+        core::mem::replace(&mut self.directories.marks, List::uncapped()).into_boxed()
     }
     #[must_use]
     pub fn accepts(&self, event: &io::Event) -> bool {

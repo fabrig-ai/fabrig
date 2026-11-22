@@ -246,6 +246,11 @@ impl Domain {
         &self.checkout
     }
 
+    /// Restore the workspaces the protocol start kept for their runs.
+    pub fn restore_workspaces(&mut self, marks: Box<[checkout::git::Kept]>) {
+        self.checkout.restore_workspaces(marks);
+    }
+
     /// Keep matching clones when an idle checkout workspace is evicted.
     pub fn reuse_workspaces(&mut self) {
         self.checkout.reuse_workspaces();

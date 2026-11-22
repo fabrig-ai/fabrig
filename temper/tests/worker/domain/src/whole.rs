@@ -60,6 +60,7 @@ pub struct Report {
     pub drops: u32,
     pub io_cuts: u32,
     pub saves: u32,
+    pub kept: Vec<temper_worker_domain::checkout::git::Kept>,
     pub stop_bound: Duration,
     pub pauses: Vec<jig_domain_link::PauseState>,
 }
@@ -157,6 +158,7 @@ impl World {
                 drops: 0,
                 io_cuts: 0,
                 saves: 0,
+                kept: Vec::new(),
                 stop_bound: Duration::ZERO,
                 pauses: Vec::new(),
             },
@@ -341,6 +343,9 @@ impl World {
                 }),
                 "the note precedes every fetch and check out"
             );
+        }
+        if let Op::Keep { mark: Some(mark), .. } = &op {
+            self.report.kept.push(mark.clone());
         }
         if let Op::Make { workspace, .. } = &op {
             self.workspace = Some(*workspace);
@@ -681,6 +686,14 @@ impl World {
                 panic!("one saved head");
             };
             assert_eq!(*saved, translate::commit(commit).raw());
+            if matches!(case, Case::Drained | Case::DrainExpired | Case::LinkDrained | Case::LinkDrainExpired) {
+                let [mark] = self.report.kept.as_slice() else {
+                    panic!("cut run keeps one workspace");
+                };
+                assert_eq!(mark.repositories[0].commit.raw(), *saved);
+            } else {
+                assert_eq!(self.report.kept.len(), 0);
+            }
         } else {
             assert_eq!(
                 work.landed.as_ref(),

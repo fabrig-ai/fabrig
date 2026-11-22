@@ -17,6 +17,7 @@ pub enum Next {
     Reds { directory: Box<[u8]>, content: Option<Box<[u8]>>, marker: bool, rerun: Option<u32> },
     Results { directory: Box<[u8]> },
     Snapshot { parent: git::Commit, merging: Option<git::Commit> },
+    Keep,
     Make,
     Look { directory: Box<[u8]> },
     Store,
@@ -33,6 +34,7 @@ pub enum Next {
 pub fn first(op: &git::Op) -> Next {
     Next::Run(match op {
         git::Op::Reds { .. } => return crate::reds::first(op),
+        git::Op::Keep { .. } => return Next::Keep,
         git::Op::Make { .. } => return Next::Make,
         git::Op::Store { .. } => return Next::Store,
         git::Op::Look { at, .. } => Command::Origin { directory: invocation::git_dir(at) },
@@ -126,6 +128,7 @@ pub fn after(
                 _ => {}
             },
             git::Op::Store { .. }
+            | git::Op::Keep { .. }
             | git::Op::Make { .. }
             | git::Op::Clone { .. }
             | git::Op::Reds { .. }
@@ -219,6 +222,7 @@ pub fn after(
                 });
             }
             git::Op::Store { .. }
+            | git::Op::Keep { .. }
             | git::Op::Make { .. }
             | git::Op::Clone { .. }
             | git::Op::Reds { .. }
@@ -283,6 +287,7 @@ pub fn after(
             | git::Op::DiffPaths { .. }
             | git::Op::Look { .. }
             | git::Op::Store { .. }
+            | git::Op::Keep { .. }
             | git::Op::Make { .. }
             | git::Op::Clone { .. }
             | git::Op::Reds { .. }
@@ -373,6 +378,7 @@ fn unmerged(op: &git::Op, stdout: &[u8], checkout: &checkout::Limits) -> Option<
             Some(Next::Scan { files, cut })
         }
         git::Op::Store { .. }
+        | git::Op::Keep { .. }
         | git::Op::Make { .. }
         | git::Op::Clone { .. }
         | git::Op::Reds { .. }
@@ -396,6 +402,7 @@ fn commit_tree(op: &git::Op, stdout: &[u8]) -> Option<Command> {
             Some(Command::CommitTree { tree, parent: *parent, merging: *merging })
         }
         git::Op::Store { .. }
+        | git::Op::Keep { .. }
         | git::Op::Make { .. }
         | git::Op::Clone { .. }
         | git::Op::Reds { .. }
@@ -419,6 +426,7 @@ fn checked_out(op: &git::Op) -> Next {
         git::Op::CheckOut { clean: false, .. } => Next::End(git::Done::Succeeded),
         git::Op::CheckOut { clean: true, .. }
         | git::Op::Store { .. }
+        | git::Op::Keep { .. }
         | git::Op::Make { .. }
         | git::Op::Clone { .. }
         | git::Op::Reds { .. }
@@ -510,6 +518,7 @@ pub(crate) fn view_place(op: &git::Op) -> Option<&git::Place> {
         | git::Op::Commit { at, .. }
         | git::Op::Reset { at, .. } => Some(at),
         git::Op::Pack { .. }
+        | git::Op::Keep { .. }
         | git::Op::Make { .. }
         | git::Op::Store { .. }
         | git::Op::Look { .. }

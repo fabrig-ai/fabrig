@@ -135,7 +135,7 @@ pub enum Command {
 /// The item's program is carried by every operation except Make.
 pub(crate) fn item_program(op: &git::Op) -> Option<&[u8]> {
     match op {
-        git::Op::Make { .. } => None,
+        git::Op::Keep { .. } | git::Op::Make { .. } => None,
         git::Op::Store { git, .. } => git.as_deref(),
         git::Op::Clone { at, .. }
         | git::Op::Reds { at, .. }
@@ -170,6 +170,7 @@ pub(crate) fn no_program(op: &git::Op, command: &Command) -> Box<[u8]> {
                 None
             }
             git::Op::Store { .. }
+            | git::Op::Keep { .. }
             | git::Op::Make { .. }
             | git::Op::Clone { .. }
             | git::Op::Reds { .. }
@@ -320,7 +321,7 @@ pub fn arguments_for(op: &git::Op, command: &Command) -> Box<[Box<[u8]>]> {
             }
             at
         }
-        git::Op::Store { .. } | git::Op::Make { .. } => return arguments(command),
+        git::Op::Store { .. } | git::Op::Keep { .. } | git::Op::Make { .. } => return arguments(command),
         git::Op::Reds { at, .. }
         | git::Op::Reset { at, .. }
         | git::Op::Pack { at, .. }
@@ -570,6 +571,7 @@ pub(crate) fn environment_for(
             | git::Kind::DiffPaths
             | git::Kind::Brings
             | git::Kind::IsAncestor
+            | git::Kind::Keep
             | git::Kind::Make,
         ) => None,
     };
@@ -636,6 +638,7 @@ pub(crate) fn environment_for(
             | git::Kind::DiffPaths
             | git::Kind::Brings
             | git::Kind::IsAncestor
+            | git::Kind::Keep
             | git::Kind::Make,
         ) => {}
     }

@@ -444,6 +444,7 @@ impl World {
             | Op::Pack { .. }
             | Op::Point { .. }
             | Op::Store { .. }
+            | Op::Keep { .. }
             | Op::Make { .. }
             | Op::Clone { .. }
             | Op::Create { .. }

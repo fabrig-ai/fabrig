@@ -64,6 +64,7 @@ fn prepared(job: Option<JobKind>) -> (Harness, Token, Box<[Request]>) {
                     Op::Pack { .. }
                     | Op::Reds { .. }
                     | Op::Reset { .. }
+                    | Op::Keep { .. }
                     | Op::Make { .. }
                     | Op::Store { .. }
                     | Op::Clone { .. }

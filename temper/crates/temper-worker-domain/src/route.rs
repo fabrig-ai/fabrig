@@ -390,6 +390,7 @@ fn note_git(domain: &Domain, hold: Token, op: &checkout::git::Op, out: &mut Queu
         Op::Pack { .. }
         | Op::Reset { .. }
         | Op::Reds { .. }
+        | Op::Keep { .. }
         | Op::Make { .. }
         | Op::Store { .. }
         | Op::Look { .. }
