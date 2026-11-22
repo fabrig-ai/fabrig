@@ -125,6 +125,8 @@ pub struct World {
     pub forge_calls: u32,
     pub forge_reads: Option<Vec<(Token, skein_forge::api::Read)>>,
     pub scripted_forge_reads: Vec<(skein_forge::api::Read, Result<skein_forge::api::Answer, skein_forge::api::Error>)>,
+    /// Attempt times for persistent scripted read faults, when a story observes retry spacing.
+    pub scripted_forge_attempts: Option<Vec<(Time, skein_forge::api::Read)>>,
     pub adopted: Vec<forge_top::ApplicationOutcome>,
     /// Durable limit-setting words at the service face.
     pub limit_settings: Vec<engine::Request>,
@@ -169,6 +171,12 @@ pub struct World {
     pub held_reads: Option<Vec<engine::Request>>,
     pub hold_reads_at_any_step: bool,
     pub busy_reads: bool,
+    /// Answer every engine forge call before it reaches the peer.
+    pub unavailable: bool,
+    pub unavailable_calls: Vec<skein_forge::api::Op>,
+    /// Fail every issue-creation find; ordinary fresh listings still answer.
+    pub fail_issue_finds: bool,
+    pub failed_issue_finds: u32,
     /// Source comparisons withheld before their terminal, including across a cold restart.
     pub held_comparisons: Option<Vec<engine::Request>>,
     /// An unusable comparison must conservatively keep a source landing.
@@ -1686,6 +1694,7 @@ impl World {
             forge_calls: 0,
             forge_reads: None,
             scripted_forge_reads: Vec::new(),
+            scripted_forge_attempts: None,
             adopted: Vec::new(),
             limit_settings: Vec::new(),
             follow_answers: Vec::new(),
@@ -1720,6 +1729,10 @@ impl World {
             held_reads: None,
             hold_reads_at_any_step: false,
             busy_reads: false,
+            unavailable: false,
+            unavailable_calls: Vec::new(),
+            fail_issue_finds: false,
+            failed_issue_finds: 0,
             held_comparisons: None,
             fail_comparisons: false,
             hold_write_answers: None,
@@ -2464,6 +2477,40 @@ impl World {
                     }));
                 }
                 engine::Request::Forge { call, repository, op } => {
+                    if self.unavailable {
+                        self.unavailable_calls.push(op);
+                        self.events.push_back(engine::Event::Forge(Box::new(forge_top::Event::Client(
+                            skein_forge_client::Event::Answered {
+                                free: 0,
+                                rate: None,
+                                call,
+                                cost: 1,
+                                result: Err(skein_forge::api::Error::Unavailable),
+                            },
+                        ))));
+                        continue;
+                    }
+                    if self.fail_issue_finds
+                        && matches!(
+                            op,
+                            skein_forge::api::Op::Read(skein_forge::api::Read::Items {
+                                kind: Some(skein_forge::api::Kind::Issue),
+                                ..
+                            })
+                        )
+                    {
+                        self.failed_issue_finds += 1;
+                        self.events.push_back(engine::Event::Forge(Box::new(forge_top::Event::Client(
+                            skein_forge_client::Event::Answered {
+                                free: 0,
+                                rate: None,
+                                call,
+                                cost: 1,
+                                result: Err(skein_forge::api::Error::Unavailable),
+                            },
+                        ))));
+                        continue;
+                    }
                     if self.busy_reads && matches!(op, skein_forge::api::Op::Read(_)) {
                         self.held_reads.get_or_insert_with(Vec::new).push(engine::Request::Forge {
                             call,
@@ -2519,6 +2566,9 @@ impl World {
                     if let skein_forge::api::Op::Read(read) = &op
                         && let Some((_, result)) = self.scripted_forge_reads.iter().find(|(asked, _)| asked == read)
                     {
+                        if let Some(attempts) = &mut self.scripted_forge_attempts {
+                            attempts.push((self.env.now, read.clone()));
+                        }
                         self.events.push_back(engine::Event::Forge(Box::new(forge_top::Event::Client(
                             skein_forge_client::Event::Answered {
                                 free: 0,
@@ -3398,6 +3448,12 @@ impl World {
 
     pub fn sign_in(&mut self) {
         self.until(Until::Ready);
+        self.request_sign_in();
+        self.until(Until::SignedIn);
+    }
+
+    /// Ask without draining unrelated forge retries before the local request.
+    pub fn request_sign_in(&mut self) {
         self.send(engine::Event::Party(engine::PartyInput::SignedIn {
             until: None,
             held: None,
@@ -3408,7 +3464,6 @@ impl World {
                 name: Box::from(&b"Owner"[..]),
             },
         }));
-        self.until(Until::SignedIn);
     }
 
     pub fn adopt_landing(&mut self, landing: &[u8]) {

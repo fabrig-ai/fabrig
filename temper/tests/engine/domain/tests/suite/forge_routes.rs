@@ -88,7 +88,7 @@ mod delegates;
 
 mod branch_reads;
 #[path = "forge_routes/change_tool.rs"]
-mod change_tool;
+pub(super) mod change_tool;
 mod read_contracts;
 
 #[path = "forge_routes/light_rules.rs"]
@@ -163,7 +163,7 @@ mod saved_retry;
 mod goal_tool;
 
 #[path = "forge_routes/goal_branch.rs"]
-mod goal_branch;
+pub(super) mod goal_branch;
 
 #[path = "forge_routes/per_wake.rs"]
 mod per_wake;

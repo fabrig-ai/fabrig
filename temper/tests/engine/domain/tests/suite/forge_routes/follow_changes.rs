@@ -282,6 +282,10 @@ fn keep(world: &mut World, start: Option<s::FollowStart>, key: u8) {
     assert_eq!(revision(world), against + 1, "{:?}; adoptions {:?}", world.web_replies, world.adopted);
 }
 fn change_setting(world: &mut World, value: Option<s::Follow>, key: u8) {
+    start_change_setting(world, value, key);
+    settle(world);
+}
+pub(crate) fn start_change_setting(world: &mut World, value: Option<s::Follow>, key: u8) {
     let against = revision(world);
     let kinds = value
         .clone()
@@ -314,7 +318,6 @@ fn change_setting(world: &mut World, value: Option<s::Follow>, key: u8) {
         }),
         kinds,
     }));
-    settle(world);
 }
 fn world(start: s::FollowStart) -> World {
     world_passing(start, 1000)
