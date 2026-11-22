@@ -255,6 +255,14 @@ fn a_goal_delivering_mid_proof_takes_a_departed_landings_shared_run() {
     assert_eq!(landing(&setup.world, successor).landing.members[0].gates[0].proof, Proof::Keyed { key: setup.key });
     assert_eq!(dispatches(&setup.world), 1);
     setup.world.restart_same();
+    // Drive the restart to its opening before the workflow clock jumps.
+    for _ in 0..STEPS {
+        setup.world.tick();
+        if setup.world.root.ready() {
+            break;
+        }
+    }
+    assert!(setup.world.root.ready(), "the restarted root opens before the workflow finishes");
     assert_landed(&mut setup, b"docs/guide.md", successor);
     assert_eq!(landing(&setup.world, successor).landing.members[0].gates[0].proof, Proof::Passed { key: setup.key });
     assert_eq!(dispatches(&setup.world), 1, "the departed run proves both candidates, including after restart");

@@ -83,6 +83,7 @@ struct Input {
 /// and the independent transaction observer.
 #[derive(Hash, Debug)]
 pub struct World {
+    ends: crate::ends::Ends,
     settings: Settings,
     domain: engine::Domain,
     environment: Env<engine::Limits>,
@@ -207,6 +208,10 @@ impl World {
     /// Restore genuine held-chat rows and saved sessions through actual root
     /// startup pages; no direct child inputs are used
     #[must_use]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "restore the prior story and initialize its independent opening referee together"
+    )]
     pub fn new(settings: Settings) -> World {
         let mut store = snapshot(settings);
         story_policy(&mut store, settings);
@@ -281,7 +286,11 @@ impl World {
         assert!(task != 0 && people.iter().all(|person| *person != 0) && sessions.iter().all(|session| *session != 0));
         let initial_rows = store.rows.clone();
         let limits = limits();
+        let mut ends = crate::ends::Ends::new(settings.seed, crate::ends::OPENING);
+        // Expired-session stories start their clock beyond the saved lifetime.
+        ends.restarted(Time::from_nanos(if settings.expired { 61_000_000_000 } else { 0 }));
         let mut world = World {
+            ends,
             domain: engine::Domain::new(config(settings), &limits).expect("valid engine configuration"),
             environment: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             out: Queue::uncapped(),
@@ -391,6 +400,7 @@ impl World {
     /// Close this story through the shared cold restart oracle.
     pub fn close(&mut self) {
         self.run();
+        self.ends.close(self.environment.now, &self.store).unwrap_or_else(|finding| panic!("{finding}"));
         crate::oracle::close_world(
             &mut self.domain,
             &self.environment,
@@ -405,6 +415,7 @@ impl World {
     pub fn run(&mut self) {
         for _ in 0..500 {
             if self.settled() {
+                self.ends.close(self.environment.now, &self.store).unwrap_or_else(|finding| panic!("{finding}"));
                 return;
             }
             self.iterate();
@@ -415,6 +426,14 @@ impl World {
     /// One real root iteration, with later fake-store terminals and optional
     /// fact draining.
     pub fn iterate(&mut self) {
+        self.iterate_inner();
+        if self.ends.awaiting_open() && self.domain.ready() {
+            self.ends.opened(self.environment.now);
+        }
+        self.ends.step(self.environment.now, &self.store).unwrap_or_else(|finding| panic!("{finding}"));
+    }
+
+    fn iterate_inner(&mut self) {
         self.iteration += 1;
         let nanos = u64::from(self.iteration) * 1_000_000 + if self.settings.expired { 61_000_000_000 } else { 0 };
         self.environment.now = Time::from_nanos(nanos);
@@ -479,6 +498,7 @@ impl World {
             self.events.clear();
             self.frozen_cut = false;
             self.recovering = true;
+            self.ends.restarted(self.environment.now);
             self.restarts += 1;
             self.trace.push("restart after atomic role application".into());
             self.queue(engine::Event::Restart { pending: self.store.pending_generation }, 0);

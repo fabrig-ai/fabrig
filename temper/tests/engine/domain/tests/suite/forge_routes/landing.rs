@@ -535,6 +535,9 @@ fn a_ready_change_waits_when_landing_room_is_full() {
     assert_eq!(world.merges, 0);
 }
 
+#[path = "ends_untouched.rs"]
+mod ends;
+
 const LIB: api::Repository = api::Repository { forge: 1, repository: 4 };
 // Four single-member horizons cover two preparations, the turn and its partial retry.
 const PAIR_TICKS: usize = 4 * 600;

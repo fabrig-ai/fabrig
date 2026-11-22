@@ -21,6 +21,7 @@ pub mod roles_referee;
 
 /// Shared direct root route driver for focused and randomized scenarios.
 pub mod direct;
+pub mod ends;
 pub mod fixtures;
 /// Requester-backed forge change fixture and delayed required-read control.
 pub mod forge_routes;

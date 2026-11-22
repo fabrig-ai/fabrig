@@ -551,6 +551,7 @@ enum TerminalRecovery {
 /// outlive replacement of the root process (domain/root.md, section 11).
 #[derive(Hash, Debug)]
 pub struct World {
+    ends: crate::ends::Ends,
     settings: Settings,
     domain: engine::Domain,
     environment: Env<engine::Limits>,
@@ -594,7 +595,10 @@ impl World {
     fn over(settings: Settings, store: Store) -> World {
         let limits = limits();
         let config = config(settings.seed);
+        let mut ends = crate::ends::Ends::new(settings.seed, crate::ends::OPENING);
+        ends.restarted(Time::ZERO);
         let mut world = World {
+            ends,
             domain: engine::Domain::new(config, &limits).expect("valid engine configuration"),
             environment: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             out: Queue::uncapped(),
@@ -650,6 +654,7 @@ impl World {
     }
 
     fn restart(&mut self, terminal: bool) {
+        self.ends.restarted(self.environment.now);
         assert!(self.store.pending.is_empty(), "cut has no later submitted commit");
         self.domain = engine::Domain::new(config(self.settings.seed), &self.environment.limits)
             .expect("valid engine configuration");
@@ -667,9 +672,22 @@ impl World {
         self.hello();
     }
 
+    /// Drive one iteration and retain its first referee finding.
+    pub fn iterate(&mut self) {
+        self.iterate_inner();
+        if self.ends.awaiting_open() && self.domain.ready() {
+            self.ends.opened(self.environment.now);
+        }
+        if let Err(finding) = self.ends.step(self.environment.now, &self.store)
+            && self.finding.is_none()
+        {
+            self.finding = Some(finding);
+        }
+    }
+
     /// Drive one up/ready/timer/reclaim iteration and independent fake effects.
     #[expect(clippy::too_many_lines, reason = "one scripted iteration includes each journal release pass")]
-    pub fn iterate(&mut self) {
+    fn iterate_inner(&mut self) {
         if self.finding.is_some() {
             return;
         }
@@ -1077,6 +1095,7 @@ impl World {
     /// Close this story through the shared cold restart oracle.
     pub fn close(&mut self) {
         self.run();
+        self.ends.close(self.environment.now, &self.store).unwrap_or_else(|finding| panic!("{finding}"));
         crate::oracle::close_world(
             &mut self.domain,
             &self.environment,
@@ -1097,7 +1116,7 @@ impl World {
         for _ in 0..600 {
             self.check_finding()?;
             if self.settled() {
-                return Ok(());
+                return self.ends.close(self.environment.now, &self.store);
             }
             self.iterate();
         }

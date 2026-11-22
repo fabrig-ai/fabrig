@@ -61,6 +61,7 @@ smith-domain-session.workspace = true
 smith-domain-tools.workspace = true
 
 [dev-dependencies]
+jig-protocol-store-kit.workspace = true
 temper-config-shell.workspace = true
 skein-fork.workspace = true
 smith-protocol-channel.workspace = true

@@ -94,6 +94,7 @@ pub struct CallError {
 
 #[expect(clippy::struct_excessive_bools, reason = "independent outside fault and observation switches remain explicit")]
 pub struct World {
+    pub ends: crate::ends::Ends,
     idle_revision: Option<(u64, Option<Time>)>,
     auto_prepare: bool,
     restart_config: engine::Config,
@@ -207,6 +208,8 @@ pub struct World {
     pub forgejo_merge_divergence: bool,
     pub fail_issue_writes: bool,
     pub fail_open_writes: bool,
+    /// Limit the permanent open refusal to one repository; None means every one.
+    pub fail_open_in: Option<skein_forge::api::Repository>,
     pub issue_write_times: Vec<Wall>,
     /// The durable commit number observed when the root drained.
     pub drained: Option<u64>,
@@ -1675,7 +1678,10 @@ impl World {
         let store =
             temper_engine_domain_world::fixtures::restored_over(Store::with_limits(&store_limits), bootstrap, &limits);
         let period_budget = config.core.defaults.rules.period_spend;
+        let mut ends = crate::ends::Ends::new(config.core.seed, crate::ends::OPENING);
+        ends.restarted(Time::ZERO);
         Self {
+            ends,
             restart_config: crate::oracle::config::copy(&config),
             idle_revision: None,
             oracle_documents: Vec::new(),
@@ -1757,6 +1763,7 @@ impl World {
             forgejo_merge_divergence: false,
             fail_issue_writes: false,
             fail_open_writes: false,
+            fail_open_in: None,
             issue_write_times: Vec::new(),
             drained: None,
             restarting: Vec::new(),
@@ -2393,6 +2400,7 @@ impl World {
         self.root =
             engine::Domain::new(crate::oracle::config::copy(&config), &self.env.limits).expect("restart config");
         self.restart_config = config;
+        self.ends.restarted(self.env.now);
         self.out = Queue::uncapped();
         self.events.clear();
         self.held_write_answers.clear();
@@ -2618,6 +2626,7 @@ impl World {
                         self.issue_write_times.push(self.env.wall);
                     }
                     let fail_open = self.fail_open_writes
+                        && self.fail_open_in.is_none_or(|only| only == repository)
                         && matches!(op, skein_forge::api::Op::Write(skein_forge::api::Write::OpenPull { .. }));
                     if (self.fail_issue_writes && issue_write) || fail_open {
                         self.events.push_back(engine::Event::Forge(Box::new(forge_top::Event::Client(
@@ -3201,8 +3210,10 @@ impl World {
                 let skip = u32::try_from(skip.min(u64::from(ticks))).expect("bounded by remaining ticks");
                 if skip > 0 {
                     self.changed_tasks.clear();
-                    self.env.now =
-                        self.env.now.saturating_add(Duration::from_nanos(interval.saturating_mul(u64::from(skip))));
+                    for _ in 0..skip {
+                        self.env.now = self.env.now.saturating_add(self.tick_interval);
+                        self.check_ends().unwrap_or_else(|finding| panic!("{finding}"));
+                    }
                     self.sync_clock();
                     self.fake.reclaim();
                     ticks -= skip;
@@ -3221,21 +3232,38 @@ impl World {
     }
 
     pub fn tick(&mut self) {
+        self.try_tick().unwrap_or_else(|finding| panic!("{finding}"));
+    }
+
+    /// A tick whose referee finding is returned to a check's own test.
+    pub fn try_tick(&mut self) -> Result<(), String> {
         self.tick_with_reply_cut(None, true);
+        self.check_ends()?;
         if self.auto_prepare {
             self.complete_prepare();
         }
+        Ok(())
     }
 
     /// Let inputs, commits and API outcomes advance without an owner Resume.
     pub fn tick_without_resume(&mut self) {
         self.tick_with_reply_cut(None, false);
+        self.check_ends().unwrap_or_else(|finding| panic!("{finding}"));
     }
 
     /// Apply the step saving a reply to `target`, losing its commit terminal.
     /// Other decisions and the clock follow an ordinary world tick.
     pub fn tick_losing_reply_commit(&mut self, target: u64) -> bool {
-        self.tick_with_reply_cut(Some(target), true)
+        let lost = self.tick_with_reply_cut(Some(target), true);
+        self.check_ends().unwrap_or_else(|finding| panic!("{finding}"));
+        lost
+    }
+
+    fn check_ends(&mut self) -> Result<(), String> {
+        if self.ends.awaiting_open() && self.root.ready() {
+            self.ends.opened(self.env.now);
+        }
+        self.ends.step(self.env.now, &self.store)
     }
 
     fn tick_with_reply_cut(&mut self, target: Option<u64>, resume: bool) -> bool {
@@ -3313,6 +3341,9 @@ impl World {
             if !lost {
                 self.send(engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
             }
+        }
+        if self.ends.awaiting_open() && self.root.ready() {
+            self.ends.opened(self.env.now);
         }
         if self.period.is_none() && self.root.ready() {
             self.period = Some(1);
@@ -3925,10 +3956,12 @@ impl World {
     /// Settle, read the public documents, crash the same store, and compare.
     pub fn close(&mut self) {
         if self.broken {
+            self.ends.close(self.env.now, &self.store).unwrap_or_else(|finding| panic!("{finding}"));
             return;
         }
         self.oracle_running = true;
         self.oracle_settle();
+        self.ends.close(self.env.now, &self.store).unwrap_or_else(|finding| panic!("{finding}"));
         let forges = self.root.forges();
         let mut snapshot = crate::oracle::Snapshot::new(&self.store.rows, self.env.wall);
         for (sign_in, read) in &snapshot.queries {
@@ -3950,8 +3983,9 @@ impl World {
         std::mem::swap(&mut self.out, &mut fresh.out);
         std::mem::swap(&mut self.events, &mut fresh.events);
         std::mem::swap(&mut self.store, &mut fresh.store);
-        fresh.broken = crate::oracle::Fixture::Broken;
+        fresh.broken("temporary driver transfers its cold root to the forge world");
         self.drained = None;
+        self.ends.restarted(self.env.now);
         self.period = Some(1);
         self.events.push_back(engine::Event::Credential { number: 1, generation: 1, valid: Duration::from_secs(3600) });
         if let Some((channel, worker, slots)) = self.oracle_peer {
@@ -3978,6 +4012,7 @@ impl World {
         }
         self.oracle_settle();
         self.oracle_running = false;
+        self.ends.close(self.env.now, &self.store).unwrap_or_else(|finding| panic!("{finding}"));
     }
 
     /// Drain immediate terminals while permitting tasks that wait on an account or a host.

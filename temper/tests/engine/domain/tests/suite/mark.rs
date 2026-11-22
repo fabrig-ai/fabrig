@@ -54,6 +54,8 @@ fn the_forge_reaches_no_forge_before_the_mark() {
     );
     store.crash(SEED);
     let mut driver = Driver::cold(store, walking::config(SEED), &limits);
+    // This story deliberately withholds the start mark past normal opening.
+    driver.ends.no_opening(driver.env.now);
     driver.forge = Some(ForgeStand::new());
     for _ in 0..PASSES {
         if driver.store.pending.front().is_some_and(|(_, writes)| writes.contains(&Write::Wires)) {

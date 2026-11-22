@@ -12,6 +12,7 @@ use crate::store::Store;
 use crate::walking::{config, limits};
 
 pub struct Driver {
+    pub ends: crate::ends::Ends,
     pub(crate) broken: crate::oracle::Fixture,
     pub(crate) restart_config: engine::Config,
     creating: jig_test_profile::fixtures::Creating,
@@ -70,6 +71,7 @@ impl Driver {
         self.restart_config = crate::oracle::config::copy(&configuration);
         self.protocol.models.clone_from(&configuration.core.settings.models);
         self.root = engine::Domain::new(configuration, &self.env.limits).expect("restart configuration");
+        self.ends.restarted(self.env.now);
     }
     /// Transfer a cold-cut fixture's store; its receiving root runs the oracle.
     pub fn take_store(&mut self) -> Store {
@@ -126,7 +128,10 @@ impl Driver {
         }
         let mut protocol = Protocol::default();
         protocol.models.clone_from(&config.core.settings.models);
+        let mut ends = crate::ends::Ends::new(config.core.seed, crate::ends::OPENING);
+        ends.restarted(Time::ZERO);
         Driver {
+            ends,
             broken: crate::oracle::Fixture::Checked,
             restart_config: crate::oracle::config::copy(&config),
             creating: jig_test_profile::fixtures::Creating::new(&config.core, limits.tasks.tree_tasks),
@@ -371,6 +376,9 @@ impl Driver {
         if let Some(forge) = &mut self.forge {
             self.events.extend(forge.replies());
         }
+        if self.ends.awaiting_open() && self.root.ready() {
+            self.ends.opened(self.env.now);
+        }
         if !self.period_sent && self.root.ready() {
             self.period_sent = true;
             self.period();
@@ -386,6 +394,10 @@ impl Driver {
         crate::poll(&mut self.root, &self.env, &mut self.out);
         self.collect();
         self.root.reclaim();
+        if self.ends.awaiting_open() && self.root.ready() {
+            self.ends.opened(self.env.now);
+        }
+        self.ends.step(self.env.now, &self.store).unwrap_or_else(|finding| panic!("{finding}"));
     }
 
     /// Drive immediate work while a story deliberately keeps a fleet deadline armed.
@@ -514,6 +526,8 @@ impl Driver {
         driver.period_sent = true;
         driver.env.wall = wall;
         driver.env.now = Time::from_nanos(wall.as_nanos());
+        driver.ends.no_opening(driver.env.now);
+        driver.ends.restarted(driver.env.now);
         driver
     }
 

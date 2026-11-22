@@ -7143,6 +7143,7 @@ dependencies = [
  "jig-protocol-config-fixtures",
  "jig-protocol-engine-clients",
  "jig-protocol-store",
+ "jig-protocol-store-kit",
  "jig-tasks-kit",
  "jig-test-domain",
  "jig-test-profile",

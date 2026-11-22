@@ -114,6 +114,7 @@ struct PendingRead {
 /// from a private-state query.
 #[derive(Hash, Debug)]
 pub struct World {
+    ends: crate::ends::Ends,
     settings: Settings,
     domain: engine::Domain,
     environment: Env<engine::Limits>,
@@ -202,7 +203,10 @@ impl World {
         let limits = limits();
         let config = config(settings.seed);
         let store = crate::fixtures::restored_store(self::config(settings.seed), &limits);
+        let mut ends = crate::ends::Ends::new(settings.seed, crate::ends::OPENING);
+        ends.restarted(Time::ZERO);
         let mut world = World {
+            ends,
             domain: engine::Domain::new(config, &limits).expect("valid engine configuration"),
             environment: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             out: Queue::uncapped(),
@@ -476,6 +480,7 @@ impl World {
     }
 
     fn restart(&mut self) {
+        self.ends.restarted(self.environment.now);
         assert!(self.store.pending.is_empty(), "cut follows a whole transaction with no later submitted commit");
         self.domain = engine::Domain::new(config(self.settings.seed), &self.environment.limits)
             .expect("valid engine configuration");
@@ -492,6 +497,14 @@ impl World {
     /// Drive one actual root iteration and later fake-store terminals; no direct
     /// child calls or private-state decisions occur.
     pub fn iterate(&mut self) {
+        self.iterate_inner();
+        if self.ends.awaiting_open() && self.domain.ready() {
+            self.ends.opened(self.environment.now);
+        }
+        self.ends.step(self.environment.now, &self.store).unwrap_or_else(|finding| panic!("{finding}"));
+    }
+
+    fn iterate_inner(&mut self) {
         self.iteration += 1;
         let now = u64::from(self.iteration) * 1_000_000 + self.clock_offset;
         self.environment.now = Time::from_nanos(now);
@@ -872,6 +885,7 @@ impl World {
     /// Close this story through the shared cold restart oracle.
     pub fn close(&mut self) {
         self.run();
+        self.ends.close(self.environment.now, &self.store).unwrap_or_else(|finding| panic!("{finding}"));
         crate::oracle::close_world(
             &mut self.domain,
             &self.environment,
@@ -888,6 +902,7 @@ impl World {
         for _ in 0..600 {
             if self.settled() {
                 self.referee.final_state(&self.store.rows).expect("independent final finite funding");
+                self.ends.close(self.environment.now, &self.store).unwrap_or_else(|finding| panic!("{finding}"));
                 return;
             }
             self.iterate();
