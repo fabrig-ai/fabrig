@@ -7337,6 +7337,7 @@ dependencies = [
  "serde_json",
  "skein-codec",
  "skein-forge",
+ "skein-forge-client",
  "skein-forge-connection",
  "skein-io",
  "skein-json",
@@ -7369,6 +7370,9 @@ dependencies = [
  "temper-service-core",
  "temper-service-shell",
  "temper-settings-form",
+ "temper-worker-domain-checkout",
+ "temper-worker-protocol-git",
+ "temper-worker-service",
  "temper-worker-service-fixtures",
 ]
 
