@@ -109,13 +109,13 @@ change's due step.
   step that decides it, so a change still awaiting one at the root's
   quiet point has no wake, and is a finding.
 - **What only the scripted root knows:** a decision or a wake the forge
-  has emitted and forgotten (a `Wait` decision whose timer only the
-  root arms, a fired deadline handed over as `WakeProcedure`) leaves
-  nothing in the forge's state, so `forge` can't read it. The forge
-  world, which is that root, keeps the tasks it owes an act: each task
-  of a `ChangeDecision` or `WakeProcedure` it has taken from the
-  forge's output, until it passes the forge that task's `StepChange` or
-  `StepLanding`. A row the world registers (a change's, a landing's,
+  has emitted and forgotten (a change's or a landing's `Wait` decision
+  whose timer only the root arms, a fired deadline handed over as
+  `WakeProcedure`) leaves nothing in the forge's state, so `forge`
+  can't read it. The forge world, which is that root, keeps the tasks
+  it owes an act: each task of a `ChangeDecision`, `LandingDecision`
+  or `WakeProcedure` it has taken from the forge's output, until it
+  passes the forge that task's `StepChange` or `StepLanding`. A row the world registers (a change's, a landing's,
   or one restored) owes its first step the same way: the root steps a
   row in the turn that makes or restores it, and the script steps it
   in its own time, so the task is owed from its registration until
