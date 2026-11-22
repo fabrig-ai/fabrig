@@ -46,7 +46,7 @@ workspace; the other charters keep their repository selection.
 
 Section 8.1's owner handoff is present: after both domains load, the root
 hands the forge `people.sole_owner()` before its restore decision. The
-connector's retained-link scope gap remains in `forge/adoption.status.md`, 6.
+connector's retained-link scope gap remains in `forge/adoption-person.status.md`, 1.
 
 `routing.md`, section 2 has no known implementation gap in sizing task reads by the
 live attempt's worker reply bound, else the local agent's, else

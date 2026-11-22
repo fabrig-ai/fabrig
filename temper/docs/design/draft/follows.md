@@ -6,7 +6,7 @@ names makes a change here, which a standing role or a person owns, and a
 check proves
 the two still agree. It is the mechanism the whole story's pilot needs
 (`whole-story.md`, 5.2): vsr's C, ported to Rust line by line, continuously.
-It adds to `../domain/forge/README.md`, 5.1's topics and 8.1's parameters, and it
+It adds to `../domain/forge/topics.md`, 1.1's topics and 8.1's parameters, and it
 wins where they differ until its plans fold it in. temper/migration carries
 out the follow, its changes and its check; temper/ui, its lag and parity on
 Home, Team and How work runs (`surfaces.md`, sections 3, 6 and 7).
@@ -89,7 +89,7 @@ is per change, and leaves merging them to its owner.
 Code, with no model:
 
 - **Hears the source's landings** on the topic of landings on a
-  repository's branch (`../domain/forge/README.md`, 5.1), read as 7.2 reads them:
+  repository's branch (`../domain/forge/topics.md`, 1.1), read as 7.2 reads them:
   temper's landings and those it did not make alike, with the files each
   touched.
 - **Keeps those that touch the follow's paths,** in the source's order: the

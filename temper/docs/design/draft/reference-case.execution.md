@@ -118,7 +118,7 @@ section 14 it adds.
   outside G's subtree refused (`../domain/forge/README.md`, section 2 and `../domain/forge/branches.md`);
   `change`'s landing branch, dependencies and batch (`../domain/agent/tools.md`, 1;
   `../domain/forge/change/README.md`, 1); checking and updating by the landing branch's rule
-  (`../domain/forge/change/README.md`, 2 steps 3 and 6, 8.7, `../domain/forge/README.md`, section 6); a result's words
+  (`../domain/forge/change/README.md`, 2 steps 3 and 6, 8.7, `../domain/forge/updates.md`, section 1); a result's words
   carrying the producer's report (`../domain/forge/change/README.md`, 2 step 7).
 - **Builds:** jig (templates, holds, writer slots, wake policies,
   limits); temper's forge connector and `change`; the landing rule for
@@ -251,10 +251,10 @@ section 14 it adds.
   `domain/model.md`, 3.2, `jig/docs/design/domain/tasks/lifecycle.md`, 3.1, `jig/docs/design/domain/engine/executors.md`,
   5 and `jig/docs/design/domain/hosts/hub.md`, 9; `../domain/worker/jobs.md`); temper's worker
   declares no kind yet. The merge job is not
-  designed: `landing.md`, 5.3, `../domain/forge/change/repairs.md` and `../domain/forge/README.md`, 6, temper's
+  designed: `landing.md`, 5.3, `../domain/forge/change/repairs.md` and `../domain/forge/updates.md`, 1, temper's
   `../protocol/tooling.md`, sections 1 and 4, and
   `../protocol/configuration/settings.md` (`merge_job`); nor a
-  catch-up change into g (`../domain/forge/README.md`, section 6, and `../domain/forge/branches.md`, section 1), the merge
+  catch-up change into g (`../domain/forge/updates.md`, section 1, and `../domain/forge/branches.md`, section 1), the merge
   job its producer (`../domain/agent/tools.md`, 1).
 - **Builds, in two parts:** M7a, jobs in jig and temper's worker, from
   M0, as already designed; M7b, the merge job and its three uses: a

@@ -51,7 +51,7 @@ pub enum RecordKind {
 }
 impl RecordKind {
     /// History survives removal without retaining its repository's row
-    /// (temper/docs/design/domain/forge/adoption.md, 1).
+    /// (temper/docs/design/domain/forge/adoption-connection.md, 1).
     pub const fn historical_repository(self) -> bool {
         match self {
             RecordKind::BranchHead

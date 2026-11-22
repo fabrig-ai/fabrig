@@ -22,6 +22,20 @@ all. Then temper's:
    effects, topics and landings as news, the change procedure and its
    requirements, landing queues, updates, branches, issues, and the ways
    temper takes part in what others own.
+   - `forge/effects.md`: effects and recovery across restarts.
+   - `forge/topics.md`: topics and landings as news.
+   - `forge/updates.md`: lazy, mechanical updates.
+   - `forge/adoption.md`: adopting repositories, rules, workflows and landing branches.
+   - `forge/adoption-connection.md`: a forge's connection, access state and removal.
+   - `forge/adoption-person.md`: a box's person on its forges.
+   - `forge/change/README.md`: the change procedure and its documents.
+   - `forge/change/drift.md`: a change's drift and its own writes.
+   - `forge/change/panel.md`: a change's panel.
+   - `forge/change/records.md`: a change's records and room.
+   - `forge/change/repairs.md`: repairs and their outcomes.
+   - `forge/change/repairs-resolutions.md`: merge jobs and conflict resolutions.
+   - `forge/change/repairs-briefs.md`: gathering the forge sections of a brief.
+   - `forge/change/repairs-releases.md`: holds and releases.
 3. **worker/README.md:** the worker: its root on jig's hub and smith's host
    domain, the items an assignment gives a run's workspace, and the
    checkout.
@@ -150,7 +164,7 @@ smith's are smith's.
 | prefix | the branch prefix temper writes under in a repository, `temper/` by default (forge/adoption.md and forge/branches.md) |
 | change | a task the forge's change procedure runs: one change to one repository, landed into one branch (forge/change/README.md, 1) |
 | producing, repair, resolution | a change's agent work: making its head; fixing failed CI, a gate's remarks, a person's request for changes on the forge or a semantic conflict; resolving a conflict from a merge in progress (forge/change/README.md, 2 and forge/change/repairs.md) |
-| update | a change taking its base, made by the forge itself, lazily: when the change is first in its queue, about to get a run, or at its check with its head already behind (forge/README.md, section 6) |
+| update | a change taking its base, made by the forge itself, lazily: when the change is first in its queue, about to get a run, or at its check with its head already behind (forge/updates.md, section 1) |
 | gate | a verdict a change asks for at its exact head: an agent's review, a person's approval, or a repository's check; blocking or advisory (forge/change/gates.md, 1) |
 | landing rule | what configuration requires of landing into a pattern of branches: CI, up to date, gates, approvals (forge/change/gates.md, 2; root.md, section 5) |
 | landing queue | the changes ready to land into one branch, by priority then by readiness; only the first is updated and merged (forge/queues.md) |
@@ -196,11 +210,11 @@ What temper decides within jig's design, with where each is answered:
   (forge/queues.md).
 - **Updates are lazy and mechanical:** the forge's own merge of the base,
   when a change is first or about to get a run; an LLM only resolves a
-  conflict (forge/README.md, section 6).
+  conflict (forge/updates.md, section 1).
 - **A merge lands exactly the head decided,** in the repository's merge
   style, and nothing is ever forced (forge/change/README.md, 2 and forge/change/gates.md, 2 and forge/branches.md).
 - **Every landing is news;** it wakes a goal only when it overlaps the
-  files of the goal's changes (forge/README.md, section 5).
+  files of the goal's changes (forge/topics.md, section 1).
 - **A goal's issue is a projection,** written, never read back
   (forge/issues.md).
 - **Branches are named after the task tree,** under the repository's

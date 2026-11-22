@@ -272,7 +272,7 @@ supplies it: the page computes none (jig's `client/domain/contract/documents.md`
   read at its head with its record, through a restart too, so its CI is
   unknown only when no step read one at that head between the engine's
   last start and the landing, and no step reads it after
-  (`../../domain/forge/change/README.md`, 5). Then each gate, in the supplied
+  (`../../domain/forge/change/panel.md`, 1). Then each gate, in the supplied
   order: "Gate N · review", "· approval" or "· check", then "·
   blocking" or "· advisory", and its verdict: "Not yet" with none,
   "Waiting" pending, "Approved", "Changes asked". With no gate, a last

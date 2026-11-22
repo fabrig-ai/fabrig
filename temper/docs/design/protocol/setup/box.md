@@ -99,7 +99,7 @@ temper-box
   name (`../store.md`, 5), a step's failure as 2 has it. The process
   tier proves it (`../../testing/process-tier.md`).
 - **A forge's group, removed.** At a forge's removal
-  (`../../domain/forge/adoption.md`, 1) serve asks `remove N`, and again at each of
+  (`../../domain/forge/adoption-connection.md`, 1) serve asks `remove N`, and again at each of
   its starts until it is answered `removed N`. The box stops the group's
   steps as it stops a group (2), then runs its remover, `temper-box forge
   remove DIRS N`, a once step, which removes the forge's directory,
@@ -168,7 +168,7 @@ temper-box
   | `failed FORGE WHY` | the box | the group stopped: `WHY` names the step by its name, as its log file and the box's terminal name it (2), such as `prepare-3 exited 1`: `<step> exited <code>`, `<step> killed by signal <n>`, `<step> did not start`, `record not written`, or a removal's `remove: exited <code>`, `remove: did not start` or `remove: files not removed`, cut to fit the line's bound, and holds no secret; a step's own lines are in its log, the last of them under the terminal's `failed` line (2) |
   | `stop FORGE` | serve | stop the forge's group, its file and record kept |
   | `stopped FORGE` | the box | the group's steps are closed, as the box's own stop closes them (2), and the group is dormant again; its file and record stay |
-  | `remove FORGE` | serve, at the forge's removal (`../../domain/forge/adoption.md`, 1), and at each of its starts until answered | stop the forge's group and remove its directory, its file and its record (above) |
+  | `remove FORGE` | serve, at the forge's removal (`../../domain/forge/adoption-connection.md`, 1), and at each of its starts until answered | stop the forge's group and remove its directory, its file and its record (above) |
   | `removed FORGE` | the box | the group's steps are closed, and its directory, its file and its record removed; the cache is kept |
 
   One ask at a time: a `start` for another forge while a group starts,

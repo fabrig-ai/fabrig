@@ -232,7 +232,7 @@ impl Protocol {
         world.connected();
         world
     }
-    /// Routing reports the fake's access after each start (temper/docs/design/domain/forge/adoption.md, 1).
+    /// Routing reports the fake's access after each start (temper/docs/design/domain/forge/adoption-connection.md, 1).
     fn connected(&mut self) {
         self.event(top::Event::Connection {
             forge: REPO.forge,
@@ -350,7 +350,7 @@ impl Protocol {
         self.joint.fake_env.limits.latency_max = delay;
     }
     /// Stop after the next applied merge, before delivering its answer to the caller
-    /// (temper/docs/design/domain/forge/README.md, 9).
+    /// (temper/docs/design/domain/forge/effects.md, 2).
     pub fn cut_after_next_merge(&mut self) {
         self.merge_cut = Some(self.joint.observations.len());
         self.cut_taken = false;

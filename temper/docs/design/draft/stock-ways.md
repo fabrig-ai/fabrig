@@ -128,12 +128,12 @@ once all of it works, with no part of the page drawn by hand.
   where the rules ask CI; each approval, "you approve", or the role's
   name for someone else's; "conflict" and "resolve" where the rules ask
   up to date, as a change takes main at the front of its queue
-  (`../domain/forge/change/README.md`, 2, and `../domain/forge/README.md`, 6), the engine's update being
+  (`../domain/forge/change/README.md`, 2, and `../domain/forge/updates.md`, 1), the engine's update being
   in the card's words and not a stop of its own; "merge"; each tier
   following the branch, "check" on a goal's branch, the coordinator's
   repair after it while none is drawn, then "catch up" where the project
   names a merge job, taking main into the goal's branch
-  (`../domain/forge/README.md`, section 6); and "verify" on main. A
+  (`../domain/forge/updates.md`, section 1); and "verify" on main. A
   goal's branch ends its changes' part with its
   bar, and the goal's landing into main follows by main's rules. Main's
   bar ends the path.

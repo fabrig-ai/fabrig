@@ -79,7 +79,7 @@ Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
   6. *By queue:* "conflict", code, opening the queue, and "resolve",
      the producer's, where a covering rule that enforces asks up to
      date: as a change takes its branch at the front of its queue
-     (`../queues.md`; `../README.md`, section 6), the queue merges the branch's tip into it,
+     (`../queues.md`; `../updates.md`, section 1), the queue merges the branch's tip into it,
      never by an agent; a clean merge is the queue's update, no stop of
      its own, said in the conflict's and the merge's cards; a clash
      takes the change out of the queue to its resolution (`repairs.md`). Then
@@ -100,7 +100,7 @@ Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
      a goal's segment where the project names a merge job, "catch up",
      code, opening nothing: the goal's branch taking its landing
      branch's tip, a change into it whose producer is the merge job
-     (`README.md`, 2; `../README.md`, section 6).
+     (`README.md`, 2; `../updates.md`, section 1).
   8. *The branch's bar:* "goal branch" ends a goal's segment, and the
      landing branch's segment follows by its own rules, its start not
      repeated; the landing branch's bar, its name, as "main", ends the

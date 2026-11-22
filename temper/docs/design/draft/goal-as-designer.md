@@ -165,7 +165,7 @@ The goal's charter takes `results: last_or_failure` (jig's
 | the close-out's result | finishes |
 
 - **Questions wake at once,** as the pipeline answers an integration plan's.
-- **Catch-ups wake on overlap alone** (`../domain/forge/README.md`, 5.3), not on every
+- **Catch-ups wake on overlap alone** (`../domain/forge/topics.md`, 1.3), not on every
   move of main as the pipeline's do. The user: "it covers plain conflicts, and I'm
   okay with semantic conflicts being caught at merge time or after landing, they
   should be rare."

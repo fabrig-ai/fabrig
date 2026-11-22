@@ -148,7 +148,7 @@ Forgejo and model).
 - **The demo ends for good:** adopted (first-run-ux's M4). The end,
   its record and a restart after it in `../../protocol/setup/playground.md`,
   the box's `stop` and `stopped` in 7.1 and 7.2; the forge and its
-  repository ended in `../../domain/forge/adoption.md`, 1, and
+  repository ended in `../../domain/forge/adoption-connection.md`, 1, and
   `../../protocol/forge/engine.md`, 8, and `../../protocol/forge/README.md`, 7.1; the client's re-read and the
   demo model's account in `../../client/forge/family.md`, 7. The demo's open
   chats' end and its model's account removed with no client: adopted
@@ -430,7 +430,7 @@ experience; good defaults for a person's real work are open (section 8).
 5. **The welcome and the demo's end** (2.3): adopted, closed here.
    The demo's state, the fakes asked, the seed's acts and the end in
    the engine, `stop` on the pipe (../../protocol/setup/box.md, 1 and 2 and ../../protocol/setup/playground.md;
-   `../../domain/forge/adoption.md`, 1), the welcome, its wizard and the halves
+   `../../domain/forge/adoption-connection.md`, 1), the welcome, its wizard and the halves
    in the client (`../../client/pages/README.md` and `../../client/forge/family.md`, 7), and the
    playground's words in the fake's scripts, `temper init`'s document
    and the client; what is built is `STATUS.md`'s.

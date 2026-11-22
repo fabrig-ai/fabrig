@@ -229,7 +229,7 @@ own" (the Team example on fabrig.ai's home page says so).
   landing branch's own edits to a path set makes no change touch it. A
   change whose files the forge can't give whole, too many to list or a read
   that failed, counts as touching every path set, as an unknown overlap
-  wakes in `../domain/forge/README.md`, 5.3.
+  wakes in `../domain/forge/topics.md`, 1.3.
 - **Enforced by temper's landing:** the forge judges requirement 5, *the
   landing rules* (`../protocol/configuration/settings.md`, 3), over the rules
   covering the branch and, for a rule with path sets, the paths the change

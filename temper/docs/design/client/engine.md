@@ -96,7 +96,7 @@ does for the client:
   | `Replace { forge }` | a new App key, one `Pasted` item; or a new API token, git token or both, and the hooks' secret when it changes | `Paste` with the kept App id, or `Check` against the kept user: it must answer as the forge's user; each new record is kept over the old, then the forge connects with them, the calls its old access began ending `Forbidden` (`../protocol/forge/engine.md`, 2) | connecting; then the watched row, connected, or its last connect's line on a stop, the forge as it was |
   | `Forget { forge }` | none | the admin's token erased; a managed forge becomes connected (`../protocol/credentials.md`) | forgotten |
   | `SetUp { forge }` | none | an owned forge, new, or kept and not set up, or whose set up failed, whose setup says `"start": "asked"`: the routing asks the box for the forge's group, `start FORGE` on its pipe (`../protocol/setup/box.md`, 1), refused "not under the box" without a pipe and "busy" while a group starts; at the box's `started`, its handover taken, then reconciled and connected (`../protocol/forge/engine.md`, 2) | setting up |
-  | `RemoveForge { forge }` | none | the forge ended in the request's decision, then removed whole by the kept acts that follow it: its live work cancelled, its box group stopped and its directory removed, its records erased (`../domain/forge/adoption.md`, 1); refused for the playground's forge, whose reset removes it | removed; remove refused, `ForgeRefusal` |
+  | `RemoveForge { forge }` | none | the forge ended in the request's decision, then removed whole by the kept acts that follow it: its live work cancelled, its box group stopped and its directory removed, its records erased (`../domain/forge/adoption-connection.md`, 1); refused for the playground's forge, whose reset removes it | removed; remove refused, `ForgeRefusal` |
   | `MakeRepository { forge, org, name, from, into }` | none; its scope the project `into` names, or the deployment | the row kept in the request's decision; the setup then runs `Create` or `Copy` and the connector adopts into `into` (`../domain/forge/adoption.md`, 5; `../protocol/setup/owned.md`, 9) | kept; make refused, `MakeRefusal`; then the watched row |
   | `SetAway { project, on, until }` | none; its scope the project | the party's `Away` row moved in the request's decision, and the subject `away` marked, a row that comes out the same writing nothing (`../domain/forge/attention.md`, 4) | away; forge refused, too large |
   | `Overturn { project, number }` | none; its scope the project | the party's `Decided` row marked overturned in the request's decision, and the subject `decided` marked (`../domain/forge/attention.md`, 5) | overturned; overturn refused, already or unknown |
@@ -240,7 +240,7 @@ does for the client:
   scope; the core admits it on the party's deployment role and asks the
   forge for the document, and again each time the forge marks it: at
   every connection the routing tells it and at the box's close
-  (`../domain/forge/adoption.md`, 1). Every field of a row is the forge
+  (`../domain/forge/adoption-connection.md`, 1). Every field of a row is the forge
   domain's: the routing encodes the document as it is, adding nothing.
 - **The forge's reads and watches** are decoded by
   `temper-client-protocol-wire` the same way and go to the root
@@ -273,7 +273,7 @@ does for the client:
   unknown. A start or a reset while another of its kind is under way
   takes that one's answer. The course is the read's, the forge's row's
   and the `accounts` document's; the answer says only how it ended.
-- **A forge's removal, answered** (`../domain/forge/adoption.md`, 1): the
+- **A forge's removal, answered** (`../domain/forge/adoption-connection.md`, 1): the
   root admits `RemoveForge` by key, of the deployment's scope, and the
   forge connector answers it in the decision that ends the forge,
   removed, or refused; the removal's kept acts go on after the answer,

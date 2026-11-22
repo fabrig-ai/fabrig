@@ -70,7 +70,7 @@ configuration/limits.md).
 | 1 | `ProposedEffect` | `ProposedEffect(u64)`: the proposal's number | an effect awaiting an authority holder's decision | `tasks` |
 | 2 | `Repository` | `Repository(Repository)`: forge, repository | an adopted repository: its project, role, kinds, protection, settings, CI workflows (`../domain/forge/adoption.md`, 7) and landing branch (`../domain/forge/adoption.md`, 8) | `repositories` |
 | 3 | `Hold` | `Hold(Name)` | a held resource: its task, writers, drift and heads beside (`../domain/forge/branches.md`, 3) | `holds` |
-| 4 | `Names` | `Names(u64)`: the task | the resources one live task names; or a kept task's: the repositories its names lie in, kept from its release until jig erases the task (`../domain/forge/adoption.md`, 1) | `tasks` live rows, and `repositories` kept ones |
+| 4 | `Names` | `Names(u64)`: the task | the resources one live task names; or a kept task's: the repositories its names lie in, kept from its release until jig erases the task (`../domain/forge/adoption-connection.md`, 1) | `tasks` live rows, and `repositories` kept ones |
 | 5 | `Subscription` | `Subscription { task, topic }` | one task's subscription to a topic | `subscriptions` |
 | 6 | `BranchHead` | `BranchHead(Name)` | a branch's last observed tip | the client's `resources` |
 | 7 | `PullState` | `PullState(Name)` | a pull request's last published state | the client's `resources` |
@@ -98,7 +98,7 @@ configuration/limits.md).
 
   | Byte | Family | Key | What a row holds | Bounded by |
   |---|---|---|---|---|
-  | 25 | `Forge` | `Forge(forge)`: the forge's number | a forge, a record of the forge connector's (forge/engine.md, 1): its kind, Forgejo or GitHub; its mode, connected, managed, owned or fake; its place, the API's host, port and TLS name, the remotes' base and the pages; its git program; whether a pasted App is read-only; its bot's login, name and email; whether its start waits to be asked, an owned forge's; a first set up's intent, and no project (setup/owned.md, 7): empty, its organization, repository, runner label and whether it is the playground's; copies, its addresses; or nothing; its link to a box's person, the forge's user and the person's party, or none (`../domain/forge/adoption.md`, 6); and its state, kept or ended with whether its secrets are erased and its box group removed. Written by the act that makes the forge and at each change, erased once its removal is whole (forge/engine.md, 3) | `forges` |
+  | 25 | `Forge` | `Forge(forge)`: the forge's number | a forge, a record of the forge connector's (forge/engine.md, 1): its kind, Forgejo or GitHub; its mode, connected, managed, owned or fake; its place, the API's host, port and TLS name, the remotes' base and the pages; its git program; whether a pasted App is read-only; its bot's login, name and email; whether its start waits to be asked, an owned forge's; a first set up's intent, and no project (setup/owned.md, 7): empty, its organization, repository, runner label and whether it is the playground's; copies, its addresses; or nothing; its link to a box's person, the forge's user and the person's party, or none (`../domain/forge/adoption-person.md`, 1); and its state, kept or ended with whether its secrets are erased and its box group removed. Written by the act that makes the forge and at each change, erased once its removal is whole (forge/engine.md, 3) | `forges` |
   | 26 | `ForgeNumber` | `ForgeNumber`: one row | the last forge number given, `{ last }`, so a number is never given twice (forge/engine.md, 1). Written as each forge is made, never erased | one row |
   | 27 | `Playground` | `Playground`: one row | the playground's state, starting, running, or resetting at its step, the project's, the forge's or the account's; its fake forge's number; and its project's and scripted account's numbers once its start has made them (setup/playground.md). Written at its start, at each act its start makes, and at each step of its reset; erased when the reset ends; no row is no playground | one row |
 
@@ -292,7 +292,7 @@ configuration/limits.md).
   `Write::Erase(Key::Forge(key))`, which the routing encodes into jig's
   application writes, `Put { key, value }` and `Remove { key }`, in the
   same commit as jig's (jig's `protocol/store/README.md`, sections 3 and 5).
-- **A repository's release** (`../domain/forge/adoption.md`, 1, *A
+- **A repository's release** (`../domain/forge/adoption-connection.md`, 1, *A
   repository released* and *A release in pages*) erases its family 2
   row last, after every row that names it: families 1 and 3; 4, the
   repository taken out of a row and a row left with none erased; 5 to
@@ -327,7 +327,7 @@ configuration/limits.md).
   - `Topic` is its variant (0 `Landings`, 1 `Ci`, 2 `Pull`, 3
     `Participation`), then the repository, then the branch, the commit
     or the number; or 4 `Findings`, then the project
-    (`../domain/forge/README.md`, 5.1);
+    (`../domain/forge/topics.md`, 1.1);
   - `Finding` is the project, then the number;
   - `Making` is the forge, then the org and the name, each one byte
     string;

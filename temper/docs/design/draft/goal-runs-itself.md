@@ -127,7 +127,7 @@ store and the forge already hold:
   lets through is offered to the run it wakes: the coordinator's parts
   cover `words` (jig's `domain/tasks/messages.md`, 3 and 6).
 - **No subscription to main's landings** for catch-ups. Reds still reach the
-  goal through its branch's tiers (`../domain/forge/README.md`, section 6).
+  goal through its branch's tiers (`../domain/forge/updates.md`, section 1).
 
 ## 7. The coordinator's charter
 

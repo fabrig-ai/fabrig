@@ -12,15 +12,15 @@ lands its members by containment. It is the merge queue
 several units is narrowed by prefixes, `landing-search.md`. It replaces, for such a project, the change's CI, its queue,
 its updates and its merge in the repository's style
 (`forge/change/README.md`, 2 steps 3 and 5 to 7, `forge/queues.md` and
-`forge/README.md`, section 6). What follows a landing, its tiers and its
+`forge/updates.md`, section 1). What follows a landing, its tiers and its
 verdict, is `after-landing.md`. The forge's calls it makes are skein's
-`forge/README.md`, 3.2. What is still open is section 17.
+`forge/README.md`, 3.2. What is still open is `landing.md`, section 17.
 
 ## 1. In one page
 
 - **A project lands by queue or by turn,** its setting (`landing-settings.md`, section 1).
   `queue` is the change procedure (`forge/change/README.md`,
-  `forge/queues.md`, `forge/README.md`, section 6), the default until
+  `forge/queues.md`, `forge/updates.md`, section 1), the default until
   that project's turn has been walked on real backends. `turn` is this
   document. A change takes its project's way when it becomes ready.
 - **A train** is a repository and its landing branch (section 9): main
@@ -159,7 +159,7 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
   ready and waits, first in line (5.2).
 - **Leaving otherwise:** a new head its goal delivered takes the change
   back to gating at that head, a head moved by another identity holds
-  it as drift (`forge/change/README.md`, 3), and a cancel ends it; in
+  it as drift (`forge/change/drift.md`, 1), and a cancel ends it; in
   each the member leaves (4.3).
 - **Landed** when its landing's turn has made the train's branch
   contain its prefix: its head, merged, or its squash commit. Its landed
@@ -817,7 +817,7 @@ See [Landings at the forge](landing-forge.md), section 1.
 
 ## 11. Effects and kinds
 
-Three kinds join `forge/README.md`'s section 4, each a row of its own:
+Three kinds join `forge/effects.md`'s section 1, each a row of its own:
 
 | Kind | Effect | What it is | Recovery class | Found again after an uncertain failure |
 |---|---|---|---|---|
@@ -954,14 +954,14 @@ documents for another task or project remain errors.
   `turn`: per train, its landing in flight, with its members in the
   stack's order, its round and step, probing with its prefix while its
   search probes, then the waiting changes in their order.
-- **A change's panel** (`forge/change/README.md`, 5) names its landing and its way.
+- **A change's panel** (`forge/change/panel.md`, 1) names its landing and its way.
 - **Acts** are jig's on the landing task: release and cancel, by the
   project's maintainers.
 
 ## 15. Restart
 
-- **Restored whole** with the forge's other families (`forge/README.md`,
-  section 9). Trains are derived again from the live landings. A live
+- **Restored whole** with the forge's other families (`forge/effects.md`,
+  section 2). Trains are derived again from the live landings. A live
   landing jig never made ends at the link pass (`landing-forming.md`, 4).
 - **Before any landing steps,** the train's tip and each member's head
   are read afresh, and each run in flight is read (`Read::Run`); a

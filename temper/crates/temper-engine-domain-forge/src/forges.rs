@@ -1,4 +1,4 @@
-//! Forge records and the machine's places (temper/docs/design/protocol/forge/engine.md, 1; temper/docs/design/domain/forge/adoption.md, 1).
+//! Forge records and the machine's places (temper/docs/design/protocol/forge/engine.md, 1; temper/docs/design/domain/forge/adoption-connection.md, 1).
 use crate::{
     Bot, Configured, Domain, FirstIntent, ForgeRecord, ForgeState, Key, Kind, Machine, Mode, Owned, Place, Request,
     Stored,
@@ -18,7 +18,7 @@ impl Domain {
         self.records.get(&forge)
     }
 
-    /// The kept forge's link, absent for an ended or unknown forge (temper/docs/design/domain/forge/adoption.md, 6).
+    /// The kept forge's link, absent for an ended or unknown forge (temper/docs/design/domain/forge/adoption-person.md, 1).
     #[must_use]
     pub fn link(&self, forge: u16) -> Option<crate::Link> {
         let record = self.records.get(&forge)?;
@@ -28,7 +28,7 @@ impl Domain {
         }
     }
 
-    /// Ended at removal's decision, or absent (temper/docs/design/domain/forge/adoption.md, 1).
+    /// Ended at removal's decision, or absent (temper/docs/design/domain/forge/adoption-connection.md, 1).
     #[must_use]
     pub fn forge_ended(&self, forge: u16) -> bool {
         match self.record(forge) {
@@ -105,7 +105,7 @@ pub(crate) fn save(d: &mut Domain, record: ForgeRecord, out: &mut Queue<Request>
     out.push(Request::Save { record: Stored::Forge(record), release: None, read_afresh: None });
 }
 
-/// Erase a record whole; its number stays spent (temper/docs/design/domain/forge/adoption.md, 1).
+/// Erase a record whole; its number stays spent (temper/docs/design/domain/forge/adoption-connection.md, 1).
 pub(crate) fn erase(d: &mut Domain, forge: u16, out: &mut Queue<Request>) {
     d.identities.remove(&forge);
     d.records.remove(&forge);

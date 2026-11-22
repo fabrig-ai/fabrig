@@ -111,7 +111,7 @@ Routing by path is later (`../draft/standing-roles.md`, section 13).
 - **Kept:** what fits no area the triager keeps, and triages as any
   owner does (`findings.md`, section 6).
 - **A task hears** through the project's findings topic
-  (`forge/README.md`, 5.1): in the decision that files or hands a
+  (`forge/topics.md`, 1.1): in the decision that files or hands a
   finding to a task, the root subscribes that task to `findings {
   project }` if it isn't already, as it subscribes a goal to its
   landings, and gives it the news, class `Wakes`, its wake policy

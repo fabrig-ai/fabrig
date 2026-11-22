@@ -501,8 +501,8 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   within the link's deadline (`README.md`, section 9) and fails only past it, as
   the link down's line (`results.md`, 3), never as a task it could not read.
 - **A change's wait follows its task,** since the panel of a change
-  that ended without landing keeps its last step (`../../domain/forge/change/README.md`,
-  5): the wait watches task N beside the panel, and when the task
+  that ended without landing keeps its last step (`../../domain/forge/change/panel.md`,
+  1): the wait watches task N beside the panel, and when the task
   ends with no change result (successful no-change completion, cancelled,
   failed) it answers at once, not met, exit 3, naming how the task ended:
   `ended`, `ended: cancelled` or `ended: failed`, with the panel's last

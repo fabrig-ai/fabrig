@@ -351,7 +351,7 @@ binaries; and decides by
   - **Without the box** (`box.md`, 4), offers none: an owned forge's group is
     the box's, and `SetUp` is refused *not under the box*.
 - **The page's actions** are the engine domain's offers, from the same
-  function that gives the set up's offer (`../../domain/forge/adoption.md`, 1).
+  function that gives the set up's offer (`../../domain/forge/adoption-connection.md`, 1).
   "Connect as its admin" makes a Forgejo elsewhere from the address the
   person gives (`reconcile.md`, 5).
 - **The connected card** says "Connected as LOGIN", with its id on an
@@ -790,7 +790,7 @@ its own for any other host.
   failure, leaves its forge kept but not connected, or its first
   repository not made: the welcome's Forge step shows it unfinished,
   "FORGE · not finished", with Start over (`../../client/pages/README.md`),
-  which removes the forge (`../../domain/forge/adoption.md`, 1) and opens the
+  which removes the forge (`../../domain/forge/adoption-connection.md`, 1) and opens the
   step's choices again. An owned Forgejo then sets up afresh, as a new
   forge numbered next: its binaries from the cache (6), which its
   removal keeps, and its directory prepared anew (3), the old one
@@ -798,7 +798,7 @@ its own for any other host.
 - **GitHub goes on by default:** its App's records are kept as they come
   (`github.md`, 2), so the step offers Go on, to the App's installation, before
   Start over, which removes the forge and names the App on GitHub as the
-  person's to delete (`../../domain/forge/adoption.md`, 1).
+  person's to delete (`../../domain/forge/adoption-connection.md`, 1).
 - **An account added before** stays: it is the person's, not the set
   up's, and the Model step shows it ready (`../../client/pages/README.md`).
 - **Its code:** the intent, in the forge's record, in

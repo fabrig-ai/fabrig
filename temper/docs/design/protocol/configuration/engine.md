@@ -150,7 +150,7 @@ field. The landing rules were settings already, temper's kinds 1 and 2
   repository the merge job merges, none when absent: the project's merge
   command (`../tooling.md`, 4.1), and with it the merge job before each
   resolution of its changes and catch-ups into its goals' branches
-  (`../../domain/forge/change/repairs.md` and `../../domain/forge/README.md`, 6). A path past its bounds
+  (`../../domain/forge/change/repairs.md` and `../../domain/forge/updates.md`, 1). A path past its bounds
   refuses the start at its member.
 - **The close job's command,** beside `merge_job`, by either way:
   `close_job`, a relative path of at most 4,096 bytes, without `..`, in

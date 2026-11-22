@@ -661,7 +661,7 @@ pub enum Fact {
         age: skein_lib::Duration,
         waits: Box<[u8]>,
     },
-    /// A forge's link changed or was refused (temper/docs/design/domain/forge/adoption.md, 6).
+    /// A forge's link changed or was refused (temper/docs/design/domain/forge/adoption-person.md, 1).
     ForgeLink {
         forge: u16,
         note: forge::LinkNote,

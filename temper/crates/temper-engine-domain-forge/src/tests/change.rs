@@ -2103,7 +2103,7 @@ fn opens_pull(requests: &[Request]) -> bool {
     false
 }
 
-// A settled update is interpreted by the top (temper/docs/design/domain/forge/README.md, 6).
+// A settled update is interpreted by the top (temper/docs/design/domain/forge/updates.md, 1).
 fn updating_entry(preparing: bool) -> (Domain, skein_forge_client::Entry) {
     use skein_forge::api::{UpdateStyle, Write};
     use temper_engine_domain_forge_change as change;

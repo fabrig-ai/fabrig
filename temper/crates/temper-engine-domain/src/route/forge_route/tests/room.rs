@@ -1,4 +1,4 @@
-//! Settled panels give their room to new changes (domain/forge/change/README.md, 7).
+//! Settled panels give their room to new changes (domain/forge/change/records.md, 1).
 use super::{change_row, change_start_fixture};
 use crate::{Decision, Key, Record, Write, route::forge_route::start_change};
 use skein_lib::{Env, Queue};

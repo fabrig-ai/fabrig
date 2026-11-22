@@ -49,7 +49,7 @@
 
 - **A member leaves its landing,** with its whole unit, before its round's turn, when:
   - its merge onto the stack conflicts (5.2);
-  - its head moves: its goal delivered, or another hand pushed, which is drift as ever (`../domain/forge/change/README.md`, 3);
+  - its head moves: its goal delivered, or another hand pushed, which is drift as ever (`../domain/forge/change/drift.md`, 1);
   - it is cancelled, or held, or a judgement gate it needs is refused (6);
   - it is blamed for a red (section 7).
 - **It keeps its place:** its first ready time is unchanged, so once ready again it is first in line. Leaving is never a repair by itself.
@@ -129,7 +129,7 @@ The red, the prefix it was found at and the green one below it, the members that
 
 - **First, freshness:** the branch's tip and each member's head in the prefix are read afresh; one that moved makes the round stale (7.3), and the turn goes.
 - **Then the branch fast-forwards to the proved prefix,** by the merge of the round's own pull request from that prefix's branch into it, fast-forward only (`../domain/landing.md`, 8, on Forgejo), judged by the landing rules at that commit (6).
-- **Each member in the prefix lands:** the branch contains its head, merged, or its squash commit. Its change's landed commit is its prefix, the commit that brought it, and the change is kept for its goal as any landed change is (`../domain/forge/change/README.md`, 7). Its pull request reads merged: a merged member's by the forge's detection of a manual merge; a squashed member's recorded merged at its squash commit by the landing, as the forge lets a manual merge be recorded. Adoption checks both (`../domain/landing.md`, 13.2). A squashed member's branch is done once it lands: later work on its goal starts from the goal's branch.
+- **Each member in the prefix lands:** the branch contains its head, merged, or its squash commit. Its change's landed commit is its prefix, the commit that brought it, and the change is kept for its goal as any landed change is (`../domain/forge/change/records.md`, 1). Its pull request reads merged: a merged member's by the forge's detection of a manual merge; a squashed member's recorded merged at its squash commit by the landing, as the forge lets a manual merge be recorded. Adoption checks both (`../domain/landing.md`, 13.2). A squashed member's branch is done once it lands: later work on its goal starts from the goal's branch.
 - **Recorded before the next round:** the landed members and the round's result; a merge found done at a restart, with its record missing, is recorded, never merged again.
 - **No empty turn:** a round whose green prefix is its base lands nothing and goes straight to the next round.
 - **After the last round,** the landing's branches are released and the train frees (section 3).
@@ -146,7 +146,7 @@ The red, the prefix it was found at and the green one below it, the members that
 - **`batch`:** a member of kind 4, a project's landing (`../domain/landing.md`, 13.1): the most changes a landing into a repository's main forms with; stock 1.
 - **`combine`:** a member of kind 4: how a train combines a member onto its stack (5.1), `merge` or `squash`, one value for trains into a repository's main and one for trains into any other branch; stock `merge` and `squash`.
 - **The store:** a `Landing` keeps its rounds (base, members and heads, prefix commits, branches), each member's outcome and why it left, the search's bounds, and the train's fallback (7.2) while it lasts. In place, before the first release (`../protocol/store.md`, section 2).
-- **Bounds** (`../protocol/configuration/limits.md`): `landing_members` bounds a landing's changes, at least `batch`; a unit past it is refused (4.1). `landings` counts live landings, one per train. Ended changes stay while `../domain/forge/change/README.md`, 7 keeps them, and a landing's row goes only once each member's outcome is on its change: bounds cover live and retained work, never all of history.
+- **Bounds** (`../protocol/configuration/limits.md`): `landing_members` bounds a landing's changes, at least `batch`; a unit past it is refused (4.1). `landings` counts live landings, one per train. Ended changes stay while `../domain/forge/change/records.md`, 1 keeps them, and a landing's row goes only once each member's outcome is on its change: bounds cover live and retained work, never all of history.
 - **Steps' bounds:** the prepare job's timeout, a run's, a probe's; past one, a hold (section 9).
 
 ## 11. What a project gives

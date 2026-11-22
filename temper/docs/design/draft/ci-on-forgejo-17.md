@@ -140,7 +140,7 @@ failed step's end, as the brief does. It grows:
   read of its own); 3.4, the re-run's `400` as `Refused`; `../protocol/forge/README.md`, section 8, the
   fake forge's re-runs through the API as new attempts, `waiting` and
   `blocked` jobs, and searches; `../protocol/forge/README.md`, section 11, the facts of `ci-on-forgejo-17.md`, section 6 here.
-- **`../domain/forge/README.md`:** `../domain/forge/README.md`, section 4, the re-run's effect and how it is
+- **`../domain/forge/README.md`:** `../domain/forge/effects.md`, section 1, the re-run's effect and how it is
   found again; 8.1, `reruns` among the bounds; 8.2, step 3, the runner's
   failures re-run before a repair; 8.4, a stall's reasons; `../domain/forge/README.md`, section 10,
   the world's stories: a set-up failure re-run and passing; one re-run

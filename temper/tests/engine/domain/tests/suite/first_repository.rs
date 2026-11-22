@@ -75,7 +75,7 @@ fn setup_intent(
 }
 #[test]
 fn setup_refused_without_the_box() {
-    // domain/forge/adoption.md, 1: without the box, setup is refused before routing.
+    // domain/forge/adoption-connection.md, 1: without the box, setup is refused before routing.
     let mut driver = driver(false);
     let answer = setup(&mut driver, 51, b"work", b"hello");
     assert_eq!(
@@ -139,7 +139,7 @@ fn exact_grammar_limits_and_repository_punctuation_are_admitted() {
 
 #[test]
 fn a_second_setup_is_busy_and_cannot_replace_the_first_intent() {
-    // domain/forge/adoption.md, 1; protocol/setup/owned.md, 7: one setup at a time, intent only replaced on admission.
+    // domain/forge/adoption-connection.md, 1; protocol/setup/owned.md, 7: one setup at a time, intent only replaced on admission.
     let mut driver = driver(true);
     assert_eq!(setup(&mut driver, 55, b"work", b"hello"), None);
     event(&mut driver, forge::Event::Connection { forge: 1, state: forge::Connection::SettingUp { step: None } });
@@ -158,7 +158,7 @@ fn a_second_setup_is_busy_and_cannot_replace_the_first_intent() {
 
 #[test]
 fn connected_forge_does_not_offer_setup() {
-    // domain/forge/adoption.md, 1: a forge already connected does not offer SetUp.
+    // domain/forge/adoption-connection.md, 1: a forge already connected does not offer SetUp.
     let mut driver = driver(true);
     event(
         &mut driver,
@@ -277,7 +277,7 @@ fn every_create_failure_names_its_step_and_allows_a_fresh_setup() {
 
 #[test]
 fn replay_of_an_answered_setup_does_not_start_the_box_twice() {
-    // domain/forge/adoption.md, 1; client/forge/records.md: SetUp is keyed like adoption.
+    // domain/forge/adoption-connection.md, 1; client/forge/records.md: SetUp is keyed like adoption.
     let mut driver = driver(true);
     let _ = setup(&mut driver, 62, b"work", b"hello");
     let request = driver

@@ -70,7 +70,7 @@ fn name_pull(world: &mut Protocol) {
     let Some(forge::Stored::ChangeHot(row)) = world.stored().get(&forge::Key::ChangeHot(51)) else {
         panic!("durable change")
     };
-    // QA: domain/forge/README.md, 4, domain/forge/change/README.md, 2: post-pull cases require the confirmed opening.
+    // QA: domain/forge/effects.md, 1, domain/forge/change/README.md, 2: post-pull cases require the confirmed opening.
     let number = row.pull.unwrap_or_else(|| {
         panic!("admitted opening has its pull: state {:?}, outputs {:?}", row.change.state, world.seen())
     });
@@ -232,7 +232,7 @@ fn landed_once(world: &Protocol, finishes: &[[u8; 32]], expected_writes: u32) {
         [commit(world.branch(b"main"))],
         "QA: domain/forge/change/README.md 2: Finish names main's actual landing commit"
     );
-    assert_eq!(world.writes(), expected_writes, "QA: domain/forge/README.md 4: no effect lost or repeated");
+    assert_eq!(world.writes(), expected_writes, "QA: domain/forge/effects.md 1: no effect lost or repeated");
     let merges: Vec<_> = world.observations().iter().filter(|o| matches!(o, Observation::Merged { .. })).collect();
     assert!(
         matches!(merges.as_slice(), [Observation::Merged { head, commit: merge, .. }]
@@ -323,7 +323,7 @@ fn pending_pull_survives_token_renewal() {
 
 #[test]
 fn pushed_change_requests_its_pull_once() {
-    // QA: domain/forge/README.md, 4, domain/forge/change/README.md, 2: opening waits for parent admission.
+    // QA: domain/forge/effects.md, 1, domain/forge/change/README.md, 2: opening waits for parent admission.
     let mut world = Protocol::github(741);
     prepared(&mut world);
     world.take_seen();
@@ -366,7 +366,7 @@ fn pushed_change_requests_its_pull_once() {
 
 #[test]
 fn direct_landing_finish_and_two_writes() {
-    // QA: domain/forge/README.md, 4, domain/forge/change/README.md, 2, domain/forge/change/gates.md, 2; protocol/forge/README.md 9; Q8.
+    // QA: domain/forge/effects.md, 1, domain/forge/change/README.md, 2, domain/forge/change/gates.md, 2; protocol/forge/README.md 9; Q8.
     let mut world = Protocol::github(742);
     opened(&mut world);
     let finishes = scheduled_landing(&mut world, 2, 30);
@@ -460,7 +460,7 @@ fn conflicting_update(world: &mut Protocol) -> u64 {
 
 #[test]
 fn conflicting_update_requests_resolution_without_merge() {
-    // QA: domain/forge/change/README.md, 2, domain/forge/change/repairs.md, domain/forge/README.md, 6; skein skein/docs/design/forge/github.md 7; Q3 prefix.
+    // QA: domain/forge/change/README.md, 2, domain/forge/change/repairs.md, domain/forge/updates.md, 1; skein skein/docs/design/forge/github.md 7; Q3 prefix.
     let mut world = Protocol::github(750);
     conflicting_update(&mut world);
     world.finish();
@@ -468,7 +468,7 @@ fn conflicting_update_requests_resolution_without_merge() {
 
 #[test]
 fn update_conflict_resolved_then_merged() {
-    // QA: domain/forge/change/README.md, 2, domain/forge/change/repairs.md, domain/forge/README.md, 6; Q3. Resolve as the fixture writer.
+    // QA: domain/forge/change/README.md, 2, domain/forge/change/repairs.md, domain/forge/updates.md, 1; Q3. Resolve as the fixture writer.
     let mut world = Protocol::github(744);
     let entry = conflicting_update(&mut world);
     world.resolve(b"temper/51", b"resolved both edits");
@@ -515,7 +515,7 @@ fn pending_ci_across_token_hour_completes_on_fresh_token() {
 
 #[test]
 fn restart_after_merge_before_read_never_merges_twice() {
-    // QA: domain/forge/README.md 4, 9; protocol/forge/README.md 9; Q5.
+    // QA: domain/forge/effects.md 1, 2; protocol/forge/README.md 9; Q5.
     let mut world = Protocol::github(746);
     opened(&mut world);
     world.cut_after_next_merge();

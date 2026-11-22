@@ -33,7 +33,7 @@ Kind 4's members, each with its default and the section it serves:
 | `batch`: the most changes a landing into a repository's main forms with, from 1 to the deployment's `landing_members` | 1 | `landing.md`, 4.1, `landing.md`, section 9 |
 | `combine`: how a train combines its members (`landing.md`, 5.2), `merge` or `squash`, `main` for the trains into a repository's main and `other` for those into any other branch | `merge`; `squash` | `landing.md`, 5.2 and section 8 |
 | `prepare`, `key`: paths in the home, or none; `home_revision`; `prepare_timeout` | temper's own prepare and key | `landing.md`, 5.3, 6.1 |
-| `merge_job`: a path in each repository it merges, or none | none: a conflict goes to a resolution at once | `forge/change/repairs.md` and `forge/README.md`, 6 |
+| `merge_job`: a path in each repository it merges, or none | none: a conflict goes to a resolution at once | `forge/change/repairs.md` and `forge/updates.md`, 1 |
 | `close_job`: a path in each repository a goal's branch is in, or none; `landing_attempts`, 1 to 255 | none; 3 | `forge/branches.md`, 2 |
 | `check_timeout`: the delivery checks' wall bound in a run delegated for one of the project's changes, or none | none: the agent's own | `../protocol/configuration/engine.md`, `landing` |
 | `dependencies_join` | yes | `landing.md`, 4.1 |
@@ -137,7 +137,7 @@ kinds 4 and 5 does (`../draft/config.execution.md`, N5).
   change.
 - **A change ready to land waits.** Its panel says `landing held until
   the engine starts without landing-held`, where a waiting change says
-  why it waits (`forge/change/README.md`, 5). Nothing it waits for is
+  why it waits (`forge/change/panel.md`, 1). Nothing it waits for is
   lost: at the next start without the file it lands as it would have,
   under the settings in force then.
 - **Removed, it ends at the next start,** never while the engine runs.

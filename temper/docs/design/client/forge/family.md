@@ -33,7 +33,7 @@ its number or its path.
   above, its last segment as it is; an open end is its prefix followed
   by `…` ("branch temper/7/… of acme/shop on forge.example").
 - **A kind,** by the forge's numbering (`temper-engine-domain-forge`'s
-  `effect_shape`; `../../domain/forge/README.md`, section 4):
+  `effect_shape`; `../../domain/forge/effects.md`, section 1):
 
   | Kind | Words | Kind | Words |
   |---|---|---|---|

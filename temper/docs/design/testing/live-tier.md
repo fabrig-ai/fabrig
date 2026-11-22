@@ -88,7 +88,7 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   restarts on its three directories, without another provider sign-in,
   push or merge. The change's page says "Passed" for CI at its head on
   both runs: a landed change keeps its last verdict at its head with its
-  record through the restart (../domain/forge/change/README.md, 5), as `process-tier.md`'s restart stories
+  record through the restart (../domain/forge/change/panel.md, 1), as `process-tier.md`'s restart stories
   read it. It closes the chat and drains the box; the sitting
   allows ten minutes for sign-in, forty minutes in total and 1–25
   completions, counted through ctl. Progress and final evidence reach

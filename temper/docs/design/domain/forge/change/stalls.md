@@ -24,7 +24,7 @@ is never held just for waiting, yet tells the person of a check that
 never reports within the same sitting.
 
 - **A wait for access is not one:** while its forge is not connected,
-  or its repository not reachable (`../adoption.md`, 1, 3), the stall
+  or its repository not reachable (`../adoption-connection.md`, 1, `../adoption.md`, 3), the stall
   does not count.
 - **Nor is a wait for its agent:** while the change's producer, repair,
   resolution or merge job is a live task, running, between its tries or

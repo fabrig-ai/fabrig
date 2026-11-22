@@ -17,7 +17,7 @@ account type before sending `PersonOf`; absent or invalid evidence is
 `NotTheirs`. Failed reads send no person answer. The given-value and
 lifecycle tables cover these decisions; they establish no live GitHub
 account observation (`skein/docs/design/forge/github.status.md`, 13).
-The connector's remaining scope gap is in `../../domain/forge/adoption.status.md`, 6.
+The connector's remaining scope gap is in `../../domain/forge/adoption-person.status.md`, 1.
 
 `init.md`, sections 2 and 3 have no known gap in generated documents holding
 providers, endpoints, sources and endpoint limits, with models supplied

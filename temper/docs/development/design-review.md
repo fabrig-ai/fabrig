@@ -771,11 +771,11 @@ Map item 133: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/d
 
 ### 3.134 A forge's run on a head replaced
 
-Map item 134: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/change/README.md`, 7.
+Map item 134: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/change/records.md`, 1.
 
 ### 3.135 An early update against the bound
 
-Map item 135: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/change/README.md`, 7.
+Map item 135: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/change/records.md`, 1.
 
 ### 3.136 Ask temper's real-model walk
 

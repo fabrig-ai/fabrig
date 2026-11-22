@@ -1,4 +1,4 @@
-//! A goal catches its branch up through a change (temper/docs/design/domain/forge/README.md, 6).
+//! A goal catches its branch up through a change (temper/docs/design/domain/forge/updates.md, 1).
 use super::goal_branch::{branch_tip, goal_request};
 use super::light_rules::change_row;
 use super::*;
@@ -219,7 +219,7 @@ fn landed(world: &mut World, task: u64, branch: &[u8], base: u64) {
     assert_eq!(branch_tip(world, b"main"), base);
 }
 
-/// temper/docs/design/domain/forge/README.md, 6: the merge job produces a catch-up at the goal tip.
+/// temper/docs/design/domain/forge/updates.md, 1: the merge job produces a catch-up at the goal tip.
 #[test]
 fn a_catch_up_merges_mains_commit_into_a_branch_at_the_goal_branchs_tip() {
     let (mut world, goal, branch, head) = goal_world(true, true, true);
@@ -235,7 +235,7 @@ fn a_catch_up_merges_mains_commit_into_a_branch_at_the_goal_branchs_tip() {
     world.close();
 }
 
-/// temper/docs/design/domain/forge/README.md, 6: the job's unresolved merge starts again at the goal tip.
+/// temper/docs/design/domain/forge/updates.md, 1: the job's unresolved merge starts again at the goal tip.
 #[test]
 fn a_catch_up_the_merge_job_cannot_settle_goes_to_a_resolution() {
     let (mut world, goal, branch, head) =
@@ -275,7 +275,7 @@ fn a_catch_up_the_merge_job_cannot_settle_goes_to_a_resolution() {
     world.close();
 }
 
-/// temper/docs/design/domain/forge/README.md, 6: a contained commit ends without a producer or pull.
+/// temper/docs/design/domain/forge/updates.md, 1: a contained commit ends without a producer or pull.
 #[test]
 fn a_catch_up_already_contained_ends_with_no_change() {
     let (mut world, goal, _, _) = goal_world(true, true, true);
@@ -321,19 +321,19 @@ fn refused(command: bool, kind: bool, control: bool, words: &[u8]) {
     world.close();
 }
 
-/// temper/docs/design/domain/forge/README.md, 6: a catch-up requires the project's `merge_job`.
+/// temper/docs/design/domain/forge/updates.md, 1: a catch-up requires the project's `merge_job`.
 #[test]
 fn a_catch_up_is_refused_without_a_merge_job() {
     refused(false, true, true, b"change's merge: the project names no merge_job.");
 }
 
-/// temper/docs/design/domain/forge/README.md, 6: a catch-up requires delegation to Job(3).
+/// temper/docs/design/domain/forge/updates.md, 1: a catch-up requires delegation to Job(3).
 #[test]
 fn a_catch_up_is_refused_without_the_merge_kind() {
     refused(true, false, true, b"change's merge: its authority does not delegate to the merge job.");
 }
 
-/// temper/docs/design/domain/forge/README.md, 6: merge is a plan member requiring control.
+/// temper/docs/design/domain/forge/updates.md, 1: merge is a plan member requiring control.
 #[test]
 fn a_catch_up_is_refused_without_control() {
     refused(
@@ -344,7 +344,7 @@ fn a_catch_up_is_refused_without_control() {
     );
 }
 
-/// temper/docs/design/domain/forge/README.md, 6: a malformed commit refuses merge before creating a change.
+/// temper/docs/design/domain/forge/updates.md, 1: a malformed commit refuses merge before creating a change.
 #[test]
 fn a_catch_up_is_refused_for_a_malformed_commit() {
     let (mut world, goal, _, _) = goal_world(true, true, true);

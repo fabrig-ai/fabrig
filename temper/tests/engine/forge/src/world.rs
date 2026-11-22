@@ -855,7 +855,7 @@ impl World {
     }
 
     /// The fake routing reports access again after each start
-    /// (temper/docs/design/domain/forge/adoption.md, 1).
+    /// (temper/docs/design/domain/forge/adoption-connection.md, 1).
     fn connected(&mut self) {
         if let Some(writer) = self.writer {
             self.event(top::Event::Connection {
@@ -2076,7 +2076,7 @@ impl World {
     }
 
     /// Answer writes as timed out, then apply their copies after this delay.
-    /// Updates may arrive beyond their lifetime (domain/forge/README.md, 6).
+    /// Updates may arrive beyond their lifetime (domain/forge/updates.md, 1).
     pub fn land_writes_late(&mut self, after: Duration) {
         self.forge_env.limits.landing = 1000;
         self.forge_env.limits.land_min = after;

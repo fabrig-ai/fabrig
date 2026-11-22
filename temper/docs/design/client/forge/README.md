@@ -152,7 +152,7 @@ admitted (`../pages/task.md`, 3). A held change shows its hold instead.
   CI, the panel says “CI not required”. A landed change retains the
   last observation at its exact head, which may still be pending when
   it landed without CI; that observation does not claim a current
-  forge verdict (`../../domain/forge/change/README.md`, 5).
+  forge verdict (`../../domain/forge/change/panel.md`, 1).
 - **Its gates** (`../../domain/forge/change/gates.md`, 1): each with its kind (a
   review by a lens, a person's approval, checks), blocking or advisory,
   who asked for it (the change, the project's landing rule, its plan),
@@ -401,7 +401,7 @@ is about, by whom and when where another hand did it, a link to each on
 the forge, and what each act will do. A release resets the change's
 repairs, resolutions and updates, and counts its stall from the release.
 Nothing on the forge is written over until the person decides
-(`../../domain/forge/change/repairs.md` and `../../domain/forge/change/README.md`, 3).
+(`../../domain/forge/change/repairs.md` and `../../domain/forge/change/drift.md`, 1).
 
 A local watch-admission wait needs no release: recovery or a departing
 read can temporarily consume the client's capacity, and temper retries.
@@ -422,11 +422,11 @@ read failure names its backend cause and what a release retries.
 | an approval declined | who declined it, at which head, and why | amended to drop the approval and released, in one request; released alone, it is held again at the same head |
 | a requirement refused at the merge (`../../domain/forge/change/gates.md`, 2) | which of its landing rule's requirements refused, at which head: CI failed, a gate asked for changes; a person's review on the forge asking for changes starts a repair instead (`../../domain/forge/change/gates.md`, 1) | takes it back, judged again at its next merge: held again while the refusal stands |
 | a delegate or a write failed for good | which: its producing task's failure, or the forge's refusal of a write (a protected branch, a forbidden write) | takes it back, to decide afresh |
-| a write uncertain, of a kind that cannot be recovered (`../../domain/forge/README.md`, section 4) | the write, that it may or may not have been made, and where to look on the forge: the branch, the pull request's reviews or comments, the issue | makes it again, or goes on without it, as the person says (jig's `client/domain/objects.md`, section 5) |
+| a write uncertain, of a kind that cannot be recovered (`../../domain/forge/effects.md`, section 1) | the write, that it may or may not have been made, and where to look on the forge: the branch, the pull request's reviews or comments, the issue | makes it again, or goes on without it, as the person says (jig's `client/domain/objects.md`, section 5) |
 
 ### 5.2 Drift
 
-A held change's card for drift (`../../domain/forge/change/README.md`, 3; jig's
+A held change's card for drift (`../../domain/forge/change/drift.md`, 1; jig's
 `domain/connectors.md`, section 11): what changed on the forge, by whom
 and when, and a link to it there.
 
@@ -455,7 +455,7 @@ On a goal's page, with what it hears (jig's `client/domain/pages.md`,
 5.2): each landing in its repositories, marked as its own, overlapping
 its work (it woke the goal), not overlapping (kept), or unknown, as for
 a landing too large to compare (it woke the goal)
-(`../../domain/forge/README.md`, 5.3).
+(`../../domain/forge/topics.md`, 1.3).
 
 ### 6.3 Findings
 

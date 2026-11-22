@@ -699,7 +699,7 @@ each step the core asks for:
    (jig's `domain/people/README.md`, section 4), before the forge's restore
    decision: a forge's link to a box's person holds only while the forge
    runs under the box and that person is the sole owner, and the forge
-   clears any other in that decision (`forge/adoption.md`, 6). Then **the switch** (jig's `start::Phase::Switch`), at
+   clears any other in that decision (`forge/adoption-person.md`, 1). Then **the switch** (jig's `start::Phase::Switch`), at
    every start: over a generation the store holds pending (jig's
    `protocol/store/opening.md`, 2, step 7) the root asks the store to switch
    and goes on once it answers; then it commits the start's wires (jig's
@@ -713,8 +713,8 @@ each step the core asks for:
    before this step, reporting the restores whole.
 4. **Runs adopted:** the claims to the fleet, those on in-process
    workers settled at once (section 2).
-5. **The forge reads afresh,** then **settles its outbox** (forge/README.md,
-   section 9).
+5. **The forge reads afresh,** then **settles its outbox** (forge/effects.md,
+   section 2).
 6. **The calendar is given the periods** (`routing.md`, 7): for each restored
    project, its current period's number, start and next start, and its
    policy's spend per period, from the core; it says what each needs and
@@ -727,7 +727,7 @@ from its restore on.
 **A step that runs long.** The root keeps the time the core asked for
 each step, and what the step waits on: the store's page or switch, its
 commits in flight, and in step 5 the forge's reads and finds still owed
-(`forge/README.md`, section 9). Past the report bound, and again at each
+(`forge/effects.md`, section 2). Past the report bound, and again at each
 doubling of the step's age, it reports them by kind, with counts and the
 oldest by name, as a fact the service writes
 (`../protocol/README.md`, 6.3). The report is no deadline: the step
@@ -760,7 +760,7 @@ drains as jig's `domain/engine/restart.md`, 1 says.
     word kept and said for the runs step 4 adopted. Adopting runs and
     opening decisions end at once; so do reading the forge afresh and
     settling its outbox, whose reads and finds are the next start's to
-    do again (`forge/README.md`, section 9), a write the settle sent
+    do again (`forge/effects.md`, section 2), a write the settle sent
     finishing within the settled stop's bound.
   - **After decisions open,** the settled stop below, as before.
   - **While the store opens,** before the root's start, a stop ends the
@@ -769,7 +769,7 @@ drains as jig's `domain/engine/restart.md`, 1 says.
   A second signal aborts in every one of them, as below.
 - **Settling.** Told to stop, the root tells the core it settles
   (jig's `domain/engine/restart.md`, 1, *Settling before the stop*),
-  then tells the forge to settle (forge/README.md, section 4), and holds
+  then tells the forge to settle (forge/effects.md, section 1), and holds
   the core's stop until the forge says it has. The service routes the
   root's stop before anything else it would hand the root once told, so
   that nothing is decided between the signal and the settling. Meanwhile:
@@ -798,8 +798,8 @@ drains as jig's `domain/engine/restart.md`, 1 says.
   outcome, by its entry and its task, and the stop goes on unsettled
   (`Request::Unsettled`);
   the service prints each as it ends (`../protocol/binaries.md`
-  ), and the next start settles it as its class says (forge/README.md,
-  section 9). The bound is `skein_forge_client::stop_bound`, 602 s at
+  ), and the next start settles it as its class says (forge/effects.md,
+  section 2). The bound is `skein_forge_client::stop_bound`, 602 s at
   the stock limits; `temper-engine versions` prints it, and a unit takes
   its stop timeout from it (`../protocol/configuration/derived.md`,
   5.6).
@@ -832,7 +832,7 @@ back:
 
 | Restarted or away | What carries on |
 |---|---|
-| the engine | each worker keeps hosting its runs within its engine-away bound, or the restart wait its engine's settled stop told it (`worker/README.md`, section 2), redials, and its hello waits for the stored settings; the restart adopts each run its store holds as claimed, by its attempt, and the run goes on (`worker/README.md`, section 2; jig's `domain/engine/restart.md`, step 3 and `root.md`, section 7). Past the bound a run is interrupted, never failed, and resumes. The forge reads afresh and settles its outbox, each write in flight found or sent again as its class says, a goal's own branch made again (`forge/README.md`, section 4, and `forge/branches.md`, section 1, and `forge/README.md`, section 9) |
+| the engine | each worker keeps hosting its runs within its engine-away bound, or the restart wait its engine's settled stop told it (`worker/README.md`, section 2), redials, and its hello waits for the stored settings; the restart adopts each run its store holds as claimed, by its attempt, and the run goes on (`worker/README.md`, section 2; jig's `domain/engine/restart.md`, step 3 and `root.md`, section 7). Past the bound a run is interrupted, never failed, and resumes. The forge reads afresh and settles its outbox, each write in flight found or sent again as its class says, a goal's own branch made again (`forge/effects.md`, section 1, and `forge/branches.md`, section 1, and `forge/effects.md`, section 2) |
 | a worker | its runs, stopped or lost, are resumed on it or another worker from their transcripts and saved work, their start messages kept (`worker/README.md`, section 2) |
 | a forge | its reads and writes wait out the outage and its CI is read again (`forge/keeping-up.md`, 5); an owned Forgejo on a box gets its sign-in source once the engine answers, without its own restart (`../protocol/setup/box.md`, 2) |
 

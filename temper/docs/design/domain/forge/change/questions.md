@@ -106,7 +106,7 @@ stored setting naming it is refused, not read, naming the setting
   The change answers its asker's question with the answer's words
   whole, and the asker's next run goes on from where it parked with the
   answer to read. The requester may first amend the change (its words
-  widened, a Left item accepted: `../README.md`, section 5 of jig's `domain/tasks/README.md`),
+  widened, a Left item accepted: `../topics.md`, section 1 of jig's `domain/tasks/README.md`),
   which reaches a live producer (*Its requester's words and
   amendments*, below), or add a change as the change's dependency, one
   it makes now or one it already has, a sibling change of the same
@@ -157,8 +157,8 @@ stored setting naming it is refused, not read, naming the setting
   first line, and where it stands (taken; asked of the
   requester; its answer held), and the questions
   taken against its bound, are kept on its record, so that a restart
-  resumes each where it stood (`../README.md`, section 9), and shown on its panel
-  (`README.md`, 5; `../../../client/forge/served.md`, 2) and by `ctl`'s `change show`
+  resumes each where it stood (`../effects.md`, section 2), and shown on its panel
+  (`panel.md`, 1; `../../../client/forge/served.md`, 2) and by `ctl`'s `change show`
   (`../../../client/ctl/areas.md`, area 6). The printed numbers are labelled
   producer questions; the requester is directed to the change's task read
   for its answer number.
@@ -520,7 +520,7 @@ early, by these rules:
   going on after an answer that added a dependency, or after an
   amendment naming a revision of the design that landed into the
   branch, works on the branch as it now stands, as one into main is
-  brought up to date by the forge's update (`../README.md`, section 6).
+  brought up to date by the forge's update (`../updates.md`, section 1).
 - **A running producer catches up.** A dependency started from may land
   while the early producer that started from it still runs. Its landing
   squashes its work into one new commit (`../../landing.md`, 5.2) and
@@ -588,7 +588,7 @@ rest of the branch lands while a sign-off waits a night
   facts (`gates.md`, 2) are at its last head, with an approval of an enforcing rule
   covering it, by its branch and the path sets it touches at that head
   (`gates.md`, 2, the kept `Touched`), still short and none refused, each judged as its
-  panel judges them (`README.md`, 5). Of each: its task, project and forge; its
+  panel judges them (`panel.md`, 1). Of each: its task, project and forge; its
   repository's owner and name; its pull request's number; its title; when its
   facts at that head were first kept; whether its reviews were read whole;
   and its short approvals, each its scope, rule, role, required count, the
@@ -609,7 +609,7 @@ rest of the branch lands while a sign-off waits a night
   - *too few:* fewer of the project's members count as people on the change's
     forge with the approval's role than it asks for (`eligible_people`, `gates.md`, 3),
     as when later membership changes, or a repository adopted from a forge
-    with no link (`../adoption.md`, 6), leave a rule that can't be met;
+    with no link (`../adoption-person.md`, 1), leave a rule that can't be met;
   - *no account:* the watcher doesn't count as a person on that forge
     (`forge_human`, `../adoption.md`);
   - *another role:* the approval's role isn't the watcher's, as for an owner

@@ -1,5 +1,5 @@
 //! A change waits for access without holding, polling or spending its stall
-//! (temper/docs/design/domain/forge/adoption.md, 1). Wait starts are volatile;
+//! (temper/docs/design/domain/forge/adoption-connection.md, 1). Wait starts are volatile;
 //! the connector's change limit bounds one per change.
 use super::{Domain, Env, Limits, Request, branch_due, change, emit, save_change};
 use crate::Connection;

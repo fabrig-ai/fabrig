@@ -237,7 +237,7 @@ and no policy. Every type is a plain value.
   side the file lacks; without, its path alone, both `None`, and the
   dialect reads neither a merge base nor a side: the files' listing is
   the read. A reader that needs paths alone, as goal overlap does
-  (temper's `domain/forge/README.md`, 5.3), asks without `sides`.
+  (temper's `domain/forge/topics.md`, 1.3), asks without `sides`.
 - **`Item { number, after, since }`** asks for an item and its comments
   with ids above `after`. `since` is a time at or before the update of
   every comment above `after`, which the dialect sends as its forge's own

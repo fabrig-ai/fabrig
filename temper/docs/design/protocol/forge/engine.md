@@ -85,7 +85,7 @@ skein-io socket
   nothing more is read off its connection meanwhile. One the root
   returns during its drain (its `Request::Busy`) is never offered
   again: it goes when the component closes, and the next process reads
-  afresh and settles its outbox (`../../domain/forge/README.md`, section 9). The
+  afresh and settles its outbox (`../../domain/forge/effects.md`, section 2). The
   routing's own news of a connection or an installation that the root
   returns during its drain is dropped. The root's view of them is not
   kept, so the next process's root starts from what a fresh start
@@ -130,7 +130,7 @@ skein-io socket
     or `Nothing`;
   - its link to a box's person, or none: the forge's user who is the box's
     one person, and that person's party, `{ user, person }`, each never 0
-    (`../../domain/forge/adoption.md`, 6);
+    (`../../domain/forge/adoption-person.md`, 1);
   - its state: kept, or ended, with whether its secrets are erased and
     its box group removed (3).
 
@@ -274,7 +274,7 @@ skein-io socket
   deployment's page says as whom (../../client/forge/README.md, the deployment's
   page). The connector then gives the forge client its writer, which the
   forge client keeps as its own record and restores at start (skein's
-  `forge/client.md`, 7.1; `../../domain/forge/adoption.md`, 1). A GitHub forge's
+  `forge/client.md`, 7.1; `../../domain/forge/adoption-connection.md`, 1). A GitHub forge's
   `Reconcile { forge }` runs next, once the forge's writing run is free
   (6); it ends in no connect.
 - **The box's pipe** (../setup/box.md, 1), under the box alone, through the
@@ -334,7 +334,7 @@ skein-io socket
   the engine (`README.md`, section 4).
 - **A forge removed** is ended in one decision of the forge
   connector's, by its owners' `RemoveForge { forge }` or the
-  playground's reset (`../../domain/forge/adoption.md`, 1; ../setup/playground.md): its
+  playground's reset (`../../domain/forge/adoption-connection.md`, 1; ../setup/playground.md): its
   record reads ended, and the root asks the routing for the service's
   side at once:
   - **no call served:** the component drops the forge (`Remove {
@@ -353,7 +353,7 @@ skein-io socket
     once the start's store mark is durable;
   - **its writer and its flights** go in the decision itself: the
     writer's row erased, and its writes in flight withdrawn
-    (`../../domain/forge/adoption.md`, 1);
+    (`../../domain/forge/adoption-connection.md`, 1);
   - **its box group removed:** an owned or fake forge's, by `remove
     FORGE` on the box's link (8), the step done at `removed FORGE`; a
     connected or managed forge has none, and the step reads done in the
@@ -363,7 +363,7 @@ skein-io socket
   until whole:** at each start the connector asks again for each step
   its ended record has not heard done; once both are, and no kept task
   names its repositories, the record is erased, its number spent (1;
-  `../../domain/forge/adoption.md`, 1).
+  `../../domain/forge/adoption-connection.md`, 1).
 
 ## 4. GitHub's installations
 
@@ -600,11 +600,11 @@ service's io.
   a line at most `box.line_bytes` (../configuration/limits.md), its
   line feed included, as the box counts it. Without `--box` there is no
   pipe and no link; the engine's forge domain, told so at its construction,
-  refuses every ask "not under the box" (`../../domain/forge/adoption.md`, 1).
+  refuses every ask "not under the box" (`../../domain/forge/adoption-connection.md`, 1).
   The link decides nothing: it carries the domain's asks out and the
   box's lines in.
 - **An ask** is the forge domain's, once it has decided the `SetUp {
-  forge }` by the forge's offer (`../../domain/forge/adoption.md`, 1), which
+  forge }` by the forge's offer (`../../domain/forge/adoption-connection.md`, 1), which
   refuses "not offered", "not under the box" and "busy" itself, or the
   playground's start for its fake forge (../setup/playground.md). The routing
   writes the group's file, `<data>/box/groups/FORGE`, with the forge's
@@ -644,7 +644,7 @@ service's io.
     with `WHY` as the box wrote it, which holds no secret (../setup/box.md,
     1).
 - **The failed step** is the forge domain's, from the connection it
-  held when told set up failed (`../../domain/forge/adoption.md`, 1), including
+  held when told set up failed (`../../domain/forge/adoption-connection.md`, 1), including
   `BoxClosed` during setup. The producers keep their existing events;
   the FORGE row's `SetUpFailed` carries `why` and `at: option
   FailedStep` (fetch, prepare, run or connect). The schema and generated
@@ -673,7 +673,7 @@ service's io.
   pipe failing, ends the link, named in the log once, and the link
   tells the root `BoxClosed`: the forge domain fails an ask in flight,
   "the box closed the pipe", and offers no set up after it
-  (`../../domain/forge/adoption.md`, 1). serve's own end is
+  (`../../domain/forge/adoption-connection.md`, 1). serve's own end is
   the box's to make (../setup/box.md, 2).
 - **Nothing kept.** The link's ask and the states it tells are in
   memory alone (`README.md`, 7.1): a restart makes a pipe and a link afresh, with no

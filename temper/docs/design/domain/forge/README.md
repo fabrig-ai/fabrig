@@ -46,7 +46,7 @@ makes each call to a forge and hears its deliveries, is
 - **By queue or by turn.** A project lands by the queue below, its
   default, or by turn: landings across repositories, prepared, proved by
   receipts and fast-forwarded in the project's turn (`../landing.md`),
-  which replaces steps 3 and 5 to 7 of `change/README.md`, 2, and `queues.md` and `README.md`, section 6, for
+  which replaces steps 3 and 5 to 7 of `change/README.md`, 2, and `queues.md` and `updates.md`, section 1, for
   its changes.
 - **Landing queues.** Changes ready to land in a branch wait in line, by
   their goal's priority then by when each became ready; only the first
@@ -57,12 +57,12 @@ makes each call to a forge and hears its deliveries, is
   the root knows which from the routing's events, rebuilt at each start.
   A forge not connected answers every call `NotConnected` at once, and
   adopts nothing. Its writer, given when it connects, is the forge
-  client's own record, restored at start (`adoption.md`, 1).
+  client's own record, restored at start (`adoption-connection.md`, 1).
 - **A forge can be removed,** whole, by the deployment's owners: ended
   at once, its live work cancelled, its secrets and records erased, its
   box group stopped and its directory removed, each act kept until the
   removal is whole; nothing on the forge is undone but what temper ran
-  (`adoption.md`, 1).
+  (`adoption-connection.md`, 1).
 - **Adoption picks from what temper can reach:** a GitHub App's
   installations, what a connected Forgejo's API token can push to, or
   any repository of a managed or owned Forgejo, where adoption first
@@ -85,6 +85,27 @@ makes each call to a forge and hears its deliveries, is
   access it is given; webhooks, labels, protection and CI are all
   optional. Nothing is forced: pushes are fast-forwards, and merges are
   made at exactly the head decided on.
+
+Documents:
+
+- `adoption.md`: adopting repositories, their rules, workflows and landing branch.
+  - `adoption-connection.md`: a forge's connection, access state and removal.
+  - `adoption-person.md`: a box's person on its forges.
+- `keeping-up.md`: the working set, fresh reads and request budget.
+- `effects.md`: effects and recovery across restarts.
+- `topics.md`: topics and landings as news.
+- `updates.md`: lazy, mechanical updates.
+- `change/README.md`: the change procedure and its documents.
+- `queues.md`: landing queues.
+- `branches.md`: task branches and held resources.
+- `issues.md`: goals' issues on the forge.
+- `attention.md`: what reaches a person.
+- `follows.md`: following another project's branch.
+- `dependencies.md`: dependencies between projects.
+- `drafts.md`: landed drafts.
+- `reds.md`: a goal's reds.
+- `room.md`: the outbox's room.
+- `walkthrough.md`: a change through the forge connector.
 
 ## 2. What it gives
 
@@ -110,18 +131,18 @@ makes each call to a forge and hears its deliveries, is
 - **Effects:** open, edit, update, merge, close and reopen a pull
   request; post a review, a comment or a commit status; create, edit,
   close and reopen an issue; set reviewers; create and delete a branch
-  (section 4). A run's push is the worker's, over git, under its task's
+  (`effects.md`, section 1). A run's push is the worker's, over git, under its task's
   hold (`../worker/checkouts.md`).
 - **Kinds,** for authority (jig's `domain/authority.md`, section 4),
   numbered: 1, reads; 2, a run's push; 3 to 15, and 17, the effects, one
-  per row of section 4's table (16 and 17 are also a landing's,
+  per row of `effects.md`, section 1's table (16 and 17 are also a landing's,
   `../landing.md`, 11). No kind implies another: each write a task means
   to make needs a grant of its own kind. A change is given kind 17 on its
   branch wherever it is given kind 2 there, since a push of the same head
   would run the same CI (`change/README.md`, 2, step 3). Landing rules govern kind 4,
   the merge (`change/gates.md`, 2). None forces a push (`change/gates.md`, 2).
 - **Topics:** landings on a branch; CI on a head; a pull request's
-  state; the comments and reviews on a participating object (section 5).
+  state; the comments and reviews on a participating object (`topics.md`, section 1).
 - **Procedures:** the change (`change/README.md`), and the follow, whose
   task makes a follow change for each landing it keeps (`follows.md`).
 - **Requirements:** CI passed, up to date, a gate, an approval, which
@@ -184,12 +205,12 @@ temper-engine-domain-forge              the connector's top: resources and holds
   projection states, and the landing rules' gates and judges' parameters.
   It routes between its children and translates to and from the root.
   It names the client's live resources, owns the effects and their
-  identities (section 4), and hands the client their bytes and its
+  identities (`effects.md`, section 1), and hands the client their bytes and its
   namespace, the deployment's id, before any restored entry or live
   resource, by which time the client has restored each forge's writer
-  from its own record (section 9). It gives the client a forge's
+  from its own record (`effects.md`, section 2). It gives the client a forge's
   writer when the forge connects, and keeps each forge's connection as
-  the root tells it (`adoption.md`, 1).
+  the root tells it (`adoption-connection.md`, 1).
 - **`skein-forge-client` is a capability:** it knows the forge's API as
   `skein-forge`'s vocabulary states it, the working set, the request
   budget, and how a write is made once. Its owner, how it is driven and
@@ -247,364 +268,15 @@ The top's vocabulary is a crate of its own, below the top
 
 ## 4. Effects
 
-Every effect is committed into the outbox and made by `client`, in
-commit order per lane (a pull request, an issue, a repository) and one
-at a time on each (jig's `domain/connectors.md`, 4.2). The top owns the
-effects and their identities; the client's keys, its write lanes and its
-recovery are skein's `forge/client.md`, section 7. temper's effects:
-
-| Kind | Effect | What it is | Recovery class (jig's `domain/connectors.md`, 4.3) | Found again after an uncertain failure |
-|---|---|---|---|---|
-| 3 | open a pull request | a creation: from a branch into its landing branch, with a title, a body and a key | conditional: only while no pull request for its branches is open; Forgejo keeps it, closed or not | by its branches; the change accepts an open pull request alone, never a closed or merged one (`change/README.md`, 2, step 2) |
-| 10 | edit a pull request's title, body or base | a set | idempotent | written again |
-| 11 | update a pull request from its base | a transition: the base's tip merged into its branch, or its commits rebased onto it (`../landing.md`, 5.2), by the forge | idempotent: every copy leaves its head containing the base, or changes nothing; a late copy may move the head (section 6) | its head contains the base tip it asked for |
-| 4 | merge a pull request | a transition, conditional on its exact head; or, where the forge keeps a merge queue on the base, the pull request queued there (`queues.md`, 1) | conditional | merged, and at which commit; or in the forge's merge queue |
-| 12 | close, reopen a pull request | a set | idempotent | written again |
-| 5 | post a review | a creation, with a key | unrecoverable | by its key, among the reviews after the entry's start |
-| 7 | post a comment | a creation, with a key | unrecoverable | by its key, among the comments after the entry's start |
-| 6 | post a commit status | a set: a context on a commit | idempotent | written again |
-| 8 | create an issue | a creation, with a key | unrecoverable | by its key, among the issues changed since the entry's start |
-| 13 | edit, close, reopen an issue | a set | idempotent | written again |
-| 14 | set a pull request's reviewers | a set | idempotent | written again |
-| 9 | create a branch at a commit | a creation, named | unrecoverable: another hand can delete it, and nothing then shows it was made; but a goal's own branch, which temper alone makes, is conditional: made again while none of its name exists (`branches.md`, 1) | the branch exists at that commit |
-| 15 | delete a branch | a set: temper's own branches only | idempotent | it is gone |
-| 17 | rerun a job | a transition: a failed job of the change's CI at its head run again, with the jobs that need it, as its next attempt (skein's `Write::Rerun`; `change/README.md`, 2, step 3) | unrecoverable: the forge checks no attempt | the job's attempt moved past the one named; at that attempt still, completed, it was not made, and the change decides again on a fresh read |
-
-- **The outbox is bounded** by the connector's `entries` limit: no entry
-  is committed past it, and room frees only as an entry leaves it, by its
-  write's outcome or its withdrawal. A full outbox is a wait, never a
-  hold (`room.md`): a change's effect, a landing's write, release
-  cleanup and a goal branch's making that find no room wait in one line,
-  first come first served, and are admitted in order as entries leave,
-  each reading its facts afresh and admitted by its authority again; the
-  wait survives a restart in its place, and a cancel ends it. An agent's
-  call that finds no room is answered `Unavailable` at once, the room its
-  check finds reserved until its entry is kept (`room.md`, 5); a goal's
-  projection waits its interval (`issues.md`). Only a write that can
-  never be sent refuses: one its repository's adoption does not take,
-  an entry number in use, or one over `forge.client.op_bytes`
-  (`room.md`, 6).
-- **Each row is a kind of its own** (jig's `domain/connectors.md`,
-  3.1): a policy that grants writing issues grants each kind it means.
-- **A write in flight is a row of its own,** `Flight { task, entry }`
-  (`../../protocol/store.md`, section 2): saved in the decision that
-  commits an entry's attempt; kept while the write is unresolved, an
-  uncertain outcome, a retry, a merge in the forge's queue (`queues.md`, 1) or the
-  restart's settlement (section 9); erased in the decision that
-  settles the entry for good or holds it for a person, and saved again
-  before a held entry is made again. So the store shows which writes a
-  stop left unsettled without decoding an entry. temper's owner set
-  names its range (jig's `protocol/store/opening.md`, 3). The registered
-  family converts at read; an in-flight write is not an upgrade
-  refusal. The forge's restore links a `Flight` row to its entry, and one whose entry
-  it does not hold is a writer's bug, a link that cannot be made, which
-  refuses the start (`../root.md`, 8.1; jig's `domain/engine/restart.md`
-  ).
-- **Classes follow what the forges offer** (skein's `forge/client.md`,
-  section 7.3; the facts, skein's `forge/forgejo.md`, section 2, and
-  `skein/docs/design/forge/github.md`, section 13). Neither Forgejo nor GitHub keeps a
-  key it would refuse a second creation by, so no kind is keyed. A pull
-  request is opened only while none is open for its branches, and
-  each forge keeps every pull request, closed or not, so the
-  client can find the state it leads to, closed by another hand included.
-  Branch names can repeat across deployments and a repository's past.
-  A change accepts an open pull request on its branches. A closed or
-  merged one is its own only when its number is the one the change
-  recorded (2026-11-15: never by its head, since a change remade at a
-  cancelled one's head would take that one's closed pull request).
-  Other closed or merged pull requests are Missing to the change; their
-  numbers are never recorded. The change can then produce and open a
-  new pull request on the reused names. It records the number of the
-  one it opens from the opening's answer, and the one it takes open from
-  its read, in the step that settles each; from then on its reads use
-  that number rather than the branches, so an older pull request cannot
-  replace its own, and it opens no other (`change/README.md`, 2, step 2). Its own closed pull request is drift and is
-  reopened on release (`change/README.md`, 3). A branch is created
-  only while none of its name exists, but another hand can delete it, and
-  nothing then shows it was made: its creation is unrecoverable.
-- **An unrecoverable creation is looked for first:** an uncertain review,
-  comment, issue or branch found by its key, or by the state it
-  leads to, is made; one not found by its deadline holds its task for a
-  person, and is never sent again by temper on its own. The client makes
-  the find (skein's `forge/client.md`, section 7). A goal's own branch is
-  the exception: found at its commit it is made, found at another its
-  making fails for good, and not found it is made again (`branches.md`, 1).
-- **Keys are carried** in what temper creates: a marker at the head of a
-  body, a comment or a review, hidden where the forge renders it (skein's
-  `forge/README.md`, section 5; temper's word and namespace,
-  `../../protocol/forge/README.md`, section 3). A pull request's branches locate
-  a candidate; the change owns it when it is open on those branches or
-  the change knows its number, as above. An entry's start,
-  and the find that reads only what came after it, are the client's (skein's
-  `forge/client.md`, section 7).
-- **An effect's identity** is its purpose, and the top encodes it. The
-  client takes the bytes whole and never inspects them (skein's
-  `forge/client.md`, section 7). A key is the client's frame (version 1, the namespace's
-  length as two bytes big-endian, the namespace) and then the purpose's
-  bytes: a tag, and its fields in order, each number big-endian. The
-  namespace is the deployment's id, 16 bytes. A purpose is derived from
-  what the effect is for, never from when it was asked or its entry's
-  number, so asking again for the same thing gives the same bytes (jig's
-  `domain/connectors.md`, 4.4):
-
-  | Tag | Purpose | Fields, with their bytes | Bytes with the tag |
-  |---|---|---|---|
-  | 1 | a call: one agent's call in one task attempt | task (8), attempt (8), completion (4), position (4) | 25 |
-  | 2 | a step: one purpose within a task's procedure | task (8), purpose (2) | 11 |
-  | 3 | a projection: one part of a goal's issue | goal (8), part (1), number (8) | 18 |
-  | 4 | a release: cleanup of a task's named resource | task (8), the resource's length (2), the resource | 11 and the resource |
-  | 5 | a history milestone: one task's milestone in a goal's issue | family (1), goal (8), task (8), position (8) | 26 |
-
-  A part of a projection is the issue's open (1), its body at a local
-  revision (2), the plan accepted (3), a plan revision by its history
-  number (4), a change landed (5), a change held (6), a report kept (7),
-  the goal finished (8) and the issue's close (9); the number is the
-  revision, the history number or the change's, and 0 for the others. A
-  history milestone's family is a task's lifecycle position (1) or a
-  task's semantic revision (2, whose position is the revision). So a
-  call's key is 44 bytes, and a key is refused when it passes the
-  client's `op_bytes` or the namespace is empty.
-- **Conditions travel with the effect:** a merge names the head its
-  decision saw, which the forge checks, and a stale head is refused, not
-  merged. It names the base too: the pull request is read afresh first,
-  and one retargeted since the decision is not merged.
-- **A merge may be queued:** on a base the forge's merge queue guards,
-  the merge answers `Answer::Queued`, final for the call and not for the
-  entry: neither a merge nor a refusal. The entry is the client's until
-  a read finds the pull request merged or out of the queue (skein's
-  `forge/README.md`, 3.3; `skein/docs/design/forge/client.md`, 7.7): it is never sent again, and
-  it holds its lane, so a comment or a review on that pull request waits
-  until the queue decides. What follows is `queues.md`, 1's. Forgejo never answers
-  it.
-- **Failures:** a merge refused for a conflict, an update refused for a
-  conflict, a pull request with nothing to merge, a protected branch and
-  a forbidden write are each typed, and go to the procedure that asked,
-  never retried blind. A forge not connected is not a failure of the
-  procedure's: the entry fails at once, `NotConnected`, and is committed
-  again once the forge connects (`adoption.md`, 1). A forge away is none either: an
-  entry the client fails `Unavailable`, never sent, is committed again
-  after a wait that grows (`keeping-up.md`, 5).
-- **A stop settles first** (../root.md, 8.2): told to settle, the connector
-  tells its client to (skein's `forge/client.md`, 7.8), so no write
-  starts and none is tried again; a committed entry's notification is
-  retired unmade, its row durable; no change steps. The writes already
-  sent finish, with the reads that prove them, and their outcomes are
-  saved as ever. It says it has settled when its client does: at once if
-  nothing sent lacked its outcome, or at the client's bound, with each
-  write still without one named by its entry and its task, which the
-  next start settles as its class says (section 9).
+Moved to [`effects.md`](effects.md), section 1.
 
 ## 5. Topics, and landings as news
 
-### 5.1 Topics
-
-| Topic | Published when | Read by |
-|---|---|---|
-| landings on a repository's branch | a landing branch's tip moves | goals working in that repository; landing queues; tiers (`../after-landing.md`, section 3); follows of that branch (`follows.md`, section 3); a subscription naming trailers (`../after-landing.md`, section 8) |
-| CI on a head | a head's CI, as `keeping-up.md`, 3 reads it, changes | changes; tasks that subscribe |
-| a pull request's state | opened, closed, merged, its head moved, its mergeability known | changes; tasks that subscribe |
-| comments and reviews on a participating object | another party writes there | the task dealing with it (section 7) |
-| a project's findings | a finding is filed, handed on or routed to a task, or its labels change | the task that holds it, or the goal it is routed to, which the root subscribes in that decision (`../areas.md`, section 5; `../findings.md`, section 6) |
-
-The change child domain reads its facts directly and needs no
-subscription; topics are for tasks whose executors are agents, and for
-goals.
-
-### 5.2 Every landing is news
-
-- **For two kinds of goal:** the goal whose change landed, whose step is
-  done; and every other active goal with changes open or planned in the
-  same repository, whose base has moved. Concurrent plans meeting this
-  way is the ordinary case, not an exception for outside activity.
-- **A goal hears of landings** through the forge's topic for goals
-  (jig's `domain/connectors.md`, 5.4): the landings on the branches its
-  subtree's changes target, which the core subscribes it to as the first
-  change into each is made, until the goal ends. A goal ended by its
-  closer (`branches.md`, 2) takes no subscription to the repository's default
-  branch's landings, including for a repair there. Landing such a goal's
-  held branch creates no main-landing subscription, either at the change's
-  start or when its plan is projected. Reds still reach the goal through
-  its branch's tiers (section 6).
-- **Those are a goal's only topics from the core.** CI on its changes'
-  heads is each change's own, read by its procedure (5.1); the goal hears
-  a change's end or hold as any requester hears its delegate's (jig's
-  `domain/tasks/messages.md`, 1), and a run that wants a head's CI subscribes to
-  it. So the topics the core keeps for a goal number its landing branches,
-  however many changes it makes, and its run keeps room in its task's
-  subscriptions for its own: a person task it waits on, a repair before a
-  held landing's release, its timers (`../agent/tools.md`). A goal's
-  subscription to CI on a head that the core holds at restart is dropped
-  there, its jig row with it.
-- **A landing temper did not make** is news like any other: what landed
-  is read, a pull request or a range of commits.
-
-### 5.3 Which landings wake
-
-Not every piece of news wakes. The connector classifies each landing for
-each subscribed goal (jig's `domain/connectors.md`, 5.3), without an
-LLM:
-
-- **its own change landed:** kept; what comes after it is due
-  mechanically, through the goal's dependencies;
-- **another landing overlaps its work:** wakes. Overlap is the files the
-  landing touched against those of the goal's own open pull requests at
-  their heads, and, for changes not produced yet, the paths their specs
-  name, as a hint;
-- **no overlap:** kept, for its next run to read;
-- **overlap unknown** (a landing too large to list, a read that failed):
-  wakes, since a wasted turn is cheaper than a missed conflict.
-- **A hold parked until a landing** (jig's `domain/tasks/lifecycle.md`, 10):
-  subscribed to the landings on a branch, with path prefixes or none; a
-  landing wakes it, and so lifts it, when one of its files lies under a
-  prefix, or with none named, or when the overlap is unknown.
-
-The files are read from the forge (a pull request's files by their paths
-alone, `PullFiles` without `sides`, or the comparison of the branch's
-old and new tips, by names alone: skein's `forge/README.md`, 3.2 and
-3.3), cached per head and cut at a limit past which
-the overlap is unknown. A comparison names at most `forge.client.rows`
-paths and counts the rest (`changed`): one that leaves a path out, an
-unusable answer or an uncertain completeness makes the overlap unknown
-and wakes every affected subscriber, and its paths are a landing's files
-for workflow discovery too (`adoption.md`, 7). A pull
-request's pages count only while fresh reads before and after them name
-the same head; a head that moved voids the listing.
+Moved to [`topics.md`](topics.md), section 1.
 
 ## 6. Updates: lazy and mechanical
 
-Under a project's queue; by turn, a landing prepares its candidates
-instead (`../landing.md`, section 5).
-
-- **Lazy:** a change takes its base when it is first in its queue, about
-  to get a run for another reason (`change/README.md`, 2), or at its check with its head
-  already behind and CI not concluded there, once for a head a push gave
-  it (`change/README.md`, 2, step 3). It never does only because its base moved.
-- **By its landing branch's rule:** only where the rules covering its
-  landing branch ask up to date (`change/gates.md`, 2, `Requires`). Under rules asking
-  none it is never updated, first, at its check or before a run, and a
-  conflict with its base holds it (`change/README.md`, 2, step 6).
-- **Mechanical:** the update merges the base into the change's branch,
-  with no LLM. The forge makes it itself (its pull request's update, by
-  a merge), so it is an effect, as a merge is. A merge rather than a
-  rebase: the branch only moves forward, so it is never forced, and the
-  heads before the update stay the change's own.
-- **Made when the forge says, read afresh.** Forgejo has made the
-  update when it answers; GitHub accepts it and makes it after (skein's
-  `forge/github.md`, 5.2). Either way the update is done once the head,
-  read afresh, contains the base's tip it asked for, which is also how
-  its recovery finds it (section 4), and the new head is heard as any
-  push. That head is the change's own, recorded as its branch's head in
-  the step that settles the update, never drift (`change/README.md`,
-  3, *Its own writes are its own*).
-- **Lost, and made again.** An update whose answer is lost is looked for
-  by that read and, not found after its lifetime, checked and made again,
-  up to `write_attempts` (skein's `forge/client.md`, 7.5). It holds no one.
-- **Let go: a lost write.** An update settled `Failed` with `Timeout` or
-  `Unavailable`, or with `Stale` or `BaseMoved` from the check after a
-  send of its own (skein's `forge/client.md`, 7.5), says nothing of the
-  change: the forge did not answer, or what it was decided on has gone,
-  perhaps to a copy of its own. The top keeps its account and reports no
-  result, and a change updating or preparing (`../landing.md`, 5.2 and
-  12) with no result and none outstanding decides again on a fresh read
-  of its head and base, the base being its pin, the tip the update asked
-  for, though the branch has moved on since:
-
-  | Its head | Holds the pin | It |
-  |---|---|---|
-  | where it was | no | updates again, counted in `updates` |
-  | where it was | yes | goes on at that head |
-  | moved | yes | takes it as its update, as if made |
-  | moved | no | holds, `BranchMoved`: no update of its own shows there |
-  | any | not yet known | waits, up to `stall` |
-
-  So a lost write is recovered against its pin, each new update spending
-  one of `updates` and up to `write_attempts` lifetimes. Past `updates`
-  it holds, `Updates`, a person told why in the last write's account
-  (`update pull request: forge timed out; ...`).
-- **Refused stale: a replan** (2026-11-16, `../../draft/landing-update-loop.md`).
-  An update or a preparation the client's check refuses before any send
-  of its own was never made: `Stale`, its pull request at another head,
-  or `BaseMoved`, at another base commit (skein's `forge/client.md`,
-  7.4). The top reports it as its own result, `EffectResult::Stale`, and
-  the change decides again on a fresh read of its head, its base's tip,
-  and its pull request's head and base commit:
-
-  | Its head | Holds the pin | The base's tip and the pull request's base commit | It |
-  |---|---|---|---|
-  | moved | yes | any | takes it as its update, as if made |
-  | moved | no | any | holds, `BranchMoved` |
-  | where it was | yes | any | goes on at that head |
-  | where it was | no | agree, at a commit other than the pin | replans at once: a fresh update, or preparation, against that commit, its new pin |
-  | where it was | no | disagree, or agree at the pin | backs off, then tries the pin again |
-  | any | not yet known | any | waits, up to `stall` |
-
-  It never sends against a pin the forge has refused without backing
-  off first. A replanned preparation is the change's own: its landing
-  reads the member afresh once the change leaves preparing, as after any
-  preparation (`../landing.md`, 12).
-- **Its backoff.** The change saves the time of the first stale refusal
-  of the update it has outstanding (`Change.stale`), so a restart goes
-  on with the same backoff. It tries the pin again no sooner than its
-  last decision plus a delay: the time from that first refusal to its
-  last decision, at least 1 second and at most 60 seconds, so the
-  delays double from 1 second. Past `stall` from the first refusal it
-  holds, `Stalled`, a person told why in the last refusal's account
-  (`update pull request: base moved; ...`). The time is dropped as the
-  change leaves updating or preparing, and at a release.
-- **`updates` counts sends.** The decision after a stale refusal, a
-  replan or a try again, spends the refused update's count and none of
-  its own, so `updates` counts what the forge was sent, and a forge
-  whose view lags spends `stall`, never `updates`. An update after a
-  send, lost, is counted as before.
-- **Its words say what moved:** `head changed` for `Stale`, `base moved`
-  for `BaseMoved`, in the write's account, whose layout is unchanged
-  otherwise (`update pull request: base moved; resource OWNER/REPO #N`). The history's `update` and `updated` lines carry the pin
-  as their base and the base commit the forge reported beside it
-  (`../landing-history.md`, 2.2).
-- **Other failures** of an update, apart from a conflict below, are a
-  person's: a protection or a forbidden write holds it, `Failed`, in its
-  account. A release of it, or of `Updates` or `Stalled`, drops the
-  result and decides again as for a lost write, its count afresh: a pin
-  the base has left is then refused at its check, and replans.
-- **What a late copy costs.** Once the change has moved on, a copy that
-  moves the head is drift (`change/README.md`, 3): held, and its release takes the head and
-  checks it, so a person and a CI run; gates ask again. A merge names its
-  exact head (section 4), so a copy lands nothing unchecked. A rebase's
-  copy can also drop a push made since it read the head (skein's
-  `forge/client.md`, 7.3): the same hold, and a repair so dropped finds
-  its failure again when the head is checked. A push by another hand so
-  dropped is that hand's to make again, the hold saying the branch moved.
-- **A conflict** makes the forge refuse the update, a merge's or a
-  preparation's rebase alike, and the change is
-  resolved (`change/repairs.md`): by the merge job, where its project names one, then
-  a resolution for what the job leaves. The job's result names each file
-  it leaves with its kind and, for a file one side deleted, the side and
-  the commit that deleted it (`../../protocol/tooling.md`, 4.1). It settles no
-  file one side deleted or renamed: the resolution's agent judges
-  whether the change still needs it, a file the base deleted staying
-  deleted unless it does, and its result says what it kept and why
-  (`change/repairs.md`).
-- **A catch-up** takes a base's commit into a branch that no update
-  reaches, a goal's own (`branches.md`, 1): a change into that branch, made by the
-  goal's coordinator naming the commit (`../agent/tools.md`, 1), main's
-  tip as it reads it, only for a change of the goal that needs what the
-  base gained (`../../draft/squash-in.md`, 4); its producer
-  the merge job, which merges the commit into a branch made at the
-  landing branch's tip (`change/README.md`, 2, step 1); its project must name a
-  `merge_job`. It lands as any change into the branch does; under
-  `turn` its train merges it, never squashing it (`../landing.md`, 5.2),
-  so the goal's branch shows it as a merge of the base. Nothing makes
-  one but its requester's call.
-- **A semantic conflict** is CI failing on a change's head after a clean
-  update. The name records that order, not proof that the base caused
-  the failure. Its repair's brief carries the failed check and its output
-  before the base merged in and what landed in it (`change/repairs.md`). While CI fails
-  on the base's tip, the failure is
-  not the change's: its queue is paused (`queues.md`), and the change
-  waits for the branch's repair instead.
-- **Gates carry over** a clean update temper made, where their
-  `freshness` is clean (`change/gates.md`, 1); after a conflict an LLM resolved, they are
-  asked for again.
+Moved to [`updates.md`](updates.md), section 1.
 
 ## 7. Participating objects
 
@@ -654,83 +326,7 @@ Not needed first, and kept possible:
 
 ## 9. Restart
 
-At a restart (jig's `domain/engine/restart.md`; jig's
-`domain/connectors.md`, section 14) the connector is given its records
-from the store: the projects' repositories and what temper may do there,
-the live tasks' resources and holds, the kept tasks' names, the changes'
-and issues' states, and its outbox's entries with their attempts. The
-deployment's id is given to the client first, as its namespace, before
-any restored entry or live resource; the client restores each forge's
-writer from its own record before any entry too (`adoption.md`, 1). The client's
-part is skein's
-`forge/client.md`, section 8: what it reads afresh before anything else
-steps, how it settles an outbox entry as its class says, and where its
-listings start. That fresh read, each adopted repository's, covers what
-changed while the engine was down on GitHub too, since no delivery
-log's guid is kept across starts (`../../protocol/forge/README.md`, 4.1).
-
-Each forge starts not connected, whatever it was before the restart, and
-is connected as the routing tells the root (`../../protocol/forge/engine.md`, 1, and `../../protocol/forge/README.md`, 7.1
-); an ended forge stays ended, and each act its removal has not
-heard answered, its secrets erased or its group removed, is asked again
-(`adoption.md`, 1); the adopted repositories of each managed or owned Forgejo are
-named to the routing for its reconcile (`adoption.md`, 2). Each `Names` row of a task
-jig holds live is that task's names, and every other row a kept task's
-(`adoption.md`, 1), whatever forges it names; a start with more live rows than
-`forge.tasks`, or more kept ones than `forge.repositories`, is refused
-as any record past the limits (`../root.md`, 8.1). Until a forge connects,
-its reads and entries answer `NotConnected`, which narrows nothing
-(`adoption.md`, 1), so the steps below run on each forge as it connects. Before its
-records, the connector loads its kinds' values from its family
-`Setting`, is given the stock defaults and says which differ (`change/gates.md`, 3), so a
-restored change is judged by the rules as they are. temper's steps:
-
-1. it reads afresh each repository's landing branches' tips and each
-   live pull request (head, state, mergeability, CI, its place in a
-   forge's merge queue), before any change steps;
-2. it settles its outbox, each entry as its class says (section 4): a
-   pull request found by its branches, a merge by its pull request's
-   state (merged, in the forge's merge queue, or neither), a creation by
-   its key after the entry's start, a goal's own branch by its name, a
-   set written again; one not found waits for the retry deadline its
-   last attempt committed, and is then sent again, its conditions
-   checked as at any attempt, unless it is unrecoverable, which holds
-   its task for a person; a goal's own branch is made again (`branches.md`, 1);
-3. it steps every change once, and every goal's issue. A change reads
-   its recorded pull request by number. Without a number, it reads by
-   branches and accepts an open pull request alone. This recovers an
-   uncertain open whose reply was lost. Closed or merged history is
-   Missing and never supplies the change's pull number: one of its own
-   merged before the restart with its number unrecorded is found by its
-   head, which the landing branch then holds (`change/README.md`, 2).
-
-Its listings start from the newest time the store kept for each
-repository with an issue or pull watch, inclusive, so what changed while
-the engine was down is read once.
-
-**What steps 1 and 2 wait for** (`../../draft/reconciling-start.md`, 5).
-The forge answers the root, at any time during its restart, what each
-step still owes, by kind, each with its count and its oldest three
-named, in the words and order of `../../protocol/README.md`, 6.3:
-
-- **reading afresh** owes each term its end waits on: the client's
-  fresh reads still owed, by resource and listing (skein's
-  `forge/client.md`, 8, *What it still owes*), the landings' gathers,
-  the CI reads, the goal files' reads and the lost writers' reads still
-  pending, and the goal branches still being made (`branches.md`, 1);
-- **settling the outbox** owes each restored entry not yet looked for,
-  by its number and task.
-
-The root reports them past the report bound as its step's waiters
-(`../root.md`, 8.1). Nothing in them is a deadline.
-
-**A stop during steps 1 and 2.** Told to settle while it reads afresh
-or settles its outbox (`../root.md`, 8.2), the forge stops waiting for
-either: it settles as at any stop (section 4), its client sending
-nothing new (skein's `forge/client.md`, 7.8). A read or a find
-answered after is taken as a fact and steps nothing, and the end of
-either step is no longer awaited, its report, should it come, dropped.
-What either owed is the next start's to read and find again.
+Moved to [`effects.md`](effects.md), section 2.
 
 ## 10. The world
 
@@ -811,7 +407,7 @@ deletion (jig's `domain/people/acts.md`, 2), each cut by a crash after
 each kept act and resumed at the next start to the same end, a chat
 that worked on the forge reading its repository's name, open or ended,
 until the chat is erased; a removed forge's number never given again;
-and nothing of the forge or the project read afterwards but what `adoption.md`, 1
+and nothing of the forge or the project read afterwards but what `adoption-connection.md`, 1
 and jig's `domain/people/acts.md`, 2 keep.
 
 Its referee, beyond jig's for every connector (jig's
@@ -825,7 +421,7 @@ a landing wakes a goal exactly when it overlaps; no change waits in a
 queue past the aging window behind changes that became ready after it;
 temper's own pushes while it holds the writer slot are never taken for
 drift, but a late update copy moving the head after its change moved on
-is drift (section 6); the calls made while idle are bounded by the
+is drift (`updates.md`, section 1); the calls made while idle are bounded by the
 limits; nothing is narrowed, and no change held,
 for a forge not connected; a change whose merge was answered queued is
 not merged again until the forge has landed or ejected it, and lands at
@@ -851,32 +447,18 @@ whole.
   outcome or resumption after `serve` restarts. Default: keep those live
   stories; the ownership contract requires no change to them. Forge
   bounds and room figures remain separate work, as below.
-- **Links beyond a box's one person** (`adoption.md`, 6): several members need a
-  family of links and evidence of the connecting owner; a pasted App or
-  a second account needs user authorization or a verified claim on a
-  review (`../../draft/forge-identity.md`, section 12). Default: adoption's
-  seeds there. Containing agents and CI is required before an owned
-  Forgejo's approval can resist an agent trying to bypass it
-  (`../../protocol/setup/README.md`, section 9).
-- **The approval story on GitHub** (`adoption.md`, 6, `change/questions.md`, 2): the complete box story
-  belongs beside the owned-Forgejo domain story, then a real person's
-  review in the live tier (`../../testing/README.md`, section 7). Default: lower
-  setup, link and review checks establish those separate pieces alone.
+
+
 - Saved branches outside the task's saved set: `branches.md`, section 4.
 - A clean update's other words: `change/repairs-later.md`.
 - "The brief on Home" in Settings: `attention.md`, section 7.
 - A status run's kept row: `attention.md`, section 7.
 - A stock project's room, shared: `attention.md`, section 7.
-- **A late copy's hold** (10): a head moved by a late copy of the
-  change's own update, once the change has moved on, cannot be told from
-  another's move by temper's identity, and holds. Keeping the writer slot
-  past a settled update would spare it, for a time nothing bounds.
-  Default: it holds, and is measured after landing.
+
 - What lands on a goal's branch and then on main: `attention.md`, section 7.
 - What a refused copy leaves: `adoption.md`, section 10.
 - A queue's throughput: `queues.md`, section 2.
-- **Conflicts found before either side lands:** temper sees every open
-  change, and could try them against each other and warn both goals.
+
 - **Checks without an LLM:** a repository's checks run as agents' tasks
   at the exact head (`change/gates.md`, 1); a checks-only run on a worker, running the
   project's commands with no model, would cost no turns (`../worker/README.md`,
@@ -901,11 +483,7 @@ whole.
   repaired (`../landing.md`, 7.4). Running the job again first, through the
   API, is `../../draft/ci-on-forgejo-17.md`, with the stalls' reasons and
   the agents' log tools.
-- **Two Forgejo behaviours no fact records yet** (`../../protocol/forge/README.md`,
-  section 12): that CI after a clean update runs on exactly the head the
-  update made (section 6); and where a merge lands when its pull
-  request is retargeted after the fresh read before it, since Forgejo's
-  merge is conditional on its head alone (section 4).
+
 - **Intake:** issues others open as a source of goals.
 - A resource refused as forbidden: `keeping-up.md`, section 6.
 - A merge style per repository,: `adoption.md`, section 10.
@@ -923,8 +501,8 @@ whole.
 - What code decides, listed: `attention.md`, section 7.
 - A refused `message` keeps no record: `change/questions.md`, section 3.
 - A passed-up question whose asker ends: `change/questions.md`, section 3.
-- A forge's run on a head replaced: `change/README.md`, section 7.
-- An early update against the bound: `change/README.md`, section 7.
+- A forge's run on a head replaced: `change/records.md`, section 1.
+- An early update against the bound: `change/records.md`, section 1.
 - A report's head past a merge: `change/questions.md`, section 3.
 - **A person's request on a goal landing's pull request** (`change/gates.md`, 1; `../landing.md`): a
   landing is not a change, and its merge's refusal keeps `../landing.md`'s own rule,
@@ -940,8 +518,3 @@ whole.
   own. Default: a new commit or a cancel. A landing's failed receipt is superseded
   by a repair's flake verdict and its release (`../landing-regate.md`, 3), and a
   red of known flakes is rerun before its receipt (`../landing-regate.md`, 2).
-- **A keyed creation lost across a restart** (section 4, 9): a review, a
-  comment or an issue whose answer a restart lost, and that its find does not
-  see by its deadline, holds its task for a person, though a find that read
-  everything since its start makes a second one unlikely. Default: so; only a
-  goal's own branch is made again.

@@ -140,7 +140,7 @@ adoption says so, `adoption.md`, 4) lands through that queue. Forgejo keeps none
   alone, the pull request's `dequeued` (`README.md`, section 11), which a green head
   does not end. The change takes
   its base before the repair starts (`change/README.md`, 2), so a conflict there is
-  resolved. A head another hand moved is drift, as ever (`change/README.md`, 3).
+  resolved. A head another hand moved is drift, as ever (`change/drift.md`, 1).
 - **Its place there,** `Pull.queued`, is read with the pull request and
   shown in the change's panel ("in GitHub's merge queue, n";
   `../../client/forge/README.md`, a change's panel). The wait there is bounded by
@@ -167,7 +167,7 @@ adoption says so, `adoption.md`, 4) lands through that queue. Forgejo keeps none
   grouping them.
 
 - **The update before entering a forge's merge queue** (`queues.md`, 1): the first
-  takes its base as any first does (`README.md`, section 6), though the queue merges
+  takes its base as any first does (`updates.md`, section 1), though the queue merges
   the base itself. The alternative enters it as its head is, saving a CI
   run. Default: as any first.
 

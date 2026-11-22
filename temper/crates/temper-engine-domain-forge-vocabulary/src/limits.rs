@@ -136,7 +136,7 @@ pub struct TierLimits {
 /// Whether entrance limits are coherent and retained row counts fit their types.
 /// Names and gates fit the panel; client admissions cover the top's rows.
 /// Reconciliation and landing capacities must be representable
-/// (temper/docs/design/domain/forge/adoption.md and temper/docs/design/domain/forge/change/README.md and temper/docs/design/domain/forge/README.md, section 9).
+/// (temper/docs/design/domain/forge/adoption.md and temper/docs/design/domain/forge/change/README.md and temper/docs/design/domain/forge/effects.md, section 2).
 /// Internal output envelopes and retained heap sums do not constrain admission.
 #[must_use]
 pub fn valid(l: &Limits) -> bool {

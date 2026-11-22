@@ -116,7 +116,7 @@ rules; their statuses say where the design still lags.
   a branch under temper's prefix takes an exclusive hold (`../domain/forge/README.md`,
   section 2), only the holder's delegates write under a hold (jig's
   `domain/tasks/holds.md`, 1), and a forward move by anyone but the change's
-  own writers is drift (`../domain/forge/change/README.md`, 3). A landing branch must also
+  own writers is drift (`../domain/forge/change/drift.md`, 1). A landing branch must also
   exist when named (`../domain/forge/branches.md`), so the goal's changes could not be
   made in the batch that makes it. A "collecting change" that held
   nothing, made repairs and catch-ups into its own branch, and was

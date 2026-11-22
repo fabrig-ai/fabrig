@@ -87,7 +87,7 @@ and `connect-forge.html`.
   accepted, or "Install on GitHub" before (the actions' table, below). Every row
   holds its last connect's line where it has one (the row's table,
   below), and, last, "Remove" (Removing a forge, below).
-- **Removing a forge** (`../../domain/forge/adoption.md`, 1): "Remove", on every
+- **Removing a forge** (`../../domain/forge/adoption-connection.md`, 1): "Remove", on every
   row of the person's, asks first, in the row: "Remove this forge?",
   then what goes and what stays on the forge, by its kind and mode: an
   owned Forgejo, "Its Forgejo, its directory and its repositories' work
@@ -630,7 +630,7 @@ says:
 
 Its actions, each a request of the forge's family (`../engine.md`
 ), offered by kind, mode, setup and state. The engine domain decides
-every offer; the client reads it (`../../domain/forge/adoption.md`, 1):
+every offer; the client reads it (`../../domain/forge/adoption-connection.md`, 1):
 
 | Action | Offered | What it does |
 |---|---|---|
@@ -643,7 +643,7 @@ every offer; the client reads it (`../../domain/forge/adoption.md`, 1):
 | Forget the admin's token | managed | the admin's token erased; the forge is connected, its bot and tokens kept, and adopting a repository grants nothing more: the person makes the bot a collaborator |
 | Set up a Forgejo here | an owned Forgejo to make, under the box, or the row's offer offered, not set up (`records.md`) | its organization (default `work`), its repository (default `hello`) and its project, a new one named as the repository (`../../draft/archive/first-run.md`, 2.4), on `ConnectForge` and the welcome alike (`../pages/README.md`); then the box asked to run the forge's steps (`../../protocol/setup/box.md`, 1): its binaries fetched, its preparation, Forgejo and its runner started, then its handover taken and reconciled, the repository made with the starter workflow (`../../protocol/setup/owned.md`, 7), and, once the row says it made, the client's `MakeProject` and `Adopt` into it; the card names the path of `person_password`, never its password (`../../protocol/setup/owned.md`, 5) |
 | Set up again | the row's offer offered, set up failed | the same ask again: what the last one left is kept, a fetched binary hashed and not fetched again |
-| Remove | every forge of the person's, the playground's aside | "Remove", confirmed in its row, its words naming what goes and what stays on the forge (Removing a forge, above); then `RemoveForge`, which ends the forge at once and removes it whole (`../../domain/forge/adoption.md`, 1) |
+| Remove | every forge of the person's, the playground's aside | "Remove", confirmed in its row, its words naming what goes and what stays on the forge (Removing a forge, above); then `RemoveForge`, which ends the forge at once and removes it whole (`../../domain/forge/adoption-connection.md`, 1) |
 
 GitHub's Connect, but on a stopped forge or one whose records say why
 it is not connected, "Connect with its tokens", "Connect as its admin"

@@ -1,4 +1,4 @@
-//! A change on its requester's held branch (temper/docs/design/domain/forge/change/README.md, 1 and 3).
+//! A change on its requester's held branch (temper/docs/design/domain/forge/change/README.md, 1, and temper/docs/design/domain/forge/change/drift.md, 1).
 use super::*;
 use skein_forge::api::{Answer, Hint, Op, Read, UpdateStyle, Write};
 use temper_engine_domain_forge_change as change;

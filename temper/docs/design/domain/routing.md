@@ -19,7 +19,7 @@ to the forge; a timer to the child that armed it. What temper adds:
   key, then to the forge (4).
 - **A forge's set up,** `SetUp { forge }` (`../client/engine.md`
   ), goes to the forge, which decides it by the forge's offer
-  (forge/adoption.md, 1), refusing it there or asking the protocol layer's box
+  (forge/adoption-connection.md, 1), refusing it there or asking the protocol layer's box
   link, which carries the ask to the box and its lines back
   (`../protocol/forge/engine.md`, 8). The root's configuration carries each
   configured forge's number, kind, mode and setup start, and whether
@@ -151,7 +151,7 @@ What temper adds to the core's usual routes (jig's `domain/engine/README.md`,
 |---|---|---|
 | a forge API answer, or a hint | the forge: its working set (forge/keeping-up.md, 2); each change it moves, stepped | commit; news to subscribers through the core; changes stepped |
 | a change due | the core starts its procedure → the forge's change procedure, on fresh facts → its decision in the core's terms (`root.md`, section 5): a delegate, an effect, a wait, a hold, its result | commit; delegates made; effects made after the commit |
-| a merge's outcome | the forge → the change's result; the landing as news on its branch's topic → each goal's subscription, waking it by overlap (forge/README.md, 5.3) | commit; the change closes, its branch released |
+| a merge's outcome | the forge → the change's result; the landing as news on its branch's topic → each goal's subscription, waking it by overlap (forge/topics.md, 1.3) | commit; the change closes, its branch released |
 | a landing branch's CI failing | the change procedure asks a queue repair → a change task into that branch, first in its queue (forge/queues.md) | commit; the repair runs |
 | an adoption | the core's people child admits it by key → the forge locates the repository → jig's adoption request on the party's behalf (`adopt_repository_ask`), which the core judges as the party's own → the forge reads what temper may do there, and seeds collaborators' roles (`root.md`, section 5) | commit; the outcome kept under the request's key, answered once durable (forge/adoption.md) |
 | a goal changing | the core → the goal's issue → its effects | commit; effects made |

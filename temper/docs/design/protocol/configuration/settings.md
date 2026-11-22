@@ -202,7 +202,7 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
   asking charter's proposal is judged so at its call too, for its chat's
   project alone (`../../domain/agent/ask-temper.md`, 2). A
   deployment login or display name establishes no forge identity; a box's
-  person linked on a forge is known there (`../../domain/forge/adoption.md`, 6).
+  person linked on a forge is known there (`../../domain/forge/adoption-person.md`, 1).
   Later membership changes can leave an accepted rule waiting for
   eligible approvers. Kind 3 declares
   that its value names one charter (jig's `domain/engine/settings.md`, 5): the
@@ -229,7 +229,7 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
   patterns changed reach the changes they now cover or no longer do
   (`../../draft/what-reaches-you.md`, section 7). At a start the forge is given the stock
   defaults, tells jig which changed, and holds the current values
-  before its other records (`../../domain/forge/README.md`, section 9).
+  before its other records (`../../domain/forge/effects.md`, section 2).
 - **Erased with their project.** A project deleted (jig's
   `RemoveProject`, jig's `domain/people/acts.md`, 2) has its settings
   erased by the connector owning each kind: the forge erases its kinds

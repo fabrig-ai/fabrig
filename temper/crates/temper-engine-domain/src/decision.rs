@@ -55,7 +55,7 @@ pub enum Delivery {
     },
 
     /// Adoption release reaches the core after its erasures commit
-    /// (jig/docs/design/domain/people/acts.md, 2; temper/docs/design/domain/forge/adoption.md, 1).
+    /// (jig/docs/design/domain/people/acts.md, 2; temper/docs/design/domain/forge/adoption-connection.md, 1).
     ProjectReleased {
         connector: u16,
         project: u32,

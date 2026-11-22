@@ -1,6 +1,6 @@
 //! Judging, keeping and holding the forge's kinds
 //! (temper/docs/design/protocol/configuration/settings.md, 2;
-//! temper/docs/design/domain/forge/change/gates.md, 3, and temper/docs/design/domain/forge/README.md, 9).
+//! temper/docs/design/domain/forge/change/gates.md, 3, and temper/docs/design/domain/forge/effects.md, 2).
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::settings::application::{Restored, RestoredEdit};
 use skein_lib::{Env, List, Map, Queue};

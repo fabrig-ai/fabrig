@@ -149,7 +149,7 @@
   *end refused*, `EndRefusal`, not offered (no playground); or
   *unknown*, as `SetUp`'s.
 - **`RemoveForge`:** of the deployment's scope, the forge's number
-  (u16) (`../../domain/forge/adoption.md`, 1). Its outcome: *removed*, the forge
+  (u16) (`../../domain/forge/adoption-connection.md`, 1). Its outcome: *removed*, the forge
   ended in the request's decision, its removal's kept acts following
   it; *remove refused*, `RemoveRefused`, with a `ForgeRefusal` (below):
   `role`, `no such forge` (none kept, or one ended already), or `not
@@ -563,7 +563,7 @@
   repository, file or adoption), its reason (`MakeFailure`: taken, empty,
   timed out, refused with status (u16), not allowed or other) and the
   forge's words (at most 256 bytes); and its
-  offer, the forge domain's (`../../domain/forge/adoption.md`, 1): offered, not
+  offer, the forge domain's (`../../domain/forge/adoption-connection.md`, 1): offered, not
   under the box, or not offered, which is what "Set up a Forgejo here", "Set up again"
   and the words without the box follow (`deployment.md`). Beside the rows,
   `linked`, whether the printed link has signed a person in since the

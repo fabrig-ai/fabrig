@@ -133,13 +133,13 @@ every setting is, its decision that project's owners'. Its value, a
   of a move: `../after-landing.md`, section 3), starts, for each follow
   of that branch with no read in flight, a read from `heard` to the new
   tip: the files the range touched (skein's `Read::Compare`, names alone,
-  read as `README.md`, 5.3 reads a landing's), and its commits with their
+  read as `topics.md`, 1.3 reads a landing's), and its commits with their
   messages, oldest first (`Read::Commits`). A move while a read is in
   flight is taken by the next read, from the cursor the first left.
 - **One move is one landing,** `before` the cursor, `after` the tip read:
   what the forge saw move at once, as a tier's range is. It is kept when
-  one of its files lies under one of the follow's paths (`README.md`,
-  5.3's prefix rule: `src` covers `src/a.c`, not `src-old/a.c`), when the
+  one of its files lies under one of the follow's paths (`topics.md`,
+  1.3's prefix rule: `src` covers `src/a.c`, not `src-old/a.c`), when the
   follow names no paths, or when its files are unknown: a comparison
   that names fewer paths than it counts, an unusable answer or a failed
   read, as 5.3's overlap is unknown. A follow change for nothing costs
@@ -511,11 +511,11 @@ every setting is, its decision that project's owners'. Its value, a
   follow and the role's for a standing role's (section 4), and each
   follow change's is made from it as `change` makes a change's.
 - **Reads:** the forge's own `Read::Compare` and `Read::Commits` on the
-  source, as it reads a landing's files (`README.md`, 5.3), under no
+  source, as it reads a landing's files (`topics.md`, 1.3), under no
   task's grant.
 - **The check's dispatch** is the change's: kind 16 on the target, a
   rerun kind 17 (`../landing.md`, section 11), a purpose of the change's
-  step (tag 2, `README.md`, section 4).
+  step (tag 2, `effects.md`, section 1).
 - **In the store,** family 42, `Follow`, keyed by the project and the
   follow's number: the follow's source repository and branch, its
   cursor, its task, whether it is stopped and why, its queue (each

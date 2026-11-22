@@ -233,7 +233,7 @@
 - **`forge.changes` bounds the changes kept at once,** live and ended
   alike: the forge's change table, whose settled changes leave it,
   oldest first, as new ones need room, those of live goals kept
-  (`../../domain/forge/change/README.md`, 7). So it bounds the changes
+  (`../../domain/forge/change/records.md`, 1). So it bounds the changes
   live at once, never every change made. Each tier row of the store
   holds up to `2 * forge.changes + 1` landings (its pending ones, a run's,
   a finding's blamed ones, a probe's waiting groups and a posting's),
@@ -245,7 +245,7 @@
   merges temper made, number `max(forge.landings, forge.changes)` at
   most; a merge finding them full erases one, those of no kept change
   first, and never waits on it to move its branch's head
-  (`../../domain/forge/change/README.md`, 7).
+  (`../../domain/forge/change/records.md`, 1).
 - **The forge client's lifetime and the forge call's deadline:**
   `forge.client.lifetime_ms` is how long a sent forge write may still
   arrive, its answer awaited before the client looks for it (skein's

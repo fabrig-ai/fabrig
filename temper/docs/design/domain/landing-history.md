@@ -78,7 +78,7 @@ what the row's `head` and `base` hold.
 | `joined` | it joins its queue (2.4), a landing (its first `formed` round), or a forge's own merge queue admits it | `line`: `queue`, `landing` or `forge_queue`; `place`, from 1, where its line has one; `priority`, its goal's, where its line orders by one | its head | `queue`: own; `landing`: the landing's task, the round |
 | `departed` | it leaves that line without landing | `line`; `cause`: from a landing, its leave cause (`landing.md`, 4.3, the stored `LandingLeave`); from a queue, `unready`, `conflict`, `repair` or `ejected` | its head | its `joined`'s |
 | `selected` | under `queue`, it is taken as the first to land (`first`) | none | its head; the base's tip | own |
-| `update` | an update of its branch from the base is asked (an outbox entry) | `style`: `merge` or `rebase`; `forge_base`, the base commit its pull request had as the step that asked it read it, none where unread | its head; the base it asks for, its pin (`forge/README.md`, 6) | the entry's number, 0 |
+| `update` | an update of its branch from the base is asked (an outbox entry) | `style`: `merge` or `rebase`; `forge_base`, the base commit its pull request had as the step that asked it read it, none where unread | its head; the base it asks for, its pin (`forge/updates.md`, 1) | the entry's number, 0 |
 | `updated` | that update settles | `outcome`: `updated`, `conflict` or `failed`; `forge_base`, the base commit the forge reported: the pin, when updated, the client's `BaseMoved`'s, when refused so, none otherwise | the new head, when updated; its pin | the entry's number, 0 |
 | `job` | a prepare job (`turn`) or a merge job (`queue`, `merge_job`) is delegated, its task heard | `job`: `prepare` or `merge`; `task` | its head; the base | the job's task, its attempt |
 | `job-ended` | that attempt's end is heard, each attempt's as it ends (*A job's attempt*, below) | `job`; `outcome`: `done`, `conflict`, `failed`, `timeout`, `cancelled` or `lost`; `class`, where `failed`: `unprepared`, `run`, `result`, `unstarted`, `undelivered` or `unknown` | the prefix or head it pushed, where it pushed one | the job's task, its attempt |
@@ -165,7 +165,7 @@ what the row's `head` and `base` hold.
   longer available (an approval lapsed, a dependency not kept).
 - **Its line, apart from readiness:** under `queue`, `joined` once it is
   counted in its landing branch's queue, the changes queued or first
-  (`forge/change/README.md`, 5, *Its place in its queue*), with its
+  (`forge/change/panel.md`, 1, *Its place in its queue*), with its
   place and its goal's priority, and `departed` once it is no longer;
   under `turn`, `joined` with its landing's first `formed` round and
   `departed` with the member's leaving (`landing.md`, 4.3).
@@ -399,7 +399,7 @@ with its application intervals (jig's `protocol/store/README.md`, 7):
 - **A change written during its sweep:** its new event's `HistoryLast`
   row is the writer's, which the sweep, erasing only the row it loaded,
   leaves; what remains is a history from that event on.
-- **A project's deletion** (`forge/adoption.md`, 1, *A project
+- **A project's deletion** (`forge/adoption-connection.md`, 1, *A project
   deleted*) sets its row's `removing`; the sweep then takes every change
   of `Last { project }` whatever its age, and erases the row once its
   last change is gone, so a deletion a restart cut goes on.
@@ -456,7 +456,7 @@ of the forge's family (`../client/ctl/tools.md`, 2):
 ### 5.2 A change whose row went
 
 - **`change show TASK`,** where today it answers `no change panel for
-  task N` (`forge/change/README.md`, 7, *A dropped change reads as an
+  task N` (`forge/change/records.md`, 1, *A dropped change reads as an
   unknown task*), reads the change's history, `--change TASK` in its
   task's project, every page to its end, at most 16; prints `change N:
   its record has gone; its last events:`, the last 8 events as 5.1

@@ -34,7 +34,7 @@ them as it does any Forgejo.
   refused *not offered* while any forge but the playground's own is
   kept, whatever its state but ended: an unfinished one is started over
   first (`owned.md`, 7), and a whole one is not; one ended, being removed
-  (`../../domain/forge/adoption.md`, 1), is in no list and counts for nothing, as
+  (`../../domain/forge/adoption-connection.md`, 1), is in no list and counts for nothing, as
   the welcome counts it (`../../client/pages/README.md`); also while the
   row reads resetting, and when the document shows no welcome
   (../configuration/engine.md), runs outside a box, whose scripted
@@ -116,7 +116,7 @@ them as it does any Forgejo.
      act under the key, refused as a key conflict, which moves the row
      on as a refusal does (below), and the deletion made then goes on
      with the grace it keeps;
-  2. `forge`: the fake forge removed (`../../domain/forge/adoption.md`, 1), its
+  2. `forge`: the fake forge removed (`../../domain/forge/adoption-connection.md`, 1), its
      group stopped and its directory, file and record removed (`box.md`, 1);
   3. `account`: the scripted account removed, by `RemoveAccount`;
 
@@ -571,7 +571,7 @@ them as it does any Forgejo.
     task reviews an outside contribution and sets its reviewers
     (`../../domain/forge/README.md`, section 7), while an update of one stays
     foreign, since temper updates only its own change's branch
-    (`../../domain/forge/README.md`, section 6); `bounds` the decisions' count, and
+    (`../../domain/forge/updates.md`, section 1); `bounds` the decisions' count, and
     `temper-fake`'s constant for the objects, past which the judge is
     undecided: `judge full`. The constant is sized for the runs the check
     judges, not for the fake's limits: the judge reserves each repository
@@ -605,8 +605,8 @@ them as it does any Forgejo.
   - *Its order:* the decisions, then `decided`, then the observations,
     then the verdict, so no merge is judged before every decision is
     in. The collection copies OBSERVATIONS no later than STORE: a
-    decision is saved before its merge is sent (`../../domain/forge/README.md`,
-    section 4), so a store copied after the observations holds the
+    decision is saved before its merge is sent (`../../domain/forge/effects.md`,
+    section 1), so a store copied after the observations holds the
     decision behind every merge they hold.
   - *Its verdict,* by the check's contract: a pass is status 0 and no line; breaches are status
     1, a `{"fail": LINE, "summary": TEXT}` line each, its `line()` the

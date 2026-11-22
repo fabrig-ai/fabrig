@@ -7,7 +7,7 @@ is cleared, so that a goal ends only when its work is verified, or,
 where its project says so, ends at its landing while the tiers judge
 that landing later (section 6). It holds
 for every landing on a repository's landing branch, by queue
-(`forge/change/README.md` and `forge/queues.md` and `forge/README.md`, section 6), by turn (`landing.md`), or by anyone
+(`forge/change/README.md` and `forge/queues.md` and `forge/updates.md`, section 1), by turn (`landing.md`), or by anyone
 outside temper. Findings, where a verdict files a flake or a red whose
 goal has ended, are `findings.md`'s, and under `wait: landed` every red
 of a landing tier is a red finding (`red-findings.md`); a project
@@ -132,7 +132,7 @@ branch text matches (2026-11-04).
 ## 3. Following the mains
 
 - **On each move of the tip of a branch a tier follows,** read as
-  `forge/README.md`, 5.2 reads landings, each tier following it with no run in
+  `forge/topics.md`, 1.2 reads landings, each tier following it with no run in
   flight starts one at the new tip. One with a run in flight waits, and
   when that run ends, the next starts at the newest tip, if it moved
   since. The forge follows a branch for its tiers as long as one names
@@ -258,7 +258,7 @@ branch text matches (2026-11-04).
   `../draft/tier-controls.md`).
 - **A restored record whose run's task is gone** restores as a tier
   with no run in flight, never a stopped start: as the start links the
-  forge's rows to jig's tasks (`forge/README.md`, 9), a tier's record
+  forge's rows to jig's tasks (`forge/effects.md`, 2), a tier's record
   naming a task jig no longer holds drops its run as a close would
   (above), and the restart saves it so. A record never needs its run's
   task to restore, whatever left it naming one: a crash, or an older
@@ -505,12 +505,12 @@ those IDs is known to be still failing; each is new (2026-11-04).
   any finding (`findings.md`, section 6). A tier following goal
   branches is unchanged (below).
 - **A member's goal** is its change's requester's tracked ancestor, the
-  goal its landings' news reaches (`forge/README.md`, 5.2): the news goes
+  goal its landings' news reaches (`forge/topics.md`, 1.2): the news goes
   through that goal's subscription to its own branch's landings when
   that branch is what landed, without a subscription to main. Other
   members use the goal's subscription to the branch the landing went
   into. It goes once per goal, as the verdict that reddens the landing
-  is kept, and wakes it, whatever its overlap (`forge/README.md`, 5.3). A goal
+  is kept, and wakes it, whatever its overlap (`forge/topics.md`, 1.3). A goal
   with no such subscription left is told nothing.
 - **The news's words:** `Red after landing: tier NAME run N blames
   landing COMMIT on BRANCH: K failing.`, the landing's commit whole,
@@ -600,7 +600,7 @@ Run: URL
   2 `Fixes:`, 3 `Repairs:`, 4 `Fixes-finding:`, the forge's table of
   what it offers naming them for ctl's and the host tools' words): the core keeps them with the goal's
   subscription to the landings of its subtree's repositories (jig's
-  `domain/tasks/messages.md`, 4; `forge/README.md`, 5.2), and the forge classes a
+  `domain/tasks/messages.md`, 4; `forge/topics.md`, 1.2), and the forge classes a
   landing carrying one as waking for that goal, and as kept otherwise,
   whatever its overlap. A designer's goal wakes on `Taught:` so, and
   reads the rest at its next run.
@@ -609,7 +609,7 @@ Run: URL
   --project PROJECT --newer-than TIME`, from the landing log (section 10),
   with the time the engine saw each: temper's own merges, and each move
   of a landing branch the engine already watches, a tier's or one a
-  goal's or a change's subscription follows (`forge/README.md`, 5.2), by queue
+  goal's or a change's subscription follows (`forge/topics.md`, 1.2), by queue
   or by anyone else. The log adds no watch of its own, since each costs
   a poll and a fresh read at every restart: a push to a main nothing
   follows is not logged. A coordinator catching up follows its
@@ -623,7 +623,7 @@ Run: URL
   (section 3), saying why.
 - **A comment on each member's pull request,** once per tier verdict:
   "cleared by run N", or "red: tests X, Y" and, once one lands, "repaired
-  by #M". Keyed, as every comment of temper's (`forge/README.md`, section 4).
+  by #M". Keyed, as every comment of temper's (`forge/effects.md`, section 1).
 - **Posted by the run's task, after its verdict is kept:** once the
   verdict is judged and kept (sections 5 to 7: the record, the
   landings' verification, the news), the run's task posts the status,
@@ -683,7 +683,7 @@ Run: URL
   this count, which the run's posting keeps until its verdict, so
   each hold posts its own); operation 7 for a comment, its
   part the comment's index in the order above, from 0, so that a
-  restart posts each at most once (`forge/README.md`, section 4).
+  restart posts each at most once (`forge/effects.md`, section 1).
 - **What is posted is kept** on the tier's record from the verdict to
   its last post (section 10): what the status says, and each comment's
   pull request and what it says, so a restart posts the rest, with the

@@ -28,7 +28,7 @@ P, a person
   T1's authority, its own delegations need nobody's acceptance.
 - **T1 is a goal.** Its issue shows the plan as T1 revises it
   (`issues.md`); its changes queue for main at its priority (`queues.md`);
-  landings in temper are news for it (`README.md`, section 5).
+  landings in temper are news for it (`topics.md`, section 1).
 - **Results flow along dependencies:** T2's and T3's reports reach T4,
   which P answers in the client; T4's choice reaches T5's brief.
 - **T6…T9 are a revision,** made by T1 once T5 landed, within its

@@ -98,7 +98,7 @@ by its owner first, and the agent says so (6.3).
 | jig's people | what waits on each party: questions, proposals, escalations and person tasks, counted exactly | jig's `client/domain/contract/documents.md`, 1 (`me`); `jig/docs/design/domain/people/README.md`, section 5 |
 | jig's accounts | each source's state; *limited*, with its reset where the provider says it | jig's `domain/accounts.md`, 3.5 |
 | jig's hosts | connected or lost, slots used and free, the runs each hosts | jig's `domain/hosts/README.md`, section 2; `client/domain/pages.md`, section 7 |
-| temper's forge | each change and its result; the merges temper made, `Landed`, without a time; gates as tasks; CI at a change's head, in memory | `../domain/forge/change/README.md`, 2, and `../domain/forge/change/gates.md`, 1, and `../domain/forge/change/README.md`, 5; `../protocol/store.md`, section 2 |
+| temper's forge | each change and its result; the merges temper made, `Landed`, without a time; gates as tasks; CI at a change's head, in memory | `../domain/forge/change/README.md`, 2, and `../domain/forge/change/gates.md`, 1, and `../domain/forge/change/panel.md`, 1; `../protocol/store.md`, section 2 |
 
 - **Not kept:** token counts as numbers (smith's turn records them,
   smith's `protocol/transcript.md`, section 2, and jig's core reads only

@@ -226,7 +226,7 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
 - **Main into a goal's branch only for a change that needs it**
   (`../../draft/squash-in.md`, 4 and 5; `../forge/branches.md`, 1).
   The goal's agent's words have it ask for main's tip, a catch-up
-  (`../forge/README.md`, section 6, made with the `change` tool's
+  (`../forge/updates.md`, section 1, made with the `change` tool's
   `merge`, `tools.md`, 1), only for a change of the goal whose work
   rests on what main gained since the goal's branch was made, that
   change naming the catch-up in its `after`; never to keep the branch

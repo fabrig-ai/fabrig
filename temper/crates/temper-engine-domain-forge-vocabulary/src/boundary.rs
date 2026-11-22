@@ -106,7 +106,7 @@ pub struct Kinds {
 /// Forge read grants (domain/forge/README.md, section 2).
 pub const READ_KINDS: [u16; 1] = [1];
 
-/// Forge grants needed by the change procedure (domain/forge/README.md, section 4 and domain/forge/change/README.md).
+/// Forge grants needed by the change procedure (domain/forge/effects.md, section 1 and domain/forge/change/README.md).
 pub const CHANGE_KINDS: [u16; 7] = [2, 3, 4, 10, 11, 12, 17];
 
 /// One adopted repository, with provider name and project ownership.
@@ -401,7 +401,7 @@ pub enum SetUpAnswer {
     SettingUp,
     Refused(SetUpRefusal),
 }
-/// The configured forge provider (domain/forge/adoption.md, 1).
+/// The configured forge provider (domain/forge/adoption-connection.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Kind {
     Forgejo,
@@ -499,7 +499,7 @@ pub enum StartsWith {
     Nothing,
 }
 /// A forge's link to a box's one person: on this forge, that party is that user
-/// (temper/docs/design/protocol/forge/engine.md, 1; temper/docs/design/domain/forge/adoption.md, 6).
+/// (temper/docs/design/protocol/forge/engine.md, 1; temper/docs/design/domain/forge/adoption-person.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Link {
     /// The forge's user, never 0.
@@ -508,7 +508,7 @@ pub struct Link {
     pub person: u64,
 }
 
-/// What setup read of the forge's person (temper/docs/design/domain/forge/adoption.md, 6).
+/// What setup read of the forge's person (temper/docs/design/domain/forge/adoption-person.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum PersonAnswer {
     /// The person's user: a Forgejo `Reconcile`'s `Person` id or a manifest-made App's `User` account.
@@ -519,7 +519,7 @@ pub enum PersonAnswer {
     NotTheirs,
 }
 
-/// What happened to the forge's link (temper/docs/design/domain/forge/adoption.md, 6).
+/// What happened to the forge's link (temper/docs/design/domain/forge/adoption-person.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum LinkNote {
     Gone,
@@ -545,7 +545,7 @@ pub struct ForgeRecord {
     /// The forge's link to a box's person, or none (temper/docs/design/protocol/forge/engine.md, 1).
     pub person: Option<Link>,
 }
-/// Kept, or ended with removal's answers (temper/docs/design/domain/forge/adoption.md, 1).
+/// Kept, or ended with removal's answers (temper/docs/design/domain/forge/adoption-connection.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeState {
     Kept,
@@ -600,7 +600,7 @@ pub enum ResetStep {
     Forge,
     Account,
 }
-/// Removal's answer (temper/docs/design/domain/forge/adoption.md, 1).
+/// Removal's answer (temper/docs/design/domain/forge/adoption-connection.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum RemoveAnswer {
     Removed,
@@ -613,7 +613,7 @@ pub enum EndAnswer {
     NotOffered,
 }
 
-/// The row's setup offer, also used to admit `SetUp` (domain/forge/adoption.md, 1).
+/// The row's setup offer, also used to admit `SetUp` (domain/forge/adoption-connection.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Offer {
     NotOffered,
@@ -695,7 +695,7 @@ pub struct Row {
     pub admin: bool,
     pub ended_stop: Option<AdminStop>,
 }
-/// The deployment's forges, ordered by number (domain/forge/adoption.md, 1).
+/// The deployment's forges, ordered by number (domain/forge/adoption-connection.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Forges {
     pub rows: Box<[Row]>,
@@ -898,7 +898,7 @@ pub enum Writer {
     /// An outbox entry making a change to the resource.
     Entry(u64),
 }
-/// A subject published by the forge (domain/forge/README.md, section 5).
+/// A subject published by the forge (domain/forge/topics.md, section 1).
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Topic {
     /// A branch's tip moved.
@@ -1084,7 +1084,7 @@ pub struct ChangeRow {
     pub body: Box<[u8]>,
     pub priority: i32,
     pub change: change::Change,
-    /// Last exact-head CI observation retained when the change lands or ends (domain/forge/change/README.md, 5).
+    /// Last exact-head CI observation retained when the change lands or ends (domain/forge/change/panel.md, 1).
     pub ci: Option<change::Ci>,
     pub pull: Option<u64>,
     pub pending: Option<u64>,
@@ -1765,7 +1765,7 @@ pub enum Stored {
     LimitHold(LimitHold),
     /// One held resource.
     Hold(Hold),
-    /// A live task's resources, or a kept task's repositories (temper/docs/design/domain/forge/adoption.md, 1).
+    /// A live task's resources, or a kept task's repositories (temper/docs/design/domain/forge/adoption-connection.md, 1).
     Names {
         task: u64,
         resources: Box<[Name]>,
@@ -1784,7 +1784,7 @@ pub enum Stored {
     },
     /// An unsettled outbox entry. A held one is out of the client's outbox,
     /// keeping its room until a person makes it again or it is settled not
-    /// made (domain/forge/README.md, 4; jig's `domain/connectors.md`, 4.3).
+    /// made (domain/forge/effects.md, 1; jig's `domain/connectors.md`, 4.3).
     Entry {
         entry: skein_forge_client::Entry,
         held: bool,
@@ -1804,7 +1804,7 @@ pub enum Stored {
         until: skein_lib::Wall,
         outcome: ApplicationOutcome,
     },
-    /// A forge's writer, kept before any restored effect (domain/forge/adoption.md, 1).
+    /// A forge's writer, kept before any restored effect (domain/forge/adoption-connection.md, 1).
     Writer(skein_forge_client::Writer),
     /// First Google subject for a member address (protocol/sign-in.md, 5).
     Binding {
@@ -1813,7 +1813,7 @@ pub enum Stored {
     },
     /// The forge's kinds (temper/docs/design/protocol/store.md, 2; temper/docs/design/domain/forge/change/gates.md, 3).
     Setting(crate::settings::SettingRow),
-    /// A sent write not yet settled (domain/forge/README.md, 4; protocol/store.md, 2).
+    /// A sent write not yet settled (domain/forge/effects.md, 1; protocol/store.md, 2).
     Flight {
         task: u64,
         entry: u64,
@@ -1823,7 +1823,7 @@ pub enum Stored {
         key: ReceiptKey,
         receipt: Receipt,
     },
-    /// A forge's durable setup and removal state (temper/docs/design/protocol/forge/engine.md, 1; temper/docs/design/domain/forge/adoption.md, 1).
+    /// A forge's durable setup and removal state (temper/docs/design/protocol/forge/engine.md, 1; temper/docs/design/domain/forge/adoption-connection.md, 1).
     Forge(ForgeRecord),
     /// The last forge number given (temper/docs/design/protocol/forge/engine.md, 1).
     ForgeNumber {
@@ -1969,7 +1969,7 @@ pub enum RestartStage {
     /// Every uncertain restored entry has been looked for.
     Settled,
 }
-/// Volatile connection information, rebuilt from routing at every start (domain/forge/adoption.md, 1).
+/// Volatile connection information, rebuilt from routing at every start (domain/forge/adoption-connection.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Connection {
     NotConnected,
@@ -2013,7 +2013,7 @@ pub struct SetUpFetched {
     pub done: u64,
     pub total: Option<u64>,
 }
-/// The held connection's step when setup failed (domain/forge/adoption.md, 1).
+/// The held connection's step when setup failed (domain/forge/adoption-connection.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum FailedStep {
     Fetch,
@@ -2021,7 +2021,7 @@ pub enum FailedStep {
     Run,
     Connect,
 }
-/// Why a `SetUp` is refused (protocol/forge/engine.md, 8; domain/forge/adoption.md, 1).
+/// Why a `SetUp` is refused (protocol/forge/engine.md, 8; domain/forge/adoption-connection.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum SetUpRefusal {
     NotOffered,
@@ -2206,12 +2206,12 @@ pub enum Event {
         entry: u64,
     },
     /// Release adoptions after the project's tasks are erased
-    /// (jig/docs/design/domain/people/acts.md, 2; temper/docs/design/domain/forge/adoption.md, 1).
+    /// (jig/docs/design/domain/people/acts.md, 2; temper/docs/design/domain/forge/adoption-connection.md, 1).
     ReleaseProject {
         project: u32,
         request: Token,
     },
-    /// Removal completions (temper/docs/design/domain/forge/adoption.md, 1).
+    /// Removal completions (temper/docs/design/domain/forge/adoption-connection.md, 1).
     SecretsErased {
         forge: u16,
     },
@@ -2239,7 +2239,7 @@ pub enum Event {
         entry: u64,
         heard: LandingHeard,
     },
-    /// The engine stops: finish sent entries without starting another write (domain/forge/README.md, 4).
+    /// The engine stops: finish sent entries without starting another write (domain/forge/effects.md, 1).
     Settle,
     /// A successful conversion kept its App records.
     AppRecorded {
@@ -2263,7 +2263,7 @@ pub enum Event {
         key: [u8; 16],
         keep: bool,
     },
-    /// The box ended its pipe (domain/forge/adoption.md, 1).
+    /// The box ended its pipe (domain/forge/adoption-connection.md, 1).
     BoxClosed,
     /// The routing's answer to a core-admitted connect request.
     ConnectAnswered {
@@ -2508,11 +2508,11 @@ pub enum Event {
         entry: u64,
         goal: u64,
     },
-    /// Give a full table an unpinned row's room, settled first (domain/forge/change/README.md, 7).
+    /// Give a full table an unpinned row's room, settled first (domain/forge/change/records.md, 1).
     DropChange {
         task: u64,
     },
-    /// Drop an unpinned change with its task's record, full table or not (domain/forge/change/README.md, 7).
+    /// Drop an unpinned change with its task's record, full table or not (domain/forge/change/records.md, 1).
     DropErased {
         task: u64,
     },
@@ -2707,7 +2707,7 @@ pub enum Event {
         entry: u64,
     },
     /// A person settled a held entry: make it again, or record it not made
-    /// (domain/forge/README.md, 4; jig's `domain/connectors.md`, 4.3).
+    /// (domain/forge/effects.md, 1; jig's `domain/connectors.md`, 4.3).
     Resolve {
         entry: u64,
         again: bool,
@@ -2761,7 +2761,7 @@ pub enum Event {
     Owner {
         party: Option<u64>,
     },
-    /// What a setup run read of the forge's person (temper/docs/design/domain/forge/adoption.md, 6).
+    /// What a setup run read of the forge's person (temper/docs/design/domain/forge/adoption-person.md, 1).
     PersonOf {
         forge: u16,
         answer: PersonAnswer,
@@ -3030,7 +3030,7 @@ pub enum Request {
         hold: crate::resources::HoldKind,
     },
 
-    /// Drop a goal's core CI subscription at restart (domain/forge/README.md, 5.2).
+    /// Drop a goal's core CI subscription at restart (domain/forge/topics.md, 1.2).
     GoalUntopic {
         goal: u64,
         topic: Topic,
@@ -3238,7 +3238,7 @@ pub enum Request {
         name: Name,
         task: u64,
     },
-    /// A forge's link changed or was refused (temper/docs/design/domain/forge/adoption.md, 6).
+    /// A forge's link changed or was refused (temper/docs/design/domain/forge/adoption-person.md, 1).
     LinkNoted {
         forge: u16,
         note: LinkNote,

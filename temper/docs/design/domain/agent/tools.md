@@ -136,7 +136,7 @@
   or a timer, and `subscribe_forge` each take one of the task's
   subscriptions, at most `tasks.subscriptions` (jig's `domain/tasks/messages.md`, 4, and `jig/docs/design/domain/tasks/README.md`, 6
   ), where the topics the core keeps for a goal
-  (`../forge/README.md`, 5.2) count too, and so does the project's
+  (`../forge/topics.md`, 1.2) count too, and so does the project's
   findings topic the root keeps for a finding's holder, which alone is
   admitted one past that room (`../areas.md`, section 5). A call past that room is refused, saying
   why, as jig's `domain/engine/executors.md`, 3 has every refusal do:
@@ -631,7 +631,7 @@ any `delegate` (jig's authority, named and decided once):
   `tasks.result_bytes`;
 - **its authority, the run's own narrowed:** the run's grants of the
   forge's reads (kind 1, ../forge/README.md, section 2) and of the kinds a change
-  makes (../forge/README.md, section 4: a push, open, merge, edit, update, close
+  makes (../forge/effects.md, section 1: a push, open, merge, edit, update, close
   or reopen a pull request), on the change's repository, which every
   agent of the change holds, so that its reviewer and its repairs read
   the pull request, its files and CI's logs; the change's charters, its
@@ -711,7 +711,7 @@ delegate from what it knows:
   read each of them with `read_task`, live or retained, read only (jig's
   `domain/engine/executors.md`, 3): a dependency is no reference, and
   carries no message.
-- **`merge`:** a catch-up (../forge/README.md, section 6): the commit to take, as
+- **`merge`:** a catch-up (../forge/updates.md, section 1): the commit to take, as
   40 or 64 hexadecimal digits, which the merge job merges into a branch
   made at the landing branch's tip, as the change's producer in place of
   an agent; the words say what the commit brings and why. Refused,

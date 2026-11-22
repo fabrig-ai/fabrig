@@ -19,12 +19,12 @@ and its hold (`README.md`, 2.5) follow.
 |---|---|---|
 | a change's way to landing, its gates, requirements and heads | a panel, on its task's page | `../../domain/forge/change/README.md` |
 | a change's result | a result, on its task's page, in a chat, in an update | `../../domain/forge/change/README.md`, 2 and 4 |
-| its holds | a hold, on the held card | `../../domain/forge/change/repairs.md` and `../../domain/forge/change/README.md`, 3; jig's `domain/connectors.md`, 4.3 and section 11 |
-| what a proposed write would do; the outbox | an effect, on a proposal card; an outbox entry | `../../domain/forge/README.md`, section 4 |
+| its holds | a hold, on the held card | `../../domain/forge/change/repairs.md` and `../../domain/forge/change/drift.md`, 1; jig's `domain/connectors.md`, 4.3 and section 11 |
+| what a proposed write would do; the outbox | an effect, on a proposal card; an outbox entry | `../../domain/forge/effects.md`, section 1 |
 | a project's queues, its branches' red and its last landings | temper's `Changes` page, from the subject `changes` (`records.md`) | `../../domain/forge/queues.md`; `../../domain/after-landing.md`, section 10 |
 | approvals | a person task's card; a panel; a change waiting on a review, a card under Needs you from the subject `approvals`, of the party's own scope (`README.md`, 4.1; `records.md`) | `../../domain/forge/change/gates.md`, 1 and 2, and `../../domain/forge/change/questions.md`, 2; jig's `domain/people/README.md`, section 7 |
 | adoption, repositories, health, landing rules | temper's `Adopt` page; a project's part | `../../domain/forge/adoption.md` and `../../domain/forge/keeping-up.md` and `../../domain/forge/change/gates.md`, section 2; jig's `domain/connectors.md`, section 12; jig's `domain/authority.md`, section 10 |
-| goals' issues, landings as news, findings | a project's part; a goal's page | `../../domain/forge/README.md`, section 5 and `../../domain/forge/issues.md` |
+| goals' issues, landings as news, findings | a project's part; a goal's page | `../../domain/forge/topics.md`, section 1 and `../../domain/forge/issues.md` |
 | the forge itself | the deployment's part | `../../domain/forge/keeping-up.md`, 4 |
 | the picker (`repositories.md`, 1) | temper's `Adopt` page, through the `Reachable` request (`../engine.md`) | `../../protocol/forge/README.md`, the setup's host's `Reachable`; `../../domain/forge/adoption.md` |
 | each forge's connection, its mode, installations and actions (`deployment.md`, `repositories.md`, 4) | temper's `Forges` page; the deployment's part | `../../protocol/forge/README.md`, at start, connecting at runtime, a forge stopped, GitHub's installations and the setup's host; `../../protocol/credentials.md`, the forges' records |
@@ -32,7 +32,7 @@ and its hold (`README.md`, 2.5) follow.
 | a milestone's totals: its goals done, failed, closed and live, its end, its last landing and its spend | the project's read `Milestone` (`records.md`), for `temper ctl milestone show` and the pages' milestones | `../../domain/milestones.md`, sections 7 and 8 |
 | a public project's changes and landings, for a visitor (`README.md`, section 9) | jig's public reads, `PublicRead`, of the forge's public kinds | `../../domain/forge/change/README.md` and `../../domain/forge/queues.md`; `../../domain/landing.md`, section 14 |
 | the playground: its forge, project, model, repository, state and suggested requests | the deployment's read, `playground` (`records.md`), for its banner, its pages, `Chats` and `NewChat`; its start and its reset, `StartPlayground` and `EndPlayground` | `../../protocol/setup/playground.md` |
-| a forge removed | the deployment's request `RemoveForge` (`records.md`), from the Forges page | `../../domain/forge/adoption.md`, 1 |
+| a forge removed | the deployment's request `RemoveForge` (`records.md`), from the Forges page | `../../domain/forge/adoption-connection.md`, 1 |
 | a person's facts: what they dismissed, the goals they started from a chat | the project's request `Dismiss` and the subject `dismissed`, of the party's own scope (`records.md`): the forge side's facts, which no page reads (`../README.md`, section 5) | `../../domain/forge/attention.md`, 1 |
 | a project's stock ways and their paths, and a view of a path, a way, a proposal or a charter | the project's subject `ways`, on Ask temper's page, and the project's read `View`, for a `view` block in a chat (`records.md` and `../pages/settings.md`, 2 and `../pages/chat/conversation.md`, 3), each made by the root from the core and the forge | `../../domain/forge/change/branch-path.md`; `../../protocol/configuration/settings.md`, 8 |
 | temper's settings: a landing rule's value, the forge's charter, a charter's words, a project's questions, ways and words, and a pending proposal's items of temper's kinds | the deployment's reads, and a project's reads of its own kinds (`../../protocol/configuration/settings.md`, 2, *Read from the forge*), `Setting { kind, scope, number }`, `RevisionSetting { kind, scope, number, revision }` and `ProposalItems { key }`, the key jig's settings review gives a pending proposal of settings naming temper's kinds (jig's `domain/engine/settings.md`, 6), beside jig's `settings` document, which gives their states and sizes | `../../protocol/configuration/settings.md`, 2; jig's `domain/engine/settings.md`, 5 |
@@ -232,7 +232,7 @@ A change's panel (`README.md`, section 2) is the family's first subject, `change
 watched by the forge's client side while the change's task page is open
 (`../pages/README.md`). Its document, `ChangePanel` (`records.md`), is
 made by the forge connector from what it keeps of the change
-(`../../domain/forge/change/README.md`, 5).
+(`../../domain/forge/change/panel.md`, 1).
 
 - **Its subject** names the change task by its number, in the scope of
   the task's project. jig admits the watch on the party's role in that

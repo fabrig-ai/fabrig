@@ -317,7 +317,7 @@ it checks of this document:
   budget (../configuration/limits.md; `../../domain/forge/change/repairs.md`), and its
   CI's job outlasting `settle` from the change's push, so that it lands
   within its budget only if the job's end is delivered and the reads
-  that follow it (`../../domain/forge/README.md`, section 6, "Checked"); and with no conflict resolved,
+  that follow it (`../../domain/forge/updates.md`, section 1, "Checked"); and with no conflict resolved,
   since its changes never conflict. With no webhooks, the same story
   misses its budget.
 - **`temper box`,** a test of its own on a scratch directory, with no
@@ -419,7 +419,7 @@ it checks of this document:
   serve starts first, to answer the source's discovery (../openid-provider.md, 9). Preparation makes a new handover; serve takes it over,
   its file gone again, and connects forge 1 from its records (`owned.md`, 5), and the task is found
   landed, its CI at its head unknown until a next step reads it
-  (`../../domain/forge/change/README.md`, 5).
+  (`../../domain/forge/change/panel.md`, 1).
 - **A Forgejo connected as its admin, on this host:** on a real Forgejo
   with its API on loopback, each repository adopted has one hook at
   `http://<listener>/hooks/<number>` (`reconcile.md`, 4), and has it again, with its

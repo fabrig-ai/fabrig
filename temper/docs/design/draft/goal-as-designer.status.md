@@ -9,7 +9,7 @@ remains `per-wake.md`, section 11's open decision; the combined domain
 story's restart gap is in `../protocol/configuration/reference.status.md`.
 
 Section 4's delivery path and section 3's delivery and `after` ordering are carried by
-`../domain/agent/tools.md`, `../domain/forge/change/README.md`, 1 and 3 and `../domain/forge/branches.md`
+`../domain/agent/tools.md`, `../domain/forge/change/README.md`, 1, and `../domain/forge/change/drift.md`, 1 and `../domain/forge/branches.md`
 , `../domain/worker/checkouts.md`, and jig's `domain/hosts/charters.md`
 . The saved-start exception and remaining reference-workflow
 gaps are below.

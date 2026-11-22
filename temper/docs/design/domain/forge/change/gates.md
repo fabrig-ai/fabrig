@@ -67,7 +67,7 @@
   change. Cancelled, its panel ends with it: a change's state is never
   left held or gating under a task that has ended. It never starts a repair, which would spend a
   repair's bound on nothing the change's diff did. A change's agents
-  hold the forge's reads (kind 1) beside the kinds it makes (`../README.md`, section 4),
+  hold the forge's reads (kind 1) beside the kinds it makes (`../effects.md`, section 1),
   so that a reviewer can read its own pull request.
   Temporary local read contention follows the host backoff in `../keeping-up.md`, 3;
   it supplies no review failure or verdict while the read can retry.
@@ -201,7 +201,7 @@ merge, kind 4, on a pattern of landing branches (jig's
   decision (`../keeping-up.md`, 3). Facts read for another head are wait.
 - **Guarded or observed.** Each forge applies a merge only at the head
   it names, and a forge's merge queue takes a pull request in only at
-  the head it names (`../README.md`, section 4; skein's `forge/forgejo.md`, section 2;
+  the head it names (`../effects.md`, section 1; skein's `forge/forgejo.md`, section 2;
   `skein/docs/design/forge/github.md`, 5.1), so a fact pinned to that head still holds as
   the merge lands: CI, gates and approvals are guarded, and are marked
   as requirements that must be guarded. Up to date is observed: the base
@@ -293,7 +293,7 @@ merge, kind 4, on a pattern of landing branches (jig's
   - *Into the landing log:* when temper's merge settles merged, the
     change's entry in its repository's landing log takes its record's
     `signed` (`../../after-landing.md`, 10), so the sign-offs outlive
-    the change's record (`README.md`, 7). A change whose pull request
+    the change's record (`records.md`, 1). A change whose pull request
     someone else merged keeps none in the log.
   - *Read* through each landed row of the project's changes document
     (`../../../client/forge/records.md`, *A project's changes*) and in
@@ -315,7 +315,7 @@ merge, kind 4, on a pattern of landing branches (jig's
   in `temper-engine-domain-forge`'s `gates.rs`, for every reader of the
   rules: the procedure's waits (`requires`, below), the gates a change
   asks for (1), requirements 5 and 6 at the merge, the panel's
-  requirements (`README.md`, 5) and the approvals' rows (`questions.md`, 2).
+  requirements (`panel.md`, 1) and the approvals' rows (`questions.md`, 2).
 - **What a change touches** at a head is the paths of its diff from its
   merge base with the landing branch to that head: the forge's comparison
   of the landing branch's tip and the head, `Read::Compare { before: tip,
@@ -333,7 +333,7 @@ merge, kind 4, on a pattern of landing branches (jig's
   - `whole`, false where the comparison left a path out (its `changed`
     past its paths), named other endpoints than asked, or failed; then
     `sets` has every bit: a change whose files the forge can't give whole
-    touches every set, as an unknown overlap wakes (`../README.md`, 5.3);
+    touches every set, as an unknown overlap wakes (`../topics.md`, 1.3);
   - `Touched::UNKNOWN`, every bit and `whole` false, for a change whose
     head has no comparison read: one before its first step reads it, or
     after a restart until its next does.
@@ -383,12 +383,12 @@ merge, kind 4, on a pattern of landing branches (jig's
   kept on it, so a rule changed reaches a live change at its next step.
   A rule asking neither lets a change merge at its head once the forge
   finds it mergeable, unchecked by CI and never updated (`README.md`, 2 steps 3
-  and 6; `../README.md`, section 6), a conflict going to the merge job and a
+  and 6; `../updates.md`, section 1), a conflict going to the merge job and a
   resolution (`repairs.md`): the rule a goal's own branch lands under (`../branches.md`, 1).
 - **Force-pushing does not exist.** No kind forces a push or moves a
   branch backwards: a run's push is a fast-forward
   (`../../../protocol/git.md`, 4.8), an update merges the base in
-  (`../README.md`, section 6), and a branch found moved backwards is drift (`README.md`, 3).
+  (`../updates.md`, section 1), and a branch found moved backwards is drift (`drift.md`, 1).
 
 - **Two standing requirements** replace the four above as landing rules'
   attachments (`../../../protocol/configuration/settings.md`, 3). temper's stock
@@ -403,7 +403,7 @@ merge, kind 4, on a pattern of landing branches (jig's
 
   The change keeps the rule and the criterion of its last wait or
   refusal, by the rule's scope and number and the criterion's kind
-  (a gate's number, an approval's role); its panel shows it (`README.md`, 5), and
+  (a gate's number, an approval's role); its panel shows it (`panel.md`, 1), and
   its hold says it, in the forge's words.
 
 ## 3. The landing rules as settings
@@ -432,7 +432,7 @@ sizes and never reads them (jig's `domain/connectors.md`, section 17).
   `forge_human` (`../adoption.md`): an account known on another forge of the
   project doesn't make a rule on this one satisfiable. The root's
   `eligible_people` counts them, joining the people's identities and roles
-  with the forge's rule and link (`../adoption.md`, 6); a deployment login or display name
+  with the forge's rule and link (`../adoption-person.md`, 1); a deployment login or display name
   supplies no forge identity. On a box, the person linked on a forge
   counts there with their own role, so `people: 1` naming it isn't refused,
   and `people: 2` is unless a seeded collaborator makes up the count. A

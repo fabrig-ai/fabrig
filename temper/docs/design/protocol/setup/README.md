@@ -12,7 +12,7 @@ itself up on it as on an owned one (`playground.md`). A forge is a record of tem
 store, made by the act that sets it up or connects it (../forge/engine.md, 1 and
 2); a person chooses a forge's mode and makes it from temper's client
 (`../../client/forge/README.md`, the deployment's page), and may remove it
-(`../../domain/forge/adoption.md`, 1). The
+(`../../domain/forge/adoption-connection.md`, 1). The
 engine is the same in every mode: each mode makes the records the one
 below reads, kept in jig's secrets' store (../credentials.md, the records),
 and the engine's forge component reads connected's. Owned mode is
@@ -43,7 +43,7 @@ NAME`). What comes later is `README.md`, section 9; what is open,
   never reused (../forge/engine.md, 2). The document names no forge: it keeps
   the machine's, its listeners, what a box's owned Forgejo and fakes
   take from the machine, and the limits (`init.md`). A forge can be
-  removed whole (`../../domain/forge/adoption.md`, 1); its box group is then
+  removed whole (`../../domain/forge/adoption-connection.md`, 1); its box group is then
   stopped and its directory removed, the cache kept (`box.md`, 1).
 - **Each mode is a layer that makes the inputs of the one below.**
   Owned's preparation makes a Forgejo and an admin's token, managed's
@@ -556,7 +556,7 @@ Each is intended; what it needs is named with it.
 - **Links for several members or a pasted App** (`reconcile.md`, 3, `github.md`, 2): several
   members need a family of links and a connecting owner's evidence; a
   pasted App needs user authorization or an owner's verified claim.
-  Default: a box's sole-owner link (`../../domain/forge/adoption.md`, 6), and
+  Default: a box's sole-owner link (`../../domain/forge/adoption-person.md`, 1), and
   adoption's seeds in those other deployments
   (`../../draft/forge-identity.md`, section 12).
 
@@ -637,7 +637,7 @@ Each is intended; what it needs is named with it.
   repository in a person's own namespace, made without the person.
 - **The forge as people's sign-in provider** for several members
   (../credentials.md, section 8). A box's sole-owner link names its person
-  on an owned Forgejo (`../../domain/forge/adoption.md`, 6); several members need
+  on an owned Forgejo (`../../domain/forge/adoption-person.md`, 1); several members need
   separate sign-in and account evidence.
 - A launchd agent for the box: `box.md`, section 7.
 - **The box's link on a terminal, as a story** (`box.md`, 2; `testing.md`, 4): the box's process

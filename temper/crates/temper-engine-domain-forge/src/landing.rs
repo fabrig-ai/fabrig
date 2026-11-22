@@ -3937,7 +3937,7 @@ fn finish_flight(d: &mut Domain, key: &ReceiptKey, probed: Option<(u64, bool)>, 
     }
 }
 /// A turn's merge belongs to its member's change; its effect is the landing's
-/// (domain/forge/README.md, 5.3; domain/landing.md, 8).
+/// (domain/forge/topics.md, 1.3; domain/landing.md, 8).
 pub(crate) fn merged_owner(d: &Domain, task: u64, entry: u64) -> u64 {
     let Some(row) = d.landing.rows.get(&task) else {
         return task;

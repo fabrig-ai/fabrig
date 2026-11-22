@@ -106,7 +106,7 @@ otherwise teach.
   its number, its login where temper holds one, its role's number, its
   account on each forge of the project's repositories, by the host their
   lines use, that forge's user's id or unknown (`../forge/adoption.md`): a
-  box's person's by the forge's link (`../forge/adoption.md`, 6), with no adoption, and
+  box's person's by the forge's link (`../forge/adoption-person.md`, 1), with no adoption, and
   marks for the task requester and for temper's own forge writer, who never
   counts as a person. Someone known on none of them is said so once: an
   absent forge identity is explicit and cannot count for
@@ -172,7 +172,7 @@ otherwise teach.
   proposal's item carries it.
 - **The approvals:** an approval counts a person with a known forge
   identity on the forge of the repository a rule covers, as the
-  inventory shows them, a box's person by its link (`../forge/adoption.md`, 6);
+  inventory shows them, a box's person by its link (`../forge/adoption-person.md`, 1);
   adoption seeds roles by the project's permission mapping, a stock admin
   as maintainer (1), never owner (0), keeping existing roles (`../forge/adoption.md`
   ). `propose_settings` judges each landing rule of the chat's

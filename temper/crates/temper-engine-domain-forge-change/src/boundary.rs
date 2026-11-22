@@ -1,5 +1,5 @@
 //! Values owned by the connector top and passed to the change policy
-//! (domain/forge/change/README.md and domain/forge/queues.md and domain/forge/README.md, section 6).
+//! (domain/forge/change/README.md and domain/forge/queues.md and domain/forge/updates.md, section 1).
 //!
 //! The top keeps `Change`, including its pending phase, counters and clean
 //! predecessor heads. This module keeps nothing and knows no API tokens.
@@ -487,7 +487,7 @@ pub enum EffectResult {
     /// A mechanical update conflicted with the base.
     Conflict,
     /// Refused by the client's check before any send: the forge was never asked
-    /// (domain/forge/README.md, 6).
+    /// (domain/forge/updates.md, 1).
     Stale,
     /// An effect failed permanently.
     Failed,

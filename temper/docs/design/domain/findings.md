@@ -183,7 +183,7 @@ findings, kept in the store and never read back. What is open is `findings.md`, 
 - **Its owner** triages it: its area's owner, else the project's
   triager (kind 13), else the project's owners, by `areas.md`, section
   4's rule. A finding that becomes a task's is news to it on the
-  project's findings topic (`forge/README.md`, 5.1); one that becomes a
+  project's findings topic (`forge/topics.md`, 1.1); one that becomes a
   person's is in their Needs you (`areas.md`, section 5).
 - **Its acts,** by its holder or a project owner (`areas.md`, section
   7), a task's through its `finding` tool and a party's through `temper

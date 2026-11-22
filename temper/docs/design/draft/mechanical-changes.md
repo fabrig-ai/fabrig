@@ -16,7 +16,7 @@ Under the turn, a landing branch moves only by its train's landing (`../domain/l
 ## 2. Where it starts
 
 - **A change's branch is one of three** (`../domain/forge/change/README.md`, 1): its own, pushed by its producing task; one handed to it already pushed, a chat's run branch (`../domain/forge/branches.md`); or its requester's held goal branch, which it lands whole as it stands, with no producer (`../domain/agent/tools.md`, 1, `"branch": "mine"`).
-- **A producer need not be an agent:** a catch-up's is the merge job, given the commit to merge, and a goal's close step's is the close job (`../domain/forge/change/README.md`, 1; `../domain/forge/README.md`, section 6).
+- **A producer need not be an agent:** a catch-up's is the merge job, given the commit to merge, and a goal's close step's is the close job (`../domain/forge/change/README.md`, 1; `../domain/forge/updates.md`, section 1).
 - **Only a run's `change` call, or the forge itself, makes a change today.** The root expands a run's call into the change's batch from the run's delegation context: its authority narrowed to the change's grants and charters, a share of its remaining tasks and its budget (`../domain/forge/change/README.md`, 1). A party may make a procedure task in a batch of its own, but only by naming the whole batch, spec, contract, authority and budget, and it holds nothing, so it hands nothing down (jig's `domain/tasks/README.md`, 4). No act of a client's expands a change for a party.
 - **Docs-only branches** land today as goals of a template made for them, or by hand at a quiet moment before main landed by turn. An out-of-band fix is a hand push to main.
 
@@ -59,7 +59,7 @@ temper ctl change open --project PROJECT [--repository OWNER/NAME] --branch BRAN
 - **Never read twice:** after selecting, the change never reads the source branch again. A restart resumes from the kept head: the branch is made again, and one found already at the kept head counts as made.
 - **A read or a make that errors** is retried as any of the change's effects are, the wait counted against the change's stall bound as its producing would be (`../domain/forge/change/repairs.md`). Past it, the change is held, `taking BRANCH: WHY`, and the hold reaches the person; released, it resumes where it stopped.
 - **Cancelled while taking,** it ends as a cancel does, its own branch deleted where it was made (`../domain/forge/change/README.md`, 4).
-- **temper's move, then temper's moves:** the branch was made by temper's identity, so its repairs', resolutions' and updates' pushes are the change's own, and a push to it by another identity is drift (`../domain/forge/change/README.md`, 3), as for any change. Drift reads heads and writers, not who authored the commits.
+- **temper's move, then temper's moves:** the branch was made by temper's identity, so its repairs', resolutions' and updates' pushes are the change's own, and a push to it by another identity is drift (`../domain/forge/change/drift.md`, 1), as for any change. Drift reads heads and writers, not who authored the commits.
 - **The pushed branch is never written, held or deleted.** The person may push it again or delete it; to land a newer head they open another change, and cancel this one or let it land first.
 
 ## 6. Its way to landing
@@ -73,7 +73,7 @@ temper ctl change open --project PROJECT [--repository OWNER/NAME] --branch BRAN
 
 ## 7. What the opener sees
 
-- **The act's answer,** the change's task, then `change show`: its panel, its way, its landing and its head (`../domain/forge/change/README.md`, 5), with the source branch and the kept head while it takes and after.
+- **The act's answer,** the change's task, then `change show`: its panel, its way, its landing and its head (`../domain/forge/change/panel.md`, 1), with the source branch and the kept head while it takes and after.
 - **Among the project's changes,** in the changes view and `landing history`, as a produced change is: what made it differs, not how it is shown.
 - **Its news and holds** reach the person in their inbox, as those of a task they made do.
 

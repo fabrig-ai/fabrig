@@ -102,7 +102,7 @@ and `--box` still makes `demo/` and `demo/bin/git`.
 - **A Forgejo connected** with its bot's tokens has no setup entry
   (`README.md`, section 4); GitHub takes none (`github.md`).
 - **The page's actions are the engine domain's offers**
-  (`../../domain/forge/adoption.md`, 1): "Set up a Forgejo here" while the
+  (`../../domain/forge/adoption-connection.md`, 1): "Set up a Forgejo here" while the
   machine names the box's owned Forgejo and none is kept (`owned.md`, 5), and
   "Connect as its admin", which makes a Forgejo elsewhere from the
   address the person gives (`reconcile.md`, 5). The client cannot infer these offers
@@ -184,7 +184,7 @@ QA's host starts from a copy and `temper box --config COPY` runs it
 - **Its owner may do the forge's work in the org,** and no more: the
   rules' ceiling, the project's ceiling, its role's authority and its
   projections each hold one grant on the org, `acme`, for each kind a
-  change and its goal's issue use (`../../domain/forge/README.md`, section 4):
+  change and its goal's issue use (`../../domain/forge/effects.md`, section 1):
   read, push, open a pull request, merge, comment, create an issue, edit
   a pull request, update it from its base, close or reopen it, and edit,
   close or reopen an issue; 10, as the process tier's owner holds them.

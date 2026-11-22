@@ -1,5 +1,5 @@
 //! One level-triggered change step (domain/forge/change/README.md).
-//! Updates with no result or outstanding write decide again (temper/docs/design/domain/forge/README.md, 6).
+//! Updates with no result or outstanding write decide again (temper/docs/design/domain/forge/updates.md, 1).
 //!
 //! The top keeps the returned state and commits each decision before it sends
 //! a delegate or effect. The top reports Pending while a write is outstanding.
@@ -1460,7 +1460,7 @@ fn updating(
     }
 }
 
-// A refusal before any send spends stall, not another update (domain/forge/README.md, 6).
+// A refusal before any send spends stall, not another update (domain/forge/updates.md, 1).
 fn stale_update(mut change: Change, facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
     let (from, pin, ready_since, preparing) = if let State::Preparing { from, main, ready_since } = change.state {
         (from, main, ready_since, true)

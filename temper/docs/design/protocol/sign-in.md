@@ -638,7 +638,7 @@ its sockets tagged as the server's are.
   Forgejo.
 - **Several members' forge identities.** A box's sole-owner link names
   its person on an owned Forgejo or a manifest-made personal GitHub App
-  (`../domain/forge/adoption.md`, 6). Extending that to members needs the sign-in
+  (`../domain/forge/adoption-person.md`, 1). Extending that to members needs the sign-in
   reasoning checked for several people and a manifest's connecting owner,
   with a family of links (`../draft/forge-identity.md`, section 12).
   Default: adoption's seeds outside a box's one-person scope. Posting an

@@ -208,7 +208,7 @@ pub enum Note {
         why: CoreWait,
     },
     CoreAnswers,
-    /// A forge's link changed or was refused (temper/docs/design/domain/forge/adoption.md, 6).
+    /// A forge's link changed or was refused (temper/docs/design/domain/forge/adoption-person.md, 1).
     ForgeLink {
         forge: u16,
         note: temper_engine_domain_forge::LinkNote,

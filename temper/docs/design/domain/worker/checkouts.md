@@ -654,7 +654,7 @@ wire carries, keeps its first 4,096, where the fields are.
   party rewound to an ancestor since the run started still takes a push
   that restores what that party removed. With branches held by one task
   (jig's `domain/connectors.md`, 3.3), such a rewind is drift the forge
-  looks for after the push (../forge/change/README.md, 3). Naming the head prepare saw
+  looks for after the push (../forge/change/drift.md, 1). Naming the head prepare saw
   needs a decision for a branch that did not exist then.
 - **A save as the task's own delivery** (*A task's own delivery outlives
   its hold*): only a checked push is a task's own delivery, since the

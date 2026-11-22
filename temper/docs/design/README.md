@@ -156,15 +156,15 @@ forge, temper adds:
 
 - **Nothing is forced.** temper never forces a push, never writes to an
   object it does not own but as a participant, and never overwrites a
-  change it did not make (`domain/forge/change/README.md`, 3, and `domain/forge/change/gates.md`, 2).
+  change it did not make (`domain/forge/change/drift.md`, 1, and `domain/forge/change/gates.md`, 2).
 - **A merge lands what was checked:** exactly the head its decision saw,
   with every requirement its branch's rules enforce met: CI, gates and
   approvals at that head, up to date on the decision's reads
   (`domain/forge/change/gates.md`, 2).
 - **A landing temper did not make is news,** like any other
-  (`domain/forge/README.md`, 5.2).
+  (`domain/forge/topics.md`, 1.2).
 - **A change temper did not make to what it owns holds the task that
-  relies on it,** and the client says why (`domain/forge/change/README.md`, 3).
+  relies on it,** and the client says why (`domain/forge/change/drift.md`, 1).
 
 ## 6. Documents
 
@@ -181,6 +181,21 @@ forge, temper adds:
   what temper fills in of smith's agent; and `testing/README.md`, temper's tiers, its fakes, its scenarios and its layout,
   on skein's testing strategy and jig's worlds. Its `README.md` gives the
   reading order, the structure, the names and the decisions.
+  - `domain/forge/README.md`: the forge connector and its documents.
+  - `domain/forge/effects.md`: effects and recovery across restarts.
+  - `domain/forge/topics.md`: topics and landings as news.
+  - `domain/forge/updates.md`: lazy, mechanical updates.
+  - `domain/forge/adoption.md`: adopting repositories, rules, workflows and landing branches.
+  - `domain/forge/adoption-connection.md`: a forge's connection, access state and removal.
+  - `domain/forge/adoption-person.md`: a box's person on its forges.
+  - `domain/forge/change/README.md`: the change procedure and its documents.
+  - `domain/forge/change/drift.md`: a change's drift and its own writes.
+  - `domain/forge/change/panel.md`: a change's panel.
+  - `domain/forge/change/records.md`: a change's records and room.
+  - `domain/forge/change/repairs.md`: repairs and their outcomes.
+  - `domain/forge/change/repairs-resolutions.md`: merge jobs and conflict resolutions.
+  - `domain/forge/change/repairs-briefs.md`: gathering the forge sections of a brief.
+  - `domain/forge/change/repairs-releases.md`: holds and releases.
   - `domain/worker/README.md`: the worker's root, assignments, runs and world.
   - `domain/worker/checkouts.md`: workspaces, preparing, delivering, saving and open questions.
   - `domain/worker/jobs.md`: job kinds, commands and failure diagnostics.
