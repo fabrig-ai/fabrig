@@ -17,5 +17,5 @@ pub mod stories;
 
 #[doc(hidden)]
 pub mod testing {
-    pub use crate::harness::peer_fixture::{Peer, ready_and_drained};
+    pub use crate::harness::peer_fixture::{FIRST, Peer, Peers, ready_and_drained};
 }

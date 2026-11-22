@@ -1,9 +1,6 @@
 use super::*;
 use std::path::PathBuf;
 
-/// No test here proves these bounds; the attempt's exit is expected to come first.
-const HANG_GUARD: Duration = Duration::from_secs(30);
-
 fn retried_total() -> AttemptResult {
     let mut result =
         crate::read_result(&Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/recorded/results/attempt.json"))
@@ -61,32 +58,6 @@ fn pricing_a_total_with_another_gap_stays_unavailable() {
         crate::result::priced_spend(&result, &[priced_response()]),
         Measure::unavailable("total output tokens are a lower bound: root: missing response")
     );
-}
-
-pub(super) fn no_request_requires_selected_complete_observations_without_inventing_tokens() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let mut value = crate::read_result(&root.join("tests/recorded/results/attempt.json")).expect("fixture");
-    value.tokens.clear();
-    value.outcome.deciding = vec!["no-request".into(), "stream-whole".into()];
-    value.outcome.checks = value
-        .outcome
-        .deciding
-        .iter()
-        .map(|name| crate::CheckVerdict {
-            check: name.clone(),
-            passed: Measure::Observed { value: true },
-            evidence: vec![],
-        })
-        .collect();
-    assert!(observed_no_request(&value));
-    assert_eq!(known_tokens(&value), None, "NoRequest is evidence, not invented numeric usage");
-    value.outcome.checks[1].passed = Measure::unavailable("missing authoritative terminal");
-    assert!(!observed_no_request(&value));
-    value.outcome.checks[1].passed = Measure::LowerBound { value: true, missing: vec!["loss".into()] };
-    assert!(!observed_no_request(&value));
-    value.outcome.checks[1].passed = Measure::Observed { value: true };
-    value.outcome.deciding.pop();
-    assert!(!observed_no_request(&value), "an advisory no-request observation cannot lift a token gap");
 }
 
 fn startup_refusal_result() -> AttemptResult {
@@ -263,39 +234,4 @@ fn missing_token_scopes_keep_the_total_unknown() {
     let total = result.tokens.iter_mut().find(|record| record.role == ScopeKind::Total).expect("total");
     total.usage.fresh = Measure::unavailable("missing child");
     assert_eq!(known_tokens(&result), None);
-}
-
-#[test]
-fn missing_result_recovery_archives_evidence_and_removes_settled_scratch() {
-    // The fake fresh attempt creates its scratch, then exits without a
-    // result. Settlement must precede recovery and owned scratch deletion;
-    // dispatcher resource counts never become agent measurements.
-    let (_, requests) = block_requests();
-    let request = &Request { settlement_ms: HANG_GUARD.as_millis(), ..requests[0].clone() };
-    let scratch = skein_scratch::Scratch::new("bench-batch");
-    let state = scratch.path().to_path_buf().join(format!("smith-bench-dispatch-{}", std::process::id()));
-    let guard = Guard::new(&state.join("user-home"), &state.join("config"), &state.join("state"), &[])
-        .expect("synthetic guard");
-    crate::isolate::create_directory(&guard, &state).expect("private state");
-    let scratch = crate::run::scratch_root(&state, request).expect("planned scratch");
-    let relative = scratch.strip_prefix(&state).expect("private scratch").display();
-    let archived = format!("runs/{}/{}", request.identity.run, request.identity.attempt);
-    fs::write(
-        state.join("attempt"),
-        format!("umask 077; mkdir -p '{relative}' '{archived}'; cp \"$1\" '{archived}/prepared.json'; printf transient > '{relative}/transient'; printf interrupted; exit 1\n"),
-    )
-    .expect("fake attempt program");
-    let machine = Machine { path: "/usr/bin:/bin".into(), rustup_home: None };
-    let recovered =
-        dispatch(&guard, &machine, &state, &Clock::new(), Path::new("/bin/sh"), request, HANG_GUARD.as_nanos())
-            .expect("settled missing result");
-    assert!(matches!(recovered.outcome.end, End::HarnessError { .. }));
-    assert!(matches!(recovered.resources.cpu_ms, Measure::Unavailable { .. }));
-    let directory = state.join("runs").join(&request.identity.run).join(&request.identity.attempt);
-    assert_eq!(fs::read(directory.join("dispatcher-stdout.log")).expect("retained output"), b"interrupted");
-    assert!(!scratch.exists());
-    assert!(recovered.artifacts.iter().any(|artifact| {
-        artifact.path == Path::new("prepared.json")
-            && artifact.sha256 == crate::arm::binary_digest(&directory.join(&artifact.path)).expect("digest")
-    }));
 }

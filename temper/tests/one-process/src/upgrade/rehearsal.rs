@@ -9,6 +9,8 @@ use skein_shell::Host;
 use std::path::Path;
 use temper_playground::machine::{self, SignalHost};
 
+pub(crate) mod live;
+
 struct Tool(temper_service::Service, Time);
 impl Host for Tool {
     fn iterate(&mut self, now: Time, wall: Wall) {

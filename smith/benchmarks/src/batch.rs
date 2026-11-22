@@ -12,16 +12,18 @@ use skein_world::end_to_end::Command;
 
 use crate::guard::Guard;
 use crate::isolate::Machine;
-use crate::process::{Bounds, Capture, execute};
+use crate::process::{Bounds, Capture, ProcessResult, execute};
 use crate::run::{Request, read_prepared};
-use crate::{
-    AttemptResult, Design, End, Fault, Input, Measure, ScopeKind, Suite, bound, format, input, mismatch, refuse_if,
-};
+use crate::{AttemptResult, Design, End, Fault, Input, Measure, ScopeKind, Suite, bound, input, mismatch, refuse_if};
 
 mod credentials;
+mod dispatch;
+
+use dispatch::DispatchFiles;
 
 pub(crate) mod testing {
     pub use super::credentials::testing::run;
+    pub use super::dispatch::{DispatchFiles, dispatch_result};
 }
 
 pub(crate) fn validate_credentials(task: &crate::Task) -> Result<(), Fault> {
@@ -337,36 +339,45 @@ fn dispatch_command(
     ))
 }
 
+struct NativeDispatchFiles<'a>(&'a Guard);
+
+impl DispatchFiles for NativeDispatchFiles<'_> {
+    fn read_result(&self, file: &Path) -> Result<AttemptResult, Fault> {
+        crate::read_result(file)
+    }
+
+    fn exists(&self, path: &Path) -> bool {
+        path.exists()
+    }
+
+    fn snapshot(&mut self, directory: &Path) -> Result<crate::grade::Snapshot, Fault> {
+        crate::run::private_parent(self.0, directory)?;
+        crate::grade::snapshot_all(directory)
+    }
+
+    fn archive(&mut self, directory: &Path, name: &str, bytes: &[u8]) -> Result<crate::Artifact, Fault> {
+        crate::grade::archive(self.0, directory, name, bytes)
+    }
+
+    fn remove_scratch(&mut self, path: &Path) -> Result<(), Fault> {
+        let path = self.0.write_path(path)?;
+        fs::remove_dir_all(path).map_err(Fault::from)
+    }
+
+    fn replace_result(&mut self, file: &Path, result: &AttemptResult) -> Result<(), Fault> {
+        let path = self.0.write_path(file)?;
+        fs::write(path, crate::render_result(result)?).map_err(Fault::from)
+    }
+}
+
 fn dispatch_result(
     guard: &Guard,
     state: &Path,
     request: &Request,
-    process: &crate::process::ProcessResult,
+    process: &ProcessResult,
     existed: bool,
 ) -> Result<AttemptResult, Fault> {
-    let scratch = crate::run::scratch_root(state, request)?;
-    let result_file =
-        state.join("runs").join(&request.identity.run).join(&request.identity.attempt).join("result.json");
-    let mut result = match crate::read_result(&result_file) {
-        Ok(result) => result,
-        Err(error) if !result_file.exists() => crate::run::recover(
-            guard,
-            state,
-            request,
-            process,
-            format!("attempt ended {:?} without a result: {error}", process.exit),
-        )?,
-        Err(error) => return Err(format(format!("attempt's existing result is invalid: {error}"))),
-    };
-    if !existed && scratch.exists() {
-        let deletion = guard.write_path(&scratch).and_then(|path| fs::remove_dir_all(path).map_err(Fault::from));
-        if let Err(error) = deletion {
-            result.outcome.end = End::HarnessError { what: format!("dispatcher workspace deletion failed: {error}") };
-            let path = guard.write_path(&result_file)?;
-            fs::write(path, crate::render_result(&result)?)?;
-        }
-    }
-    Ok(result)
+    dispatch::dispatch_result(&mut NativeDispatchFiles(guard), state, request, process, existed)
 }
 
 fn dispatch(
@@ -623,9 +634,28 @@ fn cache_verdicts(
     }
 }
 
-#[cfg(test)]
-pub(crate) fn probe_cases() {
-    tests::no_request_requires_selected_complete_observations_without_inventing_tokens();
+pub(crate) fn probe_cases(mut value: AttemptResult) {
+    value.tokens.clear();
+    value.outcome.deciding = vec!["no-request".into(), "stream-whole".into()];
+    value.outcome.checks = value
+        .outcome
+        .deciding
+        .iter()
+        .map(|name| crate::CheckVerdict {
+            check: name.clone(),
+            passed: Measure::Observed { value: true },
+            evidence: vec![],
+        })
+        .collect();
+    assert!(observed_no_request(&value));
+    assert_eq!(known_tokens(&value), None, "NoRequest is evidence, not invented numeric usage");
+    value.outcome.checks[1].passed = Measure::unavailable("missing authoritative terminal");
+    assert!(!observed_no_request(&value));
+    value.outcome.checks[1].passed = Measure::LowerBound { value: true, missing: vec!["loss".into()] };
+    assert!(!observed_no_request(&value));
+    value.outcome.checks[1].passed = Measure::Observed { value: true };
+    value.outcome.deciding.pop();
+    assert!(!observed_no_request(&value), "an advisory no-request observation cannot lift a token gap");
 }
 
 #[cfg(test)]

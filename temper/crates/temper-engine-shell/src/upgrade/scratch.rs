@@ -1,4 +1,5 @@
 //! Rehearsal scratch lifetime and stale removal (protocol/binaries.md, section 2).
+use std::ffi::OsString;
 use std::fs::{DirBuilder, DirEntry, File, TryLockError};
 use std::os::unix::{ffi::OsStrExt, fs::DirBuilderExt};
 use std::path::{Path, PathBuf};
@@ -10,16 +11,34 @@ use std::time::{Duration, SystemTime};
     reason = "the scratch sweep compares filesystem times to the wall clock (binaries.md, 2)"
 )]
 pub(super) fn sweep(binary: &str, cache: &Path) -> Vec<String> {
-    let mut lines = Vec::new();
-    let Ok(entries) = std::fs::read_dir(cache) else { return lines };
+    let Ok(entries) = std::fs::read_dir(cache) else { return Vec::new() };
     let now = SystemTime::now();
-    for entry in entries.flatten() {
-        let name = entry.file_name();
+    sweep_with(binary, entries.flatten().map(|entry| (entry.file_name(), entry)), now, modified_directory, |entry| {
+        remove_leftover(&entry.path())
+    })
+}
+
+#[expect(clippy::disallowed_types, reason = "filesystem modification times use SystemTime (binaries.md, 2)")]
+pub(super) fn sweep_with<T>(
+    binary: &str,
+    entries: impl IntoIterator<Item = (OsString, T)>,
+    now: SystemTime,
+    mut modified_directory: impl FnMut(&T) -> std::io::Result<Option<SystemTime>>,
+    mut remove_leftover: impl FnMut(&T) -> std::io::Result<()>,
+) -> Vec<String> {
+    let mut lines = Vec::new();
+    for (name, entry) in entries {
         let Some(seed) = name.as_bytes().strip_prefix(b"upgrade-") else { continue };
         if seed.len() != 16 || !seed.iter().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(byte)) {
             continue;
         }
-        if let Err(why) = sweep_entry(&entry, now)
+        let result = modified_directory(&entry).and_then(|modified| {
+            let old = modified
+                .and_then(|modified| now.duration_since(modified).ok())
+                .is_some_and(|age| age >= Duration::from_secs(3600));
+            if old { remove_leftover(&entry) } else { Ok(()) }
+        });
+        if let Err(why) = result
             && why.kind() != std::io::ErrorKind::NotFound
         {
             lines.push(format!(
@@ -33,19 +52,18 @@ pub(super) fn sweep(binary: &str, cache: &Path) -> Vec<String> {
 }
 
 #[expect(clippy::disallowed_types, reason = "filesystem modification times use SystemTime (binaries.md, 2)")]
-fn sweep_entry(entry: &DirEntry, now: SystemTime) -> std::io::Result<()> {
+fn modified_directory(entry: &DirEntry) -> std::io::Result<Option<SystemTime>> {
     let metadata = entry.metadata()?;
     if !metadata.is_dir() {
-        return Ok(());
+        return Ok(None);
     }
-    let Ok(age) = now.duration_since(metadata.modified()?) else { return Ok(()) };
-    if age < Duration::from_secs(3600) {
-        return Ok(());
-    }
-    let path = entry.path();
-    let file = File::open(&path)?;
+    metadata.modified().map(Some)
+}
+
+fn remove_leftover(path: &Path) -> std::io::Result<()> {
+    let file = File::open(path)?;
     match file.try_lock() {
-        Ok(()) => std::fs::remove_dir_all(&path),
+        Ok(()) => std::fs::remove_dir_all(path),
         Err(TryLockError::WouldBlock) => Ok(()),
         Err(TryLockError::Error(why)) => Err(why),
     }
@@ -78,7 +96,16 @@ fn lock_and_rename(staging: &Path, path: &Path) -> Result<File, String> {
 
 /// Hold the rehearsal's lock until all its scratch contents have been removed.
 pub(super) fn remove(binary: &str, path: &Path, held: File) -> Option<String> {
-    let result = std::fs::remove_dir_all(path);
+    remove_with(binary, path, held, |path| std::fs::remove_dir_all(path))
+}
+
+pub(super) fn remove_with(
+    binary: &str,
+    path: &Path,
+    held: impl Sized,
+    remove: impl FnOnce(&Path) -> std::io::Result<()>,
+) -> Option<String> {
+    let result = remove(path);
     drop(held);
     result.err().map(|why| {
         format!(
