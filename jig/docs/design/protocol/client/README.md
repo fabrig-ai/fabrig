@@ -682,15 +682,16 @@ Each within jig's suites' budgets.
   and failures release credit, with one watch terminal throughout
   (`jig-client-protocol-link`'s stream table).
 - **Step tests** in `jig-client-protocol-wire` and each application's
-  wire: generated, as skein's `data/codec/README.md`, section 6 has them; the fixed
-  envelope read across versions among them.
+  wire are written by hand, with values built from schema text or public
+  fields, as skein's `data/codec/README.md`, section 6 says; the fixed
+  envelope read across versions among them. No tests are generated.
 - **The client's wire world,** `jig-client-wire-world`: the client
   side's generated codecs (jig's wire, the reference UI's records,
   `ops`'s wire and jig's test family's) checked for drift against their
   schemas, and jig's wire's decoders run over arbitrary and mutated
   bytes in the fuzzy suite (skein's `data/codec/README.md`, section 6).
 - **The template preview** in the client-protocol carriage tests and
-  wire tests built from schema text or constructors: both configured
+  wire tests built from schema text or public fields: both configured
   intent and `resolved_default`, including
   `None`, cross whole. The shapes tests keep omission, and the
   reference view tests consume the supplied preview;
