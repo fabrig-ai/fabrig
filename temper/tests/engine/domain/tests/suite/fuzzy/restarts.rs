@@ -10,9 +10,8 @@ fn fuzzy_engine_restarts() {
     }
     // Two start classes plus a second signal cover ENGINE in three runs:
     // each class draws its prerequisite crash, and the second signal its stop.
-    for seed in [0, 2, 3] {
-        eprintln!("engine restart seed {seed}");
-        let ledger = super::follows::run_with_restarts(seed);
+    // Reuse the settled follows world, keeping each seed's draws and ledger separate.
+    for ledger in super::follows::run_with_restarts(&[0, 2, 3]) {
         eprintln!("fell: {:?}", ledger.fell());
         sweep.ran(&ledger);
     }

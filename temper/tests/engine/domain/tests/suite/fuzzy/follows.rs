@@ -264,34 +264,44 @@ fn run_replayed(seed: u64) {
     first.world.close();
     replay.world.close();
 }
-/// The same workload and draws, with the independent restart stream enabled.
-pub(super) fn run_with_restarts(seed: u64) -> skein_world::faults::FaultLedger {
+/// A short follows workload, with the independent restart stream enabled.
+pub(super) fn run_with_restarts(seeds: &[u64]) -> Vec<skein_world::faults::FaultLedger> {
     use temper_engine_domain_world::forge_routes::restarts::Injector;
-    let mut random = Rng::new(seed + 17_100);
+    // A live red crosses the drawn restart. Two further stimuli keep this a
+    // follows sweep without repeating the full follows suite's prelude/tail.
+    const RESTART_STEPS: u32 = 2;
+    const RESTART_HORIZON: u64 = 100;
     let mut driver = Driver::new();
-    driver.world.drain_cut();
-    // The tick horizon includes the prelude, drawn steps and settling tail;
-    // shorter scripts clamp their fault to the final iteration.
-    driver.world.inject_restarts(Injector::new(seed, &temper_faults::restarts::ENGINE, 3_000).with_recovery_clock());
-    for step in PRELUDE {
-        eprintln!("restart follow seed {seed} prelude: {step:?}");
-        driver.step(step);
-    }
-    for number in 0..STEPS {
-        let step =
-            if proof::follow(&driver.world).queue.first().is_some_and(|entry| entry.state == FollowState::Producing) {
+    let mut ledgers = Vec::new();
+    for &seed in seeds {
+        eprintln!("engine restart seed {seed}");
+        let mut random = Rng::new(seed + 17_100);
+        driver.world.drain_cut();
+        driver.world.inject_restarts(
+            Injector::new(seed, &temper_faults::restarts::ENGINE, RESTART_HORIZON).with_recovery_clock(),
+        );
+        for step in [Step::Landing(Files::Inside), Step::Start(0), Step::Check(true)] {
+            driver.step(step);
+        }
+        for _ in 0..RESTART_STEPS {
+            let step = if proof::follow(&driver.world)
+                .queue
+                .first()
+                .is_some_and(|entry| entry.state == FollowState::Producing)
+            {
                 Step::Check(random.below(2) == 0)
             } else {
                 drawn(&mut random)
             };
-        eprintln!("restart follow seed {seed} step {number}: {step:?}");
-        driver.step(step);
+            driver.step(step);
+        }
+        driver.finish();
+        let ledger = driver.world.finish_restarts();
+        driver.finish();
+        ledgers.push(ledger);
     }
-    driver.finish();
-    let ledger = driver.world.finish_restarts();
-    driver.finish();
     driver.world.close();
-    ledger
+    ledgers
 }
 
 fn shard(seeds: Range<u64>) {

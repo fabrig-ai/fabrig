@@ -186,7 +186,7 @@ pub struct World {
     dispatch_latency: Option<Duration>,
     lose_rerun_answer: bool,
     unavailable: Option<(Wall, Wall)>,
-    restart_scripts: restarts::Scripts,
+    restart_scripts: Option<restarts::Scripts>,
     settled_generation: Option<(u64, Time)>,
     dropped_answers: u32,
     calls: u32,
@@ -902,7 +902,7 @@ impl World {
             dispatch_latency: None,
             lose_rerun_answer: false,
             unavailable: None,
-            restart_scripts: restarts::Scripts::default(),
+            restart_scripts: None,
             settled_generation: None,
             dropped_answers: 0,
             calls: 0,
@@ -1813,7 +1813,9 @@ impl World {
                 env.limits.timeouts = 1000;
             }
             self.sweep_call(&event, &mut env.limits);
-            self.restart_call_config(&event, &mut env);
+            if self.restart_scripts.is_some() {
+                self.restart_call_config(&event, &mut env);
+            }
             let excluded = self.exclude_record_lag(&event);
             if let Some(delay) = self.dispatch_latency
                 && matches!(&event, forge::Event::Call { op: raw::Op::Write(raw::Write::Dispatch { .. }), .. })
@@ -2080,7 +2082,9 @@ impl World {
             ));
             return;
         }
-        if let Some(error) = self.restart_refusal(&op) {
+        if self.restart_scripts.is_some()
+            && let Some(error) = self.restart_refusal(&op)
+        {
             self.to_top.push((
                 self.generation,
                 top::Event::Client(skein_forge_client::Event::Answered {
@@ -2222,10 +2226,12 @@ impl World {
                     } else {
                         result
                     };
-                    if self.restart_loses_answer(&pending.op, &result) {
-                        continue;
+                    if self.restart_scripts.is_some() {
+                        if self.restart_loses_answer(&pending.op, &result) {
+                            continue;
+                        }
+                        self.restart_answer(&pending.op, &result);
                     }
-                    self.restart_answer(&pending.op, &result);
                     let event = (
                         pending.generation,
                         top::Event::Client(skein_forge_client::Event::Answered {

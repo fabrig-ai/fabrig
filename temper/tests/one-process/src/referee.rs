@@ -50,6 +50,7 @@ pub(crate) struct Referee {
     pub(crate) store: Rc<RefCell<Store>>,
     rules: Rc<RefCell<rules::Referee>>,
     run: Rc<RefCell<Run>>,
+    restart_faults: Option<Rc<RefCell<crate::restarts::Injector>>>,
     phase: crate::world::Phase,
     attached: Option<()>,
     cold: Option<()>,
@@ -158,12 +159,15 @@ impl Referee {
         let adopted = crate::stories::adopted(&store.borrow().rows);
         let acknowledged = restart::forge(&run.borrow().rows);
         run.borrow_mut().rules = Some(rules.clone());
+        // The injector is fixed for a phase; ordinary iterations need no Run borrow.
+        let restart_faults = run.borrow().restart_faults.clone();
         Self {
             finding: None,
             controls,
             store,
             rules,
             run,
+            restart_faults,
             phase,
             attached: None,
             cold: (applied > 0).then_some(()),
@@ -487,15 +491,15 @@ impl Referee {
             }
             return Ok(());
         }
-        if service.service.engine_domain().is_some_and(temper_engine_domain::Domain::ready)
-            && let Some(injector) = &self.run.borrow().restart_faults
+        if let Some(injector) = &self.restart_faults
+            && service.service.engine_domain().is_some_and(temper_engine_domain::Domain::ready)
         {
             injector.borrow_mut().opening(now);
         }
         let mut complete = self.phase_complete(other)?;
         if complete
             && matches!(self.phase, crate::world::Phase::Drain)
-            && let Some(injector) = &self.run.borrow().restart_faults
+            && let Some(injector) = &self.restart_faults
         {
             complete = injector.borrow_mut().ready();
         }
@@ -510,7 +514,7 @@ impl Referee {
                 }
             }
             self.stopping()?;
-            if !matches!(self.phase, crate::world::Phase::Drain) || self.run.borrow().restart_faults.is_none() {
+            if !matches!(self.phase, crate::world::Phase::Drain) || self.restart_faults.is_none() {
                 self.controls.signal(0, skein_io::kernel::ServiceSignal::Terminate);
             }
             self.done = Some(());
@@ -666,7 +670,7 @@ impl skein_world::Referee<Proc> for Referee {
         Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
-        if self.run.borrow().restart_faults.as_ref().is_some_and(|injector| injector.borrow().waiting()) {
+        if self.restart_faults.as_ref().is_some_and(|injector| injector.borrow().waiting()) {
             return Some(Time::ZERO);
         }
         if matches!(self.story, crate::world::Story::HeldChange) && matches!(self.phase, crate::world::Phase::SignIn) {

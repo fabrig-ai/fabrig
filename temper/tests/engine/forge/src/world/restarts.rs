@@ -112,6 +112,7 @@ impl Injector {
     /// Inject only these kinds at this named restart. `until` is required for
     /// the finite outage; drawn restarts always include `ENGINE_CRASH`.
     pub fn inject(&mut self, world: &mut World, selected: &[Kind], until: Option<Wall>) {
+        world.restart_scripts.get_or_insert_with(Scripts::default);
         let from = world.now();
         for kind in selected {
             if *kind == kinds::ENTRIES_HELD_BY_ENDED {
@@ -121,12 +122,12 @@ impl Injector {
             } else if *kind == kinds::FORGE_DOWN_UNTIL {
                 let until = until.expect("finite outage's end");
                 assert!(until > world.wall());
-                world.restart_scripts.down = Some((world.wall(), Some(until)));
+                world.restart_scripts.as_mut().expect("restart scripts").down = Some((world.wall(), Some(until)));
             } else if *kind == kinds::FORGE_DOWN_FOR_GOOD {
-                world.restart_scripts.down = Some((world.wall(), None));
+                world.restart_scripts.as_mut().expect("restart scripts").down = Some((world.wall(), None));
             } else if *kind == kinds::FIND_KEEPS_FAILING {
                 assert!(
-                    world.restart_scripts.made_without_answer > 0,
+                    world.restart_scripts.as_ref().expect("restart scripts").made_without_answer > 0,
                     "a write made before the restart lost its answer"
                 );
                 assert!(
@@ -143,9 +144,10 @@ impl Injector {
                     )),
                     "the lost write is still uncertain at the restart"
                 );
-                world.restart_scripts.find = true;
+                world.restart_scripts.as_mut().expect("restart scripts").find = true;
             } else if *kind == kinds::READ_ALWAYS_LIMITED {
-                world.restart_scripts.limited = Some(Read::Branch { branch: b"main".as_slice().into() });
+                world.restart_scripts.as_mut().expect("restart scripts").limited =
+                    Some(Read::Branch { branch: b"main".as_slice().into() });
             } else {
                 assert_eq!(*kind, ENGINE_CRASH, "this world's restart vocabulary");
             }
@@ -311,12 +313,12 @@ impl World {
 
     /// Lose successful issue-creation answers only after the fake made the writes.
     pub fn lose_made_write_answers(&mut self) {
-        self.restart_scripts.lose_made = true;
+        self.restart_scripts.get_or_insert_with(Scripts::default).lose_made = true;
     }
 
     #[must_use]
     pub fn made_without_answer(&self) -> u32 {
-        self.restart_scripts.made_without_answer
+        self.restart_scripts.as_ref().map_or(0, |scripts| scripts.made_without_answer)
     }
 
     #[must_use]
@@ -333,19 +335,19 @@ impl World {
     /// Each refused or limited call, as answered at the world's fake boundary.
     #[must_use]
     pub fn restart_answers(&self) -> &[(Wall, Op, Error)] {
-        &self.restart_scripts.answers
+        self.restart_scripts.as_ref().map_or(&[], |scripts| scripts.answers.as_slice())
     }
 
     pub(super) fn restart_refusal(&mut self, op: &Op) -> Option<Error> {
-        let down = self
-            .restart_scripts
-            .down
-            .is_some_and(|(from, until)| self.wall() >= from && until.is_none_or(|end| self.wall() < end));
-        let find = self.restart_scripts.find
-            && matches!(op, Op::Read(Read::Items { kind: Some(skein_forge::api::Kind::Issue), .. }));
+        let scripts = self.restart_scripts.as_ref()?;
+        let down =
+            scripts.down.is_some_and(|(from, until)| self.wall() >= from && until.is_none_or(|end| self.wall() < end));
+        let find =
+            scripts.find && matches!(op, Op::Read(Read::Items { kind: Some(skein_forge::api::Kind::Issue), .. }));
         if down || find {
             let error = Error::Unavailable;
-            self.restart_scripts.answers.push((self.wall(), op.clone(), error));
+            let at = self.wall();
+            self.restart_scripts.as_mut().expect("restart scripts").answers.push((at, op.clone(), error));
             Some(error)
         } else {
             None
@@ -354,7 +356,7 @@ impl World {
 
     pub(super) fn restart_call_config(&mut self, event: &forge::Event, env: &mut Env<forge::Config>) {
         if let forge::Event::Call { op, user, .. } = event
-            && let Some(read) = &self.restart_scripts.limited
+            && let Some(read) = &self.restart_scripts.as_ref().expect("restart scripts").limited
             && *op == crate::translate::op(&Op::Read(read.clone()), &self.env.limits.client)
         {
             env.limits.rate_limit = 1;
@@ -366,8 +368,9 @@ impl World {
     }
 
     pub(super) fn restart_loses_answer(&mut self, op: &Op, result: &Result<Answer, Error>) -> bool {
-        if self.restart_scripts.lose_made && matches!(op, Op::Write(Write::CreateIssue { .. })) && result.is_ok() {
-            self.restart_scripts.made_without_answer += 1;
+        let scripts = self.restart_scripts.as_mut().expect("restart scripts");
+        if scripts.lose_made && matches!(op, Op::Write(Write::CreateIssue { .. })) && result.is_ok() {
+            scripts.made_without_answer += 1;
             true
         } else {
             false
@@ -376,7 +379,8 @@ impl World {
 
     pub(super) fn restart_answer(&mut self, op: &Op, result: &Result<Answer, Error>) {
         if let Err(error @ Error::RateLimited { .. }) = result {
-            self.restart_scripts.answers.push((self.wall(), op.clone(), *error));
+            let at = self.wall();
+            self.restart_scripts.as_mut().expect("restart scripts").answers.push((at, op.clone(), *error));
         }
     }
 }

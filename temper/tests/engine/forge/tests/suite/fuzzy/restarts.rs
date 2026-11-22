@@ -46,9 +46,12 @@ fn run(seed: u64, sweep: &Sweep) -> (Injector, usize) {
             what: top::What::Branch(Box::new([b"main".as_slice().into()])),
         }]),
     });
-    let end = world.now().saturating_add(Duration::from_secs(60));
+    // Three seconds include a limited read's retry and a finite outage's end.
+    // Never-ending faults need no further idle retries to check the world's rules.
+    let end = world.now().saturating_add(Duration::from_secs(3));
     let mut injector = Injector::new(seed);
-    injector.draw(&FORGE, 100, Wall::from_nanos(end.as_nanos()));
+    // The first eight driver iterations interleave the restart with the workload.
+    injector.draw(&FORGE, 8, Wall::from_nanos(end.as_nanos()));
     if injector.needs_uncertain_write() {
         world.lose_made_write_answers();
     }

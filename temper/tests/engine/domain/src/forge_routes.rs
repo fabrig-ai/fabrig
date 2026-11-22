@@ -3238,11 +3238,15 @@ impl World {
     }
 
     pub fn tick(&mut self) {
-        if let Some(mut injector) = self.restarts.take() {
+        // Do not move the large inline ledger on iterations with no injector.
+        if self.restarts.is_some() {
+            let mut injector = self.restarts.take().expect("enabled restart injector");
             injector.tick(self);
             self.restarts = Some(injector);
         }
-        self.dispatch_restart_calls(None);
+        if self.restart_calls.is_some() {
+            self.dispatch_restart_calls(None);
+        }
         self.tick_with_reply_cut(None, true);
         if self.auto_prepare {
             self.complete_prepare();
