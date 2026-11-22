@@ -23937,6 +23937,11 @@ pub struct LandingFollow {
 }
 
 // Record: LandingFollow.
+impl LandingFollow {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 196;
+}
+
 impl Record for LandingFollow {
     type Limits = Limits;
     const TAIL: Path = paths::LANDING_FOLLOW_TAIL;
@@ -23991,6 +23996,11 @@ pub struct LandingFollows {
 }
 
 // Record: LandingFollows.
+impl LandingFollows {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for LandingFollows {
     type Limits = Limits;
     const TAIL: Path = paths::LANDING_FOLLOWS_TAIL;
@@ -24033,7 +24043,7 @@ pub struct LandingRow {
 // Record: LandingRow.
 impl LandingRow {
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 390;
+    pub const ENCODED_AT_ZERO: u64 = 395;
 }
 
 impl Record for LandingRow {
