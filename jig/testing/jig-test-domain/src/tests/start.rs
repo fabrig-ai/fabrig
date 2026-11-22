@@ -23,6 +23,7 @@ struct Host {
     commits: Vec<(u64, bool)>,
     cut_wires: bool,
     wires: Option<Continuation>,
+    reads: Vec<u16>,
     stopped: bool,
 }
 
@@ -36,6 +37,7 @@ impl Host {
             commits: Vec::new(),
             cut_wires: false,
             wires: None,
+            reads: Vec::new(),
             stopped: false,
         }
     }
@@ -118,6 +120,7 @@ impl Host {
                         connector,
                         call: crate::connector::SystemRequest::ReadFact { resource, .. },
                     }) => {
+                        self.reads.push(connector);
                         crate::step(
                             &mut self.domain,
                             &self.env,
