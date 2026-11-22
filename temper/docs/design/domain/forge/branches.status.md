@@ -1,7 +1,9 @@
 # branches: status
 
-2026-11-20. Where the tree's code lags or departs from [branches.md](branches.md).
+2026-11-22. Where the tree's code lags or departs from [branches.md](branches.md).
 
+- **Not yet:** 1: a making's reads refused for room wait in no line and on no deadline, and the log says nothing of the wait (`temper-engine-domain-forge/src/goal_branch.rs`, `retry`) [in flight: change 12969].
+- **Not yet:** 1, *Made whatever restarts*: a making's restart read refused for room, or waiting out its forge, still counts as a fresh read (`goal_branch.rs`, `reading_afresh`) [in flight: change 12970].
 
 
 
