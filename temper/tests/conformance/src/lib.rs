@@ -176,6 +176,18 @@ impl Application for Temper {
             returned: None,
         }
     }
+    fn rehearse(domain: &mut Domain) {
+        domain.root.rehearse();
+    }
+    fn rehearsed(domain: &Domain) -> bool {
+        domain.root.rehearsed()
+    }
+    fn refused(domain: &Domain) -> Option<String> {
+        domain.root.start_stop().map(|stop| format!("{stop:?}"))
+    }
+    fn start_phase(domain: &Domain) -> String {
+        format!("{:?}", domain.root.start_phase())
+    }
     fn store(config: &Config) -> Store {
         let configuration = config::root(config.seed, config.scenario, config.story).0;
         temper_engine_domain_world::fixtures::restored_over(

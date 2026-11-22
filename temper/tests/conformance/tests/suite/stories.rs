@@ -3,7 +3,14 @@ use temper_conformance_world::stories::{self, Story};
 use temper_conformance_world::{Config, Temper};
 #[test]
 fn chat_change_lands_only_after_current_head_ci_and_review() {
-    stories::run(Story::ReviewedChange, Cut::None, 71).expect("reviewed change");
+    let setup = Temper::store(&Config::for_story(71, Story::ReviewedChange)).applied;
+    let outcome = stories::run(Story::ReviewedChange, Cut::None, 71).expect("reviewed change");
+    let mut sample = jig_conformance::store_check::StoreChecks::sampled(71, 32);
+    for commit in setup + 1..=outcome.commits {
+        sample.due(commit);
+    }
+    assert_eq!(outcome.checked, sample.checked());
+    assert!(outcome.checked < outcome.commits - setup);
 }
 #[test]
 fn failed_ci_is_repaired_and_the_new_head_is_reviewed() {
@@ -56,11 +63,15 @@ fn a_forked_cut_ends_as_a_fresh_cut_does() {
         let mut cuts = fresh.iter().filter(|(_, expected)| expected.crashes == outcome.crashes);
         if let Some((cut, expected)) = cuts.next() {
             assert!(cuts.next().is_none(), "crashes identify one cut");
-            assert_eq!(outcome, *expected, "cut {cut}");
+            // The sweep's earlier children checked commits the fresh run only sampled.
+            let mut expected = expected.clone();
+            expected.checked = outcome.checked;
+            assert_eq!(outcome, expected, "cut {cut}");
         }
     }
     jig_conformance::cut_passed();
     assert_eq!(outcome.forked, (first_live..=baseline.commits).collect::<Vec<_>>(), "every live cut completed");
+    assert_eq!(outcome.checked, outcome.commits - first_live + 1, "every live commit checked by its child");
 }
 
 /// Crash one native story at its configured receipt cuts, including writer

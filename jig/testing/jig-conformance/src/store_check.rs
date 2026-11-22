@@ -5,14 +5,14 @@ use skein_lib::Rng;
 use skein_world::streams::{Stream, Streams};
 
 /// A run's store-check policy and the commits it has counted.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct StoreChecks {
     policy: Policy,
     commits: u64,
     checked: u64,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 enum Policy {
     Every,
     Sampled { seed: u64, one_in: u64, draw: u64 },
