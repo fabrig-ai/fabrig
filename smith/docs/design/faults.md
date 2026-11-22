@@ -159,6 +159,9 @@ pub fn ended(answer: &smith_domain_run::Answer) -> Ended;
 - **`ended`:** `Answer::Accepted` and `Answer::Parked` are `Completed`;
   `Answer::Failed` names `Limited`, `Refused`, `Unauthorized` or
   `Untooled` by its `Fault` (domain/run.md, section 9); a
+  `Fault::Completion` whose failure is `CompletionFailure::Unauthorized`
+  is `Unauthorized` too, the direct backend's expired sign-in (section
+  4's row), as `Fault::Unauthorized` is a program's; a
   `Fault::Completion` whose failure is of a class the session retries
   (domain/session.md, 4), past its retries, is `Outage`; any other
   failure, and `Answer::Refused`, is `Failed`.
