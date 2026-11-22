@@ -28,7 +28,9 @@ The Python selector takes one Cargo package map only when a change belongs to
 a Rust package. It selects the changed package and its immediate consumers.
 An edit confined to an integration test target selects that target alone.
 The focused profile runs the selected targets from the layers that replay.
-Formatting covers changed Rust files. Changes to the delivery checker run its
+Formatting covers changed Rust files except codec outputs listed in
+`tools/merge/codecs.txt`. Changes to those outputs still select their packages
+for focused tests. Changes to the delivery checker run its
 subprocess-free Python suite. Text, journey and budget rules still apply.
 The worker receives its check results and the receipt at
 `target/temper/pre-pr-light-failures.json`. A new tree requires a new check.

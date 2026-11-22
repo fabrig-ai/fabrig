@@ -1104,10 +1104,11 @@ def workspace_checks(root, paths, tree_id, base_id, merged, env, private, errors
     code = code_inputs(metadata_needed, data, root) if metadata_needed else []
     packages = members(data)
     directories = package_directories(packages)
+    codec_outputs = {line.split()[0] for line in lines(root, 'tools/merge/codecs.txt')} if code else set()
     formatted = {}
     for path in code:
         file = root / path
-        if path.endswith('.rs') and file.is_file():
+        if path.endswith('.rs') and path not in codec_outputs and file.is_file():
             name = owner(file, directories)
             edition = packages[name]['edition'] if name else '2024'
             formatted.setdefault(edition, []).append(path)

@@ -115,6 +115,32 @@ class Delivery(unittest.TestCase):
         receipt = json.loads((self.root / name.removeprefix('every key in ')).read_text())
         self.assertEqual((receipt['scope'], receipt['tree'], receipt['verdict']), ('light', 'tree', 'passed'))
 
+    def test_registered_codec_is_tested_but_only_handwritten_rust_is_formatted(self):
+        crate = self.root / 'smith/crates/smith-transcript'
+        generated = 'smith/crates/smith-transcript/src/generated/transcript.rs'
+        handwritten = 'other/src/generated/transcript.rs'
+        for path in (generated, handwritten, 'tools/merge/codecs.txt',
+                     'tools/tiers/layers.toml', 'tools/tiers/packages.toml'):
+            file = self.root / path
+            file.parent.mkdir(parents=True, exist_ok=True)
+            file.touch()
+        (self.root / 'tools/merge/codecs.txt').write_text(f'# Outputs and inputs\n{generated} schema\n')
+        target = dict(kind=['lib'], name='transcript', src_path=str(crate / 'src/lib.rs'), test=True)
+        package = dict(id='transcript', name='smith-transcript', manifest_path=str(crate / 'Cargo.toml'),
+                       edition='2024', dependencies=[], targets=[target])
+        data = dict(packages=[package], workspace_members=['transcript'])
+        self.enterContext(mock.patch.object(PRE, 'metadata', return_value=data))
+        for check in ('baselines', 'outward', 'journeys'):
+            self.enterContext(mock.patch.object(PRE, check, return_value=(0, [])))
+        run = self.enterContext(mock.patch.object(PRE, 'run', return_value=(0, '')))
+        selected = PRE.workspace_checks(self.root, [generated, handwritten], 'tree', 'base', [],
+                                        {}, {}, self.errors, {})
+        fmt, tests = [call.args[0] for call in run.call_args_list]
+        self.assertEqual(fmt[fmt.index('--') + 1:], [handwritten])
+        self.assertEqual(selected, ['smith-transcript'])
+        self.assertEqual(tests[:3], ['cargo', 'nextest', 'run'])
+        self.assertIn('smith-transcript', tests)
+
     def test_failed_checker_refuses_and_publishes_reason(self):
         with mock.patch.object(PRE, 'run', side_effect=[(1, 'fixture failed'), (0, '')]), \
              mock.patch.object(PRE, 'outward', return_value=(0, [])) as outward, \
