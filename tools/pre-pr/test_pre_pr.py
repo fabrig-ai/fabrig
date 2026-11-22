@@ -133,8 +133,13 @@ class Delivery(unittest.TestCase):
         for check in ('baselines', 'outward', 'journeys'):
             self.enterContext(mock.patch.object(PRE, check, return_value=(0, [])))
         run = self.enterContext(mock.patch.object(PRE, 'run', return_value=(0, '')))
-        selected = PRE.workspace_checks(self.root, [generated, handwritten], 'tree', 'base', [],
-                                        {}, {}, self.errors, {})
+        args = (self.root, [generated, handwritten], 'tree', 'base', [], {}, {}, self.errors, {})
+        self.assertEqual(PRE.workspace_checks(*args), [])
+        fmt, = [call.args[0] for call in run.call_args_list]
+        self.assertEqual(fmt[0], 'rustfmt')
+        self.assertEqual(fmt[fmt.index('--') + 1:], [handwritten])
+        run.reset_mock()
+        selected = PRE.workspace_checks(*args, completed_goal=True)
         fmt, tests = [call.args[0] for call in run.call_args_list]
         self.assertEqual(fmt[fmt.index('--') + 1:], [handwritten])
         self.assertEqual(selected, ['smith-transcript'])
@@ -167,6 +172,32 @@ class Delivery(unittest.TestCase):
             self.assertEqual(PRE.delivery_paths('start', 'tree', self.root, {}, ['parent']), ['added', 'deleted'])
         self.assertEqual([call.args[0] for call in git.call_args_list],
                          [['diff-tree', '-r', '--no-renames', '--name-only', '-z', ref, 'tree'] for ref in ('start', 'parent')])
+
+    def test_publication_recovers_only_merges_from_the_checked_base_and_history(self):
+        tip = 'a' * 40
+        other_tip = 'b' * 40
+        PRE.remember_merges(self.root, 'base', 'published', [tip])
+        PRE.remember_merges(self.root, 'base', 'unrelated', [other_tip])
+        PRE.remember_merges(self.root, 'other-base', 'newer', [other_tip])
+        answer = subprocess.CompletedProcess([], 0, b'newer\npublished\n', b'')
+        with mock.patch.object(PRE, 'git', return_value=answer) as git:
+            self.assertEqual(PRE.publication_merges(self.root, 'base', self.root, {}), [tip])
+            self.assertEqual(git.call_args.args[0], ['log', '--first-parent', '--format=%T', 'base..HEAD'])
+
+    def test_remaining_checks_and_receipt_use_the_formatted_tree(self):
+        with mock.patch.object(Path, 'cwd', return_value=self.root), \
+             mock.patch.object(subprocess, 'check_output', return_value=str(self.root).encode()), \
+             mock.patch.object(PRE, 'base', return_value=('base', None)), \
+             mock.patch.object(PRE, 'merged_tips', return_value=[]), \
+             mock.patch.object(PRE, 'goal_reds', return_value=(set(), None, False)), \
+             mock.patch.object(PRE, 'tree', side_effect=[('before', {}), ('formatted', {})]), \
+             mock.patch.object(PRE, 'delivery_paths', side_effect=[['one.rs', 'two.rs'], ['two.rs']]), \
+             mock.patch.object(PRE, 'format_delivery', return_value='formatted'), \
+             mock.patch.object(PRE, 'workspace_checks', return_value=[]) as checks:
+            self.assertEqual(PRE.delivery('delivery', ()), 0)
+        self.assertEqual(checks.call_args.args[1:3], (['two.rs'], 'formatted'))
+        receipt = json.loads((self.root / 'target/temper/pre-pr-light-failures.json').read_text())
+        self.assertEqual((receipt['tree'], receipt['verdict']), ('formatted', 'passed'))
 
     def test_candidate_snapshot_uses_only_a_private_index(self):
         gitdir = self.root / '.git'
@@ -221,8 +252,11 @@ class Delivery(unittest.TestCase):
         (directory / 'test_rules.py').touch()
         with mock.patch.object(PRE, 'run', return_value=(0, '')) as run, \
              mock.patch.object(PRE, 'journeys', return_value=(0, [])), mock.patch.object(PRE, 'outward', return_value=(0, [])):
-            PRE.workspace_checks(self.root, ['tools/example/rules.py', 'tools/example/test_rules.py'],
-                                 'tree', 'base', [], {}, {}, self.errors, {})
+            args = (self.root, ['tools/example/rules.py', 'tools/example/test_rules.py'],
+                    'tree', 'base', [], {}, {}, self.errors, {})
+            PRE.workspace_checks(*args)
+            run.assert_not_called()
+            PRE.workspace_checks(*args, completed_goal=True)
         self.assertEqual([call.args[0] for call in run.call_args_list],
                          [['python3', '-I', '-B', 'tools/example/test_rules.py']])
 
