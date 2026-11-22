@@ -19,6 +19,7 @@ import tempfile
 import time
 import tomllib
 import xml.etree.ElementTree as ET
+from urllib.parse import urlsplit
 
 
 class Tail:
@@ -1101,6 +1102,37 @@ def handwritten_rust(root, paths):
     return [p for p in files if p not in outputs]
 
 
+def producer_format_paths(root, env, base_id, tree_id, paths):
+    """Attribute clean three-way merges to their inputs, and resolutions to the producer."""
+    files = handwritten_rust(root, paths)
+    if not files:
+        return []
+    # Against both parents, a clean three-way result can differ from each.
+    # A remerge diff lists edits made in resolving a merge, including a
+    # deliberate amendment of a clean result.
+    history = git(['--literal-pathspecs', 'log', '--first-parent', '--full-history', '--format=', '--no-renames',
+                   '--remerge-diff', '--name-only', '-z', base_id + '..HEAD', '--', *files], root, env)
+    history.check_returncode()
+    staged_base = 'HEAD'
+    pending = git(['rev-parse', '--verify', '--quiet', 'MERGE_HEAD'], root, env)
+    if not pending.returncode:
+        unresolved = git(['ls-files', '--unmerged'], root, env)
+        unresolved.check_returncode()
+        if unresolved.stdout:
+            raise FormatError('Resolve and stage the pending merge conflicts before formatting.')
+        automatic = git(['merge-tree', '--write-tree', '--no-messages', 'HEAD',
+                         pending.stdout.decode().strip()], root, env)
+        first = automatic.stdout.splitlines()[:1]
+        if automatic.returncode not in (0, 1) or not first or not FULL_COMMIT.fullmatch(first[0].decode()):
+            raise FormatError('cannot establish the automatic merge tree for formatting')
+        staged_base = first[0].decode()
+    edits = git(['--literal-pathspecs', 'diff-tree', '-r', '--no-renames', '--name-only', '-z',
+                 staged_base, tree_id, '--', *files], root, env)
+    edits.check_returncode()
+    owned = set(history.stdout.split(b'\0')) | set(edits.stdout.split(b'\0'))
+    return [path for path in files if os.fsencode(path) in owned]
+
+
 def format_commands(root, files, packages, *, report=False):
     directories = package_directories(packages)
     groups = {}
@@ -1166,6 +1198,62 @@ class UnknownScope(ValueError):
     """A saved checkout needs its main comparison refreshed before formatting."""
 
 
+def public_main_source(env):
+    """Read the worker's public repository mapping, if installed."""
+    helper = shutil.which('temper-public-source', path=env.get('PATH'))
+    if helper is None:
+        return None
+    try:
+        result = subprocess.run([helper, 'fabrig-ai/fabrig'], env=env, stdin=subprocess.DEVNULL,
+                                capture_output=True, text=True, check=False, timeout=5)
+    except (OSError, UnicodeError, subprocess.TimeoutExpired) as error:
+        raise UnknownScope('formatting scope unavailable: worker public source lookup failed') from error
+    if result.returncode == 1:
+        return None
+    url = result.stdout.removesuffix('\n')
+    try:
+        parts = urlsplit(url)
+        allowed = (parts.scheme == 'https' and parts.hostname and parts.path.strip('/')
+                   and parts.username is None and parts.password is None and not parts.query and not parts.fragment
+                   and not any(char.isspace() or ord(char) < 32 for char in url))
+    except ValueError:
+        allowed = False
+    if result.returncode or not allowed:
+        raise UnknownScope('formatting scope unavailable: invalid worker public source for fabrig-ai/fabrig')
+    return url
+
+
+def checkout_main(git_dir):
+    """Only a named main fetch newer than the installation of this Git view."""
+    pin = git_dir / 'refs/temper/landing'
+    fetch = git_dir / 'FETCH_HEAD'
+    try:
+        stamp = pin if pin.is_file() else git_dir / 'HEAD'
+        if fetch.stat().st_mtime_ns <= stamp.stat().st_mtime_ns:
+            return None
+        lines = fetch.read_bytes().splitlines()
+    except FileNotFoundError:
+        return None
+    mains = [match.groups() for line in lines
+             if (match := re.fullmatch(rb"([a-f0-9]+)\t\tbranch 'main' of (.+)", line))]
+    if len(mains) == 1:
+        main, source = (os.fsdecode(value) for value in mains[0])
+        if FULL_COMMIT.fullmatch(main):
+            return main, source
+    return None
+
+
+def integrated_main(main, head, root, env):
+    pending = git(['rev-parse', '--verify', '--quiet', 'MERGE_HEAD'], root, env)
+    if pending.stdout.strip() == main.encode():
+        conflicts = git(['ls-files', '--unmerged'], root, env)
+        if conflicts.returncode or conflicts.stdout:
+            raise UnknownScope('Resolve the pending merge conflicts in this checkout, stage the resolutions, '
+                               'and retry delivery.')
+        return True
+    return git(['merge-base', '--is-ancestor', main, head], root, env).returncode == 0
+
+
 def local_scope(git_dir, base_id, root, env, merged):
     """Use only this checked snapshot or a main refresh in this checkout."""
     revision = git(['rev-parse', 'HEAD', 'HEAD^{tree}'], root, env)
@@ -1183,26 +1271,50 @@ def local_scope(git_dir, base_id, root, env, merged):
             raise ValueError('invalid local delivery scope')
         return list(dict.fromkeys([*merged, *tips]))
 
-    # The worker rewrites its loose landing pin when it installs a checkout view.
-    # An older FETCH_HEAD can belong to a previous occupant of the same slot.
-    fetch = git_dir / 'FETCH_HEAD'
-    pin = git_dir / 'refs/temper/landing'
-    try:
-        stamp = pin if pin.is_file() else git_dir / 'HEAD'
-        fresh = fetch.stat().st_mtime_ns > stamp.stat().st_mtime_ns
-        entries = fetch.read_bytes().splitlines() if fresh else []
-    except FileNotFoundError:
-        entries = []
-    mains = [line.split(b'\t', 1)[0].decode('ascii') for line in entries
-             if re.fullmatch(rb"[0-9a-f]+\t\tbranch 'main' of .+", line)]
-    if len(mains) == 1 and FULL_COMMIT.fullmatch(mains[0]):
-        main = mains[0]
-        pending = git(['rev-parse', '--verify', '--quiet', 'MERGE_HEAD'], root, env)
-        if pending.stdout.strip() == main.encode() or git(
-                ['merge-base', '--is-ancestor', main, head], root, env).returncode == 0:
+    fetched = checkout_main(git_dir)
+    if fetched:
+        main, source = fetched
+        # Git drops the .git suffix in FETCH_HEAD's display of an HTTPS source.
+        canonical = public_main_source(env)
+        matches = (source.removesuffix('.git') == canonical.removesuffix('.git') if canonical
+                   else source != '.' and (root / source).resolve() not in (root, git_dir))
+        if matches and integrated_main(main, head, root, env):
             return list(dict.fromkeys([*merged, main]))
-    raise UnknownScope('formatting scope unavailable in this checkout. Fetch main into FETCH_HEAD '
-                       '(git fetch origin main), merge FETCH_HEAD, and retry delivery.')
+    raise UnknownScope('formatting scope unavailable in this checkout')
+
+
+def recover_main(git_dir, root, env):
+    """Fetch only for a cold Rust delivery. Leave integration to its owner."""
+    source = public_main_source(env)
+    if source is None:
+        raise UnknownScope('formatting scope unavailable: fetch the repository’s canonical main branch in this '
+                           'checkout, integrate FETCH_HEAD or ask the goal to integrate it, and retry delivery.')
+    command = ['git', 'fetch', '--no-tags', '--no-recurse-submodules', '--', source, 'main']
+    fetched = checkout_main(git_dir)
+    if not fetched or fetched[1].removesuffix('.git') != source.removesuffix('.git'):
+        before = git(['rev-parse', 'HEAD', 'refs/temper/landing'], root, env)
+        before.check_returncode()
+        actual = git(['ls-remote', '--get-url', '--', source], root, env)
+        if actual.returncode or actual.stdout.rstrip(b'\n') != source.encode():
+            raise UnknownScope('formatting scope unavailable: checkout Git configuration rewrites the public source')
+        result = git(command[1:], root, dict(env, GIT_TERMINAL_PROMPT='0'))
+        if result.returncode:
+            raise UnknownScope(f'Canonical main fetch failed. Retry {shlex.join(command)} in this checkout. '
+                               + error_line(result.stderr.decode(errors='replace')))
+        after = git(['rev-parse', 'HEAD', 'refs/temper/landing'], root, env)
+        if after.returncode or after.stdout != before.stdout:
+            raise UnknownScope('The checkout changed during the main fetch. Retry delivery in its current view.')
+        fetched = checkout_main(git_dir)
+    if not fetched or fetched[1].removesuffix('.git') != source.removesuffix('.git'):
+        raise UnknownScope(f'Cannot verify the named main fetch. Retry {shlex.join(command)} in this checkout.')
+    main = fetched[0]
+    head = git(['rev-parse', '--verify', 'HEAD'], root, env)
+    head.check_returncode()
+    if not integrated_main(main, head.stdout.decode().strip(), root, env):
+        raise UnknownScope(f'Fetched canonical main {main}. If the goal owns main integration, ask it to catch up '
+                           'and resume this saved change. Otherwise run git merge --no-edit ' + main +
+                           ' in this checkout, resolve any conflicts and retry delivery.')
+    return main
 
 
 def remember_merges(git_dir, base_id, tree_id, tips):
@@ -1301,21 +1413,28 @@ def delivery(scope, commits):
         if base_id:
             try:
                 merged = local_scope(git_dir, base_id, root, env, merged)
-            except UnknownScope as error:
+            except UnknownScope:
                 known_scope = False
                 paths = delivery_paths(base_id, tree_id, root, env, merged)
                 if scope == 'delivery' and handwritten_rust(root, paths):
-                    errors.append(failure('formatting scope', str(error)))
-                    verdict = finish(tree_id, base_id, errors, root, env, scope, commits, heads)
-                    if (git_dir / 'temper/reds-wait').is_file():
-                        check_results(tree_id, base_id, verdict, (), (), {}, errors, root, env)
-                    return verdict
+                    try:
+                        main = recover_main(git_dir, root, env)
+                    except UnknownScope as reason:
+                        errors.append(failure('formatting scope', str(reason)))
+                        verdict = finish(tree_id, base_id, errors, root, env, scope, commits, heads)
+                        if (git_dir / 'temper/reds-wait').is_file():
+                            check_results(tree_id, base_id, verdict, (), (), {}, errors, root, env)
+                        return verdict
+                    merged = list(dict.fromkeys([*merged, main]))
+                    known_scope = True
+                    paths = None
         reds, _, marker = goal_reds(root, env)
         try:
             if paths is None:
                 paths = delivery_paths(base_id or 'HEAD', tree_id, root, env, merged)
             if scope == 'delivery':
-                formatted = format_delivery(root, paths, tree_id, env, private)
+                format_paths = producer_format_paths(root, env, base_id, tree_id, paths) if base_id and merged else paths
+                formatted = format_delivery(root, format_paths, tree_id, env, private)
                 if formatted != tree_id:
                     tree_id = formatted
                     paths = delivery_paths(base_id or 'HEAD', tree_id, root, env, merged)
