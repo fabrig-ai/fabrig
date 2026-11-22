@@ -1,0 +1,29 @@
+name: Goal pre-PR
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      pull_number:
+        description: Goal pull request number
+        required: true
+      goal_head:
+        description: Goal commit at the observed event
+        required: true
+      destination:
+        description: Destination commit at the observed event
+        required: true
+permissions:
+  contents: read
+jobs:
+  goal:
+    if: >-
+      github.event.inputs.pull_number != '' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'temper') &&
+      contains(github.event.pull_request.head.ref, '/g'))
+    uses: ./.forgejo/workflows/ci.yml
+    with:
+      pull_number: ${{ format('{0}', github.event.pull_request.number || github.event.inputs.pull_number) }}
+      goal_head: ${{ github.event.pull_request.head.sha || github.event.inputs.goal_head }}
+      destination: ${{ github.event.pull_request.base.sha || github.event.inputs.destination }}

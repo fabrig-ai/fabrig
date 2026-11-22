@@ -78,8 +78,14 @@ if name == 'cargo' and args[0] == 'metadata':
     spend(1000, ['metadata', args, side])
     print(json.dumps(metadata))
 elif name == 'cargo' and args == ['fmt', '--all', '--check']:
+    assert os.environ['CARGO_NET_OFFLINE'] == 'true'
+    # cargo-fmt groups target roots with the same Rust edition in one rustfmt call.
+    editions = {}
     for package in metadata['packages']:
-        format_files([target['src_path'] for target in package['targets']])
+        for target in package['targets']:
+            editions.setdefault(target['edition'], []).append(target['src_path'])
+    for paths in editions.values():
+        format_files(paths)
 elif name == 'rustfmt':
     assert '--check' in args
     paths = [arg for arg in args if arg.endswith('.rs')]
@@ -252,6 +258,9 @@ fn fixture() -> skein_scratch::Scratch {
     let workspace = skein_scratch::paths::workspace();
     for path in [
         ".temper/pre-pr",
+        ".temper/goal-pre-pr",
+        "tools/outward/outward.py",
+        "tools/outward/names.txt",
         "tools/pre-pr/pre_pr.py",
         "tools/tiers/run",
         "tools/tiers/cpu.py",
@@ -335,6 +344,43 @@ fn deliver(root: &Path) -> Output {
     command(root, "sh", &[".temper/pre-pr"])
 }
 
+fn rev(root: &Path, name: &str) -> String {
+    String::from_utf8(git(root, &["rev-parse", name])).expect("commit ID").trim().to_owned()
+}
+
+fn commit_candidate(root: &Path) {
+    git(root, &["add", "."]);
+    git(root, &["commit", "-qm", "candidate"]);
+}
+
+fn full_check(root: &Path, hold: Option<&str>, ledgers: Option<&str>) -> Output {
+    let head = rev(root, "HEAD");
+    let destination = rev(root, "refs/temper/landing");
+    command_with_settings(root, "sh", &[".temper/goal-pre-pr", &head, &destination], hold, ledgers)
+}
+
+fn no_build(root: &Path) {
+    let state = budget(root);
+    let events = state["events"].as_array().expect("check events");
+    for unexpected in ["hold-start", "metadata", "build", "clippy", "one-process"] {
+        assert!(events.iter().all(|event| event[0] != unexpected), "unexpected {unexpected}: {state}");
+    }
+}
+
+// Recreate a receipt written by the former worker to exercise downgrade and replay.
+fn historical_full(root: &Path) -> Output {
+    command(
+        root,
+        "python3",
+        &[
+            "-I",
+            "-B",
+            "-c",
+            r#"import runpy; raise SystemExit(runpy.run_path("tools/pre-pr/pre_pr.py")["main"]("full"))"#,
+        ],
+    )
+}
+
 fn passed(root: &Path) -> bool {
     root.join(".git/pre-pr-passed").exists()
 }
@@ -367,7 +413,7 @@ fn initial_design_delivery_fits_check_budget() {
     let index = fs::read(root.join(".git/index")).expect("real index");
     write(root, "temper/docs/design/first.md", "# Design addition\n");
     reset(root, "");
-    let output = deliver(root);
+    let output = command_with_settings(root, "sh", &[".temper/pre-pr"], Some(".git/bin/hold"), None);
     assert!(
         output.status.success(),
         "initial design delivery exceeds its unchanged 60000 ms budget: {}\n{}",
@@ -376,7 +422,8 @@ fn initial_design_delivery_fits_check_budget() {
     );
     assert!(budget(root)["ms"].as_u64().expect("milliseconds") <= 60_000);
     coverage(root);
-    assert!(passed(root));
+    no_build(root);
+    assert!(!passed(root));
     assert_eq!(fs::read(root.join(".git/index")).expect("index after delivery"), index);
 }
 
@@ -399,19 +446,15 @@ fn failed_or_interrupted_checks_never_pass() {
 }
 
 #[test]
-fn only_the_exact_passed_tree_skips_checks() {
+fn delivery_never_reuses_an_old_full_pass_to_skip_its_cheap_rules() {
     let scratch = fixture();
     let root = scratch.path();
-    assert!(deliver(root).status.success());
+    let previous = historical_full(root);
+    assert!(previous.status.success() && passed(root), "{}", text(&previous));
     reset(root, "format");
-    let cached = deliver(root);
-    assert!(cached.status.success(), "identical passed tree");
-    assert!(text(&cached).contains("passed before"));
-    assert_eq!(budget(root)["events"], json!([]));
-    assert_eq!(budget(root)["ms"], 0);
-    write(root, "temper/source-3.rs", "fn changed() {}\n");
-    assert!(!deliver(root).status.success(), "changed source needs a new check");
-    coverage(root);
+    let result = deliver(root);
+    assert!(!result.status.success(), "format refusal expected: {}", text(&result));
+    no_build(root);
 }
 
 #[test]
@@ -441,7 +484,7 @@ fn a_flake_reports_its_first_log_and_observed_reds() {
             changed_field(test_failure("green", ""), "outcome", json!("passed")), fuzzy, red, green],
             "again": {"flake": "passed", "fuzzy::flake": "passed"}}}),
     );
-    let output = deliver(root);
+    let output = historical_full(root);
     let log = text(&output);
     assert!(output.status.success(), "flake refuses nothing: {log}");
     assert!(
@@ -483,7 +526,7 @@ fn a_flake_reports_its_first_log_and_observed_reds() {
     );
     assert!(!root.join(".git/temper/check-results.tmp").exists());
     fs::remove_file(root.join(".git/temper/check-results")).expect("worker consumes results");
-    let cached = deliver(root);
+    let cached = historical_full(root);
     assert!(cached.status.success(), "{}", text(&cached));
     assert!(text(&cached).contains("passed before"));
     assert!(!root.join(".git/temper/check-results").exists(), "cache hit observes nothing");
@@ -547,13 +590,12 @@ fn the_base_is_the_pins_merge_base() {
     let output = deliver(root);
     let log = text(&output);
     assert!(output.status.success(), "{log}");
-    assert_eq!(build_events(root).iter().map(|e| e[2].clone()).collect::<Vec<_>>(), vec![json!(["B"]); 2]);
-    assert!(log.contains("pre-pr: boundary tests: B"), "{log}");
-    assert!(log.contains("docs only: citations"), "{log}");
+    no_build(root);
+    assert!(log.contains("citations: passed"), "{log}");
     let state = budget(root);
     let events = state["events"].as_array().expect("events");
     assert!(events.iter().all(|event| event[0] != "format"));
-    assert!(log.contains(&format!("base {other}, merge base of refs/temper/landing and HEAD")), "{log}");
+    assert!(log.contains(&other), "{log}");
     assert!(
         events.contains(&json!(["git", ["merge-base", "refs/temper/landing", "HEAD", "MERGE_HEAD"]])),
         "merge command: {state}"
@@ -571,7 +613,8 @@ fn the_sets_are_changed_packages_dependents_and_path_readers() {
     fs::write(metadata_path, metadata.to_string()).expect("dependencies");
     pin(root);
     write(root, "a/src/lib.rs", "fn changed() {}\n");
-    let output = deliver(root);
+    commit_candidate(root);
+    let output = full_check(root, None, None);
     let log = text(&output);
     assert!(output.status.success(), "{log}");
     let events = build_events(root);
@@ -608,7 +651,8 @@ fn only_what_the_delivery_broke_refuses() {
         root,
         &json!({"head": {"clippy": [changed_field(lint_failure(20, "lint fault"), "code", json!("clippy::other"))]}}),
     );
-    let output = deliver(root);
+    commit_candidate(root);
+    let output = full_check(root, None, None);
     let log = text(&output);
     assert_eq!(output.status.code(), Some(1), "{log}");
     assert!(log.contains("clippy A clippy::other a/src/lib.rs"), "{log}");
@@ -628,27 +672,24 @@ fn only_what_the_delivery_broke_refuses() {
 }
 
 #[test]
-fn one_hold_spans_the_check_but_not_a_cache_hit() {
+fn one_hold_spans_the_full_check() {
     let scratch = fixture();
     let root = scratch.path();
     pin(root);
     write(root, "a/src/lib.rs", "fn changed() {}\n");
-    let output = command_with_settings(root, "sh", &[".temper/pre-pr"], Some(".git/bin/hold"), None);
+    commit_candidate(root);
+    let output = full_check(root, Some(".git/bin/hold"), None);
     assert!(output.status.success(), "{}", text(&output));
     let state = budget(root);
     let events: Vec<_> =
         state["events"].as_array().expect("events").iter().filter(|e| e[0] != "git").cloned().collect();
     assert_eq!(events.first(), Some(&json!(["hold-start", []])));
     assert_eq!(events.get(1).expect("first cargo")[0], "metadata");
-    assert_eq!(events.last(), Some(&json!(["hold-end", true])));
+    assert_eq!(events.last(), Some(&json!(["hold-end", false])));
     assert!(
         events.iter().position(|e| e[0] == "one-process-end").expect("tests returned") < events.len().saturating_sub(1)
     );
     assert_eq!(events.iter().filter(|e| e[0] == "hold-start").count(), 1);
-    reset(root, "format");
-    let cached = command_with_settings(root, "sh", &[".temper/pre-pr"], Some(".git/bin/hold"), None);
-    assert!(cached.status.success(), "{}", text(&cached));
-    assert!(budget(root)["events"].as_array().expect("cached events").iter().all(|e| e[0] == "git"));
 }
 
 #[test]
@@ -657,7 +698,8 @@ fn an_early_hold_exit_warns_without_changing_the_verdict() {
     let root = scratch.path();
     pin(root);
     write(root, "a/src/lib.rs", "fn changed() {}\n");
-    let output = command_with_settings(root, "sh", &[".temper/pre-pr"], Some(".git/bin/hold fail"), None);
+    commit_candidate(root);
+    let output = full_check(root, Some(".git/bin/hold fail"), None);
     assert!(output.status.success(), "{}", text(&output));
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert_eq!(stdout.matches("pre-pr: hold:").count(), 1, "{stdout}");
@@ -689,7 +731,8 @@ fn mains_ledgers_refuse_a_delivery_over_budget() {
     state["over_budget"] = json!(over);
     state["head"] = json!({"one_process_exit": 1});
     write(root, ".git/budget.json", &state.to_string());
-    let output = command_with_settings(root, "sh", &[".temper/pre-pr"], None, Some(".git/main-ledgers"));
+    commit_candidate(root);
+    let output = full_check(root, None, Some(".git/main-ledgers"));
     assert!(!output.status.success(), "{}", text(&output));
     assert!(!passed(root));
     let log = text(&output);
@@ -703,4 +746,99 @@ fn mains_ledgers_refuse_a_delivery_over_budget() {
     let events = state["events"].as_array().expect("events");
     assert_eq!(events.iter().filter(|e| e[0] == "one-process").count(), 2);
     assert_eq!(events.iter().filter(|e| e[0] == "cpu-summary").count(), 1);
+}
+
+#[test]
+fn completed_goal_checks_a_merged_siblings_test_after_an_empty_close() {
+    let scratch = fixture();
+    let root = scratch.path();
+    let workspace = skein_scratch::paths::workspace();
+    for path in [".temper/close", "tools/close/close.py", ".temper/goal-pre-pr"] {
+        fs::create_dir_all(root.join(path).parent().expect("hook directory")).expect("create hook directory");
+        fs::copy(workspace.join(path), root.join(path)).expect("copy executable hook or its implementation");
+    }
+    git(root, &["add", "."]);
+    git(root, &["commit", "-qm", "install goal and close hooks"]);
+    let destination = rev(root, "HEAD");
+    git(root, &["checkout", "-qb", "sibling"]);
+    write(root, "a/tests/earlier.rs", "#[test]\nfn earlier_sibling() { assert_eq!(1, 2); }\n");
+    git(root, &["add", "a/tests"]);
+    git(root, &["commit", "-qm", "earlier sibling"]);
+    git(root, &["checkout", "-qb", "goal", &destination]);
+    git(root, &["merge", "-q", "--no-ff", "sibling", "-m", "land earlier sibling"]);
+    write(root, "notes.txt", "second sibling\n");
+    git(root, &["add", "notes.txt"]);
+    git(root, &["commit", "-qm", "land later sibling"]);
+    let head = rev(root, "HEAD");
+
+    write(
+        root,
+        ".git/request.json",
+        r#"{"version":1,"goal":7,"changes":[{"task":8,"landed":true},{"task":9,"landed":true}]}"#,
+    );
+    let close = command(root, "env", &["TEMPER_JOB=.git", ".temper/close", "close", ".git/request.json"]);
+    assert!(close.status.success(), "{}", text(&close));
+    assert_eq!(
+        serde_json::from_slice::<Value>(&fs::read(root.join(".git/result.json")).expect("close result")).expect("JSON"),
+        json!({"settled": []})
+    );
+    assert_eq!(git(root, &["status", "--porcelain"]), b"");
+
+    let check = |candidate: &str| command(root, ".temper/goal-pre-pr", &[candidate, &destination]);
+    ledger(root, &json!({"head": {"tests": [test_failure("earlier_sibling", "earlier assertion failed")]}}));
+    let refused = check(&head);
+    assert_eq!(refused.status.code(), Some(1), "{}", text(&refused));
+    assert!(text(&refused).contains("test A::rules earlier_sibling"), "{}", text(&refused));
+    let receipt = || {
+        serde_json::from_slice::<Value>(&fs::read(root.join("target/temper/pre-pr-failures.json")).expect("receipt"))
+            .expect("JSON receipt")
+    };
+    let red = receipt();
+    assert_eq!(red["goal_head"], head);
+    assert_eq!(red["destination"], destination);
+    assert_eq!(red["verdict"], "refused");
+    assert_eq!(red["counts"]["new"], 1);
+
+    write(root, "a/tests/earlier.rs", "#[test]\nfn earlier_sibling() { assert_eq!(1, 1); }\n");
+    git(root, &["add", "a/tests"]);
+    git(root, &["commit", "-qm", "repair sibling test"]);
+    reset(root, "");
+    let stale = check(&head);
+    assert!(!stale.status.success(), "stale head passed: {}", text(&stale));
+    let repaired = rev(root, "HEAD");
+    ledger(
+        root,
+        &json!({"head": {"tests": [changed_field(test_failure("earlier_sibling", ""), "outcome", json!("passed"))]}}),
+    );
+    let green = check(&repaired);
+    assert!(green.status.success(), "{}", text(&green));
+    let result = receipt();
+    assert_eq!(result["goal_head"], repaired);
+    assert_eq!(result["destination"], destination);
+    assert_eq!(result["verdict"], "passed");
+}
+
+#[test]
+fn normal_delivery_stays_light_with_a_destination_pin() {
+    let scratch = fixture();
+    let root = scratch.path();
+    pin(root);
+    write(root, "a/src/lib.rs", "fn changed() {}\n");
+    let hold = Some(".git/bin/hold");
+    let ordinary = command_with_settings(root, "sh", &[".temper/pre-pr"], hold, None);
+    assert!(ordinary.status.success(), "{}", text(&ordinary));
+    no_build(root);
+    let state = budget(root);
+    assert!(state["events"].as_array().expect("check events").iter().any(|event| event[0] == "format"), "{state}");
+    assert!(!passed(root), "a light pass cannot certify a full check");
+
+    commit_candidate(root);
+    reset(root, "");
+    let full = full_check(root, hold, None);
+    assert!(full.status.success(), "{}", text(&full));
+    let state = budget(root);
+    let events = state["events"].as_array().expect("full check events");
+    for required in ["hold-start", "clippy", "one-process"] {
+        assert!(events.iter().any(|event| event[0] == required), "missing {required}: {state}");
+    }
 }

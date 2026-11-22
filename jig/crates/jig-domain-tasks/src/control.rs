@@ -18,6 +18,13 @@ pub struct Cancel {
     pub message: Option<u64>,
 }
 
+/// End a live task failed by its application (domain/tasks/lifecycle.md, 13).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Fail {
+    pub task: u64,
+    pub reason: Box<[u8]>,
+}
+
 /// Lift a task's hold and reset its failure counts (domain/tasks/lifecycle.md, 6).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Release {
@@ -955,6 +962,33 @@ pub(crate) fn cancel(
         Ok(plan) => apply_cancel(domain, env, by, plan, out),
         Err(problem) => return out.push(Request::Refused { reply_to: to, problem: *problem }),
     }
+    out.push(Request::Done { reply_to: to });
+}
+
+pub(crate) fn fail(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    to: ReplyTo,
+    by: Party,
+    operation: Fail,
+    out: &mut Queue<Request>,
+) {
+    let number = operation.task;
+    let to = match control_entrance(domain, env, to, by, number, true) {
+        Ok(to) => to,
+        Err((to, why)) => return refused(to, Some(number), why, out),
+    };
+    match by {
+        Party::Person(_) => return refused(to, Some(number), Refusal::Reference, out),
+        Party::Deployment { .. } | Party::Task(_) => {}
+    }
+    let row = record(domain, number).expect("control entrance checked task");
+    if !crate::grace::mutable(&row.phase) {
+        return refused(to, Some(number), Refusal::State, out);
+    }
+    let reason = crate::failed::bounded(&[&operation.reason], &env.limits);
+    let ending = crate::Ending::Failed { reason: reason.clone() };
+    crate::closing::end_tree(domain, env, number, by, &reason, Some(ending), out);
     out.push(Request::Done { reply_to: to });
 }
 

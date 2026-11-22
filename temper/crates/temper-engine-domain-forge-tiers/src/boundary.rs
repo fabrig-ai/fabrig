@@ -82,6 +82,8 @@ pub enum Receipt {
 pub struct Record {
     /// Runs numbered so far, judged or dropped; the next run is numbered `sequence + 1`.
     pub sequence: u64,
+    /// The last judged run's number; none in records restored from before it was kept.
+    pub last_run: Option<u64>,
     /// The last judged tip and the tier's key there; none before the baseline.
     pub judged: Option<Judged>,
     /// The tier's failures at the last judged tip.

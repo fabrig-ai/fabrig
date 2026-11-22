@@ -429,8 +429,8 @@ fn stale_files_pause_a_pull_section_and_wake_its_change_even_with_a_partner() {
         );
         assert!(out.is_empty());
         assert!(d.take_brief(SECTION).is_none(), "capacity never becomes words");
-        outputs(&mut d, Event::ReadAfresh);
-        outputs(&mut d, Event::SettleOutbox);
+        outputs(&mut d, Event::CatchUp);
+
         assert!(ready(&mut d).contains(&Request::WakeProcedure { task: fixtures::CHANGE }));
     }
 }
@@ -633,8 +633,8 @@ fn another_writers_pull_head_pauses_the_brief_and_wakes_the_change() {
             })
         );
         assert!(out.is_empty());
-        outputs(&mut d, Event::ReadAfresh);
-        outputs(&mut d, Event::SettleOutbox);
+        outputs(&mut d, Event::CatchUp);
+
         let resumed = ready(&mut d);
         assert!(resumed.contains(&Request::WakeProcedure { task: fixtures::CHANGE }), "{writer:?}: {resumed:?}");
     }

@@ -104,6 +104,15 @@ pub(super) fn assert_amended(
 
 pub(super) fn next_attempt(world: &mut World, repair: &engine::Assignment) -> engine::Assignment {
     for _ in 0..TICKS {
+        // When preparation waits for queued reads, follow their existing
+        // deadline rather than spending this helper's ticks short of it.
+        if world.pending.is_empty()
+            && world.events.is_empty()
+            && world.store.pending.is_empty()
+            && let Some(due) = world.root.next_deadline(&world.env)
+        {
+            world.env.now = world.env.now.max(due);
+        }
         world.tick();
         if let Some(run) = world.assigned.iter().find(|run| run.task == repair.task && run.attempt > repair.attempt) {
             return run.clone();
