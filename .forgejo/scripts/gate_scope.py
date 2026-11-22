@@ -8,15 +8,23 @@ import xml.etree.ElementTree as ET
 
 HOOKS = {'.temper/pre-pr', '.temper/goal-child-pre-pr', '.temper/goal-pre-pr'}
 PYTHON = ['python3', '-I', '-B']
+SCRIPTS = Path(__file__).resolve().parent
+WORKFLOW = '.forgejo/workflows/gate.yml'
+REPORTING = {'.forgejo/scripts/gate_log.py', '.forgejo/scripts/test_gate_log.py'}
+ROUTING = {'.forgejo/scripts/gate_route.sh', '.forgejo/scripts/gate_scope.py',
+           '.forgejo/scripts/gate_validate.py', '.forgejo/scripts/test_gate_routes.py'}
 
 
 def route(paths):
     if not paths:
         return 'full'
-    if paths & {'.forgejo/scripts/gate_scope.py', '.forgejo/workflows/gate.yml'}:
-        return 'mixed'
     checker = {path for path in paths if path in HOOKS or
                path.startswith('tools/pre-pr/') and path.endswith(('.py', '.md'))}
+    gate = paths & (REPORTING | ROUTING | {WORKFLOW})
+    if gate:
+        return 'gate' if paths <= gate | checker else 'gate-and-product'
+    if any(path.startswith('.forgejo/') for path in paths):
+        return 'full'
     if paths == checker:
         return 'checker'
     return 'mixed' if checker else 'classify'
@@ -28,13 +36,26 @@ def checks(work, base, head, reports, execute=subprocess.run):
     paths = {os.fsdecode(path) for path in changed.split(b'\0') if path}
     scope = route(paths)
     commands = []
-    if scope in ('checker', 'mixed'):
+    regular = scope in ('full', 'mixed', 'gate-and-product')
+    if scope in ('gate', 'gate-and-product'):
+        workflow_exec = False
+        if WORKFLOW in paths:
+            # A valid change to triggers, jobs, environment or executable steps also exercises the regular Gate.
+            validator = runpy.run_path(str(SCRIPTS / 'gate_validate.py'))
+            workflow_exec = validator['workflow_changed'](work, base)
+            regular |= workflow_exec
+        if paths & (REPORTING | {WORKFLOW}):
+            commands.append(('reporting', [*PYTHON, str(SCRIPTS / 'gate_validate.py'), str(work), 'reporting']))
+        if paths & ROUTING or workflow_exec:
+            commands.append(('routing', [*PYTHON, str(SCRIPTS / 'gate_validate.py'), str(work), 'routing']))
+    if scope in ('checker', 'mixed') or (scope.startswith('gate') and
+            any(p in HOOKS or p.startswith('tools/pre-pr/') for p in paths)):
         commands.append(('checker', [*PYTHON, 'tools/pre-pr/test_pre_pr.py']))
     if scope == 'classify':
         policy = runpy.run_path(str(work / 'tools/pre-pr/pre_pr.py'))
         if policy['code_inputs'](paths, policy['metadata'](work, os.environ), work):
             return 1
-    if scope == 'classify' or scope == 'checker' and any(path.endswith('.md') for path in paths):
+    if scope == 'classify' or scope in ('checker', 'gate') and any(path.endswith('.md') for path in paths):
         commands.append(('citations', [*PYTHON, 'tools/citations/citations.py', '--all']))
     report = ET.Element('testsuite', name='preflight')
     failed = []
@@ -49,7 +70,7 @@ def checks(work, base, head, reports, execute=subprocess.run):
         if reason:
             failed.append('gate::' + name)
             ET.SubElement(case, 'failure', message=reason)
-    if not failed and scope in ('full', 'mixed'):
+    if not failed and regular:
         return 1
     report.set('tests', str(len(commands)))
     report.set('failures', str(len(failed)))
@@ -60,4 +81,9 @@ def checks(work, base, head, reports, execute=subprocess.run):
 
 if __name__ == '__main__':
     root, base, head = sys.argv[1:]
-    sys.exit(checks(Path(root), base, head, Path.cwd()))
+    try:
+        result = checks(Path(root), base, head, Path.cwd())
+    except Exception as error:
+        print(f'Gate validation failed: {error}', file=sys.stderr)
+        result = 2
+    sys.exit(result)

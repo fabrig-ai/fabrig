@@ -11,6 +11,14 @@ A landing check checks the branch merged onto main: every check below, with
 nothing slower than the fuzzy suite (`skein/docs/design/testing/README.md`, 6;
 `skein/docs/foundation/testing-strategy.md`, 8).
 
+The dispatched Gate reads its selector, reporter and replay tests from the
+landing base. An edit confined to Gate labels, YAML comments or the reporter
+runs workflow syntax and reporting checks. A routing edit replays the selector
+with a stand-in for the runner's Gate, checking the calls and exit status.
+The replay runs the landed tests against the proposed scripts and also runs
+any changed tests. Executable workflow changes and changes that mix Gate code
+with product or build inputs also run the regular Gate. A failed replay is red.
+
 1. **Format:** `cargo fmt --all --check`. Rule: the root `rustfmt.toml`.
 2. **Clippy, warnings denied:** `cargo clippy --workspace --all-targets -- -D warnings`.
    For a selection, replace `--workspace` with a `-p` for each package the change
