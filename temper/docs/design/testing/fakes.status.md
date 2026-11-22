@@ -4,8 +4,6 @@
 
 Unlisted sections have no known gap.
 
-- **Not yet:** 1: the fake LLM's account faults and cut stream. [in flight: change 11572]
-- **Not yet:** 1: the fake `claude`'s refusal envelopes and its report of what it played. [in flight: change 11757]
 
 - **Not yet:** 6: a fake mail sink, as mail itself (`../domain/forge/attention.md`, 7.4).
 
