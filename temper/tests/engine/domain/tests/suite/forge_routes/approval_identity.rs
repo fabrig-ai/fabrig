@@ -598,7 +598,7 @@ fn a_returning_signoff_follows_the_owner_and_yields_when_its_exact_gate_is_asked
     }
     assert_eq!(light_rules::change_row(&world, x).change.ready_since, since);
     world.release_write_answers();
-    world.advance_to(world.env.now.saturating_add(world.env.limits.forge.queue_window));
+    // Drive the released update and its reads before their stall bound.
     settle(&mut world);
     assert_eq!(world.merges, 1, "Y lands first");
     assert!(matches!(light_rules::change_row(&world, y).change.state, State::Landed { .. }));
