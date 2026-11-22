@@ -236,6 +236,7 @@ fn people_gate(event: people::Event) -> Result<Event, Queue<Request>> {
         | people::Event::ForgetProject { .. }
         | people::Event::Forget { .. }
         | people::Event::MakeService { .. }
+        | people::Event::ReissueService { .. }
         | people::Event::Seed { .. }
         | people::Event::Waiting { .. }
         | people::Event::ApplyRoles { .. }

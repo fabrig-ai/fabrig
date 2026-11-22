@@ -8,18 +8,18 @@ pub fn drawn(rng: &mut Rng, most: u32) -> Vec<u8> {
     (0..length).map(|_| u8::try_from(rng.below(256)).expect("one byte")).collect()
 }
 
-/// Flip, remove or insert one byte of a golden value.
+/// Flip, remove or insert one byte of a fixed-rule value value.
 #[must_use]
-pub fn mutated(rng: &mut Rng, golden: &[u8]) -> Vec<u8> {
+pub fn mutated(rng: &mut Rng, fixed_value: &[u8]) -> Vec<u8> {
     let mut bytes = Vec::new();
-    mutated_into(rng, golden, &mut bytes);
+    mutated_into(rng, fixed_value, &mut bytes);
     bytes
 }
 
 /// The same mutation, retaining scratch capacity between complete inputs.
-pub fn mutated_into(rng: &mut Rng, golden: &[u8], bytes: &mut Vec<u8>) {
+pub fn mutated_into(rng: &mut Rng, fixed_value: &[u8], bytes: &mut Vec<u8>) {
     bytes.clear();
-    bytes.extend_from_slice(golden);
+    bytes.extend_from_slice(fixed_value);
     let length = skein_lib::len_u64(bytes.len());
     match rng.below(3) {
         0 if !bytes.is_empty() => {

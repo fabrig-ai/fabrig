@@ -1,5 +1,5 @@
 //! Watches retain their whole subject and stream record (protocol/client/README.md, 5).
-use super::{chips, cursor, deployment, inbox, live, objects, owner, task, w};
+use super::{chips, cursor, deployment, inbox, live, objects, task, w};
 use alloc::boxed::Box;
 use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::{self as core, documents as d};
@@ -78,7 +78,6 @@ pub(crate) fn delivery(
         d::Document::Terminal { login } => {
             w::DeliveryValue::Terminal(super::accounts::terminal(login.as_ref(), limits)?)
         }
-        d::Document::Frame(value) => w::DeliveryValue::Me(owner::frame(value, models, limits)?),
         d::Document::Task(value) => w::DeliveryValue::Task(Box::new(task::document(value, models, limits)?)),
         d::Document::Tree(value) => {
             let next = match &value.next {
@@ -111,7 +110,9 @@ pub(crate) fn delivery(
         d::Document::Settings(value) => w::DeliveryValue::Settings(super::settings::document(value, limits)?),
         d::Document::Deployment(value) => w::DeliveryValue::Deployment(deployment::document(value, limits)?),
         d::Document::Proposal(value) => w::DeliveryValue::Proposal(objects::proposal(models, value, limits)?),
-        d::Document::Escalation(_)
+        // The component translates me with the watching sign-in's expiry.
+        d::Document::Frame(_)
+        | d::Document::Escalation(_)
         | d::Document::Question(_)
         | d::Document::PersonTask(_)
         | d::Document::Result(_)

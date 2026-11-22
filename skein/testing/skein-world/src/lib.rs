@@ -66,6 +66,9 @@ pub mod stream;
 pub mod streams;
 pub mod sweep;
 #[cfg(unix)]
+#[doc(hidden)]
+pub mod testing;
+#[cfg(unix)]
 mod tree;
 mod world;
 

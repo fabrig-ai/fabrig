@@ -10,7 +10,9 @@ use jig_domain_link::{Bounds, EndpointBound};
 use skein_lib::Duration;
 use temper_worker_domain::{Limits, agent, checkout, host};
 
+pub mod builder;
 pub mod evidence;
+mod inspection;
 pub mod protocol;
 pub mod runtime;
 pub mod whole;

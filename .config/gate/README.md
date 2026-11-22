@@ -11,6 +11,14 @@ A landing check checks the branch merged onto main: every check below, with
 nothing slower than the fuzzy suite (`skein/docs/design/testing/README.md`, 6;
 `skein/docs/foundation/testing-strategy.md`, 8).
 
+The dispatched Gate reads its selector, reporter and replay tests from the
+landing base. An edit confined to Gate labels, YAML comments or the reporter
+runs workflow syntax and reporting checks. A routing edit replays the selector
+with a stand-in for the runner's Gate, checking the calls and exit status.
+The replay runs the landed tests against the proposed scripts and also runs
+any changed tests. Executable workflow changes and changes that mix Gate code
+with product or build inputs also run the regular Gate. A failed replay is red.
+
 1. **Format:** `cargo fmt --all --check`. Rule: the root `rustfmt.toml`.
 2. **Clippy, warnings denied:** `cargo clippy --workspace --all-targets -- -D warnings`.
    For a selection, replace `--workspace` with a `-p` for each package the change
@@ -25,10 +33,18 @@ nothing slower than the fuzzy suite (`skein/docs/design/testing/README.md`, 6;
    --gate --walls .config/gate/walls.toml --ledger LEDGER fuzzy`, the profiles `.config/nextest.toml`
    defines: each test binary's selected tests in one process, one at a time, and
    binaries in parallel (`tools/tiers/design.md`, 11), with nextest as their front
-   end, selecting and building. For a selection, add a `-p` for each package, as
+   end, selecting and building. One-process runs by default the layers that
+   replay, step tests and domain, system, machine, protocol, io and simulated
+   worlds, with the repository's checks, by `tools/tiers/layers.toml`, and leaves
+   out the real-loop and end-to-end binaries, which run after landing; it judges
+   only the layers it ran, with or without `--gate` (`tools/tiers/layers.md`, 9.1;
+   `tools/tiers/budgets.md`, 4.1). A rerun of named tests, `-E 'binary_id(=B) &
+   test(=T)'`, selects within those layers too. For a selection, add a `-p` for each package, as
    in item 2; with none, each runs the whole workspace. The walls file holds
    the gate's wall limits, 270 s focused and 215 s fuzzy, in place of the
-   profiles' own (`tools/tiers/design.md`, 11.7). `--gate` asks for the
+   profiles' own (`tools/tiers/design.md`, 11.7), until the user sets the
+   figures of the runs without the real loop and end to end
+   (`temper/docs/design/draft/test-budgets.md`, 7). `--gate` asks for the
    gate's verdict on each tree's layers against `tools/tiers/budgets.toml`
    (`tools/tiers/budgets.md`, 5). `LEDGER` is main's ledger for that suite,
    where the gate's runner keeps one; omit `--ledger LEDGER` until it does.
@@ -42,7 +58,7 @@ nothing slower than the fuzzy suite (`skein/docs/design/testing/README.md`, 6;
    the verdict with the base's figures (`tools/tiers/references.md`, 5 and 6).
    Rules:
    `skein/docs/foundation/testing-strategy.md`, 8 and 8.1: a CPU budget for
-   each layer of each tree, and the repository's checks', over budget is
+   each layer of each tree the gate runs, and the repository's checks', over budget is
    red, starved is a warning; a run its wall stopped
    runs once more, and stopped again it is red unless the gate's own cgroup
    was starved. Slow-tier profiles never run in the gate.
@@ -142,11 +158,21 @@ Each list has one entry per line; `#` starts a comment line.
 - **The slow tiers:** `tools/tiers/run TREE TIER [-- NEXTEST_ARGS...]` runs a tree's
   tier with its prerequisites; `tools/tiers/run --cpu DIR TREE TIER [-- NEXTEST_ARGS...]`
   accounts it against `tools/tiers/budgets.toml`. The hyphenated profiles in
-  `.config/nextest.toml` are `browser-skein`, `live-skein`, `live-smith`, `live-jig`,
-  `browser-jig`, `process-temper`, `live-temper`, `browser-temper` and
-  `conformance-hearth`. Never in the gate. Rules: `tools/tiers/design.md`, 1, 4 and 7;
+  `.config/nextest.toml` are `browser-skein`, `live-skein`, `real-skein`, `live-smith`,
+  `real-smith`, `live-jig`, `browser-jig`, `real-jig`, `process-temper`, `live-temper`,
+  `browser-temper`, `real-temper`, `conformance-hearth` and `real-hearth`. Never in
+  the gate. Rules: `tools/tiers/design.md`, 1, 4 and 7;
   `skein/docs/foundation/testing-strategy.md`, 8.1.
-- **The after-landing tier:** after each landing on main,
+- **The real loop and end to end:** `tools/tiers/run TREE real`, for each of
+  skein, smith, jig, temper and hearth, runs the pair `real-TREE`: the tree's
+  real-loop and end-to-end tests that the focused and fuzzy suites select,
+  which the gate leaves out (`tools/tiers/layers.md`, 9.2). They run at each
+  landing on main. With `--cpu`, each layer's CPU is reported beside the
+  tree's figures for it in both suites' gate tables as a warning, never red
+  (`tools/tiers/budgets.md`, 4.2); a failure is red, repaired from the
+  lowest tier that shows it.
+- **The after-landing tier:** after each landing on main, the five real
+  pairs above, once its runner lists them;
   `tools/tiers/run smith live` runs `live-smith` (`smith/docs/design/testing.md`, 2.3),
   and `tools/tiers/run temper live -- --run-ignored only` runs `live-temper`'s
   owned-forge landing pair (`temper/docs/design/testing/live-tier.md`).
@@ -174,11 +200,12 @@ Each list has one entry per line; `#` starts a comment line.
 
 ## The repository's hooks and fixture readers
 
-- **`.temper/pre-pr`** runs the applicable format, counted-baseline, citation,
-  outward-name, journey and budget-figure checks on every worker delivery.
-  Builds and tests run in CI. The full repository checker accepts the candidate
-  and destination commit IDs as `.temper/goal-pre-pr HEAD DESTINATION`
-  (`tools/pre-pr/design.md`, 1–4).
+- **`.temper/pre-pr`** checks the delivery in the worker workspace using the
+  changed packages, their immediate consumers and named integration targets.
+  A checker-only Gate runs the checker's Python suite. Explicit diagnostic
+  dispatch can check an accumulated goal using `.temper/goal-pre-pr HEAD DESTINATION`
+  (`tools/pre-pr/design.md`, 1).
+
 - **`.temper/merge`:** the reference's merge job, `tools/merge/merge.py`
   (`temper/docs/design/protocol/tooling.md`, 4.1).
 - **`.temper/close`:** fabrig's close command, `tools/close/close.py`

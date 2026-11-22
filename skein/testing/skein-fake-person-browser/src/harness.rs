@@ -232,6 +232,7 @@ mod lines;
 mod peers;
 pub(crate) use lines::{opening, restart, server_pipes, substitute};
 pub use lines::{page_with_query, printed, with_query};
+pub(crate) use peers::fixture as peer_fixture;
 #[derive(PartialEq, Eq, Debug)]
 enum ServerState {
     Running,

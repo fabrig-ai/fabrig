@@ -351,6 +351,7 @@ pub fn frame_at_ceilings(limits: &Limits) -> Me {
         key_bytes: 256,
         redirect_bytes: 4096,
         words_bytes: 8192,
+        sign_in_expires: u64::MAX,
         party: frame_party(limits),
         projects: piece_items(&repeated(project_role(limits), 2)),
         needs: needs(limits),

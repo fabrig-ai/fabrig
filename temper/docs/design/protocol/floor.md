@@ -213,8 +213,8 @@ start afresh. Staging is made again at dev's build for each drill
   written job (jig's `protocol/store/layouts.md`;
   `jig/docs/design/protocol/store/jobs.md`).
   `temper-protocol-store/schema/store-v25.schema` holds temper's current
-  text, not older map versions. Records drift and refusal of unpinned
-  constructs check it; tests build their values, with the bytes pinned
+  text, not older map versions. Records drift checks it; tests build
+  their values, with the bytes pinned
   by skein's `every` (`skein/docs/design/data/codec/README.md`, 6).
 - **Formats outside the registry are fixed at their versions.** A
   landing changing one designs how dev.fabrig.ai's store gets there:
@@ -227,8 +227,8 @@ start afresh. Staging is made again at dev's build for each drill
   landed kept text edited. The stored-change comparison reads landed
   files at the merge base with `origin/main` (or `HEAD` without it;
   during a landing merge, `MERGE_HEAD`). It is not a registered-family
-  patch gate. Each format's byte tests, the schemas' records drift and
-  pinned constructs, built-value round trips, registry tests and the
+  patch gate. Each format's byte tests, the schemas' records drift,
+  built-value round trips, registry tests and the
   golden deployment's outcomes stand beside it.
 - **The deployed layouts are guarded.** A focused test holds every
   family the production owner sets declare (2), and the client's kept

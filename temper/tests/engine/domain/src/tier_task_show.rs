@@ -2,9 +2,10 @@
 use crate::forge_routes::World;
 use crate::forge_routes::{Gate, StoryLimits};
 use jig_client::{self as client, contract as c};
-use jig_client_protocol_wire::Record as _;
-use jig_domain_core::reads;
-use skein_lib::{Env, List, Queue, Writer};
+use jig_client_protocol_wire::{self as w, Record as _};
+use jig_domain_core::{documents::Document, reads};
+use jig_protocol_engine_clients::translate::{objects, owner};
+use skein_lib::{Env, List, Queue, Wall, Writer};
 use temper_client_tools::{jig::call::Parsed, root};
 
 /// Keep the baseline's projection at 128 bytes without changing other tier stories.
@@ -165,12 +166,13 @@ fn answer(world: &mut World, read: reads::Read) -> c::ReadValue {
             },
         })
         .collect();
-    let wire = jig_protocol_engine_clients::translate::objects::document(
-        &answer,
-        &models,
-        &jig_protocol_engine_clients::Private::none(),
-        &jig_client_protocol_wire::CEILINGS,
-    )
+    let wire = if let reads::Answer::Document(document) = &answer
+        && let Document::Frame(frame) = document.as_ref()
+    {
+        owner::frame(frame, Wall::from_nanos(u64::MAX), &models, &w::CEILINGS).map(w::ReadValue::Me)
+    } else {
+        objects::document(&answer, &models, &jig_protocol_engine_clients::Private::none(), &w::CEILINGS)
+    }
     .unwrap_or_else(|problem| panic!("engine projection: {problem:?}, {answer:?}"));
     let mut bytes = Writer::new(
         usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))

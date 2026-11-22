@@ -1,6 +1,8 @@
 //! Whole-engine proofs of follows.md, 3–7 and 11. All observations use durable rows or public reads.
 use super::*;
+use jig_protocol_engine_clients::translate::owner;
 use skein_forge::api::{self, Commit};
+use skein_lib::Wall;
 
 pub(crate) fn fixture() -> World {
     configured_follow(s::FollowStart::Owner, 1000, Gate::default(), true)
@@ -408,8 +410,7 @@ fn ctl_list(world: &mut World) -> String {
         shown: None,
         picker: true,
     };
-    let frame = jig_protocol_engine_clients::translate::owner::frame(&frame, &[catalogue], link.wire())
-        .expect("owner's frame on wire");
+    let frame = owner::frame(&frame, Wall::EPOCH, &[catalogue], link.wire()).expect("owner's frame on wire");
     let me = jig_client_protocol_link::translate::documents::frame(frame, &link).expect("client frame");
     let event = client::Event::Up {
         up: client::Up::Watched {
