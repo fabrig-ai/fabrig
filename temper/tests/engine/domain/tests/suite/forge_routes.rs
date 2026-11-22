@@ -67,7 +67,7 @@ mod delegate_amendment;
 mod producer_amendment;
 mod producer_words;
 #[path = "forge_routes/questions.rs"]
-mod questions;
+pub(crate) mod questions;
 mod rulings;
 
 #[path = "forge_routes/goal_closer.rs"]
@@ -2125,7 +2125,7 @@ fn park_chat(world: &mut World, assignment: &engine::Assignment) {
     world.until(Until::Ready);
 }
 
-fn park_after_turn(world: &mut World, assignment: &engine::Assignment, read: Option<u64>, turns: u32) {
+pub(crate) fn park_after_turn(world: &mut World, assignment: &engine::Assignment, read: Option<u64>, turns: u32) {
     let mut event = world.protocol.answer(
         Token::new(7),
         assignment.task,
