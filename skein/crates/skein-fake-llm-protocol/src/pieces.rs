@@ -27,6 +27,13 @@ impl Stream {
         self.busy = false;
     }
 
+    pub(super) fn is_cut(&self) -> bool {
+        match &self.error {
+            Some(failure) => is_cut(failure.error),
+            None => false,
+        }
+    }
+
     pub(super) fn fail(&mut self, error: api::Failure) {
         self.error = Some(error);
     }
@@ -166,6 +173,11 @@ pub(super) fn next(
         };
         let suffix = text.get(written..).ok_or(documents::Error::Malformed)?;
         if suffix.is_empty() {
+            if server.pieces.is_cut() {
+                server.sequence = 3;
+                server.state = State::Streaming;
+                return terminal(server, env);
+            }
             server.sequence = match provider {
                 documents::Provider::Anthropic => 3,
                 documents::Provider::OpenAi => 2,
@@ -237,6 +249,16 @@ pub(super) fn terminal(server: &mut Server, env: &Env<Limits>) -> Result<Option<
         skein_llm::Provider::Anthropic => documents::Provider::Anthropic,
         skein_llm::Provider::OpenAi => documents::Provider::OpenAi,
     };
+    if server.pieces.is_cut() {
+        let event = documents::cut_event(provider, answer, server.sequence, server.response_id, &env.limits.documents)?;
+        if event.is_some() {
+            server.sequence = server.sequence.checked_add(1).ok_or(documents::Error::TooLarge)?;
+        } else {
+            server.answer = None;
+            server.pieces.error = None;
+        }
+        return Ok(event);
+    }
     let terminal = documents::terminal_sequence(provider, answer)?;
     if server.sequence < terminal {
         return Ok(None);
@@ -259,6 +281,25 @@ pub(super) fn terminal(server: &mut Server, env: &Env<Limits>) -> Result<Option<
         id: None,
         retry: None,
     }))
+}
+
+pub(super) fn is_cut(error: api::Error) -> bool {
+    match error {
+        api::Error::Cut(_) => true,
+        api::Error::Spent
+        | api::Error::SignedOut
+        | api::Error::Unserved
+        | api::Error::Window { .. }
+        | api::Error::Exhausted { .. }
+        | api::Error::RateLimited { .. }
+        | api::Error::Overloaded
+        | api::Error::Unavailable
+        | api::Error::ContextTooLong
+        | api::Error::Unauthorized
+        | api::Error::Refused
+        | api::Error::Unsupported
+        | api::Error::InvalidRequest => false,
+    }
 }
 
 #[cfg(test)]

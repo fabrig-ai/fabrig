@@ -10,6 +10,7 @@ use crate::api::{Change, Ended};
 use crate::boundary::Request;
 use crate::domain::{Alarm, Config, Domain};
 use crate::faults;
+use crate::fell::{Fault, Fell};
 use crate::store::Repository;
 
 /// What a webhook tells of a change.
@@ -113,6 +114,8 @@ pub(crate) fn notify(domain: &mut Domain, env: &Env<Config>, repository: Id<Repo
     let config = &env.limits;
     if domain.rng.chance(config.hooks_lost) {
         domain.tally.hooks_lost = domain.tally.hooks_lost.saturating_add(1);
+        let fell = fallen(domain, env, repository, &hook, Fault::HookLost);
+        domain.record_fell(fell);
         return;
     }
     let late = domain.rng.chance(config.hooks_late);
@@ -123,12 +126,17 @@ pub(crate) fn notify(domain: &mut Domain, env: &Env<Config>, repository: Id<Repo
     };
     if domain.deliveries.is_full() {
         domain.tally.hooks_dropped = domain.tally.hooks_dropped.saturating_add(1);
+        let fell = fallen(domain, env, repository, &hook, Fault::HookDropped);
+        domain.record_fell(fell);
         return;
     }
-    let id = domain.deliveries.insert(Delivery { repository, hook }).expect("checked for room above");
     if late {
         domain.tally.hooks_late = domain.tally.hooks_late.saturating_add(1);
+        let mut fell = fallen(domain, env, repository, &hook, Fault::HookLate);
+        fell.until = Some(env.now.saturating_add(span));
+        domain.record_fell(fell);
     }
+    let id = domain.deliveries.insert(Delivery { repository, hook }).expect("checked for room above");
     domain.timers.arm(Alarm::Hook(id), env.now.saturating_add(span)).expect("a timer per delivery fits");
 }
 
@@ -155,4 +163,18 @@ pub(crate) fn deliver(domain: &mut Domain, id: Id<Delivery>, out: &mut Queue<Req
     out.push(hook);
     domain.deliveries.retire(id);
     domain.tally.hooks = domain.tally.hooks.saturating_add(1);
+}
+
+fn fallen(domain: &Domain, env: &Env<Config>, repository: Id<Repository>, hook: &Hook, fault: Fault) -> Fell {
+    let mut fell = Fell::repository(domain, env.now, fault, repository);
+    fell.user = hook.by;
+    if hook.change == Change::Pull || hook.change == Change::Review {
+        fell.pull = hook.number;
+    }
+    fell.commit = hook.commit;
+    if let Some(ended) = hook.ended {
+        fell.commit = Some(ended.commit);
+        fell.run = Some(ended.job.run);
+    }
+    fell
 }

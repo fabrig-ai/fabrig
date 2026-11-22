@@ -260,11 +260,47 @@ impl Usage {
     pub const NONE: Usage = Usage { input: None, cache_read: None, cache_write: None, output: None, reasoning: None };
 }
 
+/// Account faults installed by the owner, independent of a conversation.
+/// Contract: docs/design/testing/fakes/llm.md, section 2.7.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Strike {
+    /// Credits remain spent until cleared.
+    Spent,
+    /// The account's sign-in expired.
+    SignedOut,
+    /// Only calls for this model fail.
+    Unserved { model: Box<[u8]> },
+    /// Shared prompt-token allowance in fixed windows from the strike.
+    Window { tokens: u64, length: Duration },
+}
+
+/// Where a successful HTTP stream ends without its completion event.
+/// Contract: docs/design/testing/fakes/llm.md, section 2.8.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Cut {
+    /// Only the opening events were sent.
+    BeforeOutput,
+    /// The last text block remains open.
+    MidText,
+    /// The last call remains open with half its arguments sent.
+    MidCall,
+}
+
 /// Typed refusal or terminal failure of the fake peer, independent of the agent's policy.
 ///
 /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Error {
+    /// The account's credits are spent.
+    Spent,
+    /// The account's sign-in expired.
+    SignedOut,
+    /// This account does not serve the requested model.
+    Unserved,
+    /// The shared prompt-token window refused this call.
+    Window { reset: Duration, limit: u64, remaining: u64 },
+    /// The stream ended whole without its completion event.
+    Cut(Cut),
     /// The provider is temporarily overloaded.
     ///
     /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
@@ -390,6 +426,8 @@ pub struct Turn {
 /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Line {
+    /// Cuts the first `times` calls reaching this line; zero is refused.
+    Cut { times: u32 },
     /// Binds a conversation value for later text and call arguments; emits no part.
     ///
     /// Contract: docs/design/testing/fakes/llm.md, section 2.6.

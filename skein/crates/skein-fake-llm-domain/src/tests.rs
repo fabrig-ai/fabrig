@@ -29,6 +29,9 @@ pub(super) const CONFIG: Config = Config {
     cache_entries: 8,
     strict: false,
     unscoped_reads: 0,
+    accounts: 0,
+    unserved: 0,
+    cut: 0,
 };
 
 pub(super) fn user(parts: Box<[Part]>) -> Message {
@@ -310,6 +313,8 @@ pub(crate) fn played(scripts: &[Script]) -> crate::domain::Played {
         cued: scripts.len(),
         asked: 0,
         resets: skein_lib::List::with_capacity(crate::respond::reset_count(scripts).expect("fixture reset count")),
+        cuts: skein_lib::List::with_capacity(crate::respond::cut_count(scripts).expect("fixture cut count")),
+        accounts: crate::accounts::Accounts::new(&CONFIG, 0),
     }
 }
 

@@ -12,6 +12,7 @@ mod simulation;
 mod stopped_news;
 
 mod fuzzy {
+    mod accounts;
     mod composed;
 }
 mod running_revision;

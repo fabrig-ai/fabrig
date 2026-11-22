@@ -121,13 +121,16 @@ pub(crate) fn pull_files(
     limit: u32,
 ) -> Result<Answer, Error> {
     let item = repository.item(number)?;
-    let pull = item.pull.as_ref().ok_or(Error::Missing(What::Pull))?;
-    let onto = match item.state {
+    if item.pull.is_none() {
+        return Err(Error::Missing(What::Pull));
+    }
+    let pull = pulls::projection(domain, limits, repository, item);
+    let onto = match pull.state {
         State::Closed => match pull.merged {
             Some(merged) => domain.object(merged).expect("a stored merge").parent,
-            None => repository.branches.get(&*pull.base).copied(),
+            None => pull.base_commit,
         },
-        State::Open => repository.branches.get(&*pull.base).copied(),
+        State::Open => pull.base_commit,
     }
     .ok_or(Error::Missing(What::Branch))?;
     let files = changed(domain, limits, git::merge_base(domain, onto, pull.commit), pull.commit)?;

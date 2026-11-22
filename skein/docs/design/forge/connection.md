@@ -1071,7 +1071,7 @@ The owner's domain owes:
   full; faults at every byte.
 - **The protocol world,** in skein's `tests/forge/protocol`: the client and
   the component against the fake forge's protocol layer and domain
-  (../testing/fakes/forge.md, section 4), joined by in-memory streams cut at random and
+  (../testing/fakes/forgejo.md, section 1), joined by in-memory streams cut at random and
   driven by a scripted durable owner that restarts (client.md, section
   10). Its stories: a creation whose answer was lost is found after a
   restart and not made twice; listings keep up with another party's changes;

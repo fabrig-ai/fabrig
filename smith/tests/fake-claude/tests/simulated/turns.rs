@@ -150,6 +150,7 @@ fn an_error_result_carries_its_status() {
                 resets_at: Some(123),
                 terminal_reason: Some("limited".into()),
                 errors: vec!["limit".into()],
+                result: None,
             },
         ),
         1,

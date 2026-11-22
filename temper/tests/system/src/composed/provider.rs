@@ -21,6 +21,21 @@ pub enum Provider {
 }
 
 impl Provider {
+    pub(super) fn strike(&mut self, credential: u32, strike: skein_fake_llm_domain::api::Strike, now: Time) {
+        match self {
+            Self::Typed(provider) => provider.provider_mut().strike(credential, strike, now),
+            Self::Wire(provider) => provider.strike(credential, strike, now),
+        }
+        .expect("account fault fits");
+    }
+
+    pub(super) fn clear(&mut self, credential: u32, strike: &skein_fake_llm_domain::api::Strike, now: Time) {
+        match self {
+            Self::Typed(provider) => provider.provider_mut().clear(credential, strike),
+            Self::Wire(provider) => provider.clear(credential, strike, now),
+        }
+    }
+
     pub(super) fn continue_provider(&mut self, previous: &mut Self) {
         if let (Self::Wire(current), Self::Wire(previous)) = (self, previous) {
             current.continue_provider(previous);
