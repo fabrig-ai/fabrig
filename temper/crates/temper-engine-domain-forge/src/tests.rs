@@ -652,6 +652,8 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::TierDecision { .. }
         | Request::FileRedFinding { .. }
         | Request::FileVerdict { .. }
+        | Request::ReturnFinding(_)
+        | Request::FailRepair { .. }
         | Request::MakingCopied { .. }
         | Request::MakingAct { .. }
         | Request::Decided { .. }
@@ -760,6 +762,8 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::TierDecision { .. }
         | Request::FileRedFinding { .. }
         | Request::FileVerdict { .. }
+        | Request::ReturnFinding(_)
+        | Request::FailRepair { .. }
         | Request::MakingCopied { .. }
         | Request::MakingAct { .. }
         | Request::Decided { .. }
@@ -861,6 +865,8 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::TierDecision { .. }
         | Request::FileRedFinding { .. }
         | Request::FileVerdict { .. }
+        | Request::ReturnFinding(_)
+        | Request::FailRepair { .. }
         | Request::MakingCopied { .. }
         | Request::MakingAct { .. }
         | Request::Decided { .. }

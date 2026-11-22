@@ -1182,6 +1182,7 @@ pub fn tier_row() -> top::TierRow {
         task: Some(51),
         record: p::Record {
             sequence: 2,
+            last_run: None,
             judged: Some(p::Judged { tip: [2; 32], key: [3; 32] }),
             failing: failures.clone(),
             flakes: flakes.into_boxed(),
@@ -1323,12 +1324,25 @@ pub fn finding() -> top::Finding {
         signature: Some(top::FindingSignature {
             repository: REPO,
             source: Box::new([b's'; 64]),
-            ids: ids.into_boxed(),
+            ids: ids.clone().into_boxed(),
             first: Box::new([b'f'; 512]),
             many: false,
         }),
         seen: Some(u32::MAX),
-        blame: Some(top::FindingBlame { strength: top::BlameStrength::Owned, landings: landings.into_boxed() }),
+        blame: Some(top::FindingBlame {
+            strength: top::BlameStrength::Moved,
+            landings: landings.into_boxed(),
+            moved: Some(top::BlameMove { by: top::Filer::Party(u64::MAX), why: Box::new([b'w'; 200]) }),
+        }),
+        repair: Some(top::FindingRepair {
+            goal: u64::MAX,
+            made: true,
+            attempts: u8::MAX,
+            cancelled: true,
+            failing: ids.into_boxed(),
+            until: Some(skein_lib::Wall::from_nanos(u64::MAX)),
+            judging: Some(top::RepairJudging::Landing([255; 32])),
+        }),
         cleared: Some(top::FindingCleared { run: u64::MAX, at: skein_lib::Wall::from_nanos(u64::MAX) }),
     }
 }

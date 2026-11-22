@@ -17,7 +17,8 @@ fn seeded(triager: AreaOwner) -> (Driver, engine::Assignment) {
         );
     }
     let mut row = fixture::row(&driver, 1).clone();
-    row.blame = Some(forge::FindingBlame { strength: forge::BlameStrength::Owned, landings: Box::new([]) });
+    row.blame =
+        Some(forge::FindingBlame { moved: None, strength: forge::BlameStrength::Owned, landings: Box::new([]) });
     row.cleared = Some(forge::FindingCleared { run: 8, at: row.at });
     driver.store.seed(Box::new([engine::Record::Forge { row: Box::new(forge::Stored::Finding(row)) }]), Box::new([]));
     fixture::restart(&mut driver, &run);
