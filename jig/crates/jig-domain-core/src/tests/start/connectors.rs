@@ -1,10 +1,11 @@
 //! Connector loading and the durable output gate (jig/docs/design/domain/engine/restart.md).
 use crate::{
-    Ask, CoreRecord, Restored,
+    Ask, CoreRecord, Event, Held, Restored,
     effects::{connector, resources},
-    tasks,
+    people, tasks,
     tests::start::{Action, Core, Env, Phase, Queue, Request, SweepInput, Time, Wall, config, limits, step_phase},
 };
+use skein_lib::{ReplyTo, Token};
 
 fn fresh() -> (Core, Env<crate::Limits>) {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits() };
@@ -88,7 +89,7 @@ fn resource_reports_load_access_slots_and_holds_before_link_without_asking() {
             let out = crate::step(
                 &mut core,
                 &env,
-                crate::Event::EffectConnector(connector::Event::Resource {
+                Event::EffectConnector(connector::Event::Resource {
                     project: 1,
                     name: name(connector),
                     role: connector::ResourceRole::Context,
@@ -124,13 +125,13 @@ fn a_connector_ask_waits_for_the_wires_continuation() {
     let (mut core, env) = fresh();
     to_connectors(&mut core, &env);
     // An internal output fixture pins the same held queue used by loading decisions.
-    core.start.held.push(Request::Ask { connector: 2, ask: Ask::Effect(connector::Ask::ReadAfresh) });
+    core.start.held.push(Request::Ask { connector: 2, ask: Ask::Effect(connector::Ask::CatchUp) });
     assert_eq!(core.start.held.len(), 1);
-    let Some(Request::Ask { connector, ask: Ask::Effect(connector::Ask::ReadAfresh) }) = core.start.held.pop() else {
+    let Some(Request::Ask { connector, ask: Ask::Effect(connector::Ask::CatchUp) }) = core.start.held.pop() else {
         panic!("typed held connector ask")
     };
     assert_eq!(connector, 2);
-    core.start.held.push(Request::Ask { connector, ask: Ask::Effect(connector::Ask::ReadAfresh) });
+    core.start.held.push(Request::Ask { connector, ask: Ask::Effect(connector::Ask::CatchUp) });
     let mut out = Queue::uncapped();
     step_phase(
         core.start_done(&env, Phase::RestoreConnector { connector: 1 }, &mut out),
@@ -145,7 +146,7 @@ fn a_connector_ask_waits_for_the_wires_continuation() {
     assert_eq!(core.start.held.len(), 2);
     step_phase(core.start_resume(&env, wires, &mut out), Phase::AdoptRuns);
     assert!(core.start.held.is_empty());
-    let Some(Request::Ask { connector: 2, ask: Ask::Effect(connector::Ask::ReadAfresh) }) = out.pop() else {
+    let Some(Request::Ask { connector: 2, ask: Ask::Effect(connector::Ask::CatchUp) }) = out.pop() else {
         panic!("connector ask releases after Wires")
     };
     for _ in 0..out.len() {
@@ -176,4 +177,86 @@ fn a_full_roles_cache_fails_closed_without_refusing_the_start() {
         Some(&connector::ResourceRole::Owned)
     );
     assert_eq!(core.start_failure(), None);
+}
+
+#[test]
+fn opening_asks_each_connector_to_catch_up_without_waiting_for_reports() {
+    let (mut core, env) = fresh();
+    to_connectors(&mut core, &env);
+    let mut out = Queue::uncapped();
+    step_phase(
+        core.start_done(&env, Phase::RestoreConnector { connector: 1 }, &mut out),
+        Phase::RestoreConnector { connector: 2 },
+    );
+    step_phase(core.start_done(&env, Phase::RestoreConnector { connector: 2 }, &mut out), Phase::Link);
+    step_phase(core.start_done(&env, Phase::Link, &mut out), Phase::Sweep);
+    step_phase(core.start_sweep(&env, SweepInput::Finished, &mut out), Phase::Switch);
+    step_phase(core.start_done(&env, Phase::Switch, &mut out), Phase::Wires);
+    let Action::Commit(wires) = core.start_done(&env, Phase::Wires, &mut out) else { panic!("Wires commits") };
+    step_phase(core.start_resume(&env, wires, &mut out), Phase::AdoptRuns);
+    step_phase(core.start_done(&env, Phase::AdoptRuns, &mut out), Phase::Open);
+    while out.pop().is_some() {}
+    assert!(!core.start_opened());
+    let Action::Idle = core.start_done(&env, Phase::Open, &mut out) else { panic!("Open ends the script") };
+    assert!(core.start_opened() && core.ready());
+    assert_eq!(core.start_phase(), None);
+    for expected in [1, 2] {
+        assert!(!core.caught_up(expected));
+        let Some(Request::Ask { connector, ask: Ask::Effect(connector::Ask::CatchUp) }) = out.pop() else {
+            panic!("one catching-up ask per connector")
+        };
+        assert_eq!(connector, expected);
+    }
+    assert!(out.is_empty());
+
+    let mut signed = crate::step(
+        &mut core,
+        &env,
+        Event::SignIn {
+            until: None,
+            held: None,
+            reply_to: ReplyTo::new(Token::new(81)),
+            identity: people::Identity {
+                key: people::IdentityKey { provider: 0, subject: Box::new([9]) },
+                login: Box::from(b"person".as_slice()),
+                name: Box::from(b"Person".as_slice()),
+            },
+        },
+    );
+    let mut session = None;
+    while let Some(request) = signed.pop() {
+        if let Request::Held(held) = request
+            && let Held::PeopleReply { reply: people::Reply::SignedIn { sign_in, .. }, .. } = *held
+        {
+            session = Some(sign_in);
+        }
+    }
+    let mut answered = crate::step(
+        &mut core,
+        &env,
+        Event::People(people::Event::Ask {
+            models: Box::new([]),
+            reply_to: ReplyTo::new(Token::new(82)),
+            sign_in: session.expect("sign-in answered before reports"),
+            key: [82; 16],
+            ask: people::Ask::Conclude { project: 1, task: 999 },
+        }),
+    );
+    let mut reply = None;
+    while let Some(request) = answered.pop() {
+        if let Request::Held(held) = request
+            && let Held::PeopleReply { reply: answer, .. } = *held
+        {
+            reply = Some(answer);
+        }
+    }
+    assert!(reply.is_some(), "the people ask answers before reports");
+    assert_ne!(reply, Some(people::Reply::Again(people::Again::NotReady)));
+
+    core.catch_up_done(1, connector::RestartStage::ReadAfresh);
+    core.catch_up_done(2, connector::RestartStage::Settled);
+    assert!(!core.caught_up(1) && !core.caught_up(2));
+    core.catch_up_done(1, connector::RestartStage::Settled);
+    core.catch_up_done(2, connector::RestartStage::ReadAfresh);
+    assert!(core.caught_up(1) && core.caught_up(2));
 }

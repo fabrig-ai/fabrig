@@ -18,8 +18,8 @@ fn release_takes_the_projects_repositories_out_of_every_list() {
         outputs(&mut d, Event::Restore { record: Stored::Repository(row) });
     }
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     outputs(&mut d, Event::Restore { record: Stored::Names { task: 7, resources: Box::new([branch()]) } });
     outputs(&mut d, Event::Unnamed { task: 7 });
     assert!(!d.readable_repositories(5).is_empty());
