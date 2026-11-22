@@ -1,4 +1,4 @@
-//! One bounded HTTP connection over Forgejo documents and the fake's calls (skein/docs/design/testing/fakes/forge.md, 4, and skein/docs/design/testing/fakes/github.md, 3).
+//! One bounded HTTP connection over Forgejo documents and the fake's calls (skein/docs/design/testing/fakes/forgejo.md, 1, and skein/docs/design/testing/fakes/github.md, 3).
 mod git;
 use crate::{Error, Hosted, Limits, Service, errors, response, routes, service::Call};
 use alloc::boxed::Box;
@@ -673,7 +673,7 @@ fn decoded(
         (Ok(_), Ok(_), None) => error_reply(server, env, api::Error::Missing(api::What::Repository)),
     }
 }
-/// testing/fakes/forge.md, 4: both state edits are refused before the domain call.
+/// testing/fakes/forgejo.md, 1: both state edits are refused before the domain call.
 #[expect(
     clippy::wildcard_enum_match_arm,
     reason = "only issue state edits and the inspected pull answer participate in this protocol refusal"
