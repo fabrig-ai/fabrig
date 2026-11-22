@@ -537,7 +537,10 @@ pub(super) fn read(
                     crate::ForgeReadAnswer::Milestone(super::milestones::read(domain, project, task))
                 }
                 crate::ForgeRead::Finding { project, number } => {
-                    crate::ForgeReadAnswer::Finding(super::findings::read(domain, project, number))
+                    crate::ForgeReadAnswer::Finding(match super::findings::read(domain, project, number) {
+                        Some(answer) => Some(Box::new(answer)),
+                        None => None,
+                    })
                 }
                 crate::ForgeRead::Limits { after } => {
                     crate::ForgeReadAnswer::Limits { after, held: domain.held_bytes() }

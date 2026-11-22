@@ -394,6 +394,7 @@ fn forges_rows(numbers: &[u16], connection: &v1::Connection) -> v1::Forges {
     for number in numbers {
         forges
             .push(v1::ForgeRow {
+                catching_up: None,
                 starts_with: v1::StartsWith::Repository,
                 makings: List::with_capacity(0),
                 host: b"git.example:3000".as_slice().into(),
@@ -419,11 +420,40 @@ fn forges_rows(numbers: &[u16], connection: &v1::Connection) -> v1::Forges {
 }
 
 #[test]
+fn catching_up_round_trips_on_both_documents_at_version_46() {
+    assert_eq!(crate::CLIENT_VERSION, 46);
+    let progress =
+        v1::CatchingUp { fresh: 3, gathers: 4, ci: 5, goal_files: 6, lost_writers: 7, goal_branches: 8, uncertain: 2 };
+    for catching_up in [None, Some(progress)] {
+        let mut forges = forges_rows(&[1], &v1::Connection::NotConnected);
+        forges.forges.get_mut(0).unwrap().catching_up = catching_up.clone();
+        let bytes = crate::forges(&forges);
+        assert_eq!(crate::decode_forges(&bytes, &v1::CEILINGS), Some(forges));
+        let panel = v1::ChangesPanel {
+            project: 1,
+            landing: b"main".as_slice().into(),
+            queues: List::with_capacity(0),
+            more: 0,
+            landed: List::with_capacity(0),
+            landed_more: 0,
+            landed_default: List::with_capacity(0),
+            landed_default_more: 0,
+            catching_up,
+        };
+        let mut bytes = crate::changes_panel(&panel);
+        assert_eq!(crate::decode_changes_panel(&bytes, &v1::CEILINGS), Some(panel));
+        *bytes.get_mut(1).unwrap() = 41;
+        assert_eq!(crate::decode_changes_panel(&bytes, &v1::CEILINGS), None);
+    }
+}
+
+#[test]
 fn each_forge_offer_round_trips() {
     let limits = fixtures::limits();
     let mut forges = List::with_capacity(3);
     for (number, offer) in [(1, v1::Offer::NotOffered), (2, v1::Offer::NotUnderTheBox), (3, v1::Offer::Offered)] {
         let row = v1::ForgeRow {
+            catching_up: None,
             starts_with: v1::StartsWith::Repository,
             makings: List::with_capacity(0),
             host: b"git.example:3000".as_slice().into(),
@@ -524,6 +554,7 @@ fn forge_fields_refuse_one_past_their_bounds_on_construction_and_decode() {
         v1::Connection::Stopped(v1::Stopped { reason: fixtures::field_bytes(17) }),
     ] {
         let row = v1::ForgeRow {
+            catching_up: None,
             starts_with: v1::StartsWith::Repository,
             makings: List::with_capacity(0),
             host: b"git.example:3000".as_slice().into(),
@@ -562,6 +593,7 @@ fn forges_refuse_seventeen_rows_unsorted_rows_and_duplicate_numbers() {
         rows.push(row).expect("room");
     }
     rows.push(v1::ForgeRow {
+        catching_up: None,
         starts_with: v1::StartsWith::Repository,
         makings: List::with_capacity(0),
         host: b"git.example:3000".as_slice().into(),
@@ -642,6 +674,7 @@ fn forge_login_and_stop_reason_round_trip_at_schema_ceilings() {
                     [v1::Connection::Connected(connected.clone()), v1::Connection::Stopped(stopped.clone())]
                 {
                     let row = v1::ForgeRow {
+                        catching_up: None,
                         starts_with: v1::StartsWith::Repository,
                         makings: List::with_capacity(0),
                         host: b"git.example:3000".as_slice().into(),
@@ -767,6 +800,7 @@ fn installation_row(count: u32, why_bytes: usize) -> v1::ForgeRow {
             .unwrap();
     }
     v1::ForgeRow {
+        catching_up: None,
         starts_with: v1::StartsWith::Repository,
         makings: List::with_capacity(0),
         host: b"git.example:3000".as_slice().into(),
@@ -791,8 +825,8 @@ fn installation_row(count: u32, why_bytes: usize) -> v1::ForgeRow {
 fn installation_row_bytes(parts: v1::ForgeRow, why: &[u8]) -> Box<[u8]> {
     // Number (2), host length (4) and bytes, four enum tags, first tag, starts-with tag, list length (4), end tag, why length (4),
     // app tag, web tag, repositories length (4), owned tag, admin bool, typed stop tag, read-only bool,
-    // makings length (4).
-    const ROW_FRAMING_BYTES: usize = 35;
+    // makings length (4), catching-up tag.
+    const ROW_FRAMING_BYTES: usize = 36;
     let mut size = why.len().checked_add(ROW_FRAMING_BYTES).unwrap().checked_add(parts.host.len()).unwrap();
     for installation in &parts.installations {
         size = size
@@ -822,6 +856,7 @@ fn installation_row_bytes(parts: v1::ForgeRow, why: &[u8]) -> Box<[u8]> {
     writer.put(&[0]).unwrap(); // no owned details
     writer.put(&[0, 0, 0]).unwrap(); // admin false, no typed stop, read-only false
     writer.put(&0_u32.to_be_bytes()).unwrap(); // no repository makings
+    writer.put(&[0]).unwrap(); // not catching up
     writer.finish()
 }
 #[test]

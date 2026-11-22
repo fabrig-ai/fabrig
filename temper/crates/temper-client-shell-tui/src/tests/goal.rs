@@ -224,6 +224,7 @@ fn document(scope: w::NoteScope) -> w::ReadValue {
 }
 pub(super) fn forges(mode: f::Mode) -> Box<[u8]> {
     let row = f::ForgeRow {
+        catching_up: None,
         number: 2,
         host: b"git.example".as_slice().into(),
         kind: f::Kind::Forgejo,

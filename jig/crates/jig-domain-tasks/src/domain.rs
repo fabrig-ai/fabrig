@@ -691,6 +691,9 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Cancel { reply_to, by, operation } => {
             crate::control::cancel(domain, env, reply_to, by, operation, out);
         }
+        Event::Fail { reply_to, by, operation } => {
+            crate::control::fail(domain, env, reply_to, by, operation, out);
+        }
         Event::Release { reply_to, by, operation } => {
             crate::control::release(domain, env, reply_to, by, operation, out);
         }
@@ -1460,10 +1463,7 @@ pub(crate) fn make(
     places: &[crate::DependencyPlace],
     out: &mut Queue<Request>,
 ) {
-    if !domain.ready() {
-        return refused(to, None, Refusal::NotReady, out);
-    }
-    if let Err(problem) = crate::batch::check_places(domain, &env.limits, creator, maker, &batch, places) {
+    if let Err(problem) = domain.check_make(&env.limits, creator, maker, &batch, places) {
         return crate::capacity::refused(domain, env, to, problem, out);
     }
     let numbers = make_admitted(domain, env, creator, batch, out);

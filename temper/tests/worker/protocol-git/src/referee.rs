@@ -33,7 +33,11 @@ impl Referee {
         self.stopped_at = Some(spawns);
     }
     pub fn observe(&mut self, event: Event, below: &Below, owner: Token) {
-        let Event::Done { owner: got, done } = event else { panic!("operation returned a startup event") };
+        let (got, done) = match event {
+            Event::Done { owner, done } => (owner, done),
+            Event::Unswept { .. } => return,
+            Event::Started | Event::Unusable { .. } => panic!("operation returned a startup event"),
+        };
         assert_eq!(got, owner);
         assert!(self.terminals.is_empty(), "one terminal per operation");
         assert_eq!(below.closed_children, below.spawns, "all children closed before Done");

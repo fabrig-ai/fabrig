@@ -59,7 +59,7 @@ pub(super) fn preparation_detail(
             },
             Some(repository),
         ),
-        PrepareStep::Reds { .. } => return Box::new([]),
+        PrepareStep::Reds { .. } | PrepareStep::Pack { .. } => return Box::new([]),
         PrepareStep::Store { repository, .. } => (b"store", Some(repository)),
         PrepareStep::Look { repository, .. } => (b"look", Some(repository)),
         PrepareStep::Make => (b"make", None),

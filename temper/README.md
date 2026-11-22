@@ -47,8 +47,8 @@ draft to landed change.
 - [`docs/help/server.md`](docs/help/server.md): temper on a server,
   behind a TLS proxy, with Google's sign-in and a worker on another
   host, redeployed from `main`.
-- [`docs/design/STATUS.md`](docs/design/STATUS.md): how far the code is
-  from the design.
+- [`docs/design/STATUS.md`](docs/design/STATUS.md): where to find how far
+  the code is from the design and how to roll up the status files.
 - skein's foundation, which temper follows: `programming-model.md`,
   `testing-strategy.md` and `notes.md`.
 

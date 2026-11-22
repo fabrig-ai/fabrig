@@ -50,4 +50,4 @@
   does (jig's `domain/people/acts.md`, 1), where its row holds the task;
   `hold lift` is keyed optionally (`Keyed::Optional`).  the question-number omission remains `results.status.md`, 1. the budget-print scaling remains `results.status.md`, 1. the pinned-account wait contradiction remains `results.status.md`, 1. the person-task amendment's missing arguments remain `results.status.md`, 1.  the authority-entry bound remains `README.status.md`, 9.
 - **Not yet:** 2: `me`'s sign-in expiry. 3: `party reissue` [in flight: change 11707].
-- **Not yet:** 3: `finding repair` and `finding blame` [in flight: change 10374].
+- **Not yet:** 3: `finding repair` and `finding blame` [in flight: change 10620].
