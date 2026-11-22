@@ -110,17 +110,22 @@ fn lost_ci_names_the_gate_run_and_engine_candidate() {
 }
 
 #[test]
-#[should_panic(expected = "seed 53: forge lost 1 fault records")]
-fn overflowing_fault_records_fail_the_world_step_with_seed_and_count() {
+fn fault_records_drain_at_capacity_and_count_overflow() {
     let mut config = fake_config();
     config.limits.observations = 1;
     config.unavailable = 1000;
     let mut world = World::new_in(&Streams::new(53), config.clone());
     let env = Env { now: world.now(), wall: Wall::EPOCH, limits: config };
+    for count in 1..=2 {
+        probe(world.forge_mut(), &env);
+        assert_eq!(world.forge_mut().fell_lost(), 0, "the record fits at capacity");
+        world.step_until(world.now());
+        assert_eq!(world.ledger().entries().len(), count);
+        assert!(world.forge_mut().pop_fell().is_none(), "the world drains each record");
+    }
     probe(world.forge_mut(), &env);
     probe(world.forge_mut(), &env);
-    assert_eq!(world.forge_mut().fell_lost(), 1);
-    world.step_until(world.now());
+    assert_eq!(world.forge_mut().fell_lost(), 1, "one record exceeds capacity");
 }
 
 #[test]
