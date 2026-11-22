@@ -1,4 +1,4 @@
-//! The project's frame (temper/docs/design/client/view.md, 1 and 3).
+//! The project's frame (temper/docs/design/client/view.md, 1, and temper/docs/design/client/view-navigation.md, 1).
 use super::fixtures as f;
 use temper_client_domain::{self as d, Address, ChatsFilter};
 

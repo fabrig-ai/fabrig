@@ -7,7 +7,7 @@ configuration that sets it up. It is the way a
 project develops itself through temper: one repository, a person who
 writes design drafts, designers who turn them into design, coding agents
 who make the code meet it. How the goal lands is `archive/reference-landing.md`;
-`reference-case.md` walks both on one small goal; `notes.md` holds the
+`reference-case.md` walks both on one small goal; `reference-code-production.notes.md` holds the
 reasons for each choice, N1 to N24, cited here by number.
 
 Unqualified, `../domain/forge/README.md`, `landing.md`, `after-landing.md`, `../domain/agent/README.md`
@@ -375,7 +375,7 @@ jig's rules, unchanged (jig's `domain/tasks/lifecycle.md`, 6 and `domain/tasks/p
 ## 10. Checked along the way
 
 g is followed by a tier of its own (N5): the project's gate without its
-slowest suites, defined as a tier is (`after-landing.md`, section 2).
+slowest suites, defined as a tier is (`../domain/after-landing-runs.md`, section 1).
 Main's tiers follow main only.
 
 - **One run at a time,** at g's newest tip, at most once per span; a run
@@ -398,7 +398,7 @@ Main's tiers follow main only.
 ## 11. Catching up with main
 
 While the goal works, main moves with other landings. G hears those that
-touch the goal's open work as news (`../domain/forge/README.md`, 5.3), its wake policy
+touch the goal's open work as news (`../domain/forge/topics.md`, 1.3), its wake policy
 pacing them (at most once in 30 minutes: N23), and takes them by a
 catch-up change into g (N6), its words naming main's commit: its
 producer the merge job, merging that commit into a branch made at g's
@@ -450,7 +450,7 @@ arrives while G runs is relayed to that run instead.
 | a change's result | its producer's report and Left list | a new change for what is left, an amendment of a live change, or nothing; L once the plan is done (section 12) |
 | a person task's result | P's choice | the answer it was waiting to give |
 | a red of g's tier, as news | the tier, the failing tests, the log, the tree | a repair change into g, or an amendment (section 10) |
-| a landing into main that touches the goal's open work (`../domain/forge/README.md`, 5.3) | the landing | a catch-up change into g (section 11) |
+| a landing into main that touches the goal's open work (`../domain/forge/topics.md`, 1.3) | the landing | a catch-up change into g (`reference-code-production.md`, section 11) |
 | X's result | the close-out's report | the goal's report, and it finishes (section 12) |
 | an escalation from L | L's hold and why | release, amend, a change into g first, cancel, pass up (`archive/reference-landing.md`) |
 | a red after landing, as news | the tier, the failing tests, the log | triage and a repair into main (`archive/reference-landing.md`) |

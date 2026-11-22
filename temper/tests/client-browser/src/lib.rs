@@ -114,7 +114,7 @@ pub fn bundle() -> PathBuf {
 pub fn first_chat(title: &[u8]) -> Find {
     Find::exactly_named(Role::Heading { level: 1 }, &[b"T1 \xc2\xb7 ".as_slice(), title].concat())
 }
-/// Open the rail's new box and choose a change (temper/docs/design/client/view.md, 3).
+/// Open the rail's new box and choose a change (temper/docs/design/client/view-navigation.md, 1).
 #[must_use]
 pub fn start_change(drafts: bool) -> Vec<Step> {
     let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
@@ -199,7 +199,7 @@ fn live() -> Find {
     Find::exactly_named(Role::Button, b"Owner")
 }
 /// Read the positive Live DOM marker, which the project rail hides from accessibility
-/// (temper/docs/design/client/view.md, 3), after the page's readiness observation.
+/// (temper/docs/design/client/view-navigation.md, 1), after the page's readiness observation.
 #[must_use]
 pub fn connected() -> Step {
     Step::Keep {
@@ -411,7 +411,7 @@ impl Tier {
     pub fn setup(&self) -> Setup<'_> {
         configuration::install(self.scratch.path(), &temper());
         // The box supplies serve's pipe and --box at every start, including its welcome default
-        // (temper/docs/design/protocol/configuration/settings.md, 2, kind 20).
+        // (temper/docs/design/protocol/configuration/settings-kinds.md, 1, kind 20).
         let args = configuration::flags(self.scratch.path());
         Setup {
             server: temper(),

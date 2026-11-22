@@ -1190,7 +1190,7 @@ fn delivered_review_repair(moved: bool, idle: bool) {
     assert!(!matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }));
 }
 
-// domain/forge/change/README.md, 3: the procedure retains the precise hold while its review waits.
+// domain/forge/change/drift.md, 1: the procedure retains the precise hold while its review waits.
 #[test]
 fn an_external_close_holds_the_change_during_review() {
     use temper_engine_domain_forge_change::{Hold, State};

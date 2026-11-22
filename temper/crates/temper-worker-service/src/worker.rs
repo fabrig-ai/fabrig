@@ -30,7 +30,7 @@ use temper_worker_domain as root;
 use worker_settings::problem;
 
 /// The worker's root directory and pinned agent, prepared by the shell
-/// (domain/worker/README.md, 5).
+/// (domain/worker/agent-processes.md, 1).
 #[derive(Debug)]
 pub struct WorkerRuntime {
     pub root: Fd,
@@ -364,7 +364,7 @@ impl Worker {
         }
     }
     /// Whether every agent process the worker spawned has closed, one still
-    /// spawning among them (protocol/README.md, section 6).
+    /// spawning among them (protocol/service-process.md, section 1).
     #[must_use]
     pub fn agents_ended(&self) -> bool {
         self.processes.is_empty()
@@ -840,7 +840,7 @@ impl Worker {
         );
         self.answered(settled);
     }
-    /// A list launch by the run's form (protocol/README.md, section 5).
+    /// A list launch by the run's form (protocol/service-routing.md, section 2).
     fn list_launch(&self) -> Option<host::ListLaunch> {
         let arguments: Box<[Box<[u8]>]> = match self.arguments.as_ref() {
             [internal, agent, configuration]

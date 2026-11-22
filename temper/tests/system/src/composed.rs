@@ -83,7 +83,7 @@ pub struct Observed {
 }
 
 /// The party's acknowledged provisional reply, played without a client
-/// (testing/README.md, 2.1). The turn is its attempt, number and retry.
+/// (testing/tiers.md, 1.1). The turn is its attempt, number and retry.
 #[derive(Default, Debug)]
 pub struct RunWatch {
     pub turn: Option<(u64, u32, u32)>,
@@ -316,7 +316,7 @@ impl World {
     }
 
     /// Watch an open chat, holding its reply before each later live piece
-    /// and before its turn crosses the process channel (testing/README.md, 2.1).
+    /// and before its turn crosses the process channel (testing/tiers.md, 1.1).
     #[must_use]
     pub fn open_chat_in_pieces(seed: u64, script: Script, pieces: usize) -> Self {
         let mut world = Self::open_chat(seed, script);
@@ -594,7 +594,7 @@ impl World {
     }
 
     /// The deployment's first period and its git identity's credential, from
-    /// outside the root (jig's domain/authority.md, 7; domain/root.md, 6.1).
+    /// outside the root (jig's domain/authority.md, 7; domain/root-translation.md, 2.1).
     fn fund(&mut self) {
         let period = engine::PartyInput::Period { project: 1, period: 1, budget: self.period_budget, next: None };
         self.root_events.push_back(engine::Event::Party(period));

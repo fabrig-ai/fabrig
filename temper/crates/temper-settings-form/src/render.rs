@@ -1,4 +1,4 @@
-//! Deployment settings and retained revision documents (client/ctl/tools.md, 2).
+//! Deployment settings and retained revision documents (client/ctl/tools-reads.md, 1).
 use crate::Limits;
 use crate::view as c;
 use crate::{Text, values};
@@ -276,7 +276,7 @@ pub fn value_inline(value: &c::SettingValue, limits: &Limits, out: &mut Text) {
     encode_value(value, &mut write);
     out.put(&write.finish());
 }
-/// Text details after a setting's JSON (temper/docs/design/client/ctl/tools.md, 3).
+/// Text details after a setting's JSON (temper/docs/design/client/ctl/tools-acts.md, 1).
 fn value_details_text(value: &c::SettingValue, overlay: Option<&c::Overlay>, out: &mut Text) {
     match value {
         c::SettingValue::Charter(charter) => {

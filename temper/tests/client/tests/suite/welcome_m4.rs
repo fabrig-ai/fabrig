@@ -1,4 +1,4 @@
-//! Independent scenarios from client/pages/README.md and client/forge/family.md, 7 and client/pages/accounts.md, 2 and client/pages/welcome.md, 2 and client/forge/deployment.md.
+//! Independent scenarios from client/pages/README.md and client/forge/family.md, 7 and client/pages/accounts-words.md, 1 and client/pages/welcome.md, 2 and client/forge/deployment.md.
 use jig_client_kit::harness::App;
 use skein_lib::Queue;
 use skein_ui::{Role, Tree};

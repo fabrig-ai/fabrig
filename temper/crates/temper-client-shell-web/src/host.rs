@@ -26,7 +26,7 @@ pub enum Report {
     Carried { reports: Vec<skein_ui_web::transport::Carried>, writes: u32 },
 }
 
-/// A sign-in's tab, carried before the transport (client/web/README.md, 2.1).
+/// A sign-in's tab, carried before the transport (client/web/shell.md, 1).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TabAct {
     Open { words: Box<[u8]> },
@@ -51,7 +51,7 @@ pub struct Duties {
 }
 
 impl Duties {
-    /// Whether carrying these duties leaves this page (client/web/journeys.md, 3.1).
+    /// Whether carrying these duties leaves this page (client/web/journeys-recordings.md, 1.1).
     #[must_use]
     pub fn departs(&self) -> bool {
         self.navigate.is_some() || self.replace.is_some() || self.reload
@@ -277,7 +277,7 @@ impl Host {
     fn due(&mut self) {
         root::fire(&mut self.root, &self.env, &mut self.out);
     }
-    /// The event the view makes of `act` on `node`, if any, without giving it (client/web/journeys.md, 3.3).
+    /// The event the view makes of `act` on `node`, if any, without giving it (client/web/journeys-recordings.md, 1.3).
     #[must_use]
     pub fn event_of(&self, node: NodeId, act: Act) -> Option<temper_client_domain::Event> {
         view::event(&self.view, node, act)

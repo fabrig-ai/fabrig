@@ -30,7 +30,7 @@ pub fn redact_lines(mut lines: Vec<Line>, given: &[Box<[u8]>]) -> Result<(Vec<Li
 }
 
 /// Replace the browser's link and stored credentials, leaving memory and typed values alone
-/// (client/web/journeys.md, 3.1).
+/// (client/web/journeys-recordings.md, 1.1).
 #[must_use]
 pub fn saved(recording: &[u8]) -> Box<[u8]> {
     written(saved_lines(lines(recording).expect("a recorder's file is always readable")))

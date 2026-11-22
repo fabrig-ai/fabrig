@@ -28,7 +28,7 @@ pub fn encode(value: Encodable, agent: &crate::settings::Agent) -> Encoded {
     }
 }
 
-/// Decode the hub start, including its live ask (domain/worker/README.md, 4.1 and 6).
+/// Decode the hub start, including its live ask (domain/worker/hosted-runs.md, 1.1, and domain/worker/README.md, 6).
 pub fn decode(
     run: Token,
     source: hub::Start,

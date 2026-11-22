@@ -1,5 +1,5 @@
-//! The rail's parts and the phone's tabs (temper/docs/design/client/view.md,
-//! 3, The rail's parts and On a phone).
+//! The rail's parts and the phone's tabs (temper/docs/design/client/view-navigation.md,
+//! 1, The rail's parts and On a phone).
 use crate::Address;
 use crate::pages::Root;
 use skein_lib::Wall;
@@ -73,7 +73,7 @@ pub fn parts(facts: &Facts) -> Parts {
 }
 
 /// The phone's tab bar, one pure function over the rail's parts
-/// (temper/docs/design/client/view.md, 3, On a phone). "Home" always
+/// (temper/docs/design/client/view-navigation.md, 1, On a phone). "Home" always
 /// shows, first; the others in this order.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[expect(clippy::struct_excessive_bools, reason = "one switch per tab")]
@@ -148,7 +148,7 @@ pub fn across(root: &dyn Root) -> bool {
         || if let Address::Inbox { filter } = root.pages().address() { filter.project.is_none() } else { false }
 }
 
-/// Home reached from the browser's root and marks (client/web/README.md, 2.3).
+/// Home reached from the browser's root and marks (client/web/addresses.md, 1).
 #[must_use]
 pub fn root_home(me: Option<&jig_client::contract::Me>) -> Address {
     if let Some(me) = me

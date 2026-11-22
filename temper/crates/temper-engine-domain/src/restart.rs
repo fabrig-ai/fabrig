@@ -356,7 +356,7 @@ pub(crate) fn startup_page(
     close(domain, env, decision, out);
 }
 
-/// Translate only the phase selected by the core (temper/docs/design/domain/root.md, 8.1).
+/// Translate only the phase selected by the core (temper/docs/design/domain/root-restart.md, 1.1).
 pub(crate) fn start_action(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, action: Action) {
     if domain.core.stopping() || domain.start_stop().is_some() {
         return;
@@ -496,7 +496,7 @@ fn stop_load(domain: &mut Domain, failure: loads::Failure) {
 }
 
 /// Rebuild child state and transient proof correlations before linking
-/// (temper/docs/design/domain/root.md, 8.1). Archive history stays outside the live map.
+/// (temper/docs/design/domain/root-restart.md, 1.1). Archive history stays outside the live map.
 pub(crate) fn restore_page_row(domain: &mut Domain, env: &Env<Limits>, row: Record) {
     match row {
         Record::Core(row) => {
@@ -569,7 +569,7 @@ fn census_page(
 }
 
 /// Supply defaults after every forge row has been routed, before completing its restore
-/// (temper/docs/design/domain/routing.md, 6, and temper/docs/design/domain/root.md, 8.1).
+/// (temper/docs/design/domain/routing.md, 6, and temper/docs/design/domain/root-restart.md, 1.1).
 pub(crate) fn restore_connector_done(domain: &mut Domain) {
     give_settings_defaults(domain);
     domain.work.push(Work::StartDone(Phase::RestoreConnector { connector: domain.config.forge_connector }));

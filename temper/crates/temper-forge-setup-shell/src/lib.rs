@@ -1,4 +1,4 @@
-//! Hosts of the forge setup machines (protocol/setup/README.md, 7).
+//! Hosts of the forge setup machines (protocol/setup/crate-layout.md, 1).
 pub mod command;
 pub mod fetch;
 pub mod files;

@@ -1,4 +1,4 @@
-//! Worker workspace carriers (temper/docs/design/domain/worker/README.md, 4.1;
+//! Worker workspace carriers (temper/docs/design/domain/worker/hosted-runs.md, 1.1;
 //! temper/docs/design/protocol/channel.md, 4).
 use alloc::boxed::Box;
 
@@ -15,7 +15,7 @@ pub enum ForgeStart {
         base: skein_forge::api::Commit,
     },
     /// The landing branch with each head merged into it in order
-    /// (temper/docs/design/domain/worker/README.md, 4.1).
+    /// (temper/docs/design/domain/worker/hosted-runs.md, 1.1).
     Merged {
         branch: Box<[u8]>,
         heads: Box<[skein_forge::api::Commit]>,

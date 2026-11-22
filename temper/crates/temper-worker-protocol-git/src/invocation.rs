@@ -1,10 +1,10 @@
-//! Sized builders for protocol/git.md, sections 3 to 5.
+//! Sized builders for protocol/git.md, section 3, and protocol/git-operations.md, section 1, and protocol/git.md, section 5.
 use crate::Identity;
 use alloc::boxed::Box;
 use skein_lib::{Decimal, List, Token, Writer, base64};
 use temper_worker_domain_checkout::git;
 
-// protocol/git.md, 4.7: a hidden log at any depth is never staged.
+// protocol/git-operations.md, 1.7: a hidden log at any depth is never staged.
 const HIDDEN_LOG_EXCLUSION: &[u8] = b":(exclude,glob)**/.*.log";
 
 /// Settings precede every command, in this order, each with `-c`.
@@ -28,7 +28,7 @@ pub const SETTINGS: [&[u8]; 13] = [
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Command {
     Reds(crate::reds::CheckCommand),
-    /// A place in Pack (protocol/git.md, 4.14); None is the repository.
+    /// A place in Pack (protocol/git-operations.md, 1.14); None is the repository.
     CountObjects {
         store: Option<Token>,
     },
@@ -706,7 +706,7 @@ pub fn git_dir(at: &git::Place) -> Box<[u8]> {
     joined(&[b"gitdirs/", Decimal::of(at.workspace.raw()).as_bytes(), b"/", &at.repository])
 }
 
-/// The local destination of a fetch (temper/docs/design/protocol/git.md, 4.3).
+/// The local destination of a fetch (temper/docs/design/protocol/git-operations.md, 1.3).
 pub(crate) const fn reference(into: git::Into) -> &'static [u8] {
     match into {
         git::Into::Fetched => b"refs/temper/fetched",
@@ -714,14 +714,14 @@ pub(crate) const fn reference(into: git::Into) -> &'static [u8] {
     }
 }
 
-/// Workspace references in a shared store (protocol/git.md, 4.3).
+/// Workspace references in a shared store (protocol/git-operations.md, 1.3).
 #[must_use]
 pub fn store_reference(workspace: Token, into: git::Into) -> Box<[u8]> {
     let name = reference(into).strip_prefix(b"refs/temper/").expect("fixed reference prefix");
     joined(&[b"refs/temper/", Decimal::of(workspace.raw()).as_bytes(), b"/", name])
 }
 
-/// The store and its borrowing repository have one object format (protocol/git.md, 4.2).
+/// The store and its borrowing repository have one object format (protocol/git-operations.md, 1.2).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Format {
     Sha1,

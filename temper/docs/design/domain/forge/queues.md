@@ -2,7 +2,7 @@
 
 Under a project's queue. A project that lands by turn has no queue of
 its own: its trains take its waiting changes in this order
-(`../landing.md`, section 9), and its changes view shows each train
+(`../landing-turn.md`, section 2), and its changes view shows each train
 (`../landing.md`, section 14).
 
 One per landing branch that has changes ready. A repository belongs to
@@ -85,7 +85,7 @@ are comparable.
   changes' own states, so a restart rebuilds it from them.
 - **The branch's own CI,** for a branch no tier follows: a branch
   tiers follow is judged by their verdicts instead, and its queue never
-  pauses for them (`../after-landing.md`, sections 2 and 7). A landing temper did
+  pauses for them (`../after-landing-runs.md`, section 1, and `../after-landing.md`, section 7). A landing temper did
   not make may break the branch. Once CI fails on the branch's tip, the queue pauses and one
   repair is made: a change task into that branch, first in its queue,
   its words, and its producer's, opening with what it repairs, as a
@@ -140,7 +140,7 @@ adoption says so, `adoption.md`, 4) lands through that queue. Forgejo keeps none
   alone, the pull request's `dequeued` (`README.md`, section 11), which a green head
   does not end. The change takes
   its base before the repair starts (`change/README.md`, 2), so a conflict there is
-  resolved. A head another hand moved is drift, as ever (`change/README.md`, 3).
+  resolved. A head another hand moved is drift, as ever (`change/drift.md`, 1).
 - **Its place there,** `Pull.queued`, is read with the pull request and
   shown in the change's panel ("in GitHub's merge queue, n";
   `../../client/forge/README.md`, a change's panel). The wait there is bounded by
@@ -167,7 +167,7 @@ adoption says so, `adoption.md`, 4) lands through that queue. Forgejo keeps none
   grouping them.
 
 - **The update before entering a forge's merge queue** (`queues.md`, 1): the first
-  takes its base as any first does (`README.md`, section 6), though the queue merges
+  takes its base as any first does (`updates.md`, section 1), though the queue merges
   the base itself. The alternative enters it as its head is, saving a CI
   run. Default: as any first.
 

@@ -1,7 +1,7 @@
 # The TUI's launchpad
 
 The TUI's first screen once signed in, or while it signs in from the
-engine's link: the root at `Home { project }` (`../README.md`, 3, *Its
+engine's link: the root at `Home { project }` (`../host.md`, 1, *Its
 pages*), drawn from `../../../draft/surfaces.md`, 11.1. Its mockup is `../whole-story/launchpad.html`, with
 `../whole-story/pair/` and `../whole-story/team/` beside it, whose words,
 parts and order bind and whose figures don't. It shares its foot, the
@@ -86,7 +86,7 @@ Illustrative, a person in two projects, Hello and shop:
   `../../../draft/surfaces.md`, 11.1 has them.
 - **Asked by the TUI alone:** the domain's
   `boundary::Event::Launchpad`, which the TUI's host gives the root
-  once, right after `LookKept` follows `Start` (`../README.md`, 3, *The
+  once, right after `LookKept` follows `Start` (`../host.md`, 1, *The
   look*). The domain keeps it for the root's life. No other shell gives
   it, so the browser's Home, and `temper-box open`'s, are unmoved.
 - **Home, with it given,** holds beside its own reads (the project's
@@ -246,7 +246,7 @@ not listed: no read lists the talks a person has open (`../../pages/talk.md`,
   move a selection through these rows, and the box keeps the focus:
   with none selected, either selects the newest; then Up selects the one
   above and Down the one below, staying at the first and the last. Each
-  makes the view's `LeftOff { task: Some(TASK) }` (`../README.md`, 3), and
+  makes the view's `LeftOff { task: Some(TASK) }` (`../host.md`, 1), and
   the TUI's state keeps the task. With words in the box, or a list
   under it, the arrows are the box's or the list's, as before.
 - *The selected chat* carries `tui-picked` too: the focus's mark `❯` in
@@ -255,7 +255,7 @@ not listed: no read lists the talks a person has open (`../../pages/talk.md`,
   that is no longer among the lines is no selection.
 - *Enter,* on the empty box with a chat selected, opens it: the box's
   Enter makes `Act { act: Go { address: Chat { task } } }`, followed as
-  a chat chosen from `/chats` is (`../README.md`, 3), whatever its project.
+  a chat chosen from `/chats` is (`../host.md`, 1), whatever its project.
   With the goal selected, Enter opens the goal's page on the web, as
   `/open` does.
 - *Cleared:* Esc, while a chat is selected and no list stands, makes
@@ -328,7 +328,7 @@ is its own.
 ## 7. Its other parts
 
 - **No project yet:** while `me` names no project the root stays at its
-  start's address (`../README.md`, 3): the border holds "temper" alone, and
+  start's address (`../host.md`, 1): the border holds "temper" alone, and
   under it the view's "No project yet" and the TUI's "Setting temper up
   makes your first project: open ORIGIN in a browser.", ORIGIN the
   origin printed, `http://HOST:PORT` or `https://NAME` (`../README.md`, 1). The

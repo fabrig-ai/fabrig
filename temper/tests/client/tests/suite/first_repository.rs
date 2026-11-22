@@ -260,7 +260,7 @@ fn leaving_the_flow_keeps_the_made_repository_unadopted() {
 
 #[test]
 fn every_create_failure_offers_setup_again_with_the_same_names() {
-    // protocol/setup/owned.md, 7; client/forge/deployment.md: failed(step) retries the last fields.
+    // protocol/setup/owned-repositories.md, 1; client/forge/deployment.md: failed(step) retries the last fields.
     for (step, why) in [
         (forge::CreateStep::Admin, b"checking the admin's token".as_slice()),
         (forge::CreateStep::Org, b"making the organization".as_slice()),

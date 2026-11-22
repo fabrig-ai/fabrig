@@ -1,6 +1,6 @@
 //! Values of temper's kinds, typed at the entrance
 //! (temper/docs/design/domain/routing.md, 6;
-//! temper/docs/design/protocol/configuration/settings.md, 2).
+//! temper/docs/design/protocol/configuration/settings-kinds.md, 1).
 
 use alloc::boxed::Box;
 use skein_lib::{List, Reader};
@@ -351,7 +351,7 @@ fn wire_project_words(words: &settings::ProjectWords) -> v1::ProjectWords {
     v1::ProjectWords { headline: words.headline.clone(), lede: words.lede.clone() }
 }
 
-// A goal template's work (temper/docs/design/protocol/configuration/settings.md, 2).
+// A goal template's work (temper/docs/design/protocol/configuration/settings-kinds.md, 1).
 fn wire_goal(goal: settings::TemplateGoal) -> v1::TemplateGoal {
     v1::TemplateGoal { design: goal.design, close_out: goal.close_out }
 }

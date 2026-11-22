@@ -1,4 +1,4 @@
-//! A worker's slots compose smith's real single-agent host limits (temper/docs/design/domain/worker/README.md, 5).
+//! A worker's slots compose smith's real single-agent host limits (temper/docs/design/domain/worker/agent-processes.md, 1).
 use super::fixtures;
 use jig_domain_host as hub;
 use jig_protocol_worker_link as link;

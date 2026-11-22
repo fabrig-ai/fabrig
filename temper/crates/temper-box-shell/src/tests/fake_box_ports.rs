@@ -1,4 +1,4 @@
-//! Fresh fake boxes leave a person's preferred ports free (protocol/setup/box.md, 5).
+//! Fresh fake boxes leave a person's preferred ports free (protocol/setup/box-backends.md, 1).
 use super::{init_ports, tests::Effective};
 use std::{net::SocketAddr, num::NonZeroU16};
 

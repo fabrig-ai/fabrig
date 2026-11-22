@@ -7,7 +7,7 @@ mockups as their look (section 13). It is drawn green field, on the
 user's word: "take it as greenfield, doesn't matter what we have now,
 let's design optimizing for the vision". It revises the greenfield
 mock's rail (`../client/web/greenfield/README.md`), the client's rail, tab
-bar and Settings (`../client/view.md`, 3 and `../client/pages/README.md`, *Settings*), and
+bar and Settings (`../client/view-navigation.md`, 1 and `../client/pages/README.md`, *Settings*), and
 the terminal's direction and what it leaves after its first pass
 (`tui.md`, sections 3, 6 and 7): the launchpad as drawn here, the side
 pane, needs from elsewhere and talking with a role become v0.1.0's
@@ -54,8 +54,8 @@ the terminal. Reasons: `whole-story.md` and `notes.md`.
   12); "Ask temper"; a hairline; "How work runs"; then "+ New draft or
   change". At its foot: the Away switch, while it shows; on All
   projects it sets every project the person is in, and reads "Away on 2
-  of 4" while they differ; "Deployment"; the person's menu; the night switch, as today (`../client/view.md`,
-  3).
+  of 4" while they differ; "Deployment"; the person's menu; the night switch, as today (`../client/view-navigation.md`,
+  1).
 - **All projects** is the switcher's first row, once the person has a
   second project. On Home and Needs you it is where a sign-in lands. Work,
   Team and How work runs are a project's: chosen under All projects, they
@@ -499,7 +499,7 @@ them, shows exactly its parts, and moving along it never flips a page.
   on a deployment of their own. Their words,
   parts, order and look bind; their figures don't.
 - **Their look is the greenfield mock's,** paper and ink with one signal
-  colour, and night as the client has it (`../client/view.md`, 3). Who
+  colour, and night as the client has it (`../client/view-navigation.md`, 1). Who
   acts is a mark, those of the client's path (`../client/pages/chat/conversation.md`,
   3), on its stops and on the chips: a person an orange ring, an agent
   an ink star, code a grey square. Orange is the person's alone, so

@@ -1,6 +1,6 @@
 # design-economy: fewer concepts, and a design that says what the code can't
 
-The code follows the design, so the design sets its size. This draft asks a design to name fewer concepts and to leave to the code what the code says better, first as a pilot in one area, run as temper goals from a template of their own. The reasons are in `notes.md`, 18.
+The code follows the design, so the design sets its size. This draft asks a design to name fewer concepts and to leave to the code what the code says better, first as a pilot in one area, run as temper goals from a template of their own. The reasons are in `design-economy.notes.md`.
 
 ## 1. In one page
 

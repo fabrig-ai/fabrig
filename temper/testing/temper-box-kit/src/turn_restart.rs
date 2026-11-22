@@ -1,5 +1,5 @@
 //! Cold restart evidence through the native person, ctl and the owned Forgejo
-//! (temper/docs/design/domain/landing.md, 7 and 15;
+//! (temper/docs/design/domain/landing-proof.md, 2, and temper/docs/design/domain/landing.md, 15;
 //! temper/docs/design/protocol/forge/engine.md, 1).
 use super::{
     ANSWER, ChatJudge, ChatPhase, Ending, LANDING, Process, WITHIN, ctl, fake_llm,

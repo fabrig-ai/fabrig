@@ -55,7 +55,7 @@ pub enum Delivery {
     },
 
     /// Adoption release reaches the core after its erasures commit
-    /// (jig/docs/design/domain/people/acts.md, 2; temper/docs/design/domain/forge/adoption.md, 1).
+    /// (jig/docs/design/domain/people/acts.md, 2; temper/docs/design/domain/forge/adoption-connection.md, 1).
     ProjectReleased {
         connector: u16,
         project: u32,
@@ -220,7 +220,7 @@ pub enum Delivery {
         watcher: Token,
         why: jig_domain_views::End,
     },
-    /// The durable stop asks workers to keep their runs (domain/root.md, 8.2).
+    /// The durable stop asks workers to keep their runs (domain/root-restart.md, 1.2).
     Restarting {
         wait: skein_lib::Duration,
     },

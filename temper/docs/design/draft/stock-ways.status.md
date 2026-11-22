@@ -2,7 +2,7 @@
 
 2026-11-19. Where the design lags or departs from [stock-ways.md](stock-ways.md).
 
-Section 3 is designed in `../protocol/configuration/settings.md`, 2 to 3 and `../protocol/configuration/stock.md` and `../protocol/configuration/reference.md`
+Section 3 is designed in `../protocol/configuration/settings-kinds.md`, 1, and `../protocol/configuration/settings.md`, 3 and `../protocol/configuration/stock.md` and `../protocol/configuration/reference.md`
 , with the forge and setup contracts following it; `stock-ways.md`, sections 4 to 6
  in `../domain/forge/change/branch-path.md` (the path),
 `../protocol/configuration/settings.md`, 8 (the ways and their items),
@@ -10,7 +10,7 @@ Section 3 is designed in `../protocol/configuration/settings.md`, 2 to 3 and `..
 the `ways` read, its acts and the views) and `../domain/agent/ask-temper.md` (`see ways` and the
 instructions); `stock-ways.md`, section 7 orders the steps. `stock-ways.md`, section 4's words of a
 goal's coordinator, "plan" or "design", and its "close-out" are a
-template's setting, kind 11 (`../protocol/configuration/settings.md`, 2), drawn
+template's setting, kind 11 (`../protocol/configuration/settings-kinds.md`, 1), drawn
 by `../domain/forge/change/branch-path.md`.
 
 - **Design lags:** none.

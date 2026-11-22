@@ -1,4 +1,4 @@
-//! Many names against a whole-file model (after-landing.md, section 4).
+//! Many names against a whole-file model (domain/after-landing-runs.md, section 3).
 use crate::{Format, Limits, ManyTests, TestId, many_tests};
 use alloc::collections::BTreeSet;
 use skein_lib::{List, Rng};

@@ -1,4 +1,4 @@
-//! Reference reconciliation before Switch (domain/root.md, 8.1; protocol/store.md, 2).
+//! Reference reconciliation before Switch (domain/root-restart.md, 1.1; protocol/store.md, 2).
 use crate::{Domain, Limits, Name, Stored, Topic};
 use skein_forge::api::Repository;
 use skein_lib::List;
@@ -169,7 +169,7 @@ impl Reconciliation {
                 }
                 Ok(())
             }
-            // Change panels outlive tasks (temper/docs/design/domain/forge/change/README.md, 5).
+            // Change panels outlive tasks (temper/docs/design/domain/forge/change/panel.md, 1).
             Stored::Change(row) => self.repository(RecordKind::Change, row.repository),
             Stored::ChangeCold(row) => self.repository(RecordKind::Change, row.repository),
             Stored::Issue(row) => {
@@ -206,7 +206,7 @@ impl Reconciliation {
             Stored::Red(row) => self.task(RecordKind::Red, row.goal, None),
             Stored::RedPass(row) => self.task(RecordKind::RedPass, row.change, None),
             Stored::Writer(row) => self.need(RecordKind::Writer, Need::Forge(row.forge)),
-            // Landing history outlives tasks (domain/forge/README.md, 5.2).
+            // Landing history outlives tasks (domain/forge/topics.md, 1.2).
             // Bindings outlive members. End acts retry until the saved answer,
             // including after their target ended or was removed.
             Stored::LimitHold(_)

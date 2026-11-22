@@ -1,4 +1,4 @@
-//! One call owns its files, pipes and signal subscription (client/ctl/README.md, 6).
+//! One call owns its files, pipes and signal subscription (client/ctl/command-line.md, 1).
 use crate::{
     arguments::{self, Class},
     directory::Directory,

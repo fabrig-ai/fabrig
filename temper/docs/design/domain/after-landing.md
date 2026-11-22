@@ -7,7 +7,7 @@ is cleared, so that a goal ends only when its work is verified, or,
 where its project says so, ends at its landing while the tiers judge
 that landing later (section 6). It holds
 for every landing on a repository's landing branch, by queue
-(`forge/change/README.md` and `forge/queues.md` and `forge/README.md`, section 6), by turn (`landing.md`), or by anyone
+(`forge/change/README.md` and `forge/queues.md` and `forge/updates.md`, section 1), by turn (`landing.md`), or by anyone
 outside temper. Findings, where a verdict files a flake or a red whose
 goal has ended, are `findings.md`'s, and under `wait: landed` every red
 of a landing tier is a red finding (`red-findings.md`); a project
@@ -18,27 +18,27 @@ what waits, `after-landing.md`, section 14.
 
 - **A tier** is a check too slow or too broad for a gate (a browser
   suite, an exhaustive profile), defined like a gate: a dispatch-only
-  workflow, its ignored paths, its key (section 2). It also names where
+  workflow, its ignored paths, its key (`after-landing-runs.md`, section 1). It also names where
   its run reports its failing tests, and the branch it follows: its
   repository's landing branch, main, unless it names another or the
   goals' own branches.
-- **Tiers follow their branch, not the landings** (section 3). When the
+- **Tiers follow their branch, not the landings** (`after-landing-runs.md`, section 2). When the
   tip of the branch a tier follows moves, by temper or by anyone, the
   tier runs on it: one run per tier at a time, the next taking the
   newest tip, so one run covers every landing since the last. A tip
   whose key has a receipt is judged by it, with no run. A landing on a
   branch no tier follows, a goal's own branch while its repository's
   tiers follow main, is cleared as it lands.
-- **A tier following goal branches** (g's tier, section 2) follows each
+- **A tier following goal branches** (g's tier, `after-landing-runs.md`, section 1) follows each
   live goal's own branch on its own, at most once per its span, and
   judges no landing: a change into a goal's branch is cleared as it
   lands. A red there is rerun once alone, and what still fails is news
-  to the goal holding the branch (section 7), never a verdict.
-- **A person holds a tier** (section 3) with a reason: it starts no run
+  to the goal holding the branch (`after-landing.md`, section 7), never a verdict.
+- **A person holds a tier** (`after-landing-runs.md`, section 2) with a reason: it starts no run
   until released, its landings still verifying, and the release runs
   the newest tip.
 - **A run reports** pass or fail, and its failing tests by id, read from
-  its artifact (section 4). A run that names no tests when it fails, or
+  its artifact (`after-landing-runs.md`, section 3). A run that names no tests when it fails, or
   never ends, is a fault, never a red. Past `failing_tests` its failures
   are many, judged by landing alone, and still named: the lowest ids it
   read, and how many more.
@@ -72,246 +72,15 @@ what waits, `after-landing.md`, section 14.
 
 ## 2. Tiers
 
-- **A repository's tiers** are settings beside its gates (section 11):
-  each a name (letters, digits, `-` and `_`, at most 32 bytes), a
-  workflow's file, its ignored paths, its report: the
-  name of the artifact its run uploads and its format, a JUnit file or
-  one test id per line; and the branch it follows.
-- **The branch a tier follows** (`../draft/notes.md`, N5) is named by
-  the tier, `branch`, a branch of its repository; absent, it is the
-  landing branch the repository's adoption names (`forge/adoption.md`), its
-  main. A tier follows that branch alone: a move of any other branch of
-  its repository (a goal's own branch, a release branch) starts none of
-  its runs, and none of its verdicts judges a landing there. Following
-  two branches takes two tiers, which may name one workflow.
-- **Goal branches:** a tier whose `branch` is `goal`, the symbol
-  `change`'s `landing` takes (`agent/tools.md`, 1), names no branch of
-  that name: it follows the goals' own branches of its repository
-  (`forge/branches.md`, 1), each from its goal's first landing into it to the
-  goal's close, and judges no landing (`after-landing.md`, sections 3 and 5.4). It suits
-  the gate without its slowest suites, checking a goal's work along the
-  way while merges into it go on (`../draft/notes.md`, N5); the
-  repository's other tiers follow main.
-- **A tier's span,** `span`, the least time between the starts of two
-  of its runs on one branch; none when absent. A move within the span
-  waits for its end, and the run then takes the newest tip. g's tier in
-  the reference: 20 minutes.
-- **A tier's key** is a gate's (`landing.md`, 6.1), over the tier's own
-  definition and ignored paths, and its receipts are a gate's: kept per
-  project by key, made only from runs temper dispatched (`landing.md`,
-  6.2). A failed receipt keeps the failing tests' ids.
-- **Dispatched as a gate is** (`landing.md`, 7.1), never on the
-  landing branch, which may move under the run: on a branch of
-  temper's own made at the commit to run, `temper/tier/<tier>.<n>`, n
-  the run's number in the tier's sequence, and a bisect's probe
-  `temper/tier/<tier>.<n>.<k>` (skein's `Write::CreateBranch`), each
-  within the authority's eight segments of a resource and parsed back
-  by its dots, since a tier's name has none; deleted once the run has
-  ended, with
-  the inputs `temper_commit` and `temper_key`, and, for a rerun or a
-  bisect's probe, `temper_tests`, the ids to run alone, one per line. A
-  tier's workflow runs only those when it is given them. The run is
-  found and checked at that commit, as a gate's is.
-- **Only a whole run makes a receipt.** A rerun of failed tests and a
-  bisect's probe run a part of the tier, so their outcomes are kept on
-  the tier's record for the verdict they serve, never as receipts.
-- **A landing on a branch no tier follows,** in a repository with no
-  tier or on a branch none of its tiers names, is cleared as it
-  lands.
-- **A tier's start:** when a tier is first configured, it runs once at
-  its branch's tip, read afresh (section 3), the baseline. Its failures, if any, are failing at
-  the baseline: blamed on no landing, inherited by the first run after
-  it, and kept on the tier's record. The first run's range starts after
-  the baseline's tip.
-
-A tier's span is excluded from its key. Default landing and explicitly named
-branch definitions keep their byte encodings; following goal branches has a
-distinct marker, so its key cannot equal either form merely because their
-branch text matches (2026-11-04).
+Moved to [`after-landing-runs.md`](after-landing-runs.md), section 1.
 
 ## 3. Following the mains
 
-- **On each move of the tip of a branch a tier follows,** read as
-  `forge/README.md`, 5.2 reads landings, each tier following it with no run in
-  flight starts one at the new tip. One with a run in flight waits, and
-  when that run ends, the next starts at the newest tip, if it moved
-  since. The forge follows a branch for its tiers as long as one names
-  it, whether or not a goal or a change follows it too.
-- **A baseline's tip is read afresh** (section 2's start): a tier with
-  no judged tip, no run in flight and no baseline asks the forge for its
-  branch's head, a fresh read of the tier's own (skein's `Read::Branch`),
-  and its baseline is the answer's commit. The head the engine last knew
-  never chooses it: a restart restores that head, and the branch may
-  have moved since, by the very commit that added the tier's workflow.
-  Until the answer, the tier starts nothing, and a move it sees then is
-  no landing of its: the baseline's range is empty, and the first run's
-  starts after the baseline's tip, as section 2 has it. A baseline
-  started again, after its run was dropped (below), reads afresh too,
-  and the moves seen meanwhile are within its tip. A run after a move
-  reads nothing more: the move is the branch's tip as the forge last
-  answered it.
-- **A run in flight is polled** as a landing polls its runs
-  (`landing.md`, 7.1): at the client's `poll_at` for its repository,
-  every `poll` or, while that repository hears, at its last hint plus
-  `fallback`, and at once on a job's delivery (`forge/keeping-up.md`, 2).
-- **A tip whose key has a receipt** is judged by the receipt, with no
-  run: a documentation landing clears at once where every tier ignores
-  it.
-- **A run's range** is the commits after the last judged tip of that
-  tier, exclusive, up to the run's tip, inclusive. The landings in it
-  are the landings whose commits it holds: temper's, each with its
-  changes, and those temper did not make, each a range of commits with
-  no change of temper's.
-- **On a goal's branch,** for a tier following goal branches: each
-  branch is followed on its own, with its last run's tip, failures and
-  start, while the tier keeps one run at a time across them, numbered
-  in its one sequence. A branch is due when its tip has moved since its
-  last run and its span has passed since that run started; when the
-  tier has no run in flight, the branch due longest runs next, at its
-  newest tip. The first run is at the first move after the goal's hold
-  made the branch, so a branch no change has landed into is never run.
-  A run's range holds no landing, so it judges none: the changes
-  landing into a goal's branch are cleared as they land (section 6). It
-  takes no receipt and makes none: every run is dispatched, so its news
-  names a run. The branch's following ends as its goal's hold is
-  released; a run still in flight then ends with no news.
-- **Faults** (`landing.md`, 7.4's): rerun, then dispatched again, up to
-  the project's `tier_retries`; one past its bound holds the tier's run
-  task, whose escalation reaches the project's escalation role (jig's
-  `domain/tasks/proposals.md`), WHY `held after N runner faults, last:
-  KIND`.
-- **A wait for a runner** is bounded as a gate run's is (`landing.md`,
-  7.1): the run's execution clock (`forge/change/stalls.md`, 2.2),
-  counted from its dispatch or re-run and kept on its flight across a
-  restart, counts its time waiting or blocked for a runner; past
-  `forge.change_policy.runner_wait_ms` it holds the task so, WHY `held
-  after M minutes waiting for a runner`, M that bound's whole minutes.
-  A read of the run is due by the instant the clock would reach it. Its
-  running has no bound (section 13).
-- **A held run says why** in its connector's words (jig's
-  `client/domain/objects.md`, section 5): the held task's words name
-  the tier and the run (`Tier NAME run N`), and its hold's words add
-  WHY, then a clause for each job its run's last reading lists not
-  completed, read then by skein's `Read::JobState` and worded as a
-  gate's (`landing.md`, 4.2), `; JOB: waiting for a runner labelled L1,
-  L2`, within the hold's bytes as a stall's (`forge/change/stalls.md`,
-  4). The clauses live in the hold alone: a restart holds with WHY.
-  Before it is held, the run posts the tier's verdict status on its tip
-  as pending, WHY, linked to the last run (section 9). The tier waits
-  for a person's release, which dispatches the run again with its
-  faults counted from 0, its landings still verifying; its verdict
-  replaces that status.
-- **A workflow missing at the run's commit:** a dispatch the forge
-  refuses as missing (a 404, skein's `Error::Missing`) is a fault of its
-  own kind, the run's workflow absent at the commit it was dispatched
-  at. Counted and retried as any fault, it is worded, wherever a
-  fault's kind is (the task's part words, the hold's `last: KIND`, the
-  pending status), `workflow WORKFLOW not found at COMMIT`: WORKFLOW the
-  tier's workflow file as its settings name it, COMMIT the full commit
-  dispatched. A rerun refused as missing is `lost`, its forge run gone.
-  Its kind is stored as the tier's other faults are, appended to them
-  in place (`../protocol/store.md`, section 4): every row stored before
-  it still reads, and a restart keeps its words (the requester,
-  2026-11-11).
-- **A run whose task ends without its verdict,** cancelled by a person
-  (the usual end of a held run) or ended with its project, is dropped
-  as its task closes: in the decision that hears the close (jig's
-  `domain/tasks/lifecycle.md`, 1), the hook a landing's cancellation
-  takes too, never by a step of the task, which a closing task no longer
-  takes. The tier's record is left with no run and no task, or with its
-  next run's: no verdict, no news, no status; the run's landings go back
-  to the front of the tier's range, still verifying, for the next run;
-  its number is spent, the tier's sequence passing it, so no later run
-  reuses its branch's name or its steps' purposes (section 10); and the
-  tier starts its next run as a move would, at once when due, a baseline
-  again, read afresh, when the dropped run was the baseline. The
-  dropped run's branch stays on the forge (section 14). A run ended
-  done has left the record already: the step giving its verdict takes
-  it.
-- **A person's hold** (`../client/ctl/tools.md`, section 3, `tier hold`
-  and `tier release`): a project's owner, or the deployment's, holds a
-  repository's tier with a reason, and releases it. While held, the
-  tier starts no run: no baseline, no run at a move of its branch and,
-  for a tier following goal branches, none on any goal's branch. Each
-  move still adds its landings to the tier's range, verifying, and,
-  under `wait: cleared`, the project's `verification_bound` counts as
-  ever: past it they end landed and uncleared, and a later verdict
-  still counts (section 6).
-  A run in flight when the hold comes is let finish and judged, its
-  verdict posted (section 9); one held on its faults or its wait for a
-  runner stays held, and a release of its task dispatches it again
-  (*A held run*, above); cancelled,
-  it is dropped (above), and no run starts in its place. The release
-  starts the next run as a move would: at once when due, at the
-  branch's newest tip, its range every landing since the last judged
-  tip, those made while held among them; for goal branches, the branch
-  due longest first. The hold is kept on the tier's record (section
-  10): a restart restores the tier held, and the hold outlasts the
-  tier's removal from the settings, as the record does (section 11).
-  It says who and why, in the tier's words, `held by party N: REASON`,
-  N the holding party's number: a verifying change's line for the tier
-  (`../client/forge/README.md`, 2.1) reads `NAME held by party N:
-  REASON` while no run of the tier covers its landing. A hold posts no
-  status (section 9): no run of the tier's is there to link, and no
-  task to post it. A hold of a held tier is refused, naming its holder,
-  and a release of a tier not held is refused (the person, 2026-11-14,
-  `../draft/tier-controls.md`).
-- **A restored record whose run's task is gone** restores as a tier
-  with no run in flight, never a stopped start: as the start links the
-  forge's rows to jig's tasks (`forge/README.md`, 9), a tier's record
-  naming a task jig no longer holds drops its run as a close would
-  (above), and the restart saves it so. A record never needs its run's
-  task to restore, whatever left it naming one: a crash, or an older
-  build that never heard the close.
-
-A failed receipt at the tip is treated as a failed-test rerun that failed
-again. Its failures go directly to inheritance and blame, with no further
-confirmation run (2026-11-04).
-
-Among due goal branches, one never run sorts before one with a previous
-start; otherwise the oldest start runs first. Equal starts, including two
-branches never run, are ordered by goal number, lowest first (2026-11-04).
+Moved to [`after-landing-runs.md`](after-landing-runs.md), section 2.
 
 ## 4. What a run reports
 
-- **Passed or failed,** from the run's conclusion at its tip.
-- **Its failing tests by id,** read from the artifact the tier names
-  (skein's `Read::Artifact`): a zip of one file, a JUnit file, whose
-  failed and errored test cases are its ids (`classname.name`), or a
-  text file of one id per line. Ids are bytes, each at most
-  `test_id_bytes`, at most `failing_tests` per run; past it, the run's
-  failures are "many", and its verdict blames by landing alone, never by
-  test.
-- **A many report's names,** what a report read as many still names, so
-  that whoever repairs it reads its tests (2026-11-19):
-  - **its tests:** the failed ids it read whole within `test_id_bytes`,
-    unique, the lowest `failing_tests` of them in byte order;
-  - **its more:** a count of the report's other failed cases or lines,
-    each counted once as the report lists them: an id past
-    `test_id_bytes` among them, and one a lower id took the place of;
-  - **cut or not:** a read cut at its bound (section 10, *Reads*) reads
-    what it holds whole before the cut, a `lines` file's complete lines
-    and a JUnit file's cases closed before it, and ends there with no
-    fault; its more is then a floor. Where the part before the cut is
-    one its format cannot read, the names are none: the run is many as
-    before.
-
-  The names are shown, never judged: a many run is judged as many
-  (5.2) whatever it names, and its reruns, probes and receipts read
-  none. They come from the judged run's whole part alone, at its tip,
-  or at a goal's branch's tip for a tier following goal branches (5.4);
-  a tip judged by its receipt (section 3) has none and says `many`, as
-  does a many with no names. Wherever they are shown, the ids come
-  first, then the remainder: `and K more`, K the more and the ids the
-  room left out; for a cut report, `and K more, its report cut at the
-  read's bound`, or `and more, its report cut at the read's bound`
-  where K is 0. A report read as many by a gate (`landing-search-by-test.md`,
-  2) keeps no names.
-- **A failed run that names no test,** or whose artifact is absent or
-  unreadable, is a fault: the run is retried, never blamed.
-- **A landing gate's report** is read otherwise, its errored cases left
-  out, and a failed run naming no test, or with a report not read, no
-  fault; only an absent one is (`landing-search-by-test.md`, 2).
+Moved to [`after-landing-runs.md`](after-landing-runs.md), section 3.
 
 ## 5. The verdict
 
@@ -357,19 +126,19 @@ red by earlier failures it does not run (5.3).
      `high` landing's.
    - **Lowest first, one at a time:** of the groups left, the one whose
      `low` is lowest is probed next, the others waiting on the run's
-     record (section 10). Groups never overlap and a probed landing is
+     record (`after-landing-storage.md`, section 1). Groups never overlap and a probed landing is
      in no later group's middle, so a run probes each landing at most
      once and its probe's branch, `temper/tier/<tier>.<n>.<k>`, k the
-     landing's index in the range from 0, is never made twice (section
-     2). One failure over n candidates takes at most ⌈log2 n⌉ probes: a
+     landing's index in the range from 0, is never made twice (`after-landing-runs.md`, section 1
+     ). One failure over n candidates takes at most ⌈log2 n⌉ probes: a
      range of eight, one breaking, takes three.
-   - **After many** (section 4), a probe runs the whole tier and the
+   - **After many** (`after-landing-runs.md`, section 3), a probe runs the whole tier and the
      group splits by the run alone: a probe that fails anything keeps
      `low` to the middle, one that passes takes the landing after it to
      `high`, and the group's one candidate owns many. A probe of chosen
      tests whose report is many fails them all there. A probe's fault
-     is a fault (section 3), retried as any part is.
-5. **A fault is not a red** (section 3).
+     is a fault (`after-landing-runs.md`, section 2), retried as any part is.
+5. **A fault is not a red** (`after-landing-runs.md`, section 2).
 
 Failures reported as many have no failed-test rerun; their probes run the
 whole tier. Enumerated failure IDs are sorted and unique before judging. A
@@ -397,7 +166,7 @@ does, and keeps the flakes on the tier's record; what fails again is
 news to the goal holding the branch (section 7), each test marked *new*
 or, where the previous run on that branch failed it too, *still
 failing*. Nothing is blamed, bisected or inherited onto a landing, and
-a fault is a fault (section 3).
+a fault is a fault (`after-landing-runs.md`, section 2).
 
 On a goal branch, many after many is still failing and is kept for the
 goal's next run. Many after an enumerated result is new and wakes it. When
@@ -415,7 +184,7 @@ those IDs is known to be still failing; each is new (2026-11-04).
 - **Landed means verifying.** The task lives, with no run, until its
   landing is cleared in every tier following the branch it landed on
   (at once, where no tier follows it, or only tiers following goal
-  branches do: sections 2 and 3); its branch's
+  branches do: `after-landing-runs.md`, sections 1 and 2); its branch's
   hold stays until then, and the branch is deleted as the task closes
   (`forge/branches.md`), by queue and by turn alike. A goal's landing, a
   change on its requester's held branch (`forge/change/README.md`, 1), holds none:
@@ -438,7 +207,7 @@ those IDs is known to be still failing; each is new (2026-11-04).
   default) with no verdict, because the runner was faulty or down, the
   change ends landed and uncleared, saying so, and its goal is told. A
   verdict that comes later still counts, through the landing log
-  (section 10), which keeps the landing's changes after their
+  (`after-landing-storage.md`, section 1), which keeps the landing's changes after their
   verification rows go: cleared, it is news to the goals whose
   subscriptions still name the change; red, it stays on the tier's
   record and is filed as a finding (`findings.md`, section 4), since
@@ -452,7 +221,7 @@ those IDs is known to be still failing; each is new (2026-11-04).
   a branch no tier follows, or only a tier following goal branches
   does, is cleared as it lands under either.
 - **Under `landed`, a change ends at landed.** Its landing makes no
-  `Verification` row (section 10), so no tier's verdict is the change's
+  `Verification` row (`after-landing-storage.md`, section 1), so no tier's verdict is the change's
   and no bound applies to it: it is never red, and it never waits. Its
   result is given at its landing, in the step that sees its merge,
   naming the landing's commit as every landed change's result does, and
@@ -467,12 +236,12 @@ those IDs is known to be still failing; each is new (2026-11-04).
   them for verification would protect nothing: the change is on its
   branch already, under every goal started after it.
 - **Its landing is judged as any landing is:** each tier following its
-  branch takes it into a run's range by its commits (section 3), keys
+  branch takes it into a run's range by its commits (`after-landing-runs.md`, section 2), keys
   and bisects it (5.2) and blames it by commit, and posts the verdict's
-  status and its comments on the members' pull requests (section 9),
+  status and its comments on the members' pull requests (`after-landing.md`, section 9),
   the members read from the landing log, which keeps the landing until
   every tier following its branch has judged it, within
-  `landings_pending` (section 10). A red one is a red finding
+  `landings_pending` (`after-landing-storage.md`, section 1). A red one is a red finding
   (`red-findings.md`).
 - **Switching** a project from `cleared` to `landed` takes effect at
   the start that takes kind 4's new value: each of its changes still
@@ -505,12 +274,12 @@ those IDs is known to be still failing; each is new (2026-11-04).
   any finding (`findings.md`, section 6). A tier following goal
   branches is unchanged (below).
 - **A member's goal** is its change's requester's tracked ancestor, the
-  goal its landings' news reaches (`forge/README.md`, 5.2): the news goes
+  goal its landings' news reaches (`forge/topics.md`, 1.2): the news goes
   through that goal's subscription to its own branch's landings when
   that branch is what landed, without a subscription to main. Other
   members use the goal's subscription to the branch the landing went
   into. It goes once per goal, as the verdict that reddens the landing
-  is kept, and wakes it, whatever its overlap (`forge/README.md`, 5.3). A goal
+  is kept, and wakes it, whatever its overlap (`forge/topics.md`, 1.3). A goal
   with no such subscription left is told nothing.
 - **The news's words:** `Red after landing: tier NAME run N blames
   landing COMMIT on BRANCH: K failing.`, the landing's commit whole,
@@ -521,7 +290,7 @@ those IDs is known to be still failing; each is new (2026-11-04).
   `brief_bytes`, and a job whose log cannot be read is named with
   `[no log]`. The root cuts the whole to the deployment's
   `tasks.message_bytes`, the logs' ends first.
-- **`repairs`** (`agent/tools.md`, 1): the change names the red landing by
+- **`repairs`** (`agent/tools-change.md`, 1): the change names the red landing by
   its commit, checked by the root as it decides the delegate (a landing
   of temper's in the change's repository, on its landing branch, red in
   some tier), and kept with the change. When a later run of a tier
@@ -554,7 +323,7 @@ those IDs is known to be still failing; each is new (2026-11-04).
   that brought a follow change has it filed with its follow's owner's
   area instead, where the owner owns one (`forge/follows.md`, section
   6), its members read from its `Verification` row, else from the
-  landing log (section 10). Past the
+  landing log (`after-landing-storage.md`, section 1). Past the
   project's findings' bound it is not filed, never holding the tier, so
   that no repository's verification stops for want of a triage.
 
@@ -569,7 +338,7 @@ The commit in `Red on BRANCH: tier NAME run N at COMMIT` is the tested tip's
 first twelve hexadecimal digits; an after-landing red continues to name its
 blamed landing's full commit (2026-11-04).
 
-**A many red's names** (section 4): where a red's news says `many` and its
+**A many red's names** (`after-landing-runs.md`, section 3): where a red's news says `many` and its
 run's report kept names, its `many` line reads `many; its report names:`,
 then each kept id follows on a line of its own, then the remainder on
 one line, each line with the prefix the `many` line has (`new: ` or
@@ -600,16 +369,16 @@ Run: URL
   2 `Fixes:`, 3 `Repairs:`, 4 `Fixes-finding:`, the forge's table of
   what it offers naming them for ctl's and the host tools' words): the core keeps them with the goal's
   subscription to the landings of its subtree's repositories (jig's
-  `domain/tasks/messages.md`, 4; `forge/README.md`, 5.2), and the forge classes a
+  `domain/tasks/messages.md`, 4; `forge/topics.md`, 1.2), and the forge classes a
   landing carrying one as waking for that goal, and as kept otherwise,
   whatever its overlap. A designer's goal wakes on `Taught:` so, and
   reads the rest at its next run.
 - **A read of landings since a time,** per project, with their
   verdicts and trailers, for a coordinator catching up: `landing list
-  --project PROJECT --newer-than TIME`, from the landing log (section 10),
+  --project PROJECT --newer-than TIME`, from the landing log (`after-landing-storage.md`, section 1),
   with the time the engine saw each: temper's own merges, and each move
   of a landing branch the engine already watches, a tier's or one a
-  goal's or a change's subscription follows (`forge/README.md`, 5.2), by queue
+  goal's or a change's subscription follows (`forge/topics.md`, 1.2), by queue
   or by anyone else. The log adds no watch of its own, since each costs
   a poll and a fresh read at every restart: a push to a main nothing
   follows is not logged. A coordinator catching up follows its
@@ -620,10 +389,10 @@ Run: URL
 - **A verdict's status** on the run's tip, `temper/verdict/<tier>`:
   success for green, failure for red with the blamed tests counted in
   its description, its link the run; pending while its run is held
-  (section 3), saying why.
+  (`after-landing-runs.md`, section 2), saying why.
 - **A comment on each member's pull request,** once per tier verdict:
   "cleared by run N", or "red: tests X, Y" and, once one lands, "repaired
-  by #M". Keyed, as every comment of temper's (`forge/README.md`, section 4).
+  by #M". Keyed, as every comment of temper's (`forge/effects.md`, section 1).
 - **Posted by the run's task, after its verdict is kept:** once the
   verdict is judged and kept (sections 5 to 7: the record, the
   landings' verification, the news), the run's task posts the status,
@@ -638,9 +407,9 @@ Run: URL
     failed: B blamed, I inherited`, B the distinct failing tests blamed
     on the range's landings, owned or suspected, I the run's other
     failures, inherited; B `many` where a landing's blame is many, and
-    I `many` where the run's failures are many (section 4) and no
+    I `many` where the run's failures are many (`after-landing-runs.md`, section 3) and no
     landing's blame is;
-  - pending, before a hold of its run: section 3's WHY, posted again
+  - pending, before a hold of its run: `after-landing-runs.md`, section 2's WHY, posted again
     at each hold.
 
   Its link is the judged run's whole part's forge run, never a
@@ -651,8 +420,8 @@ Run: URL
   the run's range, oldest landing first, then on each member of a red
   landing this run repairs (5.3; section 7, `repairs`), in the order
   the repairs are found. A member is a change of temper's the landing
-  brought, with its pull request, read from the landing log (section
-  10), else from the landing's `Verification` row and the change's row;
+  brought, with its pull request, read from the landing log (`after-landing-storage.md`, section 1
+  ), else from the landing's `Verification` row and the change's row;
   a landing temper did not make has none, nor has one the log no longer
   holds, past `landings_pending`, that no `Verification` row names: its
   verdict posts its status and no comment. A change with no pull
@@ -661,7 +430,7 @@ Run: URL
   - `Red: TIER run N blames this landing for X, Y.` for one that owns
     failures, `for many tests` where they are many, and `for many tests;
     its report names X, Y and K more.` where its run's report kept names
-    (section 4);
+    (`after-landing-runs.md`, section 3);
   - `Suspected: TIER run N suspects this landing of X, Y.` under "tell
     all" (5.2, 4), `of many tests` and `of many tests; its report names
     X, Y and K more.` as above;
@@ -675,17 +444,17 @@ Run: URL
   is one. Test ids are written whole, in order, while the comment and
   its key fit the forge client's `op_bytes` (skein's
   `forge/client.md`), then `and K more`; for a many's names, the
-  remainder is section 4's, K counting its more too.
-- **Keys:** each write a keyed effect of the run's task (section 10):
+  remainder is `after-landing-runs.md`, section 3's, K counting its more too.
+- **Keys:** each write a keyed effect of the run's task (`after-landing-storage.md`, section 1):
   purpose tag 8, operation 6 for the status, its part 0 for the
   verdict's and, for a pending one, the count of the run's holds so
   far, 1 for the first (a release resets the faults, not
   this count, which the run's posting keeps until its verdict, so
   each hold posts its own); operation 7 for a comment, its
   part the comment's index in the order above, from 0, so that a
-  restart posts each at most once (`forge/README.md`, section 4).
+  restart posts each at most once (`forge/effects.md`, section 1).
 - **What is posted is kept** on the tier's record from the verdict to
-  its last post (section 10): what the status says, and each comment's
+  its last post (`after-landing-storage.md`, section 1): what the status says, and each comment's
   pull request and what it says, so a restart posts the rest, with the
   same words under the same keys, whatever its changes have become
   meanwhile.
@@ -694,18 +463,18 @@ Run: URL
   next posted; it never holds the tier or its task. An uncertain write
   is settled by the forge client, as any is.
 - **Nothing is posted** for a run with no verdict: a run of a tier
-  following goal branches (5.4), a run dropped (section 3), or a
-  person's hold (section 3).
+  following goal branches (5.4), a run dropped (`after-landing-runs.md`, section 2), or a
+  person's hold (`after-landing-runs.md`, section 2).
 - **`read_ci` reads a logged landing's red** (2026-11-19): the host
   tool's `read_ci what=checks` at a commit its repository's landing log
-  holds (section 10) answers the forge's checks, then one row for each
+  holds (`after-landing-storage.md`, section 1) answers the forge's checks, then one row for each
   tier whose entry there is red: its context `temper/verdict/<tier>`,
   failed, its description `TIER run N found this landing red: X, Y.`,
   the ids its entry keeps, owned or suspected alike, or `TIER run N
   found this landing red: many tests; its report names X, Y and K
   more.` for a many with names (`many tests.` with none); its ids
   written whole while the description fits the forge client's
-  `op_bytes`, then `and K more` (section 4's remainder for a many); its
+  `op_bytes`, then `and K more` (`after-landing-runs.md`, section 3's remainder for a many); its
   link empty and no job, since a tier's job logs are its runner's. Any
   caller reads them, not a repair alone. They are kept
   before the forge's own rows within the client's `rows`, after a
@@ -721,209 +490,13 @@ Run: URL
 
 ## 10. Effects, reads and the store
 
-- **A run is a task:** each tier run is a procedure task of the
-  forge's, `tier`, made when the run starts, requested by the
-  deployment on the project's behalf, funded from the project's spend,
-  with the authority the project's policy gives tiers (kinds 6, 7, 9,
-  16 and 17 on its repository), as a landing is (`landing.md`, 4.2). It
-  owns the run's branch and its probes', its dispatch, reruns, status
-  and comments, and ends done with the verdict as its result; its
-  branches are released as it closes, by the release a change's branch
-  takes (`forge/branches.md`), never by an effect of kind 15, so that no
-  grant of it is needed. A fault past `tier_retries`, or a wait for a
-  runner past its bound, holds it (section 3). The
-  tier's record names its task while it lives, and no longer once it
-  closes, however it ends (section 3); at most one per tier and repository
-  lives, so they are bounded by the repositories and `tiers`. A tier's
-  sequence counts the runs it has numbered, judged or dropped.
-- **The run task's words** start with `Tier NAME run N`, then name the
-  repository, the full tested commit and the owned `temper/tier/NAME.N`
-  branch at creation. Each part is identified separately: the judged
-  run, a failed-test rerun and each bisection probe, with its commit and
-  branch, and the forge run number and URL once observed. The procedure
-  projects these facts through its own task's specification words in a
-  due step (jig's `domain/tasks/lifecycle.md`, 3). New part words are saved
-  before its effects are issued; the procedure continues at a deadline
-  due immediately. The task keeps them after
-  completion, branch release and restart. Both ctl `task show TASK` and
-  `task show TASK --until ended` follow missing specification chunks within
-  their output bounds, so `asked:` retains these identities beyond the
-  overview prefix; when exhausted it
-  gives a `task text` continuation at the first undisplayed byte.
-  Observations not yet projected
-  are kept on the tier row until a step acknowledges their task words,
-  including across follower replacement and restart.
-- **The completed run task's report** names its tier and judged run, and pairs
-  each blamed merge commit with that landing's own failed IDs, distinguishing
-  owned and suspected failures. Its summary counts inherited failures without
-  attributing them to cleared landings. Singular counts say `1 test` and
-  `1 landing`; overflow verdicts say `many tests`.
-  The existing report contract's `words` bounds this result. Each attribution
-  occupies a line, with a whole quoted ID (backslash, quote, CR and LF escaped)
-  and, for a retained landing, `change show TASK`, TASK its first
-  change, from its `Verification` row, else from the landing log. Lines that do not fit are
-  omitted whole; later shorter lines may still fit. An explicit remainder ends
-  the report: `and N more failing tests; change show TASK`, naming the first
-  omitted retained landing (`1 more failing test` for a single ID).
-  If any omitted attribution is `many`, the
-  remainder says `many` too. Full IDs remain in the change read's retained
-  `Verification`; no separate record or larger task result is needed.
-  Where the run's failures are many and its report kept names (section
-  4), a line `Its report names: "ID", "ID" and K more.` follows the
-  attribution lines the report holds, before its remainder, each id
-  quoted as an attribution's is and taken whole in the room the
-  attributions and the remainder leave, those left out joining its K
-  (2026-11-19).
-  Under `wait: landed`, it ends with the tier's red filings waiting for
-  room (`red-findings.md`, section 7), kept within its bound.
-- **Effects:** the tiers' dispatches and reruns are `landing.md`, 11's
-  kinds 16 and 17, their branches' creation kind 9, released at the
-  task's close; statuses and comments are kinds 6 and 7; each its run's
-  task's.
-- **A purpose of its own,** tag 8 in `forge/README.md`'s table: a tier's step,
-  the repository (16 bytes), the tier (2), the judged run's number in
-  the tier's sequence (8), the operation (1: the branch, the dispatch,
-  a rerun, a probe's branch, a probe's dispatch, the branch's deletion,
-  the status, a comment), and the probe or the member it is for (2), 30
-  bytes with the tag. The tier's record keeps its sequence and each
-  operation's state, so a restart settles what was in flight.
-- **Reads:** skein's `Read::Artifact { run, name, max_bytes }`, a run's
-  artifact by name, unzipped (one file, stored or deflated), cut to
-  `max_bytes`, for a tier's report the room of `failing_tests` ids of
-  `test_id_bytes` each in its format, within the forge client's
-  `answer_bytes`; and `Read::Commits { before, after, page }`, the commits
-  of a range with their messages, oldest first.
-- **In the store:** `Tier`, keyed by repository and tier, its run in
-  flight, its last judged tip and failures, its flakes, its red filings
-  waiting for room in its project's findings, at most 8, with a count
-  of those not kept (`red-findings.md`, section 7), a held run's cause,
-  its last fault or its wait for a runner, its run's clock (section 3) and a
-  person's hold, its party, its time and its reason, at most 1024
-  bytes (section 3); a probe's part keeps the group it probes, its
-  `low` and `high` landings by their index in the range and its tests,
-  and the groups waiting, each with its own, named by their places in
-  the run's failures, so their bound is the failures' and not a
-  name's per landing (5.2); a judged run's
-  posting while its task posts (section 9): the run, its tip, its
-  link, the status's check and words, the verdict's blame of each
-  landing of the range, and each comment's pull request with the
-  landing it is for, or the red landing it repairs and the repairing
-  pull request, and the index of the next write, erased by the task's
-  last post or its close; the judged run's many names (section 4), set
-  at its whole part's read and taken by the next run's start, so that
-  its posting, done before that start, reads them there;
-  for a tier following goal branches, each goal branch it follows,
-  with its goal, its last run's tip, failures and start, and the branch
-  its run in flight is for, within the forge's `holds`;
-  `Verification`, keyed by repository and landing commit, for temper's
-  own landings under `wait: cleared` alone (section 6), made with the landing's `Landed` row and erased
-  when its last change closes, so bounded by `changes`: the changes it
-  landed, each tier's verdict (cleared, owns failures, or suspected of
-  them), the failures blamed on it and the commit that repaired it; the
-  `Change` family's landed state means verifying, and `Red` and
-  `Cleared` join it; a change keeps the commit of the red landing it
-  repairs (`repairs`). Through the baseline's rules (`landing.md`, section
-  12).
-- **The landing log,** a family of its own, `LandingLog`, per adopted
-  repository, oldest first: each landing until every tier following its
-  branch has judged it, at most `landings_pending` such, and the last
-  `landings_kept` landings that every such tier has judged (*Pending and
-  kept*, below), each with its commit,
-  the branch it moved, the engine's wall time when it saw the move, its
-  changes (none for a push from outside temper), each with its task, its
-  pull request's number, so that a late verdict's comment reaches it,
-  and its title, at most 256 bytes, since a change's close takes its row
-  and temper's `Changes` page still names it (`../client/forge/README.md`,
-  section 3; a visitor's public queue merges read its commits and tasks
-  alone, 11.2 there), its goal, the tracked ancestor of the change's
-  requester that the change's row names (section 7, *A member's goal*),
-  and that goal's milestone, where it has one (`milestones.md`), so
-  that blame names them once the change's row is gone, with the goal's
-  person, title and `Draft:` path and the findings its pull request's
-  body names, from the change's row (`red-findings.md`, sections 3 and
-  6), the sign-offs counted at its merge, at most
-  `SIGN_OFFS`, each its person, head and time (`forge/change/gates.md`,
-  2, *Sign-offs kept at landing*), its trailers within `trailers` and
-  `trailer_bytes`, and each tier's verdict: an entry for each tier
-  following its branch, by the project's settings in force as it is
-  logged, `verifying`, set at that tier's verdict to cleared by run N,
-  or red by run N with the count of distinct tests blamed on it, owned
-  or suspected, and their ids, or many with its run's names where it has
-  them (section 4), for `read_ci` (section 9); a ring, written at each move of a watched landing
-  branch (section 8), at each merge of temper's, when a change sees its
-  pull request merged by someone else or by the forge's own queue, and at
-  each verdict, so that a landing's record outlives its changes' close and
-  a range's judging. Every adopted repository logs, and its log is erased
-  with it. A commit logged already gains the change, within the forge's
-  `landing_members`, and no second landing; its tiers' entries stay.
-- **Pending and kept:** a logged landing is pending while one of its
-  entries is `verifying`; one no tier follows has none, and is judged
-  as it is logged. Logging a pending landing when `landings_pending`
-  are pending drops the oldest pending one: its tiers still judge it from
-  their own records, by commit (section 3), with no member to comment
-  on (section 9). A landing whose last entry is judged joins the judged
-  ones, and the oldest judged one past `landings_kept` leaves. A verdict
-  on a landing the log holds sets its tier's entry, adding it where it
-  has none, and saves the log in the decision that keeps the verdict;
-  one on a landing the log no longer holds writes nothing there. So the
-  log holds at most `landings_kept + landings_pending` landings.
-  - *Read from before:* a landing logged before the log kept its tiers'
-    verdicts reads, at the restore, `verifying` in each tier of its
-    repository whose record still holds it to judge (its pending range
-    or its run in flight's), and judged in the others; a member logged
-    before it kept goals reads with no goal and no milestone, and one
-    logged before it kept their persons with no person, title, draft
-    or findings named.
-  - *A tier gone from the settings* starts no run (section 11), so a
-    start drops each `verifying` entry of a tier its repository's
-    settings no longer name; a verdict that tier's run in flight still
-    gives sets its entry as any verdict does.
-  - *A landing's entries* are at most the forge's `tiers`, as a
-    verification's are (2026-11-19). A verdict that would add one past
-    it first drops a judged entry of a tier the repository's settings
-    no longer name; where there is none, it writes nothing there. A log
-    read from before that holds more is brought within the bound the
-    same way at its restore.
-- **Limits,** the forge's: `landings_kept` per repository (16) and
-  `landings_pending` per repository (64), their sum at most the store's
-  256 (`../protocol/configuration/limits.md`); `trailers` per landing (8) and `trailer_bytes` per line
-  (200); `tiers` per repository (2 in `small`),
-  `failing_tests` per run (64, 16 in `small`) and `test_id_bytes` (512),
-  each at most what a finding's signature holds, 64 ids of at most 512
-  bytes (`findings.md`, section 4), which a start checks
-  (`../protocol/configuration/limits.md`), and within the store's 1,024
-  bytes of an id (`../protocol/store.md`, 4); and a tier's name at most
-  32 bytes. A many's names, wherever kept, hold at most
-  `failing_tests` ids. A tier row's `many` and a landing log's red
-  entry keep at most 64 of them, the store's ceiling (2026-11-19).
-  A tier row's `many` uses `list 64 ShownTest`,
-  `ShownTest { test_id: bytes 1024 }`, which the store's wide text
-  (`../protocol/store.md`, 4) leaves alone: no older layout holds them.
-  A tier row is within 223 KB of the store codec's `u32` worst case at 759 landings,
-  which 1,024 names of 1,024 bytes pass; 256 landings of 32 tiers each
-  keeping 1,024 ids of 1,024 bytes pass the store codec's `u32` worst
-  case, and 64 is the stock `failing_tests` and a finding's signature's
-  (`findings.md`, section 4). Past it the row or entry keeps the lowest 64 in
-  byte order; its count still counts every blamed test, and a many's
-  names add the ids left out to their `more`, so `read_ci`'s remainder
-  (section 9) says how many more there are. The entry keeps its ids, or
-  a many's names, in one list of at most 64 in the store, a many adding
-  only its `more` and `cut`. With the entries bound by `tiers`, the log's
-  derived worst case stays within the store's admitted value at the
-  stock limits; 32 entries of two lists each would not (169 MB against
-  103 MB, 2026-11-19).
-
-A tier's record keeps at most `failing_tests` ids of its last judged
-failures, each within `test_id_bytes`; a run past either is many, as
-section 4 says. It keeps at most `failing_tests` distinct flake IDs. Once full
-it keeps counting the IDs already retained and drops newly seen flake IDs,
-without holding the tier (2026-11-04).
+Moved to [`after-landing-storage.md`](after-landing-storage.md), section 1.
 
 ## 11. Settings
 
 Beside kind 5's gates, each repository's tiers, each with the branch
-it follows, or goal branches, and its span (section 2); with kind 4, the
-project's `wait` (`cleared`, section 6), `tier_retries` (2), `verification_bound` (two hours), several
+it follows, or goal branches, and its span (`after-landing-runs.md`, section 1); with kind 4, the
+project's `wait` (`cleared`, `after-landing.md`, section 6), `tier_retries` (2), `verification_bound` (two hours), several
 suspects' rule (`bisect` or `tell all`), and whether a red pauses its
 repository (no). Until the kinds are settings, the tiers,
 `tier_retries` and `verification_bound` are in the document's
@@ -932,11 +505,11 @@ pause wait for kind 4 (`landing-settings.md`, 1.1).
 
 A tier's settings start its runs, never its record. A tier newly
 configured starts its baseline at its branch's tip read afresh
-(section 3), so a workflow that landed before the tier's first start,
+(`after-landing-runs.md`, section 2), so a workflow that landed before the tier's first start,
 the configuration that names it already given, is found at the
 baseline's commit. A tier removed from the settings starts no run;
-its record stays (section 10) and restores whatever its last run's
-task became (section 3), so a person never removes a tier to make the
+its record stays (`after-landing-storage.md`, section 1) and restores whatever its last run's
+task became (`after-landing-runs.md`, section 2), so a person never removes a tier to make the
 engine start.
 
 ## 12. The world
@@ -1034,36 +607,19 @@ with failing tests by id and uploading their artifacts:
 
 ## 13. Open questions
 
-- **Tiers on the forge's runners or on workers:** both are allowed by
-  the draft; the forge's runners here, workers once a worker runs jobs.
 - **Blame on a goal's branch:** whether a tier following goal branches
   should bisect a red to the merge that brought it and name that change
   in its news, rather than leave the goal to triage (5.4). Triage costs
   a wake and no machinery; blame would need the verdict machinery on a
   goal's branch (`../draft/reference-code-production.md`, section 17).
 
-- **A tier's running,** unbounded: a run that runs and never ends is
-  held by nothing, a bound being a new figure, the user's; and a
-  release after a runner wait leaves the forge's waiting run queued,
-  no write cancelling one, its result never read. Default: so (the
-  request of 2026-11-21).
-
 ## 14. Later
 
-- **Older public queue merges:** public history beyond the landing log's
-  ring, or beyond the tasks jig's public index hands, is the client's
-  question (`../client/forge/README.md`, section 8). Default: none; keeping a
-  landing in the log grants no public access to it (section 10).
 - **A red after landing blamed within a goal's landing,** bisected over
   its changes' merges to the change that brought it. A goal's landing
   is one landing to its tiers, so its red names the goal's landing
   alone and the goal triages it (section 7;
   `../draft/archive/reference-landing.md`, section 11).
-- **A dropped run's branch:** a run dropped as its task closes (section
-  3) leaves its `temper/tier/<tier>.<n>` branch on the forge, since a
-  closing task makes no effect, and no later run takes its name, its
-  number being spent. Deleting it, by the tier's next run or by a sweep
-  of temper's tier branches, waits; meanwhile a person deletes it.
 - **A many's names elsewhere:** a change's panel, the status writer's
   words and the forge's `temper/verdict/<tier>` status still say `many`
   with no names, a receipt keeps none (so a tip judged by its receipt

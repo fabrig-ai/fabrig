@@ -7,12 +7,12 @@ Milestone Q1 is designed in `../testing/qa/README.md` and its documents: the wat
 Milestone Q2, what the first passes need of temper, is designed and
 built: the drive session (`../client/drive.md`), recipes and their walk
 (`../client/recipe.md`), the fake model's given scripts and strict
-switch (`../protocol/setup/box.md`, 5; skein's `testing/fakes/llm.md`,
+switch (`../protocol/setup/box-backends.md`, 1; skein's `testing/fakes/llm.md`,
 2.5), a box started again with a newer build (`../protocol/setup/box.md`,
 1) and a store below the floor refused by name, naming bridge build
-`3d1c717d379e`, with no finding (`../protocol/store.md`, 5). The draft
-leaves `../domain/findings.md`, 8, temper's own pass, as it is (section
-2).
+`3d1c717d379e`, with no finding (`../protocol/store-restart.md`, 1). The draft
+leaves `../domain/findings.md`, 8, temper's own pass, as it is (`landed-qa.md`, section 2
+).
 
 Milestone Q3, passes on the web client, is designed in
 `../testing/qa/places.md` (places, copies, their making again and the
@@ -30,7 +30,7 @@ with their own ports (`../testing/qa/places.md`, 2), the figures bounds
 and places are tuned from (`../testing/qa/ledger.md`, 2.10, 4.17 and
 6), fake forges that keep their state across a restart (skein's
 `testing/fakes/forge.md`, 2.7 and 5, `testing/fakes/github.md`, 1.7;
-`../testing/fakes.md`, 2; `../protocol/setup/box.md`, 5), and scripts
+`../testing/fakes.md`, 2; `../protocol/setup/box-backends.md`, 1), and scripts
 that take values from the conversation (skein's `testing/fakes/llm.md`,
 2.6; `../protocol/setup/playground.md`; `../testing/fakes.md`, 1).
 
@@ -43,7 +43,7 @@ recipe's files to the fake Forgejo as the person, no credential named),
 pass's `files/` (`../testing/qa/passes.md`, 2; `../testing/qa/places.md`,
 5 and 6), a head's CI declared by what it holds (skein's
 `testing/fakes/forge.md`, 2.3, and `testing/fakes/forgejo.md`, 1; `../testing/fakes.md`, 2;
-`../protocol/setup/box.md`, 5), and the process-tier story of a box at
+`../protocol/setup/box-backends.md`, 1), and the process-tier story of a box at
 its place on its fake forges' state (`../testing/process-tier.md`).
 
 Milestone Q6, ctl on a deployment, is designed in
@@ -94,7 +94,7 @@ which needs nothing of a box, reached at a deployment's place too by
   - 6, 10: a take reads the whole conversation, the agent's brief in its system text among it, rather than a tool's output alone, since a review's brief is where its pull request and head are named (skein's `testing/fakes/llm.md`, 2.6). The goal's designer, 2026-11-12.
   - 2, 12: bounds and places are tuned by the deployment from `temper-qa tune`'s figures and suggestions, never by the loop itself, since `qa.json` is the deployment's (`../testing/qa/ledger.md`, 6). More than one place gives each place its own ports (`../testing/qa/places.md`, 2). The goal's designer, 2026-11-12.
   - 3, 10: the client a build keeps is the TUI's recording build (`temper` with `TEMPER_INTERNAL_RECORD=1`, `../client/tui/journeys.md`, 2), beside the bundle's recording build: the drive session reads the TUI's frames from its saves, replayed natively, since nothing in the tree reads a pseudo-terminal's screen (`../client/drive.md`, 2.1 and 3.3). The goal's designer, 2026-11-12.
-  - 10: a journey is its version-2 walk, printed in a world; main's pages have one after-landing writer (`../client/journey-walks.md`, 4; `../client/journey-writer.md`). The drive session walks a journey's chain on a box or deployment, or QA's recipes, with a given build in scratch, without writing main's pages (`../client/drive.md`, 2.7; `../client/recipe.md`, 5). The journey-walks draft's rule (`archive/journey-walks.md`, 4 to 6).
+  - 10: a journey is its version-2 walk, printed in a world; main's pages have one after-landing writer (`../client/journey-walks-world.md`, 1; `../client/journey-writer.md`). The drive session walks a journey's chain on a box or deployment, or QA's recipes, with a given build in scratch, without writing main's pages (`../client/drive.md`, 2.7; `../client/recipe.md`, 5). The journey-walks draft's rule (`archive/journey-walks.md`, 4 to 6).
   - 7: outside a journey's session, the session signs the TUI in itself, by the browser's approval, when a line first needs it, so that no recipe approves and a recipe walks the same from a fresh box or a copy; a journey's walk says `tui approve` explicitly (`../client/drive.md`, 3.3). The goal's designer, 2026-11-12.
   - 6: B1's twin commits the gate its fixture holds, not acceptance.md, 7's later text, which the twin never met (`../testing/qa/setups.md`, 4.4). The goal's coordinator, 2026-11-12.
   - 3: a kept build's `bin/fake-claude`, smith's fake of the coding agent's command line, prints no temper commit as its version; it is held by the build's manifest alone, and every temper executable of the build prints the commit (`../testing/qa/builds.md`, 3). The goal's designer, 2026-11-12.

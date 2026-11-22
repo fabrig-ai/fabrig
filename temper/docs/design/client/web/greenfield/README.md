@@ -17,7 +17,7 @@ projects, Needs you's list and its why, Work, Team, How work runs,
 Deployment, the phone's tabs and the terminal's screens. This mock leads
 where they draw nothing, a goal's page and a chat. So this mock's rail, its
 Goals, Chats, Changes and Settings, is the whole story's: Work and its
-filters, How work runs and Deployment (`../../view.md`, 3); and its
+filters, How work runs and Deployment (`../../view-navigation.md`, 1); and its
 `goals.html` and `changes.html` are Work's Goals and Changes filters
 (`../../pages/README.md`, *Work*).
 
@@ -53,8 +53,8 @@ pages:
   client it opens a small menu above it, with "Accounts" and "Sign out",
   in the look of the project switcher's menu; a phone, with no rail's
   foot, signs out on Settings' Accounts tab. The user's word, 2026-11-06
-  (the request `ui-owner-menu`; `../../view.md`, 3).
+  (the request `ui-owner-menu`; `../../view-navigation.md`, 1).
 - **A project's repository,** plain words inside the switcher's button
   here, is a link beside the project's name button in the client, opening
   the repository on its forge in a new tab. The user's word, 2026-11-06
-  (the request `ui-repo-link`; `../../view.md`, 3).
+  (the request `ui-repo-link`; `../../view-navigation.md`, 1).

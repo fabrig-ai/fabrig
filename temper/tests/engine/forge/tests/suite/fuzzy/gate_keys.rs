@@ -1,5 +1,5 @@
 //! Rebasing equal filtered candidates on different generated bases must not
-//! invalidate a non-base gate (domain/landing.md, 6.1).
+//! invalidate a non-base gate (domain/landing-proof.md, 1.1).
 use skein_lib::Rng;
 use temper_engine_domain_forge as top;
 use temper_engine_domain_forge_change as change;

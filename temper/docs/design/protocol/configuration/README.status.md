@@ -7,7 +7,7 @@
 
 
 
-`settings.md`, section 7 has no known gap in the engine and workers' shared output
+`settings-output.md`, section 1 has no known gap in the engine and workers' shared output
 room. Init's templates and the owned example give the engine the
 workers' 16,804,602 bytes; the turn-bound writer derives one worker room
 for both sides, and its engine-only fixture derives it from the same
@@ -15,7 +15,7 @@ turn. The reference applies its worker's room to the engine too, taking
 the figure once from `room.json`. The `turn_bounds` table holds the
 checked-in values and the playground's deployment test holds agreement.
 
-`limits.md` and `settings.md`, section 2 and `stock.md` and `settings.md`, section 8 have no known implementation gap in a
+`limits.md` and `settings-kinds.md`, section 1 and `stock.md` and `settings.md`, section 8 have no known implementation gap in a
 project's classes, the whole story's milestone N1, by plan
 `ui-reaches`: kind 8 is declared to jig with its bound the encoding of a
 table full at every bound, judged by `Classes::check` with its refusal's
@@ -35,7 +35,7 @@ smith decodes a run's kind 8 proposal
 (`settings_proposals_carry_typed_project_questions`), but no world
 makes and accepts one.
 
-`settings.md`, sections 2 to 3 and `stock.md` have the branch-relative project patterns and the
+`settings-kinds.md`, section 1, and `settings.md`, section 3 and `stock.md` have the branch-relative project patterns and the
 forge's every-project rule defaults, including removal and reset, held
 rules and the client and run settings reads. The binary supplies kind 2's
 rule 1 and no kind 1 rule. Focused tables and the 64-seed fuzzy pattern
@@ -43,7 +43,7 @@ story cover the mechanism in code. No implementation gap is known in
 these paths; real-forge observation remains after-landing work
 (`../../domain/forge/README.md`, section 11).
 
-`settings.md`, section 2 and `stock.md` and `reference.md` have kind 11, a goal template's work, with
+`settings-kinds.md`, section 1 and `stock.md` and `reference.md` have kind 11, a goal template's work, with
 no known gap but the reference's close-out, below: the forge's
 `TemplateGoal`, judged at scope 0 and a template's number, 1 to 64, kept,
 removed, reset and restored as kind 3 is, read by `template_goal`, with
@@ -58,7 +58,7 @@ trip, `kinds_are_declared_with_their_bounds`,
 `a_projects_stored_ways_read_as_stored` hold it. Only the path reads it
 (`../../domain/forge/change/branch-path.md`).
 
-`engine.md` and `settings.md`, section 2 and `stock.md` and `reference.md` and `settings.md`, section 8 have no known gap in the words
+`engine.md` and `settings-kinds.md`, section 1 and `stock.md` and `reference.md` and `settings.md`, section 8 have no known gap in the words
 saved with a setting: a tier's `description`, read at the start, 1 to 120
 bytes of UTF-8 without a control character or refused at its member, and
 the reference's two tiers described; kinds 9 and 10, the forge's
@@ -119,7 +119,7 @@ and "Yours", "Use this" refused for too few approvers and "Keep it"
 marking To begin's step done; a 64-seed fuzzy test derives paths over
 random rules.
 
-`settings.md`, section 2 and `stock.md` have no known gap in a restore's reset kept
+`settings-kinds.md`, section 1 and `stock.md` have no known gap in a restore's reset kept
 across a restart: a deployment's rule of kind 1, which has no stock, and
 a project's rule 1 reset to the every-project default, which the forge
 does not report to jig, keep their state, and the forge names at each
@@ -143,7 +143,7 @@ deployment rules, its overlays of charters 5 and 2 and its template 4
 remain.
 The stage-one description and application gaps below remain separate.
 
-`settings.md`, section 7 has no known gap in the sub-agent answer's payload-derived
+`settings-output.md`, section 1 has no known gap in the sub-agent answer's payload-derived
 room: smith derives 10,662 bytes for the stock and 63,740 for the
 reference, with a floor of 4,096. Its profile table holds the answer
 equal to the outcome without changing the pinned T figures. A longer
@@ -163,7 +163,7 @@ charter; they establish no real-model compliance. Its store keeps the
 latest configured catalogue for both crash reopening and forks, so the
 restart oracle reads the same model names.
 
-`settings.md`, section 2 has per-repository forge eligibility at proposal acceptance,
+`settings-kinds.md`, section 1 has per-repository forge eligibility at proposal acceptance,
 with the forge named in refusals and separate playground words. Its
 proposal-items read carries `owned_approval` through the client wire so
 the card and page can state the owned-Forgejo limit. Wire and root tables
@@ -205,7 +205,7 @@ Real-model observation of that wording remains deferred in `README.md`, section 
 service's size literal and ctl use drafts on, the other three switches
 off and way 0. A stored value with drafts off keeps that choice; the
 record's format is unchanged. An Ask temper chat's exception and Goals
-for a project holding a goal are the client's rules (`settings.md`, 2).
+for a project holding a goal are the client's rules (`settings-kinds.md`, 1).
 
 `stock.md` has no known gap in the fresh box's four worker slots,
 `standard`'s four hub and fleet slots without overrides, and the four
@@ -231,17 +231,17 @@ the smallest resumed start, S bytes` (`temper-service/src/startup/checks.rs`,
 `resumed_start`). `the_smallest_resumed_start_fits_the_engines_room_or_names_it`
 holds the stock room, the floor met and one byte short on each profile.
 
-`settings.md`, section 2 has no gap in judging project ways against prospective templates
+`settings-kinds.md`, section 1 has no gap in judging project ways against prospective templates
 or in the terminal refusal naming the item and rejected way.
 
-`settings.md`, section 7 has no gap in note-backed settings transport within the call payload ceiling.
+`settings-output.md`, section 1 has no gap in note-backed settings transport within the call payload ceiling.
 
 ## Gaps and departures
 
 - **Not yet:** `limits.md`'s `forge.client.fallback_ms`, by plan
   `forge-polls-quiet`: temper's profiles hold no `fallback`, so the name
   is refused.
-- **Not yet:** 7, the turn's check, and `settings.md`, 7: a worker whose turn's frame
+- **Not yet:** 7, the turn's check, and `settings-output.md`, 1: a worker whose turn's frame
   passes its `io.output` is refused `workers[0].limits: past its bound`,
   as its link's limits are not valid (`temper-service/src/worker_settings.rs`,
   `prepare`), naming neither `io.output` nor the frame it must hold;
@@ -253,4 +253,4 @@ or in the terminal refusal naming the item and rejected way.
 - **Design departs:** `stock.md`, the init document-text departure remains `../setup/README.status.md` (`init.md`, 1).
 - **Design departs:** `reference.md`, the project-settings file departure remains `reference.status.md` (Design departs, ui-settings).
 
-- **Departs:** 6: the kept-GitHub remote departure remains `engine.status.md` (Departs, the whole document). 1: `forge::settings` takes a list of the document's forges (`temper-service/src/forge.rs`), populated only by in-process test fixtures while the product prepares an empty list, to pair each forge with its endpoint; its refusals name `application.forges[N].api`, `log_origins` and `number`, the startup checks name `application.forges` and `application.forges[N].api` (`temper-service/src/startup/checks.rs`), and the setup host's refusals name `application.forges.<number>` (`temper-service/src/setup/settings.rs`), members the document does not have, because those fixtures give their forges' endpoints that way and the host names runtime forge numbers under the same path. The elsewhere-forge configuration-advice gap remains `../../client/forge/deployment.status.md` (Not yet, the whole document).  the unnamed stock procedures remain `stock.status.md` (Departs, the whole document).
+- **Departs:**  1: `forge::settings` takes a list of the document's forges (`temper-service/src/forge.rs`), populated only by in-process test fixtures while the product prepares an empty list, to pair each forge with its endpoint; its refusals name `application.forges[N].api`, `log_origins` and `number`, the startup checks name `application.forges` and `application.forges[N].api` (`temper-service/src/startup/checks.rs`), and the setup host's refusals name `application.forges.<number>` (`temper-service/src/setup/settings.rs`), members the document does not have, because those fixtures give their forges' endpoints that way and the host names runtime forge numbers under the same path. The elsewhere-forge configuration-advice gap remains `../../client/forge/deployment.status.md` (Not yet, the whole document).  the unnamed stock procedures remain `stock.status.md` (Departs, the whole document).

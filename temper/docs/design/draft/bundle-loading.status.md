@@ -10,7 +10,7 @@
   - 4, from "The figure": until the module's answer is in, the line holds no figure, since which total it shows depends on that answer. Decided by this plan's cut.
   - 4, from "the bounds grow": `clients.bundle_bytes` grows and `clients.bundle_files` stays 128 (`../protocol/configuration/limits.md`), because the bundle holds about 40 files with its forms. Decided by this plan's cut.
   - 4, from "The workspace has no compressor today": `skein_http::gzip` is one, an encoder for a request's body that trades ratio for speed, and the bundler takes `flate2` for its best ratio (skein's `ui/web/bundle.md`, 2). Decided by this plan's cut, which has the encoder taken instead within 5% of `flate2`'s best; that comparison's figures are in no file of the repository, so the margin is unknown.
-  - 7, what this design settles, by this plan's cut: both forms stay whole in memory, with no inflater (`../client/web/README.md`, 2.2); the playground keeps its own page and takes `--gzip off`, compressing it being its host's (`../playground.md`, 7).
+  - 7, what this design settles, by this plan's cut: both forms stay whole in memory, with no inflater (`../client/web/serving.md`, 1); the playground keeps its own page and takes `--gzip off`, compressing it being its host's (`../playground.md`, 7).
 - **Open:**
   - 7: other browsers (skein's `ui/web/README.md`, section 13); a box still starting (`../client/web/README.md`, section 3).
 

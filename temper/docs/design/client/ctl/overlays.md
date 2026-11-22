@@ -6,17 +6,17 @@ in one call, and how `settings show` prints one
 (`../../draft/stock-charters.md`, section 4). The overlay itself, a
 setting's value kept over a charter's default, is jig's
 `domain/engine/overlays.md`; the settings file's other items are
-`tools.md`, 3; a set of charter files and its assembly,
+`tools-acts.md`, 1; a set of charter files and its assembly,
 `../../domain/agent/charter.md`, 1.
 
 ## 1. An overlay item
 
 - **Its form:** `{"setting": {"kind": "charter", "number": N}, "overlay":
-  OVERLAY}`, beside the file's other items (`tools.md`, 3), at most one
+  OVERLAY}`, beside the file's other items (`tools-acts.md`, 1), at most one
   item per setting in a file. OVERLAY is an object of two kinds of
   member:
   - *the fields it replaces:* any member of a charter's VALUE
-    (`tools.md`, 3; `FIELDS`' `charter` rows) but `number`,
+    (`tools-acts.md`, 1; `FIELDS`' `charter` rows) but `number`,
     `instructions`, `parts` and `wake`, each in the form that VALUE
     gives it and each optional: a member named replaces the default's
     whole, a member left out follows it (jig's
@@ -25,7 +25,7 @@ setting's value kept over a charter's default, is jig's
   - *the text it adds:* either `charters`, a nonempty list of
     directories, each a set of charter files (2), or the text itself,
     `instructions`, a string, and `parts`, a list in a charter's `parts`
-    form (`tools.md`, 3), each optional and empty when left out. An item
+    form (`tools-acts.md`, 1), each optional and empty when left out. An item
     naming `charters` beside `instructions` or `parts` is refused, naming
     the item: `settings file item 2: overlay: charters or instructions
     and parts, not both`.
@@ -35,7 +35,7 @@ setting's value kept over a charter's default, is jig's
 - **Sent as one value:** the call's overlays of one charter, joined (3),
   become one item *set* to the overlay (jig's
   `domain/engine/overlays.md`, 2), its added text literal. The decoder's
-  refusals are the file's (`tools.md`, 3): members unknown or of the
+  refusals are the file's (`tools-acts.md`, 1): members unknown or of the
   wrong type, a part's reasons, a part on a charter whose runs the
   overlay or its default resume where the client knows it; the charter
   the overlay makes is checked whole by the engine, whose refusal names
@@ -43,7 +43,7 @@ setting's value kept over a charter's default, is jig's
 - **`FIELDS`:** an `overlay` shape, its replaced fields resolving to the
   `charter` rows they name, and a row for `overlay.charters`; the
   `settings-fields` page renders it as it renders every shape
-  (`tools.md`, 3).
+  (`tools-acts.md`, 1).
 
 ## 2. Its directories
 
@@ -80,7 +80,7 @@ setting's value kept over a charter's default, is jig's
 - **Read by the client:** the command line's input step reads each
   settings file and every directory its overlay items name before it
   opens the login's directory, as it reads the file today
-  (`README.md`, section 6), and the tools assemble them; the engine
+  (`command-line.md`, section 1), and the tools assemble them; the engine
   receives only literal text. A file's Markdown counts toward that
   file's input bound.
 
@@ -88,7 +88,7 @@ setting's value kept over a charter's default, is jig's
 
 - **`settings apply FILE... --against REVISION [--running stays|moves]`**
   takes one or more files, `-` at most once, decided as one change
-  (`tools.md`, 3). `settings propose FILE [REASON]` takes overlay items
+  (`tools-acts.md`, 1). `settings propose FILE [REASON]` takes overlay items
   too, from its one file.
 - **Overlays of one charter are joined** into one: its text the files'
   in the order given, joined as directories are (2); its fields each
@@ -105,14 +105,14 @@ setting's value kept over a charter's default, is jig's
   overlay in a.json item 2`.
 - **Refusals name the file:** with several files, a decoder's refusal
   names its file before its item, `settings file b.json item 2: ...`;
-  with one, the words stay `tools.md`, 3's. jig's refusal of the change
+  with one, the words stay `tools-acts.md`, 1's. jig's refusal of the change
   numbers the joined items as sent, each overlay at its first file's
   place.
 
 ## 4. Showing an overlay
 
 - **`settings show charter N`** prints the charter as its runs read it,
-  the value and a line per part as `tools.md`, 3 has them, and, where an
+  the value and a line per part as `tools-acts.md`, 1 has them, and, where an
   overlay stands over it, marks what the overlay replaced and added: a
   line naming the members it replaces in `FIELDS`' order, `overlay
   replaces: model, shell, turns`, or `overlay replaces: nothing`; a line

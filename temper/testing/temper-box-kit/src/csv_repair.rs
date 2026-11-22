@@ -40,7 +40,7 @@ jobs:
 "#;
 const CONTRIBUTING: &str = "# Contributing\n\nEach pull request adds `changes/<its number>.md`: one line saying what it\nchanges, for the next release's notes. CI checks it.\n";
 
-/// The worker pins its agent at startup (domain/worker/README.md, 5).
+/// The worker pins its agent at startup (domain/worker/agent-processes.md, 1).
 /// Generate the shipped configuration before installing the held fake's endpoint.
 pub fn initialize(paths: &[PathBuf; 3]) {
     let initialized = super::story_command::standalone(

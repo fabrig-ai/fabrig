@@ -378,7 +378,7 @@ fn answered(domain: &mut Domain, run: Token, attempt: Token, answer: host::RunAn
 }
 
 /// Each fetch and check out gets an operator note before its io request
-/// (domain/worker/README.md, 4.3). Unowned operations still reach io.
+/// (domain/worker/hosted-runs.md, 1.3). Unowned operations still reach io.
 fn note_git(domain: &Domain, hold: Token, op: &checkout::git::Op, out: &mut Queue<Request>) {
     use crate::Git;
     use checkout::git::Op;

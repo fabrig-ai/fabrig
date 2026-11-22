@@ -1,4 +1,4 @@
-//! Pending landings and retained verdicts (temper/docs/design/domain/after-landing.md, 10).
+//! Pending landings and retained verdicts (temper/docs/design/domain/after-landing-storage.md, 1).
 use crate::{
     Domain, Follows, Key, LandingLog, LoggedChange, LoggedLanding, LoggedTier, LoggedVerdict, Request, Stored,
 };

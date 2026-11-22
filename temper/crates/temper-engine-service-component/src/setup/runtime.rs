@@ -1,4 +1,4 @@
-//! Kept forges join the setup host and lifecycle (temper/docs/design/protocol/forge/engine.md, 6; temper/docs/design/protocol/setup/owned.md, 7).
+//! Kept forges join the setup host and lifecycle (temper/docs/design/protocol/forge/engine.md, 6; temper/docs/design/protocol/setup/owned-repositories.md, 1).
 use super::{lifecycle, settings};
 use alloc::boxed::Box;
 use skein_forge_setup::host;

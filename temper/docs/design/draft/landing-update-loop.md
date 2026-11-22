@@ -18,7 +18,7 @@ Draft, 2026-11-16, on the user's word. On 11-16, a landing asked the forge to re
 - **No spin:** where fresh reads still disagree with the plan (the forge's view lagging, say), the change waits with a bounded backoff before trying again, and that wait spends no update. The update count counts sends, not refusals before sending.
 - **Honest words:** a stale refusal says which of the head or the base moved, from the client's check. The history's update lines print the base the forge reports alongside the pin.
 - **A conflict goes to its job:** a legacy rebase preparation that meets a real conflict goes through `conflict_due` to the merge job, then to a resolution for what's left, as a merge update does.
-- Revise `temper/docs/design/domain/forge/README.md`, 6, which allows counted retries while saying they never spin, and the change's update words, with their status files.
+- Revise `temper/docs/design/domain/forge/updates.md`, 1, which allows counted retries while saying they never spin, and the change's update words, with their status files.
 
 ## 3. Out
 

@@ -1,4 +1,4 @@
-//! Fixtures for the TUI's directory tests (temper/docs/design/client/tui/README.md, 2).
+//! Fixtures for the TUI's directory tests (temper/docs/design/client/tui/directory.md, 1).
 use temper_client_tui::Origin;
 
 #[must_use]

@@ -1,4 +1,4 @@
-//! The shipped page's entry (temper/docs/design/client/web/README.md, 2.1).
+//! The shipped page's entry (temper/docs/design/client/web/shell.md, 1).
 #![forbid(unsafe_code)]
 
 #[cfg(target_arch = "wasm32")]

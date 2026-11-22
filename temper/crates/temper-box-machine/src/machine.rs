@@ -1,4 +1,4 @@
-//! Steps, exits and timers in; process orders out (protocol/setup/box.md, 2).
+//! Steps, exits and timers in; process orders out (protocol/setup/box-supervision.md, 1).
 //! Kind slots and removal follow temper/docs/design/protocol/setup/box.md, 1.
 //! Source retries follow temper/docs/design/protocol/openid-provider.md, 9.
 use crate::layout::Placed;
@@ -162,7 +162,7 @@ pub(crate) struct GroupState {
     chained: bool,
     status: Status,
 }
-/// What the box does with a fetch line of this step (protocol/setup/box.md, 2).
+/// What the box does with a fetch line of this step (protocol/setup/box-supervision.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Relay {
     Send,
@@ -1141,7 +1141,7 @@ impl Machine {
         }
         group.status = Status::Stopping;
         // A restart's preparation can still be live. Disarm its continuation
-        // and backoff along with the long steps (protocol/setup/box.md, 2).
+        // and backoff along with the long steps (protocol/setup/box-supervision.md, 1).
         group.chained = false;
         for step in group.first..group.end {
             let state = self.states.get_mut(step).expect("group step");

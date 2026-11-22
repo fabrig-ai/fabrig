@@ -7,7 +7,7 @@
   - 3.6: the stock profiles, policy and catalogues are checked figure by figure, not against one another.
   - 3.7: the start's link checks run only at a scenario's final cold restart.
   - 4: nothing models a stop in each phase of a start. The faults marked [script], [composition] or [assertion] need no design change.
-  - 5: `../testing/README.md`, 2.1 has no world running several goals at once.
+  - 5: `../testing/tiers.md`, 1.1 has no world running several goals at once.
   - 7: nothing.
 - **Design departs:**
   - 3.1: jig's bounded waits are checked at each quiet point against the component's own armed deadline, not by a deadline the referee arms: jig's worlds settle within each drain or fail, so a wait starved past its bound is found at the first quiet point after it (`jig/docs/design/domain/testing.md`, 7.2). The goal's designer, 2026-11-21.

@@ -26,7 +26,7 @@ pub fn addresses<const N: usize>(taken: &[SocketAddr]) -> [SocketAddr; N] {
 
 /// The first port of the kernel's ephemeral range. Reads
 /// `/proc/sys/net/ipv4/ip_local_port_range`; where that file doesn't exist
-/// (macOS, temper/docs/design/testing/README.md, 2.8), 49152,
+/// (macOS, temper/docs/design/testing/tiers.md, 1.8), 49152,
 /// `net.inet.ip.portrange.first`'s default.
 pub fn ephemeral_first() -> u16 {
     match std::fs::read_to_string(RANGE_FILE) {

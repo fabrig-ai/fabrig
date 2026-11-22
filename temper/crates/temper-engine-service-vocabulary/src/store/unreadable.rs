@@ -1,4 +1,4 @@
-//! A row refused before reaching the root (temper/docs/design/protocol/store.md, 5).
+//! A row refused before reaching the root (temper/docs/design/protocol/store-restart.md, 1).
 use alloc::boxed::Box;
 
 /// The relative application key of a row this build cannot read.

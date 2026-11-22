@@ -1,4 +1,4 @@
-//! ctl makes the named project, then adopts its first repository (temper/docs/design/protocol/setup/owned.md, 7).
+//! ctl makes the named project, then adopts its first repository (temper/docs/design/protocol/setup/owned-repositories.md, 1).
 use alloc::boxed::Box;
 use jig_client::{Answered, Ask, Outcome, contract as c};
 

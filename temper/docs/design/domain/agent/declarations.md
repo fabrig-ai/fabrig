@@ -48,7 +48,7 @@ engine already decides each call by (`temper/crates/temper-engine-domain/src/tra
   families: it is how a run reads the whole form of a tool (2), and it
   costs 465 bytes. It is the only such tool.
 - **`change` in its plan form** is declared where the run's authority
-  also holds the control family (`tools.md`, 1); otherwise its short form.
+  also holds the control family (`tools-change.md`, 1); otherwise its short form.
 - **One rule, in one place:** each declaration in `temper-engine-smith`
   carries its offer (`calls.rs`, `Offer`): the family whose tools it is,
   `read_docs`' every run but an asking one, or an asking charter's own.
@@ -225,7 +225,7 @@ declared its tools, where its task's authority held them:
   - `temper ctl DIR settings show --json` lists the charters and the
     settings revisions live tasks hold; `temper ctl DIR settings show
     charter N --json` gives a charter's `tools`, text and parts, with
-    `--revision R` at a held revision (`../../client/ctl/tools.md`, 2);
+    `--revision R` at a held revision (`../../client/ctl/tools-reads.md`, 1);
     `temper ctl DIR task show TASK --json` names the revision a task's run
     holds.
   - A charter's loss is the table's rows for the families its `tools`

@@ -445,7 +445,7 @@ secrets' store (`secrets.md`).
 - **A failure says why.** `Event::Failed { number, why }` carries
   `why: CommitFailure`: which of the store's failures it was, as data,
   bounded, with no record's contents and no text the store builds. The
-  application words it (temper's `protocol/store.md`, 4). It is
+  application words it (temper's `protocol/store-versions.md`, 1). It is
   in-process: no journal record, stored family or wire message carries
   it.
 

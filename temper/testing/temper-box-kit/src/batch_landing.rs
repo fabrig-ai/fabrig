@@ -1,5 +1,5 @@
 //! Dispatch-only probes and merged pull heads on the owned runner
-//! (temper/docs/design/testing/process-tier.md; domain/landing.md, 5, 8–10 and 14;
+//! (temper/docs/design/testing/process-tier.md; domain/landing-prepare.md, 1, and domain/landing-turn.md, 1–2, and domain/landing.md, 10 and 14;
 //! domain/landing-search.md, 3–5 and 8).
 mod narrowed;
 use super::{
@@ -518,7 +518,7 @@ impl Judge<'_> {
     fn keep_together(&mut self, procs: &mut [Process]) -> Result<(), String> {
         // The same dependency is lifted in one durable completion. This makes
         // three independent units eligible at quiescence, not a joined unit or
-        // a race between three separately released reviews (landing.md, 9).
+        // a race between three separately released reviews (domain/landing-turn.md, 2).
         self.amends = calls(procs)?.ends().len();
         for task in CHANGES.as_slice() {
             calls(procs)?.push(ctl::Step::Run(

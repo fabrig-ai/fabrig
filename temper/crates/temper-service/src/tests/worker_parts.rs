@@ -8,7 +8,7 @@ const RUN: Token = Token::new(43);
 #[test]
 fn a_resolution_past_its_workers_charter_allowance_starts_cut() {
     // Standard hub, smith's floor, and the stock agent's reference-sized allowance
-    // (temper/docs/design/domain/agent/tools.md; temper/docs/design/protocol/configuration/settings.md, 7).
+    // (temper/docs/design/domain/agent/tools.md; temper/docs/design/protocol/configuration/settings-output.md, 1).
     // The smaller hub proves its bound still holds.
     const STANDARD: u64 = 262_144;
     const FLOOR: u64 = 65_536;

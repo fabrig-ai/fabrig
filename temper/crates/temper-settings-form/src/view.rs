@@ -18,7 +18,7 @@ pub struct ChangeSettings {
     pub items: List<SettingItem>,
     pub running: Running,
 }
-/// A charter and its parts (temper/docs/design/client/ctl/tools.md, 3).
+/// A charter and its parts (temper/docs/design/client/ctl/tools-acts.md, 1).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Charter {
     pub rest: bool,
@@ -67,7 +67,7 @@ pub struct Overlay {
     /// Unresolved directory names; empty after assembly.
     pub charters: List<Box<[u8]>>,
 }
-/// The store names in bit order (temper/docs/design/client/ctl/tools.md, 3).
+/// The store names in bit order (temper/docs/design/client/ctl/tools-acts.md, 1).
 pub const REASON_NAMES: [&[u8]; 14] = [
     b"first",
     b"question",
@@ -84,7 +84,7 @@ pub const REASON_NAMES: [&[u8]; 14] = [
     b"timer",
     b"words",
 ];
-/// The kinds every run is offered, which choose no part (temper/docs/design/client/ctl/tools.md, 3).
+/// The kinds every run is offered, which choose no part (temper/docs/design/client/ctl/tools-acts.md, 1).
 pub const ALWAYS_OFFERED_NAMES: [&[u8]; 7] = [
     b"answer",
     b"proposal_decision",
@@ -94,7 +94,7 @@ pub const ALWAYS_OFFERED_NAMES: [&[u8]; 7] = [
     b"amendment",
     b"finish_requested",
 ];
-/// A charter's part (temper/docs/design/client/ctl/tools.md, 3).
+/// A charter's part (temper/docs/design/client/ctl/tools-acts.md, 1).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct CharterPart {
     /// Bits of `REASON_NAMES`, as jig's client `CharterPart.on`.
@@ -141,7 +141,7 @@ pub struct HeldRevision {
     pub head: RevisionHead,
     pub holders: u32,
 }
-/// A template's model choice (temper/docs/design/client/ctl/tools.md, 3).
+/// A template's model choice (temper/docs/design/client/ctl/tools-acts.md, 1).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct LlmChoice {
     /// Creator preference, separate from the task's last successfully claimed account.
@@ -150,7 +150,7 @@ pub struct LlmChoice {
     pub subagents: List<ModelEffort>,
     pub later: Option<LlmLater>,
 }
-/// The choice after a task's first activation (temper/docs/design/client/ctl/tools.md, 3).
+/// The choice after a task's first activation (temper/docs/design/client/ctl/tools-acts.md, 1).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct LlmLater {
     pub main: ModelEffort,

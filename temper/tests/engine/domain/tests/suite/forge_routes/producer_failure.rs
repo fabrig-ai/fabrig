@@ -108,7 +108,7 @@ fn assert_no_change(world: &World, change: u64) {
     assert_eq!(world.merges, 0);
 }
 
-// temper/docs/design/domain/agent/tools.md, 1: a successful no-change result needs a chat reply.
+// temper/docs/design/domain/agent/tools-change.md, 1: a successful no-change result needs a chat reply.
 const NO_CHANGE_REPORT: &str = "For successful NoChange, tell the person nothing changed and why from the delegate's conclusion; claim no landing, implementation or tests.";
 
 fn stock_search_chat() -> (World, engine::Assignment) {

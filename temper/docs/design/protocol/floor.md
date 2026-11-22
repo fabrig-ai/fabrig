@@ -63,7 +63,7 @@ component's own formats:
   `protocol/store/transcripts.md`, 6).
 - **The levels** stay jig 6 and temper 14. `STORE_VERSION` is 25,
   `temper-store`'s version in jig's format row; a registered schema
-  change moves neither it nor an owner's level (`store.md`, 4).
+  change moves neither it nor an owner's level (`store-versions.md`, 1).
 - **The floor row** records a number and the build that wrote it.
   Jig's `FLOOR` is 1 and `FLOOR_BRIDGE` is `3d1c717d379e`. A fresh
   store's first commit writes the row, beside its format and
@@ -295,7 +295,7 @@ start afresh. Staging is made again at dev's build for each drill
   write no receipts. A restart with `CURRENT_SETS` registers the
   binary's layout, whose field defaults to `unset`, and runs the job
   once in a copy before restoring, switching and committing its wires.
-  It closes no window by a mark (`../testing/README.md`, 2.5).
+  It closes no window by a mark (`../testing/tiers.md`, 1.5).
 - **The settled image** in `tests/one-process/golden/settled/` is read by
   the one-process world. It holds the four machine roots, modes and
   configuration, the fake forge's image, issued fake tokens and users,
