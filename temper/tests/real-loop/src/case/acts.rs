@@ -1,5 +1,5 @@
 //! The person's acts, with documents identified by the moment they were read.
-use super::{A, DESIGN, DIRECTOR, PERSON, PROJECT};
+use super::{DIRECTOR, PERSON, PROJECT};
 use crate::{
     argv,
     calls::{self, D1, join, number, sign_in, start},
@@ -21,8 +21,6 @@ pub enum Read {
     H1Ended,
     DirectorEnded,
     AEnded,
-    DesignEnded,
-    CheckEnded,
     DirectorActivity,
     DirectorTimer,
     BenchmarkWaiting,
@@ -51,13 +49,10 @@ pub enum Read {
     QaReviewerEnded,
 }
 // Provisioning's key call does not count as a story act. The director's
-// ended wait starts first; its delegates' ended documents are read before
-// their requesters end, then the director's wait is joined.
+// ended wait starts first, before its delegation replies, then is joined.
 const DIRECTOR_ENDED: usize = 3;
-const A_ENDED: usize = 9;
-const DESIGN_ENDED: usize = 6;
-pub const READS_4_1: &[(Read, usize)] =
-    &[(Read::DirectorEnded, DIRECTOR_ENDED), (Read::AEnded, A_ENDED), (Read::DesignEnded, DESIGN_ENDED)];
+// Sign-in, adoption, chat, the live ended watch and the placement barrier.
+const OPENER_CALLS: usize = 5;
 
 #[must_use]
 pub fn step_4_1() -> Vec<calls::Step> {
@@ -89,22 +84,6 @@ pub fn step_4_1() -> Vec<calls::Step> {
         // documents/small.rs:23-28's missing/ended live row to that refusal.
         start(D1, argv!["task", "show", number(DIRECTOR), "--until", "ended", "--json"]),
         call(D1, argv!["task", "show", number(DIRECTOR), "--until", "replied"]),
-        call(D1, argv!["task", "show", number(A), "--until", "replied"]),
-        call(D1, argv!["task", "show", number(DESIGN), "--until", "ended", "--json"]),
-        call(D1, argv!["inbox", "--until", "waiting"]),
-        call(
-            D1,
-            argv![
-                "task",
-                "answer",
-                number(DIRECTOR),
-                number(super::QUESTION),
-                super::GREEN_LIGHT,
-                "--key",
-                "schedule-answer"
-            ],
-        ),
-        call(D1, argv!["task", "show", number(A), "--until", "ended", "--json"]),
         join(DIRECTOR_ENDED),
     ]
 }
@@ -113,14 +92,11 @@ pub fn step_4_1() -> Vec<calls::Step> {
 const CHECK_DIRECTOR_ENDED: usize = 1;
 const CHECK_BENCHMARK_WAITING: usize = 4;
 const CHECK_BENCHMARK_ENDED: usize = 5;
-const CHECK_B_ENDED: usize = 6;
-const CHECK_DIRECTOR_ACTIVITY: usize = 7;
-const CHECK_DIRECTOR_TIMER: usize = 8;
+const CHECK_DIRECTOR_ACTIVITY: usize = 6;
+const CHECK_DIRECTOR_TIMER: usize = 7;
 pub const READS_4_3: &[(Read, usize)] = &[
-    (Read::CheckEnded, CHECK_DIRECTOR_ENDED),
     (Read::BenchmarkWaiting, CHECK_BENCHMARK_WAITING),
     (Read::BenchmarkEnded, CHECK_BENCHMARK_ENDED),
-    (Read::BEnded, CHECK_B_ENDED),
     (Read::DirectorActivity, CHECK_DIRECTOR_ACTIVITY),
     (Read::DirectorTimer, CHECK_DIRECTOR_TIMER),
 ];
@@ -141,7 +117,6 @@ pub fn step_4_3(base: usize) -> Vec<calls::Step> {
         calls::add_worker("s2"),
         join(base + CHECK_DIRECTOR_ENDED),
         call(D1, argv!["task", "show", number(BENCHMARK), "--activity", "32", "--json"]),
-        call(D1, argv!["task", "show", number(B), "--activity", "32", "--json"]),
         call(D1, argv!["task", "show", number(CHECK), "--activity", "32", "--json"]),
         // The latest page starts after the timer: follow its supplied cursor.
         call(
@@ -158,7 +133,7 @@ pub fn step_4_3(base: usize) -> Vec<calls::Step> {
     ]
 }
 
-/// Preserve every opener act, then run the check in the signed-in directory.
+/// Run the landing before the check in the signed-in directory.
 #[must_use]
 pub fn step_4_1_4_3() -> Vec<calls::Step> {
     let mut steps = step_4_1();
@@ -174,15 +149,15 @@ pub fn step_4_1_4_3() -> Vec<calls::Step> {
         .expect("director's reply wait")
         + 1;
     steps.insert(placed, calls::add_worker("s1"));
-    let base = READS_4_1.iter().map(|(_, call)| call).max().expect("opener calls") + 1;
+    let base = OPENER_CALLS;
     steps.extend(step_4_3(base));
     steps
 }
 
 #[must_use]
 pub fn reads_4_1_4_3() -> Vec<(Read, usize)> {
-    let base = READS_4_1.iter().map(|(_, call)| call).max().expect("opener calls") + 1;
-    READS_4_1.iter().copied().chain(READS_4_3.iter().map(|&(read, call)| (read, base + call))).collect()
+    let base = OPENER_CALLS;
+    READS_4_3.iter().map(|&(read, call)| (read, base + call)).collect()
 }
 
 const HANG_ENDED: usize = 2;

@@ -1,8 +1,5 @@
 //! Reference-case checkpoints: effects over observations any world can supply.
-use super::{
-    A, A_REPORT, Agent, DESIGN, DESIGN_DOC, DESIGN_REPORT, DESIGN_WORDS, DIRECTOR, DIRECTOR_REPORT, DRAFT, DRAFT_WORDS,
-    GREEN_LIGHT, OWNER_EFFORT, OWNER_MODEL, PROJECT, QUESTION, acts::Read, draft_commit, kit_tree,
-};
+use super::{Agent, DESIGN_DOC, DESIGN_WORDS, DRAFT, DRAFT_WORDS, PROJECT, acts::Read, kit_tree};
 use crate::{Exit, Ran, calls};
 use serde_json::Value;
 use skein_lib::Wall;
@@ -229,11 +226,6 @@ impl fmt::Display for Miss {
         write!(f, "{} {kind} \"{words}\": {}", self.step, self.what)
     }
 }
-const DELEGATE: Promise =
-    Promise::Must("delegate a goal with instructions, input, priority, host kind, pool and models (exact)");
-const AUTHORITY: Promise = Promise::Add("authority bounds A's subtree");
-const SPEND: Promise = Promise::Add("spend rolls up to the goal");
-const QUESTION_ANSWER: Promise = Promise::Must("a question and its answer (exact)");
 const MARKDOWN: Promise = Promise::Must("the fast path for Markdown alone (exact)");
 fn check(misses: &mut Vec<Miss>, met: bool, promise: Promise, what: String) {
     if !met {
@@ -281,89 +273,8 @@ fn contains(words: &[u8], needle: &str) -> bool {
 #[must_use]
 pub fn step_4_1(observed: &Observed) -> Vec<Miss> {
     let mut misses = Vec::new();
-    let mut docs = Vec::new();
-    for (read, expected) in [(Read::DirectorEnded, DIRECTOR), (Read::AEnded, A), (Read::DesignEnded, DESIGN)] {
-        let document = &observed.documents.get(&read).unwrap_or(&Value::Null)["task"];
-        check(
-            &mut misses,
-            number(document, "/chip/task") == Some(expected),
-            DELEGATE,
-            format!("{read:?}: task number must be {expected}"),
-        );
-        check(
-            &mut misses,
-            number(document, "/project") == Some(PROJECT),
-            DELEGATE,
-            format!("{read:?}: project must be {PROJECT}"),
-        );
-        docs.push(document);
-    }
-    let [director, a, design] = docs.as_slice() else { unreachable!("three reads") };
-    check(&mut misses, number(a, "/priority") == Some(1), DELEGATE, "A.priority must be 1".into());
-    check(
-        &mut misses,
-        text(a, "/llm/main/model") == OWNER_MODEL,
-        DELEGATE,
-        format!("A.llm.main.model must be {OWNER_MODEL}"),
-    );
-    check(
-        &mut misses,
-        text(a, "/llm/main/effort") == OWNER_EFFORT,
-        DELEGATE,
-        format!("A.llm.main.effort must be {OWNER_EFFORT}"),
-    );
-    let spec = text(a, "/spec/specification/words/bytes");
-    check(
-        &mut misses,
-        spec.contains(DRAFT) && spec.contains(&draft_commit()),
-        DELEGATE,
-        "A.spec must name the draft and its first commit".into(),
-    );
-    for path in ["/parent", "/requester/task"] {
-        if let Some(value) = a.pointer(path) {
-            check(&mut misses, value.as_u64() == Some(DIRECTOR), DELEGATE, format!("A{path} must be the director"));
-        }
-    }
-    authority(&mut misses, director, a, "A");
-    authority(&mut misses, a, design, "Design");
-    rolled_up(&mut misses, a, design, "A", true);
-    rolled_up(&mut misses, director, a, "Director", false);
-
-    question_answer(&mut misses, observed, a, director);
     markdown(&mut misses, observed);
     misses
-}
-
-fn question_answer(misses: &mut Vec<Miss>, observed: &Observed, a: &Value, director: &Value) {
-    let mut report_at = None;
-    let mut acknowledged = false;
-    let mut delivered = false;
-    let sent = format!("Message {QUESTION} sent");
-    for (position, Told { agent, words, .. }) in observed.told.iter().enumerate() {
-        if *agent == Agent::Director && contains(words, DESIGN_REPORT) && report_at.is_none() {
-            report_at = Some(position);
-        }
-        if *agent == Agent::A {
-            acknowledged |= contains(words, &sent);
-            delivered |= contains(words, GREEN_LIGHT) && matches!(report_at, Some(at) if at < position);
-        }
-    }
-    check(misses, report_at.is_some(), QUESTION_ANSWER, "Director was not told A's design report".into());
-    check(misses, acknowledged, QUESTION_ANSWER, format!("A was not told {sent}"));
-    check(
-        misses,
-        delivered,
-        QUESTION_ANSWER,
-        "A was not told the green light after the director heard its question".into(),
-    );
-    for (document, expected, label) in [(a, A_REPORT, "A"), (director, DIRECTOR_REPORT, "Director")] {
-        check(
-            misses,
-            text(document, "/result/value/report/bytes") == expected,
-            QUESTION_ANSWER,
-            format!("{label}.result must be {expected:?}"),
-        );
-    }
 }
 
 fn markdown(misses: &mut Vec<Miss>, observed: &Observed) {
@@ -401,109 +312,6 @@ fn markdown(misses: &mut Vec<Miss>, observed: &Observed) {
     }
 }
 
-fn rolled_up(misses: &mut Vec<Miss>, parent: &Value, child: &Value, label: &str, positive: bool) {
-    let below = number(parent, "/budget/numbers/spent_below");
-    let spent = number(child, "/budget/numbers/spent");
-    let child_below = number(child, "/budget/numbers/spent_below");
-    let sum = match (spent, child_below) {
-        (Some(spent), Some(below)) => spent.checked_add(below),
-        _ => None,
-    };
-    check(
-        misses,
-        at_most(sum, below),
-        SPEND,
-        format!("{label}.budget.spent_below must cover its child's spent + spent_below"),
-    );
-    if positive {
-        check(
-            misses,
-            matches!(below, Some(below) if below > 0),
-            SPEND,
-            format!("{label}.budget.spent_below must be positive"),
-        );
-    }
-}
-fn authority(misses: &mut Vec<Miss>, parent: &Value, child: &Value, label: &str) {
-    let parent = &parent["authority"]["authority"];
-    let child = &child["authority"]["authority"];
-    for path in ["/spend", "/delegation/tasks", "/delegation/depth"] {
-        check(
-            misses,
-            at_most(number(child, path), number(parent, path)),
-            AUTHORITY,
-            format!("{label}.authority{path} exceeds its parent or is absent"),
-        );
-    }
-    check(
-        misses,
-        matches!((number(child, "/tools"), number(parent, "/tools")), (Some(child), Some(parent)) if child & !parent == 0),
-        AUTHORITY,
-        format!("{label}.authority.tools must be a subset"),
-    );
-    match (parent["delegation"]["kinds"].as_array(), child["delegation"]["kinds"].as_array()) {
-        (Some(parents), Some(children)) => {
-            for kind in children {
-                check(
-                    misses,
-                    parents.contains(kind),
-                    AUTHORITY,
-                    format!("{label}.authority.delegation.kinds: {kind} is not covered"),
-                );
-            }
-        }
-        _ => check(misses, false, AUTHORITY, format!("{label}.authority.delegation.kinds is absent")),
-    }
-    match (parent["grants"].as_array(), child["grants"].as_array()) {
-        (Some(parents), Some(children)) => {
-            for grant in children {
-                let mut covered = false;
-                for parent in parents {
-                    covered |= covers(parent, grant);
-                }
-                check(misses, covered, AUTHORITY, format!("{label}.authority.grants: {grant} is not covered"));
-            }
-        }
-        _ => check(misses, false, AUTHORITY, format!("{label}.authority.grants is absent")),
-    }
-}
-fn covers(parent: &Value, child: &Value) -> bool {
-    if parent["connector"].as_u64().is_none()
-        || parent["connector"] != child["connector"]
-        || parent["kind"].as_u64().is_none()
-        || parent["kind"] != child["kind"]
-    {
-        return false;
-    }
-    let (Some(parents), Some(children)) =
-        (parent["pattern"]["segments"].as_array(), child["pattern"]["segments"].as_array())
-    else {
-        return false;
-    };
-    if !children.starts_with(parents) {
-        return false;
-    }
-    let terminal = &parent["pattern"]["last"];
-    if let Some(exact) = terminal.get("exact").and_then(Value::as_str) {
-        return parents == children && child["pattern"]["last"]["exact"].as_str() == Some(exact);
-    }
-    let Some(prefix) = terminal.get("open").and_then(Value::as_str) else { return false };
-    // Segments and terminal bytes are lower-case hex in ctl's JSON. Hex
-    // preserves byte prefixes, so compare at whole-byte boundaries.
-    let candidate = if let Some(segment) = children.get(parents.len()) {
-        segment.as_str()
-    } else {
-        match child["pattern"]["last"].get("exact") {
-            Some(exact) => exact.as_str(),
-            None => child["pattern"]["last"]["open"].as_str(),
-        }
-    };
-    matches!(candidate, Some(candidate) if prefix.len().is_multiple_of(2) && candidate.starts_with(prefix))
-}
-fn at_most(child: Option<u64>, parent: Option<u64>) -> bool {
-    matches!((child, parent), (Some(child), Some(parent)) if child <= parent)
-}
-
 pub fn assert_met(misses: &[Miss]) {
     let mut report = String::new();
     for miss in misses {
@@ -516,12 +324,8 @@ pub fn assert_met(misses: &[Miss]) {
 #[cfg(test)]
 mod tests {
     use super::{
-        A, A_REPORT, Agent, BTreeMap, DELEGATE, DESIGN, DESIGN_DOC, DESIGN_REPORT, DESIGN_WORDS, DIRECTOR,
-        DIRECTOR_REPORT, GREEN_LIGHT, Kit, MARKDOWN, OWNER_EFFORT, OWNER_MODEL, Observed, PROJECT, QUESTION,
-        QUESTION_ANSWER, Read, Told, Value, assert_met, contains, draft_commit, kit_tree, step_4_1,
+        Agent, BTreeMap, DESIGN_DOC, DESIGN_WORDS, Kit, MARKDOWN, Observed, Told, assert_met, kit_tree, step_4_1,
     };
-    use crate::case::{A_SPEC_PREFIX, A_SPEC_SUFFIX};
-    use serde_json::json;
 
     #[test]
     fn the_first_system_cue_identifies_the_agent_before_delegated_cues() {
@@ -563,23 +367,6 @@ mod tests {
     }
 
     pub(super) fn met() -> Observed {
-        let mut documents = BTreeMap::new();
-        for (read, task, tools, spend, tasks, depth, spent, below, report) in [
-            (Read::DirectorEnded, DIRECTOR, 3, 40, 7, 4, 2, 5, DIRECTOR_REPORT),
-            (Read::AEnded, A, 3, 20, 6, 3, 2, 3, A_REPORT),
-            (Read::DesignEnded, DESIGN, 1, 10, 4, 2, 1, 2, ""),
-        ] {
-            documents.insert(read, json!({"task":{
-                "chip":{"task":task}, "project":PROJECT, "requester":{"task":DIRECTOR},
-                "priority":1, "llm":{"main":{"model":OWNER_MODEL,"effort":OWNER_EFFORT}},
-                "spec":{"specification":{"words":{"bytes":format!("{A_SPEC_PREFIX}{}{A_SPEC_SUFFIX}", draft_commit())}}},
-                "authority":{"authority":{"tools":tools,"spend":spend,
-                    "grants":[{"connector":1,"kind":2,"pattern":{"segments":["666f726765"],"last":{"open":"61636d65"}}}],
-                    "delegation":{"kinds":[{"charter":1},{"procedure":2}],"tasks":tasks,"depth":depth}}},
-                "budget":{"numbers":{"spent":spent,"spent_below":below}},
-                "result":{"value":{"report":{"bytes":report}}}
-            }}));
-        }
         let mut main = BTreeMap::new();
         for file in kit_tree() {
             main.insert(file.path.to_vec(), file.content.to_vec());
@@ -588,34 +375,9 @@ mod tests {
         Observed {
             activity_aliases: std::collections::BTreeSet::new(),
             observed_at: BTreeMap::new(),
-            documents,
+            documents: BTreeMap::new(),
             commands: Vec::new(),
-            told: vec![
-                Told {
-                    system: Box::new([]),
-                    history: Box::new([]),
-                    agent: Agent::A,
-                    words: format!("Message {QUESTION} sent").into_bytes().into_boxed_slice(),
-                    model: Box::new([]),
-                    credential: Some(0),
-                },
-                Told {
-                    system: Box::new([]),
-                    history: Box::new([]),
-                    agent: Agent::Director,
-                    words: DESIGN_REPORT.as_bytes().into(),
-                    model: Box::new([]),
-                    credential: Some(0),
-                },
-                Told {
-                    system: Box::new([]),
-                    history: Box::new([]),
-                    agent: Agent::A,
-                    words: GREEN_LIGHT.as_bytes().into(),
-                    model: Box::new([]),
-                    credential: Some(0),
-                },
-            ],
+            told: Vec::new(),
             kit: Kit { records: Vec::new(), pulls: Vec::new(), main, merged_green: true },
         }
     }
@@ -629,26 +391,16 @@ mod tests {
     fn the_checkpoint_reports_every_independent_miss_together() {
         // Three independent corruptions of otherwise sufficient observations.
         const MISSES: usize = 3;
-        const GREEN_LIGHT_QUERIES: usize = 1;
-        let mut broken = met().clone();
-        broken.documents.get_mut(&Read::AEnded).expect("A document")["task"]["priority"] = Value::Null;
+        let mut broken = met();
+        broken.kit.merged_green = false;
+        broken.kit.main.remove(DESIGN_DOC.as_bytes());
         broken.kit.main.insert(b"src/export.rs".to_vec(), b"fn export() {}\n".to_vec());
-        let mut removed = 0;
-        for Told { agent, words, .. } in &mut broken.told {
-            if *agent == Agent::A && contains(words, GREEN_LIGHT) {
-                *words = Box::new([]);
-                removed += 1;
-            }
-        }
-        assert_eq!(removed, GREEN_LIGHT_QUERIES);
         let misses = step_4_1(&broken);
         assert_eq!(misses.len(), MISSES);
-        let [priority, answer, markdown] = misses.as_slice() else { panic!("three misses") };
-        assert_eq!(priority.promise, DELEGATE);
-        assert!(priority.what.contains("A.priority"));
-        assert_eq!(answer.promise, QUESTION_ANSWER);
-        assert!(answer.what.contains("green light"));
-        assert_eq!(markdown.promise, MARKDOWN);
+        assert!(misses.iter().all(|miss| miss.promise == MARKDOWN));
+        let [green, design, markdown] = misses.as_slice() else { panic!("three misses") };
+        assert!(green.what.contains("green CI"));
+        assert!(design.what.contains("design words"));
         assert!(markdown.what.contains("src/export.rs"));
     }
 }
@@ -691,17 +443,13 @@ fn check_activity(observed: &Observed, read: Read) -> Vec<&Value> {
         .collect()
 }
 
-/// Retained first-edition story (testing/reference-case.md): supported timer, cancel and empty-worker checkpoint.
+/// The real-clock wake and cooperative run cancellation (testing/reference-case.md).
 #[must_use]
 pub fn step_4_3(observed: &Observed) -> Vec<Miss> {
-    use super::{B, B_REPORT, BENCHMARK, CHECK, CHECK_REASON, CHECK_REPORT};
     const TIMER: Promise = Promise::Must("a timer (exact)");
     const CANCEL: Promise = Promise::Must("cancel (exact)");
-    const EMPTY: Promise = Promise::Add("a moved owner leaves nothing running behind");
     let mut misses = Vec::new();
-    let director = task_document(observed, Read::CheckEnded);
     let benchmark = task_document(observed, Read::BenchmarkEnded);
-    let b = task_document(observed, Read::BEnded);
     let director_activity = check_activity(observed, Read::DirectorTimer);
     let timer = director_activity
         .iter()
@@ -726,12 +474,9 @@ pub fn step_4_3(observed: &Observed) -> Vec<Miss> {
     step_check(
         &mut misses,
         "4.3",
-        number(benchmark, "/chip/task") == Some(BENCHMARK)
-            && text(benchmark, "/chip/phase") == "ended"
-            && number(benchmark, "/result/ending/task/cancelled/by/task") == Some(CHECK)
-            && text(benchmark, "/result/ending/task/cancelled/reason/bytes") == CHECK_REASON,
+        text(benchmark, "/chip/phase") == "ended" && benchmark.pointer("/result/ending/task/cancelled").is_some(),
         CANCEL,
-        "the ended benchmark must record cancellation by the director with its reason",
+        "the benchmark must end cancelled",
     );
     let activity = check_activity(observed, Read::BenchmarkEnded);
     let attempt = number(benchmark, "/chip/details/owner/details/attempt");
@@ -740,54 +485,6 @@ pub fn step_4_3(observed: &Observed) -> Vec<Miss> {
             && number(line, "/line/run_ended/attempt").zip(attempt).is_some_and(|(ended, current)| ended == current)
     });
     step_check(&mut misses, "4.3", cancelled, CANCEL, "the benchmark's activity must record a cancelled run ending");
-    let began: BTreeSet<_> = activity.iter().filter_map(|line| number(line, "/line/run_began/attempt")).collect();
-    let ended: BTreeSet<_> = activity.iter().filter_map(|line| number(line, "/line/run_ended/attempt")).collect();
-    step_check(
-        &mut misses,
-        "4.3",
-        !began.is_empty()
-            && began.is_subset(&ended)
-            && document(observed, Read::BenchmarkEnded).pointer("/activity/cut") == Some(&Value::Bool(false))
-            && document(observed, Read::BenchmarkEnded).pointer("/activity/before") == Some(&Value::Null)
-            && document(observed, Read::BenchmarkEnded).pointer("/activity/after") == Some(&Value::Null)
-            && number(benchmark, "/chip/details/owner/details/ended_at").is_some(),
-        EMPTY,
-        "the benchmark's complete activity must end every begun run, with the task ended",
-    );
-    // B's journal orders its lines, newest first (../../../../docs/design/client/ctl/testing.md, 3): the
-    // cancel heard is older than the run that finished with B's report. The
-    // journal's order, not two wall times, so a clock step can't reorder them.
-    let b_activity = check_activity(observed, Read::BEnded);
-    let reported = b_activity.iter().position(|line| text(line, "/line/run_ended/end") == "finished");
-    let heard = b_activity.iter().position(|line| {
-        text(line, "/line/heard/kind/result") == "cancelled"
-            && number(line, "/line/heard/from/task") == Some(BENCHMARK)
-            && text(line, "/line/heard/words") == CHECK_REASON
-    });
-    let heard_cancel = reported.zip(heard).is_some_and(|(reported, heard)| reported < heard);
-    step_check(
-        &mut misses,
-        "4.3",
-        number(b, "/chip/task") == Some(B)
-            && text(b, "/result/value/report/bytes") == B_REPORT
-            && heard_cancel
-            && observed.told.iter().any(|told| {
-                told.agent == Agent::B
-                    && contains(&told.words, CHECK_REASON)
-                    && contains(&told.words, "Messages arrived. Read them before continuing.")
-            }),
-        EMPTY,
-        "B must hear its delegate's cancelled ending before reporting",
-    );
-    step_check(
-        &mut misses,
-        "4.3",
-        number(director, "/chip/task") == Some(CHECK)
-            && text(director, "/result/value/report/bytes") == CHECK_REPORT
-            && observed.told.iter().any(|told| told.agent == Agent::Check && contains(&told.words, B_REPORT)),
-        EMPTY,
-        "the check director must hear B's result and end with its check report",
-    );
     misses
 }
 

@@ -8,14 +8,11 @@ pub mod defaults;
 pub mod oracle;
 pub mod scripts;
 
-// Fresh deployment numbers; the oracle checks them against the person's documents
-// and A's question's tool output and the answer delivered to A.
+// Fresh deployment numbers used by the scripts and placement observations.
 pub const PROJECT: u64 = 1;
 pub const DIRECTOR: u64 = 1;
 pub const A: u64 = 2;
 pub const DESIGN: u64 = 3;
-// The goals' landing subscriptions and the design's result precede this question.
-pub const QUESTION: u64 = 6;
 // After step_4_1's chat and A's delegation create tasks 1..=5,
 // step_4_3's chat creates CHECK; its delegate creates B, which delegates BENCHMARK.
 pub const CHECK: u64 = 6;
@@ -51,18 +48,12 @@ pub const OWNERS_WORDS: &str = "# Owners\n\nAn owner designs its draft, reports,
 pub const DESIGN_WORDS: &str = "# Export\n\nDesigned by A from the draft at its commit.\n";
 pub const DESIGN_LINE: &str = "Designed by A from the draft at its commit.";
 pub const PERSON: &str = "@case_director Export's draft has landed; schedule it, priority 1.";
-pub const A_SPEC_PREFIX: &str = "@case_a Own the draft Export: docs/drafts/export.md at kit's commit ";
-pub const A_SPEC_SUFFIX: &str = ". Design it as a change of Markdown alone, send me your design report as a question, and finish on my green light.";
-pub const SCHEDULED: &str = "Scheduled: A owns Export at priority 1.";
-pub const GREEN_LIGHT: &str = "Green light: go on.";
-pub const ANSWERED: &str = "Answered A.";
-pub const DIRECTOR_REPORT: &str = "A designed Export and has its green light.";
+pub const A_SPEC: &str = "@case_a Have Export's Markdown design delegated and report once it lands.";
+pub const SCHEDULED: &str = "Scheduled: A owns Export.";
+pub const DIRECTOR_REPORT: &str = "A designed Export.";
 pub const DESIGN_SPEC: &str = "@case_design Write Export's design at docs/design/export.md, Markdown alone.";
 pub const DESIGN_DELEGATED: &str = "Design delegated.";
-pub const DESIGN_REPORT: &str =
-    "Export's design has landed on kit's main at docs/design/export.md: one Markdown file. Green light to go on?";
-pub const ASKED: &str = "Asked the director.";
-pub const A_REPORT: &str = "Export's design landed, and the director gave its green light.";
+pub const A_REPORT: &str = "Export's design landed.";
 pub const DESIGN_TITLE: &str = "Export's design";
 pub const REVIEWED: &str = "Checked";
 
@@ -280,6 +271,8 @@ pub fn fixture_check() -> forge::Fixture {
     forge::Fixture {
         configure: |value, agent, forge| {
             (fixture_placed().configure)(value, agent, forge);
+            value["world_settings"]["llm"]["models"].as_array_mut().expect("models").truncate(1);
+            value["world_settings"]["llm"]["providers"][0]["models"] = json!([DEFAULT_MODEL]);
             // One adopted repository contains one pull. Its initial scan and
             // the scripted forge hooks supply the listing changes; repeating
             // the listing every 10 ms adds traffic throughout the timer story.

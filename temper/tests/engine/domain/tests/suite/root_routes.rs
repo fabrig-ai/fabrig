@@ -12,6 +12,9 @@ mod parts;
 #[path = "root_routes/qa.rs"]
 mod qa;
 
+#[path = "root_routes/opener.rs"]
+mod opener;
+
 #[path = "root_routes/standing.rs"]
 mod standing;
 
@@ -153,6 +156,16 @@ fn live(driver: &Driver, task: u64) -> &tasks::TaskRecord {
         driver.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(task))))
     else {
         panic!("task {task} is live")
+    };
+    row
+}
+
+/// A task's retained terminal row.
+fn ended_task(driver: &Driver, task: u64) -> &tasks::TaskRecord {
+    let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row)))) =
+        driver.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(task))))
+    else {
+        panic!("task {task} ended")
     };
     row
 }
@@ -3124,15 +3137,34 @@ fn plain_delegate(words: &[u8]) -> engine::Delegate {
 
 #[test]
 fn a_delegate_batch_and_its_named_answer_commit_together() {
-    let (mut driver, parent) = delegate_fixture();
-    let tool = engine::Tool::Delegate { batch: Box::new([plain_delegate(b"investigate")]) };
+    const MODEL: &[u8] = b"owner";
+    const EFFORT: &[u8] = b"xhigh";
+    const SPEC: &[u8] = b"docs/drafts/export.md@0000000000000000000000000000000000000001";
+    let (mut configuration, bounds) = batch_settings(1, 1, 500, false, false, false);
+    for config in &mut configuration {
+        let mut owner = config.core.settings.models[0].clone();
+        owner.name = MODEL.into();
+        owner.efforts = Box::new([EFFORT.into()]);
+        config.core.defaults.charters[0].policy.alternatives = Box::new([owner.clone()]);
+        config.core.settings.models = Box::new([config.core.settings.models[0].clone(), owner]);
+    }
+    let (mut driver, parent) = Driver::configured_chat(configuration, &bounds);
+    let mut delegate = plain_delegate(SPEC);
+    delegate.tracked = Some(1);
+    delegate.llm = Some(tasks::LlmChoice {
+        main: tasks::ModelEffort { model: 1, effort: Some(0) },
+        later: None,
+        account: None,
+        subagents: Box::new([]),
+    });
+    let tool = engine::Tool::Delegate { batch: Box::new([delegate]) };
     driver.call(Token::new(7), parent.task, parent.attempt, 99, engine::Call { completion: 1, position: 0, tool });
     assert_eq!(driver.answered(99), None);
     for _ in 0..30 {
         driver.advance(true);
     }
     let Some(engine::CallAnswer::Delegated(numbers)) = driver.answered(99) else {
-        panic!("delegation answer after commit")
+        panic!("delegation answer after commit: {:?}", driver.answered(99))
     };
     let child = numbers[0].task;
     assert!(driver.transactions.iter().any(|writes| {
@@ -3144,6 +3176,14 @@ fn a_delegate_batch_and_its_named_answer_commit_together() {
                 if task.number == child && task.requester == tasks::Party::Task(parent.task))
         })
     }));
+    let child_row = live(&driver, child);
+    assert_eq!(child_row.tracked, Some(1));
+    assert_eq!(child_row.spec.words.as_ref(), SPEC);
+    assert_eq!(child_row.llm.as_ref().expect("named LLM").main, tasks::ModelEffort { model: 1, effort: Some(0) });
+    park_task(&mut driver, &parent);
+    let run = assigned_task(&driver, child);
+    assert_eq!(run.run.policy.model.name.as_ref(), MODEL);
+    assert_eq!(run.run.policy.model.effort.as_deref(), Some(EFFORT));
 }
 
 #[test]

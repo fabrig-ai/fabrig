@@ -1,8 +1,7 @@
 //! The reference case's judgements, played word for word (testing/reference-case.md).
 use super::{
-    A, A_REPORT, A_SPEC_PREFIX, A_SPEC_SUFFIX, ANSWERED, ASKED, Agent, DESIGN_DELEGATED, DESIGN_DOC, DESIGN_LINE,
-    DESIGN_REPORT, DESIGN_SPEC, DESIGN_TITLE, DESIGN_WORDS, DIRECTOR, DIRECTOR_REPORT, GREEN_LIGHT,
-    OWNER_EFFORT_NUMBER, OWNER_MODEL_NUMBER, REVIEWED, SCHEDULED, draft_commit,
+    A, A_REPORT, A_SPEC, Agent, DESIGN_DELEGATED, DESIGN_DOC, DESIGN_LINE, DESIGN_SPEC, DESIGN_TITLE, DESIGN_WORDS,
+    DIRECTOR_REPORT, OWNER_EFFORT_NUMBER, OWNER_MODEL_NUMBER, REVIEWED, SCHEDULED,
 };
 use serde_json::{Value, json};
 use skein_fake_llm_domain::api::{Finish, Line, Rule, Script, Turn};
@@ -12,8 +11,6 @@ use std::net::SocketAddr;
 const BEGIN: &str = "Begin the work your brief describes.";
 /// Smith returns crossed finish feedback in smith-domain-run/src/run.rs via prompt.rs.
 const CROSSED: &str = "Finish was not accepted because messages arrived.";
-/// Temper renders smith's message acknowledgement in temper-engine-smith/src/answers.rs.
-const MESSAGE: &str = "Message ";
 /// Temper renders smith's delegation acknowledgement in temper-engine-smith/src/answers.rs.
 const DELEGATED: &str = "Delegated tasks: ";
 /// Smith renders labelled inbox deliveries in smith-domain-run/src/inbox.rs.
@@ -22,22 +19,11 @@ const DELIVERY: &str = ": ";
 /// The turn rules for `step_4_1`'s scripts, index-parallel (skein's testing/fakes/llm.md, 2.4).
 #[must_use]
 pub fn step_4_1_rules() -> Box<[Box<[Rule]>]> {
-    let director = [
-        (A_REPORT, 3),
-        (CROSSED, 3),
-        (DESIGN_REPORT, 2),
-        (MESSAGE, 2),
-        (&format!("{DELEGATED}{A}"), 1),
-        (DELIVERY, 1),
-        (BEGIN, 0),
-        ("", 1),
-    ]
-    .map(|(cue, turn)| Rule { cue: cue.as_bytes().into(), turn });
+    let director = [(A_REPORT, 2), (CROSSED, 2), (&format!("{DELEGATED}{A}"), 1), (DELIVERY, 1), (BEGIN, 0), ("", 1)]
+        .map(|(cue, turn)| Rule { cue: cue.as_bytes().into(), turn });
     let a = [
-        (GREEN_LIGHT, 4),
-        (CROSSED, 4),
-        (&format!("Result from task {}:\n", super::DESIGN), 2),
-        (MESSAGE, 3),
+        (format!("Result from task {}:\n", super::DESIGN).as_str(), 2),
+        (CROSSED, 2),
         (&format!("{DELEGATED}{}", super::DESIGN), 1),
         (DELIVERY, 1),
         (BEGIN, 0),
@@ -136,9 +122,8 @@ fn grants(forge: SocketAddr, kinds: &[u8]) -> Value {
 pub fn step_4_1(forge: SocketAddr) -> Box<[Script]> {
     let owner = json!({"batch":[{
         "executor":{"kind":"agent","charter":1},"tracked":{"priority":1},
-        "spec":{"words":format!("{A_SPEC_PREFIX}{}{A_SPEC_SUFFIX}", draft_commit()),"parameters":[]},
+        "spec":{"words":A_SPEC,"parameters":[]},
         "contract":{"kind":"report","words":128},
-        "llm":{"main":{"model":OWNER_MODEL_NUMBER,"effort":OWNER_EFFORT_NUMBER}},
         "authority":{"tools":3,"grants":grants(forge, &[2,3,4,7,8,10,11,12,13]),
             "delegation":{"kinds":[{"kind":"procedure","number":2},{"kind":"agent","number":1},{"kind":"agent","number":4}],"tasks":6,"depth":3},
             "budget":{"spend":20},"notes":0}
@@ -156,17 +141,11 @@ pub fn step_4_1(forge: SocketAddr) -> Box<[Script]> {
     Box::new([
         Script {
             cue: Agent::Director.cue().into(),
-            turns: Box::new([call(b"delegate", &owner), wait(SCHEDULED), wait(ANSWERED), report(DIRECTOR_REPORT)]),
+            turns: Box::new([call(b"delegate", &owner), wait(SCHEDULED), report(DIRECTOR_REPORT)]),
         },
         Script {
             cue: Agent::A.cue().into(),
-            turns: Box::new([
-                call(b"delegate", &design),
-                wait(DESIGN_DELEGATED),
-                call(b"message", &json!({"target":DIRECTOR,"form":"question","words":DESIGN_REPORT})),
-                wait(ASKED),
-                report(A_REPORT),
-            ]),
+            turns: Box::new([call(b"delegate", &design), wait(DESIGN_DELEGATED), report(A_REPORT)]),
         },
         Script {
             cue: Agent::Design.cue().into(),
