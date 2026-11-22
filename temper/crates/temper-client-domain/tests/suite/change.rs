@@ -90,6 +90,7 @@ mod tests {
             key_bytes: 256,
             redirect_bytes: 256,
             words_bytes: 8192,
+            sign_in_expires: Wall::from_nanos(86_400_000_000_000),
             party: MeParty {
                 number: 73,
                 kind: PartyKind::Person,

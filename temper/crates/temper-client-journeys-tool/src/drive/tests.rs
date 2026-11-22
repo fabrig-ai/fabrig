@@ -1,3 +1,4 @@
+pub(super) use super::testing::plan;
 use super::*;
 pub(crate) mod forge;
 mod harness_reports;
@@ -7,25 +8,6 @@ mod places;
 mod requests;
 use skein_fake_person::Target;
 use std::{collections::VecDeque, ffi::OsStr, os::unix::ffi::OsStrExt, path::Path};
-pub(super) fn plan() -> Plan {
-    Plan::new(
-        Options {
-            bin: "/build/bin".into(),
-            bundle: Some("/build/bundle".into()),
-            deployment: None,
-            scratch: "/scratch".into(),
-            scripts: vec!["/build/one.script".into(), "/build/two.script".into()],
-            strict: true,
-            ctl: false,
-            journey: false,
-            widths: vec![],
-            ports: None,
-            files: None,
-        },
-        "/browser/chromium".into(),
-        OsStr::new("/bin"),
-    )
-}
 fn journey_ready() -> Machine {
     let mut plan = plan();
     plan.options.journey = true;

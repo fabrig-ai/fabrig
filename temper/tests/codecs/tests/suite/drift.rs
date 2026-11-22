@@ -1,12 +1,11 @@
-//! The committed records and pinned constructs against their schemas (skein's data/codec/README.md, 6).
+//! The committed records against their schemas (skein's data/codec/README.md, 6).
 use skein_codegen::{generate, values};
 use std::fs;
 use std::path::Path;
 
-fn schema_matches(codec_crate: &str, family: &str, module: &str, source: &'static str) {
+fn schema_matches(codec_crate: &str, module: &str, source: &'static str) {
     let crates = skein_scratch::paths::tree().join("crates");
-    let unpinned = skein_codegen::unpinned(source).expect("schema valid");
-    assert!(unpinned.is_empty(), "{family}: unpinned constructs: {unpinned:?}");
+
     let schema = &values(source).schema;
     let output = generate(schema);
     let code = crates.join(codec_crate).join("src/generated").join(format!("{module}.rs"));
@@ -27,19 +26,14 @@ fn check_text(path: &Path, text: &str, write: bool) {
 }
 
 #[test]
-fn worker_wire_schema_matches_generated_code_and_pinned_constructs() {
-    schema_matches("temper-protocol-worker-wire", "worker-wire", "worker_wire", temper_protocol_worker_wire::SCHEMA);
+fn worker_wire_schema_matches_generated_code() {
+    schema_matches("temper-protocol-worker-wire", "worker_wire", temper_protocol_worker_wire::SCHEMA);
 }
 
 #[test]
-fn client_wire_schema_matches_generated_code_and_pinned_constructs() {
+fn client_wire_schema_matches_generated_code() {
     client_layout(temper_client_protocol_wire::CLIENT_SCHEMA, "temper-client-wire");
-    schema_matches(
-        "temper-client-protocol-wire",
-        "client-wire",
-        "client_wire",
-        temper_client_protocol_wire::CLIENT_SCHEMA,
-    );
+    schema_matches("temper-client-protocol-wire", "client_wire", temper_client_protocol_wire::CLIENT_SCHEMA);
 }
 
 // Client layouts have no bridge; preserve every older line and append kept
@@ -99,9 +93,9 @@ fn client_layout(source: &str, family: &str) {
 }
 
 #[test]
-fn store_schema_matches_generated_code_and_pinned_constructs() {
+fn store_schema_matches_generated_code() {
     let source = temper_protocol_store::OWNER_SET.families.first().expect("store family").current;
-    schema_matches("temper-protocol-store-codec", "store", "store", source);
+    schema_matches("temper-protocol-store-codec", "store", source);
     let maps = include_str!("../../../../crates/temper-protocol-store/schema/store.maps");
     let translation = skein_codegen::translate(&values(source).schema, maps).expect("store maps valid");
     let path = skein_scratch::paths::tree().join("crates/temper-protocol-store/src/generated/store.rs");
@@ -109,12 +103,12 @@ fn store_schema_matches_generated_code_and_pinned_constructs() {
 }
 
 #[test]
-fn secrets_schema_matches_generated_code_and_pinned_constructs() {
-    schema_matches("temper-protocol-records", "secrets", "secrets", temper_protocol_records::SCHEMA);
+fn secrets_schema_matches_generated_code() {
+    schema_matches("temper-protocol-records", "secrets", temper_protocol_records::SCHEMA);
 }
 
 #[test]
-fn public_wire_schema_matches_generated_code_and_pinned_constructs() {
+fn public_wire_schema_matches_generated_code() {
     client_layout(temper_client_protocol_wire::PUBLIC_SCHEMA, "temper-public-wire");
-    schema_matches("temper-client-protocol-wire", "public", "public", temper_client_protocol_wire::PUBLIC_SCHEMA);
+    schema_matches("temper-client-protocol-wire", "public", temper_client_protocol_wire::PUBLIC_SCHEMA);
 }

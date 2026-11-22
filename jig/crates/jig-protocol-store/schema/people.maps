@@ -237,6 +237,7 @@ enum WorkerPauseMode = jig_domain_link::PauseMode
 record AskPauseWorker
 record OutcomeWorkerPauseAsked
 record RefusalUnlinked
+record ServiceParty
 enum Ask = p::Ask { move_task = Move }
 record StoredPerson
 record StoredReadResults

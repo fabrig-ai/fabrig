@@ -131,20 +131,13 @@ fn a_refused_directory_exits_one_with_its_line() {
 fn refused_directory() -> temper_client_shell_terminal::terminal::Terminal {
     use skein_io::kernel::{Complete, Done, Error, Fd, Kind, Op, Stat};
     use skein_shell::Host;
-    use std::{
-        collections::BTreeMap,
-        fs,
-        os::unix::fs::{MetadataExt, PermissionsExt},
-    };
+    use std::collections::BTreeMap;
     use temper_client_shell_terminal::{
         client::{NativeClient, Settings, Start},
         limits,
         terminal::{Loop, Terminal},
     };
-    let path = skein_scratch::paths::target_tmp().join(format!("refused-directory-{}", std::process::id()));
-    fs::create_dir(&path).expect("world directory");
-    fs::set_permissions(&path, fs::Permissions::from_mode(0o750)).expect("group bits set");
-    let metadata = fs::metadata(&path).expect("world directory metadata");
+    const USER: u32 = 1000;
     let native = NativeClient::new(
         Settings {
             engine: skein_io::Addr::Ip("127.0.0.1:7100".parse().expect("loopback")),
@@ -152,7 +145,7 @@ fn refused_directory() -> temper_client_shell_terminal::terminal::Terminal {
             limits: limits::native(),
         },
         Fd::new(100),
-        metadata.uid(),
+        USER,
         7,
         Start::Token,
     )
@@ -169,13 +162,9 @@ fn refused_directory() -> temper_client_shell_terminal::terminal::Terminal {
                     b"private" => Ok(Done::Fd(Fd::new(102))),
                     other => panic!("private-open path: {other:?}"),
                 },
-                Op::Stat { .. } => Ok(Done::Stat(Stat {
-                    kind: Kind::Directory,
-                    size: metadata.len(),
-                    mode: metadata.mode() & 0o777,
-                    owner: metadata.uid(),
-                    links: 1,
-                })),
+                Op::Stat { .. } => {
+                    Ok(Done::Stat(Stat { kind: Kind::Directory, size: 0, mode: 0o750, owner: USER, links: 1 }))
+                }
                 Op::Close { .. } => Ok(Done::Nothing),
                 Op::PipeWrite { bytes, .. } => Ok(Done::Count(u32::try_from(bytes.len()).expect("bounded line"))),
                 Op::PipeRead { .. } | Op::ReadSignal { .. } => {
@@ -219,7 +208,6 @@ fn refused_directory() -> temper_client_shell_terminal::terminal::Terminal {
         }
     }
     assert!(pending.is_empty(), "all pending reads settled");
-    fs::remove_dir(path).expect("world directory removed");
     terminal
 }
 

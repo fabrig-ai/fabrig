@@ -20,16 +20,24 @@ use std::net::ToSocketAddrs;
 #[cfg(unix)]
 #[must_use]
 pub fn find_rg(path: Option<&[u8]>) -> Option<std::path::PathBuf> {
-    use std::ffi::OsStr;
-    use std::os::unix::{ffi::OsStrExt, fs::PermissionsExt};
+    use std::os::unix::fs::PermissionsExt;
+
+    find_rg_with(path, |file| {
+        std::fs::metadata(file).is_ok_and(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
+    })
+}
+
+#[cfg(unix)]
+pub(super) fn find_rg_with(
+    path: Option<&[u8]>,
+    executable: impl Fn(&std::path::Path) -> bool,
+) -> Option<std::path::PathBuf> {
+    use std::{ffi::OsStr, os::unix::ffi::OsStrExt};
 
     std::env::split_paths(OsStr::from_bytes(path?))
         .filter(|directory| directory.is_absolute())
         .map(|directory| directory.join("rg"))
-        .find(|file| {
-            std::fs::metadata(file)
-                .is_ok_and(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
-        })
+        .find(|file| executable(file))
 }
 
 #[cfg(unix)]

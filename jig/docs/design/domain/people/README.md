@@ -262,7 +262,8 @@ inbox are the views child's (../engine/views.md).
   - *An owner reissues its credential:* a new one replaces it, and the
     sign-ins made with the old end. This is how an owner who lost the
     credential, or fears it leaked, gets one again; the party, its role
-    and its history stay.
+    and its history stay. An owner in the deployment asks it, or one of
+    every project whose roster holds the service (`acts.md`, 1).
   - *An owner removes it:* its credential and its sign-ins end, and its
     party is kept, as every party is, for the history that names it.
 - **The first owners** of a deployment are named in its configuration;

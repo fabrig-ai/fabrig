@@ -715,8 +715,9 @@ pub fn amendment_bytes_max(limits: &jig_domain_core_vocabulary::Limits) -> Optio
     Some(admitted)
 }
 
+// The codec's view includes the people family's limits.
 fn codec_admits(limits: &jig_domain_core_vocabulary::Limits) -> bool {
-    jig_protocol_store::codec::people::limits(limits).is_some() && jig_protocol_store::codec::limits(limits).is_some()
+    jig_protocol_store::codec::limits(limits).is_some()
 }
 
 fn binding_bound(

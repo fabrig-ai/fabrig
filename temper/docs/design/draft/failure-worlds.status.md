@@ -3,10 +3,10 @@
 2026-11-21. Where the design lags or departs from [failure-worlds.md](failure-worlds.md).
 
 - **Design lags:**
-  - 3: the inspection adapters' form, the two checks every component's waits and tables share, and the fault ledger are designed (`skein/docs/design/testing/inspection.md`; `skein/docs/design/testing/sweeps.md`, 3), with the engine's and the worker's adapters (`../testing/checks.md`, 6), jig's (`jig/docs/design/domain/testing.md`, 7) and smith's (`smith/docs/design/testing.md`, 6). 3.3's blame and tries are designed for gates (`../testing/blame.md`); no design yet holds them for runs, nor 3.4's endings within their bounds, or 3.5's comparison of two runs.
+  - 3: the inspection adapters' form, the two checks every component's waits and tables share, and the fault ledger are designed (`skein/docs/design/testing/inspection.md`; `skein/docs/design/testing/sweeps.md`, 3), with the engine's and the worker's adapters (`../testing/checks.md`, 6; the worker's waits and tables, `../testing/worker.md`, 2), jig's (`jig/docs/design/domain/testing.md`, 7) and smith's (`smith/docs/design/testing.md`, 6). 3.3's blame and tries are designed for gates (`../testing/blame.md`); no design yet holds them for runs, nor 3.4's endings within their bounds, or 3.5's comparison of two runs.
   - 3.6: the stock profiles, policy and catalogues are checked figure by figure, not against one another.
   - 3.7: the start's link checks run only at a scenario's final cold restart.
-  - 4: `skein/docs/design/testing/fakes/llm.md` has no shared rate window without `retry-after`; the fake machine has no partial fetch or full disk; and nothing models a stop in each phase of a start. The faults marked [script], [composition] or [assertion] need no design change.
+  - 4: `skein/docs/design/testing/fakes/llm.md` has no shared rate window without `retry-after`; and nothing models a stop in each phase of a start. The faults marked [script], [composition] or [assertion] need no design change.
   - 5: `../testing/README.md`, 2.1 has no world running several goals at once.
   - 7: nothing.
 - **Design departs:**

@@ -24,6 +24,14 @@ fn toml_box_prepares_from_its_one_line_file() {
     temper_engine_shell::serve::close_limits_store(service.engine_component().store()).expect("close store");
 }
 
+fn standalone_file_refusal(text: &[u8]) -> String {
+    use temper_config_shell::{Facts, Shape, parse};
+
+    let facts = Facts { login: "ada".into(), hostname: "fixture".into(), provider_key: false };
+    let refused = parse(text, Shape::Standalone, &facts).expect_err("standalone configuration refused");
+    crate::prefixed("temper-box serve", &refused.to_string())
+}
+
 #[test]
 fn toml_box_problem_names_public_key_and_line_on_serve_output() {
     let (_scratch, directories) =
@@ -37,12 +45,7 @@ fn toml_box_problem_names_public_key_and_line_on_serve_output() {
 
 #[test]
 fn toml_box_refuses_a_workers_key_at_its_line() {
-    let (_scratch, directories) = fixture("# worker\nengine = \"127.0.0.1:7200\"\n");
-    let Err(why) =
-        crate::serve::prepare_in_with("temper-box", &[], b"/", &directories, &temper_service::stock::Given::Stock)
-    else {
-        panic!("another binary's file refused")
-    };
+    let why = standalone_file_refusal(b"# worker\nengine = \"127.0.0.1:7200\"\n");
     assert_eq!(why, format!("temper-box serve: {FILE}:2: engine: a key of temper-worker's file, not temper-box's\n"));
 }
 

@@ -4,7 +4,7 @@ use alloc::boxed::Box;
 use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::documents as d;
 use jig_domain_tasks as t;
-use skein_lib::{List, bytes};
+use skein_lib::{List, Wall, bytes};
 pub fn text(value: &d::Text, _limits: &w::Limits) -> Result<w::DocumentText, w::Problem> {
     Ok(w::DocumentText { bytes: bytes::copy_of(&value.bytes), cut: value.cut })
 }
@@ -139,12 +139,18 @@ fn project(
         defaults,
     })
 }
-pub fn frame(value: &d::Frame, models: &[crate::Model], limits: &w::Limits) -> Result<w::Me, w::Problem> {
-    frame_named(value, models, None, limits)
+pub fn frame(
+    value: &d::Frame,
+    expires: Wall,
+    models: &[crate::Model],
+    limits: &w::Limits,
+) -> Result<w::Me, w::Problem> {
+    frame_named(value, expires, models, None, limits)
 }
 /// The component supplies its held public key (jig/docs/design/domain/people/public-reading.md, 8).
 pub(crate) fn frame_named(
     value: &d::Frame,
+    expires: Wall,
     models: &[crate::Model],
     names: Option<&crate::public::Names>,
     limits: &w::Limits,
@@ -163,6 +169,7 @@ pub(crate) fn frame_named(
         key_bytes: value.key_bytes,
         redirect_bytes: value.redirect_bytes,
         words_bytes: value.words_bytes,
+        sign_in_expires: expires.as_nanos(),
         party: w::MeParty {
             number: value.party,
             kind: match value.kind {

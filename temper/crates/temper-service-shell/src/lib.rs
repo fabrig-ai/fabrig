@@ -161,7 +161,7 @@ pub fn run<S, B, A>(
     adopt: impl FnOnce(&mut S, &mut Vec<Fd>, A) -> Result<(), String>,
 ) -> Result<Exit, String> {
     run_inner(binary, directories, shape, environment, served, clock, before, prepare, adopt)
-        .map_err(|why| prefixed(&format!("{binary} serve"), &why))
+        .map_err(|why| serve_error(binary, &why))
 }
 #[expect(clippy::too_many_arguments, reason = "serve supplies its loop clock beside its startup hooks")]
 fn run_inner<S, B, A>(
@@ -182,7 +182,7 @@ fn run_inner<S, B, A>(
     let programs = read.programs()?;
     let mut owned = listeners.iter().map(|(fd, _)| *fd).collect::<Vec<_>>();
     let Prepared { mut service, store, adoption } =
-        match read.prepare(|bytes| prepare(bytes, &programs, &mut owned, input)) {
+        match prepare_serve(&read, &programs, |bytes, programs| prepare(bytes, programs, &mut owned, input)) {
             Ok(prepared) => prepared,
             Err(why) => {
                 close(owned);
@@ -225,6 +225,18 @@ fn run_inner<S, B, A>(
     Ok(exit)
 }
 
+fn serve_error(binary: &str, why: &str) -> String {
+    prefixed(&format!("{binary} serve"), why)
+}
+
+fn prepare_serve<T>(
+    read: &configuration::Read,
+    programs: &temper_config_shell::Programs,
+    prepare: impl FnOnce(&[u8], &temper_config_shell::Programs) -> Result<T, String>,
+) -> Result<T, String> {
+    read.prepare(|bytes| prepare(bytes, programs))
+}
+
 fn local_link(directories: &Directories, environment: &[EnvironmentEntry]) -> Option<std::path::PathBuf> {
     link_file::path(
         &directories.data,
@@ -256,3 +268,6 @@ pub const CUT_AT_LISTEN: skein_shell::Variable = skein_shell::Variable {
     notes: "Requires TEMPER_INTERNAL_WAIT_CHECK. An existing marker keeps the next start running.",
     way: skein_shell::Way::Reads,
 };
+
+#[doc(hidden)]
+pub mod testing;

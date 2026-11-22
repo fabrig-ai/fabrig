@@ -1,13 +1,11 @@
 //! Loopback ports a test lets go of and listens on again (temper/docs/design/testing/process-tier.md).
 use std::{
-    net::{Ipv4Addr, SocketAddr, TcpListener},
-    ops::Range,
+    net::{SocketAddr, TcpListener},
     sync::Mutex,
 };
 
-const LOWEST: u16 = 10_000;
-const BLOCK: u16 = 64;
-const RANGE_FILE: &str = "/proc/sys/net/ipv4/ip_local_port_range";
+pub(crate) mod blocks;
+use blocks::{Blocks, RANGE_FILE};
 static BLOCKS: Mutex<Option<Blocks>> = Mutex::new(None);
 
 /// `N` distinct listeners, none at an address in `taken`, on ports below the
@@ -43,53 +41,6 @@ fn first_of(text: &str) -> Option<u16> {
     let first = words.next()?.parse().ok()?;
     let last: u16 = words.next()?.parse().ok()?;
     (first <= last && words.next().is_none()).then_some(first)
-}
-
-struct Blocks {
-    claims: Vec<TcpListener>,
-    next: Range<u16>,
-    first: u16,
-    end: u16,
-}
-impl Blocks {
-    fn new(ephemeral_first: u16, start: u32) -> Result<Self, String> {
-        let blocks = ephemeral_first.saturating_sub(LOWEST) / BLOCK;
-        if blocks < 2 {
-            return Err(format!(
-                "{RANGE_FILE}: first port {ephemeral_first} leaves fewer than two blocks above {LOWEST}"
-            ));
-        }
-        let first = LOWEST + u16::try_from(start % u32::from(blocks)).expect("block index fits") * BLOCK;
-        Ok(Self { claims: Vec::new(), next: first..first, first, end: LOWEST + blocks * BLOCK })
-    }
-
-    fn claim(&mut self) {
-        let began = self.first;
-        loop {
-            let first = self.first;
-            self.first = if first + BLOCK == self.end { LOWEST } else { first + BLOCK };
-            if let Ok(claim) = TcpListener::bind((Ipv4Addr::LOCALHOST, first)) {
-                self.claims.push(claim);
-                self.next = first + 1..first + BLOCK;
-                return;
-            }
-            assert_ne!(self.first, began, "no free port block in {LOWEST}..{}", self.end);
-        }
-    }
-
-    fn listener(&mut self, taken: &[SocketAddr]) -> TcpListener {
-        loop {
-            for port in self.next.by_ref() {
-                let address = SocketAddr::from((Ipv4Addr::LOCALHOST, port));
-                if !taken.contains(&address)
-                    && let Ok(listener) = TcpListener::bind(address)
-                {
-                    return listener;
-                }
-            }
-            self.claim();
-        }
-    }
 }
 
 #[cfg(test)]

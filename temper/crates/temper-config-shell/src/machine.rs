@@ -1,12 +1,26 @@
 //! Configuration discovery and machine facts (file.md, 6, steps 1–3).
-use crate::{FILE, FORMER, Facts, Read, Refusal, Shape, binary, parse};
+use crate::{FILE, FILE_BYTES, FORMER, Facts, Read, Refusal, Shape, binary, parse};
 use std::{io::ErrorKind, os::unix::ffi::OsStrExt, path::Path};
 use temper_shell::directories::{Directories, unread};
 
 pub fn read(directories: &Directories, shape: Shape) -> Result<Read, Refusal> {
     let config = Path::new(std::ffi::OsStr::from_bytes(&directories.config));
-    match std::fs::symlink_metadata(config.join(FORMER)) {
-        Ok(_) => {
+    read_with(
+        shape,
+        || std::fs::symlink_metadata(config.join(FORMER)).map(|_| ()),
+        |max| skein_shell::read_file(&config.join(FILE), max),
+        || facts(directories),
+    )
+}
+
+pub(super) fn read_with(
+    shape: Shape,
+    former: impl FnOnce() -> std::io::Result<()>,
+    current: impl FnOnce(u32) -> Result<Box<[u8]>, skein_shell::Unread>,
+    machine_facts: impl FnOnce() -> Result<Facts, Refusal>,
+) -> Result<Read, Refusal> {
+    match former() {
+        Ok(()) => {
             return Err(Refusal::one(format!(
                 "{FORMER}: moved: the configuration is {FILE}; write it from {} help config, then remove {FORMER}",
                 binary(shape)
@@ -15,7 +29,7 @@ pub fn read(directories: &Directories, shape: Shape) -> Result<Read, Refusal> {
         Err(why) if why.kind() == ErrorKind::NotFound => {}
         Err(why) => return Err(Refusal::one(format!("{FORMER}: {why}"))),
     }
-    let text = match skein_shell::read_file(&config.join(FILE), 1 << 20) {
+    let text = match current(u32::try_from(FILE_BYTES).expect("configuration bound fits u32")) {
         Ok(text) => text,
         Err(skein_shell::Unread::Absent) => {
             let words = if shape == Shape::Standalone {
@@ -27,7 +41,7 @@ pub fn read(directories: &Directories, shape: Shape) -> Result<Read, Refusal> {
         }
         Err(why) => return Err(Refusal::one(format!("{FILE}: {}", unread(why)))),
     };
-    parse(&text, shape, &facts(directories)?)
+    parse(&text, shape, &machine_facts()?)
 }
 pub fn facts(directories: &Directories) -> Result<Facts, Refusal> {
     let login = login(skein_shell::effective_user()).map_err(Refusal::one)?;
