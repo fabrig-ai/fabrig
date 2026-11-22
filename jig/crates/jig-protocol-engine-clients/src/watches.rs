@@ -6,7 +6,7 @@ use crate::{
     translate::watches as translate,
 };
 use jig_client_protocol_wire::Record as _;
-use skein_lib::Reader;
+use skein_lib::{Reader, Wall};
 impl Component {
     fn issued_name(&self, name: Token) -> bool {
         name.raw() != 0 && name.raw() < self.next
@@ -27,10 +27,6 @@ impl Component {
         }
         None
     }
-    #[expect(
-        clippy::too_many_lines,
-        reason = "stream replacement and implicit me share the existing watch route dispatch"
-    )]
     pub(super) fn watch_route(
         &mut self,
         env: &Env<Limits>,
@@ -45,22 +41,6 @@ impl Component {
         }
         let mut reader = Reader::new(body);
         match route {
-            Route::Stream if body.is_empty() || body.len() == 16 => {
-                if let Ok(name) = <&[u8; 16]>::try_from(body)
-                    && let Some(replaced) = self.stream_owner(name, sign_in)
-                {
-                    self.streams.get_mut(&replaced).expect("replaced stream").phase = stream::Phase::Closing;
-                    let steps = env.limits.watches_per_stream.saturating_mul(4).saturating_add(1);
-                    for _ in 0..steps {
-                        if !self.streams.contains_key(&replaced) {
-                            break;
-                        }
-                        self.stream_step(env, replaced, out);
-                    }
-                }
-                let owner = self.owner(exchange).expect("stream caller");
-                self.stream_open(env, owner, sign_in, out);
-            }
             Route::Watch => match w::Open::decode(&env.limits.wire, &mut reader) {
                 Ok(value) if reader.is_empty() => self.open_watch(env, Some(exchange), sign_in, value, out),
                 Ok(_) | Err(_) => {
@@ -143,7 +123,34 @@ impl Component {
             }
         }
     }
-    fn stream_open(&mut self, env: &Env<Limits>, owner: Token, sign_in: u64, out: &mut Queue<Request>) {
+    pub(super) fn stream_route(
+        &mut self,
+        env: &Env<Limits>,
+        exchange: Token,
+        sign_in: u64,
+        expires: Wall,
+        body: &[u8],
+        out: &mut Queue<Request>,
+    ) {
+        let Some(owner) = self.owner(exchange) else { return };
+        if let Ok(name) = <&[u8; 16]>::try_from(body) {
+            if let Some(replaced) = self.stream_owner(name, sign_in) {
+                self.streams.get_mut(&replaced).expect("replaced stream").phase = stream::Phase::Closing;
+                let steps = env.limits.watches_per_stream.saturating_mul(4).saturating_add(1);
+                for _ in 0..steps {
+                    if !self.streams.contains_key(&replaced) {
+                        break;
+                    }
+                    self.stream_step(env, replaced, out);
+                }
+            }
+        } else if !body.is_empty() {
+            self.response(exchange, crate::Reply::NotARecord);
+            return;
+        }
+        self.stream_open(env, owner, sign_in, expires, out);
+    }
+    fn stream_open(&mut self, env: &Env<Limits>, owner: Token, sign_in: u64, expires: Wall, out: &mut Queue<Request>) {
         if self.streams.len() == self.streams.capacity() {
             self.connections
                 .get_mut(&owner)
@@ -158,7 +165,7 @@ impl Component {
             self.connections.get_mut(&owner).expect("stream owner").respond(crate::Reply::NotARecord);
             return;
         };
-        let mut stream = Stream::new(name, sign_in, env);
+        let mut stream = Stream::new(name, sign_in, expires, env);
         let version = self.connections.get(&owner).expect("stream owner").version;
         let served = match version {
             Some(version) => self.serves(None, version),

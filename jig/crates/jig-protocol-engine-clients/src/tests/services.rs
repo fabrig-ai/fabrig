@@ -25,6 +25,19 @@ fn a_made_service_answers_its_credential_once_with_its_digest_kept() {
     assert!(exchange.out.is_empty());
 }
 #[test]
+fn reissue_is_not_offered_and_never_reaches_the_core() {
+    let mut exchange = Exchange::new();
+    let request = f::encode_ask(&w::Ask::ReissueService(w::ReissueService { party: f::SERVICE }));
+    let owner = exchange.send(crate::Message::Request(f::keyed(w::Owner::Jig, w::VERSION, request)));
+    exchange.authenticate();
+    assert!(exchange.out.is_empty(), "no core request");
+    assert_eq!(
+        exchange.final_answer(owner),
+        w::Final::Refused(w::Refused { refusal: w::Refusal::NotOffered, at: None })
+    );
+}
+
+#[test]
 fn a_replayed_make_service_answers_its_party_without_a_credential() {
     for concurrent in [false, true] {
         let mut exchange = Exchange::new();

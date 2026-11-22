@@ -167,10 +167,11 @@ fn operation_project(value: &w::Operation) -> u32 {
     }
 }
 
-/// Party-created jobs and project mismatches are typed refusals before the core sees them.
+/// Unoffered acts and project mismatches are typed refusals before the core sees them.
 /// Job admission: jig/docs/design/client/domain/contract/documents.md, 7.
 pub(crate) fn refused(record: &w::Ask, limits: &w::Limits) -> Result<Option<w::KeyedAnswer>, w::Problem> {
     let tasks = match record {
+        w::Ask::ReissueService(_) => return encoded_refusal(w::Refusal::NotOffered, None, limits),
         w::Ask::Create(value) => Some(value.tasks.as_ref()),
         w::Ask::Delegate(value) => Some(value.tasks.as_ref()),
         w::Ask::Message(_)
@@ -217,18 +218,7 @@ pub(crate) fn refused(record: &w::Ask, limits: &w::Limits) -> Result<Option<w::K
             let task = w::NewTask::decode(limits, &mut skein_lib::Reader::new(&bytes))?;
             match &task.executor {
                 w::Executor::Job(_) => {
-                    let answer = w::Final::Refused(w::Refused { refusal: w::Refusal::NotOffered, at: None });
-                    let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure(limits)?));
-                    answer.write(limits, &mut out).expect("measured answer");
-                    return match super::answers::owned(
-                        w::Owner::Jig,
-                        jig_client_protocol_wire::VERSION,
-                        out.finish(),
-                        limits,
-                    ) {
-                        Ok(answer) => Ok(Some(answer)),
-                        Err(problem) => Err(problem),
-                    };
+                    return encoded_refusal(w::Refusal::NotOffered, None, limits);
                 }
                 w::Executor::Agent(_) | w::Executor::Procedure(_) | w::Executor::Person(_) => {}
             }
@@ -245,17 +235,22 @@ pub(crate) fn refused(record: &w::Ask, limits: &w::Limits) -> Result<Option<w::K
         let project = operation_project(&operation);
         if project != value.project {
             let refusal = w::Refusal::Malformed(w::RefusalMalformed { at, why: w::Malformed::ProjectMismatch });
-            let answer = w::Final::Refused(w::Refused { refusal, at: Some(at) });
-            let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure(limits)?));
-            answer.write(limits, &mut out).expect("measured answer");
-            return match super::answers::owned(w::Owner::Jig, jig_client_protocol_wire::VERSION, out.finish(), limits) {
-                Ok(value) => Ok(Some(value)),
-                Err(problem) => Err(problem),
-            };
+            return encoded_refusal(refusal, Some(at), limits);
         }
         at = at.checked_add(1).ok_or(super::problem(skein_codec::Reason::Bound))?;
     }
     Ok(None)
+}
+
+fn encoded_refusal(
+    refusal: w::Refusal,
+    at: Option<u32>,
+    limits: &w::Limits,
+) -> Result<Option<w::KeyedAnswer>, w::Problem> {
+    let answer = w::Final::Refused(w::Refused { refusal, at });
+    let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure(limits)?));
+    answer.write(limits, &mut out).expect("measured answer");
+    Ok(Some(super::answers::owned(w::Owner::Jig, jig_client_protocol_wire::VERSION, out.finish(), limits)?))
 }
 
 fn wire_piece(reader: &mut skein_lib::Reader<'_>) -> Result<Option<Box<[u8]>>, w::Problem> {

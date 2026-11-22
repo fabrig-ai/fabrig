@@ -1,7 +1,7 @@
 //! Read exchanges remain pending until the core's held answer is released (protocol/client/README.md, 4).
 use super::{Box, Component, Env, Limits, Queue, ReplyTo, Request, Token, Waiting, core, routes, w};
 use jig_client_protocol_wire::Record as _;
-use skein_lib::Reader;
+use skein_lib::{Reader, Wall};
 impl Component {
     pub(super) fn serves(&self, family: Option<u16>, version: u32) -> bool {
         crate::served::serves(&self.settings, family, version)
@@ -11,6 +11,7 @@ impl Component {
         env: &Env<Limits>,
         exchange: Token,
         sign_in: u64,
+        expires: Wall,
         body: &[u8],
         out: &mut Queue<Request>,
     ) {
@@ -58,7 +59,7 @@ impl Component {
                 }));
                 self.pending
                     .exchanges
-                    .insert(exchange, Waiting::Read { sign_in, what: Box::new(what) })
+                    .insert(exchange, Waiting::Read { sign_in, expires, what: Box::new(what) })
                     .expect("same read slot");
                 request
             }

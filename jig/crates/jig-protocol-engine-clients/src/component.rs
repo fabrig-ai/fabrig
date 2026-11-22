@@ -402,10 +402,11 @@ impl Component {
         if let Some(exchange) = ready {
             match self.pending.exchanges.remove(&exchange).expect("ready exchange") {
                 Waiting::Checked { sign_in, expires, body, route } => match route {
-                    Route::Batch => self.batch_start(env, exchange, sign_in, out),
+                    Route::Batch => self.batch_start(env, exchange, sign_in, expires, out),
                     Route::LinkAsk => self.asked_checked(env, exchange, sign_in, expires, &body, out),
-                    Route::Read => self.read(env, exchange, sign_in, &body, out),
-                    Route::Watch | Route::Unwatch | Route::Gone | Route::Stream => {
+                    Route::Read => self.read(env, exchange, sign_in, expires, &body, out),
+                    Route::Stream => self.stream_route(env, exchange, sign_in, expires, &body, out),
+                    Route::Watch | Route::Unwatch | Route::Gone => {
                         self.watch_route(env, exchange, sign_in, route, &body, out);
                     }
                     Route::Request => self.request(env, exchange, sign_in, &body, out),

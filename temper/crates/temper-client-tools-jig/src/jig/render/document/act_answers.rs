@@ -76,6 +76,15 @@ pub(super) fn encode_made(value: &jig_client::contract::Made, out: &mut Encoder,
             out.object_end();
             out.object_end();
         }
+        jig_client::contract::Made::Reissued { party } => {
+            out.object_start();
+            out.key(b"reissued");
+            out.object_start();
+            out.key(b"party");
+            out.unsigned(*party);
+            out.object_end();
+            out.object_end();
+        }
         jig_client::contract::Made::PersonResult { task } => {
             out.object_start();
             out.key(b"person_result");
