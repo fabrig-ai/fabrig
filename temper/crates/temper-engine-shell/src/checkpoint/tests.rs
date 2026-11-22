@@ -116,18 +116,18 @@ fn terminals_render_exact_checkpoint_lines_and_child_exits_for_each_binary() {
 
 #[test]
 fn path_resolution_requires_an_executable_and_spawn_uses_the_invocation() {
-    let scratch = skein_scratch::Scratch::new_in(&skein_scratch::paths::target_tmp(), "checkpoint-path");
-    let root = scratch.path();
-    for dir in ["first", "second", "working"] {
-        std::fs::create_dir(root.join(dir)).unwrap();
-    }
-    for (file, mode) in [("first/cmd", 0o600), ("second/cmd", 0o700), ("working/local", 0o700)] {
-        let file = root.join(file);
-        std::fs::write(&file, b"test executable").unwrap();
-        std::fs::set_permissions(file, std::fs::Permissions::from_mode(mode)).unwrap();
-    }
-    std::fs::create_dir(root.join("first/directory")).unwrap();
+    let root = path(b"/fixture");
     let working = root.join("working");
+    let facts = |file: &std::path::Path| {
+        [
+            ("../first/cmd", (true, 0o600)),
+            ("../second/cmd", (true, 0o700)),
+            ("./local", (true, 0o700)),
+            ("../first/directory", (false, 0o700)),
+        ]
+        .into_iter()
+        .find_map(|(name, facts)| (file == working.join(name)).then_some(facts))
+    };
     let working = working.as_os_str().as_bytes();
     let env = vec![
         (Box::from(b"PATH".as_slice()), Box::from(b"../first:../second".as_slice())),
@@ -135,21 +135,22 @@ fn path_resolution_requires_an_executable_and_spawn_uses_the_invocation() {
         (Box::from(b"KEPT".as_slice()), Box::from(b"value".as_slice())),
     ];
     assert_eq!(
-        program(b"cmd", &env, working).unwrap().as_ref(),
+        program(b"cmd", &env, working, &facts).unwrap().as_ref(),
         path(working).join("../second/cmd").as_os_str().as_bytes()
     );
-    assert!(program(b"directory", &env, working).is_none());
-    assert!(program(b"missing", &env, working).is_none());
-    assert!(program(b"cmd", &[], working).is_none());
+    assert!(program(b"directory", &env, working, &facts).is_none());
+    assert!(program(b"missing", &env, working, &facts).is_none());
+    assert!(program(b"cmd", &[], working, &facts).is_none());
     assert_eq!(
-        program(b"./local", &[], working).unwrap().as_ref(),
+        program(b"./local", &[], working, &facts).unwrap().as_ref(),
         path(working).join("./local").as_os_str().as_bytes()
     );
-    let fd = skein_shell::open_root(path(working)).unwrap();
-    let child = spawn(&words(&[b"cmd", b"-c", b"exit 3", b"x"]), &env, working, &root.join("checkpoint"), fd).unwrap();
+    let fd = skein_io::kernel::Fd::new(7);
+    let checkpoint = root.join("checkpoint");
+    let child = spawn(&words(&[b"cmd", b"-c", b"exit 3", b"x"]), &env, working, &checkpoint, fd, &facts).unwrap();
     assert_eq!(child.program.as_ref(), path(working).join("../second/cmd").as_os_str().as_bytes());
     assert_eq!(child.args, words(&[b"-c", b"exit 3", b"x"]));
-    let no_arguments = spawn(&words(&[b"./local"]), &[], working, &root.join("checkpoint"), fd).unwrap();
+    let no_arguments = spawn(&words(&[b"./local"]), &[], working, &checkpoint, fd, &facts).unwrap();
     assert_eq!(no_arguments.program.as_ref(), path(working).join("./local").as_os_str().as_bytes());
     assert!(no_arguments.args.is_empty());
     assert_eq!(child.root, fd);
@@ -167,5 +168,4 @@ fn path_resolution_requires_an_executable_and_spawn_uses_the_invocation() {
             .map(|child| skein_io::kernel::Pipe { child, way: skein_io::kernel::Way::Inherit, parent: None })
             .collect::<Vec<_>>()
     );
-    temper_service_shell::close(vec![fd]);
 }

@@ -104,10 +104,67 @@ fn fake_setup(directories: &Directories) {
 
 #[test]
 fn toml_engine_forge_prepare_reads_the_document() {
-    let (scratch, directories) = fixture(ENGINE);
-    fake_setup(&directories);
-    assert_eq!(crate::forge::start(&directories, &["prepare".into(), "7".into()], None, &[]).unwrap(), 0);
-    assert!(scratch.path().join("playground-7/admin_token").is_file());
+    use crate::forge::{Inputs, Preparation, start_with_preparation};
+    use skein_fake_machine::{How, Is, Item, Machine};
+    use std::{cell::RefCell, path::Path};
+    use temper_config_shell::Shape;
+    use temper_forge_setup::{machine::BoxKind, setup_file};
+
+    let fixture = Path::new("/fixture");
+    let directories = crate::test_configuration::directories(fixture);
+    let jig = temper_service_shell::jig_directories(&directories);
+    let user = 1000;
+    let mut machine = Machine::for_user(user);
+    let root = machine.lay(&[Item::file(FILE.as_bytes(), ENGINE.as_bytes())]);
+    let machine = RefCell::new(machine);
+    let relative = |path: &Path| path.strip_prefix(fixture).unwrap().as_os_str().as_bytes().to_vec();
+    let inputs = Inputs {
+        reader: crate::setup::check,
+        setup: &|_, number, verb, _| {
+            assert_eq!((number, verb), (7, "prepare"));
+            setup_file::chosen(BoxKind::Fake, 3007, b"sam", false, &jig).map_err(|why| format!("{why:?}"))
+        },
+        configuration: &|directories, shape| {
+            let file = crate::path(&directories.config).join(FILE);
+            let mut machine = machine.borrow_mut();
+            let opened = machine.open(root, &relative(&file), How::Read).unwrap();
+            let length = u32::try_from(machine.stat(opened).size).unwrap();
+            let bytes = machine.read(opened, 0, length).unwrap();
+            machine.close(opened);
+            read_scripted(&bytes, shape)
+        },
+        sign_in: &|_, _, _, _, _| panic!("prepare dispatches no sign-in"),
+    };
+    let preparation = Preparation {
+        directory: &|directory, create| {
+            assert!(create);
+            machine.borrow_mut().make_directory(root, &relative(directory), 0o700).unwrap();
+            Ok(user)
+        },
+        fake: &|file| {
+            let mut machine = machine.borrow_mut();
+            let opened = machine.open(root, &relative(file), How::Create { mode: 0o600 }).unwrap();
+            machine.close(opened);
+            Ok(())
+        },
+    };
+    assert_eq!(
+        start_with_preparation(
+            "temper",
+            Shape::EngineAlone,
+            &directories,
+            &["prepare".into(), "7".into()],
+            None,
+            &[],
+            (&inputs, &preparation),
+        )
+        .unwrap(),
+        0
+    );
+    let mut machine = machine.into_inner();
+    let prepared = machine.open(root, b"playground-7/admin_token", How::PathNoFollow).unwrap();
+    assert_eq!(machine.stat(prepared).is, Is::File);
+    machine.close(prepared);
 }
 
 #[test]

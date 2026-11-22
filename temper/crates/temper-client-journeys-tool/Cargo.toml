@@ -36,6 +36,7 @@ skein-json.workspace = true
 skein-forge.workspace = true
 
 [dev-dependencies]
+skein-fake-machine.workspace = true
 skein-ui-screen.workspace = true
 skein-ui-web.workspace = true
 temper-client-journeys-kit.workspace = true
