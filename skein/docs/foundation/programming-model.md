@@ -257,8 +257,9 @@ What "pure" means, and what holds it:
   sets are lib's `Map` and `Set`, ordered by key. There is no formatting
   in step code, so no address can be printed.
 - **No hidden state.** No `static` (a mutable one needs `unsafe`, and
-  atomics and cells are disallowed types), no closures carrying state
-  between calls; all state is in the arguments.
+  atomics and cells are disallowed types) but generated codecs' immutable
+  tables (10.2), no closures carrying state between calls; all state is in
+  the arguments.
 - **No hidden control flow or effects.** Outcomes are returned; panics are
   fail-stop. There are no `Drop` impls in step code: closing is a
   request, and reclaiming follows *closed* (5.2). Dropping a `Box<[u8]>`
@@ -1076,6 +1077,11 @@ workspace's lints run over them as over lib, with scoped
 `#[allow]`. Generated translation (skein's ../design/data/codec/maps.md,
 4.1) is ordinary subset code, with no part in this exception.
 
+Generated codec code holds each module's bounds table and its ceilings in
+immutable `static` items of plain data, the one `static` the subset admits:
+nothing in them changes, so they hold no state. Every record's bounds name
+them, and a `const` would be copied into the binary at each mention.
+
 The shell, the simulator and tests are ordinary Rust, with `unsafe`
 confined to the ring adapter in code a service runs, and in tests to the
 counting allocator's `unsafe impl GlobalAlloc` and the fork kit's one
@@ -1093,7 +1099,7 @@ documented process-boundary module (skein's ../design/testing/README.md, section
 | defining traits, generic items, hand-written trait impls outside lib and the codecs (10.2) | one way to call code, on concrete types | review |
 | lifetime parameters on types, references in fields | a stored borrow; state stops being a plain value | review |
 | `Rc`, `Arc`, `Cell`, `RefCell`, atomics | shared ownership, interior mutability, global state | clippy `disallowed_types` |
-| `static`, `thread_local!` | global state | review; compiler (`no_std`) |
+| `static`, `thread_local!`, but generated codec tables (10.2) | global state | review; compiler (`no_std`) |
 | `Vec`, `VecDeque`, `String`, `vec!`, `format!` | growth without a check; formatting | clippy `disallowed_types`, `disallowed_macros` |
 | `BTreeMap`, `BTreeSet` | growth without a check: lib's `Map` and `Set` are bounded | review |
 | `impl Drop`, `Deref`, operator overloading, `Index` | hidden calls and hidden effects | review |

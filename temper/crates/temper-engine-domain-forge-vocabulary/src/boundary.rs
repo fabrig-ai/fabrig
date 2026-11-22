@@ -2873,6 +2873,14 @@ pub enum Request {
         task: u64,
         filing: crate::findings::VerdictFiling,
     },
+    /// Return a judged finding through the root's holder and news path.
+    ReturnFinding(crate::Finding),
+    /// A live repair passed its wall deadline; ask jig to fail it once per start.
+    FailRepair {
+        project: u32,
+        task: u64,
+        until: skein_lib::Wall,
+    },
     TierDecision {
         task: u64,
         decision: TierDecision,
