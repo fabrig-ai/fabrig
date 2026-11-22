@@ -209,6 +209,21 @@ class Delivery(unittest.TestCase):
         self.assertEqual(run.call_args.args[0][-1], '--paths0')
         self.assertEqual(run.call_args.kwargs['input'], path.encode())
 
+    def test_goal_close_checks_the_whole_tree_without_reapplying_delivery_mixing(self):
+        with mock.patch.object(PRE, 'outward', return_value=(0, [])), \
+             mock.patch.object(PRE, 'figures') as figures, \
+             mock.patch.object(PRE, 'journeys', return_value=(0, [])) as journeys:
+            PRE.workspace_checks(self.root, ['tools/tiers/budgets.toml', 'notes'], 'tree', 'base',
+                                 [], {}, {}, self.errors, {}, completed_goal=True)
+        figures.assert_not_called()
+        journeys.assert_called_once_with('base', 'tree', [], self.root, {})
+
+    def test_close_receipt_identifies_pre_settlement_head_and_post_settlement_tree(self):
+        self.assertEqual(PRE.finish('staged', 'base', [], self.root, {}, 'close', ('head', 'main'), None), 0)
+        receipt = json.loads((self.root / 'target/temper/goal-close-pre-pr.json').read_text())
+        self.assertEqual((receipt['goal_head'], receipt['destination'], receipt['base'], receipt['tree'],
+                          receipt['verdict']), ('head', 'main', 'base', 'staged', 'passed'))
+
     def test_known_outward_failure_requires_a_complete_scan(self):
         key = ('test', 'fabrig-boundary::outward', 'no_file_names_the_lab')
         with mock.patch.object(PRE, 'outward', return_value=(0, [])) as outward, \
