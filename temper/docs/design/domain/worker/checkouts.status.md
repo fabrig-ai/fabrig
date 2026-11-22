@@ -28,7 +28,6 @@ each delivery fast-forwards r and leaves g unchanged. They use fake git
 and disk, and do not settle the deployment replay gaps below. A goal's
 saved start overtaken by a repair remains deferred (`../forge/README.md`, section 11).
 
-- **Not yet:** *Kept packed*: the cache counts no fetch, check out, merge or snapshot, and no prepare asks a `Pack`, so neither the stores nor the worker's git directories are repacked [in flight: change 11620].
 - **Not yet:** *A landed dependency's catch-up*, *It asks*: the worker
   asks the engine nothing and answers its checkout not landed [in
   flight: change 6018].
