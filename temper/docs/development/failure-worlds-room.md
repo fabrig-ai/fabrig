@@ -1,6 +1,6 @@
 # Failure worlds: the room F7 made, measured
 
-2026-11-22. temper's focused (`default`) and `fuzzy` suites, by layer and by affected binary, from the suites' own reports, before and after F7 of `temper/docs/design/draft/failure-worlds.execution.md`, section 1: the fuzzy copies of focused tests retired, and the real-loop and one-process stories cut to what only their tiers show, their other assertions held below (`temper/docs/design/testing/checks.md`, section 1). This same-machine pair supplies the measurements missing from the plan in `failure-worlds-budget.md`. After's focused end-to-end result is partial; the other layers are complete. No figure in `tools/tiers/budgets.toml` moves: the transfers at the end remain proposals for the user.
+2026-11-22. temper's focused (`default`) and `fuzzy` suites, by layer and by affected binary, from the suites' own reports, before and after F7 of `temper/docs/design/draft/failure-worlds.execution.md`, section 1: the fuzzy copies of focused tests retired, and the real-loop and one-process stories cut to what only their tiers show, their other assertions held below (`temper/docs/design/testing/checks.md`, section 1). This same-machine pair supplies the measurements missing from the plan in `failure-worlds-budget.md`. After's focused end-to-end result is partial; the other layers are complete. The three transfers it supports, at the end, are in `tools/tiers/budgets.toml` as moves down, by the user's word of 2026-11-22; no other figure moved.
 
 Only temper's tests change in F7, so only temper's packages are measured. The other four trees run the same code before and after.
 
@@ -208,11 +208,11 @@ Every proposed direction is strictly downward in `tools/tiers/layers.toml`: step
 | fuzzy / simulated | 196.000000 | 159.112343 | 171.814571 | -2 | 194.000000 | 169.814571 |
 | fuzzy / system | 13.000000 | 2.307924 | 2.340201 | +2 | 15.000000 | 4.340201 |
 
-**For the user — proposed moves (`cpu_s`):**
+**The moves the user approved (`cpu_s`), 2026-11-22, written as `tools/tiers/budgets.toml`'s moves down with this pair as their reason:**
 
 - `default temper.simulated → temper.step 0.1`
 - `fuzzy temper.real-loop → temper.domain 20`
 - `fuzzy temper.simulated → temper.system 2`
-- No default real-loop → domain move is supported by this pair.
+- No default real-loop → domain move is supported by this pair, and none is made.
 
-**Still over the CPU ceilings after those proposals:** default domain **2.271410 s**, protocol **0.555147 s**, real-loop **8.727049 s**, end-to-end **at least 23.152219 s** (partial); fuzzy step **4.141794 s**. These are also the CPU overruns before the proposals, since none of the three supported transfers changes an over-ceiling layer. Instruction ceilings remain exceeded by default domain **120889383549**, default protocol **16364456703**, fuzzy step **78366171078**, fuzzy domain **54358019110**, and fuzzy system **1362406786** instructions. No budget, held-budget, reference, ledger, code, test or configuration file was changed.
+**Still over the CPU ceilings after those proposals:** default domain **2.271410 s**, protocol **0.555147 s**, real-loop **8.727049 s**, end-to-end **at least 23.152219 s** (partial); fuzzy step **4.141794 s**. These are also the CPU overruns before the proposals, since none of the three supported transfers changes an over-ceiling layer. Instruction ceilings remain exceeded by default domain **120889383549**, default protocol **16364456703**, fuzzy step **78366171078**, fuzzy domain **54358019110**, and fuzzy system **1362406786** instructions. These layers stay over their ceilings for after landing (the user, 2026-11-22); no other budget, held-budget, reference or ledger figure was changed.
