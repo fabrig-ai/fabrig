@@ -192,11 +192,12 @@ Each list has one entry per line; `#` starts a comment line.
 
 ## The repository's hooks and fixture readers
 
-- **`.temper/pre-pr`** runs the applicable format, counted-baseline, citation,
-  outward-name, journey and budget-figure checks on every worker delivery.
-  Builds and tests run in CI. The full repository checker accepts the candidate
-  and destination commit IDs as `.temper/goal-pre-pr HEAD DESTINATION`
-  (`tools/pre-pr/design.md`, 1–4).
+- **`.temper/pre-pr`** checks the delivery in the worker workspace using the
+  changed packages, their immediate consumers and named integration targets.
+  A checker-only Gate runs the checker's Python suite. Explicit diagnostic
+  dispatch can check an accumulated goal using `.temper/goal-pre-pr HEAD DESTINATION`
+  (`tools/pre-pr/design.md`, 1).
+
 - **`.temper/merge`:** the reference's merge job, `tools/merge/merge.py`
   (`temper/docs/design/protocol/tooling.md`, 4.1).
 - **`.temper/close`:** fabrig's close command, `tools/close/close.py`
