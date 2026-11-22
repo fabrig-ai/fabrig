@@ -51,6 +51,9 @@ pub(crate) fn answer(
             let outcome = w::Outcome::Made(w::OutcomeMade { what });
             w::Final::Done(w::Done { outcome })
         }
+        p::Reply::Outcome(p::Outcome::ServiceReissued { .. }) => {
+            w::Final::Refused(w::Refused { at: None, refusal: w::Refusal::NotOffered })
+        }
         p::Reply::Outcome(value) => {
             let value = owner(value, limits)?;
             let outcome = w::Outcome::Document(w::OutcomeDocument { value });
@@ -257,6 +260,7 @@ fn owner(value: &p::Outcome, limits: &w::Limits) -> Result<w::DocumentOutcome, w
         | p::Outcome::SettingsChanged { .. }
         | p::Outcome::MovedToNewest { .. }
         | p::Outcome::WorkerPauseAsked { .. }
+        | p::Outcome::ServiceReissued { .. }
         | p::Outcome::AccountReading { .. }
         | p::Outcome::AccountMovingOut { .. }
         | p::Outcome::CompoundRefused { .. }
