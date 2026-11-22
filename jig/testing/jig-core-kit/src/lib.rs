@@ -4,6 +4,7 @@
 
 mod charters;
 pub mod lists;
+pub mod open;
 pub mod world;
 
 mod application_observations;

@@ -26,6 +26,7 @@ jig-domain-brief.workspace = true
 jig-protocol-store.workspace = true
 
 [dev-dependencies]
+jig-engine-clients-kit.workspace = true
 jig-inspect.workspace = true
 jig-client-domain.workspace = true
 jig-client-protocol-link.workspace = true
