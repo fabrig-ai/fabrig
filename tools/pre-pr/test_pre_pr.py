@@ -208,6 +208,44 @@ class Delivery(unittest.TestCase):
                     with self.assertRaises(PRE.UnknownScope):
                         PRE.local_scope(self.root, 'base', self.root, {}, [])
 
+    def test_cold_delivery_fetches_the_mapped_main_once_in_its_worktree(self):
+        url = 'https://example.org/team/repo.git'
+        main = 'a' * 40
+        revision = subprocess.CompletedProcess([], 0, b'head\nlanding\n', b'')
+        effective = subprocess.CompletedProcess([], 0, (url + '\n').encode(), b'')
+        fetched = subprocess.CompletedProcess([], 0, b'', b'')
+        head = subprocess.CompletedProcess([], 0, b'head\n', b'')
+        with mock.patch.object(PRE, 'public_main_source', return_value=url), \
+             mock.patch.object(PRE, 'checkout_main', side_effect=[None, (main, url[:-4])]), \
+             mock.patch.object(PRE, 'git', side_effect=[revision, effective, fetched, revision, head]) as git, \
+             mock.patch.object(PRE, 'integrated_main', return_value=True):
+            self.assertEqual(PRE.recover_main(self.root, self.root, {}), main)
+        commands = [call.args[0] for call in git.call_args_list]
+        self.assertEqual([c for c in commands if c[0] == 'fetch'],
+                         [['fetch', '--no-tags', '--no-recurse-submodules', '--', url, 'main']])
+        self.assertTrue(all(call.args[1] == self.root for call in git.call_args_list))
+
+    def test_waiting_for_goal_integration_reuses_the_fetched_tip(self):
+        url = 'https://example.org/team/repo.git'
+        main = 'b' * 40
+        head = subprocess.CompletedProcess([], 0, b'head\n', b'')
+        with mock.patch.object(PRE, 'public_main_source', return_value=url), \
+             mock.patch.object(PRE, 'checkout_main', return_value=(main, url)), \
+             mock.patch.object(PRE, 'git', return_value=head) as git, \
+             mock.patch.object(PRE, 'integrated_main', return_value=False):
+            with self.assertRaisesRegex(PRE.UnknownScope, 'goal owns main integration'):
+                PRE.recover_main(self.root, self.root, {})
+        self.assertEqual([call.args[0] for call in git.call_args_list], [['rev-parse', '--verify', 'HEAD']])
+
+    def test_clean_automatic_import_is_excluded_from_formatted_files(self):
+        files = ['owned.rs', 'working.rs', 'combined-on-main.rs']
+        values = [subprocess.CompletedProcess([], 0, b'owned.rs\0', b''),
+                  subprocess.CompletedProcess([], 1, b'', b''),
+                  subprocess.CompletedProcess([], 0, b'working.rs\0', b'')]
+        with mock.patch.object(PRE, 'handwritten_rust', return_value=files), \
+             mock.patch.object(PRE, 'git', side_effect=values):
+            self.assertEqual(PRE.producer_format_paths(self.root, {}, 'base', 'tree', files), files[:2])
+
     def test_remaining_checks_and_receipt_use_the_formatted_tree(self):
         with mock.patch.object(Path, 'cwd', return_value=self.root), \
              mock.patch.object(subprocess, 'check_output', return_value=str(self.root).encode()), \

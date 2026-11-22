@@ -11,4 +11,5 @@
   - 7: nothing.
 - **Design departs:**
   - 3: an adapter is a kit of its component's tree, beside it, over `pub` reads the component documents as its adapter's, not code inside the component's crate (`skein/docs/design/testing/inspection.md`, 2): the workspace has no feature or `cfg` for test-only code, and a shipped binary links no testing crate. The adapter still changes with its component, reads it by a shared borrow and is linked only by worlds. The goal's designer, 2026-11-20.
+  - 7: P124's `cancelled_landing_frees_its_write_entries` is fixed by its own goal, before the landing train: an active focused test of `temper-engine-forge-world`'s suite (`../domain/landing-forming.md`, 5), so F2 neither writes it nor excludes it from a sweep. P124's other scenario, a wait for room with a bound, stays F2's. The user, 2026-11-21.
 - **Open:** 8: the moves between layers that F0's plan proposes are the user's decision, now with temper's suites measured by layer before and after the room F7 made (`../../development/failure-worlds-room.md`). No figure in `tools/tiers/budgets.toml` has moved.

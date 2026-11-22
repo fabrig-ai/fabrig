@@ -102,6 +102,7 @@ fn landing(d: &mut Domain) {
                 last_event: None,
                 turn_since: None,
                 waiting: None,
+                follows: None,
                 flake_reruns: Box::new([]),
                 room: None,
                 job: None,

@@ -256,6 +256,7 @@ pub(super) fn landing() -> d::Stored {
         turn_since: None,
         waiting: None,
         room: None,
+        follows: None,
         flake_reruns: Box::new([]),
         job: None,
         asks: Box::new([]),

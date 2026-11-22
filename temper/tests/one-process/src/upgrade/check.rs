@@ -6,6 +6,8 @@ use skein_fake_machine::{How, Is, Machine, Opened};
 use skein_sim::{Handle, Sim};
 use std::{cell::RefCell, collections::BTreeMap, path::Path, rc::Rc};
 
+pub(crate) mod pre_settings;
+
 type Progress = Vec<temper_engine_service::Note>;
 #[derive(Clone, Copy, Debug)]
 enum Until {
@@ -189,18 +191,7 @@ pub fn corrupt_open_rehearsal() {
 fn source_rehearsal(format: &[u8], expected: &str) {
     use skein_fake_machine::Item;
     let key = jig_protocol_store::keys::encode_own(&jig_protocol_store::keys::Own::Format, 64).expect("format key");
-    let mut body = vec![1];
-    body.extend(u32::try_from(key.len()).expect("key length").to_be_bytes());
-    body.extend(key.as_ref());
-    body.extend(u32::try_from(format.len()).expect("format length").to_be_bytes());
-    body.extend(format);
-    let mut frame = b"SKVC".to_vec();
-    frame.extend(1_u16.to_be_bytes());
-    frame.extend(1_u64.to_be_bytes());
-    frame.extend(1_u32.to_be_bytes());
-    frame.extend(u32::try_from(body.len()).expect("body length").to_be_bytes());
-    frame.extend(body);
-    frame.extend(jig_protocol_store::transcripts::frame::crc32c(&frame).to_be_bytes());
+    let frame = first_commit(&[(&key, format)]);
     let mut disk = Machine::for_user(1000);
     let root = disk.lay(&[
         Item::file(b"active", b"1\n"),
@@ -224,6 +215,25 @@ fn source_rehearsal(format: &[u8], expected: &str) {
     let scratch = disk.reopen_root(1);
     assert!(disk.list(scratch, 32, 4096).expect("scratch list").is_empty(), "scratch emptied");
     disk.close(scratch);
+}
+
+fn first_commit(rows: &[(&[u8], &[u8])]) -> Vec<u8> {
+    let mut body = Vec::new();
+    for (key, value) in rows {
+        body.push(1);
+        body.extend(u32::try_from(key.len()).expect("key length").to_be_bytes());
+        body.extend_from_slice(key);
+        body.extend(u32::try_from(value.len()).expect("value length").to_be_bytes());
+        body.extend_from_slice(value);
+    }
+    let mut frame = b"SKVC".to_vec();
+    frame.extend(1_u16.to_be_bytes());
+    frame.extend(1_u64.to_be_bytes());
+    frame.extend(u32::try_from(rows.len()).expect("row count").to_be_bytes());
+    frame.extend(u32::try_from(body.len()).expect("body length").to_be_bytes());
+    frame.extend(body);
+    frame.extend(jig_protocol_store::transcripts::frame::crc32c(&frame).to_be_bytes());
+    frame
 }
 
 type Image = BTreeMap<Vec<u8>, Option<Vec<u8>>>;
