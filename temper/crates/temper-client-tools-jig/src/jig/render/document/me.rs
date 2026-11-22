@@ -65,7 +65,7 @@ pub(super) fn encode_me(
     out.key(b"party");
     encode_me_party(&value.party, out, budget);
     out.key(b"sign_in_expires");
-    out.string(&temper_client_domain_forge::sign_in::utc_second(value.sign_in_expires));
+    out.string(&value.sign_in_expires.utc_second());
     out.key(b"projects");
     out.array_start();
     for item_1 in &value.projects {

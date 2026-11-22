@@ -181,7 +181,7 @@ fn me_text(me: &Me, book: &Phrasebook, limits: &Limits, out: &mut Text) {
     out.put(b" \xc2\xb7 ");
     out.words(me.party.name.bytes());
     out.put(b"\nsign-in expires: ");
-    out.put(&temper_client_domain_forge::sign_in::utc_second(me.sign_in_expires));
+    out.put(&me.sign_in_expires.utc_second());
     out.put(b"\nprojects:\n");
     for project in &me.projects {
         out.put(b"  ");

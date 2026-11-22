@@ -84,29 +84,8 @@ const FULL: [&[u8]; 4] = [
 
 /// Universal time to the second. Wall's u64 nanoseconds bound the year to 2554.
 #[must_use]
-#[expect(clippy::arithmetic_side_effects, reason = "Wall bounds Gregorian era intermediates and clock fields")]
 pub fn utc_second(at: Wall) -> [u8; 20] {
-    let seconds = at.as_nanos() / 1_000_000_000;
-    let days = seconds / 86_400 + 719_468;
-    let era = days / 146_097;
-    let doe = days % 146_097;
-    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let day = doy - (153 * mp + 2) / 5 + 1;
-    let month = if mp < 10 { mp + 3 } else { mp - 9 };
-    let year = era * 400 + yoe + u64::from(month <= 2);
-    let hour = seconds % 86_400 / 3600;
-    let minute = seconds % 3600 / 60;
-    let second = seconds % 60;
-    let mut text = *b"0000-00-00T00:00:00Z";
-    for (at, value) in [(0, year / 100), (2, year % 100), (5, month), (8, day), (11, hour), (14, minute), (17, second)]
-    {
-        *text.get_mut(at).expect("UTC field offset") = b'0' + u8::try_from(value / 10).expect("decimal tens digit");
-        *text.get_mut(at + 1).expect("UTC field offset") =
-            b'0' + u8::try_from(value % 10).expect("decimal units digit");
-    }
-    text
+    at.utc_second()
 }
 
 /// The complete diagnostic, including its prefix and final newline.

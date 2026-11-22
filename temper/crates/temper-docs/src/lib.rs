@@ -536,7 +536,7 @@ pub static PAGES: [Page; 76] = [
         name: "ctl-party",
         kind: Kind::Reference,
         title: "temper ctl party",
-        summary: "Parties: make a service with a project's role.",
+        summary: "Parties: make a service and reissue its credential.",
         text: include_str!("../../../docs/help/reference/ctl-party.md"),
     },
     Page {
