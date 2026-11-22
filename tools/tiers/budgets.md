@@ -7,7 +7,7 @@ Provisional, 2026-11-16. What the focused and fuzzy suites may cost, by layer of
 - **A budget for each layer** (section 2). Each tree's focused and fuzzy suites have a budget for each layer the tree has (`tools/tiers/layers.md`, 2), and the repository's checks have their own. An instruction ceiling in the layer's table makes instructions its measure. A layer with only a CPU ceiling is judged in seconds. Each layer has a per-test reference in CPU seconds and may have an ideal in either measure.
 - **Each process placed** (section 3): `tools/tiers/one-process` gives each binary it runs a tree and a layer, by `tools/tiers/layers.md`'s rules and table, and records them with the binary's processes.
 - **The summary by layer** (section 4). The report gives each layer's CPU, its user-space instruction count, and its budgets and ideals. It judges only the layers the run selected (section 4.1). The real pairs report their real-loop and end-to-end CPU figures as warnings after landing (section 4.2).
-- **The gate's verdict** (section 5). Callers use `--gate` for red layer verdicts. A layer budgeted in instructions uses CPU for warnings when counts are unavailable. Per-test references and drift give warnings.
+- **The gate's verdict** (section 5). Callers use `--gate` for red verdicts on layer budgets and per-test references. The gate's runner reports per-test reference overruns as warnings while its per-test check is off. A layer budgeted in instructions uses CPU for warnings when counts are unavailable. Drift gives warnings.
 - **Starting figures** (section 6): the CI builder's gate runs of 11-16, their median by tree, suite and layer, plus a tenth and at least a second.
 - **The ledger** (section 7). Main's ledger keeps each binary's last CPU figures, its counts for the last 100 counted landings, each test's last walls and the lowest layer figures in both measures. The gate's runner keeps it outside this repository. Every run writes a copy with its own figures folded in.
 - **A partial run judged whole** (section 8). The report combines the measured binaries with main's figures for the other binaries. For an instruction layer, a change is red when it takes the layer over budget or grows it by more than 2% against main, even within budget. Over at both with growth of at most 2% warns. Main at least 8% above its lowest while within budget warns of drift. A CPU layer keeps its CPU comparison.
@@ -142,11 +142,11 @@ Each tree's pair `real-TREE` runs its real-loop and end-to-end tests after landi
 - **`tools/tiers/one-process [--out DIR] [--budgets PATH] [--walls PATH] [--ledger PATH] [--gate] PROFILE [NEXTEST_ARGS...]`** (`tools/tiers/design.md`, 11.9).
   - **`--budgets`:** defaults to `tools/tiers/budgets.toml` where that file exists, so every run compares its layers with the repository's budgets. Without the file, no budgets apply.
   - **`--ledger`:** main's ledger for the profile (section 7), read with `ledger()` before anything runs; a ledger `ledger()` refuses, or one for another profile, is an invalid invocation (exit 2). It is passed to `execute_one_process` as `ledger`. None by default.
-  - **`--gate`:** asks for the gate's verdict. It is passed to `execute_one_process` as `gate`, and a layer over its budget then exits 1, as a CPU budget passed does.
+  - **`--gate`:** asks for the gate's verdict and is passed to `execute_one_process` as `gate`. A red layer verdict or a test past its reference then makes the command exit 1.
   - **With `--again`,** `--gate` is an invalid invocation, as `--budgets`, `--walls` and `--ledger` are.
 - **`execute_one_process(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None, gate=False, ledger=None)`:** gives `gate` and `ledger`, the ledger as `ledger()` read it or none, to `summary`, and writes the run's `ledger.json` (section 7) once the summary is made.
 - **`tools/tiers/cpu-summary DIR [--budgets PATH] [--pair PAIR] [--expect ID ...] [--ledger PATH] [--base DIR] [--gate] [--json]`:** gives `gate`, the ledger `--ledger` names as `ledger()` reads it, and the base's run directory `--base` names (`tools/tiers/references.md`, 5 and 6), to `summary`. It writes no ledger. Its exit status keeps its rule: 1 when `over_budget` holds a line; 2 for a ledger refused.
-- **Main Gate** compares both suites with the available ledgers. It uses the instruction verdict for layers with instruction figures and a CPU verdict for other layers. The runner selects the verdict policy by passing `--gate`. Per-test reference overruns are warnings.
+- **Main Gate** compares both suites with the available ledgers. It uses the instruction verdict for layers with instruction figures and a CPU verdict for other layers. The runner selects the verdict policy by passing `--gate`. It reports per-test reference overruns as warnings while its per-test check is off and keeps them red when it is on.
 - **The full goal check** passes `--ledger` where its builder keeps a readable ledger for the profile. It reports layer budget and per-test reference warnings (`tools/pre-pr/design.md`, 4). Its runner selects the verdict policy. Without a usable ledger it reports why.
 - **Every other run** passes no `--gate` and no `--ledger`: a builder's own run and anyone's, and a delivery check without a ledger. Each prints the same rows, and a layer over its budget appears as a warning in its output.
 
@@ -307,13 +307,13 @@ repair: read skein/docs/foundation/testing-strategy.md in full first, ...
 ```
 
 - **Where it runs:** the gate runs `python3 -I -B tools/tiers/figures.py --base BASE` on the candidate against its base, passing no `--merged`, as it runs the citations check (`.config/gate/README.md`, the gate's seventeenth item), and its runner makes a red case of each refusal; the delivery check runs it where the delivery changes the file (`tools/pre-pr/design.md`, 4, check 7). The gate's runner, outside this repository, takes it up when it follows (`temper/docs/design/draft/test-budgets.execution.md`, 2).
-- **The repair line.** Each budget red and refusal, at the gate and in the delivery check, ends with one line sending its repair to the strategy (draft, 8):
+- **The repair line.** Each budget red, reference red and refusal, at the gate and in the delivery check, ends with one line sending its repair to the strategy (draft, 8):
 
 ```
 repair: read skein/docs/foundation/testing-strategy.md in full first, then ask 8.1's three questions in order: does the test belong to its tier; if it does, can it be made faster; if neither, take the measurements to the user.
 ```
 
-  Its text is one constant of `tools/tiers/cpu.py`, which `figures.py` reads. Every entry of `summary`'s `over_budget` (section 4) ends with it on a line of its own: a layer's, a pair's or a tools suite's own. A warning carries none, nor does a red that is no budget's, such as a failed test. The delivery check's failures keep each entry whole as their logs (`tools/pre-pr/design.md`, 4), so it reaches a goal there too.
+  Its text is one constant of `tools/tiers/cpu.py`, which `figures.py` reads. Every entry of `summary`'s `over_budget` (section 4) ends with it on a line of its own. This covers layer budgets, per-test references (`tools/tiers/references.md`, 6), and the budgets for pairs and tools suites. A warning carries none, nor does a red that is no budget's, such as a failed test. The delivery check's failures keep each entry whole as their logs (`tools/pre-pr/design.md`, 4), so it reaches a goal there too.
 
 ## 11. Later
 

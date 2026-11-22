@@ -605,16 +605,16 @@ class OneProcessTests(unittest.TestCase):
         for gate in (False, True):
             with self.subTest(gate=gate):
                 result = self.summary(self.limits, gate=gate)
-                self.assertEqual(result['verdict'], 'within budget' if gate else 'no budget set')
-                self.assertEqual(result['over_budget'], [])
-                self.assertEqual(result['warnings'], [message])
+                self.assertEqual(result['verdict'], 'over budget' if gate else 'no budget set')
+                self.assertEqual(result['over_budget'], [message + '\n' + REPAIR_LINE] if gate else [])
+                self.assertEqual(result['warnings'], [] if gate else [message])
                 self.assertEqual(result['references'][0]['limit_s'], 0.04)
                 self.assertTrue(result['references'][0]['over'])
         path = self.root / 'budgets.toml'
         path.write_text(CPU['toml_config'](self.limits))
         cli = self.cli('--budgets', str(path), '--gate')
-        self.assertEqual(cli.returncode, 0, cli.stdout + cli.stderr)
-        self.assertIn('warning: ' + message, cli.stdout)
+        self.assertEqual(cli.returncode, 1, cli.stdout + cli.stderr)
+        self.assertIn(message, cli.stdout)
         self.limits['gate']['default']['reasons'] = [dict(binary='pkg::suite', test='z', cpu_s=0.1, why='story')]
         result = self.summary(self.limits, gate=True)
         row = result['references'][0]
@@ -634,12 +634,11 @@ class OneProcessTests(unittest.TestCase):
                 self.assertEqual((row['main_cpu_s'], row['main_from'], row['main_wall_s']), (0.1, 'base', 0.02))
                 self.assertAlmostEqual(row['limit_s'], 0.15)
                 self.assertEqual(row['over'], over)
-                self.assertEqual(result['over_budget'], [])
-                self.assertEqual(bool(result['warnings']), over)
+                self.assertEqual(bool(result['over_budget']), over)
         path = self.root / 'budgets.toml'
         path.write_text(CPU['toml_config'](self.limits))
         cli = self.cli('--budgets', str(path), '--base', str(base), '--gate', '--json')
-        self.assertEqual(cli.returncode, 0, cli.stdout + cli.stderr)
+        self.assertEqual(cli.returncode, 1, cli.stdout + cli.stderr)
         self.assertEqual(json.loads(cli.stdout)['references'][0]['main_from'], 'base')
         # A line replaces R, not the base's growth allowance.
         self.limits['gate']['default']['reasons'] = [dict(binary='pkg::suite', test='z', cpu_s=0.2, why='story')]
@@ -667,7 +666,7 @@ class OneProcessTests(unittest.TestCase):
                 self.assertAlmostEqual(row['limit_s'], 0.150)
                 self.assertEqual((row['alone'], row['main_alone'], row['swinging']),
                                  (list(figures), [0.080, 0.100, 0.090], False))
-                self.assertEqual((row['over'], result['over_budget'], bool(result['warnings'])), (over, [], over))
+                self.assertEqual((row['over'], bool(result['over_budget'])), (over, over))
         row, = self.summary(self.limits, ledger=self.main, base=self.base(0.100))['references']
         self.assertEqual(row['main_alone'], [0.100])
         row, = self.summary(self.limits, ledger=self.main)['references']
@@ -702,13 +701,12 @@ class OneProcessTests(unittest.TestCase):
         self.results['references'][0].update(cpu_s=0.050, runs=[dict(cpu_s=cpu) for cpu in (0.080, 0.050, 0.060)])
         for gate in (False, True):
             result = self.summary(self.limits, gate=gate)
-            self.assertEqual(result['over_budget'], [])
+            self.assertEqual(bool(result['over_budget']), gate)
             self.assertTrue(result['references'][0]['over'])
             self.assertTrue(result['warnings'][-1].startswith('test swings alone at the head:'))
-            self.assertEqual(len(result['warnings']), 2)
-            self.assertTrue(result['warnings'][0].startswith('test over its reference:'))
+            self.assertEqual(len(result['warnings']), 1 if gate else 2)
             cli = self.cli('--budgets', str(path), *(['--gate'] if gate else []))
-            self.assertEqual(cli.returncode, 0, cli.stdout + cli.stderr)
+            self.assertEqual(cli.returncode, 1 if gate else 0, cli.stdout + cli.stderr)
 
     def test_reference_unmeasured_later_run_warns(self):
         self.reference_case(cpu=0.031)
@@ -736,8 +734,7 @@ class OneProcessTests(unittest.TestCase):
                 row = result['references'][0]
                 self.assertEqual((row['main_cpu_s'], row['main_from'], row['limit_s'], row['over']),
                                  (0.025, 'ledger', 0.04, True))
-                self.assertEqual(result['verdict'], 'within budget')
-                self.assertTrue(result['warnings'][0].startswith('test over its reference:'))
+                self.assertEqual(result['verdict'], 'over budget')
         self.main['binaries']['pkg::suite']['alone']['z'] = [0.04]
         row = self.summary(self.limits, ledger=self.main)['references'][0]
         self.assertEqual(row['limit_s'], 0.06)
@@ -763,9 +760,7 @@ class OneProcessTests(unittest.TestCase):
         self.results['references'][0].update(cpu_s=0.12, outcome='passed')
         self.limits['gate']['default']['reasons'] = [dict(binary='pkg::suite', test='z', cpu_s=0.1, why='story')]
         result = self.summary(self.limits, gate=True)
-        self.assertEqual(result['warnings'], [
-            'test over its reference: pkg::suite z: 0.120 CPU s alone, limit 0.100 s'])
-        self.assertEqual(result['over_budget'], [])
+        self.assertEqual(result['warnings'], [])
         self.assertTrue(result['references'][0]['over'])
         self.assertEqual(result['references'][0]['limit_s'], 0.1)
 
@@ -878,7 +873,7 @@ class OneProcessTests(unittest.TestCase):
                     CPU['save'](path, self.main)
                     arguments = ['--budgets', str(budgets), '--ledger', str(path)] + (['--gate'] if gate else [])
                     baseline_cli = self.cli(*arguments)
-                    self.assertEqual(baseline_cli.returncode, 0, baseline_cli.stderr)
+                    self.assertEqual(baseline_cli.returncode, int(gate and cpu > 0.04), baseline_cli.stderr)
                     self.main['binaries']['pkg::suite']['alone']['z'] = [0.100, 0.160, 0.120]
                     result = self.summary(self.limits, gate=gate, ledger=self.main)
                     self.assertEqual(result['warnings'], baseline['warnings'] + [message])
