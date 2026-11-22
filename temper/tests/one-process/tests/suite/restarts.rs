@@ -44,5 +44,6 @@ fn an_older_layout_opens_and_serves_the_kept_person() {
     assert_eq!(entry.from, skein_lib::Time::ZERO);
     let [opened] = outcome.openings.as_slice() else { panic!("one opening") };
     assert_eq!(entry.until, Some(*opened));
-    assert!(*opened > entry.from);
+    // The engine may open the image start in the run's first instant, before its connectors catch up.
+    assert!(*opened >= entry.from);
 }
