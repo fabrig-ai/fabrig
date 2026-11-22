@@ -78,6 +78,7 @@ fn read_prompt(calls: u8, line: u64, usage: llm::Usage) -> (llm::Prompt, Vec<usi
                 session::Request::Complete { prompt, .. } => return resolved(prompt),
                 session::Request::Opened { .. }
                 | session::Request::JobsCancelled { .. }
+                | session::Request::Part { .. }
                 | session::Request::Turn { .. }
                 | session::Request::Priced { .. }
                 | session::Request::Yielded { .. }
@@ -283,6 +284,7 @@ fn insufficient_minima_keep_full_reads_and_the_guard_refuses() {
 
 fn opening(line: u64, budget: session::Budget) -> session::record::Opening {
     let spec = session::Spec {
+        tell_parts: false,
         backend: session::record::Backend::Direct,
         account: None,
         final_turn: None,
@@ -320,6 +322,7 @@ fn opening(line: u64, budget: session::Budget) -> session::record::Opening {
         budget: 100,
         transcript: None,
         answered: Box::new([]),
+        cut: None,
         withheld: None,
     }
 }

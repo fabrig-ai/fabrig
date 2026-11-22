@@ -104,6 +104,11 @@ fn part(block: agent::Block) -> provider::Part {
                     failure.diagnostic.output().into()
                 }
                 agent::Returned::Served { returned: run::Returned::HostAnswered(answer), .. } => answer.text().into(),
+                agent::Returned::Owned { outcome: outcome @ tools::Outcome::Interrupted { .. } } => {
+                    smith_protocol_llm::render_outcome(outcome, &tools::Namespace::One, 65536)
+                        .expect("bounded interrupted feedback")
+                        .0
+                }
                 agent::Returned::Owned { .. }
                 | agent::Returned::Served { .. }
                 | agent::Returned::Invalid { .. }
@@ -158,6 +163,42 @@ pub(crate) fn completion_with(
     agent::Completion { reasoning_dropped: Box::default(), content, stop, usage }
 }
 
+/// Classify a saved answer through the same finite decoder as a live fake completion.
+#[must_use]
+pub fn classify(
+    content: Box<[smith_domain::session::llm::Block]>,
+    grants: tools::Grants,
+    served: &[agent::Served],
+    asker: agent::Asker,
+) -> Option<agent::Completion> {
+    use smith_domain::session::llm::Block;
+    let mut decoded = Vec::new();
+    for block in content {
+        decoded.push(match block {
+            Block::Text { text, replay } => agent::Said::Text { text, replay },
+            Block::Refusal { text, replay } => agent::Said::Refusal { text, replay },
+            Block::Opaque { bytes } => agent::Said::Opaque { bytes },
+            Block::ToolCall(call) => {
+                let decoded = decode(&call.name, &call.input, grants, served, asker);
+                agent::Said::ToolCall {
+                    id: call.id,
+                    name: call.name,
+                    input: call.input,
+                    replay: call.replay,
+                    call: decoded,
+                }
+            }
+            Block::ToolResult { .. } => return None,
+        });
+    }
+    Some(agent::Completion {
+        content: decoded.into(),
+        reasoning_dropped: Box::default(),
+        usage: agent::Usage::NONE,
+        stop: agent::Stop::ToolUse,
+    })
+}
+
 #[must_use]
 pub fn decode(
     name: &[u8],
@@ -196,6 +237,9 @@ pub fn decode(
     if name == b"finish" && served.contains(&agent::Served::Finish) {
         return finish(arguments)
             .map_or_else(invalid, |outcome| agent::Decoded::Served { ask: run::Ask::Finish { outcome } });
+    }
+    if name == b"save" && served.contains(&agent::Served::Save) {
+        return agent::Decoded::Served { ask: run::Ask::Save };
     }
     if name == b"wait" && served.contains(&agent::Served::Wait) {
         let no_arguments: Vec<u8> = arguments.iter().copied().filter(|byte| !byte.is_ascii_whitespace()).collect();

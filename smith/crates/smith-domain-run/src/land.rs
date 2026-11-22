@@ -16,6 +16,7 @@ use crate::limits::Limits;
 use crate::outcome::Change;
 use crate::run::Run;
 use crate::workspace::{self, Directory};
+use alloc::boxed::Box;
 use core::mem;
 use skein_lib::bytes::copy_of;
 use skein_lib::{Duration, Env, Id, Queue, Time, Token};
@@ -27,6 +28,7 @@ pub(crate) struct Landing {
     deadline: Time,
     purpose: Purpose,
     stage: Stage,
+    recovered: Option<Box<Delivery>>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -55,8 +57,14 @@ pub(crate) enum Settled {
     Cancelled,
 }
 
-pub(crate) fn landing(change: Change, name: CallName, deadline: Time, purpose: Purpose) -> Landing {
-    Landing { change, name, deadline, purpose, stage: Stage::Closed }
+pub(crate) fn landing(
+    change: Change,
+    name: CallName,
+    deadline: Time,
+    purpose: Purpose,
+    recovered: Option<Box<Delivery>>,
+) -> Landing {
+    Landing { change, name, deadline, purpose, stage: Stage::Closed, recovered }
 }
 
 pub(crate) fn cancel_jobs(landing: &mut Landing, peer: Token, out: &mut Queue<Request>) {
@@ -75,7 +83,10 @@ pub(crate) fn jobs_cancelled(
     match mem::replace(&mut landing.stage, Stage::Closed) {
         Stage::Cancelling { why: Some(why) } => back(call, call::stopped(why), Settled::Cancelled, out),
         Stage::Cancelling { why: None } => {
-            if env.now >= landing.deadline {
+            if let Some(delivery) = landing.recovered.take() {
+                landing.stage = Stage::Delivering;
+                delivered(landing, call, *delivery, run, out)
+            } else if env.now >= landing.deadline {
                 back(call, Returned::TimedOut, Settled::Cancelled, out)
             } else {
                 begin(landing, id, run, env, out);

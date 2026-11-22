@@ -422,6 +422,7 @@ fn opening(spec: Spec) -> Box<crate::record::Opening> {
         budget: 100,
         transcript: None,
         answered: Box::default(),
+        cut: None,
         withheld: None,
     })
 }
@@ -1443,6 +1444,7 @@ fn reserved_recorded_call(harness: &mut Harness) -> Token {
                 budget: 100,
                 transcript: None,
                 answered: Box::default(),
+                cut: None,
                 withheld: None,
             }),
         },

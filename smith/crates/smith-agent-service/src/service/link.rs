@@ -85,7 +85,8 @@ pub(super) fn request(service: &mut Stages, frame: &mut Frame, request: domain::
             live_step(service, Some(&mut *frame), crate::live::Action::End { turn: *number });
         }
         domain::Request::Lower(
-            smith_domain::Lower::Complete { .. }
+            smith_domain::Lower::Classify { .. }
+            | smith_domain::Lower::Complete { .. }
             | smith_domain::Lower::Yield { .. }
             | smith_domain::Lower::Close { .. }
             | smith_domain::Lower::Cancel { .. }
@@ -248,7 +249,8 @@ pub(super) fn request(service: &mut Stages, frame: &mut Frame, request: domain::
             )
         }
         domain::Request::Lower(
-            smith_domain::Lower::Complete { .. }
+            smith_domain::Lower::Classify { .. }
+            | smith_domain::Lower::Complete { .. }
             | smith_domain::Lower::Yield { .. }
             | smith_domain::Lower::Close { .. }
             | smith_domain::Lower::Cancel { .. }

@@ -1,4 +1,5 @@
 //! Parts and answer-boundary drains through the composed agent and scripted checkout.
+mod resume;
 use super::*;
 use smith_domain::session::{
     llm::{Block, Returned, Role},
@@ -369,4 +370,83 @@ fn part_kept_releases_the_shared_record_window() {
     );
     assert_eq!(world.completions()[1].started, Time::from_nanos(500_000_000));
     assert_eq!(world.turns().len(), 2);
+}
+
+fn resume_from(first: &World, settings: &Settings, turns: Box<[Turn]>, fixture: Fixture) -> World {
+    resume_with(first, settings, turns, fixture, vec![])
+}
+
+fn resume_with(
+    first: &World,
+    settings: &Settings,
+    turns: Box<[Turn]>,
+    fixture: Fixture,
+    mut children: Vec<Script>,
+) -> World {
+    let part = &first.parts()[0].3.body;
+    let history = smith_domain::Transcript {
+        version: part.version,
+        endpoint: part.endpoint,
+        dialect: part.dialect,
+        turns: first.turns().into(),
+    };
+    let workspace = run::Workspace {
+        directories: Box::new([run::Directory {
+            results: None,
+            host: b"/work/temper".as_slice().into(),
+            name: b"work".as_slice().into(),
+            root: fixture.repos[0].root,
+            writable: true,
+            git: true,
+            conflicts: Box::default(),
+        }]),
+    };
+    let settings = Settings { resume: true, ..*settings };
+    let charter = scripted_charter(&settings);
+    children.push(Script { cue: charter.brief.sections[0].text.clone(), turns });
+    let scripts = children.into_boxed_slice();
+    let mut world = World::with_workspace_scripts_charter(
+        settings,
+        Some(history),
+        Some(workspace),
+        fixture.checkout,
+        scripts,
+        charter,
+    );
+    let parts = first
+        .parts()
+        .iter()
+        .map(|(_, _, turn, part)| smith_domain::session::record::Resumed {
+            activation: 1,
+            turn: *turn,
+            part: part.clone(),
+        })
+        .collect();
+    world.resume_parts(parts, 2);
+    world
+}
+
+#[test]
+fn a_cut_command_is_not_repeated_and_its_interruption_reaches_the_next_request() {
+    let mut first = command_world();
+    first.drain_with_grace_at(Time::from_nanos(50_000_000), Some(GRACE));
+    first.run(10_000);
+    let mut next = resume_from(
+        &first,
+        &settings(),
+        Box::new([
+            call(b"shell", br#"{"command":"long command"}"#),
+            call(b"finish", br#"{"report":"Resumed.","source":"workspace"}"#),
+        ]),
+        Fixture::new(),
+    );
+    next.run(10_000);
+    assert_eq!(next.completions().len(), 1, "only the completion after the cut answer: {:?}", next.answer());
+    assert!(
+        next.boundaries().iter().all(|(_, boundary)| !matches!(boundary, Boundary::Io { .. })),
+        "the interrupted command never starts again"
+    );
+    assert!(next.prompts()[0].messages.iter().flat_map(|m| &m.parts).any(|part| matches!(part,
+        Part::ToolOutput { output, .. } if String::from_utf8_lossy(output).contains("interrupted by a worker restart after 10 s") && String::from_utf8_lossy(output).contains("step 1"))));
+    assert_eq!(next.turns()[0].sequence, first.parts()[0].3.body.sequence);
 }

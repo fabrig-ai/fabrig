@@ -805,7 +805,8 @@ fn answer_head(service: &Stages) -> bool {
         Some(domain::Request::Answer { .. }) => true,
         Some(
             domain::Request::Lower(
-                smith_domain::Lower::Complete { .. }
+                smith_domain::Lower::Classify { .. }
+                | smith_domain::Lower::Complete { .. }
                 | smith_domain::Lower::Cancel { .. }
                 | smith_domain::Lower::Yield { .. }
                 | smith_domain::Lower::Close { .. }

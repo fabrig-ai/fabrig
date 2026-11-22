@@ -276,7 +276,8 @@ impl Harness {
                 | Request::Usage { .. }
                 | Request::Limited { .. }
                 | Request::Lower(
-                    crate::Lower::Complete { .. }
+                    crate::Lower::Classify { .. }
+                    | crate::Lower::Complete { .. }
                     | crate::Lower::Cancel { .. }
                     | crate::Lower::Yield { .. }
                     | crate::Lower::Close { .. }
@@ -1048,7 +1049,7 @@ fn assert_no_provider_completion(emitted: &[Request]) {
     for request in emitted {
         match request {
             Request::Part { .. } => unreachable!("the run tells no parts yet"),
-            Request::Lower(crate::Lower::Complete { .. }) => {
+            Request::Lower(crate::Lower::Classify { .. } | crate::Lower::Complete { .. }) => {
                 panic!("no room for another provider receiving reserve after the exact result edge")
             }
             Request::MessageRefused { .. }

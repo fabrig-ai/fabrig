@@ -94,7 +94,7 @@ pub(super) fn lower_events(service: &mut Stages, mut frame: Option<&mut Frame>) 
     }
 }
 
-fn lower_event(service: &mut Stages, framed: bool, event: domain::Below) {
+pub(super) fn lower_event(service: &mut Stages, framed: bool, event: domain::Below) {
     if framed {
         service.domain_events.push(domain::Event::Below(event));
     } else {
@@ -498,7 +498,8 @@ fn observe_messages(service: &mut Stages, event: &domain::Event) {
         | domain::Event::Drain { .. }
         | domain::Event::Delivered { .. }
         | domain::Event::Below(
-            smith_domain::Below::Usage { .. }
+            smith_domain::Below::Classified { .. }
+            | smith_domain::Below::Usage { .. }
             | smith_domain::Below::Completed { .. }
             | smith_domain::Below::Failed { .. }
             | smith_domain::Below::Cancelled { .. }

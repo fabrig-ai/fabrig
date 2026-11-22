@@ -471,6 +471,15 @@ impl World {
                     seen.observe_parent(request, lower_settled, lower_settled)?;
                 }
                 Output::Lower { agent, request } => match request {
+                    Lower::Classify { owner, content, tools, served, asker, .. } => {
+                        let completion = smith_agent_world::translate::classify(content, tools, &served, asker);
+                        inline::step(
+                            &mut self.agent,
+                            &self.stage.env,
+                            Input::Below { agent, terminal: Below::Classified { owner, completion } },
+                            &mut self.stage.out,
+                        );
+                    }
                     Lower::Complete { owner, prompt, .. } => {
                         self.minted += 1;
                         let callback = Token::new(self.minted);

@@ -163,6 +163,7 @@ pub(crate) struct Run {
     state: State,
     /// Main has sent a completion whose whole turn is not told yet.
     main_turn_pending: bool,
+    recovered: skein_lib::Map<u32, Box<Delivery>>,
     /// The host forbids a next main completion, without cutting this turn.
     draining: bool,
     grace: Option<Grace>,
@@ -382,6 +383,7 @@ pub(crate) fn start(domain: &mut Domain, env: &Env<Limits>, start: Start, out: &
         deadline,
         state: State::Closed,
         main_turn_pending: false,
+        recovered: skein_lib::Map::with_capacity(env.limits.calls),
         draining: false,
         grace: None,
         tell_parts,
@@ -690,6 +692,43 @@ pub(crate) fn probed(domain: &mut Domain, env: &Env<Limits>, owner: Token, execu
         }
     };
     follow(runs, alarms, facts, ready, id);
+}
+
+/// Resume a known answer without reserving or charging a completion.
+pub fn resume_answer(domain: &mut Domain, conversation: Token, now: Time) {
+    let conversation = domain.conversations.get(Id::from_token(conversation)).expect("admitted conversation");
+    let id = conversation.run;
+    if conversation.asker.is_none() {
+        domain.runs.get_mut(id).expect("conversation run").main_turn_pending = true;
+        arm_grace(domain, id, now);
+    }
+}
+
+/// A host-decided finish still passes the ordinary outcome judgement.
+pub fn recover_delivery(domain: &mut Domain, conversation: Token, position: u32, delivery: Box<Delivery>) {
+    let conversation = domain.conversations.get(Id::from_token(conversation)).expect("admitted main");
+    let run = domain.runs.get_mut(conversation.run).expect("conversation run");
+    run.recovered.insert(position, delivery).expect("one delivery per cut call");
+}
+
+/// Host call names count turns within their own activation.
+#[must_use]
+pub fn call_turn(domain: &Domain, conversation: Token) -> u32 {
+    let conversation = domain.conversations.get(Id::from_token(conversation)).expect("admitted conversation");
+    domain.runs.get(conversation.run).expect("conversation run").turns.checked_add(1).expect("bounded activation turns")
+}
+
+/// The call position identifies a resumed child independently of its new ordinal.
+#[must_use]
+#[expect(clippy::manual_map, reason = "step code uses exhaustive matches, not closures")]
+pub fn resume_position(domain: &Domain, conversation: Token) -> Option<(Token, Option<u32>)> {
+    let conversation = domain.conversations.get(Id::from_token(conversation))?;
+    let run = domain.runs.get(conversation.run)?;
+    let position = match conversation.asker {
+        Some(_) => Some(conversation.position),
+        None => None,
+    };
+    Some((run.host_name, position))
 }
 
 /// Number a conversation's next part within this activation.
@@ -1840,7 +1879,7 @@ fn begin_landing(
         out.push(Request::Return { spent: 0, call, result: Returned::Busy });
         return;
     }
-    let work = Work::Landing(land::landing(change, name, deadline, purpose));
+    let work = Work::Landing(land::landing(change, name, deadline, purpose, run.recovered.remove(&name.position)));
     let id = begin_call(calls, alarms, Call { run: run_id, conversation: main, owner: call, work }, deadline);
     run.lease.workspace(id.token());
     match &mut calls.get_mut(id).expect("inserted above").work {

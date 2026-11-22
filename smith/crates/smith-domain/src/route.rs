@@ -49,7 +49,7 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event) {
             grants,
             transcript,
             tell_parts,
-            parts: _,
+            parts,
             answered,
         }) => {
             if let Err(invalid) = models_declared(domain, &charter) {
@@ -75,7 +75,7 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event) {
             }
             return start(
                 domain, env, reply_to, host_run, activation, identity, window, messages, charter, workspace,
-                transcript, answered, tell_parts,
+                transcript, answered, tell_parts, parts,
             );
         }
         Event::Acknowledge { run, turn } => return acknowledge(domain, env, run, turn),
@@ -111,6 +111,9 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event) {
                 session_step(domain, env, session::Event::BuiltinResult { session: owner, id, text, error });
             }
             return;
+        }
+        Event::Below(Below::Classified { owner, completion }) => {
+            return classified(domain, env, owner, completion);
         }
         Event::Below(Below::Completed { owner, completion }) => {
             return completed(domain, env, owner, completion);
@@ -384,6 +387,7 @@ pub(crate) fn deliver(domain: &mut Domain, env: &Env<Limits>, handoff: Handoff) 
     clippy::too_many_arguments,
     reason = "Start keeps the host-issued activation with its concrete admission fields"
 )]
+#[expect(clippy::too_many_lines, reason = "admission validates the prepared start before handing it to the run")]
 fn start(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -398,6 +402,7 @@ fn start(
     transcript: Option<session::record::Transcript>,
     answered: Box<[AnsweredCall]>,
     tell_parts: bool,
+    parts: Box<[session::record::Resumed]>,
 ) {
     let largest_turn = limits::max_turn_bytes(&env.limits).expect("representable turn cap");
     if window.turns == 0 || window.bytes < largest_turn {
@@ -435,6 +440,18 @@ fn start(
         });
         return;
     }
+    let mut transcript = transcript;
+    let (parts, answered) = if charter.resume {
+        crate::resuming::select(transcript.as_ref(), parts, answered, &env.limits)
+    } else {
+        (None, answered)
+    };
+    if parts.is_none()
+        && let Some(history) = &transcript
+        && history.turns.is_empty()
+    {
+        transcript = None;
+    }
     let (transcript, answered, refused) = if charter.resume {
         match crate::waking::render(answered, &env.limits) {
             Some(text) if history_fits(transcript.as_ref(), &text, &env.limits) => (transcript, text, None),
@@ -456,7 +473,10 @@ fn start(
                     }
                     session::record::Kind::Ordinary => None,
                 },
-                None => None,
+                None => match &parts {
+                    Some(parts) => parts.identity(),
+                    None => None,
+                },
             },
             None => None,
         },
@@ -469,6 +489,7 @@ fn start(
         reply_to: Some(reply_to),
         transcript,
         answered,
+        parts,
         refused,
     };
     let id = domain.starts.insert(context).expect("reserved original parent right before work");
@@ -671,6 +692,11 @@ fn from_session(domain: &mut Domain, env: &Env<Limits>, request: session::Reques
                 }
                 return;
             }
+            if let Some(host_run) = run::host_name(&domain.run, opener)
+                && let Some(context) = output_context(domain, host_run)
+            {
+                domain.starts.get_mut(context).expect("start retained").parts = None;
+            }
             let sequence = turn.sequence;
             let opens_window = turn.kind.opens_window();
             let record =
@@ -788,7 +814,7 @@ fn delegated(
         call: owner,
         ask,
         deadline,
-        name: run::CallName { activation, completion: origin.sequence, position: origin.position },
+        name: run::CallName { activation, completion: run::call_turn(&domain.run, opener), position: origin.position },
     }
 }
 
@@ -822,6 +848,7 @@ fn from_run(domain: &mut Domain, env: &Env<Limits>, request: run::Request, out: 
             let to = context.reply_to.take().expect("one terminal consumes the parent right");
             context.transcript = None;
             context.answered = Box::default();
+            context.parts = None;
             let request = Request::Answer { to, answer, read, detail };
             context.flow.push(crate::flow::Record::Answer, request, out);
             if context.flow.done() {
@@ -861,7 +888,7 @@ fn from_run(domain: &mut Domain, env: &Env<Limits>, request: run::Request, out: 
         }
         run::Request::Abort { owner } => return out.push(Request::Lower(Lower::Abort { owner })),
         run::Request::Open { conversation, opening } => {
-            return open(domain, env, conversation, opening);
+            return open(domain, env, conversation, opening, out);
         }
         run::Request::Say { peer, text } => session::Event::Continue { session: peer, content: text },
         run::Request::Yield { peer } => session::Event::Yield { session: peer },
@@ -1136,7 +1163,11 @@ fn model_index(domain: &Domain, conversation: Token, model: &run::charter::Llm) 
 
 /// Host rate/share translation and concrete restore admission precede effects.
 /// Session alone prices, while token ceilings remain receiving limits.
-fn open(domain: &mut Domain, env: &Env<Limits>, conversation: Token, opening: run::Opening) {
+#[expect(
+    clippy::too_many_lines,
+    reason = "one prepared opening crosses the run/session boundary with optional cut history"
+)]
+fn open(domain: &mut Domain, env: &Env<Limits>, conversation: Token, opening: run::Opening, out: &mut Queue<Request>) {
     let endpoint = opening.llm.endpoint;
     let model = model_index(domain, conversation, &opening.llm);
     let progress = domain.config.progress(&opening.llm);
@@ -1146,7 +1177,7 @@ fn open(domain: &mut Domain, env: &Env<Limits>, conversation: Token, opening: ru
     let dialect = opening.llm.dialect;
     let prices = opening.llm.prices;
     let budget = opening.budget.spend;
-    let (transcript, answered) = match opening.transcript {
+    let (mut transcript, answered) = match opening.transcript {
         Some(binding) => {
             let context = domain.starts.get_mut(Id::from_token(binding)).expect("root issued the restore binding");
             match context.refused.take() {
@@ -1167,6 +1198,31 @@ fn open(domain: &mut Domain, env: &Env<Limits>, conversation: Token, opening: ru
         }
         None => (None, Box::default()),
     };
+    let mut cut = None;
+    let mut fallback_answers = None;
+    let mut window_answers = None;
+    if let Some((host_run, position)) = run::resume_position(&domain.run, conversation)
+        && let Some(context) = output_context(domain, host_run)
+        && let Some(parts) = &domain.starts.get(context).expect("start retained").parts
+    {
+        match parts.build(position, transcript.clone(), &env.limits) {
+            Some((history, answer)) => {
+                transcript = Some(history);
+                cut = Some(answer);
+                if position.is_none() {
+                    fallback_answers = Some(parts.fallback_answers.clone());
+                }
+            }
+            None => {
+                if let Some(position) = position
+                    && let Some((history, answers)) = parts.window(position)
+                {
+                    transcript = Some(history);
+                    window_answers = Some(answers);
+                }
+            }
+        }
+    }
     let window_llm = resumed_model(
         &domain.config,
         run::conversation_charter(&domain.run, conversation).expect("run owns its conversation"),
@@ -1190,6 +1246,18 @@ fn open(domain: &mut Domain, env: &Env<Limits>, conversation: Token, opening: ru
         );
     };
     spec.protocol_allowance = protocol_allowance;
+    let fallback_prompt = match fallback_answers {
+        Some(answers) => {
+            let mut prompt = List::with_capacity(
+                u32::try_from(answers.len().saturating_add(spec.prompt.len())).expect("bounded waking text"),
+            );
+            for byte in answers.iter().chain(spec.prompt.iter()) {
+                prompt.push(*byte).expect("measured waking text");
+            }
+            Some(prompt.into_boxed())
+        }
+        None => None,
+    };
     if !answered.is_empty() {
         let Some(length) = answered.len().checked_add(spec.prompt.len()) else {
             return run_step(
@@ -1209,24 +1277,143 @@ fn open(domain: &mut Domain, env: &Env<Limits>, conversation: Token, opening: ru
         }
         spec.prompt = prompt.into_boxed();
     }
-    let peer = Peer::new(conversation, activation, account, model, offered, &env.limits.session);
+    if let Some(cut) = &cut
+        && spec.affinity.thread != 0
+    {
+        spec.budget.turns = spec.budget.turns.saturating_sub(cut.answers);
+    }
+    if let Some(answers) = window_answers {
+        spec.budget.turns = spec.budget.turns.saturating_sub(answers);
+        if let Some(history) = &transcript
+            && let Some(first) = history.turns.first()
+        {
+            match &first.kind {
+                session::record::Kind::First(opener) | session::record::Kind::Window(opener) => {
+                    if let Some(system) = &opener.system {
+                        spec.system.clone_from(system);
+                    }
+                }
+                session::record::Kind::Ordinary => {}
+            }
+        }
+    }
+    prepare_cut(&mut cut, &spec, env);
+    let mut peer = Peer::new(conversation, activation, account, model, offered, &env.limits.session);
+    peer.fallback_prompt = fallback_prompt;
     let id = domain.peers.insert(peer).expect("a peer for every conversation the run has");
     let fresh = domain.conversations.insert(conversation, id).expect("a peer for every conversation");
     assert!(fresh.is_none(), "the run names its conversations apart");
-    let event = session::Event::Open {
-        opener: conversation,
-        opening: Box::new(session::record::Opening {
-            spec,
-            window_llm,
-            dialect,
-            prices: translate::prices(prices),
-            budget,
-            transcript,
-            answered: Box::default(),
-            withheld: Some(Box::from(crate::peer::WAIT_NAME)),
-        }),
-    };
-    session_step(domain, env, event);
+    let opening = Box::new(session::record::Opening {
+        spec,
+        window_llm,
+        dialect,
+        prices: translate::prices(prices),
+        budget,
+        transcript,
+        answered: Box::default(),
+        cut,
+        withheld: Some(Box::from(crate::peer::WAIT_NAME)),
+    });
+    if let Some(cut) = &opening.cut {
+        let peer = domain.peers.get_mut(id).expect("inserted peer");
+        let request = Lower::Classify {
+            owner: conversation,
+            content: cut.content.clone(),
+            tools: opening.spec.authority.grants,
+            served: peer.served(),
+            asker: if peer.is_main() { crate::llm::Asker::Main } else { crate::llm::Asker::Child },
+            decoded_call_bytes: env.limits.decoded_call_bytes,
+        };
+        peer.opening = Some(opening);
+        out.push(Request::Lower(request));
+    } else {
+        session_step(domain, env, session::Event::Open { opener: conversation, opening });
+    }
+}
+
+fn prepare_cut(cut: &mut Option<session::record::Cut>, spec: &session::Spec, env: &Env<Limits>) {
+    if let Some(cut) = cut {
+        // A withheld wait receives the waking prompt rather than entering live waiting.
+        let mut results = List::with_capacity(env.limits.session.completion_blocks);
+        for result in &cut.results {
+            results.push(result.clone()).expect("bounded cut results");
+        }
+        for block in &cut.content {
+            let Some(call) = block.tool_call() else { continue };
+            if call.name.as_ref() == crate::peer::WAIT_NAME && !cut_result(&cut.results, &call.id) {
+                results
+                    .push(session::llm::Block::ToolResult {
+                        id: call.id.clone(),
+                        result: session::llm::Returned::Text { text: spec.prompt.clone(), error: false, replay: None },
+                    })
+                    .expect("one result per cut call");
+                cut.waking_in_result = true;
+            }
+        }
+        cut.results = results.into_boxed();
+    }
+}
+
+fn cut_result(results: &[session::llm::Block], wanted: &[u8]) -> bool {
+    for result in results {
+        match result {
+            session::llm::Block::ToolResult { id, .. } if id.as_ref() == wanted => return true,
+            session::llm::Block::ToolResult { .. }
+            | session::llm::Block::ToolCall(_)
+            | session::llm::Block::Text { .. }
+            | session::llm::Block::Refusal { .. }
+            | session::llm::Block::Opaque { .. } => {}
+        }
+    }
+    false
+}
+
+fn classified(domain: &mut Domain, env: &Env<Limits>, owner: Token, completion: Option<crate::llm::Completion>) {
+    let Some(id) = domain.conversations.get(&owner).copied() else { return };
+    let peer = domain.peers.get_mut(id).expect("classifying peer");
+    let Some(mut opening) = peer.opening.take() else { return };
+    match completion {
+        Some(completion) => {
+            peer.fallback_prompt = None;
+            let cut = opening.cut.as_mut().expect("classifying a cut answer");
+            let before = peer.tickets();
+            let completion = peer.resumed(
+                completion,
+                &cut.results,
+                env.limits.decoded_call_bytes.min(env.limits.session.history_bytes),
+            );
+            domain.tickets = domain.tickets.saturating_add(peer.tickets()).saturating_sub(before);
+            cut.content = completion.content;
+        }
+        None => {
+            if let Some(prompt) = peer.fallback_prompt.take() {
+                opening.spec.prompt = prompt;
+            }
+            let cut = opening.cut.take().expect("classifying cut");
+            if let Some(mut history) = opening.transcript.take() {
+                let mut turns = List::with_capacity(cut.previous);
+                for turn in history.turns.into_iter().take(usize::try_from(cut.previous).expect("bounded prefix")) {
+                    turns.push(turn).expect("bounded prefix");
+                }
+                history.turns = turns.into_boxed();
+                if cut.previous > 0 {
+                    opening.transcript = Some(history);
+                }
+            }
+        }
+    }
+    if opening.cut.is_some() {
+        run::resume_answer(&mut domain.run, owner, env.now);
+        if let Some((host_run, None)) = run::resume_position(&domain.run, owner)
+            && let Some(context) = output_context(domain, host_run)
+            && let Some(parts) = &domain.starts.get(context).expect("retained start").parts
+        {
+            for (position, delivery) in &parts.deliveries {
+                run::recover_delivery(&mut domain.run, owner, *position, delivery.clone());
+            }
+        }
+    }
+    session_step(domain, env, session::Event::Open { opener: owner, opening });
 }
 
 /// Select charter quantities for a saved window, falling back to main for an unnamed model.

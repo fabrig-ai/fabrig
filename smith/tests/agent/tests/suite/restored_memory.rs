@@ -604,7 +604,8 @@ impl Counted {
                 | Request::Limited { .. }
                 | Request::MessageRefused { .. }
                 | Request::Lower(
-                    smith_domain::Lower::Io { .. }
+                    smith_domain::Lower::Classify { .. }
+                    | smith_domain::Lower::Io { .. }
                     | smith_domain::Lower::Job { .. }
                     | smith_domain::Lower::CancelIo { .. }
                     | smith_domain::Lower::Check { .. }

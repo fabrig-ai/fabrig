@@ -93,9 +93,30 @@ pub struct Opening {
     pub transcript: Option<Transcript>,
     /// Results the host supplied for calls in the last saved turn.
     pub answered: Box<[Answered]>,
+    /// A cut answer to drive before asking another completion.
+    pub cut: Option<Cut>,
     /// The name of the one call this opener may have withheld when the conversation
     /// last closed (session.md, 3), restored as withheld; `None` withholds none.
     pub withheld: Option<Box<[u8]>>,
+}
+
+/// A classified cut answer and the results already told (domain/turn-parts.md, 5).
+#[derive(PartialEq, Eq, Debug)]
+pub struct Cut {
+    /// Whole turns preceding the cut answer, retained if its parts are unusable.
+    pub previous: u32,
+    /// Answers held by the parts, including those before a child window.
+    pub answers: u32,
+    /// The original supplied opening, not this activation's recomposition.
+    pub system: Option<Box<[u8]>>,
+    pub usage: Usage,
+    /// The waking text is already the resumed wait result.
+    pub waking_in_result: bool,
+    /// The answer's messages counted from the previous whole turn.
+    pub messages: u32,
+    /// Fresh classifications, retaining the answer's provider blocks and positions.
+    pub content: Box<[crate::llm::Block]>,
+    pub results: Box<[crate::llm::Block]>,
 }
 
 /// A window's declared model and rates, supplied by the root for its compaction.
@@ -284,4 +305,10 @@ fn messages_bytes(messages: &[Message]) -> Option<u64> {
         bytes = bytes.checked_add(crate::session::content_cost(&message.content)?)?;
     }
     Some(bytes)
+}
+
+/// Whether an answer's concrete messages follow the supplied window (turn-parts.md, 5).
+#[must_use]
+pub fn cut_follows(history: &Transcript, answer: &Turn, limits: &crate::Limits) -> bool {
+    crate::session::cut_follows(history, answer, limits)
 }

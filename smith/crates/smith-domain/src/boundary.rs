@@ -332,6 +332,8 @@ pub enum Operation {
 /// Provider and machine terminals returned to the root or its inline owner.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Below {
+    /// Terminal of Classify: the cut answer, or unusable parts (domain/turn-parts.md, 5).
+    Classified { owner: Token, completion: Option<Completion> },
     /// One program allowance observation for the owning completion.
     Usage { owner: Token, window: crate::UsageWindow },
     /// The program observed this whole file version for the addressed session (smith/docs/design/domain/tools.md, 10).
@@ -386,6 +388,15 @@ pub enum Below {
 /// Provider and machine operations emitted by the root or its inline owner.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Lower {
+    /// Classify a cut answer with the ordinary decoder, without a provider request (domain/turn-parts.md, 5).
+    Classify {
+        owner: Token,
+        content: Box<[crate::session::llm::Block]>,
+        tools: tools::Grants,
+        served: Box<[crate::llm::Served]>,
+        asker: crate::llm::Asker,
+        decoded_call_bytes: u64,
+    },
     /// Ask an LLM for its next message, ended by one completion or call terminal.
     Complete {
         /// Session's opaque token, shared with its provider terminals and captured content.

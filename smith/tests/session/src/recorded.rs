@@ -59,6 +59,7 @@ pub fn opening(transcript: Option<record::Transcript>, budget: u64) -> record::O
         prices: PRICES,
         budget,
         answered: Box::default(),
+        cut: None,
         withheld: Some(b"wait".as_slice().into()),
         transcript,
     }

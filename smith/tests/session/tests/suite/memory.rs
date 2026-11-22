@@ -435,6 +435,7 @@ fn priced_opening(
         budget: 1,
         transcript,
         answered: Box::default(),
+        cut: None,
         withheld: None,
     })
 }
@@ -448,6 +449,7 @@ fn zero_opening(spec: Spec) -> Box<smith_domain_session::record::Opening> {
         budget: 1,
         transcript: None,
         answered: Box::default(),
+        cut: None,
         withheld: None,
     })
 }

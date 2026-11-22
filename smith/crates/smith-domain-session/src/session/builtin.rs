@@ -101,6 +101,9 @@ pub(super) fn prepare(
     let mut builtins = 0_u32;
     let mut others = 0_u32;
     for part in &message.content {
+        if super::restore::result(conversation, part).is_some() {
+            continue;
+        }
         let Some(call) = part.tool_call() else { continue };
         match &call.call {
             Decoded::Builtin { .. } => builtins = builtins.checked_add(1).expect("bounded calls"),
@@ -125,6 +128,10 @@ pub(super) fn prepare(
         super::delegated_credit(limits).min(available.checked_div(u64::from(builtins)).expect("positive calls"))
     };
     for (position, block) in message.content.iter().enumerate() {
+        if super::restore::result(conversation, block).is_some() {
+            tools.slots.push(Slot::Unstarted).expect("one slot per resumed call");
+            continue;
+        }
         let Some(call) = block.tool_call() else { continue };
         match &call.call {
             Decoded::Builtin { effect } => {

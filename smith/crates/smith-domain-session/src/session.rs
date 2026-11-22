@@ -178,6 +178,8 @@ pub(crate) struct Session {
 #[derive(Debug)]
 struct Conversation {
     tell_parts: bool,
+    resumed_results: Box<[Block]>,
+    waking: Option<Box<[u8]>>,
     cut: bool,
     answer_told: u32,
     backend: crate::record::Backend,
@@ -427,6 +429,40 @@ impl Ready {
 // new state ([`conclude`]).
 
 /// Admit concrete history before acquiring a tools kit or making a completion.
+pub(crate) fn cut_follows(history: &crate::record::Transcript, answer: &crate::record::Turn, limits: &Limits) -> bool {
+    if answer.version != crate::record::VERSION || answer.messages.is_empty() {
+        return false;
+    }
+    let last = history.turns.last();
+    let previous = match last {
+        Some(turn) => turn.sequence,
+        None => 0,
+    };
+    if previous.checked_add(1) != Some(answer.sequence)
+        || restore::recorded_sequence(answer, last.is_none(), previous).is_err()
+    {
+        return false;
+    }
+    let mut previous = match last {
+        Some(turn) => turn.messages.last(),
+        None => None,
+    };
+    let mut assistants = 0_u32;
+    for message in &answer.messages {
+        if restore::recorded_shape(message, limits).is_err()
+            || restore::validate_recorded(message).is_err()
+            || restore::validate_link(previous, message, None).is_err()
+        {
+            return false;
+        }
+        if message.role == Role::Assistant {
+            assistants = assistants.saturating_add(1);
+        }
+        previous = Some(message);
+    }
+    restore::recorded_turn_shape(answer, assistants).is_ok()
+}
+
 pub(crate) fn open(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -439,7 +475,18 @@ pub(crate) fn open(
         refuse(&mut domain.facts, opener, End::Busy, out);
         return;
     }
-    let crate::record::Opening { spec, window_llm, dialect, prices, budget, transcript, answered, withheld } = opening;
+    let crate::record::Opening {
+        spec,
+        window_llm,
+        dialect,
+        prices,
+        budget,
+        mut transcript,
+        answered,
+        withheld,
+        mut cut,
+    } = opening;
+    let ordinal = spec.affinity.thread;
     if prices.unit == 0 || budget > env.limits.spend {
         refuse(&mut domain.facts, opener, End::Invalid, out);
         return;
@@ -450,6 +497,13 @@ pub(crate) fn open(
         refuse(&mut domain.facts, opener, End::Invalid, out);
         return;
     };
+    if let Some(held) = &cut
+        && let Some(history) = &transcript
+        && restore::validate_transcript(&conversation, history, &[], None, &env.limits).is_err()
+    {
+        transcript = restore::prefix(transcript, held.previous);
+        cut = None;
+    }
     let mut sequence = 0;
     let mut told = 0;
     match transcript {
@@ -464,7 +518,13 @@ pub(crate) fn open(
                 return;
             }
         }
-        Some(transcript) => match restore(&mut conversation, transcript, answered, withheld.as_deref(), &env.limits) {
+        Some(transcript) => match restore(
+            &mut conversation,
+            transcript,
+            answered,
+            if cut.is_some() { None } else { withheld.as_deref() },
+            &env.limits,
+        ) {
             Ok(previous) => {
                 sequence = previous;
                 told = conversation.transcript.len().saturating_sub(1);
@@ -475,11 +535,27 @@ pub(crate) fn open(
             }
         },
     }
+    if let Some(cut) = cut {
+        match restore::cut(&mut conversation, cut, sequence, &env.limits) {
+            Ok(previous) => {
+                sequence = previous;
+                told = conversation.cursor.told;
+                conversation.affinity.thread = ordinal;
+            }
+            Err(reason) => {
+                refuse(&mut domain.facts, opener, End::TranscriptRefused { reason }, out);
+                return;
+            }
+        }
+    }
     if let Some(llm) = window_llm
         && let Some(end) = compaction::change_model(&mut conversation, llm, &env.limits)
     {
         refuse(&mut domain.facts, opener, end, out);
         return;
+    }
+    if ordinal != 0 {
+        conversation.affinity.thread = ordinal;
     }
     conversation.cursor.sequence = sequence;
     conversation.cursor.told = told;
@@ -508,7 +584,11 @@ fn open_admitted(
         Some(News::Opened { kit }) => {
             session.conversation.kit = kit;
             out.push(Request::Opened { opener, session: id.token() });
-            session.state = ask(&mut session.conversation, id, 0, env, out);
+            session.state = if session.conversation.cursor.pending.is_some() {
+                resume_tools(&mut session.conversation, id, &mut domain.calls, env, out)
+            } else {
+                ask(&mut session.conversation, id, 0, env, out)
+            };
         }
         // Refused at the tools' entrance: the session never opened.
         Some(News::Refused { refusal }) => {
@@ -1675,6 +1755,36 @@ fn use_tools(
     advance(conversation, id, calls, tools, env, out)
 }
 
+/// A cut answer is already in history; drive its calls without charging a completion.
+fn resume_tools(
+    conversation: &mut Conversation,
+    id: Id<Session>,
+    calls: &mut ToolCalls,
+    env: &Env<Limits>,
+    out: &mut Queue<Request>,
+) -> State {
+    tell::answer(conversation, out);
+    let count = tally(&conversation.transcript.last().expect("cut answer").content).0;
+    if count == 0 {
+        let text = text_of(&conversation.transcript.last().expect("cut answer").content);
+        if let Some(end) = tell_turn(conversation, out) {
+            return finish(end);
+        }
+        out.push(Request::Yielded { opener: conversation.opener, stop: Yield::Done, text });
+        return State::Yielded { tools: None };
+    }
+    let mut tools = Tools {
+        after: After::Complete,
+        slots: List::with_capacity(count),
+        running: 0,
+        next: 0,
+        failed: None,
+        reached: 0,
+    };
+    builtin::prepare(conversation, id, calls, &mut tools, &env.limits);
+    advance(conversation, id, calls, tools, env, out)
+}
+
 /// With no run in flight, goes on through the tool calls of the last message:
 /// answers each invalid one with its problem, and starts the next batch, the
 /// adjacent calls that read, up to `Limits::parallel_tools`, or one that
@@ -1707,6 +1817,13 @@ fn advance(
     let mut next = end;
     for index in tools.next..end {
         let block = current_block(conversation, index);
+        if let Some(result) = restore::result(conversation, block) {
+            batching::answered_next(&mut tools, block, &result);
+            let result = Block::ToolResult { id: call_id(conversation, index), result };
+            tell::result(conversation, &result, out);
+            batching::put_next(&mut tools, Slot::Done { result });
+            continue;
+        }
         if batching::answer_skipped(conversation, block, index, &mut tools) {
             tell::slot(conversation, &tools, tools.reached.saturating_sub(1), out);
             continue;
@@ -1853,7 +1970,7 @@ fn finish_tools(
         None
     };
     conversation.builtin.moved(conversation.transcript.len());
-    let mut results = List::with_capacity(tools.slots.len());
+    let mut results = List::with_capacity(tools.slots.len().saturating_add(1));
     for slot in tools.slots.into_boxed() {
         match slot {
             Slot::Done { result } => results.push(result).expect("a result for every slot"),
@@ -1862,6 +1979,10 @@ fn finish_tools(
             }
         }
     }
+    if let Some(text) = conversation.waking.take() {
+        results.push(Block::Text { text, replay: None }).expect("waking slot reserved");
+    }
+    conversation.resumed_results = Box::default();
     let results = Message { role: Role::User, content: results.into_boxed() };
     conversation.transcript.push(results).expect("room was checked when the message was recorded");
     if let Some(text) = final_text {
@@ -2205,6 +2326,8 @@ fn admit(
     transcript.push(Message { role: Role::User, content }).ok()?;
     let conversation = Conversation {
         tell_parts: spec.tell_parts,
+        resumed_results: Box::default(),
+        waking: None,
         cut: false,
         answer_told: 0,
         backend: spec.backend,

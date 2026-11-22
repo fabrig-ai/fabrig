@@ -1568,6 +1568,7 @@ impl World {
                 budget: 1,
                 transcript: None,
                 answered: Box::default(),
+                cut: None,
                 withheld: Some(b"wait".as_slice().into()),
             }),
         });

@@ -326,12 +326,15 @@ pub struct World<B: Backend = Typed> {
     answer_detail: Box<[u8]>,
     answered: Option<Time>,
     checked: Vec<bool>,
+    check_marker: Option<Vec<u8>>,
+    check_results: Vec<(Box<[u8]>, bool)>,
     check_notices: Vec<(Time, bool)>,
     long_notices: Vec<(Time, Option<smith_domain::Operation>, Option<Time>)>,
     check_terminals: Vec<Time>,
     pushes: Vec<run::Delivery>,
     delivery_names: Vec<(run::CallName, Time)>,
     host_history: crate::host_referee::History,
+    resumed_host: Option<Box<[u8]>>,
     host_pending: BTreeMap<(u64, u32), Option<Key>>,
     host_decision: Option<run::HostAnswer>,
     host_decisions: u32,
@@ -549,12 +552,15 @@ impl<B: Backend> World<B> {
             answer_detail: Box::new([]),
             answered: None,
             checked: Vec::new(),
+            check_marker: None,
+            check_results: Vec::new(),
             check_notices: Vec::new(),
             long_notices: Vec::new(),
             check_terminals: Vec::new(),
             pushes: Vec::new(),
             delivery_names: Vec::new(),
             host_history: crate::host_referee::History::with_reply_cap(settings.limits.run.host_reply_bytes),
+            resumed_host: None,
             host_pending: BTreeMap::new(),
             host_decision: None,
             host_decisions: 0,
@@ -716,6 +722,66 @@ impl<B: Backend> World<B> {
     pub fn tell_parts(&mut self) {
         let Event::Start(mut start) = self.stage.next_event().expect("pending start") else { panic!("start pending") };
         start.tell_parts = true;
+        self.stage.push(Event::Start(start));
+    }
+
+    /// Resume the cut turn from the host's durable parts.
+    pub fn resume_parts(&mut self, parts: Box<[agent::session::record::Resumed]>, activation: u64) {
+        let Event::Start(mut start) = self.stage.next_event().expect("pending start") else { panic!("start pending") };
+        start.parts = parts;
+        start.activation = activation;
+        start.tell_parts = true;
+        self.stage.push(Event::Start(start));
+    }
+
+    /// Return the settled fake checkout for a later activation.
+    pub fn take_checkout(&mut self) -> Checkout {
+        assert!(self.answer.is_some(), "only a settled activation releases its tree");
+        std::mem::take(&mut self.disk)
+    }
+
+    /// A scripted check writes a persistent marker under `SMITH_CHECK_RESULTS`.
+    pub fn check_marker(&mut self, name: &[u8]) {
+        self.check_marker = Some(name.into());
+    }
+
+    /// Results directory and whether the check found the previous marker.
+    pub fn check_results(&self) -> &[(Box<[u8]>, bool)] {
+        &self.check_results
+    }
+
+    /// Set the host's answered calls on the pending activation.
+    pub fn resume_answers(&mut self, answered: Box<[agent::AnsweredCall]>) {
+        let Event::Start(mut start) = self.stage.next_event().expect("pending start") else { panic!("start pending") };
+        start.answered = answered;
+        self.stage.push(Event::Start(start));
+    }
+
+    /// Grant the saved-turn fixture its unchecked-save tool.
+    pub fn grant_save(&mut self) {
+        let Event::Start(mut start) = self.stage.next_event().expect("pending start") else { panic!("start pending") };
+        start.charter.grants.save = true;
+        self.stage.push(Event::Start(start));
+    }
+
+    /// Messages carried by a resumed start, before any scheduling.
+    pub fn waking_messages(&mut self, messages: Box<[run::Message]>) {
+        let Event::Start(mut start) = self.stage.next_event().expect("pending start") else { panic!("start pending") };
+        start.messages = messages;
+        self.stage.push(Event::Start(start));
+    }
+
+    /// Supply the prefix the host kept before the cut answer.
+    pub fn resume_history(&mut self, transcript: agent::Transcript) {
+        let Event::Start(mut start) = self.stage.next_event().expect("pending start") else { panic!("start pending") };
+        start.transcript = Some(transcript);
+        self.stage.push(Event::Start(start));
+    }
+
+    /// Set one directory's persistent check-results path.
+    pub fn results_directory(&mut self, path: &[u8]) {
+        let Event::Start(mut start) = self.stage.next_event().expect("pending start") else { panic!("start pending") };
+        start.workspace.as_mut().expect("mounted workspace").directories[0].results = Some(path.into());
         self.stage.push(Event::Start(start));
     }
 
@@ -1083,6 +1149,22 @@ impl<B: Backend> World<B> {
                     self.check_notices.push((self.now, false));
                 }
             }
+            Request::Lower(smith_domain::Lower::Classify { owner, content, tools, served, asker, .. }) => {
+                let completion = crate::translate::classify(content, tools, &served, asker);
+                if let Some(completion) = &completion {
+                    for block in &completion.content {
+                        if let llm::Said::ToolCall { id, call: llm::Decoded::Served { ask }, .. } = block {
+                            match ask {
+                                run::Ask::Host { .. } => self.resumed_host = Some(id.clone()),
+                                run::Ask::Deliver { .. } => self.delivery_call = DeliveryCall::MidRun,
+                                run::Ask::Finish { .. } => self.delivery_call = DeliveryCall::Finish,
+                                run::Ask::Save | run::Ask::Wait | run::Ask::SubAgent { .. } => {}
+                            }
+                        }
+                    }
+                }
+                self.stage.push(Event::Below(agent::Below::Classified { owner, completion }));
+            }
             request @ Request::Lower(smith_domain::Lower::Complete { .. }) => {
                 let Request::Lower(smith_domain::Lower::Complete { owner, ref prompt, grant, .. }) = request else {
                     unreachable!("completion")
@@ -1092,6 +1174,27 @@ impl<B: Backend> World<B> {
                     && self.writing_opened.insert(prompt.affinity.thread)
                 {
                     self.observe(Seen::WritingChild);
+                }
+                if let Some(saved_id) = self.resumed_host.take()
+                    && !self.host_history.submissions().is_empty()
+                {
+                    for (message, value) in prompt.messages.iter().enumerate() {
+                        for (position, block) in value.content.iter().enumerate() {
+                            if let llm::Block::ToolCall { id, name, input, .. } = block
+                                && *id == saved_id
+                            {
+                                self.host_history
+                                    .called(
+                                        u32::try_from(message).expect("bounded"),
+                                        u32::try_from(position).expect("bounded"),
+                                        id.clone(),
+                                        name.clone(),
+                                        input.clone(),
+                                    )
+                                    .expect("resumed host call");
+                            }
+                        }
+                    }
                 }
                 self.host_history.prompt(prompt).expect("exact feedback for observed provider host call");
                 self.observe(Seen::Completing { owner });
@@ -1240,7 +1343,18 @@ impl<B: Backend> World<B> {
                     Flight { key: Some(key), cancelled: false, completion_message: None, completion_index: None },
                 );
             }
-            Request::Lower(smith_domain::Lower::Check { owner, program, results: _, bound, cap, tail }) => {
+            Request::Lower(smith_domain::Lower::Check { owner, program, results, bound, cap, tail }) => {
+                if let Some(marker) = &self.check_marker {
+                    let results = results.expect("scripted check requires its results directory");
+                    let path = results.strip_prefix(b"/").unwrap_or(&results);
+                    let root = self.disk.root(path);
+                    let present = self.disk.load(root, marker, 4096).is_ok();
+                    let mut file = path.to_vec();
+                    file.push(b'/');
+                    file.extend_from_slice(marker);
+                    self.disk.write(&file, b"passed earlier check step");
+                    self.check_results.push((results, present));
+                }
                 let deadline = self.now.saturating_add(bound).min(cap);
                 self.boundaries.push((self.now, Boundary::Check { program: program.clone() }));
                 self.observe(Seen::Checking { owner, tree: self.code() });
@@ -1261,7 +1375,19 @@ impl<B: Backend> World<B> {
             Request::Lower(smith_domain::Lower::Abort { owner }) => {
                 self.cancel(Family::Check, owner, Event::Below(smith_domain::Below::Aborted { owner }));
             }
-            Request::Save { .. } => panic!("this scripted charter does not offer saving"),
+            Request::Save { host_run, owner, name, deadline } => {
+                assert_eq!(host_run, self.host_run);
+                assert!(self.now < deadline);
+                self.delivery_names.push((name, self.now));
+                let tree = self.code();
+                self.observe(Seen::Pushing { owner, name, tree: tree.clone(), finishing: false, checked: false });
+                self.snapshots.insert(owner, tree);
+                self.flights.open(
+                    (Family::Delivery, owner),
+                    Flight { key: None, cancelled: false, completion_message: None, completion_index: None },
+                );
+                self.send(Family::Delivery, owner, Event::Delivered { owner, delivery: self.settings.push.terminal() });
+            }
             Request::Deliver { host_run, owner, change, name, deadline } => {
                 // The fixture host takes title/body for change deliveries and
                 // an opaque ticket for its report-only delivery policy.
@@ -1282,7 +1408,7 @@ impl<B: Backend> World<B> {
                 self.delivery_names.push((name, self.now));
                 let tree = self.code();
                 let finishing = self.delivery_call == DeliveryCall::Finish;
-                self.observe(Seen::Pushing { owner, name, tree: tree.clone(), finishing });
+                self.observe(Seen::Pushing { owner, name, tree: tree.clone(), finishing, checked: true });
                 self.snapshots.insert(owner, tree);
                 self.flights.open(
                     (Family::Delivery, owner),
@@ -1599,6 +1725,7 @@ impl<B: Backend> World<B> {
             | Event::Below(
                 smith_domain::Below::Usage { .. }
                 | smith_domain::Below::BuiltinResult { .. }
+                | smith_domain::Below::Classified { .. }
                 | smith_domain::Below::ReadVersion { .. }
                 | smith_domain::Below::Done { .. }
                 | smith_domain::Below::Read { .. }
@@ -1671,6 +1798,7 @@ impl<B: Backend> World<B> {
             | Event::Below(
                 smith_domain::Below::Usage { .. }
                 | smith_domain::Below::BuiltinResult { .. }
+                | smith_domain::Below::Classified { .. }
                 | smith_domain::Below::ReadVersion { .. }
                 | smith_domain::Below::Done { .. }
                 | smith_domain::Below::Read { .. }
@@ -1700,6 +1828,7 @@ impl<B: Backend> World<B> {
             | Event::Below(
                 smith_domain::Below::Usage { .. }
                 | smith_domain::Below::BuiltinResult { .. }
+                | smith_domain::Below::Classified { .. }
                 | smith_domain::Below::ReadVersion { .. }
                 | smith_domain::Below::Read { .. }
                 | smith_domain::Below::Probed { .. }

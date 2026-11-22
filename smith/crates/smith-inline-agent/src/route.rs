@@ -60,6 +60,9 @@ pub(crate) fn route(agent: &mut Domain, env: &Env<Limits>, id: Id<Slot>, out: &m
                 }
                 stop::finish(agent, env.now, id, out);
             }
+            smith::Request::Lower(request @ Lower::Classify { .. }) => {
+                out.push(Output::Lower { agent: id.token(), request });
+            }
             smith::Request::Lower(request @ Lower::Complete { owner, .. }) => {
                 assert!(
                     slot.completions.insert(owner, false).expect("root bounds live completions").is_none(),

@@ -44,6 +44,7 @@ mod limits;
 pub mod llm;
 mod operation;
 mod peer;
+mod resuming;
 mod route;
 #[cfg(test)]
 mod tests;

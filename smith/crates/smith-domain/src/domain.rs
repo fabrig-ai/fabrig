@@ -97,6 +97,7 @@ pub(crate) struct StartContext {
     pub(crate) reply_to: Option<ReplyTo>,
     pub(crate) transcript: Option<session::record::Transcript>,
     pub(crate) answered: Box<[u8]>,
+    pub(crate) parts: Option<crate::resuming::Parts>,
     pub(crate) refused: Option<run::TranscriptRefusal>,
 }
 
