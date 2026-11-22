@@ -23,7 +23,7 @@ use temper_forge_setup_shell::process as locks;
 
 use temper_config_shell::{FILE, Shape};
 
-const ADAPTER: &str = "fake-claude.path";
+pub const ADAPTER: &str = "fake-claude.path";
 const REQUIRED: &[&str] = &[FILE, "github.json", "oauth.json", "llm.json", "forgejo.json", ADAPTER];
 
 /// A new sandbox's nine ports, the process tier's (temper/docs/design/protocol/setup/box.md, 5).
@@ -36,15 +36,15 @@ pub(crate) const FAKE_BOX_PORTS: skein_shell::Variable = skein_shell::Variable {
     notes: "Nine comma-separated nonzero ports; used only for a new sandbox.",
     way: skein_shell::Way::Reads,
 };
-const CHOSEN_PORTS: &str = FAKE_BOX_PORTS.name;
+pub const CHOSEN_PORTS: &str = FAKE_BOX_PORTS.name;
 fn ports_from(environment: &[crate::EnvironmentEntry]) -> Result<Option<Chosen>, String> {
     FAKE_BOX_PORTS.value(environment).map(OsStr::from_bytes).map(chosen_ports).transpose()
 }
-struct Chosen {
+pub struct Chosen {
     listeners: [u16; 5],
     peers: [u16; 4],
 }
-fn chosen_ports(value: &OsStr) -> Result<Chosen, String> {
+pub fn chosen_ports(value: &OsStr) -> Result<Chosen, String> {
     let refuse = || format!("{CHOSEN_PORTS}: expected nine comma-separated nonzero ports");
     let text = value.to_str().ok_or_else(refuse)?;
     let ports = text
@@ -56,23 +56,23 @@ fn chosen_ports(value: &OsStr) -> Result<Chosen, String> {
     Ok(Chosen { listeners: [clients, owned, forge, llm, webhooks], peers: [github, oauth, model, forgejo] })
 }
 
-struct Listeners(Vec<(Fd, NonZeroU16)>);
+pub struct Listeners(pub Vec<(Fd, NonZeroU16)>);
 impl Drop for Listeners {
     fn drop(&mut self) {
         crate::close(std::mem::take(&mut self.0).into_iter().map(|(fd, _)| fd).collect());
     }
 }
-struct Prepared {
-    directories: Directories,
-    bytes: Box<[u8]>,
-    listeners: Listeners,
-    peers: Peers,
-    steps: Box<[temper_forge_setup::Step]>,
+pub struct Prepared {
+    pub directories: Directories,
+    pub bytes: Box<[u8]>,
+    pub listeners: Listeners,
+    pub peers: Peers,
+    pub steps: Box<[temper_forge_setup::Step]>,
     // Held through drive; closing the descriptor releases the OS lock even after a crash.
     _lock: locks::Lock,
 }
 #[derive(Default)]
-pub(crate) struct Options {
+pub struct Options {
     pub bundle: Option<PathBuf>,
     pub scripts: Vec<PathBuf>,
     pub strict: bool,
@@ -183,7 +183,8 @@ fn join_scripts(files: &[PathBuf], document: &[u8]) -> Result<Box<[u8]>, String>
     Ok(joined.into_bytes())
 }
 
-fn bytes(path: &Path) -> Box<[u8]> {
+#[must_use]
+pub fn bytes(path: &Path) -> Box<[u8]> {
     path.as_os_str().as_bytes().into()
 }
 fn public_path(path: &Path) -> Result<(), String> {
@@ -204,7 +205,7 @@ fn public_path(path: &Path) -> Result<(), String> {
     Ok(())
 }
 /// Check an in-memory candidate before it replaces the retained file.
-fn configuration(dirs: &Directories, text: &[u8]) -> Result<temper_config_shell::Read, String> {
+pub(super) fn configuration(dirs: &Directories, text: &[u8]) -> Result<temper_config_shell::Read, String> {
     let facts = temper_config_shell::facts(dirs).map_err(|why| String::from_utf8_lossy(&why.lines()).into_owned())?;
     temper_config_shell::parse(text, Shape::Standalone, &facts)
         .map_err(|why| String::from_utf8_lossy(&why.lines()).into_owned())
@@ -240,7 +241,7 @@ fn resolved(root: &Path, name: &[u8]) -> Result<PathBuf, String> {
     }
     Ok(clean)
 }
-fn write(path: &Path, content: &[u8], replace: bool) -> Result<(), String> {
+pub fn write(path: &Path, content: &[u8], replace: bool) -> Result<(), String> {
     if replace {
         let metadata = fs::symlink_metadata(path).map_err(|why| format!("{}: {why}", path.display()))?;
         if !metadata.is_file()
@@ -355,7 +356,7 @@ pub(super) const PORT_ATTEMPTS: usize = 32;
 fn reserve(excluded: &[u16]) -> Result<TcpListener, String> {
     reserve_from(excluded, || TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)))
 }
-fn reserve_from(
+pub fn reserve_from(
     excluded: &[u16],
     mut bind: impl FnMut() -> std::io::Result<TcpListener>,
 ) -> Result<TcpListener, String> {
@@ -471,7 +472,7 @@ fn source_forgejo(bytes: &[u8]) -> Result<temper_fake::forge::Document, temper_f
     }
     Ok(document)
 }
-fn validate(dirs: &Directories, bytes: &[u8], expected: &Path) -> Result<crate::setup::Deployment, String> {
+pub fn validate(dirs: &Directories, bytes: &[u8], expected: &Path) -> Result<crate::setup::Deployment, String> {
     let document = configuration(dirs, bytes)?.document;
     let deployment = crate::setup::check(&document, &jig_directories(dirs))?;
     validate_checked(dirs, &deployment, expected)?;
@@ -583,7 +584,7 @@ fn adapter_identity(given: &[u8], expected: &Path) -> Result<(), String> {
     Ok(())
 }
 /// The sandbox pins its fake adapter outside the deployment's fixed worker members.
-pub(crate) fn configured_claude(dirs: &Directories) -> Result<Option<PathBuf>, String> {
+pub fn configured_claude(dirs: &Directories) -> Result<Option<PathBuf>, String> {
     let record = crate::path(&dirs.config).join(ADAPTER);
     match fs::symlink_metadata(&record) {
         Err(why) if why.kind() == std::io::ErrorKind::NotFound => {
@@ -619,7 +620,7 @@ fn provisioned_program(path: &Path) -> Result<(), String> {
     clippy::too_many_lines,
     reason = "startup owns its lock and listeners through validation and publishes the prepared marker last"
 )]
-fn prepare(
+pub(super) fn prepare(
     source_dirs: &Directories,
     options: &Options,
     adapter: &Path,

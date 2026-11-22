@@ -16,6 +16,9 @@ pub mod probe;
 pub mod program_world;
 pub mod wire;
 
+#[doc(hidden)]
+pub mod testing;
+
 pub mod events;
 mod tracing;
 

@@ -5,6 +5,22 @@ use crate::{command::Command, settings};
 use skein_shell::Clock;
 
 mod key;
+
+pub(crate) mod testing {
+    use std::{io::Read, path::Path};
+
+    pub fn keep_key(file: &Path, input: &mut dyn Read, terminal: bool) -> Result<(), String> {
+        super::key::keep(file, input, terminal)
+    }
+
+    pub mod logout {
+        use std::path::Path;
+
+        pub fn remove_key(file: &Path) -> Result<(), String> {
+            super::super::super::logout::remove_key(file)
+        }
+    }
+}
 pub(super) mod program;
 pub(super) mod provider;
 

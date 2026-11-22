@@ -30,12 +30,15 @@ pub(crate) fn read(file: &Path) -> Result<Box<[u8]>, Credential> {
         return Err(Credential::NotSignedIn);
     }
     let bound = crate::credentials::token_limits().token_bytes;
-    let bytes = skein_shell::read_private_file(
+    read_value(skein_shell::read_private_file(
         file,
         bound.checked_add(1).expect("key newline bound"),
         skein_shell::effective_user(),
-    )
-    .map_err(|why| match why {
+    ))
+}
+
+fn read_value(bytes: Result<skein_lib::Secret, skein_shell::Unread>) -> Result<Box<[u8]>, Credential> {
+    let bytes = bytes.map_err(|why| match why {
         skein_shell::Unread::Absent => Credential::NotSignedIn,
         skein_shell::Unread::TooLarge { .. } => Credential::KeyUnreadable { problem: KeyProblem::Size },
         skein_shell::Unread::Unsafe(skein_io::file::Unsafe::Mode(_)) => {
@@ -61,7 +64,11 @@ pub(super) fn value(bytes: &[u8]) -> Result<Box<[u8]>, Credential> {
 }
 
 pub(super) fn inspect(file: &Path) -> Credential {
-    match read(file) {
+    finding(read(file))
+}
+
+fn finding(key: Result<Box<[u8]>, Credential>) -> Credential {
+    match key {
         Ok(_) => Credential::Usable { until: None },
         Err(credential) => credential,
     }

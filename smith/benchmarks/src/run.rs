@@ -852,22 +852,7 @@ pub fn attempt(guard: &Guard, machine: &Machine, state: &Path, prepared: &Reques
             &mut neutral,
         )
     };
-    let incomplete = match work {
-        Ok(()) => Incomplete::No,
-        Err(error) => {
-            let incomplete = if inference {
-                Incomplete::No
-            } else {
-                match error.kind {
-                    FaultKind::Setup(step) => Incomplete::Setup(step),
-                    _ => unreachable!("preparation calls label their faults"),
-                }
-            };
-            result.outcome.end =
-                if inference { End::HarnessError { what: error.detail } } else { End::Refused { setup: error.detail } };
-            incomplete
-        }
-    };
+    let incomplete = record_work(&mut result, work, inference);
     if !existed && root.exists() {
         let deletion = crate::isolate::remove_owned_tree(guard, &root);
         if let Err(error) = deletion {
@@ -883,6 +868,36 @@ pub fn attempt(guard: &Guard, machine: &Machine, state: &Path, prepared: &Reques
     let bytes = crate::render_result(&result)?;
     let _: Artifact = crate::grade::archive(guard, &directory, "result.json", bytes.as_bytes())?;
     Ok(Recorded { result, directory, incomplete })
+}
+
+fn record_work(result: &mut AttemptResult, work: Result<(), Fault>, inference: bool) -> Incomplete {
+    match work {
+        Ok(()) => Incomplete::No,
+        Err(error) => {
+            let incomplete = if inference {
+                Incomplete::No
+            } else {
+                match error.kind {
+                    FaultKind::Setup(step) => Incomplete::Setup(step),
+                    _ => unreachable!("preparation calls label their faults"),
+                }
+            };
+            result.outcome.end =
+                if inference { End::HarnessError { what: error.detail } } else { End::Refused { setup: error.detail } };
+            incomplete
+        }
+    }
+}
+
+pub(crate) mod testing {
+    use super::{End, Fault, Incomplete, Request, blank, record_work};
+
+    #[must_use]
+    pub fn record_preparation_refusal(prepared: &Request, fault: Fault) -> (Incomplete, End) {
+        let mut result = blank(prepared.identity.clone());
+        let incomplete = record_work(&mut result, Err(fault), false);
+        (incomplete, result.outcome.end)
+    }
 }
 
 fn archive_task(

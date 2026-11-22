@@ -2,9 +2,9 @@ use crate::Mirror;
 use std::{
     fs::File,
     io::{self, Read, Write},
-    net::{TcpListener, TcpStream},
-    path::PathBuf,
-    sync::mpsc::{self, Receiver, Sender},
+    net::TcpListener,
+    path::{Path, PathBuf},
+    sync::mpsc::{self, Receiver},
     thread,
     time::Duration,
 };
@@ -34,9 +34,6 @@ pub const HEAD: usize = 8_192;
 pub const ORIGIN: &[u8] = b"http://snapshot.debian.org/";
 impl Proxy {
     pub fn serve(mirror: &Mirror) -> io::Result<Self> {
-        Self::with_timeout(mirror, Duration::from_secs(10))
-    }
-    pub(crate) fn with_timeout(mirror: &Mirror, timeout: Duration) -> io::Result<Self> {
         let listener = TcpListener::bind(("127.0.0.1", 0))?;
         let port = listener.local_addr()?.port();
         let mirror = mirror.clone();
@@ -47,8 +44,20 @@ impl Proxy {
         )]
         thread::spawn(move || {
             for connection in listener.incoming() {
-                let Ok(mut stream) = connection else { break };
-                answer(&mut stream, &mirror, &send, timeout);
+                let Ok(stream) = connection else { break };
+                let ready = stream.set_read_timeout(Some(Duration::from_secs(10)));
+                answer(
+                    stream,
+                    ready,
+                    |path| {
+                        let file = File::open(mirror.file(path)?).ok()?;
+                        let length = file.metadata().ok()?.len();
+                        Some((file, length))
+                    },
+                    |served| {
+                        let _result = send.send(served);
+                    },
+                );
             }
         });
         Ok(Self { port, log })
@@ -88,8 +97,7 @@ pub fn target(head: &[u8]) -> Option<(Method, PathBuf)> {
     }
     Some((method, PathBuf::from(std::str::from_utf8(path).ok()?)))
 }
-fn read_head(stream: &mut TcpStream, head: &mut Vec<u8>, timeout: Duration) -> io::Result<bool> {
-    stream.set_read_timeout(Some(timeout))?;
+fn read_head(stream: &mut impl Read, head: &mut Vec<u8>) -> io::Result<bool> {
     let mut buffer = [0; HEAD];
     while head.len() < HEAD {
         let read = stream.read(&mut buffer[..HEAD - head.len()])?;
@@ -104,24 +112,28 @@ fn read_head(stream: &mut TcpStream, head: &mut Vec<u8>, timeout: Duration) -> i
     }
     Ok(false)
 }
-fn answer(stream: &mut TcpStream, mirror: &Mirror, log: &Sender<Served>, timeout: Duration) {
+pub(crate) fn answer<R: Read>(
+    mut stream: impl Read + Write,
+    ready: io::Result<()>,
+    open: impl FnOnce(&Path) -> Option<(R, u64)>,
+    log: impl FnOnce(Served),
+) {
     let mut head = Vec::new();
-    let complete = read_head(stream, &mut head, timeout).unwrap_or(false);
+    let complete = ready.and_then(|()| read_head(&mut stream, &mut head)).unwrap_or(false);
     let requested = head.split(|byte| *byte == b' ').nth(1).unwrap_or(b"").into();
     let found = complete.then(|| target(&head)).flatten().and_then(|(method, path)| {
-        let file = File::open(mirror.file(&path)?).ok()?;
-        let length = file.metadata().ok()?.len();
+        let (file, length) = open(&path)?;
         Some((method, file, length))
     });
     let (status, length) = if let Some((method, mut file, length)) = found {
         let sent = format!("HTTP/1.1 200 OK\r\nContent-Length: {length}\r\nConnection: close\r\n\r\n");
         if stream.write_all(sent.as_bytes()).is_ok() && method == Method::Get {
-            let _result = io::copy(&mut file, stream);
+            let _result = io::copy(&mut file, &mut stream);
         }
         (200, length)
     } else {
         let _result = stream.write_all(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
         (404, 0)
     };
-    let _result = log.send(Served { target: requested, status, length });
+    log(Served { target: requested, status, length });
 }

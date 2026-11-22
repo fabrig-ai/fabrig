@@ -12,6 +12,7 @@ mod io;
 mod options;
 mod place;
 mod requests;
+pub(crate) mod testing;
 use place::{Place, Progress};
 mod tui;
 mod values;

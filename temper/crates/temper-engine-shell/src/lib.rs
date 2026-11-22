@@ -23,6 +23,8 @@ pub mod restore;
 pub mod serve;
 pub mod setup;
 pub mod stopped;
+#[doc(hidden)]
+pub mod testing;
 pub mod upgrade;
 const CONFIG_BYTES: u32 = 1 << 20;
 

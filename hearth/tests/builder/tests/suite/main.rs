@@ -5,3 +5,6 @@ mod goldens;
 mod properties;
 mod resolution;
 mod store;
+mod tests {
+    mod proxy;
+}

@@ -1,11 +1,8 @@
-use super::{CONFIG_BYTES, configure, prepare, read_configuration};
-use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf};
-
-fn scratch(case: &str) -> PathBuf {
-    let path = std::env::temp_dir().join(format!("jig-test-{}-{case}", std::process::id()));
-    fs::create_dir(&path).expect("scratch directory");
-    path
-}
+use super::{
+    CONFIG_BYTES, configure, read_configuration,
+    testing::{agent_document, agent_endpoint_document, scratch},
+};
+use std::fs;
 
 #[test]
 fn serve_without_a_configuration_path_is_a_usage_error() {
@@ -19,32 +16,6 @@ fn a_configuration_file_past_its_bound_is_refused() {
     let file = fs::File::create(&path).expect("configuration file");
     file.set_len(u64::from(CONFIG_BYTES) + 1).expect("one byte past bound");
     assert!(read_configuration(&path).expect_err("oversized configuration").contains("TooLarge"));
-    fs::remove_dir_all(directory).expect("scratch cleanup");
-}
-
-#[test]
-fn a_secret_file_readable_by_others_refuses_the_start() {
-    let directory = scratch("private-secret");
-    let secret = directory.join("worker.secret");
-    fs::write(&secret, b"private-worker-value").expect("secret file");
-    fs::set_permissions(&secret, fs::Permissions::from_mode(0o644)).expect("public permissions");
-    let agent = agent_document(&directory, false);
-    let bytes = format!(
-        r#"{{"workers":[{{
-        "engine":{{"socket":"127.0.0.1:7200"}},"name":"worker-a","secret":"{}","slots":1,
-        "programs":{{"check_interval_ms":60000}},
-        "graces":{{"grace_ms":10000,"agent_stop_ms":5000,"delivery_ms":1000,"save_ms":1000}},
-        "agent":{{"program":"jig-test","configuration":"{}","arguments":["agent"]}},
-        "limits":{{"profile":"standard"}},"memory_bytes":1152921504606846976
-    }}],"application":{{"workers":[{{"root":"agent-root"}}]}}}}"#,
-        secret.display(),
-        agent.display()
-    );
-    let mut owned = Vec::new();
-    let error = prepare(bytes.as_bytes(), &mut owned).err().expect("start refused");
-    assert!(error.contains("Unsafe"), "private read refusal: {error}");
-    assert!(!error.contains("private-worker-value"), "diagnostic contains no secret");
-    assert!(owned.is_empty(), "refusal happens before opening runtime descriptors");
     fs::remove_dir_all(directory).expect("scratch cleanup");
 }
 
@@ -131,31 +102,6 @@ fn a_bundle_above_thirty_two_mebibytes_is_refused() {
     assert!(error.contains("bundle exceeds its limits"), "{error}");
 }
 
-fn agent_document(directory: &std::path::Path, program: bool) -> PathBuf {
-    agent_endpoint_document(directory, program, false)
-}
-fn agent_endpoint_document(directory: &std::path::Path, program: bool, program_endpoint: bool) -> PathBuf {
-    fs::write(directory.join("root.der"), skein_tls_kit::pki::ROOT).expect("public test root");
-    let mut value = serde_json::json!({
-        "profile":{"name":"standard","declared":{"tool_payload":512,"read_window":256},
-            "policy":{"max_turns":5,"group_stop":10}},
-        "endpoints":[{"name":"fake","number":0,"dialect":3,"provider":"openai",
-            "address":"127.0.0.1:34443","transport":"tls","server_name":"skein.test","trust_der":directory.join("root.der"),"connect":1000,"handshake":1000,
-            "limits": {"window":1_048_576,"output":1024,"reasoning_item":64,"head":60000,"idle":30000}}],
-        "environment":[{"name":"JIG_SOURCE_CHECK","value":"configured"}]
-    });
-    if program {
-        value["programs"] = serde_json::json!({"claude_code":{
-            "path":directory.join("private-claude"),"directory":directory.join("private-programs")
-        }});
-    }
-    if program_endpoint {
-        value["endpoints"][0]["program"] = serde_json::json!("claude_code");
-    }
-    let path = directory.join("agent.json");
-    fs::write(&path, serde_json::to_vec(&value).expect("agent fixture JSON")).expect("agent configuration");
-    path
-}
 #[test]
 fn a_worker_reads_program_resources_from_the_agent_configuration() {
     use std::os::unix::ffi::OsStrExt;
@@ -194,38 +140,6 @@ fn advertised_program_endpoints_follow_actual_endpoint_selections() {
         assert_eq!(parsed.agent.bounds.program_endpoints.as_ref(), expected);
         fs::remove_dir_all(directory).expect("scratch cleanup");
     }
-}
-
-#[test]
-fn provider_key_files_refuse_group_permissions_and_symbolic_links() {
-    use std::os::unix::{ffi::OsStrExt, fs::symlink};
-    let directory = tempfile::tempdir().expect("private key scratch");
-    let canonical = fs::canonicalize(directory.path()).expect("canonical private key scratch");
-    let key = canonical.join("provider.pem");
-    fs::write(&key, b"key contents are never included in a diagnostic").expect("key file");
-    let user = skein_shell::effective_user();
-    fs::set_permissions(&key, fs::Permissions::from_mode(0o640)).expect("group bits");
-    let error = super::read_startup_file(key.as_os_str().as_bytes(), 8192, user).expect_err("group bits refused");
-    assert!(error.contains("Unsafe(Mode("), "{error}");
-    assert!(!error.contains("key contents"), "{error}");
-    fs::set_permissions(&key, fs::Permissions::from_mode(0o600)).expect("private key");
-    let link = canonical.join("linked.pem");
-    symlink(&key, &link).expect("key link");
-    let error = super::read_startup_file(link.as_os_str().as_bytes(), 8192, user).expect_err("link refused");
-    assert!(error.contains("Unsafe(Link)"), "{error}");
-    assert!(!error.contains("key contents"), "{error}");
-
-    let real = canonical.join("real");
-    fs::create_dir(&real).expect("key directory");
-    let key = real.join("provider.pem");
-    fs::write(&key, b"key contents are never included in a diagnostic").expect("key in directory");
-    fs::set_permissions(&key, fs::Permissions::from_mode(0o600)).expect("private key in directory");
-    let linked = canonical.join("linked");
-    symlink(&real, &linked).expect("directory link");
-    let key = linked.join("provider.pem");
-    let error = super::read_startup_file(key.as_os_str().as_bytes(), 8192, user).expect_err("directory link refused");
-    assert!(error.contains("Unsafe(Link)"), "{error}");
-    assert!(!error.contains("key contents"), "{error}");
 }
 
 #[test]
