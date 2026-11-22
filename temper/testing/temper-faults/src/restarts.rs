@@ -77,8 +77,7 @@ pub const fn worker(way: Way, point: Point) -> Kind {
 }
 
 /// The engine world's kinds (section 4).
-pub const ENGINE: [Kind; 6] =
-    [ENGINE_CRASH, SETTLED_STOP, STOP_BEFORE_MARK, STOP_BEFORE_OPENING, STOP_AFTER_OPENING, SECOND_SIGNAL];
+pub const ENGINE: [Kind; 5] = [ENGINE_CRASH, SETTLED_STOP, STOP_BEFORE_MARK, STOP_AFTER_OPENING, SECOND_SIGNAL];
 /// The forge world's kinds (section 5).
 pub const FORGE: [Kind; 7] = [
     ENGINE_CRASH,

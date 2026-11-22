@@ -18,6 +18,9 @@ use temper_engine_domain_world::{store::Store, walking};
 use temper_engine_forge_world::{self as forge_world, translate};
 use temper_protocol_worker_wire::v1::Record as WorkerRecord;
 
+#[path = "restarts.rs"]
+pub mod restarts;
+
 // in the connector's fixture output cohorts.
 const FORGE_OUTPUT: u32 = 80;
 
@@ -94,6 +97,9 @@ pub struct CallError {
 
 #[expect(clippy::struct_excessive_bools, reason = "independent outside fault and observation switches remain explicit")]
 pub struct World {
+    /// Seeded engine faults; absent in all existing stories.
+    pub restarts: Option<restarts::Injector>,
+    restart_calls: Option<Vec<(fake::Event, fake::Config)>>,
     idle_revision: Option<(u64, Option<Time>)>,
     auto_prepare: bool,
     restart_config: engine::Config,
@@ -139,6 +145,8 @@ pub struct World {
     pub signed_in: Option<u64>,
     pub web_replies: Vec<people::Reply>,
     pub assigned: Vec<engine::Assignment>,
+    /// Assignments queued at the engine boundary, not yet received by a worker.
+    pub held_assignments: Option<Vec<engine::Assignment>>,
     pub jobs: Vec<host::JobAssignment>,
     pub job_workspaces: BTreeMap<u64, engine::ForgeWorkspace>,
     /// Inbox messages delivered after an assignment, as a real worker receives them.
@@ -1676,6 +1684,8 @@ impl World {
             temper_engine_domain_world::fixtures::restored_over(Store::with_limits(&store_limits), bootstrap, &limits);
         let period_budget = config.core.defaults.rules.period_spend;
         Self {
+            restarts: None,
+            restart_calls: None,
             restart_config: crate::oracle::config::copy(&config),
             idle_revision: None,
             oracle_documents: Vec::new(),
@@ -1712,6 +1722,7 @@ impl World {
             signed_in: None,
             web_replies: Vec::new(),
             assigned: Vec::new(),
+            held_assignments: None,
             jobs: Vec::new(),
             job_workspaces: BTreeMap::new(),
             auto_prepare: turn,
@@ -2799,17 +2810,17 @@ impl World {
                         limits.latency_max = delay;
                     }
                     let fake_env = self.fake_env.with(limits);
-                    fake::step(
-                        &mut self.fake,
-                        &fake_env,
-                        fake::Event::Call {
-                            reply_to: ReplyTo::new(wire),
-                            user: 1,
-                            repository: Box::from(name),
-                            op: raw,
-                        },
-                        &mut self.fake_out,
-                    );
+                    let event = fake::Event::Call {
+                        reply_to: ReplyTo::new(wire),
+                        user: 1,
+                        repository: Box::from(name),
+                        op: raw,
+                    };
+                    if let Some(calls) = &mut self.restart_calls {
+                        calls.push((event, fake_env.limits));
+                    } else {
+                        fake::step(&mut self.fake, &fake_env, event, &mut self.fake_out);
+                    }
                 }
                 engine::Request::Worker(engine::WorkerRequest::Deliver(delivery))
                 | engine::Request::Party(engine::PartyRequest::Deliver(delivery)) => match delivery {
@@ -2819,7 +2830,13 @@ impl World {
                     Delivery::WebReply { reply: people::Reply::SignedIn { sign_in, .. }, .. } => {
                         self.signed_in = Some(sign_in);
                     }
-                    Delivery::Assigned { assignment, .. } => self.assigned.push(assignment),
+                    Delivery::Assigned { assignment, .. } => {
+                        if let Some(held) = &mut self.held_assignments {
+                            held.push(assignment);
+                        } else {
+                            self.assigned.push(assignment);
+                        }
+                    }
                     Delivery::AssignedJob { job, workspace, .. } => {
                         if let Some(workspace) = workspace {
                             self.job_workspaces.insert(job.run.raw(), workspace);
@@ -3221,6 +3238,11 @@ impl World {
     }
 
     pub fn tick(&mut self) {
+        if let Some(mut injector) = self.restarts.take() {
+            injector.tick(self);
+            self.restarts = Some(injector);
+        }
+        self.dispatch_restart_calls(None);
         self.tick_with_reply_cut(None, true);
         if self.auto_prepare {
             self.complete_prepare();

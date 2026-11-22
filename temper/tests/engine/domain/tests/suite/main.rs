@@ -71,6 +71,7 @@ mod fuzzy {
     #[expect(clippy::duplicate_mod, reason = "the same crash cases run in both profiles")]
     #[path = "../reset.rs"]
     mod reset;
+    mod restarts;
     mod roles;
     mod see;
     mod walking;

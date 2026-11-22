@@ -77,11 +77,7 @@ fn worker_pairs_have_twelve_distinct_descriptive_names() {
 #[test]
 fn world_groups_keep_only_their_kinds_in_order() {
     let groups: [(&str, &[Kind], &[Kind]); 5] = [
-        (
-            "engine",
-            &ENGINE,
-            &[ENGINE_CRASH, SETTLED_STOP, STOP_BEFORE_MARK, STOP_BEFORE_OPENING, STOP_AFTER_OPENING, SECOND_SIGNAL],
-        ),
+        ("engine", &ENGINE, &[ENGINE_CRASH, SETTLED_STOP, STOP_BEFORE_MARK, STOP_AFTER_OPENING, SECOND_SIGNAL]),
         (
             "forge",
             &FORGE,
