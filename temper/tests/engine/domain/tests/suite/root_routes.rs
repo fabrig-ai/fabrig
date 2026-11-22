@@ -1,5 +1,8 @@
 #[path = "root_routes/deadlines.rs"]
 mod deadlines;
+#[path = "root_routes/planning.rs"]
+mod planning;
+
 #[path = "root_routes/milestones.rs"]
 mod milestones;
 #[path = "root_routes/pace.rs"]

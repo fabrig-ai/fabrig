@@ -5,6 +5,7 @@ mod chat_words;
 mod composed;
 mod parked;
 mod qa;
+mod question_answer;
 mod simulation;
 
 mod fuzzy {

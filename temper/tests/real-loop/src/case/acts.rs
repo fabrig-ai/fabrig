@@ -54,13 +54,6 @@ pub enum Read {
     ScopeActivity,
     ShapeEnded,
     MoverEnded,
-    PlanAnswerPending,
-    PlannerParked,
-    PlannerEnded,
-    PlannerEarlier,
-    PlannerFirst,
-    PlanEnded,
-    SubownerEnded,
     X3Open,
     X3Produced,
     X3Ended,
@@ -591,57 +584,6 @@ pub fn step_5_2() -> Vec<calls::Step> {
             b"\"phase\":\"ended\"",
             b"\"task\"",
         ),
-    ]
-}
-
-// Act 2, step 5.5 (testing/reference-case.md)
-const PLAN_ENDED: usize = 2;
-pub const READS_5_5: &[(Read, usize)] = &[
-    (Read::PlanEnded, PLAN_ENDED),
-    (Read::PlannerParked, 4),
-    (Read::PlanAnswerPending, 5),
-    (Read::PlannerEnded, 7),
-    (Read::PlannerEarlier, 8),
-    (Read::PlannerFirst, 9),
-    (Read::SubownerEnded, 10),
-];
-
-#[must_use]
-pub fn step_5_5() -> Vec<calls::Step> {
-    use super::{PLAN_ANSWER_HOLD, PLAN_ANSWER_PENDING, PLAN_DIRECTOR, PLAN_PERSON, PLANNER, SUBOWNER};
-    vec![
-        sign_in(D1),
-        call(D1, argv!["chat", "start", "--project", number(PROJECT), "--key", "plan", PLAN_PERSON]),
-        start(D1, argv!["task", "show", number(PLAN_DIRECTOR), "--until", "ended", "--json"]),
-        // A live stream confirms identity, not creation of the director's delegate.
-        calls::until(D1, argv!["task", "show", number(PLAN_DIRECTOR), "--json"], b"\"live_delegates\":1", b"\"task\""),
-        call(D1, argv!["task", "show", number(PLANNER), "--until", "phase:idle", "--json"]),
-        // Step::Held gates ctl writes. The LLM's emitted piece, read through
-        // the live run document, proves its answer is at the fake hold.
-        until(
-            D1,
-            argv!["task", "run", number(PLAN_DIRECTOR), "--json"],
-            PLAN_ANSWER_PENDING.as_bytes(),
-            b"\"writing\":",
-        ),
-        calls::release_hold(PLAN_ANSWER_HOLD),
-        call(
-            D1,
-            argv![
-                "task",
-                "answer",
-                number(PLAN_DIRECTOR),
-                number(super::PLAN_QUESTION_NUMBER),
-                super::PLAN_ANSWER,
-                "--key",
-                "plan-answer"
-            ],
-        ),
-        join(PLAN_ENDED),
-        call(D1, argv!["task", "show", number(PLANNER), "--activity", "32", "--json"]),
-        call(D1, argv!["task", "activity", number(PLANNER), "--before", calls::activity_before(7), "--json"]),
-        call(D1, argv!["task", "activity", number(PLANNER), "--before", calls::activity_before(8), "--json"]),
-        call(D1, argv!["task", "show", number(SUBOWNER), "--json"]),
     ]
 }
 

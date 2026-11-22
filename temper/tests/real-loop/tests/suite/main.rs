@@ -35,7 +35,6 @@ mod fuzzy {
     mod case_5_1;
     mod case_5_2;
     mod case_5_4;
-    mod case_5_5;
     mod case_6_4;
     mod case_6_5;
     mod case_6_6;
