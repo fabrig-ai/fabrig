@@ -1,4 +1,4 @@
-//! The forge's own statuses and keyed comments (temper/docs/design/domain/after-landing.md, 3 and 9).
+//! The forge's own statuses and keyed comments (temper/docs/design/domain/after-landing-runs.md, 2, and temper/docs/design/domain/after-landing.md, 9).
 use super::*;
 use temper_engine_forge_world::{REPO, translate};
 

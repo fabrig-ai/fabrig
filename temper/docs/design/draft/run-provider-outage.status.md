@@ -9,8 +9,8 @@ the direct ones. Item 2 in jig's `domain/hosts/hub.md`, 3 (an outage) and
 `../domain/forge/change/gates.md`, 1: an outage there is retried, not a
 failed review. Item 3 in jig's `domain/hosts/hub.md`, 3 (the
 `ModelFailure` and its words), `protocol/channel/records.md`, 1,
-`../domain/worker/README.md`, 4.3 and 10, and smith's `domain/run.md`, 9
-and `protocol/channel.md`, 4. Section 5: no store changes, since a
+`../domain/worker/hosted-runs.md`, 1.3, and `../domain/worker/README.md`, 10, and smith's `domain/run.md`, 9
+and `protocol/channel.md`, 4. `run-provider-outage.md`, section 5: no store changes, since a
 failure's reason and a hold's words are kept already (jig's
 `domain/tasks/lifecycle.md`, 6); jig's worker channel and smith's
 channel move their versions with their layouts (`../protocol/wires.md`, 3).

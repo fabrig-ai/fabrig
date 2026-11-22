@@ -1,4 +1,4 @@
-//! Report bytes to failing test ids (temper/docs/design/domain/after-landing.md, sections 2 and 4).
+//! Report bytes to failing test ids (temper/docs/design/domain/after-landing-runs.md, sections 1 and 3).
 //!
 //! This boundary reads the two report encodings; the connector top owns
 //! artifact retrieval and run conclusions.

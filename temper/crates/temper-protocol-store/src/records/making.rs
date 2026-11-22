@@ -1,4 +1,4 @@
-//! Making rows (temper/docs/design/protocol/store.md, 2 and 5).
+//! Making rows (temper/docs/design/protocol/store.md, 2, and temper/docs/design/protocol/store-restart.md, 1).
 use crate::v25 as w;
 
 use temper_engine_domain_forge_vocabulary as d;

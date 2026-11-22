@@ -382,7 +382,7 @@ impl<'a> Change<'a> {
         if address.is_empty() { None } else { Some(address) }
     }
     /// Distinguish CI the rules do not ask for from its observed verdict
-    /// and from terminal evidence absent after restart (domain/forge/change/README.md, 5).
+    /// and from terminal evidence absent after restart (domain/forge/change/panel.md, 1).
     #[must_use]
     pub fn ci(self) -> W {
         if !self.panel.ci_required {

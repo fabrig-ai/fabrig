@@ -4,7 +4,7 @@
 
 Sections 2 to 6 are carried by the design, milestone N1 of
 `whole-story.execution.md`, but for lag 4 and the departures below:
-`../domain/forge/attention.md`, 1 and 4 to 6, `../protocol/configuration/limits.md` and `../protocol/configuration/settings.md`, section 2
+`../domain/forge/attention.md`, 1 and 4 to 6, `../protocol/configuration/limits.md` and `../protocol/configuration/settings-kinds.md`, section 1
 , `../domain/agent/tools.md`, and
 `../client/pages/README.md` and `../client/pages/settings.md`, 2 and `../client/pages/goal.md`, 3; `what-reaches-you.md`, section 3's view of the
 table is 5.13's *What reaches you*, the three columns `surfaces.md`,
@@ -13,10 +13,10 @@ checks. `what-reaches-you.md`, section 8 is carried by
 `../client/pages/README.md`, **Only you**, and 5.5, *Each state*,
 milestone N3a, but for lag 8. `what-reaches-you.md`, section 7 is carried by
 `../protocol/configuration/engine.md`'s `sets`,
-`../protocol/configuration/settings.md`, 2 and 3,
+`../protocol/configuration/settings-kinds.md`, 1, and `../protocol/configuration/settings.md`, 3,
 `../domain/forge/change/gates.md`, 2, `../domain/forge/queues.md`,
-`../domain/forge/change/questions.md`, 2, `../domain/landing.md`, 8,
-`../client/forge/README.md`, 4.1 and `../client/ctl/tools.md`, 3,
+`../domain/forge/change/questions.md`, 2, `../domain/landing-turn.md`, 1,
+`../client/forge/README.md`, 4.1 and `../client/ctl/tools-acts.md`, 1,
 milestone N2, and who can still sign a waiting sign-off by
 `../domain/forge/change/questions.md`, 2, *Who can still sign*, and
 `../client/forge/README.md`, 4.1, *Its context*, milestone N5, and by
@@ -44,7 +44,7 @@ files'.
     cards. The terminal's inbox lists no Only you (`../client/tui/pages/README.md`
     ), a later part of `what-reaches-you.md`, section 11's too, temper/tui's.
   - 9: carried by `../domain/forge/attention.md`, section 7,
-    `../client/pages/told.md`, `../client/web/README.md`, 2.7,
+    `../client/pages/told.md`, `../client/web/push.md`, 1,
     `../protocol/configuration/engine.md`'s `push` and
     `../client/ctl/tools.md`'s `push` tools, milestone N3b of
     `whole-story.execution.md`, but for these. Mail where push can't

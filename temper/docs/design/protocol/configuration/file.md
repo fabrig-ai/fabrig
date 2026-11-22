@@ -117,7 +117,7 @@ Help lists these.
 | `[push]` `key`, `subject` | S E | as `application.push` (`engine.md`) | none: no push | the deployment's push key's file and its subject |
 | `[programs]` `git`, `claude` | S W | an absolute path to an executable | found on `PATH` at each start, or `claude` fetched, as today (`figures.md`, section 6) | a program that isn't found, by its path |
 | `[programs]` `forgejo`, `runner` | S | an absolute path to an executable | fetched at the owned Forgejo's set-up, as today (`../setup/place.md`, 2) | the owned Forgejo's binaries, by their paths |
-| `[environment]` | S W | a table of strings, `NAME = "value"`: names unique, not empty, with no `=` or NUL; values with no NUL | the worker's own `PATH` and `HOME`, appended where absent (`README.md`, section 3) | variables its agents' programs get, in the file's order |
+| `[environment]` | S W | a table of strings, `NAME = "value"`: names unique, not empty, with no `=` or NUL; values with no NUL | the worker's own `PATH` and `HOME`, appended where absent (`worker.md`, section 1) | variables its agents' programs get, in the file's order |
 
 - **`[openid]` on a box.** Without the table, a box's start gives its
   provider as `temper-box init --box` made it (`../setup/place.md`, 6):

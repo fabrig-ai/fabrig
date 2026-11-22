@@ -297,7 +297,7 @@ fn abandon_plan(domain: &mut Domain, task: u64) {
 }
 
 /// A core batch routes all drops and its completion together. Titles without
-/// connector rows after that batch belong to an abandoned brief (domain/root.md, 6.2).
+/// connector rows after that batch belong to an abandoned brief (domain/root-translation.md, 2.2).
 pub(crate) fn retire_document_titles(domain: &mut Domain) {
     loop {
         let mut abandoned = None;

@@ -1,4 +1,4 @@
-//! Byte shapes of temper/docs/design/client/web/journeys.md, 3.7.
+//! Byte shapes of temper/docs/design/client/web/journeys-recordings.md, 1.7.
 use super::Shape;
 
 pub(super) fn scan(bytes: &[u8]) -> Option<Shape> {

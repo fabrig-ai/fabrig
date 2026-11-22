@@ -2,7 +2,7 @@
 
 A version-2 `walk` in one process, on the playground's composition,
 signed in at `/welcome` by its printed link: no `temper box`
-(`../../../journey-walks.md`, 4 and 6). It sees and marks the welcome,
+(`../../../journey-walks-world.md`, 1, and `../../../journey-walks.md`, 6). It sees and marks the welcome,
 presses "Try the playground", then waits for the playground's banner
 and "New chat" before marking again. The banner alone can arrive
 before the project does.

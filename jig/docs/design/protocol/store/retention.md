@@ -283,7 +283,7 @@ running as section 6 says.
   forget, or a deleted project's erasure (`../../domain/connectors.md`,
   3.4). A summary may stay a year after; no connector reads one.
 - **temper** drops the task's change record then, where its room's rules
-  let it go (temper's `domain/forge/change/README.md`, 7), beside the
+  let it go (temper's `domain/forge/change/records.md`, 1), beside the
   names it erases today.
 
 ## 10. Tests

@@ -869,7 +869,7 @@ pub const LANDING: Duration = Duration::from_secs(360);
 /// This sets the paces and stall to 600 s: above `LANDING`, but below the shipped 1800 s stall.
 pub const RAISED_MS: u64 = 600_000;
 const _: () = assert!(Duration::from_millis(RAISED_MS).as_nanos() > LANDING.as_nanos());
-// The hinted job's 5 s sleep outlasts settle (protocol/setup/README.md, 6, protocol/setup/testing.md, 4).
+// The hinted job's 5 s sleep outlasts settle (protocol/setup/webhooks.md, 1, protocol/setup/testing.md, 4).
 const HINTED_SETTLE_MS: u64 = 3000;
 
 /// Raises the three keep paces, lowers checking's bounds in proportion to a 600 s stall,

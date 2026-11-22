@@ -6,8 +6,8 @@ scripts read a project's findings, one finding whole, and the reds after
 landing blamed on a goal (`../../domain/red-findings.md`, section 10).
 The tools are records of the one table (`tools.md`, section 1), reads
 with no key, their text and JSON as `results.md` says. The finding acts,
-`finding file`, `hand`, `route`, `backlog` and `drop`, are `tools.md`,
-section 3's.
+`finding file`, `hand`, `route`, `backlog` and `drop`, are `tools-acts.md`,
+section 1's.
 
 ## 1. In one page
 
@@ -64,7 +64,7 @@ read one and its reds after landing".
 ## 4. `goal show`
 
 - **What it prints:** the task's document as `task show TASK` prints
-  it (`tools.md`, section 2), then `reds after landing:` and the
+  it (`tools-reads.md`, section 1), then `reds after landing:` and the
   findings blamed on it, the uncleared first, each group newest first,
   a line each, indented two spaces: `P/N TITLE · WHERE`, WHERE where it
   stands in `../../domain/red-findings.md`, section 10's words, from the
@@ -82,7 +82,7 @@ read one and its reds after landing".
   `finding list` reads it: watched, its first delivery printed, then
   unwatched. A task that is not a goal has no reds and prints `none`.
   It is not a watched read: `--since` and `--until` are usage errors
-  (`tools.md`, section 4).
+  (`tools-waiting.md`, section 1).
 - **Its JSON,** the record `goal_show`: `task`, as `task show --json`
   prints it; `reds`, the rows in the text's order, each as `finding
   list --json` prints a row, with `stands`, `{kind, goal, reason, tier,

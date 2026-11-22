@@ -1,4 +1,4 @@
-//! Empty gate reports belong to the runner, not repair (landing.md, 7.4).
+//! Empty gate reports belong to the runner, not repair (landing-proof.md, 2.4).
 use skein_forge::api;
 use temper_engine_domain_forge as top;
 use temper_engine_domain_forge_change as change;

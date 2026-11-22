@@ -1,4 +1,4 @@
-//! Tiers follow their configured branches (temper/docs/design/domain/after-landing.md, 2, 3, 4 and 10).
+//! Tiers follow their configured branches (temper/docs/design/domain/after-landing-runs.md, 1, 2 and 3, and temper/docs/design/domain/after-landing-storage.md, 1).
 use crate::{TierLanding, TierRow};
 use alloc::boxed::Box;
 use core::mem::size_of;
@@ -141,7 +141,7 @@ pub fn row_bytes(row: &TierRow) -> Option<u64> {
     Some(held)
 }
 
-/// A person's tier control (temper/docs/design/domain/after-landing.md, 3).
+/// A person's tier control (temper/docs/design/domain/after-landing-runs.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TierActRequest {
     pub project: u32,

@@ -1,5 +1,5 @@
 //! Root restarts retain worker preparation, proof and the turn, and reload batch size
-//! (temper/docs/design/domain/landing.md, 4.1, 5, 8, 9, 15–16;
+//! (temper/docs/design/domain/landing.md, 4.1, and temper/docs/design/domain/landing-prepare.md, 1, and temper/docs/design/domain/landing-turn.md, 1–2, and temper/docs/design/domain/landing.md, 15–16;
 //! temper/docs/design/domain/landing-preparing.md, 4–7).
 use super::super::{goal_branch, goal_landing};
 use super::*;

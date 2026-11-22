@@ -1,4 +1,4 @@
-//! Store readers, an exclusive Pack and FIFO waiters (protocol/git.md, 4.14).
+//! Store readers, an exclusive Pack and FIFO waiters (protocol/git-operations.md, 1.14).
 use super::fixtures::{self, Started};
 use crate::{Component, Request, invocation};
 use alloc::boxed::Box;

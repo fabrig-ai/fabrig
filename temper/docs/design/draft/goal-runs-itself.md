@@ -52,7 +52,7 @@ a model for judgement, code for mechanisms. This draft wins over
 ## 3. temper's goal closer
 
 - **Named by the goal's template:** a goal template's work, kind 11
-  (`../protocol/configuration/settings.md`, 2), gains `closes`, which makes the
+  (`../protocol/configuration/settings-kinds.md`, 1), gains `closes`, which makes the
   goal with temper's closer. Template 4, the reference's and the stock's,
   sets it. A goal without it keeps today's wakes.
 - **In order,** each a step of one procedure:
@@ -127,7 +127,7 @@ store and the forge already hold:
   lets through is offered to the run it wakes: the coordinator's parts
   cover `words` (jig's `domain/tasks/messages.md`, 3 and 6).
 - **No subscription to main's landings** for catch-ups. Reds still reach the
-  goal through its branch's tiers (`../domain/forge/README.md`, section 6).
+  goal through its branch's tiers (`../domain/forge/updates.md`, section 1).
 
 ## 7. The coordinator's charter
 

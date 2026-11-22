@@ -1,4 +1,4 @@
-//! Shared journey redaction and last scan (temper/docs/design/client/web/journey-redaction.md and temper/docs/design/client/web/journeys.md, 3.7).
+//! Shared journey redaction and last scan (temper/docs/design/client/web/journey-redaction.md and temper/docs/design/client/web/journeys-recordings.md, 1.7).
 mod originals;
 mod redact;
 pub mod scan;

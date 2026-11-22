@@ -1,5 +1,5 @@
 //! A goal's landing exhausts its repairs, stays held through a change into g,
-//! then checks and lands g's released head (temper/docs/design/domain/forge/change/README.md, 1 and temper/docs/design/domain/forge/change/repairs.md and temper/docs/design/domain/forge/change/README.md, 3
+//! then checks and lands g's released head (temper/docs/design/domain/forge/change/README.md, 1 and temper/docs/design/domain/forge/change/repairs.md and temper/docs/design/domain/forge/change/drift.md, 1
 //! ; temper/docs/design/draft/archive/reference-landing.md, 3 and 9).
 use super::goal_branch::{branch_tip, goal_request, writer};
 use super::goal_landing::{

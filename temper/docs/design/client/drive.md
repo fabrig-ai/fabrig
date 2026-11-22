@@ -11,7 +11,7 @@ no browser (2.6). It runs no build and writes nothing outside its
 scratch directory. It serves QA's recipes (`recipe.md`) and a journey's
 walk on a box or deployment after landing (2.7), for what only a browser
 or terminal shows. It writes no page of main's: those are printed in a
-world (`journey-walks.md`, 4). Section 2 is the session, 3
+world (`journey-walks-world.md`, 1). `drive.md`, section 2 is the session, 3
 its lines, 4 the lines it keeps, 5 its code, 6 its tests, 7 what is
 open.
 
@@ -66,7 +66,7 @@ temper-client-journeys drive --bin DIR [--bundle DIR] --scratch DIR [--scripts F
   `temper-engine`, `temper-worker` and `temper-agent`. The client is
   the TUI's recording build (`tui/journeys.md`, 2), whose saves the
   TUI's lines read (3.3). The box finds `fake-claude` beside itself
-  (`../protocol/setup/box.md`, 5).
+  (`../protocol/setup/box-backends.md`, 1).
 - **`--bundle DIR`** is the web bundle (`scripts/bundle.sh OUT`), given
   to the box as its `--bundle`, required on a box. At a deployment it is
   optional: the bundle the engine's document names as `{place.bundle}`
@@ -86,11 +86,11 @@ temper-client-journeys drive --bin DIR [--bundle DIR] --scratch DIR [--scripts F
   open to others; every directory and file the session or what it
   starts writes is under it (2.2).
 - **`--scripts FILE`, `--strict`** are given to the box as they are
-  (`../protocol/setup/box.md`, 5), its fake model's scripts and strict
+  (`../protocol/setup/box-backends.md`, 1), its fake model's scripts and strict
   switch; a recipe's walk gives its chain's scripts (`recipe.md`, 5).
 - **`--ports LIST`,** nine ports, each nonzero and distinct, joined by
   commas: given to the box as `TEMPER_INTERNAL_FAKE_BOX_PORTS` in its
-  environment (`../protocol/setup/box.md`, 5), so a new sandbox binds
+  environment (`../protocol/setup/box-backends.md`, 1), so a new sandbox binds
   them and a retained one keeps its own; a QA place's
   (`../testing/qa/places.md`, 2). A list that is not nine distinct
   nonzero ports refuses the session, naming it, before anything starts.
@@ -119,10 +119,10 @@ temper-client-journeys drive --bin DIR [--bundle DIR] --scratch DIR [--scripts F
 | `session/` | the session's own, removed and made again, 0o700, at its start | until the next session |
 | `session/home/`, `session/state/`, `session/tmp/` | `HOME`, `XDG_STATE_HOME` and `TMPDIR` of every program the session starts; `XDG_CONFIG_HOME`, `XDG_CACHE_HOME` and `XDG_DATA_HOME` under `home/` | |
 | `session/runtime/`, `session/tui-runtime/` | `XDG_RUNTIME_DIR` of the box and of the TUI, apart, as `tui/journeys.md`, 8.2 keeps them | |
-| `session/ctl/` | ctl's directory (`ctl/README.md`, 6), which its sign-in makes | |
+| `session/ctl/` | ctl's directory (`ctl/command-line.md`, 1), which its sign-in makes | |
 | `session/browser/` | Chromium's profile and downloads | |
 | `session/bin/` | `xdg-open` and `open`, links to `true`, first in the TUI's `PATH` (`tui/journeys.md`, 8.2) | |
-| `session/box.log` | the box's stderr, each line as it comes, and never a link: its stdout, which carries its sign-in links alone (`../protocol/setup/box.md`, 2), is read for them and written nowhere (2.3) | |
+| `session/box.log` | the box's stderr, each line as it comes, and never a link: its stdout, which carries its sign-in links alone (`../protocol/setup/box-supervision.md`, 1), is read for them and written nowhere (2.3) | |
 | `session/looks/` | each look's screenshot, `NNNN-WIDTH.png`, NNNN the line's number from 1 | |
 | `session/lines` | the kept lines (section 4) | |
 
@@ -141,18 +141,18 @@ In order, each within its bound; a failure is 2.5's.
    stdout and stderr each read a line at a time: its stderr into
    `session/box.log`, its stdout for its links (below). Its first link
    is the first stdout line starting `http://`
-   (`../protocol/setup/box.md`, 2), within 60 seconds.
+   (`../protocol/setup/box-supervision.md`, 1), within 60 seconds.
 2. **ctl, signed in from a file:** the link written to
    `SCRATCH/session/link`, 0o600, then `BIN/temper ctl
    SCRATCH/session/ctl sign-in SCRATCH/session/link </dev/null`
-   (`ctl/README.md`, 6.1 and 8), exit 0 within 60 seconds, then
+   (`ctl/command-line.md`, 1.1, and `ctl/README.md`, 8), exit 0 within 60 seconds, then
    `session/link` removed; the link is never a program's argument and
    never in an answer. It waits on serve's start as a link opened early
-   waits (`../protocol/setup/box.md`, 2).
+   waits (`../protocol/setup/box-supervision.md`, 1).
 3. **The browser,** but in a ctl session (2.6): headless Chromium, as the browser tier drives it
    (`web/testing.md`; skein's `ui/web/testing.md`, 2), opens the first
    link, now spent, so that serve prints a fresh link on stdout
-   (`../protocol/setup/box.md`, 2) within 30 seconds; it opens that one,
+   (`../protocol/setup/box-supervision.md`, 1) within 30 seconds; it opens that one,
    waits until that page shows the client's main region so its sign-in
    is answered. Outside a journey's session, it then loads `/` on the
    box's origin and waits for its main region, all within 60 seconds:
@@ -166,7 +166,7 @@ In order, each within its bound; a failure is 2.5's.
 5. **`ready`** on stdout, and the lines are read.
 
 While any step waits, the box's exit, or a line on its stderr saying a
-step is restarting or the box gives up (`../protocol/setup/box.md`, 2),
+step is restarting or the box gives up (`../protocol/setup/box-supervision.md`, 1),
 ends the wait as the box's failure.
 
 **At a deployment** the start is `../testing/qa/deployment.md`, 5's:
@@ -177,13 +177,13 @@ TUI at its first line as step 4 has it. Its links and the page's
 troubles are judged as below, a failure there the deployment's.
 
 **Its links.** Every line of the box's stdout is a sign-in link, its
-first or a fresh one serve prints (`../protocol/setup/box.md`, 2). The
+first or a fresh one serve prints (`../protocol/setup/box-supervision.md`, 1). The
 session takes its first for ctl (step 2) and, but in a ctl session, the
 fresh one the spent first brings for the browser (step 3); it drops
 every other line of the box's stdout as it reads it, as a deployment's
 session drops the engine's later links (`../testing/qa/deployment.md`,
 5). No line of the box's stdout is written to `session/box.log`, and no
-link is answered or kept (section 4), so `session/box.log`, the tail a
+link is answered or kept (`drive.md`, section 4), so `session/box.log`, the tail a
 `box failed:` answer prints from it (2.5) and a finding's evidence that
 copies it (`../testing/qa/findings.md`, 2) hold no link. The box's
 opening lines, which the box's values are read from (3.4), are on its
@@ -235,8 +235,8 @@ in their order (`../testing/qa/deployment.md`, 7).
 | Status | When | Its last lines on stdout |
 |---|---|---|
 | 0 | the session reached its end and the box stopped cleanly, whatever its lines answered | `ended` |
-| 3 | the box's store was refused by name: serve's log, under the box's logs (`../protocol/setup/box.md`, 2), holds a line starting `temper serve: ` that names a directory under the scratch directory, as every refusal of a store does (`../protocol/store.md`, 5; jig's `protocol/store/records.md`, 3); or a fake forge's log there holds a line starting `temper-box fake forge: state ` that names a file under the scratch directory, its kept state refused (`../testing/fakes.md`, 2) | `refused: ` and that line |
-| 4 | the box did not start or stop otherwise: it exited, gave up or panicked, a link or the page did not come within its bound, the page showed a trouble at the start that 2.3 counts, ctl's sign-in failed, or its stop took past its 60 seconds | `box failed: WHY`, then the last 20 lines of `session/box.log` and of serve's log, each prefixed `\| `: neither holds a link (2.3; `../protocol/setup/box.md`, 2) |
+| 3 | the box's store was refused by name: serve's log, under the box's logs (`../protocol/setup/box-supervision.md`, 1), holds a line starting `temper serve: ` that names a directory under the scratch directory, as every refusal of a store does (`../protocol/store-restart.md`, 1; jig's `protocol/store/records.md`, 3); or a fake forge's log there holds a line starting `temper-box fake forge: state ` that names a file under the scratch directory, its kept state refused (`../testing/fakes.md`, 2) | `refused: ` and that line |
+| 4 | the box did not start or stop otherwise: it exited, gave up or panicked, a link or the page did not come within its bound, the page showed a trouble at the start that 2.3 counts, ctl's sign-in failed, or its stop took past its 60 seconds | `box failed: WHY`, then the last 20 lines of `session/box.log` and of serve's log, each prefixed `\| `: neither holds a link (2.3; `../protocol/setup/box-supervision.md`, 1) |
 | 1 | the session's own failure: a refused command line (2.1), a scratch directory it cannot make its own | `failed: WHY`, on stderr |
 
 A place makes a copy refused by its store again from its recipe
@@ -304,7 +304,7 @@ temper-client-journeys journey walk NAME --bin DIR [--bundle DIR] --scratch DIR 
 
 - **One line each,** a recipe's step (`recipe.md`, 3): its client first,
   `web`, `tui`, `ctl`, `forge` or `deployment`, then its record and its fields, as the
-  journeys' file writes fields (`web/journeys.md`, 3.2): each after one
+  journeys' file writes fields (`web/journeys-recordings.md`, 1.2): each after one
   space, a word bare, bytes in double quotes. Quoted bytes take printable
   ASCII alone; write other bytes as `\xHH`, with `\"` and `\\` for
   quote and backslash. Or a look (3.2 to 3.3), or
@@ -329,7 +329,7 @@ temper-client-journeys journey walk NAME --bin DIR [--bundle DIR] --scratch DIR 
 
 A role is a word of skein's roles, lowercase, as `web/journeys.md`, 8.2
 has it. In a journey's session, `textbox` finds a text field or text
-area (`journey-walks.md`, 4.2). WIDTH is 320 to 3840. At a deployment the origin is the
+area (`journey-walks-world.md`, 1.2). WIDTH is 320 to 3840. At a deployment the origin is the
 engine's clients' listener, its first link's
 (`../testing/qa/deployment.md`, 5 and 6.1).
 
@@ -350,7 +350,7 @@ The session takes them from its start, whatever line runs or none:
   origin's, the browser's own, a `data:` or a `blob:` one.
 - **After its document and its bundle's files:** the load's own document,
   and each `GET` under `/bundle/` or of a root file, `/robots.txt`,
-  `/sw.js` or `/manifest.webmanifest` (`web/README.md`, 2.2, steps 4 to
+  `/sw.js` or `/manifest.webmanifest` (`web/serving.md`, 1, steps 4 to
   6), or of `/favicon.ico`, the tab's icon, which the browser asks for by
   itself, are not listed and count in no wave. Each still counts toward
   the page's quiet (below).
@@ -440,7 +440,7 @@ saying that the session needs the client's recording build
 signed-in person, the deployment's first owner (`ctl/README.md`, 7). It
 answers ctl's stderr and then its stdout, each line prefixed `| `, then
 `ok` on exit 0, else `failed: exit N`. An act and the wait on it are two
-lines, as ctl waits (`ctl/tools.md`, 4):
+lines, as ctl waits (`ctl/tools-waiting.md`, 1):
 
 ```text
 ctl task show 3 --until ended
@@ -453,9 +453,9 @@ it, and a call with none 60 seconds.
 of these names, braces and all, bare or quoted as the grammar allows,
 is replaced by the box's value when the line runs, before ctl starts.
 Each value is read from the newest of the box's opening lines that
-names it (`../protocol/setup/box.md`, 5), which the box writes to its
+names it (`../protocol/setup/box-backends.md`, 1), which the box writes to its
 stderr and the session to `session/box.log` (2.2), so a restored copy's
-box gives its own afresh. The kept line keeps the name (section 4), so
+box gives its own afresh. The kept line keeps the name (`drive.md`, section 4), so
 a recipe names no place's path, port or credential and walks the same
 at every place (`../draft/landed-qa.md`, 5).
 
@@ -492,7 +492,7 @@ starts. stdin stays closed.
 A person's own act on their forge that no client makes: a commit
 through the forge's API, as `../../development/acceptance.md`, 7 commits
 its gate, and the wait on that commit's checks. The forge is the box's
-fake Forgejo elsewhere (`../protocol/setup/box.md`, 5), the person's at
+fake Forgejo elsewhere (`../protocol/setup/box-backends.md`, 1), the person's at
 a QA place, keeping its state in the box's data, its CI decided by what
 a head holds (`../draft/landed-qa.md`, 6; `../testing/fakes.md`, 2).
 
@@ -515,7 +515,7 @@ a head holds (`../draft/landed-qa.md`, 6; `../testing/fakes.md`, 2).
   and the recipe holds it (`../draft/landed-qa.md`, 5).
 - **The forge's hands** are the box's, read at each line from the
   newest of its opening lines in `session/box.log`
-  (`../protocol/setup/box.md`, 5): the API, `http://HOST:PORT/api/v1`,
+  (`../protocol/setup/box-backends.md`, 1): the API, `http://HOST:PORT/api/v1`,
   from `box: fake forgejo http://HOST:PORT`, and the person's token from
   the file `box: Forgejo elsewhere admin token file FILE` names: the
   forge's site admin's, the token the person connected temper with

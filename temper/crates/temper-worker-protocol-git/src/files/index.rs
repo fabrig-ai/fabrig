@@ -1,4 +1,4 @@
-//! The private paging index, streamed whole without following links (protocol/git.md, 4.7).
+//! The private paging index, streamed whole without following links (protocol/git-operations.md, 1.7).
 use super::{Action, count, fd};
 use crate::{
     Limits, Settings,

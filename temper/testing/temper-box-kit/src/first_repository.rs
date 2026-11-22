@@ -771,7 +771,7 @@ pub fn assert_task(run: &str, calls: &[super::Ended], stderr: &str, evidence: &E
 
 /// CI on temper's change page: passed at the landed change's head, at the
 /// landing and after a restart, which keeps it with the change's record
-/// (domain/forge/change/README.md, 5).
+/// (domain/forge/change/panel.md, 1).
 pub fn assert_landed_ci(run: &str, page: &str) {
     check_landed_ci(run, page).unwrap_or_else(|why| panic!("{why}"));
 }

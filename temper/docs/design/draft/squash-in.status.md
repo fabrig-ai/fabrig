@@ -2,7 +2,7 @@
 
 2026-11-13. Where the design lags or departs from [squash-in.md](squash-in.md).
 
-Sections 2, 3, 5 and 6 are designed: a change into a goal's branch squashes by its train's `combine` (`../domain/landing.md`, 5.2), its commit's message is `../protocol/tooling.md`, 4's, and a member that brings main's commits is merged. Its mechanism, `combine`, is `merge-queue.md`'s M1. Section 5's words are the stock charters' (`../domain/agent/charter.md`, 4; `../protocol/configuration/stock.md`'s charter 2 and 5 rows), by S2.
+Sections 2, 3, 5 and 6 are designed: a change into a goal's branch squashes by its train's `combine` (`../domain/landing-prepare.md`, 1.2), its commit's message is `../protocol/tooling.md`, 4's, and a member that brings main's commits is merged. Its mechanism, `combine`, is `merge-queue.md`'s M1. `merge-queue.md`, section 5's words are the stock charters' (`../domain/agent/charter.md`, 4; `../protocol/configuration/stock.md`'s charter 2 and 5 rows), by S2.
 
 - **Design lags:**
   - 4: `../domain/forge/change/repairs.md` makes a resolution, but a goal has no way to ask for main's tip without a change, and a catch-up change lands as any change does.

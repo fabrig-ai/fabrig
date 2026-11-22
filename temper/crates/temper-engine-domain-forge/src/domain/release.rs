@@ -1,4 +1,4 @@
-//! Whole repository retirement and link-preserving pages (domain/forge/adoption.md, 1).
+//! Whole repository retirement and link-preserving pages (domain/forge/adoption-connection.md, 1).
 use super::{Domain, Env, Key, Limits, List, Map, Queue, Request, Stored, Token, Topic, child, emit};
 use alloc::boxed::Box;
 use skein_forge::api::Repository;

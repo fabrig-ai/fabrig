@@ -1,5 +1,5 @@
 //! A merge raced by a goal's design delivery settles its own round, not an effect hold
-//! (temper/docs/design/domain/landing.md, 4.2, 8–9, 16).
+//! (temper/docs/design/domain/landing.md, 4.2, and temper/docs/design/domain/landing-turn.md, 1–2, and temper/docs/design/domain/landing.md, 16).
 use super::super::{goal_branch::branch_tip, goal_delivery, goal_landing};
 use super::*;
 

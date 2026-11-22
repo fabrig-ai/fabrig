@@ -1,4 +1,4 @@
-//! Delivery's checkout metadata and exact commit parents (protocol/git.md, 4.7).
+//! Delivery's checkout metadata and exact commit parents (protocol/git-operations.md, 1.7).
 use super::fixtures::{self, Started};
 use crate::{
     Request,

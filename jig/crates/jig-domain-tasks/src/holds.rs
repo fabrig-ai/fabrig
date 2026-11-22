@@ -26,7 +26,7 @@ pub(crate) struct KindKey {
 /// A report's order is refreshed even when its name is already cached
 /// (domain/tasks/holds.md, 2). Reports and pins are memory alone.
 #[derive(Hash, Debug)]
-pub(crate) struct Report {
+pub struct Report {
     pub hold: HoldKind,
     pub order: u64,
 }

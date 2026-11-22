@@ -4,7 +4,7 @@ How `temper box` finds the `temper-box` it runs: one of its own build,
 beside it, in its cache, or downloaded once from the site, and checked
 (`../draft/cli.md`, 5.1 and 5.2). What it does with the box once found
 is `tui/box.md`'s, in a terminal, and section 5's without one; the box's
-side is `../protocol/setup/box.md`, 6.
+side is `../protocol/setup/box-front.md`, 1.
 
 ## 1. In one page
 
@@ -176,8 +176,8 @@ TUI's loop.
   first, `fetching temper-box`, on its stderr, and then runs it in its
   own place (exec), `temper-box ARGUMENT...`, the arguments unchanged,
   with its environment and its descriptors: for scripts and units, and
-  for the box's own echo on its terminal (`../protocol/setup/box.md`,
-  2). A refusal or a failure prints its words on stderr, exit 1.
+  for the box's own echo on its terminal (`../protocol/setup/box-supervision.md`,
+  1). A refusal or a failure prints its words on stderr, exit 1.
 - **A `temper-box` refused its arguments** after the exec answers as
   `temper-box` does, exit 2: `temper` doesn't read the box's grammar.
 

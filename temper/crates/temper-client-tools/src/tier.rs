@@ -1,4 +1,4 @@
-//! A person's tier controls (temper/docs/design/client/ctl/tools.md, 3).
+//! A person's tier controls (temper/docs/design/client/ctl/tools-acts.md, 1).
 use crate::{
     jig::{
         self,

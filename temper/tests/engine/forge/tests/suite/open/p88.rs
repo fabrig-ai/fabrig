@@ -1,4 +1,4 @@
-//! A refused round cleanup must be visible and held (landing.md, 5.1).
+//! A refused round cleanup must be visible and held (landing-prepare.md, 1.1).
 use skein_fake_forge_domain::api as raw;
 use skein_forge::api;
 use temper_engine_domain_forge_landing as landing;

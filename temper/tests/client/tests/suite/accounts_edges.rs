@@ -76,7 +76,7 @@ fn accounts_connect_link_opens_choose() {
     );
 }
 
-// client/view.md 3: Deployment opens its current Accounts tab.
+// client/view-navigation.md 1: Deployment opens its current Accounts tab.
 #[test]
 fn accounts_navigation_from_connect_model_walks_deployment() {
     let mut world = world();

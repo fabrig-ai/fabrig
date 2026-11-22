@@ -74,7 +74,7 @@ fn a_refused_merge_goes_to_the_merge_job_at_once() {
     }
 }
 
-/// A failed merge holds for a person (temper/docs/design/domain/forge/README.md, 4).
+/// A failed merge holds for a person (temper/docs/design/domain/forge/effects.md, 1).
 #[test]
 fn a_failed_merge_effect_holds_until_released() {
     let mut c = change(State::Landing { head: HEAD });

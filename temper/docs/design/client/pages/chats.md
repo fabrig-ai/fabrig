@@ -19,7 +19,7 @@
   - *The list,* `.section`: `.section-head` with `.filters` at its left,
     "All", "Live", "Drafts" while `drafts_offered`, and "Closed",
     pressed-or-not buttons that filter in the page, reading nothing, the filter
-    being in the page's address (`../web/README.md`, 2.3), a filter chosen a move, as
+    being in the page's address (`../web/addresses.md`, 1), a filter chosen a move, as
     the inbox's; and `.btn.small` "+ New chat" at its right, a link to `NewChat`.
     Drafts holds the rows whose chat has a document. The chats' query names
     `CHAT_PART`, so each row comes with its document's description, and a

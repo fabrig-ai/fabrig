@@ -1,4 +1,4 @@
-//! The real box's first block and held socket (temper/docs/design/protocol/setup/box.md, 2, and temper/docs/design/protocol/setup/testing.md, 4).
+//! The real box's first block and held socket (temper/docs/design/protocol/setup/box-supervision.md, 1, and temper/docs/design/protocol/setup/testing.md, 4).
 use box_link::command;
 use jig_client_protocol_wire::Record as _;
 use skein_world::{Deadline, Expired};

@@ -1,4 +1,4 @@
-//! A turn settles uncertain writes and reads containing tips (domain/landing.md, 8).
+//! A turn settles uncertain writes and reads containing tips (domain/landing-turn.md, 1).
 use skein_fake_forge_domain::api as raw;
 use skein_forge::api;
 use temper_engine_domain_forge as top;

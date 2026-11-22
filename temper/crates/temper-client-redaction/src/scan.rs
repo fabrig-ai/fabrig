@@ -1,4 +1,4 @@
-//! The last scan (temper/docs/design/client/web/journeys.md, 3.7–3.8).
+//! The last scan (temper/docs/design/client/web/journeys-recordings.md, 1.7–1.8).
 use crate::Originals;
 use skein_lib::bytes::find;
 mod shapes;
@@ -17,7 +17,7 @@ pub enum What {
     Shape(Shape),
 }
 
-/// Seek originals, their digests, and the shapes of client/web/journeys.md, 3.7.
+/// Seek originals, their digests, and the shapes of client/web/journeys-recordings.md, 1.7.
 #[must_use]
 pub fn bytes(bytes: &[u8], originals: &Originals) -> Option<What> {
     if original(bytes, originals) { Some(What::Original) } else { shape(bytes).map(What::Shape) }
@@ -34,7 +34,7 @@ pub fn original(bytes: &[u8], originals: &Originals) -> bool {
     }
     false
 }
-/// Seek the shapes of client/web/journeys.md, 3.7.
+/// Seek the shapes of client/web/journeys-recordings.md, 1.7.
 #[must_use]
 pub fn shape(bytes: &[u8]) -> Option<Shape> {
     shapes::scan(bytes)

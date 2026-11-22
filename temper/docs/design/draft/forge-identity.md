@@ -47,7 +47,7 @@ This draft decides who counts as an approver, so its reasons are kept here
    their own browser.
 5. **It lands.** A review already wakes its pull's change, by a hook on a box
    and through the delivery log on GitHub (`../domain/forge/keeping-up.md`, 2;
-   `github.md`, section 7), so this step needs nothing new.
+   `github-app.md`, section 3), so this step needs nothing new.
 
 ## 3. Who a forge account is
 
@@ -114,10 +114,10 @@ use it.
 
 ### 4.3 When it stays unknown
 
-An App that's pasted (`github.md`, 6.5) has no such link, even with a person as its
+An App that's pasted (`github-app.md`, 2.5) has no such link, even with a person as its
 owner: having its key doesn't show that the owner and the box's person are one, and a
 wrong link would count someone else as them. So nothing changes there: what adoption
-seeds counts, the refusal says so plainly (section 7), and the panel names a review
+seeds counts, the refusal says so plainly (`forge-identity.md`, section 7), and the panel names a review
 from an account temper doesn't know (`../domain/forge/change/gates.md`, 2).
 
 ### 4.4 One person, two records
@@ -158,7 +158,7 @@ author:
 
 So it counts, with no collaborator added. That measures the API and that the page
 draws, not the page's own post. On GitHub the author is the App's bot, whom the person
-isn't (`github.md`, section 5), and P8 has the App's own approval refused.
+isn't (`github-app.md`, section 1), and P8 has the App's own approval refused.
 
 ## 6. What it holds against
 
@@ -169,7 +169,7 @@ wrongly, and what stops it:
 |---|---|
 | temper's writer, on either forge | refused as a link; skipped before the lookup (4.4); on a box with sign-in, a person so named refuses the start (`../protocol/openid-provider.md`, 9) |
 | **an agent's run or a CI job, on an owned Forgejo** | **nothing, if it tries.** Both run as the box's user, who can read `person_write.header` (`../protocol/setup/README.md`, section 9; `../protocol/credentials.md`, section 8), and a review posted with it is the person's. Deleting that file wouldn't close it: the forge's work path and temper's store are as readable. Closing it needs agents and CI contained |
-| the same, on GitHub | temper holds no token of the person's, and the App can't approve its own pull or push a workflow (`github.md`, P3 and P8). What's left is whatever the person's own tools leave under that user, which isn't looked at here |
+| the same, on GitHub | temper holds no token of the person's, and the App can't approve its own pull or push a workflow (`archive/github.md`, P3 and P8). What's left is whatever the person's own tools leave under that user, which isn't looked at here |
 | the person's own agent, handed that file by them | it approves as them: their delegation, and how a walk approves on an owned Forgejo |
 | a stranger on GitHub | no link and no seed, once section 3 closes the hole |
 | another account on the box's Forgejo | the person made it, as its site admin; unknown unless adopted as a collaborator, as today |
@@ -262,7 +262,7 @@ other does.
   `application.sign_in`, which nothing refuses today. So plain `temper serve` makes no link,
   though its document may look alike.
 - **When that stops being true:** at each start, when core and forge are both loaded
-  (`../domain/root.md`, 8.1), the root hands the connector the sole owner's party, or none;
+  (`../domain/root-restart.md`, 1.1), the root hands the connector the sole owner's party, or none;
   "sole" means the deployment's roster holds one owner, and it's the link's person. If not,
   the connector clears the link in that decision and logs it. Lookups fall back to seeds,
   and a rule resting on the link waits, saying so. jig's people have no accessor for this

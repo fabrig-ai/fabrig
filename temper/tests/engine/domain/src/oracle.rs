@@ -1,5 +1,5 @@
 //! Cold restart/readback (jig/docs/design/domain/engine/README.md, 9;
-//! temper/docs/design/testing/README.md, 4.2).
+//! temper/docs/design/testing/scenarios.md, 1.2).
 pub(crate) enum Fixture {
     Checked,
     Closed,
@@ -168,7 +168,7 @@ fn empty_repository_live(record: &skein_forge_client::LiveRecord) -> bool {
 }
 
 impl Driver {
-    /// The restart oracle (jig jig/docs/design/domain/engine/README.md 9; temper testing/README.md 4.2): settle, snapshot,
+    /// The restart oracle (jig jig/docs/design/domain/engine/README.md 9; temper testing/scenarios.md 1.2): settle, snapshot,
     /// restart cold over the same store, read back, compare through `durable`.
     /// Panics naming the first difference (document or row, field, key).
     pub fn close(&mut self) {

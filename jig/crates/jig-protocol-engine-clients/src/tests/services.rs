@@ -18,6 +18,24 @@ fn a_made_service_answers_its_credential_once_with_its_digest_kept() {
     assert!(exchange.out.is_empty());
 }
 #[test]
+fn inspection_keeps_a_reissue_under_its_asker_until_sign_out() {
+    let mut exchange = Exchange::new();
+    let (_, to) = exchange.reissue_service(f::SERVICE);
+    assert_eq!(exchange.component.inspection_exchange_count(), 1);
+    let (pending, sign_in) = exchange.component.inspection_exchange(0).expect("reissue exchange");
+    assert_eq!(sign_in, Some(f::NUMBER));
+
+    exchange.service_reissued(to, f::SERVICE);
+    exchange.take_service_keep(f::SERVICE);
+    assert_eq!(exchange.component.inspection_exchange(0), Some((pending, Some(f::NUMBER))));
+    exchange.component.down(&exchange.env, Event::SignInEnded { sign_in: f::NUMBER }, &mut exchange.out);
+    assert_eq!(exchange.component.inspection_exchange(0), Some((pending, None)));
+    exchange.service_kept_reply(f::SERVICE);
+    assert_eq!(exchange.component.inspection_exchange_count(), 0);
+    assert_eq!(exchange.component.inspection_exchange(0), None);
+}
+
+#[test]
 fn a_reissue_answers_only_after_keeping_its_fresh_credential() {
     let mut exchange = Exchange::new();
     let party = f::REISSUED_SERVICE;

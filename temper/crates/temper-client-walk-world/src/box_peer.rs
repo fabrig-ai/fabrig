@@ -1,4 +1,4 @@
-//! The box pipe on the world's clock (temper/docs/design/client/journey-walks.md, 4.4).
+//! The box pipe on the world's clock (temper/docs/design/client/journey-walks-world.md, 1.4).
 use skein_io::kernel::{Complete, Done, Fd, Op, Submit};
 use skein_lib::{Duration, Queue, Time, Token, Wall};
 use skein_shell::Host;

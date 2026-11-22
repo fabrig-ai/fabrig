@@ -82,7 +82,7 @@ fn each_outcome_round_trips_unchanged() {
 #[test]
 #[expect(clippy::too_many_lines, reason = "one expected literal pins every wire bound to its source")]
 fn limits_take_each_bound_from_its_source_field() {
-    // A table full at every bound (temper/docs/design/protocol/configuration/settings.md, 2).
+    // A table full at every bound (temper/docs/design/protocol/configuration/settings-kinds.md, 1).
     const ITEMS: u32 = 20;
     const SETS: u8 = 6;
     const WORDS_BYTES: usize = 120;

@@ -13,7 +13,7 @@
   `tooling_file_bytes` and `tooling_log_bytes` are 1 MiB and 64 KiB, the
   small profile's constants with no override
   (`temper/crates/temper-service/src/limits.rs`, `tooling`), because the
-  worker's configuration has no member for them (`configuration/README.md`, section 3 and `configuration/limits.md`
+  worker's configuration has no member for them (`configuration/worker.md`, section 1 and `configuration/limits.md`
   ), which `tooling.md`, section 7 leaves open: the merge kind, the
   first built, keeps the profile's constants. 3: a job's
   directory is its checkout's, each repository at `<name>/`, the home

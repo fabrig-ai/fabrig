@@ -717,7 +717,7 @@ fn dependent_pair(same_repository: bool) -> (World, u64, u64) {
 }
 
 // A full batch is these stories' setup: finish its restart reads before giving
-// the train room, so no waiting member is excluded (domain/landing.md, 9).
+// the train room, so no waiting member is excluded (domain/landing-turn.md, 2).
 fn restart_waiting_batch(world: &mut World, batch: u16, changes: &[u64]) {
     world.restart_with_batch(batch);
     world.root.hold_landings(true);

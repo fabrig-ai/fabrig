@@ -231,6 +231,7 @@ members = [
     "jig/testing/jig-client-test-kit",
     "jig/testing/jig-test-connector-kit",
     "jig/testing/jig-core-kit",
+    "jig/testing/jig-inspect",
     "jig/testing/jig-client-kit",
     "jig/testing/jig-engine-clients-kit",
     "jig/testing/jig-client-protocol-kit",
@@ -682,6 +683,7 @@ jig-client-test-domain = { path = "jig/testing/jig-client-test-domain" }
 jig-client-test-kit = { path = "jig/testing/jig-client-test-kit" }
 jig-test-connector-kit = { path = "jig/testing/jig-test-connector-kit" }
 jig-core-kit = { path = "jig/testing/jig-core-kit" }
+jig-inspect = { path = "jig/testing/jig-inspect" }
 jig-client-kit = { path = "jig/testing/jig-client-kit" }
 jig-engine-clients-kit = { path = "jig/testing/jig-engine-clients-kit" }
 jig-client-protocol-kit = { path = "jig/testing/jig-client-protocol-kit" }
