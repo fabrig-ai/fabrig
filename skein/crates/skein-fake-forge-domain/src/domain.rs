@@ -610,9 +610,9 @@ fn call(
 ) {
     let token = reply_to.into_token();
     let reply_to = ReplyTo::new(token);
-    let subject = Fell::call(env.now, user, repository, &op, token);
+    let subject = Fell::call(env.now, user, &op, token);
     if domain.calls.is_full() {
-        domain.call_fell(&subject, Fault::Busy, None);
+        domain.call_fell(&subject, Some(repository), Fault::Busy, None);
         domain.tally.busy = domain.tally.busy.saturating_add(1);
         domain.tally.answered = domain.tally.answered.saturating_add(1);
         out.push(Request::Reply { to: reply_to, result: Err(Error::Unavailable) });
@@ -670,8 +670,11 @@ fn call(
         Op::Read(_) => false,
         Op::Git(_) => true,
     };
-    let admission =
-        if admitted { faults::available(domain, env, &subject) } else { faults::admit(domain, env, user, &subject) };
+    let admission = if admitted {
+        faults::available(domain, env, &subject, repository)
+    } else {
+        faults::admit(domain, env, user, &subject, repository)
+    };
     let mut extra = Duration::ZERO;
     let state = match admission {
         Err(error) => State::Waiting { reply_to, result: Err(error), landing: None },
@@ -679,7 +682,7 @@ fn call(
             Op::Write(Write::Copy { owner, name, fill }) => {
                 match crate::creation::copy::start(domain, env, repository, user, &owner, &name) {
                     Ok((source, destination, answer)) => {
-                        let mut result = faults::finish(domain, env, Ok(answer), &subject);
+                        let mut result = faults::finish(domain, env, Ok(answer), &subject, repository);
                         match fill {
                             crate::api::Fill::Whole => {}
                             crate::api::Fill::Slow(span) => extra = span,
@@ -696,7 +699,7 @@ fn call(
                         if error == Error::Full {
                             domain.tally.full = domain.tally.full.saturating_add(1);
                         }
-                        let result = faults::finish(domain, env, Err(error), &subject);
+                        let result = faults::finish(domain, env, Err(error), &subject, repository);
                         State::Waiting { reply_to, result, landing: None }
                     }
                 }
@@ -709,13 +712,13 @@ fn call(
                     )
                 } else {
                     let result = make(domain, env, user, repository, op, Some(token));
-                    (faults::finish(domain, env, result, &subject), None)
+                    (faults::finish(domain, env, result, &subject, repository), None)
                 };
                 State::Waiting { reply_to, result, landing }
             }
         },
     };
-    let at = faults::latency(domain, env, &subject, extra);
+    let at = faults::latency(domain, env, &subject, repository, extra);
     let call = Call { state };
     let id = domain.calls.insert(call).expect("checked for room above");
     domain.timers.arm(Alarm::Call(id), at).expect("a timer per call fits");
@@ -914,12 +917,12 @@ fn answer(domain: &mut Domain, env: &Env<Config>, id: Id<Call>, out: &mut Queue<
             domain.tally.answered = domain.tally.answered.saturating_add(1);
             match landing {
                 Some(landing) => {
-                    let subject = Fell::call(env.now, landing.user, &landing.repository, &landing.op, token);
-                    call.state = State::Landing(landing);
+                    let subject = Fell::call(env.now, landing.user, &landing.op, token);
                     let config = &env.limits;
                     let at = env.now.saturating_add(faults::draw(domain, config.land_min, config.land_max));
                     // The landing interval starts at the timeout's answer; only now is its end drawn.
-                    domain.call_fell(&subject, Fault::Landing, Some(at));
+                    domain.call_fell(&subject, Some(&landing.repository), Fault::Landing, Some(at));
+                    domain.calls.get_mut(id).expect("a call waiting to land").state = State::Landing(landing);
                     domain.timers.arm(Alarm::Call(id), at).expect("a timer per call fits");
                 }
                 None => domain.calls.retire(id),

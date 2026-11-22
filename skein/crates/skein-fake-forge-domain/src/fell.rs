@@ -113,9 +113,9 @@ impl Fell {
         }
     }
 
-    pub(crate) fn call(at: Time, user: u64, repository: &[u8], op: &Op, reply_to: Token) -> Self {
+    /// Captures call identity without copying a name until a fault is recorded.
+    pub(crate) fn call(at: Time, user: u64, op: &Op, reply_to: Token) -> Self {
         let mut fell = Self::new(at, Fault::Busy);
-        fell.repository = Some(copy_of(repository));
         fell.user = Some(user);
         fell.reply_to = Some(reply_to);
         fell.call = Some(match op {
@@ -251,8 +251,17 @@ impl Domain {
         }
     }
 
-    pub(crate) fn call_fell(&mut self, subject: &Fell, fault: Fault, until: Option<Time>) {
-        self.record_fell(Fell { until, fault, ..subject.clone() });
+    pub(crate) fn call_fell(&mut self, subject: &Fell, repository: Option<&[u8]>, fault: Fault, until: Option<Time>) {
+        if self.fell.room() == 0 {
+            self.fell_lost = self.fell_lost.saturating_add(1);
+            return;
+        }
+        #[expect(clippy::manual_map, reason = "programming-model.md forbids closure-taking Option::map")]
+        let repository = match repository {
+            Some(name) => Some(copy_of(name)),
+            None => None,
+        };
+        self.record_fell(Fell { until, fault, repository, ..subject.clone() });
     }
 
     pub(crate) fn ci_fell(&mut self, at: Time, fault: Fault, id: Id<Repository>, commit: u64, run: u64) {
