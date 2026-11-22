@@ -28,10 +28,8 @@ pub const BENCHMARK_RUNNING: &str = "The benchmark is running.";
 pub const CHECK_REASON: &str = "The two-hour check found the benchmark stalled; cancel it.";
 pub const B_REPORT: &str = "The benchmark was cancelled; B has nothing left running.";
 pub const CHECK_REPORT: &str = "The two-hour check cancelled the stalled benchmark and B reported.";
-pub const FIRST_ACCOUNT: u64 = 1;
 pub const SECOND_KEY_FILE: &str = "second.key";
 pub const DEFAULT_MODEL: &str = "fake";
-pub const DEFAULT_MODEL_NUMBER: u8 = 0;
 // The fake forge's one repository stands as kit, since forge.rs names it,
 // until the fixture holds two.
 pub const KIT: &str = "acme/app";

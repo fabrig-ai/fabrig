@@ -1,6 +1,6 @@
 # checks: status
 
-2026-11-20. Where the tree's code lags or departs from [checks.md](checks.md).
+2026-11-22. Where the tree's code lags or departs from [checks.md](checks.md).
 
 - **Not yet:** 6.1: `temper-engine-inspect` doesn't exist, and no
   engine world calls the shared checks; the worker's adapter is
@@ -8,11 +8,11 @@
   from the seed's streams or sweeps with configured faults and
   exclusions, and no check holds the 3.3 failure table.
 
-- **Departs:** 1: thirteen named real-loop stories remain in the fuzzy
-  suite: ten scripted stories cut to what only the real loop shows
-  (the reference case's 4.1 with 4.3, 4.6, 5.1, 5.2, 5.4, 6.4, 6.6, 6.7
+- **Departs:** 1: twelve named real-loop stories remain in the fuzzy
+  suite: nine scripted stories cut to what only the real loop shows
+  (the reference case's 4.1 with 4.3, 4.6, 5.1, 5.2, 5.4, 6.4, 6.6
   and 6.8, and the kept-delegate landing), the program backend, and the
-  B0/B1 recorded transcript twins.
+  B0/B1 recorded transcript twins (`green_light` and `repair`).
   They remain there because the request for `limits-worlds` kept surviving
   stories in place, and the request for room in the budget
   (`../draft/failure-worlds.md`, 8) moved their other assertions down
@@ -25,20 +25,6 @@
 - **Not yet:** 1: the engine domain world's fuzzy module compiles `removal.rs` and `reset.rs` a second time, and the one-process world's fuzzy `upgrade` module repeats four focused cuts [in flight: change 11624].
 - **Not yet:** 1: the one-process world's two referee controls over supplied values run in its suite, not as step tests [in flight: change 11625].
 - **Not yet:** 1: the one-process world's fuzzy chat that reads then waits, and its merge in progress, have no system-world holders, so they still run on the simulator [in flight: change 11626].
-- **Not yet:** 1: the real loop's 4.1/4.3 story still asserts its delegate's fields, authority, spend, question and ancestor's cancel [in flight: change 11643].
-- **Not yet:** 1: the real loop's 4.4 story is not yet held below and retired [in flight: change 11644].
-- **Not yet:** 1: the real loop's two 4.5 stories are not yet held in the system world and retired [in flight: change 11645].
-- **Not yet:** 1: the real loop's 4.6 story still asserts its fenced journal and the question kept across the retry [in flight: change 11646].
-- **Not yet:** 1: the real loop's 5.1 story still asserts its holds, its question's delivery and its fresh brief [in flight: change 11647].
-- **Not yet:** 1: the real loop's 5.2 story still asserts its subtree's hold, its journals and its helper's cancel [in flight: change 11648].
-- **Not yet:** 1: the real loop's 5.4 story still asserts its amendment, its note, its cancels and a count of placement rechecks [in flight: change 11655].
-- **Not yet:** 1: the real loop's 5.5 story is not yet held below and retired [in flight: change 11656].
-- **Not yet:** 1: the real loop's 6.4 story still asserts its director's timer and its owners' relay [in flight: change 11657].
-- **Not yet:** 1: the real loop's 6.5 story is not yet held below and retired [in flight: change 11658].
-- **Not yet:** 1: the real loop's 6.6 story still asserts its batch, its review cues and its journals [in flight: change 11659].
-- **Not yet:** 1: the real loop's 6.7 story still orders its work against a 1 s deadline on the real clock [in flight: change 11682].
-- **Not yet:** 1: the real loop's 6.8 story still asserts M2, its message relay and its tester's refusal [in flight: change 11683].
-- **Not yet:** 1: the real loop's kept-delegate landing story still asserts its task numbers and its scripts' words, and no domain world joins a landing to its dependent's start [in flight: change 11684].
 
 Section 1's budgets by layer start at the CI builder's gate figures of
 11-16 (`tools/tiers/budgets.md`, 6); where the code doesn't yet sum or judge

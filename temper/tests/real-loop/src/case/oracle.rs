@@ -18,8 +18,6 @@ pub struct Observed {
     pub observed_at: BTreeMap<Read, Wall>,
     /// Each LLM query in order, by its cue: its messages' texts and tool outputs.
     pub told: Vec<Told>,
-    /// Command verbs of the submitted ctl argv (reads and waits included).
-    pub commands: Vec<String>,
     /// kit's main after its last observed merge or the person's push.
     pub kit: Kit,
 }
@@ -31,8 +29,6 @@ pub struct Told {
     /// Repository conventions and the brief, separate from conversation messages.
     pub system: Box<[u8]>,
     pub words: Box<[u8]>,
-    pub model: Box<[u8]>,
-    pub credential: Option<u32>,
 }
 #[derive(Clone)]
 pub struct Kit {
@@ -45,22 +41,11 @@ pub struct Kit {
 impl Told {
     /// The oracle's per-query view, shared with process-tier observation readers.
     #[must_use]
-    pub fn new(
-        system: &[u8],
-        model: &[u8],
-        credential: Option<u32>,
-        messages: &[skein_fake_llm_domain::api::Message],
-    ) -> Option<Self> {
-        Some(Self::with_agent(cued(system)?, system, model, credential, messages))
+    pub fn new(system: &[u8], messages: &[skein_fake_llm_domain::api::Message]) -> Option<Self> {
+        Some(Self::with_agent(cued(system)?, system, messages))
     }
 
-    fn with_agent(
-        agent: Agent,
-        system: &[u8],
-        model: &[u8],
-        credential: Option<u32>,
-        messages: &[skein_fake_llm_domain::api::Message],
-    ) -> Self {
+    fn with_agent(agent: Agent, system: &[u8], messages: &[skein_fake_llm_domain::api::Message]) -> Self {
         let mut words = system.to_vec();
         words.push(b'\n');
         for message in messages {
@@ -75,14 +60,7 @@ impl Told {
                 }
             }
         }
-        Self {
-            system: system.into(),
-            history: messages.into(),
-            agent,
-            words: words.into_boxed_slice(),
-            model: model.into(),
-            credential,
-        }
+        Self { system: system.into(), history: messages.into(), agent, words: words.into_boxed_slice() }
     }
 }
 impl Observed {
@@ -92,7 +70,7 @@ impl Observed {
         let mut told = Vec::new();
         for observation in ran.llm() {
             let skein_fake_peers::llm::Observation::Query { query, .. } = observation else { continue };
-            if let Some(query) = Told::new(&query.system, &query.model, query.credential, &query.messages) {
+            if let Some(query) = Told::new(&query.system, &query.messages) {
                 told.push(query);
             }
         }
@@ -103,7 +81,6 @@ impl Observed {
                 .collect(),
             documents,
             observed_at,
-            commands: Vec::new(),
             told,
             kit: Kit {
                 records: ran.forge().observations().to_vec(),
@@ -130,28 +107,6 @@ fn read_documents(calls: &[calls::Called], reads: &[(Read, usize)]) -> (BTreeMap
         }
     }
     (documents, observed_at)
-}
-impl Observed {
-    /// The command verbs of the story's ctl argv, in order, for checks on which acts it made.
-    #[must_use]
-    pub fn with_commands(mut self, steps: &[calls::Step]) -> Self {
-        for step in steps {
-            if let calls::Step::Call { argv, .. } | calls::Step::Start { argv, .. } | calls::Step::Until { argv, .. } =
-                step
-                && let Some(calls::Arg::Lit(command)) = argv.0.first()
-            {
-                let name = if let Some(calls::Arg::Lit(verb)) = argv.0.get(1)
-                    && !matches!(*command, "me" | "inbox" | "sign-in" | "sign-out" | "link" | "pending" | "help")
-                {
-                    format!("{command} {verb}")
-                } else {
-                    String::from(*command)
-                };
-                self.commands.push(name);
-            }
-        }
-        self
-    }
 }
 fn cued(system: &[u8]) -> Option<Agent> {
     let mut first_at = usize::MAX;
@@ -330,11 +285,11 @@ mod tests {
     #[test]
     fn the_first_system_cue_identifies_the_agent_before_delegated_cues() {
         let system = [b"guide\n".as_slice(), Agent::A.cue(), b"\ndelegate ", Agent::Director.cue()].concat();
-        let query = Told::new(&system, b"fake", None, &[]).expect("system cue");
+        let query = Told::new(&system, &[]).expect("system cue");
         assert_eq!(query.agent, Agent::A);
-        let query = Told::new(Agent::RedRepairCoder.cue(), b"fake", None, &[]).expect("opening cue");
+        let query = Told::new(Agent::RedRepairCoder.cue(), &[]).expect("opening cue");
         assert_eq!(query.agent, Agent::RedRepairCoder);
-        assert!(Told::new(b"guide without a case cue", b"fake", None, &[]).is_none());
+        assert!(Told::new(b"guide without a case cue", &[]).is_none());
     }
 
     #[test]
@@ -376,7 +331,6 @@ mod tests {
             activity_aliases: std::collections::BTreeSet::new(),
             observed_at: BTreeMap::new(),
             documents: BTreeMap::new(),
-            commands: Vec::new(),
             told: Vec::new(),
             kit: Kit { records: Vec::new(), pulls: Vec::new(), main, merged_green: true },
         }
@@ -546,7 +500,7 @@ mod check_timer_tests {
             ("another subscription", vec![message(Role::User, vec![receipt.clone(), wake.clone()])], 13, false),
             ("assistant words", vec![message(Role::Assistant, vec![receipt, wake])], 12, false),
         ] {
-            let told = Told::with_agent(Agent::Check, b"", b"fake", None, &messages);
+            let told = Told::with_agent(Agent::Check, b"", &messages);
             assert_eq!(check_timer_delivery(&told, subscription), met, "{name}");
         }
     }
@@ -618,21 +572,13 @@ mod restart_tests {
         }
     }
     fn told(agent: Agent, history: Vec<Message>) -> Told {
-        Told {
-            system: Box::new([]),
-            agent,
-            history: history.into_boxed_slice(),
-            words: Box::new([]),
-            model: Box::new([]),
-            credential: None,
-        }
+        Told { system: Box::new([]), agent, history: history.into_boxed_slice(), words: Box::new([]) }
     }
     fn met() -> Observed {
         Observed {
             activity_aliases: std::collections::BTreeSet::new(),
             observed_at: BTreeMap::new(),
             documents: BTreeMap::new(),
-            commands: Vec::new(),
             kit: Kit { records: Vec::new(), pulls: Vec::new(), main: BTreeMap::new(), merged_green: false },
             told: vec![
                 told(Agent::Hang, Vec::new()),
@@ -736,7 +682,7 @@ mod rules_tests {
     fn told(agent: Agent, guide: &str) -> Told {
         let mut system = agent.cue().to_vec();
         system.extend_from_slice(guide.as_bytes());
-        Told::new(&system, b"fake", Some(0), &[]).expect("case cue")
+        Told::new(&system, &[]).expect("case cue")
     }
 
     fn met() -> Observed {
@@ -751,7 +697,6 @@ mod rules_tests {
                 told(Agent::Scope, OLD_RULES),
                 told(Agent::Scope, NEW_RULES),
             ],
-            commands: Vec::new(),
             kit: Kit {
                 records: Vec::new(),
                 pulls: Vec::new(),
@@ -913,7 +858,7 @@ mod shape_tests {
         Message { role: Role::User, parts: Box::new([Part::Text { text: words.as_bytes().into() }]) }
     }
     fn told(agent: Agent, brief: &str, messages: &[Message]) -> Told {
-        Told::new(&[agent.cue(), b"\n", brief.as_bytes()].concat(), b"fake", Some(0), messages).expect("case cue")
+        Told::new(&[agent.cue(), b"\n", brief.as_bytes()].concat(), messages).expect("case cue")
     }
     fn met() -> Observed {
         let a = json!({"chip":{"task":MOVER,"phase":"ended"},"project":PROJECT,
@@ -943,7 +888,6 @@ mod shape_tests {
                 told(Agent::Mover, NEW_BRIEF, &[user(NEW_BRIEF)]),
                 told(Agent::Mover, NEW_BRIEF, &[user(NEW_BRIEF), user("Continue")]),
             ],
-            commands: Vec::new(),
             kit: Kit { records: Vec::new(), pulls: Vec::new(), main: BTreeMap::new(), merged_green: false },
         }
     }
@@ -1118,14 +1062,11 @@ mod pause_tests {
             agent: Agent::Bowner,
             words: words.into_bytes().into(),
             history: Box::new([]),
-            model: Box::new([]),
-            credential: None,
         };
         Observed {
             activity_aliases: BTreeSet::new(),
             observed_at: BTreeMap::new(),
             documents,
-            commands: Vec::new(),
             told: vec![told("Delegated".into()), told(format!("Result from task {H1}:\nlanded"))],
             kit: Kit {
                 records: Vec::new(),
@@ -1498,8 +1439,7 @@ mod direction_tests {
             activity_aliases: BTreeSet::new(),
             observed_at: BTreeMap::new(),
             documents,
-            commands: Vec::new(),
-            told: vec![Told::with_agent(Agent::OverlapOwner, Agent::OverlapOwner.cue(), b"fake", None, &[message])],
+            told: vec![Told::with_agent(Agent::OverlapOwner, Agent::OverlapOwner.cue(), &[message])],
             kit: Kit {
                 pulls: pull_digest(&records),
                 records,
@@ -2090,7 +2030,6 @@ mod red_tests {
             activity_aliases: BTreeSet::new(),
             observed_at: BTreeMap::new(),
             told: Vec::new(),
-            commands: Vec::new(),
         }
     }
     fn rejects(observed: &Observed, promise: Promise) {
@@ -2416,7 +2355,6 @@ mod waiting_tests {
             observed_at: BTreeMap::new(),
             documents: BTreeMap::new(),
             told: vec![],
-            commands: vec![],
             kit: Kit {
                 pulls: vec![],
                 records,
