@@ -284,12 +284,14 @@ loopback (skein's `testing/fakes/forge.md`, section 5). temper's worlds add:
       landed, while its manual merge record is read late
       (`lagging/merge_late`), finishes without a person's release.
     - `a_member_merged_by_another_lands_like_any_landing`
-      (`tests/suite/refusing.rs`): a batch member whose pull request
-      another user merges at its own commit between two of the engine's
-      reads, as the batch is formed, is landed and holds no record. The
-      batch's other member lands, and the landing finishes. The refusing
-      sweep leaves out `refusing/merged_by_another` on a member of a
-      landing's batch, from the batch's forming to its record.
+      (`tests/suite/refusing.rs`): a change queued for landing whose
+      pull request another user merges at its own commit between two of
+      the engine's reads, before or as its batch is formed, is landed and
+      holds no record. The batch's other member lands, and the landing
+      finishes. The refusing sweep leaves out `refusing/merged_by_another`
+      on a change from its queueing for landing to its record. The kind
+      falls on an open change that is not queued, which is neither held
+      nor recorded as landed.
 - **Its git** is reached through the fake forge's own calls, never git's
   protocol over HTTP: through its typed transport by the fake git
   program in the one-process world (3), as by the fake checkout in the
