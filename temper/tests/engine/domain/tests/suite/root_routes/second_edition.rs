@@ -112,6 +112,10 @@ fn person_ask(driver: &mut Driver, key: u8, ask: people::Ask) {
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the subtree's stop, acceptance and resumed journal share one causal sequence"
+)]
 fn the_persons_stop_requires_its_owners_acceptance_and_resumes_the_subtrees_transcripts() {
     let (mut driver, cast) = opening();
     let runs = [&cast.p, &cast.implementers[0], &cast.implementers[1]];
@@ -130,6 +134,20 @@ fn the_persons_stop_requires_its_owners_acceptance_and_resumes_the_subtrees_tran
         driver.answer(Token::new(7), run.task, run.attempt, 1, tasks::End::Parked, engine::Parts::none());
         driver.settle();
     }
+    let history = |driver: &Driver, task| -> Vec<tasks::ActivityLine> {
+        driver
+            .store
+            .rows
+            .values()
+            .filter_map(|record| match record {
+                Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Activity(row))) if row.task == task => {
+                    Some(row.clone())
+                }
+                _ => None,
+            })
+            .collect()
+    };
+    let stopped: Vec<_> = runs.iter().map(|run| history(&driver, run.task)).collect();
     assert_eq!(live(&driver, cast.director.task).placed, None);
     assert!(!cancelled(&driver).contains(&(cast.director.task, cast.director.attempt)));
     let revision = live(&driver, cast.p.task).revisions.hold;
@@ -157,6 +175,7 @@ fn the_persons_stop_requires_its_owners_acceptance_and_resumes_the_subtrees_tran
     let proposal = proposal_of(&driver, 933);
     assert!(proposal_waits_at(&driver, cast.director.task, tasks::ProposalHolder::Person(person)));
     for run in runs {
+        assert_eq!(live(&driver, run.task).attempt, run.attempt, "Stop starts no new attempt");
         assert_eq!(
             driver
                 .delivered
@@ -181,7 +200,27 @@ fn the_persons_stop_requires_its_owners_acceptance_and_resumes_the_subtrees_tran
     assert!(driver.delivered.iter().any(|item| matches!(item,
         Delivery::WebReply { reply: people::Reply::Outcome(people::Outcome::ProposalDecided {
             proposal: found, choice: people::ProposalChoice::Accepted, .. }), .. } if *found == proposal)));
-    for run in runs {
+    for (run, before) in runs.into_iter().zip(stopped) {
+        let after = history(&driver, run.task);
+        assert!(after.starts_with(&before), "the stopped journal is an unchanged prefix");
+        let release = after
+            .iter()
+            .find(|row| {
+                matches!(row.line, tasks::Line::Decided { .. })
+                    && row.position > before.last().expect("stopped history").position
+            })
+            .expect("release decision")
+            .position;
+        let attempts: Vec<_> = after
+            .iter()
+            .filter_map(|row| match row.line {
+                tasks::Line::RunBegan { attempt, .. } => Some((row.position, attempt)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(attempts.len(), 2, "every original and resumed attempt is retained");
+        assert_eq!(attempts[0].1, run.attempt);
+        assert!(attempts[1].0 > release, "no attempt starts before Release");
         let resumed = driver
             .delivered
             .iter()

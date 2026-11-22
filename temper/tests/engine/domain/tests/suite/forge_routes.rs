@@ -585,22 +585,29 @@ fn a_change_whose_ci_takes_minutes_lands_without_being_held() {
 
 #[test]
 fn an_agent_review_gate_runs_at_the_head_and_its_approval_lands_the_change() {
-    check_gate_landing(false, false);
+    check_gate_landing(false, false, false);
 }
 
 #[test]
 fn a_change_to_a_repository_without_ci_lands_on_its_checks() {
-    check_gate_landing(true, false);
+    check_gate_landing(true, false, false);
 }
 
 #[test]
 fn a_projects_own_enforced_rule_holds_landing_for_its_gate() {
-    check_gate_landing(false, true);
+    check_gate_landing(false, true, false);
 }
 
-fn check_gate_landing(no_ci: bool, owner_gate: bool) {
+#[test]
+fn a_change_hears_its_coder_and_released_reviewers_pass() {
+    check_gate_landing(false, false, true);
+}
+
+#[expect(clippy::too_many_lines, reason = "one review gate's preparation, optional stop and landing")]
+fn check_gate_landing(no_ci: bool, owner_gate: bool, stopped: bool) {
     let (mut world, _chat, producer, branch) =
         change_world_with_policy(no_ci, 1000, None, !owner_gate, no_ci, owner_gate, false);
+    let tasks::Party::Task(change) = live_task(&world, producer.task).requester else { panic!("change parent") };
     assert!(matches!(
         world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 })),
         raw::Answer::Branch(raw::Created::Created)
@@ -631,7 +638,30 @@ fn check_gate_landing(no_ci: bool, owner_gate: bool) {
             break;
         }
     }
-    let gate = world.assigned.get(2).expect("agent gate assigned").clone();
+    let mut gate = world.assigned.get(2).expect("agent gate assigned").clone();
+    if stopped {
+        review_person(&mut world, 180, people::Ask::Stop { project: 1, task: change });
+        world.advance_ticks(100);
+        let event =
+            world.protocol.answer(Token::new(7), gate.task, gate.attempt, 0, tasks::End::Parked, engine::Parts::none());
+        world.send(event);
+        world.advance_ticks(100);
+        let revision = live_task(&world, change).revisions.hold;
+        review_person(&mut world, 181, people::Ask::Release { project: 1, task: change, revision, again: None });
+        for _ in 0..200 {
+            world.tick();
+            if world.assigned.iter().any(|run| run.task == gate.task && run.attempt > gate.attempt) {
+                break;
+            }
+        }
+        gate = world
+            .assigned
+            .iter()
+            .rev()
+            .find(|run| run.task == gate.task && run.attempt > gate.attempt)
+            .expect("released review")
+            .clone();
+    }
     if owner_gate {
         assert!(
             world.store.rows.values().all(|stored| !matches!(stored,
@@ -679,7 +709,42 @@ fn check_gate_landing(no_ci: bool, owner_gate: bool) {
                 && change.verdicts.iter().any(|report| Some(report.head) == change.change.last_head
                     && report.status == temper_engine_domain_forge_change::Status::Passed))
     )));
+    if stopped {
+        let heard = |task, kind: tasks::ResultKind| {
+            world.store.rows.values().any(|row| {
+                matches!(row,
+            Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Activity(line)))
+                if line.task == change && matches!(&line.line, tasks::Line::Heard(word)
+                    if word.from == tasks::Party::Task(task) && word.kind == tasks::MessageKind::Result(kind.clone())))
+            })
+        };
+        assert!(
+            heard(
+                producer.task,
+                tasks::ResultKind::Change {
+                    connector: 0,
+                    kind: 2,
+                    resource: temper_engine_domain_forge::tag(forge_world::REPO.forge, forge_world::REPO.repository)
+                }
+            ),
+            "the change hears its coder"
+        );
+        assert!(
+            heard(gate.task, tasks::ResultKind::Verdict { code: 1, fields: Box::new([]) }),
+            "the change hears the released review's pass"
+        );
+    }
     world.close();
+}
+
+fn review_person(world: &mut World, key: u8, ask: people::Ask) {
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(u64::from(key))),
+        sign_in: world.signed_in.expect("owner"),
+        key: [key; 16],
+        ask,
+    }));
 }
 
 #[test]

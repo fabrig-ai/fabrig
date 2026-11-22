@@ -788,7 +788,7 @@ mod tests {
     }
 
     #[test]
-    fn the_stopped_owner_fixture_fits_its_stock_and_helper_charters() {
+    fn the_stopped_owner_fixture_fits_its_stock_charters() {
         let deferred = ([127, 0, 0, 1], 0).into();
         let (_, config) = configured(crate::case::fixture_5_2(), deferred, deferred);
         let engine = crate::settings::configuration(&config);
@@ -796,7 +796,6 @@ mod tests {
         else {
             panic!("the real loop supplies its own defaults")
         };
-        assert!(defaults.charters.iter().any(|charter| charter.number == 9), "the helper charter is retained");
         assert!(defaults.charters.iter().any(|charter| charter.number == 10), "the stock trial charter is retained");
         assert!(defaults.charters.len() <= usize::try_from(engine.limits.core.tasks.charters).expect("charter limit"));
     }

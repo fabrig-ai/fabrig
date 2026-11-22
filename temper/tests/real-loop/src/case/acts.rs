@@ -15,19 +15,10 @@ fn call(at: calls::Dir, argv: calls::Argv) -> calls::Step {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Read {
-    BEndedEarlier,
-    ImplementerRunning,
-    ImplementerHeld,
     H1Held,
     H1ReviewerHeld,
-    H1Running,
-    HelperEnded,
     BHeld,
-    BStillHeld,
-    ImplementerEnded,
     H1Ended,
-    Ended,
-    PauseEnded,
     DirectorEnded,
     AEnded,
     DesignEnded,
@@ -464,30 +455,12 @@ pub fn step_5_3() -> Vec<calls::Step> {
 }
 
 // Act 2, step 5.2 (testing/reference-case.md)
-const B_ENDED_5_2: usize = 22;
-pub const READS_5_2: &[(Read, usize)] = &[
-    (Read::ImplementerRunning, 5),
-    (Read::H1Running, 7),
-    (Read::HelperEnded, 8),
-    (Read::BHeld, 11),
-    (Read::ImplementerHeld, 12),
-    (Read::H1Held, 13),
-    (Read::H1ReviewerHeld, 14),
-    (Read::BStillHeld, 15),
-    (Read::ImplementerEnded, 20),
-    (Read::H1Ended, 21),
-    (Read::BEnded, B_ENDED_5_2),
-    (Read::BEndedEarlier, 23),
-    (Read::Ended, 24),
-    (Read::PauseEnded, 25),
-];
+pub const READS_5_2: &[(Read, usize)] =
+    &[(Read::BHeld, 9), (Read::H1Held, 10), (Read::H1ReviewerHeld, 11), (Read::H1Ended, 14)];
 
 #[must_use]
 pub fn step_5_2() -> Vec<calls::Step> {
-    use super::{
-        Agent, B_HOLD, BOWNER, H1, H1_REVIEWER, HELPER, IMPLEMENTER, IMPLEMENTER_HOLD, OWNER, PAUSE, PAUSE_PERSON,
-        PROJECT, REVIEW_HOLD,
-    };
+    use super::{Agent, B_HOLD, BOWNER, H1, H1_REVIEWER, PAUSE, PAUSE_PERSON, PROJECT, REVIEW_HOLD};
     vec![
         sign_in(D1),
         call(
@@ -511,79 +484,20 @@ pub fn step_5_2() -> Vec<calls::Step> {
         call(D1, argv!["chat", "start", "--project", number(PROJECT), "--key", "pause", PAUSE_PERSON]),
         call(D1, argv!["task", "show", number(PAUSE), "--until", "replied"]),
         call(D1, argv!["task", "show", number(BOWNER), "--until", "replied"]),
-        // The documents establish the case's in-flight work before Stop.
-        // The fake Pieces keep each run writing until its release below.
-        calls::writing_task(D1, IMPLEMENTER),
-        // h1 exists after B's reply; its review is created asynchronously.
-        // Wait for its live delegate card before reading the review's document.
         until(D1, argv!["task", "show", number(H1), "--json"], Agent::Review.cue(), b"\"task\""),
         calls::writing_task(D1, H1_REVIEWER),
-        until(
-            D1,
-            argv!["task", "show", number(HELPER), "--activity", "32", "--json"],
-            b"\"phase\":\"ended\"",
-            b"\"task\"",
-        ),
-        // replied alone can still be writing; read the parked owner's phase.
         call(D1, argv!["task", "show", number(BOWNER), "--until", "phase:idle"]),
         call(D1, argv!["task", "stop", number(BOWNER), "--key", "stop-b"]),
-        until(
-            D1,
-            argv!["task", "show", number(BOWNER), "--activity", "32", "--json"],
-            b"\"phase\":\"held\"",
-            b"\"task\"",
-        ),
-        until(
-            D1,
-            argv!["task", "show", number(IMPLEMENTER), "--activity", "32", "--json"],
-            b"\"phase\":\"held\"",
-            b"\"task\"",
-        ),
-        until(D1, argv!["task", "show", number(H1), "--activity", "32", "--json"], b"\"phase\":\"held\"", b"\"task\""),
-        until(
-            D1,
-            argv!["task", "show", number(H1_REVIEWER), "--activity", "32", "--json"],
-            b"\"phase\":\"held\"",
-            b"\"task\"",
-        ),
-        call(D1, argv!["task", "show", number(BOWNER), "--activity", "32", "--json"]),
-        // Complete the cancelled model responses before the new attempts use
-        // the peer, then release the new responses once they are writing.
-        calls::release_hold(IMPLEMENTER_HOLD),
+        until(D1, argv!["task", "show", number(BOWNER), "--json"], b"\"phase\":\"held\"", b"\"task\""),
+        until(D1, argv!["task", "show", number(H1), "--json"], b"\"phase\":\"held\"", b"\"task\""),
+        until(D1, argv!["task", "show", number(H1_REVIEWER), "--json"], b"\"phase\":\"held\"", b"\"task\""),
+        // Drain the cancelled response before the new attempt uses the peer.
         calls::release_hold(REVIEW_HOLD),
         call(D1, argv!["task", "release", number(BOWNER), "--hold", number(B_HOLD), "--key", "release-b"]),
-        // The cancelled response's fake hold is not the resumed response's.
-        // Observe both new runs writing before releasing their scripted replies.
-        calls::writing_task(D1, IMPLEMENTER),
         calls::writing_task(D1, H1_REVIEWER),
-        // Release also activates B. Let that activation park before either
-        // delegate finishes, so no result enters its release query mid-read.
-        // The world's patience bounds the phase watch and reports its argv.
-        call(D1, argv!["task", "show", number(BOWNER), "--until", "phase:idle", "--json"]).succeeds(),
-        calls::release_hold(IMPLEMENTER_HOLD),
         calls::release_hold(REVIEW_HOLD),
-        until(
-            D1,
-            argv!["task", "show", number(IMPLEMENTER), "--activity", "32", "--json"],
-            b"\"phase\":\"ended\"",
-            b"\"task\"",
-        ),
-        until(D1, argv!["task", "show", number(H1), "--activity", "32", "--json"], b"\"phase\":\"ended\"", b"\"task\""),
-        until(
-            D1,
-            argv!["task", "show", number(BOWNER), "--activity", "32", "--json"],
-            b"\"phase\":\"ended\"",
-            b"\"task\"",
-        ),
-        // B's two attempts span two activity pages; retain the supplied cursor.
-        call(D1, argv!["task", "activity", number(BOWNER), "--before", calls::activity_before(B_ENDED_5_2), "--json"]),
-        call(D1, argv!["task", "show", number(OWNER), "--activity", "32", "--json"]),
-        until(
-            D1,
-            argv!["task", "show", number(PAUSE), "--activity", "32", "--json"],
-            b"\"phase\":\"ended\"",
-            b"\"task\"",
-        ),
+        until(D1, argv!["task", "show", number(H1), "--json"], b"\"phase\":\"ended\"", b"\"task\""),
+        call(D1, argv!["task", "show", number(BOWNER), "--until", "ended"]),
     ]
 }
 

@@ -437,64 +437,35 @@ pub fn step_5_3(_forge: SocketAddr) -> Box<[Script]> {
 // Act 2, step 5.2 (testing/reference-case.md)
 #[must_use]
 pub fn step_5_2_rules() -> Box<[Box<[Rule]>]> {
-    use super::{BOWNER, BOWNER_REPORT, H1, HELPER, IMPLEMENTER, IMPLEMENTER_RESULT, OWNER};
-    // Cancelling the helper wakes the chat before B ends. Observed in the
-    // cluster run: counting that wake as B's report finishes the chat early.
-    let pause = [
-        (BOWNER_REPORT, 5),
-        (CROSSED, 5),
-        (&format!("{DELEGATED}{BOWNER}"), 3),
-        (&format!("{DELEGATED}{HELPER}"), 2),
-        (&format!("{DELEGATED}{OWNER}"), 1),
-        (BEGIN, 0),
-        ("", 4),
-    ]
-    .map(|(cue, turn)| Rule { cue: cue.as_bytes().into(), turn });
-    // Landing news does not replace either delegate's final result.
-    let owner = [
-        (IMPLEMENTER_RESULT, 3),
-        (&format!("Result from task {H1}:"), 3),
-        (CROSSED, 3),
-        (&format!("{DELEGATED}{IMPLEMENTER}"), 1),
-        (&format!("{DELEGATED}{H1}"), 2),
-        (BEGIN, 0),
-        ("", 2),
-    ]
-    .map(|(cue, turn)| Rule { cue: cue.as_bytes().into(), turn });
-    Box::new([Box::new(pause), Box::new([]), Box::new(owner), Box::new([]), Box::new([]), Box::new([]), Box::new([])])
+    use super::{BOWNER, BOWNER_REPORT, H1};
+    let table = |rows: &[(&str, u32)]| {
+        rows.iter().map(|(cue, turn)| Rule { cue: cue.as_bytes().into(), turn: *turn }).collect()
+    };
+    Box::new([
+        table(&[(BOWNER_REPORT, 2), (CROSSED, 2), (&format!("{DELEGATED}{BOWNER}"), 1), (BEGIN, 0), ("", 1)]),
+        table(&[
+            (&format!("Result from task {H1}:"), 2),
+            (CROSSED, 2),
+            (&format!("{DELEGATED}{H1}"), 1),
+            (BEGIN, 0),
+            ("", 1),
+        ]),
+        Box::new([]),
+        Box::new([]),
+    ])
 }
 
 #[must_use]
 pub fn step_5_2(forge: SocketAddr) -> Box<[Script]> {
-    use super::{
-        Agent, BOWNER_REPORT, BOWNER_SPEC, H1_DOC, H1_LINE, H1_SPEC, H1_WORDS, HELPER, HELPER_CHARTER, HELPER_REASON,
-        HELPER_SPEC, IMPLEMENTER_HOLD, IMPLEMENTER_RESULT, IMPLEMENTER_SPEC, OWNER_REPORT, OWNER_SPEC, PAUSE_PROPOSAL,
-        PAUSE_REPORT, REVIEW_HOLD, REVIEWED,
-    };
+    use super::{BOWNER_REPORT, BOWNER_SPEC, H1_DOC, H1_LINE, H1_SPEC, H1_WORDS, PAUSE_REPORT, REVIEW_HOLD};
     use skein_fake_llm_domain::api::Piece;
-    let agent = |spec: &str, charter, spend, tools, tasks, depth, kinds: Value, resources: Value| {
-        json!({
-            "executor":{"kind":"agent","charter":charter},
-            "spec":{"words":spec,"parameters":[]},"contract":{"kind":"report","words":128},
-            "authority":{"tools":tools,"grants":resources,
-                "delegation":{"kinds":kinds,"tasks":tasks,"depth":depth},"budget":{"spend":spend},"notes":0}
-        })
-    };
-    // B keeps a capped ten-unit run beside its fifteen units of live delegates after resuming.
-    let mut b = agent(
-        BOWNER_SPEC,
-        1,
-        40,
-        3,
-        4,
-        3,
-        json!([{"kind":"agent","number":1},{"kind":"agent","number":4},{"kind":"procedure","number":2}]),
-        grants(forge, &[2, 3, 4, 7, 8, 10, 11, 12, 13]),
-    );
-    b["tracked"] = json!({"priority":1});
-    let a = agent(OWNER_SPEC, 1, 5, 0, 0, 0, json!([]), json!([]));
-    let helper = agent(HELPER_SPEC, HELPER_CHARTER, 5, 0, 0, 0, json!([]), json!([]));
-    let implementer = agent(IMPLEMENTER_SPEC, 1, 5, 0, 0, 0, json!([]), json!([]));
+    let owner = json!({
+        "executor":{"kind":"agent","charter":1},"tracked":{"priority":1},
+        "spec":{"words":BOWNER_SPEC,"parameters":[]},"contract":{"kind":"report","words":128},
+        "authority":{"tools":3,"grants":grants(forge,&[2,3,4,7,8,10,11,12,13]),
+            "delegation":{"kinds":[{"kind":"agent","number":1},{"kind":"agent","number":4},{"kind":"procedure","number":2}],"tasks":4,"depth":3},
+            "budget":{"spend":40},"notes":0}
+    });
     let change = json!({
         "executor":{"kind":"procedure","connector":1,"code":2},
         "spec":{"words":H1_SPEC,"parameters":[
@@ -505,39 +476,24 @@ pub fn step_5_2(forge: SocketAddr) -> Box<[Script]> {
             "delegation":{"kinds":[{"kind":"agent","number":1},{"kind":"agent","number":4}],"tasks":2,"depth":2},
             "budget":{"spend":10},"notes":0}
     });
-    let held = |name: &[u8], words: &str, mut turn: Turn| {
-        let mut lines =
-            vec![Line::Pieces { pieces: Box::new([Piece { text: words.as_bytes().into(), hold: Some(name.into()) }]) }];
-        lines.extend(turn.lines);
-        turn.lines = lines.into();
-        turn
-    };
+    let mut verdict = call(b"finish", &json!({"form":"verdict","label":"1","text":REVIEWED,"fields":{},"items":[]}));
+    let mut lines = vec![Line::Pieces {
+        pieces: Box::new([Piece { text: b"h1's review is held.".as_slice().into(), hold: Some(REVIEW_HOLD.into()) }]),
+    }];
+    lines.extend(verdict.lines);
+    verdict.lines = lines.into();
     Box::new([
         Script {
             cue: Agent::Pause.cue().into(),
-            turns: Box::new([
-                call(b"delegate", &json!({"batch":[a]})),
-                call(b"delegate", &json!({"batch":[helper]})),
-                call(b"delegate", &json!({"batch":[b]})),
-                call(b"cancel", &json!({"target":HELPER,"reason":HELPER_REASON})),
-                wait(PAUSE_PROPOSAL),
-                report(PAUSE_REPORT),
-            ]),
+            turns: Box::new([call(b"delegate", &json!({"batch":[owner]})), wait("B owns h1."), report(PAUSE_REPORT)]),
         },
-        Script { cue: Agent::Owner.cue().into(), turns: Box::new([report(OWNER_REPORT)]) },
         Script {
             cue: Agent::Bowner.cue().into(),
             turns: Box::new([
-                call(b"delegate", &json!({"batch":[implementer]})),
                 call(b"delegate", &json!({"batch":[change]})),
-                wait("B's implementer and h1 are delegated."),
+                wait("h1 is delegated."),
                 report(BOWNER_REPORT),
             ]),
-        },
-        Script { cue: Agent::Helper.cue().into(), turns: Box::new([wait("The old helper waits.")]) },
-        Script {
-            cue: Agent::Implementer.cue().into(),
-            turns: Box::new([held(IMPLEMENTER_HOLD, "The implementer's run is held.", report(IMPLEMENTER_RESULT))]),
         },
         Script {
             cue: H1_SPEC.as_bytes().into(),
@@ -546,14 +502,7 @@ pub fn step_5_2(forge: SocketAddr) -> Box<[Script]> {
                 call(b"finish", &json!({"form":"change","fields":{"title":"h1","body":H1_LINE}})),
             ]),
         },
-        Script {
-            cue: Agent::Review.cue().into(),
-            turns: Box::new([held(
-                REVIEW_HOLD,
-                "h1's review is held.",
-                call(b"finish", &json!({"form":"verdict","label":"1","text":REVIEWED,"fields":{},"items":[]})),
-            )]),
-        },
+        Script { cue: Agent::Review.cue().into(), turns: Box::new([verdict]) },
     ])
 }
 

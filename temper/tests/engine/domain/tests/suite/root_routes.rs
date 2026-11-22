@@ -1003,10 +1003,13 @@ fn a_person_stops_a_run_and_releases_it() {
     assert!(replied(&driver, &people::Outcome::Stopped { task: assignment.task }));
     assert_eq!(cancelled(&driver), [(assignment.task, assignment.attempt)]);
     let row = live(&driver, assignment.task);
+    let stopped_revision = row.revisions.hold;
+    assert_eq!(stopped_revision, 1);
     assert!(matches!(row.phase, tasks::Phase::Held { why: tasks::Hold::Placed { .. }, .. }));
     driver.answer(Token::new(7), assignment.task, assignment.attempt, 0, tasks::End::Parked, engine::Parts::none());
     driver.settle();
     let revision = live(&driver, assignment.task).revisions.hold;
+    assert_eq!(revision, stopped_revision, "draining the run preserves the Stop's revision");
     driver.send(engine::Event::Party(engine::PartyInput::Ask {
         models: Box::new([]),
         reply_to: ReplyTo::new(Token::new(981)),
@@ -2887,7 +2890,9 @@ fn a_cancel_closes_three_levels_with_runs_live_deepest_first() {
     assert_eq!(endings.len(), 2);
     assert_eq!(endings[0].0, grandchild);
     assert_eq!(endings[1].0, child);
-    assert!(endings.iter().all(|(_, phase)| matches!(phase, tasks::Phase::Ended(tasks::Ending::Cancelled { .. }))));
+    assert!(endings.iter().all(|(_, phase)| matches!(phase,
+        tasks::Phase::Ended(tasks::Ending::Cancelled { by: tasks::Party::Task(by), reason, .. })
+            if *by == parent.task && reason.as_ref() == b"goal withdrawn")));
 }
 
 #[test]
@@ -5522,6 +5527,7 @@ fn a_hello_keeps_its_configured_worker_position() {
 
 #[path = "root_routes/added_dependencies.rs"]
 mod added_dependencies;
+mod stopped_owner;
 
 #[path = "root_routes/open_chat.rs"]
 pub(crate) mod open_chat;

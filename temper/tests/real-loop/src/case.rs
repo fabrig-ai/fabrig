@@ -85,10 +85,7 @@ pub enum Agent {
     Rules,
     Scope,
     Pause,
-    Owner,
     Bowner,
-    Helper,
-    Implementer,
     H1Coder,
     Shape,
     Mover,
@@ -144,10 +141,7 @@ impl Agent {
             Self::Scope => b"@case_scope",
             Self::H1Coder => b"@case_h1",
             Self::Pause => b"@case_pause",
-            Self::Owner => b"@case_owner",
             Self::Bowner => b"@case_bowner",
-            Self::Helper => b"@case_helper",
-            Self::Implementer => b"@case_implementer",
             Self::Hang => b"@case_hang",
             Self::Phase => b"@case_phase",
             Self::Check => b"@case_check",
@@ -454,36 +448,21 @@ pub fn fixture_5_3() -> forge::Fixture {
 }
 
 // Act 2, step 5.2 (testing/reference-case.md)
-// The chat delegates A, the helper, then B; only B creates descendants.
-// B delegates its implementer, then h1, which creates its coder and reviewer.
+// The chat delegates B, which owns h1 and its coder and reviewer.
 pub const PAUSE_WORKERS: &[&str] = &["ws", "s1", "s2"];
-pub const CASE_5_2_WORKERS: &[&str] = &["ws", "s1", "s2", "s3"];
 pub const PAUSE: u64 = 1;
-pub const OWNER: u64 = 2;
-pub const HELPER: u64 = 3;
-pub const HELPER_CHARTER: u64 = 9;
-pub const BOWNER: u64 = 4;
-pub const IMPLEMENTER: u64 = 5;
-pub const H1: u64 = 6;
-pub const H1_CODER: u64 = 7;
-pub const H1_REVIEWER: u64 = 8;
+pub const BOWNER: u64 = 2;
+pub const H1: u64 = 3;
+pub const H1_REVIEWER: u64 = 5;
 pub const B_HOLD: u64 = 1;
-pub const PAUSE_PERSON: &str = "@case_pause Pause every owner but A; I'll go through each one's work and say what resumes. Stop the old shape's leftovers.";
-pub const OWNER_SPEC: &str = "@case_owner A remains free to report.";
-pub const BOWNER_SPEC: &str = "@case_bowner Delegate your implementer and h1, then await their endings.";
-pub const HELPER_SPEC: &str = "@case_helper Wait on the old shape's charter.";
-pub const IMPLEMENTER_SPEC: &str = "@case_implementer Finish your running work when released.";
+pub const PAUSE_PERSON: &str = "@case_pause Delegate B's reviewed change; I will stop and release its subtree.";
+pub const BOWNER_SPEC: &str = "@case_bowner Delegate h1, then await its landing.";
 pub const H1_SPEC: &str = "@case_h1 Write docs/design/h1.md, Markdown alone.";
-pub const PAUSE_PROPOSAL: &str = "I propose stopping B; the person must stop it.";
-pub const HELPER_REASON: &str = "The person has stopped the old shape's leftovers; cancel this helper.";
-pub const IMPLEMENTER_RESULT: &str = "B's implementer finished its running work.";
-pub const OWNER_REPORT: &str = "A remained free and finished.";
-pub const BOWNER_REPORT: &str = "B received its implementer's result and h1's landing after release.";
-pub const PAUSE_REPORT: &str = "B reported after release; A finished and the old helper was cancelled.";
+pub const BOWNER_REPORT: &str = "B received h1's landing after release.";
+pub const PAUSE_REPORT: &str = "B's reviewed change landed after release.";
 pub const H1_DOC: &str = "docs/design/h1.md";
 pub const H1_WORDS: &str = "# h1\n\nB's change went on while B was stopped.\n";
 pub const H1_LINE: &str = "B's change went on while B was stopped.";
-pub const IMPLEMENTER_HOLD: &[u8] = b"case-5-2-implementer";
 pub const REVIEW_HOLD: &[u8] = b"case-5-2-review";
 
 #[must_use]
@@ -497,30 +476,22 @@ pub fn fixture_5_2() -> forge::Fixture {
         },
         configure: |value, agent, forge| {
             (fixture_placed().configure)(value, agent, forge);
-            // Four one-slot workers keep the chat, implementer, reviewer and
-            // B's release activation at once (testing/reference-case.md, act 2).
-            value.jig_over("fleet.calls", CASE_5_2_WORKERS.len());
+            // Three one-slot workers keep the chat, B and the reviewer.
+            value.jig_over("fleet.calls", PAUSE_WORKERS.len());
             // Initial adoption and forge hooks supply the listing changes,
             // as in fixture_check; repeating the listing adds no evidence.
             let story_ms = crate::PATIENCE.as_nanos().div_euclid(1_000_000);
             for name in ["poll_ms", "poll_max_ms"] {
                 value.temper_over(format!("forge.client.{name}"), story_ms + 1);
             }
-            value["world_settings"]["helper"] = true.into();
-            // Creating offers charters 1, 2 and 4 plus the helper's charter 9.
-            value.jig_over("documents.lines", 4);
-            // Nine catalogue slots hold the stock with the helper replacing charter 9.
-            // The director, chat, helper, reviewer and change procedure need five delegation kinds.
-            for (name, size) in [("tasks.charters", 9), ("tasks.executor_kinds", 5), ("authority.executors", 5)] {
+            // Stock charters and the chat, reviewer and change executor kinds.
+            value.jig_over("tasks.charters", 9);
+            for (name, size) in [("tasks.executor_kinds", 4), ("authority.executors", 4)] {
                 value.jig_over(name, size);
             }
-            let mut kinds = value["world_settings"]["policies"][0]["policy"]["ceiling"]["delegation"]["kinds"].clone();
-            kinds.as_array_mut().expect("kinds").push(json!({"kind":"charter","number":HELPER_CHARTER}));
             for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {
-                project["policy"]["ceiling"]["delegation"]["kinds"] = kinds.clone();
-                project["policy"]["roles"][0]["authority"]["delegation"]["kinds"] = kinds.clone();
-                // The chat's run, A, the helper and B reserve 10 + 5 + 5 + 40.
-                project["policy"]["roles"][0]["authority"]["budget"]["spend"] = 65.into();
+                // The chat reserves ten and B forty, with no other siblings.
+                project["policy"]["roles"][0]["authority"]["budget"]["spend"] = 50.into();
             }
             // The coder's checkout needs both its LLM and application git grants,
             // as in fixture_check. The cluster supplies one slot per worker.

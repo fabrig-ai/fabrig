@@ -180,10 +180,7 @@ fn cued(system: &[u8]) -> Option<Agent> {
         Agent::Rules,
         Agent::Scope,
         Agent::Pause,
-        Agent::Owner,
         Agent::Bowner,
-        Agent::Helper,
-        Agent::Implementer,
         Agent::H1Coder,
         Agent::Shape,
         Agent::Mover,
@@ -2150,299 +2147,45 @@ mod shape_tests {
 }
 
 // Act 2, step 5.2 (testing/reference-case.md)
-const PERSON_STOP: Promise = Promise::Must("Stop, which is the person's (exact)");
 const DELEGATES_RESUME: Promise = Promise::Must("a stopped goal holds its delegates and one release resumes them");
-const OLD_HELPER: Promise = Promise::Must("retiring a charter that still has tasks (to check, 6.8)");
 const STOPPED_NEWS: Promise =
     Promise::Add("a stopped goal's news waits for its release, so nothing is relayed by hand");
 
 #[must_use]
 pub fn step_5_2(observed: &Observed) -> Vec<Miss> {
-    use super::{BOWNER, H1, H1_REVIEWER, HELPER, IMPLEMENTER, OWNER, PAUSE, PROJECT};
+    use super::{H1, H1_DOC, H1_WORDS};
     let mut misses = Vec::new();
-    for (read, expected, parent) in [
-        (Read::ImplementerRunning, IMPLEMENTER, BOWNER),
-        (Read::H1Running, H1_REVIEWER, H1),
-        (Read::BHeld, BOWNER, PAUSE),
-        (Read::BStillHeld, BOWNER, PAUSE),
-        (Read::BEnded, BOWNER, PAUSE),
-        (Read::Ended, OWNER, PAUSE),
-        (Read::HelperEnded, HELPER, PAUSE),
-        (Read::ImplementerHeld, IMPLEMENTER, BOWNER),
-        (Read::H1Held, H1, BOWNER),
-        (Read::H1ReviewerHeld, H1_REVIEWER, H1),
-        (Read::ImplementerEnded, IMPLEMENTER, BOWNER),
-        (Read::H1Ended, H1, BOWNER),
-    ] {
-        let task = task_document(observed, read);
+    for read in [Read::BHeld, Read::H1Held, Read::H1ReviewerHeld] {
         step_check(
             &mut misses,
             "5.2",
-            number(task, "/chip/task") == Some(expected)
-                && number(task, "/project") == Some(PROJECT)
-                && number(task, "/requester/task") == Some(parent),
+            text(task_document(observed, read), "/chip/phase") == "held",
             DELEGATES_RESUME,
-            format_args!("{read:?} must identify task {expected} under {parent} in project {PROJECT}"),
+            format_args!("{read:?} must be held after the person's Stop"),
         );
     }
-    for read in [Read::ImplementerRunning, Read::H1Running] {
-        let task = task_document(observed, read);
-        step_check(
-            &mut misses,
-            "5.2",
-            text(task, "/chip/phase") == "running"
-                && text(task, "/chip/details/owner/details/observation/work") == "writing"
-                && number(task, "/chip/details/owner/phase/active/running/attempt")
-                    .is_some_and(|attempt| number(task, "/chip/details/owner/details/attempt") == Some(attempt))
-                && task["result"].is_null(),
-            DELEGATES_RESUME,
-            format_args!("{read:?} must show an open attempt writing before B's Stop"),
-        );
-    }
-    pause_stop(observed, &mut misses);
-    pause_children(observed, &mut misses);
-    pause_news(observed, &mut misses);
-    misses
-}
-
-fn pause_stop(observed: &Observed, misses: &mut Vec<Miss>) {
-    use super::{B_HOLD, BOWNER, OWNER_REPORT};
-    let held = task_document(observed, Read::BHeld);
-    let still = task_document(observed, Read::BStillHeld);
-    let b = task_document(observed, Read::BEnded);
-    let a = task_document(observed, Read::Ended);
-    for task in [held, still] {
-        step_check(
-            misses,
-            "5.2",
-            text(task, "/chip/phase") == "held"
-                && number(task, "/hold/revision") == Some(B_HOLD)
-                && number(task, "/hold/reason/placed/hold").is_some_and(|hold| hold != 0)
-                && number(task, "/hold/reason/placed/hold") == number(held, "/hold/reason/placed/hold"),
-            PERSON_STOP,
-            "B must stay held at the person's Stop revision",
-        );
-    }
-    step_check(
-        misses,
-        "5.2",
-        text(a, "/chip/phase") == "ended"
-            && text(a, "/result/value/report/bytes") == OWNER_REPORT
-            && a["hold"].is_null()
-            && check_activity(observed, Read::Ended)
-                .iter()
-                .filter(|row| number(row, "/line/milestone/position").is_some())
-                .count()
-                == 2
-            && check_activity(observed, Read::Ended)
-                .iter()
-                .filter(|row| number(row, "/line/run_began/attempt").is_some())
-                .count()
-                == 1
-            && pause_activity(observed, Read::Ended)["cut"] == false
-            && pause_activity(observed, Read::Ended)["before"].is_null()
-            && !check_activity(observed, Read::Ended).iter().any(|row| row["line"].get("decided").is_some()),
-        PERSON_STOP,
-        "A must finish without a hold or control decision",
-    );
-    let before = check_activity(observed, Read::BHeld);
-    let after: Vec<_> = joined_activity(observed, &[Read::BEnded, Read::BEndedEarlier]);
-    let attempts =
-        |rows: &[&Value]| rows.iter().filter_map(|row| number(row, "/line/run_began/attempt")).collect::<Vec<_>>();
-    // The held snapshot's first attempt can be on an earlier page.
-    // The complete ended journal retains that history; its prefix at Stop
-    // must agree with every row visible in the held snapshot.
-    let held_rows: Vec<_> = after
-        .iter()
-        .copied()
-        .filter(|row| number(row, "/position").zip(number(held, "/activity")).is_some_and(|(at, head)| at <= head))
-        .collect();
-    let previous = attempts(&held_rows);
-    let following = attempts(&after);
-    let resumed = following.len().saturating_sub(previous.len());
-    let release = after
-        .iter()
-        .find(|row| number(row, "/line/decided/revision") == Some(B_HOLD))
-        .and_then(|row| number(row, "/position"));
-    step_check(
-        misses,
-        "5.2",
-        number(held, "/chip/details/owner/details/attempt").is_some()
-            && number(held, "/chip/details/owner/details/attempt")
-                == number(still, "/chip/details/owner/details/attempt")
-            && previous.first().copied() == number(held, "/chip/details/owner/details/attempt")
-            && resumed > 0
-            && following.first().copied() == number(b, "/chip/details/owner/details/attempt")
-            && following.get(resumed..) == Some(previous.as_slice())
-            && following[..resumed].iter().all(|attempt| Some(attempt) > previous.first())
-            && following.windows(2).all(|pair| pair[0] > pair[1])
-            && after.iter().filter(|row| number(row, "/line/run_began/attempt").is_some()).all(|row| {
-                number(row, "/position")
-                    .zip(number(held, "/activity"))
-                    .is_some_and(|(at, stop)| at <= stop || release.is_some_and(|release| at > release))
-            })
-            && after
-                .iter()
-                .find(|row| number(row, "/line/run_began/attempt").is_some())
-                .and_then(|row| number(row, "/position"))
-                .zip(number(still, "/activity"))
-                .is_some_and(|(began, held_head)| began > held_head)
-            && after.iter().all(|row| number(row, "/task") == Some(BOWNER))
-            && after.windows(2).all(|pair| {
-                number(pair[0], "/position").zip(number(pair[1], "/position")).is_some_and(|(new, old)| new > old)
-            })
-            && [Read::BHeld, Read::BEnded, Read::BEndedEarlier]
-                .iter()
-                .all(|read| pause_activity(observed, *read)["cut"] == false)
-            && !before.is_empty()
-            && before.iter().all(|row| held_rows.contains(row))
-            && pause_activity(observed, Read::BEndedEarlier)["before"].is_null(),
-        STOPPED_NEWS,
-        "B's complete journal must keep every earlier attempt and resume only after its release",
-    );
-}
-
-fn pause_children(observed: &Observed, misses: &mut Vec<Miss>) {
-    use super::{H1, H1_CODER, H1_DOC, H1_REVIEWER, H1_WORDS, IMPLEMENTER, IMPLEMENTER_RESULT};
-    let held = task_document(observed, Read::BHeld);
-    let implementer = task_document(observed, Read::ImplementerEnded);
     let h1 = task_document(observed, Read::H1Ended);
     step_check(
-        misses,
-        "5.2",
-        text(implementer, "/chip/phase") == "ended"
-            && implementer.pointer("/result/ending/task/done").is_some_and(Value::is_object)
-            && text(implementer, "/result/value/report/bytes") == IMPLEMENTER_RESULT,
-        DELEGATES_RESUME,
-        "the implementer must finish its report under B",
-    );
-    step_check(
-        misses,
+        &mut misses,
         "5.2",
         text(h1, "/chip/phase") == "ended"
-            // The change procedure returns Done(Change) only after landing;
-            // ctl renders its commit as hex bytes, not the word "landed".
             && number(h1, "/result/ending/task/done/change/kind") == Some(1)
-            && number(h1, "/result/value/change/part/connector") == Some(1)
-            && text(h1, "/result/value/change/part/kind") == "result"
             && observed.kit.merged_green
             && observed.kit.main.get(H1_DOC.as_bytes()).is_some_and(|words| words == H1_WORDS.as_bytes()),
         DELEGATES_RESUME,
-        "h1 must end landed with its Markdown on kit's main, merged green",
+        "h1 must land green with its Markdown on kit's main after Release",
     );
-    let h1_activity = check_activity(observed, Read::H1Ended);
-    step_check(
-        misses,
-        "5.2",
-        h1_activity.iter().any(|row| {
-            number(row, "/line/heard/from/task") == Some(H1_CODER)
-                && row.pointer("/line/heard/kind/result/change").is_some_and(Value::is_object)
-        }) && h1_activity.iter().any(|row| {
-            number(row, "/line/heard/from/task") == Some(H1_REVIEWER)
-                && number(row, "/line/heard/kind/result/verdict/code") == Some(1)
-        }),
-        DELEGATES_RESUME,
-        "h1 must receive its coder's change and its held reviewer's passing verdict",
-    );
-    let placed = number(held, "/hold/reason/placed/hold");
-    for (read, running) in [
-        (Read::ImplementerHeld, Some(Read::ImplementerRunning)),
-        (Read::H1Held, None),
-        (Read::H1ReviewerHeld, Some(Read::H1Running)),
-    ] {
-        let child = task_document(observed, read);
-        step_check(
-            misses,
-            "5.2",
-            text(child, "/chip/phase") == "held"
-                && placed.is_some_and(|number| number != 0)
-                && number(child, "/hold/reason/placed/hold") == placed
-                && child["result"].is_null()
-                && running.is_none_or(|running| {
-                    number(child, "/chip/details/owner/details/attempt")
-                        == number(task_document(observed, running), "/chip/details/owner/details/attempt")
-                }),
-            DELEGATES_RESUME,
-            format_args!("{read:?} must share B's placed hold without finishing or starting another attempt"),
-        );
-    }
-    let still = check_activity(observed, Read::BStillHeld);
-    let after: Vec<_> = joined_activity(observed, &[Read::BEnded, Read::BEndedEarlier]);
-    let release = after
-        .iter()
-        .find(|row| number(row, "/line/decided/revision") == Some(super::B_HOLD))
-        .and_then(|row| number(row, "/position"));
-    for child in [IMPLEMENTER, H1] {
-        let result = |row: &&Value| {
-            number(row, "/line/heard/from/task") == Some(child) && row.pointer("/line/heard/kind/result").is_some()
-        };
-        step_check(
-            misses,
-            "5.2",
-            !still.iter().any(result)
-                && after
-                    .iter()
-                    .copied()
-                    .filter(result)
-                    .any(|row| number(row, "/position").zip(release).is_some_and(|(heard, release)| heard > release)),
-            DELEGATES_RESUME,
-            format_args!("B must hear task {child}'s ending only after its release"),
-        );
-    }
-}
-
-fn pause_news(observed: &Observed, misses: &mut Vec<Miss>) {
-    use super::{Agent, BOWNER_REPORT, H1, HELPER_CHARTER, HELPER_REASON, IMPLEMENTER_RESULT, PAUSE, PAUSE_REPORT};
-    let b = task_document(observed, Read::BEnded);
-    let helper = task_document(observed, Read::HelperEnded);
-    let pause = task_document(observed, Read::PauseEnded);
-    let queries: Vec<_> = observed.told.iter().filter(|query| query.agent == Agent::Bowner).collect();
-    let resumed = queries.last();
     let label = format!("Result from task {H1}:\n");
+    let queries: Vec<_> = observed.told.iter().filter(|query| query.agent == Agent::Bowner).collect();
     step_check(
-        misses,
+        &mut misses,
         "5.2",
-        resumed.is_some_and(|query| contains(&query.words, IMPLEMENTER_RESULT) && contains(&query.words, &label))
-            && queries
-                .iter()
-                .rev()
-                .skip(1)
-                .all(|query| !contains(&query.words, IMPLEMENTER_RESULT) && !contains(&query.words, &label))
-            && resumed.is_some_and(|query| {
-                calls::occurrences(&query.words, IMPLEMENTER_RESULT.as_bytes()) == 1
-                    && calls::occurrences(&query.words, label.as_bytes()) == 1
-            }),
+        queries.last().is_some_and(|query| calls::occurrences(&query.words, label.as_bytes()) == 1)
+            && queries.iter().rev().skip(1).all(|query| !contains(&query.words, &label)),
         STOPPED_NEWS,
-        "only B's query after Release must receive both endings once",
+        "B must hear h1's ending once, after Release",
     );
-    step_check(
-        misses,
-        "5.2",
-        number(helper, "/chip/executor/agent/charter") == Some(HELPER_CHARTER)
-            && number(helper, "/result/ending/task/cancelled/by/task") == Some(PAUSE)
-            && text(helper, "/result/ending/task/cancelled/reason/bytes") == HELPER_REASON
-            && text(helper, "/chip/phase") == "ended"
-            && number(helper, "/chip/details/owner/details/live_delegates") == Some(0),
-        OLD_HELPER,
-        "the helper subtree must end cancelled by the director with its reason; charter retirement stays out",
-    );
-    for (task, expected, label) in [(b, BOWNER_REPORT, "B"), (pause, PAUSE_REPORT, "chat")] {
-        step_check(
-            misses,
-            "5.2",
-            text(task, "/chip/phase") == "ended" && text(task, "/result/value/report/bytes") == expected,
-            STOPPED_NEWS,
-            format_args!("{label} must finish with its report"),
-        );
-    }
-    step_check(
-        misses,
-        "5.2",
-        number(pause, "/chip/task") == Some(PAUSE)
-            && observed.told.iter().any(|query| query.agent == Agent::Pause && contains(&query.words, BOWNER_REPORT)),
-        STOPPED_NEWS,
-        "the chat must hear B's report before finishing",
-    );
+    misses
 }
 
 fn pause_activity(observed: &Observed, read: Read) -> &Value {
@@ -2453,123 +2196,42 @@ fn pause_activity(observed: &Observed, read: Read) -> &Value {
 #[cfg(test)]
 mod pause_tests {
     use super::*;
-    use crate::case::*;
+    use crate::case::{H1, H1_DOC, H1_WORDS};
     use serde_json::json;
 
-    fn task(task: u64, parent: u64) -> Value {
-        json!({"task":{"chip":{"task":task,"phase":"ended","details":{"owner":{"details":{"attempt":1,"live_delegates":0}}}},
-            "project":PROJECT,"requester":{"task":parent},"hold":null,
-            "result":{"ending":{"task":{"done":{}}}}},
-            "activity":{"rows":[],"cut":false,"before":null,"after":null}})
-    }
-    fn documents() -> BTreeMap<Read, Value> {
-        let mut documents = BTreeMap::from([
-            (Read::ImplementerRunning, task(IMPLEMENTER, BOWNER)),
-            (Read::ImplementerHeld, task(IMPLEMENTER, BOWNER)),
-            (Read::H1Held, task(H1, BOWNER)),
-            (Read::H1ReviewerHeld, task(H1_REVIEWER, H1)),
-            (Read::H1Running, task(H1_REVIEWER, H1)),
-            (Read::BHeld, task(BOWNER, PAUSE)),
-            (Read::BStillHeld, task(BOWNER, PAUSE)),
-            (Read::BEnded, task(BOWNER, PAUSE)),
-            (
-                Read::BEndedEarlier,
-                json!({"activity":{"rows":[{"position":2,"line":{"run_began":{"attempt":1}}}],"before":null,"cut":false}}),
-            ),
-            (Read::Ended, task(OWNER, PAUSE)),
-            (Read::HelperEnded, task(HELPER, PAUSE)),
-            (Read::ImplementerEnded, task(IMPLEMENTER, BOWNER)),
-            (Read::H1Ended, task(H1, BOWNER)),
-            (Read::PauseEnded, task(PAUSE, 0)),
-        ]);
-        for read in [Read::ImplementerRunning, Read::H1Running] {
-            let document = documents.get_mut(&read).expect("running");
-            document["task"]["chip"]["phase"] = "running".into();
-            document["task"]["chip"]["details"]["owner"]["phase"] = json!({"active":{"running":{"attempt":1}}});
-            document["task"]["chip"]["details"]["owner"]["details"]["observation"] = json!({"work":"writing"});
-            document["task"]["result"] = Value::Null;
-        }
-        for read in [Read::BHeld, Read::BStillHeld, Read::ImplementerHeld, Read::H1Held, Read::H1ReviewerHeld] {
-            let document = documents.get_mut(&read).expect("held");
-            document["task"]["chip"]["phase"] = "held".into();
-            document["task"]["result"] = Value::Null;
-            document["task"]["hold"] = json!({"revision":B_HOLD,"reason":{"placed":{"hold":1}}});
-        }
-        documents.get_mut(&Read::BHeld).expect("held")["task"]["activity"] = 7.into();
-        documents.get_mut(&Read::BStillHeld).expect("still")["task"]["activity"] = 10.into();
-        documents.get_mut(&Read::BHeld).expect("held")["activity"]["rows"] =
-            json!([{"position":2,"line":{"run_began":{"attempt":1}}}]);
-        documents.get_mut(&Read::BStillHeld).expect("still")["activity"]["rows"] = json!([
-            {"position":7,"line":{"milestone":{"position":7}}},
-        ]);
-        documents.get_mut(&Read::BEnded).expect("B")["activity"]["rows"] = json!([
-            {"position":16,"line":{"heard":{"from":{"task":H1},"kind":{"result":"done"}}}},
-            {"position":15,"line":{"heard":{"from":{"task":IMPLEMENTER},"kind":{"result":"done"}}}},
-            {"position":12,"line":{"run_began":{"attempt":2}}},
-            {"position":11,"line":{"decided":{"revision":B_HOLD}}}
-        ]);
-        documents.get_mut(&Read::BEnded).expect("B")["task"]["chip"]["details"]["owner"]["details"]["attempt"] =
-            2.into();
-        for (read, report) in [
-            (Read::Ended, OWNER_REPORT),
-            (Read::BEnded, BOWNER_REPORT),
-            (Read::ImplementerEnded, IMPLEMENTER_RESULT),
-            (Read::PauseEnded, PAUSE_REPORT),
-        ] {
-            documents.get_mut(&read).expect("report")["task"]["result"]["value"] = json!({"report":{"bytes":report}});
-        }
-        let change = json!({"kind":1,"part":{"connector":1,"kind":"result","key":{"number":1}}});
-        documents.get_mut(&Read::H1Ended).expect("h1")["task"]["result"] =
-            json!({"ending":{"task":{"done":{"change":change}}},"value":{"change":change}});
-        documents.get_mut(&Read::HelperEnded).expect("helper")["task"]["result"]["ending"] =
-            json!({"task":{"cancelled":{"by":{"task":PAUSE},"reason":{"bytes":HELPER_REASON}}}});
-        documents.get_mut(&Read::Ended).expect("A")["activity"]["rows"] = json!([
-            {"position":5,"line":{"milestone":{"position":5}}},
-            {"position":2,"line":{"run_began":{"attempt":1}}},
-            {"position":1,"line":{"milestone":{"position":1}}},
-        ]);
-        documents.get_mut(&Read::H1Ended).expect("h1")["activity"]["rows"] = json!([
-            {"position":3,"line":{"heard":{"from":{"task":H1_REVIEWER},"kind":{"result":{"verdict":{"code":1}}}}}},
-            {"position":2,"line":{"heard":{"from":{"task":H1_CODER},"kind":{"result":{"change":{}}}}}},
-        ]);
-        documents.get_mut(&Read::HelperEnded).expect("helper")["task"]["chip"]["executor"] =
-            json!({"agent":{"charter":HELPER_CHARTER}});
-        for document in documents.values_mut() {
-            let task = number(document, "/task/chip/task").unwrap_or(BOWNER);
-            for row in document["activity"]["rows"].as_array_mut().expect("rows") {
-                *row = json!({"event":{"owner":{"source":{"task":task,"position":row["position"].clone(),"line":row["line"].clone()}}}});
-            }
-        }
-        documents
-    }
     fn met() -> Observed {
-        let documents = documents();
-        let told = |agent, words: String| Told {
+        let documents = BTreeMap::from([
+            (Read::BHeld, json!({"task":{"chip":{"phase":"held"}}})),
+            (Read::H1Held, json!({"task":{"chip":{"phase":"held"}}})),
+            (Read::H1ReviewerHeld, json!({"task":{"chip":{"phase":"held"}}})),
+            (
+                Read::H1Ended,
+                json!({"task":{"chip":{"phase":"ended"},"result":{"ending":{"task":{"done":{"change":{"kind":1}}}}}}}),
+            ),
+        ]);
+        let told = |words: String| Told {
             system: Box::new([]),
-            agent,
+            agent: Agent::Bowner,
             words: words.into_bytes().into(),
             history: Box::new([]),
             model: Box::new([]),
             credential: None,
         };
         Observed {
-            activity_aliases: std::collections::BTreeSet::new(),
+            activity_aliases: BTreeSet::new(),
             observed_at: BTreeMap::new(),
             documents,
             commands: Vec::new(),
-            told: vec![
-                told(Agent::Bowner, "Delegated".into()),
-                told(Agent::Bowner, format!("{IMPLEMENTER_RESULT}\nResult from task {H1}:\nlanded")),
-                told(Agent::Pause, BOWNER_REPORT.into()),
-            ],
+            told: vec![told("Delegated".into()), told(format!("Result from task {H1}:\nlanded"))],
             kit: Kit {
                 records: Vec::new(),
                 pulls: Vec::new(),
-                main: BTreeMap::from([(H1_DOC.as_bytes().to_vec(), H1_WORDS.as_bytes().to_vec())]),
                 merged_green: true,
+                main: BTreeMap::from([(H1_DOC.as_bytes().to_vec(), H1_WORDS.as_bytes().to_vec())]),
             },
         }
     }
+
     #[test]
     fn pause_checkpoint_met() {
         assert_met(&step_5_2(&met()));
@@ -2577,69 +2239,17 @@ mod pause_tests {
 
     #[test]
     fn every_required_document_field_rejects_a_mutation() {
-        let mut passing = met();
-        let required = [
-            (Read::BHeld, "/task/chip/task"),
-            (Read::BHeld, "/task/project"),
-            (Read::BHeld, "/task/requester/task"),
+        let passing = met();
+        for (read, path) in [
             (Read::BHeld, "/task/chip/phase"),
-            (Read::BHeld, "/task/hold/revision"),
-            (Read::BHeld, "/task/hold/reason/placed/hold"),
-            (Read::BStillHeld, "/task/chip/phase"),
-            (Read::BStillHeld, "/task/hold/revision"),
-            (Read::BStillHeld, "/task/chip/details/owner/details/attempt"),
-            (Read::BEnded, "/task/chip/details/owner/details/attempt"),
-            (Read::BHeld, "/activity/cut"),
-            (Read::BEndedEarlier, "/activity/cut"),
-            (Read::BEndedEarlier, "/activity/rows/0/event/owner/source/line/run_began/attempt"),
-            (Read::BEnded, "/activity/cut"),
-            (Read::BEnded, "/task/result/value/report/bytes"),
-            (Read::Ended, "/task/result/value/report/bytes"),
-            (Read::Ended, "/task/chip/phase"),
-            (Read::ImplementerEnded, "/task/result/value/report/bytes"),
-            (Read::ImplementerEnded, "/task/result/ending/task/done"),
+            (Read::H1Held, "/task/chip/phase"),
+            (Read::H1ReviewerHeld, "/task/chip/phase"),
+            (Read::H1Ended, "/task/chip/phase"),
             (Read::H1Ended, "/task/result/ending/task/done/change/kind"),
-            (Read::H1Ended, "/task/result/value/change/part/connector"),
-            (Read::H1Ended, "/task/result/value/change/part/kind"),
-            (Read::BEnded, "/activity/rows/0/event/owner/source/line/heard/from/task"),
-            (Read::BEnded, "/activity/rows/1/event/owner/source/line/heard/from/task"),
-            (Read::BHeld, "/task/activity"),
-            (Read::BEnded, "/activity/rows/0/event/owner/source/position"),
-            (Read::BEnded, "/activity/rows/1/event/owner/source/position"),
-            (Read::H1Ended, "/activity/rows/0/event/owner/source/line/heard/from/task"),
-            (Read::H1Ended, "/activity/rows/0/event/owner/source/line/heard/kind/result/verdict/code"),
-            (Read::H1Ended, "/activity/rows/1/event/owner/source/line/heard/from/task"),
-            (Read::Ended, "/activity/rows/0/event/owner/source/line/milestone/position"),
-            (Read::Ended, "/activity/rows/1/event/owner/source/line/run_began/attempt"),
-            (Read::HelperEnded, "/task/chip/executor/agent/charter"),
-            (Read::HelperEnded, "/task/result/ending/task/cancelled/by/task"),
-            (Read::HelperEnded, "/task/result/ending/task/cancelled/reason/bytes"),
-            (Read::HelperEnded, "/task/chip/details/owner/details/live_delegates"),
-            (Read::PauseEnded, "/task/result/value/report/bytes"),
-            (Read::PauseEnded, "/task/chip/task"),
-        ];
-        for (read, path) in required {
-            let saved = passing.documents.get_mut(&read).expect("doc").pointer_mut(path).expect("field").take();
-            assert!(!step_5_2(&passing).is_empty(), "{read:?}{path}");
-            *passing.documents.get_mut(&read).expect("doc").pointer_mut(path).expect("field") = saved;
-        }
-        for read in [Read::ImplementerRunning, Read::H1Running] {
-            for path in [
-                "/task/chip/task",
-                "/task/project",
-                "/task/requester/task",
-                "/task/chip/phase",
-                "/task/chip/details/owner/phase/active/running/attempt",
-                "/task/chip/details/owner/details/attempt",
-                "/task/chip/details/owner/details/observation/work",
-            ] {
-                let saved = passing.documents.get_mut(&read).expect("running").pointer_mut(path).expect("field").take();
-                assert!(!step_5_2(&passing).is_empty(), "{read:?}{path}");
-                *passing.documents.get_mut(&read).expect("running").pointer_mut(path).expect("field") = saved;
-            }
+        ] {
             let mut observed = passing.clone();
-            observed.documents.get_mut(&read).expect("running")["task"]["result"] = json!({"done":{}});
-            assert!(!step_5_2(&observed).is_empty(), "{read:?} already ended");
+            *observed.documents.get_mut(&read).expect("document").pointer_mut(path).expect("field") = Value::Null;
+            assert!(!step_5_2(&observed).is_empty(), "{read:?}{path}");
         }
         for &(read, _) in crate::case::acts::READS_5_2 {
             let mut observed = passing.clone();
@@ -2647,82 +2257,30 @@ mod pause_tests {
             assert!(!step_5_2(&observed).is_empty(), "missing {read:?}");
         }
     }
+
     #[test]
-    fn news_cannot_arrive_early_twice_or_without_both_endings() {
+    fn news_cannot_arrive_early_twice_or_without_landing() {
         let passing = met();
         let mut early = passing.clone();
         early.told[0].words = early.told[1].words.clone();
-        let mut missing_h1 = passing.clone();
-        missing_h1.told[1].words = IMPLEMENTER_RESULT.as_bytes().into();
+        let mut missing = passing.clone();
+        missing.told[1].words = Box::new([]);
         let mut twice = passing.clone();
-        twice.told[1].words =
-            format!("{} {IMPLEMENTER_RESULT}", String::from_utf8_lossy(&twice.told[1].words)).into_bytes().into();
-        let mut twice_h1 = passing.clone();
-        twice_h1.told[1].words =
-            format!("{} Result from task {H1}:\n", String::from_utf8_lossy(&twice_h1.told[1].words))
-                .into_bytes()
-                .into();
-        let mut no_chat_delivery = passing.clone();
-        no_chat_delivery.told[2].words = Box::new([]);
-        let mut no_queries = passing.clone();
-        no_queries.told.clear();
-        for (label, observed) in [
-            ("early", early),
-            ("missing h1", missing_h1),
-            ("twice", twice),
-            ("twice h1", twice_h1),
-            ("chat", no_chat_delivery),
-            ("no queries", no_queries),
-        ] {
-            assert!(!step_5_2(&observed).is_empty(), "{label}");
+        twice.told[1].words = format!("Result from task {H1}:\nResult from task {H1}:\n").into_bytes().into();
+        for observed in [early, missing, twice] {
+            assert!(!step_5_2(&observed).is_empty());
         }
     }
+
     #[test]
-    fn stop_order_a_hold_and_the_merge_are_checked() {
+    fn stop_and_merge_are_checked() {
         let passing = met();
-        let mut paged = passing.clone();
-        paged.documents.get_mut(&Read::BHeld).expect("held")["activity"]["before"] = json!({"value":"older"});
-        assert_met(&step_5_2(&paged));
         let mut red = passing.clone();
         red.kit.merged_green = false;
         let mut missing_file = passing.clone();
         missing_file.kit.main.clear();
-        let mut early = passing.clone();
-        early.documents.get_mut(&Read::BEnded).expect("ended")["activity"]["rows"][3]["event"]["owner"]["source"]["line"]
-            ["decided"]["revision"] = 99.into();
-        let mut changed_hold = passing.clone();
-        changed_hold.documents.get_mut(&Read::BStillHeld).expect("still held")["task"]["hold"]["reason"]["placed"]["hold"] =
-            json!(99);
-        let mut a_held = passing.clone();
-        a_held.documents.get_mut(&Read::Ended).expect("A")["task"]["hold"] = json!({});
-        let mut a_released = passing.clone();
-        a_released.documents.get_mut(&Read::Ended).expect("A")["activity"]["rows"]
-            .as_array_mut()
-            .expect("rows")
-            .push(json!({"event":{"owner":{"source":{"line":{"milestone":{"position":3}}}}}}));
-        let mut a_retried = passing.clone();
-        a_retried.documents.get_mut(&Read::Ended).expect("A")["activity"]["rows"]
-            .as_array_mut()
-            .expect("rows")
-            .push(json!({"event":{"owner":{"source":{"line":{"run_began":{"attempt":3}}}}}}));
-        let mut incomplete = passing.clone();
-        incomplete.documents.get_mut(&Read::BEndedEarlier).expect("earlier")["activity"]["before"] =
-            json!({"value":"older"});
-        let mut unordered = passing.clone();
-        unordered.documents.get_mut(&Read::BEndedEarlier).expect("earlier")["activity"]["rows"][0]["event"]["owner"]
-            ["source"]["position"] = 13.into();
-        for (label, observed) in [
-            ("red", red),
-            ("changed hold", changed_hold),
-            ("missing file", missing_file),
-            ("early", early),
-            ("A held", a_held),
-            ("A released", a_released),
-            ("A retried", a_retried),
-            ("incomplete", incomplete),
-            ("unordered", unordered),
-        ] {
-            assert!(!step_5_2(&observed).is_empty(), "{label}");
+        for observed in [red, missing_file] {
+            assert!(!step_5_2(&observed).is_empty());
         }
     }
 }
