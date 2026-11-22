@@ -214,6 +214,8 @@ impl Checks {
     /// At every step: a wait seen at the last quiet point whose bound has
     /// passed, with no quiet point since, is a finding.
     pub fn step(&mut self, at: skein_lib::Time, iteration: u64) -> Result<(), String>;
+    /// The earliest bound of the waits kept at the last quiet point.
+    pub fn next_bound(&self) -> Option<skein_lib::Time>;
 }
 ```
 
@@ -243,6 +245,16 @@ queues, its outputs and its pending commits are empty.
   checks, at the quiet point where `iterate` moves time.
 - **The composed system world** (`README.md`, 2.1): at the end of each
   tick whose immediate work is drained.
+- **A bound is a moment every driver visits:** the referee's deadline is
+  one of the driver's timers, as strict as the bound. A driver moves time
+  past no kept bound (`next_bound`): a tick or a jump that would cross one
+  stops at it, delivers the timers due there, and drains its immediate
+  work at that moment to a quiet point before time moves on, so the
+  stall's own timer, due at the bound, is answered there and a wait gone
+  by then is no finding. A drain that doesn't come quiet within the
+  driver's own step limit is the finding. A story moves the clock only
+  through its driver, never by setting it. No tolerance is added: one
+  would hide a stall timer armed late.
 - **Each run's finding:** a driver keeps the first finding and its loop
   panics with it, as a run's finding (`README.md`, 4.2); a returning form
   (`World::check`, `Checks::quiet`) is what a check's own test reads.
