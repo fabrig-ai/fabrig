@@ -4,16 +4,6 @@
 
 - **Not yet:** 7: jig's inspection adapter, `jig-inspect`, and the
   core's and engine-clients worlds' calls of the shared checks.
-- **Not yet:** 7: the store check: `jig_conformance::store_check`, and
-  jig's test root rehearsing, with a connector's restore refusal as a
-  start refusal. [in flight: change 11641]
-  7: the store check in the core's world: `World::check_store`, its
-  calls at each durable commit, and its sweeps' restarts.
-  [in flight: change 11667]
-  7: the store check in the conformance harness: `Harness::check_store`,
-  the applications' four methods (jig's test root, the example
-  application's root and temper's), and its cuts' restarts.
-  [in flight: change 11672]
 
 Section 5's keyed durable-row evidence and exhaustive forked cuts are
 present. Section 7's core row names retain typed keys until a failure

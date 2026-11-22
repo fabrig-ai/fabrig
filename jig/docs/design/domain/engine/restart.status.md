@@ -9,9 +9,4 @@
    the undocumented root methods remain `README.status.md`, 4.
    the child-timer departure remains `README.status.md`, 4.1.
    the acceptance-capacity question remains `settings.status.md`, 2, 6 and 8.
-- **Not yet:** the whole document, *bounded projection assembly*: a
-  projection's phase is written unchecked but read at start against twice
-  `tasks.result_bytes`, so a held goal whose hold words tasks admits is
-  refused at `LoadCore`; the writer and the start are to read one figure,
-  and a stored row past the old figure opens [in flight: change 11908].
 
