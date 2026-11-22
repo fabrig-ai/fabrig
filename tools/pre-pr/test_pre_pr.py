@@ -26,7 +26,7 @@ class DeliverySelection(unittest.TestCase):
         self.addCleanup(self.scratch.cleanup)
         self.root = Path(self.scratch.name)
         self.env = os.environ.copy()
-        for name in ('GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'CARGO_TARGET_DIR', 'TIERS_HOLD', 'TIERS_LEDGER'):
+        for name in ('GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'CARGO_TARGET_DIR', 'TIERS_HOLD', 'TIERS_LEDGER', 'SMITH_CHECK_RESULTS'):
             self.env.pop(name, None)
         self.command('git', 'init', '-q')
         self.command('git', 'config', 'user.name', 'Fixture')
@@ -119,10 +119,10 @@ sys.exit(int(count > 0))
 
         run_tests = PRE_PR.one_process
 
-        def test_check(*args):
+        def test_check(*args, **kwargs):
             events.append('one-process')
             if one_process_answer is None:
-                return run_tests(*args)
+                return run_tests(*args, **kwargs)
             if args[6] != 'default':
                 return 0, [], None
             code, errors, starved = one_process_answer
@@ -779,7 +779,7 @@ else:
         tree, base, _, _, _ = (self.root / '.git/pre-pr-passed').read_text().split()
         self.assertEqual(passed, {'form': 'pre-pr-failures 1', 'tree': tree, 'base': base,
                                  'cached': False, 'verdict': 'passed',
-                                 'counts': {'new': 0, 'flake': 0, 'inherited': 0}, 'failures': []})
+                                 'counts': {'new': 0, 'flake': 0, 'inherited': 0}, 'skipped': 0, 'failures': []})
         self.assertEqual(replacements, [passed])
         self.assertFalse(path.with_name('pre-pr-failures.json.tmp').exists())
         # Removing the prior file proves a hit writes, rather than just reusing it.
@@ -796,6 +796,200 @@ else:
         result, log, _, _ = self.deliver()
         self.assertEqual(result, 0, log)
         self.assertIn('failures: a cached pass, none observed; not written to target/temper/pre-pr-failures.json: ', log)
+
+    def kept_setup(self):
+        self.write('.config/nextest.toml', '''[profile.default]
+default-filter = 'not test(/^fuzzy_/)'
+[profile.fuzzy]
+default-filter = 'test(/^fuzzy_/)'
+''')
+        self.pin()
+        self.write('api/src/lib.rs', 'pub fn changed() {}\n')
+        directory = self.root / '.git/check-results'
+        directory.mkdir()
+        self.env['SMITH_CHECK_RESULTS'] = str(directory)
+        self.kept_commands = []
+        self.kept_selected = []
+        self.kept_cases = {
+            'default': [('api::rules', 'first'), ('api::rules', 'second')],
+            'fuzzy': [('api::rules', 'fuzzy_third')],
+        }
+        return directory / 'passed'
+
+    def kept_run(self, interrupt=False, **kwargs):
+        # Exercise the runner's filter parser without running cargo or tests.
+        one = PRE_PR.runpy.run_path(str(Path(__file__).resolve().parents[1] / 'tiers/one_process.py'))
+        profiles = {'default': 'not test(/^fuzzy_/)', 'fuzzy': 'test(/^fuzzy_/)'}
+
+        def fake(arguments, cwd, env, output, stdout):
+            self.assertNotIn('--again', arguments)
+            profile = arguments[6]
+            self.kept_commands.append(arguments[6:])
+            if interrupt and profile == 'fuzzy':
+                raise KeyboardInterrupt
+            expression = arguments[arguments.index('-E') + 1] if '-E' in arguments else profiles[profile]
+            matches = one['filterset'](expression)
+            selected = [(binary, name) for binary, name in self.kept_cases[profile]
+                        if matches(dict(binary_id=binary, test=name))]
+            self.kept_selected.extend(selected)
+            directory = Path(arguments[arguments.index('--out') + 1])
+            directory.mkdir()
+            (directory / 'run.json').write_text('{"starved": false}')
+            (directory / 'results.json').write_text(json.dumps(dict(
+                tests=[dict(binary_id=binary, test_name=name, outcome='passed') for binary, name in selected],
+                unobserved=[])))
+            return 0, ''
+
+        return self.deliver(one_process_answer=None, process_answer=fake, **kwargs)
+
+    def test_passed_tests_are_recorded(self):
+        path = self.kept_setup()
+        result, log, _, _ = self.kept_run()
+        self.assertEqual(result, 0, log)
+        key = (self.root / '.git/pre-pr-passed').read_text().strip()
+        self.assertEqual(path.read_text().splitlines(), [key, 'api::rules first',
+                                                        'api::rules second', 'api::rules fuzzy_third'])
+        self.assertEqual(len(self.kept_selected), 3)
+        self.assertTrue(all('-E' not in args for args in self.kept_commands))
+        self.assertEqual(json.loads((self.root / 'target/temper/pre-pr-failures.json').read_text())['skipped'], 0)
+
+    def test_passed_tests_same_key_skip_and_count_as_passed(self):
+        path = self.kept_setup()
+        # The first run's unrelated refusal prevents a whole-tree cache hit.
+        result, log, _, _ = self.kept_run(formatting_answer=[PRE_PR.failure('format', 'fault')])
+        self.assertEqual(result, 1, log)
+        self.assertFalse((self.root / '.git/pre-pr-passed').exists())
+        key = path.read_text().splitlines()[0]
+        self.kept_selected.clear()
+        self.kept_commands.clear()
+        result, log, _, _ = self.kept_run()
+        self.assertEqual(result, 0, log)
+        self.assertEqual(self.kept_selected, [])
+        self.assertEqual((self.root / '.git/pre-pr-passed').read_text(), key + '\n')
+        self.assertIn(f'pre-pr: 3 tests passed before (key {key}), not run again', log)
+        self.assertLess(log.index('3 tests passed before'), log.index('pre-pr: tests …'))
+        report = json.loads((self.root / 'target/temper/pre-pr-failures.json').read_text())
+        self.assertEqual(report['verdict'], 'passed')
+        self.assertEqual(report['skipped'], 3)
+        self.assertEqual(list(report)[-3:], ['counts', 'skipped', 'failures'])
+        self.assertEqual(len(path.read_text().splitlines()), 4)
+
+    def test_passed_tests_filter_keeps_profile_and_quotes_exact_names(self):
+        path = self.kept_setup()
+        self.kept_cases = {'default': [('api::rules', 'one')], 'fuzzy': []}
+        result, log, _, _ = self.kept_run(formatting_answer=[PRE_PR.failure('format', 'fault')])
+        self.assertEqual(result, 1, log)
+        self.kept_commands.clear()
+        # A sibling binary's same name and a longer name must still run.
+        self.kept_cases['default'] += [('api::other', 'one'), ('api::rules', 'one_more')]
+        self.kept_cases['default'].append(('api::rules', 'fuzzy_slow'))
+        self.kept_selected.clear()
+        result, log, _, _ = self.kept_run()
+        self.assertEqual(result, 0, log)
+        self.assertEqual(self.kept_commands[0], ['default', '-p', 'api', '--no-tests=warn', '-E',
+                         '(not test(/^fuzzy_/)) & not ((binary_id(/^api::rules$/) & test(/^one$/)))'])
+        self.assertEqual(self.kept_selected, [('api::other', 'one'), ('api::rules', 'one_more')])
+        # Metacharacters in nextest names are literals, including filter delimiters.
+        path.write_text(path.read_text().splitlines()[0] + '\napi::rules a(b)/[c]+.é\\d\n')
+        with contextlib.redirect_stdout(io.StringIO()):
+            kept = PRE_PR.PassedTests(str(path.parent), path.read_text().splitlines()[0])
+        expression = kept.arguments(self.root, 'default')[1]
+        one = PRE_PR.runpy.run_path(str(Path(__file__).resolve().parents[1] / 'tiers/one_process.py'))
+        matches = one['filterset'](expression)
+        self.assertFalse(matches(dict(binary_id='api::rules', test='a(b)/[c]+.é\\d')))
+        self.assertTrue(matches(dict(binary_id='api::rules', test='a(b)/[c]+.é\\dx')))
+
+    def test_passed_tests_change_key_or_shape_starts_again(self):
+        path = self.kept_setup()
+        # The five fields are precisely the unchanged passed-tree record's fields.
+        key = 'tree base reds ledgers own_paths'
+        old = key + '\napi::rules first\n'
+        rows = []
+        for index in range(5):
+            fields = key.split()
+            fields[index] = 'changed'
+            rows.append((' '.join(fields), old))
+        rows += [(key, text) for text in ('old shape\n', old[:-1], key + '\nno-test-name\n',
+                                          key + '\napi::rules first\n\n')]
+        for new_key, text in rows:
+            with self.subTest(key=new_key, text=text), contextlib.redirect_stdout(io.StringIO()):
+                path.write_text(text)
+                kept = PRE_PR.PassedTests(str(path.parent), new_key)
+                self.assertEqual(kept.previous, set())
+                self.assertEqual(kept.arguments(self.root, 'default'), [])
+                self.assertEqual(path.read_text(), new_key + '\n')
+
+    def test_passed_tests_unavailable_runs_every_test(self):
+        path = self.kept_setup()
+        for value in (None, '', str(self.root / 'api/src/lib.rs')):
+            with self.subTest(value=value):
+                if value is None:
+                    self.env.pop('SMITH_CHECK_RESULTS', None)
+                else:
+                    self.env['SMITH_CHECK_RESULTS'] = value
+                self.kept_selected.clear()
+                result, log, _, _ = self.kept_run(formatting_answer=[PRE_PR.failure('format', 'fault')])
+                self.assertEqual(result, 1, log)
+                self.assertEqual(len(self.kept_selected), 3)
+                self.assertEqual(log.count('pre-pr: passed tests not kept ('), 1)
+                self.assertFalse(path.exists())
+        # Permission failures must discard even a matching read, not reuse it.
+        path.write_text('key\napi::rules first\n')
+        open_path = Path.open
+
+        def denied(source, mode='r', *args, **kwargs):
+            if source == path and mode == 'a':
+                raise PermissionError('fixture read-only directory')
+            return open_path(source, mode, *args, **kwargs)
+
+        log = io.StringIO()
+        with mock.patch.object(Path, 'open', denied), contextlib.redirect_stdout(log):
+            kept = PRE_PR.PassedTests(str(path.parent), 'key')
+        self.assertEqual(kept.previous, set())
+        self.assertIsNone(kept.path)
+        self.assertIn('fixture read-only directory', log.getvalue())
+
+    def test_passed_tests_finished_set_survives_interruption(self):
+        path = self.kept_setup()
+        with self.assertRaises(KeyboardInterrupt):
+            self.kept_run(interrupt=True)
+        before = path.read_text()
+        self.assertEqual(before.splitlines()[1:], ['api::rules first', 'api::rules second'])
+        self.assertFalse((self.root / '.git/pre-pr-passed').exists())
+        self.kept_selected.clear()
+        result, log, _, _ = self.kept_run()
+        self.assertEqual(result, 0, log)
+        self.assertEqual(self.kept_selected, [('api::rules', 'fuzzy_third')])
+        self.assertEqual(path.read_text(), before + 'api::rules fuzzy_third\n')
+        self.assertIn('pre-pr: 2 tests passed before', log)
+
+    def test_passed_tests_keep_only_suite_passes_not_replays(self):
+        path = self.kept_setup()
+        self.goal_file('rerun', b'temper-rerun 1 4\n')
+        tests = [dict(binary_id='api::rules', test_name=name, outcome=name)
+                 for name in ('passed', 'failed', 'crashed', 'ignored', 'cancelled', 'starved')]
+        result, log, _, _ = self.ledger_run(tests)
+        self.assertEqual(result, 0, log)
+        self.assertEqual(len(self.again_calls), 2)
+        self.assertTrue(all('-E' not in args for args in self.again_calls))
+        self.assertEqual(path.read_text().splitlines()[1:], ['api::rules passed'])
+        report = json.loads((self.root / 'target/temper/pre-pr-failures.json').read_text())
+        self.assertEqual(report['skipped'], 0)
+        self.assertEqual(report['counts']['flake'], 2)
+
+    def test_passed_tests_report_skipped_goal_reds_without_new_wire(self):
+        path = self.kept_setup()
+        self.goal_file('reds-wait', b'temper-reds-wait 1 1\n')
+        self.goal_file('reds', b'temper-reds 1\n- test api::rules first\n- test api::rules fuzzy_third\n')
+        result, log, _, _ = self.kept_run(formatting_answer=[PRE_PR.failure('format', 'fault')])
+        self.assertEqual(result, 1, log)
+        key = path.read_text().splitlines()[0]
+        result, log, _, _ = self.kept_run()
+        self.assertEqual(result, 0, log)
+        tree, base, *_ = key.split()
+        self.assertEqual((self.root / '.git/temper/check-results').read_text().splitlines(),
+                         ['temper-check 1', f'check {tree} {base} passed',
+                          'passed test api::rules first', 'passed test api::rules fuzzy_third'])
 
     def test_selected_test_binaries_build_between_lints_and_tests(self):
         inventory = Path(__file__).resolve().parents[1] / 'tiers/packages.toml'
