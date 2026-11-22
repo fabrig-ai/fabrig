@@ -707,6 +707,8 @@ Every world checks what the strategy lists (testing-strategy.md, section
     deadline; the sessions, runs and kits, released by their run's end.
   - **Called** at each world's quiet point: the agent world's drive
     once its agent reclaims, and the session, run and host worlds' own.
+- **Faults, their ledger, blame for runs and the sweeps** are
+  `faults.md`'s.
 
 ### 6.1 The suites
 

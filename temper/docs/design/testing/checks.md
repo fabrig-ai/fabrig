@@ -567,7 +567,7 @@ landing's or a change's wait and a task's resolve across inspections.
   expected transition on each counter, is held by temper's 3.3 check,
   beside the gates' and the runs' blame. For runs it has two halves:
   smith's worlds hold the retries and the run's end
-  (`smith_faults::Runs`), since smith names no temper and
+  (`smith/docs/design/faults.md`, 4), since smith names no temper and
   its worlds run the runs; the system world holds the task tries and
   the holds, and calls smith's half beside them (6.3).
 - **Streams** (skein's `testing/sweeps.md`, 2): a world that sweeps
@@ -586,7 +586,7 @@ landing's or a change's wait and a task's resolve across inspections.
 Written from `../draft/failure-worlds.md`, 3.3 for runs, 3.4, 5 and
 the catalog's P26, S1 and P126 rows. The faults are skein's fake LLM's account strikes
 (skein's `testing/fakes/llm.md`, 2.7); smith's worlds hold the rest of
-the providers' faults.
+the providers' faults (`smith/docs/design/faults.md`).
 
 - **Two accounts:** the composed system world (`README.md`, 2.1) can
   give its fake LLM two accounts, each with a key source, each of its own
@@ -607,7 +607,8 @@ the providers' faults.
     account's tasks within the fault's interval, stays at zero; a fault
     that is never cleared holds the struck goal's tasks with words naming
     the account (`jig/docs/design/domain/accounts.md`, 3.5); and smith's
-    half, by `smith_faults::Runs::judge` over the runs' attempts and ends.
+    half, by `smith_faults::Runs::judge` over the runs' attempts and ends
+    (`smith/docs/design/faults.md`, 4).
   - **3.4:** the other account's goal lands as if the fault weren't
     there, within its bound; the struck goal ends within its bound past
     the clear, or, never cleared, is held naming the account.
