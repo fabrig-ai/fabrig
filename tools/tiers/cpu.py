@@ -34,6 +34,7 @@ GRACE_S = 15.0
 ONE_PROCESS = Path(__file__).with_name('one_process.py')
 # A binary's last counted landings (tools/tiers/budgets.md, 7).
 COUNTS_KEPT = 100
+INSTRUCTION_ALLOWANCE = 10_000_000_000
 
 
 def timed_out(directory):
@@ -86,15 +87,17 @@ def stop(process, deadline):
     process.wait()
 
 
-def gate_ceilings(profile):
+def gate_ceilings(profile, field='cpu_s'):
     """Map (tree, layer) to its ceiling (tools/tiers/budgets.md, 10)."""
-    ceilings = {(tree, layer): row['cpu_s']
+    ceilings = {(tree, layer): row[field]
                 for tree in GROUPS for layer, row in profile.get(tree, {}).items()
-                if layer != 'ideal_s'}
+                if layer != 'ideal_s' and field in row}
     for move in profile.get('moves', []):
+        if field not in move:
+            continue
         source, target = tuple(move['from'].split('.')), tuple(move['to'].split('.'))
-        ceilings[source] = ceilings.get(source, 0) - move['cpu_s']
-        ceilings[target] = ceilings.get(target, 0) + move['cpu_s']
+        ceilings[source] = ceilings.get(source, 0) - move[field]
+        ceilings[target] = ceilings.get(target, 0) + move[field]
     return ceilings
 
 
@@ -150,11 +153,14 @@ def budgets(path, pairs=None, layers=Path('tools/tiers/layers.toml')):
                     for layer, row in table.items():
                         if layer == 'ideal_s':
                             continue
-                        if (not isinstance(row, dict) or 'cpu_s' not in row
-                                or row.keys() - {'cpu_s', 'ideal_s', 'reference_s'}):
+                        # A layer whose CPU ceiling is its moves' alone may still hold its instruction ceiling.
+                        if (not isinstance(row, dict) or not row.keys() & {'cpu_s', 'instructions'}
+                                or row.keys() - {'cpu_s', 'ideal_s', 'reference_s',
+                                                 'instructions', 'ideal_instructions'}):
                             raise ValueError(f'invalid budget keys for {name}.{group}.{layer}')
                         for key, value in row.items():
-                            seconds(f'{name}.{group}.{layer}.{key}', value)
+                            validate_figure = positive_instructions if key.endswith('instructions') else seconds
+                            validate_figure(f'{name}.{group}.{layer}.{key}', value)
                         if 'reference_s' not in row and layer not in references:
                             raise ValueError(f'no reference for {name}.{group}.{layer}')
                 reasons = groups.get('reasons', [])
@@ -178,7 +184,8 @@ def budgets(path, pairs=None, layers=Path('tools/tiers/layers.toml')):
                     raise ValueError(f'{name}.moves must be an array of tables')
                 for index, move in enumerate(moves):
                     label = f'{name}.moves[{index}]'
-                    if not isinstance(move, dict) or move.keys() != {'from', 'to', 'cpu_s', 'why'}:
+                    required = {'from', 'to', 'cpu_s', 'why'}
+                    if not isinstance(move, dict) or move.keys() - {'instructions'} != required:
                         raise ValueError(f'invalid move keys for {label}')
                     endpoints = {}
                     for key in ('from', 'to'):
@@ -190,6 +197,8 @@ def budgets(path, pairs=None, layers=Path('tools/tiers/layers.toml')):
                     if layer_order.index(endpoints['to'][1]) >= layer_order.index(endpoints['from'][1]):
                         raise ValueError(f'{label}.to must be below from in the layers list')
                     seconds(f'{label}.cpu_s', move['cpu_s'])
+                    if 'instructions' in move:
+                        positive_instructions(f'{label}.instructions', move['instructions'])
                     if not isinstance(move['why'], str) or not move['why']:
                         raise ValueError(f'{label}.why must be a nonempty string')
                     if endpoints['to'][0] not in groups:
@@ -197,6 +206,9 @@ def budgets(path, pairs=None, layers=Path('tools/tiers/layers.toml')):
                 for (tree, layer), ceiling in gate_ceilings(groups).items():
                     if ceiling < 0:
                         raise ValueError(f'{name}.{tree}.{layer} ceiling below 0 after moves')
+                for (tree, layer), ceiling in gate_ceilings(groups, 'instructions').items():
+                    if ceiling < 0:
+                        raise ValueError(f'{name}.{tree}.{layer} instruction ceiling below 0 after moves')
         else:
             if pairs is not None and pair not in pairs:
                 raise ValueError(f"unknown budget pair {pair}")
@@ -208,6 +220,11 @@ def check_instructions(value):
     """A count is a nonnegative integer, or uncounted (design.md, 11.8)."""
     if value is not None and (type(value) is not int or value < 0):
         raise ValueError('instructions must be a nonnegative integer or null')
+
+
+def positive_instructions(name, value):
+    if type(value) is not int or value <= 0:
+        raise ValueError(f'{name} must be a positive integer')
 
 
 def check_commit(value):
@@ -250,8 +267,8 @@ def ledger(path):
             raise ValueError(f'invalid ledger groups for {label}')
 
     keys(data, {'ledger', 'profile', 'binaries', 'budgets', 'moves'}, 'ledger')
-    if type(data['ledger']) is not int or data['ledger'] not in (1, 2, 3, 4):
-        raise ValueError('ledger version must be 1, 2, 3 or 4')
+    if type(data['ledger']) is not int or data['ledger'] not in (1, 2, 3, 4, 5):
+        raise ValueError('ledger version must be 1 to 5')
     if data['profile'] not in ('default', 'fuzzy'):
         raise ValueError('ledger profile must be default or fuzzy')
     if not isinstance(data['binaries'], dict):
@@ -261,7 +278,7 @@ def ledger(path):
         cpu_key = 'cpu' if data['ledger'] >= 3 else 'cpu_s'
         keys(entry, {'tree', 'layer', cpu_key, 'tests'}
              | ({'alone'} if data['ledger'] != 1 else set())
-             | ({'counts'} if data['ledger'] == 4 else set()), binary)
+             | ({'counts'} if data['ledger'] >= 4 else set()), binary)
         if entry['tree'] not in GROUPS:
             raise ValueError(f'invalid ledger group for {binary}')
         name(entry['layer'], f'{binary}.layer', nullable=True)
@@ -307,18 +324,33 @@ def ledger(path):
             raise ValueError(f'ledger budgets for {tree} must be an object')
         for layer, entry in layers.items():
             name(layer, f'{tree} layer')
-            keys(entry, {'ceiling_s', 'lowest_s'}, f'{tree}.{layer}')
-            for key, value in entry.items():
-                figure(value, f'{tree}.{layer}.{key}')
+            expected = {'ceiling_s', 'lowest_s'}
+            if (data['ledger'] == 5 and isinstance(entry, dict)
+                    and entry.keys() & {'instructions_ceiling', 'instructions_lowest'}):
+                expected |= {'instructions_ceiling', 'instructions_lowest'}
+            keys(entry, expected, f'{tree}.{layer}')
+            for key in ('ceiling_s', 'lowest_s'):
+                figure(entry[key], f'{tree}.{layer}.{key}')
+            if 'instructions_ceiling' in entry:
+                ceiling = entry['instructions_ceiling']
+                check_instructions(ceiling)
+                if ceiling is None:
+                    raise ValueError('ledger instructions_ceiling must not be null')
+                check_instructions(entry['instructions_lowest'])
     if not isinstance(data['moves'], list):
         raise ValueError('ledger moves must be an array')
     for move in data['moves']:
-        keys(move, {'from', 'to', 'cpu_s', 'why'}, 'move')
+        expected = {'from', 'to', 'cpu_s', 'why'}
+        if data['ledger'] == 5 and isinstance(move, dict) and 'instructions' in move:
+            expected.add('instructions')
+        keys(move, expected, 'move')
         for key in ('from', 'to'):
             parts = move[key].split('.') if isinstance(move[key], str) else []
             if len(parts) != 2 or parts[0] not in GROUPS[:-1] or not parts[1]:
                 raise ValueError(f'ledger move {key} must be TREE.LAYER')
         figure(move['cpu_s'], 'move cpu_s', positive=True)
+        if 'instructions' in move:
+            positive_instructions('move instructions', move['instructions'])
         name(move['why'], 'move why')
     return data
 
@@ -759,12 +791,22 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
         return tree_index, tree or '', order, layer or ''
 
     ceilings = gate_ceilings(gate_limits)
-    binaries = fold_binaries(data, head, tests, unobserved, ledger)
+    binaries = fold_binaries(data, head, tests, ledger)
     held = held_budgets(gate_limits, ledger, ledger_figures(binaries), selected_layers)
+    instruction_binaries = instruction_head(data, head, ledger)
+    head_counts = layer_counts(instruction_binaries, lambda entry: entry['instructions'])
+    main_counts = layer_counts((ledger or {}).get('binaries', {}), binary_count)
+    counted = counting is not None and counting['counted']
+    instruction_held = instruction_budgets(gate_limits, ledger, head_counts, main_counts,
+                                           layer_counts(binaries, binary_count), selected_layers, counted)
+    keys = {key for key in grouped.keys() | main.keys() if layer_selected(key[1], selected_layers)}
+    instruction_layers = {(tree, layer) for tree, layer in keys
+                          if 'instructions' in gate_limits.get(tree, {}).get(layer, {})}
+    if not counted and instruction_layers:
+        why = counting['why'] if counting is not None else 'the run has no counting report'
+        warnings.append(f'instruction budget enforcement off: {why}; CPU comparisons warn')
     layers, trees, layer_over = [], {}, []
-    for tree, layer in sorted(grouped.keys() | main.keys(), key=row_order):
-        if not layer_selected(layer, selected_layers):
-            continue
+    for tree, layer in sorted(keys, key=row_order):
         key = tree, layer
         table = gate_limits.get(tree)
         budget = (table or {}).get(layer, {})
@@ -775,23 +817,55 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
         cpu = grouped.get(key, 0.0)
         main_cpu = main.get(key, 0.0) if ledger is not None else None
         main_over = main_limit is not None and main_cpu > main_limit
-        is_over = layer is not None and (cpu > limit if limit is not None else table is not None)
-        if main_over and is_over and cpu - main_cpu <= max(main_cpu / 20, 1):
-            is_over = False
-            warnings.append(f'layer over budget at main: {tree} {pair} {layer}: '
-                            f'{main_cpu:.2f} CPU s at main, budget {main_limit} s; {cpu:.2f} CPU s at the head')
-        grew = growing_binaries(key, head, tests, ledger) if is_over and ledger is not None else []
+        count = head_counts.get(key, 0)
+        main_count = None if ledger is None else main_counts.get(key, 0)
+        count_state = instruction_held.get(key, {})
+        growth = ((count - main_count) / main_count * 100
+                  if count_state and count is not None and main_count else None)
+        instruction_layer = key in instruction_layers
+        use_instructions = instruction_layer and counted and count is not None and (
+            ledger is None or main_count is not None)
+        label = f'{tree} {pair} {layer}'
+        line, grew = None, []
+        if use_instructions:
+            line = instruction_verdict(label, count, main_count, growth, count_state, warnings)
+            if line is not None and ledger is not None:
+                grew = growing_binaries(key, instruction_binaries, tests, ledger, instructions=True)
+        else:
+            if instruction_layer and counted:
+                missing = [place for place, value in [('the head', count), ('main', main_count)]
+                           if value is None and (place != 'main' or ledger is not None)]
+                where = ' and '.join(missing)
+                warnings.append(f'instruction budget enforcement off: {label}: '
+                                f'missing binary counts at {where}; CPU comparison warns')
+            cpu_over = layer is not None and (cpu > limit if limit is not None else table is not None)
+            if main_over and cpu_over and cpu - main_cpu <= max(main_cpu / 20, 1):
+                warnings.append(f'layer over budget at main: {label}: '
+                                f'{main_cpu:.2f} CPU s at main, budget {main_limit} s; {cpu:.2f} CPU s at the head')
+            elif cpu_over:
+                bound = 'no budget' if limit is None else f'budget {limit} s'
+                line = f'layer over budget: {label}: {cpu:.2f} CPU s, {bound}'
+                if ledger is not None:
+                    if ceiling is not None:
+                        line += f', ceiling {ceiling} s'
+                    line += f', at main {main_cpu:.2f} CPU s'
+                    grew = growing_binaries(key, head, tests, ledger)
+        if line is not None:
+            destination = layer_over if use_instructions or not instruction_layer else warnings
+            destination.append(line + growth_lines(grew))
         layers.append(dict(tree=tree, layer=layer, cpu_s=cpu, measured_s=measured.get(key, 0.0),
-                           instructions=sum_counts(entry['instructions'] for entry in head.values()
-                                                   if (entry['tree'], entry['layer']) == key),
-                           main_instructions=None if ledger is None else sum_counts(
-                               binary_count(entry) for entry in ledger['binaries'].values()
-                               if (entry['tree'], entry['layer']) == key),
+                           instructions=count, main_instructions=main_count,
+                           instructions_ceiling=count_state.get('instructions_ceiling'),
+                           instructions_budget=count_state.get('instructions_budget'),
+                           instructions_lowest=count_state.get('instructions_lowest'),
+                           main_instructions_budget=count_state.get('main_instructions_budget'),
+                           main_instructions_lowest=count_state.get('main_instructions_lowest'),
+                           ideal_instructions=budget.get('ideal_instructions'), instructions_growth=growth,
                            main_s=main_cpu, ceiling_s=ceiling, budget_s=limit, main_budget_s=main_limit,
                            lowest_s=state.get('lowest_s'), main_over=main_over, grew=grew,
                            ideal_s=budget.get('ideal_s'),
                            reference_s=budget.get('reference_s', gate_limits.get('references', {}).get(layer)),
-                           over=is_over))
+                           over=line is not None))
         if tree not in trees:
             total = None if table is None else sum(
                 value for (group, name), value in ceilings.items()
@@ -806,15 +880,6 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
         trees[tree]['cpu_s'] += cpu
         if ledger is not None:
             trees[tree]['main_s'] += main_cpu
-        if is_over:
-            label = 'no budget' if limit is None else f'budget {limit} s'
-            line = f'layer over budget: {tree} {pair} {layer}: {cpu:.2f} CPU s, {label}'
-            if ledger is not None:
-                if ceiling is not None:
-                    line += f', ceiling {ceiling} s'
-                line += f', at main {main_cpu:.2f} CPU s'
-                line += growth_lines(grew)
-            layer_over.append(line)
     warnings.extend(f'unplaced: {binary} has no layer (tools/tiers/layers.md)'
                     for binary in sorted({p['binary_id'] for p in processes if p['layer'] is None}))
     (over if gate else warnings).extend(layer_over)
@@ -999,18 +1064,24 @@ def main_budget(ledger, key):
     return min(entry['ceiling_s'], math.ceil(round(lowest + max(lowest / 10, 1), 3)))
 
 
-def held_budgets(profile, ledger, figures, selected_layers=None):
-    """Held ceilings and their next low figures (tools/tiers/budgets.md, 9)."""
+def move_net(profile, ledger, field):
+    """New moves of this measure, counted with multiplicity (budgets.md, 9)."""
     def moves(items):
-        return Counter((m['from'], m['to'], m['cpu_s'], m['why']) for m in items)
+        return Counter((m['from'], m['to'], m[field], m['why']) for m in items if field in m)
 
     net = {}
     if ledger is not None:
         new = moves(profile.get('moves', [])) - moves(ledger['moves'])
-        for (source, target, seconds, _), count in new.items():
+        for (source, target, amount, _), count in new.items():
             for endpoint, sign in ((source, -1), (target, 1)):
                 key = tuple(endpoint.split('.'))
-                net[key] = net.get(key, 0) + sign * seconds * count
+                net[key] = net.get(key, 0) + sign * amount * count
+    return net
+
+
+def held_budgets(profile, ledger, figures, selected_layers=None):
+    """Held ceilings and their next low figures (tools/tiers/budgets.md, 9)."""
+    net = move_net(profile, ledger, 'cpu_s')
     held = {}
     for key, ceiling in gate_ceilings(profile).items():
         if not layer_selected(key[1], selected_layers):
@@ -1027,8 +1098,78 @@ def held_budgets(profile, ledger, figures, selected_layers=None):
     return held
 
 
-def growing_binaries(key, head, tests, ledger):
-    """Uncut causes, ordered by CPU growth then wall growth (budgets.md, 8)."""
+def instruction_budget(ceiling, lowest):
+    if lowest is None:
+        return ceiling
+    return min(ceiling, lowest + max((lowest + 9) // 10, INSTRUCTION_ALLOWANCE))
+
+
+def instruction_verdict(label, count, main, growth, state, warnings):
+    """The change's instruction verdict and main's warnings (budgets.md, 8 and 9)."""
+    budget = state['instructions_budget']
+    ceiling = state['instructions_ceiling']
+    main_budget = state['main_instructions_budget']
+    lowest = state['main_instructions_lowest']
+    main_over = main is not None and main > main_budget
+    if main is not None and lowest is not None and lowest < main <= main_budget and 100 * main >= 108 * lowest:
+        warnings.append(f'layer instruction drift: {label}: {main} instructions at main, '
+                        f'lowest {lowest} instructions, budget {main_budget} instructions')
+    grew = main is not None and 100 * count > 102 * main
+    if count > budget and main_over and not grew:
+        warnings.append(f'layer over budget at main: {label}: {main} instructions at main, '
+                        f'budget {main_budget} instructions; {count} instructions at the head')
+    if grew or (count > budget and not main_over):
+        reason = 'layer over budget' if count > budget else 'layer instruction growth'
+        at_main = 'none' if main is None else str(main)
+        growth_text = 'n/a' if growth is None else f'{growth:.2f}%'
+        return (f'{reason}: {label}: {count} instructions, budget {budget} instructions, '
+                f'ceiling {ceiling} instructions, at main {at_main} instructions, growth {growth_text}')
+    return None
+
+
+def layer_counts(binaries, count):
+    figures = {}
+    for entry in binaries.values():
+        key = entry['tree'], entry['layer']
+        figures[key] = sum_counts((figures.get(key, 0), count(entry)))
+    return figures
+
+
+def instruction_budgets(profile, ledger, head_counts, main_counts, folded_counts, selected_layers, counted):
+    """Held instruction budgets and their next low counts (budgets.md, 9)."""
+    net = move_net(profile, ledger, 'instructions')
+    held = {}
+    for key, ceiling in gate_ceilings(profile, 'instructions').items():
+        tree, layer = key
+        if not layer_selected(layer, selected_layers):
+            continue
+        entry = (ledger or {}).get('budgets', {}).get(tree, {}).get(layer, {})
+        shift = net.get(key, 0)
+        main_ceiling = entry.get('instructions_ceiling')
+        main_lowest = entry.get('instructions_lowest')
+        if main_ceiling is None and ledger is not None:
+            main_ceiling = ceiling - shift
+            main_lowest = main_counts.get(key)
+        elif main_lowest is None:
+            main_lowest = main_counts.get(key)
+        main_limit = None if main_ceiling is None else instruction_budget(main_ceiling, main_lowest)
+        limit, lowest = ceiling, None
+        if main_limit is not None and ceiling - shift == main_ceiling:
+            limit = min(ceiling, max(0, main_limit + shift))
+            if main_lowest is not None:
+                lowest = max(0, main_lowest + shift)
+        if counted and head_counts.get(key, 0) is not None:
+            folded = folded_counts.get(key, 0)
+            if folded is not None:
+                lowest = folded if lowest is None else min(lowest, folded)
+        held[key] = dict(instructions_ceiling=ceiling, instructions_budget=limit,
+                         instructions_lowest=lowest, main_instructions_budget=main_limit,
+                         main_instructions_lowest=main_lowest)
+    return held
+
+
+def growing_binaries(key, head, tests, ledger, *, instructions=False):
+    """Uncut causes, ordered by layer measure growth then wall growth (budgets.md, 8)."""
     by_binary = {}
     for test in tests:
         by_binary.setdefault(test['binary_id'], []).append(test)
@@ -1037,8 +1178,11 @@ def growing_binaries(key, head, tests, ledger):
         if (entry['tree'], entry['layer']) != key:
             continue
         old = ledger['binaries'].get(binary)
-        main = binary_median(old) if old is not None and (old['tree'], old['layer']) == key else None
-        if entry['cpu_s'] <= (main or 0):
+        same_layer = old is not None and (old['tree'], old['layer']) == key
+        main = binary_median(old) if same_layer else None
+        count = binary_count(old) if same_layer else None
+        growth = entry['instructions'] - (count or 0) if instructions else entry['cpu_s'] - (main or 0)
+        if growth <= 0:
             continue
         walls = (old or {}).get('tests', {})
         grown_tests = []
@@ -1048,17 +1192,26 @@ def growing_binaries(key, head, tests, ledger):
             if test['wall_s'] > (median or 0):
                 grown_tests.append(dict(test_name=name, wall_s=test['wall_s'], main_wall_s=median))
         grown_tests.sort(key=lambda test: (-(test['wall_s'] - (test['main_wall_s'] or 0)), test['test_name']))
-        grew.append(dict(binary_id=binary, cpu_s=entry['cpu_s'], main_s=main, tests=grown_tests))
-    grew.sort(key=lambda entry: (-(entry['cpu_s'] - (entry['main_s'] or 0)), entry['binary_id']))
-    return grew
+        row = dict(binary_id=binary, cpu_s=entry['cpu_s'], main_s=main, tests=grown_tests)
+        if instructions:
+            row.update(instructions=entry['instructions'], main_instructions=count)
+        grew.append((growth, row))
+    grew.sort(key=lambda item: (-item[0], item[1]['binary_id']))
+    return [row for _, row in grew]
 
 
 def growth_lines(grew):
     lines = []
     for binary in grew[:10]:
-        main = binary['main_s']
-        detail = 'new' if main is None else f"+{binary['cpu_s'] - main:.2f} CPU s, at main {main:.2f} CPU s"
-        lines.append(f"  {binary['binary_id']}: {binary['cpu_s']:.2f} CPU s, {detail}")
+        if 'instructions' in binary:
+            count, main = binary['instructions'], binary['main_instructions']
+            figure = f'{count} instructions'
+            detail = 'new' if main is None else f'+{count - main} instructions, at main {main} instructions'
+        else:
+            cpu, main = binary['cpu_s'], binary['main_s']
+            figure = f'{cpu:.2f} CPU s'
+            detail = 'new' if main is None else f'+{cpu - main:.2f} CPU s, at main {main:.2f} CPU s'
+        lines.append(f"  {binary['binary_id']}: {figure}, {detail}")
         for test in binary['tests'][:5]:
             median = test['main_wall_s']
             detail = 'new' if median is None else f'main median {median:.6f} wall s'
@@ -1070,7 +1223,28 @@ def growth_lines(grew):
     return ''.join('\n' + line for line in lines)
 
 
-def fold_binaries(data, head, tests, unobserved, ledger):
+def partial_binaries(data):
+    return ({t['binary_id'] for t in data['unobserved']}
+            | {t['binary_id'] for t in data['tests'] if t['process'] is None
+               or t['outcome'] in ('starved', 'cancelled')})
+
+
+def instruction_head(data, head, ledger):
+    """Use last whole counts for binaries the run cut short (budgets.md, 8)."""
+    partial = partial_binaries(data)
+    old = (ledger or {}).get('binaries', {})
+    counted = dict(head)
+    for entry in data.get('workspace', []):
+        binary = entry['binary_id']
+        if (binary in partial and binary not in counted
+                and layer_selected(entry['layer'], data.get('selected_layers'))):
+            counted[binary] = dict(entry, cpu_s=0.0)
+    for binary in partial & counted.keys():
+        counted[binary] = dict(counted[binary], instructions=binary_count(old[binary]) if binary in old else None)
+    return counted
+
+
+def fold_binaries(data, head, tests, ledger):
     """Keep whole measurements and their histories (tools/tiers/budgets.md, 7)."""
     old = (ledger or {}).get('binaries', {})
     alone = {(entry['binary_id'], entry['test_name']): entry['cpu_s']
@@ -1078,14 +1252,14 @@ def fold_binaries(data, head, tests, unobserved, ledger):
     by_binary = {}
     for test in tests:
         by_binary.setdefault(test['binary_id'], []).append(test)
-    partial = {t['binary_id'] for t in unobserved}
-    partial.update(t['binary_id'] for t in data['tests'] if t['process'] is None)
+    partial = partial_binaries(data)
+    counted = (data.get('counting') or {}).get('counted', True)
     binaries = {}
     for binary, entry in head.items():
         if not layer_selected(entry['layer'], data.get('selected_layers')):
             continue
         ran = by_binary.get(binary, [])
-        if ran and binary not in partial and not any(t['starved'] for t in ran):
+        if ran and binary not in partial:
             history = old.get(binary, {}).get('tests', {})
             walls = {t['test_name']: [*history.get(t['test_name'], [])[-2:], t['wall_s']] for t in ran}
             history = old.get(binary, {}).get('alone', {})
@@ -1098,7 +1272,7 @@ def fold_binaries(data, head, tests, unobserved, ledger):
                     figures[name] = history[name]
             cpu = [*old.get(binary, {}).get('cpu', [])[-2:], entry['cpu_s']]
             counts = old.get(binary, {}).get('counts', [])
-            if entry['instructions'] is not None:
+            if counted and entry['instructions'] is not None:
                 counts = [*counts[-(COUNTS_KEPT - 1):],
                           dict(commit=data.get('commit'), instructions=entry['instructions'])]
             binaries[binary] = dict(tree=entry['tree'], layer=entry['layer'], cpu=cpu,
@@ -1123,13 +1297,21 @@ def fold_ledger(directory, result, limits, ledger=None):
     data = json.loads((Path(directory) / 'results.json').read_text())
     selected_layers = data.get('selected_layers')
     head = head_binaries(result['processes'], data.get('workspace', []), ledger, selected_layers)
-    binaries = fold_binaries(data, head, result['tests'], result['unobserved'], ledger)
+    binaries = fold_binaries(data, head, result['tests'], ledger)
     figures = ledger_figures(binaries)
     profile = (limits or {}).get('gate', {}).get(result['pair'], {})
     folded_budgets = {}
     for (tree, layer), state in held_budgets(profile, ledger, figures, selected_layers).items():
         folded_budgets.setdefault(tree, {})[layer] = {key: state[key] for key in ('ceiling_s', 'lowest_s')}
-    return dict(ledger=4, profile=result['pair'], binaries=binaries, budgets=folded_budgets,
+    head_counts = layer_counts(instruction_head(data, head, ledger), lambda entry: entry['instructions'])
+    main_counts = layer_counts((ledger or {}).get('binaries', {}), binary_count)
+    counted = (data.get('counting') or {}).get('counted', False)
+    for (tree, layer), state in instruction_budgets(
+            profile, ledger, head_counts, main_counts, layer_counts(binaries, binary_count),
+            selected_layers, counted).items():
+        folded_budgets[tree][layer].update(
+            instructions_ceiling=state['instructions_ceiling'], instructions_lowest=state['instructions_lowest'])
+    return dict(ledger=5, profile=result['pair'], binaries=binaries, budgets=folded_budgets,
                 moves=profile.get('moves', []))
 
 
@@ -1238,6 +1420,14 @@ def print_summary(result, as_json=False):
             figures += f", instructions {row['instructions'] if row['instructions'] is not None else 'none'}"
             if row['main_s'] is not None:
                 figures += f", main instructions {row['main_instructions'] if row['main_instructions'] is not None else 'none'}"
+            if kind == 'layer' and (row['instructions_ceiling'] is not None or row['ideal_instructions'] is not None):
+                for title, field in (('ceiling', 'instructions_ceiling'), ('budget', 'instructions_budget'),
+                                     ('lowest', 'instructions_lowest'), ('main budget', 'main_instructions_budget'),
+                                     ('main lowest', 'main_instructions_lowest'), ('ideal', 'ideal_instructions')):
+                    value = row[field]
+                    figures += f", {title} instructions {value if value is not None else 'none'}"
+                growth = row['instructions_growth']
+                figures += ', instruction growth ' + ('none' if growth is None else f'{growth:.2f}%')
             print(f'{kind} {label}: {figures}')
     for row in result['references']:
         figures = ', '.join(f"{key.removesuffix('_s')} {row[key] if row[key] is not None else 'none'} s"

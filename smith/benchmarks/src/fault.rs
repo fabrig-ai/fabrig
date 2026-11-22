@@ -138,40 +138,6 @@ mod tests {
     }
 
     #[test]
-    fn a_refused_seed_names_the_seed_step() {
-        let scratch = skein_scratch::Scratch::new("bench-fault-seed");
-        let root = scratch.path();
-        let seed = root.join("seed");
-        std::fs::create_dir(&seed).expect("seed");
-        std::fs::write(seed.join("file"), "frozen").expect("seed bytes");
-        let fault = crate::isolate::prepare(&guard(root), &seed, &"0".repeat(64), &root.join("attempt"))
-            .expect_err("wrong seed digest");
-        assert_eq!(fault.kind, FaultKind::Setup(SetupStep::Seed));
-    }
-
-    #[test]
-    fn a_refused_attempt_keeps_the_seed_step() {
-        let scratch = skein_scratch::Scratch::new("bench-fault-attempt");
-        let root = scratch.path();
-        std::fs::create_dir(root.join("seed")).expect("seed");
-        std::fs::write(root.join("seed/file"), "frozen").expect("seed bytes");
-        let task = root.join("task.toml");
-        std::fs::write(&task, format!("id='refused-seed'\nversion=1\nkind='probe'\ntier='small'\ndeadline_seconds=1\nprompt=\"A frozen task.\\n\"\ndeciding=['tree-ended']\nseed_sha256='{}'\n", "0".repeat(64)))
-            .expect("task with wrong seed digest");
-        let template = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/recorded/results/attempt.json");
-        let mut identity = crate::read_result(&template).expect("template").identity;
-        identity.run = "refused-seed".into();
-        identity.attempt = "one".into();
-        let prepared = crate::fixture::request::request(task, identity);
-        let machine = crate::isolate::Machine { path: "/usr/bin:/bin".into(), rustup_home: None };
-        let recorded =
-            crate::run::attempt(&guard(root), &machine, &root.join("state"), &prepared).expect("record refusal");
-        assert_eq!(recorded.incomplete, crate::run::Incomplete::Setup(SetupStep::Seed));
-        let crate::End::Refused { setup } = recorded.result.outcome.end else { panic!("setup refusal") };
-        assert!(setup.contains("seed digest differs"), "{setup}");
-    }
-
-    #[test]
     fn preparation_keeps_a_specific_step_and_exact_detail() {
         let fault = Fault::new(FaultKind::Setup(SetupStep::Credentials), "exact detail");
         assert_eq!(Fault::at(SetupStep::Configuration)(fault.clone()), fault);

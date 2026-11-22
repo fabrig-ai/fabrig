@@ -189,6 +189,11 @@ pub enum Label {
 }
 
 // Record: Label.
+impl Label {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for Label {
     type Limits = Limits;
     const TAIL: Path = paths::LABEL_TAG;
@@ -232,6 +237,11 @@ pub struct Note {
 }
 
 // Record: Note.
+impl Note {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 25;
+}
+
 impl Record for Note {
     type Limits = Limits;
     const TAIL: Path = paths::NOTE_TAIL;
@@ -278,6 +288,11 @@ pub struct Add {
 }
 
 // Record: Add.
+impl Add {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 25;
+}
+
 impl Record for Add {
     type Limits = Limits;
     const TAIL: Path = paths::ADD_TAIL;
@@ -328,6 +343,11 @@ pub struct Notes {
 }
 
 // Record: Notes.
+impl Notes {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for Notes {
     type Limits = Limits;
     const TAIL: Path = paths::NOTES_TAIL;

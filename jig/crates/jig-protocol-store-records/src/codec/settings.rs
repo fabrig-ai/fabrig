@@ -14,7 +14,8 @@ use jig_domain_tasks as tasks;
 pub(crate) use providers::{provider_address_to_domain, provider_address_to_record};
 use settings::application;
 use skein_lib::{List, Reader};
-const EMPTY: wire::Limits = wire::Limits {
+#[cfg(test)]
+pub(in crate::codec) const EMPTY: wire::Limits = wire::Limits {
     provider_text_bytes: 0,
     provider_list_keep: 0,
     provider_list_drop: 0,
@@ -698,7 +699,7 @@ pub fn limits(domain: &core::Limits) -> Option<wire::Limits> {
     limits.field_rule_name = domain.tasks.result_bytes;
     limits.verdict_fields = u32::try_from(
         u64::from(tasks::VERDICT_FIELDS.min(domain.tasks.result_bytes))
-            .checked_mul(wire::FieldRule::encoded_bound(&EMPTY)?.checked_add(4)?)?
+            .checked_mul(wire::FieldRule::ENCODED_AT_ZERO.checked_add(4)?)?
             .checked_add(u64::from(domain.tasks.result_bytes))?,
     )
     .ok()?;
@@ -709,7 +710,7 @@ pub fn limits(domain: &core::Limits) -> Option<wire::Limits> {
     limits.revision_items = super::people::pieces::piece_bound(
         u32::try_from(settings::revision_bound(domain)?).ok()?,
         size_of::<settings::RevisionItem>(),
-        wire::RevisionItem::encoded_bound(&EMPTY)?,
+        wire::RevisionItem::ENCODED_AT_ZERO,
         true,
     )?;
     limits.proposal_items = settings::capacity(domain)?.checked_mul(2)?.min(tasks::SETTINGS_ITEMS);
