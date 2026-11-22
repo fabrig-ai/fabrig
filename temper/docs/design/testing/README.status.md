@@ -1,7 +1,8 @@
 # testing: status
 
-2026-11-21. Where temper's code lags or departs from [README.md](README.md).
+2026-11-22. Where temper's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 5: `crates/temper-redeploy-tool` is still in the tree [in flight: change 11997].
 - **Not yet:** 4.2: no world reads a component through its inspection
   adapter, keeps a fault ledger or sweeps with configured faults
   (`checks.status.md`, 6.1 and 6.2).
