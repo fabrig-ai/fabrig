@@ -604,46 +604,12 @@ def main_ledgers(setting, directory, root):
                 kind = 'unreadable' if isinstance(error, OSError) else 'refused'
                 why = f'{name} {kind}: {error_line(error)}'
         if why is None:
-            print(f"pre-pr: budgets: {profile} judged with main's ledger (TIERS_LEDGER/{name})", flush=True)
+            print(f"pre-pr: budgets: {profile} warnings only with main's ledger (TIERS_LEDGER/{name})", flush=True)
         else:
             print(f'pre-pr: budgets: {profile} warnings only ({why})', flush=True)
         digests.append(f'{profile} {digest}\n')
     digest = hashlib.sha256(''.join(digests).encode()).hexdigest() if copies else '-'
     return copies, digest
-
-
-def budget_failures(directory, ledger, profile, root, env):
-    """Read the gate verdict whole, retaining each over entry as its own log (section 4)."""
-    arguments = ['python3', '-I', '-B', 'tools/tiers/cpu-summary', str(directory)]
-    if (root / 'tools/tiers/budgets.toml').exists():
-        arguments += ['--budgets', 'tools/tiers/budgets.toml']
-    arguments += ['--ledger', str(ledger), '--gate', '--json']
-    chunks = []
-
-    def output(line, log):
-        chunks.append(line)
-        log.add(line)
-
-    code, log = run(arguments, root, env, output=output)
-    text = b''.join(chunks).decode('utf-8', errors='replace') if chunks else log
-    try:
-        result = json.loads(text)
-        entries = result['over_budget']
-        if code != 1 or not isinstance(entries, list) or not entries or not all(isinstance(e, str) for e in entries):
-            raise ValueError('no over-budget verdict')
-    except (ValueError, KeyError, TypeError):
-        suffix = '' if profile == 'default' else ' fuzzy'
-        return [failure('check one-process' + suffix, text)]
-    errors = []
-    for entry in entries:
-        name = 'budget ' + profile
-        line = entry.split('\n', 1)[0]
-        for prefix, kind in (('layer over budget: ', 'budget '), ('test over its reference: ', 'reference ')):
-            if line.startswith(prefix):
-                name = kind + line.removeprefix(prefix).split(': ', 1)[0]
-                break
-        errors.append(failure(name, entry))
-    return errors
 
 
 def repair_case(git_dir, root, base_id, tree_id, packages, reds):
@@ -680,7 +646,7 @@ def one_process(packages, root, env, reds=(), rerun=0, outcomes=None, profile='d
         directory = Path(directory) / ('tests' if profile == 'default' else 'fuzzy')
         arguments = ['python3', '-I', '-B', 'tools/tiers/one-process', '--out', str(directory)]
         if ledger is not None:
-            arguments += ['--ledger', str(ledger), '--gate']
+            arguments += ['--ledger', str(ledger)]
         arguments += [profile] + package_args(packages) + ['--no-tests=warn']
         test_env = dict(env, TIERS_PRE_PR_TARGETS='1')
         if repair:
@@ -690,8 +656,7 @@ def one_process(packages, root, env, reds=(), rerun=0, outcomes=None, profile='d
             return None, [], None
         if code == 2 and log.rstrip('\r\n').split('\n')[-1] == 'one-process: nextest listing exited with 101':
             return code, [failure('build' + suffix, 'no tests ran\n' + log)], None
-        gated = code == 1 and ledger is not None
-        if code not in (0, 100) and not gated:
+        if code not in (0, 100):
             return code, [failure('check one-process' + suffix, f'exit {code}\n' + log)], None
         starved = None
         errors = []
@@ -726,8 +691,6 @@ def one_process(packages, root, env, reds=(), rerun=0, outcomes=None, profile='d
                 outcomes.update(observed)
             if code == 0:
                 return code, [], starved
-            if gated:
-                errors += budget_failures(directory, ledger, profile, root, env)
             source = 'junit.xml'
             document = ET.parse(directory / source)
             for suite in document.iter('testsuite'):

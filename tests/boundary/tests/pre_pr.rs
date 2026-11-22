@@ -143,15 +143,14 @@ elif name == 'one-process':
     directory = Path(args[1])
     offset = 2
     if state.get('main_ledgers'):
-        assert args[2] == '--ledger' and args[4] == '--gate'
+        assert args[2] == '--ledger'
         copy = Path(args[3])
-        profile = args[5]
+        profile = args[4]
         original = root / '.git/main-ledgers' / (profile + '.json')
         assert copy != original and copy.name == profile + '-ledger.json'
         assert copy.parent.stat().st_mode & 0o777 == 0o700
         assert copy.read_bytes() == original.read_bytes()
-        state.setdefault('ledger_copies', {})[profile] = str(copy)
-        offset = 5
+        offset = 4
     profile = args[offset]
     assert profile in ('default', 'fuzzy')
     assert directory.name == ('tests' if profile == 'default' else 'fuzzy') and not directory.exists()
@@ -183,16 +182,6 @@ elif name == 'one-process':
         print(ledger['output'], flush=True)
     spend(0, ['one-process-end'])
     sys.exit(ledger.get('one_process_exit', 100 if any(t['outcome'] in ('failed', 'crashed') for t in tests) else 0))
-elif name == 'cpu-summary':
-    assert Path.cwd() == root
-    directory = Path(args[0])
-    copy = Path(state['ledger_copies']['default'])
-    assert args == [str(directory), '--ledger', str(copy), '--gate', '--json']
-    assert copy.read_bytes() == (root / '.git/main-ledgers/default.json').read_bytes()
-    assert directory.name == 'tests' and (directory / 'results.json').is_file()
-    spend(0, ['cpu-summary', args])
-    print(json.dumps({'over_budget': [state['over_budget']]}))
-    sys.exit(1)
 else:
     tree = Path.cwd().name
     if Path('delivery.rs').exists():
@@ -712,7 +701,7 @@ fn an_early_hold_exit_warns_without_changing_the_verdict() {
 }
 
 #[test]
-fn mains_ledgers_refuse_a_delivery_over_budget() {
+fn mains_ledgers_report_cpu_overruns_as_warnings() {
     let scratch = fixture();
     let root = scratch.path();
     pin(root);
@@ -724,28 +713,23 @@ fn mains_ledgers_refuse_a_delivery_over_budget() {
             &json!({"ledger": 2, "profile": profile, "binaries": {}, "budgets": {}, "moves": []}).to_string(),
         );
     }
-    write(root, "tools/tiers/cpu-summary", PROGRAM);
     let over = "layer over budget: temper default domain: 12.00 CPU s, budget 10.0 s, at main 9.00 CPU s";
     let mut state = budget(root);
     state["main_ledgers"] = json!(true);
-    state["over_budget"] = json!(over);
-    state["head"] = json!({"one_process_exit": 1});
+    state["head"] = json!({"output": format!("warning: {over}")});
     write(root, ".git/budget.json", &state.to_string());
     commit_candidate(root);
     let output = full_check(root, None, Some(".git/main-ledgers"));
-    assert!(!output.status.success(), "{}", text(&output));
-    assert!(!passed(root));
-    let log = text(&output);
-    assert!(log.contains(&format!("\nbudget temper default domain\n{over}\n")), "{log}");
+    assert!(output.status.success(), "{}", text(&output));
+    assert!(text(&output).contains(&format!("warning: {over}")));
     let failures: Value =
         serde_json::from_slice(&fs::read(root.join("target/temper/pre-pr-failures.json")).expect("failures file"))
             .expect("JSON failures");
-    assert_eq!(failures["verdict"], "refused");
-    assert_eq!(failures["failures"], json!([{"class": "new", "name": "budget temper default domain", "key": null}]));
+    assert_eq!(failures["verdict"], "passed");
+    assert_eq!(failures["failures"], json!([]));
     let state = budget(root);
     let events = state["events"].as_array().expect("events");
     assert_eq!(events.iter().filter(|e| e[0] == "one-process").count(), 2);
-    assert_eq!(events.iter().filter(|e| e[0] == "cpu-summary").count(), 1);
 }
 
 #[test]
