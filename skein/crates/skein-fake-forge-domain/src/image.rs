@@ -154,6 +154,8 @@ impl Domain {
                 }
             }
         }
+        let env = skein_lib::Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: config.clone() };
+        crate::dispatch::restore_ready(&mut domain, &env);
         Ok(domain)
     }
 }
@@ -313,7 +315,7 @@ fn get_alarm(input: &mut Reader<'_>, domain: &mut Domain, limits: &crate::Limits
             let op = operations::get(input, limits)?;
             let id = domain
                 .calls
-                .insert(Call { state: State::Landing(Landing { user, repository, op }) })
+                .insert(Call { state: State::Landing(Landing { token: None, user, repository, op }) })
                 .expect("bounded landings");
             Alarm::Call(id)
         }

@@ -159,6 +159,36 @@ pub fn manual_merges(domain: &mut Domain, repository: &[u8], settings: crate::ap
     domain.repositories.get_mut(id).expect("a repository of the forge").manual_merges = settings;
 }
 
+/// Refuses explicit closes of this pull request, without preventing branch deletion.
+/// The setting is ephemeral and an image keeps none (testing/fakes/forge.md, 2.2).
+pub fn refuse_close(domain: &mut Domain, repository: &[u8], number: u64, refused: bool) {
+    let id = domain.id(repository);
+    let stored = domain.repositories.get(id).expect("a repository of the forge");
+    assert!(stored.item(number).expect("a retained item").pull.is_some(), "a pull request");
+    if refused {
+        if !domain.refused_closes.contains_key(&id) {
+            domain
+                .refused_closes
+                .insert(id, skein_lib::Set::with_capacity(stored.items.capacity()))
+                .expect("one refusal set per repository");
+        }
+        domain
+            .refused_closes
+            .get_mut(&id)
+            .expect("refusal set")
+            .insert(number)
+            .expect("one refusal per retained pull request");
+    } else if let Some(refusals) = domain.refused_closes.get_mut(&id) {
+        refusals.remove(&number);
+    }
+}
+
+/// Limits simultaneous dispatched jobs across the forge; `None` removes the pool.
+/// Existing jobs keep their runner until they end (testing/fakes/forge.md, 2.3).
+pub fn runners(domain: &mut Domain, runners: Option<u32>) {
+    domain.runners.limit = runners;
+}
+
 /// Makes `repository` reachable by git, or not.
 pub fn set_reachable(domain: &mut Domain, repository: &[u8], reachable: bool) {
     let id = domain.id(repository);

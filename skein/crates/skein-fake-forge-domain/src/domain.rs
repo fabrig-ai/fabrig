@@ -251,6 +251,8 @@ pub struct Domain {
     pub(crate) observations: Observations,
     pub(crate) fell: Queue<Fell>,
     pub(crate) fell_lost: u64,
+    pub(crate) refused_closes: Map<Id<Repository>, Set<u64>>,
+    pub(crate) runners: crate::runners::Pool,
     pub(crate) rng: Rng,
     pub(crate) lag: Option<crate::scenario::Lag>,
     pub(crate) tally: Tally,
@@ -305,6 +307,8 @@ pub(crate) enum State {
 /// A call to be made late: who made it, on which repository, and what.
 #[derive(Debug)]
 pub(crate) struct Landing {
+    /// A live call's correlation; an image keeps no reply token.
+    pub(crate) token: Option<skein_lib::Token>,
     pub(crate) user: u64,
     pub(crate) repository: Box<[u8]>,
     pub(crate) op: Op,
@@ -349,6 +353,8 @@ impl Domain {
             observations: Observations::with_capacity(limits.observations),
             fell: Queue::with_capacity(limits.observations),
             fell_lost: 0,
+            refused_closes: Map::with_capacity(limits.repositories),
+            runners: crate::runners::Pool::new(limits),
             rng: Rng::new(seed),
             lag: None,
             tally: Tally::ZERO,
@@ -697,9 +703,12 @@ fn call(
             }
             op @ (Op::Read(_) | Op::Write(_) | Op::Git(_)) => {
                 let (result, landing) = if can_land && faults::lands_late(domain, env) {
-                    (Err(Error::Timeout), Some(Landing { user, repository: copy_of(repository), op }))
+                    (
+                        Err(Error::Timeout),
+                        Some(Landing { token: Some(token), user, repository: copy_of(repository), op }),
+                    )
                 } else {
-                    let result = make(domain, env, user, repository, op);
+                    let result = make(domain, env, user, repository, op, Some(token));
                     (faults::finish(domain, env, result, &subject), None)
                 };
                 State::Waiting { reply_to, result, landing }
@@ -713,9 +722,31 @@ fn call(
 }
 
 /// Makes the call, as `user`, observing a write or a git call refused.
-fn make(domain: &mut Domain, env: &Env<Config>, user: u64, repository: &[u8], op: Op) -> Result<Answer, Error> {
+fn make(
+    domain: &mut Domain,
+    env: &Env<Config>,
+    user: u64,
+    repository: &[u8],
+    op: Op,
+    token: Option<skein_lib::Token>,
+) -> Result<Answer, Error> {
+    let close = match &op {
+        Op::Write(Write::Close { number }) => Some(*number),
+        Op::Write(_) | Op::Read(_) | Op::Git(_) => None,
+    };
     let subject = observe::subject(&op);
     let result = execute(domain, env, user, repository, op);
+    if result == Err(Error::Protected)
+        && let Some(number) = close
+    {
+        let mut fell = Fell::new(env.now, Fault::CloseRefused);
+        fell.repository = Some(copy_of(repository));
+        fell.user = Some(user);
+        fell.call = Some(crate::Called::Write);
+        fell.reply_to = token;
+        fell.pull = Some(number);
+        domain.record_fell(fell);
+    }
     if let Err(error) = result
         && let Some((what, number, commit)) = subject
     {
@@ -786,7 +817,7 @@ fn execute(domain: &mut Domain, env: &Env<Config>, user: u64, repository: &[u8],
             Write::Dispatch { workflow, branch, inputs } => {
                 crate::dispatch::dispatch(domain, env, id, user, workflow, branch, inputs)
             }
-            Write::Cancel { run } => crate::dispatch::cancel(domain, id, user, run),
+            Write::Cancel { run } => crate::dispatch::cancel(domain, env, id, user, run),
             Write::Rerun { job } => crate::dispatch::rerun(domain, env, id, user, job),
             Write::PutPage { name, content } => wiki::put(domain, env, id, user, name, content),
             Write::DeletePage { name } => wiki::delete(domain, env, id, user, &name),
@@ -894,11 +925,11 @@ fn answer(domain: &mut Domain, env: &Env<Config>, id: Id<Call>, out: &mut Queue<
                 None => domain.calls.retire(id),
             }
         }
-        State::Landing(Landing { user, repository, op }) => {
+        State::Landing(Landing { token, user, repository, op }) => {
             domain.calls.retire(id);
             domain.tally.landed = domain.tally.landed.saturating_add(1);
             // What it answered went out long ago.
-            let _made = make(domain, env, user, &repository, op);
+            let _made = make(domain, env, user, &repository, op, token);
         }
         State::Copying { reply_to, source, destination, mut result } => {
             domain.calls.retire(id);
