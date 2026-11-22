@@ -480,7 +480,6 @@ default-filter = """
   binary_id(=temper-client-shell-tui::real) |
   binary_id(=temper-client-walk::suite) |
   binary_id(=temper-config-shell::real) |
-  binary_id(=temper-engine-service-component::real) |
   binary_id(=temper-engine-shell::suite) |
   binary_id(=temper-engine::suite) |
   binary_id(=temper-fetch-shell::real) |
