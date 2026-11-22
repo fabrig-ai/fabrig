@@ -195,6 +195,7 @@ impl Harness for OneProcess {
     }
     fn complete(role: Role, complete: &Complete) {
         use crate::m15::observer::{self, Role as Observed};
+        crate::restarts::observe(role, complete);
         let role = match role {
             Role::Service => Observed::Service,
             Role::Agent => Observed::Agent,
@@ -1000,7 +1001,15 @@ pub fn adoption(settings: Settings) -> Outcome {
 }
 #[must_use]
 pub fn drain_mid_run(settings: Settings, scenario: Story, restart: bool) -> Outcome {
-    let run = Rc::new(RefCell::new(referee::Run::default()));
+    drain_run(settings, scenario, restart, &Rc::new(RefCell::new(referee::Run::default())))
+}
+
+pub(crate) fn drain_run(
+    settings: Settings,
+    scenario: Story,
+    restart: bool,
+    run: &Rc<RefCell<referee::Run>>,
+) -> Outcome {
     let (mut outcome, disk, store) =
         run_phase(settings, scenario, Phase::Drain, machine::fresh(), Store::new(), run.clone());
     if restart {
@@ -1266,6 +1275,9 @@ pub(crate) fn run_phase(
     let outcome = programs::with(parameters, || {
         let mut world =
             skein_world::World::new_controlled(settings.seed, settings.config, settings.memory, |controls| {
+                if let Some(injector) = &run.borrow().restart_faults {
+                    injector.borrow_mut().attach(controls.clone());
+                }
                 referee::Referee::new(controls, store.clone(), scenario, observed_forge.clone(), run.clone(), phase)
             })
             .with_machine(machine);
@@ -1318,8 +1330,16 @@ pub(crate) fn run_phase(
                 world.spawn(|| Proc::Forge(Box::new(SignalHost::new(forge, None))));
             }
         }
-        world.run()
+        let injector = run.borrow().restart_faults.clone();
+        if let Some(injector) = injector {
+            world.run_with_inputs(|sim, pids, procs| injector.borrow_mut().inputs(sim, pids, procs))
+        } else {
+            world.run()
+        }
     });
+    if let Some(injector) = &run.borrow().restart_faults {
+        injector.borrow_mut().end_phase(outcome.end);
+    }
     if matches!(scenario, Story::Adopt) {
         assert!(referee::forge::Forge::hooks_complete(&outcome.procs), "the required push-hook prefix was delivered");
     }

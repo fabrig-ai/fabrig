@@ -7928,6 +7928,7 @@ dependencies = [
  "temper-engine-shell",
  "temper-fake",
  "temper-fake-git-hosted",
+ "temper-faults",
  "temper-fixtures",
  "temper-forge-setup",
  "temper-github-app",

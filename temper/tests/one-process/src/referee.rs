@@ -25,6 +25,7 @@ use std::{
 use temper_engine_domain as root;
 #[derive(Default)]
 pub(crate) struct Run {
+    pub(crate) restart_faults: Option<Rc<RefCell<crate::restarts::Injector>>>,
     pub(crate) forge: Option<temper_fake_git_hosted::Typed>,
     pub(crate) disk: Option<Rc<RefCell<skein_fake_machine::Machine>>>,
     rules: Option<Rc<RefCell<rules::Referee>>>,
@@ -404,6 +405,7 @@ impl Referee {
     }
 }
 impl Referee {
+    #[expect(clippy::too_many_lines, reason = "the phase coordinates its peers, restart observer and stop boundary")]
     fn act_checked(&mut self, now: Time, procs: &mut [Proc]) -> Result<(), String> {
         let (service, other) = procs.split_at_mut(1);
         let Proc::Service(service) = &mut service[0] else { return Err(String::from("service first")) };
@@ -485,7 +487,18 @@ impl Referee {
             }
             return Ok(());
         }
-        let complete = self.phase_complete(other)?;
+        if service.service.engine_domain().is_some_and(temper_engine_domain::Domain::ready)
+            && let Some(injector) = &self.run.borrow().restart_faults
+        {
+            injector.borrow_mut().opening(now);
+        }
+        let mut complete = self.phase_complete(other)?;
+        if complete
+            && matches!(self.phase, crate::world::Phase::Drain)
+            && let Some(injector) = &self.run.borrow().restart_faults
+        {
+            complete = injector.borrow_mut().ready();
+        }
         if self.done.is_none()
             && (done || !matches!(self.phase, crate::world::Phase::Story | crate::world::Phase::Fault { .. }))
             && complete
@@ -497,7 +510,9 @@ impl Referee {
                 }
             }
             self.stopping()?;
-            self.controls.signal(0, skein_io::kernel::ServiceSignal::Terminate);
+            if !matches!(self.phase, crate::world::Phase::Drain) || self.run.borrow().restart_faults.is_none() {
+                self.controls.signal(0, skein_io::kernel::ServiceSignal::Terminate);
+            }
             self.done = Some(());
         }
         self.stop_peers(other)?;
@@ -651,6 +666,9 @@ impl skein_world::Referee<Proc> for Referee {
         Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
+        if self.run.borrow().restart_faults.as_ref().is_some_and(|injector| injector.borrow().waiting()) {
+            return Some(Time::ZERO);
+        }
         if matches!(self.story, crate::world::Story::HeldChange) && matches!(self.phase, crate::world::Phase::SignIn) {
             return None;
         }

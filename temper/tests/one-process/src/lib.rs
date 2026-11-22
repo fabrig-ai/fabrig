@@ -10,6 +10,7 @@ mod oracle;
 pub mod referee;
 pub mod replay;
 mod restart_control;
+pub mod restarts;
 mod stories;
 pub mod world;
 
