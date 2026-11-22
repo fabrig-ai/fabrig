@@ -55,6 +55,7 @@ fn played_program_faults_keep_their_kind_time_and_host_account() {
         assert_eq!(fault.from, Time::from_nanos(37));
         assert_eq!(fault.until, None, "fault remains in force through the run");
         assert_eq!(fault.struck.account.as_deref(), Some("host account"));
+        assert_eq!(fault.struck.request.as_deref(), (expected == RATE_WINDOW).then_some("1"));
     }
     let mut ledger = FaultLedger::new();
     for fault in [
@@ -79,6 +80,36 @@ fn played_program_faults_keep_their_kind_time_and_host_account() {
         );
     }
     assert!(ledger.entries().is_empty(), "allowed windows and other errors are not configured faults");
+}
+
+#[test]
+fn played_rate_limits_stop_at_the_reset_or_the_moment_played() {
+    let start = skein_sim::Config::calm().wall.as_nanos() / 1_000_000_000;
+    let played = Time::from_nanos(37);
+    for (reset, until) in [(start + 123, Time::from_nanos(123_000_000_000)), (start, played), (start - 1, played)] {
+        for step in [
+            Step::RateLimit { resets_at: Some(reset) },
+            Step::RateLimitWindow {
+                status: "rejected".into(),
+                rate_limit_type: None,
+                resets_at: Some(reset),
+                utilization: None,
+            },
+        ] {
+            let mut ledger = FaultLedger::new();
+            program_world::faults::record_played(
+                &mut ledger,
+                "host account",
+                &[smith_fake_claude::Seen::Fault { fault: smith_fake_claude::Fault::Step(step), at_nanos: 37 }],
+            );
+            let fault = ledger.entries().first().expect("played rate limit");
+            assert_eq!(fault.kind, skein_llm_kit::faults::RATE_WINDOW);
+            assert_eq!(fault.from, played);
+            assert_eq!(fault.until, Some(until), "reset {reset}");
+            assert_eq!(fault.struck.account.as_deref(), Some("host account"));
+            assert_eq!(fault.struck.request.as_deref(), Some("1"));
+        }
+    }
 }
 
 fn response_started(response: u64, turn: u64, attempt: u64, messages: u64) -> smith_events::Record {

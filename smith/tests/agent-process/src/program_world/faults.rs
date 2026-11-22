@@ -73,17 +73,35 @@ pub(super) fn record(run: &mut Run, clock: &Clock, case: Case) {
 }
 
 /// Copy a fake's played faults, preserving its moments and the host's account name.
-/// Open intervals last through the end, including a program restart.
+/// Open intervals last through the end, including a program restart; rejected
+/// rate limits stop at their reset on the world's calm simulated wall.
 pub fn record_played(ledger: &mut FaultLedger, account: &str, seen: &[Seen]) {
     for seen in seen {
         if let Seen::Fault { fault, at_nanos } = seen
             && let Some(kind) = kind(fault)
         {
-            ledger.inject(
+            let at = Time::from_nanos(*at_nanos);
+            let entry = ledger.inject(
                 kind,
-                Time::from_nanos(*at_nanos),
-                Struck { account: Some(account.into()), ..Struck::default() },
+                at,
+                Struck {
+                    account: Some(account.into()),
+                    // Played observations have no response identity; name the
+                    // host's Start activation as record does.
+                    request: (kind == skein_llm_kit::faults::RATE_WINDOW).then(|| "1".into()),
+                    ..Struck::default()
+                },
             );
+            if let Fault::Step(
+                Step::RateLimit { resets_at: Some(reset) } | Step::RateLimitWindow { resets_at: Some(reset), .. },
+            ) = fault
+            {
+                // The world uses Config::calm(): wall = initial wall + now.
+                let reset = Time::from_nanos(
+                    Duration::from_secs(*reset).as_nanos().saturating_sub(skein_sim::Config::calm().wall.as_nanos()),
+                );
+                ledger.stop(entry, reset.max(at)).expect("a played refusal stops once, no earlier than it played");
+            }
         }
     }
 }

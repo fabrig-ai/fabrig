@@ -106,19 +106,34 @@ fn an_ongoing_window_strike_finds_a_retry_before_its_refusal_resets() {
 
 #[test]
 fn a_rate_limited_end_requires_a_refusal_reset_after_the_run() {
-    for (end, passes) in [(19, true), (20, false), (21, false)] {
+    for (reset, end, passes) in [(Some(20), 19, true), (Some(20), 20, false), (Some(20), 21, false), (None, 21, true)] {
         let mut ledger = FaultLedger::new();
         ledger.inject(
             RATE_WINDOW,
             time(1),
             skein_world::faults::Struck { account: Some("a".into()), ..Default::default() },
         );
-        inject(&mut ledger, RATE_WINDOW, 10, Some(20), "a");
+        inject(&mut ledger, RATE_WINDOW, 10, reset, "a");
         let mut runs = Runs::new();
         runs.started(time(5), "run 1", "a");
         runs.ended(time(end), "run 1", "a", Ended::Limited);
-        assert_eq!(runs.judge(&mut ledger).is_ok(), passes, "run end {end}");
+        assert_eq!(runs.judge(&mut ledger).is_ok(), passes, "reset {reset:?}, run end {end}");
     }
+}
+
+#[test]
+fn an_ongoing_window_strike_without_a_refusal_does_not_allow_a_limited_end() {
+    let mut ledger = FaultLedger::new();
+    ledger.inject(
+        RATE_WINDOW,
+        time(1),
+        skein_world::faults::Struck { account: Some("a".into()), ..Default::default() },
+    );
+    let mut runs = Runs::new();
+    runs.started(time(5), "run 1", "a");
+    runs.ended(time(21), "run 1", "a", Ended::Limited);
+    let finding = runs.judge(&mut ledger).expect_err("a strike alone has no refusal outlasting the run");
+    assert!(finding.contains("run \"run 1\": end Limited is not allowed"), "{finding}");
 }
 
 #[test]

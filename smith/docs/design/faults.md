@@ -85,7 +85,9 @@ the report, beside the fake LLM's faults. Today smith classes them
 - **Intervals,** as fakes/llm.md, 5 gives them: a strike from its strike to
   its clear; a window's refusal from the refusal to its reset; a cut at
   its instant; a hang from the hold reached to its release, or never; a
-  program's fault at the moment it played, to the run's end.
+  program's fault at the moment it played, to the run's end; a program's
+  rejected rate limit is its window's refusal of its call, to the reset it
+  names, or to the run's end where it names none.
 - **The counters smith's worlds count,** from the event stream's response
   records (protocol/events.md: `attempt`, `retry_ms`), against each fault
   `striking` names at the attempt's moment:
@@ -183,7 +185,8 @@ pub fn ended_channel(answer: &smith_channel::Answer) -> Ended;
   refused by the row, and one after that reset is allowed. The strike's
   interval, strike to clear or ongoing, still decides which runs it
   struck and so their ends: completed, or limited naming the account
-  where a refusal's reset comes after the run's end. `check waits for a place` and today's classes
+  where a refusal's reset comes after the run's end, or it names none.
+  `check waits for a place` and today's classes
   (`overloaded`, `unavailable`, ...) are counted, not judged.
 - **A finding is a red** of the sweep or scenario that called `judge`,
   with its seed, as any (`skein/docs/foundation/testing-strategy.md`, 6).

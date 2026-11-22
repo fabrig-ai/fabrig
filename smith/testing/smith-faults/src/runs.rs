@@ -134,7 +134,7 @@ impl Runs {
                                     && refusal.struck.account.as_deref() == Some(run.account.as_str())
                                     && refusal.struck.request.is_some()
                                     && refusal.from <= until
-                                    && refusal.until.is_some_and(|reset| reset > until)
+                                    && refusal.until.is_none_or(|reset| reset > until)
                             })))
                 {
                     findings.push(finding(fault, &format!("run {:?}: end {ended:?} is not allowed", run.name)));
