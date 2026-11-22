@@ -209,6 +209,19 @@ impl Peer {
         self.domain.is_held(name)
     }
 
+    /// Installs an account fault at the owner's iteration time; no credential value is read.
+    pub fn strike(&mut self, credential: u32, strike: api::Strike, now: Time) -> Result<(), Error> {
+        if usize_of(credential) >= self.credentials.len() {
+            return Err(Error::Limits);
+        }
+        self.domain.strike(credential, strike, now).map_err(|_| Error::Limits)
+    }
+
+    /// Clears a fault by kind, and by model for Unserved.
+    pub fn clear(&mut self, credential: u32, strike: &api::Strike) {
+        self.domain.clear(credential, strike);
+    }
+
     /// Queues a hold name for the next domain pass, without releasing from the wire.
     pub fn release(&mut self, name: &[u8]) -> Result<(), Error> {
         if name.is_empty() || name.len() > 64 || self.releases.room() == 0 {

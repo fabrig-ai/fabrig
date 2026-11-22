@@ -34,6 +34,7 @@ use temper_worker_domain as worker;
 use temper_worker_domain_world::protocol as worker_protocol;
 
 mod absence;
+pub mod accounts;
 mod agreement;
 #[cfg(test)]
 mod chat;
@@ -104,6 +105,7 @@ enum Adoption {
 pub struct World {
     seed: u64,
     absence: absence::Controls,
+    account_case: Option<accounts::Story>,
     notes: notes::Party,
     merge_job: Option<merge_job::Story>,
     close_job: Option<close_job::Story>,
@@ -468,6 +470,7 @@ impl World {
         Self {
             seed,
             absence: absence::Controls::default(),
+            account_case: None,
             notes: notes::Party::default(),
             merge_job: None,
             close_job: None,
@@ -563,9 +566,11 @@ impl World {
         {
             self.party_request(up);
         }
+        self.account_party();
         if self.opened && self.absence.worker_running {
             self.worker_tick();
         }
+        self.account_clock();
         let mut around = Around {
             events: &mut self.worker_events,
             observed: &mut self.observed,
@@ -575,6 +580,7 @@ impl World {
             repository: self.adoption != Adoption::Without,
         };
         self.process.tick(self.worker_env.now, &mut around);
+        self.account_observe();
         self.worker.reclaim();
         self.root.reclaim();
     }
@@ -746,7 +752,7 @@ impl World {
             }),
             parties::Up::Request { to, sign_in, project, key, ask } => {
                 let ask = match ask {
-                    parties::Ask::Chat { words } => self.chat_request(project, &words),
+                    parties::Ask::Chat { words } => self.account_goal(self.chat_request(project, &words)),
                     parties::Ask::Say { task: parties::Task::Number(task), words, release } => {
                         say(project, task, words, release)
                     }
@@ -876,6 +882,7 @@ impl World {
                 watch.text.extend_from_slice(&text);
                 self.root_events.push_back(engine::Event::Party(engine::PartyInput::StreamDelivered { watcher }));
             }
+            engine::Request::Stop => panic!("engine stopped: {:?}", self.root.start_stop()),
             other @ (engine::Request::Worker(
                 engine::WorkerRequest::Host(_) | engine::WorkerRequest::ReadResult { .. },
             )
@@ -904,8 +911,7 @@ impl World {
             | engine::Request::Bound { .. }
             | engine::Request::Setup { .. }
             | engine::Request::Busy(_)
-            | engine::Request::Unsettled(_)
-            | engine::Request::Stop) => panic!("unscripted engine output: {other:?}"),
+            | engine::Request::Unsettled(_)) => panic!("unscripted engine output: {other:?}"),
         }
     }
 
@@ -1114,7 +1120,9 @@ impl World {
         assert!(self.store.rows.contains_key(&live), "assignment follows durable task");
         self.bind_review_script();
         self.absence_assignment(&assignment);
-        self.select_process(assignment.task);
+        if !self.account_assignment(&assignment) {
+            self.select_process(assignment.task);
+        }
         self.observed.assignments += 1;
         let repositories = usize::from(self.adoption != Adoption::Without);
         assert_eq!(assignment.workspace.repositories.len(), repositories);
@@ -1223,6 +1231,9 @@ impl World {
     }
 
     fn web_reply(&mut self, to: Token, reply: people::Reply) {
+        if self.account_reply(to, &reply) {
+            return;
+        }
         if self.notes.answered(to, &reply) {
             return;
         }
@@ -1237,7 +1248,12 @@ impl World {
             people::Reply::SignedIn { person, sign_in, .. } => parties::Reply::SignedIn { person, sign_in },
             people::Reply::Outcome(people::Outcome::Created { first: task, last, given }) => {
                 assert_eq!(task, last, "one template task");
-                assert!(given.is_some_and(|given| given.task == task && given.amount > 0), "template funding receipt");
+                if self.account_case.is_none() {
+                    assert!(
+                        given.is_some_and(|given| given.task == task && given.amount > 0),
+                        "template funding receipt"
+                    );
+                }
                 parties::Reply::Started { task }
             }
             people::Reply::Outcome(people::Outcome::Said { task, message }) => parties::Reply::Said { task, message },
