@@ -45,7 +45,9 @@ pub(crate) fn tasks(domain: &Domain, core: Option<&Core>, into: &mut Inspection)
     let mut after = None;
     while let Some(row) = domain.inspection_task_after(after) {
         after = Some(row.number);
-        named.extend(row.holdings.iter().map(name));
+        if !reports.is_empty() {
+            named.extend(row.holdings.iter().map(name));
+        }
         into.table(Table {
             name: "subscriptions",
             capacity: u64::from(domain.inspection_subscription_capacity()),
@@ -189,10 +191,12 @@ pub(crate) fn answers(core: &Core, into: &mut Inspection) {
     let withheld = core.inspection_timer_withheld(jig_domain_core::Timer::People);
     let capacity = people.inspection_answer_capacity();
     let mut entries = Vec::new();
-    for index in 0..people.inspection_answer_count().max(people.inspection_act_answer_count()) {
+    for index in 0..people.inspection_answer_count() {
         if let Some((key, due)) = people.inspection_answer(index) {
             entries.push(answer(request_key(key), due, now, withheld));
         }
+    }
+    for index in 0..people.inspection_act_answer_count() {
         if let Some((key, due)) = people.inspection_act_answer(index) {
             entries.push(answer(act_key(key), due, now, withheld));
         }
