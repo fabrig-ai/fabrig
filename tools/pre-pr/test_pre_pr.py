@@ -133,8 +133,13 @@ class Delivery(unittest.TestCase):
         for check in ('baselines', 'outward', 'journeys'):
             self.enterContext(mock.patch.object(PRE, check, return_value=(0, [])))
         run = self.enterContext(mock.patch.object(PRE, 'run', return_value=(0, '')))
-        selected = PRE.workspace_checks(self.root, [generated, handwritten], 'tree', 'base', [],
-                                        {}, {}, self.errors, {})
+        args = (self.root, [generated, handwritten], 'tree', 'base', [], {}, {}, self.errors, {})
+        self.assertEqual(PRE.workspace_checks(*args), [])
+        fmt, = [call.args[0] for call in run.call_args_list]
+        self.assertEqual(fmt[0], 'rustfmt')
+        self.assertEqual(fmt[fmt.index('--') + 1:], [handwritten])
+        run.reset_mock()
+        selected = PRE.workspace_checks(*args, completed_goal=True)
         fmt, tests = [call.args[0] for call in run.call_args_list]
         self.assertEqual(fmt[fmt.index('--') + 1:], [handwritten])
         self.assertEqual(selected, ['smith-transcript'])
@@ -221,8 +226,11 @@ class Delivery(unittest.TestCase):
         (directory / 'test_rules.py').touch()
         with mock.patch.object(PRE, 'run', return_value=(0, '')) as run, \
              mock.patch.object(PRE, 'journeys', return_value=(0, [])), mock.patch.object(PRE, 'outward', return_value=(0, [])):
-            PRE.workspace_checks(self.root, ['tools/example/rules.py', 'tools/example/test_rules.py'],
-                                 'tree', 'base', [], {}, {}, self.errors, {})
+            args = (self.root, ['tools/example/rules.py', 'tools/example/test_rules.py'],
+                    'tree', 'base', [], {}, {}, self.errors, {})
+            PRE.workspace_checks(*args)
+            run.assert_not_called()
+            PRE.workspace_checks(*args, completed_goal=True)
         self.assertEqual([call.args[0] for call in run.call_args_list],
                          [['python3', '-I', '-B', 'tools/example/test_rules.py']])
 
