@@ -1,3 +1,4 @@
+use hearth_render_world::fixtures::goldens;
 use hearth_render_world::golden::{self, Golden};
 use std::ffi::OsStr;
 const BLESS: &[(Option<&str>, bool)] =
@@ -38,7 +39,7 @@ fn a_witness_must_match_its_files_line_to_twelve_digits() {
 }
 #[test]
 fn a_golden_without_an_expected_file_is_a_failure_naming_it() {
-    let verdict = golden::load("merge").check("missing", "target m-a\nspec 111111111111\n", Some(0));
+    let verdict = goldens::expectations("merge").check("missing", "target m-a\nspec 111111111111\n", Some(0));
     assert!(verdict.report().contains("merge/expected-missing/m-a missing"), "{}", verdict.report());
 }
 const LINKS: &[(&str, bool)] = &[

@@ -81,7 +81,7 @@ pub fn inherited_listeners() -> Result<Box<[(Fd, SocketAddr)]>, ListenersRefusal
     Ok(listeners.into_boxed_slice())
 }
 
-fn count(bytes: &[u8]) -> Result<u32, ListenersRefusal> {
+pub(crate) fn count(bytes: &[u8]) -> Result<u32, ListenersRefusal> {
     if !bytes.iter().all(u8::is_ascii_digit) {
         return Err(ListenersRefusal::BadCount);
     }

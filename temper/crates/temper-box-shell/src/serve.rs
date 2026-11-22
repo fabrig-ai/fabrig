@@ -58,7 +58,7 @@ pub fn prepare_with_store(
     clippy::too_many_lines,
     reason = "the standalone start supplies the binary beside the resolved process facts"
 )]
-pub(crate) fn prepare_with_limits(
+pub fn prepare_with_limits(
     _binary: &str,
     environment: &[EnvironmentEntry],
     working: &[u8],
@@ -306,7 +306,7 @@ pub(crate) fn prepare_with_limits(
     }
     Ok((service, named.deployment, box_limits.line_bytes))
 }
-pub(crate) fn configured_agent(
+pub fn configured_agent(
     bytes: &[u8],
     directories: &Directories,
     environment: &[EnvironmentEntry],

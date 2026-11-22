@@ -5,7 +5,7 @@
 //! directory and the harness starts it in the test's. The first-run demo reserves every listener init wrote
 //! through `temper_fixtures::ports` (temper/docs/design/testing/process-tier.md, Three at a time).
 //! Ctl commits the world's kept providers before a restart (temper/docs/design/protocol/configuration/providers.md, 3, 6).
-use std::{fs, os::unix::fs::PermissionsExt, path::Path};
+use std::{fs, net::SocketAddr, os::unix::fs::PermissionsExt, path::Path};
 use temper_playground::documents::turn_bounds;
 
 /// A closed loopback port: the forge's and the LLM endpoint's, which no story reaches.
@@ -408,7 +408,7 @@ pub(crate) fn demo(directory: &Path, program: &Path, bundle: &Path) {
     assert!(initialized.status.success(), "demo init: {}", String::from_utf8_lossy(&initialized.stderr));
     let path = directory.join(temper_config_shell::FILE);
     let mut file = read_init(directory).file;
-    own_demo_listeners(&mut file);
+    own_demo_listeners(&mut file, temper_fixtures::ports::addresses::<2>);
     file.internal.bundle = Some(bundle.into());
     private(&path, &temper_config_shell::render(&file, temper_config_shell::Shape::Standalone));
 }
@@ -431,7 +431,7 @@ pub(crate) fn read_init(directory: &Path) -> temper_config_shell::Read {
 }
 
 /// Reserve both init listeners, leaving every other explicit value unchanged.
-fn own_demo_listeners(file: &mut temper_config_shell::File) {
+fn own_demo_listeners(file: &mut temper_config_shell::File, reserve: impl FnOnce(&[SocketAddr]) -> [SocketAddr; 2]) {
     let sockets = [
         file.listen.expect("init listener"),
         file.webhooks.unwrap_or_else(|| {
@@ -440,7 +440,7 @@ fn own_demo_listeners(file: &mut temper_config_shell::File) {
             address
         }),
     ];
-    let [listen, webhooks] = temper_fixtures::ports::addresses::<2>(&sockets);
+    let [listen, webhooks] = reserve(&sockets);
     file.listen = Some(listen);
     file.webhooks = Some(webhooks);
 }
@@ -694,12 +694,15 @@ mod tests {
 
     #[test]
     fn demo_reserves_every_init_listener_and_moves_its_references() {
+        const EPHEMERAL_FIRST: u16 = 32_768;
         let mut file = temper_config_shell::File {
             listen: Some("127.0.0.1:8367".parse().expect("listen")),
             webhooks: Some("127.0.0.1:8371".parse().expect("webhooks")),
             ..Default::default()
         };
-        super::own_demo_listeners(&mut file);
+        super::own_demo_listeners(&mut file, |_| {
+            [10_001, 10_002].map(|port| (std::net::Ipv4Addr::LOCALHOST, port).into())
+        });
         let text = temper_config_shell::render(&file, temper_config_shell::Shape::Standalone);
         let facts = temper_config_shell::Facts { login: "ada".into(), hostname: "fixture".into(), provider_key: true };
         let read =
@@ -715,7 +718,7 @@ mod tests {
             let address: std::net::SocketAddr =
                 value.pointer(pointer).expect("listener").as_str().expect("socket").parse().expect("address");
             assert!(address.ip().is_loopback());
-            assert!((10_000..temper_fixtures::ports::ephemeral_first()).contains(&address.port()));
+            assert!((10_000..EPHEMERAL_FIRST).contains(&address.port()));
             assert!(seen.insert(address), "listeners must be distinct: {address}");
         }
         assert!(value["application"].get("machine").is_none());
