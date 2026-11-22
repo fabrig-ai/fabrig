@@ -11,8 +11,8 @@ fn writer_readoption_needs_collaborator_access_and_retries_as_admin() {
     outputs(&mut d, Event::Restore { record: Stored::Forge(records::record(1)) });
     outputs(&mut d, Event::Restore { record: Stored::Repository(writer.clone()) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     d.writers.insert(1, 17).expect("fixture writer differs from the link's user");
     let human = api::Collaborator { user: 42, permission: api::Permission::Admin };
     let bot = api::Collaborator { user: 17, permission: api::Permission::Write };
@@ -85,8 +85,8 @@ fn context_beside_a_writer_preserves_its_home_and_readoption() {
     let writer = adopted();
     outputs(&mut d, Event::Restore { record: Stored::Repository(writer.clone()) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     let mut context = fixtures::adoption();
     context.project += 1;
     context.role = Role::Context;
@@ -125,8 +125,8 @@ fn context_beside_a_writer_preserves_its_home_and_readoption() {
     let mut restarted = domain();
     outputs(&mut restarted, Event::Restore { record: Stored::Repository(shared) });
     outputs(&mut restarted, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut restarted, Event::ReadAfresh);
-    outputs(&mut restarted, Event::SettleOutbox);
+    outputs(&mut restarted, Event::CatchUp);
+
     assert_context_view(&restarted, writer.project + 1);
     let again = adopt_context(&mut d, writer.project + 1, 6);
     for request in &again {
@@ -233,8 +233,8 @@ fn context_projects_are_bounded_including_the_first_context_and_readoption_is_fr
         }
         outputs(&mut d, Event::Restore { record: Stored::Repository(row.clone()) });
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        outputs(&mut d, Event::ReadAfresh);
-        outputs(&mut d, Event::SettleOutbox);
+        outputs(&mut d, Event::CatchUp);
+
         let first = if writer { 6 } else { 5 };
         for project in (first..).take(usize::try_from(LIMITS.judge_projects).unwrap()) {
             let requests = adopt_context(&mut d, project, u64::from(project) + 10);
@@ -732,8 +732,7 @@ fn each_admission_conflict_keeps_its_own_reason() {
             }
             outputs(&mut d, Event::Restore { record: Stored::Repository(row) });
             outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-            outputs(&mut d, Event::ReadAfresh);
-            outputs(&mut d, Event::SettleOutbox);
+            outputs(&mut d, Event::CatchUp);
         }
         let request = Token::new(4);
         let mut requests = fixtures::begin_adoption(&mut d, request, fixtures::adoption());

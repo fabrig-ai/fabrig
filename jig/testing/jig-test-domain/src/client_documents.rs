@@ -184,6 +184,7 @@ pub(crate) fn read(
             | connector::Request::Workspace { .. }
             | connector::Request::DriftResource { .. }
             | connector::Request::Changed { .. }
+            | connector::Request::ReadAfreshDone
             | connector::Request::RestartDone
             | connector::Request::Described { .. }
             | connector::Request::EffectRefused { .. }

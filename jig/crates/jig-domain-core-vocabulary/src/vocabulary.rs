@@ -1614,6 +1614,7 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         | tasks::Event::WithdrawProposal { .. }
         | tasks::Event::Conclude { .. }
         | tasks::Event::Cancel { .. }
+        | tasks::Event::Fail { .. }
         | tasks::Event::Release { .. }
         | tasks::Event::Amend { .. }
         | tasks::Event::Move { .. }

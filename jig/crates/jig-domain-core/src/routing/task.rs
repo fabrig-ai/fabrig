@@ -178,7 +178,6 @@ pub(crate) fn resume_resources(
     route_batch(core, env, work, event, Some(batch.deadline))
 }
 
-#[expect(clippy::too_many_lines, reason = "batch admission keeps all preflight refusals before child mutation")]
 fn route_batch(
     core: &mut Core,
     env: &Env<Limits>,
@@ -216,28 +215,15 @@ fn route_batch(
         out.push(tasks::Request::Refused { reply_to, problem });
         return tag_task_outputs(core, env, out);
     }
-    if let tasks::Event::Make { reply_to, creator, batch, .. } = &mut event {
-        let mut tracked = 0_u32;
-        for row in batch.as_ref() {
-            if row.tracked.is_some() {
-                tracked = tracked.checked_add(1).expect("bounded make batch");
-            }
-        }
-        if tracked > env.limits.tasks.tasks.saturating_sub(core.projections.len()) {
-            let capacity = tasks::Capacity::batch(
-                *creator,
-                batch,
-                None,
-                tasks::CapacityCause::Tasks { limit: env.limits.tasks.tasks },
-            );
+    if let tasks::Event::Make { reply_to, creator, batch, .. } = &mut event
+        && let Err(problem) = core.make_room(&env.limits, *creator, batch)
+    {
+        if let Some(capacity) = problem.capacity {
             core.tasks.remember_capacity(env.wall, capacity);
-            let reply_to = super::flight::take_reply(reply_to);
-            out.push(tasks::Request::Refused {
-                reply_to,
-                problem: tasks::Problem::capacity(None, tasks::Refusal::Live, capacity),
-            });
-            return tag_task_outputs(core, env, out);
         }
+        let reply_to = super::flight::take_reply(reply_to);
+        out.push(tasks::Request::Refused { reply_to, problem });
+        return tag_task_outputs(core, env, out);
     }
     let event = if let tasks::Event::Make { reply_to, creator, maker, mut batch, places } = event {
         if let Err(problem) = core.admit_batch(creator, &mut batch) {

@@ -20,6 +20,7 @@ pub(crate) const KEPT: &[&str] = &[
     include_str!("../contract/host-tools-v9.txt"),
     include_str!("../contract/host-tools-v10.txt"),
     include_str!("../contract/host-tools-v11.txt"),
+    include_str!("../contract/host-tools-v12.txt"),
 ];
 const ADAPTERS: &[Adapter] = &[
     Adapter { version: 10, tool: b"note", map: identity },
@@ -27,6 +28,12 @@ const ADAPTERS: &[Adapter] = &[
     Adapter { version: 7, tool: b"note", map: identity },
     Adapter { version: 8, tool: b"note", map: identity },
     Adapter { version: 9, tool: b"note", map: identity },
+    Adapter { version: 6, tool: b"finding", map: identity },
+    Adapter { version: 7, tool: b"finding", map: identity },
+    Adapter { version: 8, tool: b"finding", map: identity },
+    Adapter { version: 9, tool: b"finding", map: identity },
+    Adapter { version: 10, tool: b"finding", map: identity },
+    Adapter { version: 11, tool: b"finding", map: identity },
     Adapter { version: 6, tool: b"read_forge", map: identity },
     Adapter { version: 6, tool: b"read_issues", map: identity },
     Adapter { version: 6, tool: b"read_ci", map: identity },

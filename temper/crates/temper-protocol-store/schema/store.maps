@@ -532,7 +532,7 @@ record FindingWords stands for words
 enum FindingRefusal = d::FindingRefusal { no_area tuple, full tuple, not_yours tuple, words tuple }
 record FindingRefused stands for why
 enum FindingResult by hand
-record FindingReply = d::FindingReply
+record FindingReply = d::FindingReply { more slice }
 record CallFollow
 enum Recorder = d::Recorder { task tuple, party tuple }
 record Red by hand
@@ -573,6 +573,7 @@ enum Filer = d::Filer { task tuple, party tuple }
 enum BlameStrength = d::BlameStrength { none = Unblamed }
 record BlamedGoal = d::BlamedGoal
 record BlamedLanding = d::BlamedLanding { goals slice }
+record BlameMove = d::BlameMove
 record FindingBlame = d::FindingBlame { landings slice }
 record FindingCleared = d::FindingCleared { at via s::wall }
 record FindingSignature by hand

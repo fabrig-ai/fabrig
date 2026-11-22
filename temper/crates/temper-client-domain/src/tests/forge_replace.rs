@@ -28,6 +28,7 @@ fn bytes(seed: u64, length: usize) -> Box<[u8]> {
 }
 fn row(kind: w::Kind, mode: w::Mode, connection: w::Connection, ended: bool) -> w::ForgeRow {
     w::ForgeRow {
+        catching_up: None,
         starts_with: w::StartsWith::Repository,
         makings: List::with_capacity(0),
         host: b"git.example:3000".as_slice().into(),

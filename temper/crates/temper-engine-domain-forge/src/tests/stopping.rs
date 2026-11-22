@@ -5,8 +5,8 @@ fn sent() -> (Domain, Token) {
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     outputs(&mut d, Event::Enqueue { entry: status(1, 7) });
     outputs(&mut d, Event::Committed { entry: 1 });
     let (call, _) = next_call(&mut d);
@@ -83,10 +83,17 @@ fn settling_during_read_afresh_drops_its_late_report_and_keeps_the_read_facts() 
         },
     );
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
+    outputs(&mut d, Event::CatchUp);
     let (call, op) = next_call(&mut d);
     assert_eq!(op, Op::Read(Read::Branch { branch: b"main".as_slice().into() }));
-    assert_eq!(outputs(&mut d, Event::Settle).as_ref(), &[Request::Settled { unfinished: Box::new([]) }]);
+    assert_eq!(
+        outputs(&mut d, Event::Settle).as_ref(),
+        &[
+            Request::Settled { unfinished: Box::new([]) },
+            Request::MarkedForges,
+            Request::Marked { tasks: Box::new([changes_subject(adopted().project)]) },
+        ]
+    );
     assert!(ready(&mut d).is_empty(), "settling sends nothing new");
     let facts = answer(&mut d, call, Ok(Answer::Commit([9; 32])));
     assert!(!facts.is_empty(), "the late read still commits facts");
@@ -122,8 +129,7 @@ fn settling_during_outbox_recovery_drops_its_late_report_and_keeps_the_find_fact
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut d, Event::Restore { record: Stored::Entry { entry: uncertain(), held: false } });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
     let (call, op) = next_call(&mut d);
     assert_eq!(op, Op::Read(Read::PullFor { head: b"topic".as_slice().into(), base: b"main".as_slice().into() }));
     assert_eq!(outputs(&mut d, Event::Settle).as_ref(), &[Request::Settled { unfinished: Box::new([]) }]);
