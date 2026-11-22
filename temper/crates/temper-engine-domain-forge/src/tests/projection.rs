@@ -135,8 +135,8 @@ fn started(view: issues::GoalView, state: issues::Projected, number: Option<u64>
         },
     );
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     d
 }
 
@@ -151,8 +151,7 @@ fn restart_inflight(d: &mut Domain, environment: &mut Env<Limits>, number: u64) 
         requests(d, environment, Some(Event::Restore { record }));
     }
     requests(d, environment, Some(Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic }));
-    requests(d, environment, Some(Event::ReadAfresh));
-    requests(d, environment, Some(Event::SettleOutbox));
+    requests(d, environment, Some(Event::CatchUp));
 }
 
 #[test]
@@ -286,8 +285,8 @@ fn a_lost_open_stays_failed_without_ever_opening_again() {
         requests(&mut d, &environment, Some(Event::Restore { record }));
     }
     requests(&mut d, &environment, Some(Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic }));
-    requests(&mut d, &environment, Some(Event::ReadAfresh));
-    requests(&mut d, &environment, Some(Event::SettleOutbox));
+    requests(&mut d, &environment, Some(Event::CatchUp));
+
     view.goal_text = "Changed facts must not resend a lost Open".into();
     let retried =
         requests(&mut d, &environment, Some(Event::Project { entry: NEXT, repository: REPO, view: view.clone() }));

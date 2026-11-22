@@ -631,6 +631,7 @@ pub(super) fn act_refusal<'a>(ask: &'a c::Ask, refusal: &c::Refusal) -> Option<(
         | c::Ask::ChangePolicy { .. }
         | c::Ask::SetRoles { .. }
         | c::Ask::MakeService { .. }
+        | c::Ask::ReissueService { .. }
         | c::Ask::Rename { .. }
         | c::Ask::RemoveProject { .. }
         | c::Ask::MakeProject { .. }

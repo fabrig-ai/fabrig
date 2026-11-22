@@ -39,12 +39,9 @@ impl World {
                     self.events.push_back(root::Event::StartDone(phase));
                 }
             }
-            Phase::Link
-            | Phase::Wires
-            | Phase::AdoptRuns
-            | Phase::ReadAfresh { .. }
-            | Phase::SettleOutbox { .. }
-            | Phase::Open => panic!("root performs its synchronous phase"),
+            Phase::Link | Phase::Wires | Phase::AdoptRuns | Phase::Open => {
+                panic!("root performs its synchronous phase")
+            }
         }
     }
 
@@ -179,16 +176,14 @@ impl World {
 
     pub(super) fn answer_restart_reads(&mut self) {
         for (number, call) in std::mem::take(&mut self.pending_reads) {
-            if self.restart_reads.contains_key(&number) {
+            if self.restart_reads.contains(&number) {
                 let event = self.systems[usize::from(number - 1)].answer(call, Fault::None);
                 self.events.push_back(root::Event::Connector { number, event: connector::Event::System(event) });
             } else {
                 self.pending_reads.push((number, call));
             }
         }
-        for (_, phase) in std::mem::take(&mut self.restart_reads) {
-            self.events.push_back(root::Event::StartDone(phase));
-        }
+        self.restart_reads.clear();
     }
 
     pub fn finish_restart_reads(&mut self) {
@@ -289,10 +284,10 @@ impl World {
         self.events.clear();
         self.internal_reads.clear();
         self.pending_reads.clear();
+        self.restart_reads.clear();
         self.pending_lost_reads.clear();
         self.pending_writes.clear();
         self.pending_lookups.clear();
-        self.restart_reads.clear();
         self.restart_steps.clear();
         self.moved.clear();
         self.restore_ranges.clear();

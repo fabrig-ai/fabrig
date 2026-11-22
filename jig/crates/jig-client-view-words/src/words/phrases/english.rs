@@ -1176,6 +1176,10 @@ pub fn language() -> Language {
                 Segment::Text(copy_of(b"Made service party ")),
                 Segment::Hole { index: 0, kind: HoleKind::Number },
             ]),
+            JigPhrase::ReissuedService => Box::new([
+                Segment::Text(copy_of(b"Reissued credential for service party ")),
+                Segment::Hole { index: 0, kind: HoleKind::Number },
+            ]),
             JigPhrase::MadeResult => Box::new([
                 Segment::Text(copy_of(b"Answered person task ")),
                 Segment::Hole { index: 0, kind: HoleKind::Number },

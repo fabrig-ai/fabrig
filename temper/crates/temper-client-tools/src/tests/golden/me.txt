@@ -1,4 +1,5 @@
 party 73 · pat · Pat
+sign-in expires: 2027-01-15T08:00:00Z
 projects:
   1 · shop · owner
 needs: 1 · questions 1 · proposals 0 · escalations 0 · person tasks 0
@@ -6,4 +7,4 @@ updates: 0
 retention: 1000 seconds
 providers:
 cut: false
-digest: me 171d77fe373628a9
+digest: me da14aac551735795

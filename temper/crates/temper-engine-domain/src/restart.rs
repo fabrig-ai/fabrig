@@ -384,9 +384,7 @@ pub(crate) fn start_action(domain: &mut Domain, env: &Env<Limits>, decision: &mu
                 Phase::Link => domain.work.push(Work::ForgeRestored),
                 Phase::Sweep => sweep(domain, env, decision),
                 Phase::Switch => {
-                    if domain.rehearsal.is_some() {
-                        domain.rehearsal = Some(true);
-                    } else if domain.start_pending {
+                    if domain.start_pending {
                         assert!(crate::domain::now(domain, Request::Store(crate::StoreRequest::Switch)), "switch door");
                     } else {
                         domain.work.push(Work::StartDone(phase));
@@ -404,14 +402,6 @@ pub(crate) fn start_action(domain: &mut Domain, env: &Env<Limits>, decision: &mu
                         domain.work.push(Work::Core(jig_domain_core::Event::Fill { bytes }));
                     }
                     domain.work.push(Work::StartDone(phase));
-                }
-                Phase::ReadAfresh { connector } => {
-                    assert_eq!(connector, domain.config.forge_connector, "configured forge connector");
-                    domain.work.push(Work::Forge(forge::Event::ReadAfresh));
-                }
-                Phase::SettleOutbox { connector } => {
-                    assert_eq!(connector, domain.config.forge_connector, "configured forge connector");
-                    domain.work.push(Work::Forge(forge::Event::SettleOutbox));
                 }
                 Phase::Open => {
                     for index in 0..domain.core.projects.len() {
@@ -485,33 +475,18 @@ fn sweep(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision) {
 }
 
 pub(crate) fn connector_start_done(domain: &mut Domain, stage: jig_domain_core::effects::connector::RestartStage) {
+    use jig_domain_core::effects::connector::RestartStage;
     if domain.core.stopping() || domain.settling.active() {
         return;
     }
     let connector = domain.config.forge_connector;
-    let phase = match stage {
-        jig_domain_core::effects::connector::RestartStage::Restored => Phase::Link,
-        jig_domain_core::effects::connector::RestartStage::ReadAfresh => Phase::ReadAfresh { connector },
-        jig_domain_core::effects::connector::RestartStage::Settled => Phase::SettleOutbox { connector },
-    };
-    domain.work.push(Work::StartDone(phase));
-}
-
-pub(crate) fn connector_restarting(domain: &Domain) -> bool {
-    match domain.start_phase() {
-        Some(Phase::ReadAfresh { .. } | Phase::SettleOutbox { .. }) => true,
-        Some(
-            Phase::LoadCore
-            | Phase::LoadInbox
-            | Phase::RestoreConnector { .. }
-            | Phase::Link
-            | Phase::Sweep
-            | Phase::Switch
-            | Phase::Wires
-            | Phase::AdoptRuns
-            | Phase::Open,
-        )
-        | None => false,
+    match stage {
+        RestartStage::Restored => domain.work.push(Work::StartDone(Phase::Link)),
+        RestartStage::ReadAfresh => {
+            domain.core.catch_up_done(connector, stage);
+            crate::route::forge_route::limit_holds::restart(domain);
+        }
+        RestartStage::Settled => domain.core.catch_up_done(connector, stage),
     }
 }
 

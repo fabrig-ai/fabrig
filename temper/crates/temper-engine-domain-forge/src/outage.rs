@@ -155,6 +155,7 @@ fn riding(d: &Domain, owner: Token) -> bool {
         || d.pending_ci.contains_key(&owner)
         || d.landing.pending.contains_key(&owner)
         || d.tier_ops.reads.contains_key(&owner)
+        || d.rebase_fresh.contains_key(&owner)
 }
 /// Remember the exact fresh read, not a reconstruction from facts that may move.
 pub(super) fn track(d: &mut Domain, env: &Env<Limits>, event: &Event) {
@@ -218,7 +219,6 @@ pub(super) fn track(d: &mut Domain, env: &Env<Limits>, event: &Event) {
         | Event::Withdraw { .. }
         | Event::Restore { .. }
         | Event::Restored { .. }
-        | Event::PauseOutbox
         | Event::ReadAfresh
         | Event::SettleOutbox => {}
     }
@@ -255,7 +255,9 @@ pub(super) fn read_ended(d: &mut Domain, env: &Env<Limits>, owner: Token, result
     if outage {
         observed(d, env, reading.repository.forge, true);
     }
-    let capacity = *result == Err(Error::Busy) && (reading.outage || d.pending_ci.contains_key(&owner));
+    let capacity = (*result == Err(Error::Busy)
+        && (reading.outage || d.pending_ci.contains_key(&owner) || d.rebase_fresh.contains_key(&owner)))
+        || (*result == Err(Error::NotConnected) && d.rebase_fresh.contains_key(&owner));
     if !d.stopping && reading.retry && riding(d, owner) && (outage || capacity) {
         if let Some(pending) = d.steps.get(&owner) {
             super::read_session::pause(d, pending.task);

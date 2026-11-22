@@ -27,8 +27,10 @@ Future. This audit is the input for bringing GROUP under those rules.
 The client's code: `crates/temper-client-domain` (pages, routes,
 addresses), `crates/temper-client-view` (what each page draws, its
 words), `crates/temper-client-shell-web`, and the engine's side that
-the pages read. Its design: DOCUMENTS, and `../../../STATUS.md` (what
-is built). Render a state with `chromium --headless=new --no-sandbox
+the pages read. Its design: DOCUMENTS; their status files say where the
+code lags or departs. `../../../STATUS.md` tells how to roll them up:
+`python3 -I -B tools/citations/status.py temper`, from the repository
+root. Render a state with `chromium --headless=new --no-sandbox
 --window-size=1300,2400 --screenshot=FILE 'file://…/PAGE.html?QUERY'`.
 
 ## Scope
@@ -52,8 +54,9 @@ leads or what it does, each classed:
   the operation it needs: the record, field or operation
   (`path:line`) and its design section.
 - **FUTURE:** it needs work below the client: exactly what is missing,
-  and the design, draft or plan that covers it with its state in
-  `../../../STATUS.md`, or "not designed".
+  and the design, draft or plan that covers it with its state in that
+  document's status file (`../../../STATUS.md` tells how to roll them
+  up), or "not designed".
 - **UNCLEAR:** what you checked, and why it didn't decide.
 
 Then four lists:

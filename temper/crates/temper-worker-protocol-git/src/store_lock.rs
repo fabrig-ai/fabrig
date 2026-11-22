@@ -1,5 +1,5 @@
 //! A store fetch shares its lock; Pack's store part holds it alone
-//! (temper/docs/design/protocol/git.md, 4.13, A store's lock).
+//! (temper/docs/design/protocol/git.md, 4.14, A store's lock).
 use crate::invocation::Command;
 use skein_lib::Token;
 use temper_worker_domain_checkout::git;

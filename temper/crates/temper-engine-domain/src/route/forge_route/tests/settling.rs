@@ -21,6 +21,7 @@ fn kept_changes(changes: &[u64]) -> (Domain, Env<Limits>) {
     limits.forge.landing_members = 3;
     limits.tasks.holdings = limits.forge.landing_members;
     let (mut domain, env) = super::procedure_root_with_limits(limits);
+    super::fresh_procedure_forge(&mut domain, &env);
     let (fixture, _, task) = crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: 2 });
     let template = fixture.core.tasks.task(task).unwrap();
     let mut batch = List::with_capacity(4);

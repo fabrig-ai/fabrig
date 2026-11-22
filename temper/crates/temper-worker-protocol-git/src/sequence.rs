@@ -6,7 +6,7 @@ use crate::{
 use alloc::boxed::Box;
 use temper_worker_domain_checkout::{self as checkout, git};
 
-/// Pack bound (temper/docs/design/protocol/git.md, 4.13).
+/// Pack bound (temper/docs/design/protocol/git.md, 4.14).
 const PACKS: u32 = 50;
 
 /// The next step after an invocation has settled and closed.

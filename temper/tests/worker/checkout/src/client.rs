@@ -9,7 +9,7 @@
 
 use skein_lib::{Duration, Token};
 use temper_fake_checkout::git::Tree;
-use temper_worker_domain_checkout::{Landing, Prepared};
+use temper_worker_domain_checkout::{Landing, Prepared, git::Place};
 
 /// What a client does, from its prepare to its release.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -115,6 +115,8 @@ pub struct Client {
     pub workspace: Option<Token>,
     /// How its prepare ended, once it has.
     pub prepared: Option<Prepared>,
+    /// Repository and store targets of Packs asked before the prepare ended.
+    pub packs: Vec<(Place, Option<Token>)>,
     /// The operation it waits for the end of.
     pub operation: Option<Operation>,
     /// Pushes and saves sent twice, whose refusal has not come yet.
@@ -142,6 +144,7 @@ impl Client {
             hold: None,
             workspace: None,
             prepared: None,
+            packs: Vec::new(),
             operation: None,
             refusals: 0,
             release: Release::NotAsked,

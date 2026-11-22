@@ -20,6 +20,7 @@ pub struct ChangesSigned {
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangesView {
+    pub catching_up: Option<crate::CatchingUp>,
     pub project: u32,
     pub landing: Box<[u8]>,
     pub queues: Box<[ChangesQueue]>,

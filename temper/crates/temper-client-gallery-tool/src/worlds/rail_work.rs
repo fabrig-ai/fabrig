@@ -442,6 +442,7 @@ fn changes(work: Work) -> w::ChangesPanel {
         .expect("landed rows");
     }
     w::ChangesPanel {
+        catching_up: None,
         landed_default: rows.clone(),
         landed_default_more: 0,
         project: 1,

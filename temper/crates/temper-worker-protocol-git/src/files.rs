@@ -8,8 +8,11 @@ mod index;
 mod objects;
 mod reds;
 mod results;
+mod sweep;
 mod view;
 use objects::{Alternates, Look, Make, Store};
+pub(crate) use sweep::SetAside;
+use sweep::Sweep;
 
 #[derive(Debug)]
 pub(crate) struct Directories {
@@ -20,20 +23,10 @@ pub(crate) struct Directories {
     pub stores: Option<Fd>,
     pub making: Option<Fd>,
     pub serial: u64,
-    pub failures: u64,
 }
 impl Directories {
     pub fn new(serial: u64) -> Directories {
-        Directories {
-            keep: false,
-            trash: None,
-            workspaces: None,
-            gitdirs: None,
-            stores: None,
-            making: None,
-            serial,
-            failures: 0,
-        }
+        Directories { keep: false, trash: None, workspaces: None, gitdirs: None, stores: None, making: None, serial }
     }
     fn rename(&mut self, from_dir: Fd, from: Box<[u8]>) -> Op {
         let to = Box::from(Decimal::of(self.serial).as_bytes());
@@ -95,35 +88,12 @@ pub(crate) struct Scan {
     next: invocation::Command,
 }
 #[derive(Debug)]
-pub(crate) struct Sweep {
-    phase: SweepPhase,
-    fd: Option<Fd>,
-    parent: Box<[u8]>,
-    child: Box<[u8]>,
-    failed: bool,
-}
-#[derive(Clone, Copy, Debug)]
-enum SweepPhase {
-    OpenTrash,
-    ListTrash,
-    CloseTrash,
-    Remove,
-    OpenParent,
-    ListParent,
-    CloseParent,
-    Child,
-    Move,
-    Directory,
-    Restart,
-    End,
-}
-#[derive(Debug)]
 #[expect(clippy::large_enum_variant, reason = "bounded domain terminal is passed inline")]
 pub(crate) enum Action {
     Run(Op),
     Layout(Result<(), Error>),
     Operation(Next),
-    Swept(bool),
+    Swept { changed: bool, set_aside: bool, refused_removal: bool },
     Closed,
 }
 fn open(root: Fd, path: Box<[u8]>, how: OpenHow) -> Op {
@@ -229,16 +199,23 @@ impl Task {
         Task { word, pending: Token::new(0), phase: Phase::Index(index::File::remove(directory, next)) }
     }
     pub fn sweep() -> Task {
-        Task {
-            word: None,
-            pending: Token::new(0),
-            phase: Phase::Sweep(Sweep {
-                phase: SweepPhase::OpenTrash,
-                fd: None,
-                parent: Box::from(&b""[..]),
-                child: Box::from(&b""[..]),
-                failed: false,
-            }),
+        Task { word: None, pending: Token::new(0), phase: Phase::Sweep(Sweep::new()) }
+    }
+    /// Each sweep completion can set at most one path aside.
+    pub fn take_set_aside(&mut self) -> Option<SetAside> {
+        match &mut self.phase {
+            Phase::Sweep(sweep) => sweep.take_set_aside(),
+            Phase::Reds(_)
+            | Phase::Results(_)
+            | Phase::Layout(_)
+            | Phase::Make(_)
+            | Phase::Look(_)
+            | Phase::Store(_)
+            | Phase::Alternates(_)
+            | Phase::View(_)
+            | Phase::Scan(_)
+            | Phase::Index(_)
+            | Phase::Closing => None,
         }
     }
     pub fn closing() -> Task {
@@ -516,198 +493,5 @@ fn read_buffer(op: Op) -> Box<[u8]> {
         | Op::PipeRead { .. }
         | Op::PipeWrite { .. }
         | Op::Cancel { .. } => unreachable!("results read completion"),
-    }
-}
-fn page(complete: kernel::Complete) -> Result<Box<[u8]>, Error> {
-    let n = count(complete.result)?;
-    if n == 0 {
-        return Ok(Box::from(&b""[..]));
-    }
-    match complete.kind {
-        Op::List { entries, names, .. } => {
-            Ok(Box::from(entries.first().expect("nonempty listing").name(&names).expect("kernel entry name")))
-        }
-        Op::Lock { .. }
-        | Op::Socket { .. }
-        | Op::Bind { .. }
-        | Op::Listen { .. }
-        | Op::Accept { .. }
-        | Op::Connect { .. }
-        | Op::Recv { .. }
-        | Op::Send { .. }
-        | Op::Shutdown { .. }
-        | Op::Close { .. }
-        | Op::Open { .. }
-        | Op::Read { .. }
-        | Op::Write { .. }
-        | Op::Append { .. }
-        | Op::Truncate { .. }
-        | Op::Sync { .. }
-        | Op::Stat { .. }
-        | Op::HardLink { .. }
-        | Op::Rename { .. }
-        | Op::Remove { .. }
-        | Op::MakeDirectory { .. }
-        | Op::Spawn { .. }
-        | Op::Wait { .. }
-        | Op::Signal { .. }
-        | Op::Usage
-        | Op::Window { .. }
-        | Op::ReadSignal { .. }
-        | Op::PipeRead { .. }
-        | Op::PipeWrite { .. }
-        | Op::Cancel { .. } => unreachable!("sweep listing"),
-    }
-}
-impl Sweep {
-    fn list(&self, limits: &Limits) -> Action {
-        let mut entries = List::with_capacity(limits.sweep_entries);
-        for _ in 0..limits.sweep_entries {
-            entries.push(kernel::Entry::BLANK).expect("page capacity");
-        }
-        let entries = entries.into_boxed();
-        Action::Run(Op::List {
-            fd: self.fd.expect("directory open"),
-            entries,
-            names: bytes::zeroed(usize::try_from(limits.sweep_bytes).expect("page size fits")),
-        })
-    }
-    fn end(&mut self, failed: bool) -> Action {
-        self.failed = self.failed || failed;
-        if let Some(fd) = self.fd.take() {
-            self.phase = SweepPhase::End;
-            return close(fd);
-        }
-        Action::Swept(self.failed)
-    }
-    fn complete(
-        &mut self,
-        complete: kernel::Complete,
-        dirs: &mut Directories,
-        settings: &Settings,
-        limits: &Limits,
-        stop: bool,
-    ) -> Action {
-        match self.phase {
-            SweepPhase::OpenTrash => self.opened(complete.result, limits, stop, false),
-            SweepPhase::OpenParent => self.opened(complete.result, limits, stop, true),
-            SweepPhase::ListTrash => self.listed(complete, false),
-            SweepPhase::ListParent => self.listed(complete, true),
-            SweepPhase::CloseTrash => {
-                if complete.result.is_err() {
-                    return self.end(true);
-                }
-                if stop || self.parent.is_empty() {
-                    return self.end(false);
-                }
-                self.phase = SweepPhase::Remove;
-                Action::Run(Op::Remove {
-                    dir: dirs.trash.expect("layout"),
-                    name: self.parent.clone(),
-                    directory: false,
-                })
-            }
-            SweepPhase::CloseParent => {
-                if complete.result.is_err() {
-                    return self.end(true);
-                }
-                if stop {
-                    return self.end(false);
-                }
-                if self.child.is_empty() {
-                    self.phase = SweepPhase::Directory;
-                    Action::Run(Op::Remove {
-                        dir: dirs.trash.expect("layout"),
-                        name: self.parent.clone(),
-                        directory: true,
-                    })
-                } else {
-                    self.phase = SweepPhase::OpenParent;
-                    Action::Run(open(
-                        settings.root,
-                        invocation::joined(&[b"trash/", &self.parent]),
-                        OpenHow::DirectoryNoFollow,
-                    ))
-                }
-            }
-            SweepPhase::Remove => {
-                if stop {
-                    return self.end(complete.result.is_err());
-                }
-                if complete.result == Err(Error::IsADirectory) {
-                    self.phase = SweepPhase::OpenParent;
-                    self.child = Box::from(&b""[..]);
-                    return Action::Run(open(
-                        settings.root,
-                        invocation::joined(&[b"trash/", &self.parent]),
-                        OpenHow::DirectoryNoFollow,
-                    ));
-                }
-                self.restart(complete.result, settings)
-            }
-            SweepPhase::Child => {
-                if complete.result == Err(Error::IsADirectory) && !stop {
-                    self.phase = SweepPhase::Move;
-                    return Action::Run(dirs.rename(self.fd.expect("parent open"), self.child.clone()));
-                }
-                self.after_child(complete.result, stop)
-            }
-            SweepPhase::Move => self.after_child(complete.result, stop),
-            SweepPhase::Directory | SweepPhase::Restart => {
-                if stop {
-                    self.end(complete.result.is_err())
-                } else {
-                    self.restart(complete.result, settings)
-                }
-            }
-            SweepPhase::End => self.end(complete.result.is_err()),
-        }
-    }
-    fn opened(&mut self, result: Result<kernel::Done, Error>, limits: &Limits, stop: bool, parent: bool) -> Action {
-        match fd(result) {
-            Ok(fd) => self.fd = Some(fd),
-            Err(_) => return self.end(true),
-        }
-        if stop {
-            return self.end(false);
-        }
-        if parent && !self.child.is_empty() {
-            self.phase = SweepPhase::Child;
-            return Action::Run(Op::Remove {
-                dir: self.fd.expect("parent open"),
-                name: self.child.clone(),
-                directory: false,
-            });
-        }
-        self.phase = if parent { SweepPhase::ListParent } else { SweepPhase::ListTrash };
-        self.list(limits)
-    }
-    fn listed(&mut self, complete: kernel::Complete, parent: bool) -> Action {
-        match page(complete) {
-            Ok(name) => {
-                if parent {
-                    self.child = name;
-                } else {
-                    self.parent = name;
-                }
-            }
-            Err(_) => return self.end(true),
-        }
-        self.phase = if parent { SweepPhase::CloseParent } else { SweepPhase::CloseTrash };
-        close(self.fd.take().expect("listed directory"))
-    }
-    fn after_child(&mut self, result: Result<kernel::Done, Error>, stop: bool) -> Action {
-        if result.is_err() || stop {
-            return self.end(result.is_err());
-        }
-        self.phase = SweepPhase::Restart;
-        close(self.fd.take().expect("parent open"))
-    }
-    fn restart(&mut self, result: Result<kernel::Done, Error>, settings: &Settings) -> Action {
-        if result.is_err() {
-            return self.end(true);
-        }
-        self.phase = SweepPhase::OpenTrash;
-        Action::Run(open(settings.root, Box::from(&b"trash"[..]), OpenHow::DirectoryNoFollow))
     }
 }

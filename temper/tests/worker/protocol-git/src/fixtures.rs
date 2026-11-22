@@ -352,6 +352,17 @@ pub fn sweep() -> Scenario {
     scenario.files.insert(b"trash/wide/link".to_vec(), Node::Link);
     scenario
 }
+/// Make sets these files aside before the world's fault stream marks one stuck.
+#[must_use]
+pub fn trash_make() -> Scenario {
+    let mut scenario = operations().remove(0).1;
+    scenario.files.insert(b"workspaces/7".to_vec(), Node::Directory);
+    for name in [b"alpha".as_slice(), b"omega"] {
+        scenario.files.insert([b"workspaces/7/", name].concat(), Node::File(Box::from(&b"payload"[..])));
+    }
+    scenario
+}
+
 #[must_use]
 pub fn drawn(seed: u64) -> Scenario {
     let mut choices = operations();

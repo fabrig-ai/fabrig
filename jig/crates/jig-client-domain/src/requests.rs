@@ -282,6 +282,7 @@ fn kept(request: &Ask) -> bool {
             | contract::Ask::ChangePolicy { .. }
             | contract::Ask::SetRoles { .. }
             | contract::Ask::MakeService { .. }
+            | contract::Ask::ReissueService { .. }
             | contract::Ask::SetPool { .. }
             | contract::Ask::RemoveProject { .. }
             | contract::Ask::SetVisibility { .. }

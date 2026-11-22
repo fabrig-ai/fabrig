@@ -71,7 +71,7 @@ its tests, is `cluster.md`.
   secrets' store: LLM accounts' as jig keeps them, and each forge's
   records under temper's tag, from which its access and its git identity
   are made (section 8; credentials.md).
-- **Tested at every tier:** codecs with records drift, pinned constructs and
+- **Tested at every tier:** codecs with records drift and
   built-value round trips, and parsers against transcripts of real peers;
   the forge component and the git component in worlds of their own; temper's client joined to the engine's root; the
   one-process world on skein's simulator; the real binary with an owned
@@ -94,7 +94,8 @@ its tests, is `cluster.md`.
 6. **store.md:** temper's families in jig's store.
 7. **llm.md:** where LLM calls are made, host tools, the charter and a
    run's result.
-8. **git.md:** the checkout's io: the git component.
+8. **git.md:** the checkout's io: the git component; its sweep of
+   `trash` in `git-sweep.md`.
 9. **forge/README.md:** the forge's protocol layer on skein's forge kit: what
    temper hands the forge component, the setup host, its marks, its
    webhooks' address, and what it relies on of Forgejo and GitHub.
@@ -477,7 +478,7 @@ the client wire (`README.md`, section 11).
 
   | The gate | REASON |
   |---|---|
-  | the root not yet opened | `starting: STEP`, the start's step in 9.1's words: `loading the core's records`, `loading the inbox`, `loading the forge's records`, `linking the forge's records`, `sweeping`, `switching the store`, `committing the wires`, `adopting runs`, `reading the forge afresh`, `settling the forge's outbox`, `opening decisions` |
+  | the root not yet opened | `starting: STEP`, the start's step in 9.1's words: `loading the core's records`, `loading the inbox`, `loading the forge's records`, `linking the forge's records`, `sweeping`, `switching the store`, `committing the wires`, `adopting runs`, `opening decisions`; the forge's catching up comes after the opening and holds no client (`../domain/forge/catching-up.md`) |
   | the forges' records not yet loaded and connected | `loading the forges' records` |
   | the first periods not yet given | `opening the first periods` |
   | the forges' names not yet resolved, GitHub's apart (`forge/README.md`, 2.6) | `resolving the forges' names` |
@@ -504,8 +505,8 @@ the client wire (`README.md`, section 11).
 
 ### 6.3 A wait that runs long
 
-A start that does not open, or a table that stays full, says what holds
-it (`../draft/reconciling-start.md`, 5). 6.2's line names the gate
+A start that does not open, a forge that keeps catching up, or a table
+that stays full says what holds it (`../draft/reconciling-start.md`, 5). 6.2's line names the gate
 alone, and only as a party asks; these name the waiters, with no party
 asking. On 2026-11-20 dev.fabrig.ai's start logged "reading the forge
 afresh" alone, while six goal branches waited for places that eight
@@ -533,20 +534,32 @@ cancelled landings held.
   | a load or the sweep | `store page`, `store pages` | its range: `the core's records`, `the inbox`, `the forge's records`, `the sweep's rows` |
   | any step | `commit in flight`, `commits in flight` | `commit N` |
   | switching the store | `store switch` | none: `1 store switch` |
-  | reading the forge afresh | `fresh read`, `fresh reads` | what it reads: `OWNER/NAME branch B`, `OWNER/NAME pull N`, `OWNER/NAME issue N`, `OWNER/NAME listing` |
-  | | `landing gather`, `landing gathers` | `task T` |
-  | | `CI read`, `CI reads` | `OWNER/NAME at HEAD`, HEAD its first 12 hex digits |
-  | | `goal-file read`, `goal-file reads` | `task T` |
-  | | `lost writer's read`, `lost writers' reads` | `task T` |
-  | | `goal branch`, `goal branches` | `task T` |
-  | settling the forge's outbox | `uncertain write`, `uncertain writes` | `entry E of task T` |
 
   Kinds come in the table's order, and a kind with none is left out.
   The oldest is the one that began first: by its own time where it keeps
   one, else by the order it was made in (a read's owner token, an
   entry's number, which follow commit order), and those made together
-  in their table's order. Example:
-  `temper-engine serve: starting: reading the forge afresh for 60 s: 6 goal branches (task 10084, task 10085, task 10086), 1 fresh read (work/hello branch main)`.
+  in their table's order.
+- **The forge catching up past it.** Counted from the opening's
+  `CatchUp` (`../domain/forge/catching-up.md`, 2), the service writes one
+  line at the bound, then one at each doubling until both halves have
+  ended: `BINARY serve: the forge catching up for AGE: WAITS`. After
+  such a line, the caught-up moment writes one more:
+  `BINARY serve: the forge has caught up`. WAITS names these kinds,
+  counts and three oldest, as above, or `nothing named` if all are empty:
+
+  | KIND | NAME |
+  |---|---|
+  | `fresh read`, `fresh reads` | what it reads: `OWNER/NAME branch B`, `OWNER/NAME pull N`, `OWNER/NAME issue N`, `OWNER/NAME listing` |
+  | `landing gather`, `landing gathers` | `task T` |
+  | `CI read`, `CI reads` | `OWNER/NAME at HEAD`, HEAD its first 12 hex digits |
+  | `goal-file read`, `goal-file reads` | `task T` |
+  | `lost writer's read`, `lost writers' reads` | `task T` |
+  | `goal branch`, `goal branches` | `task T` |
+  | `uncertain write`, `uncertain writes` | `entry E of task T` |
+
+  Example:
+  `temper-engine serve: the forge catching up for 60 s: 6 goal branches (task 10084, task 10085, task 10086), 1 fresh read (work/hello branch main)`.
 - **A full table past it.** A table is full while it has no free place:
   the forge's outbox, its free room zero (`../domain/forge/room.md`, 2),
   and its read admission, its call slab full (skein's
@@ -576,9 +589,11 @@ cancelled landings held.
   the client's Deployment page and `temper ctl forge list`, show each
   above the forges' rows (`../client/forge/deployment.md`, *Its load*;
   `../client/ctl/areas.md`). A start's steps have no census: no client
-  is admitted before decisions open (6.2).
+  is admitted before decisions open (6.2). The pages' "Catching up: ..."
+  counts are `../domain/forge/catching-up.md`, 5.
 - **Made by the domain, written by the service.** The root keeps the
-  time its step began, and the forge the time each table filled; each
+  time its step began, and the forge the opening's `CatchUp` and the
+  time each table filled; each
   asks a deadline for its next report, so a start no client calls still
   writes. At it, the root's fact carries the line's words after
   `serve: `, and the service writes each as it writes the root's other
@@ -672,8 +687,8 @@ section 8 give them. temper's sit beside them:
     are the forge's, and going back past a preparation that migrated it
     needs its dump (`../draft/upgrades.md`, 3.2 and 11).
   - **The bytes' pin is skein's `every`** (`skein/docs/design/data/codec/README.md`,
-    6). Each schema's drift compares its records and refuses unpinned
-    constructs; round trips, fuzzing and memory tests build their values,
+    6). Each schema's drift compares its records with the committed code;
+    round trips, fuzzing and memory tests build their values,
     without family golden files or generated tests. Fixed forms and the
     key's frame and marker keep their own byte tests.
 
@@ -751,7 +766,7 @@ revisions temper's `Cargo.lock` pins.
 `../testing/README.md` applies skein's strategy (testing-strategy.md) to
 temper: its tiers, fakes, layout and budgets. What checks this layer:
 
-- **Step tests:** every codec with records drift, pinned constructs and
+- **Step tests:** every codec with records drift and
   built-value round trips, at its bounds and by fuzz targets; each translation both ways; git's argument and
   environment builders, and its output parsers against transcripts of
   real git (`temper-git-transcripts`); `skein-forge`'s decoders against

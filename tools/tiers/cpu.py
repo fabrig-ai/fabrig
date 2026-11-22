@@ -473,7 +473,38 @@ def junit(directory, profile):
     return expected, timeouts, failed, passed, aborts
 
 
-def summary(directory, limits=None, pair=None, expected=None, gate=False, ledger=None, base=None):
+def real_layers(items, tree, limits, layers):
+    """Report a real pair against both suites' ceilings, never red (budgets.md, 4.2)."""
+    try:
+        with Path(layers).open('rb') as source:
+            table = tomllib.load(source)
+    except FileNotFoundError:
+        table = {}
+    order = {layer: index for index, layer in enumerate(table.get('layers', []))}
+    ceilings = [gate_ceilings((limits or {}).get('gate', {}).get(profile, {}))
+                for profile in ('default', 'fuzzy')]
+    totals, unplaced = {}, set()
+    for item in items:
+        layer = table.get(tree, {}).get(item['binary_id'])
+        totals[layer] = totals.get(layer, 0.0) + (item['user_s'] + item['system_s'])
+        if layer is None:
+            unplaced.add(item['binary_id'])
+    rows = []
+    warnings = [f'unplaced: {binary} has no layer (tools/tiers/layers.md)' for binary in sorted(unplaced)]
+    for layer in sorted(totals, key=lambda layer: order.get(layer, len(order))):
+        figures = [values[tree, layer] for values in ceilings if (tree, layer) in values]
+        ceiling = sum(figures) if figures else None
+        cpu = totals[layer]
+        over = ceiling is not None and cpu > ceiling
+        rows.append(dict(tree=tree, layer=layer, cpu_s=cpu, ceiling_s=ceiling, budget_s=ceiling,
+                         ideal_s=None, reference_s=None, instructions=None, over=over))
+        if over:
+            warnings.append(f'layer over budget: {tree} real {layer}: {cpu:.2f} CPU s, budget {ceiling} s')
+    return rows, warnings
+
+
+def summary(directory, limits=None, pair=None, expected=None, gate=False, ledger=None, base=None,
+            layers=Path('tools/tiers/layers.toml')):
     directory = Path(directory)
     if pair == "tools":
         if base is not None:
@@ -558,6 +589,10 @@ def summary(directory, limits=None, pair=None, expected=None, gate=False, ledger
             unresolved[test] = f"{test[0]} {test[1]}"
     failures = sorted((set(failures) - superseded_junit) | set(unresolved.values()))
     result = summarize_records(items, pair, limits, run, timeouts, failures)
+    tier, _, tree = pair.rpartition('-')
+    if tier == 'real':
+        result['layers'], warnings = real_layers(items, tree, limits, layers)
+        result['warnings'].extend(warnings)
     result['unobserved'] = [dict(binary_id=binary, test_name=name, attempt=attempt)
                             for _, binary, name, attempt in sorted(unobserved)]
     result['suite']['unobserved'] = len(unobserved)
@@ -695,7 +730,8 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
     if 'cpu_suite_s' in limits and suite['cpu_s'] > limits['cpu_suite_s']:
         over.append(f"suite {pair}: {suite['cpu_s']:.6f}s > {limits['cpu_suite_s']}s")
     # The layer comparison and ordering are tools/tiers/budgets.md, 4 and 8.
-    head = head_binaries(processes, data.get('workspace', []), ledger)
+    selected_layers = data.get('selected_layers')
+    head = head_binaries(processes, data.get('workspace', []), ledger, selected_layers)
     measured, main = {}, {}
     for process in suite_processes:
         key = process['tree'], process['layer']
@@ -707,7 +743,8 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
             key = entry['tree'], entry['layer']
             grouped[key] = grouped.get(key, 0.0) + entry['cpu_s']
     if ledger is not None:
-        main = ledger_figures(ledger['binaries'])
+        main = ledger_figures({binary: entry for binary, entry in ledger['binaries'].items()
+                               if layer_selected(entry['layer'], selected_layers)})
     layer_order = {name: index for index, name in enumerate(data.get('layers', []))}
 
     def row_order(key):
@@ -723,9 +760,11 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
 
     ceilings = gate_ceilings(gate_limits)
     binaries = fold_binaries(data, head, tests, unobserved, ledger)
-    held = held_budgets(gate_limits, ledger, ledger_figures(binaries))
+    held = held_budgets(gate_limits, ledger, ledger_figures(binaries), selected_layers)
     layers, trees, layer_over = [], {}, []
     for tree, layer in sorted(grouped.keys() | main.keys(), key=row_order):
+        if not layer_selected(layer, selected_layers):
+            continue
         key = tree, layer
         table = gate_limits.get(tree)
         budget = (table or {}).get(layer, {})
@@ -755,7 +794,8 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
                            over=is_over))
         if tree not in trees:
             total = None if table is None else sum(
-                value for (group, _), value in ceilings.items() if group == tree)
+                value for (group, name), value in ceilings.items()
+                if group == tree and layer_selected(name, selected_layers))
             held_total = None if table is None else sum(
                 value['budget_s'] for (group, _), value in held.items() if group == tree)
             trees[tree] = dict(tree=tree, cpu_s=0.0, main_s=None if ledger is None else 0.0,
@@ -779,7 +819,7 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
                     for binary in sorted({p['binary_id'] for p in processes if p['layer'] is None}))
     (over if gate else warnings).extend(layer_over)
     references = reference_rows(data, gate_limits, ledger, base, warnings, over if gate else warnings)
-    swings = swinging_tests(ledger) if ledger is not None else []
+    swings = [row for row in swinging_tests(ledger) if layer_selected(row['layer'], selected_layers)] if ledger is not None else []
     for row in swings:
         a, b, c = row['alone']
         warnings.append(f"test swings alone at main: {row['binary_id']} {row['test_name']}: "
@@ -923,11 +963,17 @@ def ledger_figures(binaries):
     return figures
 
 
-def head_binaries(processes, workspace, ledger):
+def layer_selected(layer, selected_layers):
+    """Unplaced binaries and older runs remain included (budgets.md, 4.1)."""
+    return selected_layers is None or layer is None or layer in selected_layers
+
+
+def head_binaries(processes, workspace, ledger, selected_layers=None):
     """The head's whole figures, including unlisted targets (budgets.md, 8)."""
     head = {}
     for process in processes:
-        if process['kind'] not in ('tests', 'fresh', 'alone'):
+        if (process['kind'] not in ('tests', 'fresh', 'alone')
+                or not layer_selected(process['layer'], selected_layers)):
             continue
         binary = process['binary_id']
         if binary not in head:
@@ -937,7 +983,8 @@ def head_binaries(processes, workspace, ledger):
     if ledger is not None:
         for entry in workspace:
             binary = entry['binary_id']
-            if binary not in head and not entry['listed'] and binary in ledger['binaries']:
+            if (binary not in head and not entry['listed'] and binary in ledger['binaries']
+                    and layer_selected(entry['layer'], selected_layers)):
                 head[binary] = dict(tree=entry['tree'], layer=entry['layer'],
                                     cpu_s=binary_median(ledger['binaries'][binary]),
                                     instructions=binary_count(ledger['binaries'][binary]))
@@ -952,7 +999,7 @@ def main_budget(ledger, key):
     return min(entry['ceiling_s'], math.ceil(round(lowest + max(lowest / 10, 1), 3)))
 
 
-def held_budgets(profile, ledger, figures):
+def held_budgets(profile, ledger, figures, selected_layers=None):
     """Held ceilings and their next low figures (tools/tiers/budgets.md, 9)."""
     def moves(items):
         return Counter((m['from'], m['to'], m['cpu_s'], m['why']) for m in items)
@@ -966,6 +1013,8 @@ def held_budgets(profile, ledger, figures):
                 net[key] = net.get(key, 0) + sign * seconds * count
     held = {}
     for key, ceiling in gate_ceilings(profile).items():
+        if not layer_selected(key[1], selected_layers):
+            continue
         entry = (ledger or {}).get('budgets', {}).get(key[0], {}).get(key[1])
         shift = net.get(key, 0)
         cpu = figures.get(key, 0.0)
@@ -1033,6 +1082,8 @@ def fold_binaries(data, head, tests, unobserved, ledger):
     partial.update(t['binary_id'] for t in data['tests'] if t['process'] is None)
     binaries = {}
     for binary, entry in head.items():
+        if not layer_selected(entry['layer'], data.get('selected_layers')):
+            continue
         ran = by_binary.get(binary, [])
         if ran and binary not in partial and not any(t['starved'] for t in ran):
             history = old.get(binary, {}).get('tests', {})
@@ -1060,6 +1111,8 @@ def fold_binaries(data, head, tests, unobserved, ledger):
     for binary in partial - head.keys():
         if binary in old and binary in workspace:
             entry = workspace[binary]
+            if not layer_selected(entry['layer'], data.get('selected_layers')):
+                continue
             binaries[binary] = dict(old[binary], tree=entry['tree'], layer=entry['layer'],
                                     alone=old[binary].get('alone', {}), counts=old[binary].get('counts', []))
     return binaries
@@ -1068,12 +1121,13 @@ def fold_binaries(data, head, tests, unobserved, ledger):
 def fold_ledger(directory, result, limits, ledger=None):
     """The ledger should this candidate land (tools/tiers/budgets.md, 7 and 9)."""
     data = json.loads((Path(directory) / 'results.json').read_text())
-    head = head_binaries(result['processes'], data.get('workspace', []), ledger)
+    selected_layers = data.get('selected_layers')
+    head = head_binaries(result['processes'], data.get('workspace', []), ledger, selected_layers)
     binaries = fold_binaries(data, head, result['tests'], result['unobserved'], ledger)
     figures = ledger_figures(binaries)
     profile = (limits or {}).get('gate', {}).get(result['pair'], {})
     folded_budgets = {}
-    for (tree, layer), state in held_budgets(profile, ledger, figures).items():
+    for (tree, layer), state in held_budgets(profile, ledger, figures, selected_layers).items():
         folded_budgets.setdefault(tree, {})[layer] = {key: state[key] for key in ('ceiling_s', 'lowest_s')}
     return dict(ledger=4, profile=result['pair'], binaries=binaries, budgets=folded_budgets,
                 moves=profile.get('moves', []))
@@ -1173,6 +1227,11 @@ def print_summary(result, as_json=False):
     for kind, rows in (('layer', result['layers']), ('tree', result['trees'])):
         for row in rows:
             label = f"{row['tree']} {row['layer']}" if kind == 'layer' else row['tree']
+            if suite['cpu_by'] == 'test':
+                figures = ', '.join(f"{key.removesuffix('_s')} {row[key] if row[key] is not None else 'none'} s"
+                                    for key in ('cpu_s', 'ceiling_s', 'budget_s', 'ideal_s', 'reference_s'))
+                print(f'{kind} {label}: {figures}, instructions none')
+                continue
             figures = ', '.join(f"{key.removesuffix('_s')} {row[key] if row[key] is not None else 'none'} s"
                                 for key in ('cpu_s', 'ceiling_s', 'budget_s', 'ideal_s', *(['reference_s'] if kind == 'layer' else []),
                                             *(['main_s'] if row['main_s'] is not None else [])))
@@ -1190,11 +1249,11 @@ def print_summary(result, as_json=False):
         print(message)
 
 
-def execute_one_process(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None, gate=False, ledger=None):
+def execute_one_process(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None, gate=False, ledger=None, selected_layers=None):
     """Run and report one process per binary (tools/tiers/design.md, 10.2)."""
     if 'cpu_test_s' in limits.get(profile, {}):
         raise ValueError('one-process runs cannot measure cpu_test_s')
-    runpy.run_path(str(ONE_PROCESS))['run'](command, env, directory, profile, limits, config, walls=walls, ledger=ledger)
+    runpy.run_path(str(ONE_PROCESS))['run'](command, env, directory, profile, limits, config, walls=walls, ledger=ledger, selected_layers=selected_layers)
     result = summary(directory, limits, profile, gate=gate, ledger=ledger)
     save(Path(directory) / 'ledger.json', fold_ledger(directory, result, limits, ledger))
     output = io.StringIO()
