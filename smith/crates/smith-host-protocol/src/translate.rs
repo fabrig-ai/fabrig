@@ -125,7 +125,7 @@ fn encode_parts(
     let mut bodies = List::with_capacity(u32::try_from(parts.len()).or(Err(Error::Value))?);
     for part in parts {
         let body =
-            smith_protocol_translate::encode_turn(part.body.value(), transcript, endpoints).or(Err(Error::Value))?;
+            smith_protocol_translate::encode_part(part.body.value(), transcript, endpoints).or(Err(Error::Value))?;
         let kind = match part.kind {
             smith_domain::session::record::PartKind::Answer => wire::PartKind::Answer,
             smith_domain::session::record::PartKind::Result => wire::PartKind::Result,

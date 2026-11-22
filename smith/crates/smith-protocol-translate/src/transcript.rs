@@ -61,7 +61,7 @@ pub fn decode_transcript(
         }
         let endpoint = saved_endpoint(endpoints, source.endpoint.as_ref());
         let dialect = source.dialect;
-        let turn = translate_turn(source, endpoint, dialect, limits, search_hits)?;
+        let turn = translate_turn(source, endpoint, dialect, limits, search_hits, false)?;
         if turns.is_empty() {
             match turn.kind {
                 record::Kind::First(_) | record::Kind::Window(_) => {}
@@ -121,7 +121,7 @@ pub fn decode_turn(
     let source = saved_turn(bytes, Some(number), limits)?;
     let endpoint = saved_endpoint(endpoints, source.endpoint.as_ref());
     let dialect = source.dialect;
-    translate_turn(source, endpoint, dialect, limits, u32::MAX)
+    translate_turn(source, endpoint, dialect, limits, u32::MAX, false)
 }
 
 /// Decode a part's turn body without imposing a main-conversation sequence.
@@ -133,7 +133,7 @@ pub fn decode_part(
     let source = saved_turn(bytes, None, limits)?;
     let endpoint = saved_endpoint(endpoints, source.endpoint.as_ref());
     let dialect = source.dialect;
-    translate_turn(source, endpoint, dialect, limits, u32::MAX)
+    translate_turn(source, endpoint, dialect, limits, u32::MAX, true)
 }
 
 fn saved_endpoint(endpoints: &Endpoints, name: &[u8]) -> Option<llm::Endpoint> {
@@ -164,8 +164,9 @@ fn translate_turn(
     dialect: u32,
     limits: &wire::v8::Limits,
     search_hits: u32,
+    part: bool,
 ) -> Result<record::Turn, record::Refusal> {
-    let kind = decode_kind(&source)?;
+    let kind = decode_kind(&source, part)?;
     let messages = decode_messages(&source, dialect, limits, search_hits)?;
     Ok(record::Turn {
         version: record::VERSION,
@@ -642,7 +643,7 @@ mod found_tests {
     }
 }
 
-fn decode_kind(source: &wire::Turn) -> Result<record::Kind, record::Refusal> {
+fn decode_kind(source: &wire::Turn, part: bool) -> Result<record::Kind, record::Refusal> {
     let opening = match &source.opening {
         Some(value) => {
             let affinity = llm::Affinity { key: value.affinity.key, thread: value.affinity.thread };
@@ -662,7 +663,7 @@ fn decode_kind(source: &wire::Turn) -> Result<record::Kind, record::Refusal> {
                 account,
                 backend,
             })),
-            None if source.place > 1 && source.system.is_none() => record::Kind::Ordinary,
+            None if (source.place > 1 || part) && source.system.is_none() => record::Kind::Ordinary,
             Some(_) | None => return Err(record::Refusal::Malformed),
         },
         wire::TurnKind::Window => match opening {

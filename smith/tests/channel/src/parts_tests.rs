@@ -158,6 +158,28 @@ fn a_told_part_its_acknowledgement_and_grace_cross_both_halves() {
     world.settle();
     assert!(world.observations().contains(&Observation::AgentPartKept(1)));
     assert!(world.observations().contains(&Observation::AgentDrainGrace(grace)));
+    let part = record::Part { thread: 0, call: 0, kind: record::PartKind::Result, body: first_result() };
+    let Half::Agent(agent) = &mut world.agent.half else { unreachable!() };
+    agent
+        .send_part(2, 1, &part, Token::new(43), &mut world.agent.agent_events, &mut world.agent.below)
+        .expect("first turn result part");
+    world.settle();
+    assert!(world.observations().contains(&Observation::HostPart { number: 2, turn: 1 }));
+}
+
+fn first_result() -> record::Turn {
+    use smith_domain_session::llm;
+    let mut result = window_turn_fixture();
+    result.kind = record::Kind::Ordinary;
+    result.sequence = 1;
+    result.messages = Box::new([llm::Message {
+        role: llm::Role::User,
+        content: Box::new([llm::Block::ToolResult {
+            id: b"finish".as_slice().into(),
+            result: llm::Returned::Text { text: b"accepted".as_slice().into(), error: false, replay: None },
+        }]),
+    }]);
+    result
 }
 
 #[test]
@@ -173,10 +195,19 @@ fn a_host_start_preserves_kept_parts_and_the_results_path() {
         kind: record::PartKind::Window,
         body: smith_host_domain::TurnValue::new(body.clone(), u64::MAX).expect("bounded turn"),
     };
+    let result = first_result();
+    let kept_result = smith_host_domain::channel::KeptPart {
+        activation: 6,
+        turn: 3,
+        thread: 0,
+        call: 0,
+        kind: record::PartKind::Result,
+        body: smith_host_domain::TurnValue::new(result.clone(), u64::MAX).expect("bounded result"),
+    };
     world.send_domain_start(
         smith_host_domain::Start {
             tell_parts: true,
-            parts: Box::new([kept]),
+            parts: Box::new([kept, kept_result]),
             live: None,
             identity: None,
             messages: Box::default(),
@@ -204,11 +235,18 @@ fn a_host_start_preserves_kept_parts_and_the_results_path() {
     let decoded = world.take_agent_start().expect("start decoded");
     assert_eq!(
         decoded.parts,
-        Box::new([record::Resumed {
-            activation: 6,
-            turn: 3,
-            part: record::Part { thread: 2, call: 4, kind: record::PartKind::Window, body },
-        }]) as Box<[record::Resumed]>
+        Box::new([
+            record::Resumed {
+                activation: 6,
+                turn: 3,
+                part: record::Part { thread: 2, call: 4, kind: record::PartKind::Window, body },
+            },
+            record::Resumed {
+                activation: 6,
+                turn: 3,
+                part: record::Part { thread: 0, call: 0, kind: record::PartKind::Result, body: result },
+            },
+        ]) as Box<[record::Resumed]>
     );
     assert_eq!(decoded.mounts.as_ref().expect("workspace")[0].results.as_deref(), Some(b"/results".as_slice()));
 }

@@ -10,8 +10,8 @@ use crate::facts;
 use crate::limits::{Error, Limits};
 use smith_domain::run;
 use smith_domain_session::record;
-use smith_protocol_translate::encode_turn;
 use smith_protocol_translate::{DecodedStart, Endpoints, answer_record};
+use smith_protocol_translate::{encode_part, encode_turn};
 
 mod cancellation;
 mod ending;
@@ -434,7 +434,7 @@ impl Component {
         {
             return Err(Error::Order);
         }
-        let body = encode_turn(&part.body, &self.transcript, &self.endpoints)?;
+        let body = encode_part(&part.body, &self.transcript, &self.endpoints)?;
         let bytes = part.body.owned_bytes().ok_or(Error::Window)?;
         let kind = match part.kind {
             record::PartKind::Answer => smith_channel::PartKind::Answer,

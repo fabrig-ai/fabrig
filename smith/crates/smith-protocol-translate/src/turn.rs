@@ -19,6 +19,24 @@ pub fn encode_turn(
     limits: &wire::v8::Limits,
     endpoints: &Endpoints,
 ) -> Result<Box<[u8]>, Error> {
+    encode(source, limits, endpoints, false)
+}
+
+/// Encode a part body, whose first-turn result carries no conversation opening.
+pub fn encode_part(
+    source: &record::Turn,
+    limits: &wire::v8::Limits,
+    endpoints: &Endpoints,
+) -> Result<Box<[u8]>, Error> {
+    encode(source, limits, endpoints, true)
+}
+
+fn encode(
+    source: &record::Turn,
+    limits: &wire::v8::Limits,
+    endpoints: &Endpoints,
+    part: bool,
+) -> Result<Box<[u8]>, Error> {
     if source.version != record::VERSION || source.sequence == 0 {
         return Err(Error::Transcript(record::Refusal::Version));
     }
@@ -30,7 +48,7 @@ pub fn encode_turn(
     let dialect = source.dialect;
     let messages = encode_messages(source, limits)?;
     let usage = encode_usage(source.usage);
-    let (kind, opening) = encode_kind(&source.kind, source.sequence)?;
+    let (kind, opening) = encode_kind(&source.kind, source.sequence, part)?;
     let turn = wire::Turn {
         kind,
         system: supplied_system(&source.kind),
@@ -426,7 +444,11 @@ fn encode_usage(usage: llm::Usage) -> wire::Usage {
     }
 }
 
-fn encode_kind(kind: &record::Kind, sequence: u32) -> Result<(wire::TurnKind, Option<wire::Opening>), Error> {
+fn encode_kind(
+    kind: &record::Kind,
+    sequence: u32,
+    part: bool,
+) -> Result<(wire::TurnKind, Option<wire::Opening>), Error> {
     Ok(match kind {
         record::Kind::First(opener) => {
             if sequence != 1 {
@@ -435,7 +457,7 @@ fn encode_kind(kind: &record::Kind, sequence: u32) -> Result<(wire::TurnKind, Op
             (wire::TurnKind::Ordinary, Some(encode_opening(opener.affinity, opener.account, &opener.backend)))
         }
         record::Kind::Ordinary => {
-            if sequence == 1 {
+            if sequence == 1 && !part {
                 return Err(Error::Transcript(record::Refusal::Malformed));
             }
             (wire::TurnKind::Ordinary, None)

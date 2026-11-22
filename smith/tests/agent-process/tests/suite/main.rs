@@ -13,6 +13,7 @@ mod list;
 mod memory;
 mod open_opening;
 mod orders;
+mod parts;
 mod program;
 mod program_budget;
 mod program_children;

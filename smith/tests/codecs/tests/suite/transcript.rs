@@ -136,6 +136,22 @@ fn interrupted_turns_round_trip_and_render_identically_live_and_resumed() {
 }
 
 #[test]
+fn a_first_turn_result_part_round_trips_without_becoming_a_whole_turn() {
+    use smith_protocol_translate::{
+        decode_part, decode_transcript, decode_turn, encode_part, encode_turn, transcript_piece,
+    };
+    let mut result = domain_turn(smith_domain_tools::Outcome::Removed);
+    result.sequence = 1;
+    let endpoints = endpoints();
+    let bytes = encode_part(&result, &CEILINGS, &endpoints).expect("first turn result part");
+    assert_eq!(decode_part(&bytes, &CEILINGS, &endpoints).expect("result part"), result);
+    assert!(encode_turn(&result, &CEILINGS, &endpoints).is_err(), "a whole first turn needs its opening");
+    assert!(decode_turn(&bytes, 1, &CEILINGS, &endpoints).is_err());
+    let piece = transcript_piece(&[bytes]).expect("one body");
+    assert!(decode_transcript(&piece, 1, 1, &CEILINGS, &endpoints).is_err(), "parts never enter a transcript");
+}
+
+#[test]
 fn the_real_patch_reads_seven_and_only_interrupted_halts_going_back() {
     use skein_codec::{
         bridge::Bridge,

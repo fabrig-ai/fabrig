@@ -40,4 +40,4 @@ pub use result::decode_declared;
 pub use result::encode_result;
 pub use start::{DecodedStart, Grant, Mount, start_context};
 pub use transcript::{decode_part, decode_transcript, decode_turn, transcript_piece};
-pub use turn::encode_turn;
+pub use turn::{encode_part, encode_turn};
