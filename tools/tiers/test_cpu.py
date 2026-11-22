@@ -1718,6 +1718,77 @@ class CollectorTests(unittest.TestCase):
                                    'suite qa-jig: 1.500000s > 1.0s')])
         self.assertEqual(self.cli('--pair', 'qa-skein').returncode, 2)
 
+    def test_real_pair_layers_warn_against_both_suites(self):
+        pair = 'real-skein'
+        run = dict(profile=pair, finished=True, starved=False, wall_s=3.0, returncode=0)
+        CPU['save'](self.directory / 'run.json', run)
+        loop, end, unknown = 'fixture::loop', 'fixture::end', 'fixture::unknown'
+        self.record('loop-one', profile=pair, binary_id=loop, user_s=6, system_s=0.25)
+        self.record('loop-two', profile=pair, binary_id=loop, attempt=2, user_s=6, system_s=0.25)
+        self.record('end', profile=pair, binary_id=end)
+        self.record('unknown', profile=pair, binary_id=unknown)
+        (self.directory / 'junit.xml').write_text(
+            f'<testsuites><testsuite name="{loop}"><testcase name="one"><flakyFailure type="test failure"/>'
+            f'</testcase></testsuite><testsuite name="{end}"><testcase name="one"/></testsuite>'
+            f'<testsuite name="{unknown}"><testcase name="one"/></testsuite></testsuites>')
+        layers = self.root / 'tools/tiers/layers.toml'
+        layers.parent.mkdir(parents=True)
+        layers.write_text(f'layers = ["step", "simulated", "real-loop", "end-to-end"]\n'
+                          f'[skein]\n"{loop}" = "real-loop"\n"{end}" = "end-to-end"\n')
+        budget = self.root / 'budgets.toml'
+        budget.write_text('[gate.default.references]\nreal-loop = 1\n'
+                          '[gate.default.skein]\nideal_s = 1\nreal-loop = {cpu_s = 7}\n'
+                          '[[gate.default.moves]]\nfrom = "skein.real-loop"\nto = "skein.simulated"\n'
+                          'cpu_s = 2\nwhy = "The replaying work moved below the real loop."\n'
+                          '[gate.fuzzy.references]\nreal-loop = 1\n'
+                          '[gate.fuzzy.skein]\nideal_s = 1\nreal-loop = {cpu_s = 5}\n')
+        limits = CPU['budgets'](budget, layers=layers)
+        result = CPU['summary'](self.directory, limits, pair=pair, layers=layers)
+        loop_row, end_row, unplaced_row = result['layers']
+        self.assertEqual(loop_row, dict(tree='skein', layer='real-loop', cpu_s=12.5, ceiling_s=10,
+                                       budget_s=10, ideal_s=None, reference_s=None, instructions=None, over=True))
+        self.assertEqual(end_row, dict(tree='skein', layer='end-to-end', cpu_s=1.5, ceiling_s=None,
+                                      budget_s=None, ideal_s=None, reference_s=None, instructions=None, over=False))
+        self.assertEqual((unplaced_row['layer'], unplaced_row['cpu_s'], unplaced_row['over']), (None, 1.5, False))
+        warning = 'layer over budget: skein real real-loop: 12.50 CPU s, budget 10 s'
+        self.assertEqual(result['warnings'], [f'unplaced: {unknown} has no layer (tools/tiers/layers.md)', warning])
+        self.assertEqual(result['trees'], [])
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            CPU['print_summary'](result)
+        for row in result['layers']:
+            self.assertIn(f"layer skein {row['layer']}: cpu {row['cpu_s']} s, ceiling ", output.getvalue())
+        gated = CPU['summary'](self.directory, limits, pair=pair, gate=True, layers=layers)
+        self.assertEqual(gated['warnings'], result['warnings'])
+        self.assertEqual(gated['over_budget'], [])
+        self.assertEqual(gated['verdict'], 'no budget set')
+        cli = subprocess.run([sys.executable, '-I', '-B', str(HERE / 'cpu-summary'), str(self.directory),
+                              '--budgets', str(budget), '--pair', pair, '--gate', '--json'],
+                             cwd=self.root, text=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=10)
+        self.assertEqual(cli.returncode, 0, cli.stderr)
+        self.assertEqual(json.loads(cli.stdout)['warnings'], result['warnings'])
+
+        self.record('loop-two', profile=pair, binary_id=loop, attempt=2, user_s=3.5, system_s=0.25)
+        at_budget = CPU['summary'](self.directory, limits, layers=layers)
+        self.assertFalse(at_budget['layers'][0]['over'])
+        self.assertNotIn(warning, at_budget['warnings'])
+        layers.unlink()
+        absent = CPU['summary'](self.directory, limits, layers=layers)
+        self.assertEqual(len(absent['layers']), 1)
+        self.assertIsNone(absent['layers'][0]['layer'])
+        self.assertEqual(absent['warnings'], [f'unplaced: {binary} has no layer (tools/tiers/layers.md)'
+                                              for binary in (end, loop, unknown)])
+
+        run['profile'] = 'browser-skein'
+        CPU['save'](self.directory / 'run.json', run)
+        for path in (self.directory / 'records').iterdir():
+            record = json.loads(path.read_text())
+            record['profile'] = 'browser-skein'
+            CPU['save'](path, record)
+        browser = CPU['summary'](self.directory, limits, layers=layers)
+        self.assertEqual(browser['layers'], [])
+        self.assertEqual(browser['warnings'], [])
+
     def test_missing_extra_duplicate_malformed_and_unfinished_records(self):
         self.assertIn('missing', self.cli().stderr)
         self.record()

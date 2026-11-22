@@ -473,7 +473,38 @@ def junit(directory, profile):
     return expected, timeouts, failed, passed, aborts
 
 
-def summary(directory, limits=None, pair=None, expected=None, gate=False, ledger=None, base=None):
+def real_layers(items, tree, limits, layers):
+    """Report a real pair against both suites' ceilings, never red (budgets.md, 4.2)."""
+    try:
+        with Path(layers).open('rb') as source:
+            table = tomllib.load(source)
+    except FileNotFoundError:
+        table = {}
+    order = {layer: index for index, layer in enumerate(table.get('layers', []))}
+    ceilings = [gate_ceilings((limits or {}).get('gate', {}).get(profile, {}))
+                for profile in ('default', 'fuzzy')]
+    totals, unplaced = {}, set()
+    for item in items:
+        layer = table.get(tree, {}).get(item['binary_id'])
+        totals[layer] = totals.get(layer, 0.0) + (item['user_s'] + item['system_s'])
+        if layer is None:
+            unplaced.add(item['binary_id'])
+    rows = []
+    warnings = [f'unplaced: {binary} has no layer (tools/tiers/layers.md)' for binary in sorted(unplaced)]
+    for layer in sorted(totals, key=lambda layer: order.get(layer, len(order))):
+        figures = [values[tree, layer] for values in ceilings if (tree, layer) in values]
+        ceiling = sum(figures) if figures else None
+        cpu = totals[layer]
+        over = ceiling is not None and cpu > ceiling
+        rows.append(dict(tree=tree, layer=layer, cpu_s=cpu, ceiling_s=ceiling, budget_s=ceiling,
+                         ideal_s=None, reference_s=None, instructions=None, over=over))
+        if over:
+            warnings.append(f'layer over budget: {tree} real {layer}: {cpu:.2f} CPU s, budget {ceiling} s')
+    return rows, warnings
+
+
+def summary(directory, limits=None, pair=None, expected=None, gate=False, ledger=None, base=None,
+            layers=Path('tools/tiers/layers.toml')):
     directory = Path(directory)
     if pair == "tools":
         if base is not None:
@@ -558,6 +589,10 @@ def summary(directory, limits=None, pair=None, expected=None, gate=False, ledger
             unresolved[test] = f"{test[0]} {test[1]}"
     failures = sorted((set(failures) - superseded_junit) | set(unresolved.values()))
     result = summarize_records(items, pair, limits, run, timeouts, failures)
+    tier, _, tree = pair.rpartition('-')
+    if tier == 'real':
+        result['layers'], warnings = real_layers(items, tree, limits, layers)
+        result['warnings'].extend(warnings)
     result['unobserved'] = [dict(binary_id=binary, test_name=name, attempt=attempt)
                             for _, binary, name, attempt in sorted(unobserved)]
     result['suite']['unobserved'] = len(unobserved)
@@ -1192,6 +1227,11 @@ def print_summary(result, as_json=False):
     for kind, rows in (('layer', result['layers']), ('tree', result['trees'])):
         for row in rows:
             label = f"{row['tree']} {row['layer']}" if kind == 'layer' else row['tree']
+            if suite['cpu_by'] == 'test':
+                figures = ', '.join(f"{key.removesuffix('_s')} {row[key] if row[key] is not None else 'none'} s"
+                                    for key in ('cpu_s', 'ceiling_s', 'budget_s', 'ideal_s', 'reference_s'))
+                print(f'{kind} {label}: {figures}, instructions none')
+                continue
             figures = ', '.join(f"{key.removesuffix('_s')} {row[key] if row[key] is not None else 'none'} s"
                                 for key in ('cpu_s', 'ceiling_s', 'budget_s', 'ideal_s', *(['reference_s'] if kind == 'layer' else []),
                                             *(['main_s'] if row['main_s'] is not None else [])))
