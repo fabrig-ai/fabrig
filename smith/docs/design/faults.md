@@ -177,7 +177,13 @@ pub fn ended_channel(answer: &smith_channel::Answer) -> Ended;
   run when they share the account and the fault's interval meets the
   run's span, its start to its end; where several struck it, the latest
   to fall before its end decides the ends allowed: blame follows the
-  latest cause. `check waits for a place` and today's classes
+  latest cause. A rate window's strike judges no retry of its own: the
+  window is the account's limit, and its refusals are the faults the row
+  judges. A retry within a refusal's interval, refusal to reset, is
+  refused by the row, and one after that reset is allowed. The strike's
+  interval, strike to clear or ongoing, still decides which runs it
+  struck and so their ends: completed, or limited naming the account
+  where a refusal's reset comes after the run's end. `check waits for a place` and today's classes
   (`overloaded`, `unavailable`, ...) are counted, not judged.
 - **A finding is a red** of the sweep or scenario that called `judge`,
   with its seed, as any (`skein/docs/foundation/testing-strategy.md`, 6).
