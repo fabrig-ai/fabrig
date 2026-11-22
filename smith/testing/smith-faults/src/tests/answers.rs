@@ -6,7 +6,91 @@ use smith_domain_run::{
 
 use smith_domain_run::outcome::{Declared, DeclaredFailure};
 
-use crate::{Ended, ended};
+use crate::{Ended, ended, ended_channel};
+
+#[test]
+fn channel_answers_keep_their_domain_twins_classification() {
+    let mut answers = vec![
+        Answer::Accepted {
+            outcome: Declared::Failure(DeclaredFailure { reason: b"done".as_slice().into(), fields: Box::default() }),
+            spent: Spend::ZERO,
+            turns: 1,
+        },
+        Answer::Parked { spent: Spend::ZERO, turns: 1 },
+        Answer::Refused(Refusal::Busy),
+    ];
+    answers.extend(
+        [
+            RunFailure::Cancelled,
+            RunFailure::Stale,
+            RunFailure::Transcript(TranscriptRefusal::Malformed),
+            RunFailure::Budget { exhausted: Exhausted::Time, used: None, bound: None },
+            RunFailure::Policy(Policy::Unfinished { nudges: 1, rejected: 0 }),
+        ]
+        .into_iter()
+        .map(failed),
+    );
+    answers.extend(
+        [
+            Fault::Limited { account: 0, reset_at: None },
+            Fault::Refused { account: 0, code: Box::default() },
+            Fault::Unauthorized { account: 0 },
+            Fault::Untooled { name: Box::default(), detail: Box::default() },
+            Fault::Program { name: Box::default(), exit: None, detail: Box::default() },
+            Fault::Provider,
+            Fault::Declined,
+            Fault::Truncated,
+            Fault::Malformed,
+        ]
+        .into_iter()
+        .map(|fault| failed(RunFailure::Model(fault))),
+    );
+    answers.extend(
+        [
+            CompletionFailure::Overloaded,
+            CompletionFailure::Unavailable,
+            CompletionFailure::RateLimited { retry_after: Duration::from_secs(2) },
+            CompletionFailure::TimedOut { phase: CompletionPhase::Connect },
+            CompletionFailure::TimedOut { phase: CompletionPhase::Handshake },
+            CompletionFailure::TimedOut { phase: CompletionPhase::Head },
+            CompletionFailure::TimedOut { phase: CompletionPhase::Idle },
+            CompletionFailure::TimedOut { phase: CompletionPhase::Whole },
+            CompletionFailure::Limit { which: Limit::History, bound: 1 },
+            CompletionFailure::ApplicationLimit,
+            CompletionFailure::Protocol,
+            CompletionFailure::Cancelled,
+            CompletionFailure::ContextTooLong,
+            CompletionFailure::Invalid,
+            CompletionFailure::Refused,
+            CompletionFailure::Unsupported,
+            CompletionFailure::Unauthorized,
+            CompletionFailure::Exhausted { retry_after: None },
+        ]
+        .into_iter()
+        .map(|failure| {
+            failed(RunFailure::Model(Fault::Completion {
+                failure,
+                evidence: CompletionEvidence::Unknown,
+                model: 0,
+                attempts: 2,
+                report: Report::none(),
+            }))
+        }),
+    );
+    for answer in answers {
+        let expected = ended(&answer);
+        let description = format!("{answer:?}");
+        let channel = smith_protocol_translate::answer_record(
+            skein_lib::Time::ZERO,
+            answer,
+            None,
+            &smith_channel::CEILINGS,
+            &smith_charter::CEILINGS,
+        )
+        .expect("bounded answer");
+        assert_eq!(ended_channel(&channel), expected, "{description}");
+    }
+}
 
 fn failed(failure: RunFailure) -> Answer {
     Answer::Failed { failure, spent: Spend::ZERO, turns: 0 }

@@ -39,6 +39,60 @@ pub fn ended(answer: &Answer) -> Ended {
     }
 }
 
+/// The same end, read from the hosted agent's channel rather than a domain world.
+#[must_use]
+pub fn ended_channel(answer: &smith_channel::Answer) -> Ended {
+    use smith_channel::{ModelFault, RunFailure, RunResult};
+    match &answer.result {
+        RunResult::Accepted(_) | RunResult::Parked => Ended::Completed,
+        RunResult::Refused(_) => Ended::Failed,
+        RunResult::Failed(failed) => match &failed.reason {
+            RunFailure::Model(fault) => match &fault.value {
+                ModelFault::Limited(_) => Ended::Limited,
+                ModelFault::Refused(_) => Ended::Refused,
+                ModelFault::Unauthorized(_) => Ended::Unauthorized,
+                ModelFault::Untooled(_) => Ended::Untooled,
+                ModelFault::Completion(fault) => channel_completion_end(&fault.failure),
+                ModelFault::Program(_)
+                | ModelFault::Provider
+                | ModelFault::Declined
+                | ModelFault::Truncated
+                | ModelFault::Malformed => Ended::Failed,
+            },
+            RunFailure::Transcript(_)
+            | RunFailure::Budget(_)
+            | RunFailure::Policy(_)
+            | RunFailure::Cancelled
+            | RunFailure::Stale => Ended::Failed,
+        },
+    }
+}
+
+fn channel_completion_end(failure: &smith_channel::CompletionFailure) -> Ended {
+    use smith_channel::{CompletionFailure, CompletionPhase};
+    match failure {
+        CompletionFailure::Overloaded | CompletionFailure::Unavailable | CompletionFailure::RateLimited => {
+            Ended::Outage
+        }
+        CompletionFailure::Unauthorized => Ended::Unauthorized,
+        CompletionFailure::TimedOut(timeout) => match timeout.phase {
+            CompletionPhase::Connect | CompletionPhase::Handshake | CompletionPhase::Head | CompletionPhase::Idle => {
+                Ended::Outage
+            }
+            CompletionPhase::Whole => Ended::Failed,
+        },
+        CompletionFailure::Limit(_)
+        | CompletionFailure::ApplicationLimit
+        | CompletionFailure::Protocol
+        | CompletionFailure::Cancelled
+        | CompletionFailure::ContextTooLong
+        | CompletionFailure::Invalid
+        | CompletionFailure::Refused
+        | CompletionFailure::Unsupported
+        | CompletionFailure::Exhausted => Ended::Failed,
+    }
+}
+
 fn model_end(fault: &Fault) -> Ended {
     match fault {
         Fault::Limited { .. } => Ended::Limited,

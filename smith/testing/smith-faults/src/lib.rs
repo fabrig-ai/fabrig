@@ -7,7 +7,7 @@
 mod answer;
 mod runs;
 
-pub use answer::{Ended, ended};
+pub use answer::{Ended, ended, ended_channel};
 pub use runs::{Retried, Runs};
 use skein_world::faults::Kind;
 

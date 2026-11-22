@@ -12,6 +12,11 @@ skein-lib.workspace = true
 skein-world.workspace = true
 skein-llm-kit.workspace = true
 smith-domain-run.workspace = true
+smith-channel.workspace = true
+
+[dev-dependencies]
+smith-protocol-translate.workspace = true
+smith-charter.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"

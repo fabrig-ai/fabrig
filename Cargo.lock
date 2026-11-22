@@ -4697,6 +4697,7 @@ dependencies = [
  "smith-domain-run",
  "smith-events",
  "smith-fake-claude",
+ "smith-faults",
  "smith-protocol-channel",
  "smith-protocol-events",
  "smith-protocol-llm",
@@ -5088,7 +5089,10 @@ dependencies = [
  "skein-lib",
  "skein-llm-kit",
  "skein-world",
+ "smith-channel",
+ "smith-charter",
  "smith-domain-run",
+ "smith-protocol-translate",
 ]
 
 [[package]]
@@ -5666,6 +5670,7 @@ dependencies = [
  "smith-domain",
  "smith-domain-run",
  "smith-domain-run-fixtures",
+ "smith-faults",
  "smith-machine-world",
  "smith-protocol-machine",
  "smith-protocol-machine-fixtures",
