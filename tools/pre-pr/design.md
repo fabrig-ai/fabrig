@@ -33,6 +33,14 @@ subprocess-free Python suite. Text, journey and budget rules still apply.
 The worker receives its check results and the receipt at
 `target/temper/pre-pr-light-failures.json`. A new tree requires a new check.
 
+After status settlement a checked close passes the pinned main commit to
+`pre_pr.py --close DESTINATION`. It applies the lightweight checks above
+to the entire difference from the merge base to the staged goal tree,
+including earlier children and a close that changed no files. Per-delivery
+journey mixing and budget edits were checked on delivery. The final goal
+tree still receives the overlay check. The receipt records the pre-settlement
+head, staged tree, destination and merge base. A changed snapshot refuses.
+
 The main Gate runs the checker suite for a candidate confined to the checker.
 A mixed product candidate also receives its regular Gate. The accumulated
 goal proof is available by explicit diagnostic dispatch. It checks the goal

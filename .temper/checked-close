@@ -1,0 +1,7 @@
+#!/bin/sh
+# The close job settles status first, even when settlement produces no commit.
+set -eu
+here=$(cd "$(dirname "$0")" && pwd)
+"$here/close" "$@"
+cd "$here/.."
+exec goal-close-pre-pr

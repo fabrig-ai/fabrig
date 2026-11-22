@@ -921,6 +921,7 @@ def failure_counts(errors):
 def failure_file(tree_id, base_id, verdict, cached, errors, root, env, scope='full', commits=(), heads=None):
     """Keep every structured failure atomically, before the summary (sections 6–7)."""
     relative = {'child': 'target/temper/goal-child-pre-pr.json',
+                'close': 'target/temper/goal-close-pre-pr.json',
                 'delivery': 'target/temper/pre-pr-light-failures.json'}.get(scope, 'target/temper/pre-pr-failures.json')
     path = root / relative
     try:
@@ -941,6 +942,8 @@ def failure_file(tree_id, base_id, verdict, cached, errors, root, env, scope='fu
                   'counts': failure_counts(errors)}
         if scope == 'delivery':
             header.update(form='pre-pr-light-failures 1', scope='light')
+        elif scope == 'close':
+            header.update(form='goal-close-pre-pr 1', scope='close', goal_head=commits[0], destination=commits[1])
         elif scope == 'goal':
             header.update(goal_head=commits[0], destination=commits[1])
         elif scope == 'child':
@@ -983,7 +986,7 @@ def summary(base_id, lints, tests, errors, reason, failures_tail, starved=(), sc
     base_text = f'base {base_id}, merge base of refs/temper/landing and HEAD' if base_id else 'no base'
     if scope == 'delivery':
         base_text = 'light checks, ' + base_text
-    elif scope == 'goal':
+    elif scope in ('close', 'goal'):
         base_text = f'goal head {commits[0]}, destination {commits[1]}, merge base {base_id}'
     elif scope == 'child':
         base_text = f'child checks, destination {commits[0]}, base {base_id}'
@@ -1092,7 +1095,7 @@ def finish(tree_id, base_id, errors, root, env, scope, commits, heads, lints=(),
     return summary(base_id, lints, tests, errors, None, location, warnings, scope, commits)
 
 
-def workspace_checks(root, paths, tree_id, base_id, merged, env, private, errors, outcomes, reds=()):
+def workspace_checks(root, paths, tree_id, base_id, merged, env, private, errors, outcomes, reds=(), *, completed_goal=False):
     start = time.monotonic()
     planner = runpy.run_path(str(Path(__file__).with_name('workspace.py')))
     workspace = planner['owns_package']
@@ -1154,9 +1157,9 @@ def workspace_checks(root, paths, tree_id, base_id, merged, env, private, errors
         errors += found
         if full_scan and rc in (0, 1):
             outcomes[key] = {'outcome': 'passed' if rc == 0 else 'failed'}
-    if 'tools/tiers/budgets.toml' in paths:
+    if not completed_goal and 'tools/tiers/budgets.toml' in paths:
         errors += figures(base_id or 'HEAD', tree_id, root, env, merged)[1]
-    errors += journeys(base_id, tree_id, paths, root, env)[1]
+    errors += journeys(base_id, tree_id, [] if completed_goal else paths, root, env)[1]
     for args in planner['rust_commands'](groups, helpers):
         if command('focused tests' if args[1] == 'nextest' else 'build check', args):
             break
@@ -1199,14 +1202,51 @@ def delivery(scope, commits):
         return verdict
 
 
+def close_check(destination):
+    """Check the entire staged goal against its main comparison, including an empty close."""
+    root = Path.cwd()
+    env = dict(os.environ, CARGO_NET_OFFLINE='true', GIT_NO_LAZY_FETCH='1', GIT_NO_REPLACE_OBJECTS='1')
+    env.setdefault('TEMPER_INTERNAL_BUNDLE', 'none')
+
+    def read(*args):
+        return subprocess.check_output(['git', *args], cwd=root, env=env).decode().strip()
+
+    verify_commit('destination', destination, root, env)
+    head = read('rev-parse', 'HEAD')
+    bases = read('merge-base', '--all', head, destination).splitlines()
+    if len(bases) != 1:
+        raise ValueError('goal close requires one merge base with the destination')
+    base_id = bases[0]
+    staged = read('write-tree')
+    git_dir = Path(read('rev-parse', '--absolute-git-dir'))
+    errors, tested = [], []
+    with tempfile.TemporaryDirectory(prefix='goal-close-index-') as scratch:
+        def verify_snapshot(index):
+            current, private = tree(root, git_dir, Path(scratch) / index, env)
+            if current != staged or read('write-tree') != staged or read('rev-parse', 'HEAD') != head:
+                raise ValueError('goal checkout differs from the staged close tree')
+            return private
+
+        try:
+            private = verify_snapshot('before')
+            paths = delivery_paths(base_id, staged, root, env, [])
+            tested = workspace_checks(root, paths, staged, base_id, [], env, private, errors, {}, completed_goal=True)
+            verify_snapshot('after')
+        except (OSError, KeyError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
+            errors.append(failure('goal close', str(error)))
+        return finish(staged, base_id, errors, root, env, 'close', (head, destination), None, tests=tested)
+
+
 def main(args):
     if not args:
         return delivery('delivery', ())
+    if len(args) == 2 and args[0] == '--close':
+        return close_check(args[1])
     if len(args) == 2 and args[0] == '--child':
         return delivery('child', args[1:])
     if len(args) == 3 and args[0] == '--goal':
         return goal_check(args[1:])
-    raise ValueError('expected no arguments, --goal HEAD DESTINATION, or --child DESTINATION')
+    raise ValueError('expected no arguments, --goal HEAD DESTINATION, --child DESTINATION, or --close DESTINATION')
 
 
 if __name__ == '__main__':
