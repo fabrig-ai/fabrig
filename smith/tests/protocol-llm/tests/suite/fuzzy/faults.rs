@@ -45,34 +45,42 @@ fn provider_faults_fall_on_the_direct_backend() {
                 Line::Pieces { pieces: pieces.into() }
             } else {
                 Line::Call {
-                    name: b"read".as_slice().into(),
-                    arguments: format!(r#"{{"path":"src/lib.rs","window":{}}}"#, 32 + workload.below(32))
-                        .into_bytes()
-                        .into(),
+                    name: b"pulse".as_slice().into(),
+                    arguments: format!(r#"{{"value":{}}}"#, workload.below(32)).into_bytes().into(),
                 }
             };
             turns.push(fixture::calls(Box::new([line]), 3));
         }
-        turns.push(fixture::calls(
-            Box::new([Line::Call {
-                name: b"finish".as_slice().into(),
-                arguments: br#"{"form":"report","text":"done","fields":{"source":"peer"}}"#.as_slice().into(),
-            }]),
-            7,
-        ));
+        // Only the selected call and a finish are needed to expose the fault:
+        // a window charges the first and refuses the second, and a hold still
+        // distinguishes its first piece from a mid-stream piece. Keep the
+        // seeded script and dialect draws, without running calm warm-up calls.
+        let selected = turns.remove(target);
+        turns.clear();
+        turns.push(selected);
+        turns.push(fixture::fault_finish());
         let dialect = if workload.below(2) == 0 { fixture::Dialect::OpenAi } else { fixture::Dialect::Anthropic };
         eprintln!("seed {seed}: fault {kind}, dialect {dialect:?}, target {target}");
         let mut world = fixture::provider_fault_world(
             streams.seed_of(Stream::Scheduling, "world"),
             dialect.configuration(),
             turns.into(),
+            false,
+            Box::new([smith_domain::run::HostTool {
+                reserve: false,
+                name: b"pulse".as_slice().into(),
+                description: b"Record progress".as_slice().into(),
+                schema: br#"{"type":"object"}"#.as_slice().into(),
+                effect: smith_domain::run::HostEffect::Read,
+                timeout: Duration::from_secs(30),
+            }]),
         );
         world.record_fault_runs("run 1", "a");
         let mut struck = false;
         let mut settled = false;
         let mut renewed = false;
         for _ in 0..ROUNDS {
-            if !struck && world.protocol_calls().len() >= target {
+            if !struck {
                 let strike = match kind {
                     0 => Some(Strike::Window { tokens: 1, length }),
                     1 => Some(Strike::Spent),

@@ -1,38 +1,26 @@
 //! A request deadline and the host watchdog meet the same silent provider.
 //! Contract: temper/docs/design/draft/failure-worlds.md, section 7 (P71).
-use skein_fake_llm_domain::api::{Line, Piece, Script};
+use skein_fake_llm_domain::api::{Line, Piece};
 use skein_lib::Duration;
 use smith_domain::{llm, run};
 use smith_host_domain::{self as host, parent};
-use smith_protocol_llm_world::{Job, World as Protocol, codec, fixture};
+use smith_protocol_llm_world::{World as Protocol, fixture};
 
 fn held_request(configuration: fixture::Configuration) -> Protocol {
-    let mut settings = fixture::settings(71);
-    settings.job = Job::Reporting;
-    let mut limits = fixture::limits();
-    limits.client.request = 16_384;
-    limits.client.http.request = 16_384;
-    settings.limits.session.completion_bytes =
-        codec::completion_bound(&limits.client, settings.limits.decoded_call_bytes).expect("provider receiving bounds");
-    settings.limits.session.completion_blocks = limits.client.output_items;
-    settings.limits.session.failure_bytes = limits.client.detail_bytes;
-    Protocol::with_protocol(
-        settings,
-        None,
+    fixture::provider_fault_world(
+        71,
         configuration,
-        limits,
-        Box::new([Script {
-            cue: b"@report".as_slice().into(),
-            turns: Box::new([fixture::says(
-                Box::new([Line::Pieces {
-                    pieces: Box::new([Piece {
-                        text: b"never released".as_slice().into(),
-                        hold: Some(b"silent".as_slice().into()),
-                    }]),
+        Box::new([fixture::says(
+            Box::new([Line::Pieces {
+                pieces: Box::new([Piece {
+                    text: b"never released".as_slice().into(),
+                    hold: Some(b"silent".as_slice().into()),
                 }]),
-                1,
-            )]),
-        }]),
+            }]),
+            1,
+        )]),
+        false,
+        Box::new([]),
     )
 }
 

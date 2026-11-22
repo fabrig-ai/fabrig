@@ -3,23 +3,16 @@
 use skein_fake_llm_domain::api::{Cut, Line, Strike};
 use skein_lib::Duration;
 use smith_domain::{llm, run, tools};
-use smith_protocol_llm_world::{Boundary, World, fixture};
+use smith_protocol_llm_world::{
+    Boundary, World,
+    fixture::{self, fault_finish as finish},
+};
 
 const ROUNDS: u32 = 100_000;
 const READING: &[u8] = b"reading the complete reply";
 
-fn finish() -> skein_fake_llm_domain::api::Turn {
-    fixture::calls(
-        Box::new([Line::Call {
-            name: b"finish".as_slice().into(),
-            arguments: br#"{"form":"report","text":"done","fields":{"source":"peer"}}"#.as_slice().into(),
-        }]),
-        7,
-    )
-}
-
 fn world(configuration: fixture::Configuration, turns: Box<[skein_fake_llm_domain::api::Turn]>) -> World {
-    fixture::provider_fault_world(127, configuration, turns)
+    fixture::provider_fault_world(127, configuration, turns, true, Box::new([]))
 }
 
 #[test]

@@ -117,7 +117,10 @@ impl Protocol {
             max_failure_bytes: domain.session.failure_bytes,
             decoded_call_bytes: domain.decoded_call_bytes,
         };
-        let peer_limits = skein_llm_kit::fake::limits(&translation.client);
+        let mut peer_limits = skein_llm_kit::fake::limits(&translation.client);
+        peer_limits.http.read = translation.client.http.read;
+        peer_limits.http.send = translation.client.sse.chunk;
+        peer_limits.sse.chunk = translation.client.sse.chunk;
         let service = provider::Service::new(
             provider::Config {
                 list: None,
