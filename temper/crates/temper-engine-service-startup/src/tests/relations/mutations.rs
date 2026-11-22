@@ -88,6 +88,10 @@ fn slots(inputs: &mut startup::LimitInputs, count: u64) {
     inputs.document = serde_json::to_vec(&doc).expect("fixture document bytes").into_boxed_slice();
 }
 impl Walk {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one mutation judgment keeps resolution and its expected decision together"
+    )]
     fn judge(&mut self, row: &Relation, name: &str, changes: &[Override], decision: Decision, refusal: &Relation) {
         self.count = self.count.checked_add(1).expect("mutation count");
         eprintln!(
