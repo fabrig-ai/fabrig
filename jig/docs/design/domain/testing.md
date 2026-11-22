@@ -531,6 +531,21 @@ application's adapter names a task as jig's does.
   bound unless an alarm is armed for it. A `Routing` escalation is
   resolved in the same decision that makes it, so no quiet point sees one:
   `routing escalation` stays undeclared, and so does `unheld escalation`.
+- **A held task in no project** has no one to escalate to: its hold
+  "stays with its task until the application cancels it"
+  (`authority.md`, 6.1), its escalation left `Routing` or `Unheld`. It
+  is `held: <hold>`, its wake its requester, `deployment of project 0`,
+  with no bound unless an alarm is armed for it. Only a task of project
+  0 is read so; elsewhere both stay undeclared.
+- **A proposal past its last holder** stays with that holder once its
+  stall finds no one further who covers it, its stall spent
+  (`tasks/README.md`, 8: "a pending proposal whose holders go" is an
+  open question). It is `on its proposal's decision`, its wake that
+  holder, with no bound, as at a policy's parties. `core` asks the core
+  whether anyone is further, by the rule its stall routes by, through a
+  read, never a copy of it; a proposal with someone further and no
+  alarm armed is still `, with no deadline armed`. `tasks` alone, which
+  knows no routing, reports every holder's missing alarm so.
 - **The parties a policy names** are a party wake, `policy <kind> of
   project P`, in the component's words for the proposal's kind: the tasks
   child keeps the policy's project and kind, not its roles. A proposal or
@@ -589,7 +604,9 @@ table's words, its rule the table's:
 - **The core kit's `World`** (`jig_core_kit::world::World`) calls both
   shared checks (`skein/docs/design/testing/inspection.md`, 4) over
   `jig_inspect::core` at its driver's quiet point: where its loop returns
-  settled, nothing left to step before time moves, with no restore held.
+  settled, nothing left to step before time moves, with no restore held:
+  a start the world holds at one of its steps, its root not yet ready,
+  is a restore held, so its deadlines not yet rebuilt are no findings.
   A timer the core reports due at the world's time is something left to
   step: before it returns settled, the loop fires each due timer the core
   does not withhold (7.1), one at a time and draining after each, until
