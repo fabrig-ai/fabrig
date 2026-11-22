@@ -198,6 +198,7 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "temper-engine-domain-world::suite" = "domain"
 "temper-engine-forge-world::suite" = "domain"
 "temper-engine-protocol-forge-world::suite" = "protocol"
+"temper-engine-service-component::real" = "real-loop" # Engine store directory and file modes on the real kernel.
 "temper-engine-service-vocabulary::figures" = "step" # Named application limits round trips.
 "temper-engine-shell::suite" = "real-loop" # Stopped checkpoint, restore and upgrade commands over real files and locks.
 "temper-engine::suite" = "end-to-end" # Shipped engine's command-line boundary.
