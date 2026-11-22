@@ -20,6 +20,7 @@ use temper_client_tui::{Note, Origin, Scheme, Unaddressed};
 use temper_shell::{directories, link_file};
 
 mod deployment;
+pub(crate) mod testing;
 
 pub type EnvironmentEntry = (Box<[u8]>, Box<[u8]>);
 

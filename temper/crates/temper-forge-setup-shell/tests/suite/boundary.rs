@@ -75,6 +75,14 @@ fn forbidden_at(path: &Path, source: &str) -> bool {
         // The process tier's exact-listener fault aborts its own serve only.
         // Process creation, exec and every lock still belong to their boundaries.
         source.replace("std::process::abort", "RestartFaultAbort")
+    } else if path.ends_with("temper-box-shell/src/testing/fake_backend_fixtures.rs")
+        || path.ends_with("temper-box-shell/src/testing/init_fixtures.rs")
+        || path.ends_with("temper-fetch-shell/src/testing.rs")
+    {
+        // Fixtures a library's tests share with its real-loop binary name their scratch
+        // directories by process id, as those tests did. Every other process operation
+        // and every lock still belongs to its boundary.
+        source.replace("std::process::id", "FixtureScratchId")
     } else {
         source.into()
     };

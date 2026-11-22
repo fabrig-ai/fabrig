@@ -90,6 +90,7 @@ pub fn edit(before: &Ask, field: Field, bytes: Box<[u8]>, text: u32) -> Option<A
         | Ask::MoveToNewest(_)
         | Ask::Restore { .. }
         | Ask::MakeProject { .. }
+        | Ask::ReissueService { .. }
         | Ask::DeleteNote { .. } => return None,
     }
     Some(owner_form::action(ask))
@@ -571,6 +572,7 @@ fn policy_request(ask: &Ask) -> Option<&PolicyEdit> {
         | Ask::DeleteNote { .. }
         | Ask::SetRoles { .. }
         | Ask::MakeService { .. }
+        | Ask::ReissueService { .. }
         | Ask::SetPool { .. } => None,
     }
 }
@@ -669,6 +671,7 @@ fn holdings_request(ask: &Ask) -> Option<&skein_lib::List<jig_client::contract::
         | Ask::DeleteNote { .. }
         | Ask::ChangePolicy { .. }
         | Ask::MakeService { .. }
+        | Ask::ReissueService { .. }
         | Ask::SetPool { .. } => None,
     }
 }
@@ -712,7 +715,8 @@ fn pool_request(ask: &Ask) -> bool {
         | Ask::DeleteNote { .. }
         | Ask::ChangePolicy { .. }
         | Ask::SetRoles { .. }
-        | Ask::MakeService { .. } => false,
+        | Ask::MakeService { .. }
+        | Ask::ReissueService { .. } => false,
     }
 }
 fn service_request(ask: &Ask) -> Option<(&jig_client::contract::Text, jig_client::contract::HeldRole)> {
@@ -755,6 +759,7 @@ fn service_request(ask: &Ask) -> Option<(&jig_client::contract::Text, jig_client
         | Ask::DeleteNote { .. }
         | Ask::ChangePolicy { .. }
         | Ask::SetRoles { .. }
+        | Ask::ReissueService { .. }
         | Ask::SetPool { .. } => None,
     }
 }
@@ -1196,6 +1201,7 @@ fn render_request(b: &mut Builder, ask: &Ask, words: &Words, text_limit: u32, ro
         | Ask::MoveToNewest(_)
         | Ask::Restore { .. }
         | Ask::MakeProject { .. }
+        | Ask::ReissueService { .. }
         | Ask::DeleteNote { .. } => {}
     }
 }

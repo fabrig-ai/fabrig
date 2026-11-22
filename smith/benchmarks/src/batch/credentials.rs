@@ -154,3 +154,18 @@ pub(super) fn validate(task: &crate::Task) -> Result<(), Fault> {
 
 #[cfg(test)]
 mod tests;
+
+pub(super) mod testing {
+    use super::{AttemptResult, Fault, Guard, Machine, Path, Request};
+
+    pub fn run(
+        guard: &Guard,
+        machine: &Machine,
+        state: &Path,
+        executable: &Path,
+        request: &Request,
+        remaining: u64,
+    ) -> Result<Vec<AttemptResult>, Fault> {
+        super::run(guard, machine, state, executable, request, remaining)
+    }
+}

@@ -159,6 +159,19 @@ impl<'ast> Visit<'ast> for Ignored {
     }
 }
 
+/// Whether `source` may hold an attribute named `name`: `#`, an optional `!`, `[`
+/// and the name, with any whitespace between, as the parser reads one. A comment
+/// or a string that spells one only costs a parse.
+fn may_hold_attribute(source: &str, name: &str) -> bool {
+    source.match_indices('#').any(|(at, _)| {
+        let rest = source.get(at + 1..).unwrap_or_default().trim_start();
+        let rest = rest.strip_prefix('!').map_or(rest, str::trim_start);
+        rest.strip_prefix('[')
+            .and_then(|inner| inner.trim_start().strip_prefix(name))
+            .is_some_and(|after| !after.starts_with(|next: char| next == '_' || next.is_alphanumeric()))
+    })
+}
+
 fn source_tree(path: &Path) -> Option<&'static str> {
     ["skein", "smith", "jig", "temper", "hearth"].into_iter().find(|tree| path.starts_with(tree))
 }
@@ -184,7 +197,7 @@ impl Walk {
         let seam = !path.starts_with("skein/crates/skein-forge-connection")
             && !path.starts_with("skein/tests/forge/machine")
             && source.contains("skein_forge_connection");
-        let paths = path.starts_with("skein") && source.contains("path");
+        let paths = path.starts_with("skein") && may_hold_attribute(source, "path");
         let tree = source_tree(path);
         if let Some(tree) = tree
             && !path.starts_with("skein/testing/skein-world")
@@ -199,7 +212,7 @@ impl Walk {
                 }),
             );
         }
-        let ignored = tree.is_some() && source.contains("ignore");
+        let ignored = tree.is_some() && may_hold_attribute(source, "ignore");
         if !seam && !paths && !ignored {
             return;
         }

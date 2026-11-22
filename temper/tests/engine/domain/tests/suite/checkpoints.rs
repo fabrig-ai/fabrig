@@ -1,9 +1,9 @@
 //! The ctl act through the root and the world's real memory store (temper/docs/design/protocol/checkpoints.md, 5).
 use jig_client::{self as client, contract as c};
-use jig_client_protocol_wire::Record as _;
-use jig_domain_core::reads;
+use jig_domain_core::{documents::Document, reads};
 use jig_domain_people as people;
-use skein_lib::{Env, List, Queue, ReplyTo, RequestEnvelope, Token, Writer};
+use jig_protocol_engine_clients::translate::owner;
+use skein_lib::{Env, List, Queue, ReplyTo, RequestEnvelope, Token, Wall};
 use temper_client_protocol_wire as wire;
 use temper_client_tools::{self as tools, root};
 use temper_engine_domain as engine;
@@ -80,27 +80,13 @@ fn me(driver: &mut Driver, sign_in: u64) -> Box<c::Me> {
         .iter()
         .find_map(|delivery| if let engine::Delivery::Read { answer, .. } = delivery { Some(answer) } else { None })
         .expect("checkpoint world fixture");
-    let document = jig_protocol_engine_clients::translate::objects::document(
-        answer,
-        &[],
-        &jig_protocol_engine_clients::Private::none(),
-        &jig_client_protocol_wire::CEILINGS,
-    )
-    .expect("checkpoint world fixture");
-    let mut bytes = Writer::new(
-        usize::try_from(document.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
-            .expect("checkpoint world fixture"),
-    );
-    document.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("checkpoint world fixture");
+    let reads::Answer::Document(document) = answer else { panic!("me document") };
+    let Document::Frame(frame) = document.as_ref() else { panic!("me frame") };
     let preset = tools::limits::client().client;
     let limits =
         jig_client_protocol_link::Limits::new(preset.domain, preset.exchanges).expect("checkpoint world fixture");
-    let c::ReadValue::Me(me) =
-        jig_client_protocol_link::translate::reads::value(&bytes.finish(), &limits).expect("checkpoint world fixture")
-    else {
-        panic!("me document")
-    };
-    me
+    let wire = owner::frame(frame, Wall::from_nanos(u64::MAX), &[], limits.wire()).expect("me on wire");
+    Box::new(jig_client_protocol_link::translate::documents::frame(wire, &limits).expect("client me"))
 }
 fn act(driver: &mut Driver) -> tools::jig::Printed {
     let sign_in = driver.session();

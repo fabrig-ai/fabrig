@@ -95,12 +95,22 @@ fn prepare(path: &Path) -> Result<Prepared, String> {
     prepare_bytes(smith_agent_document::config::read_bytes(path)?)
 }
 pub fn prepare_bytes(bytes: Box<[u8]>) -> Result<Prepared, String> {
-    let configuration = decoded_bytes(&bytes)?
-        .resolve(&mut std::io::stderr())
-        .map_err(smith_agent_document::config::ConfigurationRefusal::detail)?;
+    prepare_bytes_with(bytes, &mut std::io::stderr(), |directory| {
+        smith_agent_document::program::private_directory(directory)
+            .map(|_| ())
+            .map_err(|why| format!("programs.claude_code.directory: {why}"))
+    })
+}
+
+pub(crate) fn prepare_bytes_with(
+    bytes: Box<[u8]>,
+    log: &mut impl std::io::Write,
+    private_directory: impl FnOnce(&Path) -> Result<(), String>,
+) -> Result<Prepared, String> {
+    let configuration =
+        decoded_bytes(&bytes)?.resolve(log).map_err(smith_agent_document::config::ConfigurationRefusal::detail)?;
     if let Some(program) = &configuration.program {
-        smith_agent_document::program::private_directory(&program.directory)
-            .map_err(|why| format!("programs.claude_code.directory: {why}"))?;
+        private_directory(&program.directory)?;
     }
     let environment = configuration.service.environment.command_entries();
     Ok(Prepared { agent: settings(configuration)?, bytes, environment })

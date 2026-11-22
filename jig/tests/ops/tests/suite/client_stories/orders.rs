@@ -249,6 +249,7 @@ fn frame(watch: u64) -> w::StreamEvent {
         key_bytes: 256,
         redirect_bytes: 4096,
         words_bytes: 8192,
+        sign_in_expires: 86_400_000_000_000,
     };
     let value = w::DeliveryValue::Me(frame);
     let mut bytes = Writer::new(skein_lib::length::usize_of(

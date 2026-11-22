@@ -83,7 +83,7 @@ pub mod wire {
             let schema =
                 skein_codegen::parse(include_str!("../schema/kept/smith-charter-v4.schema")).expect("kept v4 schema");
             let mut old = None;
-            for value in skein_codegen::goldens(&schema) {
+            for value in skein_codegen::fixed_values(&schema) {
                 if value.name == "record_charter_smallest.bin" {
                     old = Some(value.bytes);
                 }

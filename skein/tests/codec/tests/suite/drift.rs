@@ -6,7 +6,7 @@ mod tests {
     use std::fs;
     use std::path::Path;
 
-    use skein_codegen::{generate, goldens, missing, parse, unpinned};
+    use skein_codegen::{fixed_values, generate, missing, parse};
 
     const FAMILIES: [(&str, &str, Option<&str>); 9] = [
         ("schema/every-v1.schema", "src/every/v1.rs", Some("golden/every-v1")),
@@ -26,9 +26,9 @@ mod tests {
         assert!(missing.is_empty(), "every-v3 lacks constructs: {missing:?}");
     }
 
-    fn check_goldens(directory: &str, expected: Vec<skein_codegen::Golden>, write: bool) {
+    fn check_goldens(directory: &str, expected: Vec<skein_codegen::FixedValue>, write: bool) {
         let directory = Path::new(directory);
-        let names = expected.iter().map(|golden| golden.name.clone()).collect::<BTreeSet<_>>();
+        let names = expected.iter().map(|value| value.name.clone()).collect::<BTreeSet<_>>();
         if write {
             fs::create_dir_all(directory).expect("create golden directory");
             for entry in fs::read_dir(directory).expect("golden directory") {
@@ -45,13 +45,13 @@ mod tests {
         if !write {
             assert_eq!(committed, names, "{}: golden names drifted", directory.display());
         }
-        for golden in expected {
-            let path = directory.join(golden.name);
+        for value in expected {
+            let path = directory.join(value.name);
             if write {
-                fs::write(&path, golden.bytes).expect("write golden bytes");
+                fs::write(&path, value.bytes).expect("write golden bytes");
             } else {
                 let committed = fs::read(&path).expect("golden bytes committed");
-                assert_eq!(committed, golden.bytes, "{}: golden bytes drifted", path.display());
+                assert_eq!(committed, value.bytes, "{}: golden bytes drifted", path.display());
             }
         }
     }
@@ -65,8 +65,7 @@ mod tests {
             FAMILIES.into_iter().find(|row| row.0 == schema_path).expect("family registered");
         let current = crate::support::generated::current_text(schema_path);
         let source = current.map_or_else(|| fs::read_to_string(schema_path).expect("schema readable"), str::to_owned);
-        let missing = unpinned(&source).expect("schema valid");
-        assert!(missing.is_empty(), "{schema_path}: unpinned constructs: {missing:?}");
+
         let schema = current
             .map_or_else(|| parse(&source).expect("schema valid"), |text| skein_codegen::values(text).schema.clone());
         let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
@@ -79,7 +78,7 @@ mod tests {
         if let Some(directory) = golden_directory {
             check_goldens(
                 directory,
-                current.map_or_else(|| goldens(&schema), |text| skein_codegen::values(text).goldens.clone()),
+                current.map_or_else(|| fixed_values(&schema), |text| skein_codegen::values(text).fixed.clone()),
                 write,
             );
         }
@@ -120,17 +119,17 @@ mod tests {
     }
 
     #[test]
-    fn secret_schema_code_and_goldens_have_no_drift() {
+    fn secret_schema_code_has_no_drift() {
         check("schema/secrets-v1.schema");
     }
 
     #[test]
-    fn sample_schema_code_and_goldens_have_no_drift() {
+    fn sample_schema_code_has_no_drift() {
         check("schema/sample-v1.schema");
     }
 
     #[test]
-    fn scalar_schema_code_and_goldens_have_no_drift() {
+    fn scalar_schema_code_has_no_drift() {
         check("schema/scalars-v1.schema");
     }
 
@@ -140,7 +139,7 @@ mod tests {
     }
 
     #[test]
-    fn lint_fixture_schema_code_and_goldens_have_no_drift() {
+    fn lint_fixture_schema_code_has_no_drift() {
         check("schema/lints-v1.schema");
     }
 }

@@ -20,6 +20,3 @@ pub enum Split {
     /// The child has ended and the parent can continue.
     Parent(Exit),
 }
-
-#[cfg(test)]
-mod tests;

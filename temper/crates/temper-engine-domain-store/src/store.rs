@@ -1040,6 +1040,7 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                     | jig_domain_people::Ask::ChangeSettings { .. }
                     | jig_domain_people::Ask::PauseWorker { .. }
                     | jig_domain_people::Ask::MoveToNewest { .. }
+                    | jig_domain_people::Ask::ReissueService { .. }
                     | jig_domain_people::Ask::Withdraw { .. }
                     | jig_domain_people::Ask::MarkSeen { .. }
                     | jig_domain_people::Ask::Application { .. }
@@ -1375,6 +1376,7 @@ pub fn program_answer_bytes(outcome: &jig_domain_people::Outcome) -> Option<u64>
         | Outcome::SignedOut
         | Outcome::NoteEdited { .. }
         | Outcome::ServiceMade { .. }
+        | Outcome::ServiceReissued { .. }
         | Outcome::Adopted { .. }
         | Outcome::Proposed { .. }
         | Outcome::Withdrawn { .. }
