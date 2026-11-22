@@ -13,7 +13,7 @@ pub fn refused_start(why: &OpenRefusal, deployment: &[u8]) -> (Box<[u8]>, u8) {
     (lines.writer.finish(), 1)
 }
 
-/// Render the named unreadable-row refusal (temper/docs/design/protocol/store.md, 5).
+/// Render the named unreadable-row refusal (temper/docs/design/protocol/store-restart.md, 1).
 #[must_use]
 pub fn refused_row_start(row: &crate::UnreadableRow, deployment: &[u8]) -> (Box<[u8]>, u8) {
     let mut measuring = Lines { writer: Writer::new(0), length: 0, measuring: true };

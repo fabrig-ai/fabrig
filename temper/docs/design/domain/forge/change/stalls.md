@@ -24,7 +24,7 @@ is never held just for waiting, yet tells the person of a check that
 never reports within the same sitting.
 
 - **A wait for access is not one:** while its forge is not connected,
-  or its repository not reachable (`../adoption.md`, 1, 3), the stall
+  or its repository not reachable (`../adoption-connection.md`, 1, `../adoption.md`, 3), the stall
   does not count.
 - **Nor is a wait for its agent:** while the change's producer, repair,
   resolution or merge job is a live task, running, between its tries or
@@ -171,7 +171,7 @@ hold passes the turn on, as every hold does.
 ### 2.5 The contract
 
 `temper-engine-domain-forge-change`'s boundary owns the clock, and a
-landing's gate counts the same one (`../../landing.md`, 7.1):
+landing's gate counts the same one (`../../landing-proof.md`, 2.1):
 
 ```rust
 /// What a reading saw of the pending CI at a head (2.1).

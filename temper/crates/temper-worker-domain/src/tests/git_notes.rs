@@ -1,4 +1,4 @@
-//! Operator notes at the root boundary (domain/worker/README.md, 4.3).
+//! Operator notes at the root boundary (domain/worker/hosted-runs.md, 1.3).
 use alloc::boxed::Box;
 
 use super::{fixtures, harness::Harness};

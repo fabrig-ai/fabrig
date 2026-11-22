@@ -1,5 +1,5 @@
-//! Home's entry looks cross the real roots (temper/docs/design/testing/README.md,
-//! 2.1; temper/docs/design/domain/forge/attention.md, 2; temper/docs/design/client/pages/README.md).
+//! Home's entry looks cross the real roots (temper/docs/design/testing/tiers.md,
+//! 1.1; temper/docs/design/domain/forge/attention.md, 2; temper/docs/design/client/pages/README.md).
 use jig_client::{Handle, Key, Latest};
 use jig_client_kit::harness::{App, ClientId, Duty, Front};
 use skein_lib::{Duration, Env, Queue, Time, Wall};

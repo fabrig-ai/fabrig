@@ -2,31 +2,21 @@
 
 2026-11-20. Where the tree's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 2, *One directory per deployment* to *From the directory
-  before it*: `at/HOST/PORT`, the theme carried and the move [in
-  flight: change 8884].
-- **Not yet:** 2: no `recording-TIME`; a recording is `recording` [in
-  flight: change 3611].
-- **Not yet:** 3: the events table's `Act { act }` row: a close done
-  going to the launchpad [in flight: change 3609].
-- **Not yet:** 3: the events table's `Own { command }` row: no `Web`,
-  and `Duties.open` never carries the printed link [in flight: change
-  8716].
 - **Not yet:** 4: the loopback listener on the run's io [in flight:
   change 10574].
 
-Section 3 and `pages/README.md` keep the selected launchpad row while composing a
+`host.md`, section 1 and `pages/README.md` keep the selected launchpad row while composing a
 slash command. Host tests cover typed `/open` for a chat, a goal and Home,
 its opener fallback, and selection clearing on ordinary words, Esc and
 navigation. No known gap remains in these rules.
 
-Section 3 and `pages/README.md`'s no-project command composer has no known
+`host.md`, section 1 and `pages/README.md`'s no-project command composer has no known
 implementation gap. The host's focused key-and-frame regression covers
 completion, command execution, Escape, ordinary words, quit keys,
 revision stability, navigation and separation from the sign-in field.
 `temper help tui` names `/quit`, `/exit` working too, and Ctrl+C as closing keys and `q` as typing.
 
-The document, sections 2 to 3 and `pages/README.md` and `theme.md`'s parts from the user's requests of 2026-11-08 and
+The document, `directory.md`, section 1, and `host.md`, section 1 and `pages/README.md` and `theme.md`'s parts from the user's requests of 2026-11-08 and
 the look request `tui-chat-title-below` have no known implementation gap:
 the binary reads the engine's link file at start whatever the address,
 for `Start.boxed`; `place` words the engine's place; the band is the
@@ -44,7 +34,7 @@ with its address as the place, under the person's opening question
 of each, "box" among them, is `../README.md`, section 5's after-landing check, owned by
 temper/tui.
 
-Section 3 and `pages/README.md` and `theme.md` and `README.md`, section 4 and `box.md`'s parts from the user's requests of 2026-11-09
+`host.md`, section 1 and `pages/README.md` and `theme.md` and `README.md`, section 4 and `box.md`'s parts from the user's requests of 2026-11-09
 have no known implementation gap but the two entries below. Typed
 before the sign-in lands: a key goes to the link's field only while
 `sign_in_drawn` holds, else to the box, the welcome and "Connecting"
@@ -94,7 +84,7 @@ which jig's `jig-client-shell-native` writes record by record. No real
 terminal has shown any of it: the check, emacs vterm among them, is
 `../README.md`, section 5's after-landing work, owned by temper/tui.
 
-Section 3 and `pages/README.md` and `theme.md` and `../testing.md` have no known implementation gap in the
+`host.md`, section 1 and `pages/README.md` and `theme.md` and `../testing.md` have no known implementation gap in the
 launchpad as drawn and views printed (`../../draft/surfaces.md`, 11.1,
 11.4 and 11.5, less T2's and T3's parts), by the plan `tui-whole-t1`:
 the TUI's events `Own`, `Open`, `Walk` and `EndWalk`; the header's
@@ -123,4 +113,3 @@ host's rows, the goldens of the launchpad, the walk and printed views at
 of each screen in a real terminal against its mockup follows landing
 (`../README.md`, section 5), owned by temper/tui; where the design departs from the
 mockups is `../../draft/surfaces.status.md`.
-

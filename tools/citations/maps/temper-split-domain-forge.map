@@ -1,0 +1,38 @@
+# The first split pass (temper/docs/design/draft/design-upkeep.md, 4.3): domain/forge.
+# repairs.md received numbered concept headings in the preparation commit;
+# its former section 1 (Open questions) is now section 5, including the
+# prose-only self-reference to "A repair of another reason that changes nothing".
+
+title temper/docs/design/domain/forge/effects.md: The forge's effects and recovery
+temper/docs/design/domain/forge/README.md 4 -> temper/docs/design/domain/forge/effects.md 1
+temper/docs/design/domain/forge/README.md 9 -> temper/docs/design/domain/forge/effects.md 2
+
+title temper/docs/design/domain/forge/topics.md: Topics and landings as news
+temper/docs/design/domain/forge/README.md 5 -> temper/docs/design/domain/forge/topics.md 1
+
+title temper/docs/design/domain/forge/updates.md: Lazy, mechanical updates
+temper/docs/design/domain/forge/README.md 6 -> temper/docs/design/domain/forge/updates.md 1
+
+title temper/docs/design/domain/forge/adoption-connection.md: A forge's connection and removal
+temper/docs/design/domain/forge/adoption.md 1 -> temper/docs/design/domain/forge/adoption-connection.md 1
+
+title temper/docs/design/domain/forge/adoption-person.md: A box's person on its forges
+temper/docs/design/domain/forge/adoption.md 6 -> temper/docs/design/domain/forge/adoption-person.md 1
+
+title temper/docs/design/domain/forge/change/drift.md: A change's drift
+temper/docs/design/domain/forge/change/README.md 3 -> temper/docs/design/domain/forge/change/drift.md 1
+
+title temper/docs/design/domain/forge/change/panel.md: A change's panel
+temper/docs/design/domain/forge/change/README.md 5 -> temper/docs/design/domain/forge/change/panel.md 1
+
+title temper/docs/design/domain/forge/change/records.md: A change's records and room
+temper/docs/design/domain/forge/change/README.md 7 -> temper/docs/design/domain/forge/change/records.md 1
+
+title temper/docs/design/domain/forge/change/repairs-resolutions.md: Resolving a change's conflicts
+temper/docs/design/domain/forge/change/repairs.md 2 -> temper/docs/design/domain/forge/change/repairs-resolutions.md 1
+
+title temper/docs/design/domain/forge/change/repairs-briefs.md: Gathering a change's forge brief
+temper/docs/design/domain/forge/change/repairs.md 3 -> temper/docs/design/domain/forge/change/repairs-briefs.md 1
+
+title temper/docs/design/domain/forge/change/repairs-releases.md: A change's holds and releases
+temper/docs/design/domain/forge/change/repairs.md 4 -> temper/docs/design/domain/forge/change/repairs-releases.md 1

@@ -12,14 +12,14 @@ each on to its goal and relays the answer back down
 (`../branches.md`, 2). It decides
 nothing itself (jig's `domain/tasks/proposals.md`
 ): the requester decides, and the change relays
-(`../../../draft/notes.md`, N1). A change made with questions `none`
+(`../../../draft/reference-code-production.notes.md`, N1). A change made with questions `none`
 relays none. The routes are `none` and `up` alone: `foreman`, which had
 a delegate of the forge's charter 3 settle each question first, is
 retired (`../../../draft/stock-charters.md`, 3), since the implementer
 now checks its spec itself before it asks. A `change` naming it, alone
-or in a batch, is refused by name (`../../agent/tools.md`, 1), and a
+or in a batch, is refused by name (`../../agent/tools-change.md`, 1), and a
 stored setting naming it is refused, not read, naming the setting
-(`../../../protocol/configuration/settings.md`, 2).
+(`../../../protocol/configuration/settings-kinds.md`, 1).
 
 - **Its agents may ask.** It delegates its producing, its repairs and
   its resolutions with the Message family kept, so that each may ask
@@ -106,7 +106,7 @@ stored setting naming it is refused, not read, naming the setting
   The change answers its asker's question with the answer's words
   whole, and the asker's next run goes on from where it parked with the
   answer to read. The requester may first amend the change (its words
-  widened, a Left item accepted: `../README.md`, section 5 of jig's `domain/tasks/README.md`),
+  widened, a Left item accepted: `../topics.md`, section 1 of jig's `domain/tasks/README.md`),
   which reaches a live producer (*Its requester's words and
   amendments*, below), or add a change as the change's dependency, one
   it makes now or one it already has, a sibling change of the same
@@ -157,8 +157,8 @@ stored setting naming it is refused, not read, naming the setting
   first line, and where it stands (taken; asked of the
   requester; its answer held), and the questions
   taken against its bound, are kept on its record, so that a restart
-  resumes each where it stood (`../README.md`, section 9), and shown on its panel
-  (`README.md`, 5; `../../../client/forge/served.md`, 2) and by `ctl`'s `change show`
+  resumes each where it stood (`../effects.md`, section 2), and shown on its panel
+  (`panel.md`, 1; `../../../client/forge/served.md`, 2) and by `ctl`'s `change show`
   (`../../../client/ctl/areas.md`, area 6). The printed numbers are labelled
   producer questions; the requester is directed to the change's task read
   for its answer number.
@@ -456,7 +456,7 @@ early, by these rules:
   recorded, and nothing else sets or clears either. It is stored with
   the change, so it too holds across a park and a restart. A delegate's
   next assignment names `last_checked` as its own delivery
-  (`../../worker/README.md`, 4.1; `../../../protocol/channel.md`, 4)
+  (`../../worker/hosted-runs.md`, 1.1; `../../../protocol/channel.md`, 4)
   exactly when `last_checked_by` is that delegate's task and its item
   is writable, so a producer, a repair or a resolution that delivered,
   asked and parked delivers that head again when its next run finishes
@@ -510,7 +510,7 @@ early, by these rules:
   rules ask no update (a goal's own branch, `../branches.md` and `gates.md`, section 2), whose
   workspace would start from the change's pushed branch or from saved
   work, starts instead from a merge in progress: that start, with the landing branch's tip as the
-  base merged into it (`../../worker/README.md`, 4.1 and `../../worker/checkouts.md`). A clean merge is
+  base merged into it (`../../worker/hosted-runs.md`, 1.1 and `../../worker/checkouts.md`). A clean merge is
   committed before its run starts, so the run finds a clean tree with the
   tip in its head. A conflict is left in its checkout for it to settle.
   Either way its first push delivers the merge. A tip that start already contains is no merge, so a resume with
@@ -520,14 +520,14 @@ early, by these rules:
   going on after an answer that added a dependency, or after an
   amendment naming a revision of the design that landed into the
   branch, works on the branch as it now stands, as one into main is
-  brought up to date by the forge's update (`../README.md`, section 6).
+  brought up to date by the forge's update (`../updates.md`, section 1).
 - **A running producer catches up.** A dependency started from may land
   while the early producer that started from it still runs. Its landing
-  squashes its work into one new commit (`../../landing.md`, 5.2) and
+  squashes its work into one new commit (`../../landing-prepare.md`, 1.2) and
   its branch is deleted as its task closes (`../branches.md`), so the
   head the producer's workspace merged is on no branch of the forge any
   more, and a delivery or a save whose second parent it is would be
-  refused for good (`../../../protocol/git.md`, 4.7). Instead the
+  refused for good (`../../../protocol/git-operations.md`, 1.7). Instead the
   producer's checkout asks whether that head's dependency has landed
   and, if it has, merges the landing branch's tip into its work and
   delivers from there (`../../worker/checkouts.md`, *A landed
@@ -588,7 +588,7 @@ rest of the branch lands while a sign-off waits a night
   facts (`gates.md`, 2) are at its last head, with an approval of an enforcing rule
   covering it, by its branch and the path sets it touches at that head
   (`gates.md`, 2, the kept `Touched`), still short and none refused, each judged as its
-  panel judges them (`README.md`, 5). Of each: its task, project and forge; its
+  panel judges them (`panel.md`, 1). Of each: its task, project and forge; its
   repository's owner and name; its pull request's number; its title; when its
   facts at that head were first kept; whether its reviews were read whole;
   and its short approvals, each its scope, rule, role, required count, the
@@ -609,7 +609,7 @@ rest of the branch lands while a sign-off waits a night
   - *too few:* fewer of the project's members count as people on the change's
     forge with the approval's role than it asks for (`eligible_people`, `gates.md`, 3),
     as when later membership changes, or a repository adopted from a forge
-    with no link (`../adoption.md`, 6), leave a rule that can't be met;
+    with no link (`../adoption-person.md`, 1), leave a rule that can't be met;
   - *no account:* the watcher doesn't count as a person on that forge
     (`forge_human`, `../adoption.md`);
   - *another role:* the approval's role isn't the watcher's, as for an owner
@@ -660,7 +660,7 @@ rest of the branch lands while a sign-off waits a night
 - **The client** merges the rows with jig's inbox and draws each as a card
   (`../../../client/pages/README.md` and `../../../client/forge/records.md`; `../../../client/forge/README.md`, 4.1).
 - **What a proposal says of such a rule:** the forge's read of a pending
-  proposal's items (`../../../protocol/configuration/settings.md`, 2, *Read from the
+  proposal's items (`../../../protocol/configuration/settings-kinds.md`, 1, *Read from the
   forge*) answers too whether one of its landing rules has an enforcing
   approval covering a writable repository on an owned Forgejo, a box's
   (`../../../protocol/setup/box.md`, 1), the root judging the coverage as it does for

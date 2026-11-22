@@ -1,12 +1,14 @@
 # The TUI in front of a box
 
+## 1. Running in front of a box
+
 `temper box`, run in a terminal, runs the TUI at once and the box
 behind it, as its child: it finds `temper-box` of its own build,
 downloading it once if it must (`../box-binary.md`), starts `temper-box
 --front`, signs in by the link the box hands it, and stops the box when
 the person quits (`../../draft/cli.md`, section 5). The box's side is
-`../../protocol/setup/box.md`, 6. The TUI is the one of `README.md`, 1
-to 3 and `pages/README.md` and `theme.md` and `README.md`, 4 but where this
+`../../protocol/setup/box-front.md`, 1. The TUI is the one of `README.md`, 1, and `directory.md`, 1, and `host.md`, 1
+ and `pages/README.md` and `theme.md` and `README.md`, 4 but where this
 section says otherwise. Its pages are drawn from the user's hand-made
 frames of the look request `tui-box-front` (2026-11-08), at 80 by 24 in
 the dark theme, and are illustrative, as `pages/README.md`'s are; the box's
@@ -19,7 +21,7 @@ start and stop are this section's own.
   `temper` does (`README.md`, 4), from the first moment: raw, Ctrl+C a
   key, its `LEAVE` given to the fail-stop hook. The box never touches
   the terminal. Its directory, note, scheme and depth are bare
-  `temper`'s (`README.md`, 2, `theme.md`).
+  `temper`'s (`directory.md`, 1, `theme.md`).
 - **The box's start,** in the run, in this order, each told to the TUI
   as its stage (*The box's stages*, below):
   1. **Finding:** the run spawns `temper internal fetch-box --cache
@@ -33,7 +35,7 @@ start and stop are this section's own.
      --front ARGUMENT...`, the arguments unchanged, with the captured
      environment and working directory, in a process group of its own as
      skein's spawn makes every child's (skein-io's `kernel::Spawn`),
-     handing it five descriptors (`../../protocol/setup/box.md`, 6): 0,
+     handing it five descriptors (`../../protocol/setup/box-front.md`, 1): 0,
      the read end of a pipe whose write end the run holds and never
      writes, its life; 1 and 2, the write ends of two pipes the run reads
      into the box's one tail, its last 8 KiB, in the order their reads
@@ -60,13 +62,13 @@ start and stop are this section's own.
   duty `local` with it, `Report::Local`, once it has read it, and every
   later one from the engine's link file of the box's data directory
   (`--data` among the arguments, else as the directories resolve), as
-  `README.md`, 2 says. In front the host signs in by it at `Start`,
+  `directory.md`, 1 says. In front the host signs in by it at `Start`,
   whatever credential the directory holds and whatever its note says:
   the root starts holding no credential, and the link's sign-in carries
   the one held, `SignIn { with: Link { secret, held } }`, so that a
   sign-in the engine still holds is kept and no new one is made, and a
-  credential the engine does not hold signs in afresh (`../README.md`,
-  section 4; jig's `protocol/client/sign-in.md`, *A sign-in held is
+  credential the engine does not hold signs in afresh (`../sign-in.md`,
+  section 1; jig's `protocol/client/sign-in.md`, *A sign-in held is
   kept*). While it signs in, the starting screen is drawn on a box set
   up before, and the welcome on a first run, its state "Connecting"
   (*The starting screen*, below). It ends as `pages/sign-in.md`, section 2 says: `link_used` or `link_expired` reads the engine's link file
@@ -86,7 +88,7 @@ start and stop are this section's own.
   before on a new build, and a first run's welcome must stand from it.
   The box's log's path, `DATA/box/logs/box.log`, the one its exit's
   `Log:` line names, is told beside it.
-- **The seam** (`README.md`, 3) gains the front's: `Start.front`, true in
+- **The seam** (`host.md`, 1) gains the front's: `Start.front`, true in
   front, `Start.local` true with it; `Start.set_up`, true in front on a
   box set up before, and `Start.box_log`, the box's log's path in front
   and empty out of it:
@@ -105,7 +107,7 @@ start and stop are this section's own.
   gain the box's stop and its second stop, which the run carries out
   (*Quitting*, below).
 - **The box's lines,** one a line on the lines' pipe
-  (`../../protocol/setup/box.md`, 6): a word, one space, a field that
+  (`../../protocol/setup/box-front.md`, 1): a word, one space, a field that
   runs to the line feed, bytes with spaces and no escapes, never empty;
   at most 8,192 bytes with the line feed, `BoxLine::MOST`. A line past
   it, with an unknown word, or with no field after its word and a space
@@ -155,395 +157,25 @@ start and stop are this section's own.
   - a termination signal of `temper`'s own closes the run as
     `README.md`, 4 says, exit 1: the box's life pipe closes with
     `temper`, and the box stops by itself
-    (`../../protocol/setup/box.md`, 6).
+    (`../../protocol/setup/box-front.md`, 1).
 
-**The box's stages**, illustrative (a first run's start, then a stop):
+## 2. The box’s stages
 
-```
+Moved to [`box-startup.md`](box-startup.md), section 1.
 
-  ▄█▀▀   temper 0.0.0 (b948f40d6df1)
- ▄█▄█▄█  temper box · a whole deployment on this machine
+## 3. The starting screen
 
- Welcome. Set temper up in your browser: open this link on this machine.
+Moved to [`box-startup.md`](box-startup.md), section 2.
 
- The link comes here once the box has started.
+## 4. The welcome
 
- It signs you in as this temper's owner, once, within 2 hours.
+Moved to [`box-startup.md`](box-startup.md), section 3.
 
- In the browser  1 Welcome · 2 Forge · 3 Model · 4 Ready
-...
-────────────────────────────────────────────────────────────────────────────────
-❯ / for commands
-────────────────────────────────────────────────────────────────────────────────
- ● Connecting      Downloading temper-box, once for this build: 12.3 of 24.1 MB
-```
+## 5. Lending its terminal
 
-```
- Stopping the box…
-   Ctrl+C again ends its steps at once.
-   10:52:01 Stopping
-   10:52:02 serve exited 0
-```
+Moved to [`box-lending.md`](box-lending.md), section 1.
 
-- **The stages,** `temper_client_tui::BoxStage`, the host's to tell, in
-  this order, `Failed` and `Ended` ending it wherever they come:
-  `Finding`, the fetch spawned; `Fetching { done, total }`, each
-  `fetched` line; `Starting`, the box spawned; `Running`, its link read;
-  `Stopping`, the person's stop asked; `Ended { end }`, the box's exit,
-  `BoxEnd::Exited { code }` or `BoxEnd::Killed { signal }`; and `Failed
-  { why }`, its start failed, `why` its first line, cut at 512 bytes,
-  `limits::LOG_LINE`.
-- **The stage's line:** "Finding temper-box…", "Downloading
-  temper-box, once for this build: DONE of TOTAL MB", or with no size
-  "Downloading temper-box, once for this build: DONE MB", DONE and TOTAL
-  in millions of bytes with one decimal, and "Starting the box…"; once
-  failed, "temper-box could not start: WHY" (`tui-refused`), WHY read as
-  UTF-8 with a replacement for each invalid byte, and under it "Ctrl+C
-  closes; temper then says what to do." (`tui-hint`). Running, the
-  stage has no line.
-- **On the welcome,** the user's request `tui-13` of 2026-11-15, so
-  that its body keeps its size while the box starts: before the box's
-  first `link` line, the link's place, two columns in, holds "The link
-  comes here once the box has started." (`tui-hint`), with the link's
-  blank rows and "It signs you in…" under it as with the link; the
-  stage's line stands on the quiet line's right (*The box's start on
-  the quiet line*, below). A failed start's two lines stand in the
-  link's place, "It signs you in…" left out, and on the quiet line
-  nothing of the stage: the failure is the body's, for good.
-- **The box's start on the quiet line,** on the welcome alone, until
-  the TUI is signed in by the handed link, first at the quiet line's
-  right (`pages/README.md`, 1, *The quiet line*), in `tui-hint`: the
-  stage's line, before the box runs; then the box's last `log` line,
-  once it runs and has one, its time and the space after it left out
-  ("23:32:06Z Starting serve" stands as "Starting serve"), a line with
-  no such time standing whole; so the person sees the box start its
-  steps where the notice stands, and the body does not move. Read as
-  UTF-8 with a replacement for each invalid byte, and cut by skein
-  where the row lacks the room (`pages/README.md`, 1, *A narrow
-  terminal*). A notice stands in its place for its time. Once signed
-  in, the log is `/log`'s alone; the starting screen draws the stage
-  in its own steps and never here (*The starting screen*, below).
-- **Stopping:** from "Stop the box" taken, or a quit with nothing to
-  ask (*Quitting*), until the box has ended: a note of its own, after the
-  others, standing for good: the head "Stopping the box…" (`tui-head`),
-  then, two columns in, "Ctrl+C again ends its steps at once."
-  (`tui-hint`) and the box's last lines as `/log` draws them, its end
-  following them. The box's state on the quiet line says "stopping"
-  (`tui-signal`). The box's words stay, taking nothing but commands.
-
-**The starting screen**, illustrative (the user's request `tui-11` of
-2026-11-15, a box set up before, its Forgejo starting):
-
-```
-
-  ▄█▀▀   temper 0.0.0 (b948f40d6df1)
- ▄█▄█▄█  temper box · a whole deployment on this machine
-
- Starting temper
-   ✓ The box started · its log in /srv/temper/box/logs/box.log
-   ▸ temper starting…
-   · Signing in
-   · Your projects
-
- This screen follows the box as it starts. /log shows its log.
-...
-────────────────────────────────────────────────────────────────────────────────
-❯ / for commands
-────────────────────────────────────────────────────────────────────────────────
- ● Connecting                                                  Forgejo starting…
-```
-
-The welcome with its sign-in link is for a first run alone: on a box
-set up before, the TUI says what it waits for, rather than drawing the
-welcome for the seconds it takes to sign in and read `me`.
-
-- **When:** in front, on a box set up before (`Start.set_up`), from the
-  first frame until the TUI has signed in and read `me` for the first
-  time in its run, while the sign-in screen is not drawn; then at once,
-  by `me`, the launchpad of its project, where the host goes at any
-  `me` naming one (`README.md`, 3, *Its pages*), or, with none, the
-  welcome at its step. It never stands again in that run: a link lost
-  or an engine restarting later shows the launchpad's or the welcome's
-  "Connecting", as before. On a first run it is never drawn.
-- **Its header** is the TUI's, in front (`pages/README.md`, 3).
-- **Its section** (`tui-sections`): "Starting temper" (`tui-head`) and,
-  two columns in, four steps, each marked as the welcome's steps are,
-  "✓" done (`tui-step-done`), "▸" under way (`tui-step-now`), "·" ahead
-  (`tui-step-ahead`), the first not done under way:
-
-  | Step | Ahead | Under way | Done |
-  |---|---|---|---|
-  | the box | | the stage's line (*The box's stages*) | "The box started", then " · its log in PATH" (`tui-hint`) |
-  | temper | "temper starting" | "temper starting…" | "temper started" |
-  | the sign-in | "Signing in" | "Signing in…" | "Signed in" |
-  | the projects | "Your projects" | "Your projects…" | |
-
-  The box is under way until its link is read (the stage `Running`);
-  temper from then until the engine answers the handed link's sign-in
-  otherwise than not ready or busy, since the box starts serve after it
-  hands the link and the sign-in waits for it (*Signed in by the handed
-  link*); the sign-in from then until the link is live with a party;
-  and the projects from then until `me` is read, when the screen goes.
-  The marks follow those facts as they stand. PATH is `Start.box_log`,
-  read as UTF-8 with a replacement for each invalid byte, drawn whole
-  and wrapped at the window's columns.
-- **Under them,** "This screen follows the box as it starts. /log
-  shows its log." (`tui-hint`).
-- **A failed start:** in the box's step's place, with no mark, "temper-box
-  could not start: WHY" (`tui-refused`) and under it "Ctrl+C closes;
-  temper then says what to do." (`tui-hint`), as on the welcome (*The
-  box's stages*); the other steps ahead, and the line under them left
-  out. A box that gives up or ends while it stands gets its note, as on
-  any screen (*A give up and an end*).
-- **Its foot** is the welcome's: the box takes commands alone, its
-  placeholder "/ for commands", and words typed are kept for the
-  launchpad (`pages/README.md`, 1, *Typed before the sign-in lands*);
-  the quiet line's left "● Connecting", its right the box's state, a
-  group starting among it (*The box's state*), and a notice; the box's
-  start is never on it, its steps holding the stage. `/log` and the quit
-  are as on the welcome.
-- **Ended otherwise:** out of date, it gives way to the welcome, whose
-  first section says so (*The welcome*, *Its header*); a sign-in fallen
-  back, to the sign-in screen, as the welcome does (*Signed in by the
-  handed link*).
-
-**The welcome**, illustrative (the request's 01, before the person
-signed in, drawn as the user's request `tui-16` of 2026-11-15 gives its
-first rows at 150 by 39, dark; and 02, after):
-
-```
-
-  ▄█▀▀   temper 0.0.0 (b948f40d6df1)
- ▄█▄█▄█  temper box · a whole deployment on this machine
-
- Welcome. Set temper up in your browser: open this link on this machine.
-
- http://127.0.0.1:8367/sign-in?secret=…
-
- It signs you in as this temper's owner, once, within 2 hours.
-
- In the browser  1 Welcome · 2 Forge · 3 Model · 4 Ready
-```
-
-```
- Setting temper up in your browser
-   ✓ Signed in as the owner
-   ✓ 1 Welcome
-   ▸ 2 Forge · connecting GitHub…
-   · 3 Model
-   · 4 Ready
-
- The steps are the browser's; this screen follows them.
-```
-
-- **When:** in front, while the sign-in screen and the starting screen
-  are not drawn and `me`, read or not, names no project: in the
-  no-project launchpad's place (`pages/launchpad.md`, 7), "Connecting"
-  included; on a first run, from the first frame, since the person needs
-  its link (*The starting screen*, below). Once `me` names a project the
-  host goes to its launchpad (`README.md`, 3, *Its pages*), and once it
-  names none again, the welcome stands again.
-- **Its header** is the TUI's (`pages/README.md`, 3), in front: "temper
-  box · a whole deployment on this machine" under the mark's first line.
-  Out of date, the view's line is the welcome's first section, before
-  its others, as on the launchpad.
-- **Before the person signed in** by the printed link
-  (`welcome::signed_in`, below), its sections (`tui-sections`,
-  `tui-spaced`):
-  - "Welcome. Set temper up in your browser: open this link on this
-    machine."; under it, one blank row, then the printed link, the URL
-    of the box's latest `link` line, drawn whole and wrapped at the
-    window's columns, then one blank row (the user's request `tui-14`);
-    and "It signs you in as this temper's owner, once, within 2 hours."
-    (`tui-hint`), the box's own words for it
-    (`../../protocol/setup/box.md`, 2). Before the box's first `link`
-    line, the link's place holds "The link comes here once the box has
-    started.", or a failed start's lines (*The box's stages*, above).
-    Each of them, the link, its pending and failed lines and the line
-    under them, is a paragraph of its own at the column "Welcome."
-    starts at, never indented under it, and the link wraps to that
-    column too (the user's request `tui-16`, 2026-11-15). The welcome
-    opens nothing by itself: the person opens the link, in a browser on
-    this machine, or has `/web` give it to the opener (*`/web`, temper
-    in the browser*).
-  - "In the browser" (`tui-head`), two spaces, then on the same line the
-    welcome's four steps, numbered, none started, joined by " · ", "1
-    Welcome · 2 Forge · 3 Model · 4 Ready" (`tui-hint`), their labels
-    the view's (`../pages/welcome.md`, 1, *Its steps*): one line, which
-    fits 80 columns (`tui-16`). A window too narrow for it wraps it as
-    any paragraph.
-- **After,** "Setting temper up in your browser" (`tui-head`) and, two
-  columns in, a list: "Signed in as the owner", ticked; then the four
-  steps, numbered, each marked as `welcome::step_marks` marks it at the
-  step `welcome::decision` reaches (`../pages/welcome.md`, 1, *The store's state*): Welcome
-  while the store is empty, the step left undone while it is unfinished,
-  Ready once whole. A step ticked is "✓" (`tui-step-done`), the current
-  one "▸" (`tui-step-now`), any other "·" (`tui-step-ahead`); before the
-  decision's facts are in, every step is "·". Then "The steps are the
-  browser's; this screen follows them." (`tui-hint`).
-  - *Read-only:* the TUI follows the steps and takes none. Setup runs in
-    the browser alone: the forge is chosen and set up there, a Forgejo
-    fetched, GitHub connected or the playground. The step under way is
-    the decision's, the first not done, never the step the browser's tab
-    shows, which lives in its address, so a person who goes back to an
-    earlier step there is not followed.
-  - *The forge under way:* on Forge, after its label, " · " and what the
-    `forges` watch says of the first real forge in number order, the
-    playground's left out (`../forge/records.md`, `../forge/family.md`, 7), in `tui-hint`: while it is under
-    way (`connect::underway`), "fetching Forgejo…" while it fetches,
-    "setting up Forgejo…" while it prepares or runs, "connecting
-    Forgejo…" or "connecting GitHub…" while it connects or while
-    GitHub's installation waits to be accepted, and "making its first
-    repository…" while that is made; its set up or its first repository
-    failed, "stopped: the browser says why"; else nothing.
-- **`welcome::signed_in`** (`temper-client-domain`): the person signed in
-  by the printed link: the forges document says so (`linked`, `../forge/records.md`;
-  `Side::linked`), or the welcome's decision is past its first step,
-  unfinished or whole, or `me` names a project. The two last hold after
-  the engine restarts, when `linked` reads false again: a store set up
-  so far says someone signed in.
-- **Its foot** is the no-project launchpad's: the box takes commands
-  alone, its placeholder "/ for commands", then the quiet line. Its notes
-  follow its sections, as the launchpad's do.
-- **Model's detail:** once a model is usable, "3 Model" ticked reads,
-  after its label, " · " and ACCOUNT (`tui-hint`), the first usable
-  account as the browser's Ready names it (`../pages/welcome.md`, 1,
-  *Ready*: "Claude subscription", "ChatGPT plan", "OpenAI API key"),
-  and for a program's source ", through Claude Code" after it: "✓ 3
-  Model · Claude subscription, through Claude Code"
-  (`../../draft/claude-sign-in.md`, 3, t3).
-
-**Lending its terminal**, illustrative (`../../draft/claude-sign-in.md`,
-3: t2, the terminal while lent, and t3, back; `claude-sign-in/`):
-
-```
-(a blank row, the screen's first)
-temper: Claude Code signs in here. Approve it on Anthropic's page, in the tab it opens; if that page shows a code, paste it here. temper comes back when it's done, or when you press Cancel in the browser.
-(a blank row)
-(Claude Code's own sign-in, its screens its own)
-```
-
-```
- Setting temper up in your browser
-   ✓ Signed in as the owner
-   ✓ 1 Welcome
-   ✓ 2 Forge
-   ✓ 3 Model · Claude subscription, through Claude Code
-   ▸ 4 Ready
-
- The steps are the browser's; this screen follows them.
-```
-
-The TUI follows the welcome's steps and takes none (*The welcome*,
-above), but for this one act: on the engine's ask, after the browser's
-"Sign in to Claude Code" (`../pages/welcome.md`, 1, *Claude Code's
-sign-in*), it lends the terminal the person started `temper box` in to
-`temper-box program-login`, as git hands a terminal to an editor, and
-takes it back when Claude Code exits. It reads, draws and keeps nothing
-of the sign-in (jig's `domain/terminal-login.md`, 6).
-
-- **The offer,** in front alone: right after `Start`, after
-  `Event::Launchpad` (`README.md`, 3), the host gives the root
-  `Event::Lends { terminal }` once, `terminal` a number drawn from the
-  host's seed, and the root keeps the watch `terminal{n}` of that number
-  open for as long as the TUI runs (jig's `domain/terminal-login.md`,
-  2). Out of front the TUI offers none: bare `temper` lends nothing
-  (`../../draft/claude-sign-in.md`, 7, *Which TUI can lend*).
-- **Asked:** after each report, while the TUI lends nothing, a login
-  the root's terminal document names, not cancelled, of a number the TUI
-  has not taken before, is the duty `lend`: its number, its NAME, and
-  the line to print. The TUI's state holds the login it lends from then
-  until its end; a login named meanwhile is not taken, and one the
-  document stops naming is still lent until its end.
-- **Stepping aside,** the run carrying `lend`, in this order:
-  1. the terminal lent (skein's `ui/screen.md`, section 8, *Lent to a
-     child*), and once `lent`, the kept modes set back (`Kept::set_kept`,
-     skein's `runtime/shell.md`, 6.3);
-  2. the screen cleared and the cursor homed, `\x1b[H\x1b[2J`
-     (`lending::CLEAR`), so that nothing of the shell's screen, which
-     `LEAVE`'s `\x1b[?1049l` gives back, shows around the line or
-     Claude Code's own (the user's request `tui-12`, 2026-11-15); then a
-     line feed, a blank row above the line; then the line written to
-     standard output, "temper: Claude Code signs in here. Approve it on
-     Anthropic's page, in the tab it opens; if that page shows a code,
-     paste it here. temper comes back when it's done, or when you press
-     Cancel in the browser."; then two line feeds, a blank row between
-     the line and Claude Code's first, "Opening browser to sign in…"
-     (the user's request `tui-15`, 2026-11-15). The clear, the line feed,
-     the line and its two line feeds are one write, `\x1b[H\x1b[2J\nLINE\n\n`,
-     completed before the spawn. The clear erases the screen, never the
-     scrollback (no `\x1b[3J`): the scrollback is the person's shell
-     history, which a terminal such as emacs' vterm shows above a screen
-     shorter than its window or pulls back as the window grows, and the
-     blank row above the line keeps temper's line apart from it. Taking
-     the terminal back is unchanged (*Back*);
-  3. NAME checked against a source's name's bounds, 1 to 32 of `a` to
-     `z`, `0` to `9` and `-`, then the child spawned: the box's own
-     `temper-box`, the path its fetch found (`found PATH`, *The box's
-     start*), with `program-login`, the box's directories as `--config
-     CONFIG --data DATA --cache CACHE`, resolved from `temper box`'s
-     arguments and environment as the box resolves them
-     (`../box-binary.md`), and NAME; its descriptors 0, 1 and 2 the
-     TUI's own (`Way::Inherit`, skein's `runtime/io/processes.md`,
-     section 1); the captured environment and working directory, as the
-     box's; in a process group of its own, which takes the terminal's
-     foreground itself (`../../protocol/credentials.md`, 3, *Its
-     terminal's foreground*). Nothing from the engine but NAME reaches
-     its arguments or environment. A NAME refused, a box with no path
-     yet, or a spawn that fails is the end `NotStarted`, at once.
-- **While lent** the TUI reads nothing and draws nothing: the keys are
-  Claude Code's, and Ctrl+C there is Claude Code's, its group being the
-  foreground. The engine's events, the box's lines and its stages still
-  reach the TUI's state as they come, and the frame drawn once the
-  terminal is back holds them. The box ending meanwhile leaves the child
-  to its end; a termination signal of `temper`'s own sends the child's
-  group `SIGTERM`, waits for its end and takes the terminal back before
-  the run closes (`README.md`, 4).
-- **Cancelled:** a login lent that the root's document marks cancelled is
-  the duty `unlend`, once: the run sends the child's group `SIGTERM`
-  (io's `Signal` with `Target::Group`) and waits for its end.
-- **Back,** at the child's end, an exit or a signal: the run takes the
-  foreground back (`take_foreground`), sets the modes raw again
-  (`Kept::set_raw`), resumes the terminal (`Terminal::resume`), which
-  draws the next frame whole, and reports `Lent { number, exit }`. The
-  host gives the root the act that sends `LoginEnded { number, exit }`
-  (jig's `domain/terminal-login.md`, 4), clears the login lent, and
-  gives the TUI's notice (`pages/README.md`, 1, *The notice*): "Claude
-  Code's sign-in cancelled" where it gave `unlend`, else "Claude Code
-  signed in" at exit 0, else "Claude Code's sign-in didn't finish". The
-  engine's answer changes none of them. Once the host's check says the
-  source is usable, "3 Model" reads its detail (*Model's detail*, above).
-- **`program-login` refusing** (no program configured, a directory not
-  the person's): its one line shows in the terminal under the TUI's, and
-  its exit 1 ends the login as any non-zero exit
-  (`../../draft/claude-sign-in.md`, 7).
-- **The seam** (`README.md`, 3) gains, for this alone:
-
-  ```rust
-  // temper_client_shell_tui::host
-  pub struct Lend {
-      pub number: u32,
-      pub name: Box<[u8]>,                        // the source's NAME, as the document names it
-      pub line: Box<[u8]>,                        // the TUI's line, its words, no line feed
-  }
-  // Duties gains
-  pub lend: Option<Lend>,                         // the terminal to lend for this login
-  pub unlend: bool,                               // the child to stop, the login cancelled
-  // Report gains
-  Report::Lent { number: u32, exit: jig_client_domain::contract::LoginExit },
-  ```
-
-  and the root, `temper-client-domain`'s, gains `Event::Lends { terminal:
-  u64 }`, a read of its terminal document's login, and the act that
-  reports a login's end with `LoginEnded`, its holder the person's own.
-- **The TUI's state** holds, beside the rest: the login lent, its number
-  and NAME, and whether `unlend` was given. **Its words**, the line and
-  the three notices, are its own (*Its words*, below).
-- **The recording:** `Report::Lent` is the record `lent`, `NUMBER EXIT`,
-  EXIT `exited N`, `killed N` or `not-started`, and the duties are
-  recorded as any (`journeys.md`, 3.2): `lend` with its number and NAME,
-  never its line, and `unlend`. A replay gives `lent` to the host as the
-  run reported it.
+## 6. The playground
 
 ```
 
@@ -581,9 +213,11 @@ of the sign-in (jig's `domain/terminal-login.md`, 6).
   through the forge's side, which reads the playground again whenever
   the `forges` watch gains or loses the playground's fake row (`../forge/family.md`, 7);
   `me` then names its project, and the host goes to its launchpad
-  (`README.md`, 3, *Its pages*). Reset from the browser, `me` names the project no
+  (`host.md`, 1, *Its pages*). Reset from the browser, `me` names the project no
   more: the host goes back to the start's address, and in front the
   welcome stands again, at its step.
+
+## 7. Quitting
 
 **Quitting**, illustrative (the request's 04):
 
@@ -601,7 +235,7 @@ Stop the box? csv-export's running task stops with it.
   the question stands; else the box stops at once. **The box stops**
   when the host asks it, a duty the run carries out by closing the box's
   life pipe, which the box takes as its first termination signal,
-  draining (`../../protocol/setup/box.md`, 6): the stage is `Stopping`,
+  draining (`../../protocol/setup/box-front.md`, 1): the stage is `Stopping`,
   its note stands (*The box's stages*), and the TUI closes once the box
   has ended. While it stops, Ctrl+C or `/quit` again is the second
   stop: the run sends the box `SIGTERM`, its second termination signal,
@@ -632,6 +266,8 @@ Stop the box? csv-export's running task stops with it.
   on its own goes on running.
 - **Their words in front:** `/quit`'s, "Close temper and stop the box";
   `/help`'s key, "Ctrl+C closes temper and stops the box".
+
+## 8. The box’s state and log
 
 **The box's state and `/log`**, illustrative (the request's 05):
 
@@ -674,7 +310,7 @@ Stop the box? csv-export's running task stops with it.
   group's failure being the browser's to say (*The welcome*, *The forge
   under way*) and `/log`'s.
 - **A give up and an end:** the box stops its steps, says `gave-up`, and
-  exits 1 (`../../protocol/setup/box.md`, 6). The TUI stays open and says
+  exits 1 (`../../protocol/setup/box-front.md`, 1). The TUI stays open and says
   so in a note of its own, after the others and standing for good: "The
   box gave up: STEP. /log shows why; Ctrl+C closes." (`tui-refused`).
   The link goes offline as the engine stops. A box that ends unasked
@@ -699,145 +335,19 @@ Stop the box? csv-export's running task stops with it.
   shows its end, the newest lines, as many as fit; PgUp reads back the
   rest until the next change (skein's `ui/screen.md`, 5.2).
 
-**`/web`, temper in the browser**, illustrative (the user's request of
-2026-11-15, `temper box` started again on a box set up before: "I have
-no signin link I can use to open the web UI"; the launchpad with Start
-and `/web`'s note, with no opener):
+## 9. Opening the browser
 
-```
- Start
-   /change   one change, run as Hello's way says
-   /ask      Ask temper
-   /web      Open temper in your browser
+Moved to [`box-web.md`](box-web.md), section 1.
 
- Open this link in a browser that reaches temper:
-
- http://127.0.0.1:8367/sign-in?secret=…
-
- It signs you in as this temper's owner, once, within 2 hours.
- Opened after that, temper makes a fresh one: /web again opens the fresh one.
- From another machine, tunnel port 8367 to this one first.
-
-────────────────────────────────────────────────────────────────────────────────
-❯ Ask for a change, or ask temper.  / for commands
-────────────────────────────────────────────────────────────────────────────────
- ● Live · Hello · Claude Opus 5.5 · high
-```
-
-- **Why:** in front the box prints no block: its printed link reaches
-  the TUI alone, as its `link` line (`../../protocol/setup/box.md`, 2
-  and 6), and the welcome, the one page that draws it, stands only
-  while `me` names no project. On a box set up before the launchpad
-  stands from the start, so the link a browser needs to sign in was in
-  the TUI's memory alone. `/web` hands it to the browser.
-- **Its name:** `/web`, a command of its own, rather than `/open` taking
-  it on (the request left it to the designer). `/open` lands on the
-  object in focus, out of front too, and carries a page's address alone,
-  never a link, a code or a secret (`pages/README.md`, 2, *`/open`*);
-  the link route lands where jig's sign-in sends the browser and carries
-  no page to land on after it (jig's `protocol/client/sign-in.md`, *The
-  printed link*), so `/open` through it would lose its object.
-- **Offered** in front alone, while the box's stage is `Running` and it
-  has not given up: on the launchpad, the welcome among it (its place
-  in front while `me` names no project), a chat and a talk, and on a
-  place not yet started as on the screen under it (`pages/README.md`,
-  2, *Not yet started*); never on the starting screen or the sign-in
-  screen. It is the TUI's own, `Own::Web`, never the root's; its words
-  "Open temper in your browser". In the commands' list and in `/help`'s
-  note it comes right after `/open`, and first on the welcome, which
-  offers no `/open` (`pages/README.md`, 2, *The TUI's own commands*);
-  on the launchpad with a project it is Start's last row too
-  (`pages/launchpad.md`, 7, *Start*).
-- **The printed link's life:** the TUI's state holds the printed link,
-  the URL of the box's latest `link` line (*The box's lines*), and
-  whether it is **live**, no sign-in by it seen since its line. A `link`
-  line makes its URL the printed link, live. A sign-in by it is jig's
-  `LinkSignedIn` (jig's `protocol/client/sign-in.md`, *Signed in by it,
-  said*), which the TUI reads as the forges document's `linked` turning
-  true (`../forge/records.md`): after each report the host tells the
-  state the root's `linked` (`root.forge().linked()`, `Side::linked`)
-  where it differs from the last it told, none, before the forges watch's first document, told as
-  false; `linked` told true where the last told was false spends the
-  printed link standing. So the first sign-in by the printed link in an
-  engine's run is seen, and the first in a restarted serve's run, whose
-  `linked` reads false again; one by a fresh link printed while `linked`
-  already reads true is not (`README.md`, 5, *`/web` and a sign-in it
-  doesn't see*).
-- **Pressed,** or sent whole or begun, it never reaches the root: the
-  box's words are cleared (`terminal::Act::Dismiss`), as `/open`'s are,
-  and
-  - *the printed link live:* the host's duty `open` carries its URL
-    whole, as its `link` line gave it, which the run gives the opener as
-    it gives any address (`../README.md`, 4.1, *Opening the tab*). The
-    browser opens the link route, which signs it in as the deployment's
-    owner and spends the link (jig's `protocol/client/sign-in.md`, *The
-    printed link*);
-  - *spent, or none printed yet:* the duty `open` carries the web's
-    Home, as `/open` opens it with no row selected: `http://HOST:PORT`
-    and `address::print`'s `/projects/P`, P the screen's project, the
-    launchpad's or the chat's or talk's; on the welcome, with no project,
-    the web's root, `/`. A browser has signed in by the link, so the
-    page opens signed in.
-- **The opener's end,** `Opened { opened }` (`README.md`, 3): a link or
-  a Home opened draws nothing more, as `/open` draws nothing for a page
-  opened. A link not opened, there being no opener (an SSH session, no
-  display, none on `PATH`) or the opener failing (`../README.md`, 4.1,
-  *The opener*), raises `/web`'s note; a Home not opened, `/open`'s
-  "Open ADDRESS in your browser." (`pages/README.md`, 2, *`/open`*).
-- **`/web`'s note,** after the others, until the next send or screen, as
-  `/log`'s stands: "Open this link in a browser that reaches temper:"
-  (`tui-note`); one blank row; the printed link, the latest the box
-  printed, drawn whole and wrapped at the window's columns as the
-  welcome draws it (*The welcome*), so that a fresh link printed while
-  the note stands takes its place there; one blank row; then, under it
-  as on the welcome, "It signs you in as this temper's owner, once,
-  within 2 hours.", then "Opened after that, temper makes a fresh one:
-  /web again opens the fresh one." and "From another machine, tunnel
-  port PORT to this one first." (`tui-hint`), PORT the link's port, the
-  approval's words for a browser elsewhere (`../README.md`, 4.1, *No
-  browser to open*). Each is a paragraph of its own at the note's
-  column, the link wrapping to it.
-- **A spent link isn't a dead end** (the request's 2): a link opened
-  once spent or past its expiry, copied from the note or opened by
-  `/web` where the TUI did not see it spent, is answered why, and serve
-  prints a fresh one (jig's `protocol/client/sign-in.md`, *The printed
-  link*), which the box gives as a `link` line
-  (`../../protocol/setup/box.md`, 6). The browser's page says "This link
-  was already used. A fresh one is in your terminal." or "This link has
-  expired. A fresh one is in your terminal." (`../view.md`, 1): in front
-  that terminal is the TUI, whose printed link the fresh line makes
-  live, so that `/web` again opens it, as the note says.
-- **A secret:** the printed link is drawn on the welcome and in `/web`'s
-  note, and given to the opener by `/web`, nowhere else: never a notice,
-  a log, a file or the environment. The opener takes it as its one
-  argument, as it takes any address, since an address is how a browser
-  is given a link; the opener's argument, and a browser's it starts, is
-  in the machine's process list while they run, and the link it holds is
-  spent by the sign-in it makes at once, and expires within 2 hours.
-- **Its surface,** beside *Its state, events, words and tokens*':
-
-  ```rust
-  // temper_client_tui
-  Own::Web                      // "/web"; Own::ALL holds it after Open
-  // state::Told gains
-  Told::Linked { linked: bool } // the forges document's `linked`, told where it changed
-  Told::LinkNotOpened           // the opener ended without opening the link: /web's note
-  impl Tui {
-      /// The printed link while live: no sign-in by it seen since its `link` line.
-      pub fn live_link(&self) -> Option<&Secret>;
-  }
-  ```
-
-  The host's own record of what it opened, beside a page and the
-  approval, gains the link, so that the opener's end raises the note
-  that fits. Nothing new crosses the seam: the duty `open` and the
-  report `Opened` carry it (`README.md`, 3).
+## 10. The place
 
 **The place.** In front, the TUI is on a box: it names its place
 "box" at the default port, 8367, and "box:PORT" at another,
 `temper_client_tui::place(address, true)`, as the look request
 `tui-chat-title-below` names a box's, in the rule above a chat's box.
 The header says "temper box" in its stead (`pages/README.md`, 3).
+
+## 11. State, events, words and tokens
 
 **Its state, events, words and tokens:**
 
@@ -885,7 +395,7 @@ The header says "temper box" in its stead (`pages/README.md`, 3).
 
   A stage told after `Ended` or `Failed` is ignored, but `Ended` after
   `Failed`, the box's end once its start failed.
-- **Its events,** beside `README.md`, 3's:
+- **Its events,** beside `host.md`, 1's:
 
   | Event | Does |
   |---|---|
@@ -998,3 +508,7 @@ The header says "temper box" in its stead (`pages/README.md`, 3).
   `temper-box program-login` that reads a line and exits 0, and the
   TUI's frame back after it. A journey of it waits with `box-welcome`'s
   (`journeys.md`, 9).
+
+## 12. Open questions
+
+None.

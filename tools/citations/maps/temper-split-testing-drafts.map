@@ -1,0 +1,34 @@
+# The first split pass (temper/docs/design/draft/design-upkeep.md, 4.3): testing, the drafts and the design root.
+
+# The testing page keeps its overview, neighbours and layout.
+# Unnumbered closing bullets follow their concepts by hand: tier privileges and
+# git requirements to tiers 2, runtime proofs to tiers 3; differential checks and
+# referee observations to scenarios 2, scenario obligations to scenarios 3.
+# README 6 keeps the shared fake-git/shell questions; 7 keeps cross-tier cost work.
+title temper/docs/design/testing/tiers.md: Testing tiers
+temper/docs/design/testing/README.md 2 -> temper/docs/design/testing/tiers.md 1
+title temper/docs/design/testing/scenarios.md: Testing scenarios and their referee
+temper/docs/design/testing/README.md 4 -> temper/docs/design/testing/scenarios.md 1
+
+# The reference case keeps the library and its opening act.
+title temper/docs/design/testing/reference-case-changing-direction.md: The reference case: changing direction
+temper/docs/design/testing/reference-case.md 3 -> temper/docs/design/testing/reference-case-changing-direction.md 1
+title temper/docs/design/testing/reference-case-milestones.md: The reference case: milestones and their hand-offs
+temper/docs/design/testing/reference-case.md 4 -> temper/docs/design/testing/reference-case-milestones.md 1
+
+# GitHub's App and Forgejo's connection are separate from the shared plan.
+title temper/docs/design/draft/github-app.md: GitHub's App
+temper/docs/design/draft/github.md 5 -> temper/docs/design/draft/github-app.md 1
+temper/docs/design/draft/github.md 6 -> temper/docs/design/draft/github-app.md 2
+temper/docs/design/draft/github.md 7 -> temper/docs/design/draft/github-app.md 3
+temper/docs/design/draft/github.md 8 -> temper/docs/design/draft/github-app.md 4
+temper/docs/design/draft/github.md 9 -> temper/docs/design/draft/github-app.md 5
+temper/docs/design/draft/github.md 10 -> temper/docs/design/draft/github-app.md 6
+temper/docs/design/draft/github.md 11 -> temper/docs/design/draft/github-app.md 7
+title temper/docs/design/draft/github-forgejo.md: Forgejo on the same footing
+temper/docs/design/draft/github.md 12 -> temper/docs/design/draft/github-forgejo.md 1
+temper/docs/design/draft/github.md 13 -> temper/docs/design/draft/github-forgejo.md 2
+
+# The stock's verbatim role texts have their own page.
+title temper/docs/design/draft/stock-charters-texts.md: The stock charter texts
+temper/docs/design/draft/stock-charters.md 9 -> temper/docs/design/draft/stock-charters-texts.md 1

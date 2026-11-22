@@ -338,7 +338,7 @@ fn large_window_row(limits: &engine::Limits, name: &str, bytes: u32, around: boo
     }
 }
 
-/// temper/docs/design/domain/root.md, 7 and 8.1: due windows wait for load room.
+/// temper/docs/design/domain/root.md, 7, and temper/docs/design/domain/root-restart.md, 1.1: due windows wait for load room.
 #[test]
 fn tasks_due_together_past_the_load_slots_each_load_their_window() {
     due_windows(None);
@@ -887,7 +887,7 @@ fn failed_preparation(run: &engine::Assignment, preparation: engine::Preparation
 }
 
 // A permanent preparation failure names its repository beside the answer;
-// the root reports it as a fact of the attempt (domain/root.md, 6.4).
+// the root reports it as a fact of the attempt (domain/root-translation.md, 2.4).
 #[test]
 fn a_permanent_preparation_failure_is_reported_as_a_fact_of_its_attempt() {
     let (mut driver, run) = Driver::chat();

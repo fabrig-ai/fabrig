@@ -157,7 +157,7 @@ fn answers(driver: &runtime::Driver) -> Vec<skein_lib::Token> {
 }
 
 /// An idle host checks and publishes a lapsed login without another entrance
-/// (temper/docs/design/protocol/credentials.md, 3; jig's domain/accounts.md, 3.4).
+/// (temper/docs/design/protocol/credentials-llm-accounts.md, 1; jig's domain/accounts.md, 3.4).
 #[test]
 fn an_idle_workers_login_is_checked_at_its_interval() {
     use skein_lib::{Env, Queue, Wall};

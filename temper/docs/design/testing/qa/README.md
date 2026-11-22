@@ -188,7 +188,7 @@ taken from the home.
   (`places.md`, 2; `deployment.md`); `ports`, the nine ports its boxes
   or its deployment's processes bind, as
   `TEMPER_INTERNAL_FAKE_BOX_PORTS` lists them
-  (`../../protocol/setup/box.md`, 5; `deployment.md`, 2), each nonzero
+  (`../../protocol/setup/box-backends.md`, 1; `deployment.md`, 2), each nonzero
   and distinct, and distinct across places, required for a
   deployment's place: `qa.json: place PLACE is a deployment's and names
   no ports`. Directories are distinct. A place's name in

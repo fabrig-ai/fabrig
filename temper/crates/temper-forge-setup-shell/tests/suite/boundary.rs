@@ -2,7 +2,7 @@ use std::{fs, path::Path};
 fn forbidden(source: &str) -> bool {
     let compact: String = source.chars().filter(|c| !c.is_whitespace()).collect();
     // Calls through the setup's process boundary are not std process operations
-    // (temper/docs/design/protocol/setup/README.md, 7).
+    // (temper/docs/design/protocol/setup/crate-layout.md, 1).
     let compact = compact.replace("temper_forge_setup_shell::process::", "ForgeProcess::");
     compact.contains("std::process")
         || compact.contains("process::") && compact.contains("usestd::{")
@@ -36,7 +36,7 @@ fn forbidden_at(path: &Path, source: &str) -> bool {
         // Its stdin guard is not a file lock; file locks and process operations stay guarded.
         source.replace("std::io::stdin().lock()", "BoxLinkInput")
     } else if path.ends_with("temper-worker-shell/src/program_login.rs") {
-        // Terminal sign-in execs smith's command (protocol/credentials.md, 3).
+        // Terminal sign-in execs smith's command (protocol/credentials-llm-accounts.md, 1).
         // Other process types and every lock operation retain the same guard.
         source.replace("std::process::Command", "TerminalCommand").replace("process::CommandExt", "TerminalExec")
     } else if path.ends_with("temper-box-shell/src/program_login.rs") {

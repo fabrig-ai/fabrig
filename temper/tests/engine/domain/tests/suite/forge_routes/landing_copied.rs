@@ -1,5 +1,5 @@
-//! Copied project ceilings on shipped capacities (domain/landing.md, 4.2, 5.1,
-//! 7.3, 13 and 16; domain/landing-search.md, 3–5).
+//! Copied project ceilings on shipped capacities (domain/landing.md, 4.2, and domain/landing-prepare.md, 1.1, and domain/landing-proof.md, 2.3, and domain/landing.md, 13 and 16
+//! ; domain/landing-search.md, 3–5).
 use super::*;
 use jig_domain_core::settings as s;
 use temper_engine_domain_forge_change as change;

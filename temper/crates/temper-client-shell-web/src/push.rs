@@ -1,4 +1,4 @@
-//! Browser push glue (temper/docs/design/client/web/README.md, 2.7).
+//! Browser push glue (temper/docs/design/client/web/push.md, 1).
 //! Permission is asked synchronously in carry, before a promise is observed.
 use crate::Report as ShellReport;
 use js_sys::{Promise, Reflect, Uint8Array};

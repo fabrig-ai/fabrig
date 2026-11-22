@@ -1,4 +1,4 @@
-//! Configured restoration fit before linking (temper/docs/design/domain/forge/README.md, 9).
+//! Configured restoration fit before linking (temper/docs/design/domain/forge/effects.md, 2).
 use super::Domain;
 use crate::{CallPayload, Key, Limits, MissingLink, RecordKind, Request, Stored, What};
 use alloc::boxed::Box;
@@ -91,7 +91,7 @@ impl Domain {
     pub fn restore_fit_failure(&self) -> Option<&RestoreFit> {
         self.restore_fit.as_deref()
     }
-    /// A change with only one part is an unreadable row (protocol/store.md, 5).
+    /// A change with only one part is an unreadable row (protocol/store-restart.md, 1).
     #[must_use]
     pub fn unjoined_change(&self) -> Option<Key> {
         for (task, _) in &self.change_cold {

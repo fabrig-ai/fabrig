@@ -19,7 +19,7 @@
     medium; so the stage-one check's golden has no foreman role
     (`../testing/checks.md`, 5). `stock-charters.md`, 3 retires it, the
     user's draft of 2026-11-12, since the implementer now checks its spec
-    itself before it asks; `notes.md`, N1 keeps the reasons it had.
+    itself before it asks; `reference-code-production.notes.md`, N1 keeps the reasons it had.
 
 - **Design departs:** 5: `../protocol/configuration/reference.md` requires
   confirmed landing of every required design change into g before

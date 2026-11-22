@@ -256,7 +256,7 @@ fn scripts(repository: &str, readme: &[u8]) -> Box<[Script]> {
 fn setup(root: &Path, restarted: bool) -> Vec<ctl::Step> {
     let mut steps = Vec::new();
     if !restarted {
-        // The client keeps its sign-in across the restart (client/ctl/README.md, 6.1).
+        // The client keeps its sign-in across the restart (client/ctl/command-line.md, 1.1).
         steps.push(ctl::Step::Run(ctl::Call::sign_in()));
         steps.push(ctl::Step::Run(ctl::Call::new(&[
             "forge",
@@ -494,7 +494,7 @@ fn connected(calls: &mut ctl::Calls, root: &Path, restarted: bool) -> Result<(),
         }
     }
     if restarted {
-        // temper/docs/design/protocol/setup/owned.md, 7: keep the first intent across restarts.
+        // temper/docs/design/protocol/setup/owned-repositories.md, 1: keep the first intent across restarts.
         {
             let (left, right) = (&(row["first"]["state"]), &("made"));
             if left != right {

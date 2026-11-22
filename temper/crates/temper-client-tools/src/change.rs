@@ -1,4 +1,4 @@
-//! A change's way to landing, using the browser's panel (client/ctl/tools.md, 4).
+//! A change's way to landing, using the browser's panel (client/ctl/tools-waiting.md, 1).
 mod history;
 pub(crate) mod open;
 use crate::{

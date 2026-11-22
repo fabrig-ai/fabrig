@@ -288,7 +288,7 @@ waits for a commit, so the service can close its components. A restart
 then starts from the store as `restart.md` says.
 
 **Settling before the stop.** A root that settles its effects before
-it stops (temper's `domain/root.md`, 8.2; temper's `draft/redeploys.md`,
+it stops (temper's `domain/root-restart.md`, 1.2; temper's `draft/redeploys.md`,
 5.2) first tells the core so, `Event::Settling`, at once on hearing the
 stop, and its stop, `Event::Stopping`, once settled. From `Settling` on,
 the core makes no new work and takes every commit:
@@ -353,7 +353,7 @@ runs through the restart wait rather than its grace
   configured restart wait, a `Duration`. The root has its workers'
   component send it on each channel whose version has it, and closes
   the workers' part only at `Held::Drained`, which the journal releases
-  after it (temper's `domain/root.md`, 8.2).
+  after it (temper's `domain/root-restart.md`, 1.2).
 - **Kept as** the deployment's numbers record's `restart_wait_ms`, the
   wait in milliseconds, `option u64 = none` in `jig-store-core`: a
   registered family's field with its default, so no version moves and

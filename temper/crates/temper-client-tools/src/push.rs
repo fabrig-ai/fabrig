@@ -1,4 +1,4 @@
-//! Push subscriptions (temper/docs/design/client/ctl/tools.md, 2, 3).
+//! Push subscriptions (temper/docs/design/client/ctl/tools-reads.md, 1, temper/docs/design/client/ctl/tools-acts.md, 1).
 use crate::{
     jig::{
         self,

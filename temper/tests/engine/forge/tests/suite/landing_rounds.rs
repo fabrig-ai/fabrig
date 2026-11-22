@@ -1,4 +1,4 @@
-//! A round's own branch, preparation, record and cleanup (domain/landing.md, 5–15).
+//! A round's own branch, preparation, record and cleanup (domain/landing-prepare.md, 1, and domain/landing-proof.md, 1–2, and domain/landing-turn.md, 1–2, and domain/landing.md, 10–15).
 use skein_fake_forge_domain::{self as fake, api as raw};
 use skein_forge::api;
 use temper_engine_domain_forge as top;

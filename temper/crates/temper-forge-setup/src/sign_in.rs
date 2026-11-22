@@ -1,4 +1,4 @@
-//! Sign-in's private files and printable instructions (protocol/setup/owned.md, 8).
+//! Sign-in's private files and printable instructions (protocol/setup/owned-sign-in.md, 1).
 use crate::{
     check::joined,
     place::{File, Place},

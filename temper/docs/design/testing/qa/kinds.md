@@ -2,12 +2,12 @@
 
 Provisional, 2026-11-16, from `../../draft/landed-qa.md`, sections 2, 5
 and 10, milestone Q8 of `../../draft/landed-qa.execution.md`. One
-framework for a place's two kinds, a box (`../../protocol/setup/box.md`,
-5) and a deployment (`deployment.md`): what a place does is one set of
+framework for a place's two kinds, a box (`../../protocol/setup/box-backends.md`,
+1) and a deployment (`deployment.md`): what a place does is one set of
 operations, install, start, stop, save, restore and the lines' values,
 each written once, in the drive session or the QA tool, for either
 kind; what differs between the kinds is a value of the kind, in one
-table (section 3). The box stays a kind of its own, for QA of the box
+table (`kinds.md`, section 3). The box stays a kind of its own, for QA of the box
 itself: its welcome, its playground and `temper box`
 (`../../draft/landed-qa.md`, 2 and 10).
 
@@ -79,7 +79,7 @@ holder and its socket.
 
 `qa.json`'s `ports` (`README.md`, 3.2), the drive session's `--ports`
 (`../../client/drive.md`, 2.1) and `TEMPER_INTERNAL_FAKE_BOX_PORTS`
-(`../../protocol/setup/box.md`, 5) keep one list of nine, in the box's
+(`../../protocol/setup/box-backends.md`, 1) keep one list of nine, in the box's
 order, so every place's configuration and every copy made at it stay as
 they are. Each position is named by what binds it:
 

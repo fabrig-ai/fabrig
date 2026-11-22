@@ -1,4 +1,4 @@
-//! The runtime-30 merge queue is durable at v25 (protocol/store.md, 4).
+//! The runtime-30 merge queue is durable at v25 (protocol/store-versions.md, 1).
 use crate::fixture;
 use skein_forge::api::{Answer, Repository, Write};
 use skein_forge_client::{Condition, Effect, Entry, Outcome};

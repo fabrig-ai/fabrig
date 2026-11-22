@@ -39,8 +39,8 @@ What waits is section 12.
 ## 2. Filing
 
 - **When:** at each judged run of a landing tier (one following its
-  repository's landing branch or a named branch, `after-landing.md`,
-  section 2) whose project's kind 4 says `wait: landed`, in the step
+  repository's landing branch or a named branch, `after-landing-runs.md`,
+  section 1) whose project's kind 4 says `wait: landed`, in the step
   that keeps the verdict, the root filing in that decision. A dispatched
   run and a tip judged by its receipt alike. The run's failed jobs'
   logs are read first, as a red's news reads them (`after-landing.md`,
@@ -99,7 +99,7 @@ What waits is section 12.
   milestone where it has one, and the goal's person where it has one.
   A finding with a blame is one filed under `landed`; any other has
   none.
-- **From the landing log** (`after-landing.md`, section 10): a landing's
+- **From the landing log** (`after-landing-storage.md`, section 1): a landing's
   members, each a `LoggedChange` with its goal and milestone and, new
   here, its goal's person, title and `Draft:` path. A landing temper
   didn't make, or one the log no longer holds, names no goal: its
@@ -158,7 +158,7 @@ What waits is section 12.
 ## 5. Many
 
 - **A many finding's signature** says `many`, with no ids
-  (`after-landing.md`, section 4: past `failing_tests` a run's failures
+  (`after-landing-runs.md`, section 3: past `failing_tests` a run's failures
   are many, blamed by landing alone).
 - **Filed by a many run:** a landing blamed as owning many makes its
   many finding, owned; one suspected of many, a many finding naming
@@ -227,8 +227,8 @@ What waits is section 12.
 - **Filed at a later run:** each judged run of the tier, enumerated or
   many, files its waiting filings oldest first while the project's
   findings have room, before its own (section 2).
-- **Counted and reported:** the run task's report (`after-landing.md`,
-  section 10) ends with `K red filings wait for room in the project's
+- **Counted and reported:** the run task's report (`after-landing-storage.md`,
+  section 1) ends with `K red filings wait for room in the project's
   findings.` where any wait, and `J red filings were dropped for want
   of room.` where the tier's count is not 0.
 
@@ -254,12 +254,12 @@ What waits is section 12.
 - **`Finding`** (`findings.md`, section 4) gains `blame`, a
   `FindingBlame`, and `cleared`, a `FindingCleared`: the run and the
   wall time. Its signature gains `many`.
-- **`LoggedChange`** (`after-landing.md`, section 10) gains its goal's
+- **`LoggedChange`** (`after-landing-storage.md`, section 1) gains its goal's
   `person`, `goal_title` and `draft`, and `fixes`, the findings its
   pull request's body names; the change's row gains the first three.
 - **The tier's record** gains its `waiting` filings, at most 8, and
   `unkept`, the count of those not kept.
-- **Read from before** (`../protocol/store.md`, sections 2 and 4): each
+- **Read from before** (`../protocol/store.md`, section 2, and `../protocol/store-versions.md`, section 1): each
   is an added field of the registered `temper-store` family with its
   default, so no version moves and no patch comes: a finding with no
   blame, uncleared and not many, so that a red finding filed before
@@ -430,7 +430,7 @@ section 2), `temper ctl`'s in its tools' step harness
 
 - **Trailers:** a landing's commits naming a finding by
   `Fixes-finding: n` name its repair once the landing log keeps their
-  trailers (`after-landing.md`, sections 8 and 10); until then its
+  trailers (`after-landing.md`, section 8, and `after-landing-storage.md`, section 1); until then its
   members' pull request bodies alone do.
 - **Sorting and repairs** are `red-repairs.md`'s: the triager's sorts,
   a red's blame moved and its repair goals.

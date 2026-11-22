@@ -13,7 +13,7 @@ the start that checks, and where each world calls it.
 ## 1. In one page
 
 - **The check is a rehearsal** (section 2): temper's root restores as at
-  a start and ends before the switch (`../domain/root.md`, 8.1), over the
+  a start and ends before the switch (`../domain/root-restart.md`, 1.1), over the
   world's store copied at a commit, so that the forge's checks run on
   what jig's restores, and nothing the live world holds is touched.
 - **Every commit** in the conformance world's commit-cut cases, where
@@ -26,7 +26,7 @@ the start that checks, and where each world calls it.
 
 ## 2. The rehearsal
 
-- **temper's start** is its root's (`../domain/root.md`, 8.1): jig's core
+- **temper's start** is its root's (`../domain/root-restart.md`, 1.1): jig's core
   records, the forge's records, their links, the sweep; a refused start
   stops with `temper_engine_domain::StartStop`, and a rehearsing root
   (`Domain::rehearse`, before the start begins) ends before the switch,
@@ -75,7 +75,7 @@ the start that checks, and where each world calls it.
   `StartStop::ForgeRow`, `ForgeFit` and `ForgeLink` as it does now, in
   the order it checks them now.
 - **The one-process world** rehearses as `temper-box upgrade --check`
-  does (`../protocol/binaries.md`; `../domain/root.md`, 8.1): the real
+  does (`../protocol/binaries.md`; `../domain/root-restart.md`, 1.1): the real
   service, in the upgrade tool's rehearsal, over a copy of the fake
   machine's disk taken at the sampled commit, as its upgrade stories
   already run it over the floor's disk; a report that refuses is the

@@ -15,7 +15,7 @@ listener's (`../../client/forge/README.md`, the browser's steps).
   contents, pull requests, issues and merge queues, write; checks,
   statuses, actions, administration and metadata, read; never
   workflows, never administration's write. Its events are skein's
-  (`reconcile.md`, 6). Beside them (`../../domain/landing.md`, 8): statuses and actions,
+  (`reconcile.md`, 6). Beside them (`../../domain/landing-turn.md`, 1): statuses and actions,
   write,
   so that a project landing by turn has its gates dispatched and its
   receipts and verdicts posted; installations made before keep reading
@@ -34,7 +34,7 @@ listener's (`../../client/forge/README.md`, the browser's steps).
   (../credentials.md, the records).
 - **Its addresses,** its record's place, are github.com's, or a test's
   fake's when `application.test.github` names one (`place.md`, 7);
-  the machine names a place only to point at a fake (`box.md`, 5).
+  the machine names a place only to point at a fake (`box-backends.md`, 1).
 - **The clients' listener at a fixed address,** a loopback port the
   person's browser reaches, since GitHub's redirect and setup URLs name
   it; a GitHub `Connect` on its port 0 is refused, naming
@@ -72,7 +72,7 @@ listener's (`../../client/forge/README.md`, the browser's steps).
    account. Nothing asks for an organization: the App is public, so
    GitHub's install page offers every account the person may install
    it on (with the user, 2026-10-23; an App an organization owns is
-   for later, `../../draft/github.md`, section 18).
+   for later, `../../draft/archive/github.md`, section 18).
 4. **The redirect back,** `http://<listener>/forges/<n>/github/redirect`:
    `Convert { forge, code, state }` (`reconcile.md`, 2) exchanges the code for the
    App's id, slug and key, finds its bot user, and writes the records,

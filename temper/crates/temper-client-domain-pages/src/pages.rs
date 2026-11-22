@@ -1,4 +1,4 @@
-//! temper's pages own their handles and navigation (client/README.md, 3.1).
+//! temper's pages own their handles and navigation (client/root.md, 1.1).
 use crate::ChatsFilter;
 use crate::{Address, Limits, owner::Owner};
 use alloc::boxed::Box;

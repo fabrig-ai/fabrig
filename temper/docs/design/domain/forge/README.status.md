@@ -10,12 +10,6 @@
 
 
 
-- **Not yet:** 5.1: follows reading the landings on a branch
-  [in flight: change 105].
-
-- **Not yet:** 5.3: goal overlap reads a pull request's files with both sides, for their paths alone (`temper-engine-domain-forge/src/topics.rs`).
-
-
 `attention.md`, sections 1, 4, 5 and 6 have no known implementation gap
 in what reaches a person, the whole story's milestone N1,
 by plan `ui-reaches`. The crate `temper-protocol-reaches` holds the
@@ -51,9 +45,8 @@ world's `forge_routes::close_change`, `forge_routes::goal_closer` and
 `forge_routes::goal_closes` stories exercise the composed path with fake
 forge and job completions; they establish no deployment outcome.
 
-- **Not yet:** 6, *Made when the forge says* and *Let go*: an update's made head is not recorded as the change's own, and a let-go update is judged against the base's tip read now, not the tip it asked for; 10, the stories of a goal's landing whose own update or close-out moves its branch, a push from outside during an update, and a stalled update (`temper-engine-domain-forge/src/domain.rs`, `change_outcome`, `step_read`).
 - **Not yet:** 10, two changes into one branch, the second staying queued while the first updates, is checked and merges.
-- **Not yet:** 2, *Kinds*, kind 17 given to a change with kind 2 on its branch; 4, kind 17's row for a change; 10, the stories of a change's CI the runner failed, run again.
+- **Not yet:** 2, *Kinds*, kind 17 given to a change with kind 2 on its branch; `effects.md`, 1, kind 17's row for a change; 10, the stories of a change's CI the runner failed, run again.
 - **Not yet:** 1, quiet on the forge: a branch nothing has pushed is read on every hint and every `queue_window` (`keeping-up.status.md`).
 - **Not yet:** 1, quiet on the forge: a gather reads its head's CI twice, and every pull read reads CI.
 - **Not yet:** 1, quiet on the forge: the repository's own facts are read again on each `Settings` and after each `PullFor` that finds none.
@@ -127,7 +120,7 @@ user numbers on different forges, unknown accounts and each forge's writer.
 `issues.md`, section 1's questions on the forge remain unbuilt, as listed below;
 their designed account mapping also requires the repository's forge.
 
-`README.md`, section 4 and `issues.md` have no known implementation gap in a projection that
+`effects.md`, section 1 and `issues.md` have no known implementation gap in a projection that
 meets the full outbox. Its write waits for room, due at the wall plus
 the issue policy's interval, neither failed nor settled, and marks the
 step (`temper-engine-domain-forge/src/domain.rs`, `wait_for_room`); a
@@ -154,10 +147,9 @@ runs it on the fake forge.
 - **Design departs:** `change/repairs.md`, the brief-capacity and story-tier departures remain `change/repairs.status.md` (Design departs, brief-failure).
 - **Design departs:** `change/questions.md`, 1, the report-target departure remains `change/questions.status.md`, 1.
 - **Design departs:** `change/README.md`, 2, step 3, the update-before-CI departure remains `change/README.status.md`, 2.
-- **Not yet:** 4: the restored-flight link gap remains `../root.status.md`, 8.1.
 - **Not yet:**
   -  the request-to-repair fuzzy coverage remains `change/gates.status.md`, 1.
-  - 6, 10: no supplied result shows the three-thread real-process trial
+  - 10: no supplied result shows the three-thread real-process trial
     passing after update recovery. Both styles' lost answers, retries,
     exhausted counts, release and late-copy holds have world stories;
     the real-Forgejo restart trial remains the after-landing proof.
@@ -169,13 +161,9 @@ runs it on the fake forge.
   - `change/questions.md`, 1, *Which target*: the real-model question-target proof remains `change/questions.status.md`, 1, *Which target*.
   - `change/questions.md`, 1, *The next producer merges the landing tip first*: the resumed-producer deployment proof remains `change/questions.status.md`, 1, *The next producer merges the landing tip first*.
   -  the browser readoption story remains `change/gates.status.md`, 3.
-  -  the boxless removal gap remains `adoption.status.md`, 1.
+  -  the boxless removal gap remains `adoption-connection.status.md`, 1.
   -  the GitHub status and dispatch gap remains `change/gates.status.md`, 1.
   - 10: the native-queue gap remains `queues.status.md`, 1.
-  - 5.1: the findings projection gap remains `issues.status.md` (Not yet, the whole document).
-  - 5.3: a hold parked until a landing. An explicit landing subscription
-    with no paths receives a known landing as kept news; it does not wake
-    a parked hold.
   -  the per-change bounds and gates gap remains `change/README.status.md`, 1.
   -  the empty issue-title gap remains `issues.status.md` (Not yet).
   -  the goal-issue link remains `change/README.status.md`, 2.
@@ -189,10 +177,9 @@ runs it on the fake forge.
   -  the review-brief refusal proof remains `change/repairs.status.md` (Not yet, the whole document).
   -  the failed-resolution release gap remains `change/repairs.status.md` (Not yet, the whole document).
   -  the remaining green-head repair stories remain `change/repairs.status.md` (Not yet, the whole document).
-  - 6: the conflicting goal-landing story remains `branches.status.md`, 1.
-  -  the retarget-on-release gap remains `change/README.status.md`, 3.
+  -  the retarget-on-release gap remains `change/drift.status.md`, 1.
   -  the no-CI adoption choice remains `change/gates.status.md`, 2.
-  -  the panel's wait and charter facts remain `change/README.status.md`, 5.
+  -  the panel's wait and charter facts remain `change/panel.status.md`, 1.
   -  the change drain remains `change/README.status.md`, 6.
   -  the dependency-ancestry proof remains `change/questions.status.md`, 1.
   -  the message-room relay gap remains `change/questions.status.md`, 1.

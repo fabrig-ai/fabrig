@@ -41,7 +41,7 @@ an open need on it, whether it has a report, and its direct delegates' total.
     out; done, the ended rows that ended done;
   - its needs: the inbox's `Inbox`, `Filter { project, goal: Some(task) }`,
     opened once the document says the task is tracked and running inside the
-    goal's page, its cards the page's as Needs you's are (`../README.md`, 3.6);
+    goal's page, its cards the page's as Needs you's are (`../root.md`, 1.6);
   - its reds after landing: the forge's subject `findings` with the filter
     `goal`, the task (`../forge/records.md`, *A project's findings*), watched
     once the document says the task is tracked, live or ended, and closed
@@ -88,7 +88,7 @@ an open need on it, whether it has a report, and its direct delegates' total.
   - no choices: `.btn.primary` "Answer" for a question or a person task,
     "Open" otherwise, to `Inbox` filtered by this goal;
   - a funds card, with no "Add $10" and no "Stop the goal": its Release and
-    Leave held as Needs you draws them (`../README.md`, 3.6), or "Open" when neither is
+    Leave held as Needs you draws them (`../root.md`, 1.6), or "Open" when neither is
     offered;
   - an approval, a change under the goal waiting on a review on the forge
     (`../forge/README.md`, 4.1), KIND "an approval": its review link as `.btn.primary`
@@ -121,7 +121,7 @@ an open need on it, whether it has a report, and its direct delegates' total.
       or another result is done, and not landed.
     - Each task not landed, `p.task-line`, with class `running` when
       running: the title, cut past 80 characters as every row's is
-      (`README.md`, 2, *A task's title on a line*), a TITLE below too,
+      (`shared-behaviour.md`, 1, *A task's title on a line*), a TITLE below too,
       a link to its `Task`, then its state: "done" and its end
       in the clock form; "running";
       "waits on TITLE" for one dependency, or "waits on task N" where the title
@@ -217,7 +217,7 @@ A plan on the other pages, an agent's task's (`task.md`, 2) and a change's or a 
     "Cancelled", as `../view.md`, 5 words them;
   - otherwise, jig's word for its phase in lower case: "held",
     "retrying", "waiting for news". A held task's card and a
-    delegation's card keep theirs (`../README.md`, 3.6, `../view.md`, 5).
+    delegation's card keep theirs (`../root.md`, 1.6, `../view.md`, 5).
 
   Each carries its phase's status token: a waiting state waiting
   (`STATUS_WAITING`, the mockup's amber), a cancelled one quiet, a
@@ -235,7 +235,7 @@ A plan on the other pages, an agent's task's (`task.md`, 2) and a change's or a 
   dependency line or held card; its "Task N" link is muted, as the
   mockup's done row.
 - **A plan row's cells:** the "Task N" link and the task's title, cut
-  past 80 characters (`README.md`, 2, *A task's title on a line*); its
+  past 80 characters (`shared-behaviour.md`, 1, *A task's title on a line*); its
   executor; its state; its spend, "N spent", what the task spent
   itself (its chip's `budget.spent`; not the row's `spent`, which adds
   what the ended tasks it funded spent), in the deployment's unit, a
@@ -254,7 +254,7 @@ A plan on the other pages, an agent's task's (`task.md`, 2) and a change's or a 
   was cut (its `cut`), a last item, with no key: "More dependencies
   not shown." The browser shows the list's name before its items. In a
   row's tree item come the row, its dependency line, its held task's
-  card (`../README.md`, 3.6), then its children.
+  card (`../root.md`, 1.6), then its children.
 - **An added dependency's mark:** in its item of the dependency line,
   after its link and its state, read only, for a dependency an
   amendment added (the row's chip's `dependencies`, jig's
@@ -339,7 +339,7 @@ can open it. `draft` is the draft's path in the repository
   address; on Work, a landed draft's card (*From a landed draft*, below); a draft
   without a chat but a landed draft's, or a chat without a draft, opens nothing. A goal
   started this way asks its person as a chat's does (`../../domain/agent/agents.md`, 2); its
-  words have no `Chat:` line. The rail's "Goal" stays what `../view.md`, 3 has it, a new chat for
+  words have no `Chat:` line. The rail's "Goal" stays what `../view-navigation.md`, 1 has it, a new chat for
   a new draft.
 - **From a landed draft** (`work.md`, 1, *Work*;
   `../../domain/forge/drafts.md`): Work's card opens the sheet for the

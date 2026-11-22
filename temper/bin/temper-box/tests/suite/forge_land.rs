@@ -449,7 +449,7 @@ fn stubbed_story_launcher(
 
 #[test]
 fn the_launcher_returns_the_login_after_build_failure() {
-    // SourceName's inclusive lower and upper lengths (credentials.md, 3).
+    // SourceName's inclusive lower and upper lengths (protocol/credentials-llm-accounts.md, 1).
     for source in ["a", "abcdefghijklmnopqrstuvwxyz123456"] {
         let (scratch, output) = stubbed_launcher("live-claude-build-failure", "exit 17", source);
         assert_eq!(output.status.code(), Some(17));

@@ -1,4 +1,4 @@
-//! The worker's checked construction bounds and payload sizes (protocol/README.md, 5).
+//! The worker's checked construction bounds and payload sizes (protocol/service-routing.md, 2).
 use crate::settings;
 use alloc::boxed::Box;
 use jig_protocol_config::{self as config, Path, Problems, What};

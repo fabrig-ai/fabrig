@@ -1,5 +1,5 @@
 //! The welcome's paths to a first chat on `box --fake-backends`, sent as the acts its buttons send.
-//! First sign-in block: temper/docs/design/protocol/setup/box.md, 2.
+//! First sign-in block: temper/docs/design/protocol/setup/box-supervision.md, 1.
 use crate::box_link;
 use crate::support::{
     self, Ended, boxed,

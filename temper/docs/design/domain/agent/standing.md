@@ -149,12 +149,12 @@ the triager first, are charters 14 to 16
 - **`role start`** fills template 7 for a project: its words, its
   budget, and its charter, 13 unless named; a person whose role may not
   make it proposes it, as any batch beyond their role
-  (`../../client/ctl/tools.md`, 3).
+  (`../../client/ctl/tools-acts.md`, 1).
 - **`role list`** lists a project's live standing roles, label 3, a line
   each: its number, its charter, its state, what its period's budget has
-  left, and its Now's first line (`../../client/ctl/tools.md`, 2).
+  left, and its Now's first line (`../../client/ctl/tools-reads.md`, 1).
 - **`role show`** prints one: its task's document, and its Now whole,
-  with when it was written (`../../client/ctl/tools.md`, 2).
+  with when it was written (`../../client/ctl/tools-reads.md`, 1).
 
 ## 7. Talking with it
 
@@ -206,9 +206,9 @@ role does with what it hears, and the tools.
   own: a role is the requester of its work, never the person talking.
 - **In `temper ctl`:** `role talk TASK TEXT` sends the words with jig's
   `Talk`, waits until the role has replied, and prints its reply;
-  `role talk TASK --leave` leaves (`../../client/ctl/tools.md`, 3). A
+  `role talk TASK --leave` leaves (`../../client/ctl/tools-acts.md`, 1). A
   rule it proposed is read with `proposal show` and decided with
-  `proposal decide` (`../../client/ctl/tools.md`, 3), as any proposal.
+  `proposal decide` (`../../client/ctl/tools-acts.md`, 1), as any proposal.
   Team's "Talk to it" and the terminal's `/talk` draw the same talk
   (`../../draft/surfaces.md`, 6 and 11.3).
 
@@ -236,7 +236,7 @@ From `../../draft/standing-roles.md`, section 7.
   whom; and what it spent, from its brief's period line (jig's
   `domain/tasks/standing.md`, section 6). A page at most, as its Now.
   Team links it, and `role show --report` prints it
-  (`../../client/ctl/tools.md`, 2).
+  (`../../client/ctl/tools-reads.md`, 1).
 - **Its timers need the subscribe family:** the stock's policy gives it
   to a project's people (`../../protocol/configuration/stock.md`), so
   that a role started by a stock project's member sets its timers and

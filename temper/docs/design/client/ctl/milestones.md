@@ -7,7 +7,7 @@ its milestone, then every goal in order with its `--after`s, then says
 whole, and jig starts each goal as what it waits on is done. Whoever runs
 it starts the goals, with the authority they hold, so the approval is
 theirs. The tools are records of the one table (`tools.md`, section 1),
-the acts keyed as `goal start` is (`README.md`, section 5), their text
+the acts keyed as `goal start` is (`requests.md`, section 1), their text
 and JSON as `results.md` says.
 
 ## 1. In one page
@@ -95,7 +95,7 @@ Pause, Resume and Close are `task`'s, as for any task.
   prints jig's refusal, exit 2, as one that has ended does, saying how
   it ended.
 - **`milestone list`** prints one group, the live or with `--ended` the
-  ended, as `task list` does (`tools.md`, 2), a line a milestone:
+  ended, as `task list` does (`tools-reads.md`, 1), a line a milestone:
   its number, its name, its count and its state:
 
   ```

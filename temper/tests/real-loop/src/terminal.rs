@@ -67,7 +67,7 @@ pub fn see(holds: &'static [u8]) -> crate::calls::Step {
 pub fn see_without(holds: &'static [u8], lacks: &'static [u8]) -> crate::calls::Step {
     crate::calls::Step::Terminal(Act::See { holds, lacks: Some(lacks) })
 }
-/// Rail steps shared by the terminal stories (temper/docs/design/client/view.md, 3).
+/// Rail steps shared by the terminal stories (temper/docs/design/client/view-navigation.md, 1).
 #[must_use]
 pub fn start_change(drafts: bool) -> Vec<Step> {
     if drafts {

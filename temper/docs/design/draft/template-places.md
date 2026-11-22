@@ -74,8 +74,8 @@ The look requests `new-menu` and `configure-chat-in-settings`
   templates'; value an offer, which replaces kind 7's for its template
   in that project, an offer with no places taking it out of every
   place there; decided by that project's owners.
-- **Judged and kept as temper's other kinds** (`../protocol/configuration/settings.md`,
-  2), by the connector that owns them (`template-places.md`, section 9): an item is
+- **Judged and kept as temper's other kinds** (`../protocol/configuration/settings-kinds.md`,
+  1), by the connector that owns them (`template-places.md`, section 9): an item is
   refused that does not decode, names a place this draft does not
   have, carries a line past its bound, or names a template the
   settings do not define; a template removed takes its offers with it,
@@ -111,7 +111,7 @@ until its owners change them.
 - **Offered whatever the role:** a template the person's role may not
   start is offered all the same; the engine judges the start, and its
   refusal says why, since the client never computes what a party may do
-  (`../client/view.md`, 3).
+  (`../client/view-navigation.md`, 1).
 - **Live:** a change of the offers reaches an open page as `me` and the
   forge's reads deliver it; an open menu closes when its items change.
 

@@ -1,4 +1,4 @@
-//! The page's internal settings and recording meta (client/web/README.md, 2.1).
+//! The page's internal settings and recording meta (client/web/shell.md, 1).
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Internal {

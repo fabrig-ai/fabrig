@@ -25,13 +25,13 @@ pub use temper_protocol_store_codec::v25;
 #[cfg(test)]
 mod tests;
 
-/// One version for every durable family (protocol/store.md, section 4).
+/// One version for every durable family (protocol/store-versions.md, section 1).
 pub const STORE_VERSION: u32 = {
     let [high, low] = v25::VERSION.to_be_bytes();
     u32::from_be_bytes([0, 0, high, low])
 };
 
-/// The least of the five tier landings ceilings (protocol/store.md, section 4).
+/// The least of the five tier landings ceilings (protocol/store-versions.md, section 1).
 #[must_use]
 pub fn tier_landings_ceiling() -> u32 {
     v25::CEILINGS
@@ -42,7 +42,7 @@ pub fn tier_landings_ceiling() -> u32 {
         .min(v25::CEILINGS.tier_posting_landings)
 }
 
-/// The least failing-test and flake id ceiling (protocol/store.md, section 4).
+/// The least failing-test and flake id ceiling (protocol/store-versions.md, section 1).
 #[must_use]
 pub fn test_id_ceiling() -> u32 {
     v25::CEILINGS.failing_test_test_id.min(v25::CEILINGS.tier_flake_test)

@@ -34,4 +34,4 @@
   place, before v0.1.0; temper's store and the worker wires do not
   (smith's `domain/run.md`, 8.5; jig's `domain/hosts/README.md`, section 6 and `domain/hosts/charters.md` and `domain/hosts/README.md`, section 7;
   `../domain/agent/tools.md` and `../domain/agent/README.md`, 5; `../domain/worker/checkouts.md`
-  ; `../protocol/git.md`, 4.7).
+  ; `../protocol/git-operations.md`, 1.7).

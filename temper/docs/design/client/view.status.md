@@ -22,14 +22,6 @@
   browser history remains unrecorded. The decoder's 512-byte field bound and a
   malformed answer treated as unreachable account for that chain, so its cause
   is no longer unknown.
-- **Not yet:** 3: the rename's form asks the focus, and so does an open reply:
-  `temper-client-view`'s `pages/ask.rs`, `reply_form`, calls `b.focus(0)` with no
-  guard, where `pages/chat.rs`, `document.rs`, `settings.rs`, `new_chat.rs` and
-  `ask_page.rs` ask only while no rename is open. So an owner who presses "Rename
-  PROJECT" with a reply open on Home or Needs you meets skein-ui's
-  `Builder::focus`, at most one per tree, which asserts. The `ui-rename-focus` task
-  `rename-row` has opening the form on such a page not panic; no reason is recorded
-  for this site. Seen by reading; no test holds it.
 - **Design departs:** `pages/README.md`, *Away*, `pages/goal.md`, 2, and `view.md`, 6, and `pages/settings.md`, 2, from the request `ui-away`
   of 2026-11-05, each decided by its plan's cut, for the user to see:
   - 6: every clock in the browser reads in the person's zone, where the request
@@ -61,20 +53,7 @@
   printed." The plan chose bounded memory rather than stored history
   (jig's `protocol/client/sign-in.md`).
 
-- **Design departs:** 3, from the greenfield target, by the request `ui-repo-link` of 2026-11-06: the mock's
-  switcher row is one button holding the name and the small words; here the small words are a sibling of the
-  button, since a link can't sit inside one, and they are a link with its "↗" where the repository has an address.
 
-- **Design departs:** 3, from the greenfield target, by the request
-  `ui-rename-focus` of 2026-11-06: closing the rename's form leaves the project
-  menu open with the focus on its summary, where the mock draws the menu closed,
-  since a disclosure's fold is skein's page part's (`skein/docs/design/ui/web/README.md`, 5). The field does
-  not select its name on opening, and no toast says "Renamed": the request names
-  neither, and `README.md`, section 5 holds them. On a new chat or Ask temper's page the closed form
-  leaves the focus on the page's own field, where the request has the opener or the
-  summary, because that plan's cut keeps a page's own request. The field's hidden
-  label says "Rename", where the mock's says "Project name": no one sees it, and
-  that plan's cut took no new word for it.
 
 - **Design departs:** 4, from the request `long-words` of 2026-11-06, by its
   plan's cut: an edit past `long_text`, 131,072 bytes, keeps only its UTF-8 prefix
@@ -84,14 +63,7 @@
   has nothing typed dropped or kept stale. The cut bounds the client's kept edit;
   `README.md`, section 5 keeps retaining the whole beyond that bound open.
 
-- **Not yet:** 3, *The rail's parts*: no read gives the rail a standing
-  role (`../draft/standing-roles.md`).
 
-- **Design departs:** 3, from the greenfield target, by the request
-  `ui-owner-menu` of 2026-11-06, at the user's word: the rail's foot row is the
-  button of a menu with "Accounts" and "Sign out", where the mock draws the
-  person's name as plain text, and a browser over 760 px signs out there rather
-  than on the `Accounts` tab. `web/greenfield/README.md` notes it.
 
 - **Design departs:** 1, from the look request `outside-pages` of 2026-11-08,
   decided by its plan's cut: the top bar's link region holds the link's state in

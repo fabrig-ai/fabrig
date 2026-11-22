@@ -1,4 +1,4 @@
-//! Exact secret-boundary observations on the simulated service (temper/docs/design/testing/README.md, 2.5).
+//! Exact secret-boundary observations on the simulated service (temper/docs/design/testing/tiers.md, 1.5).
 use temper_playground::{
     machine::{Machine, SignalHost},
     programs,

@@ -1,4 +1,4 @@
-//! Forge-making acts and kept first intent (temper/docs/design/protocol/forge/engine.md, 2; temper/docs/design/protocol/setup/owned.md, 7).
+//! Forge-making acts and kept first intent (temper/docs/design/protocol/forge/engine.md, 2; temper/docs/design/protocol/setup/owned-repositories.md, 1).
 use super::{Domain, setup_login, setup_repository};
 use crate::{
     Ask, Bot, Connection, EmptyIntent, First, FirstIntent, FirstState, ForgeAsk, ForgeRecord, ForgeState, Kind, Limits,

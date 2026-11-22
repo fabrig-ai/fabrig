@@ -254,7 +254,7 @@ pub(crate) fn restart_sheet() -> temper_client_domain::Domain {
     root
 }
 type SheetRow = (Box<temper_client_domain::Domain>, &'static [u8], &'static [u8], &'static [u8]);
-// One row for each confirmation in client/README.md, 3.6.
+// One row for each confirmation in client/root.md, 1.6.
 const SHEET_ROWS: usize = 7;
 const TWO_ACTS: u32 = 2;
 fn sheet_rows() -> [SheetRow; SHEET_ROWS] {

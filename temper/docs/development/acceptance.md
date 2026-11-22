@@ -91,7 +91,7 @@ run must pass, `ci` green and `changes` skipped. After the story, put back the r
 and remove the gate's `CONTRIBUTING.md` and `changes/`.
 
 **GitHub managed,** temper's App made from its manifest, needs a person's clicks in a browser on
-the engine's machine (`../design/draft/github.md`, 6.1 and 6.5).
+the engine's machine (`../design/draft/github-app.md`, 2.1 and 2.5).
 
 ## 4. Rung 0, the ground
 

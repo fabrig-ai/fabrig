@@ -1,5 +1,5 @@
 //! `ctl`'s start, which `temper ctl` and `temper-box ctl` run
-//! (temper/docs/design/client/ctl/README.md, 6.1; temper/docs/design/client/README.md, section 2).
+//! (temper/docs/design/client/ctl/command-line.md, 1.1; temper/docs/design/client/README.md, section 2).
 use crate::{
     arguments,
     host::{Invocation, OneShot, Startup},

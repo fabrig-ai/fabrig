@@ -337,7 +337,7 @@ def citations(tree_id, root, env):
 
 
 def merged_tips(base_id, root, env, frozen_heads=None):
-    """Check 7's pending merge first, then first-parent history's other parents."""
+    """Read merged tips for changed-path selection (section 3)."""
     if frozen_heads is None:
         head = 'HEAD'
         pending = git(['rev-parse', '--verify', '--quiet', 'MERGE_HEAD'], root, env)
@@ -352,18 +352,25 @@ def merged_tips(base_id, root, env, frozen_heads=None):
     return list(dict.fromkeys(merged))
 
 
-def figures(base_id, tree_id, root, env, merged):
-    """Run check 7 (tools/pre-pr/design.md, 4; tools/tiers/budgets.md, 10.1)."""
-    arguments = ['python3', '-I', '-B', 'tools/tiers/figures.py',
-                 '--base', base_id, '--head', tree_id]
-    for revision in merged:
-        arguments += ['--merged', revision]
-    code, log = run(arguments, root, env, stdout=True)
-    if code == 1:
-        errors = [failure('figures', log)]
-    else:
-        errors = [failure('check figures', log)] if code else []
-    return code, errors
+def check_budgets(tree_id, root, env):
+    """Validate the snapshot's budgets (tools/pre-pr/design.md, 4, check 7)."""
+    cpu = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'tiers/cpu.py'))
+    try:
+        with tempfile.TemporaryDirectory(prefix='pre-pr-budgets-') as directory:
+            budgets = Path(directory) / 'budgets.toml'
+            layers = Path(directory) / 'layers.toml'
+            for path in (budgets, layers):
+                source = git(['cat-file', 'blob', f'{tree_id}:tools/tiers/{path.name}'], root, env)
+                if source.returncode:
+                    raise RuntimeError(source.stderr.decode(errors='replace').rstrip())
+                path.write_bytes(source.stdout)
+            cpu['budgets'](budgets, layers=layers)
+    except (OSError, ValueError, KeyError, TypeError, OverflowError, RuntimeError) as error:
+        log = str(error) + '\n'
+        if repair := cpu.get('REPAIR_LINE'):
+            log += repair + '\n'
+        return 1, [failure('budgets', log)]
+    return 0, []
 
 
 def merge_tests(root, env):
@@ -1325,7 +1332,7 @@ def remember_merges(git_dir, base_id, tree_id, tips):
     os.replace(file.name, directory / tree_id)
 
 
-def workspace_checks(root, paths, tree_id, base_id, merged, env, private, errors, outcomes, reds=(), *,
+def workspace_checks(root, paths, tree_id, base_id, env, private, errors, outcomes, reds=(), *,
                      completed_goal=False, already_formatted=False):
     start = time.monotonic()
     rust_files = [] if already_formatted else handwritten_rust(root, paths)
@@ -1382,7 +1389,7 @@ def workspace_checks(root, paths, tree_id, base_id, merged, env, private, errors
         if full_scan and rc in (0, 1):
             outcomes[key] = {'outcome': 'passed' if rc == 0 else 'failed'}
     if not completed_goal and 'tools/tiers/budgets.toml' in paths:
-        errors += figures(base_id or 'HEAD', tree_id, root, env, merged)[1]
+        errors += timed('budgets', lambda: check_budgets(tree_id, root, env))[1]
     errors += journeys(base_id, tree_id, [] if completed_goal else paths, root, env)[1]
     for args in rust_commands:
         if command('focused tests' if args[1] == 'nextest' else 'build check', args):
@@ -1438,7 +1445,7 @@ def delivery(scope, commits):
                 if formatted != tree_id:
                     tree_id = formatted
                     paths = delivery_paths(base_id or 'HEAD', tree_id, root, env, merged)
-            tested = workspace_checks(root, paths, tree_id, base_id, merged, env, private, errors, outcomes, reds,
+            tested = workspace_checks(root, paths, tree_id, base_id, env, private, errors, outcomes, reds,
                                       already_formatted=scope == 'delivery')
         except FormatError as error:
             errors.append(failure('format', str(error)))
@@ -1486,7 +1493,7 @@ def close_check(destination):
         try:
             private = verify_snapshot('before')
             paths = delivery_paths(base_id, staged, root, env, [])
-            tested = workspace_checks(root, paths, staged, base_id, [], env, private, errors, {}, completed_goal=True)
+            tested = workspace_checks(root, paths, staged, base_id, env, private, errors, {}, completed_goal=True)
             verify_snapshot('after')
         except (OSError, KeyError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
             errors.append(failure('goal close', str(error)))

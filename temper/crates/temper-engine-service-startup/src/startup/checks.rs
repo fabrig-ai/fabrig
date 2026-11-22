@@ -162,7 +162,7 @@ pub fn resumed_start(engine: &config::Engine, problems: &mut Problems) {
     );
 }
 /// The deployment's provider is not 0, which the root keeps for the forge's
-/// sign-in (domain/root.md, 5).
+/// sign-in (domain/root-translation.md, 1).
 pub fn provider(engine: &config::Engine, problems: &mut Problems) {
     for (index, provider) in engine.providers.iter().enumerate() {
         match provider.kind {
@@ -391,7 +391,7 @@ fn forge_result(bytes: u32, result: u32, problems: &mut Problems) {
     short(problems, own(b"forge.client.op_bytes"), u64::from(bytes), b"tasks.result_bytes", Some(u64::from(result)));
 }
 /// Each process checks the turn bounds its own document can know
-/// (protocol/configuration/settings.md, 7). A worker alone knows its agent and hub.
+/// (protocol/configuration/settings-output.md, 1). A worker alone knows its agent and hub.
 pub fn turns(
     engine: Option<&config::Limits>,
     workers: &[config::Worker],
@@ -497,7 +497,7 @@ fn index_of(numbers: &[u32], number: u32) -> usize {
     index
 }
 /// What the root's construction asserts, refused before it is made, each
-/// naming the configuration that breaks it (domain/root.md, 5).
+/// naming the configuration that breaks it (domain/root-translation.md, 1).
 #[expect(clippy::too_many_lines, reason = "root admission checks each landing bound before construction")]
 pub fn root(
     mut core: jig_domain_core::Config,
@@ -644,7 +644,7 @@ pub fn agent(engine: &config::Engine, agent: &Declaration, problems: &mut Proble
     }
 }
 /// Charter settings warn; deployment receiving bounds still refuse
-/// (temper/docs/design/protocol/configuration/README.md, 3).
+/// (temper/docs/design/protocol/configuration/worker.md, 1).
 pub fn admission(
     core: &jig_domain_core::Config,
     engine: &config::Engine,

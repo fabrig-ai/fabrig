@@ -1,4 +1,4 @@
-//! Private bounded diagnostic logs (protocol/setup/box.md, 2). One owned kernel
+//! Private bounded diagnostic logs (protocol/setup/box-supervision.md, 1). One owned kernel
 //! Bound step names follow temper/docs/design/protocol/setup/box.md, 1.
 //! operation at a time; a retained piece gates further diagnostic reads.
 use crate::{layout::Placed, lines::joined};

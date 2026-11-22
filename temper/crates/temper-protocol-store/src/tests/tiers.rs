@@ -1,4 +1,4 @@
-//! Tier families and receipt failures (temper/docs/design/protocol/store.md, 2–4).
+//! Tier families and receipt failures (temper/docs/design/protocol/store.md, 2–3, and temper/docs/design/protocol/store-versions.md, 1).
 use super::fixtures;
 use crate::{Undecodable, keys, records};
 use skein_codec::Record;

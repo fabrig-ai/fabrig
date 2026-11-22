@@ -1,4 +1,4 @@
-//! Asked links reach only a durable private file (client/ctl/README.md, 6.1).
+//! Asked links reach only a durable private file (client/ctl/command-line.md, 1.1).
 use super::{Class, OneShot, Parsed};
 use crate::signing;
 use jig_client::{AskedLink, NotAsked};

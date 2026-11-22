@@ -437,7 +437,7 @@ terminal draw the same path.
   model's writing of any text that opened the turn, and at a window's head or for a
   turn's second run is often no time at all. The user reads it on a real chat.
   Default: from the line before, as `../README.md` has it.
-- **Which decision closed a chat** (`../../README.md`, 3.6, *Closed ends on one line*):
+- **Which decision closed a chat** (`../../root.md`, 1.6, *Closed ends on one line*):
   `Activity::Decided` carries a revision alone, so the view can't tell the closing's
   from an earlier decision. Telling them apart takes a new fact of a protocol, the
   user's. Default: a chat its requester closed hides every "Decision made".
@@ -478,7 +478,7 @@ terminal draw the same path.
 - **The first use of a plan,** in the terminal: a card in the
   conversation, or a card that waits to be dismissed, another kind of
   `Dismissed`, keyed by its account (`../../../draft/to-begin.md`, section 5).
-  Default: a card in the conversation (`../accounts.md`, 2), with nothing to dismiss.
+  Default: a card in the conversation (`../accounts-words.md`, 1), with nothing to dismiss.
 - **A delivery beside a long conversation** (2;
   `../../../draft/chat-reading.md`, 3): retaining parsed closed blocks for the
   browser and TUI, or a conversation subtree, needs invalidation rules

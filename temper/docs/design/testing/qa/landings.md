@@ -35,7 +35,7 @@ kept build holds.
 
 - **The first read** records the head as the ledger's `head` and no
   landing: the baseline, as a tier's start has one
-  (`../../domain/after-landing.md`, 2). What landed before it is no
+  (`../../domain/after-landing-runs.md`, 1). What landed before it is no
   pass's.
 - **The same head** records nothing.
 - **A new head:** `git rev-list --topo-order --reverse --parents NEW

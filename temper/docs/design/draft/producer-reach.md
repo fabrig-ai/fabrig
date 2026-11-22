@@ -29,7 +29,7 @@ The designed path would have worked: name the existing change as a prerequisite 
 
 ## 4. Out
 
-- A goal's wake on its own change landing into g. That landing news is `Kept` and doesn't wake a goal, by design (`temper/docs/design/domain/forge/README.md`, 5.3). A goal that must hear of it subscribes to the change, as the charter already says.
+- A goal's wake on its own change landing into g. That landing news is `Kept` and doesn't wake a goal, by design (`temper/docs/design/domain/forge/topics.md`, 1.3). A goal that must hear of it subscribes to the change, as the charter already says.
 - Answers to a kept change: `kept-change-answers.md`.
 - A second answer to an answered question stays refused.
 

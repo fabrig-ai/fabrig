@@ -33,7 +33,7 @@ its number or its path.
   above, its last segment as it is; an open end is its prefix followed
   by `…` ("branch temper/7/… of acme/shop on forge.example").
 - **A kind,** by the forge's numbering (`temper-engine-domain-forge`'s
-  `effect_shape`; `../../domain/forge/README.md`, section 4):
+  `effect_shape`; `../../domain/forge/effects.md`, section 1):
 
   | Kind | Words | Kind | Words |
   |---|---|---|---|
@@ -159,7 +159,7 @@ request state and refusals remain above the foot.
 4 and 5): the chats page's "Adopt a repository" opens this form into
 its project, always a project's: no form makes a project. While a
 set up's first repository is made and adopted nowhere
-(`../../protocol/setup/owned.md`, 7), as the `forges` watch's rows say it (a
+(`../../protocol/setup/owned-repositories.md`, 1), as the `forges` watch's rows say it (a
 real forge's row whose `first` is made, and no row's `repositories`
 naming its organization and name, `records.md`), the form opens filled for it,
 so that adopting it is one choice away: its forge's number, its
@@ -236,7 +236,7 @@ the person to check existence and grant the repository to the App.
   page says so in its shell's words: the terminal's "This temper is out
   of date for adopting repositories: run the temper the engine runs.",
   the browser's "This page is out of date for adopting repositories:
-  reload it." (`../web/README.md`, 2.2). The button is disabled, the
+  reload it." (`../web/serving.md`, 1). The button is disabled, the
   picker sends nothing, and a pending adoption stays in the small store.
 
 ## 5. Its address and state
@@ -332,7 +332,7 @@ client removes no account and closes no chat of its own.
   ; jig's `domain/accounts.md`, 4.2). The client names its LLM
   provider from the read and leaves its account out of the accounts'
   lists and counts and its provider out of the ways to connect a model
-  (`../pages/README.md`, `../pages/accounts.md`, 2). A model is usable for the welcome, Ready and the
+  (`../pages/README.md`, `../pages/accounts-words.md`, 1). A model is usable for the welcome, Ready and the
   composer's line by an account of another provider: the person's own,
   from the `accounts` document, or, for a person whose deployment role
   is owner, the deployment's, from the `deployment` document (jig's
@@ -410,7 +410,7 @@ client removes no account and closes no chat of its own.
   is listed, and adopting one the project holds is refused by the
   engine as any adoption; the request naming the project, the engine
   leaving those out, is the candidate (`README.md`, section 8).
-- A connect's end told: `deployment.md`, section 1.
+- A connect's end told: `deployment.md`, section 4.
 - **The pull request's link on the card** ("OWNER/NAME#N on
   Playground forge"): the forge's part, which the forge's
   side does not read yet (2). Default: the link to the task's page.
