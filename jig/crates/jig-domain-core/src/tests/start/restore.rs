@@ -168,7 +168,7 @@ fn adopted_runs_reach_the_fleet_without_a_root_event() {
     step_phase(core.start_resume(&env, token, &mut out), Phase::AdoptRuns);
     assert_eq!(core.adopted.len(), 2);
     assert_eq!(core.fleet.attempts(), 0);
-    let Action::Step(Phase::ReadAfresh { .. }) = core.start_done(&env, Phase::AdoptRuns, &mut out) else {
+    let Action::Step(Phase::Open) = core.start_done(&env, Phase::AdoptRuns, &mut out) else {
         panic!("the fleet adopts before connector reads")
     };
     assert!(core.adopted.is_empty());

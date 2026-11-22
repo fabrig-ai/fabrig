@@ -28,7 +28,7 @@ pub const SETTINGS: [&[u8]; 13] = [
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Command {
     Reds(crate::reds::CheckCommand),
-    /// A place in Pack (protocol/git.md, 4.13); None is the repository.
+    /// A place in Pack (protocol/git.md, 4.14); None is the repository.
     CountObjects {
         store: Option<Token>,
     },

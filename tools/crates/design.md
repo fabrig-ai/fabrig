@@ -126,8 +126,9 @@ shared within the test that reads the tree.
   through one such reader, and its findings are those of section 3.2, unchanged. `module_tree`
   stays the one-tree form, which `sizes.rs` reads, one tree per library.
 - **Tracked sources:** `skein_worlds.rs` lists the tracked Rust sources once, with `git ls-files`,
-  and reads each once; its seam rule and its `#[path]` rule take their text from that read, and a
-  source either rule parses is parsed once (`skein/docs/design/testing/README.md`, 6).
+  and reads each once; its seam, `#[path]` and ignored-exclusion-scenario rules take their text
+  from that read, and a source any rule parses is parsed once (`skein/docs/design/testing/README.md`, 6;
+  `skein/docs/design/testing/sweeps.md`, 5).
 - **Its count:** each walk counts what it read, and parsed where it parses, and the check's test
   prints the count, as `cli_names.rs` prints the files it read: a fixture pins that a shared source
   is read once.

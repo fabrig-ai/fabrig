@@ -18,8 +18,8 @@ fn checking() -> Domain {
 fn a_late_fresh_change_read_is_dropped_after_completion() {
     let mut d = checking();
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     fixtures::step_change(&mut d);
     let (call, op) = fixtures::next_call(&mut d);
     assert_eq!(op, Op::Read(Read::Branch { branch: b"temper/51".as_slice().into() }));
@@ -56,8 +56,8 @@ fn a_late_branch_comparison_for_completed_work_is_dropped() {
             },
         );
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        outputs(&mut d, Event::ReadAfresh);
-        outputs(&mut d, Event::SettleOutbox);
+        outputs(&mut d, Event::CatchUp);
+
         let named = outputs(&mut d, Event::Names { task: fixtures::CHANGE, resources: Box::new([name]) });
         assert!(!named.contains(&Request::Refused { task: fixtures::CHANGE }), "names accepted: {named:?}");
         outputs(

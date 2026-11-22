@@ -730,8 +730,9 @@ since it builds nothing at its base; every other run judges nothing alone
 **Every test binary is in one layer,** a tier of section 2, since a
 process runs one binary's tests and its CPU is the binary's:
 `tools/tiers/layers.toml` places each, and a boundary check keeps it
-whole (`tools/tiers/layers.md`). A crate's own tests and its generated
-codec tests are step tests by rule; the repository's own checks are a
+whole (`tools/tiers/layers.md`). A crate's own tests are step tests by
+rule; each owner's codec drift, fuzzing and memory tests sit in its world,
+placed by that table as any binary is. The repository's own checks are a
 group of their own. A binary whose tests span two tiers is split, or
 takes the higher one until it is. What its tests check places it, never
 their cost (the first question below).

@@ -22,8 +22,9 @@ set.
   only (programming-model.md, 10.3):
   - a small `syn`-based checker could hold no `async`, closures, `loop`
     or `while`, tuple scrutinees, or trait and generic definitions in
-    step code. Without closures, `dyn` or traits there, every call is
-    static, so it could find recursion too;
+    step code, respecting the exceptions in programming-model.md, 10.2.
+    Trait calls resolve at compile time; without closures or `dyn` there,
+    calls stay static, so it could find recursion too;
   - lints could hold two more: `unused_results`, or `#[must_use]` on
     lib's functions, for an ignored `Option`; and `BTreeMap` and
     `BTreeSet` among the step crates' disallowed types.

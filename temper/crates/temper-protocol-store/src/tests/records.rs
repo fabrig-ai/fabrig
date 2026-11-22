@@ -3228,6 +3228,8 @@ fn named_finding_answers_keep_the_deciding_snapshot_and_its_owned_bytes() {
                 number: 12,
                 area: Some(b"tests".as_slice().into()),
                 result,
+                more: Box::default(),
+                landing: None,
             })),
         };
         let meter = skein_world::domain::heap::Meter::new();
@@ -3238,6 +3240,38 @@ fn named_finding_answers_keep_the_deciding_snapshot_and_its_owned_bytes() {
         drop(cloned);
         let encoded = records::encode(&row);
         assert_eq!(records::decode(&encoded, &bounds), Ok(row));
+    }
+}
+
+#[test]
+fn named_repair_and_blame_replies_round_trip_their_variants_context_and_owned_bytes() {
+    use forge::{FindingDone as Done, FindingRefusal as Refused};
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for result in [
+        Ok(Done::Repaired(99)),
+        Ok(Done::Blamed),
+        Err(Refused::Words(b"repairs are off in project 3".as_slice().into())),
+    ] {
+        for landing in [None, Some([0xab; 32])] {
+            let row = forge::Stored::Call {
+                key: forge::NamedCall { task: 40, attempt: 1, completion: 2, position: 3 },
+                answer: forge::CallPayload::Finding(Box::new(forge::FindingReply {
+                    project: 3,
+                    number: 12,
+                    area: None,
+                    result: result.clone(),
+                    more: Box::new([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
+                    landing,
+                })),
+            };
+            let meter = skein_world::domain::heap::Meter::new();
+            meter.start();
+            let cloned = row.clone();
+            let held = meter.end().held();
+            assert_eq!(forge::stored_bytes(&cloned), Some(held));
+            drop(cloned);
+            assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+        }
     }
 }
 
@@ -3272,6 +3306,7 @@ fn findings_round_trip_full_rows_options_and_topic_and_refuse_wrong_keys() {
                     row.seen = None;
                     row.blame = None;
                     row.cleared = None;
+                    row.repair = None;
                     row.filer = forge::Filer::Party(1);
                 }
                 let row = forge::Stored::Finding(row);
@@ -3294,6 +3329,34 @@ fn findings_round_trip_full_rows_options_and_topic_and_refuse_wrong_keys() {
     assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
     let row = forge::Stored::Finding(forge::Finding { title: Box::default(), ..fixtures::finding() });
     assert_eq!(records::decode(&records::encode(&row), &bounds), Err(crate::Undecodable::Malformed));
+}
+
+#[test]
+fn findings_round_trip_full_repairs_and_moved_blame() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("store bounds");
+    for judging in [
+        Some(forge::RepairJudging::Landing([255; 32])),
+        Some(forge::RepairJudging::After(u64::MAX)),
+        Some(forge::RepairJudging::Release),
+        None,
+    ] {
+        for by in [forge::Filer::Task(u64::MAX), forge::Filer::Party(u64::MAX)] {
+            let mut row = fixtures::finding();
+            let repair = row.repair.as_mut().expect("full repair");
+            repair.judging = judging;
+            assert_eq!(repair.failing.len(), 64);
+            for id in &repair.failing {
+                assert_eq!(id.len(), 512);
+            }
+            assert!(repair.until.is_some());
+            row.blame.as_mut().expect("full blame").moved.as_mut().expect("move").by = by;
+            let stored = forge::Stored::Finding(row);
+            assert!(
+                records::decode(&records::encode(&stored), &bounds) == Ok(stored),
+                "repair and moved blame round-trip intact"
+            );
+        }
+    }
 }
 
 #[test]

@@ -299,10 +299,10 @@ fn restarting_after_an_absent_report_finds_the_unsent_rerun_without_a_receipt_or
     restored.landing.main_keys.insert((REPO, b"gate".as_slice().into()), (fixtures::BASE, key.key)).unwrap();
     fixtures::connect(&mut restored);
     outputs(&mut restored, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut restored, Event::ReadAfresh);
+    outputs(&mut restored, Event::CatchUp);
     unblamed(&restored, &key);
     assert_eq!(restored.landing.flights.get(&key).unwrap().entry, 91, "find the rerun kept before its write");
-    outputs(&mut restored, Event::SettleOutbox);
+
     rerun(&mut restored, 91, &run);
     unblamed(&restored, &key);
 }

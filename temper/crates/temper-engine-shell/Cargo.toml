@@ -47,6 +47,7 @@ temper-protocol-store.workspace = true
 temper-protocol-worker-wire.workspace = true
 
 [dev-dependencies]
+temper-service-core.workspace = true
 temper-service.workspace = true
 temper-deployment-fixtures.workspace = true
 temper-fixtures.workspace = true
