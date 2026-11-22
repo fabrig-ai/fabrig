@@ -1,4 +1,4 @@
-//! The engine opens independently of forge reconciliation (draft/reconciling-start.md, 7.3–5).
+//! The engine opens independently of forge reconciliation (draft/reconciling-start.md, 7).
 use super::forge_routes::{change_tool, follow_changes, goal_branch};
 use jig_domain_core::documents::{Watched, Window};
 use jig_domain_people::{self as people, ApplicationScope};

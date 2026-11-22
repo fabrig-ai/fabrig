@@ -2861,7 +2861,8 @@ fn catching_up_translates_all_counts_and_its_end_on_both_documents() {
             forge::Offer::NotOffered,
         );
         row.catching_up = catching_up;
-        let bytes = family::forges(forge::Forges { rows: Box::new([row]) }, false, &w::CEILINGS).unwrap();
+        let bytes =
+            family::forges(forge::Forges { rows: Box::new([row]), full: Box::new([]) }, false, &w::CEILINGS).unwrap();
         let decoded = wire::decode_forges(&bytes, &w::CEILINGS).unwrap();
         assert_eq!(decoded.forges.get(0).unwrap().catching_up, expected);
         let view = forge::ChangesView {

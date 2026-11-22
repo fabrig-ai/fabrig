@@ -86,7 +86,14 @@ fn settling_during_read_afresh_drops_its_late_report_and_keeps_the_read_facts() 
     outputs(&mut d, Event::CatchUp);
     let (call, op) = next_call(&mut d);
     assert_eq!(op, Op::Read(Read::Branch { branch: b"main".as_slice().into() }));
-    assert_eq!(outputs(&mut d, Event::Settle).as_ref(), &[Request::Settled { unfinished: Box::new([]) }]);
+    assert_eq!(
+        outputs(&mut d, Event::Settle).as_ref(),
+        &[
+            Request::Settled { unfinished: Box::new([]) },
+            Request::MarkedForges,
+            Request::Marked { tasks: Box::new([changes_subject(adopted().project)]) },
+        ]
+    );
     assert!(ready(&mut d).is_empty(), "settling sends nothing new");
     let facts = answer(&mut d, call, Ok(Answer::Commit([9; 32])));
     assert!(!facts.is_empty(), "the late read still commits facts");

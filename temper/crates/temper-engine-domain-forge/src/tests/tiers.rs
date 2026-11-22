@@ -811,6 +811,7 @@ fn a_restored_flight_counts_the_rest_of_its_runner_wait_and_restores_held_withou
     outputs(&mut restored, Event::Restore { record: Stored::Tier(saved) });
     outputs(&mut restored, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut restored, Event::CatchUp);
+    fresh_reads(&mut restored, BASE);
     let out = settled_step(&mut restored, 100, false);
     assert_eq!(
         choice(&out),

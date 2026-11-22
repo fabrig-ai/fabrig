@@ -55,6 +55,7 @@ fn a_forges_row_shows_catching_up_counts_and_clears_them() {
             &mut crate::forge::bindings::Bindings::new(200, 8, f::FORGE, f::tree_limits().text_per_node),
             &crate::forge_sign_in::Forges::new(),
             None,
+            &mut crate::words::Times::new(f::NOW),
         );
         let tree = b.finish();
         let mut line = None;

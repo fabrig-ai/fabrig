@@ -213,12 +213,12 @@ that call, within the run's own deadlines, as when the forge is slow
   (`../../client/forge/pages.md`). Neither shows anything once the forge
   has caught up.
 
+- **In the log:** past the report bound, the forge's waiters by kind,
+  count and oldest (`../../protocol/README.md`, 6.3).
+
 ## 6. Open questions
 
 - **Later:** a wait per resource, as `../../draft/reconciling-start.md`,
   section 3, has it: a procedure waits for its repository's fresh reads,
   so a resource still unread holds every procedure on its repository
   (`../../draft/reconciling-start.status.md`).
-- How long a catching-up forge may go before it is named in the logs,
-  the census and the pages by its oldest waiters
-  (`../../draft/reconciling-start.md`, section 5).

@@ -1,8 +1,47 @@
 //! The restart's two halves, reported per forge (domain/forge/catching-up.md, 2 and 5).
 use super::{Domain, Handoff, RestorePhase, fresh_reads_in};
-use crate::{CatchingUp, Request};
+use crate::{CatchingUp, Limits, Request, RestartStage, age_words};
 use alloc::boxed::Box;
-use skein_lib::Queue;
+use skein_lib::{Env, Queue, Time, bytes};
+
+pub(super) fn deadline(d: &Domain) -> Option<Time> {
+    if d.stopping {
+        return None;
+    }
+    match &d.catching_up_report {
+        Some(clock) => Some(clock.deadline()),
+        None => None,
+    }
+}
+
+/// The same clock as full-table reports, ending only when both halves are in.
+pub(super) fn advance(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    if d.stopping {
+        d.catching_up_report = None;
+        return;
+    }
+    if !d.restart_settling && fresh_reads_in(d) {
+        if let Some(ended) = d.catching_up_report.take()
+            && ended.reported()
+        {
+            out.push(Request::FullTableFact { words: b"the forge has caught up".as_slice().into() });
+        }
+        return;
+    }
+    let Some(clock) = &mut d.catching_up_report else { return };
+    let Some(age) = clock.due(env.now) else { return };
+    let fresh = d.restart_waits(RestartStage::ReadAfresh);
+    let settling = d.restart_waits(RestartStage::Settled);
+    let waits = match (fresh.is_empty(), settling.is_empty()) {
+        (true, true) => b"nothing named".as_slice().into(),
+        (false, true) => fresh,
+        (true, false) => settling,
+        (false, false) => bytes::concat(&[&fresh, b", ", &settling]),
+    };
+    out.push(Request::FullTableFact {
+        words: bytes::concat(&[b"the forge catching up for ", &age_words(age), b": ", &waits]),
+    });
+}
 
 impl Domain {
     #[must_use]

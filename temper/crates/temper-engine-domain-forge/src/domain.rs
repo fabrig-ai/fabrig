@@ -304,6 +304,7 @@ pub struct Domain {
     restart_reads_started: bool,
     fresh_repositories: Set<skein_forge::api::Repository>,
     restart_settling: bool,
+    catching_up_report: Option<crate::Report>,
     pub(crate) catching_up_seen: Map<u16, crate::CatchingUp>,
     /// Claims received while the restart reads are pending.
     waiting_claims: Map<u64, WaitingClaim>,
@@ -1043,6 +1044,7 @@ impl Domain {
             restart_reads_started: false,
             fresh_repositories: Set::with_capacity(l.repositories),
             restart_settling: false,
+            catching_up_report: None,
             catching_up_seen: Map::with_capacity(l.forges),
             waiting_claims: Map::with_capacity(l.tasks),
             projection_waits: Set::with_capacity(l.issues),
@@ -1235,6 +1237,7 @@ impl Domain {
         .chain(self.playground_due)
         .chain(if self.stopping { None } else { crate::follows::deadline(self) })
         .chain(self.full.deadline())
+        .chain(catching_up::deadline(self))
         .chain(crate::tiers::deadline(self))
         .chain(goal_branch::deadline(self))
         .chain(if self.stopping { None } else { outage::deadline(self) })
@@ -1782,6 +1785,7 @@ impl Domain {
 pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     decide(d, env, event, out);
     read_afresh_complete(d, env, out);
+    catching_up::advance(d, env, out);
     catching_up::mark(d, out);
 }
 
@@ -2486,6 +2490,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
         Event::Restore { record } => restore(d, env, record),
         Event::Restored { clock } => restored(d, env, clock, out),
         Event::CatchUp => {
+            d.catching_up_report = Some(crate::Report::new(env.now));
             read_afresh(d, env, out);
             settle_outbox(d, env, out);
             d.room.ready = true;
@@ -2503,6 +2508,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
 /// Drive one child call after prior saves have committed.
 pub fn resume(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     drive(d, env, out);
+    catching_up::advance(d, env, out);
     catching_up::mark(d, out);
 }
 
@@ -2556,6 +2562,7 @@ fn drive(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 /// Expire one client timer.
 pub fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     expire(d, env, out);
+    catching_up::advance(d, env, out);
     catching_up::mark(d, out);
 }
 
