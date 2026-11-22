@@ -3,6 +3,7 @@ from contextlib import redirect_stdout
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
 import subprocess
 import tempfile
@@ -173,21 +174,45 @@ class Delivery(unittest.TestCase):
         self.assertEqual([call.args[0] for call in git.call_args_list],
                          [['diff-tree', '-r', '--no-renames', '--name-only', '-z', ref, 'tree'] for ref in ('start', 'parent')])
 
-    def test_publication_recovers_only_merges_from_the_checked_base_and_history(self):
+    def test_scope_requires_the_checked_base_and_exact_published_tree(self):
         tip = 'a' * 40
-        other_tip = 'b' * 40
         PRE.remember_merges(self.root, 'base', 'published', [tip])
-        PRE.remember_merges(self.root, 'base', 'unrelated', [other_tip])
-        PRE.remember_merges(self.root, 'other-base', 'newer', [other_tip])
-        answer = subprocess.CompletedProcess([], 0, b'newer\npublished\n', b'')
-        with mock.patch.object(PRE, 'git', return_value=answer) as git:
-            self.assertEqual(PRE.publication_merges(self.root, 'base', self.root, {}), [tip])
-            self.assertEqual(git.call_args.args[0], ['log', '--first-parent', '--format=%T', 'base..HEAD'])
+        PRE.remember_merges(self.root, 'other-base', 'unrelated', [tip])
+        for tree, expected in [('published', [tip]), ('unrelated', None)]:
+            answer = subprocess.CompletedProcess([], 0, f'head\n{tree}\n'.encode(), b'')
+            with mock.patch.object(PRE, 'git', return_value=answer):
+                if expected:
+                    self.assertEqual(PRE.local_scope(self.root, 'base', self.root, {}, []), expected)
+                else:
+                    with self.assertRaisesRegex(ValueError, 'formatting scope unavailable'):
+                        PRE.local_scope(self.root, 'base', self.root, {}, ['older-merge'])
+
+    def test_main_fetch_must_follow_prepare_and_be_integrated(self):
+        main = 'a' * 40
+        pin = self.root / 'refs/temper/landing'
+        pin.parent.mkdir(parents=True)
+        pin.touch()
+        fetch = self.root / 'FETCH_HEAD'
+        fetch.write_text(f"{main}\t\tbranch 'main' of example\n")
+        os.utime(pin, (20, 20))
+        head = subprocess.CompletedProcess([], 0, b'head\ntree\n', b'')
+        missing = subprocess.CompletedProcess([], 1, b'', b'')
+        passed = subprocess.CompletedProcess([], 0, b'', b'')
+        for stamp, answers, allowed in [(10, [head], False), (21, [head, missing, missing], False),
+                                        (21, [head, missing, passed], True)]:
+            os.utime(fetch, (stamp, stamp))
+            with self.subTest(stamp=stamp, allowed=allowed), mock.patch.object(PRE, 'git', side_effect=answers):
+                if allowed:
+                    self.assertEqual(PRE.local_scope(self.root, 'base', self.root, {}, []), [main])
+                else:
+                    with self.assertRaises(PRE.UnknownScope):
+                        PRE.local_scope(self.root, 'base', self.root, {}, [])
 
     def test_remaining_checks_and_receipt_use_the_formatted_tree(self):
         with mock.patch.object(Path, 'cwd', return_value=self.root), \
              mock.patch.object(subprocess, 'check_output', return_value=str(self.root).encode()), \
              mock.patch.object(PRE, 'base', return_value=('base', None)), \
+             mock.patch.object(PRE, 'local_scope', return_value=[]), \
              mock.patch.object(PRE, 'merged_tips', return_value=[]), \
              mock.patch.object(PRE, 'goal_reds', return_value=(set(), None, False)), \
              mock.patch.object(PRE, 'tree', side_effect=[('before', {}), ('formatted', {})]), \
@@ -214,8 +239,9 @@ class Delivery(unittest.TestCase):
     def test_changed_workspace_never_gets_a_pass(self):
         for snapshots, expected in [(('first', 'second'), 1), (('first', 'first'), 0)]:
             with self.subTest(snapshots=snapshots), mock.patch.object(Path, 'cwd', return_value=self.root), \
-                 mock.patch.object(subprocess, 'check_output', return_value=b'.git'), \
+                 mock.patch.object(subprocess, 'check_output', return_value=str(self.root).encode()), \
                  mock.patch.object(PRE, 'base', return_value=('start', None)), \
+                 mock.patch.object(PRE, 'local_scope', return_value=[]), \
                  mock.patch.object(PRE, 'merged_tips', return_value=[]), \
                  mock.patch.object(PRE, 'delivery_paths', return_value=[]), \
                  mock.patch.object(PRE, 'workspace_checks', return_value=[]), \

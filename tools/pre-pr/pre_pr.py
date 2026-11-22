@@ -1101,7 +1101,7 @@ def handwritten_rust(root, paths):
     return [p for p in files if p not in outputs]
 
 
-def format_commands(root, files, packages, *, copy=None):
+def format_commands(root, files, packages, *, report=False):
     directories = package_directories(packages)
     groups = {}
     for path in files:
@@ -1110,68 +1110,103 @@ def format_commands(root, files, packages, *, copy=None):
         config = _configuration(root / path, root)
         groups.setdefault((edition, config), []).append(path)
     for (edition, config), paths in groups.items():
-        args = ['rustfmt', '--check'] if copy is None else ['rustfmt']
+        args = ['rustfmt', '--emit', 'json'] if report else ['rustfmt', '--check']
         if config:
             args.extend(['--config-path', str(config)])
-        inputs = paths if copy is None else [str(copy / path) for path in paths]
-        yield [*args, '--edition', edition, '--config', 'skip_children=true', '--', *inputs]
+        yield [*args, '--edition', edition, '--config', 'skip_children=true', '--', *paths]
 
 
 class FormatError(ValueError):
     """rustfmt refused a selected source file."""
 
 
-def format_delivery(root, paths, original, scratch, git_dir, env, private):
-    """Format selected blobs in isolation, then apply the resulting patch to the worktree."""
+def format_delivery(root, paths, original, env, private):
+    """Inspect in place. Only mismatches need new blobs in the existing private index."""
     files = handwritten_rust(root, paths)
     if not files:
         return original
     packages = members(metadata(root, env))
-    copy = scratch / 'format'
-    copy.mkdir()
-    isolated = dict(private, GIT_DIR=str(git_dir), GIT_WORK_TREE=str(copy), GIT_LITERAL_PATHSPECS='1')
-
-    def in_copy(args, data=None):
-        return subprocess.run(['git', *args], cwd=copy, env=isolated, input=data,
-                              stdout=subprocess.PIPE, check=True).stdout
-
-    names = b''.join(os.fsencode(p) + b'\0' for p in files)
-    in_copy(['checkout-index', '-z', '--stdin'], names)
     print(f'pre-pr: formatting {len(files)} changed Rust files', flush=True)
-    for args in format_commands(root, files, packages, copy=copy):
-        rc, log = run(args, root, env, stdout=True)
-        if rc:
-            raise FormatError(log)
-    in_copy(['add', '-u', '--pathspec-from-file=-', '--pathspec-file-nul'], names)
-    formatted = in_copy(['write-tree']).decode().strip()
-    if formatted != original:
-        diff = in_copy(['diff-tree', '-p', '--binary', '--no-renames', '--no-ext-diff', '--no-textconv',
-                        '--src-prefix=a/', '--dst-prefix=b/', original, formatted])
-        subprocess.run(['git', 'apply', '--whitespace=nowarn', '-'], input=diff, cwd=root, env=env, check=True)
-        print(f'pre-pr: checking formatted delivery tree {formatted}', flush=True)
+    updates = bytearray()
+    for args in format_commands(root, files, packages, report=True):
+        scan = subprocess.run(args, cwd=root, env=env, capture_output=True)
+        if scan.returncode:
+            raise FormatError(tail(scan.stderr.decode(errors='replace')))
+        options = args[3:args.index('--')]
+        selected = {str(root / p): p for p in args[args.index('--') + 1:]}
+        for mismatch in json.loads(scan.stdout):
+            path = selected[mismatch['name']]
+            entry = git(['--literal-pathspecs', 'ls-tree', '-z', original, '--', path], root, env)
+            entry.check_returncode()
+            mode, kind, blob = entry.stdout.split(b'\t', 1)[0].split()
+            if kind != b'blob' or mode not in (b'100644', b'100755'):
+                raise FormatError(f'expected a regular source file: {path}')
+            source = git(['cat-file', 'blob', blob], root, env)
+            source.check_returncode()
+            fmt = subprocess.run(['rustfmt', '--emit', 'stdout', *options], cwd=root, env=env,
+                                 input=source.stdout, capture_output=True)
+            if fmt.returncode:
+                raise FormatError(tail(fmt.stderr.decode(errors='replace')))
+            formatted = subprocess.check_output(['git', 'hash-object', '-w', '--stdin'],
+                                                cwd=root, env=env, input=fmt.stdout).strip()
+            updates.extend(mode + b' ' + formatted + b'\t' + os.fsencode(path) + b'\0')
+    if not updates:
+        return original
+    subprocess.run(['git', 'update-index', '-z', '--index-info'], cwd=root, env=private, input=updates, check=True)
+    formatted = subprocess.check_output(['git', 'write-tree'], cwd=root, env=private).decode().strip()
+    patch = git(['diff-tree', '-p', '--binary', '--no-renames', '--no-ext-diff', '--no-textconv',
+                 '--src-prefix=a/', '--dst-prefix=b/', original, formatted], root, private)
+    patch.check_returncode()
+    if patch.stdout:
+        subprocess.run(['git', 'apply', '--whitespace=nowarn', '-'], input=patch.stdout, cwd=root, env=env, check=True)
     return formatted
 
 
-def publication_merges(git_dir, base_id, root, env):
-    """Restore merge tips only for a published tree that passed this checkout's check."""
-    directory = git_dir / 'pre-pr-merges' / base_id
-    if not directory.is_dir():
-        return []
-    history = git(['log', '--first-parent', '--format=%T', base_id + '..HEAD'], root, env)
-    history.check_returncode()
-    for tree_id in history.stdout.decode().splitlines():
-        try:
-            tips = (directory / tree_id).read_text().splitlines()
-        except FileNotFoundError:
-            continue
+class UnknownScope(ValueError):
+    """A saved checkout needs its main comparison refreshed before formatting."""
+
+
+def local_scope(git_dir, base_id, root, env, merged):
+    """Use only this checked snapshot or a main refresh in this checkout."""
+    revision = git(['rev-parse', 'HEAD', 'HEAD^{tree}'], root, env)
+    revision.check_returncode()
+    head, tree_id = revision.stdout.decode().splitlines()
+    if head == base_id:
+        return merged
+    record = git_dir / 'pre-pr-scope-v2' / base_id / tree_id
+    try:
+        tips = record.read_text().splitlines()
+    except FileNotFoundError:
+        pass
+    else:
         if not all(FULL_COMMIT.fullmatch(tip) for tip in tips):
-            raise ValueError('invalid delivery merge context')
-        return tips
-    return []
+            raise ValueError('invalid local delivery scope')
+        return list(dict.fromkeys([*merged, *tips]))
+
+    # The worker rewrites its loose landing pin when it installs a checkout view.
+    # An older FETCH_HEAD can belong to a previous occupant of the same slot.
+    fetch = git_dir / 'FETCH_HEAD'
+    pin = git_dir / 'refs/temper/landing'
+    try:
+        stamp = pin if pin.is_file() else git_dir / 'HEAD'
+        fresh = fetch.stat().st_mtime_ns > stamp.stat().st_mtime_ns
+        entries = fetch.read_bytes().splitlines() if fresh else []
+    except FileNotFoundError:
+        entries = []
+    mains = [line.split(b'\t', 1)[0].decode('ascii') for line in entries
+             if re.fullmatch(rb"[0-9a-f]+\t\tbranch 'main' of .+", line)]
+    if len(mains) == 1 and FULL_COMMIT.fullmatch(mains[0]):
+        main = mains[0]
+        pending = git(['rev-parse', '--verify', '--quiet', 'MERGE_HEAD'], root, env)
+        if pending.stdout.strip() == main.encode() or git(
+                ['merge-base', '--is-ancestor', main, head], root, env).returncode == 0:
+            return list(dict.fromkeys([*merged, main]))
+    raise UnknownScope('formatting scope unavailable in this checkout. Fetch main into FETCH_HEAD '
+                       '(git fetch origin main), merge FETCH_HEAD, and retry delivery.')
 
 
 def remember_merges(git_dir, base_id, tree_id, tips):
-    directory = git_dir / 'pre-pr-merges' / base_id
+    directory = git_dir / 'pre-pr-scope-v2' / base_id
     directory.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile(mode='w', dir=directory, delete=False) as file:
         file.writelines(tip + '\n' for tip in tips)
@@ -1256,18 +1291,31 @@ def delivery(scope, commits):
     else:
         base_id, _ = base(root, env)
         heads = None
-    reds, _, marker = goal_reds(root, env)
     errors, outcomes = [], {}
     with tempfile.TemporaryDirectory(prefix='pre-pr-index-') as directory:
         tree_id, private = tree(root, git_dir, Path(directory) / 'index', env)
         merged = merged_tips(base_id or 'HEAD', root, env, heads)
         tested = []
+        known_scope = True
+        paths = None
+        if base_id:
+            try:
+                merged = local_scope(git_dir, base_id, root, env, merged)
+            except UnknownScope as error:
+                known_scope = False
+                paths = delivery_paths(base_id, tree_id, root, env, merged)
+                if scope == 'delivery' and handwritten_rust(root, paths):
+                    errors.append(failure('formatting scope', str(error)))
+                    verdict = finish(tree_id, base_id, errors, root, env, scope, commits, heads)
+                    if (git_dir / 'temper/reds-wait').is_file():
+                        check_results(tree_id, base_id, verdict, (), (), {}, errors, root, env)
+                    return verdict
+        reds, _, marker = goal_reds(root, env)
         try:
-            if base_id:
-                merged = list(dict.fromkeys([*merged, *publication_merges(git_dir, base_id, root, env)]))
-            paths = delivery_paths(base_id or 'HEAD', tree_id, root, env, merged)
+            if paths is None:
+                paths = delivery_paths(base_id or 'HEAD', tree_id, root, env, merged)
             if scope == 'delivery':
-                formatted = format_delivery(root, paths, tree_id, Path(directory), git_dir, env, private)
+                formatted = format_delivery(root, paths, tree_id, env, private)
                 if formatted != tree_id:
                     tree_id = formatted
                     paths = delivery_paths(base_id or 'HEAD', tree_id, root, env, merged)
@@ -1283,7 +1331,7 @@ def delivery(scope, commits):
         if tree_id != current:
             errors.append(failure('workspace', 'The delivery tree changed during checks'))
         inherited(reds, errors)
-        if scope == 'delivery' and base_id and merged and all(settled(error) for error in errors):
+        if scope == 'delivery' and base_id and known_scope and all(settled(error) for error in errors):
             remember_merges(git_dir, base_id, tree_id, merged)
         verdict = finish(tree_id, base_id, errors, root, env, scope, commits, heads, tests=tested)
         if marker and scope == 'delivery':
