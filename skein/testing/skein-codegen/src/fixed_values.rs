@@ -1,6 +1,6 @@
-//! Fixed-rule golden values (data/codec/README.md, section 6).
+//! Fixed-rule values (data/codec/README.md, section 6).
 
-use crate::{Declaration, Enumeration, Golden, Record, Type, Variant, analysis::Context, emit_limits};
+use crate::{Declaration, Enumeration, FixedValue, Record, Type, Variant, analysis::Context, emit_limits};
 
 fn pattern(bound: u32, text: bool) -> Vec<u8> {
     let source: &[u8] = if text { b"abc" } else { &[0, 0x7f, 0xff] };
@@ -68,13 +68,13 @@ fn write_type(ty: &Type, full: bool, schema: &Context<'_>, out: &mut Vec<u8>) {
     }
 }
 
-/// Golden values paired with their schema declaration, without parsing filenames.
-pub(crate) fn goldens(schema: &crate::Schema) -> Vec<(skein_codec::schema::DeclIx, Golden)> {
-    named_goldens(&Context::new(schema))
+/// Fixed-rule values paired with their schema declaration, without parsing filenames.
+pub(crate) fn fixed_values(schema: &crate::Schema) -> Vec<(skein_codec::schema::DeclIx, FixedValue)> {
+    named_fixed_values(&Context::new(schema))
 }
 
-fn named_goldens(schema: &Context<'_>) -> Vec<(skein_codec::schema::DeclIx, Golden)> {
-    let mut goldens = Vec::new();
+fn named_fixed_values(schema: &Context<'_>) -> Vec<(skein_codec::schema::DeclIx, FixedValue)> {
+    let mut fixed_values = Vec::new();
     for (index, declaration) in schema.declarations.iter().enumerate() {
         let root = skein_codec::schema::DeclIx::new(u32::try_from(index).expect("schema declaration index"));
         match declaration {
@@ -83,7 +83,7 @@ fn named_goldens(schema: &Context<'_>) -> Vec<(skein_codec::schema::DeclIx, Gold
                     let mut bytes = Vec::new();
                     write_record(record, full, schema, &mut bytes);
                     let name = format!("record_{}_{}", emit_limits::snake(&record.name), label);
-                    goldens.push((root, Golden { name: format!("{name}.bin"), bytes }));
+                    fixed_values.push((root, FixedValue { name: format!("{name}.bin"), bytes }));
                 }
             }
             Declaration::Enum(enumeration) => {
@@ -92,11 +92,11 @@ fn named_goldens(schema: &Context<'_>) -> Vec<(skein_codec::schema::DeclIx, Gold
                         let mut bytes = Vec::new();
                         write_variant(enumeration, variant, full, schema, &mut bytes);
                         let name = format!("enum_{}_{}_{}", emit_limits::snake(&enumeration.name), variant.name, label);
-                        goldens.push((root, Golden { name: format!("{name}.bin"), bytes }));
+                        fixed_values.push((root, FixedValue { name: format!("{name}.bin"), bytes }));
                     }
                 }
             }
         }
     }
-    goldens
+    fixed_values
 }

@@ -1,10 +1,11 @@
 # fakes: status
 
-2026-11-16. Where the tree's code lags or departs from [fakes.md](fakes.md).
+2026-11-21. Where the tree's code lags or departs from [fakes.md](fakes.md).
 
 Unlisted sections have no known gap.
 
 - **Not yet:** 6: a fake mail sink, as mail itself (`../domain/forge/attention.md`, 7.4).
+
 
 - **Not yet:**  the remaining GitHub real-loop stories remain `real-loop.status.md` (Not yet).
   the twins' playground documents remain `reference-case.status.md` (Not yet, the whole document).

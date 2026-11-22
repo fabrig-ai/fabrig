@@ -120,8 +120,8 @@ fn a_change_layout_without_source_or_kept_defaults_both_to_none() {
     let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
     let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
     for (root, bytes) in [
-        (b"ChangeCold".as_slice(), golden(family.current, "record_change_cold_smallest.bin")),
-        (b"ChangeHot".as_slice(), golden(family.current, "record_change_hot_smallest.bin")),
+        (b"ChangeCold".as_slice(), fixed_value(family.current, "record_change_cold_smallest.bin")),
+        (b"ChangeHot".as_slice(), fixed_value(family.current, "record_change_hot_smallest.bin")),
     ] {
         let plan = skein_codec::layout::Plan::derive(
             &old,
@@ -176,7 +176,7 @@ fn a_change_layout_without_regate_defaults_it_to_none() {
     let mut work = skein_codec::layout::Workspace::new();
     assert!(work.fit(&plan));
     let mut out = skein_lib::Buffer::with_capacity(1024);
-    let current = golden(family.current, "record_change_hot_smallest.bin");
+    let current = fixed_value(family.current, "record_change_hot_smallest.bin");
     // The earlier row lacks the first option's absent byte.
     plan.convert(&current[1..], &mut out, &mut work).unwrap();
     let row =
@@ -457,9 +457,9 @@ fn an_earlier_finding_defaults_repair_and_blame_move() {
     );
 }
 
-fn golden(text: &'static str, name: &str) -> Box<[u8]> {
+fn fixed_value(text: &'static str, name: &str) -> Box<[u8]> {
     skein_codegen::values(text)
-        .goldens
+        .fixed
         .clone()
         .into_iter()
         .find(|value| value.name == name)

@@ -3,8 +3,8 @@
 2026-11-21. Where the design lags or departs from [failure-worlds.md](failure-worlds.md).
 
 - **Design lags:**
-  - 3: the inspection adapters' form, the two checks every component's waits and tables share, and the fault ledger are designed (`skein/docs/design/testing/inspection.md`; `skein/docs/design/testing/sweeps.md`, 3), with the engine's and the worker's adapters (`../testing/checks.md`, 6), jig's (`jig/docs/design/domain/testing.md`, 7) and smith's (`smith/docs/design/testing.md`, 6). No design yet holds 3.3's blame and tries for gates and runs with its failure table, 3.4's endings within their bounds, or 3.5's comparison of two runs.
-  - 4: `skein/docs/design/testing/fakes/llm.md` has no shared rate window without `retry-after`; `skein/docs/design/testing/fakes/forge.md` has no lagging views; the fake machine has no partial fetch or full disk; and nothing models a stop in each phase of a start. The faults marked [script], [composition] or [assertion] need no design change.
+  - 3: the inspection adapters' form, the two checks every component's waits and tables share, and the fault ledger are designed (`skein/docs/design/testing/inspection.md`; `skein/docs/design/testing/sweeps.md`, 3), with the engine's and the worker's adapters (`../testing/checks.md`, 6; the worker's waits and tables, `../testing/worker.md`, 2), jig's (`jig/docs/design/domain/testing.md`, 7) and smith's (`smith/docs/design/testing.md`, 6). No design yet holds 3.3's blame and tries for gates and runs with its failure table, 3.4's endings within their bounds, or 3.5's comparison of two runs.
+  - 4: `skein/docs/design/testing/fakes/llm.md` has no shared rate window without `retry-after`; `skein/docs/design/testing/fakes/forge.md` has no lagging views; and nothing models a stop in each phase of a start. The faults marked [script], [composition] or [assertion] need no design change.
   - 5: `../testing/README.md`, 2.1 has no world running several goals at once.
   - 7: no design holds its rows but the settings rows, P128, P59 and P81's residual (`../testing/settings-tests.md`, 7).
 - **Design departs:**

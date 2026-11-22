@@ -210,7 +210,7 @@ mod tests {
             for entry in std::fs::read_dir(&fixture.goldens).expect("fixture goldens") {
                 let path = entry.expect("golden entry").path();
                 let name = path.file_name().expect("golden name").to_str().expect("UTF-8 name");
-                let decl = generic_support::golden_root(&fixture.old, name);
+                let decl = generic_support::named_root(&fixture.old, name);
                 let golden = std::fs::read(&path).expect("golden bytes");
                 let case = fixture
                     .cases

@@ -28,8 +28,7 @@ pub struct Report {
 /// Hold every operation terminal until all the current wave's operations
 /// have run, then offer that wave FIFO. Released facts are collected at
 /// each entry-point boundary, before handing its output to the engine.
-#[must_use]
-pub fn failed_prepares() -> Report {
+pub fn failed_prepares() -> Result<Report, String> {
     let mut world = World::with_slots(SEED, RUNS);
     let mut report = Report { crossed: Vec::new(), peak_held: 0 };
     let mut places = BTreeMap::new();
@@ -43,17 +42,19 @@ pub fn failed_prepares() -> Report {
         );
         step(&mut world.domain, &world.env, event, &mut world.out);
         collect(&mut world, &mut report, &mut places, &mut held, None);
+        world.check()?;
     }
     for _ in 0..WAVES {
         report.peak_held = report.peak_held.max(held.len());
         if held.is_empty() {
-            return report;
+            return Ok(report);
         }
         let wave = std::mem::take(&mut held);
         for (owner, done) in wave {
             step(&mut world.domain, &world.env, Event::Done { owner, done }, &mut world.out);
             collect(&mut world, &mut report, &mut places, &mut held, Some(owner));
             world.domain.reclaim();
+            world.check()?;
         }
     }
     panic!("failed prepares settle within the whole world's wave budget");

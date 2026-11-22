@@ -12,4 +12,5 @@ mod fuzzy {
 
 mod git_identity;
 
+mod trash;
 mod view;

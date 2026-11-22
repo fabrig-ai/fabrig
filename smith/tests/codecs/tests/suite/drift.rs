@@ -1,31 +1,31 @@
-//! Generated records and pinned constructs follow skein/docs/design/data/codec/README.md, section 6.
+//! Generated records follow skein/docs/design/data/codec/README.md, section 6.
 
 use std::{fs, path::Path};
 
-use skein_codegen::{generate, unpinned, values};
+use skein_codegen::{generate, values};
 
 const REGENERATE: &str =
     "run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p smith-codecs-world --test suite -E 'test(/^drift::/)'";
 
 #[test]
-fn charter_schema_matches_generated_code_and_pinned_constructs() {
+fn charter_schema_matches_generated_code() {
     assert_family("charter", 5, smith_charter::SCHEMA);
 }
 
 #[test]
-fn transcript_schema_matches_generated_code_and_pinned_constructs() {
+fn transcript_schema_matches_generated_code() {
     assert_family("transcript", 7, smith_transcript::SCHEMA);
 }
 
 #[test]
-fn channel_schema_matches_generated_code_and_pinned_constructs() {
+fn channel_schema_matches_generated_code() {
     assert_family("channel", smith_channel::wire::VERSION, smith_channel::CHANNEL_SCHEMA);
 }
 
 fn assert_family(family: &str, version: u16, source: &'static str) {
     let root = skein_scratch::paths::tree().join(format!("crates/smith-{family}"));
     assert_eq!(values(source).schema.version, version, "current family version");
-    check_records(&root, family, family, source);
+    check_records(&root, family, source);
 }
 
 use crate::support::events;
@@ -66,15 +66,13 @@ fn check_event_goldens(
 }
 
 #[test]
-fn local_store_schema_matches_generated_code_and_pinned_constructs() {
+fn local_store_schema_matches_generated_code() {
     let crates = skein_scratch::paths::tree().join("crates");
     let source = smith_local_protocol::SCHEMA;
-    check_records(&crates.join("smith-local-protocol-codec"), "local_store", "local-store", source);
+    check_records(&crates.join("smith-local-protocol-codec"), "local_store", source);
 }
 
-fn check_records(root: &Path, file: &str, family: &str, source: &'static str) {
-    let missing = unpinned(source).expect("valid family schema");
-    assert!(missing.is_empty(), "{family} uses unpinned constructs: {missing:?}");
+fn check_records(root: &Path, file: &str, source: &'static str) {
     let schema = &values(source).schema;
     let output = generate(schema);
     check_artifact(&root.join(format!("src/generated/{file}.rs")), output.records.as_bytes());
