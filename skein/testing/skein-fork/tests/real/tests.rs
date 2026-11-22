@@ -1,4 +1,4 @@
-use crate::{Exit, Split, passed, split};
+use skein_fork::{Exit, Split, passed, split};
 
 #[test]
 fn a_passed_child_reaches_its_parent_as_code_zero() {

@@ -161,6 +161,3 @@ pub(crate) fn parent_error(errno: i32) -> std::io::Error {
         std::io::Error::from_raw_os_error(errno)
     }
 }
-
-#[cfg(all(test, target_os = "linux"))]
-mod tests;
