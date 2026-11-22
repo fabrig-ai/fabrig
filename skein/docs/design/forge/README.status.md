@@ -31,7 +31,7 @@ transcript lists its three commits newest first, as the plan reads them.
  
 - **Not yet:** 3.2, 3.3, 3.7: `Read::Range` and its answer, in
   neither dialect. No fact records the three narrowing filters; the fake
-  honours them by design (../testing/fakes/forge.md, 4).
+  honours them by design (../testing/fakes/forgejo.md, 1).
 - **Not yet:** 3.2: `Runs` sent with `workflow=` in place of
   `workflow_id=` (`skein-forge/src/forgejo/client/files.rs`); `Pull`'s
   CI folds every page's rows where a short first page's `state` serves,

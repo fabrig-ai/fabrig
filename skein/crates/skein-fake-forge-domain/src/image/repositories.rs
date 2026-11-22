@@ -276,6 +276,7 @@ fn get_pull(input: &mut Reader<'_>, limits: &Limits) -> Result<store::Pull, Refu
         base,
         commit,
         checked,
+        lagging: None,
         merged,
         queue_merged,
         dequeued,

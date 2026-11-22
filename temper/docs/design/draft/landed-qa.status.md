@@ -42,7 +42,7 @@ recipe's files to the fake Forgejo as the person, no credential named),
 `../client/recipe.md`, 2 and 4 (a recipe's `files/`, in its hash), a
 pass's `files/` (`../testing/qa/passes.md`, 2; `../testing/qa/places.md`,
 5 and 6), a head's CI declared by what it holds (skein's
-`testing/fakes/forge.md`, 2.3 and 4; `../testing/fakes.md`, 2;
+`testing/fakes/forge.md`, 2.3, and `testing/fakes/forgejo.md`, 1; `../testing/fakes.md`, 2;
 `../protocol/setup/box.md`, 5), and the process-tier story of a box at
 its place on its fake forges' state (`../testing/process-tier.md`).
 
