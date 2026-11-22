@@ -35,8 +35,8 @@ engine's in full.
   named as the draft's section 7 names them, each ignored with the work
   that fixes it, and an exclusion for each that every engine sweep
   drawing its fault takes; a scenario whose handling holds already runs
-  active with none (P90). P124's first scenario is its fix's own active
-  test, not one of them.
+  active with none (P90, S7, P120). P124's first scenario is its fix's own
+  active test, not one of them.
 - **Out:** jig's, the worker's and smith's adapters and checks; the fault
   families (the draft, section 4); the settings tests and the store check
   (the draft, 3.6 and 3.7), whose call the settings goal adds to the kit's
@@ -357,10 +357,10 @@ wants of that symptom.
 | P90 | `a_refused_close_of_an_open_pull_holds_with_words` | `temper-engine-forge-world` | holds already: active |
 | P67 residual | `a_no_change_landing_repair_regates_once` | `temper-engine-forge-world` | a change's reds |
 | P37 | `a_starved_gate_is_the_runners` | `temper-engine-forge-world` | a change's reds |
-| S7 | `a_landing_without_its_prepare_task_moves` | `temper-engine-domain-world` | landing train |
+| S7 | `a_landing_without_its_prepare_task_moves` | `temper-engine-domain-world` | holds already: active |
 | P53 | `a_resolution_keeping_a_deleted_path_is_refused` | `temper-engine-domain-world` | a change's reds |
 | P58 residual | `a_repair_whose_tests_pass_regates_by_itself` | `temper-engine-domain-world` | a change's reds |
-| P120 | `the_newest_ruling_reaches_the_resolution` | `temper-engine-domain-world` | bounded waits |
+| P120 | `the_newest_ruling_reaches_the_resolution` | `temper-engine-domain-world` | holds already: active |
 | P85 | `a_held_answer_tells_its_requester` | `temper-engine-domain-world` | bounded waits |
 | P113 | `a_change_waits_on_another_goal` | `temper-engine-domain-world` | bounded waits |
 | P63 residual | `a_stored_charter_is_checked_at_start` | `temper-engine-domain-world` | bounded waits |
@@ -384,6 +384,13 @@ wants of that symptom.
   naming the close, the pull request and the permission, so the scenario
   runs, not ignored, and takes no exclusion (the last bullet; the goal's
   coordinator, 2026-11-22).
+- **S7's and P120's handling holds already:** a landing whose prepare
+  child is cancelled, with a member held by a person, ends or holds with
+  words once released; and a held change amended twice, its first
+  resolver failed, is resolved from its newest spec, the resolution's
+  brief built from the live task's current spec and its rulings. Both
+  scenarios run, not ignored, and take no exclusion (the last bullet; the
+  goal's coordinator, 2026-11-22).
 - **P37's report:** a gate red whose report names no failing test; where
   the fake forge and the gate's report reader can say tests went
   unobserved, it says so too.
@@ -418,10 +425,8 @@ names otherwise, here, in its own change.
 | `a_refused_release_is_accounted` | `forge` / `a write refused` | `a task's release under way` |
 | `a_no_change_landing_repair_regates_once` | `runs` / `a repair ends with no change` | `a landing's gate red` |
 | `a_starved_gate_is_the_runners` | `forge` / `a starved gate` | `a landing's gate` |
-| `a_landing_without_its_prepare_task_moves` | `parties` / `hold a member of a live landing` | `its landing's prepare job gone` |
 | `a_resolution_keeping_a_deleted_path_is_refused` | `state` / `a path deleted on the base` | `a resolution under way` |
 | `a_repair_whose_tests_pass_regates_by_itself` | `runs` / `a repair finds its tests passing` | `a landing's gate red` |
-| `the_newest_ruling_reaches_the_resolution` | `parties` / `a ruling on a held change` | `an earlier ruling stands` |
 | `a_held_answer_tells_its_requester` | `parties` / `answer a question` | `a dependency holds the answer` |
 | `a_change_waits_on_another_goal` | `parties` / `a change waits on another goal` | `its requester parked` |
 | `a_stored_charter_is_checked_at_start` | `restarts` / `the engine restarted cold` | `a stored charter past its room` |
