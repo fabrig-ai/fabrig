@@ -608,7 +608,7 @@ the providers' faults (`smith/docs/design/faults.md`).
 - **The account case,** `an_account_fault_holds_only_its_goals`, a fuzzy
   test (`tests/suite/fuzzy/accounts.rs`). Each seed draws from `Faults`,
   part `llm`, one of spent credits, an expired sign-in and a rate window,
-  the account it strikes, the step of the first goal's runs at which it
+  the account it strikes, the step of the struck goal's run at which it
   falls, and whether it is cleared at a later step; each party runs a
   goal; the world records each fault in its ledger, and holds:
   - **3.3 for runs:** no task try is spent for the fault:

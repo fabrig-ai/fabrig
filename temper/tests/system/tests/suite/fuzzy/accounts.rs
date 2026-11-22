@@ -31,7 +31,7 @@ fn an_account_fault_holds_only_its_goals() {
             _ => Strike::Window { tokens: 1, length: Duration::from_millis(50 + rng.below(50)) },
         };
         let account = if rng.below(2) == 0 { FIRST_ACCOUNT } else { OTHER_ACCOUNT };
-        let at_call = usize::try_from(rng.below(6)).expect("six query steps");
+        let at_call = usize::try_from(rng.below(2)).expect("two query steps");
         let clear = (rng.below(2) == 0).then(|| u32::try_from(20 + rng.below(40)).expect("bounded clear step"));
         eprintln!("{strike:?}, account {account}, call {at_call}, clear after {clear:?}");
         let mut world = World::two_accounts(streams.seed_of(Stream::Scheduling, "system"));

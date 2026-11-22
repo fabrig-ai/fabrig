@@ -1,11 +1,20 @@
 //! Synthetic refusals and the fault report (temper/docs/design/testing/fakes.md, 1).
 
-use crate::support::print::{self, messages};
+use crate::support::{
+    Run,
+    print::{self, messages},
+};
 use serde_json::{Value, json};
 use smith_fake_claude::{End, Fault, Seen, Step, Story, Turn, seen};
 
+// These envelope and observation stories need no result-paced input. Reading
+// their output in chunks avoids a simulated pipe operation for every byte.
+fn run(story: Story) -> Run {
+    print::run(story, print::invocation(1).unpaced(), None, Some(print::MCP))
+}
+
 fn result(end: End) -> Value {
-    let run = print::normal(Story { turns: vec![Turn { steps: vec![], end }], ..Story::default() }, 1);
+    let run = run(Story { turns: vec![Turn { steps: vec![], end }], ..Story::default() });
     let records = messages(&run);
     let result = records.last().expect("final result");
     assert_eq!(result["type"], "result");
@@ -41,7 +50,7 @@ fn unserved_model_has_the_documented_envelope() {
     arguments[index] = model.into();
     let run = print::run(
         Story { turns: vec![Turn { steps: vec![], end: End::unserved_model(model) }], ..Story::default() },
-        print::invocation(1).arguments(&arguments.iter().map(String::as_str).collect::<Vec<_>>()),
+        print::invocation(1).arguments(&arguments.iter().map(String::as_str).collect::<Vec<_>>()).unpaced(),
         None,
         Some(print::MCP),
     );
@@ -99,33 +108,30 @@ fn played_faults_are_reported_once_in_order_at_the_host_clock() {
         utilization: Some(json!(1)),
     };
     let end = End::billing_refusal();
-    let run = print::normal(
-        Story {
-            init: smith_fake_claude::Init { delay_ms: Some(37), ..Default::default() },
-            turns: vec![Turn {
-                steps: vec![
-                    limit.clone(),
-                    Step::RateLimitWindow {
-                        status: "allowed".into(),
-                        rate_limit_type: None,
-                        resets_at: None,
-                        utilization: None,
-                    },
-                    Step::RateLimitWindow {
-                        status: "allowed_warning".into(),
-                        rate_limit_type: None,
-                        resets_at: None,
-                        utilization: None,
-                    },
-                    rejected.clone(),
-                    Step::LoseLogin,
-                ],
-                end: end.clone(),
-            }],
-            ..Story::default()
-        },
-        1,
-    );
+    let run = run(Story {
+        init: smith_fake_claude::Init { delay_ms: Some(37), ..Default::default() },
+        turns: vec![Turn {
+            steps: vec![
+                limit.clone(),
+                Step::RateLimitWindow {
+                    status: "allowed".into(),
+                    rate_limit_type: None,
+                    resets_at: None,
+                    utilization: None,
+                },
+                Step::RateLimitWindow {
+                    status: "allowed_warning".into(),
+                    rate_limit_type: None,
+                    resets_at: None,
+                    utilization: None,
+                },
+                rejected.clone(),
+                Step::LoseLogin,
+            ],
+            end: end.clone(),
+        }],
+        ..Story::default()
+    });
     let faults = faults(run.observations.as_ref().expect("observations"));
     assert_eq!(
         faults.iter().map(|(fault, _)| fault.clone()).collect::<Vec<_>>(),

@@ -213,7 +213,7 @@ fn program_and_session_retries_are_counted_separately() {
             Turn::new(vec![Step::Retry { attempt: 1, status: 503, delay_ms: Some(125) }]),
             finish(),
         ],
-        Case::Events,
+        Case::Tools,
     );
     run.runs.judge(&mut run.ledger).expect("edge refusal may recover");
     let fault = run.ledger.entries().first().expect("edge refusal");

@@ -262,7 +262,8 @@ fn refusal_run(story: &Story) -> Run {
     let charter = smith_agent_process_world::wire::edit_charter(&charter(), |parts| {
         smith_agent_process_world::wire::budget(parts, 8, 20);
     });
-    program_world::run(Case::Events, story, Some(b"claude.ai"), &charter, &program(b"source"), None)
+    // Failure metadata does not need full prompt and completion capture.
+    program_world::run(Case::Tools, story, Some(b"claude.ai"), &charter, &program(b"source"), None)
 }
 
 fn refusal(end: End) -> Story {

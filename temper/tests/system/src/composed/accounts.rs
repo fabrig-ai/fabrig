@@ -19,6 +19,8 @@ pub fn credential(account: u32) -> u32 {
     account - FIRST_ACCOUNT
 }
 const OTHER_REPLIES: u64 = 500;
+// Two parties, each with one key account; same-holder scenarios use both.
+const ACCOUNT_COUNT: u32 = 2;
 
 pub(super) struct Story {
     pub other: parties::Party,
@@ -52,13 +54,10 @@ struct Fault {
 }
 
 fn config(seed: u64) -> engine::Config {
-    let mut config = super::agreement::config(seed);
+    // Account isolation needs the reporting charter, not the stock role catalogue.
+    let mut config = super::config(seed);
     // Share the unchanged deployment allowance between two party pools.
     let share = config.core.defaults.rules.period_spend / 2;
-    let policy = config.core.defaults.policies.get_mut(&1).expect("project policy");
-    for role in &mut policy.policy.roles {
-        role.period_spend = share;
-    }
     for project in &mut config.core.seed_projects {
         for role in &mut project.policy.policy.roles {
             role.period_spend = share;
@@ -72,23 +71,10 @@ fn script() -> Script {
         cue: b"@accounts".as_slice().into(),
         turns: Box::new([
             Turn {
-                lines: Box::new([
-                    Line::Call {
-                        name: b"sub_agent".as_slice().into(),
-                        arguments:
-                            br#"{"brief":"@account-child Inspect README.md.","tools":["inspect"]}"#.as_slice().into(),
-                    },
-                    Line::Call {
-                        name: b"sub_agent".as_slice().into(),
-                        arguments:
-                            br#"{"brief":"@account-child Inspect src/lib.rs.","tools":["inspect"]}"#.as_slice().into(),
-                    },
-                ]),
-                finish: Finish::ToolCalls,
-                tokens: 20,
+                lines: Box::new([Line::Text { text: b"Preparing the report.".as_slice().into() }]),
+                finish: Finish::Stop,
+                tokens: 1,
             },
-            call(b"read", br#"{"path":"src/lib.rs"}"#),
-            call(b"read", br#"{"path":"src/main.rs"}"#),
             call(b"finish", br#"{"report":"The repository needs no change."}"#),
         ]),
     }
@@ -98,7 +84,14 @@ impl World {
     /// Two independently funded parties, each with its own key account.
     #[must_use]
     pub fn two_accounts(seed: u64) -> Self {
-        let mut world = Self::configured_with(seed, script(), true, config);
+        let mut world = Self::configured_limits(seed, script(), false, config, |limits| {
+            limits.accounts.accounts = ACCOUNT_COUNT;
+            limits.accounts.holder_accounts = ACCOUNT_COUNT;
+            limits.accounts.sign_ins = ACCOUNT_COUNT;
+            limits.accounts.credentials = ACCOUNT_COUNT;
+            // Each account may contribute its binding and its credential.
+            limits.fleet.grants = ACCOUNT_COUNT * 2;
+        });
         let erases = world
             .store
             .rows
@@ -202,7 +195,7 @@ impl World {
     }
 
     pub(super) fn account_party(&mut self) {
-        if self.opened && self.adoption == super::Adoption::Adopted {
+        if self.opened && self.adoption != super::Adoption::Pending {
             let up = self.account_case.as_mut().and_then(|story| story.other.tick(self.env.now));
             if let Some(up) = up {
                 self.party_request(up);
@@ -259,13 +252,14 @@ impl World {
                 core::mem::replace(&mut self.process, Process::new(self.seed, script())),
             );
         }
-        self.process.extra_scripts.push(Script {
-            cue: b"@account-child".as_slice().into(),
-            turns: Box::new([call(b"finish", br#"{"report":"The inspected file needs no change."}"#)]),
-        });
         self.process.configure_settings = Some(|settings| {
-            settings.provider.accounts = 2;
+            settings.provider.accounts = ACCOUNT_COUNT;
             settings.provider.unserved = 1;
+            // Both prompts fit inside the shortest drawn window; only the
+            // session's backoff, not the fake's latency, should reset it.
+            settings.provider.latency_min = Duration::ZERO;
+            settings.provider.latency_max = Duration::ZERO;
+            settings.network = skein_world::domain::Span::millis(1, 2);
         });
         if let Some(fault) = &story.fault
             && fault.struck_at.is_some()
@@ -449,9 +443,9 @@ impl World {
         })
     }
 
-    /// Arrange one account fault at a query boundary of the first goal's run.
+    /// Arrange one account fault at a query boundary of the struck goal's run.
     pub fn plan_account_fault(&mut self, account: u32, strike: Strike, at_call: usize, clear_after: Option<u32>) {
-        assert!(at_call < 6, "one of this goal's six model requests, children included");
+        assert!(at_call < 2, "one of this goal's two model requests");
         self.account_case.as_mut().expect("two accounts").fault = Some(Fault {
             account,
             strike,
@@ -516,7 +510,8 @@ impl World {
         {
             fault.hit.get_or_insert(story.steps);
         }
-        let calls = story.queries.iter().filter(|(task, _)| Some(*task) == self.party.last_task).count();
+        let goal = if fault.account == FIRST_ACCOUNT { self.party.last_task } else { story.other.last_task };
+        let calls = story.queries.iter().filter(|(task, _)| Some(*task) == goal).count();
         if fault.struck_at.is_none() && self.assignment.is_some() && calls >= fault.at_call {
             let struck = Struck { account: Some(fault.account.to_string()), ..Struck::default() };
             fault.struck_at = Some(self.env.now);

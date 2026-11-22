@@ -38,7 +38,6 @@ pub(crate) struct Process {
     clock_start: Option<Time>,
     /// The fake LLM's script, extended by each resumed activation.
     pub(super) script: Script,
-    pub(super) extra_scripts: Vec<Script>,
     /// The previous activation's concrete turns, which a resume restores.
     history: Option<smith::Transcript>,
     pub(super) fresh: Option<Script>,
@@ -144,7 +143,6 @@ impl Process {
             clocked: false,
             clock_start: None,
             script,
-            extra_scripts: Vec::new(),
             history: None,
             fresh: None,
             history_messages: None,
@@ -419,8 +417,7 @@ impl Process {
             answered: answered(start.answered),
             grants: grants(&start.grants),
         });
-        let scripts = std::iter::once(self.script.clone()).chain(self.extra_scripts.iter().cloned()).collect();
-        let mut agent = Agent::with_workspace_scripts_start(settings, mounted, scripts, event);
+        let mut agent = Agent::with_workspace_scripts_start(settings, mounted, Box::new([self.script.clone()]), event);
         for (credential, strike) in &self.strikes {
             agent.provider_mut().strike(*credential, strike.clone(), Time::ZERO).expect("account fault fits");
             self.struck_at = Some(Time::ZERO);
@@ -772,6 +769,16 @@ fn host_calls(agent: &Agent, sent_calls: &mut Vec<Token>, now: Time, up: &mut Ve
 }
 
 fn receiving(tool_payload: Option<u32>) -> run::Limits {
+    // The shipped profile is immutable; retain only its derived, allocation-free
+    // limits, not another parsed stock document for every activation.
+    static STOCK: std::sync::OnceLock<run::Limits> = std::sync::OnceLock::new();
+    match tool_payload {
+        None => *STOCK.get_or_init(|| derive_receiving(None)),
+        Some(_) => derive_receiving(tool_payload),
+    }
+}
+
+fn derive_receiving(tool_payload: Option<u32>) -> run::Limits {
     use smith_agent_service::profile::{self, Configuration, Endpoint, Limits as DeclaredLimits};
     let agents = temper_engine_service_stock::stock::agents();
     let endpoint = agents.fallback;
