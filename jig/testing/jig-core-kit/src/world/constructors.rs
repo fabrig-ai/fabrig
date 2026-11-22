@@ -6,8 +6,8 @@ use super::{
 use jig_domain_link::{Form, Hello, Scheme};
 pub use jig_test_profile::effect_fixture as fixture;
 
-// Focused stories' median is 12 durable commits; sample at the next power of two.
-const STORE_CHECK_ONE_IN: u64 = 16;
+// Focused stories have a median of 12 commits; most runs do no rehearsal.
+const STORE_CHECK_ONE_IN: u64 = 1024;
 
 pub(super) fn limits() -> root::Limits {
     let mut limits = jig_test_profile::limits();

@@ -98,7 +98,10 @@ fn sampled(seed: u64) -> Vec<(u64, u64)> {
     let (commits, checked) = world.store_counts();
     assert_eq!(commits, 128);
     assert!(checked > 0 && checked < commits);
-    assert_eq!(world.store_report(), format!("store check: {checked} of 128 commits checked (one in 32, seed {seed})"));
+    assert_eq!(
+        world.store_report(),
+        format!("store check: {checked} of 128 commits checked (one in 1024, seed {seed})")
+    );
     assert_eq!((world.calls(), world.writes(), world.wall()), (calls, writes, wall));
     assert!(world.seen().is_empty(), "the check's outputs stay in its copy");
     counts
@@ -106,7 +109,8 @@ fn sampled(seed: u64) -> Vec<(u64, u64)> {
 
 #[test]
 fn the_default_sample_reports_and_replays_without_touching_the_world() {
-    let first = sampled(19);
-    assert_eq!(first, sampled(19));
-    assert_ne!(first, sampled(20));
+    // These seeds select commits 87 and 63 in the default one-in-1024 sample.
+    let first = sampled(4);
+    assert_eq!(first, sampled(4));
+    assert_ne!(first, sampled(26));
 }

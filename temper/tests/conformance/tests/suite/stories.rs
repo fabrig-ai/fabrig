@@ -5,7 +5,7 @@ use temper_conformance_world::{Config, Temper};
 fn chat_change_lands_only_after_current_head_ci_and_review() {
     let setup = Temper::store(&Config::for_story(71, Story::ReviewedChange)).applied;
     let outcome = stories::run(Story::ReviewedChange, Cut::None, 71).expect("reviewed change");
-    let mut sample = jig_conformance::store_check::StoreChecks::sampled(71, 32);
+    let mut sample = jig_conformance::store_check::StoreChecks::sampled(71, 1024);
     for commit in setup + 1..=outcome.commits {
         sample.due(commit);
     }

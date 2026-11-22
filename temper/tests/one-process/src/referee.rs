@@ -366,6 +366,8 @@ impl Referee {
     fn phase_complete(&mut self, other: &[Proc]) -> Result<bool, String> {
         Ok({
             match self.phase {
+                #[cfg(test)]
+                crate::world::Phase::Committed => self.store.borrow().applied > 0,
                 crate::world::Phase::Refused => return Err(String::from("refused starts send no shutdown signal")),
                 crate::world::Phase::SignIn => other
                     .iter()
@@ -684,10 +686,16 @@ impl skein_world::Referee<Proc> for Referee {
         })
     }
     fn passed(&self) -> bool {
+        let no_client = match self.phase {
+            #[cfg(test)]
+            crate::world::Phase::Committed => true,
+            crate::world::Phase::Restart | crate::world::Phase::Refused => true,
+            _ => false,
+        };
         self.finding.is_none()
             && (self.done.is_some()
                 && self.ended
-                && (matches!(self.phase, crate::world::Phase::Restart | crate::world::Phase::Refused)
+                && (no_client
                     || self.signed_in
                         && (self.released
                             || !matches!(self.phase, crate::world::Phase::Story)

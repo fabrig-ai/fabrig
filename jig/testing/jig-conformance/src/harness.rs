@@ -6,8 +6,8 @@ use crate::store_check::{self, StoreChecks};
 use crate::trace::Trace;
 
 // The twenty conformance stories' median is 18.5 commits (seeds 31 and 71).
-// Round it up to a power of two for about one check per run.
-const STORE_CHECK_ONE_IN: u64 = 32;
+// Most runs do no rehearsal, keeping instruction growth within the gate's bound.
+const STORE_CHECK_ONE_IN: u64 = 1024;
 use std::collections::VecDeque;
 use std::fmt::Debug;
 

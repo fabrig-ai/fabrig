@@ -90,12 +90,18 @@ pub struct Counts {
 }
 #[derive(Clone, Copy)]
 pub(crate) enum Phase {
+    /// Stop after the first durable image, for the store check's isolation comparison.
+    #[cfg(test)]
+    Committed,
     Story,
     SignIn,
     Drain,
     Restart,
     Refused,
-    Fault { cut: skein_world::Cut, before: u32 },
+    Fault {
+        cut: skein_world::Cut,
+        before: u32,
+    },
 }
 #[derive(Default)]
 struct Progress {
@@ -1311,6 +1317,8 @@ pub(crate) fn try_run_phase(
                 );
                 world.spawn_restartable(programs::service_roots(), programs::service::<OneProcess>);
                 match phase {
+                    #[cfg(test)]
+                    Phase::Committed => {}
                     Phase::Fault { cut, before } => {
                         world.spawn_restartable(
                             vec![skein_world::StartupRoot {

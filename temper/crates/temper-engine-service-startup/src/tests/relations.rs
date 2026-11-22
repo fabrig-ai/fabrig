@@ -39,6 +39,7 @@ struct Profile {
     slots: u32,
 }
 #[derive(Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "independent properties of each settings relation and its check")]
 struct Relation {
     name: &'static str,
     kind: Kind,
@@ -52,6 +53,7 @@ struct Relation {
     overload: Option<fn(&Profile) -> Override>,
     explicit: Option<u64>,
     implicit: bool,
+    full_start: bool,
 }
 impl Relation {
     fn actual(&self, profile: &Profile) -> u64 {

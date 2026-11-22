@@ -14,11 +14,12 @@ pub fn store(store: &Store, config: &Config, limits: &Limits, wall: Wall, commit
         if driver.root.rehearsed() {
             return Ok(());
         }
-        let phase = driver.root.start_phase().map_or_else(|| "None".to_owned(), |phase| format!("{phase:?}"));
         if let Some(refusal) = driver.root.start_stop() {
+            let phase = driver.root.start_phase().map_or_else(|| "None".to_owned(), |phase| format!("{phase:?}"));
             return Err(finding(commit, &phase, &format!("{refusal:?}")));
         }
         if quiet == 2 {
+            let phase = driver.root.start_phase().map_or_else(|| "None".to_owned(), |phase| format!("{phase:?}"));
             return Err(format!("store check: commit {commit}: start stalled at {phase}"));
         }
         let collected = driver.collected;

@@ -95,11 +95,16 @@ the run's seed, each run's count reported.
 | `temper-engine-forge-world` | sampled | once the world has applied one step's writes: a `take_top` output's saves and erases together, its projections' included, as the root commits them in one commit (a change's cold and hot parts are two saves of one commit, never two commits) |
 | `temper-one-process-world` | sampled | once its referee observes a commit |
 
-- **The sample:** each sampled world names its `one_in`, so that a run
-  checks about one commit (the budget plan's initial choice,
-  `../../development/failure-worlds-budget.md`, *Restore at every
-  commit, or sample*), from the commit counts its runs report. Every
-  commit everywhere is a separate, priced choice (section 6).
+- **The sample:** each sampled world names its `one_in`, chosen to keep
+  its checks within the gate's instruction-growth bound
+  (`tools/tiers/budgets.md`, 8). Most runs check no commit; every run
+  reports its checked and total counts. The core kit, conformance
+  harness, engine domain, forge, system and one-process worlds each use
+  one in 1024. The conformance application's ordinary stories use the
+  harness's sample; their commit-cut cases still check every commit.
+  These samples cover ordinary runs of a few commits or a few dozen,
+  rather than promising one check per run. Every commit everywhere
+  remains a separate, priced choice (section 6).
 - **Its call is one line at a world's commit.** The engine's worlds'
   shared kit is the engine checks' goal's
   (`../draft/failure-worlds.execution.md`, 2): where that kit holds a
@@ -141,10 +146,15 @@ draft, 11):
   commit-cut cases pass with every commit checked.
 - **The forge world:** a stored record whose task the world doesn't hold
   fails the sampled check under `every()`, naming the record; its
-  stories pass.
+  stories pass. A 128-commit binding story reports and replays its
+  default sample without changing the live world; seeds 4 and 26 check
+  different commits.
 - **The system and one-process worlds:** their stories pass with the
-  sampled check, each reporting its count; a one-process story whose
-  sampled commit the rehearsal refuses fails naming the commit.
+  sampled check, each reporting its count. The one-process world's
+  one-commit startup story checks every commit and compares the complete
+  live disk, handles and counters against an unchecked control. Its
+  22-commit chat at seed 45 checks and reports one sampled commit; a
+  corrupt-commit story still fails at commit 2, naming the tool's refusal.
 
 ## 6. Later
 

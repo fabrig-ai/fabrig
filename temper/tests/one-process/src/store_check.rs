@@ -4,8 +4,8 @@ use jig_conformance::store_check::{StoreChecks, finding};
 use std::{cell::RefCell, rc::Rc};
 use temper_playground::{documents::Configuration, programs::Harness};
 
-// Focused run phases have a median of 21 commits, rounded up to a power of two.
-const ONE_IN: u64 = 32;
+// Focused run phases have a median of 21 commits; most runs do no rehearsal.
+const ONE_IN: u64 = 1024;
 
 /// The run's selection count and the number of isolated rehearsals it performed.
 #[derive(Debug)]
@@ -24,6 +24,7 @@ struct State {
     settings: Settings,
     disk: Rc<RefCell<skein_fake_machine::Machine>>,
     document: Configuration,
+    given: Option<temper_service::stock::Given>,
 }
 
 thread_local! {
@@ -67,7 +68,8 @@ pub(crate) fn scope<R>(
     let checks = POLICY.with(RefCell::take).unwrap_or_else(|| StoreChecks::sampled(settings.seed, ONE_IN));
     STATE.with(|at| {
         assert!(at.borrow().is_none(), "one live store-check scope");
-        *at.borrow_mut() = Some(State { checks, pending: None, newest: 0, rehearsals: 0, settings, disk, document });
+        *at.borrow_mut() =
+            Some(State { checks, pending: None, newest: 0, rehearsals: 0, settings, disk, document, given: None });
     });
     let _reset = Reset;
     let result = run();
@@ -106,7 +108,11 @@ pub(crate) fn check() -> Result<(), String> {
         tests::inject(state);
         let mut copy = state.disk.borrow().fork();
         let number = newest(&mut copy).max(state.newest);
-        let given = crate::world::OneProcess::given(&state.document);
+        // Derive the immutable configuration only on the first selected commit.
+        if state.given.is_none() {
+            state.given = Some(crate::world::OneProcess::given(&state.document));
+        }
+        let given = state.given.as_ref().expect("selected commit's configuration").copied();
         let result = rehearsal::check(copy, state.settings, state.document.clone(), given);
         state.rehearsals += 1;
         match result {
@@ -168,11 +174,11 @@ mod tests {
         assert!(state.checks.due(state.newest), "corrupt fixture uses every commit");
     }
 
-    fn story() -> (world::Outcome, [u8; 32], u64) {
+    fn story(seed: u64, phase: world::Phase) -> (world::Outcome, [u8; 32], u64) {
         let (outcome, disk, store) = world::run_phase(
-            fixtures::calm(fixtures::SEED),
+            fixtures::calm(seed),
             world::Story::Chat { words: b"Hello" },
-            world::Phase::Story,
+            phase,
             temper_playground::machine::fresh(),
             referee::Store::new(),
             Rc::new(RefCell::new(referee::Run::default())),
@@ -182,12 +188,13 @@ mod tests {
 
     #[test]
     fn every_commit_rehearses_without_changing_the_live_story() {
-        let (checked, digest, last) = with_policy(StoreChecks::every(), story);
-        assert_eq!(checked.chats_answered, 1);
+        let run = || story(fixtures::SEED, world::Phase::Committed);
+        let (checked, digest, last) = with_policy(StoreChecks::every(), run);
+        assert_eq!(checked.store_checks.commits, 1);
         assert_eq!(checked.store_checks.checked, checked.store_checks.commits);
         assert!(checked.store_checks.rehearsals > 0);
         assert_eq!(checked.store_checks.rehearsals, checked.store_checks.checked);
-        let (unchecked, without, unchecked_last) = with_policy(StoreChecks::none("comparison of live disks"), story);
+        let (unchecked, without, unchecked_last) = with_policy(StoreChecks::none("comparison of live disks"), run);
         assert_eq!(unchecked.store_checks.checked, 0);
         assert_eq!(checked.store_checks.commits, unchecked.store_checks.commits);
         assert_eq!(last, unchecked_last);
@@ -196,12 +203,13 @@ mod tests {
 
     #[test]
     fn the_default_sample_reports_the_storys_commits() {
-        let (outcome, _, _) = story();
+        // Seed 45 selects commit 17 with the default one-in-1024 sample.
+        let (outcome, _, _) = story(45, world::Phase::Story);
         assert_eq!(outcome.chats_answered, 1);
         assert_eq!(outcome.store_checks.commits, 22);
         assert_eq!(outcome.store_checks.checked, 1);
         assert_eq!(outcome.store_checks.rehearsals, 1);
-        assert_eq!(outcome.store_checks.words, "store check: 1 of 22 commits checked (one in 32, seed 7)");
+        assert_eq!(outcome.store_checks.words, "store check: 1 of 22 commits checked (one in 1024, seed 45)");
     }
 
     #[test]

@@ -140,27 +140,74 @@ fn known(overrides: &[Override], kind: LimitKind, left_out: &mut List<LeftOut>) 
 /// start's facts and the store's stock envelope. Unknown names are retained as
 /// observations, not applied. No engine or IO is constructed here.
 pub fn resolve_limits(inputs: &LimitInputs, jig: &[Override], temper: &[Override]) -> Result<Resolved, Problems> {
+    checked_limits(inputs, jig, temper, true, None)
+}
+
+/// The immutable stock and store envelope, prepared once for related mutations.
+pub(crate) struct Preflight {
+    stock_jig: config::Limits,
+    stock_own: limits::Limits,
+    store: jig_protocol_store::Limits,
+}
+
+impl Preflight {
+    pub(crate) fn new(inputs: &LimitInputs) -> Result<Self, Problems> {
+        let (stock_jig, stock_own) = inputs.stock()?;
+        let (mut store_jig, store_own) = inputs.store_base()?;
+        let stock_root = super::engine_limits(&mut store_jig, &store_own, None)?;
+        let store = super::checked_store(&stock_root, &store_jig.store, None)?;
+        Ok(Self { stock_jig, stock_own, store })
+    }
+
+    /// Use the same preflight as startup; composed relations retain the full start.
+    #[cfg(test)]
+    pub(crate) fn check(
+        &self,
+        inputs: &LimitInputs,
+        jig: &[Override],
+        temper: &[Override],
+        full_start: bool,
+    ) -> Result<Resolved, Problems> {
+        checked_limits(inputs, jig, temper, full_start, Some(self))
+    }
+}
+
+fn checked_limits(
+    inputs: &LimitInputs,
+    jig: &[Override],
+    temper: &[Override],
+    full_start: bool,
+    prepared: Option<&Preflight>,
+) -> Result<Resolved, Problems> {
     let capacity = u32::try_from(jig.len().saturating_add(temper.len())).expect("checked override counts");
     let mut left_out = List::with_capacity(capacity);
     let jig = known(jig, LimitKind::Jig, &mut left_out);
     let temper = known(temper, LimitKind::Temper, &mut left_out);
-    let result = resolve(inputs, &jig, &temper, left_out);
+    let result = match prepared {
+        Some(prepared) => preflight(inputs, &jig, &temper, left_out, prepared),
+        None => match Preflight::new(inputs) {
+            Ok(prepared) => preflight(inputs, &jig, &temper, left_out, &prepared),
+            Err(problems) => Err(problems),
+        },
+    };
+    let result = match result {
+        Ok(resolved) if full_start => complete(inputs, resolved),
+        result => result,
+    };
     match result {
         Ok(resolved) => Ok(resolved),
         Err(problems) => Err(named(problems, &jig, &temper)),
     }
 }
-#[expect(clippy::too_many_lines, reason = "the six resolution steps retain one checked ordering")]
-fn resolve(
+#[expect(clippy::too_many_lines, reason = "the settings preflight retains one checked ordering")]
+fn preflight(
     inputs: &LimitInputs,
     jig: &[Override],
     temper: &[Override],
     left_out: List<LeftOut>,
+    prepared: &Preflight,
 ) -> Result<Resolved, Problems> {
-    let (stock_jig, stock_own) = inputs.stock()?;
-    let (mut store_jig, store_own) = inputs.store_base()?;
-    let stock_root = super::engine_limits(&mut store_jig, &store_own, None)?;
-    let store = super::checked_store(&stock_root, &store_jig.store, None)?;
+    let Preflight { stock_jig, stock_own, store } = *prepared;
     let mut sources = stock_own;
     for item in temper {
         if item.name.as_ref() == b"live_goals" && item.value > u64::from(derived::STORE_LIVE_GOALS) {
@@ -254,7 +301,7 @@ fn resolve(
     if !floors.is_empty() {
         return Err(floors);
     }
-    let mut root = super::engine_limits(&mut jig, &own, None)?;
+    let root = super::engine_limits(&mut jig, &own, None)?;
     let application = temper_protocol_store::application(&root.forge, root.tasks.spec_bytes)
         .ok_or(checks::store_refusal(crate::store::Refusal::Map(jig_protocol_store::sizes::SizeRefusal::Ceiling)))?;
     let commits = jig_protocol_store::sizes::Commits { in_flight: root.journal.commits, writes: root.journal.writes };
@@ -268,6 +315,11 @@ fn resolve(
         return Err(checks::store_refusal(crate::store::Refusal::Map(why)));
     }
     jig.store = store;
+    Ok(Resolved { jig, temper: own, root, left_out, store, payload })
+}
+
+fn complete(inputs: &LimitInputs, resolved: Resolved) -> Result<Resolved, Problems> {
+    let Resolved { mut jig, temper: own, left_out, store, payload, .. } = resolved;
     let start = checked_start_limits(
         &inputs.document,
         &inputs.directories,
@@ -281,7 +333,7 @@ fn resolve(
         Some(&store),
     )?;
     jig = start.engine.jig.limits;
-    root = super::engine_limits(&mut jig, &own, None)?;
+    let mut root = super::engine_limits(&mut jig, &own, None)?;
     root.host_reply_bytes = start.engine.host_reply_bytes;
     let application = temper_protocol_store::application(&root.forge, root.tasks.spec_bytes)
         .ok_or(checks::store_refusal(crate::store::Refusal::Map(jig_protocol_store::sizes::SizeRefusal::Ceiling)))?;

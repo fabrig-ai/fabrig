@@ -26,10 +26,16 @@ fn row(
         overload: None,
         explicit: None,
         implicit: false,
+        full_start: false,
     }
 }
 fn implicit(mut relation: Relation) -> Relation {
     relation.implicit = true;
+    relation
+}
+// These relations also need checks after configuration is composed.
+fn full_start(mut relation: Relation) -> Relation {
+    relation.full_start = true;
     relation
 }
 fn worker(mut relation: Relation) -> Relation {
@@ -96,14 +102,14 @@ pub(super) fn relations() -> List<Relation> {
     add(
         &mut rows,
         ceiling(
-            row(
+            full_start(row(
                 "forge deadline within lifetime",
                 HoldsAll,
                 lifetime,
                 "forge.client.lifetime_ms",
                 &["forge_component.deadline_ms"],
                 |p| p.own.forge_component.deadline.as_millis(),
-            ),
+            )),
             |p| {
                 super::item(
                     "forge_component.deadline_ms",
@@ -115,7 +121,7 @@ pub(super) fn relations() -> List<Relation> {
     let together = "configuration/limits.md, limits checked against each other";
     add(
         &mut rows,
-        row(
+        full_start(row(
             "forge kept answers",
             SetByTemper,
             together,
@@ -126,18 +132,18 @@ pub(super) fn relations() -> List<Relation> {
                     .checked_mul(u64::from(p.own.forge.client.answer_bytes))
                     .expect("u32 product")
             },
-        ),
+        )),
     );
     add(
         &mut rows,
-        row(
+        full_start(row(
             "forge connections and calls",
             CheckedTogether,
             together,
             "forge_component.connections",
             &["forge.client.calls"],
             |p| u64::from(p.own.forge.client.calls),
-        ),
+        )),
     );
     add(
         &mut rows,
@@ -302,7 +308,7 @@ pub(super) fn relations() -> List<Relation> {
     );
     add(
         &mut rows,
-        row(
+        full_start(row(
             "live landings",
             Follows,
             counts,
@@ -317,7 +323,7 @@ pub(super) fn relations() -> List<Relation> {
                     ),
                 )
             },
-        ),
+        )),
     );
     add(
         &mut rows,
@@ -546,7 +552,7 @@ pub(super) fn relations() -> List<Relation> {
     );
     add(
         &mut rows,
-        row(
+        full_start(row(
             "git output holds conflict paths",
             HoldsAll,
             together,
@@ -557,7 +563,7 @@ pub(super) fn relations() -> List<Relation> {
                     .checked_mul(u64::from(p.own.checkout.path_bytes).checked_add(1).expect("NUL"))
                     .expect("conflict output")
             },
-        ),
+        )),
     );
     // These same-set safety relations explain companion mutations without
     // pretending that a rejected source produced a resolved figure.
@@ -630,14 +636,14 @@ pub(super) fn relations() -> List<Relation> {
     add(
         &mut rows,
         ceiling(
-            row(
+            full_start(row(
                 "worker landing member ceiling",
                 HoldsAll,
                 "configuration/limits.md, landing members; startup::checks::root",
                 "wire.landing_members",
                 &["forge.landing_members"],
                 |p| u64::from(p.own.forge.landing_members),
-            ),
+            )),
             |p| {
                 super::item(
                     "forge.landing_members",

@@ -1,8 +1,8 @@
 //! Rehearse the forge's half of Link over a private store image at a committed batch.
 use super::{Queue, StoreChecks, World, top};
 
-// The focused stories' reported median commit count, rounded up to a power of two.
-pub(super) const ONE_IN: u64 = 32;
+// Most runs do no rehearsal; even the 128-commit sample story stays sparse.
+pub(super) const ONE_IN: u64 = 1024;
 
 impl World {
     /// Choose checks before the story's commits; the report counts only this policy's commits.

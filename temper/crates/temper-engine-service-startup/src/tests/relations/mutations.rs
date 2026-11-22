@@ -13,12 +13,15 @@ enum Decision {
 #[derive(Debug)]
 struct Cached {
     worker: bool,
+    full_start: bool,
     changes: Box<[Override]>,
     result: Result<startup::Resolved, startup::Problems>,
 }
 struct Walk {
     cache: List<Cached>,
     count: u32,
+    prepared: startup::Preflight,
+    worker_prepared: startup::Preflight,
     inputs: startup::LimitInputs,
     worker: startup::LimitInputs,
     base: Profile,
@@ -106,14 +109,24 @@ impl Walk {
             }
         }
         let inputs = if row.worker { &self.worker } else { &self.inputs };
-        // A source shared by several rows is one settings mutation. Resolve it
-        // once, then let every row judge that same start decision.
-        let result = match self.cache.iter().find(|c| c.worker == row.worker && c.changes.as_ref() == changes) {
+        // A shared source is one mutation at each check depth. Resolve it once,
+        // then let every row judge that same preflight or full-start decision.
+        let result = match self
+            .cache
+            .iter()
+            .find(|c| c.worker == row.worker && c.full_start == row.full_start && c.changes.as_ref() == changes)
+        {
             Some(cached) => cached.result.clone(),
             None => {
-                let result = startup::resolve_limits(inputs, jig.as_slice(), temper.as_slice());
+                let prepared = if row.worker { &self.worker_prepared } else { &self.prepared };
+                let result = prepared.check(inputs, jig.as_slice(), temper.as_slice(), row.full_start);
                 self.cache
-                    .push(Cached { worker: row.worker, changes: changes.into(), result: result.clone() })
+                    .push(Cached {
+                        worker: row.worker,
+                        full_start: row.full_start,
+                        changes: changes.into(),
+                        result: result.clone(),
+                    })
                     .expect("bounded unique mutations");
                 result
             }
@@ -214,10 +227,13 @@ pub(super) fn walk(rows: &List<Relation>) {
     let base = stock();
     let worker = super::super::limit_settings::inputs_for(true);
     let worker_base = super::resolved_profile(&worker, &[], &[]);
+    let inputs = super::super::limit_settings::inputs();
     let mut walk = Walk {
+        prepared: startup::Preflight::new(&inputs).expect("stock preflight"),
+        worker_prepared: startup::Preflight::new(&worker).expect("worker preflight"),
         cache: List::with_capacity(512),
         count: 0,
-        inputs: super::super::limit_settings::inputs(),
+        inputs,
         worker,
         base,
         worker_base,
@@ -295,7 +311,7 @@ pub(super) fn walk(rows: &List<Relation>) {
     }
     assert!(walk.failures.is_empty(), "{} of {} generated mutations failed", walk.failures.len(), walk.count);
     eprintln!(
-        "{} generated row mutations got their decision through {} distinct start resolutions",
+        "{} generated row mutations got their decision through {} distinct resolutions (preflight, or full start for composed checks)",
         walk.count,
         walk.cache.len()
     );

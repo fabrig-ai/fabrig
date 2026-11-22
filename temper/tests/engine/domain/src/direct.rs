@@ -12,8 +12,8 @@ use crate::protocol::Protocol;
 use crate::store::Store;
 use crate::walking::{config, limits};
 
-// Focused stories report a median of two commits (testing/store-check.md, 3).
-const STORE_CHECK_ONE_IN: u64 = 2;
+// Focused stories have a median of two commits; most runs do no rehearsal.
+const STORE_CHECK_ONE_IN: u64 = 1024;
 
 #[expect(
     clippy::struct_excessive_bools,
