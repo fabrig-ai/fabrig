@@ -726,10 +726,10 @@ fn mutated(rng: &mut Rng) {
         if !mutation_seed(&value.name) {
             continue;
         }
-        let golden = &value.bytes;
-        decoders(golden);
+        let fixed_value = &value.bytes;
+        decoders(fixed_value);
         for _ in 0..1 {
-            let mut bytes = golden.clone();
+            let mut bytes = fixed_value.clone();
             if !bytes.is_empty() {
                 let index = usize::try_from(rng.below(len_u64(bytes.len()))).expect("index fits");
                 *bytes.get_mut(index).expect("chosen byte") = u8::try_from(rng.next_u64() & 0xff).expect("low byte");

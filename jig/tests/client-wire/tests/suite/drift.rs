@@ -1,10 +1,10 @@
-//! The client records' drift and pinned constructs (skein's data/codec/README.md, 6).
+//! The client records' drift (skein's data/codec/README.md, 6).
 use jig_client_protocol_wire::Record as _;
 #[path = "../../../codec-families.rs"]
 mod families;
 
 #[test]
-fn codec_families_match_their_schemas_and_are_pinned() {
+fn codec_families_match_their_schemas() {
     families::check();
     current_client_layout();
 }
@@ -46,11 +46,11 @@ fn the_hello_alone_keeps_version_27_bytes() {
         0, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 0, 0, 0, 1, 0, 255, 255,
         255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
     ];
-    for (expected, golden) in [
-        (full, super::client_values::value("enum_stream_event_hello_full.bin")),
-        ([0_u8; 29].as_slice(), super::client_values::value("enum_stream_event_hello_smallest.bin")),
+    for (expected, fixed_value) in [
+        (full, super::client_values::fixed_value("enum_stream_event_hello_full.bin")),
+        ([0_u8; 29].as_slice(), super::client_values::fixed_value("enum_stream_event_hello_smallest.bin")),
     ] {
-        assert_eq!(golden, expected);
+        assert_eq!(fixed_value, expected);
         let value = w::StreamEvent::decode(&w::CEILINGS, &mut Reader::new(expected)).expect("version 27 hello");
         assert!(matches!(value, w::StreamEvent::Hello(_)));
         let mut writer = Writer::new(

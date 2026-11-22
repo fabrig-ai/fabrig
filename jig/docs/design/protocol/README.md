@@ -223,7 +223,7 @@ they compile beside the core's crates rather than after them:
   translations in `jig-protocol-store-records` (`src/generated/` and
   the hand-written `codec` module), with openings in the store itself
   (`src/generated/openings.rs`). The drift test, `jig/tests/codec-families.rs`, compares
-  each family's generated records and refuses unpinned constructs (skein's
+  each family's generated records with the committed module (skein's
   `data/codec/README.md`, section 6). Its inventory names the codec crates'
   generated records and the maps' generated translations, not golden
   bytes or generated tests.

@@ -76,8 +76,8 @@ fn check(kind: Kind, bytes: &[u8], context: &str, case: &str, valid: bool, refus
 fn public_records_decoders_never_panic_and_reencode_the_same() {
     eprintln!("seed 1: build bound records");
     let fixtures = bound_records();
-    for (kind, golden, length_at, ceiling) in &fixtures {
-        fixed(*kind, golden, *length_at, *ceiling);
+    for (kind, fixed_value, length_at, ceiling) in &fixtures {
+        fixed(*kind, fixed_value, *length_at, *ceiling);
     }
     for seed in 1..=SEEDS {
         eprintln!("seed {seed}: public record sweep");
@@ -89,28 +89,28 @@ fn sweep(seed: u64, fixtures: &[(Kind, Box<[u8]>, usize, u32); 3]) {
     let context = format!("seed {seed}, ");
     let mut rng = Rng::new(seed);
     let arbitrary = temper_codecs_world::drawn(&mut rng, ARBITRARY_BYTES);
-    for (kind, golden, _, _) in fixtures {
+    for (kind, fixed_value, _, _) in fixtures {
         check(*kind, &arbitrary, &context, "arbitrary", false, false);
-        let length = skein_lib::len_u64(golden.len());
+        let length = skein_lib::len_u64(fixed_value.len());
         let at = usize::try_from(rng.below(length)).expect("seed: byte position fits usize");
-        let mut bytes = golden.to_vec();
+        let mut bytes = fixed_value.to_vec();
         *bytes.get_mut(at).expect("seed: chosen byte") ^= 1 << rng.below(u64::from(u8::BITS));
         check(*kind, &bytes, &context, "flipped", false, false);
         bytes.clear();
-        bytes.extend_from_slice(golden);
+        bytes.extend_from_slice(fixed_value);
         let inserted_at = usize::try_from(rng.between(0, length)).expect("seed: insertion position fits");
         bytes.insert(inserted_at, u8::try_from(rng.below(256)).expect("seed: one byte"));
         check(*kind, &bytes, &context, "inserted", false, false);
         bytes.clear();
-        bytes.extend_from_slice(golden);
+        bytes.extend_from_slice(fixed_value);
         bytes.remove(at);
         check(*kind, &bytes, &context, "removed", false, false);
     }
 }
 
-fn fixed(kind: Kind, golden: &[u8], length_at: usize, ceiling: u32) {
-    check(kind, golden, "", "at every bound", true, false);
-    let mut bytes = golden.to_vec();
+fn fixed(kind: Kind, fixed_value: &[u8], length_at: usize, ceiling: u32) {
+    check(kind, fixed_value, "", "at every bound", true, false);
+    let mut bytes = fixed_value.to_vec();
     let end = length_at.checked_add(size_of::<u32>()).expect("length prefix fits");
     bytes
         .get_mut(length_at..end)

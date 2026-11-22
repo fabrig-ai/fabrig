@@ -8,7 +8,7 @@ use crate::support::patches;
 
 /// A reproducible normal-gate draw, separate from the explicit seed sweep.
 const SEED: u64 = 0x51_17_70_01;
-/// Four mutation modes over both goldens, with many draws of each within the 0.2 s share.
+/// Four mutation modes over both fixed-rule values, with many draws of each within the 0.2 s share.
 const ROUNDS: u32 = 512;
 /// The version prefix selects the host's schema; body mutations retain the kept schema version.
 const VERSION_BYTES: usize = 2;
@@ -27,8 +27,8 @@ fn draw_index(rng: &mut Rng, bound: usize) -> usize {
     usize::try_from(rng.below(u64::try_from(bound).expect("small draw bound"))).expect("draw index fits")
 }
 
-fn draw_record(rng: &mut Rng, golden: &[u8]) -> Box<[u8]> {
-    let mut record = golden.to_vec();
+fn draw_record(rng: &mut Rng, fixed_value: &[u8]) -> Box<[u8]> {
+    let mut record = fixed_value.to_vec();
     match rng.below(MUTATION_MODES) {
         0 => {}
         1 => {
@@ -58,8 +58,8 @@ fn sweep(seed: u64) {
     let new_schema = schema::parse(fixture::kept::fixture_turn::TEXTS[1].as_bytes()).expect("v2 schema");
     let old_root = old_schema.find(smith_transcript::ROOT.as_bytes()).expect("old Turn");
     let new_root = new_schema.find(smith_transcript::ROOT.as_bytes()).expect("new Turn");
-    let goldens =
-        skein_codegen::goldens(&skein_codegen::parse(fixture::kept::fixture_turn::TEXTS[0]).expect("v1 schema"));
+    let fixed_values =
+        skein_codegen::fixed_values(&skein_codegen::parse(fixture::kept::fixture_turn::TEXTS[0]).expect("v1 schema"));
     let mut old_value = Value::with_room(patches::NODES);
     let mut new_value = Value::with_room(patches::NODES);
     let mut patcher = patches::fixture_patcher();
@@ -67,8 +67,8 @@ fn sweep(seed: u64) {
     let mut accepted = 0;
     let mut refused = 0;
     for round in 0..ROUNDS {
-        let golden = &goldens[draw_index(&mut rng, goldens.len())];
-        let record = draw_record(&mut rng, &golden.bytes);
+        let fixed_value = &fixed_values[draw_index(&mut rng, fixed_values.len())];
+        let record = draw_record(&mut rng, &fixed_value.bytes);
         let decoded = old_value.decode(&old_schema, old_root, record.clone());
         let upgraded = patches::patch_to_current(&mut patcher, record);
         match decoded {

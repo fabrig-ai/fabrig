@@ -471,7 +471,7 @@ Within the suites' budgets (`../testing/README.md`, section 2):
   composition to it.
 
 - **Codec tests,** as skein's `data/codec/README.md`, section 6: records
-  drift and refusal of unpinned constructs, built-value round trips and
+  drift, built-value round trips and
   bounds, with no family golden files or generated tests. skein's `every`
   pins the bytes. `Identity`'s `Debug` holds no byte of its tokens, of
   either kind. Section 3's version rule holds for an encoding change.
