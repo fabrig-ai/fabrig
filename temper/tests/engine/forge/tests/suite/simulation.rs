@@ -1547,6 +1547,8 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::TierDecision { .. }
                 | top::Request::FileRedFinding { .. }
                 | top::Request::FileVerdict { .. }
+                | top::Request::ReturnFinding(_)
+                | top::Request::FailRepair { .. }
                 | top::Request::MakingCopied { .. }
                 | top::Request::MakingAct { .. }
                 | top::Request::LandingUnmade { .. }

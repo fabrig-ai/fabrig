@@ -98,6 +98,7 @@ fn tier(repository: Repository) -> forge::Stored {
         tier: b"focused".as_slice().into(),
         record: tiers::Record {
             sequence: 0,
+            last_run: None,
             judged: None,
             failing: tiers::Failures::Tests(Box::new([])),
             flakes: Box::new([]),

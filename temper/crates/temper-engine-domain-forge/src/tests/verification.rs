@@ -442,6 +442,7 @@ fn tier_run(d: &mut Domain, tier: &[u8], number: u64, commits: &[skein_forge::ap
                 started: None,
                 record: policy::Record {
                     sequence: number,
+                    last_run: None,
                     judged: None,
                     failing: policy::Failures::Tests(Box::new([])),
                     flakes: Box::new([]),

@@ -1,5 +1,5 @@
 #!/bin/sh
-# The delivery check (tools/pre-pr/design.md, 1–9).
+# Lightweight checks for every delivery (tools/pre-pr/design.md, 1–9).
 set -eu
 cd "$(dirname "$0")/.."
 exec python3 -I -B tools/pre-pr/pre_pr.py
