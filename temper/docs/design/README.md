@@ -172,6 +172,7 @@ forge, temper adds:
 - `domain/forge/change/repairs-later.md`: repairs, resolutions and releases: open questions.
 - `domain/landing-forge.md`: what the forge shows of landings and their open questions.
 - `protocol/git-later.md`: the checkout’s git: open questions.
+- `protocol/git-sweep.md`: the checkout’s git: the sweep of its trash.
 
 - **`domain/`:** temper's domain layer on jig's: its root, the forge
   connector, landings by turn (`landing.md`), what follows a landing
