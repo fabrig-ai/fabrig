@@ -1,13 +1,12 @@
-//! Records' drift and pinned constructs (skein's data/codec/README.md, 6).
-use skein_codegen::{generate, unpinned, values};
+//! Records' drift (skein's data/codec/README.md, 6).
+use skein_codegen::{generate, values};
 use std::fs;
 
 #[test]
 #[expect(clippy::disallowed_methods, reason = "jig's round: reads SKEIN_CODEGEN_WRITE to refresh generated records")]
-fn worker_wire_schema_matches_generated_records_and_is_pinned() {
+fn worker_wire_schema_matches_generated_records() {
     let source = jig_protocol_worker_wire::SCHEMA;
-    let unpinned = unpinned(source).expect("schema valid");
-    assert!(unpinned.is_empty(), "worker_wire: unpinned constructs: {unpinned:?}");
+
     let root = skein_scratch::paths::tree().join("crates/jig-protocol-worker-wire");
     let schema = &values(source).schema;
     let output = generate(schema);

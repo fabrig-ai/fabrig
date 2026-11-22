@@ -9,7 +9,7 @@ fn populated_charter_decodes_its_parts() {
         w::CharterPart { on: 1, instructions: b"first part".as_slice().into() },
         w::CharterPart { on: 2050, instructions: "later part λ".as_bytes().into() },
     ]));
-    let bytes = super::client_values::value("record_charter_smallest.bin");
+    let bytes = super::client_values::fixed_value("record_charter_smallest.bin");
     let mut input = Reader::new(bytes);
     let value = w::Charter::decode(&w::CEILINGS, &mut input).unwrap();
     assert!(input.is_empty());
@@ -33,7 +33,7 @@ fn populated_charter_decodes_its_parts() {
 
 #[test]
 fn setting_range_fault_decodes_as_range() {
-    let bytes = super::client_values::value("enum_setting_fault_range_smallest.bin");
+    let bytes = super::client_values::fixed_value("enum_setting_fault_range_smallest.bin");
     let mut input = Reader::new(bytes);
     let value = w::SettingFault::decode(&w::CEILINGS, &mut input).unwrap();
     assert!(input.is_empty());

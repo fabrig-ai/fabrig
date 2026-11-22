@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod tests {
     #[test]
-    fn fixture_constructs_are_pinned() {
+    fn fixture_constructs_are_listed() {
         let directory = skein_scratch::paths::workspace().join("skein/tests/codec/schema");
         let mut files = std::fs::read_dir(directory)
             .expect("fixture directory")
@@ -14,8 +14,8 @@ mod tests {
         assert_ne!(files, Vec::<std::path::PathBuf>::new());
         for path in files {
             let source = std::fs::read_to_string(&path).expect("fixture schema");
-            let unpinned = skein_codegen::unpinned(&source).expect("valid fixture constructs");
-            assert_eq!(unpinned, [], "{}", path.display());
+            let constructs = skein_codegen::constructs(&source).expect("valid fixture constructs");
+            assert!(constructs.iter().all(|item| skein_codegen::CONSTRUCTS.contains(item)), "{}", path.display());
         }
     }
 }

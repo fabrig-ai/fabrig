@@ -234,6 +234,7 @@ fn run(runner: &mut Runner, client: &Client, env: &Env<crate::jig::Limits>, call
         | rows::RESTORE_AT
         | rows::PROJECT_MAKE_AT
         | rows::PARTY_MAKE_AT
+        | rows::PARTY_REISSUE_AT
         | rows::PROJECT_FUND_AT
         | rows::PROJECT_AMEND_AT
         | rows::PROJECT_DELETE_AT => {

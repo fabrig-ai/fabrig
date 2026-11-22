@@ -128,11 +128,9 @@ fn prepare(path: &Path) -> Result<PathBuf, Failure> {
     Ok(absolute)
 }
 
-#[cfg(all(test, target_os = "linux"))]
-mod tests {
-    #[test]
-    fn run_user_matches_the_effective_users_passwd_login() {
-        let expected = skein_shell::login_passwd(skein_shell::effective_user()).expect("effective user's passwd login");
-        assert_eq!(super::run_user().expect("run user").as_bytes(), expected.as_ref());
+#[cfg(target_os = "linux")]
+pub(crate) mod testing {
+    pub fn run_user() -> Result<String, crate::Failure> {
+        super::run_user()
     }
 }

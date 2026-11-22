@@ -550,6 +550,24 @@ source = "registry+https://example.invalid/index"
             self.assertFalse(self.destination.exists())
             self.assertEqual(envfile.read_text(), "")
 
+    def test_suites_run_every_layer_in_both_profiles(self):
+        for part in ('skein', 'smith', 'jig', 'temper'):
+            with self.subTest(part=part):
+                temporary = self.root / part
+                temporary.mkdir()
+                calls = []
+                with mock.patch.dict(os.environ, RUNNER_TEMP=str(temporary), IDS="", GIVEN="false"), \
+                        mock.patch.dict(M['run_part'].__globals__, package_map=lambda: self.table,
+                                        metadata=lambda: {'packages': [{'name': part + '-fixture'}]},
+                                        checked=lambda name, args: calls.append((name, args)) or 0,
+                                        check_one_process=lambda *_: None, merge=lambda *_: None):
+                    M['run_part'](part, self.destination)
+                self.assertEqual([name for name, _ in calls], ['run-default', 'run-fuzzy'])
+                for name, args in calls:
+                    self.assertEqual(args[0], 'tools/tiers/one-process')
+                    profile = name.removeprefix('run-')
+                    self.assertEqual(args[args.index(profile) - 2:args.index(profile)], ['--layers', 'all'])
+
     def test_later_run_fault_never_publishes_an_earlier_runs_cases(self):
         listing = self.file("logs/unused.log", json.dumps({"rust-suites": {
             "a": {"status": "listed", "testcases": {

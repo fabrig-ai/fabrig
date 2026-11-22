@@ -18,7 +18,7 @@ impl Domain {
                 if self.restart_fresh.is_none() {
                     return words;
                 }
-                let fresh = self.client.fresh_owed();
+                let fresh = self.client.fresh_resources_owed();
                 let mut names = List::with_capacity(3);
                 for resource in fresh.iter().take(3) {
                     let what = match &resource.what {

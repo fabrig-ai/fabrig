@@ -41,7 +41,7 @@ fn a_deleted_uncertain_branch_is_held_after_its_deadline() {
 }
 
 #[test]
-fn restart_reads_afresh_before_settling_the_outbox() {
+fn restart_reads_afresh_and_settles_without_renewing_an_attempt() {
     let mut world = World::new(Settings::calm(41));
     let resource = Resource { repository: REPO, what: What::Branch(Box::from(&b"main"[..])) };
     world.keep(Box::new([Watch { resource: resource.clone(), participating: false }]));
@@ -83,10 +83,13 @@ fn a_held_branch_is_written_again_only_after_remake() {
     assert_eq!(world.branch(b"kit/7"), Some(head));
     assert_eq!(
         &world.outcomes()[outcomes..],
-        &[(
-            entry.number,
-            Outcome::Made { made: Made::Branch(skein_forge_client_world::translate::commit(head)), found: false }
-        )]
+        &[
+            (entry.number, Outcome::Uncertain),
+            (
+                entry.number,
+                Outcome::Made { made: Made::Branch(skein_forge_client_world::translate::commit(head)), found: false }
+            ),
+        ]
     );
     world.finish();
 }

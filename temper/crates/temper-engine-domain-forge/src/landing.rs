@@ -152,7 +152,44 @@ enum RoundRead {
     Upstream,
 }
 
+/// The repositories whose receipts and heads a train judges.
+pub(crate) fn repositories(row: &LandingRow, capacity: u32) -> Box<[api::Repository]> {
+    let mut repositories = List::with_capacity(capacity);
+    for member in &row.landing.members {
+        let repository = repository(member);
+        if !repositories.as_slice().contains(&repository) {
+            repositories.push(repository).expect("train repositories are adopted");
+        }
+    }
+    repositories.into_boxed()
+}
+
 impl State {
+    pub(crate) fn reading_in(&self, repository: api::Repository) -> bool {
+        for (_, pending) in &self.pending {
+            if pending.repository == repository {
+                return true;
+            }
+            if let Some(row) = self.rows.get(&pending.task) {
+                for member in &row.landing.members {
+                    if self::repository(member) == repository {
+                        return true;
+                    }
+                }
+            }
+        }
+        false
+    }
+
+    pub(crate) fn gathers_owed(&self, forge: u16) -> u32 {
+        let mut owed = 0_u32;
+        for (_, pending) in &self.pending {
+            if pending.repository.forge == forge {
+                owed = owed.checked_add(1).expect("gathers fit their limit");
+            }
+        }
+        owed
+    }
     pub fn new(l: &Limits) -> Self {
         let slots = slots(l).expect("landing bounds checked");
         Self {
@@ -710,7 +747,7 @@ impl Domain {
         self.landing.receipts.get(key)
     }
 }
-fn append_words(words: &mut List<u8>, bytes: &[u8]) {
+pub(crate) fn append_words(words: &mut List<u8>, bytes: &[u8]) {
     for byte in bytes {
         if words.push(*byte).is_err() {
             break;
@@ -4881,7 +4918,7 @@ fn following_wait(d: &Domain, task: u64) -> Option<policy::Awaited> {
     })
 }
 
-/// Startup's fresh-read wake may precede task activation; rebuild the poll after settlement
+/// Startup's fresh-read wake may precede task activation; rebuild the poll at `CatchUp`
 /// (domain/landing.md, 12; domain/root.md, 8.1).
 pub(crate) fn restore_waits(d: &mut Domain, env: &Env<Limits>) {
     for (task, row) in &d.landing.rows {
@@ -4945,6 +4982,11 @@ pub(crate) fn judge(
     evidence: &crate::ChangeEvidence,
     reviewers: &[crate::Reviewer],
 ) -> Option<crate::JudgeVerdict> {
+    for member in &row.landing.members {
+        if !crate::domain::repository_fresh(d, repository(member)) {
+            return Some(crate::JudgeVerdict::Wait);
+        }
+    }
     for (position, member) in row.landing.members.iter().enumerate() {
         if member.candidate != Some(head) {
             continue;
@@ -5478,6 +5520,52 @@ impl Domain {
         Some((kept.repository, what, crate::AgentEffect { effect: kept.effect.clone(), kind, state, form, recovery }))
     }
 }
+/// Authority's wait is not a refused merge: it spent no send and keeps its turn
+/// (domain/forge/catching-up.md, 4; domain/landing.md, 8).
+pub(crate) fn defer_merge(d: &mut Domain, task: u64, entry: u64, out: &mut Queue<Request>) {
+    if !matches_entry(d, task, entry) {
+        return;
+    }
+    let mut row = d.landing.rows.get(&task).expect("staged landing").clone();
+    let mut entries = List::with_capacity(d.landing.limits.entries);
+    for item in &row.entries {
+        if item.entry != entry {
+            entries.push(*item).expect("bounded entries");
+            continue;
+        }
+        match item.operation {
+            Operation::Merge => {
+                if !row.landing.round.branch.is_empty() {
+                    row.landing.round.merges = row.landing.round.merges.checked_sub(1).expect("staged merge counted");
+                }
+            }
+            Operation::Record => {}
+            Operation::Dispatch
+            | Operation::Rerun
+            | Operation::Pending
+            | Operation::Verdict
+            | Operation::Open
+            | Operation::Close
+            | Operation::Delete => unreachable!("only merge authority is deferred"),
+        }
+        d.landing
+            .results
+            .insert((task, item.member, item.gate, operation(item.operation)), (policy::Status::Unknown, false))
+            .expect("staged effect position");
+    }
+    row.entries = entries.into_boxed();
+    d.entries.remove(&entry);
+    emit(out, Request::Erase { key: Key::Entry(entry) });
+    save(d, row, out);
+    let repositories = match d.landing.rows.get(&task) {
+        Some(row) => repositories(row, d.repositories.capacity()),
+        None => Box::new([]),
+    };
+    if super::domain::wait_fresh(d, task, &repositories) {
+        d.landing.due.remove(&task);
+    }
+}
+
 /// A refused entry never reaches the client and is observed as failed next step.
 pub(crate) fn veto(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, out: &mut Queue<Request>) {
     if !matches_entry(d, task, entry) {

@@ -1113,6 +1113,7 @@ fn forge_row(
     offer: forge::Offer,
 ) -> forge::Row {
     forge::Row {
+        catching_up: None,
         starts_with: forge::StartsWith::Repository,
         makings: Box::new([]),
         host: b"git.example:3000".as_slice().into(),
@@ -1140,6 +1141,7 @@ fn configured_forge_rows() -> forge::Forges {
         full: Box::new([]),
         rows: Box::new([
             forge::Row {
+                catching_up: None,
                 starts_with: forge::StartsWith::Repository,
                 makings: Box::new([]),
                 host: b"git.example:3000".as_slice().into(),
@@ -1262,6 +1264,7 @@ fn expected_forge_row(
     offer: w::Offer,
 ) -> w::ForgeRow {
     w::ForgeRow {
+        catching_up: None,
         starts_with: w::StartsWith::Repository,
         makings: List::with_capacity(0),
         host: b"git.example:3000".as_slice().into(),
@@ -1585,6 +1588,7 @@ fn installations_and_the_last_connect_end_encode_unchanged() {
         forge::Forges {
             full: Box::new([]),
             rows: Box::new([forge::Row {
+                catching_up: None,
                 starts_with: forge::StartsWith::Repository,
                 makings: Box::new([]),
                 host: b"git.example:3000".as_slice().into(),
@@ -1660,6 +1664,7 @@ fn owned_details_fit_their_bounds_and_an_overlong_field_drops_only_the_details()
         let value = forge::Forges {
             full: Box::new([]),
             rows: Box::new([forge::Row {
+                catching_up: None,
                 starts_with: forge::StartsWith::Repository,
                 makings: Box::new([]),
                 host: b"git.example:3000".as_slice().into(),
@@ -2835,11 +2840,55 @@ fn setup_copy_addresses_are_canonicalised_before_admission() {
 }
 
 #[test]
+fn catching_up_translates_all_counts_and_its_end_on_both_documents() {
+    let progress = forge::CatchingUp {
+        fresh: 3,
+        gathers: 4,
+        ci: 5,
+        goal_files: 6,
+        lost_writers: 7,
+        goal_branches: 8,
+        uncertain: 2,
+    };
+    let expected =
+        w::CatchingUp { fresh: 3, gathers: 4, ci: 5, goal_files: 6, lost_writers: 7, goal_branches: 8, uncertain: 2 };
+    for (catching_up, expected) in [(Some(progress), Some(expected)), (None, None)] {
+        let mut row = forge_row(
+            1,
+            forge::Kind::Forgejo,
+            forge::Mode::Connected,
+            forge::Connection::NotConnected,
+            forge::Offer::NotOffered,
+        );
+        row.catching_up = catching_up;
+        let bytes =
+            family::forges(forge::Forges { rows: Box::new([row]), full: Box::new([]) }, false, &w::CEILINGS).unwrap();
+        let decoded = wire::decode_forges(&bytes, &w::CEILINGS).unwrap();
+        assert_eq!(decoded.forges.get(0).unwrap().catching_up, expected);
+        let view = forge::ChangesView {
+            catching_up,
+            project: 1,
+            landing: b"main".as_slice().into(),
+            queues: Box::new([]),
+            more: 0,
+            landed: Box::new([]),
+            landed_more: 0,
+            landed_default: Box::new([]),
+            landed_default_more: 0,
+        };
+        let bytes =
+            family::document(forge::Document::Changes(view), &fixtures::forge_table(&[]), &w::CEILINGS).unwrap();
+        assert_eq!(wire::decode_changes_panel(&bytes, &w::CEILINGS).unwrap().catching_up, expected);
+    }
+}
+
+#[test]
 #[expect(clippy::too_many_lines, reason = "one whole document pins queue, flight and history fields")]
 fn changes_document_encodes_and_decodes() {
     let from = Some(forge::ChangeFrom { task: 23, title: b"Origin".as_slice().into() });
     let expected = Some(w::ChangeFrom { task: 23, title: b"Origin".as_slice().into() });
     let mut value = forge::ChangesView {
+        catching_up: None,
         landed_default: Box::new([forge::ChangesLanded {
             goal: None,
             chat: None,
@@ -3560,6 +3609,7 @@ fn the_worst_small_changes_document_fits_its_decision() {
             .unwrap();
     }
     let document = forge::Document::Changes(forge::ChangesView {
+        catching_up: None,
         landed_default: landed.clone().into_boxed(),
         landed_default_more: 0,
         project: 1,
@@ -4697,6 +4747,7 @@ fn landed_sign_offs_reach_the_clients_typed_changes_rows() {
         default_branch: true,
     };
     let document = forge::Document::Changes(forge::ChangesView {
+        catching_up: None,
         project: 7,
         landing: b"main".as_slice().into(),
         queues: Box::new([]),

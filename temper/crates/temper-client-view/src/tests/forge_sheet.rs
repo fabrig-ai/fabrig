@@ -266,6 +266,7 @@ fn forges(modes: &[(wire::Kind, wire::Mode)]) -> Domain {
     let mut rows = skein_lib::List::with_capacity(u32::try_from(modes.len()).unwrap());
     for (index, (kind, mode)) in modes.iter().enumerate() {
         rows.push(wire::ForgeRow {
+            catching_up: None,
             number: u16::try_from(index.checked_add(1).unwrap()).unwrap(),
             kind: kind.clone(),
             mode: mode.clone(),

@@ -1,33 +1,14 @@
-use crate::{Identity, Limits};
+use crate::Identity;
 use alloc::boxed::Box;
-use skein_lib::{Duration, Secret};
-use temper_worker_domain_checkout::{self as checkout, git};
-pub const HOME: &[u8] = b"/srv/worker/home";
+use skein_lib::Secret;
+use temper_worker_domain_checkout::git;
 pub const REMOTE: &[u8] = b"https://forge.example.test/acme/app.git";
 pub const COMMIT: git::Commit = git::Commit::new([
     0xab, 0xab, 0xab, 0xab, 0xab, 0xab, 0xab, 0xab, 0xab, 0xab, 0xab, 0xab, 0xab, 0xab, 0xab, 0xab, 0xab, 0xab, 0xab,
     0xab, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 ]);
 pub const COMMIT_256: git::Commit = git::Commit::new([0xcd; 32]);
-pub fn checkout() -> checkout::Limits {
-    checkout::Limits {
-        workspaces: 2,
-        preparations: 2,
-        repositories: 2,
-        name_bytes: 64,
-        message_bytes: 256,
-        conflicts: 4,
-        path_bytes: 64,
-        remote_timeout: Duration::from_secs(30),
-        reds_read_ms: 5_000,
-        rerun_processes: 4,
-        local_timeout: Duration::from_secs(5),
-        facts: 8,
-    }
-}
-pub fn limits() -> Limits {
-    Limits { operations: 2, stdout_bytes: 512, stderr_bytes: 512, read_bytes: 64, sweep_entries: 4, sweep_bytes: 255 }
-}
+pub use crate::testing::fixtures::{HOME, SERIAL, checkout, limits, settings};
 pub fn identity() -> Identity {
     Identity {
         token: Secret::new(Box::from(&b"tok-1"[..])),
@@ -48,7 +29,6 @@ pub const MAKING: skein_io::kernel::Fd = skein_io::kernel::Fd::new(7);
 pub const STORES: skein_io::kernel::Fd = skein_io::kernel::Fd::new(6);
 pub const GITDIRS: skein_io::kernel::Fd = skein_io::kernel::Fd::new(9);
 pub const WORKSPACES: skein_io::kernel::Fd = skein_io::kernel::Fd::new(5);
-pub const SERIAL: u64 = 1000;
 pub fn make(owner: skein_lib::Token, workspace: skein_lib::Token) -> crate::Request {
     crate::Request::Io {
         owner,
@@ -97,17 +77,6 @@ pub fn push_op(expected: Option<git::Commit>) -> git::Op {
         expected,
         identity: 1,
         account: None,
-    }
-}
-pub fn settings() -> crate::Settings {
-    crate::Settings {
-        git: Some(Box::from(&b"/bin/git"[..])),
-        home: Box::from(HOME),
-        root: skein_io::kernel::Fd::new(3),
-        prefix: 6_u64 << 60_u32,
-        serial: SERIAL,
-        largest_read: 64,
-        largest_room: 16,
     }
 }
 #[derive(Debug)]

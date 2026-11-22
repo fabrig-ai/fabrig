@@ -561,6 +561,8 @@ pub enum SystemEvent {
 /// What the root tells the connector for this part of its contract.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Event {
+    /// Read the live resources and settle the restored outbox after opening.
+    CatchUp,
     /// Compare this start's defaults with the saved defaults.
     SettingsDefaults,
     /// Keep restored items as a proposal, checking their kinds' bounds.
@@ -993,6 +995,8 @@ pub enum Request {
     Changed { resource: Path },
     /// Ordered restart phases have reached their final step.
     RestartDone,
+    /// Every fresh read requested at catching up has answered.
+    ReadAfreshDone,
     /// Description for the core's authority check.
     Described { token: Token, description: Description, waits_for_dependencies: bool },
     /// A staged effect was refused by this connector.

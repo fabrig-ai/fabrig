@@ -101,6 +101,92 @@ fn outbox_reports_bound_doublings_recovery_and_document_changes_without_inputs()
     assert!(facts(&out).is_empty(), "short full intervals stay silent");
 }
 #[test]
+fn catching_up_reports_both_halves_and_stops_only_when_both_finish() {
+    use crate::tests::{fixtures::next_call, outputs};
+    use crate::{Event, Stored};
+    use skein_forge::api::{Answer, Op};
+    let mut d = crate::tests::fixtures::connected_domain();
+    let mut env = crate::tests::env();
+    let mut repository = crate::tests::adopted();
+    repository.owner = b"work".as_slice().into();
+    repository.name = b"hello".as_slice().into();
+    let repository_id = repository.provider;
+    outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
+    let mut entry = crate::tests::status(2, 40);
+    entry.effect.write = skein_forge::api::Write::CreateBranch { branch: b"saved".as_slice().into(), commit: [3; 32] };
+    entry.start = Some(skein_forge_client::Position { at: env.now, comment: 0, review: 0, review_page: 1 });
+    entry.attempt = Some(skein_forge_client::Attempt {
+        sent: env.now,
+        deadline: env.now.saturating_add(Duration::from_secs(600)),
+        wall: env.wall,
+        expires: skein_lib::Wall::from_nanos(env.wall.as_nanos().saturating_add(Duration::from_secs(600).as_nanos())),
+    });
+    outputs(&mut d, Event::Restore { record: Stored::Entry { entry, held: false } });
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(
+        &mut d,
+        Event::Names {
+            task: 7,
+            resources: Box::new([crate::Name {
+                forge: repository_id.forge,
+                repository: repository_id.repository,
+                what: crate::What::Branch(Box::new([b"main".as_slice().into()])),
+            }]),
+        },
+    );
+    let initial = outputs(&mut d, Event::CatchUp);
+    assert!(!initial.iter().any(|r| matches!(r, Request::FullTableFact { .. })));
+    let first = next_call(&mut d);
+    let second = next_call(&mut d);
+    let (fresh, find) = if first.1 == Op::Read(Read::Branch { branch: b"main".as_slice().into() }) {
+        (first, second)
+    } else {
+        (second, first)
+    };
+    assert_eq!(find.1, Op::Read(Read::Branch { branch: b"saved".as_slice().into() }));
+    let mut out = Queue::uncapped();
+    for (seconds, age) in [(29, None), (30, Some("30 s")), (45, None), (60, Some("60 s"))] {
+        at(&mut env, seconds);
+        domain::fire(&mut d, &env, &mut out);
+        let expected: Vec<_> = age.into_iter().map(|age| format!("the forge catching up for {age}: 1 fresh read (work/hello branch main), 1 uncertain write (entry 2 of task 40)")).collect();
+        assert_eq!(facts(&out), expected);
+        out.clear();
+    }
+    for (call, complete) in [(find.0, false), (fresh.0, true)] {
+        domain::step(
+            &mut d,
+            &env,
+            Event::Client(skein_forge_client::Event::Answered {
+                call,
+                cost: 1,
+                free: 0,
+                rate: None,
+                result: Ok(Answer::Commit([3; 32])),
+            }),
+            &mut out,
+        );
+        let expected: Vec<_> = if complete { vec!["the forge has caught up".to_owned()] } else { vec![] };
+        assert_eq!(facts(&out), expected);
+        out.clear();
+    }
+    at(&mut env, 120);
+    domain::fire(&mut d, &env, &mut out);
+    assert_eq!(facts(&out), Vec::<String>::new());
+}
+
+#[test]
+fn catching_up_report_deadline_needs_no_client_call() {
+    let (mut d, mut env) = setup(8, 4);
+    d.restart_fresh = Some(false);
+    d.catching_up_report = Some(Report::new(env.now));
+    assert_eq!(d.next_deadline(), Some(env.now.saturating_add(crate::WAIT_REPORT)));
+    let mut out = Queue::uncapped();
+    at(&mut env, 30);
+    domain::fire(&mut d, &env, &mut out);
+    assert_eq!(facts(&out), ["the forge catching up for 30 s: nothing named"]);
+}
+
+#[test]
 fn reservations_follow_entries_in_creation_order_and_only_eight_holders_are_named() {
     let (mut d, env) = setup(10, 4);
     for number in 1..=7 {

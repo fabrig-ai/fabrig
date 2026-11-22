@@ -1,6 +1,6 @@
 # git: status
 
-2026-11-21. Where temper's code lags or departs from [git.md](git.md).
+2026-11-22. Where temper's code lags or departs from [git.md](git.md).
 
 - **Not yet:** 4.7: an empty listing still refuses with its words rather
   than ending `ParentUnreachable { head, merging, parent }` [in flight:

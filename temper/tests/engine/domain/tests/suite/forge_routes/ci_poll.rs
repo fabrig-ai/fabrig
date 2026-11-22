@@ -19,6 +19,10 @@ fn status(world: &mut World, head: u64, state: raw::Check) {
 }
 
 pub(super) fn finish(world: &mut World, producer: &engine::Assignment) {
+    finish_with_parts(world, producer, engine::Parts::none());
+}
+
+pub(super) fn finish_with_parts(world: &mut World, producer: &engine::Assignment, parts: engine::Parts) {
     let event = world.protocol.answer(
         Token::new(7),
         producer.task,
@@ -34,7 +38,7 @@ pub(super) fn finish(world: &mut World, producer: &engine::Assignment) {
             },
             cancel_delegates: false,
         },
-        engine::Parts::none(),
+        parts,
     );
     world.send(event);
 }

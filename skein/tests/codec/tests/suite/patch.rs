@@ -335,7 +335,7 @@ mod tests {
     fn patch_runs_every_v1_golden_into_v2_generated_code() {
         let (mut patcher, plan) = planned();
         let schema = schema::parse(V1.as_bytes()).expect("v1 schema");
-        let goldens = skein_codegen::goldens(&skein_codegen::parse(V1).expect("codegen v1"));
+        let fixed_values = skein_codegen::fixed_values(&skein_codegen::parse(V1).expect("codegen v1"));
         let write = std::env::var_os("SKEIN_PATCH_WRITE").is_some_and(|value| value == "1");
         let directory = Path::new(GOLDEN_DIRECTORY);
         if write {
@@ -344,14 +344,14 @@ mod tests {
         let mut names = BTreeSet::new();
         let mut held = 0_u32;
         let mut scores = 0_u32;
-        for (key, golden) in goldens.into_iter().enumerate() {
+        for (key, value) in fixed_values.into_iter().enumerate() {
             let mut cx = patches::Context { key: u32::try_from(key).expect("golden key fits") };
-            let root = generic::golden_root(&schema, &golden.name);
+            let root = generic::named_root(&schema, &value.name);
             let new_root = patcher.counterpart(plan, root).expect("root survives");
             let new_schema = patcher.schema(2).expect("v2 schema");
             let name = new_schema.spelled(new_schema.declaration(new_root).name).to_vec();
-            let bytes = fs::read(Path::new("golden/every-v1").join(&golden.name)).expect("committed v1 golden");
-            assert_eq!(bytes, golden.bytes, "{}: v1 golden", golden.name);
+            let bytes = fs::read(Path::new("golden/every-v1").join(&value.name)).expect("committed v1 golden");
+            assert_eq!(bytes, value.bytes, "{}: v1 golden", value.name);
             let result = (|| -> Result<Vec<u8>, Halt> {
                 patcher.start(plan, root, bytes.clone().into_boxed_slice())?;
                 loop {
@@ -375,15 +375,15 @@ mod tests {
                 }
                 Ok(patcher.finish()?.to_vec())
             })()
-            .unwrap_or_else(|halt| panic!("{} (key {}): {halt:?}", golden.name, cx.key));
+            .unwrap_or_else(|halt| panic!("{} (key {}): {halt:?}", value.name, cx.key));
             generated_round_trip(&name, &bytes, &result);
-            let path = directory.join(&golden.name);
+            let path = directory.join(&value.name);
             if write {
                 fs::write(&path, &result).expect("write patched golden");
             } else {
-                assert_eq!(fs::read(&path).expect("patched golden committed; run SKEIN_PATCH_WRITE=1 cargo nextest run -p skein-codec-tests --test suite -E 'test(/^patch::/)'"), result, "{}", golden.name);
+                assert_eq!(fs::read(&path).expect("patched golden committed; run SKEIN_PATCH_WRITE=1 cargo nextest run -p skein-codec-tests --test suite -E 'test(/^patch::/)'"), result, "{}", value.name);
             }
-            assert!(names.insert(golden.name), "golden name unique");
+            assert!(names.insert(value.name), "golden name unique");
         }
         assert_eq!(names.len(), GOLDENS);
         assert_eq!(held, EVERY_GOLDENS);

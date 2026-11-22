@@ -29,7 +29,14 @@ struct Socket {
     request: Vec<u8>,
     reply: VecDeque<u8>,
     answered: bool,
+    stream_opened: bool,
 }
+pub(super) struct Answer {
+    pub(super) exit: Exit,
+    pub(super) stdout: Vec<u8>,
+    pub(super) stderr: Vec<u8>,
+}
+
 pub(super) struct Machine {
     front: Joint,
     files: BTreeMap<String, File>,
@@ -45,6 +52,7 @@ pub(super) struct Machine {
     stdout: Vec<u8>,
     stderr: Vec<u8>,
     stdin: VecDeque<u8>,
+    redirected: Option<(String, Vec<u8>)>,
 }
 impl Machine {
     pub(super) fn new() -> Self {
@@ -58,8 +66,10 @@ impl Machine {
         for name in ["", "owner", "agent", "docs"] {
             files.insert(name.to_owned(), File { bytes: Vec::new(), mode: 0o700, kind: Kind::Directory });
         }
-        files
-            .insert("link".to_owned(), File { bytes: front::printed_link().into_vec(), mode: 0o600, kind: Kind::File });
+        files.insert(
+            "printed".to_owned(),
+            File { bytes: front::printed_link().into_vec(), mode: 0o600, kind: Kind::File },
+        );
         Self {
             front,
             files,
@@ -75,6 +85,7 @@ impl Machine {
             stdout: Vec::new(),
             stderr: Vec::new(),
             stdin: VecDeque::new(),
+            redirected: None,
         }
     }
     pub(super) fn private_file(&self, path: &str) {
@@ -86,6 +97,15 @@ impl Machine {
         self.call_input(directory, words, b"")
     }
     pub(super) fn call_input(&mut self, directory: &str, words: &[&[u8]], input: &[u8]) -> String {
+        let answer = self.run_input(directory, words, input);
+        assert_eq!(answer.exit, Exit::Code(0), "ctl failed: {}", String::from_utf8_lossy(&answer.stderr));
+        assert!(answer.stderr.is_empty(), "ctl stderr: {}", String::from_utf8_lossy(&answer.stderr));
+        String::from_utf8(answer.stdout).expect("ctl UTF-8")
+    }
+    pub(super) fn run(&mut self, directory: &str, words: &[&[u8]]) -> Answer {
+        self.run_input(directory, words, b"")
+    }
+    pub(super) fn run_input(&mut self, directory: &str, words: &[&[u8]], input: &[u8]) -> Answer {
         self.stdin = input.iter().copied().collect();
         self.serial += 1;
         let who = ClientId(self.serial);
@@ -131,14 +151,41 @@ impl Machine {
             }
             self.hear(who);
             if let Some(exit) = host.exit() {
-                assert_eq!(exit, Exit::Code(0), "ctl failed: {}", String::from_utf8_lossy(&self.stderr));
-                assert!(self.stderr.is_empty(), "ctl stderr: {}", String::from_utf8_lossy(&self.stderr));
                 assert_eq!(self.held.len(), 0);
-                return String::from_utf8(std::mem::take(&mut self.stdout)).expect("ctl UTF-8");
+                return Answer {
+                    exit,
+                    stdout: std::mem::take(&mut self.stdout),
+                    stderr: std::mem::take(&mut self.stderr),
+                };
             }
             self.now = self.now.saturating_add(Duration::from_nanos(1));
         }
-        panic!("ctl did not settle: {}", String::from_utf8_lossy(&self.stderr));
+        panic!("ctl did not settle");
+    }
+    // Relay the simulated kernel's output writes to stdin without opening the output file.
+    pub(super) fn redirect_file(&mut self, path: &str) {
+        assert!(self.redirected.replace((path.to_owned(), Vec::new())).is_none());
+    }
+    pub(super) fn take_redirected(&mut self) -> Vec<u8> {
+        self.redirected.take().expect("redirected output").1
+    }
+    pub(super) fn assert_service_link_private(&self, link: &[u8], output: &[&[u8]]) {
+        let encoded = link
+            .strip_prefix(b"http://127.0.0.1:8367/sign-in#service=")
+            .and_then(|tail| tail.strip_suffix(b"\n"))
+            .expect("one service link with a newline");
+        let raw = base64::decode(Alphabet::Url, encoded, 40).expect("base64url service credential");
+        assert_eq!(raw.len(), 40);
+        let contains = |bytes: &[u8]| {
+            bytes.windows(encoded.len()).any(|part| part == encoded)
+                || bytes.windows(raw.len()).any(|part| part == raw.as_ref())
+        };
+        assert!(!output.iter().any(|bytes| contains(bytes)), "service credential leaked to ctl output");
+        for (path, file) in &self.files {
+            if path.starts_with("owner/") || path.starts_with("agent/") {
+                assert!(!contains(&file.bytes), "service credential leaked to a DIRECTORY store");
+            }
+        }
     }
     fn allocate(&mut self) -> Fd {
         let fd = Fd::new(self.next_fd);
@@ -196,10 +243,17 @@ impl Machine {
             }
             Op::Write { fd, bytes, from, at } => {
                 let bytes = &bytes[*from as usize..];
-                let file = &mut self.files.get_mut(&self.descriptors[fd]).expect("written file").bytes;
+                let path = &self.descriptors[fd];
                 let start = usize::try_from(*at).expect("write offset");
+                let file = &mut self.files.get_mut(path).expect("written file").bytes;
                 file.resize(start + bytes.len(), 0);
                 file[start..].copy_from_slice(bytes);
+                if let Some((target, redirected)) = &mut self.redirected
+                    && target == path
+                {
+                    redirected.resize(start + bytes.len(), 0);
+                    redirected[start..].copy_from_slice(bytes);
+                }
                 Ok(Done::Count(u32::try_from(bytes.len()).expect("write count")))
             }
             Op::Rename { from_dir, from, to_dir, to, no_replace } => {
@@ -327,7 +381,6 @@ impl Machine {
             "/jig/v1/stream" => {
                 assert_eq!(version, Some(jig_client_protocol_wire::VERSION));
                 self.stream = Some(fd);
-                socket.reply.extend(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n\r\n");
                 self.front.carry(
                     who,
                     self.now,
@@ -373,15 +426,21 @@ impl Machine {
                             .expect("encoded size");
                     let mut encoded = Writer::new(length as usize);
                     base64::encode(Alphabet::Standard, &bytes, &mut encoded).expect("stream encoding");
-                    let reply =
-                        &mut self.sockets.get_mut(&self.stream.expect("stream fd")).expect("stream socket").reply;
+                    let socket = self.sockets.get_mut(&self.stream.expect("stream fd")).expect("stream socket");
+                    if !socket.stream_opened {
+                        socket.reply.extend(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n\r\n");
+                        socket.stream_opened = true;
+                    }
+                    let reply = &mut socket.reply;
                     reply.extend(b"data: ");
                     reply.extend(encoded.finish().iter().copied());
                     reply.extend(b"\n\n");
                 }
                 Event::Streamed { message: Streamed::Heartbeat } => {}
                 Event::Streamed { message: Streamed::SignedOut } => {
-                    panic!("stream refused a credential that was not signed in");
+                    let socket = self.sockets.get_mut(&self.stream.expect("stream fd")).expect("stream socket");
+                    assert!(!socket.stream_opened, "the next ctl call opens a fresh stream");
+                    socket.reply.extend(b"HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\n\r\n");
                 }
                 _ => panic!("unexpected component event in service-party story"),
             }

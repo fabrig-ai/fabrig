@@ -31,6 +31,7 @@ pub struct Domain {
     pub(crate) values: Map<Token, crate::values::Payload>,
     pub(crate) outbox: Outbox,
     restart_settling: bool,
+    restart_reads: Option<Map<Path, ()>>,
     closing: Map<u64, ()>,
 }
 
@@ -146,6 +147,7 @@ impl Domain {
             values: Map::with_capacity(limits.values),
             outbox: Outbox::new(limits),
             restart_settling: false,
+            restart_reads: None,
         }
     }
 
@@ -238,6 +240,20 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Cut { token, size } => crate::values::cut(domain, token, size, out),
         Event::Items { token, task } => crate::values::items(domain, env, token, task, out),
         Event::HandOver { token } => crate::values::hand_over(domain, token, out),
+        Event::CatchUp => {
+            let mut reads = Map::with_capacity(env.limits.resources);
+            for spec in &domain.config.resources {
+                reads.insert(spec.path.clone(), ()).expect("configured resources fit");
+                out.push(Request::System(crate::SystemRequest::ReadFact {
+                    resource: spec.path.clone(),
+                    observed: env.wall,
+                }));
+            }
+            domain.restart_reads = Some(reads);
+            domain.restart_settling = true;
+            crate::outbox::activate(domain);
+            crate::outbox::fire(domain, env, out);
+        }
         Event::Restart(crate::RestartStep::Records) => {}
         Event::Restart(crate::RestartStep::FreshRead { resource }) => {
             out.push(Request::System(crate::SystemRequest::ReadFact { resource, observed: env.wall }));
@@ -322,7 +338,19 @@ fn close_complete(domain: &mut Domain, out: &mut Queue<Request>) {
     }
 }
 
+/// Whether the restored outbox still needs a pass after its last commit.
+#[must_use]
+pub fn restart_ready(domain: &Domain, env: &Env<Limits>) -> bool {
+    domain.restart_settling && crate::outbox::ready(domain, env).is_some()
+}
+
 fn restart_complete(domain: &mut Domain, out: &mut Queue<Request>) {
+    if let Some(reads) = &domain.restart_reads
+        && reads.is_empty()
+    {
+        domain.restart_reads = None;
+        out.push(Request::ReadAfreshDone);
+    }
     if domain.restart_settling && crate::outbox::restart_settled(domain) {
         domain.restart_settling = false;
         out.push(Request::RestartDone);
@@ -575,6 +603,9 @@ fn system_event(domain: &mut Domain, env: &Env<Limits>, event: SystemEvent, out:
             }
         }
         SystemEvent::Fact { resource, fact, origin } => {
+            if let Some(reads) = &mut domain.restart_reads {
+                reads.remove(&resource);
+            }
             crate::requirements::fact(domain, env, resource, fact, origin, out);
         }
         SystemEvent::Settle { resource, fact } => crate::requirements::settle(domain, env, resource, fact, out),

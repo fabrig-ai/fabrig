@@ -259,6 +259,7 @@ impl Fixture {
             List::with_capacity(0)
         };
         let panel = w::ChangesPanel {
+            catching_up: None,
             landed_default: landed.clone(),
             landed_default_more: 0,
             project: f::PROJECT,
@@ -425,6 +426,7 @@ fn landed_this_week_names_the_goal_once_at_its_main_commit() {
         default_branch: true,
     };
     let panel = w::ChangesPanel {
+        catching_up: None,
         project: f::PROJECT,
         landing: b"main".as_slice().into(),
         queues: List::with_capacity(0),
@@ -874,6 +876,7 @@ fn queued_change(task: u64) -> w::ChangesQueued {
 }
 fn send_panel(page: &mut Fixture, queued: &[w::ChangesQueued], landed: &[w::ChangesLanded]) {
     let panel = w::ChangesPanel {
+        catching_up: None,
         project: f::PROJECT,
         landing: b"main".as_slice().into(),
         more: 0,
@@ -1288,6 +1291,73 @@ fn milestone_groups_cut_their_from_and_goal_titles_in_both_shells() {
                 let link = title_link(&tree, &bindings, Address::Task { task });
                 assert!(skein_lib::bytes::find(link.name.as_deref().unwrap(), cut).is_some());
                 assert!(skein_lib::bytes::find(&subtree_text(&tree, link), cut).is_some());
+            }
+        }
+    }
+}
+
+#[test]
+fn changes_shows_catching_up_below_the_lede_and_removes_it() {
+    let mut page = Fixture::new(None, false);
+    page.populate(false);
+    let temper_client_domain::pages::changes::State::Shown(panel) = page.root.pages().changes().unwrap().state() else {
+        panic!("changes shown");
+    };
+    let mut panel = panel.clone();
+    let zero =
+        w::CatchingUp { fresh: 0, gathers: 0, ci: 0, goal_files: 0, lost_writers: 0, goal_branches: 0, uncertain: 0 };
+    for (state, expected) in [
+        (
+            Some(w::CatchingUp { fresh: 3, uncertain: 2, ..zero.clone() }),
+            Some("Catching up: 3 fresh reads, 2 uncertain writes"),
+        ),
+        (Some(w::CatchingUp { goal_branches: 1, ..zero.clone() }), Some("Catching up: 1 goal-branch read")),
+        (Some(zero), Some("Catching up")),
+        (None, None),
+    ] {
+        panel.catching_up = state;
+        page.up(Up::FamilyDelivered {
+            watch: page.changes,
+            record: jig_client::Family {
+                family: wire::FORGE,
+                version: wire::CLIENT_VERSION,
+                bytes: wire::changes_panel(&panel),
+            },
+        });
+        let temper_client_domain::pages::changes::State::Shown(shown) = page.root.pages().changes().unwrap().state()
+        else {
+            panic!("still shown")
+        };
+        assert_eq!(shown.catching_up, panel.catching_up, "new delivery reaches page");
+        for words in [f::browser_words(), f::words()] {
+            let mut b = Builder::new(&f::tree_limits());
+            crate::pages::changes::main(
+                &mut b,
+                &page.root,
+                &words,
+                &mut Bindings::new(f::tree_limits().bindings),
+                f::PROJECT,
+                &mut Times::new(NOW),
+            );
+            let tree = b.finish();
+            let mut line = None;
+            for (index, node) in tree.nodes().iter().enumerate() {
+                let text = f::node_text(&tree, index);
+                if node.role == Role::Paragraph && text.starts_with(b"Catching up") {
+                    assert!(line.is_none(), "one progress line");
+                    assert!(node.styles.as_slice().contains(&look::HOME_QUIET));
+                    line = Some(text);
+                }
+            }
+            let expected_bytes = match expected {
+                Some(expected) => Some(expected.as_bytes()),
+                None => None,
+            };
+            assert_eq!(line.as_deref(), expected_bytes);
+            if let Some(expected) = expected {
+                let text = f::text(&tree);
+                let lede = skein_lib::bytes::find(&text, b"before it lands.").unwrap();
+                assert!(lede < skein_lib::bytes::find(&text, expected.as_bytes()).unwrap());
             }
         }
     }

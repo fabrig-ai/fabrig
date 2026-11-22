@@ -615,12 +615,9 @@ impl RequestWorld {
             Phase::LoadInbox => vec![core::RestoreRange::Census(census.expect("inbox census"))],
             Phase::Sweep => vec![core::RestoreRange::People],
             Phase::RestoreConnector { .. } | Phase::Switch => Vec::new(),
-            other @ (Phase::Link
-            | Phase::Wires
-            | Phase::AdoptRuns
-            | Phase::ReadAfresh { .. }
-            | Phase::SettleOutbox { .. }
-            | Phase::Open) => panic!("root owns phase {other:?}"),
+            other @ (Phase::Link | Phase::Wires | Phase::AdoptRuns | Phase::Open) => {
+                panic!("root owns phase {other:?}")
+            }
         };
         for range in ranges {
             for (key, row) in &self.store.rows {

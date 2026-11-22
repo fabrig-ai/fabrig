@@ -43,8 +43,8 @@ fn a_merge_in_the_forges_queue_keeps_its_flight_until_the_merge_is_proved() {
     outputs(&mut domain, Event::Restore { record: Stored::Entry { entry, held: false } });
     outputs(&mut domain, Event::Restore { record: Stored::Flight { task: TASK, entry: ENTRY } });
     outputs(&mut domain, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut domain, Event::ReadAfresh);
-    outputs(&mut domain, Event::SettleOutbox);
+    outputs(&mut domain, Event::CatchUp);
+
     let (call, op) = next_call(&mut domain);
     assert_eq!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Pull { number: 1, ci: false }));
     let mut pull = open_pull();

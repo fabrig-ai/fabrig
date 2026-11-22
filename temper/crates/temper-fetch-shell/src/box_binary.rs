@@ -135,6 +135,9 @@ fn remove(file: &Path) -> Result<(), Failed> {
     }
 }
 fn clean(directory: &Path) -> Result<(), Failed> {
+    clean_with(directory, remove)
+}
+fn clean_with(directory: &Path, mut remove: impl FnMut(&Path) -> Result<(), Failed>) -> Result<(), Failed> {
     for name in ["temper-box.gz.part", "temper-box.part", "temper-box.sha256.part"] {
         remove(&directory.join(name))?;
     }
@@ -200,8 +203,26 @@ fn cached(file: &Path) -> Result<Event, Failed> {
 }
 fn unpack(archive: &Path, part: &Path, bound: u64) -> Result<Unpacked, Failed> {
     let input = fs::File::open(archive).map_err(|why| file_error(archive, &why))?;
-    let mut decoder = flate2::bufread::GzDecoder::new(io::BufReader::new(input));
     let mut output = open(part)?;
+    let unpacked = decode_gzip(io::BufReader::new(input), &mut output, bound).map_err(|why| match why {
+        UnpackError::Input(why) => file_error(archive, &why),
+        UnpackError::Output(why) => file_error(part, &why),
+    })?;
+    if let Unpacked::File { .. } = unpacked {
+        output.set_permissions(fs::Permissions::from_mode(0o755)).map_err(|why| file_error(part, &why))?;
+        output.sync_all().map_err(|why| file_error(part, &why))?;
+    }
+    Ok(unpacked)
+}
+
+#[derive(Debug)]
+enum UnpackError {
+    Input(io::Error),
+    Output(io::Error),
+}
+
+fn decode_gzip(input: impl io::BufRead, output: &mut impl Write, bound: u64) -> Result<Unpacked, UnpackError> {
+    let mut decoder = flate2::bufread::GzDecoder::new(input);
     let mut hash = Sha256::new();
     let mut total = 0_u64;
     let mut buffer = [0; 16_384];
@@ -215,13 +236,13 @@ fn unpack(archive: &Path, part: &Path, bound: u64) -> Result<Unpacked, Failed> {
             return Ok(Unpacked::TooLong);
         }
         total += n64;
-        output.write_all(&buffer[..n]).map_err(|why| file_error(part, &why))?;
+        output.write_all(&buffer[..n]).map_err(UnpackError::Output)?;
         hash.update(&buffer[..n]);
     }
     // A single member is allowed. Zero padding is allowed; another member is not.
     let mut rest = decoder.into_inner();
     loop {
-        let n = rest.read(&mut buffer).map_err(|why| file_error(archive, &why))?;
+        let n = rest.read(&mut buffer).map_err(UnpackError::Input)?;
         if n == 0 {
             break;
         }
@@ -229,8 +250,6 @@ fn unpack(archive: &Path, part: &Path, bound: u64) -> Result<Unpacked, Failed> {
             return Ok(Unpacked::Invalid);
         }
     }
-    output.set_permissions(fs::Permissions::from_mode(0o755)).map_err(|why| file_error(part, &why))?;
-    output.sync_all().map_err(|why| file_error(part, &why))?;
     Ok(Unpacked::File { digest: hash.finish(), bytes: total })
 }
 fn write_sum(file: &Path, digest: &[u8; 32]) -> Result<(), Failed> {
@@ -461,3 +480,6 @@ pub fn find(limits: &skein_io::Limits, find: &Find<'_>, out: &mut dyn Write) -> 
 
 #[cfg(test)]
 mod tests;
+
+#[path = "box_binary/testing.rs"]
+pub(crate) mod testing;

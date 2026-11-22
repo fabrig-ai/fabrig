@@ -99,6 +99,8 @@ pub struct World {
     restart_config: engine::Config,
     /// Delivered forge documents, including updates to a live watch.
     pub oracle_documents: Vec<(Token, forge_top::Document)>,
+    /// Delivered deployment forge rows, including updates to a live watch.
+    pub forges_documents: Vec<(Token, forge_top::Forges)>,
     /// Core query documents, including parts-watch updates.
     pub documents: Vec<(Token, jig_domain_core::documents::Document)>,
     /// Answers to milestone totals reads at the party boundary.
@@ -120,11 +122,15 @@ pub struct World {
     fake_out: Queue<fake::Request>,
     pub pending: BTreeMap<Token, skein_forge::api::Op>,
     pending_repositories: BTreeMap<Token, Box<[u8]>>,
+    /// Physical reply rights are never reused, even when a process restarts.
+    wire_calls: BTreeMap<Token, Token>,
     located_names: BTreeMap<u32, Box<[u8]>>,
     run_repositories: BTreeMap<Token, Box<[u8]>>,
     pub forge_calls: u32,
     pub forge_reads: Option<Vec<(Token, skein_forge::api::Read)>>,
     pub scripted_forge_reads: Vec<(skein_forge::api::Read, Result<skein_forge::api::Answer, skein_forge::api::Error>)>,
+    /// Attempt times for persistent scripted read faults, when a story observes retry spacing.
+    pub scripted_forge_attempts: Option<Vec<(Time, skein_forge::api::Read)>>,
     pub adopted: Vec<forge_top::ApplicationOutcome>,
     /// Durable limit-setting words at the service face.
     pub limit_settings: Vec<engine::Request>,
@@ -170,6 +176,12 @@ pub struct World {
     pub held_reads: Option<Vec<engine::Request>>,
     pub hold_reads_at_any_step: bool,
     pub busy_reads: bool,
+    /// Answer every engine forge call before it reaches the peer.
+    pub unavailable: bool,
+    pub unavailable_calls: Vec<skein_forge::api::Op>,
+    /// Fail every issue-creation find; ordinary fresh listings still answer.
+    pub fail_issue_finds: bool,
+    pub failed_issue_finds: u32,
     /// Source comparisons withheld before their terminal, including across a cold restart.
     pub held_comparisons: Option<Vec<engine::Request>>,
     /// An unusable comparison must conservatively keep a source landing.
@@ -216,6 +228,7 @@ pub struct StoryLimits {
     pub forge_entries: Option<u32>,
     pub forge_holds: Option<u32>,
     pub forge_pending: Option<u32>,
+    pub sign_ins: Option<u32>,
     pub forge_calls: Option<u32>,
     pub forge_rate: Option<u32>,
     pub forge_rows: Option<u32>,
@@ -1372,6 +1385,9 @@ impl World {
             if let Some(holds) = timing.forge_holds {
                 limits.forge.holds = holds;
             }
+            if let Some(sign_ins) = timing.sign_ins {
+                limits.people.sign_ins = sign_ins;
+            }
             if let Some(pending) = timing.forge_pending {
                 limits.forge.client.pending = pending;
             }
@@ -1663,6 +1679,7 @@ impl World {
             restart_config: crate::oracle::config::copy(&config),
             idle_revision: None,
             oracle_documents: Vec::new(),
+            forges_documents: Vec::new(),
             documents: Vec::new(),
             milestone_reads: Vec::new(),
             oracle_watcher: 0x4e33,
@@ -1681,11 +1698,13 @@ impl World {
             fake_out: Queue::uncapped(),
             pending: BTreeMap::new(),
             pending_repositories: BTreeMap::new(),
+            wire_calls: BTreeMap::new(),
             located_names: BTreeMap::new(),
             run_repositories: BTreeMap::new(),
             forge_calls: 0,
             forge_reads: None,
             scripted_forge_reads: Vec::new(),
+            scripted_forge_attempts: None,
             adopted: Vec::new(),
             limit_settings: Vec::new(),
             follow_answers: Vec::new(),
@@ -1721,6 +1740,10 @@ impl World {
             held_reads: None,
             hold_reads_at_any_step: false,
             busy_reads: false,
+            unavailable: false,
+            unavailable_calls: Vec::new(),
+            fail_issue_finds: false,
+            failed_issue_finds: 0,
             held_comparisons: None,
             fail_comparisons: false,
             hold_write_answers: None,
@@ -2342,6 +2365,24 @@ impl World {
         self.restart_domain(crate::oracle::config::copy(&self.restart_config), true);
     }
 
+    /// Crash at a tick boundary, not a drained cut (draft/reconciling-start.md, 7).
+    /// The independent forge keeps running; only this process's reply rights and
+    /// uncommitted store work are lost. Hosted worker attempts survive as on `restart_same`.
+    pub fn crash_restart(&mut self, seed: u64) {
+        self.store.crash(seed);
+        self.pending.clear();
+        self.pending_repositories.clear();
+        self.wire_calls.clear();
+        self.run_repositories.clear();
+        self.fake_out = Queue::uncapped();
+        self.immediate.clear();
+        for held in [&mut self.held_reads, &mut self.held_comparisons, &mut self.held_merge_calls].into_iter().flatten()
+        {
+            held.clear();
+        }
+        self.restart_same();
+    }
+
     fn restart_domain(&mut self, mut config: engine::Config, with_change: bool) {
         for worker in &mut config.core.defaults.workers {
             worker.places = self.env.limits.fleet.slots;
@@ -2366,7 +2407,7 @@ impl World {
         self.adopted.clear();
         self.period = None;
         self.events.push_back(engine::Event::Restart { pending: self.store.pending_generation });
-        if !self.assigned.is_empty() {
+        if self.oracle_peer.is_some() || !self.assigned.is_empty() {
             let mut bounds = protocol::bounds();
             bounds.message_bytes = self.env.limits.tasks.message_bytes.max(self.env.limits.tasks.result_bytes);
             self.events.push_back(protocol::hello_with(
@@ -2457,6 +2498,40 @@ impl World {
                     }));
                 }
                 engine::Request::Forge { call, repository, op } => {
+                    if self.unavailable {
+                        self.unavailable_calls.push(op);
+                        self.events.push_back(engine::Event::Forge(Box::new(forge_top::Event::Client(
+                            skein_forge_client::Event::Answered {
+                                free: 0,
+                                rate: None,
+                                call,
+                                cost: 1,
+                                result: Err(skein_forge::api::Error::Unavailable),
+                            },
+                        ))));
+                        continue;
+                    }
+                    if self.fail_issue_finds
+                        && matches!(
+                            op,
+                            skein_forge::api::Op::Read(skein_forge::api::Read::Items {
+                                kind: Some(skein_forge::api::Kind::Issue),
+                                ..
+                            })
+                        )
+                    {
+                        self.failed_issue_finds += 1;
+                        self.events.push_back(engine::Event::Forge(Box::new(forge_top::Event::Client(
+                            skein_forge_client::Event::Answered {
+                                free: 0,
+                                rate: None,
+                                call,
+                                cost: 1,
+                                result: Err(skein_forge::api::Error::Unavailable),
+                            },
+                        ))));
+                        continue;
+                    }
                     if self.busy_reads && matches!(op, skein_forge::api::Op::Read(_)) {
                         self.held_reads.get_or_insert_with(Vec::new).push(engine::Request::Forge {
                             call,
@@ -2512,6 +2587,9 @@ impl World {
                     if let skein_forge::api::Op::Read(read) = &op
                         && let Some((_, result)) = self.scripted_forge_reads.iter().find(|(asked, _)| asked == read)
                     {
+                        if let Some(attempts) = &mut self.scripted_forge_attempts {
+                            attempts.push((self.env.now, read.clone()));
+                        }
                         self.events.push_back(engine::Event::Forge(Box::new(forge_top::Event::Client(
                             skein_forge_client::Event::Answered {
                                 free: 0,
@@ -2709,6 +2787,8 @@ impl World {
                     };
                     self.pending.insert(call, op);
                     self.pending_repositories.insert(call, Box::from(name));
+                    let wire = Token::new(u64::from(self.forge_calls));
+                    assert!(self.wire_calls.insert(wire, call).is_none(), "unique physical reply right");
                     let mut limits = self.fake_env.limits.clone();
                     if slow {
                         limits.latency_min = self.slow_branch_latency;
@@ -2723,7 +2803,7 @@ impl World {
                         &mut self.fake,
                         &fake_env,
                         fake::Event::Call {
-                            reply_to: ReplyTo::new(call),
+                            reply_to: ReplyTo::new(wire),
                             user: 1,
                             repository: Box::from(name),
                             op: raw,
@@ -2760,6 +2840,7 @@ impl World {
                         self.events.push_back(engine::Event::Party(engine::PartyInput::Delivered { watcher }));
                     }
                     Delivery::ForgeDocument { watcher, document } => self.oracle_documents.push((watcher, *document)),
+                    Delivery::Forges { watcher, forges } => self.forges_documents.push((watcher, forges)),
                     Delivery::Link {
                         down: host::LinkDown::Relayed { call, answer: host::Relayed::Answer { error: true, text }, .. },
                         ..
@@ -3247,7 +3328,8 @@ impl World {
         for _ in 0..self.fake_out.len() {
             match self.fake_out.pop().expect("counted fake output") {
                 fake::Request::Reply { to, result } => {
-                    let call = to.into_token();
+                    // A crash abandons reply rights, not the remote operation.
+                    let Some(call) = self.wire_calls.remove(&to.into_token()) else { continue };
                     let op = self.pending.remove(&call).expect("one pending forge call");
                     let repository = self.pending_repositories.remove(&call).expect("pending call's repository");
                     let result = match result {
@@ -3392,6 +3474,12 @@ impl World {
 
     pub fn sign_in(&mut self) {
         self.until(Until::Ready);
+        self.request_sign_in();
+        self.until(Until::SignedIn);
+    }
+
+    /// Ask without draining unrelated forge retries before the local request.
+    pub fn request_sign_in(&mut self) {
         self.send(engine::Event::Party(engine::PartyInput::SignedIn {
             until: None,
             held: None,
@@ -3402,7 +3490,6 @@ impl World {
                 name: Box::from(&b"Owner"[..]),
             },
         }));
-        self.until(Until::SignedIn);
     }
 
     pub fn adopt_landing(&mut self, landing: &[u8]) {
