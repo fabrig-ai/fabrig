@@ -1,3 +1,8 @@
+use skein_world::{
+    faults::FaultLedger,
+    streams::{Stream, Streams},
+};
+mod ledger;
 use crate::translate;
 use skein_fake_forge_domain::{self as forge, api as raw};
 use skein_lib::{Duration, Env, List, Map, Queue, ReplyTo, Time, Token, Wall};
@@ -161,6 +166,8 @@ pub struct World {
     serial: u64,
     generation: u64,
     seed: u64,
+    engine_seed: u64,
+    ledger: FaultLedger,
     writer: Option<skein_forge_client::Writer>,
     writer_saves: u32,
     writes: u32,
@@ -241,6 +248,7 @@ impl World {
             None,
             4,
             None,
+            None,
         )
     }
     /// Three simultaneous trains, with one spare branch per prepared member.
@@ -262,6 +270,7 @@ impl World {
             config,
             None,
             4,
+            None,
             None,
         );
         world.env.limits.landings = 3;
@@ -291,6 +300,7 @@ impl World {
             config,
             None,
             5,
+            None,
             None,
         )
     }
@@ -499,6 +509,7 @@ impl World {
             Some(passes),
             LIMITS.landing_members,
             None,
+            None,
         );
         forge::set_failing(&mut world.forge, b"org/repo", b"build", fault);
         world
@@ -560,6 +571,7 @@ impl World {
             None,
             LIMITS.landing_members,
             None,
+            None,
         )
     }
 
@@ -580,6 +592,7 @@ impl World {
             None,
             LIMITS.landing_members,
             Some(cue),
+            None,
         )
     }
 
@@ -603,6 +616,7 @@ impl World {
             config,
             None,
             LIMITS.landing_members,
+            None,
             None,
         )
     }
@@ -718,6 +732,7 @@ impl World {
             None,
             LIMITS.landing_members,
             None,
+            None,
         )
     }
     #[expect(
@@ -739,6 +754,7 @@ impl World {
         passes: Option<u32>,
         members: u32,
         cue: Option<raw::Cue>,
+        streams: Option<&Streams>,
     ) -> World {
         let tiered = tier.is_some();
         let limits = top::Limits {
@@ -756,7 +772,9 @@ impl World {
         let mut config = scenario_config(config, branches, turn, tiered, protection.as_ref());
         let workflows = workflows(turn, tier);
         config.limits.workflows = u32::try_from(workflows.len()).expect("workflow room");
-        let mut fake = forge::Domain::new(&config, seed);
+        let forge_seed = streams.map_or(seed, |streams| streams.seed_of(Stream::Faults, "forge"));
+        let engine_seed = streams.map_or(seed, |streams| streams.seed_of(Stream::Scheduling, "engine"));
+        let mut fake = forge::Domain::new(&config, forge_seed);
         forge::repository(
             &mut fake,
             &config,
@@ -792,7 +810,7 @@ impl World {
         forge::grant(&mut fake, b"org/repo", 2, raw::Permission::Write);
         let top = top::Domain::new(
             &limits,
-            seed,
+            engine_seed,
             temper_engine_domain_forge::Config {
                 push: None,
                 namespace: Box::from(&b"world"[..]),
@@ -825,6 +843,8 @@ impl World {
             serial: 0,
             generation: 1,
             seed,
+            engine_seed,
+            ledger: FaultLedger::new(),
             writer,
             writer_saves: 0,
             writes: 0,
@@ -1004,6 +1024,7 @@ impl World {
             None,
             LIMITS.landing_members,
             None,
+            None,
         );
         world.second_repository(Box::new([workflow]));
         world
@@ -1024,6 +1045,7 @@ impl World {
             repository_config(2),
             None,
             LIMITS.landing_members,
+            None,
             None,
         );
         world.second_repository(Box::new([]));
@@ -1380,7 +1402,7 @@ impl World {
         self.generation += 1;
         self.top = top::Domain::new(
             &self.env.limits,
-            self.seed,
+            self.engine_seed,
             temper_engine_domain_forge::Config {
                 push: None,
                 namespace: Box::from(&b"world"[..]),
@@ -1658,6 +1680,7 @@ impl World {
             forge::Event::Call { reply_to: ReplyTo::new(token), user, repository: Box::from(repository), op },
             &mut self.forge_out,
         );
+        self.copy_fell();
         let mut answer = None;
         for _ in 0..8 {
             for _ in 0..self.forge_out.len() {
@@ -1670,6 +1693,7 @@ impl World {
                 break;
             }
             forge::fire(&mut self.forge, &env, &mut self.forge_out);
+            self.copy_fell();
         }
         self.forge.reclaim();
         answer.expect("fixture answered")
@@ -1686,6 +1710,7 @@ impl World {
     }
 
     fn iterate(&mut self, end: Time) -> bool {
+        self.copy_fell();
         if let Some((generation, event)) = self.to_top.pop() {
             if generation == self.generation {
                 self.event(event);
@@ -1706,6 +1731,7 @@ impl World {
                 env.limits.timeouts = 1000;
             }
             forge::step(&mut self.forge, &env, event, &mut self.forge_out);
+            self.copy_fell();
             self.take_forge();
         } else if self.top.is_ready() {
             top::resume(&mut self.top, &self.env, &mut self.top_out);
@@ -1713,6 +1739,7 @@ impl World {
             self.top.reclaim();
         } else if self.forge.is_due(self.env.now) {
             forge::fire(&mut self.forge, &self.forge_env, &mut self.forge_out);
+            self.copy_fell();
             self.take_forge();
         } else if self.top.next_deadline().is_some_and(|time| time <= self.env.now)
             || self.top.next_wall_deadline().is_some_and(|wall| wall <= self.env.wall)

@@ -21,22 +21,45 @@ fn contains(world: &World, tip: u64, commit: api::Commit) -> bool {
     commits.is_empty()
 }
 #[derive(Debug, PartialEq)]
-struct Replay {
+pub(crate) struct Replay {
     landing: landing::Landing,
     main: u64,
     calls: Vec<api::Op>,
     histories: Vec<Vec<top::history::Event>>,
 }
-#[expect(clippy::too_many_lines, reason = "batch effects and search invariants share one bounded replay loop")]
+struct Workload {
+    rng: Rng,
+    count: u64,
+    squash: bool,
+    red: bool,
+    conflict: Option<u64>,
+    moving: Option<u64>,
+    red_member: u64,
+}
+impl Workload {
+    fn new(seed: u64) -> Self {
+        let mut rng = Rng::new(seed);
+        let count = 2 + rng.below(3);
+        let squash = rng.below(2) == 0;
+        let red = rng.below(2) == 0;
+        let conflict = (rng.below(2) == 0).then(|| 1 + rng.below(count - 1));
+        let moving = (rng.below(2) == 0).then(|| rng.below(count));
+        let red_member = rng.below(count);
+        Self { rng, count, squash, red, conflict, moving, red_member }
+    }
+}
+pub(crate) fn workload_workflow(seed: u64) -> raw::Workflow {
+    workflow(Workload::new(seed).red)
+}
 fn run(seed: u64) -> Replay {
-    let mut rng = Rng::new(seed);
-    let count = 2 + rng.below(3);
-    let squash = rng.below(2) == 0;
-    let red = rng.below(2) == 0;
-    let conflict = (rng.below(2) == 0).then(|| 1 + rng.below(count - 1));
-    let moving = (rng.below(2) == 0).then(|| rng.below(count));
-    let red_member = rng.below(count);
-    let mut world = landings::turn_in(World::batch_turn(seed, Some(workflow(red))));
+    let world = World::batch_turn(seed, Some(workload_workflow(seed)));
+    run_in(world, seed, 160).1
+}
+/// Run the same workload and checks, retaining the world for a sweep's ledger.
+#[expect(clippy::too_many_lines, reason = "batch effects and search invariants share one bounded replay loop")]
+pub(crate) fn run_in(world: World, seed: u64, horizon: u64) -> (World, Replay) {
+    let Workload { mut rng, count, squash, red, conflict, moving, red_member } = Workload::new(seed);
+    let mut world = landings::turn_in(world);
     world.batch(u16::try_from(count).expect("small batch"));
     world.push_file(b"main", b"file", b"fixed");
     for index in 0..count {
@@ -61,7 +84,7 @@ fn run(seed: u64) -> Replay {
     let mut search_round = 0;
     let mut max_probes = 0;
     let restart = rng.below(4);
-    for step in 0..160 {
+    for step in 0..horizon {
         if step == restart {
             let before: Vec<_> = (51..51 + count).map(|change| world.history(change)).collect();
             world.restart();
@@ -178,7 +201,8 @@ fn run(seed: u64) -> Replay {
         super::history::check(seed, change, &events);
         histories.push(events);
     }
-    Replay { landing: row, main, calls: world.take_calls(), histories }
+    let replay = Replay { landing: row, main, calls: world.take_calls(), histories };
+    (world, replay)
 }
 #[test]
 fn seeded_batches_keep_the_fast_forward_prefix_and_cleanup_invariants() {

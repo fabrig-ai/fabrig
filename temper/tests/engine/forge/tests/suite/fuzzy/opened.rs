@@ -146,7 +146,7 @@ impl Oracle {
     }
 }
 #[derive(Debug, PartialEq)]
-struct Replay {
+pub(crate) struct Replay {
     exercised: u16,
     landing: landing::Landing,
     main: u64,
@@ -155,13 +155,18 @@ struct Replay {
     histories: Vec<Vec<top::history::Event>>,
 }
 
-#[expect(clippy::too_many_lines, reason = "one replay generates taking boundaries, then proves and cleans its batch")]
 fn run(seed: u64) -> Replay {
+    let world = World::batch_turn(seed, Some(workflow(false)));
+    run_in(world, seed, 120).1
+}
+/// Run the same workload and checks, retaining the world for a sweep's ledger.
+#[expect(clippy::too_many_lines, reason = "one replay generates taking boundaries, then proves and cleans its batch")]
+pub(crate) fn run_in(world: World, seed: u64, horizon: u64) -> (World, Replay) {
     let mut rng = Rng::new(seed);
     let count = 2 + rng.below(2);
     let squash = rng.below(2) == 0;
     let mut exercised = if squash { 1 } else { 2 };
-    let mut world = landings::turn_in(World::batch_turn(seed, Some(workflow(false))));
+    let mut world = landings::turn_in(world);
     world.batch(u16::try_from(count).expect("small batch"));
     let mut oracle = Oracle::default();
     for index in 0..count {
@@ -238,7 +243,7 @@ fn run(seed: u64) -> Replay {
     Trains::default().judge(&mut world);
     assert_eq!(world.landing(LANDING).landing.members.len(), oracle.members.iter().filter(|m| !m.cancelled).count());
     let mut finished = false;
-    for entry in 10_000..10_120 {
+    for entry in 10_000..10_000 + horizon {
         if rng.below(7) == 0 {
             let before: Vec<_> = oracle.members.iter().map(|m| world.history(m.task)).collect();
             restart(&mut world);
@@ -322,7 +327,8 @@ fn run(seed: u64) -> Replay {
         histories.push(events);
         oracle.check(&mut world);
     }
-    Replay { exercised, landing: row, main, calls: oracle.calls, members: oracle.members, histories }
+    let replay = Replay { exercised, landing: row, main, calls: oracle.calls, members: oracle.members, histories };
+    (world, replay)
 }
 #[test]
 fn seeded_opens_keep_sources_untouched_and_land_only_proved_prefixes() {
