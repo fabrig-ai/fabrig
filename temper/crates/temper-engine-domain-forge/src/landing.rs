@@ -12,6 +12,10 @@ use temper_engine_domain_forge_change as change;
 use temper_engine_domain_forge_landing as policy;
 pub use temper_engine_domain_forge_vocabulary::landing::*;
 
+#[path = "landing_follow.rs"]
+mod saved_follow;
+pub(crate) use saved_follow::rebuild;
+
 type Position = (u64, u16, u16);
 type RepositoryGate = (api::Repository, Box<[u8]>);
 type KeyAt = (api::Commit, policy::Key);
@@ -56,6 +60,7 @@ pub(crate) struct Pending {
     facts: Box<[policy::MemberFacts]>,
     stage: Stage,
     polled: List<ReceiptKey>,
+    flight_entry: Option<u64>,
     trees: List<policy::Tree>,
     base_trees: List<policy::Tree>,
     entries: List<policy::Entry>,
@@ -626,7 +631,7 @@ impl Domain {
         }
         if self.landing.rows.len() == self.landing.limits.landings {
             for (_, row) in &self.landing.rows {
-                if row.entries.is_empty() && matches_terminal(&row.landing.phase) {
+                if reclaimable(self, row) {
                     return Ok(());
                 }
             }
@@ -859,6 +864,15 @@ fn remap_members(d: &mut Domain, row: &mut LandingRow, prior: &LandingRow) {
         }
     }
     row.entries = entries.into_boxed();
+    let mut follows = List::with_capacity(follow_slots(&d.landing.limits).expect("landing follow bound"));
+    for old in prior.follows() {
+        if let Some(member) = member_position(row, prior, old.entry.member) {
+            let mut follow = old.clone();
+            follow.entry.member = member;
+            follows.push(follow).expect("bounded follows and marks");
+        }
+    }
+    row.keep_follows(follows.into_boxed());
     // Move only this landing's values out before assigning new positions.
     // The scratch lists live for this step and are bounded by its members.
     let members = u32::try_from(prior.landing.members.len()).expect("member count");
@@ -1254,6 +1268,7 @@ pub(crate) fn step(
                 facts: facts.into_boxed(),
                 stage: Stage::Branch(0),
                 polled: List::with_capacity(slots(&env.limits).expect("bounded gates")),
+                flight_entry: None,
                 trees: List::with_capacity(env.limits.trees_in_flight),
                 base_trees: List::with_capacity(env.limits.trees_in_flight),
                 entries: List::with_capacity(env.limits.key_entries),
@@ -1448,6 +1463,22 @@ fn advance(
     let Some(row) = d.landing.rows.get(&p.task).cloned() else {
         return;
     };
+    if row.landing.phase == policy::Phase::Cancelled {
+        step(d, env, p.task, p.entry, p.heard, out);
+        return;
+    }
+    // A reader of a shared key may outlive a cancellation and its replacement
+    // dispatch. Its answers belong only to the write it was following.
+    if let Stage::Run { key, .. } | Stage::FailedJobs { key, .. } | Stage::FailedReport { key, .. } = &p.stage {
+        let current = match d.landing.flights.get(key) {
+            Some(flight) => Some(flight.entry),
+            None => None,
+        };
+        if current.is_none() || current != p.flight_entry {
+            collect(d, env, owner, p, out);
+            return;
+        }
+    }
     if p.evidence.len() != row.landing.members.len() {
         step(d, env, p.task, p.entry, p.heard, out);
         return;
@@ -1825,18 +1856,18 @@ fn advance(
                 None => None,
             };
             let dispatching = d.landing.rows.get(&flight.task).expect("dispatching landing").clone();
-            for entry in &dispatching.entries {
-                if flight.task == p.task && entry.entry == flight.entry {
-                    let member = row.landing.members.get(usize::from(entry.member)).expect("flight member");
-                    let fresh = p.facts.get(usize::from(entry.member)).expect("fresh flight member");
-                    if member.head != Some(fresh.head) {
-                        verdict = Some(crate::history::GateVerdict::Superseded);
-                    }
+            if flight.task == p.task
+                && let Some(entry) = dispatching.run_entry(flight.entry)
+            {
+                let member = row.landing.members.get(usize::from(entry.member)).expect("flight member");
+                let fresh = p.facts.get(usize::from(entry.member)).expect("fresh flight member");
+                if member.head != Some(fresh.head) {
+                    verdict = Some(crate::history::GateVerdict::Superseded);
                 }
             }
             let mut observed = dispatching.clone();
             crate::landing_proofs::run(d, env, &mut observed, &flight, verdict, out);
-            if observed.entries != dispatching.entries {
+            if observed.follows != dispatching.follows || observed.entries != dispatching.entries {
                 save(d, observed, out);
             }
             if previous_run != current_run {
@@ -2619,27 +2650,26 @@ fn collect(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out:
         if (flight.task != p.task && !reads_key(d, row, key)) || p.polled.as_slice().contains(key) {
             continue;
         }
-        let mut pending_status = false;
-        for entry in &row.entries {
-            if entry.entry == flight.entry {
-                let member = row.landing.members.get(usize::from(entry.member)).expect("flight member");
-                let proof = member.gates.get(usize::from(entry.gate)).expect("flight gate");
-                let current = if row.landing.round.ending.is_none() {
-                    policy::probe(&row.landing).or(round_top(row))
-                } else {
-                    None
-                };
-                pending_status |= tests_value(&flight.inputs).is_none()
-                    && current == Some(entry.member)
-                    && proof_key(proof.proof) == Some(key.key)
-                    && proof.posted == policy::Posted::Nothing;
-            }
-        }
+        let pending_status = if flight.task == p.task
+            && let Some(entry) = row.run_entry(flight.entry)
+        {
+            let member = row.landing.members.get(usize::from(entry.member)).expect("flight member");
+            let proof = member.gates.get(usize::from(entry.gate)).expect("flight gate");
+            let current =
+                if row.landing.round.ending.is_none() { policy::probe(&row.landing).or(round_top(row)) } else { None };
+            tests_value(&flight.inputs).is_none()
+                && current == Some(entry.member)
+                && proof_key(proof.proof) == Some(key.key)
+                && proof.posted == policy::Posted::Nothing
+        } else {
+            false
+        };
         if pending_status {
             continue;
         }
         if let Some(read) = flight.read() {
             let key = key.clone();
+            p.flight_entry = Some(flight.entry);
             p.stage = Stage::Run { key: key.clone(), pages: 1 };
             ask(d, env, owner, p, key.repository, read, out);
             return;
@@ -3402,8 +3432,9 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
             }
         }
         row.entries = entries.into_boxed();
+        saved_follow::prune(&mut row, &d.landing.limits);
     }
-    reset_results(d, &row, &prior);
+    reset_results(d, &mut row, &prior);
     if row.landing.preparation != prior.landing.preparation || decision == policy::Decision::Stale {
         for index in 0..row.landing.members.len() {
             let member = u16::try_from(index).expect("member");
@@ -3493,8 +3524,8 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
     } else {
         decision
     };
-    // A terminal round still owns its dispatched runs until their receipts
-    // settle the outbox (domain/landing.md, 7.1), while its members are free to land again.
+    // A landed landing still follows its dispatched runs for their receipts
+    // (domain/landing.md, 7.1), while its members are free to land again.
     let decision = if decision == policy::Decision::Finish
         && let Some(on) = following_wait(d, p.task)
     {
@@ -3513,7 +3544,7 @@ fn end_runs(
     only: Option<(u16, u16)>,
     out: &mut Queue<Request>,
 ) {
-    let mut flights = List::with_capacity(d.landing.limits.entries);
+    let mut flights = List::with_capacity(d.landing.flights.len());
     for (_, flight) in &d.landing.flights {
         if flight.task == row.landing.task {
             flights.push(flight.clone()).expect("bounded flights");
@@ -3521,23 +3552,15 @@ fn end_runs(
     }
     let mut observed = prior.clone();
     for flight in flights.into_boxed() {
-        let mut concerns = false;
-        for entry in &observed.entries {
-            if entry.entry == flight.entry && entry.run.is_some() {
-                concerns = match only {
-                    Some(position) => position == (entry.member, entry.gate),
-                    None => true,
-                };
-            }
-        }
-        if concerns {
+        let Some(entry) = observed.run_entry(flight.entry) else { continue };
+        let concerns = match only {
+            Some(position) => position == (entry.member, entry.gate),
+            None => true,
+        };
+        if concerns && entry.run.is_some() {
             crate::landing_proofs::run(d, env, &mut observed, &flight, Some(verdict), out);
-        }
-    }
-    for entry in &mut row.entries {
-        for old in &observed.entries {
-            if entry.entry == old.entry {
-                entry.run = old.run;
+            if let Some(entry) = row.run_entry_mut(flight.entry) {
+                entry.run = observed.run_entry(flight.entry).expect("observed mark").run;
             }
         }
     }
@@ -3830,18 +3853,20 @@ fn keep(
     for old in &row.entries {
         entries.push(*old).expect("bounded entries");
     }
-    entries
-        .push(LandingEntry {
-            entry,
-            member,
-            gate,
-            operation: op,
-            run: None,
-            preparation: Some(row.landing.preparation),
-            base: row.landing.members.get(usize::from(member)).expect("effect member").base,
-        })
-        .expect("entry room checked");
+    let item = LandingEntry {
+        entry,
+        member,
+        gate,
+        operation: op,
+        run: None,
+        preparation: Some(row.landing.preparation),
+        base: row.landing.members.get(usize::from(member)).expect("effect member").base,
+    };
+    entries.push(item).expect("entry room checked");
     row.entries = entries.into_boxed();
+    if op == Operation::Dispatch || op == Operation::Rerun {
+        saved_follow::keep(d, row, item, &write);
+    }
     d.landing
         .results
         .insert((row.landing.task, member, gate, operation(op)), (policy::Status::Pending, false))
@@ -3930,48 +3955,15 @@ fn finish_flight(d: &mut Domain, key: &ReceiptKey, probed: Option<(u64, bool)>, 
             rerun.ended = true;
         }
     }
-    let mut entries = List::with_capacity(d.landing.limits.entries);
-    for entry in &row.entries {
-        let member = row.landing.members.get(usize::from(entry.member)).expect("member");
-        let matches = if repository(member) == key.repository {
-            match key.check {
-                Check::Gate(ref name) => {
-                    match d.landing.gates(row.landing.project, key.repository).get(usize::from(entry.gate)) {
-                        Some(gate) => &gate.name == name,
-                        None => false,
-                    }
-                }
-                Check::Tier(_) => false,
-            }
-        } else {
-            false
-        };
-        let mut own_key = false;
-        if let Some(kept) = d.entries.get(&entry.entry) {
-            if let api::Write::Dispatch { inputs, .. } = &kept.entry.effect.write {
-                own_key = input_commit(inputs, b"temper_key") == Some(key.key);
-            } else if let api::Write::Rerun { attempt } = &kept.entry.effect.write {
-                own_key = attempt.head == flight.commit;
-            }
-        }
-        if matches && own_key && (entry.operation == Operation::Dispatch || entry.operation == Operation::Rerun) {
-            if d.entries.remove(&entry.entry).is_some() {
-                emit(out, Request::Erase { key: Key::Entry(entry.entry) });
-            }
-            if entry.run.is_some() {
-                entries.push(*entry).expect("bounded observations");
-            }
-        } else {
-            entries.push(*entry).expect("bounded entries");
+    for saved in row.follows_mut() {
+        if saved.entry.entry == flight.entry {
+            saved_follow::stop(saved);
         }
     }
-    row.entries = entries.into_boxed();
+    saved_follow::prune(&mut row, &d.landing.limits);
     save(d, row, out);
-    for (_, waiting) in &d.landing.rows {
-        if waiting.landing.project == key.project {
-            emit(out, Request::WakeProcedure { task: waiting.landing.task });
-        }
-    }
+    emit(out, Request::WakeProcedure { task: flight.task });
+    saved_follow::wake_project(d, key.project, flight.task, out);
 }
 /// A turn's merge belongs to its member's change; its effect is the landing's
 /// (domain/forge/README.md, 5.3; domain/landing.md, 8).
@@ -3988,8 +3980,7 @@ pub(crate) fn merged_owner(d: &Domain, task: u64, entry: u64) -> u64 {
     unreachable!("landing merge has a saved member entry");
 }
 
-/// Preserve a settled dispatch entry until its run ends: its start window
-/// is required to reconstruct a Dispatched proof after restart (landing.md, 15).
+/// A merge refusal requires a fresh read of the pull and base (domain/landing.md, 8).
 fn merge_refused(outcome: skein_forge_client::Outcome) -> bool {
     match outcome {
         skein_forge_client::Outcome::Failed(error) => match error {
@@ -4029,29 +4020,26 @@ pub(crate) fn outcome(
     entry: u64,
     outcome: skein_forge_client::Outcome,
     out: &mut Queue<Request>,
-) -> bool {
+) {
+    let Some(kept) = d.entries.get(&entry) else { return };
+    let task = kept.entry.task;
+    let Some(mut row) = d.landing.rows.get(&task).cloned() else { return };
     let mut found = None;
-    for (task, row) in &d.landing.rows {
-        for item in &row.entries {
-            if item.entry == entry {
-                found = Some((*task, *item));
-            }
+    for item in &row.entries {
+        if item.entry == entry {
+            found = Some(*item);
+            break;
         }
     }
-    let Some((task, item)) = found else {
-        return false;
-    };
-    let (status, keep_window) = match outcome {
-        skein_forge_client::Outcome::Made { .. } => (policy::Status::Passed, true),
-        skein_forge_client::Outcome::Failed(_) => (policy::Status::Failed, true),
-        skein_forge_client::Outcome::Uncertain | skein_forge_client::Outcome::Queued => {
-            (policy::Status::Pending, false)
-        }
-        skein_forge_client::Outcome::Raced { .. }
+    let Some(item) = found else { return };
+    let status = match outcome {
+        skein_forge_client::Outcome::Made { .. } => policy::Status::Passed,
+        skein_forge_client::Outcome::Uncertain | skein_forge_client::Outcome::Queued => policy::Status::Pending,
+        skein_forge_client::Outcome::Failed(_)
+        | skein_forge_client::Outcome::Raced { .. }
         | skein_forge_client::Outcome::Held
-        | skein_forge_client::Outcome::Withdrawn => (policy::Status::Failed, false),
+        | skein_forge_client::Outcome::Withdrawn => policy::Status::Failed,
     };
-    let row = d.landing.rows.get(&task).expect("effect landing");
     if item.preparation.is_none() || item.preparation == Some(row.landing.preparation) {
         d.landing
             .results
@@ -4100,7 +4088,6 @@ pub(crate) fn outcome(
             flight.outcome = Some(policy::Verdict::Fault(policy::Fault::Lost));
             if item.operation == Operation::Rerun && outcome == skein_forge_client::Outcome::Failed(api::Error::Refused)
             {
-                let mut row = d.landing.rows.get(&task).expect("rerun landing").clone();
                 let mut flake = false;
                 for rerun in &mut row.flake_reruns {
                     if rerun.key == key && !rerun.ended {
@@ -4111,36 +4098,60 @@ pub(crate) fn outcome(
                 }
                 if flake {
                     runs::retry(flight, 2);
-                    save(d, row, out);
                 }
             }
         }
     }
-    if status != policy::Status::Pending && item.operation != Operation::Dispatch && item.operation != Operation::Rerun
-    {
-        let mut row = d.landing.rows.get(&task).expect("landing effect").clone();
-        if status == policy::Status::Passed {
-            crate::landing_proofs::made(d, env.wall, &row, item, out);
-        }
-        let mut entries = List::with_capacity(d.landing.limits.entries);
-        for old in &row.entries {
-            if old.entry != entry {
-                entries.push(*old).expect("bounded entries");
+    if status != policy::Status::Pending {
+        for record in row.follows_mut() {
+            if record.entry.entry == entry && record.dispatch.is_some() {
+                let kept = &d.entries.get(&entry).expect("settling entry still kept").entry;
+                saved_follow::progress(record, kept);
+                record.failed = status == policy::Status::Failed;
             }
         }
-        row.entries = entries.into_boxed();
+        if outcome != skein_forge_client::Outcome::Held || item.operation == Operation::Merge {
+            remove_entry(&mut row, entry, &d.landing.limits);
+        }
         if item.operation == Operation::Record
             || item.operation == Operation::Open
             || item.operation == Operation::Merge
         {
+            if status == policy::Status::Passed {
+                crate::landing_proofs::made(d, env.wall, &row, item, out);
+            }
             let words = crate::effect_words::outcome_words(outcome).unwrap_or(Box::new([]));
             row.landing.round.failure =
                 crate::preparation::remember(&row.landing.round.failure, &words, d.landing.limits.landing_members);
         }
         save(d, row, out);
     }
-    emit(out, Request::WakeProcedure { task });
-    keep_window && (item.operation == Operation::Dispatch || item.operation == Operation::Rerun)
+    if d.landing.rows.get(&task).expect("effect landing").landing.phase != policy::Phase::Cancelled {
+        emit(out, Request::WakeProcedure { task });
+    }
+}
+
+fn remove_entry(row: &mut LandingRow, entry: u64, limits: &Limits) -> bool {
+    let mut entries = List::with_capacity(limits.entries);
+    let mut removed = false;
+    for old in &row.entries {
+        if old.entry == entry {
+            removed = true;
+        } else {
+            entries.push(*old).expect("bounded entries");
+        }
+    }
+    row.entries = entries.into_boxed();
+    removed
+}
+
+/// A held write leaves on explicit settlement rather than on its hold.
+pub(crate) fn not_made(d: &mut Domain, task: u64, entry: u64, out: &mut Queue<Request>) {
+    if let Some(mut row) = d.landing.rows.get(&task).cloned()
+        && remove_entry(&mut row, entry, &d.landing.limits)
+    {
+        save(d, row, out);
+    }
 }
 fn awaits_pull(row: &LandingRow, member: &policy::Member, provider: api::Repository, number: u64) -> bool {
     let policy::Phase::Turn { .. } = row.landing.phase else { return false };
@@ -4411,95 +4422,6 @@ fn superseded(d: &Domain, row: &LandingRow, key: &ReceiptKey, receipt: &Receipt)
     false
 }
 
-pub(crate) fn rebuild(d: &mut Domain) {
-    let mut flights = List::with_capacity(slots(&d.landing.limits).expect("flight bound"));
-    for (_, row) in &d.landing.rows {
-        for item in &row.entries {
-            if item.operation != Operation::Dispatch {
-                continue;
-            }
-            let Some(kept) = d.entries.get(&item.entry) else { continue };
-            let api::Write::Dispatch { workflow, branch, inputs } = &kept.entry.effect.write else { continue };
-            let Some(key) = input_commit(inputs, b"temper_key") else { continue };
-            let Some(candidate) = input_commit(inputs, b"temper_commit") else { continue };
-            let member = row.landing.members.get(usize::from(item.member)).expect("member");
-            let repo = repository(member);
-            let Some(gate) = d.train_gates(row, repo).get(usize::from(item.gate)) else { continue };
-            let key = gate_key(row, item.member, item.gate, &gate.name, key);
-            if let Some(receipt) = d.landing.receipts.get(&key)
-                && !superseded(d, row, &key, receipt)
-                && match tests_value(inputs) {
-                    None => true,
-                    Some(selected) => receipt.passed || selected_report(selected, receipt.failures.as_ref()),
-                }
-            {
-                continue;
-            }
-            let mut newest = item.entry;
-            for retry in &row.entries {
-                if retry.member == item.member
-                    && retry.gate == item.gate
-                    && retry.preparation == item.preparation
-                    && retry.operation == Operation::Rerun
-                {
-                    newest = newest.max(retry.entry);
-                }
-            }
-            let mut attempt = 1;
-            if let Some(proof) = member.gates.get(usize::from(item.gate))
-                && let policy::Proof::Dispatched { key: proof, try_ } = proof.proof
-                && proof == key.key
-            {
-                attempt = try_;
-            }
-            let mut follow = runs::follow(
-                row.landing.task,
-                newest,
-                crate::purpose::EffectPurpose::Landing {
-                    task: row.landing.task,
-                    member: item.member,
-                    gate: item.gate,
-                    operation: 1,
-                    preparation: item.preparation.unwrap_or(row.landing.preparation),
-                    attempt,
-                }
-                .identity()
-                .expect("landing purpose"),
-                repo,
-                workflow.clone(),
-                branch.clone(),
-                candidate,
-                inputs.clone(),
-            );
-            follow.writes = Box::new([]);
-            follow.waiting = d.flights.contains_key(&(row.landing.task, newest));
-            if let Some(latest) = d.entries.get(&newest)
-                && let Some(attempt) = latest.entry.attempt
-            {
-                follow.since = Some(attempt.sent);
-                follow.wall = Some(attempt.wall);
-            }
-            for entry in &row.entries {
-                if entry.entry == newest {
-                    follow.clock = match entry.run {
-                        Some(mark) => mark.clock,
-                        None => None,
-                    };
-                }
-            }
-            follow.start = match kept.entry.start {
-                Some(start) => Some(start.at),
-                None => None,
-            };
-            rebuild_flake_rerun(d, row, &key, newest, &mut follow);
-            flights.push((key, follow)).expect("bounded flights");
-        }
-    }
-    for (key, flight) in flights.into_boxed() {
-        d.landing.flights.insert(key, flight).expect("bounded flights");
-    }
-}
-
 /// A successful rerun write may precede the forge's next attempt. Only a terminal
 /// reading beyond every kept job attempt can make its receipt; runner faults keep
 /// their retry path (landing-regate.md, 2; landing.md, 7.4).
@@ -4521,62 +4443,23 @@ fn old_flake_attempt(d: &Domain, key: &ReceiptKey, answer: &Result<api::Answer, 
     if !active {
         return false;
     }
-    for item in &row.entries {
-        let Some(kept) = d.entries.get(&item.entry) else { continue };
-        if let api::Write::Rerun { attempt } = &kept.entry.effect.write {
-            if attempt.run != run.id {
-                continue;
-            }
-            let mut advanced = false;
-            for job in &run.jobs {
-                advanced |= job.id == attempt.job && job.attempt > attempt.attempt;
-            }
-            if !advanced {
-                return true;
+    for record in row.follows() {
+        if record.entry.entry == flight.entry {
+            for attempt in &record.reruns {
+                if attempt.run != run.id {
+                    continue;
+                }
+                let mut advanced = false;
+                for job in &run.jobs {
+                    advanced |= job.id == attempt.job && job.attempt > attempt.attempt;
+                }
+                if !advanced {
+                    return true;
+                }
             }
         }
     }
     false
-}
-
-fn rebuild_flake_rerun(d: &Domain, row: &LandingRow, key: &ReceiptKey, newest: u64, follow: &mut runs::Follow) {
-    for rerun in &row.flake_reruns {
-        if rerun.key != *key || rerun.ended {
-            continue;
-        }
-        let mut pending = List::with_capacity(16);
-        for attempt in &rerun.pending {
-            pending.push(api::Write::Rerun { attempt: *attempt }).expect("bounded jobs");
-        }
-        follow.writes = pending.into_boxed();
-        let mut run = None;
-        if let Some(latest) = d.entries.get(&newest)
-            && let api::Write::Rerun { attempt } = &latest.entry.effect.write
-        {
-            run = Some(attempt.run);
-        } else if !rerun.pending.is_empty() {
-            run = Some(rerun.run);
-        }
-        if let Some(id) = run {
-            follow.run = Some(api::Run {
-                id,
-                number: 0,
-                workflow: follow.workflow.clone(),
-                commit: follow.commit,
-                event: api::Event::Dispatch,
-                actor: 0,
-                state: api::RunState::Running,
-                conclusion: None,
-                url: Box::new([]),
-                created: follow.start.unwrap_or(skein_lib::Time::ZERO),
-                jobs: Box::new([]),
-            });
-        }
-        if rerun.redispatch {
-            follow.outcome = Some(policy::Verdict::Fault(policy::Fault::Lost));
-            runs::retry(follow, 2);
-        }
-    }
 }
 
 fn hex(bytes: &[u8]) -> Box<[u8]> {
@@ -4589,7 +4472,8 @@ fn hex(bytes: &[u8]) -> Box<[u8]> {
     }
     out.into_boxed()
 }
-fn reset_results(d: &mut Domain, row: &LandingRow, prior: &LandingRow) {
+fn reset_results(d: &mut Domain, row: &mut LandingRow, prior: &LandingRow) {
+    let mut retired = List::with_capacity(d.landing.faults.len());
     for (index, member) in row.landing.members.iter().enumerate() {
         let mut unchanged = false;
         for old in &prior.landing.members {
@@ -4603,11 +4487,23 @@ fn reset_results(d: &mut Domain, row: &LandingRow, prior: &LandingRow) {
         let member = u16::try_from(index).expect("member");
         d.landing.results.remove(&(row.landing.task, member, 0, 5));
         for gate in 0..d.landing.limits.gates {
-            d.landing.faults.remove(&(row.landing.task, member, u16::try_from(gate).expect("gate")));
+            if let Some(fault) =
+                d.landing.faults.remove(&(row.landing.task, member, u16::try_from(gate).expect("gate")))
+            {
+                retired.push(fault.entry).expect("bounded faults");
+            }
             for operation in 1..=9 {
                 d.landing.results.remove(&(row.landing.task, member, u16::try_from(gate).expect("gate"), operation));
             }
         }
+    }
+    if !retired.is_empty() {
+        for follow in row.follows_mut() {
+            if retired.as_slice().contains(&follow.entry.entry) {
+                saved_follow::stop(follow);
+            }
+        }
+        saved_follow::prune(row, &d.landing.limits);
     }
 }
 /// Keep the spent key before any write, including when another landing observed the red
@@ -4719,12 +4615,7 @@ fn continue_flake_rerun(
     else {
         return false;
     };
-    let mut base = None;
-    for kept in &row.entries {
-        if kept.entry == flight.entry {
-            base = kept.base;
-        }
-    }
+    let base = entry_base(row, flight.entry);
     if flight.waiting || entry == 0 {
         leave_room(d, row);
         save(d, row.clone(), out);
@@ -4766,6 +4657,10 @@ fn continue_flake_rerun(
     .identity()
     .expect("landing purpose");
     keep(d, row, entry, member, gate, operation, write, skein_forge_client::Condition::None, out);
+    if let Some(kept) = row.run_entry_mut(entry) {
+        kept.preparation = Some(preparation);
+        kept.base = base;
+    }
     for kept in &mut row.entries {
         if kept.entry == entry {
             kept.preparation = Some(preparation);
@@ -5054,20 +4949,9 @@ pub(crate) fn flight_fact(state: &State, key: &ReceiptKey, position: Position) -
 fn retire_finished(d: &mut Domain, out: &mut Queue<Request>) -> bool {
     let mut finished = None;
     for (task, row) in &d.landing.rows {
-        if !row.entries.is_empty() {
-            continue;
-        }
-        match row.landing.phase {
-            policy::Phase::Landed | policy::Phase::Cancelled => {
-                finished = Some(*task);
-                break;
-            }
-            policy::Phase::Waiting
-            | policy::Phase::Preparing
-            | policy::Phase::Proving
-            | policy::Phase::Proved { .. }
-            | policy::Phase::Turn { .. }
-            | policy::Phase::Held { .. } => {}
+        if reclaimable(d, row) {
+            finished = Some(*task);
+            break;
         }
     }
     let Some(task) = finished else {
@@ -5100,6 +4984,18 @@ fn retire_finished(d: &mut Domain, out: &mut Queue<Request>) -> bool {
         }
     }
     emit(out, Request::Erase { key: Key::Landing(task) });
+    true
+}
+
+fn reclaimable(d: &Domain, row: &LandingRow) -> bool {
+    if !matches_terminal(&row.landing.phase) || following(d, row.landing.task) {
+        return false;
+    }
+    for (_, entry) in &d.entries {
+        if entry.entry.task == row.landing.task {
+            return false;
+        }
+    }
     true
 }
 
@@ -5574,16 +5470,6 @@ pub(crate) fn veto(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, out
     outcome(d, env, entry, skein_forge_client::Outcome::Failed(api::Error::Refused), out);
     d.entries.remove(&entry);
     emit(out, Request::Erase { key: Key::Entry(entry) });
-    if let Some(mut row) = d.landing.rows.get(&task).cloned() {
-        let mut entries = List::with_capacity(d.landing.limits.entries);
-        for item in &row.entries {
-            if item.entry != entry {
-                entries.push(*item).expect("bounded entries");
-            }
-        }
-        row.entries = entries.into_boxed();
-        save(d, row, out);
-    }
 }
 fn matches_entry(d: &Domain, task: u64, entry: u64) -> bool {
     match d.entries.get(&entry) {
@@ -5614,6 +5500,9 @@ pub(crate) fn closing(
         }
         row.landing.round.told |= !told.is_empty();
         row.landing.phase = policy::Phase::Cancelled;
+        if prior.landing.phase != policy::Phase::Cancelled {
+            saved_follow::cancelled(d, &mut row, out);
+        }
         d.landing.due.remove(&task);
         unlink_all(d, &mut row, out);
         for member in &row.landing.members {
@@ -5823,7 +5712,7 @@ fn reported_end(
     let dispatching = d.landing.rows.get(&flight.task).expect("dispatching landing").clone();
     let mut observed = dispatching.clone();
     crate::landing_proofs::run(d, env, &mut observed, &flight, Some(verdict), out);
-    if observed.entries != dispatching.entries {
+    if observed.follows != dispatching.follows || observed.entries != dispatching.entries {
         save(d, observed, out);
     }
 }
@@ -6023,15 +5912,15 @@ pub(super) fn receipt_jobs(run_jobs: &[api::RunJob]) -> Box<[ReceiptJob]> {
     jobs.into_boxed()
 }
 
+fn entry_base(row: &LandingRow, entry: u64) -> Option<api::Commit> {
+    row.run_entry(entry)?.base
+}
+
 fn failed_run_base(d: &Domain, row: &LandingRow, key: &ReceiptKey, run: &api::Run) -> Option<api::Commit> {
     let mut base = None;
     if let Some(flight) = d.landing.flights.get(key) {
         base = input_commit(&flight.inputs, b"temper_base");
-        for entry in &row.entries {
-            if entry.entry == flight.entry {
-                base = entry.base.or(base);
-            }
-        }
+        base = entry_base(row, flight.entry).or(base);
     }
     if base.is_none() {
         for member in &row.landing.members {

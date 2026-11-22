@@ -401,7 +401,7 @@ pub enum Write {
         branch: Box<[u8]>,
         inputs: Box<[WorkflowInput]>,
     },
-    /// Cancels a dispatched run in flight. Needs write permission.
+    /// Cancels a commit's CI run or a dispatched run in flight. Needs write permission.
     Cancel {
         run: u64,
     },

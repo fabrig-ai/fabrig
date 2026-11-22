@@ -5615,6 +5615,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-blame"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+ "skein-world",
+]
+
+[[package]]
 name = "temper-box"
 version = "0.0.0"
 dependencies = [
@@ -7002,6 +7010,7 @@ dependencies = [
  "skein-forge-client",
  "skein-lib",
  "skein-world",
+ "temper-blame",
  "temper-client-protocol-wire",
  "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",

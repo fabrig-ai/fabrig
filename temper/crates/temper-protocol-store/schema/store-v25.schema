@@ -332,7 +332,9 @@ record LandingFlakeRerun { key: ReceiptKey run: u64 findings: list 64 u32 pendin
 record LandingWaitMember { member: u16 }
 record LandingWaitGate { member: u16 gate: u16 }
 enum LandingAwaited { release, ready: LandingWaitMember, turn, prepare, prefixes, open, close, delete: LandingWaitMember, post: LandingWaitGate, run: LandingWaitGate, receipt: LandingWaitGate, judgement: LandingWaitMember, merge, record: LandingWaitMember, ancestry: LandingWaitMember, read }
-record LandingRow { last_event: option u64 = none turn_since: option u64 = none waiting: option LandingAwaited = none room: option u64 = none job: option HistoryJobRecord landing: LandingState asks: list 64 LandingAskSlot entries: list 65536 LandingEntry flake_reruns: list 65536 LandingFlakeRerun = [] }
+record LandingFollow { entry: LandingEntry dispatch: option DispatchWrite start: option u64 since: option u64 wall: option u64 try_number: u16 failed: bool reruns: list 65536 JobAttempt }
+record LandingFollows { items: bytes 2097152 pieces LandingFollow }
+record LandingRow { last_event: option u64 = none turn_since: option u64 = none waiting: option LandingAwaited = none room: option u64 = none job: option HistoryJobRecord landing: LandingState asks: list 64 LandingAskSlot entries: list 65536 LandingEntry flake_reruns: list 65536 LandingFlakeRerun = [] follows: option LandingFollows = none }
 record ReceiptRun { id: u64 number: u64 url: bytes 2048 }
 # Families 28 and 29 (temper/docs/design/protocol/store.md, 2).
 record FailedTests { tests: list 1024 FailingTest }
