@@ -140,6 +140,15 @@ change's due step.
   `Party("forge: entry N")`, read from the forge's releases and outbox,
   once beside its step's own write. A release whose effects have settled
   names none, and no entry stands in for a wait it can't name.
+- **A task a person holds:** jig can hold a change's or a landing's
+  task while the forge's step stands as it was: a person's stop, a
+  placed hold, or a hold on a failure, a stall, a budget or a deadline
+  that a person releases. Its wait then also names `Party("person")`,
+  once, from `inspect` alone, which reads the root's tasks. A hold no
+  person releases names none: a dependency's, a wait for holds, a
+  resource's (a forge limit's among them), a resource's access, a lost
+  pool's and a circle's each need their own wake, and a person is not
+  their fallback. A wait for room gains no person's wake.
 
 - **The change's steps,** in the change procedure's words
   (`../domain/forge/change/README.md`, 2): `producing`, `opening`,
