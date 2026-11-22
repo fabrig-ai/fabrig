@@ -52,7 +52,7 @@ A duplicate key, which the store's map cannot hold, also stays an
 assertion, as does a call out of the start's order or a stale
 continuation; none has a test (`temper/docs/design/draft/panics.md`,
 3.3). temper's forge link refuses as jig's do
-(`temper/docs/design/domain/root.md`, 8.1).
+(`temper/docs/design/domain/root-restart.md`, 1.1).
 
 
 `executors.md`, section 2's immutable failed run end retains the invalid-result kind
@@ -294,4 +294,3 @@ try. A window's later pages keep its first page's slot there
    the acceptance-capacity question remains `settings.status.md`, 2, 6 and 8.
 
 - **Not yet:** 7: the preparations waiting for notes are bounded by `brief.briefs`, not by live tasks (`briefs.md`, 2.2).
-

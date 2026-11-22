@@ -147,7 +147,7 @@ fn red_test_lines(out: &mut List<u8>, prefix: &[u8], failing: &Failures, red: &R
     }
 }
 
-/// The report's unshown cases and ids, without a full stop (after-landing.md, 4).
+/// The report's unshown cases and ids, without a full stop (domain/after-landing-runs.md, 3).
 #[must_use]
 pub fn many_remainder(many: &ManyTests, left_out: u32) -> Option<Box<[u8]>> {
     let count = many.more.saturating_add(left_out);

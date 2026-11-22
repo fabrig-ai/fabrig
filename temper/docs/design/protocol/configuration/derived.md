@@ -3,7 +3,7 @@
 Provisional, 2026-11-16. The figures temper computes from their sources
 when it starts, instead of reading them from a document: the turn's and
 the payload's carriers, a worker's places, and the clients' carriers
-(`../../draft/config.md`, section 7). `settings.md`, section 7 gives the
+(`../../draft/config.md`, section 7). `settings-output.md`, section 1 gives the
 relations, and this document makes them computed. The derivations start
 from the stock (`limits.md`, one stock).
 
@@ -41,7 +41,7 @@ from the stock (`limits.md`, one stock).
   dev.fabrig.ai's agent's of 2026-11-16, which is the reference's: the
   declared figures and endpoints that `temper-box init` writes in
   `agent.json` (`../setup/init.md`, 3), with `tool_payload` 63,740 and
-  every endpoint's `output` 48,000 (`settings.md`, 7, the reference's
+  every endpoint's `output` 48,000 (`settings-output.md`, 1, the reference's
   room).
 - **Its payload is 63,740, not 64 KiB.** skein's rule between a call's
   payload and an answer, (payload + 260) × 6 ≤ output × 8, makes 63,740
@@ -77,7 +77,7 @@ from the stock (`limits.md`, one stock).
 
 ### 5.1 From T and P
 
-The relations of `settings.md`, section 7, computed. "Both" means the
+The relations of `settings-output.md`, section 1, computed. "Both" means the
 engine's and each worker's.
 
 | Figure | Computed as |
@@ -204,8 +204,8 @@ writes only `slots`.
 From `../../draft/reconciling-start.md`, 4 and 5: the bounds derive from
 one another, and a unit takes its timeouts from the engine's.
 
-- **The stop bound** is the settled stop's (`../../domain/root.md`,
-  8.2): twice the sum of the forge client's write lifetime and clock
+- **The stop bound** is the settled stop's (`../../domain/root-restart.md`,
+  1.2): twice the sum of the forge client's write lifetime and clock
   margin, `forge.client.lifetime_ms` and `forge.client.clock_margin_ms`
   (skein's `forge/client.md`, 7.8), from the limits in force at the
   start (`limit-settings.md`). At the stock's 300 s and 1 s it is 602 s.
@@ -221,7 +221,7 @@ one another, and a unit takes its timeouts from the engine's.
   as long as its store's open and its steps take, and a step past the
   report bound says what holds it.
 - **The report bound** is 30 s, `WAIT_REPORT`, one fixed figure for
-  every step of a start and every full table (`../README.md`, 6.3),
+  every step of a start and every full table (`../service-process.md`, 1.3),
   with `Report`, the clock of its doublings, beside it in
   `temper-engine-domain-forge`, the lowest crate every one of its
   readers names (the forge, the root and the engine's shell).

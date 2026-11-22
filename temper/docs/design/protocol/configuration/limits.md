@@ -1,5 +1,7 @@
 # Limits
 
+## 1. Stock and sizing
+
 ```
 "limits": {"profile": "small", "overrides": {"<name>": value}}
 ```
@@ -73,7 +75,7 @@
     failed 28 to 48 tests a run on 2026-11-17 and 18. It bounds each
     list of failing tests it bounds in the stock, a tier's record's
     failures and flakes, a gate's selection and a receipt's among them
-    (`../../domain/after-landing.md`, sections 4 and 10). `small`'s
+    (`../../domain/after-landing-runs.md`, section 3, and `../../domain/after-landing-storage.md`, section 1). `small`'s
     figure, a test's, stays 16.
   - **Times:** a time is dev's where that is above `standard`'s: the
     brief's gathering 300 s and the checkout's local timeout 60 s, for
@@ -115,6 +117,8 @@
   within the checkout's commit message. So `small` takes a forge's `git`
   base of at most 122 bytes, the longest remote's bound (below). A test
   whose agent has other bounds states the overrides it needs.
+## 2. Project capacities
+
 - **A project's decided rows:** `forge.decided_per_project`, the rows of
   what was decided for its people and of what asked them, which the forge
   keeps 7 days (`../../domain/forge/attention.md`, 5): 1,024 in both profiles, so a
@@ -165,12 +169,14 @@
   in both, at least 1, so that a project whose changes end at landing
   (`../../domain/after-landing.md`, section 6) keeps a slow tier's
   backlog of landings with their members until it is judged, past which
-  the oldest is judged with no member to comment on (section 10 there).
+  the oldest is judged with no member to comment on (`../../domain/after-landing-storage.md`, section 1 there).
   Their sum is at most the store's 256 a log holds, and with
   `forge.landing_members` and `forge.changes` it bounds a tier's posted
   comments, `(forge.landings_kept + forge.landings_pending) *
   forge.landing_members + forge.changes` within the store's 8,192, both
   checked at start (below).
+## 3. Overrides and refusals
+
 - **Overrides by dotted name:** the path of the field in its owner's
   `Limits` type, a duration's last segment with `_ms`. A name temper does
   not know, or a value outside its type, refuses the start, naming it.
@@ -185,8 +191,8 @@
   | `records.` | the engine's routing's: a forge's records and carried values in jig's secrets' store (../credentials.md, 2.1) |
   | `forges.` | the engine's routing's, per forge: a GitHub forge's accepted installations and every forge's log origins (../forge/README.md, section 6) |
   | `setup.` | `temper-forge-setup`'s `Limits`: reconcile's (../setup/reconcile.md), the fetch's (../setup/owned.md, 6), and the engine's setup host's states and runs (../setup/README.md, the setup host in the engine) |
-  | `box.` | `temper-box-machine`'s `Limits`: the box's restarts and stop, its pipe's lines, its logs and tails (../setup/box.md, 1 and 2) |
-  | `clients.` | `temper-service`'s clients' server's `Limits`: the browser's bundle (`../../client/web/README.md`, 2.2) |
+  | `box.` | `temper-box-machine`'s `Limits`: the box's restarts and stop, its pipe's lines, its logs and tails (../setup/box.md, 1, and ../setup/box-supervision.md, 1) |
+  | `clients.` | `temper-service`'s clients' server's `Limits`: the browser's bundle (`../../client/web/serving.md`, 1) |
   | `routes.` | `temper-service`'s clients' listener's forge routes (`../../client/README.md`, the routes) |
   | `sign_in.` | `temper-service`'s Google sign-ins on the clients' listener (`../sign-in.md`, section 6) |
   | `picker.` | the picker's reads of a forge's repositories (`../../domain/forge/adoption.md`) |
@@ -217,7 +223,7 @@
   stock, its cap below: at least the largest `batch` a project names, which the
   start checks (`engine.md`, the batch), so a deployment whose project
   raises `batch` raises it with it. A landing holds a branch per member
-  (`../../domain/landing.md`, 5.1), so `forge.resources_per_task` has
+  (`../../domain/landing-prepare.md`, 1.1), so `forge.resources_per_task` has
   room for `forge.landing_members` branches beside the train's, and
   `forge.holds` for that many per live landing, where the start ties
   them as it ties the rest. It is at most 5, and the start refuses one
@@ -233,11 +239,11 @@
 - **`forge.changes` bounds the changes kept at once,** live and ended
   alike: the forge's change table, whose settled changes leave it,
   oldest first, as new ones need room, those of live goals kept
-  (`../../domain/forge/change/README.md`, 7). So it bounds the changes
+  (`../../domain/forge/change/records.md`, 1). So it bounds the changes
   live at once, never every change made. Each tier row of the store
   holds up to `2 * forge.changes + 1` landings (its pending ones, a run's,
   a finding's blamed ones, a probe's waiting groups and a posting's),
-  within the store schema's ceiling for them, 1,537 (`../store.md`, 4),
+  within the store schema's ceiling for them, 1,537 (`../store-versions.md`, 1),
   so `forge.changes` is at most 768, which the start checks (below), and
   the stock's is 768. The store holds that many because a failing test's
   id is within 1,024 bytes, `forge.tiers.test_id_bytes` at most that
@@ -245,7 +251,7 @@
   merges temper made, number `max(forge.landings, forge.changes)` at
   most; a merge finding them full erases one, those of no kept change
   first, and never waits on it to move its branch's head
-  (`../../domain/forge/change/README.md`, 7).
+  (`../../domain/forge/change/records.md`, 1).
 - **The forge client's lifetime and the forge call's deadline:**
   `forge.client.lifetime_ms` is how long a sent forge write may still
   arrive, its answer awaited before the client looks for it (skein's
@@ -269,8 +275,8 @@
   found is looked for until its lifetime ends (skein's
   `forge/client.md`, 7.5), and a stop's settling waits at most twice
   the lifetime and `forge.client.clock_margin_ms`
-  (`../../domain/root.md`, 8.2), cut under the box by its long step's
-  grace (`../setup/box.md`, 2). The engine forge world's fixture keeps
+  (`../../domain/root-restart.md`, 1.2), cut under the box by its long step's
+  grace (`../setup/box-supervision.md`, 1). The engine forge world's fixture keeps
   its 10 s lifetime in its own limits; a test that needs a profile with
   the fixture's lifetime or deadline overrides them in its own
   configuration.
@@ -286,6 +292,8 @@
   (an unadopted repository, a malformed name, an unknown task, a
   duplicate) names its own cause where the forge has one, and keeps the
   forge's general words otherwise.
+## 4. Component limits
+
 - **The webhooks', the keep's settling, the records', the forges', the
   GitHub App's, the setup's, the routes', the picker's, the box's and
   the bundle's limits,** whose numbers are `small`'s constants, as every
@@ -300,7 +308,7 @@
   | `forge_component.hook_body_bytes` | a delivery's body, hashed and decoded as it streams, so time and bytes, not memory; one past it is answered `413` and hints nothing |
   | `forge_component.hook_deadline_ms` | `hook_deadline`: a delivery's read and answer, from its connection's accept or its last answer |
   | `forge_component.hook_secret_bytes` | a Forgejo forge's webhooks' secret; a GitHub forge has none (../credentials.md, section 2) |
-  | `records.value_bytes` | a forge's record or a carried value of temper's, the largest of any item; a pasted value past it is refused, named (../credentials.md, 2.1 and 2.2). The client wire's value ceiling is the larger of it and a moved record's bound (jig's `protocol/client/README.md`, section 3; `../../client/ctl/README.md`, 9), so a moved record's file reaches the engine and temper's own values stay within this bound |
+  | `records.value_bytes` | a forge's record or a carried value of temper's, the largest of any item; a pasted value past it is refused, named (../credentials.md, 2.1 and 2.2). The client wire's value ceiling is the larger of it and a moved record's bound (jig's `protocol/client/README.md`, section 3; `../../client/ctl/bounds.md`, 1), so a moved record's file reaches the engine and temper's own values stay within this bound |
   | `forges.installations` | the installations a GitHub forge accepts, its `Accepted` record's ids (../credentials.md, 2.1) |
   | `forges.log_origins` | a forge's job-log origins, its kind's (../forge/README.md, 2.6); default 20, at most 32 |
   | `forge_component.installations` | the installations the component holds tokens for, per forge |
@@ -321,11 +329,11 @@
   | `routes.query_bytes` | a forge route's query |
   | `picker.page` | the repositories one read of the picker takes, the setup host's `Reachable` plan's `reachable` on every kind (skein's `forge/setup/forgejo.md`, 1.8), within the forge's own page cap: GitHub's page, a connected Forgejo's; at most 100, GitHub's largest page |
   | `box.backoff_ms`, `box.backoff_max_ms` | a long step restarted, doubling |
-  | `box.restarts`, `box.window_ms` | a long step's exits within the window past which the box gives up; `box.restarts` at most 64; the backoff counted from the exits within the window (../setup/box.md, 2) |
-  | `box.grace_ms` | a long step's grace, after each of its stop's two signals (../setup/box.md, 2) |
+  | `box.restarts`, `box.window_ms` | a long step's exits within the window past which the box gives up; `box.restarts` at most 64; the backoff counted from the exits within the window (../setup/box-supervision.md, 1) |
+  | `box.grace_ms` | a long step's grace, after each of its stop's two signals (../setup/box-supervision.md, 1) |
   | `box.line_bytes` | a line of the box's pipe, either way, its line feed among them; the box and `temper-box serve` each read within it (../setup/box.md, 1) |
-  | `box.log_bytes` | a step's log file, past which it moves to `<name>.log.1` and starts afresh (../setup/box.md, 2) |
-  | `box.tail_lines` | the lines of a step's log the box holds, and writes under a failure's terminal line (../setup/box.md, 2) |
+  | `box.log_bytes` | a step's log file, past which it moves to `<name>.log.1` and starts afresh (../setup/box-supervision.md, 1) |
+  | `box.tail_lines` | the lines of a step's log the box holds, and writes under a failure's terminal line (../setup/box-supervision.md, 1) |
   | `box.groups` | the groups' files the box lists under `box/groups` at a later start, and so the groups it runs from them (../setup/box.md, 1) |
   | `clients.bundle_files` | the bundle's files, its page and each compressed form among them |
   | `clients.bundle_bytes` | the bundle's files' bytes in all, each compressed form's among them, held in memory while `temper-box serve` runs |
@@ -336,335 +344,16 @@
   | `sign_in.body_bytes` | an answer's body from Google: the key set or the token |
   | `sign_in.url_bytes` | a configured endpoint, and the authorization URL given to the browser |
   | `sign_in.secret_bytes` | the client secret |
-- **Limits checked against each other at start,** each failure naming
-  both limits:
-  - the forge component's: its connections equal the forge client's
-    calls in flight; its `kept_bytes` is the forge client's `calls`
-    times its `answer_bytes`, set by temper, not configured (skein's
-    `forge/connection.md`, 4.6); its deadline is at most the forge client's
-    lifetime and, with a GitHub forge, at most 270,000, as the bullet on
-    the forge client's lifetime says; its body bound holds the forge client's largest write and
-    a key's marker; every listing's page size is at least 1 (../forge/README.md,
-    section 6);
-  - the checkout's capacity, whole: `checkout.conflicts`,
-    `checkout.path_bytes` and `checkout.repositories` feed every bound
-    that carries a merge's conflicted paths, and the start derives each
-    from them before any of its other checks returns:
-    `git_component.stdout_bytes`, at least `checkout.conflicts *
-    (checkout.path_bytes + 1)` (../git.md, section 8); the agent's
-    conflicts and conflict path bytes, at least the checkout's (the
-    worker's, below), within smith's channel ceilings, 1,024 conflicts
-    of 4,096 bytes; the worker wire's saved work, `Saved`'s encoded
-    bound, within jig's ceiling for it, 16 MiB (../channel.md, section
-    8); and the largest answer a run's saved work makes, a frame with
-    its header, within each link's room, the engine's and each worker's
-    `io.output`. A configuration one of them does not hold is refused
-    once, naming every one that falls short, a line each, as the start's
-    other refusals name that bound, after a first line naming the
-    checkout's values they follow:
+## 5. Startup checks
 
-    ```
-    checkout.conflicts 1024, checkout.path_bytes 4096, checkout.repositories 2: raise these with them
-    git_component.stdout_bytes: 262144 bytes, short of checkout.conflicts * (checkout.path_bytes + 1), 4195328 bytes
-    engine.limits.io.output: 1048576 bytes, short of the largest answer a run's saved work makes, 8401196 bytes
-    workers[0].limits.io.output: 1048576 bytes, short of the largest answer a run's saved work makes, 8401196 bytes
-    ```
+Moved to [`limits-startup.md`](limits-startup.md), section 1.
 
-    Both profiles hold 512 conflicts of 255 bytes in 2 repositories
-    (`stock.md`), and an operator may raise `checkout.conflicts` to
-    1,024, temper's payload ceiling, at those path bytes, with
-    `git_component.stdout_bytes` alone raised with it, which this
-    refusal names; nothing derived from the checkout's values refuses
-    on its own;
-  - the git component's: each rule of ../git.md, section 8 (its operations
-    at least the checkout's workspaces, its output caps at least what
-    it parses and the diagnostic it keeps);
-  - the records': `records.value_bytes` within the largest value jig's
-    secrets' store keeps (jig's `protocol/store/secrets.md`), and
-    large enough for the maximum encoded `AppKey`, `Accepted`, `AppSlug`
-    and `Origin`: the component's `key_bytes`, 8 bytes per
-    `forges.installations`, or `forge.name_bytes`, each with its version
-    byte; `Origin` counts both its kind and version prefixes and the
-    largest API address, a host of 253 bytes with its port
-    (../credentials.md, 2.1);
-  - the forges': `forges.installations` at most
-    `forge_component.installations`; `forges.log_origins` at most
-    `forge_component.log_origins`, and each kind's origins within it; `forge_component.renew_before_ms` below the hour an
-    installation's token lives; `forge_component.log_catch_up_ms` at
-    least `forge_component.log_poll_ms`; each of these limits, and
-    `routes.query_bytes` and `picker.page`, above 0;
-  - the setup's and the box's: each backoff at most its maximum;
-    `setup.backoff_max_ms` below `setup.deadline_ms`; `box.backoff_max_ms`
-    below `box.window_ms`; `setup.states`, `setup.state_life_ms`,
-    `setup.runs` and `setup.fetch_bytes` above 0; `box.log_bytes` at least
-    one whole record (the time, the box's longest piece and a line feed);
-    `box.tail_lines` above 0 and at most 100; `box.line_bytes` at
-    least 64, which holds each line but a `failed` one's `WHY`, which
-    the box cuts to fit (../setup/box.md, 1);
-  - the bundle's: `clients.bundle_files` and `clients.bundle_bytes`
-    above 0;
-  - the sign-ins': each above 0; `sign_in.body_bytes` within skein-oauth's response bound;
-    `sign_in.members` within the forge's bindings' bound;
-  - the facts': `forge.judge_projects` at most 1024, an eighth of the bound on
-    a party's facts on the client's wire
-    (`../../client/forge/records.md`);
-  - a tier's failing tests, within a finding's signature, so that a
-    tier's ids always fit a finding whole (`../../domain/findings.md`,
-    section 4; `../../draft/after-landing-repairs.md`, section 4):
-    `forge.tiers.failing_tests` at most 64, the most ids a signature
-    holds, and `forge.tiers.test_id_bytes` at most 512, the most bytes
-    it holds of an id. Each names its field and its bound:
-    `application.limits.overrides.forge.tiers.failing_tests: 65, past
-    its bound of 64, the most a finding's signature holds of a tier's
-    failing tests` and
-    `application.limits.overrides.forge.tiers.test_id_bytes: 513, past
-    its bound of 512, the most a finding's signature holds of a test's
-    id`. Both bounds are the signature's own, which the finding's
-    check of a signature reads too. The signature's 512 is within the
-    store schema's ceilings on a failing test's id and a flake's
-    (`../store.md`, 4), 1,024, which a focused test pins, so this check
-    stands for the store's too, run before the store's sizing, which
-    would otherwise refuse a longer id naming a schema field;
-  - the store's tier rows': `forge.changes` at most the most they hold,
-    `(c - 1) / 2` for `c` the least of the store schema's ceilings on a
-    tier row's five lists of landings (`../store.md`, 4), 768 at their
-    1,537, checked before the store's
-    sizing, which would otherwise refuse it as past its codec's bounds,
-    naming no limit:
-    `application.limits.overrides.forge.changes: 769, past its bound of
-    768, the most the store's tier rows hold (2 * forge.changes + 1
-    within 1537)`. Within it, a store bound the larger rows outgrow
-    refuses the start as the store's sizing names it (`engine.limits.store:
-    the store's map value, N bytes, past its bound of M bytes`), the
-    store limit to raise with it;
-  - the landing log's: `forge.landings_kept + forge.landings_pending`
-    at most the store schema's ceiling on a log's landings, 256, and a
-    tier's posted comments, `(forge.landings_kept +
-    forge.landings_pending) * forge.landing_members + forge.changes`,
-    at most its ceiling on them, 8,192 (`../store.md`, 4), each checked
-    before the store's sizing and naming `forge.landings_pending`:
-    `application.limits.overrides.forge.landings_pending: 241, past its
-    bound of 240, the most the store's landing log holds beside
-    forge.landings_kept 16 (within 256)`;
-  - the webhooks' listener's: each of its limits above 0;
-    `hook_secret_bytes` at least 32; `hook_head_bytes` at most the
-    HTTP server's largest read within io's intake; `hooks` within the
-    sockets left once the clients' listener and the forge's connections
-    are counted. The sockets are temper's own, a constant of
-    `temper-service`'s limits module that its io check takes in place
-    of the sum of jig's engine's and worker's, and hold, under `standard`, a
-    document with both listeners and a sign-in, as the owned example has (../setup/init.md,
-    1);
-  - the channel's (../channel.md, section 8): each of temper's largest
-    parts within the ceiling jig's schema gives its field; the largest
-    part the engine can send within what the worker's limits take; the
-    checkout's `repositories` used by both sides, independently of the
-    forge's watched-name bound; the longest remote the routing can make
-    on the machine's places (the longest of `machine`'s remotes' bases
-    and github.com's, an owner and a name of the forge's `name_bytes`,
-    two `/` and `.git`), and the forge's names and branches, within the
-    checkout's `name_bytes` (../channel.md, section 8); and the smallest
-    resumed start the engine's link can cut a start to (jig's
-    `protocol/channel/README.md`, 8 and 10), within the engine's room, its
-    `io.output`, so a run that committed every call `core.call_records`
-    admits can still resume. Its failure names both: `engine.limits.io.output:
-    4096 bytes, short of the smallest resumed start, 27201 bytes`, the
-    start's frame with its header, as `standard` has it. A document
-    reaches it only by an `io.output` override below that start, which
-    the worker wire's ceilings keep at most 218,177 bytes;
-  - the worker's, against the agent's configuration
-    (`temper-worker-domain::valid`, entrance constraints and count
-    representability, with no heap sum), among its rules: the
-    checkout's repositories, names, conflicts and paths within the
-    agent's directories, their names, conflicts and paths; the agent's
-    largest call within the checkout's commit message; and, of the hub's
-    (jig's, in the worker's `limits`), its accounts within the agent's,
-    its largest event with smith's 2-byte separator within the agent's
-    message, and the agent's message less that separator within the
-    hub's event. So `hub.event_bytes` is the agent's `message_bytes` less
-    2, and no other value starts. Payload-related refusals name the
-    exact override, its configured bytes and its required lower or
-    upper bound: `checkout.message_bytes`, `hub.event_bytes` and
-    `hub.turn_queue_bytes`. The event's requirement names
-    `agent.json`'s `profile.declared.tool_payload` less the two-byte
-    separator, so the value to set is explicit;
-  - the turn's, against the agent's configuration: smith's largest
-    turn, the `turn_body` its configuration derives (smith's
-    `smith-agent-service`, `profile`; its models' reasoning allowances
-    among what it derives from, `README.md`, section 4), is a whole conversation
-    turn's body as the hub measures it, and each bound on its way holds
-    it. Within each hub's `turn_bytes`, the engine's and the worker's,
-    since each side of the link takes a turn of its own hub's bound;
-    as a frame of the worker's link, header included, within the
-    worker's `io.output`, the room its stream grants at once, or the
-    worker's link is not made (jig's `protocol/channel/README.md`, 8 and 10);
-    with its 4-byte length, within `core.resume_bytes`, so that a chat's
-    largest turn resumes rather than starting afresh, and so within
-    `root.journal.transcript_bytes`, a journal row's (the resume
-    setting's check below); within `root.loads.transcript_bytes`, a
-    loaded row's, and with a row's slot, within `root.loads.bytes`, a
-    loaded page's, so that the engine loads it back; and with a read's
-    row, within `root.loads.read_bytes`, so that a person's read
-    carries it whole. Then the engine's resume window, as each hub
-    counts it in an assignment's transcript (jig's `domain/hosts/README.md`):
-    `core.resume_bytes` and, for each turn it can hold, a box past the
-    4 bytes it already counts, within each hub's `transcript_bytes`.
-    Each failure names the bound, its bytes, and the figure it must
-    hold: `workers[0].limits.overrides.hub.turn_bytes: 65536 bytes,
-    short of the agent's largest turn, 1066989 bytes`.
-- **In the cluster's shapes** (`../cluster.md`, 1), each process checks what
-  its document holds: an engine alone, every check above but the
-  worker's and those of the turn's that need the agent; a worker alone,
-  the worker's, the checkout's and the git component's, the channel's
-  for what its side receives, and the agent's largest turn within its
-  hub's `turn_bytes`. What only an engine's document and a worker's
-  hold together, the engine's largest part against the worker's
-  `limits` among it and the agent's largest turn against the engine's
-  bounds, is held by the cluster's description, whose one template
-  writes the same `application.limits` into every document (README,
-  15.5), and at the link's opening by jig's hello and terms (jig's
-  `protocol/channel/README.md`, 4.3).
-- **Call input derivation for a local agent:** when
-  `core.call_answer_bytes` is omitted from an engine's or worker's
-  `limits.overrides`, temper uses the larger of its selected jig profile's
-  allowance and the agent's `profile.declared.tool_payload`. An explicit
-  override stays unchanged, including an explicit profile-default value.
-  This composition precedes the core, store, worker wire and memory bounds;
-  offline store readers use the same checked agent metadata. Engine-only
-  processes retain their configured allowance. A cluster template must give
-  its engine and workers consistent explicit allowances; per-kind terms
-  reject a disagreement before hello.
-  An explicit allowance below the local agent's `tool_payload` is
-  refused at startup by its path, in two lines: what it is short of and
-  the remedy, then the bounds a call meets, for instance
-  `workers[0].limits.overrides.core.call_answer_bytes: 2048 bytes, short
-  of the agent's call input (profile.declared.tool_payload), 4096 bytes;
-  raise it to at least 4096 bytes, or omit it to follow the agent's call
-  input` and `workers[0].limits.overrides.core.call_answer_bytes: call
-  input 4096 bytes; wire answer 2048 bytes; smith host_reply_bytes 4096
-  bytes`. Every entrance that composes the allowance refuses it alike,
-  the offline store readers included. An answer past the agent's
-  `host_reply_bytes` reaches its run as smith's `TooLarge`
-  (`../../domain/agent/tools.md`).
-- **jig's limits stay in jig's parts:** `engine.limits` and each worker's
-  `limits` (jig's `protocol/limits.md`).
-- **What the root takes of `engine.limits`:** its core children's
-  (`tasks.`, `authority.`, `people.`, `fleet.`, `accounts.`, `notes.`
-  and `documents.`), with `core.templates`, `core.call_records`, `core.policy_bytes` and
-  `core.call_answer_bytes`, after the local-agent composition above. The
-  rest of the core's it gives the core itself (`../../domain/root.md`,
-  section 9): from its own `root.` limits, in place of `brief.`,
-  `core.brief_parts`, `core.brief_core_budgets.`, `core.resume_bytes`,
-  `core.run_bytes`, `core.escalation_reason_bytes`,
-  `core.load_slots` and `core.load_bytes`, a person's read of the store,
-  from `root.loads.read_bytes`; as constants, in place of `views.`, but
-  for its watch rooms (below), `core.fill_mark` and `core.connectors`. An
-  override of one of these changes nothing the root holds, but for
-  `core.resume_bytes`: the core's resume setting is still taken from it,
-  above 0 and within `root.journal.transcript_bytes`.
-- **The engine's documents fit temper's client.** A document past the
-  bounds a client decodes is refused there whole, as too large (jig's
-  `protocol/client/wire.md`, section 1), so the documents the engine serves
-  must be within what temper's client takes: its client takes
-  `jig-client`'s limits from jig's small profile with the same
-  `documents.` overrides the owned example's `engine.limits` names
-  (`../../client/README.md`, section 2; ../setup/init.md, 1). The engine cuts each
-  text to its bound and says so (jig's `client/domain/contract/documents.md`,
-  3). It checks none of this at start: it serves whatever client the
-  deployment lets in, whose limits are the client's. A test holds the
-  owned example's and the process tier's configuration to temper's
-  client's limits, so the two cannot drift apart unseen.
-- **The engine's watch rooms follow what it admits.** A watch past the
-  room the engine allows a party, a stream or the deployment is refused
-  busy, and each holds its place until the engine has ended it (jig's
-  `client/domain/contract/README.md`, 5.2; jig's `protocol/client/README.md`, section
-  10). The deployment admits `clients.streams` clients at once, each
-  holding up to its own watches, `me`'s included, and temper's shipped
-  clients hold at most 31 (`../../domain/root.md`, section 9): the web's
-  and the terminal's `watches`, 31, and `handles`, 33, so that Home on
-  All projects holds four projects' statuses, `decided`, `follows` and findings
-  documents with the session's own watches, 30 at most
-  (`../../client/pages/home.md`, 1, *Home on All projects*). So:
-  - *a stream's room* is 31, `WATCHES_PER_STREAM`, one shipped client's;
-  - *the deployment's room* is `clients.streams` times that: 248 at
-    `temper-box init`'s 8 streams (`stock.md`), 62 at the small profile's 2;
-  - *a party's room* is the deployment's, since a person's tabs and their
-    `temper ctl` calls are one party and may hold every stream.
-    `views.watchers_per_party` never bites below `views.watchers` here:
-    what one person can use up is the streams, and that refusal names
-    them.
+## 6. Engine and client bounds
 
-  `clients_http.streams` bounds the transport's side of those same
-  streams and adds no room. The same test as for documents holds a
-  stream's room to temper's client's watches, and a test of the limits
-  holds the other two to `clients.streams`.
-- **The rooms have no setting of their own.** More room is more streams,
-  `clients.streams`, and the 31 is the shipped clients' bound. An
-  `engine.limits.overrides` naming `views.watchers` or
-  `views.watchers_per_party` is refused at the start, naming
-  `clients.streams`, and `temper help limits-engine` lists neither: the
-  root never took them, so a document naming them was told nothing.
-  Those two names stay jig's, for an application whose root takes them
-  (jig's `protocol/limits.md`). `views.`'s other names
-  stay as above.
-- **What a watch costs.** A watch holds a views slot, a name, a flight
-  and its stream's entry, and shares a subject's slot with the other
-  watches on that subject. It keeps no document between deliveries (jig's
-  `domain/engine/views.md`), and these capacities allocate nothing
-  until used, so a larger room costs nothing until it is held.
-  - *Work:* an opening scans the watches held and builds its first
-    document. Each commit's marks scan the watches held, and build one
-    document for each watch whose subject changed, none shared between
-    watches on one subject, with one delivery in flight per watch.
-  - *Heap:* that pass holds each document it built until the document is
-    delivered, so its peak is what those documents hold, each within the
-    documents' bounds. No heap sum admits the root (`../../domain/root.md`,
-    section 9), so no figure at the start moves. The engine's world
-    measures a full room (`temper/tests/engine/domain/tests/suite/memory.rs`).
-    With one or eight streams the empty root held 4,742 heap bytes; measured rooms
-    of 17 and 136 watches held another 14,112–15,256 and 114,720–126,336 bytes after
-    delivery, respectively, and one marking commit peaked at 116,816 and
-    452,176 bytes in the engine world including its driver and fake store.
-  - *The journal's door:* a full room puts at most 208 deliveries behind
-    one commit, within `root.journal.deliveries`' 512. The watermark
-    paces new work as the door fills, and nothing fails.
-  - *The store:* its bounds don't follow the rooms. A watch holds no row,
-    and an opening on a retained subject takes one of `root.loads.loads`,
-    refused busy past them.
-- **Past the room.** With the shipped clients, each stream's room fits
-  the deployment's; watches still closing can overlap their replacements:
-  a stream's predecessor holds its place until its terminals come (jig's
-  `client/domain/client/watches.md`, 1). Each place is given back at its terminal,
-  and a client refused busy opens again after a backoff. A refusal of `me`
-  leaves its link offline; an application's watch can be behind with the
-  link still live. Both set `watches_full` (jig's
-  `client/domain/client/watches.md`, 2), and `temper ctl` says so at its deadline
-  (`../../client/ctl/results.md`, 3). Busy can also mean an opening's load slot is
-  unavailable; it carries no cause distinguishing that from a full room.
-- **The forge's paths fit a document.** jig's documents carry a
-  resource's path and a pattern whole, with as many segments as the
-  engine admits in a name (jig's `client/domain/contract/documents.md`, 3), and
-  `documents.lines` bounds a document's short lists alone, at most the
-  client's rows. So `engine.limits` must name the bounds on a name's
-  segments, `authority.segments`, `tasks.hold_segments` and
-  `tasks.authority_segments`, at least the segments of the deepest path
-  the forge names: a branch's, the forge's five segments then the
-  branch's own (`../../domain/forge/README.md`, section 2), 8 as temper's branches
-  name them. temper's client takes a path's segments, 9, apart from its
-  rows (jig's `client/domain/client/README.md`, section 11), so a page of the
-  forge's work is never refused for a path, and a long path shows cut,
-  with jig's mark (`temper/docs/design/client/view.md`, 4).
-- **The forge's authorities fit a document.** jig's documents carry an
-  authority's lists whole, with as many entries as the engine admits in
-  each, and neither cut nor refuse a document or an offer for one (jig's
-  `client/domain/contract/documents.md`, 3), so a party who may amend a task
-  reads its document whatever `documents.lines` is. temper's client
-  takes an authority's entries, 16, apart from its rows (jig's
-  `client/domain/client/README.md`, section 11): the most the process tier and
-  the owned example admit in a list, their `authority.grants` and
-  `tasks.authority_grants` (../setup/init.md, 1). A long authority shows
-  in part, with jig's mark (`temper/docs/design/client/view.md`, 4). The test above holds
-  the engine's bounds on an authority's lists to temper's client's.
+Moved to [`limits-client.md`](limits-client.md), section 1.
+
+## 7. Memory and concurrency
+
 - **The engine's byte budget** is the limit `transcript_memory`, a
   setting (`limit-settings.md`, 2.3), metered at
   the root (`../../domain/root.md`, 4.1). No start compares a memory
@@ -692,38 +381,9 @@ a task record drives the map value past the fixed profile ceiling, the
 refusal names `TaskRecord`, its batch capacity and both sizes, and says to
 reduce task record capacities; that ceiling has no scalar override.
 
-## 1. Open questions
-
-- **The real-browser check of watch sizing.** The domain story uses the
-  pages' watch sets without HTTP, a browser or a kernel (`limits.md`).
-  Checking Home at 1440 CSS pixels and a long chat at 420 while fresh tools
-  clients read is a manual check after landing, as the `watch-room` request
-  assigns it. Default: that check, with no additional browser-tier story.
-
-- **A party's fair share of the watch rooms.** A party's room is the
-  deployment's (`limits.md`), so one person with every stream leaves another
-  none, and the refusal they meet is the streams'. Nothing has asked for
-  less, and a smaller share would lock a person's own tabs out again.
-  Default: none.
-
-- **`views.`'s other names.** `views.runs`, `views.subjects_per_change`,
-  `views.text_bytes` and `views.facts` are still taken and change nothing
-  the root holds (`limits.md`), where `views.watchers` and
-  `views.watchers_per_party` are refused. Nobody was misled by them on
-  record. Default: they stay until one is.
+## 8. Open questions
 
 - **Profiles' numbers** beyond fabrig's development, which sizes
   `standard`'s work (`stock.md`): `small`'s, and each profile's machine
   concurrency, from the first deployments' measurements (jig's
   `protocol/configuration.md`, section 8). Default: as written.
-
-- **The rest of an assignment's transcript and of a person's read.**
-  The turn's check (`limits.md`) holds the resume window's share of each
-  hub's `transcript_bytes`, and the turn's share of
-  `root.loads.read_bytes`. The answered calls an assignment carries
-  beside its window (`core.call_records`, each within
-  `core.call_answer_bytes`), and the owner's task record and ancestors
-  a read carries with its row, have no bound the start can name: jig
-  gives neither's worst case. Default: the hub refuses an assignment
-  past its bound at run time, and the documents leave room beside the
-  turn for the read's evidence (../setup/init.md, 1).

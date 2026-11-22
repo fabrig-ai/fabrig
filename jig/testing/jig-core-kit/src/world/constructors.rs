@@ -203,6 +203,8 @@ impl World {
         let move_provider = configuration.core.settings.llm_providers.providers.first().map(|provider| provider.number);
         World {
             seed: 0,
+            iteration: 0,
+            inspections: 0,
             manual: false,
             public_referee: crate::referee::public::Referee::default(),
             returned: 0,

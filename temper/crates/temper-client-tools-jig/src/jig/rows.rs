@@ -93,7 +93,7 @@ pub const WORKER_RESUME: Tool = Tool {
     area: DEPLOYMENT_CENSUS.area,
     notes: b"A run already asked to stop still stops at its turn's end.\nAn ask is no settings change: no key, no revision, no retry.\n",
 };
-/// Deployment census (client/ctl/tools.md, 2; client/ctl/results.md, 1 and 2).
+/// Deployment census (client/ctl/tools-reads.md, 1; client/ctl/results.md, 1 and 2).
 pub const DEPLOYMENT_CENSUS_AT: u8 = 98;
 pub const DEPLOYMENT_CENSUS: Tool = Tool {
     name: b"deployment census",
@@ -657,7 +657,7 @@ pub const RANK: Tool = Tool {
 };
 /// Account uses append after the existing tools to preserve keyed identities.
 pub const USES_AT: u8 = 111;
-/// The wire's `AccountChangeSetUses` list bound (client/ctl/README.md, 5).
+/// The wire's `AccountChangeSetUses` list bound (client/ctl/requests.md, 1).
 pub const ACCOUNT_USES: u32 = 16;
 pub const USES: Tool = Tool {
     name: b"account uses",
@@ -1103,7 +1103,7 @@ pub const TASK_TEXT: Tool = Tool {
     notes: b"Each chunk keeps UTF-8 characters whole. Follow the printed call\nuntil no more. Instructions use the task's override, or its charter\nat the task's recorded settings revision. Result reads the kept terminal\nreport; unavailable reports are unknown.\n",
 };
 
-/// Whole notes of a task's scope (client/ctl/tools.md, 2).
+/// Whole notes of a task's scope (client/ctl/tools-reads.md, 1).
 pub const TASK_NOTES_AT: u8 = 69;
 pub const TASK_NOTES: Tool = Tool {
     name: b"task notes",
@@ -1125,7 +1125,7 @@ pub const ROLE_START_AT: u8 = 72;
 pub const ROLE_LIST_AT: u8 = 73;
 pub const ROLE_SHOW_AT: u8 = 74;
 pub const ROLE_TALK_AT: u8 = 75;
-/// Standing roles (client/ctl/tools.md, 2 and 3).
+/// Standing roles (client/ctl/tools-reads.md, 1, and client/ctl/tools-acts.md, 1).
 pub const ROLE_START: Tool = Tool {
     name: b"role start",
     line: b"Start a standing role from template 7",
@@ -1311,7 +1311,7 @@ pub const RESTORE: Tool = Tool {
     notes: b"A forgotten revision exits 2, naming the oldest kept. A revision\ntoo large to restore exits 2; restore a later revision instead.\nRead the proposal with proposal show PROPOSAL, then decide it\nwith proposal decide PROPOSAL accept --key KEY.\n",
 };
 
-/// Visibility's position in the tools table (client/ctl/tools.md, 3).
+/// Visibility's position in the tools table (client/ctl/tools-acts.md, 1).
 pub const PROJECT_AMEND_AT: u8 = 64;
 pub const PROJECT_AMEND: Tool = Tool {
     name: b"project amend",
@@ -1327,7 +1327,7 @@ pub const PROJECT_AMEND: Tool = Tool {
     notes: b"Anything said in this project's chats may show on its public pages, in the titles of its goals and tasks. On a public repository, a change's pull request shows what its agent wrote too. Nothing asks first; made public, it prints these words on stderr. Only an owner changes visibility. A member and project 0 are refused, exit 2. The public page is a path under the deployment's address, from me's public identifier. A key replay prints the first answer.\n",
 };
 
-/// Appended position for deleting an owned project (client/ctl/tools.md, 3).
+/// Appended position for deleting an owned project (client/ctl/tools-acts.md, 1).
 pub const PROJECT_DELETE_AT: u8 = 71;
 pub const PROJECT_DELETE: Tool = Tool {
     name: b"project delete",
@@ -1411,7 +1411,7 @@ pub const PROJECT_MAKE: Tool = Tool {
     notes: b"Copies policy 1 as it is now. A key replay returns the first project's number. Add a repository with repository make --project PROJECT --forge FORGE ORG/NAME --until adopted --key KEY.\n",
 };
 
-// Findings and needs (client/ctl/tools.md, 2 and 3).
+// Findings and needs (client/ctl/tools-reads.md, 1, and client/ctl/tools-acts.md, 1).
 pub const FINDING_LIST_AT: u8 = 89;
 pub const FINDING_SHOW_AT: u8 = 90;
 pub const FINDING_FILE_AT: u8 = 91;

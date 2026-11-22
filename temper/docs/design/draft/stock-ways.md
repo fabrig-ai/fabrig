@@ -74,7 +74,7 @@ once all of it works, with no part of the page drawn by hand.
 ### 3.2 A project's rule names a branch
 
 - **Today** a rule's pattern begins at `forge`, a host, an owner and a
-  name (`../protocol/configuration/settings.md`, 2), so a project's rule names
+  name (`../protocol/configuration/settings-kinds.md`, 1), so a project's rule names
   one repository, and Draft first would take two rules a repository,
   against four a project.
 - **Then** a pattern of kind 2 may begin at `branch` instead, and covers
@@ -128,12 +128,12 @@ once all of it works, with no part of the page drawn by hand.
   where the rules ask CI; each approval, "you approve", or the role's
   name for someone else's; "conflict" and "resolve" where the rules ask
   up to date, as a change takes main at the front of its queue
-  (`../domain/forge/change/README.md`, 2, and `../domain/forge/README.md`, 6), the engine's update being
+  (`../domain/forge/change/README.md`, 2, and `../domain/forge/updates.md`, 1), the engine's update being
   in the card's words and not a stop of its own; "merge"; each tier
   following the branch, "check" on a goal's branch, the coordinator's
   repair after it while none is drawn, then "catch up" where the project
   names a merge job, taking main into the goal's branch
-  (`../domain/forge/README.md`, section 6); and "verify" on main. A
+  (`../domain/forge/updates.md`, section 1); and "verify" on main. A
   goal's branch ends its changes' part with its
   bar, and the goal's landing into main follows by main's rules. Main's
   bar ends the path.
@@ -149,7 +149,7 @@ once all of it works, with no part of the page drawn by hand.
   an agent's "close-out" after main's merge where it makes one, as the
   reference's do (`../protocol/configuration/reference.md`).
 - **Under `turn`,** the turn's own steps take the queue's
-  (`../domain/landing.md`, section 8).
+  (`../domain/landing-turn.md`, section 1).
 - **No agent's stop below the line:** an update or a merge is always
   code's, whatever the settings.
 - **One derivation:** the engine derives, and every client draws what
@@ -168,7 +168,7 @@ once all of it works, with no part of the page drawn by hand.
   of one item is (`../client/pages/settings.md`, 2). Its refusals are the
   forge's and jig's, in words: an approval with too few eligible people
   names the forge, the role, how many it asks and how many can
-  (`../protocol/configuration/settings.md`, 2). A person who may not change
+  (`../protocol/configuration/settings-kinds.md`, 1). A person who may not change
   settings sees no act.
 - **"Keep it"** does the same for the way the project runs, so that its
   values become the project's own and a release's new stock leaves

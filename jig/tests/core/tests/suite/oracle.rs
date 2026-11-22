@@ -45,6 +45,48 @@ fn a_readback_finding_reaches_finish_without_a_second_restart() {
 }
 
 #[test]
+fn a_forgotten_chats_remains_can_disappear_on_restart() {
+    use crate::read_support::request;
+    use jig_domain_people as people;
+
+    let mut world = crate::read_support::forgettable_world(1911);
+    let task = world.task();
+    world.turn(1, 1, None, b"reply");
+    request(&mut world, 71, people::Ask::MarkSeen { seen: people::Seen::Conversation { task, through: 1 } });
+    jig_core_world::fixtures::finish_chat(&mut world, 1, b"done");
+    let root::Record::Core(core::Record::Tasks(tasks::Stored::Ended(ended))) =
+        &world.store.rows[&root::Key::Core(core::Key::Tasks(tasks::Key::Ended(task)))]
+    else {
+        panic!("ended chat")
+    };
+    let through = ended.result_position;
+    request(&mut world, 70, people::Ask::MarkSeen { seen: people::Seen::Results { through } });
+    let summary = root::Key::Core(core::Key::Tasks(tasks::Key::Summary(task)));
+    assert!(world.store.rows.contains_key(&summary));
+    assert_eq!(world.finish(), Ok(()));
+    assert!(!world.store.rows.contains_key(&summary));
+}
+
+#[test]
+fn a_summary_without_a_due_forgotten_row_cannot_disappear_on_restart() {
+    let mut world = crate::retention::world(1912, false);
+    let record = crate::retention::finish(&mut world);
+    crate::retention::read(&mut world, &record);
+    crate::retention::at(&mut world, &record, 31);
+    crate::retention::pass(&mut world);
+    assert!(crate::retention::summary(&world, record.number));
+    assert!(!world.store.rows.keys().any(|key| matches!(
+        key,
+        root::Key::Core(core::Key::Tasks(tasks::Key::Retention { stage: tasks::RetentionStage::Forgotten, .. }))
+    )));
+    // Only wall time moves: the next pass starts at the cold restart.
+    crate::retention::at(&mut world, &record, 366);
+    let finding = world.finish().expect_err("summary expiry is not a forgotten-task exception");
+    assert!(finding.contains("restart oracle document Task 1 field answer"), "{finding}");
+    assert!(finding.contains("expected None(Gone), found None(Unknown)"), "{finding}");
+}
+
+#[test]
 fn a_deliberately_broken_fixture_skips_the_oracle() {
     let mut world = World::new(Setup { seed: 1903, ..Setup::default() });
     world.stopped = true;

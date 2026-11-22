@@ -18,8 +18,8 @@ Draft, 2026-11-15, on the user's word. On 11-15, CI ran two at a time on one run
 
 ## 2. A landing's gate timeout counts running too
 
-- **Today:** a turn landing's gate expiry counts from its dispatch (`attempt.sent`), and its verdict treats waiting and running alike (`temper/crates/temper-engine-domain-forge/src/landing.rs`; `temper/crates/temper-engine-domain-forge-landing/src/verdict.rs`; `temper/docs/design/domain/landing.md`, 7.1). A gate run queued behind others can time out without ever having run.
-- **Wanted:** the run follower (`runs::Follow::answered`, `temper/crates/temper-engine-domain-forge/src/runs.rs`) keeps the run's execution timing, and the gate expiry counts from the first observed running state, as section 1 does. Revise `landing.md`, 7.1, to say so.
+- **Today:** a turn landing's gate expiry counts from its dispatch (`attempt.sent`), and its verdict treats waiting and running alike (`temper/crates/temper-engine-domain-forge/src/landing.rs`; `temper/crates/temper-engine-domain-forge-landing/src/verdict.rs`; `temper/docs/design/domain/landing-proof.md`, 2.1). A gate run queued behind others can time out without ever having run.
+- **Wanted:** the run follower (`runs::Follow::answered`, `temper/crates/temper-engine-domain-forge/src/runs.rs`) keeps the run's execution timing, and the gate expiry counts from the first observed running state, as section 1 does. Revise `../domain/landing-proof.md`, 2.1, to say so.
 
 ## 3. Out
 

@@ -118,7 +118,7 @@ Each held removal goes ahead in order once the holds are released, on success, r
 
 ## 4. Asking for one
 
-- **While serving:** `temper ctl DIR deployment checkpoint` (`../client/ctl/tools.md`, 3). It is an act of a person holding an owner's role over the deployment, the people the deployment's settings are proposed to.
+- **While serving:** `temper ctl DIR deployment checkpoint` (`../client/ctl/tools-acts.md`, 1). It is an act of a person holding an owner's role over the deployment, the people the deployment's settings are proposed to.
 - **Over a stopped deployment:** `temper-engine checkpoint --data DIR`. It takes the deployment's lock, as a rehearsal does (jig's `protocol/store/opening.md`, 5). Every segment can then be linked, since the next recovery starts a new one; the secrets and the live tasks' transcripts and logs are still copied.
 - **The answer,** once the checkpoint is in place, gives:
   - its name, C and the secrets' position;

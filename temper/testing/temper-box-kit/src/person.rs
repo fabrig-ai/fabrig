@@ -145,7 +145,7 @@ pub fn signed_in_account(signing: &[u8], name: &[u8]) -> Script {
 }
 /// Read the state in the sign-in source's own Item, inside the account card
 /// whose heading holds these words.
-/// The source kind and state are separate nodes (client/pages/accounts.md, 2).
+/// The source kind and state are separate nodes (client/pages/accounts-words.md, 1).
 #[must_use]
 pub fn chatgpt_source_ready(heading: &[u8]) -> Step<Address> {
     use skein_ui::Role;
@@ -762,7 +762,7 @@ pub fn a_native_adoption_refusal_names_the_alert_without_a_wait() {
     assert_eq!(adoption_refusal(&builder.finish()).as_deref(), Some("Forge 1 did not answer; nothing was adopted."));
 }
 /// The switcher's button for a project `me` leaves unnamed, "Project N"
-/// (client/view.md, 3).
+/// (client/view-navigation.md, 1).
 fn an_unnamed_project(name: Option<&[u8]>) -> bool {
     let Some(number) = name.and_then(|name| name.strip_prefix(b"Project ".as_slice())) else { return false };
     !number.is_empty() && number.iter().all(u8::is_ascii_digit)

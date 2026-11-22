@@ -51,7 +51,7 @@ help (`../design/client/ctl/testing.md`, 5). What is still open is
 - **The forge's part, on the forge:** a pull request's diff, files and
   reviews; CI's runs, jobs and logs; branches and their heads. A part
   temper does not serve says "Shown on the forge.", with the resource
-  in the forge's words (`../design/client/ctl/tools.md`, 2).
+  in the forge's words (`../design/client/ctl/tools-reads.md`, 1).
 - **What temper owns on the forge changes through temper:** its
   branches, its pull requests and their landing. What a person does on
   the forge (a review, an approval at a head, a comment, a push to a
@@ -77,10 +77,10 @@ help (`../design/client/ctl/testing.md`, 5). What is still open is
 
   | Rung | Forges | Model | What it needs |
   |---|---|---|---|
-  | fakes | `--fake-backends` (`../design/protocol/setup/box.md`, 5): GitHub and a Forgejo elsewhere faked; Forgejo here real, from the box's cache | the fake model, by the key file the box prints | none |
+  | fakes | `--fake-backends` (`../design/protocol/setup/box-backends.md`, 1): GitHub and a Forgejo elsewhere faked; Forgejo here real, from the box's cache | the fake model, by the key file the box prints | none |
   | a real model | Forgejo here, set up through ctl, as the walk `box` sets it up | ChatGPT, a login imported and exported back, or a key read from a private file (`../design/client/ctl/areas.md`, area 5) | the model's account |
   | GitHub | GitHub, through an App, on a repository the pass may change | as a real model's rung | the App's key and its installation, and a person's token on that repository |
-  | Claude | Forgejo here, as a real model's rung | Claude Code on a person's own login, its configuration directory used in place (`../design/protocol/credentials.md`, 3) | the model's login |
+  | Claude | Forgejo here, as a real model's rung | Claude Code on a person's own login, its configuration directory used in place (`../design/protocol/credentials-llm-accounts.md`, 1) | the model's login |
 
 - **The model is a setting, not a file key.** The stock gives its
   window, prices, output and efforts, and every stock charter's main
@@ -195,7 +195,7 @@ help (`../design/client/ctl/testing.md`, 5). What is still open is
 
   The person's two header files are `person_read.header` and
   `person_write.header` in `DATA/forge-FORGE/` (`temper help box`).
-  `../design/protocol/setup/box.md`, 2 has the log name their paths too;
+  `../design/protocol/setup/box-supervision.md`, 1 has the log name their paths too;
   that gap is recorded in `../design/protocol/setup/README.status.md`.
   Each header file holds one line, `Authorization: token TOKEN`, private
   to the box's user, so that a pass passes a token by its path and never
@@ -249,7 +249,7 @@ curl -fsS -H @READ "$API/repos/OWNER/NAME/pulls/7"
 ## 6. Checking an outcome
 
 - **Each case, one loop:** act through ctl and wait on it
-  (`../design/client/ctl/tools.md`, 4); read temper's account; follow its ids and
+  (`../design/client/ctl/tools-waiting.md`, 1); read temper's account; follow its ids and
   links to the forge; compare.
 - **A case's line says both,** what temper said and what the forge
   showed.

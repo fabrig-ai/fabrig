@@ -6,8 +6,8 @@ smith's agent processes, and declares in its hello the kinds it runs:
 
 | Kind | What it runs | Its spec | Its result |
 |---|---|---|---|
-| 1, prepare | a landing's stack for one repository (`../landing.md`, 5.2 and 5.3): temper's own merge train, or the project's prepare command | the repository, the round's base and the commit it stacks from, the train's `combine` and its upstream's tip, its members' heads in order with their messages and branches, the upstream candidates and the pins between them, the command and the home's revision | how each member was combined, merged or squashed, and each conflict's member, kind and files; each gate's key, when the project's key command is named |
-| 2, key | a gate's key at a candidate, by the project's key command (`../landing.md`, 6.1) | the repository, the candidate, the gate, the command and the home's revision | the key |
+| 1, prepare | a landing's stack for one repository (`../landing-prepare.md`, 1.2 and 1.3): temper's own merge train, or the project's prepare command | the repository, the round's base and the commit it stacks from, the train's `combine` and its upstream's tip, its members' heads in order with their messages and branches, the upstream candidates and the pins between them, the command and the home's revision | how each member was combined, merged or squashed, and each conflict's member, kind and files; each gate's key, when the project's key command is named |
+| 2, key | a gate's key at a candidate, by the project's key command (`../landing-proof.md`, 1.1) | the repository, the candidate, the gate, the command and the home's revision | the key |
 | 3, merge | a merge of a base into a head, the conflicts the project's merge command knows settled (`../forge/change/repairs.md`) | the command, the head and the base | the files settled, and a record of each left, its kind and, for a deletion or a rename, the side and the commit that made it (`../../protocol/tooling.md`, 4.1), carried as bytes and parsed by no reader |
 | 4, close | what a goal leaves in its branch settled by the project's close command, before its landing (`../forge/branches.md`, 2) | the command and the close request | the files settled |
 
@@ -46,9 +46,9 @@ smith's agent processes, and declares in its hello the kinds it runs:
   (skein's `runtime/io/processes.md`, section 5).
 - **Then the delivery:** a prepare job's prefixes are pushed, each to
   its member's branch in the landing, the branches the items name as
-  writable, expecting each new (`../../protocol/git.md`, 4.4,
+  writable, expecting each new (`../../protocol/git-operations.md`, 1.4,
   `Create`); a branch already there fails the job as undelivered, and
-  the landing reads its branches (`../landing.md`, 5.2). A key job delivers nothing. A delivering
+  the landing reads its branches (`../landing-prepare.md`, 1.2). A key job delivers nothing. A delivering
   kind other than prepare delivers, on exit 0, the head of the repository
   its items name as writable, as a fast-forward onto that branch through
   the checkout's push (`checkouts.md`), as a run's delivery is; a push refused
@@ -92,7 +92,7 @@ smith's agent processes, and declares in its hello the kinds it runs:
   of 10 minutes, the small profile's constants; the engine declares it
   only where its tasks limits hold those bounds, as kind 3's.
 - **The prepare kind,** kind 1, verb `prepare`, delivering, built as
-  temper's own merge train for a round's stack (`../landing.md`, 5.2),
+  temper's own merge train for a round's stack (`../landing-prepare.md`, 1.2),
   the project's prepare command not yet. Its spec's
   command is empty, which names temper's own: the job runs no process.
   Its request is `../../protocol/tooling.md`, 4's, read by the worker. Its
@@ -102,15 +102,15 @@ smith's agent processes, and declares in its hello the kinds it runs:
   commit, not a branch's tip: that commit checked out, and each
   member's head, in the request's order, fetched by its commit and
   merged with no fast-forward onto the prefix below
-  (`../../protocol/git.md`, 4.6), a head the prefix contains still a
+  (`../../protocol/git-operations.md`, 1.6), a head the prefix contains still a
   merge, and, where the request names the train's upstream, its tip
   fetched by its commit beside them. Each merge is committed at once
-  (`../../protocol/git.md`, 4.7) by the request's `combine`, the
+  (`../../protocol/git-operations.md`, 1.7) by the request's `combine`, the
   repository's identity as its author, and is the prefix the next
   member is merged onto:
   - **`merge`,** or **`squash` for a member that brings its upstream's
-    commits** (`../landing.md`, 5.2), which `Brings` (`../../protocol/git.md`,
-    4.9) tells of the head, the request's `main` and the upstream's tip:
+    commits** (`../landing-prepare.md`, 1.2), which `Brings` (`../../protocol/git-operations.md`,
+    1.9) tells of the head, the request's `main` and the upstream's tip:
     two parents, the prefix below and the head, and the member's
     `message` from the request as its message;
   - **`squash`** otherwise: the same tree, one parent, the prefix
@@ -135,11 +135,11 @@ smith's agent processes, and declares in its hello the kinds it runs:
   the result fits its bound and marked `"cut": true` when cut. A push
   that finds its branch already at the reused prefix verifies it by
   fetching and counts it as delivered. An existing branch that fails the
-  whole-tree and ancestry checks of `../landing.md`, 5.2 is undelivered,
+  whole-tree and ancestry checks of `../landing-prepare.md`, 1.2 is undelivered,
   with any earlier pushes kept. Its repository's item is writable by a form of its
   own, at the end of the worker wire's `Access`: `Prefixes`, the
   branches it may create or reuse from an earlier delivery of the same
-  round (`../landing.md`, 5.2), one per member of the request in its order,
+  round (`../landing-prepare.md`, 1.2), one per member of the request in its order,
   and no other; each member's `prefix` in the request must be its
   branch there, and a request whose branches differ in number or name
   is refused as invalid. The engine's workspace for the job grants a
@@ -148,7 +148,7 @@ smith's agent processes, and declares in its hello the kinds it runs:
   a deadline of 10 minutes, the small profile's constants; the engine
   declares it only where its tasks limits hold those bounds, as kind
   3's. The engine learns the prefixes from the branches, read afresh,
-  and the conflicts from the result (`../landing.md`, 5.2).
+  and the conflicts from the result (`../landing-prepare.md`, 1.2).
 - **The spec is written by the engine's root** as it makes the job, in
   the worker wire's `JobSpec` record, since jig takes a job's spec as
   the application's bytes when the job is made (jig's
@@ -165,11 +165,11 @@ resolves relative to the job's workspace root (2026-11-04).
 A merge job prepares whatever the count of the files in conflict. Past
 the checkout's `conflicts`, every file stays marked in the tree and
 unmerged in the index, and the checkout names the first `conflicts` of
-them (`checkouts.md`; `../../protocol/git.md`, 4.6). The command reads the
+them (`checkouts.md`; `../../protocol/git-operations.md`, 1.6). The command reads the
 index, never that list, and stages each file it settles, in the run's own
 git directory (`checkouts.md`, *Two git directories*); its delivery scans
 every file the merge left in conflict, in pages past `conflicts`, and
-refuses one still marked (`../../protocol/git.md`, 4.7) (2026-11-09).
+refuses one still marked (`../../protocol/git-operations.md`, 1.7) (2026-11-09).
 
 A job's failure is a line on the side that met it, and on the engine's
 too (2026-11-09):
@@ -195,7 +195,7 @@ too (2026-11-09):
   exit names that step. A missing or oversized result names exit 0 or
   3 and the stderr tail. The worker's line may keep more of a delivery's
   diagnostic than the bounded answer.
-- **On the engine,** when the hub accepts that answer, `README.md`, section 4.3's
+- **On the engine,** when the hub accepts that answer, `hosted-runs.md`, section 1.3's
   operator line, in its form: `<binary> serve: task TASK run RUN attempt
   ATTEMPT failed CLASS: job KIND: DETAIL`, or `refused REASON: job KIND:
   WHY`. A job held for its failures has the way out of a run's (`temper
@@ -203,7 +203,7 @@ too (2026-11-09):
   a run's. An assignment the engine cannot encode, which it answers
   itself as refused, is the engine's line alone.
 - **Each line** is written once per answer, escaped to one line, its why
-  cut to its last 4,096 bytes, as `README.md`, 4.3's is. The lines are operator output:
+  cut to its last 4,096 bytes, as `hosted-runs.md`, 1.3's is. The lines are operator output:
   no fact or turn holds them. A failed job's answer carries its cause;
   jig keeps the last `REASON_BYTES` (128 bytes) as UTF-8 on the retry notice
   and, past its allowance, the hold (jig's `domain/tasks/lifecycle.md`, 6).

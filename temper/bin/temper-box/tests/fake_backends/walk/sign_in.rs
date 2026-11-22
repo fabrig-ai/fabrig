@@ -1,5 +1,5 @@
 //! The `ChatGPT` plan on the fake box: the fake sign-in leaves a usable model for Ready.
-//! (temper/docs/design/protocol/setup/box.md, 5; temper/docs/design/client/pages/README.md.)
+//! (temper/docs/design/protocol/setup/box-backends.md, 1; temper/docs/design/client/pages/README.md.)
 use super::open_default::{browser_bounds, named};
 use super::{Act, Call, Walk};
 use crate::support::WITHIN;

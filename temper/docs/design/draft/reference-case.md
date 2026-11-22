@@ -6,7 +6,7 @@ cleared, showing each mechanism of `reference-code-production.md` and
 `archive/playground-reset.md` draft in this directory. It keeps that run's names
 and kinds of event and drops its repetition: 64 changes become nine,
 five designers two, 54 questions five, and nine checks along the way
-one. `notes.md`'s N numbers are the choices each step rests on.
+one. `reference-code-production.notes.md`'s N numbers are the choices each step rests on.
 
 ## 1. In one page
 
@@ -115,7 +115,7 @@ P
 |---|---|---|---|
 | 22 | G | woken by C9's result, its last change: every change landed, every Left list made into a change, the tier's last run green. G makes X, the close-out: its producer, under the designer's charter, writes into g the status entries still open (project isolation upstream, from C8), the designs' Later sections, and folds the draft into the forge's design, removing it. X lands into g | the close-out (N16) |
 | 23 | L | X's result wakes G, which makes L, a change into main whose branch is g. L opens its pull request; CI, the full gate, fails one fuzzy test at its head. L's repair, an agent at g's tip, fixes it and pushes g under G's hold; CI passes at the new head | the goal checked whole; a repair on g (N3) |
-| 24 | L | queued, then first in main's queue. A chat's small fix landed meanwhile, so L lacks main's tip: the forge merges main into g cleanly, CI passes at the new head, and L merges at exactly that head, a merge commit. Landed, then verifying | the queue; a lazy update; a merge at its head (`../domain/forge/queues.md` and `../domain/forge/README.md`, section 6) |
+| 24 | L | queued, then first in main's queue. A chat's small fix landed meanwhile, so L lacks main's tip: the forge merges main into g cleanly, CI passes at the new head, and L merges at exactly that head, a merge commit. Landed, then verifying | the queue; a lazy update; a merge at its head (`../domain/forge/queues.md` and `../domain/forge/updates.md`, section 1) |
 
 ## 7. Act 5: after landing
 

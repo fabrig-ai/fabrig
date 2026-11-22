@@ -252,7 +252,7 @@ queues, its outputs and its pending commits are empty.
 - **The forge world** (`temper-engine-forge-world`), below the kit: its
   `World::check(&self) -> Result<(), String>` runs `forge` and the two
   checks, at the quiet point where `iterate` moves time.
-- **The composed system world** (`README.md`, 2.1): at the end of each
+- **The composed system world** (`tiers.md`, 1.1): at the end of each
   tick whose immediate work is drained.
 - **A bound is a moment every driver visits:** the referee's deadline is
   one of the driver's timers, as strict as the bound. A driver moves time
@@ -265,7 +265,7 @@ queues, its outputs and its pending commits are empty.
   through its driver, never by setting it. No tolerance is added: one
   would hide a stall timer armed late.
 - **Each run's finding:** a driver keeps the first finding and its loop
-  panics with it, as a run's finding (`README.md`, 4.2); a returning form
+  panics with it, as a run's finding (`scenarios.md`, 1.2); a returning form
   (`World::check`, `Checks::quiet`) is what a check's own test reads.
 
 ## 4. Goals end

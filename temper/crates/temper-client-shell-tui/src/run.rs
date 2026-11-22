@@ -1206,7 +1206,7 @@ enum LocalStage {
 }
 
 /// A bounded private read on the loop, with the checks of skein-shell's
-/// `read_private_file` (temper/docs/design/client/tui/README.md, 2).
+/// `read_private_file` (temper/docs/design/client/tui/directory.md, 1).
 struct LocalFile {
     io: io::file_layer::FileIo,
     env: Env<io::file_layer::Limits>,

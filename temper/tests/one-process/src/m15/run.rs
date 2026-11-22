@@ -1,4 +1,4 @@
-//! A read, edit, renewal and authenticated delivery exercise credential boundaries (temper/docs/design/protocol/credentials.md, 4–7).
+//! A read, edit, renewal and authenticated delivery exercise credential boundaries (temper/docs/design/protocol/credentials-git-identities.md, 1, and temper/docs/design/protocol/credentials.md, 5–7).
 use super::{checkpoint, observer, pages, paste};
 use crate::{
     ctl::{Caller, Command},

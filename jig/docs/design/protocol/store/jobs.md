@@ -102,7 +102,7 @@ pub enum Layouts {
     may have ended since.
   - Its code goes once dev.fabrig.ai has run it, as every job's does
     (temper's `draft/store-floor.md`).
-- **temper's jobs** (temper's `protocol/store.md`, 4), in this order:
+- **temper's jobs** (temper's `protocol/store-versions.md`, 1), in this order:
   `test-ids-landing`, `test-ids-receipt`, `test-ids-tier` and
   `test-ids-verification`, written jobs (4) each converting its value
   type's unplanned layouts to the binary's, whose failing tests' ids
@@ -231,7 +231,7 @@ whose values are not all the root it names (`layouts.md`, 6; skein's
   every older layout of the value type unplanned, however many builds
   wrote them, so that the binary names none of their fingerprints.
   temper's `test-ids-*` jobs are the first (temper's
-  `protocol/store.md`, 4).
+  `protocol/store-versions.md`, 1).
 
 What follows holds for both:
 
@@ -254,7 +254,7 @@ What follows holds for both:
   that text (skein's `data/codec/README.md`, section 8; the head is the
   layout id, which the function passes over), after converting it by a
   plan of its own where it needs one (skein's `data/codec/layouts.md`;
-  temper's does so, `protocol/store.md`, 4), and writes the new one by
+  temper's does so, `temper/docs/design/protocol/store-versions.md`, 1), and writes the new one by
   its generated code, a put at the same key, whose head the write edge
   maps.
 - **The open's check** takes its layouts as converted (`layouts.md`,

@@ -89,7 +89,7 @@ drive session are Q2's (`../../client/recipe.md`,
   (`README.md`, 3.2): every walk and drive session at the place is
   given them as `--ports` (`../../client/drive.md`, 2.1), a new sandbox
   binds them, and the box retains them in its configuration
-  (`../../protocol/setup/box.md`, 5), so a copy made at the place binds
+  (`../../protocol/setup/box-backends.md`, 1), so a copy made at the place binds
   the place's ports, which no other place's box takes. A place with no
   `ports` takes the kernel's when its sandbox is first prepared, as one
   place alone may: two such places can hand a stopped copy's ports to
@@ -101,8 +101,8 @@ drive session are Q2's (`../../client/recipe.md`,
 - **The cache stays:** `box/cache/` is kept across copies and builds; a
   copy holds `config/` and `data/` alone, those of them its box made (a
   box with fake backends makes no `config/`), the fake forges' state among
-  them (`../../protocol/setup/box.md`, 5), but for what its processes
-  pin at their start (section 4).
+  them (`../../protocol/setup/box-backends.md`, 1), but for what its processes
+  pin at their start (`places.md`, section 4).
 - **No Forgejo and no runner:** every setup's forge is the box's fake
   Forgejo (`setups.md`, 2), so no box at a place sets up its own
   Forgejo, and the place's cache holds none of its binaries; a case
@@ -189,11 +189,11 @@ installs another build.
   a copy of the place's `bin/` file its agent document names, and that
   document, into its root's `agent/` as it starts, the previous ones
   removed first (`../../protocol/binaries.md`, 5;
-  `../../domain/worker/README.md`, 5). That directory is the build's,
+  `../../domain/worker/agent-processes.md`, 1). That directory is the build's,
   not the setup's state, so a copy leaves it out: a copy's save never
   archives it, and a restore leaves none of it at the place from any
   copy that holds it, removing it once unpacked and before anything
-  else reads the scratch directory (section 8). A copy holds the
+  else reads the scratch directory (`places.md`, section 8). A copy holds the
   setup's state alone, and every box restored at
   the place pins its agent from the place's `bin/` as it starts, the
   pass's build's. The directory, by its path below the scratch
@@ -203,7 +203,7 @@ installs another build.
     `data/box/fake-backends/data/workspaces/agent`, the box's isolated
     sandbox under `DATA/box/fake-backends`
     (`../../protocol/configuration/directories.md`, 1;
-    `../../protocol/setup/box.md`, 5), whose worker's root is
+    `../../protocol/setup/box-backends.md`, 1), whose worker's root is
     `workspaces` under its data directory;
   - **a deployment's place:** its worker's,
     `data/worker/workspaces/agent` (`deployment.md`, 2 and 3).
@@ -342,7 +342,7 @@ reached has run (`../../draft/landed-qa.md`, 5):
   kept lines, cut where the state is reached); `readme`, the paragraph
   of its `README.md`;
   `scripts`, optional, the object of its `scripts.json` in the box's
-  `--scripts` form (`../../protocol/setup/box.md`, 5).
+  `--scripts` form (`../../protocol/setup/box-backends.md`, 1).
 - **Refused while a holder lives;** NAME a recipe name
   (`../../client/recipe.md`, 2) not among the build's setups: a recipe
   the pass itself added may be written again.

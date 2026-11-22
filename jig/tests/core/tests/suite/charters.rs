@@ -401,6 +401,8 @@ fn a_restart_settles_an_engine_charters_claim_at_once() {
         if proof.task == task && proof.host == jig_domain_fleet::HostKind::Engine)));
     let mut config = jig_core_world::world::fixture(148, false).0;
     config.core.defaults.charters[0].hosts = jig_domain_fleet::Kinds::Engine;
+    let (now, wall) = world.clocks();
+    world.set_clock(now, wall);
     world.restart_with(config);
     assert!(world.domain.ready(), "restart does not wait for a worker hello");
     assert!(world.store.rows.values().any(|record| matches!(record,

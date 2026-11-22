@@ -13,7 +13,7 @@ pub mod startup;
 pub mod tokens;
 pub mod values;
 
-/// One stage of a pass, in the loop's order (protocol/README.md, 6.1).
+/// One stage of a pass, in the loop's order (protocol/service-process.md, 1.1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Stage {
     Io,

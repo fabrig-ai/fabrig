@@ -1352,7 +1352,7 @@ fn native_effect_rows_keep_the_clients_recovery_promises() {
 }
 
 /// An issue creation whose lifetime ran out unanswered: unrecoverable, it
-/// is held for a person (domain/forge/README.md, 4).
+/// is held for a person (domain/forge/effects.md, 1).
 fn held_issue() -> skein_forge_client::Entry {
     skein_forge_client::Entry {
         queued: false,

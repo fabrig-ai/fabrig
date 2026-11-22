@@ -49,7 +49,7 @@ pub(crate) fn waiting(domain: &Domain, waiter: Token) -> Option<Waiting> {
     }
 }
 
-/// Reserve both owners before the held load can wait on durability (root.md, 7).
+/// Reserve both owners before the held load can wait on durability (domain/root.md, 7).
 pub(crate) fn reserve_ended(domain: &mut Domain, read: EndedRead) -> Token {
     let EndedRead::EndedTask { task, .. } = &read else { unreachable!("only ended tasks wait for room") };
     let task = *task;

@@ -1,4 +1,4 @@
-//! Kept posting, with blame positions in the judged record's failing IDs (after-landing.md, 9 and 10).
+//! Kept posting, with blame positions in the judged record's failing IDs (domain/after-landing.md, 9, and domain/after-landing-storage.md, 1).
 use super::{FITS, List, Undecodable, d, p, w};
 
 pub(super) fn encode(posting: &d::TierPosting, failing: &p::Failures) -> w::TierPosting {

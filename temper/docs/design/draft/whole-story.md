@@ -11,7 +11,7 @@ top of four drafts written with it, `standing-roles.md`,
 mockups are section 9's. The user: "I'll be the first user of temper and
 ideally temper would be my only frontend", and they asked for all of it
 by v0.1.0 (`v0.1.0.md`, section 5). Its milestones are
-`whole-story.execution.md`. Reasons: `notes.md`, section 12.
+`whole-story.execution.md`. Reasons: `whole-story.notes.md`.
 
 ## 1. In one page
 

@@ -210,7 +210,7 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
 ### 4.1 Which part holds an id
 
 - **An id is `classname.name`,** as tier main's report has it
-  (`../domain/after-landing.md`, section 4): a test's binary ID, a `.`,
+  (`../domain/after-landing-runs.md`, section 3): a test's binary ID, a `.`,
   its name. The binary ID is the id's text before its first `.`; its
   package is the binary ID's text before `::`, or the whole binary ID
   where it has none (a library's).

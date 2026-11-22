@@ -1033,7 +1033,7 @@ fn diagnostic_answer(
     })
 }
 
-/// temper/docs/design/domain/worker/README.md, 4.3: a failed answer reaches the operator once.
+/// temper/docs/design/domain/worker/hosted-runs.md, 1.3: a failed answer reaches the operator once.
 #[test]
 fn failed_answer_detail_reaches_operator_once() {
     for full in [false, true] {
@@ -1050,7 +1050,7 @@ fn failed_answer_detail_reaches_operator_once() {
     }
 }
 
-/// temper/docs/design/domain/worker/README.md, 4.3: refusal evidence survives pressure, once.
+/// temper/docs/design/domain/worker/hosted-runs.md, 1.3: refusal evidence survives pressure, once.
 #[test]
 fn refused_answer_reason_reaches_operator_once() {
     for reason in [

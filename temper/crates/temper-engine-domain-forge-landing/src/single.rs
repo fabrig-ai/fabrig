@@ -8,7 +8,7 @@ use alloc::boxed::Box;
 use skein_lib::{List, Wall};
 
 /// Remove a cancelled member, retaining the remaining members' proofs
-/// (domain/landing.md, 4.2, 5.1).
+/// (domain/landing.md, 4.2, domain/landing-prepare.md, 1.1).
 #[must_use]
 pub fn leave(mut landing: Landing, change: u64) -> Landing {
     let mut members = List::with_capacity(u32::try_from(landing.members.len()).expect("bounded members"));
@@ -364,7 +364,7 @@ fn gate_step(
 }
 
 fn turn(mut landing: Landing, facts: &Facts, limits: &Limits, now: Wall) -> Stepped {
-    // Record read-back successes before any stale exit (domain/landing.md, 8).
+    // Record read-back successes before any stale exit (domain/landing-turn.md, 1).
     for (member, fresh) in landing.members.iter_mut().zip(&facts.members) {
         if member.candidate.is_some() && fresh.merged == member.candidate {
             member.landed = member.candidate;

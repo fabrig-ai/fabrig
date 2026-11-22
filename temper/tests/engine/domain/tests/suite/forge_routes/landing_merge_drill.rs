@@ -1,4 +1,4 @@
-//! A configured merge job settles a turn member (temper/docs/design/domain/landing.md, 3, 5.2).
+//! A configured merge job settles a turn member (temper/docs/design/domain/landing.md, 3, temper/docs/design/domain/landing-prepare.md, 1.2).
 use super::*;
 use temper_protocol_worker_wire::v1::Record as WorkerRecord;
 

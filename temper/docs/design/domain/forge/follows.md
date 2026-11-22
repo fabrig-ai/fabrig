@@ -6,10 +6,10 @@ A project may follow a branch of a repository another project writes:
 each landing there that touches the paths it names becomes a change in
 a repository of its own, made by code, ordered as the source landed,
 owned by a person or a standing role of the project, and checked
-against the source by a gate of its own. A follow is close to a tier (`../after-landing.md`,
-section 3): both follow a branch's tip; a tier's answer is a verdict, a
-follow's a change in another repository. What is still open is section
-12; what waits, section 13.
+against the source by a gate of its own. A follow is close to a tier (`../after-landing-runs.md`,
+section 2): both follow a branch's tip; a tier's answer is a verdict, a
+follow's a change in another repository. What is still open is `follows.md`, section 12
+; what waits, `follows.md`, section 13.
 
 ## 1. In one page
 
@@ -52,7 +52,7 @@ follow's a change in another repository. What is still open is section
 ## 2. A follow
 
 A follow is a setting of the target's project, temper's kind 12
-(`../../protocol/configuration/settings.md`, 2), at the project's scope,
+(`../../protocol/configuration/settings-kinds.md`, 1), at the project's scope,
 numbered from 1 to the forge's `follows`, proposed and accepted as
 every setting is, its decision that project's owners'. Its value, a
 `Follow`:
@@ -64,10 +64,10 @@ every setting is, its decision that project's owners'. Its value, a
 | `owner` | `person`: a person of the project, by number, with any role in it; or `task`: a standing role of the project (`../agent/standing.md`), by its task's number, a live task of the project labelled 3 | refused |
 | `start` | `owner`, each follow change waiting for its owner's word; or `code`, each starting once the one before it has landed | `owner` |
 | `producer` | the charter and LLM choices a follow change runs its producer under, spelled as `change`'s parameter 11 is (`change/README.md`, 1) | the forge's change charter and the charter's defaults |
-| `check` | `workflow`, a workflow file of the target, as a tier names one; `artifact`, the name of the artifact its run uploads; `format`, `junit` or `lines` (`../after-landing.md`, 2) | refused |
+| `check` | `workflow`, a workflow file of the target, as a tier names one; `artifact`, the name of the artifact its run uploads; `format`, `junit` or `lines` (`../after-landing-runs.md`, 1) | refused |
 
 - **Its form in a settings file,** binding for `temper ctl` and the
-  host tools' settings (`../../protocol/configuration/settings.md`, 2):
+  host tools' settings (`../../protocol/configuration/settings-kinds.md`, 1):
   ```json
   {"source": {"forge": 1, "repository": 12, "branch": "main", "paths": ["src", "include"]},
    "target": {"forge": 1, "repository": 13, "branch": ""},
@@ -130,16 +130,16 @@ every setting is, its decision that project's owners'. Its value, a
   it at the branch's tip, the baseline: nothing before it is queued.
 - **Each move of the source branch's tip** the forge sees, by temper's
   merge, by a landing's turn, or by anyone (every path that tells tiers
-  of a move: `../after-landing.md`, section 3), starts, for each follow
+  of a move: `../after-landing-runs.md`, section 2), starts, for each follow
   of that branch with no read in flight, a read from `heard` to the new
   tip: the files the range touched (skein's `Read::Compare`, names alone,
-  read as `README.md`, 5.3 reads a landing's), and its commits with their
+  read as `topics.md`, 1.3 reads a landing's), and its commits with their
   messages, oldest first (`Read::Commits`). A move while a read is in
   flight is taken by the next read, from the cursor the first left.
 - **One move is one landing,** `before` the cursor, `after` the tip read:
   what the forge saw move at once, as a tier's range is. It is kept when
-  one of its files lies under one of the follow's paths (`README.md`,
-  5.3's prefix rule: `src` covers `src/a.c`, not `src-old/a.c`), when the
+  one of its files lies under one of the follow's paths (`topics.md`,
+  1.3's prefix rule: `src` covers `src/a.c`, not `src-old/a.c`), when the
   follow names no paths, or when its files are unknown: a comparison
   that names fewer paths than it counts, an unusable answer or a failed
   read, as 5.3's overlap is unknown. A follow change for nothing costs
@@ -164,7 +164,7 @@ every setting is, its decision that project's owners'. Its value, a
 
 - **The follow task** is a procedure task of the forge's, `follow`,
   procedure 7, made when the follow is accepted, as a tier's run is
-  (`../after-landing.md`, section 10). A person's follow's is requested
+  (`../after-landing-storage.md`, section 1). A person's follow's is requested
   by the deployment on the target project's behalf, with the project's
   policy ceiling, and funded as a queue repair's change is
   (`queues.md`), its spend the least of the policy's, its period's left
@@ -330,7 +330,7 @@ every setting is, its decision that project's owners'. Its value, a
 ## 5. The owner's acts
 
 - **Who:** a person owner, or an owner of its project, through `temper
-  ctl` (`../../client/ctl/tools.md`, 3), each a keyed request of the
+  ctl` (`../../client/ctl/tools-acts.md`, 1), each a keyed request of the
   forge's family answered once durable; a standing role owner through
   its `follow` tool (below). The root checks the person's role in the
   project, or that the calling task is the follow's owner; the forge
@@ -398,19 +398,19 @@ every setting is, its decision that project's owners'. Its value, a
   follow change: blocking, exact, run once CI passes at the head, as
   gates are, and judged on the change under the queue and under the turn
   alike (`../landing.md`, section 3).
-- **Dispatched by the change,** as a gate is (`../landing.md`, 7.1), on
+- **Dispatched by the change,** as a gate is (`../landing-proof.md`, 2.1), on
   its own branch at its head: the follow's `workflow`, with the inputs
   `temper_commit`, the head, `temper_key`, its key in hexadecimal, and
   `temper_follows`, the newest commit the change follows, its last in
   parameter 18, as 40 or 64 lowercase hexadecimal digits. The run is
   found and followed as there.
-- **Its key** is `../landing.md`, 6.1's, its gate's name `follow.N`, its
+- **Its key** is `../landing-proof.md`, 1.1's, its gate's name `follow.N`, its
   definition the check's three members, its tree the head's whole, and
   the followed commit's 32 bytes (a SHA-1 one padded) after the
   definition's, so two followed commits never share a receipt. Its
-  receipt is kept in `Receipt` and reused at the same key (`../landing.md`,
-  6.2).
-- **Its report** is a tier's run's (`../after-landing.md`, section 4):
+  receipt is kept in `Receipt` and reused at the same key (`../landing-proof.md`,
+  1.2).
+- **Its report** is a tier's run's (`../after-landing-runs.md`, section 3):
   passed, or its failing tests by id from the artifact; a failed run that
   names none, or an artifact absent or unreadable, is a fault.
 - **Passed:** the gate approves at that head.
@@ -425,7 +425,7 @@ every setting is, its decision that project's owners'. Its value, a
 - **Merged,** the followed commit is the new last, so a verdict at the
   head for an older one no longer counts.
 - **After landing,** the target's tiers follow its branch as any
-  repository's (`../after-landing.md`, section 3). A follow change has
+  repository's (`../after-landing-runs.md`, section 2). A follow change has
   no goal, its requester a procedure under the deployment or a standing
   role, neither tracked, so a red its landing raises is a red of no
   goal's, filed by the root as a finding (`../after-landing.md`,
@@ -471,7 +471,7 @@ every setting is, its decision that project's owners'. Its value, a
   `follow N: SOURCE BRANCH → TARGET TBRANCH · LAG · PARITY`, LAG `caught
   up` or `K behind`, PARITY `check passes at AFTER12`, `K failing at
   AFTER12` or `no check yet`; `follow show --project P N` prints one
-  whole (`../../client/ctl/tools.md`, 2). Home's, Team's and How work
+  whole (`../../client/ctl/tools-reads.md`, 1). Home's, Team's and How work
   runs' lines are drawn from that document (`../../draft/surfaces.md`,
   sections 3, 6 and 7): Team's on the owner's row, and on a standing
   role's card (`../../client/pages/team.md`, 1, *Follows*).
@@ -511,11 +511,11 @@ every setting is, its decision that project's owners'. Its value, a
   follow and the role's for a standing role's (section 4), and each
   follow change's is made from it as `change` makes a change's.
 - **Reads:** the forge's own `Read::Compare` and `Read::Commits` on the
-  source, as it reads a landing's files (`README.md`, 5.3), under no
+  source, as it reads a landing's files (`topics.md`, 1.3), under no
   task's grant.
 - **The check's dispatch** is the change's: kind 16 on the target, a
   rerun kind 17 (`../landing.md`, section 11), a purpose of the change's
-  step (tag 2, `README.md`, section 4).
+  step (tag 2, `effects.md`, section 1).
 - **In the store,** family 42, `Follow`, keyed by the project and the
   follow's number: the follow's source repository and branch, its
   cursor, its task, whether it is stopped and why, its queue (each
@@ -544,8 +544,8 @@ The forge's (`../../protocol/configuration/limits.md`), `small` then
 
 ## 11. The world
 
-Focused stories in temper's domain world (`../../testing/README.md`,
-section 4) with the fake forge and the fake model, two projects on it:
+Focused stories in temper's domain world (`../../testing/scenarios.md`,
+section 1) with the fake forge and the fake model, two projects on it:
 the source's owning its repository, the target's owning its own and
 adopting the source's as context, and a follow owned by a person:
 

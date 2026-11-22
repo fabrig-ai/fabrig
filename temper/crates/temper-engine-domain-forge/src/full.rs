@@ -1,4 +1,4 @@
-//! Full tables name their holders without changing admission (protocol/README.md, 6.3).
+//! Full tables name their holders without changing admission (protocol/service-process.md, 1.3).
 use super::Domain;
 use crate::{FullKind, FullTable, Limits, Report, Request, age_words};
 use alloc::boxed::Box;

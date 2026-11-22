@@ -1,5 +1,5 @@
 //! A goal's tier checks its branch while changes keep landing
-//! (temper/docs/design/domain/after-landing.md, 3, 5.4, 7 and 12).
+//! (temper/docs/design/domain/after-landing-runs.md, 2, and temper/docs/design/domain/after-landing.md, 5.4, 7 and 12).
 use super::*;
 use temper_engine_domain_forge_change::State;
 use temper_engine_domain_world::tier_runs::{self, LANDING_TICKS, RUN_TICKS, merge, named_tier, task, until};
@@ -23,7 +23,7 @@ const RED_MESSAGES: usize = 1; // Each run emits one red to its goal.
 const FAILED_JOBS: usize = 1; // goal.yml has the fixture's one test job.
 const FIRST_CHANGE: u64 = 93;
 const SECOND_CHANGE: u64 = 94;
-const GOAL_SPAN: Duration = Duration::from_secs(20 * 60); // after-landing.md, 2.
+const GOAL_SPAN: Duration = Duration::from_secs(20 * 60); // domain/after-landing-runs.md, 1.
 
 fn world() -> (World, engine::Assignment, Box<[u8]>) {
     let mut world = tier_runs::goal_world();

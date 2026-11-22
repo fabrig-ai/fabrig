@@ -1,5 +1,5 @@
 //! The strict byte codec (temper/docs/design/client/tui/journeys.md, 3.2 and 3.3;
-//! temper/docs/design/client/web/journeys.md, 3.2).
+//! temper/docs/design/client/web/journeys-recordings.md, 1.2).
 use crate::loopback::{Answer, Returned};
 use jig_client::contract::LoginExit;
 use skein_lib::{Time, Wall};

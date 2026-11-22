@@ -205,7 +205,7 @@ fn resolve(
         | Ask::Replace { .. }) => Ok(ask),
     }
 }
-/// Admission precedes the first save (temper/docs/design/protocol/forge/engine.md, 2; temper/docs/design/protocol/setup/owned.md, 7).
+/// Admission precedes the first save (temper/docs/design/protocol/forge/engine.md, 2; temper/docs/design/protocol/setup/owned-repositories.md, 1).
 fn make(
     d: &mut Domain,
     forge: crate::ForgeAsk,

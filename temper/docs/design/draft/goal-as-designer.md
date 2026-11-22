@@ -12,7 +12,7 @@ the top-level goal task) to use jig-provided tools to create the task tree
 himself, and when the tree is created it should mostly run itself". And what
 matching means: "the same assignment/request to temper (a goal) results in a
 similar execution, i.e. mostly same roles in shape/number/sequence/timing with
-matching prompts and model/effort". Reasons: `notes.md`, section 7.
+matching prompts and model/effort". Reasons: `goal-as-designer.notes.md`.
 
 ## 1. In one page
 
@@ -123,7 +123,7 @@ Then the goal parks (jig's `domain/engine/executors.md`, 4).
 ## 6. Room
 
 - **A call:** `tool_payload` follows a model's declared `output`, about 10,662
-  bytes at 8,192 tokens (`../protocol/configuration/settings.md`, 7). `output` isn't sent
+  bytes at 8,192 tokens (`../protocol/configuration/settings-output.md`, 1). `output` isn't sent
   to the providers we use, so it changes no model's behaviour. The reference
   takes about 98,500 tokens, 128 KB, as the user sized a message on 2026-11-03,
   and 48,000 tokens, 64 KB, if the start's checks refuse it: the agent's largest
@@ -142,7 +142,7 @@ Then the goal parks (jig's `domain/engine/executors.md`, 4).
   MCP server has never run. The largest seen is about 10 KB.
 - **Budgets aren't a plan's bound yet:** the pipeline has none, so a deployment
   starts goals with `--as-allowed`, or too high to hit. The half a `change` carves
-  (`../domain/agent/tools.md`, 1) stays.
+  (`../domain/agent/tools-change.md`, 1) stays.
 
 `model-catalogue.md` moves models into the store, and keeps window and output the
 stock's (its section 2). This section changes the reference's figures. Whether the
@@ -165,7 +165,7 @@ The goal's charter takes `results: last_or_failure` (jig's
 | the close-out's result | finishes |
 
 - **Questions wake at once,** as the pipeline answers an integration plan's.
-- **Catch-ups wake on overlap alone** (`../domain/forge/README.md`, 5.3), not on every
+- **Catch-ups wake on overlap alone** (`../domain/forge/topics.md`, 1.3), not on every
   move of main as the pipeline's do. The user: "it covers plain conflicts, and I'm
   okay with semantic conflicts being caught at merge time or after landing, they
   should be rare."

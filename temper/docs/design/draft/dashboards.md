@@ -69,7 +69,7 @@ here is adopted, and nothing here is a part of v0.1.0 (`v0.1.0.md`).
   it the settings family proposes a set (17.6). A dashboard and the
   metrics it shows are items of one set, accepted or refused together.
 - **On temper's kinds.** temper's kinds are all the forge's
-  (`../protocol/configuration/settings.md`, 2). This draft adds a
+  (`../protocol/configuration/settings-kinds.md`, 1). This draft adds a
   dashboard kind, scoped to the deployment or to each project, owned by
   a small child of temper's root, the dashboards child, and the forge's
   metrics kind (`dashboards.md`, section 4). jig adds a metric kind of its own.
@@ -98,7 +98,7 @@ by its owner first, and the agent says so (6.3).
 | jig's people | what waits on each party: questions, proposals, escalations and person tasks, counted exactly | jig's `client/domain/contract/documents.md`, 1 (`me`); `jig/docs/design/domain/people/README.md`, section 5 |
 | jig's accounts | each source's state; *limited*, with its reset where the provider says it | jig's `domain/accounts.md`, 3.5 |
 | jig's hosts | connected or lost, slots used and free, the runs each hosts | jig's `domain/hosts/README.md`, section 2; `client/domain/pages.md`, section 7 |
-| temper's forge | each change and its result; the merges temper made, `Landed`, without a time; gates as tasks; CI at a change's head, in memory | `../domain/forge/change/README.md`, 2, and `../domain/forge/change/gates.md`, 1, and `../domain/forge/change/README.md`, 5; `../protocol/store.md`, section 2 |
+| temper's forge | each change and its result; the merges temper made, `Landed`, without a time; gates as tasks; CI at a change's head, in memory | `../domain/forge/change/README.md`, 2, and `../domain/forge/change/gates.md`, 1, and `../domain/forge/change/panel.md`, 1; `../protocol/store.md`, section 2 |
 
 - **Not kept:** token counts as numbers (smith's turn records them,
   smith's `protocol/transcript.md`, section 2, and jig's core reads only
@@ -247,7 +247,7 @@ drawn by `temper-client-view`:
 ### 5.3 In the client
 
 - **"Dashboards" in the navigation,** after "How work runs", whatever
-  the project (`../client/view.md`, 3): the deployment's dashboards
+  the project (`../client/view-navigation.md`, 1): the deployment's dashboards
   the person may read, then the chosen project's. Each opens on its own
   page, `Dashboard { scope, number }`.
 - **Live.** A dashboard watches its metrics, and the view builds the

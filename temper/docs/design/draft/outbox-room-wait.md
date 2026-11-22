@@ -9,14 +9,14 @@ Draft, 2026-11-15, on the user's word. On 11-15, eight changes were reopened at 
   - The refusal becomes `ResourceRefused` with cause `Limit`, and the root turns it into a task hold, `Hold::ResourceUnavailable`, with the words "reduce the named work or raise this limit in the deployment configuration, restart, then release" (`temper/crates/temper-engine-domain-forge-vocabulary/src/refusal.rs`; `temper/crates/temper-engine-domain/src/route/forge_route.rs`).
   - Release cleanup's comments and closes report `ReleaseFailed` instead. Goal projections already wait, as goal branches do, in order (`goal_branch.rs`).
   - The refused write takes no entry. Held entries do count against the bound.
-  - `temper/docs/design/domain/forge/README.md`, 4, says a requester finding the outbox full "waits or is refused by its own rule".
+  - `temper/docs/design/domain/forge/effects.md`, 1, says a requester finding the outbox full "waits or is refused by its own rule".
 - **Wanted:**
   - A write that finds the outbox full waits. Its intent is kept durably, or the change keeps a state it can replay, so no request is lost. It is admitted in order when an entry leaves: first come first served, with no newcomer overtaking a waiter. When it is admitted, it checks its facts and authority again, and journals before it sends, as now. This is the same shape as goal branches' wait.
   - A wait is no failure. It counts against no allowance and no stall, it survives a restart, and a cancel ends it.
   - A hold stays only for a write that can never fit. A single write over `forge.client.op_bytes` is already told apart from a full outbox (`TooLarge` against `Busy`, `skein/crates/skein-forge-client/src/outbox.rs`).
   - Release cleanup's comments and closes wait the same way, rather than failing.
   - The change's panel says "Waiting for room in the forge outbox" while it waits, and clears that once admitted. The wait's reason is typed through the forge panel, the client's wire and its words. The client's wire moves its version unbridged, by the upgrade rules.
-  - Revise `temper/docs/design/domain/forge/README.md`, 4, and `temper/docs/design/domain/forge/change/README.md`, 2 and 5, with their status files: a full outbox is a wait; say its order, what happens on restart and cancel, and the refusal for a write that can never fit.
+  - Revise `temper/docs/design/domain/forge/effects.md`, 1, and `temper/docs/design/domain/forge/change/README.md`, 2, and `temper/docs/design/domain/forge/change/panel.md`, 1, with their status files: a full outbox is a wait; say its order, what happens on restart and cancel, and the refusal for a write that can never fit.
 
 ## 2. Out
 

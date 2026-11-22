@@ -548,7 +548,7 @@ impl skein_world::Referee<Proc> for Referee {
                 )
                 .map_err(|why| format!("durable conformance: {why:?}"))?;
             // A result in its requester's durable inbox has reached that task
-            // (temper/docs/design/testing/README.md, 2.5).
+            // (temper/docs/design/testing/tiers.md, 1.5).
             for row in run.rows.values() {
                 if let root::Record::Core(core::Record::Tasks(
                     jig_domain_tasks::Stored::Live(task) | jig_domain_tasks::Stored::Ended(task),
@@ -643,7 +643,7 @@ impl skein_world::Referee<Proc> for Referee {
             }
         }
         // Serve's stop includes supervised agent cancellation. Only its recorded
-        // end leaves teardown waiting on IO alone (protocol/README.md, 6).
+        // end leaves teardown waiting on IO alone (protocol/service-process.md, 1).
         self.ended = service.service.end().is_some();
         self.observe_drain(now, service)?;
         self.say(now, rules::Observed::Tick)?;

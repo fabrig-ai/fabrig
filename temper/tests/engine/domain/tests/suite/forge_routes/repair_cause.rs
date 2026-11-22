@@ -1,4 +1,4 @@
-//! Repair causes after a clean update (temper/docs/design/domain/forge/change/repairs.md and temper/docs/design/domain/forge/README.md, 6).
+//! Repair causes after a clean update (temper/docs/design/domain/forge/change/repairs.md and temper/docs/design/domain/forge/updates.md, 1).
 use super::light_rules::{change_row, pushed_change_in};
 use super::*;
 use temper_engine_domain_forge_change::{Delegate, Repair, State};

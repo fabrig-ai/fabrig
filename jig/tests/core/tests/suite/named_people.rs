@@ -781,6 +781,8 @@ fn a_person_named_from_outside_is_held_or_refused_and_the_start_links() {
     let mut passed = 0;
     for arm in [Arm::Plain, Arm::Procedure, Arm::PersonDelegate, Arm::ProcedurePerson] {
         let mut world = arm.setup();
+        let (now, wall) = world.clocks();
+        world.set_clock(now, wall);
         let mut arm_passed = 0;
         for Route { name: route, arm: _, input, task, refusal, field } in routes.iter().filter(|route| route.arm == arm)
         {

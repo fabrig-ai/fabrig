@@ -1,4 +1,4 @@
-//! A delivery preserves the checkout's ancestry (temper/docs/design/protocol/git.md, 4.7).
+//! A delivery preserves the checkout's ancestry (temper/docs/design/protocol/git-operations.md, 1.7).
 use crate::{
     invocation::{self, Command},
     sequence::{self, Next},

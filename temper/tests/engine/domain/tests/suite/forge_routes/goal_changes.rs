@@ -1,5 +1,5 @@
 //! A goal's dependent changes land under its branch's rules and keep their reports
-//! (temper/docs/design/domain/agent/tools.md, 1; temper/docs/design/domain/forge/change/README.md, 2, and temper/docs/design/domain/forge/change/gates.md, 2, and temper/docs/design/domain/forge/branches.md, 1).
+//! (temper/docs/design/domain/agent/tools-change.md, 1; temper/docs/design/domain/forge/change/README.md, 2, and temper/docs/design/domain/forge/change/gates.md, 2, and temper/docs/design/domain/forge/branches.md, 1).
 use super::goal_branch::{branch_tip, forge_hold, goal_request};
 use super::*;
 

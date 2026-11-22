@@ -1,4 +1,4 @@
-//! Top-owned landing rows, coherent reads, receipts and effects (domain/landing.md, 2–15).
+//! Top-owned landing rows, coherent reads, receipts and effects (domain/landing.md, 2–4, and domain/landing-prepare.md, 1, and domain/landing-proof.md, 1–2, and domain/landing-turn.md, 1–2, and domain/landing.md, 10–15).
 use crate::{Check, LandingEntry, LandingFollow, LandingRow, Limits, Receipt, ReceiptKey};
 use core::mem::size_of;
 use temper_engine_domain_forge_change as change;

@@ -113,7 +113,7 @@ starts goals by script write them so.
   naming the work for a person in plain words, with no draft codes or
   internal names: "Store shape · history in task logs".
   The chat's `goal` and `change` calls open their words with such a line
-  (`../domain/agent/tools.md`, sections 1 and 2), and `temper ctl goal
+  (`../domain/agent/tools-change.md`, section 1, and `../domain/agent/tools-goal.md`, section 1), and `temper ctl goal
   start`'s help says so.
 - **A decision's words:** `decided`'s question in one sentence, the
   situation as a person reads it, and `took` in one line, in every

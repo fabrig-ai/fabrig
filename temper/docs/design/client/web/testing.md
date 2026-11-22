@@ -40,18 +40,18 @@
 
 1. **Signing in by the printed link:** the welcome shows, at
    `/welcome`, or, where the first run is over, the chats, the
-   address reading `/chats` once they do (`README.md`, 2.4); a reload on a chat's
+   address reading `/chats` once they do (`sign-in.md`, 1); a reload on a chat's
    address shows that chat, signed in by the cookie; a link spent shows
    the reason-specific signed-out paragraph (`../view.md`, 1). After a
    server restart, reopening the first printed link shows "This link
    isn't from this temper. Use the one its terminal printed." because a
    restart forgets retired link digests (jig's `protocol/client/sign-in.md`).
    That the secret leaves the address before the first request is held by
-   the shell's start order (`README.md`, 2.1), and is not tested.
+   the shell's start order (`shell.md`, 1), and is not tested.
 2. **Addresses:** skein's `back_and_forward` (skein's `ui/web/testing.md`,
    2), from the chats to a chat by its link and back; `/` and an
    address that is no page open Home, and the address reads that Home's
-   once it shows (`README.md`, 2.3).
+   once it shows (`addresses.md`, 1).
 3. **The composer:** in the chats, Enter starts a chat with the words
    once, and Shift+Enter makes a new line in them (`look.md`). The chat opens
    with its composer focused, the focus stays there after Enter and after
@@ -60,7 +60,7 @@
 4. **A panic:** skein's `panic` (skein's `ui/web/testing.md`, 2), which
    checks the shell's wiring of the restart part, at the test address
    `/test/panic` at which the shell panics at start, as jig's reference
-   shell has it (`README.md`, 2.1).
+   shell has it (`shell.md`, 1).
 5. **Reading back:** scroll a chat's log up; Latest appears. New words
    arriving while reading back leave the view where it is. Press Latest
    or send from the chat; the end returns, read again if the window let
@@ -81,7 +81,7 @@ proves.
 
 A page gets a story here only for what of its own a browser alone
 shows. The inbox, a task's page and the adoption form have none: a
-first load at any address is the shell's one start (`README.md`, 2.1), which 6's
+first load at any address is the shell's one start (`shell.md`, 1), which 6's
 tests 1 and 2 hold on a chat's address and a filter's. A procedure's
 plan, its agent, the lineage bar and a fresh client at an agent's
 address are the client world's (`suite::b2`, `suite::task`). The
@@ -119,7 +119,7 @@ the page, which stayed, drawing the end.
   second provider of the same issuer, Welcome provider (18), with a model of
   its own: the issuer's one subject signing in twice on one provider renews
   its account, in other words than Ready's
-  (`../pages/accounts.md`, 2), and a usable model leaves the welcome no sign-in to
+  (`../pages/accounts-words.md`, 1), and a usable model leaves the welcome no sign-in to
   press. Each sign-in keeps its tab, so the story ends with two.
   The client world's `suite::second_sign_in` holds that the second provider's
   sign-in reaches Ready after the welcome's.
@@ -145,7 +145,7 @@ real key in that restored form.
 ## 3. Its budget, outside the gate
 
 - **A suite of its own,** outside the focused and fuzzy suites
-  (`../../testing/README.md`, section 2), in its own crate
+  (`../../testing/tiers.md`, section 1), in its own crate
   (`tests/client-browser`, `temper-client-browser-world`), run by
   `scripts/browser.sh`, a slow tier outside temper's gate, with the nextest profile `browser-temper`,
   one test at a time, on the bundle it builds first, with the dev
@@ -153,7 +153,7 @@ real key in that restored form.
 - **The tier's bundle** is the shipped page's, built apart
   (`scripts/bundle.sh`). Each address of the page the tier loads, from
   a printed or a command's link or a person's own load, carries the page's
-  internal settings (`README.md`, 2.1), `internal-loopback-navigation=1`
+  internal settings (`shell.md`, 1), `internal-loopback-navigation=1`
   and `internal-small-window=1`, which the page honours on the tier's
   loopback origin: so a sign-in's tab (2) can go to the fake issuer on
   plaintext loopback (skein's `ui/web/README.md`, section 8), and a
@@ -164,7 +164,7 @@ real key in that restored form.
   ctl's manifest link opens as ctl prints it. A page the browser
   reaches from one of them, by a redirect, loads without them.
   The tier names that bundle in its configuration, so it
-  runs alike over a binary built with or without its own (`README.md`, 2.6). It holds
+  runs alike over a binary built with or without its own (`bundle.md`, 1). It holds
   the compressed forms and Chromium takes gzip on loopback, so every
   test loads the compressed module under temper's policy.
 - **The tier's window:** the page's `internal-small-window` names a
@@ -228,7 +228,7 @@ real key in that restored form.
   the story, or only the person and the step where no story of that
   person had begun; the test fails with it once the harness has
   returned, and a test of the attribution reads it
-  (`../../testing/README.md`, 4.2). Each story's assertions
+  (`../../testing/scenarios.md`, 1.2). Each story's assertions
   stay as its steps, in its order. It reruns whole on a flake, and a failure
   hides the steps after it: taken, for the cap. It stands on the same forty
   seconds as any run of the harness (skein's `ui/web/testing.md`, 2): a test that
@@ -457,7 +457,7 @@ Not in the tier, each in the lowest world that shows it:
 
 ## 7. Open questions
 
-- **A filter row while its project's ways arrive** (`README.md`, 2.3, `testing.md`, 6): Drafts
+- **A filter row while its project's ways arrive** (`addresses.md`, 1, `testing.md`, 6): Drafts
   appears before Closed once the ways offer drafts, moving Closed under
   a person's pointer. Default: keep the conditional Drafts button; a
   separate look decision settles whether the row should reserve its

@@ -1,5 +1,5 @@
 //! The stock ways' acts cross the client and engine's commit boundary
-//! (temper/docs/design/client/pages/README.md and temper/docs/design/client/pages/settings.md, 2; temper/docs/design/testing/README.md, 2.1).
+//! (temper/docs/design/client/pages/README.md and temper/docs/design/client/pages/settings.md, 2; temper/docs/design/testing/tiers.md, 1.1).
 use jig_client::contract as c;
 use jig_client_kit::harness::{App, ClientId, Settings, Until, World};
 use skein_ui::{Node, Role, Style};

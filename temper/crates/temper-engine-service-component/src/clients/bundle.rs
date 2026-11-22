@@ -1,4 +1,4 @@
-//! The browser's bundle, read whole at start, and its closed list of types (client/web/README.md, 2.2; skein's
+//! The browser's bundle, read whole at start, and its closed list of types (client/web/serving.md, 1; skein's
 //! ui/web/bundle.md, 3 and 4), composing jig's bundle helpers (jig/docs/design/protocol/service.md, 11.4).
 use super::{Clients, policy};
 use alloc::boxed::Box;
@@ -7,7 +7,7 @@ pub use jig_protocol_engine_clients_http::bundle::{File, compressed_of, kind};
 use skein_http::{Method, server as http};
 use skein_lib::{List, Map, Token, bytes, stream::Up};
 
-/// Temper's fixed explanation when configuration names no browser bundle (client/web/README.md, 2.2).
+/// Temper's fixed explanation when configuration names no browser bundle (client/web/serving.md, 1).
 #[expect(clippy::disallowed_macros, reason = "a fixed page compiled in, not data read at run time")]
 pub const SERVICE_WORKER: &[u8] = include_bytes!("sw.js");
 #[expect(clippy::disallowed_macros, reason = "fixed root file compiled into temper")]
@@ -17,7 +17,7 @@ pub const NO_BUNDLE_PAGE: &[u8] = include_bytes!("no-bundle.html");
 
 /// A bundle path's bound (jig's testing/jig-test/src/bundle.rs).
 pub const NAME_BYTES: u32 = 1024;
-/// The bundle and its kept forges' metas (client/web/README.md, 2.2; protocol/openid-provider.md, 7).
+/// The bundle and its kept forges' metas (client/web/serving.md, 1; protocol/openid-provider.md, 7).
 #[derive(Debug)]
 pub struct Bundle {
     pub page: Box<[u8]>,
@@ -27,7 +27,7 @@ pub struct Bundle {
     pub digest: Box<[u8]>,
     pub files: Map<Box<[u8]>, File>,
 }
-/// How the clients' listener answers a call the mapping does not claim (client/web/README.md, 2.2).
+/// How the clients' listener answers a call the mapping does not claim (client/web/serving.md, 1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Answer {
     File,
@@ -276,7 +276,7 @@ impl Bundle {
         };
         self.insert_meta(meta)
     }
-    /// Enable browser recording at start, after sign-in ways (client/web/README.md, 2.2).
+    /// Enable browser recording at start, after sign-in ways (client/web/serving.md, 1).
     pub fn fill_record(&mut self) -> Option<()> {
         self.insert_meta(b"<meta name=\"temper-record\" content=\"on\">")
     }

@@ -1,4 +1,4 @@
-//! Missing identity values stop at git admission: protocol/credentials.md, 4,
+//! Missing identity values stop at git admission: protocol/credentials-git-identities.md, 1,
 //! and protocol/git.md, 2. The existing world supplies the value directly;
 //! selection from GitHub entries belongs to the worker routing's harness.
 use temper_worker_domain_checkout::git;

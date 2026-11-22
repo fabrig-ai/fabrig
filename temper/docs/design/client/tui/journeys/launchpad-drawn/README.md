@@ -2,7 +2,7 @@
 
 A version-2 `walk`, `after project-landing`, in one process on the
 playground's composition, with both shipped clients and no box or
-terminal (`../../../journey-walks.md`, 4 and 6). Hello has the world's
+terminal (`../../../journey-walks-world.md`, 1, and `../../../journey-walks.md`, 6). Hello has the world's
 owned Forgejo repository `work/hello` and an OpenAI sign-in account,
 shown as "your ChatGPT plan" with the `fake` model. The browser approves
 the TUI's sign-in.

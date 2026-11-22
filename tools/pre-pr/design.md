@@ -5,7 +5,7 @@ delivers: the project's checks (smith's `smith/docs/design/domain/run.md`,
 8.1; temper's `temper/docs/design/protocol/configuration/reference.md`), written
 from `temper/docs/design/draft/delivery-checks.md`, for the goal's reds,
 its flakes and its results, `temper/docs/design/draft/branch-reds.md`,
-for where its tests sit, `temper/docs/design/draft/focused-pyramid.md`,
+for where its tests sit, `temper/docs/design/draft/archive/focused-pyramid.md`,
 for the failures file, `temper/docs/design/draft/pre-pr-failure-list.md`,
 for the boundary packages and the fuzzy tests, the user's word of 2026-11-15,
 after a landing's gate caught three reds in tests no delivery had run, and,
@@ -67,7 +67,7 @@ runs focused Rust tests for changed packages and their immediate consumers.
 An edit confined to an integration test target selects that target alone.
 Close builds any required test helpers, checks packages without test targets
 and runs changed Python modules’ sibling suites. Per-delivery
-journey mixing and budget edits were checked on delivery. The final goal
+journey mixing and budgets-file validation ran on delivery. The final goal
 tree still receives the overlay check. The receipt records the pre-settlement
 head, staged tree, destination and merge base. A changed snapshot refuses.
 
@@ -84,7 +84,7 @@ receipts, this section takes precedence.
 - **A base the worker pins.** The worker writes `refs/temper/landing`, the
   landing branch's tip as fetched at prepare, in each change producer's
   checkout and never moves it within the hold
-  (`temper/docs/design/protocol/git.md`, 4.3;
+  (`temper/docs/design/protocol/git-operations.md`, 1.3;
   `temper/docs/design/domain/worker/checkouts.md`). The check's base is
   the merge base of that reference and `HEAD`, and `MERGE_HEAD` in a merge
   (`design.md`, section 2). Without the reference it runs today's checks alone and says so.
@@ -139,10 +139,9 @@ receipts, this section takes precedence.
   reference, refuses it, named as any failure is. Without one, the suite
   runs as before, its comparison a warning, and a line says why (section
   4; `tools/tiers/budgets.md`, 5).
-- **Every figure the user's.** A delivery that changes
-  `tools/tiers/budgets.toml` and any other path, and raises a figure there
-  or adds a reason's line, is refused, as the gate refuses it; one that
-  changes that file alone passes (section 4, check 7;
+- **The delivered budgets file.** A delivery that changes
+  `tools/tiers/budgets.toml` validates it from the delivered tree alone.
+  The gate alone refuses a raise against main's tip (section 4, check 7;
   `tools/tiers/budgets.md`, 10.1).
 - **Journey files, the writer's alone.** A delivery whose own changes
   hold a journey's recording, page or file printed beside them and any
@@ -227,8 +226,7 @@ receipts, this section takes precedence.
   onto it, never what the base gained since the change's source. Selection
   then sets aside merged tips' entries (section 3, *Changed paths*): an
   unchanged path from the change's head is excluded when that head is a
-  merged tip. Check 7 starts from the whole diff and sets aside figures
-  itself (section 4). A repair that leaves the pin unmerged is judged from
+  merged tip. A repair that leaves the pin unmerged is judged from
   where its branch meets it, with the same selection rule. Every other
   repair keeps the head it repairs.
 - **An unchecked save is stepped past.** Where the base is temper's
@@ -265,7 +263,7 @@ introduced by merged children. An independent advance on the destination
 leaves the comparison at the fork. The selected packages run through the
 ordinary build, lint and test commands with the same builder hold.
 
-Journey file mixing and budget figure changes are judged on each delivery.
+Journey file mixing and budgets-file validation are checked on each delivery.
 The whole-tree empty-overlay rule also applies at goal completion.
 The completed-goal command runs afresh and records the goal head,
 destination and comparison base in its verdict. The CI caller uses the
@@ -283,16 +281,17 @@ A later head or destination requires a fresh invocation.
   merged tip holds at that path, its own or absent alike: a merge brought
   it as it stood there, where it was checked (the landing branch's own
   gate, or the delivery that put it on that branch). The merged tips are
-  section 4, check 7's. So a merge's changed paths are those it changes
-  against both parents: its resolution's and its later edits', and a
+  the commit named by `git rev-parse --verify --quiet MERGE_HEAD`, where
+  it names one, then every parent after the first of each commit in
+  `git rev-list --first-parent --merges --parents <base>..HEAD`, deduplicated
+  in that order. So a merge's changed paths are those it changes against
+  both parents: its resolution's and its later edits', and a
   path both sides changed; a merge repair of a goal's branch that took
   main in selects none of main's packages for what main brought as main
-  holds it. Every reader of the changed paths below takes them so, and
-  check 8 too; check 7 alone is started by the whole diff, merged tips'
-  entries included, since it sets them aside itself (section 4, check
-  7). Where there are merged tips, one line before the
+  holds it. Every reader of the changed paths below takes them so. Where
+  there are merged tips, one line before the
   selection's names them, `pre-pr: merged tips: <commit> …: what they
-  hold is not the delivery's`, the commits in check 7's order joined by
+  hold is not the delivery's`, the commits in that order joined by
   a space. What the two sides make together where no path differs from
   both is the landing's gate's (section 10).
 - **Docs inputs:** every Markdown path (`.md`), anywhere, and every file
@@ -608,29 +607,16 @@ failure, when observed, in the Git directory’s `temper/repair-trial-result.jso
      (section 6);
    - **any other:** a failure of the check itself, `check outward`, its
      log the scan's output.
-7. **The figures,** where the paths the tree changes against its base,
-   `git diff-tree` as section 3 runs it before it sets merged tips'
-   entries aside, include `tools/tiers/budgets.toml`, whatever else they
-   hold, a delivery that selected neither set included: `python3 -I -B
-   tools/tiers/figures.py --base <base> --head <tree> [--merged <rev>]…` from the tree's
-   root, against section 3's private snapshot, as check 5 runs citations
-   (`tools/tiers/budgets.md`, 10.1). The merged tips are the commit named by
-   `git rev-parse --verify --quiet MERGE_HEAD`, where it names one, then
-   every parent after the first of each commit in
-   `git rev-list --first-parent --merges --parents <base>..HEAD`, deduplicated
-   in that order. Each is passed as `--merged <rev>` after `--head <tree>`;
-   without a merge the argv has no addition. It runs last, after every other
-   selected check, announced `pre-pr: figures …` and ended `pre-pr:
-   figures: passed|failed, <seconds> s`; it reads git alone, so it takes no
-   hold and builds nothing, and it selects nothing else. Its exit decides:
-   - **0:** passed, a delivery that changes that file alone included;
-   - **1:** a figure raised or a reason's line added: one failure,
-     `figures`, its log the check's output, which names each and ends
-     with the repair line. It keeps only figures raised or added against
-     its base and every merged tip, so it is the delivery's own, never
-     inherited (section 5);
-   - **any other:** a failure of the check itself, `check figures`, its
-     log the check's output.
+7. **The budgets file.** When section 3's changed paths include
+   `tools/tiers/budgets.toml`, the driver reads it and `tools/tiers/layers.toml`
+   from the private snapshot's tree alone. It calls `tools/tiers/cpu.py`'s
+   `budgets()` once with those files. A valid file passes, including a
+   delivery of that file alone. A file read error or a refusal by
+   `budgets()` produces one failure, `budgets`, with the error and the
+   module's repair line when defined (`tools/tiers/budgets.md`, 10.1).
+   It announces `pre-pr: budgets …` and ends with
+   `pre-pr: budgets: passed|failed, <seconds> s`. The gate alone compares
+   figures and refuses raises against main's tip.
 8. **The journey files,** for every delivery, with a base or none: the
    driver's own reading of git, after every other check, announced
    `pre-pr: journeys …` and ended `pre-pr: journeys: passed|failed,
@@ -644,7 +630,7 @@ failure, when observed, in the Git directory’s `temper/repair-trial-result.jso
    or `tui-journey.js`.
    - **The delivery's own paths:** with a base, section 3's changed
      paths, which already leave out each whose entry in the tree is the
-     one a merged tip of check 7's holds at that path; without a base,
+     one a merged tip holds at that path; without a base,
      the paths the tree changes against `HEAD`, staged, unstaged and
      untracked.
    - **Refused,** one failure, `journeys`: those paths holding a
@@ -748,7 +734,7 @@ cause.
   then passes or fails on the wrong build. A deployment whose cargo gives
   a workspace's paths one target keeps the setting the check makes, or
   keys this worktree to a target of its own
-  (`temper/docs/design/domain/worker/README.md`, 5).
+  (`temper/docs/design/domain/worker/agent-processes.md`, 1).
 - **The goal's reds,** which temper keeps and its worker writes at each
   check's start (`temper/docs/design/domain/forge/reds.md`, 5), are
   `temper/reds` under the git directory, at `git rev-parse --git-path

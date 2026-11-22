@@ -229,7 +229,7 @@ pub fn laid_ways(ways: Option<&ProjectWays>, project: u32, items: &[Item]) -> Pr
 }
 
 /// A goal template's work with a decision's items laid over it, kind 11
-/// (temper/docs/design/protocol/configuration/settings.md, 2): an item of kind 11 at scope 0
+/// (temper/docs/design/protocol/configuration/settings-kinds.md, 1): an item of kind 11 at scope 0
 /// and the template's number sets it, its removal leaves neither.
 #[must_use]
 pub fn laid_goal(goal: Option<TemplateGoal>, template: u32, items: &[Item]) -> TemplateGoal {

@@ -51,10 +51,10 @@ worker's two itself:
 | `engine.acts` | connector 1 may `remove_project`, `remove_account` and `adopt` |
 | `engine.projects` | none: a first start seeds no project, and projects are made at runtime on policy 1 (`settings.md`, 5) |
 | `engine.clients`' `heartbeat_ms`, `link`, `approval` | 10,000 ms; the printed link on; the approval on. Both stay on loopback alone, as the start's check of the clients' listener holds them (`engine.md`, `clients`) |
-| `workers[].graces` | `grace_ms` 300,000, `drain_ms` 180,000, `agent_stop_ms` 5,000, `delivery_ms` 1,000, `save_ms` 1,000, as `temper-box init` writes them: a stop bound of 326 seconds with jig's link profile (`README.md`, section 3) |
+| `workers[].graces` | `grace_ms` 300,000, `drain_ms` 180,000, `agent_stop_ms` 5,000, `delivery_ms` 1,000, `save_ms` 1,000, as `temper-box init` writes them: a stop bound of 326 seconds with jig's link profile (`worker.md`, section 1) |
 | `workers[].programs` | `check_interval_ms` 60,000 |
-| `application.workers[].root` | `workspaces` in the data directory, made private as the member's was (`README.md`, section 3) |
-| `application.workers[].git` | the first executable `git` on the worker's own `PATH` at its start, checked as the member's path was; none found is `null`, as today (`README.md`, section 3) |
+| `application.workers[].root` | `workspaces` in the data directory, made private as the member's was (`worker.md`, section 1) |
+| `application.workers[].git` | the first executable `git` on the worker's own `PATH` at its start, checked as the member's path was; none found is `null`, as today (`worker.md`, section 1) |
 
 - **The fleet's grace is derived,** not configured: the workers' stop
   bound at the constant graces and the link's ping and silence, plus 30
@@ -71,7 +71,7 @@ worker's two itself:
 - **`application.workers` goes whole:** with `root` and `git` constant,
   an entry has no member left, so the list is refused as a moved member
   is. An entry's `environment` is `application.environment`, the
-  agents' environment, its entries unchanged (`README.md`, section 3);
+  agents' environment, its entries unchanged (`worker.md`, section 1);
   its `claude` is the one found on the worker's `PATH`, or fetched
   (`figures.md`, section 6).
 
@@ -106,7 +106,7 @@ person who meets a refusal finds where the member went.
 
 ## 4. The welcome
 
-Designed in `settings.md`, section 2 (kind 20), from
+Designed in `settings-kinds.md`, section 1 (kind 20), from
 `../../draft/config.md`, 6.5: a setting of the deployment, its default
 from how the deployment was made.
 
