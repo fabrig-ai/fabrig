@@ -181,6 +181,8 @@ pub struct Peer {
     mount_out: Queue<mapping::Request>,
     component: Component,
     env: Env<Limits>,
+    seed: u64,
+    pump_passes: u64,
     out: Queue<Request>,
     sockets: BTreeMap<Token, Exchange>,
     next_socket: u64,
@@ -251,6 +253,8 @@ impl Peer {
             refused: skein_lib::Map::with_capacity(server_limits.connections),
             mount_out: Queue::with_capacity(64),
             env,
+            seed: 1,
+            pump_passes: 0,
             out,
             sockets: BTreeMap::new(),
             next_socket: 100,
@@ -388,6 +392,7 @@ impl Peer {
         // Every packet is tiny; this bound includes the seeded wire's harmless delays.
         let mut quiet = 0;
         for _ in 0..512 {
+            self.pump_passes = self.pump_passes.checked_add(1).expect("pump passes do not exhaust");
             let mut active = false;
             active |= self.server_step();
             if self.closed == 0 {
@@ -506,10 +511,33 @@ impl Peer {
             }
             quiet = if active { 0 } else { quiet + 1 };
             if quiet == 16 {
+                self.check_inspection().unwrap_or_else(|finding| panic!("{finding}"));
                 break;
             }
         }
     }
+    /// Snapshot at this time without stepping the component or firing its timers.
+    #[must_use]
+    pub fn inspection(&self) -> skein_world::inspect::Inspection {
+        let mut inspection =
+            skein_world::inspect::Inspection::new("jig engine clients", jig_inspect::ENGINE_CLIENTS_KINDS);
+        jig_inspect::engine_clients(&self.component, &mut inspection);
+        inspection
+    }
+
+    #[must_use]
+    pub const fn inspection_moment(&self) -> skein_world::inspect::Moment {
+        skein_world::inspect::Moment { seed: self.seed, at: self.env.now, iteration: self.pump_passes }
+    }
+
+    /// The same checks the pump runs at its quiet point, without pumping.
+    pub fn check_inspection(&self) -> Result<(), String> {
+        let inspection = self.inspection();
+        let moment = self.inspection_moment();
+        skein_world::inspect::check_waits(&[&inspection], moment)?;
+        skein_world::inspect::check_tables(&[&inspection], moment)
+    }
+
     fn io(&mut self, request: skein_io::Request) {
         match request {
             skein_io::Request::Listen { owner, addr } => self

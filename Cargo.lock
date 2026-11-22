@@ -1612,6 +1612,7 @@ dependencies = [
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-domain-views",
+ "jig-inspect",
  "jig-protocol-config",
  "jig-protocol-config-fixtures",
  "jig-protocol-engine-clients",
@@ -1720,6 +1721,7 @@ dependencies = [
  "jig-domain-core",
  "jig-domain-people",
  "jig-domain-tasks",
+ "jig-protocol-engine-clients",
  "skein-lib",
  "skein-world",
 ]

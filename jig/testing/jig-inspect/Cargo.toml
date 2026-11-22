@@ -1,6 +1,6 @@
 [package]
 name = "jig-inspect"
-description = "Inspection records for jig's task and core worlds"
+description = "Inspection records for jig's task, core and engine-clients worlds"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -16,6 +16,7 @@ skein-lib.workspace = true
 jig-domain-tasks.workspace = true
 jig-domain-core.workspace = true
 jig-domain-people.workspace = true
+jig-protocol-engine-clients.workspace = true
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"
 elided_lifetimes_in_paths = "deny"

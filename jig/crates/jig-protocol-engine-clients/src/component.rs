@@ -19,6 +19,8 @@ mod asked_link;
 mod batch;
 #[path = "closing.rs"]
 mod closing;
+#[path = "inspect.rs"]
+mod inspect;
 #[path = "mint.rs"]
 mod mint;
 #[path = "provider.rs"]
@@ -51,6 +53,7 @@ pub struct Component {
     local: Slot,
     past_links: Queue<(skein_lib::Secret, Past, LinkKind)>,
     connections: Map<Token, Exchange>,
+    exchanges_per_client: u32,
     batches: Map<Token, batch::Batch>,
     members: Map<Token, batch::Member>,
     pending: Pending,
@@ -60,6 +63,7 @@ pub struct Component {
     public: public::State,
 }
 impl Component {
+    #[expect(clippy::too_many_lines, reason = "keep startup validation and construction together")]
     pub fn new(mut settings: Settings, env: &Env<Limits>, out: &mut Queue<Request>) -> Result<Self, Unusable> {
         let given = settings.link_secret.take();
         let local_given = settings.local_secret.take();
@@ -136,6 +140,7 @@ impl Component {
             local: Slot::new(),
             past_links: Queue::with_capacity(sign_in::PAST_LINKS),
             connections: Map::with_capacity(env.limits.exchanges),
+            exchanges_per_client: env.limits.exchanges_per_client,
             batches: Map::with_capacity(env.limits.exchanges.checked_mul(2).expect("checked batch capacity")),
             members: Map::with_capacity(pending_capacity),
             pending: Pending {
