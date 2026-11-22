@@ -125,6 +125,7 @@ impl Component {
                             | Waiting::Keep { .. }
                             | Waiting::Get { .. }
                             | Waiting::Made { .. }
+                            | Waiting::Reissue { .. }
                             | Waiting::Moving { .. }
                             | Waiting::Read { .. }
                             | Waiting::ApplicationRead { .. }

@@ -10,8 +10,8 @@ mod check;
 mod constructs;
 pub mod diff;
 mod emit_limits;
-mod emit_tests;
 mod emit_types;
+mod fixed_values;
 mod largest;
 mod lean;
 mod maps;
@@ -19,7 +19,7 @@ mod parse;
 pub mod patch;
 mod values;
 
-pub use constructs::{CONSTRUCTS, Construct, Kind, constructs, missing, unpinned};
+pub use constructs::{CONSTRUCTS, Construct, Kind, constructs, missing};
 pub use emit_limits::{pascal, snake};
 pub use largest::{largest, largest_variants, roots};
 pub use maps::translate;
@@ -104,15 +104,15 @@ pub struct Output {
 
 /// Frozen wire bytes for one fixed-rule value.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Golden {
+pub struct FixedValue {
     pub name: String,
     pub bytes: Vec<u8>,
 }
 
 /// Fixed-rule encodings in declaration order (data/codec/README.md, section 6).
 #[must_use]
-pub fn goldens(schema: &Schema) -> Vec<Golden> {
-    emit_tests::goldens(schema).into_iter().map(|(_, golden)| golden).collect()
+pub fn fixed_values(schema: &Schema) -> Vec<FixedValue> {
+    fixed_values::fixed_values(schema).into_iter().map(|(_, fixed_value)| fixed_value).collect()
 }
 
 /// Writes the records' module for one schema version.

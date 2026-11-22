@@ -27,6 +27,8 @@ pub struct Me {
     pub redirect_bytes: u32,
     /// The most bytes a party's words may have: a task's spec, a message, an answer.
     pub words_bytes: u32,
+    /// When the sign-in reading this document expires.
+    pub sign_in_expires: Wall,
 }
 
 /// The authenticated identity, with independently supplied local text loss.

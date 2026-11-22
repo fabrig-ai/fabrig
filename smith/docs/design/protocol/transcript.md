@@ -298,9 +298,9 @@ jobs of every earlier window and activation.
 ## 9. The world
 
 - **The codec:**
-  - records-only drift and no unpinned constructs (skein's
-    `data/codec/README.md`, section 6); tests build their values through
-    constructors or fixed-rule values from embedded text, without stored
+  - records-only drift (skein's
+    `data/codec/README.md`, section 6); tests build their values with
+    public fields or take fixed-rule values from embedded text, without stored
     family goldens or generated test targets; they check blocks, results,
     turn kinds, opening affinity, and usage counts absent and zero;
   - each decoder fuzzed;

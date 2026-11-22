@@ -95,16 +95,16 @@ fn worker_value(frame: &Frame) -> wire::FromWorker {
     let bytes = writer.finish();
     wire::FromWorker::decode(&wire::CEILINGS, &mut Reader::new(&bytes)).unwrap()
 }
-fn golden(text: &'static str, name: &str) -> Box<[u8]> {
-    fixture_golden(&skein_codegen::values(text).goldens, name)
+fn fixed_value(text: &'static str, name: &str) -> Box<[u8]> {
+    fixture_fixed_value(&skein_codegen::values(text).fixed, name)
 }
-fn fixture_golden(goldens: &[skein_codegen::Golden], name: &str) -> Box<[u8]> {
-    for golden in goldens {
-        if golden.name.strip_suffix(".bin") == Some(name) {
-            return golden.bytes.clone().into_boxed_slice();
+fn fixture_fixed_value(fixed_values: &[skein_codegen::FixedValue], name: &str) -> Box<[u8]> {
+    for fixed_value in fixed_values {
+        if fixed_value.name.strip_suffix(".bin") == Some(name) {
+            return fixed_value.bytes.clone().into_boxed_slice();
         }
     }
-    panic!("missing golden {name}")
+    panic!("missing fixed_value {name}")
 }
 #[test]
 fn a_hello_before_twenty_one_drops_freshness_and_reads_back_not_fresh() {
@@ -127,7 +127,8 @@ fn a_hello_before_twenty_one_drops_freshness_and_reads_back_not_fresh() {
 }
 
 fn charter(contract: u16) -> Box<[u8]> {
-    let bytes = golden(smith_charter::patches::kept::smith_charter::TEXTS.last().unwrap(), "record_charter_smallest");
+    let bytes =
+        fixed_value(smith_charter::patches::kept::smith_charter::TEXTS.last().unwrap(), "record_charter_smallest");
     let mut parts = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(&bytes)).unwrap();
     parts.tools.contract = contract;
     let record = parts;
@@ -326,7 +327,7 @@ fn smith_charters_results_and_old_window_turns_take_their_own_bridges() {
     let Halt::Unheld(_) = refusal.halt else { panic!("unheld") };
 
     let result =
-        golden(smith_charter::patches::kept::smith_charter::TEXTS.last().unwrap(), "record_run_result_smallest");
+        fixed_value(smith_charter::patches::kept::smith_charter::TEXTS.last().unwrap(), "record_run_result_smallest");
     let work = wire::Work { left: None, saved: None };
     let ended = wire::Ended { outcome: result, work };
     let answer = wire::FromWorker::Answer(wire::Answer {
@@ -349,7 +350,7 @@ fn smith_charters_results_and_old_window_turns_take_their_own_bridges() {
     assert_eq!(worker_value(&up), answer);
 
     let old_turn =
-        golden(smith_transcript::patches::kept::smith_transcript::TEXTS.first().unwrap(), "record_turn_smallest");
+        fixed_value(smith_transcript::patches::kept::smith_transcript::TEXTS.first().unwrap(), "record_turn_smallest");
     let mut window = Writer::new(old_turn.len() + 4);
     skein_codec::piece::write(&mut window, &old_turn).unwrap();
     let window = window.finish();
@@ -708,7 +709,7 @@ fn older_notices_and_calls_round_trip_through_seventeen_unchanged() {
 
 #[test]
 #[expect(clippy::disallowed_macros, reason = "the bridge test formats generated fixture names")]
-fn seventeens_kept_goldens_go_up_to_eighteen_with_no_refusal_and_back() {
+fn seventeens_kept_fixed_values_go_up_to_eighteen_with_no_refusal_and_back() {
     use crate::patches::kept::jig_worker_wire as kept;
     use skein_codegen::{Declaration, snake, values};
     let mut seventeen = None;
@@ -721,8 +722,8 @@ fn seventeens_kept_goldens_go_up_to_eighteen_with_no_refusal_and_back() {
         }
     }
     let old = values(seventeen.expect("kept 17"));
-    let older = &old.goldens;
-    let newer = &values(eighteen.expect("kept 18")).goldens;
+    let older = &old.fixed;
+    let newer = &values(eighteen.expect("kept 18")).fixed;
     let mut bridge = kept::bridge(Capacity {
         versions: u32::try_from(kept::TEXTS.len()).unwrap(),
         patches: u32::try_from(crate::patches::PATCHES.len() * 2).unwrap(),
@@ -748,8 +749,8 @@ fn seventeens_kept_goldens_go_up_to_eighteen_with_no_refusal_and_back() {
         for name in names.into_boxed() {
             for size in ["smallest", "full"] {
                 let name = format!("{name}_{size}");
-                let before = fixture_golden(older, &name);
-                let after = fixture_golden(newer, &name);
+                let before = fixture_fixed_value(older, &name);
+                let after = fixture_fixed_value(newer, &name);
                 let up = bridge.translate(17, 18, root.as_bytes(), before.clone()).unwrap();
                 match name.as_str() {
                     "record_model_failure_full" | "record_failed_full" | "enum_ending_failed_full" => {

@@ -54,11 +54,15 @@ pub(super) struct Context<'a> {
 }
 impl Process {
     pub fn new(serial: u64, command: Command, context: Context<'_>) -> Self {
-        let Context { held, root, address, peers, write_cap, server_pid, browser_pid } = context;
         let mut deadline = Deadline::arm("the scenario command's readiness", command.within);
-        for pid in [server_pid, browser_pid].into_iter().flatten() {
+        for pid in [context.server_pid, context.browser_pid].into_iter().flatten() {
             deadline.watch_process(pid);
         }
+        Self::with_deadline(serial, command, context, deadline)
+    }
+
+    fn with_deadline(serial: u64, command: Command, context: Context<'_>, deadline: Deadline) -> Self {
+        let Context { held, root, address, peers, write_cap, .. } = context;
         let owner = Token::new(FIRST.checked_add(serial).expect("command identity fits"));
         let mut input = VecDeque::new();
         let mut error = None;

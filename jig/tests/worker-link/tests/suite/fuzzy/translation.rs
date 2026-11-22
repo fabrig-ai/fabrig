@@ -22,7 +22,7 @@ fn upward(seed: u64) -> Vec<(host::LinkUp, Box<[wire::Part]>)> {
                 answer: host::RunAnswer { ending: host::Ending::Ended { outcome, .. }, .. },
                 ..
             } => {
-                *outcome = translation::golden(
+                *outcome = translation::fixed_value(
                     smith_charter::patches::kept::smith_charter::TEXTS.last().expect("bounded translation fixture"),
                     "record_run_result_smallest",
                 );

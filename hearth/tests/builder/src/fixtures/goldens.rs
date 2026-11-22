@@ -1,6 +1,8 @@
 //! Shared process and protocol checks for reviewed goldens.
 use super::{File, Laid, Rendered, Repository, Scenario};
 use hearth_test_render::golden::{self, Kind, Leaf};
+use skein_scratch::paths;
+use std::{fs, path::Path};
 #[must_use]
 pub fn files_of(leaves: &[Leaf]) -> Vec<File> {
     leaves
@@ -83,12 +85,12 @@ pub enum GoldenCall {
     KilledGit,
     Resolve,
 }
-pub const PROTOCOL_ERRORS: &[(&str, GoldenCall, Option<u8>)] =
-    &[("errors/tool", GoldenCall::KilledGit, Some(75)), ("errors/resolution", GoldenCall::Resolve, Some(2))];
-#[must_use]
-pub fn protocol_golden(name: &str, call: GoldenCall) -> ProtocolGolden {
-    let golden = golden::load(name);
-    let files = files_of(&golden.tree);
+pub const PROTOCOL_ERRORS: &[(&str, GoldenCall)] =
+    &[("errors/tool", GoldenCall::KilledGit), ("errors/resolution", GoldenCall::Resolve)];
+
+pub fn check_protocol_golden(name: &str, call: GoldenCall) {
+    let root = paths::tree().join("tests/render");
+    let files = fixture_files(&root.join(name), &[]);
     let scenario = match call {
         GoldenCall::KilledGit => {
             scenario_of(&files, &[], Some(super::Fault::KilledAt { stdout_bytes: super::KILLED_BYTES }))
@@ -96,15 +98,42 @@ pub fn protocol_golden(name: &str, call: GoldenCall) -> ProtocolGolden {
         GoldenCall::Resolve => super::resolving(&files),
     };
     let run = crate::protocol::run(&scenario, GOLDEN_SEED);
-    ProtocolGolden { golden, run }
+    // Resolution keeps only expected output here. Its repository is under testing/repos/test.
+    let golden = golden::load_from(name, &root.join("resolution"));
+    let verdict = golden.check("", &text(&run), run.code);
+    assert!(verdict.is_clean(), "{}: {}", golden.name, verdict.report());
 }
-pub struct ProtocolGolden {
-    golden: golden::Golden,
-    pub run: crate::protocol::Run,
+
+pub(super) fn fixture_files(root: &Path, modes: &[(&str, u32)]) -> Vec<File> {
+    let mut files = Vec::new();
+    read_fixture_files(root, root, modes, &mut files);
+    files
 }
-impl ProtocolGolden {
-    pub fn check(&self) {
-        check_output(&self.golden, "", &text(&self.run), self.run.code);
+
+fn read_fixture_files(root: &Path, directory: &Path, modes: &[(&str, u32)], files: &mut Vec<File>) {
+    let mut entries: Vec<_> =
+        fs::read_dir(directory).expect("repository fixture").map(|entry| entry.expect("fixture entry")).collect();
+    entries.sort_by_key(fs::DirEntry::file_name);
+    for entry in entries {
+        let name = entry.file_name();
+        if directory == root
+            && (name.as_encoded_bytes().starts_with(b"expected") || name == "rendered" || name == ".git")
+        {
+            continue;
+        }
+        let path = entry.path();
+        if entry.file_type().expect("fixture entry type").is_dir() {
+            read_fixture_files(root, &path, modes, files);
+            continue;
+        }
+        let relative = path.strip_prefix(root).expect("repository fixture path").to_str().expect("fixture path text");
+        let mode = modes.iter().find(|(path, _)| *path == relative).map_or(0o644, |&(_, mode)| mode);
+        let body = if mode == 0o120_000 {
+            fs::read_link(&path).expect("fixture link").into_os_string().into_encoded_bytes()
+        } else {
+            fs::read(&path).expect("fixture file")
+        };
+        files.push(File { path: relative.to_owned().leak(), body: body.leak(), mode });
     }
 }
 

@@ -67,6 +67,7 @@ The operations as the client sends them are
 | `Seen` | the party themselves | their read position moved over results, or over one conversation's turns (`README.md`, section 5) |
 | a compound request | one project; each operation's own needs; within operations per request | its operations made in one decision, or none of them (below) |
 | adopt a resource, as a home or not; rename the project; change the policy, roles or services | owner; a name no other project holds, in shape (../model.md, 6.1) | the project changed (2) |
+| `ReissueService`, a service by its party's number, in the deployment's scope | owner in the deployment, or owner of every project whose roster holds the service; never the service itself; never in a compound request | the service's sign-ins ended, its party, roles and history kept; a new credential answered once (below) |
 | `ChangeSettings`, in the deployment's scope | owner in the deployment for the deployment's items, and owner of each project whose items it names (`README.md`, section 3 and 4); the revision they saw, the newest; the set within the checks and bounds of ../engine/settings.md, 1 and 8; every connector judging an item of its kinds accepting it | the settings changed in one decision, the new revision answered; running work staying or moved, as it asks (../engine/settings.md, 2 and 4) |
 | `MoveToNewest`, in the deployment's scope | owner in the deployment; a revision held | every live agent task on it that may move set to the newest, in one decision, those moved and those that could not counted in the answer (../engine/settings.md, 4) |
 | `MakeProject`, in the deployment's scope | owner in the deployment (`README.md`, section 3); a name in shape that no other project holds (../model.md, 6.1); a policy among the settings (../engine/settings.md, 1); room in the deployment's projects | a project, numbered next, its policy a copy of the configured one, its maker its owner and only party (2) |
@@ -217,6 +218,38 @@ The operations as the client sends them are
   no model-name context: an explicit model selector (ALL or named,
   including empty) is refused at people admission with `Lack::Models`;
   an omitted selector keeps the operation's default.
+- **A service's credential reissued** (`README.md`, section 3):
+  `ReissueService { party }`, people's `Ask::ReissueService { party:
+  u64 }`, answered `Outcome::ServiceReissued { party: u64 }`.
+  - *Who may:* an owner in the deployment, or an owner of every project
+    whose roster holds the service, which must hold it in one at least.
+    A service is made in one project, but another's owner may give it a
+    role there; owning that project alone would hand over the service's
+    roles in the first, so it does not suffice.
+  - *Checked in order,* each refusal with its reason: no party of that
+    number, `Unknown`; a person, or the asking party itself, whose own
+    sign-in the act would end before its answer, `NotOffered`; an asker
+    who may not, `Role`, carrying their role in the deployment.
+  - *Admitted by the core,* as `MakeProject` is: in the deployment's
+    family, so the asker's role in project 0 travels with it, and
+    checked by the core's own rule above, with no `Act` of the
+    vocabulary and no offer: no document offers it, and a client asks
+    it by the party's number.
+  - *In the decision that admits it,* every live sign-in of the service
+    ends as its expiry ends it: its row erased, its end said, so the
+    clients' component erases its digest and ends its streams, the
+    watches it opened ending signed out. Nothing else is written: the
+    party, its identity and name, its holdings in every roster, its
+    pool, its tasks, its inbox and read positions stay. One step ends
+    at most the deployment's `sign_ins`, which `outputs_bound` counts.
+  - *It keeps no answer,* as a `Seen` keeps none: sent again under its
+    key, as a client sends a request whose answer it lost, it reissues
+    again, ending any sign-in made since and drawing another
+    credential, so the credential answered last is the live one.
+  - *The credential is the component's:* jig's clients' component draws
+    it once people has answered, keeps its digest in place of the old
+    one's and answers it once (`../../protocol/client/sign-in.md`, a
+    service's credential).
 - **A watch is not a request:** it decides nothing and keeps no answer.
   It is admitted on the party's sign-in and on what their role lets them
   see in its scope, the party's own on the sign-in alone, and ends when

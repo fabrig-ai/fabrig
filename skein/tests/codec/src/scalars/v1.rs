@@ -121,6 +121,11 @@ pub struct Empty {
 }
 
 // Record: Empty.
+impl Empty {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 0;
+}
+
 impl Record for Empty {
     type Limits = Limits;
     const TAIL: Path = paths::EMPTY_TAIL;
@@ -160,6 +165,11 @@ pub enum Flag {
 }
 
 // Record: Flag.
+impl Flag {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for Flag {
     type Limits = Limits;
     const TAIL: Path = paths::FLAG_TAG;
@@ -203,6 +213,11 @@ pub struct Scalars {
 }
 
 // Record: Scalars.
+impl Scalars {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 27;
+}
+
 impl Record for Scalars {
     type Limits = Limits;
     const TAIL: Path = paths::SCALARS_TAIL;

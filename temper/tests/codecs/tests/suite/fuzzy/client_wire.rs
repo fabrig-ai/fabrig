@@ -58,7 +58,7 @@ fn client_wire_decoders_never_panic_and_reencode_the_same() {
         finding_answer,
     ];
     let mut rng = Rng::new(0x7e3d_0302);
-    let goldens = values::client();
+    let fixed_values = values::client();
     for _ in 0..2_000 {
         let request = v1::Requesting { request: drawn_request(&mut rng) };
         let bytes = temper_client_protocol_wire::requesting(&request);
@@ -135,13 +135,13 @@ fn client_wire_decoders_never_panic_and_reencode_the_same() {
             decode(&bytes);
         }
     }
-    for golden in goldens {
-        let golden = &golden.bytes;
+    for fixed_value in fixed_values {
+        let fixed_value = &fixed_value.bytes;
         for decode in decoders {
-            decode(golden);
+            decode(fixed_value);
         }
         for _ in 0..8 {
-            let bytes = temper_codecs_world::mutated(&mut rng, golden);
+            let bytes = temper_codecs_world::mutated(&mut rng, fixed_value);
             for decode in decoders {
                 decode(&bytes);
             }
@@ -306,7 +306,7 @@ fn drawn_makings(rng: &mut Rng) -> v1::Forges {
     // All unrelated fields stay at the generated smallest row's values.
     let mut parts = v1::ForgeRow::decode(
         &v1::CEILINGS,
-        &mut Reader::new(values::named(values::client(), "record_forge_row_smallest.bin")),
+        &mut Reader::new(values::fixed_value(values::client(), "record_forge_row_smallest.bin")),
     )
     .expect("drawn fields fit the schema ceilings");
     parts.makings = List::with_capacity(1);

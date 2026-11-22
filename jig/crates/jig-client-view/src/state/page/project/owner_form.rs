@@ -60,6 +60,7 @@ pub fn supported(doc: &Project, ask: &Ask) -> bool {
         | Ask::MoveToNewest(_)
         | Ask::Restore { .. }
         | Ask::MakeProject { .. }
+        | Ask::ReissueService { .. }
         | Ask::DeleteNote { .. } => return false,
     };
     if project != doc.number || !complete {
@@ -225,6 +226,7 @@ pub fn baseline(doc: &Project, ask: &Ask) -> Option<Ask> {
             None
         }
         Ask::MakeService { .. }
+        | Ask::ReissueService { .. }
         | Ask::Talk { .. }
         | Ask::Leave { .. }
         | Ask::Message { .. }
@@ -283,6 +285,7 @@ pub(crate) fn review(domain: &mut Ui, ask: Box<Ask>) {
         domain.project_page.settings.pool_period = match ask.as_ref() {
             Ask::SetPool { .. } => Some(doc.configured_period),
             Ask::MakeService { .. }
+            | Ask::ReissueService { .. }
             | Ask::ChangePolicy { .. }
             | Ask::SetRoles { .. }
             | Ask::Talk { .. }
@@ -349,6 +352,7 @@ pub(crate) fn send(domain: &mut Ui, out: &mut Queue<Request>) {
     let changed_period = match ask.as_ref() {
         Ask::SetPool { .. } => domain.project_page.settings.pool_period != Some(doc.configured_period),
         Ask::MakeService { .. }
+        | Ask::ReissueService { .. }
         | Ask::ChangePolicy { .. }
         | Ask::SetRoles { .. }
         | Ask::Talk { .. }

@@ -23,6 +23,9 @@ smith-local-protocol.workspace = true
 smith-local-process-world.workspace = true
 smith-agent-process-world.workspace = true
 
+[dev-dependencies]
+skein-scratch.workspace = true
+
 [lints.rust]
 unsafe_code = "forbid"
 elided_lifetimes_in_paths = "deny"

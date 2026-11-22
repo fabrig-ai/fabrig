@@ -30,6 +30,20 @@ pub(crate) fn run(
     number: u16,
     environment: &[EnvironmentEntry],
 ) -> Result<u8, String> {
+    run_with(directories, bytes, named, number, environment, make_missing, |instructions| {
+        std::io::stdout().write_all(instructions).map_err(|why| format!("print instructions: {why}"))
+    })
+}
+
+fn run_with(
+    directories: &super::Directories,
+    bytes: &[u8],
+    named: &Named,
+    number: u16,
+    environment: &[EnvironmentEntry],
+    make_missing: impl Fn(&Path, bool) -> Result<(), String>,
+    print: impl FnOnce(&[u8]) -> Result<(), String>,
+) -> Result<u8, String> {
     let row = named
         .sign_in
         .as_ref()
@@ -54,7 +68,7 @@ pub(crate) fn run(
         sign_in::instructions(b"forgejo", None, &client.id, secret, &discovery, first_sign_in(environment));
     make_missing(super::path(&provider.key), true)?;
     make_missing(super::path(secret), false)?;
-    std::io::stdout().write_all(&instructions).map_err(|why| format!("print instructions: {why}"))?;
+    print(&instructions)?;
     Ok(0)
 }
 
