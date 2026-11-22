@@ -91,3 +91,9 @@ fn json(exchange: &Exchange) -> Result<json::Json> {
 }
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+#[doc(hidden)]
+pub mod testing {
+    pub(crate) use crate::deliveries::testing::receive;
+}

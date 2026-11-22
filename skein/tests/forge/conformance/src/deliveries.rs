@@ -14,7 +14,7 @@ use skein_throwaway_forgejo::{Exchange, Forgejo, Settings};
 use std::time::Instant;
 use std::{
     collections::BTreeMap,
-    io::{self, BufRead, BufReader, Read, Write},
+    io::{self, BufRead, BufReader, Write},
     net::{TcpListener, TcpStream},
     path::Path,
     sync::mpsc::{self, Receiver, Sender},
@@ -70,8 +70,6 @@ impl Reply {
 pub(crate) struct Listener {
     pub(crate) port: u16,
     received: Receiver<(Received, Reply)>,
-    #[cfg(test)]
-    worker: Option<thread::JoinHandle<io::Result<()>>>,
 }
 impl Listener {
     #[expect(
@@ -90,35 +88,7 @@ impl Listener {
                 });
             }
         });
-        Ok(Self {
-            port,
-            received,
-            #[cfg(test)]
-            worker: None,
-        })
-    }
-    #[cfg(test)]
-    #[expect(clippy::disallowed_methods, reason = "the listener test owns and joins its single connection worker")]
-    pub(crate) fn start_test() -> io::Result<Self> {
-        let listener = TcpListener::bind(("127.0.0.1", 0))?;
-        let port = listener.local_addr()?.port();
-        let (tx, received) = mpsc::channel();
-        let worker = thread::spawn(move || {
-            let (stream, _) = listener.accept()?;
-            receive(stream, &tx)
-        });
-        Ok(Self { port, received, worker: Some(worker) })
-    }
-    #[cfg(test)]
-    pub(crate) fn next_test(&self, within: Duration) -> std::result::Result<(Received, Reply), mpsc::RecvTimeoutError> {
-        self.received.recv_timeout(within)
-    }
-    #[cfg(test)]
-    pub(crate) fn finish(self) {
-        drop(self.received);
-        if let Some(worker) = self.worker {
-            let _handled = worker.join().expect("listener worker");
-        }
+        Ok(Self { port, received })
     }
     pub(crate) fn next(&self, within: Duration) -> Option<(Received, Reply)> {
         self.received.recv_timeout(within).ok()
@@ -126,7 +96,22 @@ impl Listener {
 }
 fn receive(mut stream: TcpStream, tx: &Sender<(Received, Reply)>) -> io::Result<()> {
     stream.set_read_timeout(Some(Duration::from_secs(20)))?;
-    let mut reader = BufReader::new(stream.try_clone()?);
+    receive_from(
+        BufReader::new(stream.try_clone()?),
+        |received| {
+            let (answer, reply) = mpsc::channel();
+            tx.send((received, Reply(answer))).ok()?;
+            reply.recv_timeout(Duration::from_secs(20)).ok()
+        },
+        |bytes| stream.write_all(bytes),
+    )
+}
+
+fn receive_from(
+    mut reader: impl BufRead,
+    probe: impl FnOnce(Received) -> Option<u16>,
+    write: impl FnOnce(&[u8]) -> io::Result<()>,
+) -> io::Result<()> {
     let mut head = Vec::new();
     loop {
         let start = head.len();
@@ -141,14 +126,12 @@ fn receive(mut stream: TcpStream, tx: &Sender<(Received, Reply)>) -> io::Result<
     let length = received.header("Content-Length").parse::<usize>().map_err(io::Error::other)?;
     received.body.resize(length, 0);
     reader.read_exact(&mut received.body)?;
-    let (answer, reply) = mpsc::channel();
-    if tx.send((received, Reply(answer))).is_ok()
-        && let Ok(status) = reply.recv_timeout(Duration::from_secs(20))
-    {
-        stream.write_all(&response(status))?;
+    if let Some(status) = probe(received) {
+        write(&response(status))?;
     }
     Ok(())
 }
+
 fn response(status: u16) -> Vec<u8> {
     format!(
         "HTTP/1.1 {status} {}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
@@ -608,4 +591,17 @@ pub(crate) fn roll_up(facts: &[Fact]) -> bool {
             .count()
             == 1
     })
+}
+
+#[cfg(test)]
+pub(crate) mod testing {
+    use super::{BufRead, Received, io, receive_from};
+
+    pub(crate) fn receive(
+        reader: impl BufRead,
+        probe: impl FnOnce(Received) -> Option<u16>,
+        write: impl FnOnce(&[u8]) -> io::Result<()>,
+    ) -> io::Result<()> {
+        receive_from(reader, probe, write)
+    }
 }

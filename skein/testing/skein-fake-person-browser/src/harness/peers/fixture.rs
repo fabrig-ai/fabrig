@@ -1,5 +1,5 @@
 //! Readiness follows the peer's claim, with or without a kernel Listen.
-use super::{FIRST, Peers};
+pub use super::{FIRST, Peers};
 use crate::harness::Lent;
 use skein_fake_peers::Listening;
 use skein_io::{
