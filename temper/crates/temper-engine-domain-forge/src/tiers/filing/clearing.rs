@@ -57,7 +57,12 @@ pub(super) fn judged(d: &mut Domain, env: &Env<Limits>, row: &TierRow, verdict: 
             signature.ids.clone_from(ids);
             signature.many = false;
             let blame = finding.blame.as_mut().expect("red blame");
-            blame.strength = BlameStrength::Suspected;
+            match blame.strength {
+                BlameStrength::Owned | BlameStrength::Suspected | BlameStrength::Unblamed => {
+                    blame.strength = BlameStrength::Suspected;
+                }
+                BlameStrength::Moved => {}
+            }
             finding.title = words::counted(&finding.title, &failing);
         } else {
             finding.cleared = Some(FindingCleared { run: verdict.number, at: env.wall });

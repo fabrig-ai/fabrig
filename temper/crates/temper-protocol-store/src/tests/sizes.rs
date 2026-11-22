@@ -4,7 +4,7 @@ use skein_codec::Record;
 use temper_engine_domain_forge_vocabulary as forge;
 
 // Tier rows dominate Row: eight full waiting filings and the row framing.
-const APPLICATION_ROW_BYTES: u32 = 3_993_829;
+const APPLICATION_ROW_BYTES: u32 = 3_995_550;
 
 #[test]
 fn the_application_sizes_are_the_largest_key_and_row() {
@@ -46,7 +46,7 @@ fn the_change_bound_follows_the_tier_landings_ceilings() {
         [1024, 1024, 4096]
     );
     assert_eq!(bound, (least - 1) / 2);
-    assert_eq!(crate::v25::TierRow::encoded_bound(&ceilings), Some(1_909_122_562));
+    assert_eq!(crate::v25::TierRow::encoded_bound(&ceilings), Some(1_909_124_283));
     let mut forge = fixtures::LIMITS;
     forge.changes = bound;
     let limits = records::limits(&forge).unwrap();
@@ -259,7 +259,7 @@ fn a_full_finding_reaches_its_bound_without_growing_the_application_row() {
     meter.start();
     let cloned = row.clone();
     let held = meter.end().held();
-    assert_eq!(forge::stored_bytes(&cloned), Some(held), "blamed landings and goals are owned bytes");
+    assert_eq!(forge::stored_bytes(&cloned), Some(held), "blame, move words and repair ids are owned bytes");
     let encoded = records::encode(&row);
     let limits = records::limits(&fixtures::LIMITS).unwrap();
     let bound = crate::v25::Finding::encoded_bound(&limits).unwrap();

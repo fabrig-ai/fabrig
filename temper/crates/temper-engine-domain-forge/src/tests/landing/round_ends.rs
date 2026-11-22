@@ -142,8 +142,8 @@ impl World {
         w.send(Event::Landing { row });
         w.send(Event::Connection { forge: 1, state: Connection::Connected { id: 7, login: b"bot".as_slice().into() } });
         w.send(Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        w.send(Event::ReadAfresh);
-        w.send(Event::SettleOutbox);
+        w.send(Event::CatchUp);
+
         w
     }
     fn move_main(&mut self, at: MainMove) {

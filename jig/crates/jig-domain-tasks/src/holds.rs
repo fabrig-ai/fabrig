@@ -59,6 +59,20 @@ impl Domain {
         if self.report_pins.contains_key(&owner) {
             return Ok(());
         }
+        let own = self.report_names(batch)?;
+        if !own.is_empty() {
+            self.report_pins.insert(owner, own).expect("owners bounded by admitted core continuations");
+        }
+        Ok(())
+    }
+
+    /// Check room for an application's batch without reserving any report pins.
+    pub fn check_report_pins(&self, batch: &[New]) -> Result<(), crate::CapacityCause> {
+        self.report_names(batch)?;
+        Ok(())
+    }
+
+    fn report_names(&self, batch: &[New]) -> Result<Set<Name>, crate::CapacityCause> {
         let limit = self.resources.capacity();
         let mut kept = Set::with_capacity(limit);
         for (number, _) in &self.names {
@@ -86,10 +100,7 @@ impl Domain {
                 own.insert(name.clone()).expect("batch names fit beside kept names");
             }
         }
-        if !own.is_empty() {
-            self.report_pins.insert(owner, own).expect("owners bounded by admitted core continuations");
-        }
-        Ok(())
+        Ok(own)
     }
 
     /// Release a made, refused or dropped batch's reservation; repeated release is harmless.

@@ -257,7 +257,7 @@ fn a_restored_history_deadline_advances_when_the_fresh_read_stage_can_fire() {
     fire(&mut d, &env, &mut out);
     assert!(out.is_empty());
     step(&mut d, &env, Event::Restored { clock: skein_forge_client::RecoveryClock::Wall }, &mut restored);
-    step(&mut d, &env, Event::ReadAfresh, &mut restored);
+    step(&mut d, &env, Event::CatchUp, &mut restored);
     assert_eq!(d.restore_fit_failure(), None);
     assert_eq!(d.next_wall_deadline(), Some(Wall::EPOCH));
     fire(&mut d, &env, &mut out);

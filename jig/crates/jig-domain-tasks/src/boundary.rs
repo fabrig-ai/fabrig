@@ -1817,6 +1817,12 @@ pub enum Event {
         by: Party,
         operation: crate::Cancel,
     },
+    /// Application-only failure of a live task and cancellation of its subtree (domain/tasks/lifecycle.md, 13).
+    Fail {
+        reply_to: ReplyTo,
+        by: Party,
+        operation: crate::Fail,
+    },
     /// Root-checked release of a live task.
     Release {
         reply_to: ReplyTo,

@@ -94,8 +94,12 @@ filed it. What waits is section 11.
   replaces it whole.
 - **Refused,** in words: `finding P/N has no blame: it is no red filed
   under landed`; `finding P/N is cleared`; `landing COMMIT is not one
-  the landing log holds on BRANCH`; and as any act is, `finding P/N is
-  not yours: its owner is HOLDER`.
+  the landing log holds on BRANCH`; `finding P/N's tier TIER has no
+  followed branch`, for a move to a landing when the repository's
+  settings today name no branch that tier follows (the branch is read
+  from the settings alone, never from past tier runs or the forge; a
+  move to none still holds); and as any act is, `finding P/N is not
+  yours: its owner is HOLDER`.
 - **A many finding** given ids later keeps a moved blame as moved
   (`red-findings.md`, section 5 turns only filed blame suspected).
 
@@ -193,10 +197,14 @@ ID
 BODY
 ```
 
+- **TIER,** in the title line and the repository's line, the findings'
+  distinct tiers, oldest finding's first, joined by `, `: one
+  repository's findings may be of several tiers (4.2 refuses only two
+  repositories).
 - **The title line,** at most 60 characters: K the distinct ids of the
   findings (`1 test`; `many tests` where a finding's signature says
-  `many`); where the line would pass 60, the tier's name is cut and
-  ends with `…`.
+  `many`); where the line would pass 60, TIER is cut and ends with
+  `…`; the repository's line and each finding are never cut for it.
 - **WORDS,** the act's, whole: the triager's sort and, where a person
   decided, the answer.
 - **Each finding,** oldest first: its number and title, its attempt
@@ -235,6 +243,10 @@ BODY
 - **Its landing not held,** the log having let it go, or on another
   branch than the tier's: by the tier's first enumerated judged run
   that starts after the goal's end.
+- **Told apart by a kept change:** the log alone can't tell a landing
+  it let go from none. A goal with no landing in the log is judged as
+  one whose landing the log let go when the forge still keeps a change
+  of it landed, and as ended without landing when it keeps none.
 - **A many run judges nothing:** a finding waiting on a landing that a
   many run covers, or judged at once while the tier's last run was
   many, waits for the tier's next enumerated judged run.
@@ -370,6 +382,12 @@ BODY
     a repair made, beside `Triaged`. New refusals are
     `FindingRefusal::Words` in 4.2's and section 3's words. The stored
     finding reply (`FindingResult`) appends `repaired` and `blamed`.
+    `FindingReply` appends `more: Box<[u32]>` (at most 15) and
+    `landing: Option<Commit>`, in the store defaulted empty and none:
+    the call's `RepairAct.more` and `BlameAct.landing`, set for
+    `repair` and `blame` whatever the result and empty and none for
+    every other act, so that the tool's answer is worded from its reply
+    alone, on a restart too.
 - **The tier's record** (`temper-engine-domain-forge-tiers`' `Record`)
   keeps its last judged run's number where it keeps none today, an
   added field, none in a record from before, for judging's why (5.3).

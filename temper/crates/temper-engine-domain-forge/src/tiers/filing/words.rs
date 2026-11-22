@@ -250,6 +250,22 @@ pub(super) fn switched(
     red_body(d, row, verdict.run, failing, blame, &[], body)
 }
 
+fn blame_words(blame: &FindingBlame, run: u64) -> Box<[u8]> {
+    match blame.strength {
+        BlameStrength::Owned => {
+            joined(&[b"Owned by landing ", &short(&blame.landings.first().expect("owned landing").commit), b"."])
+        }
+        BlameStrength::Suspected => {
+            joined(&[b"Suspected: ", &decimal(skein_lib::len_u64(blame.landings.len())), b" landings."])
+        }
+        BlameStrength::Unblamed => joined(&[b"Blamed on no landing: failing before run ", &decimal(run), b"."]),
+        BlameStrength::Moved => match blame.landings.first() {
+            Some(landing) => joined(&[b"Moved to landing ", &short(&landing.commit), b"."]),
+            None => Box::from(b"Moved to no landing.".as_slice()),
+        },
+    }
+}
+
 fn red_body(
     d: &Domain,
     row: &TierRow,
@@ -263,15 +279,7 @@ fn red_body(
     if let Some(tier) = super::super::configured(d, row) {
         line(&mut body, &joined(&[b"Artifact: ", &tier.artifact]), 0);
     }
-    let reason = match blame.strength {
-        BlameStrength::Owned => {
-            joined(&[b"Owned by landing ", &short(&blame.landings.first().expect("owned landing").commit), b"."])
-        }
-        BlameStrength::Suspected => {
-            joined(&[b"Suspected: ", &decimal(skein_lib::len_u64(blame.landings.len())), b" landings."])
-        }
-        BlameStrength::Unblamed => joined(&[b"Blamed on no landing: failing before run ", &decimal(run), b"."]),
-    };
+    let reason = blame_words(&blame, run);
     line(&mut body, &reason, b"\nFailing:".len());
     landing_lines(d, row, &blame, &mut body);
     line(&mut body, b"Failing:", 0);
@@ -340,5 +348,23 @@ pub(super) fn flake(d: &Domain, row: &TierRow, verdict: &p::Verdict, tests: Box<
         },
         blame: None,
         follow: None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::findings::{BlameMove, BlamedLanding, Filer};
+
+    #[test]
+    fn moved_blame_words_name_twelve_commit_digits_or_no_landing() {
+        let mut blame = FindingBlame {
+            strength: BlameStrength::Moved,
+            landings: Box::new([BlamedLanding { commit: [0xab; 32], goals: Box::new([]) }]),
+            moved: Some(BlameMove { by: Filer::Task(7), why: b"triaged".as_slice().into() }),
+        };
+        assert_eq!(blame_words(&blame, 42).as_ref(), b"Moved to landing abababababab.");
+        blame.landings = Box::new([]);
+        assert_eq!(blame_words(&blame, 42).as_ref(), b"Moved to no landing.");
     }
 }

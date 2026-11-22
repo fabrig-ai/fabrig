@@ -696,9 +696,8 @@ impl Protocol {
                 }
                 top::Request::RestartDone { stage } => {
                     restart = match stage {
-                        top::RestartStage::Restored => Some(top::Event::ReadAfresh),
-                        top::RestartStage::ReadAfresh => Some(top::Event::SettleOutbox),
-                        top::RestartStage::Settled => None,
+                        top::RestartStage::Restored => Some(top::Event::CatchUp),
+                        top::RestartStage::ReadAfresh | top::RestartStage::Settled => None,
                     };
                     self.seen.push(top::Request::RestartDone { stage }).expect("world output capacity");
                 }
@@ -761,6 +760,8 @@ impl Protocol {
                 | top::Request::TierDecision { .. }
                 | top::Request::FileRedFinding { .. }
                 | top::Request::FileVerdict { .. }
+                | top::Request::ReturnFinding(_)
+                | top::Request::FailRepair { .. }
                 | top::Request::ChangeDecision { .. }
                 | top::Request::Reviewed { .. }
                 | top::Request::News { .. }

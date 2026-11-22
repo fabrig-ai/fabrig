@@ -478,7 +478,6 @@ impl Application for Testing {
         let mut queue = Queue::with_capacity(128);
         root::release(domain, &env(config, clock), &mut queue);
         let mut outputs = Vec::new();
-        let mut read_afresh = None;
         while let Some(request) = queue.pop() {
             outputs.push(match request {
                 root::Request::Workers(_)
@@ -494,30 +493,12 @@ impl Application for Testing {
                 }
                 root::Request::Start { phase, census } => Output::Deliver(Delivery::Start { phase, census }),
 
-                root::Request::Deliver(delivery) => {
-                    if !domain.ready()
-                        && let root::Delivery::System { connector, call: connector::SystemRequest::ReadFact { .. } } =
-                            &delivery
-                    {
-                        assert!(
-                            read_afresh.is_none_or(|number| number == *connector),
-                            "one connector reads afresh at a time"
-                        );
-                        read_afresh = Some(*connector);
-                    }
-                    Output::Deliver(Delivery::Held(delivery))
-                }
+                root::Request::Deliver(delivery) => Output::Deliver(Delivery::Held(delivery)),
                 root::Request::ReadResult { .. } => panic!("scripted results are already typed"),
                 root::Request::Now(now) => Output::Deliver(Delivery::Now(now)),
                 root::Request::Busy { event } => Output::Deliver(Delivery::Busy(event)),
                 root::Request::Stop => Output::Stop,
             });
-        }
-        if let Some(connector) = read_afresh {
-            outputs.push(Output::Deliver(Delivery::Start {
-                phase: core::start::Phase::ReadAfresh { connector },
-                census: None,
-            }));
         }
         negative::released(domain, config, clock, outputs)
     }

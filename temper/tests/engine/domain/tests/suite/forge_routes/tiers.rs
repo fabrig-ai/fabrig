@@ -442,6 +442,7 @@ fn switching_a_red_landing_files_its_verdict_once_and_holds_the_next_runs_ids() 
     assert_eq!(
         finding.blame,
         Some(forge_top::FindingBlame {
+            moved: None,
             strength: forge_top::BlameStrength::Owned,
             landings: Box::new([forge_top::BlamedLanding {
                 commit,
