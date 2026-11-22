@@ -27,12 +27,16 @@ jobs:
     steps:
       - name: Load gate reporter
         env:
+          BASE: ${{ inputs.temper_base }}
           CI_GATE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           python3 -I - <<'PYTHON'
-          import os, pathlib, urllib.request
+          import os, pathlib, re, urllib.request
           env = os.environ
-          url = f"{env['GITHUB_API_URL']}/repos/{env['GITHUB_REPOSITORY']}/raw/.forgejo/scripts/gate_log.py?ref={env['GITHUB_SHA']}"
+          ref = env.get('BASE') or 'main'
+          if ref != 'main' and not re.fullmatch('[0-9a-f]{40}|[0-9a-f]{64}', ref):
+              raise ValueError("invalid landing base")
+          url = f"{env['GITHUB_API_URL']}/repos/{env['GITHUB_REPOSITORY']}/raw/.forgejo/scripts/gate_log.py?ref={ref}"
           request = urllib.request.Request(url, headers={"Authorization": "token " + env["CI_GATE_TOKEN"]})
           with urllib.request.urlopen(request, timeout=30) as response:
               pathlib.Path("gate-reporter.py").write_bytes(response.read())
@@ -40,27 +44,26 @@ jobs:
       - name: Gate
         run: |
           python3 -I -B gate-reporter.py bash -e -o pipefail <<'GATE'
-          decided=1
-          if [ -n "$BASE" ]; then
-            work=$(mktemp -d)
-            trap 'rm -rf -- "$work"' EXIT
-            remote=${CI_GATE_REMOTE:-http://127.0.0.1:3000/$GITHUB_REPOSITORY.git}
-            if git -C "$work" init -q &&
-               GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http.extraHeader GIT_CONFIG_VALUE_0="Authorization: token $CI_GATE_TOKEN" \
-                 git -C "$work" fetch -q --no-tags --depth=1 "$remote" "$BASE" "$CANDIDATE" &&
-               git -C "$work" checkout -q --detach "$CANDIDATE" &&
-               [ -f "$work/.forgejo/scripts/gate_scope.py" ]; then
-              decided=0
-              env -u CI_GATE_TOKEN python3 -I -B "$work/.forgejo/scripts/gate_scope.py" "$work" "$BASE" "$CANDIDATE" || decided=$?
-            fi
-            rm -rf -- "$work"
-            trap - EXIT
+          if [ -z "$BASE" ]; then exec "$CI_GATE" "$CANDIDATE" "$BASE"; fi
+          tmp=$(mktemp -d)
+          trap 'rm -rf -- "$tmp"' EXIT
+          work="$tmp/candidate"
+          policy="$tmp/landed"
+          mkdir "$policy"
+          remote=${CI_GATE_REMOTE:-http://127.0.0.1:3000/$GITHUB_REPOSITORY.git}
+          git init -q "$work"
+          GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http.extraHeader GIT_CONFIG_VALUE_0="Authorization: token $CI_GATE_TOKEN" \
+            git -C "$work" fetch -q --no-tags --depth=1 "$remote" "$BASE" "$CANDIDATE"
+          git -C "$work" checkout -q --detach "$CANDIDATE"
+          if git -C "$work" cat-file -e "$BASE:.forgejo/scripts/gate_route.sh" 2>/dev/null; then
+            for file in gate_route.sh gate_scope.py gate_validate.py test_gate_routes.py test_gate_log.py; do
+              git -C "$work" show "$BASE:.forgejo/scripts/$file" > "$policy/$file"
+            done
+            sh "$policy/gate_route.sh" env -u CI_GATE_TOKEN python3 -I -B "$policy/gate_scope.py" "$work" "$BASE" "$CANDIDATE"
+          else
+            # The first landing that introduces the policy exercises the regular Gate.
+            "$CI_GATE" "$CANDIDATE" "$BASE"
           fi
-          case "$decided" in
-            0) exit 0 ;;
-            2) exit 1 ;;
-          esac
-          exec "$CI_GATE" "$CANDIDATE" "$BASE"
           GATE
         env:
           CI_GATE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
