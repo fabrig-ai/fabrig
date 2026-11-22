@@ -75,10 +75,10 @@ pub(crate) fn read(domain: &Domain, config: &Config, id: Id<Repository>, read: &
         Read::Locate => Ok(Answer::Located { id: repository.id }),
         Read::Items { state, kind, labels, author, order, since, page, limit } => {
             let (items, more) =
-                items(repository, config, *state, *kind, labels, *author, *order, *since, *page, *limit);
+                items(repository, config, domain.now, *state, *kind, labels, *author, *order, *since, *page, *limit);
             Ok(Answer::Items { items, more, now: domain.clock })
         }
-        Read::Item { number, after, since } => item(repository, config, *number, *after, *since),
+        Read::Item { number, after, since } => item(repository, config, domain.now, *number, *after, *since),
         Read::Comment { id } => {
             let Some(&number) = repository.comments.get(id) else {
                 return Err(Error::Missing(What::Comment));
@@ -108,10 +108,12 @@ pub(crate) fn read(domain: &Domain, config: &Config, id: Id<Repository>, read: &
         }
         Read::Settings => Ok(crate::next::settings(repository)),
         Read::Collaborators => Ok(crate::next::collaborators(repository)),
-        Read::PullFor { head, base } => match repository.open_pull(head, base).or(repository.first_pull(head, base)) {
-            Some(number) => pulls::view(domain, limits, repository, number),
-            None => Err(Error::Missing(What::Pull)),
-        },
+        Read::PullFor { head, base } => {
+            match shown_open_pull(repository, domain.now, head, base).or(repository.first_pull(head, base)) {
+                Some(number) => pulls::view(domain, limits, repository, number),
+                None => Err(Error::Missing(What::Pull)),
+            }
+        }
         Read::FirstPull { head, base } => match repository.first_pull(head, base) {
             Some(number) => pulls::view(domain, limits, repository, number),
             None => Err(Error::Missing(What::Pull)),
@@ -180,6 +182,7 @@ pub(crate) fn read(domain: &Domain, config: &Config, id: Id<Repository>, read: &
 fn items(
     repository: &Repository,
     config: &Config,
+    now: Time,
     state: Option<State>,
     kind: Option<Kind>,
     labels: &[Box<[u8]>],
@@ -218,7 +221,7 @@ fn items(
         }
         let item = repository.items.get(&number).expect("the listing index names items");
         let wanted = match state {
-            Some(state) => item.state == state,
+            Some(state) => crate::lag::state(item, now) == state,
             None => true,
         } && match kind {
             Some(kind) => item.kind() == kind,
@@ -238,7 +241,7 @@ fn items(
             more = true;
             break;
         }
-        items.push(item.summary(number)).expect("checked for room above");
+        items.push(summary(item, number, now)).expect("checked for room above");
     }
     (items.into_boxed(), more)
 }
@@ -248,6 +251,7 @@ fn items(
 fn item(
     repository: &Repository,
     config: &Config,
+    now: Time,
     number: u64,
     after: u64,
     since: Option<Time>,
@@ -270,7 +274,18 @@ fn item(
         }
         comments.push(comment.view(id)).expect("checked for room above");
     }
-    Ok(Answer::Item { item: item.summary(number), comments: comments.into_boxed(), more })
+    Ok(Answer::Item { item: summary(item, number, now), comments: comments.into_boxed(), more })
+}
+
+fn summary(item: &crate::store::Item, number: u64, now: Time) -> Summary {
+    let mut summary = item.summary(number);
+    if let Some(pull) = &item.pull
+        && let Some(shown) = crate::lag::active(pull, now)
+    {
+        summary.state = shown.state;
+        summary.merged = shown.merged.is_some();
+    }
+    summary
 }
 
 // An edit's time is the comment's update, even when the item's time stays still.
@@ -283,6 +298,19 @@ fn comment_since(comment: &crate::store::Comment, since: Option<Time>) -> bool {
         Some(since) => updated >= since,
         None => true,
     }
+}
+
+fn shown_open_pull(repository: &Repository, now: Time, head: &[u8], base: &[u8]) -> Option<u64> {
+    for (&number, item) in &repository.items {
+        if let Some(pull) = &item.pull
+            && crate::lag::state(item, now) == State::Open
+            && *pull.head == *head
+            && *pull.base == *base
+        {
+            return Some(number);
+        }
+    }
+    None
 }
 
 fn open_pulls(
@@ -300,7 +328,7 @@ fn open_pulls(
     let mut answer = List::with_capacity(size);
     for (&number, item) in &repository.items {
         let Some(pull) = &item.pull else { continue };
-        if item.state != State::Open {
+        if crate::lag::state(item, domain.now) != State::Open {
             continue;
         }
         if let Some(head) = head

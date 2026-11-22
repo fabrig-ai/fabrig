@@ -387,13 +387,24 @@ pub(crate) fn moved(
     let observation =
         Observation::Moved { repository: copy_of(&repository.name), branch: copy_of(branch), from, to, by };
     let following = repository.following(branch);
+    let affected = repository.on_branch(branch);
+    for &number in &affected {
+        let repository = domain.repositories.get(id).expect("a repository of the forge");
+        let pull = repository.items.get(&number).expect("an affected pull").pull.as_ref().expect("a pull request");
+        let (fault, base) = if *pull.head == *branch {
+            (crate::Fault::HeadBehind, repository.branches.get(&*pull.base).copied())
+        } else {
+            (crate::Fault::BaseBehind, from)
+        };
+        crate::lag::start(domain, env, id, number, base, to, fault);
+    }
+    let repository = domain.repositories.get_mut(id).expect("a repository of the forge");
     for &number in &following {
         let item = repository.items.get_mut(&number).expect("a pull request that follows the branch");
         let pull = item.pull.as_mut().expect("a pull request");
         pull.commit = to;
         repository.touch(number, domain::clock(env).max(domain.floor));
     }
-    let affected = repository.on_branch(branch);
     for &number in &affected {
         let span = if env.limits.settle_min == env.limits.settle_max {
             env.limits.settle_min

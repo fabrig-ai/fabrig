@@ -16,6 +16,20 @@ use crate::domain::{Config, Domain};
 use crate::git::{self, Object};
 use crate::store::{Repository, fit_names, fit_numbers, fits};
 
+/// A lagging pull-request view (testing/fakes/forge.md, 2.3).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Lag {
+    pub chance: u32,
+    pub min: Duration,
+    pub max: Duration,
+}
+
+/// Sets the chance and span of lagging views; zero disables new views.
+pub fn lag(domain: &mut Domain, lag: Lag) {
+    assert!(lag.min <= lag.max, "a lag span is a range");
+    domain.lag = if lag.chance == 0 { None } else { Some(lag) };
+}
+
 /// Adds the repository `setup` describes, its default branch at a first
 /// commit of its tree, and returns that commit.
 pub fn repository(domain: &mut Domain, config: &Config, setup: Setup) -> u64 {

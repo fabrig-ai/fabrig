@@ -252,6 +252,7 @@ pub struct Domain {
     pub(crate) fell: Queue<Fell>,
     pub(crate) fell_lost: u64,
     pub(crate) rng: Rng,
+    pub(crate) lag: Option<crate::scenario::Lag>,
     pub(crate) tally: Tally,
 }
 
@@ -349,6 +350,7 @@ impl Domain {
             fell: Queue::with_capacity(limits.observations),
             fell_lost: 0,
             rng: Rng::new(seed),
+            lag: None,
             tally: Tally::ZERO,
         }
     }
