@@ -590,6 +590,12 @@ table's words, its rule the table's:
   shared checks (`skein/docs/design/testing/inspection.md`, 4) over
   `jig_inspect::core` at its driver's quiet point: where its loop returns
   settled, nothing left to step before time moves, with no restore held.
+  A timer the core reports due at the world's time is something left to
+  step: before it returns settled, the loop fires each due timer the core
+  does not withhold (7.1), one at a time and draining after each, until
+  none is due, in every drain and not only `advance` and `fire_due`. A
+  withheld timer stays unfired. Each check's own tests judge a snapshot
+  before the world fires it.
   Its moment is the world's seed, its time and a count of its iterations.
   A finding is the loop's `Err`: a drain fails with it and the trace's
   tail, and the restart oracle's settling returns it from `finish`. Every
