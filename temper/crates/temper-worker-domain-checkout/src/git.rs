@@ -85,7 +85,7 @@ pub enum Op {
     Fetch { at: Place, store: Token, remote: Box<[u8]>, want: Want, into: Into, identity: u32, account: Option<u64> },
     /// Point a repository reference at a commit already present. Ends in `Succeeded`.
     Point { at: Place, into: Into, commit: Commit },
-    /// Count and repack the store, then the repository (protocol/git.md, 4.13).
+    /// Count and repack the store, then the repository (protocol/git.md, 4.14).
     Pack { at: Place, store: Option<Token> },
     /// Create `branch` on the forge at `commit`, only if it does not exist:
     /// a branch that does is left where it is, and the operation ends in
