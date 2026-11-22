@@ -246,7 +246,8 @@ the fake program runs in the agent-process world, so its scenario is
 there. The task's move after the refusal is jig's, on the run's refused
 end. The rows P26, S1 and P126 need placement and an account's models,
 which are jig's: their scenarios are in temper's system world
-(`temper/docs/design/testing/checks.md`, 6.3).
+(`temper/docs/design/testing/checks.md`, 6.3), where S1's passes and is
+enabled.
 
 P71's scenario, `a_silent_run_is_cut_at_its_derived_bound` in
 `smith-host-world`, passes and is enabled, an active regression: it

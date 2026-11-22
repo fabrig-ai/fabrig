@@ -626,14 +626,15 @@ the providers' faults (`smith/docs/design/faults.md`).
   is P127's combination, whose scenario, `a_rate_window_is_waited_out`,
   is smith's, and an exclusion names a scenario of its own tree
   (skein's `testing/sweeps.md`, 5), so smith's sweep excludes it there.
-- **The ignored scenarios,** in `tests/suite/accounts.rs`, each
+- **The scenarios,** in `tests/suite/accounts.rs`; the open ones are
   `#[ignore = "provider failures: ..."]`:
   - `a_limited_account_frees_its_tasks` (P26): two accounts of one
     holder; the one its tasks use is limited with no reset; its tasks
     choose again on the other, and their goal lands;
   - `spent_credits_stop_placement` (S1): `insufficient_quota` on an
     account marks it, and no run is placed on it afterwards, while the
-    other account's go on;
+    other account's go on; it passes, and is enabled, an active
+    regression;
   - `an_unserved_model_moves_the_task` (P126): a model refused for an
     account narrows that account's models, and the task chooses again
     and runs.
@@ -642,4 +643,5 @@ the providers' faults (`smith/docs/design/faults.md`).
   assertions are jig's placement and an account's models, which only
   this world runs with smith's agents, so their scenarios are here. A
   scenario that passes today shows no open problem: it stays enabled, as
-  an active regression, and the draft's row moves to its held list.
+  an active regression, and the draft's row moves to its held list, as
+  S1's has.
