@@ -4,6 +4,7 @@ mod actions;
 mod copy;
 mod creation;
 mod cues;
+mod fell;
 mod locate;
 mod next;
 mod promises;

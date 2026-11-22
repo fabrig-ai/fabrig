@@ -21,6 +21,7 @@ use crate::boundary::{Event, Request};
 
 use crate::api::{Answer, Error, Op, Permission, Read, What, Write};
 use crate::faults::{self, Window};
+use crate::fell::{Fault, Fell};
 use crate::git::{self, Object};
 use crate::hooks::{self, Delivery, Hook};
 use crate::limits::{self, Limits};
@@ -248,6 +249,8 @@ pub struct Domain {
     pub(crate) windows: Map<faults::RateKey, Window>,
     pub(crate) timers: Deadlines<Alarm>,
     pub(crate) observations: Observations,
+    pub(crate) fell: Queue<Fell>,
+    pub(crate) fell_lost: u64,
     pub(crate) rng: Rng,
     pub(crate) tally: Tally,
 }
@@ -343,6 +346,8 @@ impl Domain {
             windows: Map::with_capacity(limits.users),
             timers: Deadlines::with_capacity(limits::timers(limits).unwrap_or(u32::MAX)),
             observations: Observations::with_capacity(limits.observations),
+            fell: Queue::with_capacity(limits.observations),
+            fell_lost: 0,
             rng: Rng::new(seed),
             tally: Tally::ZERO,
         }
@@ -595,7 +600,11 @@ fn call(
     admitted: bool,
     out: &mut Queue<Request>,
 ) {
+    let token = reply_to.into_token();
+    let reply_to = ReplyTo::new(token);
+    let subject = Fell::call(env.now, user, repository, &op, token);
     if domain.calls.is_full() {
+        domain.call_fell(&subject, Fault::Busy, None);
         domain.tally.busy = domain.tally.busy.saturating_add(1);
         domain.tally.answered = domain.tally.answered.saturating_add(1);
         out.push(Request::Reply { to: reply_to, result: Err(Error::Unavailable) });
@@ -653,7 +662,8 @@ fn call(
         Op::Read(_) => false,
         Op::Git(_) => true,
     };
-    let admission = if admitted { faults::available(domain, env) } else { faults::admit(domain, env, user) };
+    let admission =
+        if admitted { faults::available(domain, env, &subject) } else { faults::admit(domain, env, user, &subject) };
     let mut extra = Duration::ZERO;
     let state = match admission {
         Err(error) => State::Waiting { reply_to, result: Err(error), landing: None },
@@ -661,7 +671,7 @@ fn call(
             Op::Write(Write::Copy { owner, name, fill }) => {
                 match crate::creation::copy::start(domain, env, repository, user, &owner, &name) {
                     Ok((source, destination, answer)) => {
-                        let mut result = faults::finish(domain, env, Ok(answer));
+                        let mut result = faults::finish(domain, env, Ok(answer), &subject);
                         match fill {
                             crate::api::Fill::Whole => {}
                             crate::api::Fill::Slow(span) => extra = span,
@@ -678,7 +688,7 @@ fn call(
                         if error == Error::Full {
                             domain.tally.full = domain.tally.full.saturating_add(1);
                         }
-                        let result = faults::finish(domain, env, Err(error));
+                        let result = faults::finish(domain, env, Err(error), &subject);
                         State::Waiting { reply_to, result, landing: None }
                     }
                 }
@@ -688,13 +698,13 @@ fn call(
                     (Err(Error::Timeout), Some(Landing { user, repository: copy_of(repository), op }))
                 } else {
                     let result = make(domain, env, user, repository, op);
-                    (faults::finish(domain, env, result), None)
+                    (faults::finish(domain, env, result, &subject), None)
                 };
                 State::Waiting { reply_to, result, landing }
             }
         },
     };
-    let at = faults::latency(domain, env).saturating_add(extra);
+    let at = faults::latency(domain, env, &subject, extra);
     let call = Call { state };
     let id = domain.calls.insert(call).expect("checked for room above");
     domain.timers.arm(Alarm::Call(id), at).expect("a timer per call fits");
@@ -865,13 +875,18 @@ fn answer(domain: &mut Domain, env: &Env<Config>, id: Id<Call>, out: &mut Queue<
     let state = mem::replace(&mut call.state, State::Closed);
     match state {
         State::Waiting { reply_to, result, landing } => {
+            let token = reply_to.into_token();
+            let reply_to = ReplyTo::new(token);
             out.push(Request::Reply { to: reply_to, result });
             domain.tally.answered = domain.tally.answered.saturating_add(1);
             match landing {
                 Some(landing) => {
+                    let subject = Fell::call(env.now, landing.user, &landing.repository, &landing.op, token);
                     call.state = State::Landing(landing);
                     let config = &env.limits;
                     let at = env.now.saturating_add(faults::draw(domain, config.land_min, config.land_max));
+                    // The landing interval starts at the timeout's answer; only now is its end drawn.
+                    domain.call_fell(&subject, Fault::Landing, Some(at));
                     domain.timers.arm(Alarm::Call(id), at).expect("a timer per call fits");
                 }
                 None => domain.calls.retire(id),

@@ -1,4 +1,5 @@
 //! Dispatch-only workflows, runner faults and explicit reruns (testing/fakes/forge.md, 2.3).
+use crate::fell::Fault;
 use crate::{
     Config, Domain, Limits,
     actions::{self, Conclusion, Job, Kept, Run, RunEvent, RunState},
@@ -224,6 +225,8 @@ fn pending(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>, run: u64,
             .expect("retained job timer");
     } else if domain.rng.chance(silent) {
         domain.tally.silent = domain.tally.silent.saturating_add(1);
+        let commit = kept.run.commit;
+        domain.ci_fell(env.now, Fault::Silent, id, commit, run);
     } else {
         let span = match phases.run {
             Some(span) => span,
@@ -289,6 +292,12 @@ pub(crate) fn report(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>,
     };
     let artifact =
         crate::reports::artifact(domain, workflow, &kept.run, &env.limits.limits).expect("report inputs admitted");
+    if lost {
+        domain.ci_fell(env.now, Fault::Lost, id, commit, run);
+    }
+    if setup && !lost {
+        domain.ci_fell(env.now, Fault::SetUp, id, commit, run);
+    }
     let repository = domain.repositories.get_mut(id).expect("repository");
     let kept = repository.dispatched.get_mut(&run).expect("run");
     let mut attempt = None;

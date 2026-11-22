@@ -6,6 +6,7 @@ use skein_lib::{Duration, Env, Time, earliest};
 
 use crate::api::{Answer, Error};
 use crate::domain::{self, Config, Domain};
+use crate::fell::{Fault, Fell};
 
 /// A user's rate window: when it ends, and the calls taken in it.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -41,13 +42,31 @@ pub fn rate(
     limit: u32,
     window: Duration,
 ) -> Result<Rate, RateDenied> {
+    let mut subject = Fell::new(env.now, Fault::Limited);
+    subject.user = match key {
+        RateKey::User(user) => Some(user),
+        RateKey::Installation(_) => None,
+    };
+    charge(domain, env, key, limit, window, &subject)
+}
+
+fn charge(
+    domain: &mut Domain,
+    env: &Env<Config>,
+    key: RateKey,
+    limit: u32,
+    window: Duration,
+    subject: &Fell,
+) -> Result<Rate, RateDenied> {
     assert!(limit > 0, "admitted rate quota");
     let fresh = Window { end: env.now.saturating_add(window), calls: 1 };
     match domain.windows.get_mut(&key) {
         Some(stored) if env.now < stored.end => {
             if stored.calls >= limit {
                 domain.tally.limited = domain.tally.limited.saturating_add(1);
-                return Err(RateDenied::Limited(snapshot(env, limit, *stored)));
+                let rate = snapshot(env, limit, *stored);
+                domain.call_fell(subject, Fault::Limited, None);
+                return Err(RateDenied::Limited(rate));
             }
             stored.calls = stored.calls.saturating_add(1);
             Ok(snapshot(env, limit, *stored))
@@ -73,6 +92,7 @@ pub fn rate(
                     }
                     None => {
                         domain.tally.crowded = domain.tally.crowded.saturating_add(1);
+                        domain.call_fell(subject, Fault::Crowded, None);
                         let end = first.unwrap_or(fresh.end);
                         return Err(RateDenied::Crowded {
                             rate: snapshot(env, limit, Window { end, calls: 0 }),
@@ -91,9 +111,9 @@ fn snapshot(env: &Env<Config>, limit: u32, window: Window) -> Rate {
     Rate { limit, used: window.calls, reset: skein_lib::Wall::from_nanos(reset) }
 }
 /// Takes an ordinary domain call, including its rate and unavailable draw.
-pub(crate) fn admit(domain: &mut Domain, env: &Env<Config>, user: u64) -> Result<(), Error> {
+pub(crate) fn admit(domain: &mut Domain, env: &Env<Config>, user: u64, subject: &Fell) -> Result<(), Error> {
     if env.limits.rate_limit > 0 {
-        match rate(domain, env, RateKey::User(user), env.limits.rate_limit, env.limits.rate_window) {
+        match charge(domain, env, RateKey::User(user), env.limits.rate_limit, env.limits.rate_window, subject) {
             Ok(_) => {}
             Err(RateDenied::Limited(_)) => {
                 let end = domain.windows.get(&RateKey::User(user)).expect("limited window").end;
@@ -104,11 +124,12 @@ pub(crate) fn admit(domain: &mut Domain, env: &Env<Config>, user: u64) -> Result
             }
         }
     }
-    available(domain, env)
+    available(domain, env, subject)
 }
-pub(crate) fn available(domain: &mut Domain, env: &Env<Config>) -> Result<(), Error> {
+pub(crate) fn available(domain: &mut Domain, env: &Env<Config>, subject: &Fell) -> Result<(), Error> {
     if domain.rng.chance(env.limits.unavailable) {
         domain.tally.unavailable = domain.tally.unavailable.saturating_add(1);
+        domain.call_fell(subject, Fault::Unavailable, None);
         return Err(Error::Unavailable);
     }
     Ok(())
@@ -121,24 +142,35 @@ pub(crate) fn lands_late(domain: &mut Domain, env: &Env<Config>) -> bool {
 
 /// What the caller hears of a call that was made: `result`, or, by chance, a
 /// timeout.
-pub(crate) fn finish(domain: &mut Domain, env: &Env<Config>, result: Result<Answer, Error>) -> Result<Answer, Error> {
+pub(crate) fn finish(
+    domain: &mut Domain,
+    env: &Env<Config>,
+    result: Result<Answer, Error>,
+    subject: &Fell,
+) -> Result<Answer, Error> {
     if domain.rng.chance(env.limits.timeouts) {
         domain.tally.timeouts = domain.tally.timeouts.saturating_add(1);
+        domain.call_fell(subject, Fault::TimedOut, None);
         return Err(Error::Timeout);
     }
     result
 }
 
 /// When a call's answer goes out: after its latency, or late.
-pub(crate) fn latency(domain: &mut Domain, env: &Env<Config>) -> Time {
+pub(crate) fn latency(domain: &mut Domain, env: &Env<Config>, subject: &Fell, extra: Duration) -> Time {
     let config = &env.limits;
-    let span = if domain.rng.chance(config.late) {
+    let late = domain.rng.chance(config.late);
+    let span = if late {
         domain.tally.late = domain.tally.late.saturating_add(1);
         draw(domain, config.late_min, config.late_max)
     } else {
         draw(domain, config.latency_min, config.latency_max)
     };
-    env.now.saturating_add(span)
+    let until = env.now.saturating_add(span).saturating_add(extra);
+    if late {
+        domain.call_fell(subject, Fault::Late, Some(until));
+    }
+    until
 }
 
 /// A span drawn from `min..=max`.
