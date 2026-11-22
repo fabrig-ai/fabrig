@@ -62,7 +62,7 @@ pub enum Point { LlmCall, ToolCall, DeliveryCheck, Save }
 pub const fn worker(way: Way, point: Point) -> Kind;
 
 /// Each world's kinds, as its sweep configures them (section 9).
-pub const ENGINE: [Kind; 6];     // section 4
+pub const ENGINE: [Kind; 5];     // section 4, without STOP_BEFORE_OPENING
 pub const FORGE: [Kind; 7];      // section 5, ENGINE_CRASH first
 pub const WORKER: [Kind; 12];    // section 6, by `Way` then `Point`
 pub const MID_TURN: [Kind; 2];   // section 7
@@ -74,8 +74,8 @@ pub const SIMULATED: [Kind; 2];  // section 8
 | `ENGINE_CRASH` | `engine crash` | the engine restarted cold | composition | 4, 5 |
 | `SETTLED_STOP` | `settled stop` | a settled stop at any moment | behaviour | 4 |
 | `STOP_BEFORE_MARK` | `stop before the mark` | a stop before the start's mark | behaviour | 4 |
-| `STOP_BEFORE_OPENING` | `stop before the opening` | after the mark, before the opening | behaviour | 4 |
-| `STOP_AFTER_OPENING` | `stop after the opening` | after the opening, while the forge reconciles | behaviour | 4 |
+| `STOP_BEFORE_OPENING` | `stop before the opening` | after the mark, before the opening | behaviour | no world (4); the core's step test |
+| `STOP_AFTER_OPENING` | `stop after the opening` | after the opening, while the forge catches up | behaviour | 4 |
 | `SECOND_SIGNAL` | `second signal` | a second signal during a stop's settle | behaviour | 4 |
 | `FORGE_DOWN_UNTIL` | `forge down until a moment` | the forge down through a start, until a named moment | script | 5 |
 | `FORGE_DOWN_FOR_GOOD` | `forge down for good` | the same, for good | script | 5 |
@@ -154,16 +154,14 @@ root over the fake forge's domain, the world of the follows workload
   `../domain/root.md`, 8.2 has it, then starts a new root from the
   store. Its interval runs from the stop to the next opening.
 - **A stop in each class of a start:** during a start that follows a
-  crash or a settled stop, the injector may draw a stop in one of three
+  crash or a settled stop, the injector may draw a stop in one of two
   classes, each its own kind, read from the root's
   `Domain::start_phase()` (jig's `start::Phase`):
   - `STOP_BEFORE_MARK`: `LoadCore` to `Wires`, the wires not yet
     committed;
-  - `STOP_BEFORE_OPENING`: `AdoptRuns`, `ReadAfresh` and `SettleOutbox`;
-  - `STOP_AFTER_OPENING`: once the root has opened, while its forge still
-    reconciles where it reconciles after the opening
-    (`../draft/reconciling-start.md`, 3), or at the first iteration after
-    the opening where the forge reconciled before it.
+  - `STOP_AFTER_OPENING`: once the root has opened, while its forge
+    still catches up (`../draft/reconciling-start.md`, 3), at the first
+    iteration after the opening.
 
   The world holds the start in the drawn class long enough for the stop
   to fall there (by holding the store's answers, `store::Fault::Hold`, or
@@ -171,6 +169,17 @@ root over the fake forge's domain, the world of the follows workload
   it until the start has ended as `../domain/root.md`, 8.2 has it, then
   starts a new root from the store. Its interval runs from the stop to
   the next opening.
+- **No stop between the mark and the opening:** since the engine opens
+  before its forge has caught up, the start adopts its runs
+  (`AdoptRuns`) in the same root input that takes the mark's answer and
+  opens, so nothing a deployment does stops a start there.
+  `STOP_BEFORE_OPENING` keeps its name in the kit and is in no world's
+  sweep; the core's step test holds the start at `AdoptRuns` by its own
+  fixture and covers that stop
+  (`temper/crates/temper-engine-domain/src/tests/start_stop.rs`). A
+  world adds no hook to product code to reach it. A stop with the mark's
+  commit stored and not yet answered has no pinned behaviour; it is the
+  restart drafts' to design.
 - **A second signal during a stop's settle** (`SECOND_SIGNAL`): after a
   settled stop's signal, and before the root has stopped, at an
   iteration the injector draws, the world aborts the root as the
@@ -365,7 +374,8 @@ Focused and fuzzy suites only.
 - **The vocabulary,** in `temper-faults`' own tests: every kind's family
   is `restarts`; every name is unique; `worker` gives twelve distinct
   kinds over its pairs, each named as section 2 says; each group holds
-  its section's kinds and no other.
+  its section's kinds and no other, `ENGINE` without
+  `STOP_BEFORE_OPENING`.
 - **Each fault's own step test,** in its world's focused suite: the world
   injects that fault alone, at a moment the test names, and the test
   reads what the fault's section says it does (the root dropped with its
@@ -386,8 +396,10 @@ Focused and fuzzy suites only.
   a bound (3.4), a restart changing no outcome it shouldn't (3.5), and
   every commit leaving a store a start would open (3.7), as their goals
   build them.
-- A stop in a start class the reconciling start adds, should it add one:
-  a fourth kind beside the three of section 4.
+- A stop in a start class the reconciling start adds, should it add one,
+  or with the mark's commit stored and not yet answered, once the
+  restart drafts pin what it does: a kind of its own in `ENGINE`, beside
+  the two classes of section 4.
 - jig's conformance referee started from a store's baseline, a compacted
   prefix such as dev's image, so that it also watches a run from the
   image (section 8).
