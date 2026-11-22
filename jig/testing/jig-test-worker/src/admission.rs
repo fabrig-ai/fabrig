@@ -42,6 +42,7 @@ pub fn class(event: &Event) -> Class {
                 | Up::Admitted
                 | Up::MessageRefused { .. }
                 | Up::Answer { .. }
+                | Up::Part { .. }
                 | Up::Turn { .. }
                 | Up::Waiting { .. }
                 | Up::Long { .. }

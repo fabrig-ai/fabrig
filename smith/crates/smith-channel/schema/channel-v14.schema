@@ -1,4 +1,4 @@
-family smith-channel 13
+family smith-channel 14
 
 # The receiving host/agent additionally checks aggregate ownership and counts
 # against its configured domain Limits. Bytes carried from other codec families
@@ -11,6 +11,7 @@ record Directory {
     writable: bool
     git: bool
     conflicts: list 1024 text 4096
+    results: option text 4096
 }
 record Workspace { directories: list 64 Directory }
 enum Scheme { bearer, key }
@@ -71,6 +72,8 @@ record Start {
     charter: bytes 67108864
     workspace: option Workspace
     transcript: bytes 536870912
+    tell_parts: bool
+    parts: bytes 536870912
     answered: list 128 AnsweredCall
     grants: list 64 Grant
     window: Window
@@ -81,7 +84,7 @@ record HostAnswer { name: CallName reply: Reply }
 record Acknowledge { number: u32 }
 record GrantRefresh { grant: Grant }
 record Cancel {}
-record Drain {}
+record Drain { grace: option duration }
 record Renewals { held: bool }
 
 record Admitted {}
@@ -101,6 +104,10 @@ record Turn {
     opens_window: bool
     body: bytes 33554432
 }
+enum PartKind { answer, result, window }
+record Part { number: u32 turn: u32 thread: u32 call: u32 kind: PartKind body: bytes 33554432 }
+record PartKept { number: u32 }
+record KeptPart { activation: u64 turn: u32 thread: u32 call: u32 kind: PartKind body: bytes 33554432 }
 record Waiting { last_read: option u64 }
 enum Operation { check, completion, command, grant }
 record Long { operation: Operation span: duration }

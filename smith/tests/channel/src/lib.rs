@@ -105,6 +105,12 @@ pub enum Observation {
     AgentCancel,
     /// Host asked for the current turn to finish whole.
     AgentDrain,
+    /// A nonempty drain grace carried to the agent.
+    AgentDrainGrace(skein_lib::Duration),
+    /// A checked part delivered to the host.
+    HostPart { number: u32, turn: u32 },
+    /// A part prefix kept by the host.
+    AgentPartKept(u32),
     /// The agent's write stream failed while its read side may continue.
     AgentWriteFailed,
     /// The host's write stream failed while its read side may continue.
@@ -359,6 +365,9 @@ impl Peer {
                 host::Received::Message { message: smith_host_domain::Up::LongDone } => {
                     output.push(Observation::HostLongDone);
                 }
+                host::Received::Message { message: smith_host_domain::Up::Part { part } } => {
+                    output.push(Observation::HostPart { number: part.number, turn: part.turn });
+                }
                 host::Received::Message { message: smith_host_domain::Up::Turn { turn } } => {
                     output.push(Observation::HostTurn {
                         opens_window: turn.opens_window,
@@ -498,7 +507,11 @@ impl Peer {
                     valid: grant.valid,
                 }),
                 agent::Heard::Cancel => output.push(Observation::AgentCancel),
-                agent::Heard::Drain => output.push(Observation::AgentDrain),
+                agent::Heard::Drain { grace } => output.push(match grace {
+                    Some(grace) => Observation::AgentDrainGrace(grace),
+                    None => Observation::AgentDrain,
+                }),
+                agent::Heard::PartKept { number } => output.push(Observation::AgentPartKept(number)),
                 agent::Heard::WriteFailed => output.push(Observation::AgentWriteFailed),
             }
         }
@@ -525,7 +538,7 @@ fn channel_limits(bodies: smith_channel::Limits) -> skein_channel::Limits {
         skip: 4096,
         output_bytes: largest.checked_add(8).expect("frame fits"),
         output_frames: 4,
-        kinds: u32::try_from(smith_channel::V13.len()).expect("channel kinds fit"),
+        kinds: u32::try_from(smith_channel::V14.len()).expect("channel kinds fit"),
     }
 }
 
@@ -718,6 +731,8 @@ impl World {
         .map(|value| smith_host_domain::Transcript::new(value, u64::MAX).expect("fixture ownership"));
         self.host.raw_start = Some(RawStart { charter, transcript });
         let start = smith_host_domain::channel::Start {
+            parts: Box::default(),
+            tell_parts: false,
             live,
             messages: Box::default(),
             logical_run: skein_lib::Token::new(1),
@@ -785,6 +800,8 @@ impl World {
         .map(|value| smith_host_domain::Transcript::new(value, u64::MAX).expect("fixture ownership"));
         self.host.raw_start = Some(RawStart { charter, transcript });
         let start = smith_host_domain::channel::Start {
+            parts: Box::default(),
+            tell_parts: false,
             live: None,
             messages: Box::default(),
             logical_run: skein_lib::Token::new(1),
@@ -799,6 +816,7 @@ impl World {
                 reply,
             }]),
             directories: Box::from([smith_host_domain::channel::Directory {
+                results: None,
                 host: Box::from(b"/host".as_slice()),
                 root: Token::new(1),
                 name: Box::from(*b"src"),
@@ -1166,7 +1184,7 @@ impl World {
     /// Ask the agent to finish its current turn, once before cancellation.
     pub fn host_drains(&mut self) {
         if let Half::Host(host) = &mut self.host.half {
-            host.send_drain(skein_lib::Token::new(38), &mut self.host.host_events, &mut self.host.below)
+            host.send_drain(None, skein_lib::Token::new(38), &mut self.host.host_events, &mut self.host.below)
                 .expect("one drain before cancel");
         }
     }
@@ -1375,6 +1393,9 @@ fn smallest_charter() -> Box<[u8]> {
 }
 
 #[cfg(test)]
+mod parts_tests;
+
+#[cfg(test)]
 mod read_tests {
     use super::*;
 
@@ -1474,12 +1495,14 @@ mod read_tests {
             world.settle();
             assert_eq!(world.observations().iter().filter(|event| **event == Observation::AgentDrain).count(), 1);
             if let Half::Host(host) = &mut world.host.half {
-                assert!(host.send_drain(Token::new(39), &mut world.host.host_events, &mut world.host.below).is_err());
+                assert!(
+                    host.send_drain(None, Token::new(39), &mut world.host.host_events, &mut world.host.below).is_err()
+                );
             }
             world.host_cancels();
             world.settle();
             assert_eq!(world.observations().iter().filter(|event| **event == Observation::AgentCancel).count(), 1);
-            let record = smith_channel::Drain {};
+            let record = smith_channel::Drain { grace: None };
             inject_agent(&mut world, smith_channel::Body::Drain(record));
             assert_eq!(world.observations().iter().filter(|event| **event == Observation::AgentDrain).count(), 1);
             assert!(world.observations().iter().any(|event| matches!(event, Observation::AgentEnded(_))));
@@ -1490,7 +1513,7 @@ mod read_tests {
     fn a_second_wire_drain_is_a_rule_fault() {
         let mut world = World::started();
         for _ in 0..2 {
-            let record = smith_channel::Drain {};
+            let record = smith_channel::Drain { grace: None };
             inject_agent(&mut world, smith_channel::Body::Drain(record));
         }
         assert_eq!(world.observations().iter().filter(|event| **event == Observation::AgentDrain).count(), 1);

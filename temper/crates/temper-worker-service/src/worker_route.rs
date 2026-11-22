@@ -245,6 +245,7 @@ pub fn fit_start(mut start: smith::Start, limits: &smith_domain_run::Limits, cha
                     writable: directory.writable,
                     git: directory.git,
                     conflicts: directory.conflicts.clone(),
+                    results: None,
                 })
                 .expect("one entry per prepared directory");
         }

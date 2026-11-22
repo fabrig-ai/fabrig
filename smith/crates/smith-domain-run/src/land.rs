@@ -292,10 +292,12 @@ fn start_check(
     out: &mut Queue<Request>,
 ) -> Stage {
     run.lease.assert_workspace(id.token());
-    let root = repository(run, check).root;
+    let directory = repository(run, check);
+    let root = directory.root;
+    let results = directory.results.clone();
     let program = Place { root, path: copy_of(conventions::checks(&run.charter)) };
     let deadline = env.now.saturating_add(bound).min(cap);
-    out.push(Request::Check { owner: id.token(), program, bound, cap, tail: env.limits.check_tail });
+    out.push(Request::Check { owner: id.token(), program, results, bound, cap, tail: env.limits.check_tail });
     out.push(Request::Checking { host_run: run.host_name, deadline });
     Stage::Checking { check, given: bound, retry }
 }

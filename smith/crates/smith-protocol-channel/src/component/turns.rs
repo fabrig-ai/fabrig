@@ -7,12 +7,23 @@ pub(super) struct Turns {
     window: smith_domain::Window,
     held: Map<u32, u64>,
     last: u32,
+    parts: Map<u32, u64>,
+    last_part: u32,
+    kept_part: u32,
     bytes: u64,
 }
 
 impl Turns {
     pub(super) fn new(window: smith_domain::Window, capacity: u32) -> Turns {
-        Turns { window, held: Map::with_capacity(capacity), last: 0, bytes: 0 }
+        Turns {
+            window,
+            held: Map::with_capacity(capacity),
+            last: 0,
+            bytes: 0,
+            parts: Map::with_capacity(capacity),
+            last_part: 0,
+            kept_part: 0,
+        }
     }
 
     pub(super) fn next(&self) -> Option<u32> {
@@ -21,7 +32,10 @@ impl Turns {
 
     pub(super) fn check(&self, number: u32, bytes: u64) -> Result<(), Error> {
         let held = self.bytes.checked_add(bytes).ok_or(Error::Window)?;
-        if self.next() != Some(number) || self.held.len() >= self.window.turns || held > self.window.bytes {
+        if self.next() != Some(number)
+            || self.held.len().saturating_add(self.parts.len()) >= self.window.turns
+            || held > self.window.bytes
+        {
             return Err(Error::Window);
         }
         Ok(())
@@ -33,6 +47,38 @@ impl Turns {
         self.held.insert(number, bytes).or(Err(Error::Window))?;
         self.last = number;
         self.bytes = held;
+        Ok(())
+    }
+
+    pub(super) fn keep_part(&mut self, number: u32, bytes: u64) -> Result<(), Error> {
+        let held = self.bytes.checked_add(bytes).ok_or(Error::Window)?;
+        if self.last_part.checked_add(1) != Some(number)
+            || self.held.len().saturating_add(self.parts.len()) >= self.window.turns
+            || held > self.window.bytes
+        {
+            return Err(Error::Window);
+        }
+        self.parts.insert(number, bytes).or(Err(Error::Window))?;
+        self.last_part = number;
+        self.bytes = held;
+        Ok(())
+    }
+
+    pub(super) fn acknowledge_part(&mut self, number: u32) -> Result<(), Error> {
+        if number == 0 || number > self.last_part || number < self.kept_part {
+            return Err(Error::Window);
+        }
+        let mut old = List::with_capacity(self.parts.len());
+        for (part, _) in &self.parts {
+            if *part <= number {
+                old.push(*part).or(Err(Error::Window))?;
+            }
+        }
+        for part in &old {
+            let bytes = self.parts.remove(part).expect("known held part");
+            self.bytes = self.bytes.checked_sub(bytes).ok_or(Error::Window)?;
+        }
+        self.kept_part = number;
         Ok(())
     }
 

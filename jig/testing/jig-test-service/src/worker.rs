@@ -524,10 +524,11 @@ impl Worker {
             smith::Down::Grant { grant } => grant_value(&self.values, grant, self.env.now),
             smith::Down::Message { .. }
             | smith::Down::Answer { .. }
+            | smith::Down::PartKept { .. }
             | smith::Down::Acknowledge { .. }
             | smith::Down::Renewals { .. }
             | smith::Down::Cancel
-            | smith::Down::Drain => Some(host::Values { paths: Box::default(), credentials: Box::default() }),
+            | smith::Down::Drain { .. } => Some(host::Values { paths: Box::default(), credentials: Box::default() }),
         };
         let Some(values) = values else {
             self.events.push(root::Event::Process(Box::new(smith::process::Event::Unsent { owner })));
@@ -555,6 +556,9 @@ impl Worker {
             smith::Down::Answer { call, reply } => {
                 process.send_reply(call, reply, token, &mut self.process_events, &mut self.io)
             }
+            smith::Down::PartKept { number } => {
+                process.send_part_kept(number, token, &mut self.process_events, &mut self.io)
+            }
             smith::Down::Acknowledge { turn } => {
                 process.send_acknowledge(turn, token, &mut self.process_events, &mut self.io)
             }
@@ -562,7 +566,7 @@ impl Worker {
                 process.send_renewals(held, token, &mut self.process_events, &mut self.io)
             }
             smith::Down::Cancel => process.send_cancel(token, &mut self.process_events, &mut self.io),
-            smith::Down::Drain => process.send_drain(token, &mut self.process_events, &mut self.io),
+            smith::Down::Drain { grace } => process.send_drain(grace, token, &mut self.process_events, &mut self.io),
         };
         if sent.is_err() {
             self.events.push(root::Event::Process(Box::new(smith::process::Event::Unsent { owner })));

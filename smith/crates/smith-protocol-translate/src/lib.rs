@@ -39,5 +39,5 @@ pub use host_path::host_path;
 pub use result::decode_declared;
 pub use result::encode_result;
 pub use start::{DecodedStart, Grant, Mount, start_context};
-pub use transcript::{decode_transcript, decode_turn, transcript_piece};
+pub use transcript::{decode_part, decode_transcript, decode_turn, transcript_piece};
 pub use turn::encode_turn;

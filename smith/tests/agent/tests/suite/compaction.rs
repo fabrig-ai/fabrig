@@ -53,6 +53,7 @@ fn world_with_history(refused: bool, immediate: bool, saved: smith_domain::Trans
     disk.write(b"work/data.txt", &[b'd'; DATA_BYTES]);
     let workspace = run::Workspace {
         directories: Box::new([run::Directory {
+            results: None,
             host: b"/host".as_slice().into(),
             name: b"work".as_slice().into(),
             root: Token::new(disk.root(b"work")),

@@ -23,11 +23,7 @@ pub(super) fn valid_start(start: &Start, limits: &Limits) -> Option<Invalid> {
     if start.charter.owned_bytes() > limits.charter_bytes {
         return Some(Invalid::Charter);
     }
-    let transcript_fits = match &start.transcript {
-        Some(transcript) => transcript.owned_bytes() <= limits.transcript_bytes,
-        None => true,
-    };
-    if !transcript_fits {
+    if !history_fits(start, limits.transcript_bytes) {
         return Some(Invalid::Transcript);
     }
     match answered_bytes(&start.answered, limits.name_bytes) {
@@ -49,6 +45,11 @@ pub(super) fn valid_start(start: &Start, limits: &Limits) -> Option<Invalid> {
         if !within(&directory.host, u64::from(limits.path_bytes))
             || !within(&directory.name, u64::from(limits.name_bytes))
             || directory.conflicts.len() > usize::try_from(limits.conflicts).expect("u32 fits usize")
+        {
+            return Some(Invalid::Directories);
+        }
+        if let Some(path) = &directory.results
+            && (path.is_empty() || path.contains(&0) || !within(path, 4096))
         {
             return Some(Invalid::Directories);
         }
@@ -153,4 +154,27 @@ fn relative(path: &[u8], limit: u32) -> bool {
     }
     let part = path.get(from..).expect("bounded path suffix");
     !part.is_empty() && part != b"." && part != b".."
+}
+
+fn history_fits(start: &Start, limit: u64) -> bool {
+    let mut history_bytes = match &start.transcript {
+        Some(transcript) => transcript.owned_bytes(),
+        None => 0,
+    };
+    let Some(part_bytes) = skein_lib::len_u64(start.parts.len())
+        .checked_mul(u64::try_from(size_of::<crate::channel::KeptPart>()).expect("part cell fits"))
+    else {
+        return false;
+    };
+    history_bytes = match history_bytes.checked_add(part_bytes) {
+        Some(bytes) => bytes,
+        None => return false,
+    };
+    for part in &start.parts {
+        history_bytes = match history_bytes.checked_add(part.body.owned_bytes()) {
+            Some(bytes) => bytes,
+            None => return false,
+        };
+    }
+    history_bytes <= limit
 }

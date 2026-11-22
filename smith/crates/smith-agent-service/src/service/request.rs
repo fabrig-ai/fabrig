@@ -100,10 +100,10 @@ pub(super) fn domain_request(service: &mut Stages, mut frame: Option<&mut Frame>
                 &mut service.machine_below,
             );
         }
-        domain::Request::Lower(smith_domain::Lower::Check { owner, program, bound, cap, tail }) => {
+        domain::Request::Lower(smith_domain::Lower::Check { owner, program, results, bound, cap, tail }) => {
             service.machine.from_domain(
                 &service.machine_env,
-                machine::FromDomain::Check { owner, program, bound, cap, tail },
+                machine::FromDomain::Check { owner, program, results, bound, cap, tail },
                 &mut service.machine_events,
                 &mut service.machine_below,
             );
@@ -117,6 +117,7 @@ pub(super) fn domain_request(service: &mut Stages, mut frame: Option<&mut Frame>
             );
         }
         request @ (domain::Request::Waiting { .. }
+        | domain::Request::Part { .. }
         | domain::Request::Turn { .. }
         | domain::Request::HostCall { .. }
         | domain::Request::WithdrawHost { .. }

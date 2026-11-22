@@ -14,6 +14,8 @@ pub fn start(decoded: smith_protocol_translate::DecodedStart, host_run: Token) -
         activation: decoded.activation,
         window: decoded.window,
         transcript: decoded.transcript,
+        tell_parts: decoded.tell_parts,
+        parts: decoded.parts,
         answered: decoded.answered,
         grants: decoded
             .grants

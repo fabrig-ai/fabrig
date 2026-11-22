@@ -56,6 +56,8 @@ pub fn start(seed: u64, job: smith_agent_world::Job) -> host::Start {
     charter.grants.agents = false;
     charter.models = Box::default();
     host::Start {
+        parts: Box::default(),
+        tell_parts: false,
         live: None,
         messages: Box::default(),
         logical_run: Token::new(seed),
@@ -89,6 +91,7 @@ pub fn workspace_start(seed: u64, job: smith_agent_world::Job) -> host::Start {
     source.charter = host::Charter::new(charter, settings.limits.run.run_bytes).expect("bounded workspace charter");
     source.workspace = Some(Token::new(9));
     source.directories = Box::from([host::Directory {
+        results: None,
         host: Box::from(b"/host".as_slice()),
         name: b"work".as_slice().into(),
         root: Token::new(1),
@@ -271,6 +274,10 @@ impl World {
                 let seen = self.seen.values_mut().find(|seen| seen.agent == Some(*agent)).ok_or("parent's slot")?;
                 seen.observe_answer(*call)?;
             }
+            parent::Event::AcknowledgePart { agent, number } => {
+                let seen = self.seen.values_mut().find(|seen| seen.agent == Some(*agent)).expect("parent slot");
+                seen.parts.remove(number);
+            }
             parent::Event::Acknowledge { agent, turn } => {
                 let seen = self.seen.values_mut().find(|seen| seen.agent == Some(*agent)).expect("parent's slot");
                 seen.turns.remove(turn);
@@ -278,6 +285,7 @@ impl World {
             parent::Event::Drop { agent } => {
                 let seen = self.seen.values_mut().find(|seen| seen.agent == Some(*agent)).expect("parent's slot");
                 seen.turns.clear();
+                seen.parts.clear();
             }
             parent::Event::Renewals { .. }
             | parent::Event::Grant { .. }
@@ -508,9 +516,9 @@ impl World {
                     Lower::Probe { owner, at, deadline } => {
                         self.machine_request(agent, smith_protocol_machine::FromDomain::Probe { owner, at, deadline });
                     }
-                    Lower::Check { owner, program, bound, cap, tail } => self.machine_request(
+                    Lower::Check { owner, program, results, bound, cap, tail } => self.machine_request(
                         agent,
-                        smith_protocol_machine::FromDomain::Check { owner, program, bound, cap, tail },
+                        smith_protocol_machine::FromDomain::Check { owner, program, results, bound, cap, tail },
                     ),
                     Lower::CancelIo { owner } | Lower::Abort { owner } => {
                         self.machine_trace.push(format!("cancel {agent:?} {owner:?}"));
@@ -665,6 +673,7 @@ fn parent_client(request: &parent::Request) -> Token {
         | parent::Request::Admitted { client }
         | parent::Request::Called { client, .. }
         | parent::Request::Withdrawn { client, .. }
+        | parent::Request::Part { client, .. }
         | parent::Request::Turn { client, .. }
         | parent::Request::Waiting { client, .. }
         | parent::Request::Long { client, .. }

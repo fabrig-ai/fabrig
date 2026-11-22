@@ -83,6 +83,7 @@ const LIMITS: Limits = Limits {
 fn workspace() -> Workspace {
     Workspace {
         directories: Box::new([Directory {
+            results: None,
             host: format!(
                 "/{:h<width$}",
                 "",
@@ -679,6 +680,7 @@ fn full_receipt_delivery_settles_before_a_cancelled_answer() {
 fn full_delivery_workspace() -> Workspace {
     let directories: Box<[Directory]> = (0..smith_domain_run::MAX_DIRECTORIES)
         .map(|directory| Directory {
+            results: None,
             host: Box::from(b"/host".as_slice()),
             name: Box::new([u8::try_from(directory + 64).expect("64 distinct names")]),
             root: Token::new(u64::from(directory)),

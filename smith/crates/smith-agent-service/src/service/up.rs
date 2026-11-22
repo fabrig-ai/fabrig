@@ -417,7 +417,12 @@ pub(super) fn channel_event(service: &mut Stages, frame: &mut Frame, event: chan
             }
         }
         channel::Heard::Cancel => super::admission::cancel(service),
-        channel::Heard::Drain => super::admission::drain(service),
+        channel::Heard::Drain { grace } => super::admission::drain(service, grace),
+        channel::Heard::PartKept { number } => {
+            if let Some(run) = service.admission.run() {
+                service.domain_events.push(domain::Event::PartKept { run, number });
+            }
+        }
         channel::Heard::WriteFailed => {
             service.host_word_closed = true;
             service.mark_failed(Failure::WriteFailed);
@@ -485,6 +490,7 @@ fn observe_messages(service: &mut Stages, event: &domain::Event) {
         }
         domain::Event::Message { name, label, text, .. } => events.message(*name, label, text),
         domain::Event::HostReturned { .. }
+        | domain::Event::PartKept { .. }
         | domain::Event::Acknowledge { .. }
         | domain::Event::Grant { .. }
         | domain::Event::Renewals { .. }

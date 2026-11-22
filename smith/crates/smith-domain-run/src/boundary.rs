@@ -358,6 +358,8 @@ pub enum Request {
         owner: Token,
         /// IO-confined check executable, run as a contained process tree.
         program: Place,
+        /// Optional host-retained results directory for this check.
+        results: Option<Box<[u8]>>,
         bound: Duration,
         cap: Time,
         /// Last output bytes retained under the caller's cap.

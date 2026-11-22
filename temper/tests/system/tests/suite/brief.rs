@@ -67,6 +67,7 @@ fn a_stock_charter_two_repair_starts_with_its_oversized_ci_cut_and_marked() {
     disk.write(b"work/src/lib.rs", b"pub fn answer() -> u32 { 42 }\n");
     let workspace = run::Workspace {
         directories: Box::new([run::Directory {
+            results: None,
             name: b"work".as_slice().into(),
             host: b"/work".as_slice().into(),
             root: Token::new(disk.root(b"work")),

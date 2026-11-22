@@ -199,6 +199,7 @@ fn utf8_read_feedback_can_be_copied_into_an_edit_in_both_wire_dialects() {
         let root = Token::new(disk.root(b"work"));
         let workspace = run::Workspace {
             directories: Box::new([run::Directory {
+                results: None,
                 host: Box::from(b"/host".as_slice()),
                 name: b"work".as_slice().into(),
                 root,
@@ -292,6 +293,7 @@ fn the_descriptions_state_each_effective_workspace_limit_on_both_native_wires() 
         let root = Token::new(disk.root(b"work"));
         let workspace = run::Workspace {
             directories: Box::new([run::Directory {
+                results: None,
                 host: Box::from(b"/host".as_slice()),
                 name: b"work".as_slice().into(),
                 root,
@@ -385,6 +387,7 @@ fn namespace_descriptions_and_list_slash_reach_both_native_provider_dialects() {
             let working = Token::new(disk.root(b"work"));
             let sibling = Token::new(disk.root(b"docs"));
             let mut directories = vec![run::Directory {
+                results: None,
                 host: Box::from(b"/host".as_slice()),
                 name: b"hidden-working-name".as_slice().into(),
                 root: working,
@@ -394,6 +397,7 @@ fn namespace_descriptions_and_list_slash_reach_both_native_provider_dialects() {
             }];
             if several {
                 directories.push(run::Directory {
+                    results: None,
                     host: Box::from(b"/host".as_slice()),
                     name: b"docs".as_slice().into(),
                     root: sibling,

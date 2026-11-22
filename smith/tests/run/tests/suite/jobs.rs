@@ -50,6 +50,7 @@ fn setup(settings: &Settings, turns: Vec<Turn>, children: Vec<Script>, checkout:
     }
     let workspace = run::Workspace {
         directories: Box::new([run::Directory {
+            results: None,
             host: b"/work/temper".as_slice().into(),
             name: b"work".as_slice().into(),
             root: fixture.repos[0].root,
@@ -277,6 +278,7 @@ fn resume(first: &World, settings: &Settings) -> World {
     fixture.checkout.write(b"work/temper/src/lib.rs", b"pub fn answer() -> u32 { 43 }\n");
     let workspace = run::Workspace {
         directories: Box::new([run::Directory {
+            results: None,
             host: b"/work/temper".as_slice().into(),
             name: b"work".as_slice().into(),
             root: fixture.repos[0].root,

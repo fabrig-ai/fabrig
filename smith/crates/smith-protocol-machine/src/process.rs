@@ -538,6 +538,7 @@ pub(crate) fn check(
     now: Time,
     owner: Token,
     program: run::Place,
+    results: Option<Box<[u8]>>,
     environment: &crate::Environment,
     tail: u32,
     bound: Duration,
@@ -547,14 +548,25 @@ pub(crate) fn check(
     if tail > limits.output_bytes || program.path.is_empty() || program.path.contains(&0) {
         return None;
     }
-    let env = environment.for_process(Purpose::Check);
-    let spawn = Spawn {
+    let env = environment.for_check(results.as_deref())?;
+    let mut spawn = Spawn {
         program: program.path,
-        args: Box::new([]),
+        args: Box::default(),
         env,
         dir: crate::files::io_path(Box::new([])),
         pipes: pipes(),
     };
+    // Host paths stay in the environment; the fixed prefix creates them before the check.
+    if results.is_some() {
+        let executable = spawn.program;
+        spawn.program = Box::from(b"/bin/sh".as_slice());
+        spawn.args = Box::new([
+            Box::from(b"-c".as_slice()),
+            Box::from(b"/bin/mkdir -p -- \"$SMITH_CHECK_RESULTS\" && exec \"$1\"".as_slice()),
+            Box::from(b"smith-check".as_slice()),
+            executable,
+        ]);
+    }
     let clock = CheckClock::new(now, bound, cap);
     let deadline = now.saturating_add(bound).min(cap);
     Some((Process::new(Work::Check(clock), deadline, 0, tail), Below::Spawn { owner, root: program.root, spawn }))

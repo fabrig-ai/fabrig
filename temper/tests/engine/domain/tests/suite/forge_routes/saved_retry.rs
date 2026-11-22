@@ -245,6 +245,7 @@ pub(super) fn inspect(world: &mut World, run: &engine::Assignment) -> (Checkout,
     checkout.finish(world, checkout::Event::Release { hold });
     let workspace = smith_domain_run::Workspace {
         directories: Box::new([smith_domain_run::Directory {
+            results: None,
             host: [b"/".as_slice(), &path].concat().into(),
             name: repository.name.clone(),
             root,

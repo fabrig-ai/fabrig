@@ -47,6 +47,8 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event) {
             workspace,
             grants,
             transcript,
+            tell_parts: _,
+            parts: _,
             answered,
         }) => {
             if let Err(invalid) = models_declared(domain, &charter) {
@@ -85,7 +87,8 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event) {
             run::Event::Message { finish_requested, run, name, label, text }
         }
         Event::Cancel { run } => run::Event::Cancel { run },
-        Event::Drain { run } => run::Event::Drain { run },
+        Event::Drain { run, grace: _ } => run::Event::Drain { run },
+        Event::PartKept { .. } => return,
         Event::HostReturned { relay, reply } => run::Event::HostReturned { relay, reply },
         Event::Delivered { owner, delivery } => run::Event::Delivered { owner, delivery },
         Event::Below(Below::Read { owner, read }) => run::Event::Read { owner, read },
@@ -728,8 +731,8 @@ fn from_run(domain: &mut Domain, env: &Env<Limits>, request: run::Request, out: 
         run::Request::Probe { owner, at, deadline } => {
             return out.push(Request::Lower(Lower::Probe { owner, at, deadline }));
         }
-        run::Request::Check { owner, program, bound, cap, tail } => {
-            return out.push(Request::Lower(Lower::Check { owner, program, bound, cap, tail }));
+        run::Request::Check { owner, program, results, bound, cap, tail } => {
+            return out.push(Request::Lower(Lower::Check { owner, program, results, bound, cap, tail }));
         }
         run::Request::Abort { owner } => return out.push(Request::Lower(Lower::Abort { owner })),
         run::Request::Open { conversation, opening } => {
