@@ -234,6 +234,17 @@ fn losing_a_link_past_the_grace_cancels_then_ends_its_run() {
     assert_eq!(outcome.answers_acknowledged, 1);
 }
 #[test]
+fn a_parts_telling_native_run_reaches_the_engine_and_is_acknowledged() {
+    let outcome = run(Story::Chat);
+    assert_eq!(outcome.verdict, Verdict::Passed);
+    assert_eq!(outcome.starts_telling_parts, 1);
+    assert!(outcome.parts_received > 0, "the real agent tells a part before its whole turn");
+    assert_eq!(outcome.parts_acknowledged, outcome.parts_received);
+    assert_eq!(outcome.answers_acknowledged, 1);
+    assert!(outcome.services_empty);
+}
+
+#[test]
 fn a_worker_shutdown_stops_its_native_run() {
     let outcome = run(Story::Shutdown);
     assert_eq!(outcome.verdict, Verdict::Passed);

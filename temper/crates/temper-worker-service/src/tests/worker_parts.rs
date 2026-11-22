@@ -157,6 +157,8 @@ fn the_start_passes_each_ask_and_omits_an_empty_one() {
 
 fn start(assignment: host::RunAssignment, live: host::LiveAsk) -> host::Start {
     host::Start {
+        tell_parts: false,
+        parts: Box::default(),
         live,
         workspace: None,
         charter: assignment.charter,

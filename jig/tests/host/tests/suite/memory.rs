@@ -34,6 +34,7 @@ const LIMITS: Limits = Limits {
     told: 2,
     turns: 0,
     turn_queue_bytes: 0,
+    drain_grace: skein_lib::Duration::from_secs(10),
     piece_bytes: 4096,
 };
 

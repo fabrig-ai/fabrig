@@ -1038,6 +1038,7 @@ fn a_named_model_failure_classes_only_its_unsent_outages_as_infrastructure() {
 
 fn asking_hub() -> (host::Hub, skein_lib::Env<host::Limits>) {
     let limits = host::Limits {
+        drain_grace: Duration::from_secs(10),
         application_ask_bytes: 1,
         application_answer_bytes: 1,
         piece_bytes: 0,

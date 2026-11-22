@@ -10,6 +10,7 @@ use crate::{
 };
 
 const LIMITS: Limits = Limits {
+    drain_grace: skein_lib::Duration::from_secs(10),
     application_ask_bytes: 4,
     application_answer_bytes: 4,
     slots: 2,
@@ -1321,7 +1322,7 @@ fn a_usage_read_is_queued_and_its_answer_keeps_the_number() {
 }
 
 #[test]
-fn a_part_is_acknowledged_to_its_agent_without_retaining_or_relaying() {
+fn a_part_is_acknowledged_retained_and_relayed_to_its_attempt() {
     let mut h = Harness::new();
     let (owner, _, agent) = h.live(1);
     let part = jig_domain_link::Part {
@@ -1334,9 +1335,15 @@ fn a_part_is_acknowledged_to_its_agent_without_retaining_or_relaying() {
     };
     assert!(h.step(Event::Agent(crate::FromAgent::Part { owner: Token::new(999), part: part.clone() })).is_empty());
     assert_eq!(
-        h.step(Event::Agent(crate::FromAgent::Part { owner, part })).as_ref(),
-        &[Request::Agent(crate::ToAgent::AcknowledgePart { agent, number: 1 })]
+        h.step(Event::Agent(crate::FromAgent::Part { owner, part: part.clone() })).as_ref(),
+        &[
+            Request::Up(LinkUp::Part { run: Token::new(1), attempt: Token::new(1001), part: part.clone() }),
+            Request::Agent(crate::ToAgent::AcknowledgePart { agent, number: 1 }),
+        ]
     );
-    assert_eq!(h.domain.retained_turns(), 0);
+    assert_eq!(h.domain.retained_turns(), 1);
+    assert_eq!(h.domain.part(Token::new(1), Token::new(1001), 1), Some(part));
     assert_eq!(h.domain.kept_answers(), 0);
 }
+
+mod parts;

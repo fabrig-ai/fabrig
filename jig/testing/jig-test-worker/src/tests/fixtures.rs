@@ -64,6 +64,7 @@ pub fn limits() -> Limits {
         hub,
         agent,
         bounds,
+        drain: Duration::from_secs(10),
         stop_bound: Duration::from_secs(20),
         workstreams: Box::new([1]),
     }
@@ -131,7 +132,7 @@ pub fn assignment(charter: Box<[u8]>) -> host::Assignment {
 pub fn start(source: host::Start) -> smith::Start {
     smith::Start {
         parts: Box::default(),
-        tell_parts: false,
+        tell_parts: source.tell_parts,
         identity: Some(smith_domain_run::Identity::new(source.identity)),
         live: None,
         logical_run: RUN,
@@ -287,9 +288,18 @@ impl Worker {
     }
 
     pub fn asking(grants: Box<[smith::Grant]>, live: host::LiveAsk) -> Self {
+        Self::start_with(grants, live, false)
+    }
+
+    pub fn telling_parts() -> Self {
+        Self::start_with(Box::new([]), host::LiveAsk::NONE, true)
+    }
+
+    fn start_with(grants: Box<[smith::Grant]>, live: host::LiveAsk, tell_parts: bool) -> Self {
         let mut worker = Self::new(limits());
         let mut assignment = assignment(charter_bytes());
         assignment.assignment.live = live;
+        assignment.tell_parts = tell_parts;
         worker.step(Event::Link(host::LinkDown::Assign { assignment }));
         let (owner, source) = worker.take_decode();
         let mut start = start(source);

@@ -3,6 +3,20 @@ use super::*;
 use crate::{FromAgent, ToAgent};
 
 #[test]
+fn a_drain_gives_only_parts_telling_runs_the_configured_grace() {
+    for tell_parts in [false, true] {
+        let mut h = Harness::new();
+        h.env.limits.drain_grace = skein_lib::Duration::from_millis(73);
+        let (_, _, agent) = parts::live(&mut h, tell_parts);
+        let grace = tell_parts.then_some(h.env.limits.drain_grace);
+        assert_eq!(
+            &*h.step(Event::Drain),
+            &[Request::Up(LinkUp::Draining), Request::Agent(ToAgent::Drain { agent, grace }),]
+        );
+    }
+}
+
+#[test]
 fn a_drain_asks_active_and_waiting_runs_once_and_announces_before_their_outputs() {
     let mut h = Harness::new();
     let (_, _, active) = h.live(1);

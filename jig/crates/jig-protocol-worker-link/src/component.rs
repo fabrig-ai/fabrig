@@ -444,6 +444,11 @@ impl Component {
                     .kind(wire::Kind::Part.number())
                     .is_none()
                 {
+                    // A rehello on an older link cannot carry the retained part.
+                    out.push(Request::Down {
+                        down: host::LinkDown::PartKept { run, attempt, part: part.number },
+                        parts: Box::new([]),
+                    });
                     return;
                 }
                 host::LinkUp::Part { run, attempt, part }

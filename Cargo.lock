@@ -2287,14 +2287,18 @@ dependencies = [
  "skein-codec",
  "skein-io",
  "skein-lib",
+ "smith-agent-profile",
+ "smith-agent-profile-fixtures",
  "smith-channel",
  "smith-charter",
  "smith-domain-run",
+ "smith-domain-session",
  "smith-host-domain",
  "smith-host-protocol",
  "smith-host-protocol-fixtures",
  "smith-protocol-channel",
  "smith-protocol-program",
+ "smith-protocol-translate",
  "smith-transcript",
 ]
 

@@ -73,11 +73,13 @@ pub fn class(event: &Event) -> Class {
         | Event::Source(_)
         | Event::GracePassed
         | Event::Resend { .. }
+        | Event::ResendPart { .. }
         | Event::RelayCancelled { .. }
         | Event::Live { .. }
         | Event::Decoded { .. }
         | Event::Encoded { .. }
         | Event::Activity { .. }
+        | Event::Drain
         | Event::Shutdown
         | Event::Timer => Class::Admitted,
     }
@@ -92,12 +94,14 @@ pub(crate) fn must_follow(domain: &Domain, held: &Event, event: &Event) -> bool 
             | Event::Source(_)
             | Event::GracePassed
             | Event::Resend { .. }
+            | Event::ResendPart { .. }
             | Event::RelayCancelled { .. }
             | Event::Process(_)
             | Event::Live { .. }
             | Event::Decoded { .. }
             | Event::Encoded { .. }
             | Event::Activity { .. }
+            | Event::Drain
             | Event::Shutdown
             | Event::Timer
             | Event::Checks => false,
@@ -111,12 +115,14 @@ pub(crate) fn must_follow(domain: &Domain, held: &Event, event: &Event) -> bool 
             | Event::Source(_)
             | Event::GracePassed
             | Event::Resend { .. }
+            | Event::ResendPart { .. }
             | Event::RelayCancelled { .. }
             | Event::Process(_)
             | Event::Live { .. }
             | Event::Decoded { .. }
             | Event::Encoded { .. }
             | Event::Activity { .. }
+            | Event::Drain
             | Event::Shutdown
             | Event::Timer
             | Event::Checks => false,
@@ -135,7 +141,9 @@ pub(crate) fn must_follow(domain: &Domain, held: &Event, event: &Event) -> bool 
                 | Event::Link(_)
                 | Event::GracePassed
                 | Event::Resend { .. }
+                | Event::ResendPart { .. }
                 | Event::RelayCancelled { .. }
+                | Event::Drain
                 | Event::Shutdown
                 | Event::Timer
                 | Event::Checks => None,
@@ -163,11 +171,13 @@ pub(crate) fn must_follow(domain: &Domain, held: &Event, event: &Event) -> bool 
         | Event::Source(_)
         | Event::GracePassed
         | Event::Resend { .. }
+        | Event::ResendPart { .. }
         | Event::RelayCancelled { .. }
         | Event::Live { .. }
         | Event::Decoded { .. }
         | Event::Encoded { .. }
         | Event::Activity { .. }
+        | Event::Drain
         | Event::Shutdown
         | Event::Timer
         | Event::Checks => false,

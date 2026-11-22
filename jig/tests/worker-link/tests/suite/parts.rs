@@ -49,12 +49,24 @@ fn parts_are_requested_and_sent_only_at_twenty_two_and_acknowledged_back() {
         world.run();
         if version == 22 {
             assert_eq!(world.worker_records().get(before..), Some([wire::Kind::Part.number()].as_slice()));
+            world.engine_down(
+                host::LinkDown::PartKept { run: fixtures::RUN_SEVEN, attempt: fixtures::ATTEMPT_TWO, part: 3 },
+                Box::new([]),
+                Box::new([]),
+            );
+            world.run();
             assert!(world.worker_root.iter().any(|r| matches!(r, Request::Down {
                 down: host::LinkDown::PartKept { run, attempt, part: 3 }, ..
             } if *run == fixtures::RUN_SEVEN && *attempt == fixtures::ATTEMPT_TWO)));
         } else {
             assert_eq!(world.worker_records().len(), before);
             assert!(!world.engine_records().contains(&wire::Kind::PartKept.number()));
+            assert!(
+                world.worker_root.iter().any(|r| matches!(r, Request::Down {
+                down: host::LinkDown::PartKept { run, attempt, part: 3 }, ..
+            } if *run == fixtures::RUN_SEVEN && *attempt == fixtures::ATTEMPT_TWO)),
+                "an older link releases what it cannot carry"
+            );
         }
         world.finish();
     }

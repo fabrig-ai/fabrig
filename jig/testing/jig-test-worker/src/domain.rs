@@ -61,6 +61,7 @@ pub struct Domain {
     agent_out: Queue<smith::Output>,
     workspace: Workspace,
     stopping: bool,
+    drain_deadline: Option<Time>,
 }
 
 impl Domain {
@@ -78,12 +79,13 @@ impl Domain {
             agent_out: Queue::uncapped(),
             workspace: Workspace::new(limits.hub.slots),
             stopping: false,
+            drain_deadline: None,
         }
     }
 
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
-        [self.agent.next_deadline(), self.hub.next_deadline()].into_iter().flatten().min()
+        [self.agent.next_deadline(), self.hub.next_deadline(), self.drain_deadline].into_iter().flatten().min()
     }
 
     pub fn reclaim(&mut self) {
@@ -136,6 +138,7 @@ impl Domain {
             && self.hub.hosted() == 0
             && self.agent.agents() == 0
             && self.pending.is_empty()
+            && self.hub.retained_turns() == 0
     }
 
     #[must_use]
@@ -165,13 +168,26 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                 domain.hub.give_up_turns();
             }
         }
+        Event::Drain => {
+            if !domain.stopping {
+                domain.stopping = true;
+                domain.drain_deadline = Some(env.now.saturating_add(env.limits.drain));
+                hub(domain, env, HubEvent::Drain);
+            }
+        }
         Event::Shutdown => {
             domain.stopping = true;
+            domain.drain_deadline = None;
             hub(domain, env, HubEvent::CancelAll { reason: host::Reason::Shutdown });
         }
         Event::Resend { run, attempt, turn } => {
             if let Some(up) = domain.hub.turn(run, attempt, turn) {
                 out.push(Request::Link(host::LinkUp::Turn { run, attempt, turn: up }));
+            }
+        }
+        Event::ResendPart { run, attempt, part } => {
+            if let Some(part) = domain.hub.part(run, attempt, part) {
+                out.push(Request::Link(host::LinkUp::Part { run, attempt, part }));
             }
         }
         Event::RelayCancelled { run, attempt, call } => {
@@ -207,6 +223,17 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         }
         Event::Checks => host::fire_sources(&mut domain.hub, &hub_env(env), &mut domain.hub_out),
         Event::Timer => {
+            if let Some(deadline) = domain.drain_deadline
+                && deadline <= env.now
+            {
+                domain.drain_deadline = None;
+                let event = if domain.stopping {
+                    HubEvent::CancelAll { reason: host::Reason::Shutdown }
+                } else {
+                    HubEvent::DrainPassed
+                };
+                hub(domain, env, event);
+            }
             host::resume_runs(&mut domain.hub, &hub_env(env), &mut domain.hub_out);
             smith::fire(&mut domain.agent, &agent_env(env), &mut domain.agent_out);
         }
@@ -296,6 +323,7 @@ fn route(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     if domain.stopping_ready() {
         out.push(Request::Stop);
         domain.stopping = false;
+        domain.drain_deadline = None;
     }
 }
 
@@ -321,7 +349,13 @@ fn down(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out: &mu
             out.push(Request::Source { owner, name, operation, deadline });
         }
         host::Request::SourceFault => out.push(Request::SourceFault),
-        host::Request::Paused { .. } => {}
+        host::Request::Paused { state } => {
+            domain.drain_deadline = if state == jig_domain_link::PauseState::Draining {
+                Some(env.now.saturating_add(env.limits.drain))
+            } else {
+                None
+            };
+        }
         host::Request::Up(up) => out.push(Request::Link(up)),
         host::Request::Hello { hello } => {
             out.push(Request::Hello(hello));
@@ -369,7 +403,7 @@ fn to_agent(domain: &mut Domain, env: &Env<Limits>, request: host::ToAgent, out:
         }
         host::ToAgent::Renewals { agent: _, held } => smith::parent::Event::Renewals { held },
         host::ToAgent::Acknowledge { agent, turn } => smith::parent::Event::Acknowledge { agent, turn },
-        host::ToAgent::AcknowledgePart { .. } => return,
+        host::ToAgent::AcknowledgePart { agent, number } => smith::parent::Event::AcknowledgePart { agent, number },
         host::ToAgent::Drain { agent, grace } => smith::parent::Event::Drain { agent, grace },
         host::ToAgent::Cancel { agent } => smith::parent::Event::Stop { agent },
         host::ToAgent::Grant { agent, grant } => {
@@ -413,8 +447,8 @@ fn up(domain: &mut Domain, env: &Env<Limits>, request: smith::parent::Request, o
             hub(domain, env, HubEvent::Agent(FromAgent::Started { owner: client, agent }));
         }
         smith::parent::Request::Part { client, part } => {
-            let agent = *domain.agents.get(&client).expect("a part belongs to a started agent");
-            parent(domain, env, smith::parent::Event::AcknowledgePart { agent, number: part.number });
+            domain.pending.push(Pending::Part { owner: client });
+            out.push(Request::Encode { owner: client, value: Encodable::Part(part) });
         }
         smith::parent::Request::Turn { client, turn } => {
             domain.pending.push(Pending::Turn { owner: client });
@@ -506,6 +540,18 @@ fn up(domain: &mut Domain, env: &Env<Limits>, request: smith::parent::Request, o
 fn encoded(domain: &mut Domain, env: &Env<Limits>, owner: Token, encoded: Encoded) {
     let pending = domain.pending.pop().expect("each hand-out is answered once in order");
     match pending {
+        Pending::Part { owner: expected } => {
+            assert_eq!(owner, expected, "ordered hand-out owner");
+            match encoded {
+                Encoded::Part(part) => hub(domain, env, HubEvent::Agent(FromAgent::Part { owner, part })),
+                Encoded::Undecodable => {
+                    hub(domain, env, HubEvent::Agent(FromAgent::Faulted { owner, fault: host::AgentFailure::Rules }));
+                }
+                Encoded::Turn(_) | Encoded::CallName(_) | Encoded::Result(_) => {
+                    unreachable!("routing echoes the hand-out kind")
+                }
+            }
+        }
         Pending::Turn { owner: expected } => {
             assert_eq!(owner, expected, "ordered hand-out owner");
             match encoded {
@@ -513,7 +559,9 @@ fn encoded(domain: &mut Domain, env: &Env<Limits>, owner: Token, encoded: Encode
                 Encoded::Undecodable => {
                     hub(domain, env, HubEvent::Agent(FromAgent::Faulted { owner, fault: host::AgentFailure::Rules }));
                 }
-                Encoded::CallName(_) | Encoded::Result(_) => unreachable!("routing echoes the hand-out kind"),
+                Encoded::Part(_) | Encoded::CallName(_) | Encoded::Result(_) => {
+                    unreachable!("routing echoes the hand-out kind")
+                }
             }
         }
         Pending::Call { owner: expected, call } => {
@@ -583,7 +631,10 @@ fn encoded(domain: &mut Domain, env: &Env<Limits>, owner: Token, encoded: Encode
 fn hand_out_pending(domain: &Domain, owner: Token) -> bool {
     for pending in &domain.pending {
         let expected = match pending {
-            Pending::Turn { owner } | Pending::Call { owner, .. } | Pending::Result { owner, .. } => *owner,
+            Pending::Turn { owner }
+            | Pending::Part { owner }
+            | Pending::Call { owner, .. }
+            | Pending::Result { owner, .. } => *owner,
         };
         if owner == expected {
             return true;

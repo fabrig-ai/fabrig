@@ -38,6 +38,28 @@ pub fn encode_turn(turn: smith::Turn, limits: &Limits, endpoints: &Endpoints) ->
 }
 
 #[must_use]
+pub fn encode_part(
+    part: smith::channel::ToldPart,
+    limits: &Limits,
+    endpoints: &Endpoints,
+) -> Option<jig_domain_link::Part> {
+    let body = smith_protocol_translate::encode_part(part.body.value(), &limits.transcript, endpoints).ok()?;
+    let kind = match part.kind {
+        smith_domain_session::record::PartKind::Answer => jig_domain_link::PartKind::Answer,
+        smith_domain_session::record::PartKind::Result => jig_domain_link::PartKind::Result,
+        smith_domain_session::record::PartKind::Window => jig_domain_link::PartKind::Window,
+    };
+    Some(jig_domain_link::Part {
+        number: part.number,
+        turn: part.turn,
+        thread: part.thread,
+        call: part.call,
+        kind,
+        body,
+    })
+}
+
+#[must_use]
 pub fn encode_call_name(name: smith::CallName, limits: &Limits) -> Option<Box<[u8]>> {
     let record =
         smith_channel::CallName { activation: name.activation, completion: name.completion, position: name.position };
@@ -203,9 +225,11 @@ pub fn decode(
             grants.push(grant).expect("grant count");
         }
     }
+    let parts =
+        if source.tell_parts { decode_parts(source.parts, limits, host_limits, endpoints) } else { Box::new([]) };
     Ok(Box::new(smith::Start {
-        tell_parts: false,
-        parts: Box::default(),
+        tell_parts: source.tell_parts,
+        parts,
         identity: Some(smith_domain_run::Identity::new(source.identity)),
         live: if source.live == hub::LiveAsk::NONE {
             None
@@ -226,6 +250,39 @@ pub fn decode(
         directories: Box::default(),
         grants: grants.into_boxed(),
     }))
+}
+
+fn decode_parts(
+    source: Box<[jig_domain_link::KeptPart]>,
+    limits: &Limits,
+    host_limits: &smith::Limits,
+    endpoints: &Endpoints,
+) -> Box<[smith::channel::KeptPart]> {
+    let Ok(count) = u32::try_from(source.len()) else { return Box::new([]) };
+    let mut parts = List::with_capacity(count);
+    for part in source {
+        let Ok(body) = smith_protocol_translate::decode_part(&part.body, &limits.transcript, endpoints) else {
+            return Box::new([]);
+        };
+        let Some(body) = smith::TurnValue::new(body, host_limits.transcript_bytes) else {
+            return Box::new([]);
+        };
+        parts
+            .push(smith::channel::KeptPart {
+                activation: part.attempt,
+                turn: part.turn,
+                thread: part.thread,
+                call: part.call,
+                kind: match part.kind {
+                    jig_domain_link::PartKind::Answer => smith_domain_session::record::PartKind::Answer,
+                    jig_domain_link::PartKind::Result => smith_domain_session::record::PartKind::Result,
+                    jig_domain_link::PartKind::Window => smith_domain_session::record::PartKind::Window,
+                },
+                body,
+            })
+            .expect("part count");
+    }
+    parts.into_boxed()
 }
 
 fn version(bytes: &[u8], wire: &str, lowest: u16, current: u16) -> Result<(), hub::Undecoded> {

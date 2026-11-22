@@ -247,6 +247,7 @@ pub fn worker_settings() -> temper_worker_service::settings::Worker {
     let mut limits = jig_protocol_config_fixtures::small();
     limits.core.call_answer_bytes = 2048;
     limits.hub = jig_domain_host::Limits {
+        drain_grace: config::DEFAULT_DRAIN_GRACE,
         application_ask_bytes: 0,
         application_answer_bytes: 0,
         program_sources: 12,
@@ -280,6 +281,7 @@ pub fn worker_settings() -> temper_worker_service::settings::Worker {
             secret: b"worker-secret".as_slice().into(),
             slots: 1,
             graces: config::Graces {
+                drain_grace: config::DEFAULT_DRAIN_GRACE,
                 grace: skein_lib::Duration::from_secs(10),
                 drain: skein_lib::Duration::from_secs(10),
                 agent_stop: skein_lib::Duration::from_secs(10),

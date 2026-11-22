@@ -57,6 +57,88 @@ fn an_undecodable_charter_fails_the_start_as_invalid() {
 }
 
 #[test]
+fn a_part_is_encoded_relayed_and_acknowledged_to_its_agent() {
+    let mut worker = Worker::telling_parts();
+    let body = fixtures::turn().body;
+    worker.receive(smith::Up::Part {
+        part: smith::channel::ToldPart {
+            number: 1,
+            turn: 1,
+            thread: 0,
+            call: 0,
+            kind: smith_domain_session::record::PartKind::Answer,
+            body,
+        },
+    });
+    let (owner, value) = worker.take_encode();
+    let Encodable::Part(_) = value else { panic!("part hand-out") };
+    let part = jig_domain_link::Part {
+        number: 1,
+        turn: 1,
+        thread: 0,
+        call: 0,
+        kind: jig_domain_link::PartKind::Answer,
+        body: b"part".as_slice().into(),
+    };
+    worker.step(Event::Encoded { owner, encoded: Encoded::Part(part.clone()) });
+    let mut relayed = false;
+    let mut acknowledged = false;
+    for request in &worker.out {
+        match request {
+            Request::Link(host::LinkUp::Part { run, attempt, part: got }) => {
+                assert_eq!((*run, *attempt, got), (fixtures::RUN, fixtures::ATTEMPT, &part));
+                relayed = true;
+            }
+            Request::Process(request) => {
+                if let smith::process::Request::Send { message: smith::Down::PartKept { number }, .. } =
+                    request.as_ref()
+                {
+                    assert_eq!(*number, 1);
+                    acknowledged = true;
+                }
+            }
+            _ => {}
+        }
+    }
+    assert!(relayed && acknowledged);
+    worker.clear();
+    worker.step(Event::ResendPart { run: fixtures::RUN, attempt: fixtures::ATTEMPT, part: 1 });
+    assert_eq!(
+        worker.out.pop(),
+        Some(Request::Link(host::LinkUp::Part { run: fixtures::RUN, attempt: fixtures::ATTEMPT, part }))
+    );
+}
+
+#[test]
+fn a_drain_forwards_the_grace_then_cancels_at_the_bound() {
+    let mut worker = Worker::telling_parts();
+    worker.env.limits.hub.drain_grace = skein_lib::Duration::from_millis(37);
+    worker.step(Event::Drain);
+    let mut grace = None;
+    for request in &worker.out {
+        if let Request::Process(request) = request
+            && let smith::process::Request::Send { message: smith::Down::Drain { grace: got }, .. } = request.as_ref()
+        {
+            grace = *got;
+        }
+    }
+    assert_eq!(grace, Some(skein_lib::Duration::from_millis(37)));
+    assert_eq!(worker.domain.next_deadline(), Some(worker.env.now.saturating_add(worker.env.limits.drain)));
+    worker.sent();
+    worker.env.now = worker.env.now.saturating_add(worker.env.limits.drain);
+    worker.step(Event::Timer);
+    let mut cancelled = false;
+    for request in &worker.out {
+        if let Request::Process(request) = request
+            && let smith::process::Request::Send { message: smith::Down::Cancel, .. } = request.as_ref()
+        {
+            cancelled = true;
+        }
+    }
+    assert!(cancelled, "the drain bound cancels a run still going");
+}
+
+#[test]
 fn a_turn_reaches_the_hub_only_after_it_is_encoded() {
     let mut worker = Worker::started();
     worker.receive(smith::Up::Turn { turn: fixtures::turn() });

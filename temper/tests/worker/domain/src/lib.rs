@@ -54,6 +54,7 @@ pub fn limits() -> Limits {
         },
         watermark: temper_worker_domain::WATERMARK,
         host: host::Limits {
+            drain_grace: jig_protocol_config::DEFAULT_DRAIN_GRACE,
             application_ask_bytes: 0,
             application_answer_bytes: 0,
             program_sources: 12,

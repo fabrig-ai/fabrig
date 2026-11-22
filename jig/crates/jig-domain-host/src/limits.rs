@@ -2,6 +2,8 @@
 /// step read-only.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
+    /// Grace for calls in flight at a parts-telling run's drained answer (hub.md, 7).
+    pub drain_grace: skein_lib::Duration,
     /// Application read payload bounds (domain/hosts/hub.md, 10).
     pub application_ask_bytes: u32,
     pub application_answer_bytes: u32,

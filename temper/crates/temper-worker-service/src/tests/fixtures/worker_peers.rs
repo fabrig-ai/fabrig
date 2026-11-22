@@ -572,6 +572,8 @@ pub(crate) fn decoded_chat_start(agent: &crate::settings::Agent) -> Box<smith_ho
     crate::worker_route::decode(
         source.run,
         hub::Start {
+            tell_parts: false,
+            parts: Box::default(),
             live: hub::LiveAsk::NONE,
             workspace: Some(Token::new(3)),
             charter: source.charter,

@@ -354,6 +354,8 @@ pub enum FromAgent {
 /// The agent's complete start (domain/hosts/README.md, sections 2 and 7).
 #[derive(PartialEq, Eq, Debug)]
 pub struct Start {
+    pub tell_parts: bool,
+    pub parts: Box<[jig_domain_link::KeptPart]>,
     pub live: crate::LiveAsk,
     pub workspace: Option<Token>,
     pub charter: Box<[u8]>,

@@ -94,6 +94,8 @@ fn decode_review(assignment: host::Assignment, bound: u64) -> smith_host_domain:
     *crate::worker_route::decode(
         run.run,
         host::Start {
+            tell_parts: false,
+            parts: Box::default(),
             live: run.live,
             workspace: None,
             charter: run.charter,

@@ -28,6 +28,7 @@ pub struct Worker {
     asked: Queue<(Token, Token, u64, jig_domain_host::AskAnswer)>,
     pub(super) root: root::Domain,
     pub(super) root_steps: u64,
+    pub(super) starts_telling_parts: u32,
     admission_waits: u64,
     env: Env<root::Limits>,
     agent: Agent,
@@ -90,12 +91,14 @@ impl Worker {
         let mut limits = settings.hub;
         limits.slots = config.slots;
         limits.source_interval = config.check_interval;
+        limits.drain_grace = config.graces.drain_grace;
         let root_limits = root::Limits {
             watermark: root::WATERMARK,
             hub: limits,
             agent: agent.host_limits,
             bounds: agent.bounds.clone(),
             stop_bound: config.stop_bound,
+            drain: config.graces.drain,
             workstreams: Box::default(),
         };
         if !root::valid(&root_limits) {
@@ -122,6 +125,7 @@ impl Worker {
             asked: Queue::uncapped(),
             root: root::Domain::new(&root_limits),
             root_steps: 0,
+            starts_telling_parts: 0,
             admission_waits: 0,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: root_limits },
             agent: agent_values(agent),
@@ -191,7 +195,7 @@ impl Worker {
     pub fn stop(&mut self) {
         if !self.stopping {
             self.stopping = true;
-            self.events.push(root::Event::Shutdown);
+            self.events.push(root::Event::Drain);
         }
     }
     /// End immediately, dropping domain work and aborting every owned IO entity.
@@ -376,8 +380,10 @@ impl Worker {
                     }
                 }
                 link::Request::Closed => self.closed = true,
-                link::Request::ResendPart { .. }
-                | link::Request::Figures { .. }
+                link::Request::ResendPart { run, attempt, part } => {
+                    self.events.push(root::Event::ResendPart { run, attempt, part });
+                }
+                link::Request::Figures { .. }
                 | link::Request::Refused { .. }
                 | link::Request::Fact { .. }
                 | link::Request::Restarting { .. }
@@ -457,6 +463,11 @@ impl Worker {
                     root::Request::Process(request) => self.process(*request),
                     root::Request::Decode { agent, run, start } => {
                         let start = worker_route::decode(run, *start, &self.agent);
+                        if let Ok(start) = &start
+                            && start.tell_parts
+                        {
+                            self.starts_telling_parts = self.starts_telling_parts.saturating_add(1);
+                        }
                         self.root_steps = self.root_steps.wrapping_add(1);
                         root::step(&mut self.root, &self.env, root::Event::Decoded { agent, start }, &mut self.out);
                     }
@@ -1036,6 +1047,16 @@ mod program_grant_tests {
 }
 
 impl crate::Service {
+    /// Decoded native starts that asked their agents for parts.
+    #[must_use]
+    pub fn starts_telling_parts(&self) -> u32 {
+        let mut count = 0_u32;
+        for worker in &self.workers {
+            count = count.saturating_add(worker.starts_telling_parts);
+        }
+        count
+    }
+
     /// Access a reference worker to tune its pacing and observe admission in worlds.
     pub fn worker(&mut self, index: u32) -> Option<&mut Worker> {
         self.workers.get_mut(index)

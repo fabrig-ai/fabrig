@@ -790,7 +790,19 @@ impl World {
     }
 
     fn start(&mut self, owner: Token, start: host::Start) {
-        let host::Start { workspace, charter, activation, identity, turns, answered, messages, grants, live } = start;
+        let host::Start {
+            workspace,
+            charter,
+            activation,
+            identity,
+            turns,
+            answered,
+            messages,
+            grants,
+            live,
+            tell_parts: _,
+            parts: _,
+        } = start;
         assert_eq!(workspace, if self.space_live { Some(SPACE) } else { None });
         assert_eq!(&*charter, b"charter");
         for grant in &grants {

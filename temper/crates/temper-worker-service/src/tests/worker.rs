@@ -674,6 +674,8 @@ fn multiple_models_and_providers_preserve_the_supplied_grant_list() {
     let start = crate::worker_route::decode(
         Token::new(31),
         hub::Start {
+            tell_parts: false,
+            parts: Box::default(),
             live: hub::LiveAsk::NONE,
             workspace: None,
             charter,

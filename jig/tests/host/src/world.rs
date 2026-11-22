@@ -80,6 +80,7 @@ impl Settings {
                 told: 8,
                 turns: 0,
                 turn_queue_bytes: 0,
+                drain_grace: Duration::from_secs(10),
                 piece_bytes: 4096,
             },
             engine: engine::Script {

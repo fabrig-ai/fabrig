@@ -213,7 +213,7 @@ impl Hub {
         self.facts.pieces_fenced()
     }
 
-    /// Turns retained until the engine commits them.
+    /// Turns and parts retained until the engine commits them.
     #[must_use]
     pub fn retained_turns(&self) -> u32 {
         self.turns.len()
@@ -225,7 +225,7 @@ impl Hub {
         self.turns.holds(run, attempt, turn)
     }
 
-    /// Whether any turn of this attempt remains unacknowledged.
+    /// Whether any turn or part of this attempt remains unacknowledged.
     #[must_use]
     pub fn has_turns_for(&self, run: Token, attempt: Token) -> bool {
         self.turns.has_run(run, attempt)
@@ -237,11 +237,16 @@ impl Hub {
         self.turns.get(run, attempt, turn)
     }
 
-    /// A transmission copy of a retained turn by position, for reconnecting.
+    /// A transmission copy of a retained turn or part in telling order, for reconnecting.
     #[must_use]
     pub fn turn_at(&self, index: u32) -> Option<LinkUp> {
-        let (run, attempt, turn) = self.turns.nth(index)?;
-        Some(LinkUp::Turn { run, attempt, turn })
+        self.turns.nth(index)
+    }
+
+    /// A transmission copy of a retained part, for a busy retry.
+    #[must_use]
+    pub fn part(&self, run: Token, attempt: Token, number: u32) -> Option<jig_domain_link::Part> {
+        self.turns.part(run, attempt, number)
     }
 
     #[must_use]
@@ -299,7 +304,7 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
             hosted::called(domain, env, owner, call, ask, out);
         }
         Event::Agent(crate::FromAgent::Withdrawn { owner, call }) => hosted::withdrawn(domain, owner, call, out),
-        Event::Agent(crate::FromAgent::Part { owner, part }) => hosted::parted(domain, owner, part.number, out),
+        Event::Agent(crate::FromAgent::Part { owner, part }) => hosted::parted(domain, env, owner, part, out),
         Event::Agent(crate::FromAgent::Turn { owner, turn }) => hosted::turned(domain, env, owner, turn, out),
         Event::Agent(crate::FromAgent::Piece { owner, piece }) => crate::live::reported(domain, env, owner, piece),
         Event::Agent(crate::FromAgent::Activity { owner, activity }) => {
@@ -328,7 +333,7 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
         }
         Event::Drain => {
             shutting_down(domain, out);
-            hosted::drain(domain, out);
+            hosted::drain(domain, env.limits.drain_grace, out);
         }
         Event::CancelAll { reason } => {
             if reason == Reason::Shutdown {
@@ -411,10 +416,13 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
             }
             LinkDown::AssignJob { job } => crate::jobs::assign(domain, env, job, out),
             LinkDown::Assign { assignment } => hosted::assign(domain, env, assignment, out),
-            LinkDown::PartKept { .. } => {}
+            LinkDown::PartKept { run, attempt, part } => {
+                domain.turns.acknowledge_part(run, attempt, part);
+                domain.turns.admit(run, attempt, false, &env.limits, out);
+            }
             LinkDown::TurnKept { run, attempt, turn } => hosted::acknowledge_turn(domain, env, run, attempt, turn, out),
             LinkDown::Grant { run, attempt, grant } => hosted::grant(domain, run, attempt, grant, out),
-            LinkDown::Pause { mode } => pause(domain, mode, out),
+            LinkDown::Pause { mode } => pause(domain, env.limits.drain_grace, mode, out),
             LinkDown::Cancel { run, attempt } => hosted::cancel(domain, env, run, attempt, out),
             LinkDown::Relayed { run, attempt, call, answer } => {
                 hosted::relayed(domain, run, attempt, &call, answer, out);
@@ -426,7 +434,12 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
 }
 
 // jig/docs/design/domain/hosts/hub.md, 7, Paused over the link.
-fn pause(domain: &mut Hub, mode: jig_domain_link::PauseMode, out: &mut Queue<Request>) {
+fn pause(
+    domain: &mut Hub,
+    drain_grace: skein_lib::Duration,
+    mode: jig_domain_link::PauseMode,
+    out: &mut Queue<Request>,
+) {
     use jig_domain_link::{PauseMode, PauseState};
     if domain.shut {
         return;
@@ -445,7 +458,7 @@ fn pause(domain: &mut Hub, mode: jig_domain_link::PauseMode, out: &mut Queue<Req
     let changed = state != domain.pause;
     say_pause(domain, state, out);
     if changed && state == PauseState::Draining {
-        hosted::drain(domain, out);
+        hosted::drain(domain, drain_grace, out);
     }
 }
 

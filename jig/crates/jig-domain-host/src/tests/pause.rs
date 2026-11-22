@@ -3,6 +3,44 @@ use super::*;
 use crate::{FromAgent, ToAgent};
 use jig_domain_link::{PauseMode, PauseState};
 
+#[test]
+fn a_link_drain_gives_only_parts_telling_runs_the_configured_grace() {
+    for tell_parts in [false, true] {
+        let mut h = Harness::new();
+        h.env.limits.drain_grace = skein_lib::Duration::from_millis(73);
+        let (_, _, agent) = parts::live(&mut h, tell_parts);
+        let grace = tell_parts.then_some(h.env.limits.drain_grace);
+        assert_eq!(
+            &*h.step(ask(PauseMode::Drain)),
+            &[
+                Request::Up(LinkUp::Paused { state: PauseState::Draining }),
+                Request::Paused { state: PauseState::Draining },
+                Request::Agent(ToAgent::Drain { agent, grace }),
+            ]
+        );
+    }
+}
+
+#[test]
+fn a_link_drain_waits_for_every_part_acknowledgement() {
+    let mut h = Harness::new();
+    let (owner, _, _) = parts::live(&mut h, true);
+    h.step(Event::Agent(FromAgent::Part { owner, part: parts::part(1, 1, 1) }));
+    h.step(ask(PauseMode::Drain));
+    h.step(fixtures::finished(owner, Finish::Parked));
+    h.step(Event::Agent(FromAgent::Gone { owner, detail: Box::new([]) }));
+    h.step(Event::Saved { owner, at: None });
+    h.step(Event::Down(LinkDown::Acknowledge { run: Token::new(1), attempt: Token::new(1001) }));
+    h.domain.reclaim();
+    assert_eq!(h.domain.hosted(), 0);
+    assert!(h.step(Event::DrainPassed).is_empty(), "retained part prevents drained after reclaim");
+    assert_eq!(h.domain.pause, PauseState::Draining);
+    assert_eq!(
+        &*h.step(Event::Down(LinkDown::PartKept { run: Token::new(1), attempt: Token::new(1001), part: 1 })),
+        changed(PauseState::Drained)
+    );
+}
+
 fn ask(mode: PauseMode) -> Event {
     Event::Down(LinkDown::Pause { mode })
 }

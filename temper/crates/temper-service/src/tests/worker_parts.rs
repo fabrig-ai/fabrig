@@ -121,6 +121,8 @@ fn an_engine_s_items_reach_the_worker_s_workspace_field_for_field() {
 
 fn start(assignment: host::RunAssignment, live: host::LiveAsk) -> host::Start {
     host::Start {
+        tell_parts: false,
+        parts: Box::default(),
         live,
         workspace: None,
         charter: assignment.charter,
