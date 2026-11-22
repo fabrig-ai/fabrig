@@ -669,7 +669,7 @@ fn assert_review_failed(world: &World, task: u64) {
     assert!(matches!(row.phase, tasks::Phase::Ended(tasks::Ending::Failed { .. })));
 }
 
-fn assert_unfinished_reads(agent: &smith_agent_world::World) {
+fn assert_unfinished_reads(agent: &smith_agent_world::World<temper_system_world::composed::provider::Provider>) {
     use smith_domain_session::llm::{Block, Returned};
     assert!(matches!(
         agent.answer(),

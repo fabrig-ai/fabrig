@@ -193,7 +193,7 @@ pub fn scripted_waiting_agent_for(
 
 /// The concrete Smith history of an agent's turns, as a resume gives it.
 #[must_use]
-pub fn transcript(agent: &Agent) -> smith::Transcript {
+pub fn transcript<B: smith_agent_world::backend::Backend>(agent: &smith_agent_world::World<B>) -> smith::Transcript {
     let first = agent.turns().first().expect("a concrete Smith turn");
     smith::Transcript {
         version: first.version,

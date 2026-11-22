@@ -201,39 +201,6 @@ fn owner(spec: &str, survey: bool) -> Turn {
 }
 
 #[must_use]
-pub fn step_4_5_refused(_forge: SocketAddr) -> Box<[Script]> {
-    account_wait(Line::Fail {
-        error: skein_fake_llm_domain::api::Error::Unauthorized,
-        report: skein_fake_llm_domain::api::Report::none(),
-        credentials: Box::new([0]),
-    })
-}
-
-#[must_use]
-pub fn step_4_5_limited(_forge: SocketAddr) -> Box<[Script]> {
-    account_wait(Line::Fail {
-        error: skein_fake_llm_domain::api::Error::Exhausted { retry_after: Some(skein_lib::Duration::from_secs(1)) },
-        report: skein_fake_llm_domain::api::Report::none(),
-        credentials: Box::new([0]),
-    })
-}
-
-fn account_wait(failure: Line) -> Box<[Script]> {
-    use super::{HELD_A_SPEC, RESUMED_REPORT};
-    let mut resumed = report(RESUMED_REPORT);
-    let mut lines = vec![failure];
-    lines.extend(resumed.lines);
-    resumed.lines = lines.into();
-    Box::new([
-        Script {
-            cue: Agent::Director.cue().into(),
-            turns: Box::new([owner(HELD_A_SPEC, false), wait("A delegated."), report(RESUMED_REPORT)]),
-        },
-        Script { cue: Agent::A.cue().into(), turns: Box::new([resumed]) },
-    ])
-}
-
-#[must_use]
 pub fn step_4_3(_forge: SocketAddr) -> Box<[Script]> {
     use super::{B_REPORT, B_SPEC, BENCHMARK, BENCHMARK_RUNNING, BENCHMARK_SPEC, CHECK, CHECK_REASON, CHECK_REPORT};
     use skein_fake_llm_domain::api::Piece;

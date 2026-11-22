@@ -90,6 +90,19 @@ impl Protocol {
         seed: u64,
         domain: &smith_domain::Limits,
     ) -> Self {
+        Self::with_grant(configuration, translation, scripts, seed, domain, GrantName { account: 0, generation: 1 })
+    }
+
+    /// Build with the host's initial source identity instead of the standalone fixture's.
+    #[must_use]
+    pub fn with_grant(
+        configuration: Configuration,
+        translation: smith_protocol_llm::Limits,
+        scripts: Box<[fake::api::Script]>,
+        seed: u64,
+        domain: &smith_domain::Limits,
+        initial: GrantName,
+    ) -> Self {
         let mut limits =
             smith_protocol_llm_fixtures::component(translation, Duration::from_secs(60)).expect("receiving bounds");
         limits.connection.calls = 64;
@@ -145,9 +158,7 @@ impl Protocol {
             skein_llm::Scheme::Bearer => skein_llm::Credential::bearer(configuration.credential.value.clone()),
             skein_llm::Scheme::Key => skein_llm::Credential::key(configuration.credential.value.clone()),
         };
-        component
-            .grant(GrantName { account: 0, generation: 1 }, credential, Time::from_nanos(u64::MAX))
-            .expect("fixture grant");
+        component.grant(initial, credential, Time::from_nanos(u64::MAX)).expect("fixture grant");
         let config = fake::Config { calls: 256, cache_entries: 256, ..skein_llm_kit::fake::config() };
         Self {
             component,
@@ -172,6 +183,25 @@ impl Protocol {
             referee: skein_world::domain::Referee::new(crate::referee::Meeting::default()),
         }
     }
+    /// Keep the fake provider's state across process activations, not its client sockets.
+    pub fn continue_provider(&mut self, previous: &mut Self) {
+        core::mem::swap(&mut self.provider, &mut previous.provider);
+    }
+
+    /// Grant caller-owned fixture credentials, in the peer's stable credential order.
+    pub fn grant(&mut self, name: GrantName, credential: skein_llm::Credential) {
+        let peer = match credential.scheme {
+            skein_llm::Scheme::Bearer => skein_llm::Credential::bearer(credential.value.clone()),
+            skein_llm::Scheme::Key => skein_llm::Credential::key(credential.value.clone()),
+        };
+        self.component.grant(name, credential, Time::from_nanos(u64::MAX)).expect("fixture grant");
+        let mut credentials = core::mem::take(&mut self.credentials).into_vec();
+        if !credentials.iter().any(|kept| kept.scheme == peer.scheme && kept.value == peer.value) {
+            credentials.push(peer);
+        }
+        self.credentials = credentials.into_boxed_slice();
+    }
+
     pub(crate) fn calls(&self) -> &[Call] {
         &self.calls
     }

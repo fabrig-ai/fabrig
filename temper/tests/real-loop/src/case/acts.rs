@@ -22,9 +22,6 @@ pub enum Read {
     DirectorEnded,
     AEnded,
     DesignEnded,
-    AWaiting,
-    Refused,
-    Limited,
     CheckEnded,
     DirectorActivity,
     DirectorTimer,
@@ -149,76 +146,6 @@ pub fn step_4_1() -> Vec<calls::Step> {
         call(D1, argv!["task", "show", number(A), "--until", "ended", "--json"]),
         join(DIRECTOR_ENDED),
     ]
-}
-
-// Refusal keeps its phase wait and fresh read; the limit retains its matching read.
-const HELD_A_ENDED: usize = 3;
-const A_WAITING: usize = 5;
-const HELD_ACCOUNTS: usize = 6;
-const REFUSED_DIRECTOR_ENDED: usize = 8;
-const LIMITED_A_WAITING: usize = 4;
-const LIMITED_ACCOUNTS: usize = 5;
-const LIMITED_DIRECTOR_ENDED: usize = 6;
-pub const READS_4_5_REFUSED: &[(Read, usize)] = &[
-    (Read::DirectorEnded, REFUSED_DIRECTOR_ENDED),
-    (Read::AWaiting, A_WAITING),
-    (Read::Refused, HELD_ACCOUNTS),
-    (Read::AEnded, HELD_A_ENDED),
-];
-pub const READS_4_5_LIMITED: &[(Read, usize)] = &[
-    (Read::DirectorEnded, LIMITED_DIRECTOR_ENDED),
-    (Read::AWaiting, LIMITED_A_WAITING),
-    (Read::Limited, LIMITED_ACCOUNTS),
-    (Read::AEnded, HELD_A_ENDED),
-];
-
-#[must_use]
-pub fn step_4_5_refused() -> Vec<calls::Step> {
-    use super::{FIRST_ACCOUNT, SECOND_KEY_FILE};
-    held(
-        "refused",
-        Some(call(D1, argv!["account", "replace-key", number(FIRST_ACCOUNT), calls::file(SECOND_KEY_FILE)])),
-    )
-}
-
-#[must_use]
-pub fn step_4_5_limited() -> Vec<calls::Step> {
-    // Only reads and waits follow the chat: the engine lifts the limit.
-    held("limited", None)
-}
-
-fn held(key: &'static str, act: Option<calls::Step>) -> Vec<calls::Step> {
-    let mut steps = vec![
-        sign_in(D1),
-        call(D1, argv!["chat", "start", "--project", number(PROJECT), "--key", key, super::HELD_PERSON]),
-        call(D1, argv!["task", "show", number(DIRECTOR), "--until", "replied"]),
-        // A fresh wait after the requester ends exits unknown: jig's
-        // routing/views.rs admission and documents/small.rs require live rows.
-        // Keep A's watch across the act until jig supports ended waits.
-        start(D1, argv!["task", "show", number(A), "--until", "ended", "--json"]),
-    ];
-    if act.is_none() {
-        steps.push(calls::until_matching(
-            D1,
-            argv!["task", "show", number(A), "--json"],
-            calls::ReadCondition::LimitedTask { task: A, account: super::FIRST_ACCOUNT, source: 0 },
-            b"\"phase\":\"ended\"",
-        ));
-    } else {
-        steps.push(call(D1, argv!["task", "show", number(A), "--until", "phase:due"]));
-        steps.push(call(D1, argv!["task", "show", number(A), "--json"]));
-    }
-    steps.push(call(D1, argv!["account", "list", "--json"]));
-    steps.extend(act);
-    steps.push(join(HELD_A_ENDED));
-    // The director can already be ended too: a fresh wait exits unknown.
-    steps.push(until(
-        D1,
-        argv!["task", "show", number(DIRECTOR), "--json"],
-        b"\"phase\":\"ended\"",
-        b"\"phase\":\"running\"",
-    ));
-    steps
 }
 
 // Call positions within the signed-in check suffix; non-call steps consume none.

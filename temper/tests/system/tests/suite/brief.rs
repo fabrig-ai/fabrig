@@ -196,7 +196,7 @@ fn large_pull_review(seed: u64, bytes: usize) {
     assert_eq!(world.observed.spawns, 3, "chat, producer and one admitted reviewer");
 }
 
-fn assert_forge_reads(agent: &smith_agent_world::World) {
+fn assert_forge_reads(agent: &smith_agent_world::World<temper_system_world::composed::provider::Provider>) {
     use smith_domain_session::llm::{Block, Returned};
     let results = agent
         .turns()

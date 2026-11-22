@@ -35,9 +35,6 @@ pub const FIRST_ACCOUNT: u64 = 1;
 pub const SECOND_KEY_FILE: &str = "second.key";
 pub const DEFAULT_MODEL: &str = "fake";
 pub const DEFAULT_MODEL_NUMBER: u8 = 0;
-pub const HELD_PERSON: &str = "@case_director Delegate A's report and wait for it.";
-pub const HELD_A_SPEC: &str = "@case_a Report when your account allows the work to continue.";
-pub const RESUMED_REPORT: &str = "The work continued on its account.";
 // The fake forge's one repository stands as kit, since forge.rs names it,
 // until the fixture holds two.
 pub const KIT: &str = "acme/app";

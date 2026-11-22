@@ -112,7 +112,7 @@ impl World {
 
     /// The real Smith run kept for a review, including its reads and terminal failure.
     #[must_use]
-    pub fn review_agent(&self, task: u64) -> &smith_agent_world::World {
+    pub fn review_agent(&self, task: u64) -> &super::Agent {
         if self.assignment().task == task {
             self.agent()
         } else {

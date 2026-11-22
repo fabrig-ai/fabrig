@@ -29,8 +29,6 @@ mod turn_landing;
 
 mod fuzzy {
     mod case_4_1_4_3;
-    mod case_4_5_limited;
-    mod case_4_5_refused;
     mod case_4_6;
     mod case_5_1;
     mod case_5_2;

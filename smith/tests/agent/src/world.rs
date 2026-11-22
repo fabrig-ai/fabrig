@@ -304,6 +304,7 @@ pub struct World<B: Backend = Typed> {
     writing_opened: BTreeSet<u32>,
     settings: Settings,
     unauthorized: Vec<(Time, GrantName)>,
+    account_notices: Option<Vec<Request>>,
     now: Time,
     rng: Rng,
     agent: agent::Domain,
@@ -430,6 +431,16 @@ impl<B: Backend> World<B> {
         &self.unauthorized
     }
 
+    /// Retain account notices for a parent hosting the process channel.
+    pub fn enable_parent_account_notices(&mut self) {
+        self.account_notices = Some(Vec::new());
+    }
+
+    /// Drain account notices for a composed host to carry over its process channel.
+    pub fn take_account_notices(&mut self) -> Vec<Request> {
+        self.account_notices.as_mut().map_or_else(Vec::new, core::mem::take)
+    }
+
     /// The root's remaining alarm after its boundary observations.
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
@@ -465,6 +476,10 @@ impl<B: Backend> World<B> {
     )]
     /// Start with caller-owned checkout, history and optional complete Start.
     #[must_use]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one initialization keeps the composed provider and host observations together"
+    )]
     pub fn with_selected_backend(
         settings: &Settings,
         transcript: Option<agent::Transcript>,
@@ -574,12 +589,18 @@ impl<B: Backend> World<B> {
             referee,
             terminals: 0,
             unauthorized: Vec::new(),
+            account_notices: None,
         }
     }
 
     /// Read only the selected lower backend's outside observations.
     pub fn backend(&self) -> &B {
         &self.backend
+    }
+
+    /// Return the settled provider face for a following process activation.
+    pub fn into_backend(self) -> B {
+        self.backend
     }
 
     /// Inject the host wall clock independently of monotonic time.
@@ -1380,11 +1401,19 @@ impl<B: Backend> World<B> {
                 self.host_history.withdraw(relay).expect("withdraw retains terminal");
                 assert!(self.host_pending.contains_key(&(relay.owner.raw(), relay.attempt)));
             }
-            Request::Unauthorized { grant } => self.unauthorized.push((self.now, grant)),
+            notice @ Request::Unauthorized { grant } => {
+                self.unauthorized.push((self.now, grant));
+                if let Some(notices) = &mut self.account_notices {
+                    notices.push(notice);
+                }
+            }
+            notice @ (Request::Refused { .. } | Request::Limited { .. }) => {
+                if let Some(notices) = &mut self.account_notices {
+                    notices.push(notice);
+                }
+            }
             Request::MessageRefused { .. }
-            | Request::Refused { .. }
             | Request::Usage { .. }
-            | Request::Limited { .. }
             | Request::Lower(smith_domain::Lower::Yield { .. } | smith_domain::Lower::Close { .. }) => {}
         }
     }

@@ -70,6 +70,20 @@ impl Typed {
         })
     }
 
+    /// Build the typed provider with caller-supplied scripts and the usual boundaries.
+    #[must_use]
+    pub fn scripted(settings: &Settings, scripts: Box<[provider::api::Script]>) -> Self {
+        let mut backend = Self::new(settings);
+        backend.provider = provider::Domain::configured(
+            &settings.provider,
+            settings.seed ^ 0x25,
+            scripts,
+            smith_session_world::provider::menu(),
+        )
+        .expect("caller scripts obey provider admission");
+        backend
+    }
+
     pub(crate) fn new(settings: &Settings) -> Self {
         let mut client = skein_llm_kit::limits();
         client.input = u32::try_from(settings.limits.session.answer_bytes).expect("domain call input fits u32");
