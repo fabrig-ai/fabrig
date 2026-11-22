@@ -26,7 +26,20 @@ It uses the workspace's existing Cargo target and works offline.
 
 Delivery formats changed handwritten Rust files with rustfmt and skips codec
 outputs listed in `tools/merge/codecs.txt`. It reads offline Cargo metadata
-for their editions. Counted baselines, citations, outward names, journey and
+for their editions. In the worker hook rustfmt writes private copies taken
+from the delivery snapshot. On success the hook applies the formatting patch
+to the checkout. The remaining checks, receipt and worker publication use
+the formatted tree. A formatter error or a concurrent change refuses delivery.
+The explicit child and goal-close checks verify their inputs without edits.
+
+For each passing delivery with merge inputs, the hook remembers their
+commit IDs in the checkout's Git directory under the comparison base and
+formatted tree ID. When publication rebuilds the commit, the next check
+can recover those inputs from the published tree in its first-parent
+history. It selects paths again against their current contents and runs
+the checks again.
+
+Counted baselines, citations, outward names, journey and
 budget rules apply to the changed paths. Checker changes also run its
 subprocess-free Python suite. Delivery and finish perform no Rust build or test.
 The worker receives its check results and the receipt at
@@ -1007,7 +1020,10 @@ tree that passed here.
 ### 9.1 The worker entry point
 
 Offline acceptance runs invoke `.temper/pre-pr` in a prepared workspace with
-its real local pin. A formatting error must refuse delivery. A formatted Rust
+its real local pin. A fixable formatting error is corrected before publication. A clean import
+from a merged branch stays untouched across publication and finish. A Rust
+parse error refuses delivery without applying a partial formatting patch.
+A formatted Rust
 change with a failing assertion must pass the light checks without a build,
 then fail focused testing at goal close even if settlement changes no files.
 The target is two minutes on a typical warm delivery.
