@@ -62,6 +62,7 @@ fn message(ask: &Ask, task: u64) -> Option<(&Text, u32)> {
         | Ask::ChangePolicy { .. }
         | Ask::SetRoles { .. }
         | Ask::MakeService { .. }
+        | Ask::ReissueService { .. }
         | Ask::Leave { .. }
         | Ask::SetPool { .. } => None,
     }

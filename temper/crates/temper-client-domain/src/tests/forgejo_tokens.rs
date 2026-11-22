@@ -33,6 +33,7 @@ fn row(number: u16, kind: w::Kind, mode: w::Mode, connection: w::Connection, end
         stopped = Some(w::ConnectStopped { why: why.into() });
     }
     w::ForgeRow {
+        catching_up: None,
         starts_with: w::StartsWith::Repository,
         makings: List::with_capacity(0),
         host: b"git.example:3000".as_slice().into(),

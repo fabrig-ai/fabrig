@@ -424,8 +424,8 @@ it.
   - each record's encoded and decoded bounds;
   - fixed-rule values built from schema text, without stored golden bytes.
 
-  Smith's family drift checks compare the records' module alone and refuse
-  unpinned constructs; the generator's own pin holds its bytes and tests
+  Smith's family drift checks compare the records' module alone;
+  the generator's own pin holds its bytes and tests
   (skein's `data/codec/README.md`, section 6).
 
   Designed in skein's `data/codec/README.md`.

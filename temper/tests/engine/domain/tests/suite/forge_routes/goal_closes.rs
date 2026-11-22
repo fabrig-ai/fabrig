@@ -131,8 +131,13 @@ fn goal_world_on_landing(
         shown: None,
         picker: true,
     };
-    let wire = jig_protocol_engine_clients::translate::owner::frame(&frame, &[catalogue], link.wire())
-        .expect("person's creating offer");
+    let wire = jig_protocol_engine_clients::translate::owner::frame(
+        &frame,
+        skein_lib::Wall::from_nanos(86_400_000_000_000),
+        &[catalogue],
+        link.wire(),
+    )
+    .expect("person's creating offer");
     let me = jig_client_protocol_link::translate::documents::frame(wire, &link).expect("client's creating offer");
     let charter = if template == 4 { 5 } else { 2 };
     let judged = jig_client::shapes::set_goal_from(

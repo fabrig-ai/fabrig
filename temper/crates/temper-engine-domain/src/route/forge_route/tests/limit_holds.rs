@@ -26,6 +26,9 @@ fn held(domain: &crate::Domain, task: u64) -> bool {
     }
 }
 fn two_tasks() -> (crate::Domain, Env<crate::Limits>) {
+    two_tasks_with_fresh_reads(true)
+}
+fn two_tasks_with_fresh_reads(read: bool) -> (crate::Domain, Env<crate::Limits>) {
     let (mut domain, env, source) = crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: 1 });
     let original = domain.core.tasks.task(source).unwrap().clone();
     let number = SECOND;
@@ -71,7 +74,18 @@ fn two_tasks() -> (crate::Domain, Env<crate::Limits>) {
         forge::Event::Restore { record: forge::Stored::Repository(repository) },
         &mut Queue::uncapped(),
     );
+    if read {
+        fresh(&mut domain, &env);
+    }
     (domain, env)
+}
+
+fn fresh(domain: &mut crate::Domain, env: &Env<crate::Limits>) {
+    for event in [forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic }, forge::Event::CatchUp]
+    {
+        forge::step(&mut domain.forge, &env.with(env.limits.forge), event, &mut Queue::uncapped());
+    }
+    assert!(domain.forge.fresh_reads_in());
 }
 #[test]
 fn one_task_name_place_ends_only_the_oldest_limit_hold() {
@@ -267,5 +281,45 @@ fn a_stale_kept_revision_cannot_release_the_next_limit_hold() {
     let stopped = domain.core.tasks.task(FIRST).unwrap().clone();
     refuse(&mut domain, &env, &mut decision, FIRST, 7);
     assert_eq!(domain.core.tasks.task(FIRST), Some(&stopped), "a late limit refusal cannot replace a party's stop");
+    assert!(domain.forge_limit_holds().is_empty());
+}
+
+#[test]
+fn reconcile_keeps_restored_limit_holds_until_fresh_reads_are_in() {
+    let (mut domain, env) = two_tasks_with_fresh_reads(false);
+    let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
+    refuse(&mut domain, &env, &mut decision, FIRST, 5);
+    let mut stale = domain.forge_limit_holds()[0].clone();
+    stale.task = 999;
+    super::super::limit_holds::restore(&mut domain, stale);
+    assert!(!domain.forge.fresh_reads_in());
+    super::super::limit_holds::reconcile(&mut domain, &env, &mut decision);
+    assert_eq!(domain.forge_limit_holds().len(), 2, "restored facts are not judged");
+    fresh(&mut domain, &env);
+    super::super::limit_holds::reconcile(&mut domain, &env, &mut decision);
+    assert_eq!(kept_tasks(&domain).as_ref(), &[FIRST]);
+}
+
+#[test]
+fn room_freed_waits_for_fresh_reads_before_releasing_limit_holds() {
+    let (mut domain, mut env) = two_tasks_with_fresh_reads(false);
+    env.limits.forge.tasks = 1;
+    let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
+    drive(&mut domain, &env, &mut decision, forge::Event::Names { task: THIRD, resources: Box::new([]) });
+    drive(&mut domain, &env, &mut decision, forge::Event::Names { task: FIRST, resources: Box::new([]) });
+    assert!(held(&domain, FIRST));
+    forge::step(
+        &mut domain.forge,
+        &env.with(env.limits.forge),
+        forge::Event::Unnamed { task: THIRD },
+        &mut Queue::uncapped(),
+    );
+    super::super::limit_holds::room_freed(&mut domain, &env.limits.forge);
+    assert!(domain.work.is_empty(), "restored usage queues no release");
+    fresh(&mut domain, &env);
+    super::super::limit_holds::room_freed(&mut domain, &env.limits.forge);
+    assert!(!domain.work.is_empty(), "fresh usage notices the room that freed");
+    crate::route::route_into(&mut domain, &env, &mut decision);
+    assert!(!held(&domain, FIRST));
     assert!(domain.forge_limit_holds().is_empty());
 }

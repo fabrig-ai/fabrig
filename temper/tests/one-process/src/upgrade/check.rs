@@ -320,10 +320,7 @@ pub fn rehearsal_then_start_and_back() {
         let owner = if *of == Owner::Jig { "jig" } else { "temper" };
         assert!(report.contains(&format!("ran {owner} {expected}: {rows} rows in {commits} commits")), "{report}");
     }
-    assert!(
-        report.contains("registry commit, jobs and restores pass; what follows the switch is not rehearsed"),
-        "{report}"
-    );
+    assert!(report.contains("registry commit, jobs and restores pass; opened in "), "{report}");
     assert!(report.ends_with("temper-box upgrade: workers may stay: yes\n"), "{report}");
     assert_eq!(image(&mut disk), original, "rehearsal leaves every deployment byte unchanged");
     let (_, _, actual) = drive(&mut disk, &document, CURRENT_SETS, Until::Switched);
@@ -354,6 +351,6 @@ pub fn golden(directory: &Path) {
     let (report, code, patches) = drive(&mut disk, &document, temper_engine_service::store::OWNER_SETS, Until::Check);
     assert_eq!(code, 0, "{report}");
     assert!(patches.is_empty(), "floor store needs no jobs");
-    assert!(report.contains("registry commit, jobs and restores pass"), "{report}");
+    assert!(report.contains("registry commit, jobs and restores pass; opened in "), "{report}");
     assert_eq!(image(&mut disk), before);
 }

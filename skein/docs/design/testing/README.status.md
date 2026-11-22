@@ -1,8 +1,8 @@
 # testing: status
 
-2026-11-20. Where skein's code lags or departs from [README.md](README.md).
+2026-11-21. Where skein's code lags or departs from [README.md](README.md).
 
-Unlisted sections have no known gap. Section 6's test-only fork kit and
+Section 6's test-only fork kit and
 its documented process boundary are present, as is the row runner's
 admission.
 Section 9 carries deferred cost work, including further folds,
@@ -23,6 +23,12 @@ counted around each reused pass, never by an address.
 - **Not yet:** 4: the probe's report of a contained tree.
   4: the probe for a reach, `skein_fake_machine::probe`, and the machine honouring a reach.
   [in flight: change 9030]
+- **Not yet:** 4: the fake machine's metadata beyond mode `0o777`, times
+  and attributes, its subvolume and filesystem answers, and tree programs.
+- **Not yet:** 5: address-only reuse checks still do not count allocations
+  for lib's reused list and UI's reused tree storage.
+- **Not yet:** 7: the focused cost-saving and suite CPU-margin proofs;
+  selected instruction ratios establish neither a whole-suite saving nor its margin.
 - **Departs:** 5, 10: `skein/testing/skein-world/src/lib.rs` fences six
   items `cfg(unix)`, though these sections have the crate native, on
   Linux and macOS, so off unix it fails to build however it is fenced; no

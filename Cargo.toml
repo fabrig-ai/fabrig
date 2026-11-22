@@ -421,6 +421,7 @@ members = [
     "temper/crates/temper-engine-domain-forge-vocabulary",
     "temper/crates/temper-worker-domain",
     "temper/crates/temper-worker-domain-checkout",
+    "temper/testing/temper-worker-inspect",
     "temper/crates/temper-worker-domain-tooling",
     "temper/tests/fake-checkout",
     "temper/tests/playground",
@@ -561,8 +562,6 @@ io-uring = { version = "0.7.15" }
 libc = { version = "0.2.186" }
 rustix = { version = "1.1.6", features = ["stdio", "fs"] }
 ring = { version = "0.17", features = ["wasm32_unknown_unknown_js"] }
-rsa = { version = "0.9.9", default-features = false, features = ["pem", "u64_digit"] }
-rand_chacha = { version = "0.3.1", default-features = false }
 # rustls, pinned, without std and with ring for its cryptography (skein/docs/design/net/tls.md, 4).
 # Named in wasm32-unknown-unknown tables alone (skein/docs/foundation/cli.md, 3).
 rustls = { version = "=0.23.41", default-features = false, features = ["ring", "tls12"] }
@@ -824,6 +823,7 @@ temper-engine-domain-forge = { path = "temper/crates/temper-engine-domain-forge"
 temper-engine-domain-forge-vocabulary = { path = "temper/crates/temper-engine-domain-forge-vocabulary" }
 temper-worker-domain = { path = "temper/crates/temper-worker-domain" }
 temper-worker-domain-checkout = { path = "temper/crates/temper-worker-domain-checkout" }
+temper-worker-inspect = { path = "temper/testing/temper-worker-inspect" }
 temper-worker-domain-tooling = { path = "temper/crates/temper-worker-domain-tooling" }
 temper-fake-checkout = { path = "temper/tests/fake-checkout" }
 temper-worker-checkout-world = { path = "temper/tests/worker/checkout" }
@@ -957,13 +957,6 @@ opt-level = 3
 debug-assertions = false
 
 [profile.dev.package.sha2]
-opt-level = 3
-
-# Walks generate a seeded 3072-bit provider key for each world.
-[profile.dev.package.num-bigint-dig]
-opt-level = 3
-
-[profile.dev.package.rsa]
 opt-level = 3
 
 [profile.dev.package.jig-boundary]

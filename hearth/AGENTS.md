@@ -1,6 +1,6 @@
 # hearth
 
-Immutable machines, built from a revision: the daemon that renders, builds and runs a machine's outputs. Start from `hearth/docs/design/README.md`: its section 2 is the reading order, its section 3 the milestones. `hearth/docs/design/STATUS.md` says how far the code is from the design.
+Immutable machines, built from a revision: the daemon that renders, builds and runs a machine's outputs. Start from `hearth/docs/design/README.md`: its section 2 is the reading order, its section 3 the milestones. `hearth/docs/design/STATUS.md` says where to find how far the code is from the design and how to roll up the status files.
 
 - **hearth builds on skein alone:** it depends on no crate of smith, jig or temper, and none of theirs depends on hearth.
 - **Every crate is step code,** except the fakes and test kits under `testing/`, the worlds under `tests/` and the binary's shell, which are ordinary Rust and take a lint profile (`tools/lints/design.md`, 3).

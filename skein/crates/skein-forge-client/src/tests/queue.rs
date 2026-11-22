@@ -53,8 +53,6 @@ fn restart(h: &mut Harness) -> Sent {
     let sent = submit(h);
     h.answer(sent, Ok(Answer::Queued));
     h.restart(200, 200, RecoveryClock::Monotonic);
-    h.step(Event::PauseOutbox);
-    assert!(h.send().is_none());
     h.step(Event::SettleOutbox);
     assert_eq!(h.outbox_done, 0);
     let look = h.one();

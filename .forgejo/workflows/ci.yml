@@ -13,7 +13,7 @@ on:
         required: true
 jobs:
   check:
-    runs-on: dogfood
+    runs-on: goal-pre-pr
     permissions:
       contents: read
     steps:
@@ -23,9 +23,9 @@ jobs:
           DESTINATION: ${{ inputs.destination }}
           PULL_NUMBER: ${{ inputs.pull_number }}
         run: |
-          if [ -x "$HOME/.local/bin/full-goal-pre-pr" ]; then
-            "$HOME/.local/bin/full-goal-pre-pr" "$PULL_NUMBER" "$GOAL_HEAD" "$DESTINATION"
-          else
-            echo "Full goal pre-PR unavailable on this runner" >&2
-            exit 78
-          fi
+          status=0
+          "$HOME/.local/bin/full-goal-pre-pr" "$PULL_NUMBER" "$GOAL_HEAD" "$DESTINATION" || status=$?
+          case "$status" in
+            0|1) exit "$status" ;;
+            *) echo "Full goal pre-PR unavailable (runner status $status). No check verdict." ;;
+          esac

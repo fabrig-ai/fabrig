@@ -4,6 +4,7 @@ use std::{
     os::unix::{ffi::OsStrExt, fs::PermissionsExt},
 };
 use temper_config_shell::{FILE, FORMER};
+use temper_service_shell::configuration::Read;
 use temper_shell::directories::Directories;
 
 const ENGINE: &str = r#"listen = "127.0.0.1:7100"
@@ -69,17 +70,25 @@ fn toml_engine_stopped_tools_read_the_file() {
 
 #[test]
 fn toml_engine_refuses_a_box_file_without_workers() {
-    let (_scratch, directories) = fixture("listen = \"127.0.0.1:7100\"\n");
-    let Err(why) = crate::serve::prepare_in_with(
+    let directories = crate::test_configuration::directories(std::path::Path::new("/fixture"));
+    let Err(why) = crate::serve::prepare_in_with_read(
         "temper-engine",
         &[],
         b"/",
         &directories,
         &temper_engine_service::stock::Given::Stock,
+        |_, shape| read_scripted(b"listen = \"127.0.0.1:7100\"\n", shape),
     ) else {
         panic!("engine requires workers listener")
     };
     assert_eq!(why, format!("temper-engine serve: {FILE}: workers: required in temper-engine's file\n"));
+}
+
+pub(super) fn read_scripted(bytes: &[u8], shape: temper_config_shell::Shape) -> Result<Read, String> {
+    let facts = temper_config_shell::Facts { login: "sam".into(), hostname: "fixture".into(), provider_key: false };
+    let temper_config_shell::Read { file, document, keys } =
+        temper_config_shell::parse(bytes, shape, &facts).map_err(|why| why.to_string())?;
+    Ok(Read { file, document, keys })
 }
 
 fn fake_setup(directories: &Directories) {

@@ -80,6 +80,23 @@ fn limits_refuse_the_first_excess_at_its_path() {
 
 const PATH: Path<()> = Path::new(9, 2);
 
+#[test]
+fn generated_constants_match_every_fixture_bound_at_zero() {
+    use fixture::{Choice, Empty, Limits, Nested, Row, Words};
+
+    let zero =
+        Limits { words_words: 0, nested_words: 0, nested_words_item_some: 0, nested_maybe_some: 0, nested_records: 0 };
+    for (name, bound, constant) in [
+        ("Empty", Empty::encoded_bound(&zero), Empty::ENCODED_AT_ZERO),
+        ("Words", Words::encoded_bound(&zero), Words::ENCODED_AT_ZERO),
+        ("Choice", Choice::encoded_bound(&zero), Choice::ENCODED_AT_ZERO),
+        ("Row", Row::encoded_bound(&zero), Row::ENCODED_AT_ZERO),
+        ("Nested", Nested::encoded_bound(&zero), Nested::ENCODED_AT_ZERO),
+    ] {
+        assert_eq!(bound, Some(constant), "{name}");
+    }
+}
+
 fn written<T, F: Field<(), T>>(shape: &F, value: &T) -> Result<Box<[u8]>, Problem<()>> {
     let mut measure = Writer::measure(1024);
     shape.write(value, &(), &mut measure, PATH)?;

@@ -67,6 +67,9 @@ mod startup;
 mod table;
 #[cfg(unix)]
 mod terminal;
+#[cfg(unix)]
+#[doc(hidden)]
+pub mod testing;
 #[cfg(all(test, unix))]
 mod tests;
 

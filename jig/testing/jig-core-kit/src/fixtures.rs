@@ -552,3 +552,28 @@ pub fn job_world(seed: u64, ceiling: bool) -> (crate::world::World, u64) {
     let task = delegate(&mut world, run, 1, procedure);
     (world, task)
 }
+
+/// Open the core without answering any connector's catching-up ask.
+#[must_use]
+pub fn opened_before_catch_up(seed: u64) -> core::Core {
+    use core::start::{Action, Phase, SweepInput};
+    let (config, limits) = crate::world::fixture(seed, false);
+    let env = Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: limits.core };
+    let mut core = core::Core::new(config.core, &limits.core).expect("configured core");
+    let mut out = Queue::uncapped();
+    let mut action = core.start_begin(false, env.wall);
+    for _ in 0..32 {
+        action = match action {
+            Action::Step(Phase::Sweep) => core.start_sweep(&env, SweepInput::Finished, &mut out),
+            Action::Step(phase) => core.start_done(&env, phase, &mut out),
+            Action::Commit(continuation) => core.start_resume(&env, continuation, &mut out),
+            Action::Idle => break,
+            Action::Refused(failure) => panic!("fresh core refused: {failure:?}"),
+        };
+    }
+    assert!(core.ready() && core.start_opened());
+    for &connector in &core.connectors {
+        assert!(!core.caught_up(connector));
+    }
+    core
+}

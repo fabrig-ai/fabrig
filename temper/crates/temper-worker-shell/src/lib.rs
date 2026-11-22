@@ -56,3 +56,6 @@ fn path(bytes: &[u8]) -> &Path {
 pub mod test_configuration;
 #[cfg(test)]
 mod tests;
+
+#[doc(hidden)]
+pub mod testing;

@@ -142,6 +142,7 @@ fn decode(
             let v = value;
             p::Ask::MarkSeen { seen: seen(v.through) }
         }
+        w::Ask::ReissueService(value) => p::Ask::ReissueService { party: value.party },
         w::Ask::MakeService(value) => {
             let v = value;
             p::Ask::MakeService { project: v.project, name: v.name, role: role(v.role) }

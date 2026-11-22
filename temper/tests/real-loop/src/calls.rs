@@ -1,7 +1,7 @@
 //! Hosted commands observed through their pipes, exit and a service watch cue.
 //! Answer bounds follow skein/docs/foundation/testing-strategy.md, 2.10.
 mod activity;
-use crate::fixtures;
+use crate::{deadline::Deadline, fixtures};
 pub use temper_fixtures::browse::Browsed;
 use temper_fixtures::browse::Browser;
 const BROWSER: usize = usize::MAX - 1;
@@ -9,7 +9,7 @@ const SIGN_IN_HTTP: usize = usize::MAX - 2;
 use skein_io::kernel::{Complete, Done, Exit, Fd, Op, OpenHow, Pipe, Signal, Spawn, Submit, Way};
 use skein_lib::{Duration, Queue, Time, Token, Wall};
 use skein_shell::Host;
-use skein_world::{Deadline, Expired};
+use skein_world::Expired;
 use std::{
     cell::{Cell, RefCell},
     collections::BTreeMap,
@@ -476,8 +476,8 @@ pub(crate) enum Verdict {
     Expired(Expired),
 }
 impl Verdict {
-    fn finish(deadline: &Deadline) -> Self {
-        if deadline.passed() { Self::Expired(deadline.expired()) } else { Self::InTime }
+    fn finish(deadline: &Deadline, now: Time) -> Self {
+        deadline.expiration(now).map_or(Self::InTime, Self::Expired)
     }
     fn check_answered(self, call: &Called) -> Result<(), String> {
         match self {
@@ -573,6 +573,7 @@ pub(crate) struct Caller {
     probe: Option<(Dir, Fd)>,
     probing: bool,
     running: Vec<Option<Running>>,
+    arm_deadline: fn(&'static str, Duration, Time) -> Deadline,
     owners: BTreeMap<Token, usize>,
     pub(crate) watching: Option<usize>,
     pub(crate) watched: bool,
@@ -947,6 +948,7 @@ impl Caller {
             probe: None,
             probing: false,
             running: Vec::with_capacity(count),
+            arm_deadline: Deadline::arm,
             owners: BTreeMap::new(),
             watching: None,
             watched: false,
@@ -1101,8 +1103,8 @@ impl Caller {
         call.tries += 1;
         let mut running = Running::default();
         if let Some(Step::Call { argv, .. } | Step::Start { argv, .. }) = self.steps.get(self.next) {
-            running.answer = argv.1.answer.map(|after| Deadline::arm("the temper call's answer", after));
-            running.timeout = argv.1.timeout.map(|after| Deadline::arm("the temper call's CLI wait", after));
+            running.answer = argv.1.answer.map(|after| (self.arm_deadline)("the temper call's answer", after, now));
+            running.timeout = argv.1.timeout.map(|after| (self.arm_deadline)("the temper call's CLI wait", after, now));
         }
         self.running[index] = Some(running);
         if matches!(self.steps.get(self.next), Some(Step::Start { .. }))
@@ -1194,8 +1196,9 @@ impl Caller {
             }
             (Op::Wait { pidfd, reap: true }, Done::Exit(exit)) => {
                 let running = self.running[index].as_mut().expect("running command");
-                *self.calls[index].answer.get_mut() = running.answer.as_ref().map(Verdict::finish);
-                *self.calls[index].timeout.get_mut() = running.timeout.as_ref().map(Verdict::finish);
+                *self.calls[index].answer.get_mut() = running.answer.as_ref().map(|bound| Verdict::finish(bound, now));
+                *self.calls[index].timeout.get_mut() =
+                    running.timeout.as_ref().map(|bound| Verdict::finish(bound, now));
                 self.calls[index].exit = Some(exit);
                 self.calls[index].ended = now;
                 self.calls[index].observed_at = Some(wall);
@@ -1805,6 +1808,7 @@ mod read_condition_tests {
     #[test]
     fn a_cli_timeout_and_its_harness_deadline_share_the_same_bound() {
         const TIMEOUT_SECONDS: u64 = 5; // The kept-dependency story's CLI bound.
+        let now = Time::from_nanos(42);
         let mut caller = Caller::new(
             vec![start(D1, crate::argv!["task", "show", "1", "--until", "ended"]).timeout(TIMEOUT_SECONDS)],
             PathBuf::new(),
@@ -1815,11 +1819,13 @@ mod read_condition_tests {
         let words = caller.words();
         assert_eq!(&*words[words.len() - 2], b"--timeout");
         assert_eq!(&*words[words.len() - 1], b"5");
-        caller.advance(Time::ZERO);
+        caller.arm_deadline = Deadline::scripted;
+        caller.advance(now);
         let deadline = caller.running[0].as_ref().expect("running call").timeout.as_ref().expect("CLI deadline");
         // The deadline's remaining time cannot exceed the CLI's five seconds.
-        assert!(deadline.remaining() <= Duration::from_secs(TIMEOUT_SECONDS));
-        assert!(matches!(Verdict::finish(&Deadline::arm("in-time call", Duration::from_secs(20))), Verdict::InTime));
+        assert!(deadline.until().saturating_since(now) <= Duration::from_secs(TIMEOUT_SECONDS));
+        let in_time = Deadline::scripted("in-time call", Duration::from_secs(20), now);
+        assert!(matches!(Verdict::finish(&in_time, now), Verdict::InTime));
     }
     #[test]
     fn the_final_activity_read_follows_only_a_supplied_cursor() {

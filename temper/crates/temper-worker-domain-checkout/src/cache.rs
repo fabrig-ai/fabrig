@@ -31,10 +31,14 @@ use skein_lib::{Id, List, Map, Queue, Slab, Token};
 
 use crate::boundary::{Refusal, Repository};
 use crate::facts::Cached;
+use crate::git::Op;
 use crate::hold::Hold;
 
+/// Operations that make a place due for Pack (domain/worker/checkouts.md, *Kept packed*).
+const PACK_DUE: u32 = 25;
+
 #[derive(Debug)]
-pub(crate) struct Workspace {
+pub struct Workspace {
     /// The workstream it is for, also its key in [`Cache::keys`].
     key: Box<[u8]>,
     disk: Disk,
@@ -58,15 +62,17 @@ pub(crate) struct Cloned {
     name: Box<[u8]>,
     remote: Box<[u8]>,
     store: Id<Store>,
+    pack_operations: u32,
 }
 /// Shared bare objects by remote, never spoiled by a workspace fault (worker/checkouts.md).
 #[derive(Debug)]
-pub(crate) struct Store {
+pub struct Store {
     remote: Box<[u8]>,
     token: Token,
     making: Making,
     waiters: Queue<Id<Hold>>,
     aside: Option<Token>,
+    fetches: u32,
 }
 /// One maker owns the claim until its Store ends, even when asked to abort.
 #[derive(Debug)]
@@ -116,7 +122,85 @@ pub(crate) struct Cache {
     stores: Slab<Store>,
 }
 
+impl Workspace {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn is_held(&self) -> bool {
+        match self.used {
+            Use::Held => true,
+            Use::Idle { .. } => false,
+        }
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn is_trusted(&self) -> bool {
+        match self.disk {
+            Disk::Holds { .. } => true,
+            Disk::Unknown => false,
+        }
+    }
+}
+
+impl Store {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn token(&self) -> Token {
+        self.token
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn is_made(&self) -> bool {
+        match self.making {
+            Making::Made => true,
+            Making::Unmade | Making::By { .. } => false,
+        }
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn maker(&self) -> Option<Token> {
+        match self.making {
+            Making::By { owner } => Some(owner.token()),
+            Making::Unmade | Making::Made => None,
+        }
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn waiters(&self) -> &Queue<Id<Hold>> {
+        &self.waiters
+    }
+}
+
 impl Cache {
+    pub(crate) fn workspace_uses_store(&self, workspace: Token, store: Token) -> bool {
+        let Some(workspace) = self.workspaces.get(Id::from_token(workspace)) else {
+            return false;
+        };
+        let repositories = match &workspace.disk {
+            Disk::Holds { repositories } => repositories,
+            Disk::Unknown => return false,
+        };
+        for repository in repositories {
+            if self.stores.get(repository.store).expect("a clone's store is cached").token == store {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    pub(crate) const fn workspaces(&self) -> &Slab<Workspace> {
+        &self.workspaces
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    pub(crate) const fn stores(&self) -> &Slab<Store> {
+        &self.stores
+    }
+
     pub(crate) fn with_capacity(workspaces: u32, stores: u32) -> Cache {
         Cache {
             workspaces: Slab::with_capacity(workspaces),
@@ -203,7 +287,14 @@ impl Cache {
         let first = digest.first_chunk::<8>().expect("SHA-256 has eight bytes");
         let token = Token::new(u64::from_be_bytes(*first));
         self.stores
-            .insert(Store { remote: copy_of(remote), token, making: Making::Unmade, waiters: Queue::uncapped(), aside })
+            .insert(Store {
+                remote: copy_of(remote),
+                token,
+                making: Making::Unmade,
+                waiters: Queue::uncapped(),
+                aside,
+                fetches: 0,
+            })
             .expect("new remote room")
     }
     fn borrowed(&self, store: Id<Store>, remote: &[u8]) -> bool {
@@ -327,11 +418,84 @@ impl Cache {
         let workspace = self.workspaces.get_mut(id).expect("a hold's workspace is of the cache");
         let mut cloned = List::with_capacity(count(repositories.len()));
         for (repository, borrowed) in repositories.iter().zip(stores) {
-            let clone =
-                Cloned { name: copy_of(&repository.name), remote: copy_of(&repository.remote), store: borrowed.store };
-            cloned.push(clone).expect("room for every repository");
+            let pack_operations = match workspace.disk.repository(&repository.name) {
+                Some(clone) if clone.remote == repository.remote => clone.pack_operations,
+                Some(_) | None => 0,
+            };
+            cloned
+                .push(Cloned {
+                    name: copy_of(&repository.name),
+                    remote: copy_of(&repository.remote),
+                    store: borrowed.store,
+                    pack_operations,
+                })
+                .expect("room for every repository");
         }
         workspace.disk = Disk::Holds { repositories: cloned.into_boxed() };
+    }
+
+    pub(crate) fn store_due(&self, store: Id<Store>) -> bool {
+        self.stores.get(store).expect("a hold borrows its store").fetches >= PACK_DUE
+    }
+
+    pub(crate) fn repository_due(&self, workspace: Id<Workspace>, name: &[u8]) -> bool {
+        let disk = &self.workspaces.get(workspace).expect("a hold's workspace is of the cache").disk;
+        match disk.repository(name) {
+            Some(clone) => clone.pack_operations >= PACK_DUE,
+            None => false,
+        }
+    }
+
+    /// Count pack-producing operations when asked, and reset each place a Pack names.
+    pub(crate) fn asked(&mut self, workspace: Id<Workspace>, stores: &[Borrowed], op: &Op) {
+        match op {
+            Op::Fetch { store, .. } => {
+                let entry = self.stores.get_mut(store_id(stores, *store)).expect("a hold borrows its store");
+                entry.fetches = entry.fetches.saturating_add(1);
+            }
+            Op::CheckOut { at, .. } | Op::Merge { at, .. } | Op::Commit { at, snapshot: Some(_), .. } => {
+                if let Some(clone) = self.repository_mut(workspace, &at.repository) {
+                    clone.pack_operations = clone.pack_operations.saturating_add(1);
+                }
+            }
+            Op::Pack { at, store } => {
+                if let Some(store) = store {
+                    let entry = self.stores.get_mut(store_id(stores, *store)).expect("a hold borrows its store");
+                    entry.fetches = 0;
+                }
+                if let Some(clone) = self.repository_mut(workspace, &at.repository) {
+                    clone.pack_operations = 0;
+                }
+            }
+            Op::Reset { .. }
+            | Op::Reds { .. }
+            | Op::Make { .. }
+            | Op::Store { .. }
+            | Op::Look { .. }
+            | Op::Clone { .. }
+            | Op::Point { .. }
+            | Op::Create { .. }
+            | Op::IsAncestor { .. }
+            | Op::Brings { .. }
+            | Op::DiffPaths { .. }
+            | Op::Commit { snapshot: None, .. }
+            | Op::Push { .. } => {}
+        }
+    }
+
+    fn repository_mut(&mut self, workspace: Id<Workspace>, name: &[u8]) -> Option<&mut Cloned> {
+        let disk = &mut self.workspaces.get_mut(workspace).expect("a hold's workspace is of the cache").disk;
+        match disk {
+            Disk::Holds { repositories } => {
+                for clone in repositories {
+                    if clone.name.as_ref() == name {
+                        return Some(clone);
+                    }
+                }
+            }
+            Disk::Unknown => {}
+        }
+        None
     }
 
     /// What the workspace `id` holds is no longer known: an operation on it
@@ -350,6 +514,31 @@ impl Cache {
         workspace.borrowing = Box::new([]);
         self.idle.insert(self.releases, id).expect("room for every workspace to be idle");
     }
+}
+
+impl Disk {
+    fn repository(&self, name: &[u8]) -> Option<&Cloned> {
+        match self {
+            Disk::Holds { repositories } => {
+                for clone in repositories {
+                    if clone.name.as_ref() == name {
+                        return Some(clone);
+                    }
+                }
+            }
+            Disk::Unknown => {}
+        }
+        None
+    }
+}
+
+fn store_id(stores: &[Borrowed], token: Token) -> Id<Store> {
+    for borrowed in stores {
+        if borrowed.token == token {
+            return borrowed.store;
+        }
+    }
+    unreachable!("an operation names a store the hold borrows")
 }
 
 /// Remove a waiting hold without changing the other holds' order.
@@ -375,28 +564,17 @@ fn starts_saved(repositories: &[Repository]) -> bool {
 
 /// Whether the known clones match every directory and remote in the spec.
 fn holds_exactly(disk: &Disk, repositories: &[Repository]) -> bool {
-    let cloned = match disk {
-        Disk::Holds { repositories } => repositories,
-        Disk::Unknown => return false,
-    };
-    if cloned.len() != repositories.len() {
-        return false;
+    match disk {
+        Disk::Holds { repositories: cloned } if cloned.len() == repositories.len() => {}
+        Disk::Holds { .. } | Disk::Unknown => return false,
     }
     for repository in repositories {
-        if !holds(cloned, repository) {
-            return false;
+        match disk.repository(&repository.name) {
+            Some(clone) if clone.remote == repository.remote => {}
+            Some(_) | None => return false,
         }
     }
     true
-}
-
-fn holds(cloned: &[Cloned], repository: &Repository) -> bool {
-    for clone in cloned {
-        if clone.name == repository.name {
-            return clone.remote == repository.remote;
-        }
-    }
-    false
 }
 
 pub(crate) fn count(items: usize) -> u32 {

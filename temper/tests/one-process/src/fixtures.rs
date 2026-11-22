@@ -77,13 +77,12 @@ pub(crate) fn world_document() -> documents::Configuration {
         }
     });
     // The native client admits eight exchanges beside its event stream.
-    value.jig_over("clients.streams", 2);
-    value.jig_over("clients_http.streams", 2);
-    for name in ["clients.streams", "clients_http.streams"] {
-        value.jig_over(name, 2);
-    }
-    value.jig_over("clients_http.calls", 9);
-    value.jig_over("clients.exchanges", 9);
+    value.jig_over_all([
+        ("clients.streams", 2),
+        ("clients_http.streams", 2),
+        ("clients_http.calls", 9),
+        ("clients.exchanges", 9),
+    ]);
     crate::push::configure(&mut value);
     crate::lower::configure(&mut value);
     crate::lower::github::configure(&mut value);
