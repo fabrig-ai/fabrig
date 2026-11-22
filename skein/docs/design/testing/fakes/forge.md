@@ -173,6 +173,13 @@ Chances are per mille, in `Config`, and drawn from the domain's seed.
 - **Actions' identities** follow the statuses kept: one `Run` per commit and
   repository, numbered from 1, and one `Job` per context, at attempt 1 or,
   after a rerun, 2. A commit whose statuses are forgotten loses its run.
+  `Write::Cancel` cancels such a run in flight as it does a dispatched
+  one (below): each job not completed ends cancelled, with no step
+  failed, its context's status failed, as Forgejo reports a cancelled
+  job, its pending verdict and rerun dropped; the run completes
+  `Cancelled`, naming who cancelled it. So a world reaches a change's CI
+  cancelled by someone other than its committer (temper's
+  `draft/failure-worlds.md`, 4.1). A completed run is not cancelled.
 - **Dispatch-only workflows:** a repository may declare workflows
   (`Workflow { file, jobs, latency_min, latency_max, silent, passes,
   cue }`) that run only when dispatched (`Write::Dispatch`), never on a
