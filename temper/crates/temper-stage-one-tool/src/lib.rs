@@ -11,3 +11,10 @@ pub mod judge;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+#[doc(hidden)]
+pub mod testing {
+    pub(crate) use crate::collect::{EvidenceSink, collect_with};
+    pub(crate) use crate::evidence::{EvidenceSource, read_with};
+}

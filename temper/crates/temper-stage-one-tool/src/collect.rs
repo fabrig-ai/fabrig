@@ -2,9 +2,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::fs::{self, OpenOptions};
-use std::io::Write;
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Command, ExitCode, Stdio};
+use std::process::{Command, ExitCode, Output, Stdio};
 
 use serde_json::{Value, json};
 
@@ -228,29 +228,32 @@ fn settings_json(file: &SettingsFile) -> Value {
     }
     json!({"items": items})
 }
-fn run(args: &CollectArgs, call: &[String]) -> Result<String, CollectError> {
+fn run(args: &CollectArgs, call: &[String], runner: &mut Runner<'_>) -> Result<String, CollectError> {
     let context = format!("{} ctl {} {}", args.temper.display(), args.ctl.display(), call.join(" "));
-    let result = Command::new(&args.temper)
-        .arg("ctl")
-        .arg(&args.ctl)
-        .args(call)
-        .stdin(Stdio::null())
-        .output()
-        .map_err(|e| failure(&context, e))?;
+    let mut command = Command::new(&args.temper);
+    command.arg("ctl").arg(&args.ctl).args(call).stdin(Stdio::null());
+    let result = runner(&mut command).map_err(|e| failure(&context, e))?;
     if !result.status.success() {
         let stderr = String::from_utf8_lossy(&result.stderr);
         return Err(failure(&context, format!("{}: {}", result.status, stderr.lines().next().unwrap_or("no stderr"))));
     }
     String::from_utf8(result.stdout).map_err(|e| failure(&context, e))
 }
-fn capture(args: &CollectArgs, outputs: &mut CtlOutputs, call: Vec<String>) -> Result<(), CollectError> {
+type Runner<'a> = dyn FnMut(&mut Command) -> io::Result<Output> + 'a;
+
+fn capture(
+    args: &CollectArgs,
+    outputs: &mut CtlOutputs,
+    call: Vec<String>,
+    runner: &mut Runner<'_>,
+) -> Result<(), CollectError> {
     if let std::collections::btree_map::Entry::Vacant(entry) = outputs.by_command.entry(call) {
-        let text = run(args, entry.key())?;
+        let text = run(args, entry.key(), runner)?;
         entry.insert(text);
     }
     Ok(())
 }
-fn chat(args: &CollectArgs) -> Result<String, CollectError> {
+fn chat(args: &CollectArgs, runner: &mut Runner<'_>) -> Result<String, CollectError> {
     let mut call = words(&format!("chat show {}", args.chat));
     let mut seen = BTreeSet::new();
     let mut pages = Vec::new();
@@ -258,7 +261,7 @@ fn chat(args: &CollectArgs) -> Result<String, CollectError> {
         if !seen.insert(call.clone()) {
             return Err(failure(&call.join(" "), "repeated chat cursor"));
         }
-        let page = run(args, &call)?;
+        let page = run(args, &call, runner)?;
         let last = page.lines().last().unwrap_or("");
         let prefix = format!("read on with: chat show {} --before ", args.chat);
         let next = last.strip_prefix(&prefix);
@@ -282,23 +285,49 @@ fn chat(args: &CollectArgs) -> Result<String, CollectError> {
     Ok(pages.concat())
 }
 const FILES: [&str; 6] = ["box.json", "revision.json", "items.json", "current.json", "proposal.txt", "chat.txt"];
-fn prepare(dir: &Path) -> Result<(), CollectError> {
-    fs::create_dir_all(dir).map_err(|e| failure(&dir.display().to_string(), e))?;
+pub(super) trait EvidenceSink {
+    fn create_dir_all(&mut self, path: &Path) -> io::Result<()>;
+    fn check_entry(&mut self, path: &Path) -> io::Result<()>;
+    fn write_new(&mut self, path: &Path, bytes: &[u8]) -> io::Result<()>;
+    fn create_dir(&mut self, path: &Path) -> io::Result<()>;
+}
+
+struct Disk;
+
+impl EvidenceSink for Disk {
+    fn create_dir_all(&mut self, path: &Path) -> io::Result<()> {
+        fs::create_dir_all(path)
+    }
+
+    fn check_entry(&mut self, path: &Path) -> io::Result<()> {
+        fs::symlink_metadata(path).map(|_| ())
+    }
+
+    fn write_new(&mut self, path: &Path, bytes: &[u8]) -> io::Result<()> {
+        OpenOptions::new().write(true).create_new(true).open(path)?.write_all(bytes)
+    }
+
+    fn create_dir(&mut self, path: &Path) -> io::Result<()> {
+        fs::create_dir(path)
+    }
+}
+
+fn prepare(dir: &Path, disk: &mut impl EvidenceSink) -> Result<(), CollectError> {
+    disk.create_dir_all(dir).map_err(|e| failure(&dir.display().to_string(), e))?;
     for name in FILES.into_iter().chain(["documents", "person"]) {
         let path = dir.join(name);
-        match fs::symlink_metadata(&path) {
-            Ok(_) => return Err(failure(&path.display().to_string(), "collect output already exists")),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        match disk.check_entry(&path) {
+            Ok(()) => return Err(failure(&path.display().to_string(), "collect output already exists")),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => {}
             Err(e) => return Err(failure(&path.display().to_string(), e)),
         }
     }
     Ok(())
 }
-fn write_file(dir: &Path, name: &str, text: &str) -> Result<(), CollectError> {
+fn write_file(dir: &Path, name: &str, text: &str, disk: &mut impl EvidenceSink) -> Result<(), CollectError> {
     let path = dir.join(name);
     let context = path.display().to_string();
-    let mut file = OpenOptions::new().write(true).create_new(true).open(&path).map_err(|e| failure(&context, e))?;
-    file.write_all(text.as_bytes()).map_err(|e| failure(&context, e))
+    disk.write_new(&path, text.as_bytes()).map_err(|e| failure(&context, e))
 }
 
 /// Run ctl's reads and write the collector's evidence, refusing existing outputs.
@@ -306,13 +335,21 @@ fn write_file(dir: &Path, name: &str, text: &str) -> Result<(), CollectError> {
 /// # Errors
 /// Names the failed command or evidence path, including ctl's first stderr line.
 pub fn collect(args: &CollectArgs) -> Result<(), CollectError> {
-    prepare(&args.evidence)?;
+    collect_with(args, &mut Disk, &mut Command::output)
+}
+
+pub(super) fn collect_with(
+    args: &CollectArgs,
+    disk: &mut impl EvidenceSink,
+    runner: &mut Runner<'_>,
+) -> Result<(), CollectError> {
+    prepare(&args.evidence, disk)?;
     let mut outputs = CtlOutputs { project: args.project, revision: args.revision, ..CtlOutputs::default() };
-    capture(args, &mut outputs, revision_call(args.revision))?;
+    capture(args, &mut outputs, revision_call(args.revision), runner)?;
     for call in revision_reads(&outputs)? {
-        capture(args, &mut outputs, call)?;
+        capture(args, &mut outputs, call, runner)?;
     }
-    capture(args, &mut outputs, words("settings show --json"))?;
+    capture(args, &mut outputs, words("settings show --json"), runner)?;
     let revision = revision_rows(&outputs)?;
     for setting in inventory(&outputs)? {
         let mut set_policy = false;
@@ -322,22 +359,22 @@ pub fn collect(args: &CollectArgs) -> Result<(), CollectError> {
             }
         }
         if !set_policy {
-            capture(args, &mut outputs, setting_call(&setting, None))?;
+            capture(args, &mut outputs, setting_call(&setting, None), runner)?;
         }
     }
     let (items, current) = assemble(&outputs)?;
-    let proposal = run(args, &words(&format!("proposal show {}", args.proposal)))?;
-    let chat = chat(args)?;
+    let proposal = run(args, &words(&format!("proposal show {}", args.proposal)), runner)?;
+    let chat = chat(args, runner)?;
     let facts = json!({"forge": args.forge, "repository": args.repository, "project": args.project, "revision": args.revision, "proposal": args.proposal, "chat": args.chat});
-    write_file(&args.evidence, "revision.json", output(&outputs, &revision_call(args.revision))?)?;
-    write_file(&args.evidence, "items.json", &settings_json(&items).to_string())?;
-    write_file(&args.evidence, "current.json", &settings_json(&current).to_string())?;
-    write_file(&args.evidence, "proposal.txt", &proposal)?;
-    write_file(&args.evidence, "chat.txt", &chat)?;
-    write_file(&args.evidence, "box.json", &facts.to_string())?;
+    write_file(&args.evidence, "revision.json", output(&outputs, &revision_call(args.revision))?, disk)?;
+    write_file(&args.evidence, "items.json", &settings_json(&items).to_string(), disk)?;
+    write_file(&args.evidence, "current.json", &settings_json(&current).to_string(), disk)?;
+    write_file(&args.evidence, "proposal.txt", &proposal, disk)?;
+    write_file(&args.evidence, "chat.txt", &chat, disk)?;
+    write_file(&args.evidence, "box.json", &facts.to_string(), disk)?;
     for name in ["documents", "person"] {
         let path = args.evidence.join(name);
-        fs::create_dir(&path).map_err(|e| failure(&path.display().to_string(), e))?;
+        disk.create_dir(&path).map_err(|e| failure(&path.display().to_string(), e))?;
     }
     Ok(())
 }

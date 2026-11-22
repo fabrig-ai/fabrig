@@ -90,8 +90,6 @@ real-temper = [
     "temper-qa",
     "temper-qa-tool",
     "temper-real-loop-world",
-    "temper-redeploy",
-    "temper-redeploy-tool",
     "temper-stage-one",
     "temper-twin",
     "temper-worker",

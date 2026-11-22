@@ -367,12 +367,12 @@ fn registry_upgrade(before: &maps::Maps, after: &maps::Maps) -> BTreeSet<Vec<u8>
         assert!(job.ended > 0, "job end committed");
         changed.insert(job_key.into_vec());
     }
-    changed.extend(pause_registry_upgrade(before, after));
+    changed.extend(pause_registry_upgrade(before, after, new.text));
     changed
 }
 
-/// Retained answers and acts register the pause vocabulary while their old rows stay readable.
-fn pause_registry_upgrade(before: &maps::Maps, after: &maps::Maps) -> BTreeSet<Vec<u8>> {
+/// Register the pause and landing layouts, retiring earlier layouts only for unused types.
+fn pause_registry_upgrade(before: &maps::Maps, after: &maps::Maps, temper_text: [u8; 32]) -> BTreeSet<Vec<u8>> {
     use jig_protocol_store::registry_v1 as wire;
     use skein_lib::Reader;
     let family = CURRENT_SETS
@@ -390,6 +390,7 @@ fn pause_registry_upgrade(before: &maps::Maps, after: &maps::Maps) -> BTreeSet<V
         (Owner::Jig, "jig-store-people", "answer"),
         (Owner::Jig, "jig-store-people", "acted"),
         (Owner::Application, "temper-store", "application"),
+        (Owner::Application, "temper-store", "landing"),
     ] {
         let family = CURRENT_SETS
             .sets
@@ -409,13 +410,14 @@ fn pause_registry_upgrade(before: &maps::Maps, after: &maps::Maps) -> BTreeSet<V
                 if name.as_ref() == family.name && number == ty.number)
                 && !after.store.contains_key(key)
             {
-                let layout = wire::Layout::decode(&wire::CEILINGS, &mut Reader::new(value)).expect("old people layout");
+                let layout = wire::Layout::decode(&wire::CEILINGS, &mut Reader::new(value)).expect("earlier layout");
                 assert_ne!(layout.layout, digest, "only an earlier layout is retired");
                 assert!(
-                    !before.store.keys().any(|key| ty
-                        .keys
-                        .iter()
-                        .any(|range| range.from <= key.as_slice() && key.as_slice() < range.to)),
+                    !before.store.keys().any(|key| {
+                        let key =
+                            if owner == Owner::Application { keys::of_application(key) } else { Some(key.as_slice()) };
+                        key.is_some_and(|key| ty.keys.iter().any(|range| range.from <= key && key < range.to))
+                    }),
                     "only an unused type's earlier layout is retired"
                 );
                 changed.insert(key.clone());
@@ -426,14 +428,17 @@ fn pause_registry_upgrade(before: &maps::Maps, after: &maps::Maps) -> BTreeSet<V
                 if name.as_ref() == family.name && number == ty.number)
                 && !before.store.contains_key(key)
             {
-                let layout = wire::Layout::decode(&wire::CEILINGS, &mut Reader::new(value)).expect("people layout");
+                let layout = wire::Layout::decode(&wire::CEILINGS, &mut Reader::new(value)).expect("added layout");
                 assert_eq!(layout.layout, digest, "only the production layout is added");
+                if owner == Owner::Application {
+                    assert_eq!(layout.text, temper_text, "temper-store layouts name the same text as the receipt");
+                }
                 let text_key = keys::encode_own(&keys::Own::Text(layout.text), 1024).expect("text key").into_vec();
                 let text = wire::Text::decode(
                     &wire::CEILINGS,
-                    &mut Reader::new(after.store.get(&text_key).expect("people text")),
+                    &mut Reader::new(after.store.get(&text_key).expect("layout text")),
                 )
-                .expect("people text");
+                .expect("registered text");
                 assert_eq!(text.text.as_ref(), family.current.as_bytes());
                 changed.insert(key.clone());
                 if !before.store.contains_key(&text_key) {
