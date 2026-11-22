@@ -107,11 +107,14 @@ fn deployment() -> (skein_scratch::Scratch, Directories) {
 
 fn tree(root: &Path) -> Vec<(PathBuf, u32, Vec<u8>)> {
     let mut result = Vec::new();
-    let mut entries = std::fs::read_dir(root).unwrap().map(|entry| entry.unwrap()).collect::<Vec<_>>();
+    let mut entries = std::fs::read_dir(root)
+        .expect("snapshot directory")
+        .map(|entry| entry.expect("snapshot entry"))
+        .collect::<Vec<_>>();
     entries.sort_by_key(std::fs::DirEntry::file_name);
     for entry in entries {
-        let metadata = entry.metadata().unwrap();
-        let bytes = if metadata.is_file() { std::fs::read(entry.path()).unwrap() } else { Vec::new() };
+        let metadata = entry.metadata().expect("snapshot metadata");
+        let bytes = if metadata.is_file() { std::fs::read(entry.path()).expect("snapshot file") } else { Vec::new() };
         result.push((entry.path(), metadata.permissions().mode(), bytes));
         if metadata.is_dir() {
             result.extend(tree(&entry.path()));
@@ -139,11 +142,12 @@ fn checkpoint_checks_take_only_the_checkpoint_lock_and_leave_data_unchanged() {
         ("--check", Request::Check(checkpoint.as_os_str().as_bytes().into())),
         ("--workers", Request::Workers(checkpoint.as_os_str().as_bytes().into())),
     ] {
-        let (service, _) = crate::upgrade::prepare(&directories).expect("read-only box preparation");
+        let (service, _) =
+            temper_box_shell::testing::upgrade::prepare(&directories).expect("read-only box preparation");
         assert!(tree(data) == before, "{mode}: preparation writes nothing under --data");
         drop(service);
         assert_eq!(
-            crate::upgrade::run(&directories, &request).expect("checkpoint tool"),
+            temper_box_shell::testing::upgrade::run(&directories, &request).expect("checkpoint tool"),
             0,
             "{mode}: deployment lock is not taken"
         );
@@ -151,7 +155,7 @@ fn checkpoint_checks_take_only_the_checkpoint_lock_and_leave_data_unchanged() {
         let source_lock = std::fs::File::open(&checkpoint).unwrap();
         source_lock.try_lock().expect("hold the checkpoint's source lock");
         assert_eq!(
-            crate::upgrade::run(&directories, &request).expect("busy source report"),
+            temper_box_shell::testing::upgrade::run(&directories, &request).expect("busy source report"),
             1,
             "{mode}: the checkpoint lock is taken"
         );

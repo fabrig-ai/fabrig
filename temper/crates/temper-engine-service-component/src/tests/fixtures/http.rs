@@ -239,9 +239,7 @@ impl Peer {
         skein_lib::bytes::find(&self.wire.received, b"text/event-stream").is_some()
     }
 }
-pub fn address() -> io::Addr {
-    io::Addr::Ip((::core::net::Ipv4Addr::LOCALHOST, 7100).into())
-}
+pub use super::disk::address;
 pub fn link_body(_engine: &Engine, link: &[u8]) -> Box<[u8]> {
     use skein_lib::base64::{self, Alphabet};
     let at = skein_lib::bytes::find(link, b"secret=").unwrap().checked_add(7).unwrap();

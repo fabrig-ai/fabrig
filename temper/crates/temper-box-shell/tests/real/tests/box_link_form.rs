@@ -1,5 +1,5 @@
-use crate::box_command::link_form;
 use temper_box_machine::terminal::LinkForm::{Bare, Osc8};
+use temper_box_shell::testing::box_command::link_form;
 
 #[test]
 fn the_box_reads_its_stdout_and_term() {

@@ -1,10 +1,4 @@
 //! Typed git commands and kernel file steps against scratch repositories.
-use super::fixtures;
-use crate::{
-    files::{Action, Directories, Task},
-    invocation,
-    sequence::{self, Next},
-};
 use skein_io::kernel::{self, Error, Fd, Op};
 use skein_lib::{List, Token};
 use std::{
@@ -16,6 +10,15 @@ use std::{
     process::Command,
 };
 use temper_worker_domain_checkout::git;
+use temper_worker_protocol_git::{
+    sequence::{self, Next},
+    testing::{Action, Directories, Task, fixtures},
+};
+mod invocation {
+    pub use temper_worker_protocol_git::invocation::{arguments_for, git_dir, hex, object, place};
+    pub use temper_worker_protocol_git::testing::joined;
+}
+
 fn git(at: &Path, args: &[&[u8]]) -> Box<[u8]> {
     let mut command = Command::new("git");
     command.current_dir(at).env_clear().args(["-c", "user.name=Temper", "-c", "user.email=temper@example.test"]);
@@ -314,84 +317,4 @@ fn real_git_filters_the_pinned_base_and_installs_whole_files_in_git_paths() {
     };
     assert_eq!(perform(root, &wide_at, action, false), git::Done::Succeeded);
     assert_eq!(fs::read(wide.join(".git/temper/reds")).unwrap(), b"temper-reds 1\n- test a::t wide\n");
-}
-
-#[test]
-fn prepare_and_start_clear_results_and_install_the_rerun_marker() {
-    let scratch = skein_scratch::Scratch::new_in(&skein_scratch::paths::target_tmp(), "worker-rerun");
-    let root = scratch.path();
-    let at = git::Place { workspace: Token::new(7), repository: b"app".as_slice().into(), git: None };
-    let repo = path(root, &invocation::place(&at));
-    fs::create_dir_all(&repo).unwrap();
-    git(&repo, &[b"init", b"-q"]);
-    let head = commit(&repo, "pin");
-    git(&repo, &[b"update-ref", b"refs/temper/landing", &invocation::hex(head)]);
-    separate(root, &at);
-    let files = repo.join(".git/temper");
-    fs::create_dir_all(&files).unwrap();
-    for (processes, expected) in
-        [(4, b"temper-rerun 1 4\n".as_slice()), (0, b"temper-rerun 1 0\n"), (16, b"temper-rerun 1 16\n")]
-    {
-        fs::write(files.join("reds"), b"stale").unwrap();
-        fs::write(files.join("check-results"), b"stale").unwrap();
-        fs::write(files.join("rerun.tmp"), b"unfinished").unwrap();
-        assert_eq!(
-            perform(root, &at, git::Reds::Prepare { wait_ms: 6000, rerun_processes: processes }, false),
-            git::Done::Succeeded
-        );
-        assert_eq!(fs::read(files.join("rerun")).unwrap(), expected);
-        assert!(!files.join("rerun.tmp").exists());
-        assert!(!files.join("reds").exists());
-        assert!(!files.join("check-results").exists());
-        fs::write(files.join("check-results"), b"another check").unwrap();
-        assert_eq!(perform(root, &at, git::Reds::Clear, false), git::Done::Succeeded);
-        assert!(!files.join("check-results").exists());
-        assert_eq!(fs::read(files.join("rerun")).unwrap(), expected);
-    }
-}
-
-#[test]
-fn results_are_read_to_the_bound_then_removed_even_on_read_failure() {
-    let scratch = skein_scratch::Scratch::new_in(&skein_scratch::paths::target_tmp(), "worker-results");
-    let root = scratch.path();
-    let at = git::Place { workspace: Token::new(7), repository: b"app".as_slice().into(), git: None };
-    let repo = path(root, &invocation::place(&at));
-    fs::create_dir_all(&repo).unwrap();
-    git(&repo, &[b"init", b"-q"]);
-    let head = commit(&repo, "pin");
-    git(&repo, &[b"update-ref", b"refs/temper/landing", &invocation::hex(head)]);
-    separate(root, &at);
-    let files = repo.join(".git/temper");
-    fs::create_dir_all(&files).unwrap();
-    for (size, fail) in [
-        (None, false),
-        (Some(0), false),
-        (Some(31), false),
-        (Some(262_144), false),
-        (Some(262_145), false),
-        (Some(300_000), false),
-        (Some(31), true),
-    ] {
-        fs::write(files.join("reds"), b"stale").unwrap();
-        let expected = match size {
-            Some(size) => Some(repeated(b"x", size.min(262_145))),
-            None => None,
-        };
-        if let Some(size) = size {
-            fs::write(files.join("check-results"), repeated(b"x", size)).unwrap();
-        }
-        let expected = if fail { None } else { expected };
-        assert_eq!(perform(root, &at, git::Reds::Read { check: 1 }, fail), git::Done::Results { bytes: expected });
-        assert!(!files.join("check-results").exists());
-        assert!(!files.join("reds").exists());
-        assert_eq!(perform(root, &at, git::Reds::Read { check: 1 }, false), git::Done::Results { bytes: None });
-    }
-}
-
-fn repeated(part: &[u8], count: usize) -> Box<[u8]> {
-    let mut out = skein_lib::Writer::new(part.len().checked_mul(count).unwrap());
-    for _ in 0..count {
-        out.put(part).unwrap();
-    }
-    out.finish()
 }

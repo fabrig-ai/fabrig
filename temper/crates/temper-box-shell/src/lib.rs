@@ -1,6 +1,4 @@
 //! Startup for temper's standalone binary (protocol/configuration/README.md, section 2).
-// tests::configuration includes the shared integration fixture, which names temper_box_shell::directories.
-extern crate self as temper_box_shell;
 use skein_io::kernel::{Exit, Fd};
 use skein_shell::Clock;
 use std::{
@@ -41,6 +39,8 @@ mod served;
 pub mod setup;
 pub use serve::{operations_in_with_limits, prepare_in_with_inputs_and_limits, prepare_in_with_limits};
 pub use served::Service;
+#[doc(hidden)]
+pub mod testing;
 mod upgrade;
 const CONFIG_BYTES: u32 = 1 << 20;
 #[cfg(test)]
