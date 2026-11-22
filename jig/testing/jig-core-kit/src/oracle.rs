@@ -359,7 +359,7 @@ fn refreshed_move(before: Option<&root::Record>, after: Option<&root::Record>) -
 fn forgotten_remains(key: &[u8], forgotten: &BTreeSet<u64>, records: &BTreeMap<root::Key, root::Record>) -> bool {
     // Log extents carry a log number, not a domain key (protocol/store/logs.md, 1).
     if let Some(suffix) = key.strip_prefix(&jig_protocol_store::logs::EXTENTS) {
-        return <[u8; 8]>::try_from(suffix).ok().is_some_and(|bytes| {
+        return <[u8; 8]>::try_from(suffix).is_ok_and(|bytes| {
             let log = u64::from_be_bytes(bytes);
             forgotten.iter().any(|task| {
                 jig_protocol_store::logs::history(*task) == Some(log)
