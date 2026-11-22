@@ -830,7 +830,7 @@ cause.
     `]}` on the last, so that it reads and searches by line:
 
     ```
-    {"form": "pre-pr-failures 1", "tree": "<tree>", "base": "<base>", "cached": false, "verdict": "refused", "counts": {"new": 2, "flake": 0, "inherited": 1}, "failures": [
+    {"form": "pre-pr-failures 1", "tree": "<tree>", "base": "<base>", "cached": false, "verdict": "refused", "counts": {"new": 2, "flake": 0, "inherited": 1}, "skipped": 0, "failures": [
     {"class": "new", "name": "test A::rules rule_00", "key": {"kind": "test", "binary": "A::rules", "test": "rule_00"}},
     {"class": "new", "name": "format", "key": null},
     {"class": "inherited", "name": "clippy api clippy::rule api/src/lib.rs", "key": {"kind": "lint", "package": "api", "code": "clippy::rule", "file": "api/src/lib.rs", "message": "<message>"}}
@@ -842,6 +842,12 @@ cause.
     - `cached`, `true` on a cache hit alone; `verdict`, `passed` or
       `refused`, as the summary's first line;
     - `counts`, the entries of each class;
+    - `skipped`, after `counts`, the number of tests the check did not
+      run again because they passed before on its key (section 7,
+      *Passed tests kept for a check run again*), `0` where it skipped
+      none or kept no results; an added member, so the form stays
+      `pre-pr-failures 1`, whose readers ignore a member they do not
+      name;
     - `failures`, one entry for each failure the summary shows or would
       show with room, in its order: the new ones, then the flakes, then
       the inherited ones. `class` is `new` (this delivery's, refusing),
@@ -934,8 +940,12 @@ is left when it runs again (`temper/docs/design/draft/worker-restarts.md`, secti
   nothing. A key that differs, or a file of another shape, matches
   nothing, and the check starts the file again under its own key.
 - **What it skipped counts as passed** for its verdict and its passed-tree
-  record, since each passed on the same key; the failures file and
-  `temper/check-results` count them as passed, saying how many were.
+  record, since each passed on the same key. `temper/check-results`
+  keeps its form, `temper-check 1`, unchanged: a skipped test that is an
+  entry of `temper/reds` is selected and written `passed <key>` as a run
+  that passed it would write it, so temper reads nothing new. The
+  failures file says how many were skipped, in its `skipped` member
+  (section 6), and the line printed before the runs says it too.
 - **Without a results directory,** or with one the check cannot write,
   the check keeps nothing and runs every test, as before; it says why in
   one line.
