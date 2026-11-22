@@ -627,7 +627,7 @@ pin (4.3), holds:
   needs and skips the rest as they pass (`forgejo.md`, 1.3).
 - **The server's side of each document,** for the fake forge: the
   decoder of each request, and the encoder of each answer
-  (../testing/fakes/forge.md, section 4).
+  (../testing/fakes/forgejo.md, section 1).
 - **The failures:** error bodies, the refusals whose message tells two
   failures of one status apart, and the map from a status to an `Error`
   (`forgejo.md`, 1.4).

@@ -1,3 +1,12 @@
+use skein_world::{
+    faults::FaultLedger,
+    streams::{Stream, Streams},
+};
+mod blame;
+mod bounds;
+mod interleaving;
+mod ledger;
+mod sweeps;
 use crate::translate;
 use skein_fake_forge_domain::{self as forge, api as raw};
 use skein_lib::{Duration, Env, List, Map, Queue, ReplyTo, Time, Token, Wall};
@@ -124,6 +133,7 @@ struct Pending {
     generation: u64,
 }
 
+mod check_record_open;
 mod follows;
 #[path = "world/history.rs"]
 mod history_reads;
@@ -160,11 +170,18 @@ pub struct World {
     serial: u64,
     generation: u64,
     seed: u64,
+    engine_seed: u64,
+    ledger: FaultLedger,
+    blame: Option<blame::Blame>,
+    sweep_faults: sweeps::Faults,
+    lagging: Option<interleaving::Lagging>,
+    after_write: Option<interleaving::AfterWrite>,
     writer: Option<skein_forge_client::Writer>,
     writer_saves: u32,
     writes: u32,
     lose_writes: bool,
     timeout_merges: u32,
+    dispatch_latency: Option<Duration>,
     lose_rerun_answer: bool,
     unavailable: Option<(Wall, Wall)>,
     calls: u32,
@@ -240,6 +257,8 @@ impl World {
             None,
             4,
             None,
+            None,
+            None,
         )
     }
     /// Three simultaneous trains, with one spare branch per prepared member.
@@ -261,6 +280,8 @@ impl World {
             config,
             None,
             4,
+            None,
+            None,
             None,
         );
         world.env.limits.landings = 3;
@@ -290,6 +311,8 @@ impl World {
             config,
             None,
             5,
+            None,
+            None,
             None,
         )
     }
@@ -403,6 +426,11 @@ impl World {
         self.top.landing_hold_words(task)
     }
     #[must_use]
+    pub fn change_panel(&self, task: u64, project: u32) -> Option<top::Panel> {
+        self.top.panel(task, jig_domain_people::ApplicationScope::Project(project), self.env.wall, &self.env.limits)
+    }
+
+    #[must_use]
     pub fn landing(&self, task: u64) -> &top::LandingRow {
         self.top.landing(task).expect("fixture landing")
     }
@@ -498,6 +526,8 @@ impl World {
             Some(passes),
             LIMITS.landing_members,
             None,
+            None,
+            None,
         );
         forge::set_failing(&mut world.forge, b"org/repo", b"build", fault);
         world
@@ -559,12 +589,21 @@ impl World {
             None,
             LIMITS.landing_members,
             None,
+            None,
+            None,
         )
     }
 
     /// Judge head checks by a cue in the repository's checked tree.
     #[must_use]
     pub fn with_check_cue(seed: u64, cue: raw::Cue) -> World {
+        Self::check_cue(seed, cue, None)
+    }
+    #[must_use]
+    pub fn check_cue_in(streams: &Streams, cue: raw::Cue) -> World {
+        Self::check_cue(streams.seed(), cue, Some(streams))
+    }
+    fn check_cue(seed: u64, cue: raw::Cue, streams: Option<&Streams>) -> World {
         Self::configured_repositories(
             seed,
             LIMITS.facts,
@@ -579,6 +618,8 @@ impl World {
             None,
             LIMITS.landing_members,
             Some(cue),
+            streams,
+            None,
         )
     }
 
@@ -603,6 +644,8 @@ impl World {
             None,
             LIMITS.landing_members,
             None,
+            None,
+            None,
         )
     }
 
@@ -621,10 +664,20 @@ impl World {
     #[must_use]
     pub fn with_entries(seed: u64, entries: u32) -> World {
         let mut world = Self::new(seed);
-        world.env.limits.entries = entries;
-        world.env.limits.client.entries = entries;
-        world.restart();
+        world.limit_entries(entries);
         world
+    }
+
+    /// Rebuild a fixture with the same write limit in the connector and client.
+    pub fn limit_entries(&mut self, entries: u32) {
+        self.env.limits.entries = entries;
+        self.env.limits.client.entries = entries;
+        self.restart();
+    }
+
+    pub fn limit_landings(&mut self, landings: u32) {
+        self.env.limits.landings = landings;
+        self.restart();
     }
 
     /// Include entry saves in `seen` to check their order against restart stages.
@@ -717,6 +770,8 @@ impl World {
             None,
             LIMITS.landing_members,
             None,
+            None,
+            None,
         )
     }
     #[expect(
@@ -738,6 +793,8 @@ impl World {
         passes: Option<u32>,
         members: u32,
         cue: Option<raw::Cue>,
+        streams: Option<&Streams>,
+        head_checks: Option<raw::Checks>,
     ) -> World {
         let tiered = tier.is_some();
         let limits = top::Limits {
@@ -755,7 +812,9 @@ impl World {
         let mut config = scenario_config(config, branches, turn, tiered, protection.as_ref());
         let workflows = workflows(turn, tier);
         config.limits.workflows = u32::try_from(workflows.len()).expect("workflow room");
-        let mut fake = forge::Domain::new(&config, seed);
+        let forge_seed = streams.map_or(seed, |streams| streams.seed_of(Stream::Faults, "forge"));
+        let engine_seed = streams.map_or(seed, |streams| streams.seed_of(Stream::Scheduling, "engine"));
+        let mut fake = forge::Domain::new(&config, forge_seed);
         forge::repository(
             &mut fake,
             &config,
@@ -766,7 +825,7 @@ impl World {
                 default: Box::from(&b"main"[..]),
                 tree: Box::new([]),
                 labels: Box::new([]),
-                checks: raw::Checks {
+                checks: head_checks.unwrap_or_else(|| raw::Checks {
                     cues: Box::new([]),
                     contexts: if turn { Box::new([]) } else { Box::new([Box::from(&b"build"[..])]) },
                     latency_min: Duration::ZERO,
@@ -775,7 +834,7 @@ impl World {
                     passes: passes.unwrap_or(1000),
                     reruns: 0,
                     cue,
-                },
+                }),
                 protection,
                 hooked,
             },
@@ -791,7 +850,7 @@ impl World {
         forge::grant(&mut fake, b"org/repo", 2, raw::Permission::Write);
         let top = top::Domain::new(
             &limits,
-            seed,
+            engine_seed,
             temper_engine_domain_forge::Config {
                 push: None,
                 namespace: Box::from(&b"world"[..]),
@@ -824,11 +883,18 @@ impl World {
             serial: 0,
             generation: 1,
             seed,
+            engine_seed,
+            ledger: FaultLedger::new(),
+            blame: None,
+            sweep_faults: sweeps::Faults::default(),
+            lagging: None,
+            after_write: None,
             writer,
             writer_saves: 0,
             writes: 0,
             lose_writes: false,
             timeout_merges: 0,
+            dispatch_latency: None,
             lose_rerun_answer: false,
             unavailable: None,
             calls: 0,
@@ -1003,6 +1069,8 @@ impl World {
             None,
             LIMITS.landing_members,
             None,
+            None,
+            None,
         );
         world.second_repository(Box::new([workflow]));
         world
@@ -1023,6 +1091,8 @@ impl World {
             repository_config(2),
             None,
             LIMITS.landing_members,
+            None,
+            None,
             None,
         );
         world.second_repository(Box::new([]));
@@ -1143,6 +1213,7 @@ impl World {
     }
 
     pub fn event(&mut self, event: top::Event) {
+        self.observe_blame_event(&event);
         top::step(&mut self.top, &self.env, event, &mut self.top_out);
         self.take_top();
         self.top.reclaim();
@@ -1297,6 +1368,11 @@ impl World {
         self.env.limits.client.fallback = interval;
     }
 
+    /// Delay only dispatch answers, so other reads can proceed while a write is in flight.
+    pub fn slow_dispatches(&mut self, delay: Duration) {
+        self.dispatch_latency = Some(delay);
+    }
+
     pub fn slow_calls(&mut self, delay: Duration) {
         self.call_latencies(delay, delay);
     }
@@ -1379,7 +1455,7 @@ impl World {
         self.generation += 1;
         self.top = top::Domain::new(
             &self.env.limits,
-            self.seed,
+            self.engine_seed,
             temper_engine_domain_forge::Config {
                 push: None,
                 namespace: Box::from(&b"world"[..]),
@@ -1467,6 +1543,7 @@ impl World {
         let commit = forge::commit_tree(&mut self.forge, &self.forge_env.limits, parent, None, files, b"landing")
             .expect("fixture tree fits");
         self.external(raw::Op::Git(raw::Git::Push { branch: Box::from(branch), commit, expected: Some(parent) }), 1);
+        self.record_wrong_candidate(commit);
     }
 
     pub fn push_file(&mut self, branch: &[u8], path: &[u8], content: &[u8]) {
@@ -1475,6 +1552,7 @@ impl World {
     pub fn push_as(&mut self, branch: &[u8], path: &[u8], content: &[u8], actor: u64) {
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.forge_env.limits.clone() };
         forge::advance(&mut self.forge, &env, b"org/repo", branch, path, content, actor).expect("scripted push");
+        self.record_wrong_candidate(self.branch(branch));
     }
     pub fn status(&mut self, branch: &[u8], check: raw::Check) {
         self.external(
@@ -1632,6 +1710,7 @@ impl World {
                 self.seed,
                 row.landing
             );
+            self.record_wrong_candidate(candidate);
             base = candidate;
         }
         base
@@ -1645,10 +1724,20 @@ impl World {
         self.external_repository(b"org/repo", op, user)
     }
     fn external_repository(&mut self, repository: &[u8], op: raw::Op, user: u64) -> raw::Answer {
+        self.external_repository_at(repository, op, user, Time::ZERO, Wall::EPOCH)
+    }
+    fn external_repository_at(
+        &mut self,
+        repository: &[u8],
+        op: raw::Op,
+        user: u64,
+        now: Time,
+        wall: Wall,
+    ) -> raw::Answer {
         let mut config = self.forge_env.limits.clone();
         config.latency_min = Duration::ZERO;
         config.latency_max = Duration::ZERO;
-        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config };
+        let env = Env { now, wall, limits: config };
         self.serial += 1;
         let token = Token::new(self.serial);
         forge::step(
@@ -1657,6 +1746,7 @@ impl World {
             forge::Event::Call { reply_to: ReplyTo::new(token), user, repository: Box::from(repository), op },
             &mut self.forge_out,
         );
+        self.copy_fell();
         let mut answer = None;
         for _ in 0..8 {
             for _ in 0..self.forge_out.len() {
@@ -1669,6 +1759,7 @@ impl World {
                 break;
             }
             forge::fire(&mut self.forge, &env, &mut self.forge_out);
+            self.copy_fell();
         }
         self.forge.reclaim();
         answer.expect("fixture answered")
@@ -1685,6 +1776,8 @@ impl World {
     }
 
     fn iterate(&mut self, end: Time) -> bool {
+        self.copy_fell();
+        self.stop_sweep_faults();
         if let Some((generation, event)) = self.to_top.pop() {
             if generation == self.generation {
                 self.event(event);
@@ -1704,7 +1797,19 @@ impl World {
                 self.timeout_merges -= 1;
                 env.limits.timeouts = 1000;
             }
+            self.sweep_call(&event, &mut env.limits);
+            let excluded = self.exclude_record_lag(&event);
+            if let Some(delay) = self.dispatch_latency
+                && matches!(&event, forge::Event::Call { op: raw::Op::Write(raw::Write::Dispatch { .. }), .. })
+            {
+                env.limits.latency_min = delay;
+                env.limits.latency_max = delay;
+            }
             forge::step(&mut self.forge, &env, event, &mut self.forge_out);
+            if let Some(lag) = excluded {
+                forge::lag(&mut self.forge, lag);
+            }
+            self.copy_fell();
             self.take_forge();
         } else if self.top.is_ready() {
             top::resume(&mut self.top, &self.env, &mut self.top_out);
@@ -1712,6 +1817,7 @@ impl World {
             self.top.reclaim();
         } else if self.forge.is_due(self.env.now) {
             forge::fire(&mut self.forge, &self.forge_env, &mut self.forge_out);
+            self.copy_fell();
             self.take_forge();
         } else if self.top.next_deadline().is_some_and(|time| time <= self.env.now)
             || self.top.next_wall_deadline().is_some_and(|wall| wall <= self.env.wall)
@@ -1734,6 +1840,7 @@ impl World {
                 .unwrap_or(end)
                 .min(wall_due.unwrap_or(end))
                 .min(self.forge.next_deadline().unwrap_or(end))
+                .min(self.sweep_deadline().unwrap_or(end))
                 .min(end);
             self.env.now = next;
             self.env.wall = Wall::from_nanos(next.as_nanos());
@@ -1748,6 +1855,7 @@ impl World {
         let mut calls = List::with_capacity(self.top_out.len());
         let mut restart = None;
         while let Some(request) = self.top_out.pop() {
+            self.observe_blame_request(&request);
             match request {
                 top::Request::ChoosePlace { request, kind, .. } => {
                     let port = match kind {
@@ -1935,6 +2043,7 @@ impl World {
         assert_eq!(repository.forge, REPO.forge);
         assert!(repository.repository == REPO.repository || repository.repository == 0 || repository.repository == 3);
         self.calls += 1;
+        self.observe_blame_call(repository, &op);
         self.call_ops.push(op.clone());
         if let Some((from, until)) = self.unavailable
             && self.env.wall >= from
@@ -2017,7 +2126,13 @@ impl World {
         for _ in 0..self.forge_out.len() {
             match self.forge_out.pop().expect("counted fake output") {
                 forge::Request::Reply { to, result } => {
-                    let pending = self.pending.remove(&to.into_token()).expect("pending call");
+                    let token = to.into_token();
+                    if self.neighbour_reply(token) {
+                        continue;
+                    }
+                    let pending = self.pending.remove(&token).expect("pending call");
+                    self.interleave_after(&pending.op, result.is_ok());
+                    self.sweep_after_read(&result);
                     let result = match result {
                         Ok(answer) => {
                             let mut answer =

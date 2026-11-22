@@ -12,6 +12,7 @@ doctest = false
 
 [dependencies]
 skein-lib.workspace = true
+skein-world.workspace = true
 skein-http.workspace = true
 skein-json.workspace = true
 skein-llm.workspace = true

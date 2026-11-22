@@ -96,6 +96,9 @@ impl FaultLedger {
     pub fn entries(&self) -> &[Injected];
     /// The faults in force at `at` that strike an identity `struck` names, in the order they fell.
     pub fn striking(&self, at: Time, struck: &Struck) -> Vec<Injection>;
+    /// The faults that fell at or before `at` that strike an identity `struck` names,
+    /// in force or stopped, in the order they fell.
+    pub fn fallen(&self, at: Time, struck: &Struck) -> Vec<Injection>;
     /// The kinds that fell, each once.
     pub fn fell(&self) -> BTreeSet<Kind>;
 }
@@ -105,7 +108,7 @@ impl FaultLedger {
 - **Every fault is recorded as it falls** (the draft, 3.3): one the world injects (a party's action, a restart, a cut) by the world, and one a fake injects by the world from the fake's own report of what fell. A fake in `crates/` is step code and names no testing crate: it keeps what it injected in its own vocabulary, each with its moment and identities, and the world copies each into its ledger as the fake reports it.
 - **Interval:** closed, `from` to `until`. `stop` returns a finding for an entry already stopped, or a time before its `from`. A fault still in force when the run ends keeps `until` as `None`.
 - **Identities:** each is the identity's own name in the fake that holds it: an account's name, a runner's, a gate run's number in words, a commit's hex. A wrong tree is recorded with the candidate it is wrong in, and a base made red as the base's (the draft, 3.3). `striking` matches a field where both name the same identity.
-- **Counters:** the world's observers count a transition (a retry, a try, a repair, an ask) against each fault they attribute it to, by `striking`; the expected transitions of each failure class are the 3.3 check's table, held by the tree that holds the check. The six counters are skein's because every tree's worlds count them and skein is the lowest vocabulary all of them name (../../foundation/programming-model.md, 4.6).
+- **Counters:** the world's observers count a transition (a retry, a try, a repair, an ask) against each fault they attribute it to, by `striking`, or by `fallen` where the transition answers a fault that has stopped, as a gate's retry answers a job lost at an instant; the expected transitions of each failure class are the 3.3 check's table, held by the tree that holds the check. The six counters are skein's because every tree's worlds count them and skein is the lowest vocabulary all of them name (../../foundation/programming-model.md, 4.6).
 - **A ledger is one run's:** a world makes one per seed and returns it with its outcome.
 
 ## 4. A sweep
@@ -169,7 +172,7 @@ impl Exclusion {
 Step tests in the crate's own `src/tests/`, with no world:
 
 - **Streams:** one seed's four streams draw four different sequences; a stream's first draws are the same whether or not another stream, or another part of its own, was drawn first; two parts of one stream differ; one seed replays; `seed_of` for seed 0 and each stream's own part is pinned to its value, so the derivation never changes silently.
-- **The ledger:** an entry keeps its kind, interval and identities; `stop` refuses a second stop and a time before the start; `striking` finds a fault in force on a shared identity and not one stopped, or one on another identity; each counter counts on its own; `fell` gives each kind once.
+- **The ledger:** an entry keeps its kind, interval and identities; `stop` refuses a second stop and a time before the start; `striking` finds a fault in force on a shared identity and not one stopped, or one on another identity; `fallen` finds one stopped too, and not one that falls after its moment; each counter counts on its own; `fell` gives each kind once.
 - **A sweep:** a sweep whose configured fault never falls in any seed fails `check_fell`, naming the fault and the seeds; one where it falls in one seed of several passes.
 - **Exclusions:** an exclusion that names no ignored scenario (empty, or not a function's name) is refused; so are one with no work, one with no conditions, one on a fault not configured, and a duplicate; `leaves_out` answers only while every condition holds; left-out draws are counted by scenario.
 - **The boundary rule:** its step tests over source texts: an exclusion naming an ignored function of its tree passes; one naming a function without `#[ignore`, or none, fails naming file, line and scenario; the harness's own packages are outside it.

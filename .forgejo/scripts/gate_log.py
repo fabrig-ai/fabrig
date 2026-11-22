@@ -27,7 +27,26 @@ def duration(seconds):
     return f"{minutes}m {seconds:02d}s" if minutes else f"{seconds}s"
 
 
-def junit_failures(path):
+def instruction_measurements(path):
+    """Keep each failed layer and its recorded binary counts together."""
+    rows = []
+    measured_checks = set()
+    in_layer = False
+    with path.open(encoding="utf-8", errors="replace") as log:
+        for raw in log:
+            line = ANSI.sub("", raw).rstrip()
+            if not line.startswith(" "):
+                match = re.fullmatch(r"gate: (default|fuzzy): RED, (layer .+ instructions, .+)", line)
+                in_layer = match is not None
+                if match:
+                    measured_checks.add(f"gate.{match[1]}")
+                    rows.append(f"  gate.{match[1]}: {match[2]}")
+            elif in_layer and re.fullmatch(r"  \S.*: \d+ instructions, .+|  \d+ more binaries", line):
+                rows.append("  " + line)
+    return rows, measured_checks
+
+
+def junit_failures(path, measured_checks):
     """The existing report carries the case name, reason, and sometimes assertion/compiler text."""
     try:
         report = ET.parse(path)
@@ -47,8 +66,8 @@ def junit_failures(path):
                           re.search(r"panicked at|assertion|expected|^error(\[|:)|^fatal:", line, re.I)), None)
             excerpt = details[start:start + 4] if start is not None else details[-2:]
             label = "FAIL" if tag == "failure" else "ERROR"
-            rows.append(f"{label}  {short(key, 140)} — {reason}")
-            if excerpt:
+            rows.append(f"{label}  {key} — {reason}")
+            if excerpt and not (key in measured_checks and reason.startswith("over budget:")):
                 rows[-1] += "\n      " + short(" ".join(excerpt), 320)
     return rows
 
@@ -105,10 +124,18 @@ def run(command):
         if budget_example:
             footer.append(f"      {budget_example}")
     if code:
-        failures = junit_failures(Path("junit.xml"))
-        footer.extend(failures[:MAX_CASES])
-        if len(failures) > MAX_CASES:
-            footer.append(f"      {len(failures) - MAX_CASES} more cases · full report in junit")
+        measurements, measured_checks = instruction_measurements(DIAGNOSTICS)
+        failures = junit_failures(Path("junit.xml"), measured_checks)
+        try:
+            ids = Path("failed-tests.txt").read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            ids = []
+        if ids:
+            footer.extend(["Failed IDs:", *ids])
+        footer.extend(failures)
+        if measurements:
+            footer.extend(["Instruction measurements (candidate versus main):", *measurements,
+                           "Individual test wall times in gate-diagnostics are timing context."])
         footer.extend(short(line.removeprefix("gate: ")) for line in wall_runs[:4])
         if not failures:
             footer.extend(f"      {line}" for line in (evidence or tail))

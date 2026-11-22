@@ -69,7 +69,8 @@ impl Domain {
         }
         let mut input = Reader::new(bytes);
         let format = input.bytes(8);
-        let cancellations = format == Some(b"FORGEIM3".as_slice());
+        let commit_cancellations = format == Some(b"FORGEIM4".as_slice());
+        let cancellations = commit_cancellations || format == Some(b"FORGEIM3".as_slice());
         let job_state = cancellations || format == Some(b"FORGEIM2".as_slice());
         require(job_state || format == Some(b"FORGEIMG".as_slice()), "image format")?;
         let mut domain = Domain::new(config, 0);
@@ -143,6 +144,9 @@ impl Domain {
                 }
             }
         }
+        if commit_cancellations {
+            get_commit_cancellations(&mut input, &mut domain, limits)?;
+        }
         require(input.is_empty(), "trailing bytes")?;
         for index in 0..domain.repositories.len() {
             let (id, _) = domain.repositories.iter().nth(skein_lib::usize_of(index)).expect("retained repository");
@@ -154,11 +158,13 @@ impl Domain {
                 }
             }
         }
+        let env = skein_lib::Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: config.clone() };
+        crate::dispatch::restore_ready(&mut domain, &env);
         Ok(domain)
     }
 }
 fn put(out: &mut Sink, domain: &Domain) {
-    out.put(b"FORGEIM3");
+    out.put(b"FORGEIM4");
     out.u32(domain.repositories.len());
     for (_, r) in &domain.repositories {
         repositories::put(out, r);
@@ -207,6 +213,60 @@ fn put(out: &mut Sink, domain: &Domain) {
         out.u32(repository.dispatched.len());
         for (_, kept) in &repository.dispatched {
             out.optional_u64(kept.run.cancelled_by);
+        }
+    }
+    put_commit_cancellations(out, domain);
+}
+fn get_commit_cancellations(
+    input: &mut Reader<'_>,
+    domain: &mut Domain,
+    limits: &crate::Limits,
+) -> Result<(), Refusal> {
+    require(input.bytes(8) == Some(b"CICOMMIT".as_slice()), "commit cancellations")?;
+    let rows = count(input, limits.repositories, "commit cancellation repositories")?;
+    require(rows == domain.repositories.len(), "commit cancellation repositories")?;
+    for index in 0..rows {
+        let (id, _) = domain.repositories.iter().nth(skein_lib::usize_of(index)).expect("bounded repository");
+        let repository = domain.repositories.get_mut(id).expect("retained repository");
+        for _ in 0..count(input, limits.statuses, "commit cancellations")? {
+            let run = u64(input)?;
+            let by = u64(input)?;
+            let mut found = false;
+            for position in 0..repository.runs.len() {
+                let (&commit, _) = repository.runs.iter().nth(skein_lib::usize_of(position)).expect("bounded CI run");
+                let kept = repository.runs.get_mut(&commit).expect("retained CI run");
+                if kept.run.id == run {
+                    require(kept.run.cancelled_by.is_none(), "duplicate commit cancellation")?;
+                    require(
+                        kept.run.conclusion == Some(crate::actions::Conclusion::Cancelled),
+                        "cancelled commit run",
+                    )?;
+                    kept.run.cancelled_by = Some(by);
+                    found = true;
+                    break;
+                }
+            }
+            require(found, "commit cancellation run")?;
+        }
+    }
+    Ok(())
+}
+fn put_commit_cancellations(out: &mut Sink, domain: &Domain) {
+    out.put(b"CICOMMIT");
+    out.u32(domain.repositories.len());
+    for (_, repository) in &domain.repositories {
+        let mut count = 0_u32;
+        for (_, kept) in &repository.runs {
+            if kept.run.cancelled_by.is_some() {
+                count = count.checked_add(1).expect("bounded CI runs");
+            }
+        }
+        out.u32(count);
+        for (_, kept) in &repository.runs {
+            if let Some(by) = kept.run.cancelled_by {
+                out.u64(kept.run.id);
+                out.u64(by);
+            }
         }
     }
 }
@@ -313,7 +373,7 @@ fn get_alarm(input: &mut Reader<'_>, domain: &mut Domain, limits: &crate::Limits
             let op = operations::get(input, limits)?;
             let id = domain
                 .calls
-                .insert(Call { state: State::Landing(Landing { user, repository, op }) })
+                .insert(Call { state: State::Landing(Landing { token: None, user, repository, op }) })
                 .expect("bounded landings");
             Alarm::Call(id)
         }

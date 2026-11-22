@@ -50,12 +50,12 @@ pub(crate) fn check(disk: &Checkout, root: u64) -> (bool, Vec<u8>) {
 /// Scripted provider turns shared with the session world.
 pub use smith_session_world::fixture::{calls, says};
 
-/// A fresh scripted activation with the world's renewable account grant.
+/// A fresh scripted activation whose grant follows the host's credential renewal policy.
 #[must_use]
-pub fn start(charter: smith_domain::run::Charter) -> smith_domain::Start {
+pub fn start(charter: smith_domain::run::Charter, renewable: bool) -> smith_domain::Start {
     smith_domain::Start {
         grants: Box::new([smith_domain::Grant {
-            renewable: true,
+            renewable,
             name: smith_domain::GrantName { account: 0, generation: 1 },
             valid: skein_lib::Duration::from_secs(7200),
         }]),

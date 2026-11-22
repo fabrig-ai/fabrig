@@ -462,7 +462,7 @@ each start from the records and the events (`../../domain/forge/adoption.md`,
 
 ## 8. The fake forge's protocol layer
 
-Held by skein's `testing/fakes/forge.md`, section 4, for Forgejo's dialect, and
+Held by skein's `testing/fakes/forgejo.md`, section 1, for Forgejo's dialect, and
 skein's `testing/fakes/github.md`, section 1, its GitHub layer, for GitHub's (with skein's
 `forge/github.md`): its App, installations, installation tokens, merge
 queue, delivery log, job log redirect, rate windows and pauses, its

@@ -69,24 +69,20 @@ pub(crate) fn run(
     out: &mut Queue<Request>,
 ) {
     let Some(run) = &flight.run else { return };
-    let mut position = None;
-    for (index, entry) in row.entries.iter().enumerate() {
-        if entry.entry == flight.entry {
-            position = Some(index);
-        }
-    }
-    let Some(index) = position else { return };
-    let entry = *row.entries.get(index).expect("flight entry");
+    let Some(entry) = row.run_entry(flight.entry).copied() else { return };
     let mut attempt = 1;
     for job in &run.jobs {
         attempt = attempt.max(job.attempt);
     }
     // A provider may omit jobs on a listing; the committed rerun names its attempt.
-    if entry.operation == Operation::Rerun
-        && let Some(kept) = d.entries.get(&entry.entry)
-        && let api::Write::Rerun { attempt: job } = &kept.entry.effect.write
-    {
-        attempt = attempt.max(job.attempt.saturating_add(1));
+    if entry.operation == Operation::Rerun {
+        for follow in row.follows() {
+            if follow.entry.entry == entry.entry
+                && let Some(job) = follow.reruns.last()
+            {
+                attempt = attempt.max(job.attempt.saturating_add(1));
+            }
+        }
     }
     let same = match entry.run {
         Some(mark) => mark.id == run.id && mark.attempt == attempt,
@@ -135,7 +131,7 @@ pub(crate) fn run(
         changed = true;
     }
     if changed || same {
-        row.entries.get_mut(index).expect("flight entry").run =
+        row.run_entry_mut(flight.entry).expect("flight entry").run =
             Some(LandingRun { id: run.id, attempt, ended: verdict.is_some(), clock: flight.clock });
     }
 }
@@ -207,22 +203,36 @@ pub(crate) fn proved(d: &mut Domain, wall: Wall, old: &LandingRow, row: &Landing
             };
             let number = u16::try_from(number).expect("gate");
             let mut run = None;
+            for follow in row.follows() {
+                run = proved_run(follow.entry, row.landing.preparation, top, number, received).or(run);
+            }
             for entry in &row.entries {
-                if entry.preparation == Some(row.landing.preparation)
-                    && entry.member == top
-                    && entry.gate == number
-                    && let Some(mark) = entry.run
-                    && mark.ended
-                    && Some(mark.id) == received
-                {
-                    run = Some(mark.id);
-                }
+                run = proved_run(*entry, row.landing.preparation, top, number, received).or(run);
             }
             proofs.push(history::Proof { gate: number, run }).expect("gates");
         }
     }
     let event = step(row, history::What::Proved { proofs: proofs.into_boxed() }, member.candidate);
     members(d, wall, row, Some(top), event, out);
+}
+fn proved_run(
+    entry: crate::LandingEntry,
+    preparation: u16,
+    member: u16,
+    gate: u16,
+    received: Option<u64>,
+) -> Option<u64> {
+    if entry.preparation == Some(preparation)
+        && entry.member == member
+        && entry.gate == gate
+        && let Some(mark) = entry.run
+        && mark.ended
+        && Some(mark.id) == received
+    {
+        Some(mark.id)
+    } else {
+        None
+    }
 }
 fn matches_proving(phase: &policy::Phase) -> bool {
     match phase {
