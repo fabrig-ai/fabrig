@@ -25,6 +25,7 @@ mod landing_red_four;
 mod landing_reports;
 mod landing_rounds;
 mod landing_search_tests;
+mod ledger;
 mod member_message;
 mod memory;
 mod opened;
