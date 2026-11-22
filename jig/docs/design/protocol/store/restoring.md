@@ -195,7 +195,8 @@ Adoption::Restore { name: CheckpointName, draw: [u8; 16] }
   naming only the layouts the older build registered, which it opens
   in place, with nothing to register or run. A redeploy's going
   back after the upgraded generation's first commit restores with the
-  new build, then starts the previous one (temper's `redeploy.md`, 4.6).
+  new build, then starts the previous one (temper's
+  `protocol/checkpoints.md`, 2.5).
 
 ### 4.4 The staged generation
 
@@ -390,7 +391,8 @@ nothing else:
   (`records.md`, 3) and registry are the source's, without N's layout,
   and B then opens it in place, with no refusal and no new generation,
   at the checkpoint's state, so that a redeploy's going back by
-  restore starts the previous build (temper's `redeploy.md`, 4.6).
+  restore starts the previous build (temper's
+  `protocol/checkpoints.md`, 2.5).
 - **The store's world,** `jig-store-world`, on its simulated disk,
   focused. A checkpoint is taken, more is committed, and the checkpoint
   is restored. The next open finds the state at C by the referee: both
