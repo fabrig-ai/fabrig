@@ -10,7 +10,7 @@ stock's words and a release's new stock reaches it with the overlays in
 place (jig's `domain/engine/overlays.md`).
 
 - **A settings file,** `docs/examples/reference/settings.json`, in the
-  form `temper ctl settings apply` reads (`../../client/ctl/tools.md`, 3;
+  form `temper ctl settings apply` reads (`../../client/ctl/tools-acts.md`, 1;
   `../../client/ctl/overlays.md`, 1). An owner applies it once, after the
   deployment's first start, as a walk on fabrig's box does
   (`../../draft/v0.1.0.md`, 2.1); a later edition is applied the same
@@ -45,7 +45,7 @@ place (jig's `domain/engine/overlays.md`).
     (`../../draft/goal-as-designer.md`, section 8);
     tracked at priority 1; a report; the creator's budget; *its own
     goal branch* among its resources (jig's `protocol/configuration.md`,
-    3.3; `../../client/ctl/tools.md`, 3).
+    3.3; `../../client/ctl/tools-acts.md`, 1).
 
   It sets no template 4's work, kind 11: the stock's, no design and no
   close-out (`stock.md`), holds, since the stock's charter 5 delivers
@@ -176,7 +176,7 @@ place (jig's `domain/engine/overlays.md`).
   template 4's report takes the reference's `tasks.result_bytes`, 63,738;
   charter 5's overlay names two documents, `tasks.charter_documents`,
   which jig's settings schema holds; template 4 names the forge's *its
-  own goal branch* (`../../client/ctl/tools.md`, 3). Charter 5 makes its
+  own goal branch* (`../../client/ctl/tools-acts.md`, 1). Charter 5 makes its
   changes in `change` calls each within one call's payload,
   which its model's output bounds (`settings-output.md`, 1), a later call naming an
   earlier one's changes in `after` by the task numbers its answer gave,

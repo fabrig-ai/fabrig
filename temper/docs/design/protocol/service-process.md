@@ -78,7 +78,7 @@ log says when that happened; nothing else about the loop changes.
   A world that calls `iterate` has no watch.
 - **The bound is 1 s,** `long_pass::LONG_PASS`, on a whole pass: no stage
   can pass it without its pass passing it. It is a thirtieth of `temper
-  ctl`'s deadline (`../client/ctl/README.md`, section 9), so a stall big enough
+  ctl`'s deadline (`../client/ctl/bounds.md`, section 1), so a stall big enough
   to cost a call that deadline shows at once; and across 1,543 `temper ctl
   me` reads on running boxes under a load of up to 27 on 8 CPUs, the longest
   whole read was 1.95 s, so a healthy box writes few of these lines or none.

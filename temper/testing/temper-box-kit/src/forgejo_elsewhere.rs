@@ -256,7 +256,7 @@ fn scripts(repository: &str, readme: &[u8]) -> Box<[Script]> {
 fn setup(root: &Path, restarted: bool) -> Vec<ctl::Step> {
     let mut steps = Vec::new();
     if !restarted {
-        // The client keeps its sign-in across the restart (client/ctl/README.md, 6.1).
+        // The client keeps its sign-in across the restart (client/ctl/command-line.md, 1.1).
         steps.push(ctl::Step::Run(ctl::Call::sign_in()));
         steps.push(ctl::Step::Run(ctl::Call::new(&[
             "forge",

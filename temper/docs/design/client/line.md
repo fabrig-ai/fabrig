@@ -282,7 +282,7 @@ draws its heading and its "Task brief".
   client of its own. Two on one DIRECTORY share its token and write its
   small store whole over each other. Default: not supported and not
   detected; a lock on DIRECTORY is the candidate, which `temper ctl`
-  takes for its own calls (`ctl/README.md`, 6.3).
+  takes for its own calls (`ctl/command-line.md`, 1.3).
 - **A fresh link from the client:** default: the person runs `temper-box
   open` with the last link, whose refusal makes `temper-box serve` print a
   fresh one.

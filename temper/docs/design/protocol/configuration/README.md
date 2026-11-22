@@ -360,8 +360,8 @@ Moved to [`startup.md`](startup.md), section 1.
 - **`temper-box open DIRECTORY LINK_OR_ADDRESS`** takes no configuration
   file: its two arguments are `../../client/line.md`, 1's, and its limits are
   constants of temper's client (`../../client/README.md`, section 2).
-- **`temper ctl DIRECTORY ...`** takes none either (`../../client/ctl/README.md`,
-  section 6).
+- **`temper ctl DIRECTORY ...`** takes none either (`../../client/ctl/command-line.md`,
+  section 1).
 - **`temper-box program-login [DIRECTORIES] NAME`** reads the same document
   as `temper-box serve`, and the agent's configuration it names
   (../credentials-llm-accounts.md, section 1). `DIRECTORIES` is `[--config DIR] [--data

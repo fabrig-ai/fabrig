@@ -410,14 +410,14 @@ with its application intervals (jig's `protocol/store/README.md`, 7):
 
 `temper ctl landing history --project PROJECT [--change TASK | --landing
 TASK] [--since TIME] [--until TIME] [--after CURSOR] [--json]`, a read
-of the forge's family (`../client/ctl/tools.md`, 2):
+of the forge's family (`../client/ctl/tools-reads.md`, 1):
 
 - **Its order:** the project's events by number; with `--change` or
   `--landing`, that change's or landing's, through its index (4.1), each
   page's events then loaded by `Numbers`. So a filtered read does
   bounded work.
 - **A page:** at most 32 events, the rows' bound in ctl
-  (`../client/ctl/README.md`, 9). A page examines at most 256 index or
+  (`../client/ctl/bounds.md`, 1). A page examines at most 256 index or
   event rows; one that reached that bound with fewer events comes back
   cut, with its cursor, as jig's pages do.
 - **Its upper bound:** the first page takes the project's last number,

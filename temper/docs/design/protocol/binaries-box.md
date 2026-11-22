@@ -155,7 +155,7 @@ default; the document is `temper.json` in the configuration directory
   (`../client/line.md`, 1). It reads no configuration file.
 - **`temper ctl DIRECTORY ...`:** the agents' tools, one call per
   process, over the same native transport as `temper-box open`
-  (`../client/ctl/README.md`, section 6). It reads no configuration file.
+  (`../client/ctl/command-line.md`, section 1). It reads no configuration file.
   Their rows, and run as `claude`'s, are `temper-agent-shell`'s
   constants, which the agent's table holds too (3).
 - **`temper-box versions`:** what this binary speaks and keeps, one line

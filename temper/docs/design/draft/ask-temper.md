@@ -193,7 +193,7 @@ tools.
   `domain/engine/views.md`). The settings inventory adds what charter
   3's `settings` read gives today: the offer, the project's repositories, its
   people and their forge identities (`../domain/agent/agents.md`, 1).
-- **Over the reads a client makes** (`../client/ctl/tools.md`, 2 and `../client/ctl/areas.md`), not
+- **Over the reads a client makes** (`../client/ctl/tools-reads.md`, 1 and `../client/ctl/areas.md`), not
   ctl's text, which is for an agent driving temper and is left as it is.
 
 | Address | Answers | Over |

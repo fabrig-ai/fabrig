@@ -204,7 +204,7 @@ nowhere. Each within its bound; a failure is the deployment's (section
    seconds.
 4. **ctl, signed in from a file:** the engine's first link written to
    `session/link`, 0o600, then `temper ctl SCRATCH/session/ctl sign-in
-   SCRATCH/session/link </dev/null` (`../../client/ctl/README.md`, 6.1),
+   SCRATCH/session/link </dev/null` (`../../client/ctl/command-line.md`, 1.1),
    exit 0 within 60 seconds, then `session/link` removed.
 5. **The worker's setting:** an engine admits only a worker its settings
    hold (`../../draft/config.md`, 6.7), so the session adds it as its

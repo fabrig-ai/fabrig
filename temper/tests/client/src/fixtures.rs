@@ -1560,7 +1560,7 @@ pub fn done_task(printed: &temper_client_tools::jig::Printed) -> u64 {
         .expect("task number")
 }
 
-/// client/ctl/README.md, 9: two 16 KiB parts within the tools' 32 KiB text bound.
+/// client/ctl/bounds.md, 1: two 16 KiB parts within the tools' 32 KiB text bound.
 pub const LARGE_TURN_TEXT: usize = 24_576;
 #[must_use]
 pub fn codec_for(limits: &jig_client::DomainLimits) -> jig_protocol_transcript::Limits {

@@ -16,7 +16,7 @@ milestone N3a, but for lag 8. `what-reaches-you.md`, section 7 is carried by
 `../protocol/configuration/settings-kinds.md`, 1, and `../protocol/configuration/settings.md`, 3,
 `../domain/forge/change/gates.md`, 2, `../domain/forge/queues.md`,
 `../domain/forge/change/questions.md`, 2, `../domain/landing-turn.md`, 1,
-`../client/forge/README.md`, 4.1 and `../client/ctl/tools.md`, 3,
+`../client/forge/README.md`, 4.1 and `../client/ctl/tools-acts.md`, 1,
 milestone N2, and who can still sign a waiting sign-off by
 `../domain/forge/change/questions.md`, 2, *Who can still sign*, and
 `../client/forge/README.md`, 4.1, *Its context*, milestone N5, and by

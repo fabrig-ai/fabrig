@@ -720,7 +720,7 @@ mail server. Neither is reached by a test.
   story reads its records, never a payload's words, which the root's
   boundary holds.
 - **A device with no browser** is registered as `temper ctl push add`
-  registers one (`../client/ctl/tools.md`, 3): a subscription's JSON
+  registers one (`../client/ctl/tools-acts.md`, 1): a subscription's JSON
   whose endpoint is the fake's, `http://ORIGIN/push/NAME`, and whose
   keys are a fixture's.
 - **A fake mail sink** is not built, nor is mail

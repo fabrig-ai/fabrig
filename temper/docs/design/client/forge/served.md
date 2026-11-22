@@ -47,7 +47,7 @@ default before changing it. Unknown or forgotten revisions, non-set
 items and missing retained values return no value; today's value never
 stands in for a missing historical one. The read is one bounded value,
 with the setting answer's byte ceiling. The tools decode its landing
-rule or charter before joining it with revision metadata (`../ctl/tools.md`, 2).
+rule or charter before joining it with revision metadata (`../ctl/tools-reads.md`, 1).
 
 ## 1. The browser's steps, on the clients' listener
 

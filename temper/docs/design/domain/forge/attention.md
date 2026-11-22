@@ -716,7 +716,7 @@ digest are designed (7.4) and not built.
   person turns it on again on their page.
 - **A box** pushes only if its configuration is given push, as any
   deployment's; a story with no browser registers a device with `temper
-  ctl push add` (`../../client/ctl/tools.md`, 3) whose endpoint is a fake
+  ctl push add` (`../../client/ctl/tools-acts.md`, 1) whose endpoint is a fake
   push service's (skein's `testing/fakes/push.md`).
 
 ### 7.4 Mail and the digest

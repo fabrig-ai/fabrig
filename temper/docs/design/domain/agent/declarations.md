@@ -225,7 +225,7 @@ declared its tools, where its task's authority held them:
   - `temper ctl DIR settings show --json` lists the charters and the
     settings revisions live tasks hold; `temper ctl DIR settings show
     charter N --json` gives a charter's `tools`, text and parts, with
-    `--revision R` at a held revision (`../../client/ctl/tools.md`, 2);
+    `--revision R` at a held revision (`../../client/ctl/tools-reads.md`, 1);
     `temper ctl DIR task show TASK --json` names the revision a task's run
     holds.
   - A charter's loss is the table's rows for the families its `tools`

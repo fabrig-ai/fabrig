@@ -366,7 +366,7 @@
   scratch directory of their own: ../client/ctl/testing.md, 4. A call cut
   by `SIGINT` or `SIGTERM` sends nothing more, prints nothing more,
   leaves DIRECTORY's kept requests as they are, and exits 130 or 143
-  (../client/ctl/README.md, 6.2).
+  (../client/ctl/command-line.md, 1.2).
 - **`temper box`,** a fifth test, on a scratch directory of its own
   (../protocol/setup/testing.md, 4): `temper box` on the owned example prints the
   sign-in link on its stdout; Forgejo killed is restarted by the box, with

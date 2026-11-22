@@ -1,4 +1,4 @@
-//! Findings on the forge family (temper/docs/design/client/ctl/tools.md, 2 and 3).
+//! Findings on the forge family (temper/docs/design/client/ctl/tools-reads.md, 1, and temper/docs/design/client/ctl/tools-acts.md, 1).
 pub(crate) mod render;
 use crate::{
     jig::{

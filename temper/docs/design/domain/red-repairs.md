@@ -56,7 +56,7 @@ filed it. What waits is section 11.
   the request.
   - It is asked of the culprit goal's person, `Person N` in the
     finding's body, with a person task as `need ask` makes one
-    (`../client/ctl/tools.md`, section 3): the question in one sentence,
+    (`../client/ctl/tools-acts.md`, section 1): the question in one sentence,
     then each choice on its own line, the recommended one first.
   - It is asked of the triager's own person where its delegate to that
     person is refused, or where the finding names no person.

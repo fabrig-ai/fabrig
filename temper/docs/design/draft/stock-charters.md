@@ -165,9 +165,9 @@ overlay:
   it and marks what the overlay replaced and added; with `--json`, the
   overlay whole, its fields and its added text as literal text, naming
   no directory, so that it applies back anywhere.
-- **In a settings file** (`../client/ctl/tools.md`, 3): an overlay item
+- **In a settings file** (`../client/ctl/tools-acts.md`, 1): an overlay item
   names the charter, the fields it replaces, and `charters`, directories
-  of a set, whose files give its text by section 2's assembly. A
+  of a set, whose files give its text by `stock-charters.md`, section 2's assembly. A
   directory is relative to the file that names it; a file read from
   standard input names its directories absolutely or is refused. One
   directory serves both charters: charter 5 takes `common`, `goal`,
@@ -238,7 +238,7 @@ reference runs the stock's words; charters 6, 7 and 8 go. Its template
   `../domain/forge/change/questions.md`, 1: no foreman.
 - jig's `domain/engine/settings.md`, 1, 2 and 7: an overlay as a change
   kept over its default.
-- `../client/ctl/tools.md`, 3: an overlay item, its directories, and
+- `../client/ctl/tools-acts.md`, 1: an overlay item, its directories, and
   files stacked in one call; `settings show`'s marks.
 - `../domain/agent/charter.md`, 1: the stock's instructions from a set of
   files.

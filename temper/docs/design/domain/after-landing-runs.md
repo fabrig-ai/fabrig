@@ -160,7 +160,7 @@ branch text matches (2026-11-04).
   dropped run's branch stays on the forge (`after-landing.md`, section 14). A run ended
   done has left the record already: the step giving its verdict takes
   it.
-- **A person's hold** (`../client/ctl/tools.md`, section 3, `tier hold`
+- **A person's hold** (`../client/ctl/tools-acts.md`, section 1, `tier hold`
   and `tier release`): a project's owner, or the deployment's, holds a
   repository's tier with a reason, and releases it. While held, the
   tier starts no run: no baseline, no run at a move of its branch and,

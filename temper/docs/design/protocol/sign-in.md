@@ -113,7 +113,7 @@ browsers use (`configuration/engine.md`). With one:
 - **A fresh one, asked:** once the printed links are spent, a client
   signed in as a person asks the engine for a fresh one-time link for
   its own party, `temper ctl DIRECTORY link --out FILE`
-  (`../client/ctl/README.md`, 6.1), so that the person's browser on the
+  (`../client/ctl/command-line.md`, 1.1), so that the person's browser on the
   host signs in with no restart of the engine (jig's
   `protocol/client/sign-in.md`, the asked link). It signs in the asker's
   party alone, never the first owner unless the asker is, and no longer
@@ -142,7 +142,7 @@ A deployment that opens its public projects to anyone
   public index's in its `limits` (jig's `protocol/limits.md`
   ), which the start checks against one another, and its
   owners make a project public (`project amend --visibility public`,
-  `../client/ctl/tools.md`, 3). Each figure is the deployment's;
+  `../client/ctl/tools-acts.md`, 1). Each figure is the deployment's;
   dev.fabrig.ai's are the user's (`../draft/first-release.status.md`).
 - **The proxy caches the public reads alone:** `GET /jig/v1/public/…`,
   a `200` and a `404` as their `Cache-Control` says, never a `503`, and

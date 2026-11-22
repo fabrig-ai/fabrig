@@ -155,7 +155,7 @@ configures work:
   refused, as any unknown member is (`../protocol/configuration/README.md`,
   section 1); a removed member is first accepted
   for one release with a warning (`upgrades.md`, section 10); an operator who keeps settings in a file proposes it
-  whole with `settings propose` (`../client/ctl/tools.md`, 3).
+  whole with `settings propose` (`../client/ctl/tools-acts.md`, 1).
 - **Bounds stay the start's.** A change is checked as the start checks
   a document today: charters within jig's `tasks.charters`, a charter's
   instructions within the journal's run bytes, templates within jig's

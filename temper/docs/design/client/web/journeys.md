@@ -818,7 +818,7 @@ render comparisons belong to section 10 and `look-requests.md`, 4.
   Default: the gallery's welcome and Forges setup states and printed
   journeys; compilation and print checks establish no rendered equality.
   The source step's likely wrapping remains the user's look question
-  (`../forge/deployment.md`, 1). Findings are filed back under the request.
+  (`../forge/deployment.md`, 4). Findings are filed back under the request.
 
 - **The requests of 2026-11-12** (9): temper/ui compares each request's
   pages, from its own commit with its overlay, with main after landing at

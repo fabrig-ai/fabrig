@@ -47,7 +47,7 @@ proposal of settings an owner accepts (`agents.md`, 1).
 - **Started** from the client's Ask temper, in the rail and the tab bar of every
   page of a project, which To begin's first step opens too
   (`../../client/pages/README.md` and `../../client/view.md`, 3), and from `chat start --project PROJECT
-  --template 5 TEXT` (`../../client/ctl/tools.md`, 3).
+  --template 5 TEXT` (`../../client/ctl/tools-acts.md`, 1).
 - **Its tests:** focused and fuzzy alone; its judgement is the user's, by trying
   it. The first request's bound, on both shapes; its runs' declarations,
   `see`, `document`, `remember` and `propose_settings`, and no workspace;
@@ -67,7 +67,7 @@ stands and how it ran, the project, its goals and tasks, a task's tree,
 activity and turns, its changes and what waits on the person, it reads as the
 chat's person, of the chat's project alone, through jig's run read as its person
 (jig's `domain/engine/executors.md`, 3), over the reads a client makes
-(`../../client/ctl/tools.md`, 2 and `../../client/ctl/areas.md`).
+(`../../client/ctl/tools-reads.md`, 1 and `../../client/ctl/areas.md`).
 
 - **Its declaration:** one member, `address`, a line of text, at most 512 bytes
   once trimmed; its description, "Read temper by address, as your person, in
@@ -319,7 +319,7 @@ configuring form's calls (`tools.md`) decode as they do, and one answer serves b
   judged at acceptance alone (`tools.md`).
 - **Its answer,** for either form, says what to tell the person, where the card
   waits and whose decision it is, after the key ctl names it by
-  (`../../client/ctl/tools.md`, 3): `proposed as t7/13 for the deployment's owners to
+  (`../../client/ctl/tools-acts.md`, 1): `proposed as t7/13 for the deployment's owners to
   decide: it waits as a card in this chat and in Needs you, and nothing changes
   until an owner accepts it. Tell the person so, without t7/13.` With no task
   known, the key is `proposal 13`.

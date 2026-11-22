@@ -115,7 +115,7 @@ recipe's own `files/`, just as `forge commit` (`drive.md`, 3.5).
   (`drive.md`, 3.3).
 - **The check** is every line after `check`, where the recipe has one:
   each a `ctl` line, which its author keeps to reads and waits
-  (`ctl/tools.md`, 2 and 4), so that its failure is the state's absence,
+  (`ctl/tools-reads.md`, 1, and `ctl/tools-waiting.md`, 1), so that its failure is the state's absence,
   or a `see`; a `forge` or `deployment` line there refuses the recipe,
   naming it. With no `check`, the check is
   the trailing run of `web see` and `tui see` lines, as before; a `see`

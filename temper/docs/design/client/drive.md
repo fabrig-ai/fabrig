@@ -119,7 +119,7 @@ temper-client-journeys drive --bin DIR [--bundle DIR] --scratch DIR [--scripts F
 | `session/` | the session's own, removed and made again, 0o700, at its start | until the next session |
 | `session/home/`, `session/state/`, `session/tmp/` | `HOME`, `XDG_STATE_HOME` and `TMPDIR` of every program the session starts; `XDG_CONFIG_HOME`, `XDG_CACHE_HOME` and `XDG_DATA_HOME` under `home/` | |
 | `session/runtime/`, `session/tui-runtime/` | `XDG_RUNTIME_DIR` of the box and of the TUI, apart, as `tui/journeys.md`, 8.2 keeps them | |
-| `session/ctl/` | ctl's directory (`ctl/README.md`, 6), which its sign-in makes | |
+| `session/ctl/` | ctl's directory (`ctl/command-line.md`, 1), which its sign-in makes | |
 | `session/browser/` | Chromium's profile and downloads | |
 | `session/bin/` | `xdg-open` and `open`, links to `true`, first in the TUI's `PATH` (`tui/journeys.md`, 8.2) | |
 | `session/box.log` | the box's stderr, each line as it comes, and never a link: its stdout, which carries its sign-in links alone (`../protocol/setup/box-supervision.md`, 1), is read for them and written nowhere (2.3) | |
@@ -145,7 +145,7 @@ In order, each within its bound; a failure is 2.5's.
 2. **ctl, signed in from a file:** the link written to
    `SCRATCH/session/link`, 0o600, then `BIN/temper ctl
    SCRATCH/session/ctl sign-in SCRATCH/session/link </dev/null`
-   (`ctl/README.md`, 6.1 and 8), exit 0 within 60 seconds, then
+   (`ctl/command-line.md`, 1.1, and `ctl/README.md`, 8), exit 0 within 60 seconds, then
    `session/link` removed; the link is never a program's argument and
    never in an answer. It waits on serve's start as a link opened early
    waits (`../protocol/setup/box-supervision.md`, 1).
@@ -440,7 +440,7 @@ saying that the session needs the client's recording build
 signed-in person, the deployment's first owner (`ctl/README.md`, 7). It
 answers ctl's stderr and then its stdout, each line prefixed `| `, then
 `ok` on exit 0, else `failed: exit N`. An act and the wait on it are two
-lines, as ctl waits (`ctl/tools.md`, 4):
+lines, as ctl waits (`ctl/tools-waiting.md`, 1):
 
 ```text
 ctl task show 3 --until ended

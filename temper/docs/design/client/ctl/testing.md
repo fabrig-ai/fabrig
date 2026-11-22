@@ -14,25 +14,25 @@
   terminal records, nonterminal and wrong-number records, unknown or
   hidden history, Busy, sign-out and read failure. Only matching
   terminal records meet `ended`; each path emits exactly one result
-  and releases its handles and timer. No new harness (`tools.md`, 4).
+  and releases its handles and timer. No new harness (`tools-waiting.md`, 1).
 - **Tree waits,** in the same tools step fixture: an Idle-root delivery
   remains pending until `SubjectEnded`; text and JSON then report
   watch completion and label the unchanged rows as the last observed
   snapshot, with its digest. Terminal deliveries, no-delivery `gone`,
   timeout, `--since`, and a single answer with watch/timer cleanup
-  are covered here: no forge, workflow, model or kernel is needed (`tools.md`, 4).
+  are covered here: no forge, workflow, model or kernel is needed (`tools-waiting.md`, 1).
 - **No-change completion,** in the tools step fixture: a producing panel,
   a successful no-change report, the unmet landing wait and the retained
   ended panel on a later read. Completion on the first task read and
   arriving during a wait both name the result and the direct report
-  command; `task show` keeps the empty-search explanation (`tools.md`, 4).
+  command; `task show` keeps the empty-search explanation (`tools-waiting.md`, 1).
 - **The boundary:** `temper-client-tools-jig`'s `src/jig/` names no temper item, in its own step
   tests (`README.md`, section 4; `tools-crates.md`, 4.1).
 - **The bounds:** each of the tools' ceilings within the client's limit
-  it reads from, and a picker's page within a result's text (`README.md`, section 9
+  it reads from, and a picker's page within a result's text (`bounds.md`, section 1
   ): a result's text within one document's bytes, a page within a
   turn's bytes, the client's text within a result's text and equal to
-  the words an act takes, and a `task text` page holding `README.md`, section 9's
+  the words an act takes, and a `task text` page holding `bounds.md`, section 1's
   page whole, its lines within the 512 bytes beside it and its JSON
   within a result's bytes.
 - **Paged reads,** as table rows beside the existing `task text` and
@@ -70,7 +70,7 @@ reading the older page, the first reply once and not the second, and
 `chat show` both, each once; a repository adopted; a held task released. The
 existing agent story also waits for a task whose end was observed before
 `task show TASK --until ended` begins, checking the matching terminal
-answer (`tools.md`, 4). A turn too large for a page exists only where the engine's
+answer (`tools-waiting.md`, 1). A turn too large for a page exists only where the engine's
 bound on a turn passes its page bound, so the world's profile sets it
 so. The world's faults hold: a call cut by a link drop or an engine
 restart, asked again under its named key, is made once. Each area adds
@@ -276,10 +276,10 @@ DIRECTORY's files and a call's exit are the real loop's (3).
   (`../../protocol/documentation.md`), then the tools from the table, a
   line each, its usage and its line. The page is the driver's first
   read (`../../protocol/documentation.md`, section 2.4): how to sign in, the loop
-  of `tools.md`, 4 (read, act, wait), naming keys and their prefix, reading acts
+  of `tools-waiting.md`, 1 (read, act, wait), naming keys and their prefix, reading acts
   and the revisions they name, the exit statuses of `results.md`, 3, JSON, the forge
   read with whatever the agent chooses and what temper owns there
-  changed only through temper (`tools.md`, 2), and a secret read from a private
+  changed only through temper (`tools-reads.md`, 1), and a secret read from a private
   file, never typed or given as an argument, with a link printed as
   text, never opened, and followed by a wait (`areas.md`, areas 5 and 6).
 - **`temper ctl help GROUP VERB`** prints the tool's record (`tools.md`, 1): its

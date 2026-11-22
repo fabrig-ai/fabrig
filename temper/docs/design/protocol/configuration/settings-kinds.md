@@ -268,7 +268,7 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
     removal or a reset always good;
   - *named* `template-goal`, with the template's `number`, in a settings
     file and a run's `settings`, `see` and `propose_settings`
-    (`../../client/ctl/tools.md`, 3; `../../domain/agent/agents.md`, 1), its value
+    (`../../client/ctl/tools-acts.md`, 1; `../../domain/agent/agents.md`, 1), its value
     `{"design": BOOL, "close_out": BOOL}`, both members required; read
     by a party with a role in the deployment, as kinds 1 and 3 are;
   - *the stock's,* `stock.md`'s: template 4's, neither; the reference's,

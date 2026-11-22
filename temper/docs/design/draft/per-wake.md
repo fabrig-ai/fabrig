@@ -103,7 +103,7 @@ doing. Every other kind chooses parts: `question`,
   charters member) carries `"parts": [{"on": ["question"], "instructions":
   "..."}]`. An unknown kind, an always-offered kind, an empty `on` or a part
   past the limit refuses the change at its path. temper's settings form and `temper ctl
-  settings show` and `apply` carry them (`../client/ctl/tools.md`, 3).
+  settings show` and `apply` carry them (`../client/ctl/tools-acts.md`, 1).
 
 ## 4. What a run is offered
 

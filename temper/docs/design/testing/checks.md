@@ -427,7 +427,7 @@ minutes.
 
 After the acceptance, the pass collects what the check reads into one
 directory, with `temper-stage-one collect`, through `temper ctl`'s
-reads alone (`../client/ctl/tools.md`, 3): the revision's record; its
+reads alone (`../client/ctl/tools-acts.md`, 1): the revision's record; its
 items, each value whole, as a settings file; every setting's current
 value, the project's policy and temper's kinds among them, as a
 settings file; the proposal's review and the chat, as text. The pass
@@ -489,7 +489,7 @@ one complete accepted revision, with refusal and decided-call replay cases (4).
   that closes, in the same branch.
 - **Tested in the gate as a tool is:** the crate's own step tests, in
   milliseconds: the golden decodes, and each setting obligation's member
-  resolves in the settings form's `FIELDS` (`../client/ctl/tools.md`, 3)
+  resolves in the settings form's `FIELDS` (`../client/ctl/tools-acts.md`, 1)
   and in the profile; the check over evidence made from the profile
   itself, as if the agent had proposed it, passes with every setting met,
   and with the profile's charters renumbered still passes; each failure

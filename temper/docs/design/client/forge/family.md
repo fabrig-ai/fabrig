@@ -410,7 +410,7 @@ client removes no account and closes no chat of its own.
   is listed, and adopting one the project holds is refused by the
   engine as any adoption; the request naming the project, the engine
   leaving those out, is the candidate (`README.md`, section 8).
-- A connect's end told: `deployment.md`, section 1.
+- A connect's end told: `deployment.md`, section 4.
 - **The pull request's link on the card** ("OWNER/NAME#N on
   Playground forge"): the forge's part, which the forge's
   side does not read yet (2). Default: the link to the task's page.

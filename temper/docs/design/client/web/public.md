@@ -64,7 +64,7 @@ never streaming (`../../draft/first-release.md`, 5.3).
   cut; an executor is its kind, "an agent", "a procedure", "a person".
   A title is the first line of a spec an agent wrote from what a person
   said, so a chat's words can show here; ctl's publication help and completed
-  answer say so (`../ctl/tools.md`, 3). A preceding acknowledgement is Later
+  answer say so (`../ctl/tools-acts.md`, 1). A preceding acknowledgement is Later
   (`../ctl/README.md`, section 11), and no page makes a project public.
 - **The look:** one plain column, the same at every width from 320 to
   1440 px, in the client's type and colours (`temper.css`'s tokens), its

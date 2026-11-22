@@ -319,7 +319,7 @@ MakeRepository {
 3. **The sheet** (section 9) and Home's words for a copy under way.
 
 `temper ctl`'s two commands, beside `repository adopt`
-(`../client/ctl/tools.md`, 3): `repository make --project PROJECT
+(`../client/ctl/tools-acts.md`, 1): `repository make --project PROJECT
 [--forge FORGE] ORG/NAME [--no-home]`, and `repository copy --project
 PROJECT [--forge FORGE] ADDRESS [--as ORG/NAME] [--no-home]`, each
 answering once the request is kept, and `--until adopted` waiting on

@@ -74,7 +74,7 @@ its journeys. The reasons are `notes.md`, section 9.
   web.
 - **`temper open`, in `temper-box` (`cli.md`, section 4), and `temper ctl` stay what they are:** the line client
   is the tests' surface (`../client/line.md`, 9), `temper ctl` the
-  agents' (`../client/ctl/README.md`, section 6). The TUI is the person's.
+  agents' (`../client/ctl/command-line.md`, section 1). The TUI is the person's.
 
 ## 3. The direction
 
@@ -139,7 +139,7 @@ their words and look are refined on the recording (section 5).
   open` does (`../client/README.md`, section 4): the way in when no
   browser can approve, and the only one until the approval is built.
   The link is never an argument, as `temper ctl`'s isn't
-  (`../client/ctl/README.md`, 6.1).
+  (`../client/ctl/command-line.md`, 1.1).
 - **Its directory,** private as `temper open`'s (`../client/line.md`,
   1), under the person's state directory
   (`$XDG_STATE_HOME/temper/tui`, else `~/.local/state/temper/tui`): its

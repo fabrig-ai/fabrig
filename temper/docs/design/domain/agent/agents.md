@@ -138,7 +138,7 @@ otherwise teach.
   finds nothing is an error whose words say it was not read and that this
   says nothing about the settings.
 - **The kinds it reads and proposes** are a settings file's
-  (`../../client/ctl/tools.md`, 3): `charter`, `template`, `policy`, `model`,
+  (`../../client/ctl/tools-acts.md`, 1): `charter`, `template`, `policy`, `model`,
   `rules`, `landing-rule` (with its `project`, the deployment's when left
   out), `forge-charter`, `charter-words` (with the charter's number),
   `project-policy`, `project-ways`, `project-questions`, `project-classes` and
@@ -168,7 +168,7 @@ otherwise teach.
   says plainly, offering the nearest. A provider temper isn't set up for,
   listeners, workers and limits belong to whoever runs temper here: it
   says so and never proposes them. Making a project public is no setting,
-  done by its owner outside the chat (`../../client/ctl/tools.md`, 3), and no
+  done by its owner outside the chat (`../../client/ctl/tools-acts.md`, 1), and no
   proposal's item carries it.
 - **The approvals:** an approval counts a person with a known forge
   identity on the forge of the repository a rule covers, as the
@@ -378,7 +378,7 @@ of `../../draft/v0.1.0.md`, 2.1.
     reply alone. Any question
     a person or an older goal wrote draws this way.
 - **The person answers in the inbox,** `temper ctl task answer TASK
-  QUESTION TEXT` (`../../client/ctl/tools.md`, 3), Home's card or the inbox's
+  QUESTION TEXT` (`../../client/ctl/tools-acts.md`, 1), Home's card or the inbox's
   page, and
   nobody else does: the answer reaches the goal itself, as its
   requester's, never through the chat's model, which may not answer a
@@ -578,7 +578,7 @@ conversation its person ends, kept, listed among the project's chats.
   templates (`../../client/pages/goal.md`, 3); the drafter calls no `goal`.
 - **Where one starts:** on the web, the new chat with a draft where `me`
   lists template 6 (`../../client/pages/README.md`, *A new chat*); from `temper
-  ctl`, `chat start --template 6` (`../../client/ctl/tools.md`, 3); in the
+  ctl`, `chat start --template 6` (`../../client/ctl/tools-acts.md`, 1); in the
   terminal, `/draft` (`../../draft/surfaces.md`, 11.2), which the terminal's
   design takes up.
 

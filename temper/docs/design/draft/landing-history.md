@@ -76,7 +76,7 @@ temper keeps what a change and a landing are now, not how they got there. A chan
 
 ## 6. Reading it
 
-- **`landing history --project PROJECT [--change TASK | --landing TASK] [--since TIME] [--until TIME] [--after CURSOR] [--json]`:** the events in the project's order, at most 32 a page within ctl's document bound (`../client/ctl/README.md`, 9). The first page fixes the project's last number as the read's upper bound and the cursor carries it, so later pages read the same history. A change's or a landing's events are read through their own index, and a project's by its order, so a filtered read does bounded work. A cursor past the events that remain is refused, naming the first that does.
+- **`landing history --project PROJECT [--change TASK | --landing TASK] [--since TIME] [--until TIME] [--after CURSOR] [--json]`:** the events in the project's order, at most 32 a page within ctl's document bound (`../client/ctl/bounds.md`, 1). The first page fixes the project's last number as the read's upper bound and the cursor carries it, so later pages read the same history. A change's or a landing's events are read through their own index, and a project's by its order, so a filtered read does bounded work. A cursor past the events that remain is refused, naming the first that does.
 - **A change whose row went** answers `change show` by naming its last events and the read that lists them all; once its events have gone too, it says so.
 - **Who may read it:** the project's readers, as for its changes, whether or not the change's task remains. The public projection shows none of it (`../client/forge/README.md`, 9.3).
 

@@ -402,7 +402,7 @@ Its rules on an agent's task's page:
   role's reply as its run's turns, as any run's on this page. Under it,
   small and muted, the terminal's command: "Or in a terminal: temper ctl
   DIR role talk N TEXT --key KEY", N the task's number
-  (`../ctl/tools.md`, 3). While the document's `talk` names the person
+  (`../ctl/tools-acts.md`, 1). While the document's `talk` names the person
   reading, "Leave" stands among the taskbar's acts, before "Pause":
   `Ask::Leave { project, task }` at once, no confirmation, its toast "Left:
   its next session starts fresh from its Now."; a refusal of either says

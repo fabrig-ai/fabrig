@@ -51,7 +51,7 @@ help (`../design/client/ctl/testing.md`, 5). What is still open is
 - **The forge's part, on the forge:** a pull request's diff, files and
   reviews; CI's runs, jobs and logs; branches and their heads. A part
   temper does not serve says "Shown on the forge.", with the resource
-  in the forge's words (`../design/client/ctl/tools.md`, 2).
+  in the forge's words (`../design/client/ctl/tools-reads.md`, 1).
 - **What temper owns on the forge changes through temper:** its
   branches, its pull requests and their landing. What a person does on
   the forge (a review, an approval at a head, a comment, a push to a
@@ -249,7 +249,7 @@ curl -fsS -H @READ "$API/repos/OWNER/NAME/pulls/7"
 ## 6. Checking an outcome
 
 - **Each case, one loop:** act through ctl and wait on it
-  (`../design/client/ctl/tools.md`, 4); read temper's account; follow its ids and
+  (`../design/client/ctl/tools-waiting.md`, 1); read temper's account; follow its ids and
   links to the forge; compare.
 - **A case's line says both,** what temper said and what the forge
   showed.

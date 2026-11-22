@@ -330,7 +330,7 @@ every setting is, its decision that project's owners'. Its value, a
 ## 5. The owner's acts
 
 - **Who:** a person owner, or an owner of its project, through `temper
-  ctl` (`../../client/ctl/tools.md`, 3), each a keyed request of the
+  ctl` (`../../client/ctl/tools-acts.md`, 1), each a keyed request of the
   forge's family answered once durable; a standing role owner through
   its `follow` tool (below). The root checks the person's role in the
   project, or that the calling task is the follow's owner; the forge
@@ -471,7 +471,7 @@ every setting is, its decision that project's owners'. Its value, a
   `follow N: SOURCE BRANCH → TARGET TBRANCH · LAG · PARITY`, LAG `caught
   up` or `K behind`, PARITY `check passes at AFTER12`, `K failing at
   AFTER12` or `no check yet`; `follow show --project P N` prints one
-  whole (`../../client/ctl/tools.md`, 2). Home's, Team's and How work
+  whole (`../../client/ctl/tools-reads.md`, 1). Home's, Team's and How work
   runs' lines are drawn from that document (`../../draft/surfaces.md`,
   sections 3, 6 and 7): Team's on the owner's row, and on a standing
   role's card (`../../client/pages/team.md`, 1, *Follows*).

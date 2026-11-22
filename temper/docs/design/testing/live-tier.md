@@ -113,11 +113,11 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   Every ctl call of a sitting names one DIRECTORY, `client` beneath the
   run's root in the store (`first`, `second`, or tagged on a kept
   store): the import, the held record's give-back and the sitting's
-  reads alike (../client/ctl/README.md, 6.1). The chat's ended delegates and
+  reads alike (../client/ctl/command-line.md, 1.1). The chat's ended delegates and
   the change's are read whole, a page at a time: `task list --project
   PROJECT --parent TASK --ended --json`, then the same with `--after`
   and the cursor the page printed (`ended.rows.after.value`), until a
-  page prints none (../client/ctl/tools.md, 2); a page cut with no cursor,
+  page prints none (../client/ctl/tools-reads.md, 1); a page cut with no cursor,
   or past 32 pages in all, fails the story, naming it.
   - **A failure says why:** once a sitting has returned with a finding,
     before the test fails with it, the story prints each run the box's
@@ -283,9 +283,9 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
     file, `forge list --until connected:1`, then `--until settled`;
     `forge install 1` issues a state, asked again while setup answers
     "busy", at most 30 times, one a 2 s poll, each under a fresh key (a
-    key's first answer is replayed, ../client/ctl/README.md, 5) and logged
+    key's first answer is replayed, ../client/ctl/requests.md, 1) and logged
     with its time, since the reconcile after a connect is the engine's,
-    which `settled` does not cover (../client/ctl/tools.md, 4); and the
+    which `settled` does not cover (../client/ctl/tools-waiting.md, 1); and the
     test brings it to the engine's setup route with the installation's
     id, as GitHub's redirect would
     (`/forges/1/github/setup?installation_id=I&setup_action=install&state=S`),
@@ -409,7 +409,7 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
     the tier runs Claude Code's alone. No directory above these
     needs a mode or a name: ctl opens DIRECTORY and FILE through their
     parents and checks DIRECTORY, its files and FILE alone
-    (../client/ctl/README.md, 6.1).
+    (../client/ctl/command-line.md, 1.1).
   - **Its bounds** are each story's own, within the profile's 50 minutes for the
     pair. Never at the gate, and never run by an implementer.
 - **The held record's return,** for each story that moves a held record

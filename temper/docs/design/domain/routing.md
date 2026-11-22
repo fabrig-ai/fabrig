@@ -285,4 +285,4 @@ child, the calendar, which renews each project's period.
   and next start (jig's `client/domain/contract/documents.md`, 1), and `temper
   ctl project show` prints them with what the period has left; `temper
   ctl project fund` raises the project's spend and a role's, the open
-  period's with them (`../client/ctl/tools.md`, 3).
+  period's with them (`../client/ctl/tools-acts.md`, 1).

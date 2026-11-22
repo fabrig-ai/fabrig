@@ -127,7 +127,7 @@ fn start_over(scratch: &support::Scratch, paths: &[std::path::PathBuf; 3], flags
     let mut engine_paused = false;
     let data = &paths[1];
     eprintln!("start-over {cut:?}: cut");
-    // The client keeps its sign-in across cuts (client/ctl/README.md, 6.1).
+    // The client keeps its sign-in across cuts (client/ctl/command-line.md, 1.1).
     let mut steps = Vec::new();
     if matches!(cut, Cut::Fetch) {
         steps.push(Step::Run(Call::sign_in()));

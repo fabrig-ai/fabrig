@@ -174,7 +174,7 @@ temper-client-web-page          the shipped page's entry, built for wasm32 into 
 for agents
 temper-client-tools             the agents' tools on jig-client, beside the view (ctl/README.md, section 4): temper's part, the tools' root, and jig's part under its path (ctl/tools-crates.md)
 └── temper-client-tools-jig     jig's part of the tools: the table, a call, the runner, digests and conditions, the rendering
-temper-client-shell-cli         `temper ctl`, over jig-client-shell-native, and its start (ctl/README.md, section 6)
+temper-client-shell-cli         `temper ctl`, over jig-client-shell-native, and its start (ctl/command-line.md, section 1)
 
 for tests
 skein-fake-person               the person, on skein-ui's tree (../testing/fakes.md, 4)
@@ -250,7 +250,7 @@ temper-client-journeys-tool     crates/temper-client-journeys-tool, run by bin/t
     child (`tui/box.md`; `box-binary.md`); the box runs no TUI;
   - `temper ctl` and `temper-box ctl` call
     `temper_client_shell_cli::start::run`, whose lines name `temper ctl`
-    in both (`ctl/README.md`, 6.1);
+    in both (`ctl/command-line.md`, 1.1);
   - an argument naming an engine's address or a sign-in link is read by
     `temper_client_shell_terminal::address`, for the TUI and for `temper-box
     open` (`line.md`, 1);
@@ -527,7 +527,7 @@ credential.
   the key again; the person's second send keeps the first's name, so
   that a request the engine made answers with its first answer, and no
   second account is made. A key empty or past 4 KiB (the bound of
-  `ctl/README.md`, section 9) is refused before it is sent; one the
+  `ctl/bounds.md`, section 1) is refused before it is sent; one the
   engine refuses is answered with its refusal.
 - **A forge's pasted value is sent the same way.** A GitHub App's
   private key (with no webhook secret: GitHub has none of temper's),
@@ -541,7 +541,7 @@ credential.
   keeps it (`../protocol/credentials.md`, pasted values). Answered
   unsent or lost, the page asks for the value again, and the second
   send keeps the first's key. A value empty, or a bundle past 4 KiB,
-  jig's bound on a carried value (the bound of `ctl/README.md`, section 9),
+  jig's bound on a carried value (the bound of `ctl/bounds.md`, section 1),
   is refused before it is sent, in the words of `forge/deployment.md`; one
   the engine refuses, past the
   deployment's `records.value_bytes` among them, shows its refusal
@@ -647,8 +647,8 @@ temper's:
     origin `https://NAME/sign-in?secret=SECRET`; the engine's local
     link at rest (`tui/README.md`, 2); the link the box hands the TUI
     in front of it, which its welcome and `/web`'s note show as given
-    (`tui/box.md`, *The welcome*); ctl's asked link (`ctl/README.md`,
-    6.1); and the TUI's link field's placeholder
+    (`tui/box.md`, *The welcome*); ctl's asked link (`ctl/command-line.md`,
+    1.1); and the TUI's link field's placeholder
     (`tui/pages/sign-in.md`, 1). The help that shows the link shows it
     so, and the operator's journal search finds it so.
   - **The route's form still taken** ("let's keep backward compat"):
@@ -661,7 +661,7 @@ temper's:
     engine's link file (`tui/pages/README.md`), `temper ADDRESS`
     refusing it as an argument (`tui/README.md`, section 1),
     `temper-box open` (`line.md`, 1), `temper ctl DIRECTORY sign-in`
-    (`ctl/README.md`, 6.1) and the TUI journeys' redaction
+    (`ctl/command-line.md`, 1.1) and the TUI journeys' redaction
     (`tui/journeys.md`, section 5); each reads it with jig's mapping
     made with that page.
   - **Named once:** the page's path is `LINK_PAGE` in

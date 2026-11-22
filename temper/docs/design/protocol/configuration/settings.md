@@ -129,7 +129,7 @@ Moved to [`settings-kinds.md`](settings-kinds.md), section 1.
   inline, naming its path: "`engine.projects[0].policy`: name a policy,
   `policy: 1`; change it with `temper ctl settings apply`". A policy is
   then written in one form alone, the settings file's
-  (`../../client/ctl/tools.md`, 3), and the document's older forms of an
+  (`../../client/ctl/tools-acts.md`, 1), and the document's older forms of an
   authority, a pattern and a role's permissions (milliseconds, text
   segments) meet nothing.
 - **Configuration is not imported into a store.** Removed members
@@ -250,7 +250,7 @@ next run.
   (jig's `domain/engine/settings.md`, 9). A repository not
   adopted, a branch, file or heading not there, or a read that failed,
   is a section saying so.
-- **In a settings file** (`../../client/ctl/tools.md`, 3), a charter's value
+- **In a settings file** (`../../client/ctl/tools-acts.md`, 1), a charter's value
   carries `"documents": [{"forge": F, "repository": "owner/name",
   "branch": B, "path": P, "heading": H}]`, `heading` optional, `F` the
   forge's host as its resources name it, which ctl turns into the

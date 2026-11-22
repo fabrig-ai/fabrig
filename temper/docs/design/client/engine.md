@@ -39,7 +39,7 @@ does for the client:
   the call's end (jig's `protocol/client/default-http.md`, 4: "A peer's end is
   the call's end"). So a stream ends when the client closes it or its
   process ends, and its room among the profile's streams is free for
-  the next call at once (`ctl/README.md`, 6.2).
+  the next call at once (`ctl/command-line.md`, 1.2).
 - **The printed link opened in a browser:** a `GET` of the link's route
   spends nothing, and the mapping leaves it to the application's page
   (jig's `protocol/browser/README.md`, section 11); so does a `GET` of
