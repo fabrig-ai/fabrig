@@ -174,7 +174,7 @@ What step 1 adds:
   OpenAI key added through `ctl` is; a refused key says so on its
   source (skein's `llm/README.md`, 4.7).
 - **The pages draw it where they draw OpenAI's key**
-  (`../client/pages/accounts.md`, section 2): with two providers offering
+  (`../client/pages/accounts-words.md`, section 1): with two providers offering
   keys, the ways read "Use an OpenAI API key" and "Use an Anthropic API
   key", rows under "Or an API key". A key's details read "An Anthropic
   API key", then "From the Claude Console, under API keys. What temper's

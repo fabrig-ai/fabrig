@@ -178,7 +178,7 @@ fn made_sign_in_reaches_ready_live_and_after_return() {
     added_ending(&mut front, &mut root, source);
 }
 
-// client/pages/accounts.md 2 A sign-in: Renewed names the same account and offers sign-in again.
+// client/pages/accounts-words.md 1 A sign-in: Renewed names the same account and offers sign-in again.
 #[test]
 fn renewed_sign_in_lands_on_the_accounts_page() {
     let (mut front, mut root, _) = established();
@@ -189,7 +189,7 @@ fn renewed_sign_in_lands_on_the_accounts_page() {
     added_ending(&mut front, &mut root, source);
 }
 
-// client/pages/accounts.md 2 A sign-in: Made with declined consent has the plan-declined words.
+// client/pages/accounts-words.md 1 A sign-in: Made with declined consent has the plan-declined words.
 #[test]
 fn made_without_plan_usage_offers_sign_in_and_a_key() {
     let (mut front, mut root, source) = begin();
@@ -199,7 +199,7 @@ fn made_without_plan_usage_offers_sign_in_and_a_key() {
     has(&root, "Use an API key");
 }
 
-// client/pages/accounts.md 2 A sign-in: Renewed with declined consent uses plan-declined words too.
+// client/pages/accounts-words.md 1 A sign-in: Renewed with declined consent uses plan-declined words too.
 #[test]
 fn renewed_without_plan_usage_offers_sign_in_and_a_key() {
     let (mut front, mut root, _) = established();
@@ -225,7 +225,7 @@ fn superseded_return_source_offers_the_way_again() {
     assert!(!words(&root).contains("Signed in to ChatGPT"));
 }
 
-// client/pages/accounts.md 2 A sign-in and Each state: Failed Misconfigured explains registration.
+// client/pages/accounts-words.md 1 A sign-in and Each state: Failed Misconfigured explains registration.
 #[test]
 fn misconfigured_sign_in_explains_registration_on_connect_model() {
     let (mut front, mut root, source) = begin();
@@ -239,7 +239,7 @@ fn misconfigured_sign_in_explains_registration_on_connect_model() {
     );
 }
 
-// client/pages/accounts.md 2 A sign-in and Each state: Failed SignInAgain says signed out.
+// client/pages/accounts-words.md 1 A sign-in and Each state: Failed SignInAgain says signed out.
 #[test]
 #[ignore = "backlog: a sign-in ending SignInAgain reads \"Needs sign-in\", not 5.5's \"Signed out of ChatGPT.\"; off the happy path (m3 backlog 2)"]
 fn signed_out_sign_in_explains_the_ending_on_connect_model() {
@@ -249,7 +249,7 @@ fn signed_out_sign_in_explains_the_ending_on_connect_model() {
     connect_ending(&mut front, &mut root, source, "Signed out of ChatGPT.");
 }
 
-// client/pages/accounts.md 2 A sign-in and Each state: Failed Unloaded names where and why.
+// client/pages/accounts-words.md 1 A sign-in and Each state: Failed Unloaded names where and why.
 #[test]
 #[ignore = "backlog: a sign-in ending Unloaded reads the load error, not 5.5's \"Can't be used on HOST: WHY.\"; off the happy path (m3 backlog 3)"]
 fn unloaded_sign_in_names_its_place_and_reason_on_connect_model() {
@@ -365,7 +365,7 @@ fn accounts_renewed_sign_in_keeps_the_same_added_line() {
     has(&root, "Added your ChatGPT plan");
 }
 
-// client/pages/accounts.md 2 A sign-in: a row's Made with declined consent offers sign-in and a key.
+// client/pages/accounts-words.md 1 A sign-in: a row's Made with declined consent offers sign-in and a key.
 #[test]
 fn accounts_made_without_plan_usage_offers_sign_in_and_key() {
     let (mut front, mut root, source) = row_sign_in();
@@ -384,7 +384,7 @@ fn accounts_made_without_plan_usage_offers_sign_in_and_key() {
     has(&root, "Use an API key");
 }
 
-// client/pages/accounts.md 2 A sign-in: a row's Renewed with declined consent has the same words.
+// client/pages/accounts-words.md 1 A sign-in: a row's Renewed with declined consent has the same words.
 #[test]
 fn accounts_renewed_without_plan_usage_offers_sign_in_and_key() {
     let (mut front, mut root, source) = row_sign_in();
@@ -393,7 +393,7 @@ fn accounts_renewed_without_plan_usage_offers_sign_in_and_key() {
     has(&root, "Use an API key");
 }
 
-// client/pages/accounts.md 2 Each state: a row's Failed Misconfigured explains registration.
+// client/pages/accounts-words.md 1 Each state: a row's Failed Misconfigured explains registration.
 #[test]
 fn accounts_misconfigured_sign_in_explains_registration() {
     let (mut front, mut root, source) = row_sign_in();
@@ -401,7 +401,7 @@ fn accounts_misconfigured_sign_in_explains_registration() {
     account_ending(&root, "OpenAI refused temper’s sign-in. Check the configuration’s registration.");
 }
 
-// client/pages/accounts.md 2 Each state: a row's Failed SignInAgain names ChatGPT and sign-out.
+// client/pages/accounts-words.md 1 Each state: a row's Failed SignInAgain names ChatGPT and sign-out.
 #[test]
 #[ignore = "backlog: a sign-in ending SignInAgain reads \"Needs sign-in\", not 5.5's \"Signed out of ChatGPT.\"; off the happy path (m3 backlog 2)"]
 fn accounts_signed_out_sign_in_names_chatgpt() {
@@ -410,7 +410,7 @@ fn accounts_signed_out_sign_in_names_chatgpt() {
     account_ending(&root, "Signed out of ChatGPT.");
 }
 
-// client/pages/accounts.md 2 Each state: a row's Failed Unloaded names where and why.
+// client/pages/accounts-words.md 1 Each state: a row's Failed Unloaded names where and why.
 #[test]
 #[ignore = "backlog: a sign-in ending Unloaded reads the load error, not 5.5's \"Can't be used on HOST: WHY.\"; off the happy path (m3 backlog 3)"]
 fn accounts_unloaded_sign_in_names_its_place_and_reason() {
@@ -428,7 +428,7 @@ fn accounts_unloaded_sign_in_names_its_place_and_reason() {
     has(&root, "Unreadable");
 }
 
-// client/pages/accounts.md 2 A sign-in: every other Failed ending offers the way again.
+// client/pages/accounts-words.md 1 A sign-in: every other Failed ending offers the way again.
 #[test]
 fn other_failures_offer_retry_on_connect_model() {
     for failure in [

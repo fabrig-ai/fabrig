@@ -540,7 +540,7 @@ one owned Forgejo's place, with its own values (../setup/init.md, 1).
   a person's existing document keeps its configured concurrency.
 - A real provider's list: `settings.md`, section 9.
 - The real-browser check of watch sizing: `limits.md`, section 8.
-- A page refused busy: `../../client/pages/README.md`, section 3.
+- A page refused busy: `../../client/pages/README.md`, section 7.
 - A party's fair share of the watch rooms: `limits.md`, section 8.
 - `views.`'s other names: `limits.md`, section 8.
 - A Claude-only box on the small profile: `settings.md`, section 9.

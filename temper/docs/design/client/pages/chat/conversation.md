@@ -478,7 +478,7 @@ terminal draw the same path.
 - **The first use of a plan,** in the terminal: a card in the
   conversation, or a card that waits to be dismissed, another kind of
   `Dismissed`, keyed by its account (`../../../draft/to-begin.md`, section 5).
-  Default: a card in the conversation (`../accounts.md`, 2), with nothing to dismiss.
+  Default: a card in the conversation (`../accounts-words.md`, 1), with nothing to dismiss.
 - **A delivery beside a long conversation** (2;
   `../../../draft/chat-reading.md`, 3): retaining parsed closed blocks for the
   browser and TUI, or a conversation subtree, needs invalidation rules

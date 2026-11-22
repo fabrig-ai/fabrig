@@ -84,7 +84,7 @@ One story:
    no LLM account yet, a banner offers the ways to add one: a sign-in
    with an LLM provider, a Claude Code login made with `temper-box
    program-login`, or a key; the person adds one on the accounts page
-   (`client/pages/README.md` and `client/pages/accounts.md`, 2).
+   (`client/pages/README.md` and `client/pages/accounts-words.md`, 1).
 3. The person adopts a repository into the configured project, through
    the adoption form (`client/forge/family.md`, 4).
 4. The person starts a chat and asks for a change; the stock chat reads
@@ -288,6 +288,24 @@ forge, temper adds:
   Its documents go by surface (the user, 2026-11-07): what is generic
   to the client in `client/` itself, the browser's in `client/web/`, the
   TUI's in `client/tui/`, and `temper ctl`'s in `client/ctl/`.
+  - `client/pages/README.md`: the pages' overview, reads and deferred checks.
+  - `client/pages/address-contracts.md`: the pages' addresses, watches, reads and acts.
+  - `client/pages/shared-behaviour.md`: task titles, Away and terminal approval across pages.
+  - `client/pages/needs-you.md`: the browser's needs and Only you.
+  - `client/pages/needs-you-terminal.md`: the terminal inbox and its cards.
+  - `client/pages/needs-you-tell.md`: filing a person's words through Tell temper.
+  - `client/pages/needs-you-state.md`: the needs, replies and decisions the client keeps.
+  - `client/pages/settings.md`: the settings and deployment frames.
+  - `client/pages/settings-workflow.md`: How work runs and choosing a way.
+  - `client/pages/settings-proposals.md`: proposing, reviewing and deciding settings.
+  - `client/pages/home.md`: a project's Home and the rules for its parts.
+  - `client/pages/home-across-projects.md`: Home's aggregation across projects.
+  - `client/pages/home-findings.md`: findings' severity, groups and cards on Home.
+  - `client/pages/home-decisions.md`: Decided for you and overturning a decision.
+  - `client/pages/welcome.md`: the welcome's frame, Forge and Ready.
+  - `client/pages/welcome-model.md`: connecting and trying a model in the welcome.
+  - `client/pages/accounts.md`: the accounts page and connecting an account.
+  - `client/pages/accounts-words.md`: the accounts' phrasebook, waits and sign-in words.
   - `client/tui/pages/README.md`: the TUI's state, shared words, foot and commands.
   - `client/tui/pages/sign-in.md`: signing in and renewing from the engine's link, and at a deployment by name.
   - `client/tui/pages/refused.md`: the screen for a build the engine refuses.

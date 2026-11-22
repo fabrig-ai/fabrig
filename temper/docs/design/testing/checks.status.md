@@ -6,8 +6,7 @@
   engine world calls the shared checks; the worker's adapter is
   `worker.status.md`'s. 6.2: no engine world but the engine's forge world
   keeps a fault ledger, draws from the seed's streams or sweeps with
-  configured faults and exclusions, and no check holds the 3.3 failure
-  table's rows for runs.
+  configured faults and exclusions.
 
 - **Departs:** 1: eighteen named real-loop stories remain in the fuzzy
   suite: sixteen scripted stories (fourteen reference-case stories,

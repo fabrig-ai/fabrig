@@ -44,6 +44,12 @@ impl Invocation {
         self
     }
 
+    /// Send the scripted input without waiting for each result record.
+    pub fn unpaced(mut self) -> Self {
+        self.stream = false;
+        self
+    }
+
     pub fn no_input(mut self) -> Self {
         self.no_input = true;
         self

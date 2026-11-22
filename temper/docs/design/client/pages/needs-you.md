@@ -2,147 +2,12 @@
 
 ## 1. The page
 
-- **The inbox in the terminal** (`inbox.html`; the browser's is *Needs
-  you,* 1) shows what needs the person, then the
-  updates, each entry its card (`../README.md`, section 1), under two headings, each
-  with how many entries it lists beside it, the updates' as new ones
-  since what is read leaves them (below): "Needs you 2", "Updates 2
-  new", or "0". The needs' count is every open need, each row of every
-  page the needs' read holds (1, **What the client keeps**, *The needs'
-  rows*), "2+" where that read is cut; the updates' "2+ new" where the
-  inbox's document says its list was cut (jig's `more`, an owner inbox's
-  next page, a filtered page's `cut`), so that a count never says less
-  than there is; with
-  none, once that section's read has answered, "Nothing needs you." or "No
-  updates.", and no count before it. Its first heading's
-  row holds "+ New chat", a link to `NewChat` (`/chats/new`, its text area
-  focused: no act of its own), then
-  its filters as folded menus, in order: projects (only with two or more),
-  goals, then Kind. Each menu names its choice: "All projects" or the
-  project's name; "All goals" or "Goal · TN", or "Milestone · Store shape"
-  where the filter's task is a milestone (`../../draft/milestones.md`, 5.3),
-  its document read once by number and `milestones::is` of its chip
-  (`milestone.md`, 1); "Kind" or "Kind · Question". The goal filter takes a
-  root, so a milestone's holds every need under its goals.
-  The project menu holds All projects and each project; the goal menu holds
-  All goals and the Goal field; Kind holds All kinds and each kind. A choice
-  moves to the filtered inbox's address and folds its menu (`../web/README.md`, 2.3).
-- **A card that needs the person** begins with its kind's tag, then
-  "PROJECT › TN TITLE", for its own task alone, and its wait at the right
-  (`../view.md`, 6). A proposal holds no proposing task's title, so its line stops at
-  TN; questions, held tasks and person tasks use their documents' titles.
-  Every TITLE a card draws, on this page, on Home and in the inbox, its
-  milestone's and goal's in the from line among them, is cut past 80
-  characters (`README.md`, 2, *A task's title on a line*).
-  A batch proposal keeps the mockup's Why, Goal, Landing and Budget rows:
-  its reason quoted, its executor and specification, its landing resources
-  and grants with priority, and its funding once. Template and charter
-  names are not supplied, so their existing numbered words remain. Its
-  acts are "Accept", "Reject with reason" and "Open TN ↗"; a chat's card
-  keeps "Open in inbox ↗". Under its words, its reason line, with Stop
-  asking and its offers numbered as any control (1, *Why it
-  reached you*); its project's `decided` document is one *Decided
-  for you* watches, the unfiltered inbox watching `me`'s first projects.
-- **A finding that is the person's** (`../../domain/areas.md`, section 5)
-  is a card that needs them, from the forge's `findings` subject with
-  `mine` and `new`, watched for each of `me`'s projects as `decided` is
-  (`../forge/records.md`): its tag "Finding", then "PROJECT › P/N TITLE",
-  and its wait since it was filed; its kind, severity and area, "no area"
-  where it has none; the last hand-off's why, quoted, with who handed
-  it; and its acts, "Hand on", an area's menu and a line of why, "Route
-  to a goal", the project's live goals' menu, "Backlog" and "Drop with
-  reason", each the forge's request, a refusal said in its words. Kind
-  holds "Finding" among its choices. The card leaves once the finding
-  leaves `new` or stops being theirs.
-- **A group of findings** (`../../draft/home-for-a-person.md`, 5;
-  `../../domain/areas.md`, 6, *Its groups*): a question, by `message` or
-  a person task in words, asked under a goal, a chat or a standing role
-  alike (the triager's runs ask under theirs), whose whole words name findings in their line
-  form (`../../domain/agent/agents.md`, 2, a `Findings:` line) is a
-  group's card, on this page and on Home (`home.md`, 1, **Findings,
-  drawn**, *A group's card*), where one of them at least is read. It is
-  the question's card still: its kind, its answers, its why line, Later,
-  At and the held send are a question's, and it is the inbox's card, so
-  Kind and the filters place it as a question.
-  - *Its findings' read:* the findings store watches, for each project
-    whose person's findings it watches (1, *A finding that is the
-    person's*: as `decided` is), the project's open findings, the subject `findings` with `state` `new`
-    and `mine` false (`../forge/records.md`), its own handle beside the
-    person's, while one of that project's open cards names findings, and
-    unwatches it once none does or the project leaves the store. Those
-    findings are the triager's, which the person's watch, `mine`, never
-    holds.
-  - *Its rows:* the findings its line names that are among its
-    project's open findings' rows, matched by project and number, in the
-    line's order; a finding named of another project, past the
-    document's rows (`cut`), or no longer `new` is no row. A card whose
-    findings' document is read and that has no row is a plain question.
-  - *Its card waits,* as a question's waits for `decided` (*Why it
-    reached you*, *Its card waits*), until its project's open findings are
-    delivered, or their watch is refused or ended, so that its rows never
-    move its choices under a finger. A card whose project the store
-    doesn't watch, or with no project, waits for nothing and is a plain
-    question.
-  - *The domain's group,* in `temper-client-domain-pages`'s
-    `pages::findings`: `Group<'a> { project: u32, noun: Box<[u8]>, phrase:
-    Box<[u8]>, rows: Box<[&'a w::FindingRow]> }`, the noun and phrase its
-    `Group:` line's, empty with none, and `Group::severity(&self) ->
-    w::Severity`, its rows' highest, and `Group::oldest(&self) -> Wall`,
-    its rows' earliest `at`. `Store::group<'a>(&'a self, need: Need<'_>)
-    -> Option<Group<'a>>` gives a card's, none for any card that is no
-    group's. `Need::severity(self, store: &Store) -> Option<w::Severity>`
-    is a finding's, a group's highest, none for any other card; the
-    cards' order (1, **What the client keeps**) and `counted` read it.
-    `Need::ready` holds a group's card while it waits.
-  - *On this page,* the open card is a question's (1, **Needs you**,
-    *The card*), but its from line: on the unfiltered address the
-    project's chip; then the group's chip of findings, "3 bugs" on its
-    highest severity's ground (`home.md`, 1, **Findings, drawn**, *A chip
-    of findings*), its count the rows' in digits and its noun, or "3
-    findings", "1 finding" with none; then the phrase, " · " and "the
-    oldest 1 d", its oldest row's span, or the one row's span alone, "1
-    d"; then " · " and the asked task's link, its TITLE as the question's
-    from line has it; " · later" with it. Under its question, its rows, a
-    row a finding (`home.md`, 1, **Findings, drawn**, *A finding's row*),
-    each kind said only where the rows hold more than one; then its
-    context, "What the agent saw", its reason line, its choices, the
-    recommended one first, and *Tell it something else*, as a question's.
-    A group's row's title is text, no link: no page shows a finding the
-    person doesn't hold (`../../draft/home-for-a-person.status.md`). Its
-    *SHORT* is its question's line. In the terminal's inbox the card is a
-    question's, its words as written.
-- **An update's card** has its heading as the link that opens it and marks
-  a result seen. It repeats no project line or task-number link. The heading
-  says "TN TITLE replied", "TN TITLE is done", or "TN TITLE ended";
-  while its document is unread, the existing "Task N" words are the heading's
-  link. Then the result's first line and the unread count and age (`../view.md`, 6).
-  A reply has no preview: its document carries no reply's first line.
-- **A question** in the inbox is a delegate's, asked of a task the person
-  requested, their chat among them. It has no heading of its own: its line,
-  then its words as written. "Answer in words" is folded until opened,
-  holding "Answer words" and "Answer"; "Open TN ↗" opens the asked task.
-  The answer goes to that task, which relays it to its delegate. "Pending"
-  and "Answered" keep today's request outcomes, and a refusal stays under
-  its card. This is the terminal's card; the browser's reads the
-  question's words as *Needs you* (1) says.
-- **Seen** is how far the person has read: jig's read positions (jig's
-  `client/domain/pages.md`, section 3), one over their results and one
-  over each chat's turns. An update is seen when it is opened, and no
-  page offers "Mark seen":
-  - *a chat's turns,* once its page shows them: as its window loads,
-    and as turns arrive while it is open, through the newest its window
-    holds;
-  - *a result,* when the person follows its entry's link from the
-    inbox: through that result, and so through every result before it,
-    since jig keeps one position over them. A result opened from
-    another page, or its entry left unopened, stays unread.
+### 1.1 The terminal inbox
 
-  A position only moves forward, with one `Seen` in flight for each;
-  one refused or failed is sent again at the next move. What is read
-  leaves the inbox's updates, and a task forgotten once read is erased
-  then (jig's `domain/people/README.md`, section 5). The pages draw no mark of
-  their own for what is unread, beyond the inbox's counts of it
-  (above).
+Moved to [`needs-you-terminal.md`](needs-you-terminal.md), section 1.
+
+### 1.2 The browser's cards
+
 - **Needs you** (the user's greenfield mock's `needs.html`; `needsPage`):
   `Inbox { filter }` in the browser, its address and its filters as they
   were (`../web/README.md`, 2.3), across projects by default
@@ -308,12 +173,12 @@
     line names another task in its place (a person task in words',
     "Task N", its requester), the body keeps its title. One function of
     the shared parts gives those words, beside `only_title`
-    (`README.md`, 2, *A task's words after its title*). Home's cards keep
+    (`shared-behaviour.md`, 1, *A task's words after its title*). Home's cards keep
     the rule (`home.md`, 1, *The cards*), and so does a closed row
     (above). *In the terminal's inbox* a card has no from line: its tag
     line names "PROJECT › TN TITLE", and its body keeps the title as its
     heading, over its words whole, left out where they are only the
-    title (`README.md`, 2, *A task's words after its title*).
+    title (`shared-behaviour.md`, 1, *A task's words after its title*).
   - *Why it's held:* a held card's question is why it's held, in one
     sentence for a person, on this page, on Home and in the terminal's
     inbox, by one function of the shared parts,
@@ -580,281 +445,22 @@
     Keep asking nor Stop asking for that subject in that project, on every card and device,
     until 7 days after its `at`; a later Keep asking of the same replaces
     it (`../../domain/forge/attention.md`, 1).
-- **Tell temper** (`../../draft/surfaces.md`, section 9; the whole story's
-  `needs.html` and `team/needs.html`, their foot, and `phone-tell.html`): a
-  person's words about what's off, filed as a finding
-  (`../../domain/findings.md`) in the project in view and sent to its owner
-  (`../../domain/areas.md`, section 4): the owner of the area the page they
-  were on gives (*Where it goes*), else the project's triager, which reads
-  the words and the page and hands it to its area's owner, or keeps it
-  (`../../domain/areas.md`, section 5), else the project's owners. It
-  answers nothing: a question is Ask temper's.
-  - *Where:* a region named "Tell temper" at the foot of a project's Needs
-    you, its filter naming the project, after Decided for you, on a wide
-    page; Needs you across projects has no project in view and draws none.
-    On a phone, Ask temper's page's second act, the link "Tell temper" under
-    its composer, to `Tell { project }` at `/projects/<project>/tell`, a
-    page of the phone's Ask tab ("Ask" current, `../view.md`, 3) whose top
-    bar holds "‹ Back", a link to Ask temper's page, then "Tell temper",
-    muted, small, and the night switch. The terminal's `/tell` is
-    `../../draft/surfaces.md`, 11.4's (`../tui/pages/README.md`, 2,
-    *`/tell`*).
-  - *The page you were on:* `Pages::was_on(&self) -> Option<&tell::About>`,
-    the last page the person opened in the session but Needs you, `Tell`,
-    Ask temper's page and an Ask temper chat, the pages Tell temper is
-    reached from, kept as it was left: `tell::About { address: Address,
-    title: Option<Box<[u8]>> }`, `title` the task's title for a page of a
-    task, `Task`, `Talk` or `Chat`, and the role's for Team with a role's
-    card, `Team { role: Some(task), .. }`, as the domain held it when the
-    page was left, else none. Kept as *What the client keeps* is, gone on
-    reload or sign-out. It is Tell temper's page only where it is the
-    project's, its address naming the project or, for a page of a task, the
-    task being the project's; else Tell temper has no page.
-  - *Where it goes:* `tell::goes(root: &Domain, project: u32, about:
-    Option<&tell::About>) -> Option<tell::Goes>`, which the browser and the
-    terminal share: the project's `findings` document
-    (`../forge/records.md`), the one Needs you's finding cards read
-    (`pages::findings`), given to one pure rule, `tell::route(document:
-    &w::Findings, about: Option<&tell::About>) -> tell::Goes`, and none
-    until that document is read:
+### 1.3 Tell temper
 
-    ```rust
-    pub enum Goes {
-        Area { name: Box<[u8]>, holder: team::Holder },
-        Triager { holder: team::Holder, areas: bool },
-        Owners { areas: bool },
-    }
-    ```
+Moved to [`needs-you-tell.md`](needs-you-tell.md), section 1.
 
-    1. the page names a task, `Task { task }`, `Talk { task, .. }`, `Chat {
-       task }` or `Team { role: Some(task), .. }`, and that task holds one of
-       the project's areas: `Area`, the first it holds in kind 14's order,
-       its name and holder;
-    2. else the project's settings name a triager and it stands, the
-       document's `holder` being what the `triager` gives (`task N` task N,
-       `party N` party N, `role N` role N, `charter N` a task): `Triager`,
-       that holder;
-    3. else `Owners`, role 0 (`../../domain/areas.md`, section 4).
+### 1.4 What the client keeps
 
-    `areas` says whether the project has an area to hand it to. So a word
-    said on a standing role's page, its card or its talk goes straight to
-    the area the role owns, with no agent's run; any other goes to the
-    triager, who judges where it goes from the words and the page, as
-    `../../draft/standing-roles.md`, section 4 has a role route by
-    judgement. Routing by path stays later (its section 13).
-  - *Its parts,* in this order: on a wide page the head "Tell temper",
-    at its right "feedback becomes a finding", muted; on a phone the
-    headline "Something off?" and the lede "Say it in your words. temper
-    files it as a finding and sends it to the area's owner, who answers on
-    it."; the field, a textarea named "Something off?" on a wide page and
-    "What you saw" on a phone, two rows and four; "About PROJECT · the page
-    you were on, TITLE" where Tell temper has a page, else "About PROJECT",
-    TITLE the page's: a page of a task its kept title, else "Task N"; any
-    other page its name as the rail, the tab bar or the page's own heading
-    says it ("Team", "How work runs", "Work"); the "Goes to" line
-    (*Goes to*, below); "File it", primary, while the field holds words;
-    then "Ask temper instead", quiet, on a phone "It's a question: ask
-    temper instead", which opens Ask temper on the project with the words
-    in its composer, unsent, as the Ask temper line's `Act::AskWith` does
-    (`home.md`, 1). The field's words are kept in `Pages` while the region
-    or the page shows, as a chat's composer keeps its own, so that a redraw
-    keeps them and "File it" reads them.
-  - *Goes to,* by `Goes`, NAME a holder as Team names it (`team.md`, 1,
-    *An owner's name*), "you" where it is the party `me` names:
-    - `Area`: "Goes to NAME, AREA's owner"; the person's, "Goes to you, as
-      AREA's owner".
-    - `Triager`: "Goes to NAME, PROJECT's triager"; the person's, "Goes to
-      you, the triager"; with `areas`, then ", who hands it to its area's
-      owner".
-    - `Owners`: "Goes to PROJECT's owners"; with `areas`, then ", who hand
-      it to its area's owner".
-  - *Its act:* "File it" files the words as a finding of the project's,
-    the one act and one request of `../README.md`, 3.6, through the engine's filing
-    (`../../domain/findings.md`, section 4), its `about` the page Tell temper
-    has, else none; filed, the field empties and the toast says "Filed for
-    NAME.", NAME as *Goes to* names the holder of the `Tell`'s `goes`, "you"
-    the person's ("Filed for you."), `Owners` "PROJECT's owners", and
-    "Filed." where it kept none; refused, the words stay and the refusal
-    says why under the field. Words past the finding's bound are cut
-    nowhere: "File it" is disabled while they are past it, saying how far.
-  - *The domain's act,* which "File it" sends and the terminal's `/tell`
-    sends (`../tui/pages/README.md`, 2, *`/tell`*): `pages::Act::Tell {
-    project: u32, words: Box<[u8]>, about: Option<tell::About> }`, its
-    words trimmed of white space at both ends, `about` the page they were
-    on: the browser's `was_on` where it is the project's, the terminal's its
-    screen. Empty, it does nothing; past 4,096 bytes, the finding's
-    body's bound, it sends nothing and keeps `tell::State::Long { over }`,
-    the bytes past it; else one `FileFinding` of the project
-    (`../forge/records.md`), sent through the forge's family as a finding
-    card's acts send theirs: kind `feedback`, severity `medium`, its area
-    the `Area`'s name that `tell::goes` gives at the act, else none, so
-    that the triager holds it, or the project's owners while none stands
-    (`../../domain/areas.md`, section 4); its title the words' first line,
-    cut at a character's edge to at most 200 bytes; its body the words
-    whole, then, where `about` is given and the whole stays within 4,096
-    bytes, a blank line and `Page: PATH`, PATH the address as
-    `address::print` writes it, then ` (TITLE)` where a title is kept, so
-    that the triager and the owner read the page as well as the words:
+Moved to [`needs-you-state.md`](needs-you-state.md), section 1.
 
-    ```
-    The courier link opens in English for German customers.
+### 1.5 Only you
 
-    Page: /projects/2/talk/52 (Mailer)
-    ```
-
-    One at a time: a `Tell` while one is sent does nothing.
-    - *What it keeps:* `Pages::tell(&self) -> Option<&tell::Tell>`, the
-      last one's until the next, `tell::Tell { serial: u64, project: u32,
-      words: Box<[u8]>, goes: Option<tell::Goes>, state: tell::State }`,
-      `serial` counting the session's `Tell`s from 1, so that a shell says
-      each outcome once; `goes` what `tell::goes` gave at the act, none
-      where the document was not read; `tell::State` one of `Sending`,
-      `Filed { number: u32 }` once the row has committed,
-      `Refused(w::FindingRefusal)`, `Lost` where the request ended with no
-      outcome or *unknown*, and `Long { over: u32 }`.
-    - *Its words:* a refusal's are a finding card's, the view's
-      `shared::finding_refusal(w: &Words, refusal: &w::FindingRefusal)
-      -> Box<[u8]>`, which the card's own words call too.
-  - *Shown* on a project's Needs you, on a wide page, and on its `Tell`
-    page, once `tell::goes` answers for the project, its `findings`
-    document read; nothing stands in its place before
-    (`../../draft/whole-story.execution.md`, section 2). The `Tell` page
-    holds the project's document as a filtered Needs you does
-    (`pages::findings`).
-- **What the client keeps** of what needs the person: in `Pages`, not on
-  a page, for this session, gone on reload or on sign-out, none of it a
-  stored record, and at most 64 each of the cards marked later, the answered
-  lines, the refused answers and the proposals of settings, the oldest going
-  first, a line still held never:
-  - *The needs' rows,* `Inbox::rows`, beside its cards: every row of the
-    needs' groups its address selects, read a page at a time through to
-    the last (jig's `domain/people/README.md`, section 5, *Bounded*), at
-    most 64, in the inbox's order, oldest first. A filtered address reads
-    its needs' pages with `Read::Inbox`, each answer's `after` read on at
-    once until none; the unfiltered address takes the watched document's
-    window and, where its needs run past it (its `next` set and no update
-    in the window), reads the needs as a filtered address does, from the
-    first page. Each refresh reads them again; the rows read before, and
-    whether they were cut, stand until the new read's last page has
-    answered with its value, so no count falls back or gains a "+" while
-    it reads (`README.md`'s opening: a page redraws from whole answers
-    alone). The read is *cut* where its list is: where it stops at 64 rows
-    with a page still after them, or where a page it answered says `cut`
-    (jig's `InboxPage::cut`); `Inbox::cut`'s needs' half says so, and
-    nothing else sets it. A page that answers without its value (busy,
-    unreachable, refused, past the client's reads, its watch ended) is no
-    answer: the read stops there, and the rows, their cards and their cut
-    stand as the last whole read left them. Before any read has answered
-    whole the needs are not known, and nothing a read has answered so far
-    is counted: Home's headline says the project's name (`home.md`, 1),
-    and no "N+" stands for a read that stopped. A read that ends
-    transiently, busy, unreachable or past the client's reads, is asked
-    again from its first page while the page is open, waiting one second,
-    doubling to at most thirty, as a conversation's activity reads are
-    (`README.md`'s opening; `pages::activity::Asking`), the wait back to
-    one second once a read answers whole; a refused or ended one waits for
-    the next refresh. The rows are what is counted; cards are read for
-    the first of them in the inbox's order, as many as the needs' share
-    of `card_capacity` (half, the updates' window holding the rest), and,
-    on *Needs you*, for the open one (1, **Needs you**), which takes the
-    place of the last of them. A row whose card is not read has no
-    severity and concerns no findings (`home.md`, 1, **Findings, drawn**,
-    *Counted*).
-  - *Later,* the cards marked later. *The open cards* are the needs'
-    rows, each with its card where it is read, less those answered, with the approvals
-    (1, *An approval*) and the findings the person holds (1, *A finding
-    that is the person's*), in one order, `findings::Session::all`'s, which
-    Home, Home on All projects and this page share
-    (`../../draft/home-for-a-person.md`, 3): those marked later last; before
-    them, a card about findings by its highest severity, high first, then
-    medium, then low, any other card with high's; within each, as before,
-    the oldest first, the findings joining the inbox's cards and the
-    approvals by when they were filed. A card's severity is
-    `findings::Need::severity` (`home.md`, 1, **Findings, drawn**,
-    *Counted*): a group's card (1, *A group of findings*) is about
-    findings, ranked by its highest and placed by when it was asked. So a medium finding filed an hour ago comes after a
-    question asked a minute ago, and before a low finding filed a day
-    ago. The head's "oldest first" stays: within a severity, it holds.
-    Their count, which Home's headline and head, Home on All projects'
-    headline, this page's intro and head and the terminal's "Needs you N"
-    say, is every open card: each open need once, its card read or not,
-    as `me` counts its needs, with the approvals and the findings the
-    person holds; "N+" only where the needs' rows, `approvals` or the
-    findings' read is cut, never because fewer cards are read than rows,
-    nor because a read ended without its value. Every place that says it
-    (Home's headline and head, this page's intro and head, the rail's count
-    on the page, below) takes it from the one `findings::Session::counted`,
-    so two of them never say two counts of the same needs.
-  - *Answered,* a bounded list: each card's object, project, title,
-    label and when. The label is the choice's words, or `Replied: “…”`,
-    its words cut at 57 characters plus "…" past 60. A line shows on
-    *Needs you* for 10 minutes and on Home for 2, and an answered card
-    leaves the open ones at once.
-  - *At,* the card a Home row asked for, until it is answered or marked
-    later, or the person leaves the page.
-  - *The held send.* jig has no retraction, so a choice or a reply is
-    held in the client for 5 seconds, a deadline of the domain's as
-    `next_deadline` has. The card moves to answered at once, with the
-    toast "Answered: LABEL" and its "Undo". Undo restores the card, a
-    reply's words with it, unseen until the form opens, and sends
-    nothing. At 5 seconds the `Answer` goes, its words the choice's
-    or the reply's; after that its line shows no "Undo". A refused answer
-    puts the card back with the refusal's words on it, as does an answer
-    the engine did not keep. A tab closed inside the 5 seconds sends
-    nothing and the question stays open. Accept, Reject, Release, Leave
-    held, Take and Hand back send at once, with no Undo, and leave no
-    answered line.
-  - *A press stays under the finger.* When the inbox's document changes,
-    a card still in it keeps the page it shows until its new read answers,
-    and keeps it if that read fails. At a filtered address the cards stay
-    as they are until the section reads have answered, a section whose read
-    failed keeping its own. So a choice on the page stays pressable, in the
-    same element, through the read: nothing a change of the inbox does draws
-    a card without its choices, or takes one away, but the card leaving the
-    rows. A press of a drawn choice that a bound refuses (its words, or 64
-    answers already held) moves nothing and says so, in the toast "That
-    answer wasn't sent. Press it again.": an answer never goes unsent with
-    nothing shown.
-  - *The toast,* one at a time, 4.5 seconds, with one optional act; drawn
-    with the status role at the end of the frame, in a region named "Notices"
-    (skein's `ui/README.md`, 12: a page's child is a landmark) that has
-    no look of its own, in the mock's `.toast`:
-    fixed, centred, bottom 28 (88 on a phone), an ink ground.
-  - *The rail's count:* one standing `inbox` watch while a project's
-    frame shows, the rail being what reads it, so that a client on no
-    project's page asks nothing more; its needs' rows counted by the open
-    project, less those answered, a row counting in each project it shows in
-    (jig's `client/domain/contract/documents.md`, 1: `shows_in`), so that a proposal of
-    settings counts in the projects it belongs to, and for one of the
-    deployment's in each the person owns; "N+" where its needs run past its
-    window, its `next` set and no update in the window, as the unfiltered
-    address reads it (*The needs' rows*), never because updates run past
-    it; and no count before it is delivered. A card marked later still
-    counts. The open project's rows of `approvals` add to it, "N+" where
-    that document is cut too. On a page whose inbox is filtered by the open
-    project alone and known (Home, a project's *Needs you*), the rail says
-    that page's count, `findings::Session::counted`'s, the number and "+"
-    the page's head says, so the rail and the page never disagree.
-    On a page across projects (`../view.md`, 3, *All projects*) it counts
-    what *Needs you* across them shows: each of the needs' rows once,
-    whatever projects it shows in, less those answered, and every row of
-    `approvals`, "N+" where either document is cut; so it is never the sum
-    of the projects' counts, which counts a row of several projects in each.
-    `me`'s `needs_total`, with every row of `approvals` added, is shown
-    nowhere outside a project: the top bar offers no navigation (`../view.md`, 1).
-  - *The approvals,* the forge side's watch of the subject `approvals` (`../forge/records.md`),
-    held for the session as `dismissed` is, from when `me` is first delivered
-    while the link is live: a watch refused or ended is kept as such, with no
-    rows, and not opened again until the next sign-in.
-  - *Stop asking,* the one open (1): its card's object,
-    the words typed for a `Words` offer, the act out and its refusal, gone
-    when it closes; and the Keep asking out, by its key, until answered.
 - **Only you** (`../../draft/what-reaches-you.md`, section 8;
   `../../draft/surfaces.md`, section 4; the whole story's `needs.html`): what
   only the person can do and no choice answers, listed apart on *Needs
   you*: a sign-in of their own that is signed out, or a login their account
   reads as expiring. Work goes on around it: the runs that need the account
-  wait for it (`accounts.md`, 2, *A run's wait*), and nothing else does.
+  wait for it (`accounts-words.md`, 1, *A run's wait*), and nothing else does.
   - *Its read,* `pages::only_you`, one domain function every shell may
     call, from the `accounts` document every page holds (jig's
     `client/domain/contract/documents.md`, 1, and `jig/docs/design/client/domain/contract/README.md`, 5.1), read and never kept. An item
@@ -863,7 +469,7 @@
     playground provider's (`../forge/family.md`, 7), as the rail's mark reads it (`../view.md`, 3), whose
     kind is a sign-in or a program's login, and which is signed out
     (`SignInAgain`) or reads `expiring`, signed out where both hold: the
-    source whose state holds the account's work (`accounts.md`, 2, *The composer's
+    source whose state holds the account's work (`accounts-words.md`, 1, *The composer's
     line*). Items keep the document's order of accounts. A key, a source
     needing no credential and the deployment's accounts make none. With no
     document delivered there are none; a document `cut` gives the items it
@@ -884,13 +490,13 @@
       "Deployment", where Accounts is (`settings.md`, 1), then "an LLM
       account";
     - its question line, `.q`, 16.5 px, by its source as Accounts words it
-      (`accounts.md`, 2, *An account*: "ChatGPT sign-in", "Claude Code login NAME"):
+      (`accounts-words.md`, 1, *An account*: "ChatGPT sign-in", "Claude Code login NAME"):
       signed out, "Your ChatGPT sign-in is signed out. Sign in again?";
       expiring, "Your Claude Code login claude-alice is expiring. Sign in
       again?";
     - its act alone, "Sign in again", a link in the look of the
       recommended `.choice`, primary, with no "recommended": to `Accounts`,
-      whose row holds the sign-in (`accounts.md`, 2, *Each state*). On a phone it is full
+      whose row holds the sign-in (`accounts-words.md`, 1, *Each state*). On a phone it is full
       width and at least 44 px tall.
   - *Its acts' end:* signing in again renews the account of the same
     subject (jig's `domain/accounts.md`, 3.3), and the item goes once the
@@ -915,11 +521,6 @@
   task's link (`README.md`). A question's choices are its words' (`../../domain/agent/agents.md`,
   2), and a retraction of a sent answer is jig's, which has none: the
   client holds an answer before it goes (`README.md`).
-- **Later and the answered lines, kept** (1, *What the client keeps*; the
-  request of 2026-11-05 for *Needs you* decides session order and no store
-  record): a card marked later, or a line answered, surviving a reload or
-  reaching another device, which takes a stored record. Default: this
-  session's alone.
 - **The browser's updates** (1; that request): they leave the
   browser's page and no page replaces them, `Seen` marking staying as it is.
   Default: the terminal's list alone draws them.
@@ -929,32 +530,6 @@
 - **A chat's own question, as a card** (the mock's `n-license`; that request):
   a chat's question in its words stays in its conversation, with no inbox
   entry. Default: as it is.
-- **A goal hearing a choice, as a story** (1, *What the client keeps*;
-  `../../domain/agent/agents.md`, 2): that request asks one live walk of a scripted goal
-  asking in the line form, a person pressing its recommended choice on Home and
-  the goal hearing those words, whose scripts are throwaway. No world keeps it:
-  the parser, the stock sentence, the session and the view each hold their own
-  side. Default: those tests.
-- **Tell temper's area, chosen by the person** (1, *Tell temper*, *Where it
-  goes*; the whole story's `needs.html` and `phone-tell.html`, which say
-  where a word goes and offer no other place): a control on the card
-  naming another of the project's areas, or the triager, before "File it".
-  Default: none; a word filed with the wrong area is handed on by its owner
-  (`../../domain/areas.md`, section 5).
-- **Tell temper judged before filing** (`../../draft/surfaces.md`, section
-  9, "its area found from the page they were on and the words"; the
-  mockups' "Goes to" naming an area from words alone): an agent's run
-  reading the words as they are typed, to name the area before "File it".
-  Default: the page's role alone names an area before filing, and the
-  triager judges the words once filed, one short run an item
-  (`../../domain/areas.md`, section 6).
-- **What became of a word, in the brief** (`../../draft/surfaces.md`, section
-  9, "what becomes of it returns in the brief"; `phone-tell.html`'s "It
-  comes back in your Home's brief"): the status agent's words naming the
-  findings a person filed through Tell temper and what became of them
-  (`../../domain/forge/attention.md`, 3). Default: not drawn; the
-  card says nothing of it, and the finding's issue carries its owner's
-  answer.
 - **Across projects, in one project** (1, *Its intro* and an item's
   "PROJECT ›"; the look request `one-project`, which settles the switcher
   alone, `../view.md`, 3, *All projects*): on `/needs` with one project, the

@@ -59,7 +59,7 @@ section 5.
   `Accounts` and its flow `ConnectModel`, a person signs in with an LLM
   provider, declares a program's login, or adds a key, pasted once and
   never kept (`pages/README.md`, `README.md`, 3.6); while no account their work may use is usable,
-  a banner on every page says so and offers the three (`pages/accounts.md`, 2). A chat's
+  a banner on every page says so and offers the three (`pages/accounts-words.md`, 1). A chat's
   composer and a task's page name the account and model the work runs
   on. A browser opens a sign-in's address in a new tab while the page
   waits; the terminal prints the address and opens no browser (`line.md`, 5).
@@ -392,7 +392,7 @@ credential.
   as their watches, are asked once the link is live, in the step that
   hears the hello, never at start before it: the rail's `Read::Project`
   of Team's (`pages/team.md`, 1, *Its reads*) and the `accounts` watch
-  the banner draws from (`pages/accounts.md`, 2) among them. A watch
+  the banner draws from (`pages/accounts-words.md`, 1) among them. A watch
   asked before the hello would leave as its own exchange ahead of a
   reload's kept keyed requests, which `jig-client` releases only once
   `me` confirms their party, and the link keeps the order exchanges
@@ -723,7 +723,7 @@ temper's:
 jig's third built-in way (jig's `protocol/client/sign-in.md`, *A
 sign-in approved by a browser*; `../draft/tui.md`, 4.2): a native
 client on the person's machine, the TUI, asks; the person's browser,
-signed in by its cookie, approves at the approval page (`pages/README.md`, 2, *The
+signed in by its cookie, approves at the approval page (`pages/shared-behaviour.md`, 1, *The
 approval page*); the client takes the sign-in with the secret its ask
 was answered with. A box enables it beside the printed link
 (`../protocol/configuration/engine.md`, clients).
@@ -910,7 +910,7 @@ was answered with. A box enables it beside the printed link
   and age shown, and the web's list of a person's sign-ins, each ended
   from there (`../draft/tui.md`, section 7). Default: loopback, approved
   by a browser signed in by the printed link, or by Google's way where it
-  is given (`pages/README.md`, 2, *The approval page*).
+  is given (`pages/shared-behaviour.md`, 1, *The approval page*).
 - **A failed link beside a live cookie** (`view.md`, 1): the used, expired or
   unknown paragraph remains until another sign-in, even if the cookie
   still signs in on a reload. Falling back to the transport is jig's

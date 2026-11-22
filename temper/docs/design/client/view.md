@@ -62,7 +62,7 @@
     `client/domain/contract/README.md`, 5.1), but in the playground's project
     while the playground runs or is leaving, whose work its scripted
     model runs (`forge/family.md`, 7): a region named "LLM account", its words and three buttons
-    (`pages/accounts.md`, 2), on every page but the accounts page, `ConnectModel` and
+    (`pages/accounts-words.md`, 1), on every page but the accounts page, `ConnectModel` and
     `Welcome`;
   - *the playground's banner:* a region named "Playground", one line,
     its words and its link "set up temper" (`pages/welcome.md`, 2); on `Chats` and
@@ -82,7 +82,7 @@
     `Authorize` place, the approval page, the pages not about the work
     (below) and no project yet (`pages/welcome.md`, 1, *With no project yet*) are drawn
     in it; `Welcome`'s main is its own (`pages/welcome.md`, 1);
-  - *at the approval place* (`pages/README.md`, 2, *The approval page*), in the browser
+  - *at the approval place* (`pages/shared-behaviour.md`, 1, *The approval page*), in the browser
     alone: the top bar, as at the `Authorize` place, then the page's
     column as the main, whatever the link's state; no rail, tab bar,
     accounts' or playground's banner, and no paragraph of the pages
@@ -119,7 +119,7 @@
     page, "to continue to FORGE" under its heading, its link's `then`
     the authorization's address (`../protocol/openid-provider.md`, 3);
   - *signed out at the approval:* the approval page's own column, "Sign
-    in first" (`pages/README.md`, 2, *The approval page*), in place of the column above
+    in first" (`pages/shared-behaviour.md`, 1, *The approval page*), in place of the column above
     and of the sign-in page: with Google's way given, its "Continue with
     Google" returns to the approval with its code; without it, the
     printed link is the browser's way in;
@@ -132,7 +132,7 @@
     has `temper-box serve` print a fresh one." (N the deployment's room,
     MOMENT the earliest saved expiry and LINK the link's own, each with
     its date beside its clock, "Oct 24, 09:30", as the accounts page says
-    its moments, `pages/accounts.md`, 2: a sign-in's life is a day or more, so a bare clock
+    its moments, `pages/accounts-words.md`, 1: a sign-in's life is a day or more, so a bare clock
     would name tomorrow's as today's; the minute is the expiry's own, so
     the link serves a little past what it says); busy, "temper is busy. This
     link stays usable until it expires: open it again in a moment."; not
@@ -219,7 +219,7 @@
   acts live (`forge/deployment.md`).
 - **The accounts page:** its level-1 heading, “Accounts”, its lede and
   account groups, each row a folded disclosure. Its summary names the
-  account, holder, deciding source’s tag and line (`pages/accounts.md`, 2). Opening adds
+  account, holder, deciding source’s tag and line (`pages/accounts-words.md`, 1). Opening adds
   source order, source acts, rule, use facts and account acts, without
   repeating the summary’s name, models, Ready or Pays for. A secret field
   is the row’s (`README.md`, 3.6), and an act’s status stays under its row. Refused
@@ -290,7 +290,7 @@ navigation named by the open project, in this order:
   and Escape; a press on an item or outside closes it; a focused item
   takes the hover's grey. A phone doesn't show the box. Which templates it
   offers is fixed until `../draft/template-places.md` is taken up;
-- at its foot: the Away switch, while `pages/README.md`, 2's *Away* shows it; while the
+- at its foot: the Away switch, while `pages/shared-behaviour.md`, 1's *Away* shows it; while the
   playground runs and is not leaving (`forge/family.md`, 7),
   "Set up temper", the playground's way out (`pages/welcome.md`, 2); the link's state, as
   1 has it; "Behind" while a page's watch reopens, beside the link's
@@ -364,7 +364,7 @@ and what is current is the view's. Its rules:
 | "Needs you"'s count | it is more than zero | `pages().needs().count(..)`, as above; on a page across projects, the count across them (`pages/needs-you.md`, 1, *What the client keeps*) |
 | "Team" | the project has a second member or a standing role | the project's people, from its document, and its live standing roles, from the roles' watch (`pages/team.md`, 1, *Its reads*) |
 | "Ask temper", in the rail, the tab bar and the new box's menu | `me` lists template 5 for the project | `me`'s templates |
-| the Away switch and chip | `pages/README.md`, 2's *Away* shows it; on All projects, it shows for any of the person's projects (`pages/README.md`, 2, *Away*, *On All projects*) | `Domain::away_shown`; on All projects, `pages::away_all::across` |
+| the Away switch and chip | `pages/shared-behaviour.md`, 1's *Away* shows it; on All projects, it shows for any of the person's projects (`pages/shared-behaviour.md`, 1, *Away*, *On All projects*) | `Domain::away_shown`; on All projects, `pages::away_all::across` |
 | the new box's menu, "+ New draft or change" | the project offers drafts | `drafts_offered`; else "+ New change" alone |
 | To begin's cut, above | `home::beginning` holds | `home::beginning(root, project, wall)` |
 | "Home", the hairline, "How work runs", "Deployment" | always | |
@@ -683,7 +683,7 @@ the change's chip in a chat (`forge/README.md`, 2.4 and 2.5).
   - its result's words, once it has ended;
   - for a change, its steps, a list named "Steps": "Branch pushed",
     "Pull request opened", "CI passed", "Landed";
-  - a link to its page, named "Task N" and reading "Task N ↗" (`pages/README.md`, 2, "Links are by
+  - a link to its page, named "Task N" and reading "Task N ↗" (`pages/shared-behaviour.md`, 1, "Links are by
     number").
 - **Its state,** in temper's words, from its document: "Running" while
   it lives, "Held" while held (why, on its page and in the inbox);
@@ -779,11 +779,11 @@ the change's chip in a chat (`forge/README.md`, 2.4 and 2.5).
   (`pages/README.md`); a chat's turns and its end, clocks under the day's rules
   (`pages/README.md`); a card's wait, a span, in the inbox and on a chat's page; an
   update's arrival in the inbox, an ago (`pages/README.md`); the approval page's ask,
-  an ago (`pages/README.md`, 2, *The approval page*); a remembered line's change, the
+  an ago (`pages/shared-behaviour.md`, 1, *The approval page*); a remembered line's change, the
   day's rule's words (`pages/remembered.md`); on the TUI's launchpad a
   left-off row's last activity, dated, and a need's wait, an ago
   (`tui/pages/launchpad.md`, 4 and 5). The task pages and the
-  accounts page say their moments as their sections do (`pages/accounts.md`, 2, `pages/goal.md`, 2, `pages/task.md`, 2
+  accounts page say their moments as their sections do (`pages/accounts-words.md`, 1, `pages/goal.md`, 2, `pages/task.md`, 2
   ), in universal time, and so does a full deployment's earliest end
   (1, the pages not about the work).
 - **Fixed in the tests.** The view world, the terminal's goldens and

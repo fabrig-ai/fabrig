@@ -2253,8 +2253,8 @@ pub enum Word {
 // The Accounts navigation's two state words (5.3).
 // ConnectForge's and the welcome's forge words (client/forge/deployment.md).
 // The Forges page, navigation dot and setup strip, with owned Runs and password (27 phrases).
-// Thirty-one model-flow phrases (client/pages/accounts.md, 2).
-// The account rows' nineteen literal and two shaped phrases (client/pages/accounts.md, 2).
+// Thirty-one model-flow phrases (client/pages/accounts-words.md, 1).
+// The account rows' nineteen literal and two shaped phrases (client/pages/accounts-words.md, 1).
 // The setup fields and first repository add eleven phrases.
 // Seven playground start status, failure and retry phrases (5.6).
 // The Model step adds four forge phrases and twenty-two segments.
@@ -9780,7 +9780,7 @@ fn next_tick(
     Some(skein_lib::Wall::from_nanos(nanos))
 }
 
-/// Grouped counts and spend (temper/docs/design/client/pages/accounts.md, 2).
+/// Grouped counts and spend (temper/docs/design/client/pages/accounts-words.md, 1).
 #[must_use]
 pub fn grouped(value: u64) -> Box<[u8]> {
     let digits = skein_lib::Decimal::of(value);

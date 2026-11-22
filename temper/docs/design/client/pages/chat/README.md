@@ -168,7 +168,7 @@
     `Chat { task }` opens in place of this address; refused, jig's words
     stay under the composer, the words kept.
   - *With no usable model,* "No model yet · Connect a model" sits above the
-    composer (`../accounts.md`, 2).
+    composer (`../accounts-words.md`, 1).
   - *The playground's start* (`../../forge/family.md`, 7, `../welcome.md`, 2): its status, its failure and "Try
     again" and its context line draw above the `.meta-line`'s place, and its
     suggestions as `.starters` under it.

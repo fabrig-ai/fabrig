@@ -183,7 +183,7 @@ table of refusals under its caller's name.
   `README.md`, *Goals*: the empty Goals-page gap remains `work.status.md`, 1.
    the Forget request remains `../forge/records.status.md` (Not yet).
   `README.md`, *Ready*: the unhandled Ready endings remain `welcome.status.md`, 1.
-   the plan's first-use card remains `accounts.status.md`, 2.
+   the plan's first-use card remains `accounts-words.status.md`, 1.
   `README.md`, The welcome:
   the welcome role-scope gap remains `welcome.status.md`, 1.
   the unfinished-forge name remains `../forge/records.status.md` (Not yet). the restarted GitHub setup continuation remains `../forge/records.status.md` (Not yet).

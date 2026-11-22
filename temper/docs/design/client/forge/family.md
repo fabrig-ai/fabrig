@@ -332,7 +332,7 @@ client removes no account and closes no chat of its own.
   ; jig's `domain/accounts.md`, 4.2). The client names its LLM
   provider from the read and leaves its account out of the accounts'
   lists and counts and its provider out of the ways to connect a model
-  (`../pages/README.md`, `../pages/accounts.md`, 2). A model is usable for the welcome, Ready and the
+  (`../pages/README.md`, `../pages/accounts-words.md`, 1). A model is usable for the welcome, Ready and the
   composer's line by an account of another provider: the person's own,
   from the `accounts` document, or, for a person whose deployment role
   is owner, the deployment's, from the `deployment` document (jig's

@@ -236,8 +236,8 @@ printed in a world from the engine's own answers by
 | `accounts-signing-in` | the reference world's accounts, a row's sign-in under way with its field for the page's address |
 | `accounts-try-stopped` | a failed trial under an account's head and before Sources, its why and Try again; Sign in again goes to Connect a model |
 | `accounts-program-needs-sign-in` | the solo world's accounts: a program's login not signed in on its host, with "Check again" |
-| `accounts-shared` | two accounts of one person, each paying for 11 people: "Ready · Pays for 11 people" folded; opened, "Pays for Ana, Ben, … and Kai.", one person "Person N" with no read naming them (`../pages/accounts.md`, 2, *An account's line*) |
-| `accounts-usage` | a Claude subscription with its week's window alone: "Week", 29%, "resets in 4 d 14 h · 2.0%/h · full in 1 d 11 h" (`../pages/accounts.md`, 2, *Usage*) |
+| `accounts-shared` | two accounts of one person, each paying for 11 people: "Ready · Pays for 11 people" folded; opened, "Pays for Ana, Ben, … and Kai.", one person "Person N" with no read naming them (`../pages/accounts-words.md`, 1, *An account's line*) |
+| `accounts-usage` | a Claude subscription with its week's window alone: "Week", 29%, "resets in 4 d 14 h · 2.0%/h · full in 1 d 11 h" (`../pages/accounts-words.md`, 1, *Usage*) |
 | `accounts-usage-filling` | a Claude subscription whose 5-hour window would fill before its reset, "full in" amber, above its week at 83%, its bar amber |
 | `accounts-usage-calm` | a week lasting to its reset, "about 59% at reset", and a 5-hour window that won't fill, not drawn |
 | `accounts-usage-limited` | a limited window: its bar red and whole, "resets in" alone |
@@ -358,7 +358,7 @@ printed in a world from the engine's own answers by
 | `needs-only-you` | the unfiltered *Needs you* (`../pages/README.md`, **Only you**): a question, then "Only you · 2", a signed-out ChatGPT sign-in and an expiring Claude Code login, each with "Sign in again" |
 | `needs-only-you-done` | no card open: "Nothing needs you.", "Home", then "Only you · 1", a signed-out ChatGPT sign-in |
 | `night-needs-only-you` | `needs-only-you` with the night look on |
-| `accounts-expiring` | Accounts (`../pages/accounts.md`, 2, *Each state*): a ChatGPT sign-in read as expiring, "Expiring: sign in again before it ends." and "Continue with ChatGPT" |
+| `accounts-expiring` | Accounts (`../pages/accounts-words.md`, 1, *Each state*): a ChatGPT sign-in read as expiring, "Expiring: sign in again before it ends." and "Continue with ChatGPT" |
 | `goal-running` | first-run-projects, running: six of nine tasks in, its report, Left and Risk, the bar, three waiting lines, "6 landed" folded |
 | `goal-needs-funds` | first-run-projects held for funds: "needs funds", its band with Release and Leave held |
 | `goal-needs-question` | welcome-stall with an open question: its band and its parsed choices, the recommended one primary |

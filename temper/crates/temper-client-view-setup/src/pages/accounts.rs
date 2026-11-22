@@ -1,4 +1,4 @@
-//! Supplied accounts and the playground model (temper/docs/design/client/pages/README.md and temper/docs/design/client/forge/family.md, 7 and temper/docs/design/client/pages/accounts.md, 2).
+//! Supplied accounts and the playground model (temper/docs/design/client/pages/README.md and temper/docs/design/client/forge/family.md, 7 and temper/docs/design/client/pages/accounts-words.md, 1).
 use super::settings;
 pub(crate) use crate::common::accounts::{
     first_usable, first_usable_kind, heading, named, provider_name, run, unloaded,
@@ -593,7 +593,7 @@ pub(super) fn outcome(
     } else if form.paste_state(root.client()) == accounts::PasteState::Ended {
         paste(b, root, w, bindings, form, false);
     } else if form.returned() && form.paste_state(root.client()) != accounts::PasteState::Closed {
-        // A departed sign-in's address come back to by hand while it still waits (client/pages/accounts.md, 2).
+        // A departed sign-in's address come back to by hand while it still waits (client/pages/accounts-words.md, 1).
         paste(b, root, w, bindings, form, false);
     }
 }

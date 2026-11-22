@@ -14,7 +14,7 @@ own tests:
   no new retry policy is implied. The preview's existing view tests
   render jig's supplied `resolved_default`, with catalogue and charter
   orders opposed, explicit choice and no preview, preserving omitted
-  request intent (`pages/accounts.md`, 2).
+  request intent (`pages/accounts-words.md`, 1).
 - **Step tests:** the domain's pages (what each watches and reads as it
   opens and closes, each act as the operations it sends, the
   confirmation's rule of `README.md`, 3.6, routing by asker; a chat's delegations,
@@ -137,7 +137,7 @@ own tests:
   and dropped as it leaves, each way as its request, a sign-in's start,
   its watched end and each of jig's endings, and the welcome's Model
   on the same state. In the view, the accounts page in each state of
-  `pages/accounts.md`, 2's table, folded and opened, with each act and its outcome under
+  `pages/accounts-words.md`, 1's table, folded and opened, with each act and its outcome under
   its row, the deployment's and the playground's sections, and none of
   the person's own; `ConnectModel` at each way, its completion line on
   Accounts, and each ending’s words and acts; the welcome’s Model
@@ -159,7 +159,7 @@ own tests:
   and "Not listed", signed out, the accounts' banner, `ConnectModel`
   with a sign-in's address, as the terminal shows it, a key's field
   written, and an account in
-  each state of `pages/accounts.md`, 2, and the forges' page with a forge in each state of
+  each state of `pages/accounts-words.md`, 1, and the forges' page with a forge in each state of
   `forge/deployment.md`, a connect's link, and a pasted value's field written
   (`(hidden)`).
 - **The terminal's machine world,** in `temper-client-shell-terminal`'s

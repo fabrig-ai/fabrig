@@ -145,7 +145,7 @@ pub fn signed_in_account(signing: &[u8], name: &[u8]) -> Script {
 }
 /// Read the state in the sign-in source's own Item, inside the account card
 /// whose heading holds these words.
-/// The source kind and state are separate nodes (client/pages/accounts.md, 2).
+/// The source kind and state are separate nodes (client/pages/accounts-words.md, 1).
 #[must_use]
 pub fn chatgpt_source_ready(heading: &[u8]) -> Step<Address> {
     use skein_ui::Role;

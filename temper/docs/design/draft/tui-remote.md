@@ -240,7 +240,7 @@ code typed from the person's own terminal (5.2).
   listener's own address through a tunnel among them; a code in the
   address is dropped for it and the field shown. An ask made by the
   listener's own address keeps today's page, its code read from the
-  address (`../client/pages/README.md`, 2, *The approval page*;
+  address (`../client/pages/shared-behaviour.md`, 1, *The approval page*;
   `../client/web/README.md`, 2.3). The read answers which of the three
   the ask is (5.4).
 - **"Sign in first", Google's way given,** keeps the code in its `then`

@@ -39,10 +39,10 @@
     1), an Ask temper chat's its charter's template, 5, any other's template 1;
     "the default model" where neither names one. "Claude" goes before the shown
     name of a model of the `anthropic` provider and no other provider's name
-    goes before one, so "Claude Opus `../accounts.md`, 2 · high" and "GPT-`../../line.md`, 1 Sol · high". Its
+    goes before one, so "Claude Opus `../accounts-words.md`, 1 · high" and "GPT-`../../line.md`, 1 Sol · high". Its
     effort is the one the choice names or, where it names none, that model's
     default in the offer. What a task holds stays its own: a model the offer
-    leaves out is still named, and its wait says why (`../accounts.md`, 2).
+    leaves out is still named, and its wait says why (`../accounts-words.md`, 1).
   - *With no composer,* a closed chat, one with a result or ended, says it in its
     bar instead, in the bar's muted form where the number was: "T2 · GPT-6 Astra ·
     high", in the closed line's shown names, in the browser and the terminal
@@ -67,7 +67,7 @@
       subscription" for an `anthropic` plan or program, "your ChatGPT plan" for
       an OpenAI plan, "your API key" for a key. An account the accounts document
       doesn't hold takes its provider's name alone. Two headings of one provider
-      that would read alike say who each account is instead (*An account*, `../accounts.md`, 2). A model
+      that would read alike say who each account is instead (*An account*, `../accounts-words.md`, 1). A model
       with no accounts, the playground's, goes under its provider's name.
     - Under each, a button per model `picker` shows, by its shown name, pressed
       where it is the choice, which draws a tick; "default", muted, on the model
@@ -113,20 +113,20 @@
     (jig's `client/domain/contract/documents.md`, 5). The person can choose another
     model on the held chat.
   - *A chat whose choice can't be changed:* the same words with no chevron, not a
-    button. No usable model: `../accounts.md`, 2's "No model yet" above the composer, and no
+    button. No usable model: `../accounts-words.md`, 1's "No model yet" above the composer, and no
     picker.
   - *The terminal:* the same list as lines, its headings and models in order, then
     "Effort:" and its efforts beneath.
 
   A task's wait for its account and a refused next run stay
   above the composer. An agent's task's page, which keeps its
-  own composer (`../task.md`, 2), keeps the line (`../accounts.md`, 2) and the picker together in it. A refused next run says "Next run refused
+  own composer (`../task.md`, 2), keeps the line (`../accounts-words.md`, 1) and the picker together in it. A refused next run says "Next run refused
   · WHY", WHY the refusal's cause in the words of jig's reference view
   (jig's `client/domain/client/helpers.md`, 1), each sentence ending with a
   full stop: for a host's hello, "An engine host was refused at HH:MM"
   or "A worker was refused at HH:MM" (`../../view.md`, 6's clock), then its cause, in
   the words jig's reference view gives a hello's refusal. A run no worker
-  can ever take, a refused hello with its figures among them, says `../accounts.md`, 2's
+  can ever take, a refused hello with its figures among them, says `../accounts-words.md`, 1's
   "No worker can take this: ..." instead. A refusal is not a reply: the chat
   starts nothing, and keeps its composer, so the person can choose
   another model. The scripted model is offered where `me` serves it,
@@ -136,12 +136,12 @@
   agent's task's page shows them in its composer's line, as a chat's (`../task.md`, 2);
   a task waiting
   for its account
-  says so, with the account's acts (`../accounts.md`, 2; jig's `domain/authority.md`,
+  says so, with the account's acts (`../accounts-words.md`, 1; jig's `domain/authority.md`,
   8.3).
 
 ## 2. Open questions
 
-- **Run-wait words after landing** (`../README.md`, `../accounts.md`, 2; the request
+- **Run-wait words after landing** (`../README.md`, `../accounts-words.md`, 1; the request
   `ui-wait-words`): temper/qa checks a charter grown past its admitted
   worker's bounds on the page and in the terminal, alongside ctl's
   `next run:` explanation. Default: the fleet, core and wire tables,
@@ -181,15 +181,15 @@
   send or "Change something", takes the focus again, from a person typing elsewhere
   on that page at that moment. Default: not guarded.
 
-- **The composer's selected account and source** (`../accounts.md`, 2): jig's
+- **The composer's selected account and source** (`../accounts-words.md`, 1): jig's
   `PayerReadiness` could carry the account and source its selection
   chose (`jig-domain-core`'s `catalogue.rs` already calls `select`).
   The view could then read jig's choice for every payer without
   translating selection over the viewer's own account slice. Default:
   name an account only in that slice, with the readiness cross-check
-  and expiry fallback in `../accounts.md`, 2; other work names the model alone, with
+  and expiry fallback in `../accounts-words.md`, 1; other work names the model alone, with
   the playground provider's exception.
-- **A wait said twice** (`../README.md`, `../accounts.md`, 2): on a chat's page the bar and the wait's own
+- **A wait said twice** (`../README.md`, `../accounts-words.md`, 1): on a chat's page the bar and the wait's own
   line both say "Waiting for an account", and with no usable account "No model yet
   · Connect a model" stands beside the wait's "Connect a model". Default: so, until
   a walk reads them.

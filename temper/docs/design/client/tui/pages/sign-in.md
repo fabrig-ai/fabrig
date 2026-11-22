@@ -311,14 +311,14 @@ approving browser brings and hands it to the root.
   decimal, and its target is exactly `/approved?grant=GRANT`, GRANT 43
   characters of base64url with no padding (RFC 4648, 5) that read as 32
   bytes: the form the approval page sends the browser to
-  (`../../pages/README.md`, 2, *The hand-off*). While the root holds
+  (`../../pages/shared-behaviour.md`, 1, *The hand-off*). While the root holds
   the one-click ask's `Asked`, the host gives the root the grant,
   `Event::Granted { grant }` (`../../README.md`, 4.1, *The grant*), and
   answers the browser `303 See Other` to `approval_address(origin,
   Some(code))`, `https://NAME/terminal?code=CODE`, at once, without
   waiting for the take: the page there reads the approval approved
   ("Waiting for your terminal to sign in…") until the take lands, then
-  taken, "Terminal signed in" (`../../pages/README.md`, 2, *Its
+  taken, "Terminal signed in" (`../../pages/shared-behaviour.md`, 1, *Its
   states*).
 - **Every other request** is answered `404 Not Found` and gives the
   root nothing: another method, path or query, a `Host` other than its

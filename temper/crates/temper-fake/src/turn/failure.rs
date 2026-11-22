@@ -80,14 +80,15 @@ fn error(d: &Document, at: u32, p: &Path) -> Result<Error, Refusal> {
 // Encoding direction is exhaustive: a new skein class must acquire a document spelling.
 fn spelling(error: Error) -> &'static [u8] {
     match error {
+        Error::Cut(_) => b"protocol",
         Error::Overloaded => b"overloaded",
-        Error::RateLimited { .. } => b"rate_limited",
+        Error::Window { .. } | Error::RateLimited { .. } => b"rate_limited",
         Error::Unavailable => b"unavailable",
         Error::ContextTooLong => b"context_too_long",
-        Error::Unauthorized => b"unauthorized",
-        Error::Exhausted { .. } => b"exhausted",
+        Error::SignedOut | Error::Unauthorized => b"unauthorized",
+        Error::Spent | Error::Exhausted { .. } => b"exhausted",
         Error::Refused => b"refused",
         Error::Unsupported => b"unsupported",
-        Error::InvalidRequest => b"invalid_request",
+        Error::Unserved | Error::InvalidRequest => b"invalid_request",
     }
 }

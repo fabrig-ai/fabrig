@@ -273,7 +273,7 @@ addressed to them that asks for an act rather than a choice (jig's
 
 - **Listed apart,** under its own head on Needs you, "Only you", after the
   needs and before Decided for you.
-- **Read, not stored:** the accounts' states (`../client/pages/accounts.md`, 2)
+- **Read, not stored:** the accounts' states (`../client/pages/accounts-words.md`, 1)
   and the person's tasks of that kind, as the approvals' wait is a read
   (`../domain/forge/change/questions.md`, 2).
 - **Work goes around them:** runs that need the account wait for it, as

@@ -99,7 +99,7 @@ So:
   offered now.
 - **A wait names no model it wasn't given:** a task given no choice with no
   account says "No account can run this chat yet.", not the charter's first
-  (`../client/pages/accounts.md`, 2).
+  (`../client/pages/accounts-words.md`, 1).
 
 A task given no LLM choice takes the first of its charter's models whose
 provider has an account usable now and serving its payer (jig's

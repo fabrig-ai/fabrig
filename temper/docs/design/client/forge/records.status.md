@@ -17,7 +17,7 @@
 - **Not yet:** *`SetDraft`* and *A project's landed drafts, the subject
   `drafts`*: no such request, outcome, subject or panel on the wire
   [in flight: change 662].
-- **Not yet:** the whole document: the first-usable-model real-box walk remains `../pages/accounts.status.md`, 2.
+- **Not yet:** the whole document: the first-usable-model real-box walk remains `../pages/accounts-words.status.md`, 1.
 - **Not yet:** 
   the Board address and reordering remains `../engine.status.md` (Not yet).
    the project-only settings-role gap remains `../pages/settings.status.md`, 2.
@@ -27,7 +27,7 @@
   request `Forget`: no `forget` in `temper-client-protocol-wire`'s schema
   or in `temper-service`'s routing.
   `../pages/README.md`, *Ready*: the unhandled Ready endings remain `../pages/welcome.status.md`, 1.
-   the plan's first-use card remains `../pages/accounts.status.md`, 2.
+   the plan's first-use card remains `../pages/accounts-words.status.md`, 1.
   `../pages/README.md`, The welcome:
   the welcome role-scope gap remains `../pages/welcome.status.md`, 1.
   FORGE in "FORGE · not

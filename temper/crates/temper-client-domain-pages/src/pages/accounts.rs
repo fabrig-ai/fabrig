@@ -134,7 +134,7 @@ impl Accounts {
         }
     }
 
-    /// Members' name, then login; an unread person has no known name (client/pages/accounts.md, 2).
+    /// Members' name, then login; an unread person has no known name (client/pages/accounts-words.md, 1).
     #[must_use]
     pub fn party_name(&self, party: u64) -> Option<&[u8]> {
         self.members.as_ref()?.party_name(party)

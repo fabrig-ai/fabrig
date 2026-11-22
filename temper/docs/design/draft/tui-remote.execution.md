@@ -83,7 +83,7 @@ the nearest thing, and says so in the draft's status.
   `client/domain/client/README.md`, 4.1 and 9; jig's
   `protocol/configuration.md`, 3 and 8; jig's `protocol/client/README.md`,
   10 and 12; `../protocol/sign-in.md`, 2.1 and 2.3;
-  `../client/pages/README.md`, 2, *The approval page*;
+  `../client/pages/shared-behaviour.md`, 1, *The approval page*;
   `../client/web/README.md`, 2.3.
 - **Builds:** the engine end's source address, from `X-Forwarded-For`
   by the public name and the peer otherwise; the ask's kind; the

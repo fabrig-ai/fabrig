@@ -1,4 +1,4 @@
-//! Account English has its own phrase IDs (client/pages/accounts.md, 2).
+//! Account English has its own phrase IDs (client/pages/accounts-words.md, 1).
 use crate::words::Words;
 use alloc::boxed::Box;
 use skein_lib::{List, bytes::copy_of};

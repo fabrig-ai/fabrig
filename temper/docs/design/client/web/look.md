@@ -225,7 +225,7 @@
   under the `--temper-*` tokens reaches these pages: the old rows' and pages'
   rules go, rather than being overridden. A flow's path takes `Ask`'s
   crumbs' values, its "‹" alone at 760 px and under.
-- **An account's row** (`../pages/accounts.md`, 2) is the look request
+- **An account's row** (`../pages/accounts-words.md`, 1) is the look request
   `accounts-usage`'s (2026-11-18), its overlay's rules in `temper.css`
   under Settings' rows, the rules they replace removed:
   - *Usage:* the head's `temper-usage` group, 10 px under the line, its

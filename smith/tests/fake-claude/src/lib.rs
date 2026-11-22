@@ -22,8 +22,8 @@ pub use faces::{config_root, hosted, main, mcp_root, observation_append};
 pub use fake::{Faces, Fake};
 pub use server::{Answer, Server, ServerScript, Tool, Verdict, served, server_main};
 pub use story::{
-    Decision, End, Init, Login, Logout, Observation, Resume, Script, Seen, Selection, Status, Step, Story, Turn, Usage,
-    UsageReply, observations, received, seen, selections,
+    Decision, End, Fault, Init, Login, Logout, Observation, Resume, Script, Seen, Selection, Status, Step, Story, Turn,
+    Usage, UsageReply, observations, received, seen, selections,
 };
 
 /// The environment variable naming this invocation's configuration directory.

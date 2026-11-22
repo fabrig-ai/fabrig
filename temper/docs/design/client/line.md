@@ -268,7 +268,7 @@ draws its heading and its "Task brief".
   `--key KEY` that ctl requires (`ctl/areas.md`, area 6, and 8.1).
   Completing that command and checking its pointer is separate wording
   work. Default: the browser's paste or a complete ctl call from its
-  help; the run-wait pointer checks of `pages/accounts.md`, 2 cover waiting lines alone.
+  help; the run-wait pointer checks of `pages/accounts-words.md`, 1 cover waiting lines alone.
 - **Sign-in words in the terminal and command help** (1, 6): the browser's
   signed-out paragraph names the link temper printed (`view.md`, 1; `web/README.md`, 2.4),
   while `temper-box open`'s refusals, the terminal's link instructions and the

@@ -27,10 +27,10 @@
     model: what the chat's runs use is the picker's,
     under its composer (`chat/composer.md`, 1, *The work's account and model*): on an
     Ask temper chat, what its next run takes, as any chat's; with no chat
-    yet, what one would, template 5's `resolved_default` in `me` (`accounts.md`, 2), and a
+    yet, what one would, template 5's `resolved_default` in `me` (`accounts-words.md`, 1), and a
     choice made here is the chat's when it starts. It never sets one LLM
     provider's account beside another's model; with no usable account the
-    composer says what `accounts.md`, 2 says then, and there is no picker.
+    composer says what `accounts-words.md`, 1 says then, and there is no picker.
   - *The conversation,* a region named "Conversation", its opening a
     page as `Home` is, starting 28 pixels from the conversation's top,
     with no kicker and no heading, so that the ways have the room (the

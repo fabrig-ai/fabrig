@@ -44,7 +44,7 @@ acts on it as its document offers (4).
 - **The lineage bar:** its parent, the last of its lineage
   (`lineage_chips`, root first), as its "Task N" link and its title,
   after an arrow; then the task itself, "Task M" and its title, each
-  title cut past 80 characters (`README.md`, 2, *A task's title on a
+  title cut past 80 characters (`shared-behaviour.md`, 1, *A task's title on a
   line*). With no
   lineage supplied, the parent is its requester's "Task N" link when a
   task asked it, and there is none otherwise. The arrow and the slash
@@ -58,7 +58,7 @@ acts on it as its document offers (4).
 - **"Task brief":** a region, the mockup's "TASK BRIEF", whose capitals
   are the look's: its specification as written (`spec`, read as
   Markdown), left out where its words are only the title the taskbar
-  draws (`README.md`, 2, *A task's words after its title*); who asked, in `goal.md`, 2's words ("Asked by
+  draws (`shared-behaviour.md`, 1, *A task's words after its title*); who asked, in `goal.md`, 2's words ("Asked by
   task N"); then its dependency line, as a plan row's (`goal.md`, 2): the list
   "Dependencies of task N", one item per dependency of its document
   (`dependencies`), in order, keyed by its task, with its "Task M"
@@ -117,7 +117,7 @@ acts on it as its document offers (4).
   agent's page: its held cards are what this page may act on.
 - **Against its mockup,** the page's way:
   - links and the lineage name a task "Task N", the mockup's "T12"
-    (`README.md`, 2, "Links are by number"); the executor is "Agent", where the
+    (`shared-behaviour.md`, 1, "Links are by number"); the executor is "Agent", where the
     mockup names the charter (`README.md`);
   - the playground's banner stays where the frame draws it, before the page,
     where the mockup draws it under the taskbar (`../view.md`, 1);
@@ -281,7 +281,7 @@ supplies it: the page computes none (jig's `client/domain/contract/documents.md`
   of M · updates N of M", each used of its limit (2.2).
 - **Against its mockup,** the page's way:
   - links name a task "Task N", the tag "Change · Task N", the mockup's
-    "T28" and "Change · T28" (`README.md`, 2, "Links are by number");
+    "T28" and "Change · T28" (`shared-behaviour.md`, 1, "Links are by number");
   - not drawn, since the panel does not carry them (`../forge/served.md`, 2):
     the "Fixes finding" notice (findings are a gap,
     `../web/mockups/README.md`); the head's requirements, its heads in order,

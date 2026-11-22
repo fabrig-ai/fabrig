@@ -119,7 +119,7 @@ the page, which stayed, drawing the end.
   second provider of the same issuer, Welcome provider (18), with a model of
   its own: the issuer's one subject signing in twice on one provider renews
   its account, in other words than Ready's
-  (`../pages/accounts.md`, 2), and a usable model leaves the welcome no sign-in to
+  (`../pages/accounts-words.md`, 1), and a usable model leaves the welcome no sign-in to
   press. Each sign-in keeps its tab, so the story ends with two.
   The client world's `suite::second_sign_in` holds that the second provider's
   sign-in reaches Ready after the welcome's.

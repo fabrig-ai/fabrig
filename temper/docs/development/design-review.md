@@ -142,7 +142,7 @@ Kind: answered question. Owner: `temper/docs/design/protocol/setup/README.md`.
 
 Kind: answered question. Owner: `temper/docs/design/protocol/setup/README.md`.
 
-"Claude Code's download walked" in `temper/docs/design/protocol/setup/README.md`, 9 asks the next walker to try the real pinned fetch once. "What a real box's walk has not shown" in `temper/docs/design/client/pages/README.md`, 3 records that fetch up to the sign-in prompt and its reuse on a second run. Suggest closing that particular once-only request while keeping the unproved paid call, failure, concurrent-fetch and other-platform cases distinct. A retained test is not claimed by either account.
+"Claude Code's download walked" in `temper/docs/design/protocol/setup/README.md`, 9 asks the next walker to try the real pinned fetch once. "What a real box's walk has not shown" in `temper/docs/design/client/pages/README.md`, 7 records that fetch up to the sign-in prompt and its reuse on a second run. Suggest closing that particular once-only request while keeping the unproved paid call, failure, concurrent-fetch and other-platform cases distinct. A retained test is not claimed by either account.
 
 ### 2.14 A8: The encoder of delivery evidence
 
@@ -202,7 +202,7 @@ The runner/worker choice in `temper/docs/design/domain/after-landing.md`, 13 say
 
 Kind: stale question. Owner: `temper/docs/design/client/pages/home.md`.
 
-"A project's only goal ending while Home is open" in `temper/docs/design/client/pages/home.md`, 2 says Away's Shown reads has_goals too. `temper/docs/design/client/pages/README.md`, 2 now specifies Shown by the project's classes or an on Away row, and `temper/docs/design/client/view.md`, 3 uses that same predicate. Suggest removing that stale Away premise without assuming that the separate bounded-goal-read concern has gone away.
+"A project's only goal ending while Home is open" in `temper/docs/design/client/pages/home.md`, 2 says Away's Shown reads has_goals too. `temper/docs/design/client/pages/shared-behaviour.md`, 1 now specifies Shown by the project's classes or an on Away row, and `temper/docs/design/client/view.md`, 3 uses that same predicate. Suggest removing that stale Away premise without assuming that the separate bounded-goal-read concern has gone away.
 
 ### 2.24 D1: Repeated rendered-comparison requests
 
@@ -210,10 +210,10 @@ Kind: duplicated question. Owner: `temper/docs/design/client/web/README.md`.
 
 The following are independent full after-landing comparison checklists for the same named requests, not just citations to one checklist. Their different state lists and proof limits need to be reconciled before copies can become references. Suggest keeping one browser-comparison obligation per request in the browser document, with page and journey documents stating only their unique proof limits and citing it. Instances:
 
-- Home/two-step/night: `temper/docs/design/client/pages/README.md`, 3, `temper/docs/design/client/web/README.md`, 3, `temper/docs/design/client/web/journeys.md`, 10.
+- Home/two-step/night: `temper/docs/design/client/pages/README.md`, 7, `temper/docs/design/client/web/README.md`, 3, `temper/docs/design/client/web/journeys.md`, 10.
 - Chat terminal: `temper/docs/design/client/pages/chat/terminal.md`, 2, `temper/docs/design/client/web/README.md`, 3, `temper/docs/design/client/web/journeys.md`, 10.
 - Models: `temper/docs/design/client/pages/settings.md`, 3, `temper/docs/design/client/web/README.md`, 3, `temper/docs/design/client/web/journeys.md`, 10.
-- Connect flows: `temper/docs/design/client/forge/README.md`, 8, `temper/docs/design/client/pages/README.md`, 3, `temper/docs/design/client/web/README.md`, 3, `temper/docs/design/client/web/journeys.md`, 10.
+- Connect flows: `temper/docs/design/client/forge/README.md`, 8, `temper/docs/design/client/pages/README.md`, 7, `temper/docs/design/client/web/README.md`, 3, `temper/docs/design/client/web/journeys.md`, 10.
 - Chat heading: `temper/docs/design/client/pages/chat/README.md`, 3 and `temper/docs/design/client/web/journeys.md`, 10.
 - Flow drawing and draft-to-goal: `temper/docs/design/client/pages/chat/document.md`, 2, `temper/docs/design/client/web/README.md`, 3, `temper/docs/design/client/web/journeys.md`, 10.
 
@@ -783,7 +783,7 @@ Map item 136: `temper/docs/design/protocol/configuration/README.md`, 9 → `temp
 
 ### 3.137 A page refused busy
 
-Map item 137: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/client/pages/README.md`, 3.
+Map item 137: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/client/pages/README.md`, 7.
 
 ### 3.138 A kept GitHub forge whose base ends in `/`
 

@@ -106,7 +106,7 @@ browsers use (`configuration/engine.md`). With one:
   the deployment's own page, by one press where its loopback return
   hands the sign-in back to the browser's own machine, or by its code
   typed (jig's `protocol/client/sign-in.md`, *A sign-in approved by a
-  browser*; `../client/pages/README.md`, 2, *The approval page*).
+  browser*; `../client/pages/shared-behaviour.md`, 1, *The approval page*).
 - **On the host alone:** jig enables it only on a loopback listener; the
   proxy denies its route and its page from outside (2.1); the owner reaches it through an
   SSH tunnel to the listener.

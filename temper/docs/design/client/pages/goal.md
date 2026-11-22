@@ -121,7 +121,7 @@ an open need on it, whether it has a report, and its direct delegates' total.
       or another result is done, and not landed.
     - Each task not landed, `p.task-line`, with class `running` when
       running: the title, cut past 80 characters as every row's is
-      (`README.md`, 2, *A task's title on a line*), a TITLE below too,
+      (`shared-behaviour.md`, 1, *A task's title on a line*), a TITLE below too,
       a link to its `Task`, then its state: "done" and its end
       in the clock form; "running";
       "waits on TITLE" for one dependency, or "waits on task N" where the title
@@ -235,7 +235,7 @@ A plan on the other pages, an agent's task's (`task.md`, 2) and a change's or a 
   dependency line or held card; its "Task N" link is muted, as the
   mockup's done row.
 - **A plan row's cells:** the "Task N" link and the task's title, cut
-  past 80 characters (`README.md`, 2, *A task's title on a line*); its
+  past 80 characters (`shared-behaviour.md`, 1, *A task's title on a line*); its
   executor; its state; its spend, "N spent", what the task spent
   itself (its chip's `budget.spent`; not the row's `spent`, which adds
   what the ended tasks it funded spent), in the deployment's unit, a

@@ -377,7 +377,7 @@
   has `application.machine.owned` and the engine runs under the box
   (`../../protocol/setup/box.md`, 4). A first run's store keeps no forge, so
   no row of the `forges` watch can say so (`deployment.md`), and a wait
-  for a host reads it as the fact of a box (`../pages/accounts.md`, 2); and
+  for a host reads it as the fact of a box (`../pages/accounts-words.md`, 1); and
   `program_login` (optional bytes, at most 8,192), *the printed command*
   below; and `push` (optional bytes, 65), the public half of the
   deployment's VAPID key, which a browser subscribes with, none while
@@ -876,7 +876,7 @@
     you and asks for the changes"
     (`../../domain/forge/change/branch-path.md`, *The project's roles*); `name`, at most 64, as "the reviewer",
     "owner", "CI" or "main"; `facts`, at most 4, each a `Fact`, `label`
-    at most 32 bytes and `value` at most 184, as "Model" and "Opus `../pages/accounts.md`, 2 ·
+    at most 32 bytes and `value` at most 184, as "Model" and "Opus `../pages/accounts-words.md`, 1 ·
     high", "Can", "Asked to": the engine makes every value at most 128
     bytes but an agent's "Asked to", its instructions' first sentence
     in quotes, at most 184 (`../../domain/forge/change/branch-path.md`), so that the worst

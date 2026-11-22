@@ -92,7 +92,7 @@
     chat"; words that are no command note "This chat is closed. /new starts
     another." Under it, *the quiet line:* at its left "/ for commands", or "paused ·
     a message resumes it" on a chat the person paused (`README.md`, 1, *A person's pause*); at its
-    right the picker's closed line, "Claude Opus `../accounts.md`, 2 · high", a button that opens
+    right the picker's closed line, "Claude Opus `../accounts-words.md`, 1 · high", a button that opens
     `/model`'s list, then " · 778 spent", the chat's own spend. On a phone the spend
     goes. While a list is open the quiet line gives it its place.
   - *Commands,* typed in the box: words that begin with "/" and hold no white space

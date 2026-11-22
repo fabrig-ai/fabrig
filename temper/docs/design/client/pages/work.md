@@ -434,7 +434,7 @@
     one function of the view's parts, `shared::row_title`, which the
     chats' heading's cut (`chat::short_title`, at 72) shares, and which
     every line, row and card naming a task by its title takes
-    (`README.md`, 2, *A task's title on a line*): Work's chat cards,
+    (`shared-behaviour.md`, 1, *A task's title on a line*): Work's chat cards,
     landed drafts, nested rows and from lines, and a milestone group's
     rows, as this row.
 

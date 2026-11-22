@@ -116,7 +116,7 @@ Illustrative (the request's 03, with the look request
       (`tui-faint`) and its state (`tui-hint`). The title is the task's
       words' first line, whole, as its card's facts hold it
       (`delegation::facts`'s `title`), never `shared::row_title`'s cut
-      at 80 (`../../pages/README.md`, 2, *A task's title on a line*);
+      at 80 (`../../pages/shared-behaviour.md`, 1, *A task's title on a line*);
       its state is the browser's terminal card's words
       (`shared::delegation_line`'s `state`), "Running", "Held",
       "Landed".

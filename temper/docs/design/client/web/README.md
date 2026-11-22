@@ -485,7 +485,7 @@ replay says the same clocks (`../view.md`, 6).
   `ui/web/README.md`, 7): the client leaves
   the page it showed and comes back to it, so what goes when the person
   leaves a page has gone, as Accounts' completion line
-  (`../pages/accounts.md`, 1 and 2). That a client opens at the inbox
+  (`../pages/accounts.md`, 1, and `../pages/accounts-words.md`, 1). That a client opens at the inbox
   (`../README.md`, 3.4) is the terminal's: in a browser the address is the
   browser's, and the client keeps no record of its own.
 - **A heading drawn after its page** (the answer of 2026-11-06 to the

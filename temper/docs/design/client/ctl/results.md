@@ -155,7 +155,7 @@ digest: task 7c1e09a2b44f0d13
 
   A run no worker can ever take (jig's `Refused(Bounds)`, `jig/docs/design/client/domain/contract/documents.md`,
   1) says which bound keeps it out in the client's form
-  (`../pages/accounts.md`, 2), lower case, a count as digits, a duration in
+  (`../pages/accounts-words.md`, 1), lower case, a count as digits, a duration in
   milliseconds as `N ms`:
 
   ```

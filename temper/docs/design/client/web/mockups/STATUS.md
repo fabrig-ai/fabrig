@@ -218,7 +218,7 @@ Anything else on a page is the UI's own words, and those name no workflow: the d
 
 What temper does not have yet, drawn ahead of its design and marked with its gap's label while **Annotations** is on:
 
-- **6.3, plan usage:** a program's 5-hour and weekly windows on the accounts page, the week with its pace; the director's check reads them. The client draws them wherever a window is held (`../../pages/accounts.md`, 2, *Usage*), but nothing writes one yet (`../../../draft/usage-windows.md`). A ChatGPT plan shows none: its usage is ChatGPT's settings' to show (jig's `domain/providers.md`, 2.6), so its row shows its limit's state and "Manage usage ↗", which opens them.
+- **6.3, plan usage:** a program's 5-hour and weekly windows on the accounts page, the week with its pace; the director's check reads them. The client draws them wherever a window is held (`../../pages/accounts-words.md`, 1, *Usage*), but nothing writes one yet (`../../../draft/usage-windows.md`). A ChatGPT plan shows none: its usage is ChatGPT's settings' to show (jig's `domain/providers.md`, 2.6), so its row shows its limit's state and "Manage usage ↗", which opens them.
 - **6.4, worker health:** the ops strip on the workers page, an ops application's report of load and disk.
 - **6.5, open findings:** a finding on a goal's page, the board and the changes page, where a failure that matches an open finding attaches to it and leaves the queue running.
 - **6.7, fleet occupancy:** a worker's free slots, and the director's read of them.

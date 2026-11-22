@@ -44,16 +44,16 @@ pub(crate) fn short_title(title: &[u8]) -> Box<[u8]> {
     cut_title(words, SHORT_TITLE, true)
 }
 
-/// A task's row title includes its ellipsis within this bound (client/pages/README.md, 2).
+/// A task's row title includes its ellipsis within this bound (client/pages/shared-behaviour.md, 1).
 pub const ROW_TITLE: usize = 80;
 
-/// A task's title on a line keeps punctuation at the cut (client/pages/README.md, 2).
+/// A task's title on a line keeps punctuation at the cut (client/pages/shared-behaviour.md, 1).
 #[must_use]
 pub fn row_title(title: &[u8]) -> Box<[u8]> {
     cut_title(title, ROW_TITLE, false)
 }
 
-/// Whether complete words contain only their title and trailing blanks (client/pages/README.md, 2).
+/// Whether complete words contain only their title and trailing blanks (client/pages/shared-behaviour.md, 1).
 #[must_use]
 pub fn only_title(words: &c::DocumentText) -> bool {
     if words.cut {

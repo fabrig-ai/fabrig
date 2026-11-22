@@ -100,8 +100,9 @@ Each returns its findings, as every check of temper's worlds does (`../testing/R
   | a red inherited from the base | n/a | n/a | none | none | the base |
   | a settled stop, or a restart announced to the workers | none | none | none | none | none |
   | a crash, or a worker lost mid-run | as the design says (today a lost run spends one) | as the design says | none | none | the run, if its tries run out |
+  | a stream cut after its head | with backoff, to their bound, acting on no partial output: a cut tool call never runs, nor runs twice | none | n/a | n/a | the provider, if it persists |
 
-  Where today's policy differs from a row (a lost contact with a job spends a try today, `jig/tests/core/tests/suite/jobs.rs`), the row is the target, and the difference is a scenario of section 7 with the draft that settles it.
+  Where today's policy differs from a row (a lost contact with a job spends a try today, `jig/tests/core/tests/suite/jobs.rs`), the row is the target, and the difference is a scenario of section 7 with the draft that settles it. A stream cut after its head is one: on 2026-11-20, between 20:09 and 20:15Z, ten tasks' Responses streams answered 200 and ended before their completion event. skein-llm reports that as `Protocol` ("incomplete Responses stream", `skein/crates/skein-llm/src/openai/response.rs`; Anthropic's alike), which smith's retry classes as lasting (`smith/crates/smith-domain-session/src/session/retry.rs`), while a connection closed within a response is `Unavailable` and transient. So the tasks spent their tries in minutes and needed a person's release. Its scenario is `a_cut_stream_is_retried_not_failed`, fixed by *provider failures*.
 - **Controls:** a scenario with two faults on one change at once (a wrong tree and a stopped runner), and one with a red base under a green candidate, so that the check is shown to tell them apart.
 
 ### 3.4 Finite goals end, or are held with words, and others keep going
@@ -164,6 +165,7 @@ skein's fake LLM (`skein/docs/design/testing/fakes/llm.md`) and smith's fake `cl
 - **An unserved model** [script]: the provider's refusal of a model an account doesn't serve.
 - **An expired sign-in** [script].
 - **A request that hangs** after its head, or goes idle mid-stream [script].
+- **A stream cut after its head** [behaviour]: a response that answers `200` and ends before its completion event, before any output, mid-text and mid-tool-call, in the fake LLM's domain and its peer (section 3.3's last row).
 - **A saved window bound to another endpoint** [composition].
 
 ### 4.3 The worker and its machine
@@ -306,9 +308,8 @@ The test contracts for the problems still open that a world can show, with their
 | P26 | established | `a_limited_account_frees_its_tasks` | tasks kept on an account limited with no reset choose again when another account can serve them | system world | provider failures |
 | P72 | established | `a_billing_refusal_marks_the_account` | the synthetic billing envelope marks the account refused, spends no task try, and moves the task | smith session world | provider failures |
 | P127 | established | `a_rate_window_is_waited_out` | a 429 with reset headers and no `retry-after` waits out the window, and spends no task try | smith protocol world | provider failures |
-| S1 | symptom | `spent_credits_stop_placement` | `insufficient_quota` marks the account, and stops new runs on it | smith session world | provider failures |
 | P126 | symptom | `an_unserved_model_moves_the_task` | a model refused for an account narrows that account's models, and the task chooses again | smith session world | provider failures |
-| P71 | established | `a_silent_run_is_cut_at_its_derived_bound` | a run silent while its request hangs is cut by the request's own deadline, not the watchdog's | smith host world | provider failures |
+| cut streams, 11-20 | established | `a_cut_stream_is_retried_not_failed` | a stream that answered 200 and ended before its completion event, before any output, mid-text or mid-call, is retried with backoff, spends no task try, acts on no partial output, and resumes without a person (3.3's last row) | smith protocol world | provider failures |
 | P128 | established | `a_discovered_model_has_efforts` | a model a template names has efforts in the catalogue | settings test (3.6) | provider failures |
 | P59 | established | `a_retired_producer_is_refused_while_named` | settings apply refuses retiring a producer a template names | settings test (3.6) | provider failures |
 | P76 | established | `a_new_party_gets_account_uses` | a new service party gets an account's uses through the exposed account-use tools, with no list kept by hand | jig people world | provider failures |
@@ -321,7 +322,7 @@ The test contracts for the problems still open that a world can show, with their
 | P58 residual | established | `a_repair_whose_tests_pass_regates_by_itself` | a repair whose named tests already pass at its head regates once by itself, rather than holding for a person's release | engine domain world | a change's reds |
 | P109 | established | `growing_packs_trigger_packing` | a store whose packs grow past the threshold is packed by the worker's own trigger | worker git step tests | worker disk |
 
-**Held as active regressions,** with no exclusion, since main has their fix: P24, P25 (a merge cut at its deadline is reread, as P103's fix does), P27, P31, P42, P44, P46, P49, P50, P51, P52, P54, P55, P57, P58, P60, P61, P62, P65, P66, P67, P73, P83, P84, P86, P96, P97, P99, P100, P102, P103, P104, P105, P108, P111, P114, P116, P118, P125, S9, S10, S12. The sweeps exercise their fixes under the new faults; a residual that turns up is a red, and gets its own row.
+**Held as active regressions,** with no exclusion, since main has their fix: P24, P25 (a merge cut at its deadline is reread, as P103's fix does), P27, P31, P42, P44, P46, P49, P50, P51, P52, P54, P55, P57, P58, P60, P61, P62, P65, P66, P67, P73, P83, P84, P86, P96, P97, P99, P100, P102, P103, P104, P105, P108, P111, P114, P116, P118, P125, S9, S10, S12, and P71 (`a_silent_run_is_cut_at_its_derived_bound`, smith host world: a run silent while its request hangs is cut by the request's own idle deadline, retried, and ended before the watchdog acts; its scenario passes as written and is enabled), and S1 (`spent_credits_stop_placement`, system world: `insufficient_quota` on an account marks it, and no run is placed on it afterwards while the other account's goal lands; its scenario passes as written and is enabled). The sweeps exercise their fixes under the new faults; a residual that turns up is a red, and gets its own row.
 
 **Open, and with no row yet:**
 - S3 (an oversized comparison) and S4 (no brief slot free) are reported, and the code reads as handling both: a brief's comparison past its bound degrades with a notice, and a full brief slot pauses without spending a try. The check-record work confirms or adds a row.
