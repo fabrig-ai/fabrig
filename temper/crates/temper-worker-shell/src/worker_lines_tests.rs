@@ -3,6 +3,18 @@ use temper_worker_service::{Refusal, WorkerJobEnding, WorkerLoss, worker_alone a
 
 const BINARY: &str = "temper-worker";
 
+#[test]
+fn unswept_lines_escape_the_path_and_name_the_error() {
+    let note = worker::Note::Unswept {
+        path: b"trash/4/target\n\xff".as_slice().into(),
+        error: skein_io::kernel::Error::Permission,
+    };
+    assert_eq!(
+        worker_note_words("temper", note),
+        "temper worker: trash entry not removed: trash/4/target\\n\\xff: Permission\n"
+    );
+}
+
 /// domain/worker/README.md, 4.3: sources, destinations and names stay on one line.
 #[test]
 fn git_fetch_words_name_each_source_and_destination() {

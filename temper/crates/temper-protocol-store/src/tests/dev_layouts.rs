@@ -158,8 +158,10 @@ pub(super) fn finding() -> (d::Stored, d::Stored) {
                 commit: [7; 32],
                 goals: Box::new([d::BlamedGoal { goal: 42, milestone: Some(40), person: Some(7) }]),
             }]),
+            moved: None,
         }),
         cleared: Some(d::FindingCleared { run: 8, at: Wall::from_nanos(124) }),
+        repair: None,
     };
     let mut expected = finding.clone();
     expected.blame = None;

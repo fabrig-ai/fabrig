@@ -156,7 +156,7 @@ pub(super) fn running_goal() -> (World, engine::Assignment, Box<[u8]>) {
     running_goal_in(adopted_world())
 }
 
-pub(super) fn running_goal_in(mut world: World) -> (World, engine::Assignment, Box<[u8]>) {
+pub(crate) fn running_goal_in(mut world: World) -> (World, engine::Assignment, Box<[u8]>) {
     let ask = goal_request(&world, true);
     let goal = assigned_chat(&mut world, GOAL_REQUEST, ask);
     let branch = format!("temper/{}/g{}", goal.task, goal.task).into_bytes().into_boxed_slice();
@@ -237,7 +237,7 @@ pub(super) fn change(
     panic!("change did not answer: {:?}", world.call_errors)
 }
 
-pub(super) fn forge_hold<'a>(world: &'a World, branch: &[u8]) -> Option<&'a forge_top::Hold> {
+pub(crate) fn forge_hold<'a>(world: &'a World, branch: &[u8]) -> Option<&'a forge_top::Hold> {
     let what = forge_top::What::Branch(branch.split(|byte| *byte == b'/').map(Box::from).collect());
     world.store.rows.values().find_map(|row| match row {
         Record::Forge { row } => match row.as_ref() {

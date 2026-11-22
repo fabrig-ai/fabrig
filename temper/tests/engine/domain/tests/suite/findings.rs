@@ -490,7 +490,7 @@ fn people_reads_triage_and_capacity_keep_their_rules() {
         query: engine::ForgeRead::Finding { project: 1, number: 257 },
     }));
     driver.settle();
-    assert!(driver.delivered.iter().any(|delivery| matches!(delivery, Delivery::ForgeRead { answer: engine::ForgeReadAnswer::Finding(Some(value)), .. } if value == &before)));
+    assert!(driver.delivered.iter().any(|delivery| matches!(delivery, Delivery::ForgeRead { answer: engine::ForgeReadAnswer::Finding(Some(value)), .. } if value.as_ref() == &before)));
     restart(&mut driver, &run);
     assert_eq!(engine::finding_read(&driver.root, 1, 257), Some(before));
 }

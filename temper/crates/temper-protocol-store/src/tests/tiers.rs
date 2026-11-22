@@ -27,6 +27,18 @@ fn signature_test_ids_fit_the_store_ceiling() {
 }
 
 #[test]
+fn the_last_judged_run_number_round_trips_including_earlier_absence() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for number in [None, Some(0), Some(u64::MAX)] {
+        let mut row = fixtures::tier_row();
+        row.record.last_run = number;
+        let bytes = records::encode(&d::Stored::Tier(row));
+        let d::Stored::Tier(decoded) = records::decode(&bytes, &bounds).unwrap() else { panic!("tier row") };
+        assert_eq!(decoded.record.last_run, number);
+    }
+}
+
+#[test]
 fn tier_rows_at_fixture_and_stock_failure_bounds_round_trip() {
     let mut limits = fixtures::LIMITS;
     limits.tiers.failing_tests = 64;
@@ -237,7 +249,14 @@ fn tier_records_keep_the_whole_policy_and_all_parts() {
     empty.held = None;
     empty.result = None;
     empty.received = false;
-    empty.record = p::Record { sequence: 0, judged: None, failing: p::Failures::Many, flakes: Box::new([]), run: None };
+    empty.record = p::Record {
+        sequence: 0,
+        last_run: None,
+        judged: None,
+        failing: p::Failures::Many,
+        flakes: Box::new([]),
+        run: None,
+    };
     round_trip(d::Stored::Tier(empty), 28);
 }
 #[test]
@@ -420,9 +439,10 @@ fn tier_family_bounds_follow_the_forge_and_full_row_measure() {
     assert_eq!(l.shown_test_test_id, fixtures::LIMITS.tiers.test_id_bytes);
     assert_eq!(l.failing_test_test_id, fixtures::LIMITS.tiers.test_id_bytes);
     let empty_goals = records::encode(&d::Stored::Tier(fixtures::tier_row()));
-    assert_eq!(empty_goals.len(), 120_237);
+    assert_eq!(empty_goals.len(), 120_238);
     assert!(skein_lib::len_u64(empty_goals.len()) < crate::v25::TierRow::encoded_bound(l).unwrap());
     let mut full = fixtures::tier_row();
+    full.record.last_run = Some(u64::MAX);
     full.flight.as_mut().unwrap().clock = Some(waiting_clock());
     full.hold = Some(d::TierHold {
         party: u64::MAX,
@@ -461,7 +481,7 @@ fn tier_family_bounds_follow_the_forge_and_full_row_measure() {
     full.unkept = u32::MAX;
     let row = records::encode(&d::Stored::Tier(full));
     assert_eq!(skein_lib::len_u64(row.len()), crate::v25::TierRow::encoded_bound(l).unwrap() + 3);
-    assert_eq!(row.len(), 3_993_829);
+    assert_eq!(row.len(), 3_995_550);
 }
 
 #[test]

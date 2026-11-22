@@ -69,8 +69,7 @@ fn fresh() -> Domain {
 }
 fn restore_done(d: &mut Domain) {
     outputs(d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(d, Event::ReadAfresh);
-    outputs(d, Event::SettleOutbox);
+    outputs(d, Event::CatchUp);
 }
 fn take(d: &mut Domain) {
     outputs(d, Event::Hold { entry: TAKING, task: GOAL, resource: name(GOAL_BRANCH), from: None });
@@ -161,8 +160,8 @@ fn run_watch(restored: bool, goal: bool) {
     }
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     let mut log = Queue::uncapped();
-    step(&mut d, &env(), Event::ReadAfresh, &mut log);
-    step(&mut d, &env(), Event::SettleOutbox, &mut log);
+    step(&mut d, &env(), Event::CatchUp, &mut log);
+
     if !restored {
         step(&mut d, &env(), Event::Names { task: GOAL, resources }, &mut log);
     }
@@ -392,8 +391,8 @@ fn a_goal_branch_making_is_kept_and_sent_when_an_entry_frees() {
             );
         }
         at_step(&mut d, &environment, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        at_step(&mut d, &environment, Event::ReadAfresh);
-        at_step(&mut d, &environment, Event::SettleOutbox);
+        at_step(&mut d, &environment, Event::CatchUp);
+
         if cause != "not made" {
             at_step(&mut d, &environment, Event::Enqueue { entry: status(1, OTHER) });
         }
@@ -508,8 +507,8 @@ fn goal_branch_room_waiters_ask_in_wait_order_and_keep_their_place() {
         let mut d = domain_with_limits(&environment.limits);
         at_step(&mut d, &environment, Event::Restore { record: Stored::Repository(adopted()) });
         at_step(&mut d, &environment, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        at_step(&mut d, &environment, Event::ReadAfresh);
-        at_step(&mut d, &environment, Event::SettleOutbox);
+        at_step(&mut d, &environment, Event::CatchUp);
+
         for number in 1..=u64::from(entries) {
             at_step(&mut d, &environment, Event::Enqueue { entry: status(number, 9) });
         }
@@ -934,7 +933,7 @@ fn a_goal_branch_already_gone_completes_its_release() {
 }
 
 #[test]
-fn a_goal_branch_found_missing_after_restart_waits_for_settle_before_asking() {
+fn a_goal_branch_found_missing_after_restart_is_asked_as_its_read_ends() {
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(
@@ -951,15 +950,12 @@ fn a_goal_branch_found_missing_after_restart_waits_for_settle_before_asking() {
         },
     );
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
+    let started = outputs(&mut d, Event::CatchUp);
+    assert!(started.contains(&Request::RestartDone { stage: RestartStage::Settled }));
     let missing = fixtures::answer_next(&mut d, Err(Error::Missing));
     assert!(missing.contains(&Request::RestartDone { stage: RestartStage::ReadAfresh }), "{missing:?}");
-    assert!(!missing.contains(&Request::ContinueGoalBranch { task: GOAL }), "{missing:?}");
     assert_no_making(&missing);
-    let settled = outputs(&mut d, Event::SettleOutbox);
-    assert!(settled.contains(&Request::RestartDone { stage: RestartStage::Settled }), "{settled:?}");
-    assert!(settled.contains(&Request::ContinueGoalBranch { task: GOAL }), "{settled:?}");
-    assert_no_making(&settled);
+    assert!(missing.contains(&Request::ContinueGoalBranch { task: GOAL }), "{missing:?}");
     outputs(&mut d, Event::ContinueGoalBranch { task: GOAL, entry: TAKING });
     let (call, op) = fixtures::next_call(&mut d);
     assert_eq!(op, Op::Read(Read::Branch { branch: b"main".as_slice().into() }));
@@ -993,9 +989,9 @@ fn restored_making(entry: skein_forge_client::Entry, held: bool) -> Domain {
     );
     outputs(&mut d, Event::Restore { record: Stored::Entry { entry, held } });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
+    outputs(&mut d, Event::CatchUp);
     fixtures::answer_next(&mut d, Err(Error::Missing));
-    outputs(&mut d, Event::SettleOutbox);
+
     d
 }
 
@@ -1133,8 +1129,8 @@ fn goal_branch_reads_wait_out_an_outage_with_capped_backoff_reset_by_an_answer()
         let mut d = domain_with_limits(&env.limits);
         at_step(&mut d, &env, Event::Restore { record: Stored::Repository(adopted()) });
         at_step(&mut d, &env, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        at_step(&mut d, &env, Event::ReadAfresh);
-        at_step(&mut d, &env, Event::SettleOutbox);
+        at_step(&mut d, &env, Event::CatchUp);
+
         at_step(&mut d, &env, Event::Hold { entry: TAKING, task: GOAL, resource: name(GOAL_BRANCH), from: None });
         for seconds in waits {
             let requests = at_answer(&mut d, &env, Err(error));
@@ -1273,11 +1269,11 @@ fn a_goal_branch_making_restored_before_sending_keeps_its_taking_entry() {
         }
     }
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
+    outputs(&mut d, Event::CatchUp);
     let missing = fixtures::answer_next(&mut d, Err(Error::Missing));
     assert!(missing.contains(&Request::RestartDone { stage: RestartStage::ReadAfresh }));
     assert_no_making(&missing);
-    outputs(&mut d, Event::SettleOutbox);
+
     fixtures::answer_next(&mut d, Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now }));
     let (call, op) = fixtures::next_call(&mut d);
     assert_eq!(op, Op::Write(Write::CreateBranch { branch: GOAL_BRANCH.into(), commit: TIP }));

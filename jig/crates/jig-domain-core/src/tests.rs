@@ -19,6 +19,7 @@ mod reports;
 mod routing;
 mod run_policy_tools;
 mod runs;
+mod seeded_goals;
 mod settings;
 mod start;
 mod translate;

@@ -22,7 +22,7 @@ fn split(input: &[u8], delimiter: u8) -> Option<(&[u8], &[u8])> {
     Some((input.get(..at)?, input.get(at.checked_add(1)?..)?))
 }
 
-/// The one decimal packs line from bounded count-objects stdout (protocol/git.md, 4.13).
+/// The one decimal packs line from bounded count-objects stdout (protocol/git.md, 4.14).
 #[must_use]
 pub fn packs(stdout: &[u8]) -> Option<u32> {
     let mut found = None;

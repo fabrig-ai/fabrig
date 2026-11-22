@@ -12,10 +12,12 @@ removing or renumbering what another file cites. `--all` fails on every broken c
 Both check committed trees (`git archive`), never the working tree, and skip what
 `tools/citations/allow.txt` lists. In the trees `tools/citations/sized.txt` lists, a design
 document over LIMIT bytes fails too: under `--base`, only one that crossed the limit or grew
-while over it. Exit 0 clean, 1 findings, 2 usage or git failure.
+while over it. Each sized tree's STATUS.md must match status.py's fixed page in both modes.
+Exit 0 clean, 1 findings, 2 usage or git failure.
 """
 import collections
 import fnmatch
+import importlib.util
 import os
 import re
 import subprocess
@@ -558,7 +560,26 @@ def oversized(head, base=None):
 
 def show_sizes(big):
     for rel, size in big:
-        print(f"{rel}: size {size:,} bytes, over the {LIMIT:,}-byte limit: split it along its concepts")
+        print(f"{rel}: size {size:,} bytes, over the {LIMIT:,}-byte limit: split it along its concepts, "
+              "each piece under 40 KB (DESIGN.md, 5); don't cut text to fit")
+
+
+def fixed_pages(root, tracked, trees):
+    """Sized trees' tracked status pages must match the fixed page (DESIGN.md, 4)."""
+    paths = sorted((f"{tree}/docs/design/STATUS.md", tree) for tree in trees
+                   if f"{tree}/docs/design/STATUS.md" in tracked)
+    if not paths:
+        return []
+    # Load only when a page exists: checker-only fixtures need no roll-up script.
+    spec = importlib.util.spec_from_file_location("status", os.path.join(os.path.dirname(__file__), "status.py"))
+    status = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(status)
+    wrong = []
+    for rel, tree in paths:
+        with open(os.path.join(root, rel), "rb") as fh:
+            if fh.read().decode("utf-8") != status.page(tree):
+                wrong.append(rel)
+    return wrong
 
 
 def git(*args):
@@ -633,6 +654,13 @@ def main(argv):
             head_keys = keys(head, allow)
             trees = sized_trees(head_root)
             head_sizes = sizes(head_root, head_tracked, trees)
+            wrong_pages = fixed_pages(head_root, head_tracked, trees)
+            for rel in wrong_pages:
+                print(f"{rel}: STATUS.md is a fixed page (DESIGN.md, 4): "
+                      "put the gap in its document's status file")
+            if wrong_pages:
+                print("citations: print each fixed page with "
+                      "python3 -I -B tools/citations/status.py --page TREE", file=sys.stderr)
             if "--all" in args:
                 show(head, head_keys)
                 big = oversized(head_sizes)
@@ -641,7 +669,7 @@ def main(argv):
                 print(f"citations: {total} broken in {args['--head']}", file=sys.stderr)
                 if big:
                     print(f"citations: {len(big)} design documents over the size limit", file=sys.stderr)
-                return 1 if total or big else 0
+                return 1 if total or big or wrong_pages else 0
             base_root = os.path.join(tmp, "base")
             os.mkdir(base_root)
             base_tracked = extract(args["--base"], base_root)
@@ -664,7 +692,7 @@ def main(argv):
     if big:
         print(f"citations: {len(big)} design documents crossed or grew past the size limit; move their "
               "concepts into documents of their own with tools/citations/move.py.", file=sys.stderr)
-    return 1 if total or big else 0
+    return 1 if total or big or wrong_pages else 0
 
 
 if __name__ == "__main__":

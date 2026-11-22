@@ -342,7 +342,6 @@ impl World {
             | Event::Withdraw { .. }
             | Event::Restore { .. }
             | Event::Restored { .. }
-            | Event::PauseOutbox
             | Event::ReadAfresh
             | Event::Settle
             | Event::SettleOutbox
@@ -498,13 +497,13 @@ impl World {
         for resource in self.writers.clone() {
             self.event(Event::Writer { resource, taken: true });
         }
-        self.event(Event::PauseOutbox);
         let entries: Vec<_> = self.entries.iter().map(|(_, entry)| entry.clone()).collect();
         for entry in entries {
             assert!(!self.held.contains_key(&entry.number));
             self.event(Event::Make { entry });
         }
         self.event(Event::ReadAfresh);
+        self.event(Event::SettleOutbox);
     }
 
     pub fn finish(&mut self) {
@@ -790,7 +789,6 @@ impl World {
     fn commit(&mut self) {
         let mut decision = Vec::new();
         let mut calls = Vec::new();
-        let mut settle = false;
         while let Some(request) = self.out.pop() {
             self.referee.fact(format!("{request:?}"));
             match &request {
@@ -824,7 +822,6 @@ impl World {
                     self.outcomes.push((*entry, *outcome));
                 }
                 Request::Call { call, repository, op } => calls.push((*call, *repository, op.clone())),
-                Request::ReadAfreshDone => settle = true,
                 Request::Kept { result, .. } => assert_eq!(*result, Ok(())),
                 Request::Changed { resource, result } => {
                     if let Ok(answer) = result {
@@ -834,16 +831,13 @@ impl World {
                 Request::Read { owner, result } => {
                     assert!(self.read_results.insert(*owner, result.clone()).expect("owner read capacity").is_none());
                 }
-                Request::Drift { .. } | Request::Settled { .. } | Request::OutboxDone => {}
+                Request::ReadAfreshDone | Request::Drift { .. } | Request::Settled { .. } | Request::OutboxDone => {}
             }
             decision.push(request);
         }
         self.decisions.push(Decision::Output(decision));
         for (call, repository, op) in calls {
             self.submit(call, repository, op);
-        }
-        if settle {
-            self.event(Event::SettleOutbox);
         }
     }
 

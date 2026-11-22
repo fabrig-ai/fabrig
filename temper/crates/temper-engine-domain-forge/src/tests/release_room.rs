@@ -93,7 +93,8 @@ fn a_release_comment_waits_then_keeps_one_fresh_entry_before_its_close() {
     for number in 2..=u64::from(env().limits.entries) {
         freed(&mut d, number);
     }
-    outputs(&mut d, Event::SettleOutbox);
+
+    outputs(&mut d, Event::Client(skein_forge_client::Event::SettleOutbox));
     fixtures::answer_next(&mut d, Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now }));
     let (call, op) = fixtures::next_call(&mut d);
     assert_eq!(op, skein_forge::api::Op::Write(entry.effect.write.clone()));
@@ -169,8 +170,8 @@ fn release_places_restart_in_order_without_repeating_the_write() {
         outputs(&mut d, Event::Restore { record: Stored::Entry { entry: entry.entry.clone(), held: true } });
     }
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     assert_eq!(room::reserved(&d), 0);
     assert_eq!(d.releases.get(&TASK).unwrap().room, Some(1));
     assert_eq!(asks(&outputs(&mut d, Event::Resolve { entry: 1, again: false })).as_ref(), &[TASK]);

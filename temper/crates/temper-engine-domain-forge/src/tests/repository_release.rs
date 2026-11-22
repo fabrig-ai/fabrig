@@ -323,7 +323,7 @@ fn a_project_release_erases_every_owned_family_and_keeps_other_adoptions() {
 
 fn open(d: &mut Domain, l: &Limits) {
     at(d, l, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    at(d, l, Event::ReadAfresh);
+    at(d, l, Event::CatchUp);
 }
 #[expect(clippy::mem_replace_with_default, reason = "the subset uses an explicit empty terminal value")]
 fn apply(rows: &mut Vec<(Key, Stored)>, requests: &[Request]) {
@@ -601,7 +601,7 @@ fn a_sent_entrys_late_outcome_is_dropped_after_its_repository_is_released() {
     let mut d =
         restore(&[(Key::Repository(R), adoption(R, 5)), (Key::Entry(11), Stored::Entry { entry, held: false })], &l);
     open(&mut d, &l);
-    drive(&mut d, Event::SettleOutbox);
+
     let (mut call, mut op) = fixtures::next_call(&mut d);
     for _ in 0_u32..3 {
         let answer = if matches!(op, api::Op::Read(api::Read::Checks { .. })) {
@@ -713,7 +713,7 @@ fn unnamed_releases_an_ended_forge_in_pages_and_restart_resumes_it() {
             break;
         }
         // The root opens the restored connector before driving its wall deadline.
-        at(&mut restarted, &l, Event::ReadAfresh);
+        at(&mut restarted, &l, Event::CatchUp);
         let page = fire_page(&mut restarted, &l);
         erased.extend(erases(&page));
     }

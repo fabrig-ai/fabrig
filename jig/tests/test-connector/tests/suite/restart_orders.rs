@@ -2,7 +2,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use jig_test_connector::{Effect, Event, Hold, HoldMode, Outcome, Request, ResourceRole, ResourceSpec, RestartStep};
+use jig_test_connector::{Effect, Event, Hold, HoldMode, Outcome, Request, ResourceRole, ResourceSpec};
 use jig_test_connector_world::{LIMITS, World, config, kind, path};
 use jig_test_system::Fault;
 use skein_lib::Token;
@@ -72,6 +72,7 @@ fn assert_results(world: &World) {
     let mut closed = BTreeSet::new();
     let mut outcomes = Vec::new();
     let mut restarted = 0;
+    let mut read_afresh = 0;
     for request in world.trace() {
         if let Request::System(jig_test_connector::SystemRequest::ReadFact { resource, .. }) = request {
             *refreshes.entry(resource.clone()).or_insert(0) += 1;
@@ -81,6 +82,9 @@ fn assert_results(world: &World) {
         }
         if let Request::Outcome { entry, outcome } = request {
             outcomes.push((*entry, *outcome));
+        }
+        if *request == Request::ReadAfreshDone {
+            read_afresh += 1;
         }
         if *request == Request::RestartDone {
             restarted += 1;
@@ -94,28 +98,34 @@ fn assert_results(world: &World) {
     assert_eq!(closed, BTreeSet::from([EFFECT_OWNER]));
     assert_eq!(outcomes, [(EFFECT_ENTRY, Outcome::Made { state: EFFECT_TARGET, found: true })]);
     assert_eq!(restarted, 1);
+    assert_eq!(read_afresh, 1);
 }
 
-/// Pins `read_afresh_complete` in the scripted root's order and `outbox_settled`
-/// in the connector: ten fact replies are outstanding concurrently, past the
-/// nine-slot carrier; ten ready closes run in separate batches. The root holds
-/// a fact before starting outbox settlement, then holds the effect lookup reply.
+/// Ten fresh reads and a lookup stay outstanding beyond the request carrier.
+/// Each half reports once its last answer arrives, after the engine has opened.
 #[test]
-fn a_restart_reports_only_after_every_refresh_settles() {
+fn each_catch_up_half_reports_only_after_ending_with_the_engine_open() {
+    let mut core = jig_core_kit::fixtures::opened_before_catch_up(714);
     let mut world = loaded_world();
-    let reads = world.begin_restart();
+    assert!(core.ready() && !core.caught_up(1));
+    let calls = world.begin_catch_up();
     world.event(Event::Close { task: EFFECT_OWNER });
     let mut held = None;
-    for request in reads {
+    let mut looked = None;
+    for request in calls {
         if let Request::System(call) = request {
             let reply = world.system.answer(call, Fault::None);
-            if matches!(&reply, jig_test_connector::SystemEvent::Fact { resource, .. } if *resource == path(SEED, EFFECT_RESOURCE))
-            {
-                held = Some(reply);
-            } else {
-                world.event(Event::System(reply));
+            match &reply {
+                jig_test_connector::SystemEvent::Fact { resource, .. } if *resource == path(SEED, EFFECT_RESOURCE) => {
+                    held = Some(reply);
+                }
+                jig_test_connector::SystemEvent::Looked { .. } => looked = Some(reply),
+                _ => {
+                    world.event(Event::System(reply));
+                }
             }
         }
+        assert!(!world.trace().contains(&Request::ReadAfreshDone));
         assert!(!world.trace().contains(&Request::RestartDone));
         assert!(!world.trace().contains(&Request::Closed { task: EFFECT_OWNER }));
     }
@@ -125,24 +135,22 @@ fn a_restart_reports_only_after_every_refresh_settles() {
         world.event(Event::Close { task });
         world.event(Event::Unnamed { task });
         assert!(!world.trace().contains(&Request::RestartDone));
-        assert!(!world.trace().contains(&Request::Closed { task: EFFECT_OWNER }));
+        assert!(!world.trace().contains(&Request::ReadAfreshDone));
     }
-    // The scripted root completes every fresh read before asking the outbox to settle.
     let fact = held.expect("the effect resource's fact is held");
     world.event(Event::System(fact.clone()));
-    let calls = world.event(Event::Restart(RestartStep::SettleOutbox));
-    let mut looked = None;
-    for request in calls {
-        if let Request::System(call) = request {
-            looked = Some(world.system.answer(call, Fault::None));
-        }
-    }
+    assert!(core.ready(), "the engine is open before either report");
+    assert!(world.trace().contains(&Request::ReadAfreshDone));
+    core.catch_up_done(1, jig_domain_core::effects::connector::RestartStage::ReadAfresh);
+    assert!(!core.caught_up(1));
     world.event(Event::System(fact));
     assert!(!world.trace().contains(&Request::RestartDone));
     assert!(!world.trace().contains(&Request::Closed { task: EFFECT_OWNER }));
-    let reply = looked.expect("the restored effect is looked up after the fresh reads");
+    let reply = looked.expect("the restored effect's lookup is held");
     world.event(Event::System(reply.clone()));
     world.event(Event::System(reply));
     world.fire();
     assert_results(&world);
+    core.catch_up_done(1, jig_domain_core::effects::connector::RestartStage::Settled);
+    assert!(core.ready() && core.caught_up(1));
 }

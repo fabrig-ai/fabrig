@@ -282,6 +282,10 @@ fn keep(world: &mut World, start: Option<s::FollowStart>, key: u8) {
     assert_eq!(revision(world), against + 1, "{:?}; adoptions {:?}", world.web_replies, world.adopted);
 }
 fn change_setting(world: &mut World, value: Option<s::Follow>, key: u8) {
+    start_change_setting(world, value, key);
+    settle(world);
+}
+pub(crate) fn start_change_setting(world: &mut World, value: Option<s::Follow>, key: u8) {
     let against = revision(world);
     let kinds = value
         .clone()
@@ -314,7 +318,6 @@ fn change_setting(world: &mut World, value: Option<s::Follow>, key: u8) {
         }),
         kinds,
     }));
-    settle(world);
 }
 fn world(start: s::FollowStart) -> World {
     world_passing(start, 1000)
@@ -332,6 +335,9 @@ fn configured_follow(start: s::FollowStart, passes: u32, gate: Gate, cued: bool)
     world
 }
 fn unaccepted_follow(passes: u32, gate: Gate, cued: bool, context: bool) -> World {
+    unaccepted_follow_with_tables(passes, gate, cued, context, false)
+}
+fn unaccepted_follow_with_tables(passes: u32, gate: Gate, cued: bool, context: bool, tiny: bool) -> World {
     let mut world = World::configured_limits(
         true,
         true,
@@ -341,6 +347,10 @@ fn unaccepted_follow(passes: u32, gate: Gate, cued: bool, context: bool) -> Worl
         None,
         StoryLimits {
             second_project: true,
+            forge_entries: tiny.then_some(2),
+            forge_pending: tiny.then_some(2),
+            forge_calls: tiny.then_some(2),
+            sign_ins: tiny.then_some(2),
             forge_pages: Some(b"https://forge.example"),
             project_landing: cued.then(|| {
                 (

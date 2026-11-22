@@ -649,7 +649,8 @@ Two operations the application's tools run with the engine stopped
 (temper's `draft/upgrades.md`, 3.1 and 3.2), each taking the
 deployment's lock as a start does (1, step 1).
 
-- **A rehearsal** is a start that stops before its switch step. It
+- **A rehearsal** is a start that runs on to its opening with no
+  network (*On to the opening*, below), never past it. It
   refuses a directory holding `restore`, `Generations::Unfinished`, before
   copying anything (`restoring.md`, 5). It never writes the directory it is given, a copy of a stopped
   deployment's such as a backup: it reads `active` and that
@@ -665,20 +666,32 @@ deployment's lock as a start does (1, step 1).
   the jobs (`layouts.md`, 5.5; `jobs.md`, 2), and the restores (loaded and
   linked, `../../domain/engine/restart.md`)
   run (over `A + 1` where the open writes, over the scratch's `A`
-  otherwise); then the rehearsing root ends where it would take the
-  switch step, at which every start's first act beyond the process
-  waits (`../../domain/engine/restart.md`), so a rehearsal makes no
-  effect, serves no secret and adopts no run. It answers what it ran:
+  otherwise). It answers what it ran:
   the jobs with their counts (`jobs.md`, 3), the
   refusal a start would meet, or the restores whole; the wires `A`'s
   last start spoke (`records.md`, 3), and the workers' openings `A` keeps since that start
-  (`records.md`, 3, *The workers' openings*), from which the application
+  (`records.md`, 3, *The workers' openings*), read before its own wires
+  commit, from which the application
   says whether each of its workers may
   stay; how many files it linked into the scratch and how many it
   copied, a link the file system refused counted as a copy, with
-  `Rehearsing`; and that what follows the switch (adopting runs, reading the
-  systems, settling the outboxes) is not rehearsed. The scratch is
+  `Rehearsing`; and the opening (below). The scratch is
   emptied as it ends.
+- **On to the opening.** After the restores the rehearsing root takes
+  the switch step inside the scratch: the store marks the scratch's
+  generation active there, the directory it was given untouched, and
+  commits the start's wires into the copy (`records.md`, 3). The runs
+  are adopted with no worker listening: claims in the engine and on
+  in-process workers settle at once as at any start, and claims on
+  other workers wait in the fleet, unawaited. Decisions open, and each
+  connector begins catching up (`../../domain/engine/restart.md`, steps 4
+  and 5) with every call to its system refused at once, so nothing
+  leaves the process: no effect is made and no secret served beyond
+  it. The rehearsal ends there, at the opening, and answers how long
+  the start took to open and what each connector would still have to
+  catch up, as the application reports it. A transcript is never
+  written or dropped in a rehearsal, since its transcripts are the
+  given directory's (above).
 - **Its reach,** `Reach`, which the request names. `Whole` is all of the
   above. `Openings` reads only the rows from which the application
   judges its workers, and ends there, for a redeploy that judges them
