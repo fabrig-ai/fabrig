@@ -319,6 +319,7 @@ impl Component {
                 | Waiting::Read { sign_in, .. }
                 | Waiting::Authorize { sign_in, .. }
                 | Waiting::ApplicationRead { sign_in, .. } => Some(*sign_in),
+                Waiting::Reissue { sign_in, .. } => *sign_in,
                 Waiting::LinkAskWhose { .. }
                 | Waiting::AskedWhose { .. }
                 | Waiting::ApprovalWhose { .. }

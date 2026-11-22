@@ -62,6 +62,8 @@ pub(crate) enum Waiting {
     Keep { sign_in: u64, owner: SecretOwner, answer: Answer },
     Get { owner: crate::component::services::GetOwner, digest: Secret, body: Box<[u8]>, route: Route },
     Made { sign_in: u64, party: u64 },
+    // No asker after sign-out, but the reissue still drains.
+    Reissue { sign_in: Option<u64>, party: u64, phase: Reissue },
     Moving { sign_in: u64, account: u32, number: u32 },
     Read { sign_in: u64, expires: skein_lib::Wall, what: Box<jig_domain_core_vocabulary::reads::Read> },
     ApplicationRead { sign_in: u64, family: u16, version: u32 },
@@ -70,6 +72,14 @@ pub(crate) enum Waiting {
     // `request` only once the value is durable (protocol/store/secrets.md).
     Carry { sign_in: u64, family: Option<u16>, version: u32, request: Box<CarriedRequest> },
     Checked { sign_in: u64, expires: skein_lib::Wall, body: Box<[u8]>, route: Route },
+}
+/// Reissuing holds service sign-ins from the core ask through the store's keep.
+#[derive(Debug)]
+pub(crate) enum Reissue {
+    Asked,
+    // A preceding keep must finish before drawing.
+    Draw,
+    Keep(Result<w::KeyedAnswer, w::Problem>),
 }
 /// An admitted value's request, without the value or a speculative carried number.
 #[derive(Debug)]
@@ -94,7 +104,8 @@ pub(crate) enum Answer {
     Approval(w::SignedIn),
     SignedIn(w::SignedIn),
     Minted { credential: Secret, expires: skein_lib::Wall },
-    Service(w::KeyedAnswer),
+    // The answer is discarded if the asker signs out before the keep finishes.
+    Service(Option<w::KeyedAnswer>),
 }
 #[derive(Debug)]
 pub(crate) struct Pending {
@@ -155,6 +166,60 @@ pub(crate) fn constant_time_eq(left: &[u8], right: &[u8]) -> bool {
 }
 
 impl Waiting {
+    pub(crate) fn holding_reissue(&self) -> Option<(Option<u64>, u64, &Reissue)> {
+        match self {
+            Self::Reissue { sign_in, party, phase } => Some((*sign_in, *party, phase)),
+            Self::LinkAskWhose { .. }
+            | Self::AskedWhose { .. }
+            | Self::ApprovalWhose { .. }
+            | Self::ApprovalCore { .. }
+            | Self::Authorize { .. }
+            | Self::Core { .. }
+            | Self::LinkGet { .. }
+            | Self::SignOut { .. }
+            | Self::Watch { .. }
+            | Self::Keep { .. }
+            | Self::Get { .. }
+            | Self::Made { .. }
+            | Self::Moving { .. }
+            | Self::Read { .. }
+            | Self::ApplicationRead { .. }
+            | Self::Ask { .. }
+            | Self::Carry { .. }
+            | Self::Checked { .. } => None,
+        }
+    }
+    pub(crate) fn keep_owner(&self) -> Option<SecretOwner> {
+        match self {
+            Self::Keep { owner, .. } => Some(*owner),
+            Self::Reissue { party, phase: Reissue::Keep(_), .. } => Some(SecretOwner::Service(*party)),
+            Self::Reissue { phase: Reissue::Asked | Reissue::Draw, .. }
+            | Self::LinkAskWhose { .. }
+            | Self::AskedWhose { .. }
+            | Self::ApprovalWhose { .. }
+            | Self::ApprovalCore { .. }
+            | Self::Authorize { .. }
+            | Self::Core { .. }
+            | Self::LinkGet { .. }
+            | Self::SignOut { .. }
+            | Self::Watch { .. }
+            | Self::Get { .. }
+            | Self::Made { .. }
+            | Self::Moving { .. }
+            | Self::Read { .. }
+            | Self::ApplicationRead { .. }
+            | Self::Ask { .. }
+            | Self::Carry { .. }
+            | Self::Checked { .. } => None,
+        }
+    }
+    pub(crate) fn service_work(&self) -> bool {
+        self.holding_reissue().is_some()
+            || match self.keep_owner() {
+                Some(SecretOwner::Service(_)) => true,
+                Some(SecretOwner::SignIn(_) | SecretOwner::Carried(_) | SecretOwner::PublicNames) | None => false,
+            }
+    }
     pub(crate) fn approval_take(&self) -> bool {
         match self {
             Self::ApprovalWhose { .. } | Self::ApprovalCore { .. } | Self::Keep { answer: Answer::Approval(_), .. } => {
@@ -170,6 +235,7 @@ impl Waiting {
             | Self::Keep { .. }
             | Self::Get { .. }
             | Self::Made { .. }
+            | Self::Reissue { .. }
             | Self::Moving { .. }
             | Self::Read { .. }
             | Self::ApplicationRead { .. }

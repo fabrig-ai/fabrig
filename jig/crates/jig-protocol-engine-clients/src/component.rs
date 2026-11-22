@@ -392,6 +392,7 @@ impl Component {
                 | Waiting::Keep { .. }
                 | Waiting::Moving { .. }
                 | Waiting::Made { .. }
+                | Waiting::Reissue { .. }
                 | Waiting::Read { .. }
                 | Waiting::Authorize { .. }
                 | Waiting::ApplicationRead { .. }
@@ -429,6 +430,7 @@ impl Component {
                 | Waiting::Keep { .. }
                 | Waiting::Moving { .. }
                 | Waiting::Made { .. }
+                | Waiting::Reissue { .. }
                 | Waiting::Read { .. }
                 | Waiting::Authorize { .. }
                 | Waiting::ApplicationRead { .. }
@@ -462,7 +464,13 @@ impl Component {
         } else if let Some(why) = connection.ended {
             out.push(Request::Transport(crate::ToTransport::StreamEnded { stream: owner, why }));
         }
-        self.pending.exchanges.remove(&connection.name);
+        // A credential change already sent to the core or store does not
+        // end when its caller goes away or signs out.
+        if let Some(waiting) = self.pending.exchanges.get(&connection.name)
+            && !waiting.service_work()
+        {
+            self.pending.exchanges.remove(&connection.name);
+        }
         if let Some(stream) = self.streams.get_mut(&owner) {
             stream.phase = crate::stream::Phase::Closing;
             stream.closed_connection = true;
@@ -722,6 +730,9 @@ impl Component {
             Waiting::ApprovalCore { digest } => self.approval_reply(env, exchange, digest, reply, out),
             Waiting::Core { held } => self.sign_in_reply(env, exchange, reply, held, false, out),
             Waiting::Ask { sign_in, .. } => self.ask_reply(env, exchange, sign_in, reply, out, waiting),
+            Waiting::Reissue { sign_in, party, phase: sign_in::Reissue::Asked } => {
+                self.reissue_reply(env, exchange, sign_in, party, reply, out);
+            }
             Waiting::LinkGet { .. }
             | Waiting::Watch { .. }
             | Waiting::Read { .. }
@@ -730,6 +741,7 @@ impl Component {
             | Waiting::Get { .. }
             | Waiting::Moving { .. }
             | Waiting::Made { .. }
+            | Waiting::Reissue { .. }
             | Waiting::Carry { .. }
             | Waiting::Checked { .. } => {
                 self.pending.exchanges.insert(exchange, waiting).expect("same slot");
@@ -803,6 +815,7 @@ impl Component {
             | Waiting::Keep { .. }
             | Waiting::Get { .. }
             | Waiting::Made { .. }
+            | Waiting::Reissue { .. }
             | Waiting::Read { .. }
             | Waiting::Authorize { .. }
             | Waiting::ApplicationRead { .. }
@@ -855,6 +868,7 @@ impl Component {
             | Waiting::Get { .. }
             | Waiting::Moving { .. }
             | Waiting::Made { .. }
+            | Waiting::Reissue { .. }
             | Waiting::Checked { .. }
             | Waiting::Read { .. }
             | Waiting::Authorize { .. }
@@ -938,6 +952,7 @@ impl Component {
                 | Waiting::Keep { .. }
                 | Waiting::Moving { .. }
                 | Waiting::Made { .. }
+                | Waiting::Reissue { .. }
                 | Waiting::Read { .. }
                 | Waiting::Authorize { .. }
                 | Waiting::ApplicationRead { .. }

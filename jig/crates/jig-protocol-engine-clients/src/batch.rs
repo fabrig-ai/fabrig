@@ -211,6 +211,7 @@ impl Component {
                 | Waiting::Get { .. }
                 | Waiting::Moving { .. }
                 | Waiting::Made { .. }
+                | Waiting::Reissue { .. }
                 | Waiting::Checked { .. }
                 | Waiting::Ask { .. }
                 | Waiting::Carry { .. }

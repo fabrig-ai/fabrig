@@ -136,6 +136,7 @@ impl Component {
             | Waiting::Get { .. }
             | Waiting::Moving { .. }
             | Waiting::Made { .. }
+            | Waiting::Reissue { .. }
             | Waiting::Ask { .. }
             | Waiting::Carry { .. }
             | Waiting::Checked { .. } => {
@@ -177,6 +178,7 @@ impl Component {
             | Waiting::Get { .. }
             | Waiting::Moving { .. }
             | Waiting::Made { .. }
+            | Waiting::Reissue { .. }
             | Waiting::Ask { .. }
             | Waiting::Carry { .. }
             | Waiting::Read { .. }

@@ -171,7 +171,6 @@ fn operation_project(value: &w::Operation) -> u32 {
 /// Job admission: jig/docs/design/client/domain/contract/documents.md, 7.
 pub(crate) fn refused(record: &w::Ask, limits: &w::Limits) -> Result<Option<w::KeyedAnswer>, w::Problem> {
     let tasks = match record {
-        w::Ask::ReissueService(_) => return encoded_refusal(w::Refusal::NotOffered, None, limits),
         w::Ask::Create(value) => Some(value.tasks.as_ref()),
         w::Ask::Delegate(value) => Some(value.tasks.as_ref()),
         w::Ask::Message(_)
@@ -190,6 +189,7 @@ pub(crate) fn refused(record: &w::Ask, limits: &w::Limits) -> Result<Option<w::K
         | w::Ask::ChangePolicy(_)
         | w::Ask::SetRoles(_)
         | w::Ask::MakeService(_)
+        | w::Ask::ReissueService(_)
         | w::Ask::SetPool(_)
         | w::Ask::Compound(_)
         | w::Ask::Propose(_)

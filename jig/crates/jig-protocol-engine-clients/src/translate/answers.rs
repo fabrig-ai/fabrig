@@ -51,9 +51,6 @@ pub(crate) fn answer(
             let outcome = w::Outcome::Made(w::OutcomeMade { what });
             w::Final::Done(w::Done { outcome })
         }
-        p::Reply::Outcome(p::Outcome::ServiceReissued { .. }) => {
-            w::Final::Refused(w::Refused { at: None, refusal: w::Refusal::NotOffered })
-        }
         p::Reply::Outcome(value) => {
             let value = owner(value, limits)?;
             let outcome = w::Outcome::Document(w::OutcomeDocument { value });
@@ -77,7 +74,16 @@ pub(crate) fn service(
     credential: skein_lib::Secret,
     limits: &w::Limits,
 ) -> Result<w::KeyedAnswer, w::Problem> {
-    let what = w::Made::Service(w::MadeService { party, credential });
+    made(w::Made::Service(w::MadeService { party, credential }), limits)
+}
+pub(crate) fn reissued(
+    party: u64,
+    credential: skein_lib::Secret,
+    limits: &w::Limits,
+) -> Result<w::KeyedAnswer, w::Problem> {
+    made(w::Made::Reissued(w::MadeService { party, credential }), limits)
+}
+fn made(what: w::Made, limits: &w::Limits) -> Result<w::KeyedAnswer, w::Problem> {
     let outcome = w::Outcome::Made(w::OutcomeMade { what });
     let answer = w::Final::Done(w::Done { outcome });
     let mut out = Writer::new(skein_lib::length::usize_of(answer.measure(limits)?));
