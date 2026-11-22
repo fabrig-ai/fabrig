@@ -359,6 +359,7 @@ impl<A: crate::Application> Engine<A> {
             | Ask::ChangePolicy { .. }
             | Ask::SetRoles { .. }
             | Ask::MakeService { .. }
+            | Ask::ReissueService { .. }
             | Ask::SignIn { .. }
             | Ask::AccountChange { .. }
             | Ask::SignOut { .. }
@@ -430,6 +431,7 @@ impl<A: crate::Application> Engine<A> {
                 | Ask::ChangePolicy { .. }
                 | Ask::SetRoles { .. }
                 | Ask::MakeService { .. }
+                | Ask::ReissueService { .. }
                 | Ask::Withdraw { .. }
                 | Ask::RemoveProject { .. }
                 | Ask::SetVisibility { .. }
@@ -530,6 +532,7 @@ impl<A: crate::Application> Engine<A> {
             | Ask::ChangePolicy { .. }
             | Ask::SetRoles { .. }
             | Ask::MakeService { .. }
+            | Ask::ReissueService { .. }
             | Ask::RemoveProject { .. }
             | Ask::SetVisibility { .. }
             | Ask::Rename { .. }
@@ -688,6 +691,7 @@ fn target(ask: &Ask) -> Option<Target> {
         | Ask::SignOut { .. }
         | Ask::Conclude { .. }
         | Ask::Delegate { .. }
+        | Ask::ReissueService { .. }
         | Ask::AccountChange { .. } => return None,
         Ask::Compound { project, operations } => {
             compound_target(*project, operations).unwrap_or((Some(*project), None, ActKind::Message, None))

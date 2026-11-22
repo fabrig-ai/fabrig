@@ -187,7 +187,7 @@ impl Processes {
         largest.map(Duration::from_nanos)
     }
 
-    #[cfg(test)]
+    #[cfg(target_os = "linux")]
     pub(super) fn len(&self) -> usize {
         self.threads.len()
     }
@@ -196,7 +196,7 @@ impl Processes {
 #[cfg(test)]
 mod tests {
     use super::{Boot, Proc, Processes, clock_ticks, parse_stat};
-    use crate::deadline::{Deadline, Duration, Expired, Figures, TreeWatch, classify};
+    use crate::deadline::{Deadline, Duration, Expired, Figures, Time, TreeWatch, classify};
 
     const ROOT: &str = "10 (root ) worker) S 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1";
     const CHILD: &str = "30 (child) S 10 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 101";
@@ -234,7 +234,7 @@ mod tests {
         ]);
         for (end, expected, starved) in [(large, 60, true), (small, 40, false)] {
             for pids in [[10, 20], [20, 10]] {
-                let mut deadline = Deadline::arm("two sources", Duration::from_nanos(100));
+                let mut deadline = Deadline::at("two sources", Duration::from_nanos(100), Time::ZERO);
                 for pid in pids {
                     deadline.trees.push(TreeWatch::Threads(Processes::arm(&[pid], &START)));
                 }

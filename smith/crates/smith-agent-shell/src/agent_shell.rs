@@ -630,16 +630,35 @@ fn run_configured(
 
 #[cfg(unix)]
 fn open_program(program: &config::Program, errors: &mut dyn Write) -> Result<ProgramResources, String> {
+    open_program_with(
+        program,
+        errors,
+        || {
+            let relay = std::env::current_exe().map_err(|error| format!("program relay: {error}"))?;
+            let entropy = skein_shell::crypto_seed().map_err(|error| format!("program entropy: {error}"))?;
+            Ok((relay, entropy))
+        },
+        crate::program::private_directory,
+        skein_shell::open_root,
+    )
+}
+
+#[cfg(unix)]
+pub(super) fn open_program_with(
+    program: &config::Program,
+    errors: &mut dyn Write,
+    relay: impl FnOnce() -> Result<(std::path::PathBuf, Secret), String>,
+    check_directory: impl FnOnce(&Path) -> Result<bool, crate::program::Refusal>,
+    open_directory: impl FnOnce(&Path) -> Result<Fd, i32>,
+) -> Result<ProgramResources, String> {
     let opened = (|| {
-        Ok(ProgramResources {
-            relay: std::env::current_exe().map_err(|error| format!("program relay: {error}"))?,
-            entropy: skein_shell::crypto_seed().map_err(|error| format!("program entropy: {error}"))?,
-            directory: if crate::program::private_directory(&program.directory).map_err(|error| error.to_string())? {
-                Some(skein_shell::open_root(&program.directory).map_err(|error| format!("programs root: {error:?}"))?)
-            } else {
-                None
-            },
-        })
+        let (relay, entropy) = relay()?;
+        let directory = if check_directory(&program.directory).map_err(|error| error.to_string())? {
+            Some(open_directory(&program.directory).map_err(|error| format!("programs root: {error:?}"))?)
+        } else {
+            None
+        };
+        Ok(ProgramResources { relay, entropy, directory })
     })();
     opened.inspect_err(|why: &String| diagnostic(errors, why))
 }

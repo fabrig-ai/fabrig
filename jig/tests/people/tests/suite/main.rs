@@ -9,6 +9,7 @@ mod deletion;
 mod memory;
 mod referee;
 mod restore_open;
+mod services;
 mod simulation;
 
 mod fuzzy {

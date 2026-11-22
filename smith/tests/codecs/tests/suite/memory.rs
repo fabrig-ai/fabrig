@@ -86,7 +86,7 @@ fn transcript_limits() -> transcript::Limits {
 #[test]
 fn charter_at_its_largest_instruction_payload_stays_within_the_configured_heap_bound() {
     let limits = charter_limits();
-    let smallest = crate::support::goldens::bytes("charter", 5, "record_charter_smallest.bin");
+    let smallest = crate::support::fixed_values::fixed_value("charter", 5, "record_charter_smallest.bin");
     let size = limits.charter_instructions;
     let mut wire = Vec::with_capacity(smallest.len() + usize::try_from(size).expect("ceiling fits"));
     wire.extend_from_slice(smallest.get(..2).expect("version prefix"));

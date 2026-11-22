@@ -7,6 +7,16 @@ pub mod lists;
 pub mod open;
 pub mod world;
 
+#[doc(hidden)]
+pub mod testing {
+    pub use crate::world::testing::fork_cut;
+
+    #[must_use]
+    pub fn oracle_closed(world: &crate::world::World) -> bool {
+        world.oracle_closed
+    }
+}
+
 mod application_observations;
 pub mod client_peer;
 pub mod peers;

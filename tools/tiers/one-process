@@ -20,6 +20,7 @@ def main():
     parser.add_argument('--walls', type=Path)
     parser.add_argument('--ledger', type=Path)
     parser.add_argument('--gate', action='store_true')
+    parser.add_argument('--layers', type=lambda value: value.split(','))
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument('--again', type=Path, metavar='RUN_DIR')
     mode.add_argument('--alone', type=Path, metavar='HEAD_DIR')
@@ -41,7 +42,7 @@ def main():
         signal.signal(signal.SIGTERM, interrupt)
         signal.signal(signal.SIGHUP, interrupt)
         if args.alone is not None:
-            for option in ('budgets', 'walls', 'ledger', 'gate'):
+            for option in ('budgets', 'walls', 'ledger', 'gate', 'layers'):
                 if getattr(args, option):
                     raise ValueError(f'--{option} is not supported with --alone')
             directory = args.out
@@ -58,6 +59,8 @@ def main():
                 command = [*runner['command_prefix'](env), 'cargo', 'nextest', 'run', *args.arguments]
                 return one['alone_at_base'](args.alone, command, env, directory)
         if args.again is not None:
+            if args.layers is not None:
+                raise ValueError('--layers is not supported with --again')
             if args.gate:
                 raise ValueError('--gate is not supported with --again')
             if args.budgets is not None:
@@ -77,6 +80,9 @@ def main():
             print(directory, flush=True)
             with runner['hold'](prefix, 'one-process', Path.cwd(), env):
                 return one['again'](plan, runner['command_prefix'](env), env, directory)
+        if args.layers is not None:
+            one = runpy.run_path(str(Path(__file__).with_name('one_process.py')))
+            one['layer_selection'](Path('tools/tiers/layers.toml'), args.profile, args.layers)
         ledger = cpu['ledger'](args.ledger) if args.ledger is not None else None
         if ledger is not None and ledger['profile'] != args.profile:
             raise ValueError('ledger profile does not match run')
@@ -101,7 +107,7 @@ def main():
             command = [*runner['command_prefix'](env), 'cargo', 'nextest', 'run',
                        '--profile', args.profile, '--no-fail-fast',
                        *([] if packages else ['--workspace']), *extra]
-            code = cpu['execute_one_process'](command, env, directory, args.profile, limits, walls=args.walls, gate=args.gate, ledger=ledger)
+            code = cpu['execute_one_process'](command, env, directory, args.profile, limits, walls=args.walls, gate=args.gate, ledger=ledger, selected_layers=args.layers)
             sys.stdout.flush()
             return code
     except (OSError, ValueError, KeyError, TypeError, runner['FailedStep']) as error:

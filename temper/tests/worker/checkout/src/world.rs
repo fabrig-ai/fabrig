@@ -2,6 +2,9 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use skein_lib::{Duration, Rng, Time, Token};
 use skein_world::domain::{Key, Ledger, Schedule, Span, Stage, Trace};
+use skein_world::faults::FaultLedger;
+use skein_world::inspect::{Moment, check_tables, check_waits};
+use skein_world::streams::Streams;
 use temper_fake_checkout::Checkout;
 use temper_fake_checkout::git::{Created, Remote, Tree};
 use temper_worker_domain_checkout::git::{Done, Fault, Kind, Missing, Op, Want};
@@ -265,6 +268,8 @@ enum Work {
     Perform(Op),
     /// It runs when it ends, and io reports that it ran out of time.
     Ambiguous(Op),
+    /// Partial disk effects, answered at the operation's deadline.
+    Cut(Op),
     /// It ends so, having done nothing.
     Ending(Done),
 }
@@ -292,8 +297,11 @@ enum Verified {
 #[derive(Debug)]
 pub struct World {
     now: Time,
+    iteration: u64,
     rng: Rng,
+    scheduling: Option<Rng>,
     settings: Settings,
+    faults: crate::faults::Faults,
     domain: Domain,
     stage: Stage<Limits, Event, Request>,
     wire: Schedule<Delivery>,
@@ -366,8 +374,11 @@ impl World {
         }
         World {
             now: Time::ZERO,
+            iteration: 0,
             rng,
+            scheduling: None,
             settings,
+            faults: crate::faults::Faults::default(),
             domain,
             stage: Stage::uncapped(settings.checkout),
             wire: Schedule::new(),
@@ -412,6 +423,44 @@ impl World {
         self.holds.clear();
         self.workspaces.clear();
         self.checked_out.clear();
+    }
+
+    /// The fault sweep's world: workload and fault draws have independent streams.
+    #[must_use]
+    pub fn with_faults(settings: Settings, streams: Streams) -> World {
+        let mut world =
+            Self::new(Settings { seed: streams.seed_of(skein_world::streams::Stream::Workload, "worker"), ..settings });
+        world.settings.seed = streams.seed();
+        world.scheduling = Some(streams.rng(skein_world::streams::Stream::Scheduling, "worker"));
+        world.faults.seed(streams, world.iteration);
+        world
+    }
+
+    /// Cut the next matching content-fetch operation at its deadline.
+    pub fn cut_next(&mut self, kind: Kind) {
+        self.faults.cut_next(kind);
+    }
+
+    /// Set capacity just above the current regular-file usage.
+    pub fn limit_disk(&mut self, headroom: u64) {
+        self.faults.capacity = Some(self.disk_used() + headroom);
+    }
+
+    #[must_use]
+    pub fn disk_used(&self) -> u64 {
+        translate::used(&self.disk)
+    }
+
+    #[must_use]
+    pub fn faults(&self) -> &FaultLedger {
+        &self.faults.ledger
+    }
+
+    /// Settle a sweep's run and return its ledger with the checked outcome.
+    #[must_use]
+    pub fn run_faults(mut self, iterations: u32) -> FaultLedger {
+        self.run(iterations);
+        self.faults.ledger
     }
 
     pub fn write_disk(&mut self, path: &[u8], content: &[u8]) {
@@ -518,7 +567,7 @@ impl World {
     /// settled world. Panics if it takes more than `iterations`.
     pub fn run(&mut self, iterations: u32) {
         for _ in 0..iterations {
-            self.iterate();
+            self.iterate().unwrap_or_else(|finding| panic!("{finding}"));
             if self.has_work_now() {
                 continue;
             }
@@ -533,7 +582,9 @@ impl World {
     }
 
     /// One iteration of the loop, as the shell would run it.
-    fn iterate(&mut self) {
+    fn iterate(&mut self) -> Result<(), String> {
+        self.iteration += 1;
+        self.faults.tick(self.iteration, &self.disk);
         self.stage.tick(self.now);
         self.deliver();
         while let Some(event) = self.stage.next_event() {
@@ -555,7 +606,13 @@ impl World {
         assert!(self.workspaces.len() <= usize::try_from(limits.workspaces).expect("small"), "no more directories");
         self.stats.most_workspaces = self.stats.most_workspaces.max(self.domain.workspaces());
         self.stats.most_holds = self.stats.most_holds.max(self.domain.holds());
+        let moment = Moment { seed: self.settings.seed, at: self.now, iteration: self.iteration };
+        let mut found = temper_worker_inspect::inspection();
+        temper_worker_inspect::inspect_checkout(&self.domain, &limits, &mut found);
+        temper_worker_inspect::inspect_disk(&self.domain, &limits, &self.disk, &mut found);
+        check_waits(&[&found], moment).and(check_tables(&[&found], moment))?;
         self.domain.reclaim();
+        Ok(())
     }
 
     fn deliver(&mut self) {
@@ -672,7 +729,7 @@ impl World {
         let hosted = self.repositories.iter().any(|hosted| hosted.remote == first.remote);
         if hosted && self.rng.chance(self.settings.advance) {
             let delivery = Delivery::Advance { repository: first.remote.clone(), branch: base.clone() };
-            let at = self.now.saturating_add(self.settings.remote.draw(&mut self.rng));
+            let at = self.now.saturating_add(self.latency(self.settings.remote));
             self.schedule(at, delivery);
         }
         let mut key = format!("work-{workstream}").into_bytes();
@@ -961,7 +1018,7 @@ impl World {
                 repository: repo.remote.clone(),
                 branch: format!("base/{}", client.plan.workstream).into_bytes(),
             };
-            let at = self.now.saturating_add(self.settings.think.draw(&mut self.rng));
+            let at = self.now.saturating_add(self.latency(self.settings.think));
             self.schedule(at, delivery);
         }
     }
@@ -1077,7 +1134,7 @@ impl World {
     fn think(&mut self, name: u64) {
         let client = self.clients.get(&name).expect("a client submitted");
         if client.release == Release::NotAsked {
-            let at = self.now.saturating_add(self.settings.think.draw(&mut self.rng));
+            let at = self.now.saturating_add(self.latency(self.settings.think));
             self.schedule(at, Delivery::Act { client: name });
         }
     }
@@ -1123,8 +1180,11 @@ impl World {
         }
         let verifies = self.attempt(owner, operation, &op);
         let span = if op.is_remote() { self.settings.remote } else { self.settings.local };
-        let mut ends = self.now.saturating_add(span.draw(&mut self.rng));
-        let mut work = if self.rng.chance(self.settings.broken) {
+        let mut ends = self.now.saturating_add(self.latency(span));
+        let cut = self.faults.draws_cut(op.kind());
+        let mut work = if cut {
+            Work::Cut(op)
+        } else if self.rng.chance(self.settings.broken) {
             self.stats.op_broken += 1;
             Work::Ending(Done::Failed { fault: Fault::Broken })
         } else if self.rng.chance(self.settings.ambiguous.max(if op.kind() == Kind::Push {
@@ -1139,9 +1199,12 @@ impl World {
         };
         // io runs the race with the deadline, and tells it lost a moment
         // after the deadline passes, having done nothing.
-        if ends > deadline {
+        if cut {
+            ends = deadline;
+            self.stats.op_timeouts += 1;
+        } else if ends > deadline {
             work = Work::Ending(Done::Failed { fault: Fault::TimedOut });
-            ends = deadline.saturating_add(self.settings.network.draw(&mut self.rng));
+            ends = deadline.saturating_add(self.latency(self.settings.network));
             self.stats.op_timeouts += 1;
         }
         let delivery = self.schedule(ends, Delivery::Ran { owner });
@@ -1210,7 +1273,7 @@ impl World {
             return;
         }
         let key = pending.delivery;
-        let at = self.now.saturating_add(self.settings.network.draw(&mut self.rng));
+        let at = self.now.saturating_add(self.latency(self.settings.network));
         let delivery = self.schedule(at, Delivery::Ran { owner });
         self.wire.withdraw(key).expect("an operation in flight has its end on the way");
         let pending = self.ops.get_mut(owner).expect("looked up above");
@@ -1225,9 +1288,10 @@ impl World {
         self.making.remove(&owner);
         self.cancel_lost.remove(&owner);
         let done = match pending.work {
-            Work::Perform(op) => self.perform(owner, op),
+            Work::Perform(op) => self.perform(owner, op, false),
+            Work::Cut(op) => self.perform(owner, op, true),
             Work::Ambiguous(op) => {
-                self.perform(owner, op);
+                self.perform(owner, op, false);
                 Done::Failed { fault: Fault::TimedOut }
             }
             Work::Ending(done) => done,
@@ -1262,7 +1326,7 @@ impl World {
         clippy::too_many_lines,
         reason = "the operation boundary records transferred objects and changed working paths"
     )]
-    fn perform(&mut self, owner: Token, op: Op) -> Done {
+    fn perform(&mut self, owner: Token, op: Op, cut: bool) -> Done {
         // As it takes effect: its hold still holds its workspace, and its
         // client still waits for the operation it is part of.
         let workspace = translate::workspace(&op);
@@ -1338,7 +1402,17 @@ impl World {
         let kind = op.kind();
         let creates = kind == Kind::Create;
         self.forge.at(self.now);
-        let done = translate::perform(&mut self.forge, &mut self.disk, op);
+        let used = if self.faults.capacity.is_some() { self.disk_used() } else { 0 };
+        let done = if cut && self.faults.capacity.is_none_or(|capacity| used < capacity) {
+            let done = translate::cut(&mut self.forge, &mut self.disk, op);
+            if matches!(done, Done::Failed { fault: Fault::TimedOut }) {
+                self.faults.cut(owner, kind, self.now);
+            }
+            done
+        } else {
+            translate::perform_with_capacity(&mut self.forge, &mut self.disk, op, self.faults.capacity)
+        };
+        self.faults.answered(owner, kind, self.now, used, &done);
         if let Some((repository, objects, before)) = transfer {
             let after = object_markers(&self.disk, &objects);
             let commits = after.difference(&before).copied().collect();
@@ -1511,6 +1585,10 @@ impl World {
         let mut tree = self.disk.tree(&dir);
         tree.retain(|path, _| !in_git(path));
         tree
+    }
+
+    fn latency(&mut self, span: Span) -> Duration {
+        span.draw(self.scheduling.as_mut().unwrap_or(&mut self.rng))
     }
 
     fn schedule(&mut self, at: Time, delivery: Delivery) -> Key {

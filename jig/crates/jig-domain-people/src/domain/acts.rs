@@ -222,6 +222,7 @@ fn permanent(outcome: &Outcome) -> bool {
         | OutcomeFamily::Refused
         | OutcomeFamily::CompoundRefused
         | OutcomeFamily::ServiceMade(_)
+        | OutcomeFamily::ServiceReissued
         | OutcomeFamily::RolesSet(_)
         | OutcomeFamily::ProjectMade(_)
         | OutcomeFamily::Settled => true,
@@ -251,6 +252,7 @@ mod classifications {
                 | OutcomeFamily::Refused
                 | OutcomeFamily::CompoundRefused
                 | OutcomeFamily::ServiceMade(_)
+                | OutcomeFamily::ServiceReissued
                 | OutcomeFamily::RolesSet(_)
                 | OutcomeFamily::ProjectMade(_)
                 | OutcomeFamily::Settled => (true, Reply::Outcome(outcome.clone())),
@@ -271,6 +273,7 @@ mod classifications {
                 | OutcomeFamily::Refused
                 | OutcomeFamily::CompoundRefused
                 | OutcomeFamily::ServiceMade(_)
+                | OutcomeFamily::ServiceReissued
                 | OutcomeFamily::RolesSet(_)
                 | OutcomeFamily::Settled => None,
             };
