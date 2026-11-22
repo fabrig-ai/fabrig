@@ -1,8 +1,20 @@
 //! Borrowed inspection of the task child's own tables and armed deadlines.
-use crate::{Domain, Name, PoolSlots, ResourceReport};
+use crate::{Domain, Name, PoolSlots, ResourceReport, TaskRecord};
+use core::ops::Bound::{Excluded, Unbounded};
 use skein_lib::{Deadlines, Map, Set, Token};
 
 impl Domain {
+    /// Borrow the next named live row without building a projection for the world's adapter.
+    /// `None` starts in name order; otherwise the row follows `after` strictly.
+    #[must_use]
+    pub fn inspection_task_after(&self, after: Option<u64>) -> Option<&TaskRecord> {
+        let (_, id) = match after {
+            None => self.names.first(),
+            Some(number) => self.names.range((Excluded(number), Unbounded)).next(),
+        }?;
+        Some(&self.tasks.get(*id).expect("named live task").record)
+    }
+
     /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
     #[must_use]
     pub const fn inspection_subscription_capacity(&self) -> u32 {

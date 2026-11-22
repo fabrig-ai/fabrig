@@ -85,6 +85,24 @@ fn pool_queue(seed: u64) -> (World, u64, u64) {
 }
 
 #[test]
+fn inspection_walk_borrows_each_row_without_allocating() {
+    let (world, _, _) = pool_queue(12796);
+    let tasks = &world.domain.core().tasks;
+    let expected = tasks.view_tasks();
+    let heap = skein_world::domain::heap::Meter::new();
+    heap.start();
+    let mut after = None;
+    for view in &expected {
+        let row = tasks.inspection_task_after(after).expect("next named row");
+        assert_eq!(row.number, view.number);
+        assert!(std::ptr::eq(row, tasks.task(view.number).expect("named row")));
+        after = Some(row.number);
+    }
+    assert!(tasks.inspection_task_after(after).is_none());
+    assert_eq!(heap.end().peak(), 0, "inspection borrows rows, not a projection");
+}
+
+#[test]
 fn a_pool_queue_has_the_holders_and_its_armed_bound() {
     let (world, holder, task) = pool_queue(11728);
     let inspection = inspect(&world, 11728);

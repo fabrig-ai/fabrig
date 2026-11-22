@@ -42,8 +42,9 @@ pub(crate) fn tasks(domain: &Domain, core: Option<&Core>, into: &mut Inspection)
     for (_, pins) in domain.inspection_report_pins() {
         reports.extend(pins);
     }
-    for view in domain.view_tasks() {
-        let Some(row) = domain.task(view.number) else { continue };
+    let mut after = None;
+    while let Some(row) = domain.inspection_task_after(after) {
+        after = Some(row.number);
         named.extend(row.holdings.iter().map(name));
         into.table(Table {
             name: "subscriptions",

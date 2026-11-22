@@ -66,8 +66,9 @@ fn wait(row: &TaskRecord, kind: &str, mut wakes: Vec<Wake>, bound: Option<Time>,
 }
 
 pub(crate) fn tasks(domain: &Domain, core: Option<&Core>, into: &mut Inspection) {
-    for view in domain.view_tasks() {
-        let Some(row) = domain.task(view.number) else { continue };
+    let mut after = None;
+    while let Some(row) = domain.inspection_task_after(after) {
+        after = Some(row.number);
         match &row.phase {
             Phase::Waiting => {
                 if row.waiting_on.is_empty() {
