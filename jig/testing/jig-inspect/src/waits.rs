@@ -65,89 +65,82 @@ fn wait(row: &TaskRecord, kind: &str, mut wakes: Vec<Wake>, bound: Option<Time>,
     }
 }
 
-pub(crate) fn tasks(domain: &Domain, core: Option<&Core>, into: &mut Inspection) {
-    let mut after = None;
-    while let Some(row) = domain.inspection_task_after(after) {
-        after = Some(row.number);
-        match &row.phase {
-            Phase::Waiting => {
-                if row.waiting_on.is_empty() {
-                    queued(domain, core, row, into);
-                } else {
-                    dependencies(domain, core, row, into);
-                }
-            }
-            Phase::Active(active) => {
+pub(crate) fn task(domain: &Domain, core: Option<&Core>, row: &TaskRecord, into: &mut Inspection) {
+    match &row.phase {
+        Phase::Waiting => {
+            if row.waiting_on.is_empty() {
+                queued(domain, core, row, into);
+            } else {
                 dependencies(domain, core, row, into);
-                proposal(domain, core, row, into);
-                match active {
-                    Active::Idle => idle(domain, core, row, into),
-                    Active::Due => {
-                        if row.suspension.is_some() {
-                            emit(
-                                domain,
-                                core,
-                                row,
-                                wait(row, "suspended", vec![], alarm(domain.inspection_alarms(), row.number), true),
-                                into,
-                            );
-                        } else if let Executor::Person(_) = row.executor {
-                            person(domain, core, row, into);
-                        }
-                    }
-                    Active::Preparing | Active::Claimed { .. } | Active::Running { .. } => {}
-                    Active::BackingOff { .. } => emit(
-                        domain,
-                        core,
-                        row,
-                        wait(row, "backing off", vec![], alarm(domain.inspection_alarms(), row.number), true),
-                        into,
-                    ),
-                }
             }
-            Phase::Closing(closing) => match closing.stage {
-                Stage::Run { .. } => {
-                    let wake = core.and_then(|core| core.inspection_placement(row.number)).map_or_else(
-                        || Wake::Party(format!("host of task {}", row.number)),
-                        |host| Wake::Party(format!("host {}", host.raw())),
-                    );
-                    emit(domain, core, row, wait(row, "closing on its run", vec![wake], None, false), into);
-                }
-                Stage::Delegates => {
-                    delegates(domain, core, row, into);
-                    proposal(domain, core, row, into);
-                }
-                Stage::Effects | Stage::Releases => {
-                    let mut wakes = Vec::new();
-                    if let Some(core) = core {
-                        for ((number, connector), ()) in core.inspection_closing_connectors() {
-                            if *number == row.number {
-                                wakes.push(Wake::Party(format!("connector {connector}")));
-                            }
-                        }
-                    }
-                    if wakes.is_empty() {
-                        wakes.push(Wake::Party(format!("connectors of task {}", row.number)));
-                    }
-                    let kind = if closing.stage == Stage::Effects {
-                        "closing on its effects"
-                    } else {
-                        "closing on its releases"
-                    };
-                    emit(domain, core, row, wait(row, kind, wakes, None, false), into);
-                }
-                Stage::Settled => emit(domain, core, row, wait(row, "closing settled", vec![], None, false), into),
-            },
-            Phase::Held { why, source, .. } => {
-                held(domain, core, row, *why, source.as_deref(), into);
-                if let Some(hold) = row.placed
-                    && !matches!(why, Hold::Placed { .. })
-                {
-                    held(domain, core, row, Hold::Placed { hold }, None, into);
-                }
-            }
-            Phase::Ended(_) => {}
         }
+        Phase::Active(active) => {
+            dependencies(domain, core, row, into);
+            proposal(domain, core, row, into);
+            match active {
+                Active::Idle => idle(domain, core, row, into),
+                Active::Due => {
+                    if row.suspension.is_some() {
+                        emit(
+                            domain,
+                            core,
+                            row,
+                            wait(row, "suspended", vec![], alarm(domain.inspection_alarms(), row.number), true),
+                            into,
+                        );
+                    } else if let Executor::Person(_) = row.executor {
+                        person(domain, core, row, into);
+                    }
+                }
+                Active::Preparing | Active::Claimed { .. } | Active::Running { .. } => {}
+                Active::BackingOff { .. } => emit(
+                    domain,
+                    core,
+                    row,
+                    wait(row, "backing off", vec![], alarm(domain.inspection_alarms(), row.number), true),
+                    into,
+                ),
+            }
+        }
+        Phase::Closing(closing) => match closing.stage {
+            Stage::Run { .. } => {
+                let wake = core.and_then(|core| core.inspection_placement(row.number)).map_or_else(
+                    || Wake::Party(format!("host of task {}", row.number)),
+                    |host| Wake::Party(format!("host {}", host.raw())),
+                );
+                emit(domain, core, row, wait(row, "closing on its run", vec![wake], None, false), into);
+            }
+            Stage::Delegates => {
+                delegates(domain, core, row, into);
+                proposal(domain, core, row, into);
+            }
+            Stage::Effects | Stage::Releases => {
+                let mut wakes = Vec::new();
+                if let Some(core) = core {
+                    for ((number, connector), ()) in core.inspection_closing_connectors() {
+                        if *number == row.number {
+                            wakes.push(Wake::Party(format!("connector {connector}")));
+                        }
+                    }
+                }
+                if wakes.is_empty() {
+                    wakes.push(Wake::Party(format!("connectors of task {}", row.number)));
+                }
+                let kind =
+                    if closing.stage == Stage::Effects { "closing on its effects" } else { "closing on its releases" };
+                emit(domain, core, row, wait(row, kind, wakes, None, false), into);
+            }
+            Stage::Settled => emit(domain, core, row, wait(row, "closing settled", vec![], None, false), into),
+        },
+        Phase::Held { why, source, .. } => {
+            held(domain, core, row, *why, source.as_deref(), into);
+            if let Some(hold) = row.placed
+                && !matches!(why, Hold::Placed { .. })
+            {
+                held(domain, core, row, Hold::Placed { hold }, None, into);
+            }
+        }
+        Phase::Ended(_) => {}
     }
 }
 

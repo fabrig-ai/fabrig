@@ -33,6 +33,7 @@ pub(crate) fn blocked(domain: &Domain, name: &Name) -> bool {
     }
 }
 
+// Share one ordered walk of the live rows between the wait and table projections.
 pub(crate) fn tasks(domain: &Domain, core: Option<&Core>, into: &mut Inspection) {
     let mut reports = BTreeSet::new();
     let mut named = BTreeSet::new();
@@ -45,6 +46,7 @@ pub(crate) fn tasks(domain: &Domain, core: Option<&Core>, into: &mut Inspection)
     let mut after = None;
     while let Some(row) = domain.inspection_task_after(after) {
         after = Some(row.number);
+        super::waits::task(domain, core, row, into);
         if !reports.is_empty() {
             named.extend(row.holdings.iter().map(name));
         }

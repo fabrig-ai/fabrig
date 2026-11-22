@@ -50,13 +50,11 @@ pub const KINDS: &[&str] = &[
 
 /// Read the task child's waits and bounded tables, without a core's placements or flights.
 pub fn tasks(tasks: &Domain, into: &mut Inspection) {
-    waits::tasks(tasks, None, into);
     tables::tasks(tasks, None, into);
 }
 
 /// Read the core and its tasks, including parked batches and retained people answers.
 pub fn core(core: &Core, into: &mut Inspection) {
-    waits::tasks(&core.tasks, Some(core), into);
     tables::tasks(&core.tasks, Some(core), into);
     for (owner, names) in core.tasks.inspection_report_pins() {
         if let Some((number, _, deadline)) = core.inspection_batch(*owner) {
