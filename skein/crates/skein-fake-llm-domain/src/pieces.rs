@@ -32,7 +32,30 @@ pub(crate) fn valid(scripts: &[Script]) -> bool {
                     return false;
                 }
                 match line {
-                    Line::Fail { credentials, .. } => ended = credentials.is_empty(),
+                    Line::Cut { times } => {
+                        if *times == 0 {
+                            return false;
+                        }
+                    }
+                    Line::Fail { credentials, error, .. } => {
+                        match error {
+                            crate::api::Error::Cut(_) => return false,
+                            crate::api::Error::Spent
+                            | crate::api::Error::SignedOut
+                            | crate::api::Error::Unserved
+                            | crate::api::Error::Window { .. }
+                            | crate::api::Error::Overloaded
+                            | crate::api::Error::RateLimited { .. }
+                            | crate::api::Error::Unavailable
+                            | crate::api::Error::ContextTooLong
+                            | crate::api::Error::Unauthorized
+                            | crate::api::Error::Exhausted { .. }
+                            | crate::api::Error::Refused
+                            | crate::api::Error::Unsupported
+                            | crate::api::Error::InvalidRequest => {}
+                        }
+                        ended = credentials.is_empty();
+                    }
                     Line::Pieces { pieces } => {
                         if index != 0 || pieces.is_empty() {
                             return false;
@@ -76,7 +99,14 @@ fn at(scripts: &[Script], place: Place) -> &[Piece] {
     let turn = scripts.get(place.script).expect("retained script").turns.get(place.turn).expect("retained turn");
     match turn.lines.first() {
         Some(Line::Pieces { pieces }) => pieces,
-        Some(Line::Take { .. } | Line::Fail { .. } | Line::Text { .. } | Line::Opaque { .. } | Line::Call { .. })
+        Some(
+            Line::Cut { .. }
+            | Line::Take { .. }
+            | Line::Fail { .. }
+            | Line::Text { .. }
+            | Line::Opaque { .. }
+            | Line::Call { .. },
+        )
         | None => {
             unreachable!("a stream starts with pieces")
         }

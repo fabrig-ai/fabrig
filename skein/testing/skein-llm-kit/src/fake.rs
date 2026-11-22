@@ -253,6 +253,9 @@ pub fn config() -> fake::Config {
         cache_entries: 16,
         strict: false,
         unscoped_reads: 0,
+        accounts: 0,
+        unserved: 0,
+        cut: 0,
     }
 }
 
@@ -366,6 +369,7 @@ impl Exchange {
         provider::scripts(&peer_config, &credentials, &scripts).expect("scripts represented on the peer route");
         let service = provider::Service::new(peer_config, &peer_limits).expect("bounded independent peer");
         let server = provider::Server::new(Token::new(2), &peer_limits).expect("bounded peer connection");
+        let domain_config = fake::Config { accounts: provider::MAX_CREDENTIALS, unserved: 4, ..config() };
         Self {
             machine,
             seen: Vec::new(),
@@ -379,8 +383,8 @@ impl Exchange {
             service,
             manual_replies: false,
             pending: Vec::new(),
-            fake: fake::Domain::try_scripted(&config(), 3, scripts).expect("bounded caller scripts"),
-            fake_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config() },
+            fake: fake::Domain::try_scripted(&domain_config, 3, scripts).expect("bounded caller scripts"),
+            fake_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: domain_config },
             peer_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: peer_limits },
             credentials,
             client_above: Queue::uncapped(),
@@ -564,6 +568,7 @@ impl Exchange {
         self.fake_env.limits.unavailable = config.unavailable;
         self.fake_env.limits.too_long = config.too_long;
         self.fake_env.limits.unauthorized = config.unauthorized;
+        self.fake_env.limits.cut = config.cut;
     }
 
     fn reserve_observations(&mut self) {
@@ -850,6 +855,16 @@ impl Exchange {
             }
         }
         false
+    }
+
+    /// Installs an account strike at the world's injected time, refusing exhausted room.
+    pub fn strike(&mut self, credential: u32, strike: api::Strike) -> Result<(), api::Error> {
+        self.fake.strike(credential, strike, self.fake_env.now)
+    }
+
+    /// Clears a strike by kind, and by model for Unserved.
+    pub fn clear(&mut self, credential: u32, strike: &api::Strike) {
+        self.fake.clear(credential, strike);
     }
 
     /// Steps the domain with the owner's named release at once.

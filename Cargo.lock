@@ -4093,6 +4093,7 @@ dependencies = [
  "skein-json",
  "skein-lib",
  "skein-llm",
+ "skein-world",
 ]
 
 [[package]]

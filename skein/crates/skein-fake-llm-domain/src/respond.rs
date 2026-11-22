@@ -35,6 +35,48 @@ use crate::api::{Answer, Error, Failure, Finish, Line, Message, Part, Query, Rol
 use crate::domain::{Config, Played};
 use crate::{limits, pieces};
 
+/// Calls reaching one cut, shared across credentials.
+#[derive(Debug)]
+pub(crate) struct Cuts {
+    place: pieces::Place,
+    line: usize,
+    calls: u32,
+}
+
+pub(crate) fn cut_count(scripts: &[Script]) -> Option<u32> {
+    let mut count = 0_u32;
+    for script in scripts {
+        for turn in &script.turns {
+            for line in &turn.lines {
+                match line {
+                    Line::Cut { .. } => count = count.checked_add(1)?,
+                    Line::Take { .. }
+                    | Line::Fail { .. }
+                    | Line::Pieces { .. }
+                    | Line::Text { .. }
+                    | Line::Opaque { .. }
+                    | Line::Call { .. } => {}
+                }
+            }
+        }
+    }
+    Some(count)
+}
+
+fn cutting(cuts: &mut List<Cuts>, place: pieces::Place, line: usize, times: u32) -> bool {
+    for cut in cuts.iter_mut() {
+        if cut.place == place && cut.line == line {
+            if cut.calls == times {
+                return false;
+            }
+            cut.calls = cut.calls.checked_add(1).expect("below times");
+            return true;
+        }
+    }
+    cuts.push(Cuts { place, line, calls: 1 }).expect("reserved cut state");
+    true
+}
+
 pub(crate) type Response = Result<(Answer, Option<pieces::Place>), (Failure, Option<pieces::Place>)>;
 
 /// The first failure for one reset-bearing line and credential, or all calls.
@@ -78,6 +120,7 @@ fn before_reset(
 }
 
 #[cfg(test)]
+#[expect(clippy::result_large_err, reason = "the response retains owned failure evidence and its stream position")]
 pub(crate) fn respond(
     rng: &mut Rng,
     minted: &mut u64,
@@ -90,8 +133,41 @@ pub(crate) fn respond(
     by_input(rng, minted, config, played, &Rules { cued: Box::new([]), asked: Box::new([]) }, menu, query, now)
 }
 
+#[expect(clippy::result_large_err, reason = "the response retains owned failure evidence and its stream position")]
 #[expect(clippy::too_many_arguments, reason = "response inputs include independent script rules and injected time")]
 pub(crate) fn by_input(
+    rng: &mut Rng,
+    minted: &mut u64,
+    config: &Config,
+    played: &mut Played,
+    rules: &Rules,
+    menu: &crate::api::Menu,
+    query: &Query,
+    now: Time,
+) -> Response {
+    if let Some(error) = played.accounts.check(query, now) {
+        return Err((error.into(), None));
+    }
+    let result = unstruck(rng, minted, config, played, rules, menu, query, now);
+    if config.cut == 0 || !rng.chance(config.cut) {
+        return result;
+    }
+    match result {
+        Ok((answer, place)) => {
+            let end = rng.below(skein_lib::len_u64(answer.parts.len()).saturating_add(1));
+            let mut parts = List::from_boxed(answer.parts);
+            parts.truncate(u32::try_from(end).expect("bounded parts"));
+            let failure = cut_failure(parts);
+            let place = if failure.parts.is_empty() { None } else { place };
+            Err((failure, place))
+        }
+        Err(failure) => Err(failure),
+    }
+}
+
+#[expect(clippy::result_large_err, reason = "the response retains owned failure evidence and its stream position")]
+#[expect(clippy::too_many_arguments, reason = "response inputs include independent script rules and injected time")]
+fn unstruck(
     rng: &mut Rng,
     minted: &mut u64,
     config: &Config,
@@ -142,7 +218,8 @@ pub(crate) fn by_input(
                     Some(pieces::Place { script, turn: turn_index })
                 }
                 Some(
-                    Line::Take { .. }
+                    Line::Cut { .. }
+                    | Line::Take { .. }
                     | Line::Fail { .. }
                     | Line::Pieces { .. }
                     | Line::Text { .. }
@@ -152,7 +229,7 @@ pub(crate) fn by_input(
                 | None => None,
             };
             let position = pieces::Place { script, turn: turn_index };
-            return match scripted(minted, query, turn, &mut played.resets, position, now) {
+            return match scripted(minted, query, turn, &mut played.resets, &mut played.cuts, position, now) {
                 Ok(answer) => Ok((answer, place)),
                 Err(failure) => Err((failure, place)),
             };
@@ -503,13 +580,14 @@ fn scripted(
     query: &Query,
     turn: &Turn,
     resets: &mut List<Reset>,
+    cuts: &mut List<Cuts>,
     place: pieces::Place,
     now: Time,
 ) -> Result<Answer, Failure> {
     let mut count = u32::try_from(turn.lines.len()).expect("a script's answer fits a u32");
     for line in &turn.lines {
         match line {
-            Line::Take { .. } => count = count.checked_sub(1).expect("one fewer part per take"),
+            Line::Take { .. } | Line::Cut { .. } => count = count.checked_sub(1).expect("one fewer part per take"),
             Line::Text { .. } | Line::Call { .. } | Line::Opaque { .. } | Line::Pieces { .. } | Line::Fail { .. } => {}
         }
     }
@@ -518,6 +596,12 @@ fn scripted(
         let earlier = turn.lines.get(..index).expect("line prefix");
         let part = match line {
             Line::Take { .. } => continue,
+            Line::Cut { times } => {
+                if cutting(cuts, place, index, *times) {
+                    return Err(cut_failure(parts));
+                }
+                continue;
+            }
             Line::Fail { error, report, credentials } => {
                 let named = match query.credential {
                     Some(index) => credentials.contains(&index),
@@ -560,6 +644,26 @@ fn scripted(
         Some(Part::Opaque { .. } | Part::Text { .. } | Part::ToolOutput { .. }) | None => cut_text(),
     };
     Ok(answer(query, parts.into_boxed(), turn.finish, turn.tokens, cut))
+}
+
+fn cut_failure(mut parts: List<Part>) -> Failure {
+    let place = match parts.len().checked_sub(1) {
+        Some(index) => match parts.get_mut(index).expect("last part") {
+            Part::ToolCall { arguments, .. } => {
+                let half = arguments.len().checked_div(2).expect("nonzero divisor");
+                *arguments = copy_of(arguments.get(..half).expect("half the arguments"));
+                crate::api::Cut::MidCall
+            }
+            Part::Text { .. } | Part::Opaque { .. } | Part::ToolOutput { .. } => crate::api::Cut::MidText,
+        },
+        None => crate::api::Cut::BeforeOutput,
+    };
+    Failure {
+        error: Error::Cut(place),
+        report: crate::api::Report::none(),
+        message: Box::new([]),
+        parts: parts.into_boxed(),
+    }
 }
 
 /// The assistant messages a conversation has had.

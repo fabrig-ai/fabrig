@@ -16,6 +16,7 @@ mod failures;
 mod fake;
 mod fake_credentials;
 mod fake_failures;
+mod fake_faults;
 mod fake_memory;
 mod meaning;
 mod measure;

@@ -29,9 +29,12 @@
 
 extern crate alloc;
 
+mod accounts;
 pub mod api;
 mod cache;
 mod domain;
+#[cfg(test)]
+mod faults_tests;
 mod limits;
 mod pieces;
 mod respond;
