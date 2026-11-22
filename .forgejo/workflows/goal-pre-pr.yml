@@ -18,12 +18,12 @@ permissions:
 jobs:
   goal:
     if: >-
-      github.event_name == 'workflow_dispatch' ||
+      github.event.inputs.pull_number != '' ||
       (github.event.pull_request.head.repo.full_name == github.repository &&
       startsWith(github.event.pull_request.head.ref, 'temper') &&
       contains(github.event.pull_request.head.ref, '/g'))
     uses: ./.forgejo/workflows/ci.yml
     with:
-      pull_number: ${{ format('{0}', github.event.pull_request.number || inputs.pull_number) }}
-      goal_head: ${{ github.event.pull_request.head.sha || inputs.goal_head }}
-      destination: ${{ github.event.pull_request.base.sha || inputs.destination }}
+      pull_number: ${{ format('{0}', github.event.pull_request.number || github.event.inputs.pull_number) }}
+      goal_head: ${{ github.event.pull_request.head.sha || github.event.inputs.goal_head }}
+      destination: ${{ github.event.pull_request.base.sha || github.event.inputs.destination }}
