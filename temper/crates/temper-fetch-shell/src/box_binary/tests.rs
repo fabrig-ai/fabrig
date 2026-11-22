@@ -1,52 +1,129 @@
 use super::*;
-use crate::testing::{digest, gzip, scratch, script, site};
+use crate::testing::{digest, gzip, scratch, site};
+use std::collections::BTreeMap;
 
 fn trust() -> skein_shell::Trust {
     skein_shell::Trust::Der(PathBuf::from("no-trust-needed"))
 }
 
+const WANTED: &[u8] = b"#!/bin/sh\nprintf 'temper-box 0.0.0 (0123456789ab)\\n'\n";
+const WRONG_BESIDE: &[u8] = b"#!/bin/sh\nprintf 'other\\n'\n";
+const WRONG_CACHE: &[u8] = b"#!/bin/sh\nprintf 'site mistake\\n'\n";
+
+#[derive(Default)]
+struct CacheTree {
+    files: BTreeMap<PathBuf, Vec<u8>>,
+    held: Option<PathBuf>,
+}
+
+impl CacheTree {
+    fn publish(&mut self, file: &Path, bytes: &[u8]) {
+        let sum = [temper_fetch::fetch::hex(&digest(bytes)).as_ref(), b"\n"].concat();
+        self.files.insert(file.to_path_buf(), bytes.to_vec());
+        self.files.insert(suffix(file, ".sha256"), sum);
+    }
+
+    fn clean(&mut self, directory: &Path) -> Result<(), Failed> {
+        clean_with(directory, |file| {
+            self.files.remove(file);
+            Ok(())
+        })
+    }
+
+    fn answer(&mut self, request: Request) -> Result<Event, Failed> {
+        match request {
+            Request::Identity { file } => {
+                let Some(bytes) = self.files.get(path(&file)) else { return Ok(Event::Identity(absent())) };
+                let line: &[u8] = match bytes.as_slice() {
+                    WANTED => b"temper-box 0.0.0 (0123456789ab)\n",
+                    WRONG_BESIDE => b"other\n",
+                    WRONG_CACHE => b"site mistake\n",
+                    _ => panic!("unexpected candidate"),
+                };
+                Ok(Event::Identity(Candidate { line: line.into(), success: true }))
+            }
+            Request::Lock { directory } => {
+                let directory = path(&directory);
+                self.files.insert(directory.join("temper-box.lock"), Vec::new());
+                assert!(self.held.replace(directory.to_path_buf()).is_none());
+                Ok(Event::Done)
+            }
+            Request::Clean { directory } => self.clean(path(&directory)).map(|()| Event::Done),
+            Request::Cached { file } => {
+                let file = path(&file);
+                assert_eq!(self.held.as_deref(), file.parent());
+                Ok(Event::Cached {
+                    file: self.files.get(file).map(|bytes| digest(bytes)),
+                    sum: self.files.get(&suffix(file, ".sha256")).cloned().and_then(stored_sum),
+                })
+            }
+            Request::RemoveCached { file } => {
+                self.files.remove(path(&file));
+                self.files.remove(&suffix(path(&file), ".sha256"));
+                Ok(Event::Done)
+            }
+            Request::Get { .. } => Err(Failed { words: "scripted download refusal".into() }),
+            Request::Open { .. }
+            | Request::Read
+            | Request::Write(_)
+            | Request::Say(_)
+            | Request::Unpack { .. }
+            | Request::WriteSum { .. }
+            | Request::RenameSum { .. }
+            | Request::Publish { .. }
+            | Request::End(_) => panic!("unexpected cache effect"),
+        }
+    }
+
+    fn find(&mut self, find: &Find<'_>, out: &mut dyn Write) -> Result<PathBuf, Failed> {
+        let build = build(find, |file| self.files.contains_key(file));
+        let (result, downloading) = drive(build, out, |request| self.answer(request));
+        let result = finish(find, result, downloading, || {
+            if let Some(directory) = self.held.clone() {
+                self.clean(&directory)?;
+            }
+            Ok(())
+        });
+        self.held = None;
+        result
+    }
+}
+
 #[test]
 fn find_takes_beside_or_verified_cache_without_tls() {
-    let directory = scratch("find");
+    let directory = Path::new("/fixture");
     let beside = directory.join("beside");
-    fs::create_dir(&beside).unwrap();
     let cache = directory.join("cache");
     let site = site();
     let trust = trust();
     let mut input =
         Find { beside: &beside, cache: &cache, site: &site, trust: &trust, version: "0.0.0", commit: "0123456789ab" };
-    let script_bytes = b"#!/bin/sh\nprintf 'temper-box 0.0.0 (0123456789ab)\\n'\n";
-    script(&beside.join("temper-box"), script_bytes);
+    let mut tree = CacheTree::default();
+    tree.files.insert(beside.join("temper-box"), WANTED.to_vec());
     let mut out = Vec::new();
-    assert_eq!(find(&skein_io::Limits::TEST, &input, &mut out).unwrap(), beside.join("temper-box"));
-    assert!(!cache.exists());
+    assert_eq!(tree.find(&input, &mut out).unwrap(), beside.join("temper-box"));
+    assert!(!tree.files.keys().any(|file| file.starts_with(&cache)));
     assert_eq!(out.len(), 0);
-    script(&beside.join("temper-box"), b"#!/bin/sh\nprintf 'other\\n'\n");
+    tree.files.insert(beside.join("temper-box"), WRONG_BESIDE.to_vec());
     let cached = cache.join("bin/0123456789ab").join(platform()).join("temper-box");
-    fs::create_dir_all(cached.parent().unwrap()).unwrap();
-    script(&cached, script_bytes);
-    write_sum(&cached, &digest(script_bytes)).unwrap();
-    rename_sum(&cached).unwrap();
+    tree.publish(&cached, WANTED);
     for name in [".gz.part", ".part", ".sha256.part"] {
-        fs::write(suffix(&cached, name), b"stale").unwrap();
+        tree.files.insert(suffix(&cached, name), b"stale".to_vec());
     }
-    assert_eq!(find(&skein_io::Limits::TEST, &input, &mut out).unwrap(), cached);
+    assert_eq!(tree.find(&input, &mut out).unwrap(), cached);
     for name in [".gz.part", ".part", ".sha256.part"] {
-        assert!(!suffix(&cached, name).exists());
+        assert!(!tree.files.contains_key(&suffix(&cached, name)));
     }
     assert_eq!(out.len(), 0);
-    // A verified but wrong identity is a site error, not a second download.
-    script(&cached, b"#!/bin/sh\nprintf 'site mistake\\n'\n");
-    let bytes = fs::read(&cached).unwrap();
-    write_sum(&cached, &digest(&bytes)).unwrap();
-    rename_sum(&cached).unwrap();
-    let why = find(&skein_io::Limits::TEST, &input, &mut out).unwrap_err().words();
+    // A verified candidate of another identity is refused as a site error.
+    tree.publish(&cached, WRONG_CACHE);
+    let why = tree.find(&input, &mut out).unwrap_err().words();
     assert!(why.contains("site mistake\n"));
     assert!(!why.contains("Fetch it by hand"));
-    assert!(!cached.exists());
-    assert!(!suffix(&cached, ".sha256").exists());
+    assert!(!tree.files.contains_key(&cached));
+    assert!(!tree.files.contains_key(&suffix(&cached, ".sha256")));
     input.commit = "unknown";
-    let why = find(&skein_io::Limits::TEST, &input, &mut out).unwrap_err().words();
+    let why = tree.find(&input, &mut out).unwrap_err().words();
     assert_eq!(
         why,
         format!(
@@ -54,7 +131,6 @@ fn find_takes_beside_or_verified_cache_without_tls() {
             beside.display()
         )
     );
-    fs::remove_dir_all(directory).unwrap();
 }
 
 #[test]

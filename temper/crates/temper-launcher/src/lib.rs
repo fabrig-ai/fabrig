@@ -81,20 +81,52 @@ pub fn place(directory: &Path, cache: &Path, program: &Path) -> Result<(), Strin
         }
     }
     smith_agent_document::program::private_directory(directory).map_err(|error| error.to_string())?;
-    link(directory, "claude", program)?;
-    link(directory, "cache", cache)
+    place_links(directory, cache, program, &mut DiskLinks)
 }
 
-fn link(directory: &Path, name: &str, target: &Path) -> Result<(), String> {
-    static NEXT: AtomicU64 = AtomicU64::new(0);
+fn place_links(directory: &Path, cache: &Path, program: &Path, links: &mut impl Links) -> Result<(), String> {
+    link(directory, "claude", program, links)?;
+    link(directory, "cache", cache, links)
+}
+
+trait Links {
+    fn read(&mut self, path: &Path) -> std::io::Result<PathBuf>;
+    fn stage(&mut self, directory: &Path, name: &str, target: &Path) -> std::io::Result<PathBuf>;
+    fn rename(&mut self, part: &Path, path: &Path) -> std::io::Result<()>;
+    fn remove(&mut self, part: &Path) -> std::io::Result<()>;
+}
+
+struct DiskLinks;
+
+impl Links for DiskLinks {
+    fn read(&mut self, path: &Path) -> std::io::Result<PathBuf> {
+        fs::read_link(path)
+    }
+
+    fn stage(&mut self, directory: &Path, name: &str, target: &Path) -> std::io::Result<PathBuf> {
+        static NEXT: AtomicU64 = AtomicU64::new(0);
+        let part = directory.join(format!(".{name}.{}.{}", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)));
+        symlink(target, &part)?;
+        Ok(part)
+    }
+
+    fn rename(&mut self, part: &Path, path: &Path) -> std::io::Result<()> {
+        fs::rename(part, path)
+    }
+
+    fn remove(&mut self, part: &Path) -> std::io::Result<()> {
+        fs::remove_file(part)
+    }
+}
+
+fn link(directory: &Path, name: &str, target: &Path, links: &mut impl Links) -> Result<(), String> {
     let path = directory.join(name);
-    if fs::read_link(&path).ok().as_deref() == Some(target) {
+    if links.read(&path).ok().as_deref() == Some(target) {
         return Ok(());
     }
-    let part = directory.join(format!(".{name}.{}.{}", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)));
-    symlink(target, &part).map_err(|why| format!("{}: {why}", path.display()))?;
-    if let Err(why) = fs::rename(&part, &path) {
-        match fs::remove_file(&part) {
+    let part = links.stage(directory, name, target).map_err(|why| format!("{}: {why}", path.display()))?;
+    if let Err(why) = links.rename(&part, &path) {
+        match links.remove(&part) {
             Ok(()) | Err(_) => {}
         }
         return Err(format!("{}: {why}", path.display()));
@@ -203,6 +235,7 @@ fn substituted_document(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use skein_fake_machine::{How, Item, Machine, Opened};
 
     #[test]
     fn launcher_disables_both_update_paths() {
@@ -230,20 +263,63 @@ mod tests {
 
     #[test]
     fn place_links_claude_to_the_given_program() {
-        use std::os::unix::fs::PermissionsExt;
-        let scratch = skein_scratch::Scratch::new("launcher-links");
-        let directory = scratch.path();
-        fs::set_permissions(directory, fs::Permissions::from_mode(0o700)).unwrap();
+        let directory = Path::new("/fixture");
         let launcher = directory.join("claude-code");
         let cache = directory.join("cache");
+        let mut machine = Machine::new();
+        let root = machine.lay(&[Item::directory(b"claude-code")]);
+        let place = machine.open(root, b"claude-code", How::Directory).unwrap();
+        let mut links = ScriptedLinks { machine, place };
         let program = Path::new("/opt/agent/temper-agent");
-        place(&launcher, &cache, program).unwrap();
-        assert_eq!(fs::read_link(launcher.join("claude")).unwrap(), program);
-        assert_eq!(fs::read_link(launcher.join("cache")).unwrap(), cache);
+        place_links(&launcher, &cache, program, &mut links).unwrap();
+        assert_eq!(links.read(&launcher.join("claude")).unwrap(), program);
+        assert_eq!(links.read(&launcher.join("cache")).unwrap(), cache);
         let replacement = Path::new("/opt/replacement/temper-agent");
-        place(&launcher, &cache, replacement).unwrap();
-        assert_eq!(fs::read_link(launcher.join("claude")).unwrap(), replacement);
-        assert_eq!(fs::read_link(launcher.join("cache")).unwrap(), cache);
+        place_links(&launcher, &cache, replacement, &mut links).unwrap();
+        assert_eq!(links.read(&launcher.join("claude")).unwrap(), replacement);
+        assert_eq!(links.read(&launcher.join("cache")).unwrap(), cache);
+    }
+
+    // The namespace stores read-link replies as bytes, including absolute targets.
+    struct ScriptedLinks {
+        machine: Machine,
+        place: Opened,
+    }
+
+    fn link_name(file: &Path) -> &[u8] {
+        assert_eq!(file.parent(), Some(Path::new("/fixture/claude-code")));
+        file.file_name().unwrap().as_bytes()
+    }
+
+    impl Links for ScriptedLinks {
+        fn read(&mut self, file: &Path) -> std::io::Result<PathBuf> {
+            let opened = self
+                .machine
+                .open(self.place, link_name(file), How::Read)
+                .map_err(|why| std::io::Error::other(format!("{why:?}")))?;
+            let length = u32::try_from(self.machine.stat(opened).size).unwrap();
+            let bytes = self.machine.read(opened, 0, length).unwrap();
+            self.machine.close(opened);
+            Ok(path(&bytes).into())
+        }
+
+        fn stage(&mut self, directory: &Path, name: &str, target: &Path) -> std::io::Result<PathBuf> {
+            let part = directory.join(format!(".{name}.part"));
+            let opened = self.machine.open(self.place, link_name(&part), How::Create { mode: 0o600 }).unwrap();
+            self.machine.write(opened, 0, target.as_os_str().as_bytes()).unwrap();
+            self.machine.close(opened);
+            Ok(part)
+        }
+
+        fn rename(&mut self, part: &Path, file: &Path) -> std::io::Result<()> {
+            self.machine.rename(self.place, link_name(part), self.place, link_name(file), false).unwrap();
+            Ok(())
+        }
+
+        fn remove(&mut self, part: &Path) -> std::io::Result<()> {
+            self.machine.remove(self.place, link_name(part), false).unwrap();
+            Ok(())
+        }
     }
 
     fn document(program: &serde_json::Value) -> Vec<u8> {
