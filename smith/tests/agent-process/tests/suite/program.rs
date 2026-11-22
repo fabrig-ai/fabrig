@@ -3,7 +3,7 @@ use smith_agent_process_world::{
     program_world::{self, Case, Run},
 };
 use smith_channel::{ModelFault, RunFailure, RunResult};
-use smith_fake_claude::Story;
+use smith_fake_claude::{End, Story, Turn};
 
 fn scenario() -> Run {
     program_world::run(Case::default(), &Story::default(), Some(b"claude.ai"), &charter(), &program(b"source"), None)
@@ -115,7 +115,11 @@ fn a_program_grant_starts_claude_with_its_command() {
     let schema: serde_json::Value = serde_json::from_str(value("--json-schema")).expect("inline outcome schema");
     assert!(schema["properties"]["outcome"].get("oneOf").is_some());
     assert_eq!(
-        run.seen,
+        run.seen
+            .iter()
+            .filter(|seen| !matches!(seen, smith_fake_claude::Seen::Fault { .. }))
+            .cloned()
+            .collect::<Vec<_>>(),
         vec![
             smith_fake_claude::Seen::Settings {
                 allow: vec!["mcp__smith".into()],
@@ -252,6 +256,82 @@ fn an_init_without_the_server_fails_the_run() {
     assert!(matches!(fault(&run), Some(ModelFault::Untooled(fault)) if fault.exit.is_none()
         && fault.name.as_ref() == b"claude_code"
         && fault.detail.as_ref() == b"smith: the program started without smith's tools"));
+}
+
+fn refusal_run(story: &Story) -> Run {
+    let charter = smith_agent_process_world::wire::edit_charter(&charter(), |parts| {
+        smith_agent_process_world::wire::budget(parts, 8, 20);
+    });
+    program_world::run(Case::Events, story, Some(b"claude.ai"), &charter, &program(b"source"), None)
+}
+
+fn refusal(end: End) -> Story {
+    Story { turns: vec![Turn { steps: vec![], end }], ..Story::default() }
+}
+
+fn completion_fault(run: &Run, failure: &smith_channel::CompletionFailure, status: u16) {
+    let Some(ModelFault::Completion(fault)) = fault(run) else { panic!("completion fault: {:?}", run.answer()) };
+    assert_eq!(&fault.failure, failure);
+    assert_eq!(fault.status, Some(status));
+    assert_eq!(fault.evidence, smith_channel::CompletionEvidence::Unsent);
+}
+
+fn no_refusal_retry(run: &Run, status: u16) {
+    completion_fault(run, &smith_channel::CompletionFailure::Invalid, status);
+    let Some(ModelFault::Completion(fault)) = fault(run) else { unreachable!() };
+    assert_eq!(fault.attempts, 1);
+    assert_eq!(run.invocations.len(), 2, "one login check and one program, no restart");
+    assert_eq!(run.received.len(), 1, "no retry sent to the program");
+}
+
+#[test]
+fn a_billing_refusal_fails_invalid_without_restart_or_retry() {
+    no_refusal_retry(&refusal_run(&refusal(End::billing_refusal())), 402);
+}
+
+#[test]
+fn an_unserved_model_fails_invalid_without_retry() {
+    no_refusal_retry(&refusal_run(&refusal(End::unserved_model("fake"))), 404);
+}
+
+#[test]
+fn an_edge_refusal_is_unavailable_and_restarts_before_retrying() {
+    // A persistent edge refusal exposes the run's terminal class and report.
+    let failed = refusal_run(&refusal(End::edge_refusal()));
+    completion_fault(&failed, &smith_channel::CompletionFailure::Unavailable, 403);
+    let Some(ModelFault::Completion(fault)) = fault(&failed) else { unreachable!() };
+    assert!(fault.attempts > 1);
+
+    // A cued script retains its turn position across the program restart.
+    let story = Story {
+        cued: vec![smith_fake_claude::Script {
+            cue: String::new(),
+            turns: vec![
+                Turn { steps: vec![], end: End::edge_refusal() },
+                Turn::new(vec![smith_fake_claude::Step::Outcome {
+                    input: serde_json::json!({"outcome":{"form":"report","text":"done","fields":{}}}),
+                }]),
+            ],
+        }],
+        ..Story::default()
+    };
+    let run = refusal_run(&story);
+    assert!(matches!(run.answer().expect("answer").result, RunResult::Accepted(_)), "{:?}", run.answer());
+    let programs: Vec<_> =
+        run.invocations.iter().filter(|seen| seen.arguments.first().is_some_and(|arg| arg == "-p")).collect();
+    assert_eq!(programs.len(), 2, "a transient refusal restarts the program once");
+    assert!(programs[1].arguments.iter().any(|arg| arg == "--resume"));
+    assert_eq!(run.received.len(), 2, "one retry reaches the restarted program");
+    let failures: Vec<_> = run
+        .events
+        .iter()
+        .filter_map(|record| match &record.event {
+            smith_events::Event::ResponseCompleted(response) => response.failure.as_ref(),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(failures.len(), 1);
+    assert_eq!(failures[0].class, smith_events::FailureClass::Unavailable);
 }
 
 #[test]
