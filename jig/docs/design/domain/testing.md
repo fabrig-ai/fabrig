@@ -619,6 +619,15 @@ table's words, its rule the table's:
   world that drives the core through that `World` runs them: the core
   world, and stories of the engine-clients, client, client-protocol and
   accounts worlds and of temper's client world.
+- **The world's clock:** with no clock supplied, each drain iteration moves
+  the clock by one implicit tick. A restart ticks through its load and switch
+  phases, so slow pages still take simulated time, then holds the clock from
+  the claim's adoption until the restart returns. `advance` holds the clock
+  pair it reached throughout its draining; ordinary drains still tick. Thus
+  a deadline the restart arms at adoption, and a boundary `advance` is given,
+  are not moved past by the driver's own iterations. The core world's
+  `joint_clock::restart_and_advance_keep_the_implicit_clock_at_their_boundary`
+  pins this rule.
 - **The engine-clients world:** `jig_engine_clients_kit::Peer` calls both
   over `jig_inspect::engine_clients` where its pump finds nothing left to
   do; its moment is the peer's seed, its time and a count of its passes.
