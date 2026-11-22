@@ -330,6 +330,7 @@ members = [
     "temper/testing/temper-limits-fixtures",
     "temper/testing/temper-agent-fixtures",
     "temper/testing/temper-landing-fixtures",
+    "temper/testing/temper-blame",
     "temper/testing/temper-test-env",
     "temper/testing/temper-deployment-fixtures",
     "temper/crates/temper-box-shell",

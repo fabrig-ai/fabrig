@@ -151,6 +151,7 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 
 [temper]
 "temper-agent::suite" = "end-to-end" # Shipped agent's command-line boundary.
+"temper-blame::step" = "step" # Gate judgement over hand-built ledgers and observations.
 "temper-box-kit::screen" = "step" # Terminal cell reader on renderer output, without io.
 "temper-box-machine::real_loop" = "real-loop" # Box service and hosted children on one real ring.
 "temper-box::domain" = "domain" # step and domain: harness values, scripted openings and client-tool reads.
