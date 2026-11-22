@@ -1,4 +1,4 @@
-//! The whole bounded setup store (testing/fakes/forge.md, section 4).
+//! The whole bounded setup store (testing/fakes/forgejo.md, section 1).
 use super::{Account, Issued, Organization, RepositoryHook, Store, Subscription, Team, collaborators::Collaborator};
 use crate::image::{
     Refusal,

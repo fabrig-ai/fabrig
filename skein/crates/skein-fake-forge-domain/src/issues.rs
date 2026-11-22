@@ -380,6 +380,12 @@ pub(crate) fn close(
 ) -> Result<Answer, Error> {
     let repository = domain.repositories.get_mut(id).expect("a repository of the forge");
     may_change(repository, user, number)?;
+    if repository.item(number)?.pull.is_some()
+        && let Some(refused) = domain.refused_closes.get(&id)
+        && refused.contains(&number)
+    {
+        return Err(Error::Protected);
+    }
     if repository.item(number)?.state == State::Closed {
         return Ok(Answer::Done);
     }
