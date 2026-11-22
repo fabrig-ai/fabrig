@@ -154,7 +154,7 @@ pub fn read_landing_step(world: &mut World, task: u64, entry: u64, heard: top::L
     let mut committed = None;
     let mut evidence = None;
     let mut news = Vec::new();
-    for _ in 0..20 {
+    for _ in 0..world.landing_step_seconds() {
         world.run_for(1);
         for request in world.take_seen() {
             if let top::Request::LandingNews { task, member, step } = request {

@@ -79,6 +79,7 @@ impl World {
         assert_eq!(lost, 0, "seed {}: forge lost {lost} fault records", self.seed);
         while let Some(fell) = self.forge.pop_fell() {
             self.track_lag(&fell);
+            self.track_sweep_call(&fell);
             let entry = self.ledger.inject(
                 Kind { family: fell.fault.family(), name: fell.fault.name() },
                 fell.at,

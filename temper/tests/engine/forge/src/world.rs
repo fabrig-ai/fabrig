@@ -5,6 +5,7 @@ use skein_world::{
 mod bounds;
 mod interleaving;
 mod ledger;
+mod sweeps;
 use crate::translate;
 use skein_fake_forge_domain::{self as forge, api as raw};
 use skein_lib::{Duration, Env, List, Map, Queue, ReplyTo, Time, Token, Wall};
@@ -170,6 +171,7 @@ pub struct World {
     seed: u64,
     engine_seed: u64,
     ledger: FaultLedger,
+    sweep_faults: sweeps::Faults,
     lagging: Option<interleaving::Lagging>,
     after_write: Option<interleaving::AfterWrite>,
     writer: Option<skein_forge_client::Writer>,
@@ -849,6 +851,7 @@ impl World {
             seed,
             engine_seed,
             ledger: FaultLedger::new(),
+            sweep_faults: sweeps::Faults::default(),
             lagging: None,
             after_write: None,
             writer,
@@ -1727,6 +1730,7 @@ impl World {
 
     fn iterate(&mut self, end: Time) -> bool {
         self.copy_fell();
+        self.stop_sweep_faults();
         if let Some((generation, event)) = self.to_top.pop() {
             if generation == self.generation {
                 self.event(event);
@@ -1746,6 +1750,7 @@ impl World {
                 self.timeout_merges -= 1;
                 env.limits.timeouts = 1000;
             }
+            self.sweep_call(&event, &mut env.limits);
             let excluded = self.exclude_record_lag(&event);
             forge::step(&mut self.forge, &env, event, &mut self.forge_out);
             if let Some(lag) = excluded {
@@ -1782,6 +1787,7 @@ impl World {
                 .unwrap_or(end)
                 .min(wall_due.unwrap_or(end))
                 .min(self.forge.next_deadline().unwrap_or(end))
+                .min(self.sweep_deadline().unwrap_or(end))
                 .min(end);
             self.env.now = next;
             self.env.wall = Wall::from_nanos(next.as_nanos());
@@ -2065,8 +2071,13 @@ impl World {
         for _ in 0..self.forge_out.len() {
             match self.forge_out.pop().expect("counted fake output") {
                 forge::Request::Reply { to, result } => {
-                    let pending = self.pending.remove(&to.into_token()).expect("pending call");
+                    let token = to.into_token();
+                    if self.neighbour_reply(token) {
+                        continue;
+                    }
+                    let pending = self.pending.remove(&token).expect("pending call");
                     self.interleave_after(&pending.op, result.is_ok());
+                    self.sweep_after_read(&result);
                     let result = match result {
                         Ok(answer) => {
                             let mut answer =

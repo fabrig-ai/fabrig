@@ -49,6 +49,7 @@ mod writer;
 mod fuzzy {
     mod bounds;
     mod branch_patterns;
+    mod busy;
     mod gate_keys;
     mod history;
     mod lagging;
@@ -57,10 +58,13 @@ mod fuzzy {
     mod opened;
     mod pull_cutoff;
     mod queue_history;
+    mod refusing;
     mod rules_by_path;
     mod simulation;
     mod stale;
 }
+
+mod refusing;
 
 mod kept_change;
 

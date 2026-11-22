@@ -92,6 +92,9 @@ fn run_workload(world: World, seed: u64, horizon: u64, workload: Workload) -> (W
     let mut probed = Vec::new();
     let mut search_round = 0;
     let mut max_probes = 0;
+    // A timed-out call can move main in a later step. Each issued, proved
+    // candidate may explain exactly one move; no other engine move is allowed.
+    let mut issued = Vec::new();
     let restart = rng.below(4);
     for step in 0..horizon {
         if step == restart {
@@ -102,12 +105,9 @@ fn run_workload(world: World, seed: u64, horizon: u64, workload: Workload) -> (W
         }
         let prior = world.landing(LANDING).landing.clone();
         let before = world.branch(b"main");
-        let decision = landings::step_landing_heard(
-            &mut world,
-            LANDING,
-            10_000 + step,
-            pending.take().unwrap_or_else(|| heard(landing::Preparation::Idle, b"")),
-        );
+        let mut news = pending.take().unwrap_or_else(|| heard(landing::Preparation::Idle, b""));
+        news.released = world.release_restored_fault(LANDING);
+        let decision = landings::step_landing_heard(&mut world, LANDING, 10_000 + step, news);
         let next = &world.landing(LANDING).landing;
         if let Some(search) = &next.round.search {
             if prior.round.search.is_none() {
@@ -146,17 +146,31 @@ fn run_workload(world: World, seed: u64, horizon: u64, workload: Workload) -> (W
                 }
             }
         }
-        if world.branch(b"main") != before {
-            let landing::Decision::Merge { member, candidate } = decision else {
-                panic!("seed {seed}: main moved outside the turn")
-            };
-            assert_eq!(translate::commit(world.branch(b"main")), candidate, "seed {seed}: only the proved top lands");
-            assert!(contains(&world, number(candidate), translate::commit(before)), "seed {seed}: fast-forward only");
-            let top = &world.landing(LANDING).landing.members[usize::from(member)];
-            assert!(
-                top.gates.iter().all(|gate| matches!(gate.proof, landing::Proof::Passed { .. })),
-                "seed {seed}: proof before turn"
-            );
+        if let landing::Decision::Merge { member, candidate } = decision {
+            let green = prior.members[usize::from(member)]
+                .gates
+                .iter()
+                .all(|gate| matches!(gate.proof, landing::Proof::Passed { .. }));
+            issued.push((member, candidate, before, green));
+        }
+        let others = world.take_other_merges();
+        let after = world.branch(b"main");
+        if after != before {
+            let matching: Vec<_> = issued
+                .iter()
+                .enumerate()
+                .filter(|(_, (_, candidate, _, _))| number(*candidate) == after)
+                .map(|(index, _)| index)
+                .collect();
+            let external: Vec<_> = others.iter().filter(|(_, from, to)| *from == before && *to == after).collect();
+            assert_eq!(matching.len() + external.len(), 1, "seed {seed}: main moved outside the turn");
+            if let Some(index) = matching.first() {
+                let (_, candidate, base, green) = issued.remove(*index);
+                assert!(green, "seed {seed}: proof before turn");
+                assert!(contains(&world, number(candidate), translate::commit(base)), "seed {seed}: fast-forward only");
+            } else {
+                assert_eq!(external.len(), 1, "seed {seed}: only the world's recorded other user may move main");
+            }
         }
         if matches!(decision, landing::Decision::Prepare { .. }) {
             let selected: Vec<_> = (0..usize::try_from(count).expect("members"))
