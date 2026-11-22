@@ -119,6 +119,7 @@ impl World {
         let inventory = self.store.retained().map_err(|finding| format!("restart oracle readback: {finding:?}"))?;
         let records =
             self.store.readback_of(&inventory).map_err(|finding| format!("restart oracle readback: {finding:?}"))?;
+        let forgotten = self.forgotten_due(&records);
         let (parties, tasks) = self.oracle_read_set(&records);
         let before = self.oracle_documents(&parties, &tasks);
         self.restart_configured(configuration(&self.restart_config.0))?;
@@ -129,7 +130,7 @@ impl World {
         let after = self.oracle_documents(&parties, &tasks);
         for (key, expected) in &before {
             let found = after.get(key).expect("same oracle read set");
-            compare_answer(key, expected, found)?;
+            compare_answer(key, expected, found, &forgotten)?;
         }
         let restored = self.store.retained().map_err(|finding| format!("restart oracle readback: {finding:?}"))?;
         let recovered =
@@ -154,6 +155,9 @@ impl World {
             let expired = exception.is_some()
                 && !restored.contains_key(key)
                 && keys::decode(key).is_some_and(|key| self.expired(&records, &key));
+            let forgotten_erasure = inventory.contains_key(key)
+                && !restored.contains_key(key)
+                && forgotten_remains(key, &forgotten, &records);
             let refreshed_move = keys::decode(key).is_some_and(|key| {
                 let key = root::Key::Core(key);
                 refreshed_move(records.get(&key), recovered.get(&key))
@@ -171,7 +175,7 @@ impl World {
                 }
                 _ => false,
             };
-            if !(orphan || refreshed_move || exception.is_some() && (header || wires || expired))
+            if !(orphan || forgotten_erasure || refreshed_move || exception.is_some() && (header || wires || expired))
                 && inventory.get(key) != restored.get(key)
             {
                 return Err(format!(
@@ -185,8 +189,12 @@ impl World {
             }
         }
         for (key, row) in &records {
+            let forgotten_erasure = matches!(key,
+                root::Key::Core(core::Key::Core(core::CoreKey::Turn { task, .. })) if forgotten.contains(task))
+                && !recovered.contains_key(key);
             if matches!(row, root::Record::Core(core::Record::Core(core::CoreRecord::Turn(_))))
                 && Some(row) != recovered.get(key)
+                && !forgotten_erasure
             {
                 return Err(format!(
                     "restart oracle transcript key {key:?}: expected {row:?}, found {:?}",
@@ -242,6 +250,24 @@ impl World {
             tasks.extend(peers.parties.iter().filter_map(|party| party.last_task));
         }
         (parties, tasks)
+    }
+
+    /// A restart runs the due Forgotten pass (jig/docs/design/protocol/store/retention.md, 6.4).
+    fn forgotten_due(&self, records: &BTreeMap<root::Key, root::Record>) -> BTreeSet<u64> {
+        let wall = self.clocks().1;
+        records
+            .values()
+            .filter_map(|row| {
+                if let root::Record::Core(core::Record::Tasks(tasks::Stored::Retention(row))) = row
+                    && row.stage == tasks::RetentionStage::Forgotten
+                    && row.since <= wall
+                {
+                    Some(row.number)
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 
     fn expired(&self, records: &BTreeMap<root::Key, root::Record>, key: &core::Key) -> bool {
@@ -339,6 +365,65 @@ fn refreshed_move(before: Option<&root::Record>, after: Option<&root::Record>) -
     false
 }
 
+/// Only a due task's remains may disappear (protocol/store/retention.md, 6.4).
+fn forgotten_remains(key: &[u8], forgotten: &BTreeSet<u64>, records: &BTreeMap<root::Key, root::Record>) -> bool {
+    // Log extents carry a log number, not a domain key (protocol/store/logs.md, 1).
+    if let Some(suffix) = key.strip_prefix(&jig_protocol_store::logs::EXTENTS) {
+        return <[u8; 8]>::try_from(suffix).is_ok_and(|bytes| {
+            let log = u64::from_be_bytes(bytes);
+            forgotten.iter().any(|task| {
+                jig_protocol_store::logs::history(*task) == Some(log)
+                    || jig_protocol_store::logs::turns(*task) == Some(log)
+            })
+        });
+    }
+    let task = match keys::decode(key) {
+        Some(
+            core::Key::Tasks(
+                tasks::Key::Summary(task)
+                | tasks::Key::Retention { stage: tasks::RetentionStage::Forgotten, number: task, .. }
+                | tasks::Key::History { task, .. }
+                | tasks::Key::Activity { task, .. }
+                | tasks::Key::Attempt { task, .. }
+                | tasks::Key::Hold { task, .. }
+                | tasks::Key::Delegate { task, .. }
+                | tasks::Key::EndedDelegate { task, .. }
+                | tasks::Key::EndedByParty { task, .. }
+                | tasks::Key::EndedByProject { task, .. },
+            )
+            | core::Key::People(people::Key::EndedRead { task, .. } | people::Key::ReadConversation { task, .. })
+            | core::Key::Core(
+                core::CoreKey::Terminal { task, .. }
+                | core::CoreKey::Turn { task, .. }
+                | core::CoreKey::ProposalDecision { proposer: people::Proposer::Task(task), .. }
+                | core::CoreKey::EscalationDecision { task, .. },
+            ),
+        ) => Some(task),
+        Some(core::Key::Tasks(tasks::Key::Update { task, .. })) => Some(task.value()),
+        Some(key @ core::Key::Tasks(tasks::Key::Result { .. })) => {
+            // The result's key has no task number; its retained row identifies its owner.
+            if let Some(root::Record::Core(core::Record::Tasks(tasks::Stored::Result(row)))) =
+                records.get(&root::Key::Core(key))
+            {
+                Some(row.task)
+            } else {
+                None
+            }
+        }
+        _ => match keys::decode_own(key) {
+            Some(
+                keys::Own::Transcript { task }
+                | keys::Own::Attempt { task, .. }
+                | keys::Own::History { task }
+                | keys::Own::TurnLog { task }
+                | keys::Own::LogAttempt { task, .. },
+            ) => Some(task),
+            _ => None,
+        },
+    };
+    task.is_some_and(|task| forgotten.contains(&task))
+}
+
 /// Every exception names its rebuilding step; other keys are durable.
 fn rebuilt(key: &[u8]) -> Option<&'static str> {
     if keys::decode_own(key) == Some(keys::Own::Wires) {
@@ -419,7 +504,14 @@ fn compare_answer(
     key: &(u64, Option<u64>),
     expected: &core::reads::Answer,
     found: &core::reads::Answer,
+    forgotten: &BTreeSet<u64>,
 ) -> Result<(), String> {
+    if key.1.is_some_and(|task| forgotten.contains(&task))
+        && *expected == core::reads::Answer::None(core::reads::Why::Gone)
+        && *found == core::reads::Answer::None(core::reads::Why::Unknown)
+    {
+        return Ok(());
+    }
     let document = key.1.map_or_else(|| "Frame".to_owned(), |task| format!("Task {task}"));
     macro_rules! fields {
         ($left:expr, $right:expr; $($field:ident),+ $(,)?) => {$(

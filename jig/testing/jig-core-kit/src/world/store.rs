@@ -321,11 +321,11 @@ impl World {
             self.cut = None;
         }
         self.events.push_back(root::Event::StartBegin { pending: self.store.generation_pending });
-        self.try_drain()?;
+        self.try_drain_restarting(true)?;
         self.check_restarted_child()?;
         if self.domain.ready() {
             self.hello_engine();
-            self.try_drain()?;
+            self.try_drain_restarting(true)?;
         }
         self.lose_answer = false;
         Ok(())

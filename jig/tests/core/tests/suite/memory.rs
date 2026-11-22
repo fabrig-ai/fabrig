@@ -84,6 +84,50 @@ fn walking_and_effect_scripts_check_the_counted_heap_at_every_iteration() {
     effects.restart(191, false);
 }
 
+#[test]
+fn walking_settles_after_retention_erases_forgotten_remains() {
+    use jig_test_domain as root;
+
+    let mut walking = jig_core_world::world::World::new(Setup {
+        seed: 190,
+        configuration: Some(jig_test_profile::config(190)),
+        limits: jig_test_profile::limits(),
+        walking: Some(jig_core_world::world::Scenario::Goal),
+        ..Setup::default()
+    });
+    let procedure = walking.walking.as_ref().expect("walking peer").procedure.expect("ended procedure");
+    let root::Record::Core(core::Record::Tasks(tasks::Stored::Ended(record))) =
+        &walking.store.rows[&root::Key::Core(core::Key::Tasks(tasks::Key::Ended(procedure)))]
+    else {
+        panic!("ended procedure record")
+    };
+    let mut remains = tasks::TaskSummary::of(record);
+    // The forgotten fixture does not name a task the walking script owns.
+    remains.number = 900;
+    remains.root = 900;
+    walking.seed(Box::new([
+        root::Record::Core(core::Record::Tasks(tasks::Stored::Summary(Box::new(remains)))),
+        root::Record::Core(core::Record::Tasks(tasks::Stored::Retention(tasks::RetentionRow {
+            stage: tasks::RetentionStage::Forgotten,
+            since: Wall::EPOCH,
+            number: 900,
+        }))),
+    ]));
+    let (now, wall) = walking.clocks();
+    walking.set_clock(now.saturating_add(Duration::from_secs(3601)), wall);
+    let inspections = walking.inspections();
+    walking.drain();
+    assert!(walking.inspections() > inspections, "the quiet-point wait and table checks ran");
+    let (now, wall) = walking.clocks();
+    assert_eq!(walking.domain.core().due(now, wall), None);
+    assert!(!walking.store.rows.contains_key(&root::Key::Core(core::Key::Tasks(tasks::Key::Summary(900)))));
+    assert!(!walking.store.rows.keys().any(|key| matches!(key,
+        root::Key::Core(core::Key::Tasks(tasks::Key::Retention {
+            stage: tasks::RetentionStage::Forgotten, number, ..
+        })) if *number == 900
+    )));
+}
+
 // Peak 20,334 bytes with provider defaults and their startup snapshot; measured plus a quarter, rounded up.
 const SCENARIO_FAMILY_HEAP_CEILING: u64 = 26_000;
 
