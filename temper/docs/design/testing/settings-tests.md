@@ -99,7 +99,9 @@ and is live:
 of settings that removes a charter a template names is refused,
 `Fault::Reference`, as jig's whole check does today
 (`jig/docs/design/domain/engine/settings.md`, 1). The same for a producer a template's
-work names is P59's open problem (section 7). A model is withdrawn,
+work names: the draft's P59 holds it open, but settings apply's whole
+check already refuses it, `Fault::Reference`, and P59's scenario pins
+that, enabled (section 7). A model is withdrawn,
 never removed, and withdrawing one is never refused, so that an owner
 can always clear what is out of range (the same section): a charter
 naming it offers its next live model, among its alternatives or the
@@ -237,7 +239,7 @@ it, run by that work's goals until they land it (the draft, 6):
 | Problem | Scenario | Where | What it asserts | Ignored for |
 |---|---|---|---|---|
 | P128 | `a_discovered_model_has_efforts` | `temper-engine-service-stock`'s step tests | a model a preset discovers from its provider's list (`gpt-6.2-sol`, as the OpenAI list gives it, with no efforts), which a template or charter can pick, has efforts in the catalogue | provider failures |
-| P59 | `a_retired_producer_is_refused_while_named` | `temper-engine-service-stock`'s step tests, through settings apply's whole check | settings apply refuses retiring a producer a stock template's work names, naming the producer and the template | provider failures |
+| P59 | `a_retired_producer_is_refused_while_named` | `temper-engine-domain-world`'s suite (`settings/references.rs`), through jig's settings transaction, whose application-reference check is jig's own and not `pub` | settings apply refuses removing a producer a stock template's work names (charter 2, which kind 3 number 1 takes by default), `Fault::Reference`, committing no revision | none: it passes, and runs enabled |
 | P81 residual | `a_json_proposal_carries_hundredths` | `temper-client-tools`' step tests | the `--json` answer's proposed command carries a budget's amount in the unit ctl reads, hundredths as `5.00` | its own fix |
 | found by section 5's walk | `a_members_batch_is_addressed_to_a_role_that_can_fund_it` | `temper-engine-service-stock`'s step tests | a member's batch one past the owners' authority spend, in the stock policy, is addressed to a role whose acceptance passes, or refused as nobody's | the address weighing its accepter's funding |
 
@@ -247,8 +249,9 @@ enabled, and the draft's status says its row is fixed.
 ## 8. Testing
 
 These tests are the step tests above, in the focused suite, each part's
-walk over the stock and its mutations; the three scenarios compile and
-are ignored. They run in milliseconds and need no world.
+walk over the stock and its mutations; the ignored scenarios compile.
+They run in milliseconds and need no world, but P59's, which runs one
+settings transaction in the engine's domain world.
 
 ## 9. Later
 
