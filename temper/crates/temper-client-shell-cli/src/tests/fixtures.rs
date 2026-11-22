@@ -46,7 +46,7 @@ pub struct Frame {
     pub asked_attempts: Vec<Time>,
     pub asked_bearers: Vec<Box<[u8]>>,
     pub service_mode: bool,
-    pub service_replay: bool,
+    pub service_credential: &'static [u8],
     pub hold_service_erase: bool,
     pub made_services: u32,
     pub move_answers: VecDeque<moves::Answer>,
@@ -153,13 +153,13 @@ impl Frame {
     pub fn act(words: &[&[u8]]) -> Self {
         let parsed = arguments::parse(words).expect("fixture call");
         let move_mode = matches!(&parsed, temper_client_tools::jig::call::Parsed::Call { call, .. } if call.tool == temper_client_tools::jig::rows::EXPORT_AT || call.tool == temper_client_tools::jig::rows::IMPORT_AT);
-        let service_mode = matches!(&parsed, temper_client_tools::jig::call::Parsed::Call { call, .. } if call.tool == temper_client_tools::jig::rows::PARTY_MAKE_AT || arguments::class(call) == crate::arguments::Class::Link);
+        let service_mode = matches!(&parsed, temper_client_tools::jig::call::Parsed::Call { call, .. } if matches!(call.tool, temper_client_tools::jig::rows::PARTY_MAKE_AT | temper_client_tools::jig::rows::PARTY_REISSUE_AT) || arguments::class(call) == crate::arguments::Class::Link);
         let file_parent = arguments::file_root(&parsed).map(|_| FILE_PARENT);
         let files = arguments::text_files(&parsed)
             .into_iter()
             .map(|(index, _)| (index, Fd::new(30 + i32::from(index))))
             .collect();
-        let host = OneShot::with_text_files(
+        let host = OneShot::with_directory(
             Invocation { directory: Some(b"directory".as_slice().into()), parsed },
             Startup {
                 parent: Some(Fd::new(1)),
@@ -172,6 +172,7 @@ impl Frame {
                 seed: 1,
             },
             files,
+            Some(service::GIVEN_DIRECTORY),
         )
         .expect("native limits");
         Self {
@@ -179,7 +180,7 @@ impl Frame {
             asked_attempts: Vec::new(),
             asked_bearers: Vec::new(),
             service_mode,
-            service_replay: false,
+            service_credential: &service::CREDENTIAL,
             hold_service_erase: false,
             made_services: 0,
             move_answers: VecDeque::new(),

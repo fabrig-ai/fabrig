@@ -48,7 +48,7 @@ fn party_make_refuses_an_existing_file_before_sending() {
 #[test]
 fn a_party_make_key_replay_prints_the_party_and_writes_nothing() {
     let mut f = make();
-    f.service_replay = true;
+    f.service_credential = b"";
     f.answer_sign_in_then_me();
     assert_eq!(f.exit(), Some(Exit::Code(0)));
     assert_eq!(f.stdout(), b"made: party 9\n");
@@ -171,4 +171,81 @@ fn sign_in_service_refuses_other_forms_before_sending() {
         assert!(f.stored(b"token").is_none());
         f.no_service_leaked();
     }
+}
+
+const REISSUE: &[&str] = &["party", "reissue", "9", "--out", "./record"];
+const REISSUED_JSON: &[u8] = br#"{"operation":"reissue-service","outcome":{"reissued":{"party":9}}}"#;
+
+#[test]
+fn party_reissue_writes_the_private_link_after_durable_answer() {
+    let mut f = Frame::read(REISSUE);
+    f.hold_service_erase = true;
+    f.answer_sign_in_then_me();
+    assert_eq!(f.made_services, 1);
+    assert!(!f.record_exists, "no file before the answer is durable");
+    assert_eq!(f.stdout(), b"");
+    f.store_token_with_address();
+    assert_eq!(f.exit(), Some(Exit::Code(0)));
+    assert_eq!(f.stdout(), b"reissued: party 9; its sign-ins have ended; sign its directory in with temper ctl ./owner/directory sign-in ./record\n");
+    assert_eq!(f.stderr(), b"");
+    assert_eq!(f.record_how, Some(OpenHow::CreateNoFollow { mode: Some(0o600) }));
+    assert!(f.record_data == service::REISSUED_LINK, "file holds only the service link and a newline");
+    assert_eq!(f.file_steps, ["create", "write", "sync-file", "sync-directory"]);
+    f.no_service_leaked();
+}
+
+#[test]
+fn party_reissue_json_names_only_the_operation_and_party() {
+    let mut f = Frame::read(&[REISSUE, &["--json"]].concat());
+    f.answer_sign_in_then_me();
+    assert_eq!((f.exit(), f.stdout()), (Some(Exit::Code(0)), REISSUED_JSON));
+    f.no_service_leaked();
+}
+
+#[test]
+fn party_reissue_pipes_only_the_link_to_stdout() {
+    let mut f = Frame::read(&["party", "reissue", "9", "--out", "-"]);
+    f.answer_sign_in_then_me();
+    assert_eq!(f.exit(), Some(Exit::Code(0)));
+    assert!(f.stdout() == service::REISSUED_LINK, "stdout holds only the link and a newline");
+    assert_eq!(f.stderr(), b"reissued: party 9; its sign-ins have ended; sign its directory in with temper ctl ./owner/directory sign-in -\n");
+    assert_eq!(f.file_steps, [] as [&str; 0]);
+    assert!(!f.opened(b"record"));
+    f.service_stays_private(b"");
+}
+
+#[test]
+fn party_reissue_refuses_an_existing_file_before_sending() {
+    let mut f = Frame::read(REISSUE);
+    f.record_exists = true;
+    f.answer_sign_in_then_me();
+    assert_eq!(f.exit(), Some(Exit::Code(1)));
+    assert_eq!(f.requests(), 0);
+    assert_eq!(f.file_steps, [] as [&str; 0]);
+    assert_eq!(f.stderr(), b"temper ctl: ./record exists or could not be checked\n");
+}
+
+#[test]
+fn party_reissue_fails_without_a_new_credential() {
+    for credential in [b"".as_slice(), b"short"] {
+        let mut f = Frame::read(REISSUE);
+        f.service_credential = credential;
+        f.answer_sign_in_then_me();
+        assert_eq!(f.exit(), Some(Exit::Code(1)));
+        assert_eq!(f.file_steps, [] as [&str; 0]);
+        assert_eq!(f.stdout(), b"");
+        assert_eq!(f.stderr(), b"temper ctl: party 9's new credential was not answered; reissue it again\n");
+        f.no_service_leaked();
+    }
+}
+
+#[test]
+fn party_reissue_names_the_file_if_output_fails() {
+    let mut f = Frame::read(REISSUE);
+    f.record_error = Some(skein_io::kernel::Error::Exists);
+    f.answer_sign_in_then_me();
+    assert_eq!(f.exit(), Some(Exit::Code(1)));
+    assert_eq!(f.stdout(), b"");
+    assert_eq!(f.stderr(), b"temper ctl: ./record could not be written: Exists\n");
+    f.no_service_leaked();
 }

@@ -180,6 +180,8 @@ fn me_text(me: &Me, book: &Phrasebook, limits: &Limits, out: &mut Text) {
     out.words(me.party.login.bytes());
     out.put(b" \xc2\xb7 ");
     out.words(me.party.name.bytes());
+    out.put(b"\nsign-in expires: ");
+    out.put(&temper_client_domain_forge::sign_in::utc_second(me.sign_in_expires));
     out.put(b"\nprojects:\n");
     for project in &me.projects {
         out.put(b"  ");
@@ -674,6 +676,7 @@ pub(super) fn part(part: &jig_client::contract::ApplicationPart, out: &mut Text)
 
 mod act_answers;
 use act_answers::encode_answer;
+pub(super) use act_answers::reissued_json;
 pub(super) fn answer_json(answer: &jig_client::contract::Answer, out: &mut Encoder) {
     let mut budget = Cut { room: usize::MAX, left: 0, turn: None, subject: false, digest: None };
     encode_answer(answer, out, &mut budget);

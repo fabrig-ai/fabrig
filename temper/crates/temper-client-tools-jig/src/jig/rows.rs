@@ -108,7 +108,7 @@ pub const DEPLOYMENT_CENSUS: Tool = Tool {
 pub const ME: Tool = Tool {
     name: b"me",
     line: b"Read your party: its projects, what it may start, and what waits on it",
-    prints: b"`party N`, its login and name, its projects and bounds, what waits on it, the requests' retention, the providers it may use, and `digest: me`",
+    prints: b"`party N`, its login and name, `sign-in expires: U` in UTC, its projects and bounds, what waits on it, the requests' retention, the providers it may use, and `digest: me`",
     result: b"me",
     forms: &[&[
         flag(b"since", b"DIGEST", Kind::Digest, Optional, b"Wait until it differs from the read that printed DIGEST"),
@@ -1383,6 +1383,20 @@ pub const PARTY_MAKE: Tool = Tool {
     keyed: Keyed::Optional,
     area: 3,
     notes: b"The project's owner makes a party with no person, holding ROLE.\nFILE existing refuses the call before anything is sent, exit 1.\nThe host writes FILE at 0o600, with this engine's address and\nthe credential answered once. The credential is never printed\nor passed in argv. A key replay prints the party and writes nothing.\n",
+};
+pub const PARTY_REISSUE_AT: u8 = 120;
+pub const PARTY_REISSUE: Tool = Tool {
+    name: b"party reissue",
+    line: b"Reissue a service's credential and write its service link",
+    prints: b"`reissued: party N; its sign-ins have ended`, then how to sign its directory in again",
+    result: b"reissue-service",
+    forms: &[&[
+        positional(b"party", b"PARTY", Kind::Number, Required, b"The service's party number"),
+        flag(b"out", b"FILE", Kind::File, Required, b"A new private file for sign-in, or - for stdout"),
+    ]],
+    keyed: Keyed::Optional,
+    area: 3,
+    notes: b"An owner of the deployment or of every project the service holds\na role in reissues it, not the service itself. Its sign-ins end at once.\nFILE must not exist; the service link is written at 0o600.\nWith --out -, stdout holds only the service link and the answer goes\nto stderr. Sign the service directory in again with sign-in FILE.\n",
 };
 pub const PROJECT_MAKE_AT: u8 = 70;
 /// Create a project from policy 1 and return its number under a kept key.

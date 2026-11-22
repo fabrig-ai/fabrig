@@ -6,7 +6,8 @@ pub use temper_client_protocol_wire::LINK_PAGE;
 
 const HTTP: &[u8] = b"http://";
 const SERVICE: &[u8] = b"#service=";
-const CREDENTIAL_BYTES: u32 = 40;
+/// The one-time service credential has this binary width.
+pub const CREDENTIAL_BYTES: u32 = 40;
 const ENCODED_BYTES: usize = 54;
 
 /// A service link split into its engine address and its private credential.
