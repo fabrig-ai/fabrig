@@ -91,6 +91,8 @@ pub struct World {
     events: VecDeque<(u32, engine::Event)>,
     inputs: BTreeMap<Token, Input>,
     iteration: u32,
+    checks: crate::checks::Checks,
+    bound_steps: u32,
     commit_wait: u32,
     frozen_cut: bool,
     recovering: bool,
@@ -297,6 +299,8 @@ impl World {
             events: VecDeque::new(),
             inputs: BTreeMap::new(),
             iteration: 0,
+            checks: crate::checks::Checks::new(settings.seed),
+            bound_steps: 0,
             commit_wait: 0,
             frozen_cut: false,
             recovering: false,
@@ -434,10 +438,30 @@ impl World {
     }
 
     fn iterate_inner(&mut self) {
+        self.check_quiet();
         self.iteration += 1;
-        let nanos = u64::from(self.iteration) * 1_000_000 + if self.settings.expired { 61_000_000_000 } else { 0 };
-        self.environment.now = Time::from_nanos(nanos);
-        self.environment.wall = Wall::from_nanos(nanos);
+        let mut at = Time::from_nanos(
+            u64::from(self.iteration) * 1_000_000 + if self.settings.expired { 61_000_000_000 } else { 0 },
+        );
+        if let Some(bound) = self.checks.next_bound().filter(|bound| *bound < at) {
+            if self.environment.now >= bound && self.quiet() {
+                self.checks.step(at, u64::from(self.iteration)).unwrap_or_else(|finding| panic!("{finding}"));
+            }
+            at = bound.max(self.environment.now);
+            self.bound_steps += 1;
+            assert!(
+                self.bound_steps <= 500,
+                "seed {}: at {} ns, iteration {}: engine bound drain: immediate work did not drain in 500 steps",
+                self.settings.seed,
+                at.as_nanos(),
+                self.iteration
+            );
+        } else {
+            self.bound_steps = 0;
+        }
+        self.environment.now = at;
+        self.environment.wall = Wall::from_nanos(at.as_nanos());
+        self.checks.step(self.environment.now, u64::from(self.iteration)).unwrap_or_else(|finding| panic!("{finding}"));
         if !self.frozen_cut {
             crate::poll(&mut self.domain, &self.environment, &mut self.out);
             self.observe();
@@ -467,6 +491,19 @@ impl World {
             for (to, input) in pending {
                 self.dispatch(to, &input);
             }
+        }
+        self.check_quiet();
+    }
+
+    fn quiet(&self) -> bool {
+        self.events.is_empty() && self.out.is_empty() && self.store.idle() && self.domain.quiescent()
+    }
+
+    fn check_quiet(&mut self) {
+        if self.quiet() {
+            self.checks
+                .quiet(&self.domain, self.environment.now, u64::from(self.iteration))
+                .unwrap_or_else(|finding| panic!("{finding}"));
         }
     }
 

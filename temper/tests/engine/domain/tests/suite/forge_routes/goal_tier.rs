@@ -122,7 +122,7 @@ fn span_end(world: &World) -> Time {
 }
 
 fn advance_to_span(world: &mut World) {
-    world.env.now = span_end(world);
+    world.advance_to(span_end(world));
     tier_runs::tick(world);
 }
 
@@ -133,7 +133,7 @@ fn changes_into_a_goal_branch_are_cleared_as_they_land() {
     let [_, second] = two_changes(&mut world, &goal, &branch, b"");
     assert!(world.env.now < span_end(&world), "both changes land within the span");
     assert_eq!(goal_runs(&world).len(), BASELINE_RUNS, "only the goal baseline ran before the span");
-    world.env.now = Time::from_nanos(span_end(&world).as_nanos() - Duration::from_secs(1).as_nanos());
+    world.advance_to(Time::from_nanos(span_end(&world).as_nanos() - Duration::from_secs(1).as_nanos()));
     tier_runs::tick(&mut world);
     assert_eq!(goal_runs(&world).len(), BASELINE_RUNS, "the span has not passed");
     let due = span_end(&world);
@@ -386,7 +386,7 @@ fn a_goals_close_ends_its_branchs_following() {
     }
     fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"after", b"after goal close", 1)
         .expect("released branch moved");
-    world.env.now = world.env.now.saturating_add(GOAL_SPAN);
+    world.advance_to(world.env.now.saturating_add(GOAL_SPAN));
     for _ in 0..RUN_TICKS {
         tier_runs::tick(&mut world);
     }

@@ -254,8 +254,8 @@ fn overlapping_changes_open_after_pressure_without_manual_release() {
     let first = verifying(&mut world, &first_producer);
     let second_started = world.env.now;
     let (second, _) = start_change(&mut world, 93);
-    world.env.now = world.env.now.max(second_started.saturating_add(CHAT_GAP));
-    world.env.wall = skein_lib::Wall::from_nanos(world.env.now.as_nanos());
+    world.advance_to(world.env.now.max(second_started.saturating_add(CHAT_GAP)));
+
     let (third, producer) = start_change(&mut world, 94);
     pressure(&mut world, first, second, third);
     finish(&mut world, &producer);
@@ -556,8 +556,8 @@ fn stock_resources_fit_three_chats_changes_and_a_pending_tier() {
     world.send(protocol::hello_slots(CHANNEL, SLOTS, Box::new([])));
     let mut changes = Vec::new();
     for key in 92..95 {
-        world.env.now = world.env.now.saturating_add(CHAT_GAP);
-        world.env.wall = skein_lib::Wall::from_nanos(world.env.now.as_nanos());
+        world.advance_to(world.env.now.saturating_add(CHAT_GAP));
+
         super::tiers::sign_in(&mut world);
         let ask = adoption_chat(&world);
         let chat = assigned_chat(&mut world, key, ask);

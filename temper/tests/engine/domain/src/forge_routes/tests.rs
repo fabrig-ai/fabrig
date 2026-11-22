@@ -3,8 +3,9 @@ use super::*;
 
 fn tick_reference(world: &mut World) {
     world.changed_tasks.clear();
-    world.env.now = world.env.now.saturating_add(world.tick_interval);
-    world.sync_clock();
+    world.check_quiet();
+    world.iteration += 1;
+    world.advance_to(world.env.now.saturating_add(world.tick_interval));
     world.tick_at_now(None, true, false);
     world.check_ends().unwrap_or_else(|finding| panic!("{finding}"));
     if world.auto_prepare {
@@ -48,10 +49,9 @@ fn an_idle_horizon_keeps_its_end_and_both_sides_of_a_timer() {
     fixed.tick_interval = Duration::from_secs(13);
     jumped.tick_interval = fixed.tick_interval;
     let due = fixed.root.next_deadline(&fixed.env).expect("session expiry armed");
-    // Stories may move monotonic time directly; an ordinary tick synchronizes
-    // the wall clock before consulting the root's wall timers.
-    fixed.env.now = fixed.env.now.saturating_add(Duration::from_secs(1));
-    jumped.env.now = fixed.env.now;
+    // Clock jumps use the driver too, preserving any kept bound.
+    fixed.jump(Duration::from_secs(1));
+    jumped.advance_to(fixed.env.now);
     fixed.root.drain_facts();
     jumped.root.drain_facts();
     let before = u32::try_from(

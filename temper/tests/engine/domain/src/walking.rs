@@ -562,6 +562,8 @@ pub struct World {
     /// Independent expectations derived from person and worker inputs.
     pub referee: WalkingReferee,
     finding: Option<String>,
+    checks: crate::checks::Checks,
+    bound_steps: u32,
     /// Deterministic outside observations, excluding optional diagnostic facts.
     pub trace: Vec<String>,
     /// Exact number of injected process restarts.
@@ -606,6 +608,8 @@ impl World {
             store,
             referee: WalkingReferee::default(),
             finding: None,
+            checks: crate::checks::Checks::new(settings.seed),
+            bound_steps: 0,
             trace: Vec::new(),
             restarts: 0,
             pages: 0,
@@ -691,9 +695,45 @@ impl World {
         if self.finding.is_some() {
             return;
         }
+        if self.events.is_empty()
+            && self.out.is_empty()
+            && self.store.idle()
+            && self.domain.quiescent()
+            && let Err(finding) = self.checks.quiet(&self.domain, self.environment.now, u64::from(self.iteration))
+        {
+            self.finding = Some(finding);
+            return;
+        }
         self.iteration += 1;
-        self.environment.now = Time::from_nanos(u64::from(self.iteration) * 1_000_000 + self.recovery_clock_offset);
-        self.environment.wall = Wall::from_nanos(u64::from(self.iteration) * 1_000_000 + self.recovery_clock_offset);
+        let mut at = Time::from_nanos(u64::from(self.iteration) * 1_000_000 + self.recovery_clock_offset);
+        if let Some(bound) = self.checks.next_bound().filter(|bound| *bound < at) {
+            if self.environment.now >= bound
+                && self.quiet()
+                && let Err(finding) = self.checks.step(at, u64::from(self.iteration))
+            {
+                self.finding = Some(finding);
+                return;
+            }
+            at = bound.max(self.environment.now);
+            self.bound_steps += 1;
+            if self.bound_steps > 600 {
+                self.finding = Some(format!(
+                    "seed {}: at {} ns, iteration {}: engine bound drain: immediate work did not drain in 600 steps",
+                    self.settings.seed,
+                    at.as_nanos(),
+                    self.iteration
+                ));
+                return;
+            }
+        } else {
+            self.bound_steps = 0;
+        }
+        self.environment.now = at;
+        self.environment.wall = Wall::from_nanos(at.as_nanos());
+        if let Err(finding) = self.checks.step(self.environment.now, u64::from(self.iteration)) {
+            self.finding = Some(finding);
+            return;
+        }
         crate::poll(&mut self.domain, &self.environment, &mut self.out);
         self.observe();
         if self.finding.is_some() {
@@ -832,6 +872,14 @@ impl World {
             // external clock past its five-second grace, staying within the
             // person's sixty-second session and account validity.
             self.recovery_clock_offset = 6_000_000_000;
+        }
+        if self.events.is_empty()
+            && self.out.is_empty()
+            && self.store.idle()
+            && self.domain.quiescent()
+            && let Err(finding) = self.checks.quiet(&self.domain, self.environment.now, u64::from(self.iteration))
+        {
+            self.finding = Some(finding);
         }
     }
 
@@ -1122,6 +1170,10 @@ impl World {
         }
         self.check_finding()?;
         Err(format!("walking story did not settle: {:?}", self.trace))
+    }
+
+    fn quiet(&self) -> bool {
+        self.events.is_empty() && self.out.is_empty() && self.store.idle() && self.domain.quiescent()
     }
 
     fn check_finding(&self) -> Result<(), String> {

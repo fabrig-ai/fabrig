@@ -482,7 +482,7 @@ const PLAN_MERGES: u32 = 1; // The plan change into g, before L merges.
 const TWO_CHANGE_MERGES: u32 = 2; // The plan and implementation changes into g.
 const GOAL_MERGES: u32 = 3; // Those two changes, then L's whole goal branch into main.
 
-pub(super) fn status(world: &mut World, head: u64, state: raw::Check) {
+pub(crate) fn status(world: &mut World, head: u64, state: raw::Check) {
     assert_eq!(
         world.external(
             1,

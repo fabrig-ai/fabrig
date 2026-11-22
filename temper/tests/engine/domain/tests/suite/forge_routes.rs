@@ -185,7 +185,7 @@ mod goal_questions;
 
 mod goal_delivery;
 #[path = "forge_routes/goal_landing.rs"]
-mod goal_landing;
+pub(super) mod goal_landing;
 
 #[path = "forge_routes/goal_landing_held.rs"]
 mod goal_landing_held;
@@ -564,7 +564,7 @@ fn a_change_whose_ci_takes_minutes_lands_without_being_held() {
     );
     // Main resumes the wait at its stall alarm; the fresh read then sees green.
     // Jump the virtual clock instead of spending ticks on that quiet interval.
-    world.env.now = world.env.now.saturating_add(stall);
+    world.jump(stall);
     for _ in 0..300 {
         world.tick();
         if world.store.rows.values().any(|stored| {
@@ -4108,8 +4108,7 @@ fn settling_places_no_run_and_answers_a_call_busy() {
     }
     assert!(world.root.ready());
     assert!(!world.assigned.iter().any(|run| run.task == queued), "the restored claim waits for its hold");
-    world.env.now =
-        world.env.now.saturating_add(world.env.limits.fleet.restart_wait).saturating_add(world.env.limits.fleet.grace);
+    world.jump(world.env.limits.fleet.restart_wait.saturating_add(world.env.limits.fleet.grace));
     for _ in 0..200 {
         world.tick();
         if world.assigned.iter().any(|run| run.task == queued) {

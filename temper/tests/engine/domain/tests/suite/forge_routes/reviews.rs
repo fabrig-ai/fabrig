@@ -524,12 +524,13 @@ fn a_runs_busy_reads_and_a_change_steps_read_each_get_their_own_answer() {
     let before = world.answers.len();
     let file = Read::File { head, path: FILE.into(), max_bytes: 1024 };
     // These concurrent attempts fit inside the held call's lifetime; ticks keep one clock sample.
-    let now = world.env.now;
+    let cadence = world.tick_interval;
+    world.advance_to(world.env.now.saturating_add(cadence));
+    world.tick_interval = Duration::ZERO;
     for attempt in 0..SWEEP {
         let busy = world.busy_calls;
         ask_read(&mut world, &reviewer, 10, forge_world::REPO, file.clone());
         for _ in 0..MAX_TICKS {
-            world.env.now = now;
             world.tick();
             if world.busy_calls != busy {
                 break;
@@ -554,6 +555,7 @@ fn a_runs_busy_reads_and_a_change_steps_read_each_get_their_own_answer() {
         }
         assert_eq!(world.busy_calls, busy + 1, "attempt {attempt}: the run hears its own Busy");
     }
+    world.tick_interval = cadence;
     assert_eq!(world.answers.len(), before, "Busy has no model-visible answer");
     for event in completions {
         world.send(event);
@@ -705,8 +707,8 @@ fn reviewer_reads_back_off_for_the_background_reserve() {
     let before = world.answers.len();
     let busy = world.busy_calls;
     // A due keeping read must get the reserved request before another fresh read.
-    world.env.now = world.env.now.saturating_add(world.env.limits.forge.client.poll);
-    world.env.wall = skein_lib::Wall::from_nanos(world.env.now.as_nanos());
+    world.advance_to(world.env.now.saturating_add(world.env.limits.forge.client.poll));
+
     for _ in 0..8 {
         engine::fire(&mut world.root, &world.env);
     }

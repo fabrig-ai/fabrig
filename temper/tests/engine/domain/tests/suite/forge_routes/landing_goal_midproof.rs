@@ -165,7 +165,7 @@ fn deliver_second(setup: &mut ProvingGoal, file: &[u8]) -> u64 {
 }
 
 fn assert_landed(setup: &mut ProvingGoal, second_file: &[u8], successor: u64) {
-    setup.world.env.now = setup.world.env.now.saturating_add(WORKFLOW_LATENCY);
+    setup.world.advance_to(setup.world.env.now.saturating_add(WORKFLOW_LATENCY));
     for _ in 0..STEPS {
         setup.world.tick();
         if ended(&setup.world, setup.change) && ended(&setup.world, setup.departed) && ended(&setup.world, successor) {

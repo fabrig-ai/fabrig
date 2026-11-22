@@ -251,9 +251,7 @@ impl Driver {
                 && let Some(due) = self.root.next_deadline(&self.env)
                 && due <= self.env.now.saturating_add(skein_lib::Duration::from_secs(1))
             {
-                let span = due.as_nanos().saturating_sub(self.env.now.as_nanos());
-                self.env.wall = skein_lib::Wall::from_nanos(self.env.wall.as_nanos().saturating_add(span));
-                self.env.now = self.env.now.max(due);
+                self.advance_to(self.env.now.max(due));
                 engine::fire(&mut self.root, &self.env);
                 engine::release(&mut self.root, &self.env, &mut self.out);
                 self.collect();
@@ -262,6 +260,7 @@ impl Driver {
             if self.idle_since(commit) {
                 quiet += 1;
                 if quiet == 2 {
+                    self.check_quiet();
                     return;
                 }
             } else {

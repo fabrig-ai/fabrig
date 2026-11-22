@@ -1,6 +1,6 @@
 //! Restored forge work follows the root's durable start mark.
 use skein_forge_client::{Condition, Effect, Entry};
-use skein_lib::{Duration, ReplyTo, Time, Token, Wall};
+use skein_lib::{Duration, ReplyTo, Time, Token};
 use temper_engine_domain::{self as engine, Record, Write};
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_world::{direct::Driver, fixtures, forge_stand::ForgeStand, walking};
@@ -71,8 +71,7 @@ fn the_forge_reaches_no_forge_before_the_mark() {
     let mark = *mark;
     assert!(writes.contains(&Write::Wires));
     // The restored change's deadline is already due; explicitly fire the root too.
-    driver.env.now = Time::from_nanos(Duration::from_secs(100).as_nanos());
-    driver.env.wall = Wall::from_nanos(Duration::from_secs(100).as_nanos());
+    driver.advance_to(Time::from_nanos(Duration::from_secs(100).as_nanos()));
     for _ in 0..PASSES {
         engine::fire(&mut driver.root, &driver.env);
         driver.advance(false);

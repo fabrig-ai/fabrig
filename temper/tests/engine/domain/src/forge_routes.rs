@@ -94,6 +94,8 @@ pub struct CallError {
 
 #[expect(clippy::struct_excessive_bools, reason = "independent outside fault and observation switches remain explicit")]
 pub struct World {
+    checks: crate::checks::Checks,
+    iteration: u64,
     pub ends: crate::ends::Ends,
     idle_revision: Option<(u64, Option<Time>)>,
     auto_prepare: bool,
@@ -1678,9 +1680,12 @@ impl World {
         let store =
             temper_engine_domain_world::fixtures::restored_over(Store::with_limits(&store_limits), bootstrap, &limits);
         let period_budget = config.core.defaults.rules.period_spend;
+        let checks = crate::checks::Checks::new(config.core.seed);
         let mut ends = crate::ends::Ends::new(config.core.seed, crate::ends::OPENING);
         ends.restarted(Time::ZERO);
         Self {
+            checks,
+            iteration: 0,
             ends,
             restart_config: crate::oracle::config::copy(&config),
             idle_revision: None,
@@ -3075,6 +3080,7 @@ impl World {
     pub fn drain_cut(&mut self) {
         for _ in 0..STEPS {
             if self.store.pending.is_empty() && self.pending.is_empty() && self.events.is_empty() {
+                self.check_quiet();
                 return;
             }
             self.tick();
@@ -3166,6 +3172,23 @@ impl World {
         question
     }
 
+    fn quiet(&self) -> bool {
+        self.events.is_empty()
+            && self.immediate.is_empty()
+            && self.out.is_empty()
+            && self.fake_out.is_empty()
+            && self.store.idle()
+            && !self.fake.is_due(self.env.now)
+            && self.root.next_deadline(&self.env).is_none_or(|due| due > self.env.now)
+            && self.root.quiescent()
+    }
+
+    fn check_quiet(&mut self) {
+        if self.quiet() {
+            self.checks.quiet(&self.root, self.env.now, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
+        }
+    }
+
     fn idle_until_timer(&mut self) -> bool {
         if self.period.is_none()
             || !self.events.is_empty()
@@ -3188,9 +3211,8 @@ impl World {
         true
     }
 
-    /// Observe the entire fixed-tick horizon, jumping only over ticks with no
-    /// immediate work and strictly before either machine's next timer. Timers
-    /// still fire on the first tick of the story's grid at or after their due time.
+    /// Observe the fixed-tick horizon, skipping only idle ticks before either
+    /// machine's next timer or the next inspection bound.
     pub fn advance_ticks(&mut self, mut ticks: u32) {
         if ticks > 0 && !self.oracle_running {
             self.sync_clock();
@@ -3198,7 +3220,9 @@ impl World {
         while ticks > 0 {
             let interval = self.tick_interval.as_nanos();
             if !self.oracle_running && interval > 0 && self.idle_until_timer() {
+                self.check_quiet();
                 let root = self.idle_revision.expect("idle root revision").1;
+                let root = root.into_iter().chain(self.checks.next_bound()).min();
                 let due = match (root, self.fake.next_deadline()) {
                     (Some(root), Some(fake)) => Some(root.min(fake)),
                     (root, None) => root,
@@ -3212,9 +3236,12 @@ impl World {
                     self.changed_tasks.clear();
                     for _ in 0..skip {
                         self.env.now = self.env.now.saturating_add(self.tick_interval);
+                        self.iteration += 1;
+                        self.checks.step(self.env.now, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
                         self.check_ends().unwrap_or_else(|finding| panic!("{finding}"));
                     }
                     self.sync_clock();
+                    self.check_quiet();
                     self.fake.reclaim();
                     ticks -= skip;
                     continue;
@@ -3267,6 +3294,8 @@ impl World {
     }
 
     fn tick_with_reply_cut(&mut self, target: Option<u64>, resume: bool) -> bool {
+        self.check_quiet();
+        self.iteration += 1;
         self.changed_tasks.clear();
         // A Busy retry keeps the offered change step in flight. Drain that
         // read's timer before snapshotting; an idle procedure's poll is not work.
@@ -3286,19 +3315,23 @@ impl World {
                 .root
                 .next_deadline(&self.env)
                 .is_some_and(|due| due <= self.env.now.saturating_add(Duration::from_secs(1)));
+        let mut next = self.env.now;
         if retrying_change && let Some(due) = self.root.next_deadline(&self.env) {
-            self.env.now = self.env.now.max(due);
+            next = next.max(due);
         }
         if self.oracle_running {
             if !self.pending.is_empty()
                 && let Some(due) = self.fake.next_deadline()
             {
-                self.env.now = self.env.now.max(due);
+                next = next.max(due);
             }
         } else {
-            self.env.now = self.env.now.saturating_add(self.tick_interval);
+            next = next.saturating_add(self.tick_interval);
         }
+        let lost = self.visit_bounds(next, target, resume);
+        self.env.now = next;
         self.sync_clock();
+        self.checks.step(self.env.now, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
         // An idle shell has no input, output or owner continuation to run.
         // Keep the tick's observation instant, including both timer boundaries.
         if !self.oracle_running
@@ -3309,7 +3342,62 @@ impl World {
             self.fake.reclaim();
             return false;
         }
-        self.tick_at_now(target, resume, retrying_change)
+        self.tick_at_now(target, resume, retrying_change) || lost
+    }
+
+    /// Move the story's clock through every kept bound, draining its timers at
+    /// that instant. Other timers keep the story's ordinary tick policy.
+    pub fn jump(&mut self, duration: Duration) {
+        self.advance_to(self.env.now.saturating_add(duration));
+    }
+
+    /// An absolute clock move for stories that choose a deadline themselves.
+    pub fn advance_to(&mut self, at: Time) {
+        assert!(at >= self.env.now, "the story clock moves forward");
+        self.check_quiet();
+        self.visit_bounds(at, None, true);
+        self.env.now = at;
+        self.sync_clock();
+        self.checks.step(at, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
+    }
+
+    fn visit_bounds(&mut self, at: Time, target: Option<u64>, resume: bool) -> bool {
+        let mut lost = false;
+        while let Some(bound) = self.checks.next_bound().filter(|bound| *bound < at) {
+            if bound < self.env.now {
+                self.checks.step(self.env.now, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
+            }
+            self.env.now = bound;
+            self.sync_clock();
+            let mut drained = false;
+            for _ in 0..STEPS {
+                self.iteration += 1;
+                self.checks.step(bound, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
+                lost |= self.tick_at_now(target, resume, true);
+                if self.auto_prepare {
+                    self.complete_prepare();
+                }
+                self.check_ends().unwrap_or_else(|finding| panic!("{finding}"));
+                if self.quiet() {
+                    self.check_quiet();
+                    drained = true;
+                    break;
+                }
+            }
+            assert!(
+                drained,
+                "seed {}: at {} ns, iteration {}: engine bound drain: immediate work did not drain in {STEPS} steps",
+                self.restart_config.core.seed,
+                bound.as_nanos(),
+                self.iteration
+            );
+            // A wait still standing at the bound must not pin the clock forever:
+            // its next move is the referee's finding, not another drain.
+            if self.checks.next_bound().is_some_and(|next| next <= bound) {
+                self.checks.step(at, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
+            }
+        }
+        lost
     }
 
     #[expect(
@@ -3449,6 +3537,7 @@ impl World {
         self.flush();
         self.root.reclaim();
         self.fake.reclaim();
+        self.check_quiet();
         lost
     }
 

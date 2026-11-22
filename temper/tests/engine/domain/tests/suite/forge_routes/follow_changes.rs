@@ -486,7 +486,7 @@ fn advance_follow_timer(world: &mut World) {
         && world.store.pending.is_empty()
         && let Some(due) = world.root.next_deadline(&world.env)
     {
-        world.env.now = world.env.now.max(due);
+        world.advance_to(world.env.now.max(due));
     }
 }
 fn hint_target(world: &mut World) {

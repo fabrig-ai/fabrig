@@ -15,6 +15,7 @@ mod budget;
 mod catching_up;
 mod catching_up_progress;
 mod checkpoints;
+mod checks;
 mod configuring;
 mod deleted_project;
 mod direct_driver;

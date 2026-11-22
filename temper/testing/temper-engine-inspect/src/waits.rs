@@ -23,8 +23,14 @@ fn landing_wait(view: &View<'_>, row: &LandingRow) -> Option<Wait> {
     if landing_ended(&row.landing.phase) || view.ended(task) {
         return None;
     }
+    // The prepare effect leaves its job in flight before a later landing step
+    // records an explicit Wait decision. Its phase and job still name that wait.
+    let awaited = row.waiting.or_else(|| {
+        (row.landing.phase == temper_engine_domain_forge_landing::Phase::Preparing && row.job.is_some())
+            .then_some(Awaited::Prepare)
+    });
     let (kind, mut wakes) =
-        if row.room.is_some() { ("landing: room".to_owned(), room(view)) } else { landing(view, row, row.waiting?) };
+        if row.room.is_some() { ("landing: room".to_owned(), room(view)) } else { landing(view, row, awaited?) };
     if row.room.is_none() {
         wakes.extend(view.read_wakes(task));
         if let Some(due) = view.forge.inspection_landing_due(task) {
@@ -36,7 +42,10 @@ fn landing_wait(view: &View<'_>, row: &LandingRow) -> Option<Wait> {
 
 fn change_wait(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) -> Option<Wait> {
     let task = row.task;
-    if view.ended(task) {
+    // Once its ending is handed to the root, the procedure no longer waits;
+    // the task can still be closing its holds in jig. Those entries are read
+    // by the table inspection, not invented as another procedure step.
+    if view.ended(task) || row.ending.is_some() {
         return None;
     }
     let kind = change_kind(&row.change.state)?;

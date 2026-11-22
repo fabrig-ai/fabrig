@@ -149,7 +149,7 @@ pub(super) fn hello_prepare(slots: u32) -> engine::Event {
     hello.jobs = Box::new([bound]);
     event
 }
-fn produced_turn_change(landing_members: Option<u32>) -> (World, u64) {
+pub(crate) fn produced_turn_change(landing_members: Option<u32>) -> (World, u64) {
     produced_turn_change_with(&StoryLimits { turn: true, landing_members, ..StoryLimits::default() })
 }
 
@@ -319,7 +319,7 @@ fn a_refused_landing_forms_nothing_and_retries_after_room_returns() {
         "cancel replies={:?}",
         world.web_replies
     );
-    world.env.now = Time::from_nanos(refusal_at.as_nanos() + world.env.limits.forge.queue_window.as_nanos());
+    world.advance_to(Time::from_nanos(refusal_at.as_nanos() + world.env.limits.forge.queue_window.as_nanos()));
     // Let the timer form the landing, but leave activation for its owner Resume.
     for _ in 0..10 {
         world.tick_without_resume();

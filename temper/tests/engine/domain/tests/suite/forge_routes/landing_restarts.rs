@@ -61,7 +61,7 @@ pub(super) fn tick(world: &mut World) {
             world.fake.next_deadline()
         };
         if let Some(next) = next {
-            world.env.now = world.env.now.max(next);
+            world.advance_to(world.env.now.max(next));
         }
     }
     world.prepare_tick();
@@ -382,7 +382,7 @@ fn lost_prepare(reboot: bool) {
     world.forge_reads = Some(Vec::new());
     let mut held = Vec::new();
     world.send(protocol::lost(Token::new(7)));
-    world.env.now = world.env.now.saturating_add(world.env.limits.fleet.grace).saturating_add(Duration::from_secs(1));
+    world.advance_to(world.env.now.saturating_add(world.env.limits.fleet.grace).saturating_add(Duration::from_secs(1)));
     for _ in 0..PAIR_TICKS {
         held.extend(take_member_answers(&mut world, &branch));
         world.tick();
@@ -452,8 +452,9 @@ fn lost_prepare(reboot: bool) {
     }
     world.send(hello);
     // Past the lost retry's backoff, a read still owns the first attempt's slot.
-    world.env.now =
-        world.env.now.saturating_add(world.env.limits.tasks.retries.lost.max).saturating_add(Duration::from_secs(1));
+    world.advance_to(
+        world.env.now.saturating_add(world.env.limits.tasks.retries.lost.max).saturating_add(Duration::from_secs(1)),
+    );
     for _ in 0..PAIR_TICKS {
         held.extend(take_member_answers(&mut world, &branch));
         world.tick();

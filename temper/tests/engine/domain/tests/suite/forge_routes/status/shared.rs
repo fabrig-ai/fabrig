@@ -155,8 +155,8 @@ fn shared(project_key: bool) -> Shared {
 
 impl Shared {
     fn at(&mut self, minutes: u64) {
-        self.world.env.now = self.start.saturating_add(Duration::from_secs(minutes * 60));
-        self.world.env.wall = Wall::from_nanos(self.world.env.now.as_nanos());
+        self.world.advance_to(self.start.saturating_add(Duration::from_secs(minutes * 60)));
+
         // The fake credential provider renews the forge grant across clock jumps.
         self.world.send(engine::Event::Credential { number: 1, generation: 1, valid: Duration::from_secs(3600) });
         // The fake component refreshes the plans' grants across clock jumps.

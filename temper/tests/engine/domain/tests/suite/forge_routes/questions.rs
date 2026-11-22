@@ -324,7 +324,7 @@ fn a_question_open_past_the_stall_holds_nothing() {
     ask(&mut world, &producer, change);
     park_after_turn(&mut world, &producer, None, 0);
     let before_question = row(&world, change).change.since;
-    world.env.now = world.env.now.saturating_add(stall.saturating_add(stall));
+    world.advance_to(world.env.now.saturating_add(stall.saturating_add(stall)));
     world.advance_ticks(TICKS);
     assert_eq!(row(&world, change).change.state, State::Producing { requested: true });
     assert!(!matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }));
@@ -338,11 +338,11 @@ fn a_question_open_past_the_stall_holds_nothing() {
     assert!(since > before_question);
     let deadline = since.as_nanos().saturating_add(stall.as_nanos());
     // Leave a minute before the deadline, beyond these ticks' twenty seconds.
-    world.env.now = Time::from_nanos(deadline - Duration::from_secs(60).as_nanos());
+    world.advance_to(Time::from_nanos(deadline - Duration::from_secs(60).as_nanos()));
     world.advance_ticks(TICKS);
     assert_eq!(row(&world, change).change.state, State::Producing { requested: true });
     assert!(row(&world, change).change.since >= since);
-    world.env.now = Time::from_nanos(deadline);
+    world.advance_to(Time::from_nanos(deadline));
     world.advance_ticks(TICKS);
     assert_eq!(row(&world, change).change.state, State::Producing { requested: true });
     assert!(!matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }));
