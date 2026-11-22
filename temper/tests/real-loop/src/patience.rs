@@ -2,12 +2,13 @@
 //! (skein/docs/foundation/testing-strategy.md, 2.8 and 2.10).
 use crate::{
     calls::Caller,
+    deadline::Deadline,
     world::{Kind, Proc},
 };
 use skein_io::kernel::{Complete, Exit, Submit};
 use skein_lib::{Duration, Queue, Time, Wall};
 use skein_shell::Host;
-use skein_world::{Deadline, Expired, Referee};
+use skein_world::{Expired, Referee};
 use std::fmt::Write;
 
 #[derive(Debug)]
@@ -47,7 +48,11 @@ impl Patience {
         }
     }
     /// The first act arms the real-clock deadline after all fixture admission.
-    pub(crate) fn due(&mut self) -> bool {
+    pub(crate) fn due(&mut self, now: Time) -> bool {
+        self.due_with(now, Deadline::arm)
+    }
+
+    fn due_with(&mut self, now: Time, arm: fn(&'static str, Duration, Time) -> Deadline) -> bool {
         if self.deferred {
             return false;
         }
@@ -55,13 +60,13 @@ impl Patience {
             return self.handle(Verdict::Failed("forced failed deadline figures".into()));
         }
         let Some(deadline) = &self.deadline else {
-            self.deadline = Some(Deadline::arm("the temper judge's verdict", self.after));
+            self.deadline = Some(arm("the temper judge's verdict", self.after, now));
             return false;
         };
-        if !deadline.passed() {
+        let Some(expired) = deadline.expiration(now) else {
             return false;
-        }
-        self.handle(verdict(deadline.expired()))
+        };
+        self.handle(verdict(expired))
     }
     pub(crate) fn force_failed(&mut self) {
         self.forced = true;
@@ -323,11 +328,13 @@ impl Referee<Frozen> for Judge {
 
 #[cfg(test)]
 mod tests {
-    use super::{Frozen, Judge, Patience, Verdict, check_overdue, verdict};
+    use super::{Deadline, Frozen, Judge, Patience, Verdict, check_overdue, verdict};
     use skein_io::kernel::Fd;
     use skein_lib::{Duration, Time, Wall};
     use skein_shell::Host;
     use skein_world::{Expired, Figures};
+
+    const ARM_AT: Time = Time::from_nanos(42);
 
     #[test]
     fn the_caller_snapshot_names_the_current_wait_without_advancing_it() {
@@ -354,7 +361,7 @@ mod tests {
 
     fn armed_guard() -> Patience {
         let mut guard = Patience::new(Duration::from_secs(20));
-        assert!(!guard.due());
+        assert!(!guard.due_with(ARM_AT, Deadline::scripted));
         guard
     }
 
@@ -364,7 +371,7 @@ mod tests {
         let early = guard.deadline().expect("armed deadline");
         assert!(!guard.handle(Verdict::Starved));
         for now in [early, early.saturating_add(Duration::from_secs(1))] {
-            assert!(!guard.due(), "the world's patience owns the starved verdict");
+            assert!(!guard.due_with(now, Deadline::scripted), "the world's patience owns the starved verdict");
             assert_eq!(guard.deadline(), None, "the early deadline cannot keep waking the loop");
             assert_eq!(guard.overdue(), None);
             let judge = Judge { patience: guard, finding: None };
@@ -450,14 +457,11 @@ mod tests {
             let mut guard = Patience::new(supplied);
             assert_eq!(guard.after.saturating_add(Duration::from_secs(1)), supplied);
             assert_eq!(guard.deadline(), None);
-            let clock = skein_shell::Clock::new();
-            let before = clock.now().now;
-            assert!(!guard.due());
-            let after = clock.now().now;
+            assert!(!guard.due_with(ARM_AT, Deadline::scripted));
             let patience = Duration::from_nanos(supplied.as_nanos().checked_sub(1_000_000_000).expect("margin"));
             let deadline = guard.deadline().expect("armed deadline");
-            assert!(deadline >= before.saturating_add(patience));
-            assert!(deadline <= after.saturating_add(patience));
+            assert!(deadline >= ARM_AT.saturating_add(patience));
+            assert!(deadline <= ARM_AT.saturating_add(patience));
             assert!(guard.overdue().is_none(), "no message or snapshot before it fires");
         }
     }

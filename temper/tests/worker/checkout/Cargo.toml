@@ -12,6 +12,7 @@ test = false
 doctest = false
 
 [dependencies]
+temper-worker-inspect.workspace = true
 temper-fake-git.workspace = true
 skein-io.workspace = true
 skein-fake-peers.workspace = true

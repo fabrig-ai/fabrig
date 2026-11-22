@@ -1,6 +1,6 @@
 # tools: status
 
-2026-11-18. Where the tree's code lags or departs from [tools.md](tools.md).
+2026-11-21. Where the tree's code lags or departs from [tools.md](tools.md).
 
 
 - **Not yet:** 1: the table's amount type; 3: `project fund`'s AMOUNT and answer in ctl's amount [in flight: change 7671].
@@ -49,5 +49,3 @@
   hold over the task's subtree (`jig/rows.rs` `STOP`), as jig's `Stop`
   does (jig's `domain/people/acts.md`, 1), where its row holds the task;
   `hold lift` is keyed optionally (`Keyed::Optional`).  the question-number omission remains `results.status.md`, 1. the budget-print scaling remains `results.status.md`, 1. the pinned-account wait contradiction remains `results.status.md`, 1. the person-task amendment's missing arguments remain `results.status.md`, 1.  the authority-entry bound remains `README.status.md`, 9.
-- **Not yet:** 1 and 3: the group `party` and `party make` [in flight: change 724].
-- **Not yet:** 3: `finding repair` and `finding blame` [in flight: change 10620].

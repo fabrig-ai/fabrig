@@ -28,6 +28,7 @@ pub fn parse<'a>(words: &[&'a [u8]]) -> Result<(Option<&'a [u8]>, temper_client_
 fn start(arguments: &[OsString], clock: &Clock) -> Result<u8, String> {
     let words: Vec<_> = arguments.iter().map(|word| word.as_bytes()).collect();
     let (directory, parsed) = parse(&words)?;
+    let given = directory;
     let help = matches!(&parsed, temper_client_tools::jig::call::Parsed::Call { call, .. } if arguments::class(call) == arguments::Class::Help);
     let mut owned = Vec::new();
     let result = (|| {
@@ -59,7 +60,7 @@ fn start(arguments: &[OsString], clock: &Clock) -> Result<u8, String> {
         let seed = skein_shell::seed().map_err(|errno| format!("random seed: errno {errno}"))?;
         let signals = skein_shell::open_termination_signals().map_err(|errno| format!("signals: errno {errno}"))?;
         owned.push(signals);
-        let mut host = OneShot::with_text_files(
+        let mut host = OneShot::with_directory(
             Invocation { directory, parsed },
             Startup {
                 parent,
@@ -72,6 +73,7 @@ fn start(arguments: &[OsString], clock: &Clock) -> Result<u8, String> {
                 seed,
             },
             text_files,
+            given,
         )
         .map_err(|_| "client limits refused")?;
         let mut kernel = Kernel::open(Config { operations: host.operations() }).map_err(|why| why.to_string())?;

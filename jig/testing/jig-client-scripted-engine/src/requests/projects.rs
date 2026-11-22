@@ -46,6 +46,7 @@ impl<A: Application> Engine<A> {
             | Ask::ChangePolicy { .. }
             | Ask::SetRoles { .. }
             | Ask::MakeService { .. }
+            | Ask::ReissueService { .. }
             | Ask::SetPool { .. }
             | Ask::SignIn { .. }
             | Ask::AccountChange { .. }

@@ -926,10 +926,16 @@ impl Peer {
         self.event(Event::SignInRefused { to });
     }
     pub fn answer_kept(&mut self, sign_in: u64) {
+        self.answer_digest_kept(SecretOwner::SignIn(sign_in));
+    }
+    pub fn answer_service_kept(&mut self, party: u64) {
+        self.answer_digest_kept(SecretOwner::Service(party));
+    }
+    fn answer_digest_kept(&mut self, owner: SecretOwner) {
         let (number, value) = self.keep.take().expect("digest keep requested");
-        assert_eq!(number, SecretOwner::SignIn(sign_in));
-        self.digests.insert(number, value);
-        self.event(Event::Secrets(SecretsAnswer::Kept { owner: SecretOwner::SignIn(sign_in) }));
+        assert_eq!(number, owner);
+        self.digests.insert(owner, value);
+        self.event(Event::Secrets(SecretsAnswer::Kept { owner }));
     }
     pub fn fail_keep(&mut self) {
         self.keep = None;

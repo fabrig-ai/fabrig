@@ -20,6 +20,10 @@ use crate::{
 
 mod credentials;
 
+pub(crate) mod testing {
+    pub use super::credentials::testing::run;
+}
+
 pub(crate) fn validate_credentials(task: &crate::Task) -> Result<(), Fault> {
     credentials::validate(task)
 }

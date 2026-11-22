@@ -13,4 +13,8 @@ mod real_failure;
 mod real_memory;
 mod real_roots;
 mod stop_continue;
+#[cfg(target_os = "linux")]
+mod tree {
+    mod tests;
+}
 mod writer_pipe;

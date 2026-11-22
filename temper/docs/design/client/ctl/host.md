@@ -6,7 +6,7 @@ acts are `tools.md`'s.
 
 | Tool | What it does |
 |---|---|
-| `sign-in FILE\|-` | signs in by the link `temper-box serve` printed, read from FILE, or from stdin for `-`; writes `token` and `address` (`README.md`, 6.1) |
+| `sign-in FILE\|-` | signs in by the link `temper-box serve` printed, read from FILE, or from stdin for `-`; writes `token` and `address` (`README.md`, 6.1); a service link, which `party reissue` writes, signs in as `sign-in --service` does (`README.md`, section 7) |
 | `sign-in --service FILE` | signs in as the service whose FILE `party make` wrote, jig's `SignIn { with: Service(credential) }` at the address FILE names; writes `token` and `address` as `sign-in` does, so every later call acts as that party, within its role's authority and pool (`README.md`, section 7). FILE readable by others than its owner, or not in `party make`'s form, is refused before anything is sent, exit 1 |
 | `sign-out` | ends the sign-in and leaves `token` empty, zero bytes, read as signed out (`README.md`, 6.1) |
 | `link --out FILE` | asks the engine for a fresh one-time sign-in link for DIRECTORY's party, jig's `AskLink`, and writes its URL to FILE, `0o600`, refused if FILE exists before anything is sent; never prints the link (`README.md`, 6.1) |

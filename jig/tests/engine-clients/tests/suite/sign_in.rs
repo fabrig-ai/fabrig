@@ -694,6 +694,55 @@ fn a_services_sign_in_is_busy_for_busy_or_full() {
     }
 }
 
+#[test]
+fn only_the_replacement_service_credential_signs_in_after_reissue() {
+    use jig_domain_core::Event as CoreEvent;
+    use jig_domain_people as p;
+    use jig_protocol_engine_clients::SecretOwner;
+    const SERVICE: u64 = 9;
+    // The service's number and 32 random bytes (protocol/client/sign-in.md).
+    const SERVICE_CREDENTIAL_BYTES: usize = 40;
+    let mut old_token = [7; SERVICE_CREDENTIAL_BYTES];
+    old_token[..size_of::<u64>()].copy_from_slice(&SERVICE.to_be_bytes());
+    let mut peer = peer();
+    let limits = fixtures::limits().wire;
+    let owner_bearer = fixtures::signed_in(&mut peer);
+    peer.keep_digest(SecretOwner::Service(SERVICE), &old_token, Wall::from_nanos(u64::MAX));
+    let ask = w::Ask::ReissueService(w::ReissueService { party: SERVICE });
+    let keyed = w::Keyed {
+        key: [5; 16],
+        owner: w::Owner::Jig,
+        version: w::VERSION,
+        request: ask.encode(&limits).expect("bounded ask"),
+        value: None,
+    };
+    let socket = peer.post(b"/jig/v1/request", keyed.encode(&limits).expect("keyed ask"), Some(&owner_bearer));
+    let Some(CoreEvent::People(p::Event::Ask { reply_to, .. })) = peer.take_core() else { panic!("reissue ask") };
+    peer.answer_request(reply_to, p::Reply::Outcome(p::Outcome::ServiceReissued { party: SERVICE }));
+    peer.answer_service_kept(SERVICE);
+    let bytes = peer.answered(socket).expect("reissue answer");
+    let w::KeyedAnswer::FinalAnswer(answer) =
+        w::KeyedAnswer::decode(&limits, &mut skein_lib::Reader::new(bytes)).expect("keyed answer")
+    else {
+        panic!("final answer");
+    };
+    let w::Final::Done(done) =
+        w::Final::decode(&limits, &mut skein_lib::Reader::new(&answer.record)).expect("final record")
+    else {
+        panic!("done");
+    };
+    let w::Outcome::Made(w::OutcomeMade { what: w::Made::Reissued(result) }) = done.outcome else {
+        panic!("replacement")
+    };
+
+    let old = peer.post(b"/jig/v1/sign-in/deployment", Box::new([0]), Some(&bearer(&old_token)));
+    assert_eq!(decoded(&peer, old), w::SignInAnswer::Refused);
+    assert!(peer.take_core().is_none());
+    peer.post(b"/jig/v1/sign-in/deployment", Box::new([0]), Some(&bearer(result.credential.expose())));
+    let Some(CoreEvent::SignIn { identity, held: None, .. }) = peer.take_core() else { panic!("service sign-in") };
+    assert_eq!(identity.key.subject.as_ref(), SERVICE.to_be_bytes());
+}
+
 // The in-memory history's bound (jig/docs/design/protocol/client/sign-in.md).
 const REMEMBERED_LINKS: u32 = 8;
 #[test]

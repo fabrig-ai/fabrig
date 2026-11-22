@@ -347,6 +347,7 @@ fn ask_names(ask: &people::Ask, project: u32) -> bool {
         | people::Ask::PauseWorker { .. }
         | people::Ask::MoveToNewest { .. }
         | people::Ask::MakeProject { .. }
+        | people::Ask::ReissueService { .. }
         | people::Ask::MarkSeen { .. }
         | people::Ask::Lift { .. }
         | people::Ask::AccountSignIn { .. }

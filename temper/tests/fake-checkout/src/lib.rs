@@ -6,6 +6,7 @@
 //! and cancellation. Remote forge policy belongs to temper's worlds.
 
 pub mod git;
+pub mod layout;
 
 pub use skein_fake_checkout::{
     Checkout, Exit, Expect, Failure, Found, Kind, Listing, Process, Program, Searched, in_git,
