@@ -477,6 +477,24 @@ pub struct PinnedConfiguration {
 /// Read a committed pin without reading a user's home or credentials.
 pub fn read_configuration(file: &Path) -> Result<PinnedConfiguration, Refusal> {
     let pin: Configuration = crate::formats::read_document(file)?;
+    configuration_with(file, pin, |configuration| {
+        let metadata = std::fs::read(file).map_err(|error| Refusal::new(file, "document", error.to_string()))?;
+        let config_metadata = std::fs::symlink_metadata(configuration)
+            .map_err(|error| Refusal::new(file, "configuration", error.to_string()))?;
+        if !config_metadata.is_file() || config_metadata.is_symlink() {
+            return Err(Refusal::new(file, "configuration", "expected a committed regular configuration file"));
+        }
+        let bytes =
+            std::fs::read(configuration).map_err(|error| Refusal::new(file, "configuration", error.to_string()))?;
+        Ok((metadata, bytes))
+    })
+}
+
+pub(crate) fn configuration_with(
+    file: &Path,
+    pin: Configuration,
+    read: impl FnOnce(&Path) -> Result<(Vec<u8>, Vec<u8>), Refusal>,
+) -> Result<PinnedConfiguration, Refusal> {
     if pin.name.is_empty() || pin.version.is_empty() {
         return Err(Refusal::new(file, "name/version", "configuration name and agent version must be pinned"));
     }
@@ -516,15 +534,7 @@ pub fn read_configuration(file: &Path) -> Result<PinnedConfiguration, Refusal> {
         }
     }
     let directory = file.parent().ok_or_else(|| Refusal::new(file, "configuration", "pin needs a directory"))?;
-    let metadata = std::fs::read(file).map_err(|error| Refusal::new(file, "document", error.to_string()))?;
-    let configuration = directory.join(&pin.configuration);
-    let config_metadata = std::fs::symlink_metadata(&configuration)
-        .map_err(|error| Refusal::new(file, "configuration", error.to_string()))?;
-    if !config_metadata.is_file() || config_metadata.is_symlink() {
-        return Err(Refusal::new(file, "configuration", "expected a committed regular configuration file"));
-    }
-    let bytes =
-        std::fs::read(&configuration).map_err(|error| Refusal::new(file, "configuration", error.to_string()))?;
+    let (metadata, bytes) = read(&directory.join(&pin.configuration))?;
     let mut digest = Sha256::new();
     digest.update(skein_lib::len_u64(metadata.len()).to_be_bytes());
     digest.update(metadata);

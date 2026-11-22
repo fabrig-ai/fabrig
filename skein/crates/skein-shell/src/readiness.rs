@@ -203,20 +203,30 @@ impl Readiness {
         }
     }
 
-    fn submit_records(
+    fn submit_records(&mut self, records: &mut Queue<Submit>, attempt: impl FnMut(&mut Self, u32, bool, bool) -> bool) {
+        self.submit_records_with(records, attempt, Self::interest);
+    }
+
+    fn submit_records_with(
         &mut self,
         records: &mut Queue<Submit>,
         mut attempt: impl FnMut(&mut Self, u32, bool, bool) -> bool,
+        mut interest: impl FnMut(&mut Self, Fd, bool, Waiters) -> Result<(), i32>,
     ) {
         while !self.free.is_empty() {
             let Some(record) = records.pop() else {
                 break;
             };
-            self.start(record, &mut attempt);
+            self.start(record, &mut attempt, &mut interest);
         }
     }
 
-    fn start(&mut self, record: Submit, attempt: impl FnOnce(&mut Self, u32, bool, bool) -> bool) {
+    fn start(
+        &mut self,
+        record: Submit,
+        attempt: impl FnOnce(&mut Self, u32, bool, bool) -> bool,
+        interest: impl FnOnce(&mut Self, Fd, bool, Waiters) -> Result<(), i32>,
+    ) {
         assert!(record.kind.is_valid(), "io submits only valid records (skein_io::kernel, broken invariants)");
         assert!(!self.tokens.contains_key(&record.op), "io never reuses a token in flight (skein_io::kernel)");
         calls::check_path_access(&record.kind);
@@ -230,7 +240,7 @@ impl Readiness {
         self.slot(index).record = Some(record);
         if let Op::Cancel { target } = &self.slot(index).record.as_ref().expect("just inserted").kind {
             let target = *target;
-            let result = self.cancel(target);
+            let result = self.cancel(target, interest);
             self.finish(index, result);
             return;
         }
@@ -242,17 +252,27 @@ impl Readiness {
             return;
         }
         let (fd, side) = side.expect("only a stream operation can wait");
-        self.add_waiter(fd, side, index);
+        self.add_waiter(fd, side, index, interest);
     }
 
-    fn add_waiter(&mut self, fd: Fd, side: Side, index: u32) {
+    fn interest(&mut self, fd: Fd, existed: bool, waiters: Waiters) -> Result<(), i32> {
+        self.poller().interest(fd, existed, waiters.read.is_some(), waiters.write.is_some())
+    }
+
+    fn add_waiter(
+        &mut self,
+        fd: Fd,
+        side: Side,
+        index: u32,
+        interest: impl FnOnce(&mut Self, Fd, bool, Waiters) -> Result<(), i32>,
+    ) {
         let existed = self.waiters.contains_key(&fd);
         let mut waiters = self.waiters.get(&fd).copied().unwrap_or(Waiters { read: None, write: None });
         match side {
             Side::Read => waiters.read = Some(index),
             Side::Write => waiters.write = Some(index),
         }
-        match self.poller().interest(fd, existed, waiters.read.is_some(), waiters.write.is_some()) {
+        match interest(self, fd, existed, waiters) {
             Ok(()) => {
                 let _previous = self.waiters.insert(fd, waiters);
             }
@@ -268,19 +288,19 @@ impl Readiness {
         }
     }
 
-    fn remove_waiter(&mut self, fd: Fd, side: Side) {
+    fn remove_waiter(
+        &mut self,
+        fd: Fd,
+        side: Side,
+        interest: impl FnOnce(&mut Self, Fd, bool, Waiters) -> Result<(), i32>,
+    ) {
         let waiters = self.waiters.get_mut(&fd).expect("a waiting descriptor");
         match side {
             Side::Read => waiters.read = None,
             Side::Write => waiters.write = None,
         }
-        self.update(fd, true);
-    }
-
-    fn update(&mut self, fd: Fd, existed: bool) {
-        let waiters = *self.waiters.get(&fd).expect("a descriptor's waiters");
-        self.poller()
-            .interest(fd, existed, waiters.read.is_some(), waiters.write.is_some())
+        let waiters = *waiters;
+        interest(self, fd, true, waiters)
             .expect("removing a waiter preserves the live descriptor and its existing interest");
         if waiters.read.is_none() && waiters.write.is_none() {
             let _removed = self.waiters.remove(&fd);
@@ -289,11 +309,15 @@ impl Readiness {
 
     fn resume(&mut self, fd: Fd, side: Side, index: u32) {
         if self.attempt(index, true, true) {
-            self.remove_waiter(fd, side);
+            self.remove_waiter(fd, side, Self::interest);
         }
     }
 
-    fn cancel(&mut self, target: Token) -> Result<Done, Error> {
+    fn cancel(
+        &mut self,
+        target: Token,
+        interest: impl FnOnce(&mut Self, Fd, bool, Waiters) -> Result<(), i32>,
+    ) -> Result<Done, Error> {
         let Some(index) = self.tokens.get(&target).copied() else {
             return Err(Error::TooLate);
         };
@@ -303,7 +327,7 @@ impl Readiness {
         }
         let (fd, side) =
             side(&slot.record.as_ref().expect("an in-flight record").kind).expect("only a stream operation waits");
-        self.remove_waiter(fd, side);
+        self.remove_waiter(fd, side, interest);
         self.finish(index, Err(Error::Cancelled));
         Ok(Done::Nothing)
     }
@@ -614,17 +638,8 @@ fn remaining(bytes: &[u8], from: u32) -> &[u8] {
 #[cfg(test)]
 mod tests {
     use super::Readiness;
-    use super::testing::submit_one as submit;
-    use crate::{Config, system};
-    use skein_io::kernel::{Done, Error, Family, Fd, Op, Submit, Usage};
+    use skein_io::kernel::{Done, Error, Fd, Op, Submit, Usage};
     use skein_lib::{Queue, Token};
-
-    fn listener() -> Fd {
-        let fd = system::socket(Family::Ipv4).expect("a test socket");
-        system::bind(fd, &"127.0.0.1:0".parse().expect("loopback address")).expect("bind loopback");
-        system::listen(fd, 1).expect("listen on loopback");
-        fd
-    }
 
     fn attempt_usage(kernel: &mut Readiness, index: u32, resumed: bool, waitable: bool) -> bool {
         kernel.attempt_with(index, resumed, waitable, |_, _, _, _| Ok(Done::Usage(Usage::ZERO)))
@@ -658,8 +673,39 @@ mod tests {
 
     #[test]
     fn cancelled_slots_can_be_reused_without_cancelling_their_next_record() {
-        let mut kernel = Readiness::open(Config { operations: 3 }).expect("the poller is usable");
-        let fd = listener();
+        let mut kernel = Readiness::without_poller(3);
+        let fd = Fd::new(123);
+        let pending = Error::Other(libc::EAGAIN);
+        let mut calls = [
+            (Op::Accept { fd }, Err(pending)),
+            (Op::Accept { fd }, Err(pending)),
+            (Op::Close { fd }, Ok(Done::Nothing)),
+        ]
+        .into_iter();
+        let mut interests = [(false, true), (true, false), (false, true), (true, false)].into_iter();
+        let mut records = Queue::with_capacity(1);
+        let mut submit = |kernel: &mut Readiness, token, kind| {
+            records.push(Submit { op: Token::new(token), kind });
+            kernel.submit_records_with(
+                &mut records,
+                |kernel, index, resumed, waitable| {
+                    kernel.attempt_with(index, resumed, waitable, |kind, resumed, nonblocking, _| {
+                        let (expected, result) = calls.next().expect("the next scripted call");
+                        assert_eq!(*kind, expected);
+                        assert!(!resumed, "the listener receives no readiness");
+                        assert_eq!(nonblocking, matches!(kind, Op::Accept { .. }));
+                        result
+                    })
+                },
+                |_, descriptor, existed, waiters| {
+                    assert_eq!(descriptor, fd);
+                    assert_eq!(Some((existed, waiters.read.is_some())), interests.next());
+                    assert!(waiters.write.is_none());
+                    Ok(())
+                },
+            );
+            assert!(records.is_empty(), "the test kernel has room");
+        };
         assert!(kernel.nonblocking.insert(fd));
         submit(&mut kernel, 1, Op::Accept { fd });
         submit(&mut kernel, 2, Op::Cancel { target: Token::new(1) });
@@ -682,6 +728,8 @@ mod tests {
         kernel.reap(&mut out);
         assert_eq!(kernel.in_flight(), 0);
         assert!(kernel.nonblocking.is_empty(), "Close forgets the descriptor");
+        assert_eq!(calls.len(), 0);
+        assert_eq!(interests.len(), 0);
     }
 }
 

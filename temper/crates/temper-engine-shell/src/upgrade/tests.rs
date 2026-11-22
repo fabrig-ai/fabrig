@@ -1,15 +1,13 @@
 //! The upgrade command on a deployment copy (protocol/binaries.md, 1, 2).
 #![expect(clippy::disallowed_types, reason = "scratch fixtures set filesystem modification times without waiting")]
 use super::{Request, run};
-use std::os::unix::ffi::OsStrExt;
+use skein_fake_machine::{How, Is, Item, Machine, Opened, Refusal};
+use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::os::unix::fs::PermissionsExt;
-use std::path::Path;
 use std::time::{Duration, SystemTime};
 use temper_deployment_fixtures::deployment;
 
 use crate::testing::modified;
-
-mod opening;
 
 #[test]
 fn workers_arguments_are_distinct_and_modes_exclude_each_other() {
@@ -101,56 +99,114 @@ fn an_unremovable_scratch_is_named_and_the_rehearsal_goes_on() {
     assert_eq!(std::fs::read(stale.join("file")).expect("unremoved file remains"), b"left behind");
 }
 
-fn leftover(name: &str) -> (skein_scratch::Scratch, std::path::PathBuf) {
-    let cache = skein_scratch::Scratch::new("rehearsal-leftover");
-    let path = cache.path().join(name);
-    std::fs::create_dir(&path).expect("leftover directory");
-    (cache, path)
+const LEFTOVER: &[u8] = b"upgrade-00000000000000aa";
+const STAGING: &[u8] = b"upgrade-00000000000000aa.new";
+const FILE: &[u8] = b"upgrade-00000000000000aa/file";
+const OLD: Duration = Duration::from_secs(7200);
+
+struct Cache {
+    machine: Machine,
+    root: Opened,
+}
+
+impl Cache {
+    fn new(items: &[Item]) -> Self {
+        let mut machine = Machine::for_user(1000);
+        let root = machine.lay(items);
+        Self { machine, root }
+    }
+
+    fn sweep(&mut self, now: SystemTime, modified: SystemTime) -> Vec<String> {
+        let listing = self.machine.open(self.root, b".", How::Directory).unwrap();
+        let entries = self.machine.list(listing, 8, 256).unwrap();
+        self.machine.close(listing);
+        super::scratch::sweep_with(
+            "temper-engine",
+            entries.into_iter().map(|(kind, name)| (std::ffi::OsString::from_vec(name.to_vec()), (kind, name))),
+            now,
+            |(kind, _)| Ok((*kind == Is::Directory).then_some(modified)),
+            |(_, name)| {
+                let held = self.open(name, How::Directory).map_err(cache_error)?;
+                let result = match self.machine.lock(held) {
+                    Ok(()) => self.remove_contents(name, held),
+                    Err(Refusal::Held) => Ok(()),
+                    Err(why) => Err(cache_error(why)),
+                };
+                self.machine.close(held);
+                result
+            },
+        )
+    }
+
+    fn open(&mut self, name: &[u8], how: How) -> Result<Opened, Refusal> {
+        self.machine.open(self.root, name, how)
+    }
+
+    fn kind(&mut self, name: &[u8]) -> Option<Is> {
+        match self.open(name, How::PathNoFollow) {
+            Ok(opened) => {
+                let kind = self.machine.stat(opened).is;
+                self.machine.close(opened);
+                Some(kind)
+            }
+            Err(Refusal::NotFound) => None,
+            Err(why) => panic!("unexpected cache refusal: {why:?}"),
+        }
+    }
+
+    fn remove_contents(&mut self, name: &[u8], held: Opened) -> std::io::Result<()> {
+        for (_, file) in self.machine.list(held, 8, 256).map_err(cache_error)? {
+            self.machine.remove(held, &file, false).map_err(cache_error)?;
+        }
+        self.machine.remove(self.root, name, true).map_err(cache_error)
+    }
+}
+
+fn cache_error(why: Refusal) -> std::io::Error {
+    assert_eq!(why, Refusal::Permission, "the fixture scripts permission failures");
+    std::io::Error::from_raw_os_error(13)
 }
 
 #[test]
 fn an_unlocked_staging_directory_is_never_swept() {
-    let (cache, staging) = leftover("upgrade-00000000000000aa.new");
-    modified(&staging, SystemTime::now() - Duration::from_secs(7200));
-    assert_eq!(super::scratch::sweep("temper-engine", cache.path()), Vec::<String>::new());
-    assert!(staging.is_dir(), "the staging name is never swept");
+    let mut cache = Cache::new(&[Item::directory(STAGING)]);
+    let now = SystemTime::UNIX_EPOCH + OLD;
+    assert_eq!(cache.sweep(now, now - OLD), Vec::<String>::new());
+    assert_eq!(cache.kind(STAGING), Some(Is::Directory), "the staging name is never swept");
 }
 
 #[test]
 fn recent_and_future_unlocked_leftovers_are_not_swept() {
-    let (cache, leftover) = leftover("upgrade-00000000000000aa");
-    std::fs::write(leftover.join("file"), b"copying").expect("leftover file");
-    let now = SystemTime::now();
-    for time in [now, now + Duration::from_secs(7200)] {
-        modified(&leftover, time);
-        assert_eq!(super::scratch::sweep("temper-engine", cache.path()), Vec::<String>::new());
-        assert_eq!(std::fs::read(leftover.join("file")).expect("recent leftover remains"), b"copying");
+    let mut cache = Cache::new(&[Item::directory(LEFTOVER), Item::file(FILE, b"copying")]);
+    let now = SystemTime::UNIX_EPOCH + OLD;
+    for time in [now, now + OLD] {
+        assert_eq!(cache.sweep(now, time), Vec::<String>::new());
+        let file = cache.open(FILE, How::Read).expect("recent leftover remains");
+        assert_eq!(cache.machine.read(file, 0, 7).unwrap(), b"copying");
+        cache.machine.close(file);
     }
-    modified(&leftover, now - Duration::from_secs(7200));
-    assert_eq!(super::scratch::sweep("temper-engine", cache.path()), Vec::<String>::new());
-    assert!(!leftover.exists(), "the same leftover is removed whole once old");
+    assert_eq!(cache.sweep(now, now - OLD), Vec::<String>::new());
+    assert_eq!(cache.kind(LEFTOVER), None, "the same leftover is removed whole once old");
 }
 
 #[test]
 fn an_unopenable_leftover_is_named_instead_of_silently_skipped() {
-    let (cache, leftover) = leftover("upgrade-00000000000000aa");
-    modified(&leftover, SystemTime::now() - Duration::from_secs(7200));
-    std::fs::set_permissions(&leftover, std::fs::Permissions::from_mode(0o000)).expect("open denied");
-    let lines = super::scratch::sweep("temper-engine", cache.path());
-    std::fs::set_permissions(&leftover, std::fs::Permissions::from_mode(0o700)).expect("restore cleanup permission");
+    let mut cache = Cache::new(&[Item::directory(LEFTOVER).mode(0o000)]);
+    let now = SystemTime::UNIX_EPOCH + OLD;
+    let lines = cache.sweep(now, now - OLD);
     assert_eq!(lines, ["temper-engine upgrade: scratch left behind not removed: upgrade-00000000000000aa: errno 13"]);
-    assert!(leftover.is_dir(), "unopenable leftover remains");
+    assert_eq!(cache.kind(LEFTOVER), Some(Is::Directory), "unopenable leftover remains");
 }
 
 #[test]
 fn own_scratch_removal_failure_names_the_path_and_cause() {
-    let (_cache, path) = leftover("upgrade-00000000000000aa");
-    std::fs::write(path.join("file"), b"left behind").expect("own file");
-    let held = std::fs::File::open(&path).expect("own directory");
-    held.try_lock().expect("own lock");
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o500)).expect("removal denied");
-    let line = super::scratch::remove("temper-engine", &path, held);
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o700)).expect("restore cleanup permission");
+    let mut cache = Cache::new(&[Item::directory(LEFTOVER).mode(0o500), Item::file(FILE, b"left behind")]);
+    let held = cache.open(LEFTOVER, How::Directory).expect("own directory");
+    cache.machine.lock(held).expect("own lock");
+    let line = super::scratch::remove_with("temper-engine", crate::path(LEFTOVER), held, |path| {
+        cache.remove_contents(path.as_os_str().as_bytes(), held)
+    });
+    cache.machine.close(held);
     assert_eq!(line.as_deref(), Some("temper-engine upgrade: scratch not removed: upgrade-00000000000000aa: errno 13"));
 }
 
