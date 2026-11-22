@@ -5,13 +5,6 @@
 Unlisted sections have no known gap.
 
 - **Not yet:** 6: a fake mail sink, as mail itself (`../domain/forge/attention.md`, 7.4).
-- **Not yet:** 2: the engine's forge world keeps no fault ledger, copies nothing the fake injects and makes no world from streams [in flight: change 11617].
-- **Not yet:** 2: the busy and slow sweep and the refusals' sweep [in flight: change 11634].
-- **Not yet:** 2: the CI sweep [in flight: change 11633].
-- **Not yet:** 2: the lagging views' sweep and the stale state's sweep [in flight: change 11635].
-- **Not yet:** 2: the sweep of answers past the bounds [in flight: change 11636].
-- **Not yet:** 2: the open scenarios `a_gate_repair_names_its_failed_tests` and `a_repair_reads_an_oversized_pull` [in flight: change 11599].
-- **Not yet:** 2: the open scenario `a_member_merged_by_another_lands_like_any_landing` [in flight: change 11634].
 
 - **Not yet:**  the remaining GitHub real-loop stories remain `real-loop.status.md` (Not yet).
   the twins' playground documents remain `reference-case.status.md` (Not yet, the whole document).
