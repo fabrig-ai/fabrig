@@ -405,16 +405,17 @@ them.
 - **Never read by the engine:** they are for `upgrade --check` and
   `upgrade --workers` (10.2), which read a stopped deployment or a
   checkpoint of a serving one, the state at one commit
-  (`../draft/redeploys.md`, 5.1; `../redeploy.md`, 4.1 and 4.2).
+  (`../draft/redeploys.md`, 5.1; `checkpoints.md`, 2.1 and 3).
 
 ### 10.2 Whether the workers may stay
 
 `upgrade --check` (`binaries.md`, section 2) judges each worker by its
 kept opening (`../draft/redeploys.md`, 5.1), after its jobs' and
 restores' lines. `upgrade --workers` prints these lines alone, read
-over a checkpoint at a redeploy's settled stop with no job or restore
-before them, so that the redeploy judges again what may have changed
-since its check (`../redeploy.md`, 4.2). Every line starts with the
+over a checkpoint at the engine's settled stop with no job or restore
+before them, so that a redeploy judges again what may have changed
+since its check (`binaries.md`, section 2; `checkpoints.md`, 2.1).
+Every line starts with the
 binary's name and `upgrade:`, as the check's others do, and none
 changes its exit code.
 
@@ -453,8 +454,8 @@ changes its exit code.
   range; a breaking move refuses them by name.
 - **The window is not judged here:** the whole rehearsal/tool time is
   a rehearsal line (`binaries.md`, section 2), and comparing the window
-  with the workers' grace is the redeploy's referee's
-  (`../draft/redeploys.md`, 7.5).
+  with the workers' grace is the referee's of a redeploy, its
+  operator's outside this repository (`../draft/redeploys.md`, 7.5).
 
 ## 11. Testing
 

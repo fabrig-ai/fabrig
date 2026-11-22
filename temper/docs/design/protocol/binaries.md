@@ -207,9 +207,10 @@ default; the document is `temper.json` in the configuration directory
   such as last night's backup, which it never writes and whose lock it
   holds while it reads, so that a checkpoint it reads is not removed
   under it (jig's `protocol/store/checkpoints.md`, 6). Over a
-  checkpoint it runs while the engine serves the deployment, as a
-  redeploy runs it (`../redeploy.md`, 4.1): nothing before the
-  rehearsal takes the deployment's lock or writes under `--data`. It
+  checkpoint it runs while the engine serves the deployment, the
+  checkpoint an owner's act took (`checkpoints.md`, 3), so that a
+  redeploy checks the new build before anything stops: nothing before
+  the rehearsal takes the deployment's lock or writes under `--data`. It
   works in a scratch under the cache directory, `upgrade-SEED`, SEED
   sixteen lowercase hex digits from a fresh seed, with the
   configuration `temper-box serve` would read, and holds it under io's
@@ -276,9 +277,10 @@ default; the document is `temper.json` in the configuration directory
   section 3.1; `../draft/redeploys.md`, 5.1). Exit 0 when the
   start opens, 1 when a start would be refused before it.
 - **`temper-box upgrade --workers DIRECTORY`:** `--check`'s verdict on
-  the workers alone, for a redeploy's stop (`../redeploy.md`, 4.2) and
-  once before it, over the check's checkpoint while the engine serves
-  (`../redeploy.md`, 4.1, step 10): a
+  the workers alone, over the checkpoint taken at the engine's settled
+  stop (`../domain/root.md`, 8.2; `checkpoints.md`, 2.1), and over the
+  check's checkpoint while the engine serves, so that a build that
+  cannot read the verdict at the stop is found before anything stops: a
   rehearsal over DIRECTORY, as `--check`'s, of jig's reach `Openings`
   (jig's `protocol/store/opening.md`, 5), which makes the active
   generation's maps in its scratch without their task logs, linking
@@ -296,8 +298,8 @@ default; the document is `temper.json` in the configuration directory
 
   then `--check`'s lines from its verdict's alone (`wires.md`, 10.2,
   steps 1 to 4), in their words and order, and exits 0 once they are
-  printed, whatever the verdict. A redeploy notes the count, from the
-  first line that starts so (`../redeploy.md`, 6.3). A refusal before
+  printed, whatever the verdict. The count is the first line that
+  starts so; no later line carries one. A refusal before
   the rows are read (DIRECTORY in use, an unfinished restore, an
   unreadable `active`, a copy or a recovery failing) is printed as
   `--check` prints a refusal, exit 1.

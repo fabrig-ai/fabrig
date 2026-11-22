@@ -577,7 +577,6 @@ tests/*/*/tests/suite/fuzzy/*.rs          its fuzzy tests: random worlds, domain
 tests/fake-checkout                 temper-fake-checkout: working trees' git, over skein's fake checkout
 crates/temper-twin-tool             the live run's twin: bin/temper-twin, selected transcripts as a fake LLM document (fakes.md, 1)
 crates/temper-qa-tool               QA after landing: bin/temper-qa, main's landings triaged into cases and builds kept for them (qa/README.md); step holds values and seeded ledger sequences, suite keeps real scratch homes, sockets, locks and children
-crates/temper-redeploy-tool         domain holds values and fake-host/clock orchestration, suite keeps scratch journals and real sh processes (../redeploy.md, 8)
 crates/temper-git-transcripts-tool  git's transcripts, recorded by bin/temper-git-transcripts against skein's throwaway Forgejo (../protocol/git.md, section 9)
 crates/temper-client-gallery-tool    bin/temper-client-gallery: the browser's pages in named states, printed for screenshots (../client/web/gallery.md), its tests in the view's world
 crates/temper-client-journeys-tool   recorded walks replayed through the shipped hosts and printed (../client/web/journeys.md; ../client/tui/journeys.md), run by bin/temper-client-journeys, its tests on walks they record
