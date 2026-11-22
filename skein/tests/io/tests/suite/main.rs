@@ -13,7 +13,6 @@ mod process_memory;
 mod processes;
 mod remove;
 mod replace_race;
-mod ring;
 mod scenarios;
 mod stage;
 

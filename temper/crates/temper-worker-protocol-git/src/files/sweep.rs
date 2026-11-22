@@ -13,6 +13,10 @@ pub(crate) struct SetAside {
 }
 
 #[derive(Debug)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "inspection records removal refusals independently of scheduling and child reporting"
+)]
 pub(crate) struct Sweep {
     phase: Phase,
     trash: Option<Fd>,
@@ -22,6 +26,7 @@ pub(crate) struct Sweep {
     child_stuck: bool,
     changed: bool,
     stuck: bool,
+    refused_removal: bool,
     set_aside: Option<SetAside>,
 }
 
@@ -126,6 +131,7 @@ impl Sweep {
             child_stuck: false,
             changed: false,
             stuck: false,
+            refused_removal: false,
             set_aside: None,
         }
     }
@@ -181,7 +187,7 @@ impl Sweep {
         if self.trash.is_some() {
             return self.close_trash(false);
         }
-        Action::Swept { changed: false, set_aside: false }
+        Action::Swept { changed: false, set_aside: false, refused_removal: self.refused_removal }
     }
     pub(super) fn complete(
         &mut self,
@@ -193,6 +199,23 @@ impl Sweep {
     ) -> Action {
         if stop {
             return self.stop(complete.result);
+        }
+        match self.phase {
+            Phase::RemoveEntry | Phase::RemoveChild | Phase::RemoveParent => {
+                if complete.result.is_err()
+                    && complete.result != Err(Error::IsADirectory)
+                    && complete.result != Err(Error::NotFound)
+                {
+                    self.refused_removal = true;
+                }
+            }
+            Phase::OpenTrash
+            | Phase::ListTrash
+            | Phase::CloseTrash { .. }
+            | Phase::OpenParent
+            | Phase::ListParent
+            | Phase::CloseParent { .. }
+            | Phase::MoveChild => {}
         }
         match self.phase {
             Phase::OpenTrash => match fd(complete.result) {
@@ -256,7 +279,7 @@ impl Sweep {
         }
     }
     fn end(&self) -> Action {
-        Action::Swept { changed: self.changed, set_aside: self.stuck }
+        Action::Swept { changed: self.changed, set_aside: self.stuck, refused_removal: self.refused_removal }
     }
     fn listed_trash(&mut self, complete: kernel::Complete, dirs: &Directories) -> Action {
         match Page::read(complete) {

@@ -814,16 +814,20 @@ fn the_shell_removes_only_the_named_handover_and_reports_unlink_failure() {
 }
 #[test]
 fn the_shell_trims_only_the_handovers_final_newline() {
-    use std::os::unix::{ffi::OsStrExt, fs::PermissionsExt};
-    let directory =
-        std::env::temp_dir().join(format!("temper-handover-read-{}", skein_shell::seed().expect("scratch name")));
-    std::fs::create_dir(&directory).expect("handover fixture");
-    let path = directory.join("admin_token");
     let read = temper_engine_service::HandoverRead {
         forge: 1,
         run: skein_lib::Token::new(7),
-        path: path.as_os_str().as_bytes().into(),
+        path: b"/fixture/admin_token".as_slice().into(),
         max: 11,
+    };
+    let read_bytes = |bytes: &[u8]| {
+        read_handover_with(&read, |_, max| {
+            if bytes.len() > usize::try_from(max).expect("read bound fits usize") {
+                Err(skein_shell::Unread::TooLarge { max })
+            } else {
+                Ok(skein_lib::Secret::new(bytes.into()))
+            }
+        })
     };
     for (bytes, expected) in [
         (b"test-admin\n".as_slice(), b"test-admin".as_slice()),
@@ -833,14 +837,10 @@ fn the_shell_trims_only_the_handovers_final_newline() {
         (b"".as_slice(), b"".as_slice()),
         (b"12345678901".as_slice(), b"12345678901".as_slice()),
     ] {
-        std::fs::write(&path, bytes).expect("handover fixture");
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).expect("private fixture");
-        let answer = read_handover(&read).expect("within read bound").expect("present fixture");
+        let answer = read_bytes(bytes).expect("within read bound").expect("present fixture");
         assert!(answer.expose() == expected, "only one final LF is removed");
     }
-    std::fs::write(&path, b"123456789012").expect("one byte beyond the bound");
-    assert!(matches!(read_handover(&read), Err(temper_engine_service::HandoverUnread::TooLarge)));
-    std::fs::remove_dir_all(directory).expect("handover fixture");
+    assert!(matches!(read_bytes(b"123456789012"), Err(temper_engine_service::HandoverUnread::TooLarge)));
 }
 
 #[test]
@@ -899,8 +899,6 @@ fn start_refusals_name_every_phase_and_the_refused_project() {
         (Some(Phase::Switch), "store switch"),
         (Some(Phase::Wires), "wires"),
         (Some(Phase::AdoptRuns), "run adoption"),
-        (Some(Phase::ReadAfresh { connector: 7 }), "connector 7 refresh"),
-        (Some(Phase::SettleOutbox { connector: 7 }), "connector 7 outbox settlement"),
         (Some(Phase::Open), "opening decisions"),
         (None, "unknown phase"),
     ] {
@@ -1650,39 +1648,6 @@ fn restart_lines_name_the_wait_or_the_workers_older_wire() {
             expected
         );
     }
-}
-
-#[test]
-fn the_playground_start_makes_a_private_random_key_before_reading_it() {
-    use std::os::unix::{ffi::OsStrExt as _, fs::MetadataExt as _};
-    let scratch = skein_scratch::Scratch::new("playground-key");
-    let path = scratch.path().join("demo/llm.key");
-    let read = temper_engine_service::HandoverRead {
-        forge: 0,
-        run: skein_lib::Token::new(1),
-        path: path.as_os_str().as_bytes().into(),
-        max: 4097,
-    };
-    let first = read_handover(&read).expect("make then read key").expect("key present");
-    assert_eq!(first.expose().len(), 64);
-    assert!(first.expose().iter().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(b)));
-    let file = std::fs::read(&path).expect("generated fixture");
-    assert_eq!(file.len(), 65);
-    assert_eq!(file.last(), Some(&b'\n'));
-    let same_key = file.strip_suffix(b"\n") == Some(first.expose());
-    assert!(same_key, "the account gets the generated key without its final newline");
-    assert_eq!(std::fs::metadata(path.parent().expect("demo")).expect("directory").mode() & 0o777, 0o700);
-    assert_eq!(std::fs::metadata(&path).expect("key").mode() & 0o777, 0o600);
-    // Replacing a linked file must neither reuse its mode nor change its target.
-    std::fs::remove_file(&path).expect("remove fixture");
-    let target = scratch.path().join("kept");
-    std::fs::write(&target, b"kept").expect("fixture");
-    std::os::unix::fs::symlink(&target, &path).expect("linked fixture");
-    let next = read_handover(&read).expect("replace then read key").expect("key present");
-    assert!(next.expose() != first.expose(), "a fresh kernel seed, not a reused key");
-    assert_eq!(std::fs::read(target).expect("target unchanged"), b"kept");
-    assert!(!std::fs::symlink_metadata(&path).expect("key").is_symlink());
-    assert_eq!(std::fs::metadata(&path).expect("key").mode() & 0o777, 0o600);
 }
 
 #[test]

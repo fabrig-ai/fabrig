@@ -171,7 +171,14 @@ fn types(declaration: &Declaration, out: &mut String) {
     line(out, "}\n");
 }
 
-fn implementation(context: &Context<'_>, declaration: &Declaration, node: usize, root: bool, out: &mut String) {
+fn implementation(
+    context: &Context<'_>,
+    declaration: &Declaration,
+    node: usize,
+    encoded_at_zero: u64,
+    root: bool,
+    out: &mut String,
+) {
     let name = declaration_name(declaration);
     let tail = constant(&format!(
         "{name}{}",
@@ -183,7 +190,7 @@ fn implementation(context: &Context<'_>, declaration: &Declaration, node: usize,
     line(
         out,
         &format!(
-            "// Record: {name}.\nimpl Record for {name} {{\n    type Limits = Limits;\n    const TAIL: Path = paths::{tail};\n\n    fn encoded_bound(limits: &Limits) -> Option<u64> {{\n        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, {node})?.encoded)\n    }}\n\n    fn decoded_bound(limits: &Limits) -> Option<u64> {{\n        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, {node})?.decoded)\n    }}\n"
+            "// Record: {name}.\nimpl {name} {{\n    /// The record's encoded bound with every limit it reaches set to zero.\n    pub const ENCODED_AT_ZERO: u64 = {encoded_at_zero};\n}}\n\nimpl Record for {name} {{\n    type Limits = Limits;\n    const TAIL: Path = paths::{tail};\n\n    fn encoded_bound(limits: &Limits) -> Option<u64> {{\n        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, {node})?.encoded)\n    }}\n\n    fn decoded_bound(limits: &Limits) -> Option<u64> {{\n        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, {node})?.decoded)\n    }}\n"
         ),
     );
     if root {
@@ -315,47 +322,86 @@ fn enum_impl(enumeration: &crate::Enumeration, out: &mut String) {
 }
 
 struct Table<'a> {
-    nodes: Vec<String>,
+    nodes: Vec<(String, u64)>,
     named: alloc::collections::BTreeMap<&'a str, usize>,
     limits: alloc::collections::BTreeMap<&'a str, usize>,
 }
 
+enum ZeroBound<'a> {
+    Scalar(u64),
+    LengthPrefix,
+    Option(usize),
+    Boxed(usize),
+    Record { prefix: u64, fields: &'a [usize] },
+    Enum(&'a [usize]),
+}
+
 impl Table<'_> {
-    fn push(&mut self, text: String) -> usize {
+    fn bound(&self, at: usize) -> u64 {
+        self.nodes.get(at).expect("earlier bounds node").1
+    }
+
+    fn encoded_at_zero(&self, node: ZeroBound<'_>) -> Option<u64> {
+        match node {
+            ZeroBound::Scalar(size) => Some(size),
+            ZeroBound::LengthPrefix => Some(4),
+            ZeroBound::Option(item) => 1_u64.checked_add(self.bound(item)),
+            ZeroBound::Boxed(item) => Some(self.bound(item)),
+            ZeroBound::Record { prefix, fields } => {
+                fields.iter().try_fold(prefix, |sum, field| sum.checked_add(self.bound(*field)))
+            }
+            ZeroBound::Enum(variants) => {
+                1_u64.checked_add(variants.iter().map(|variant| self.bound(*variant)).max().unwrap_or(0))
+            }
+        }
+    }
+
+    fn push(&mut self, text: String, node: ZeroBound<'_>) -> usize {
         let at = self.nodes.len();
-        self.nodes.push(text);
+        let encoded_at_zero = self.encoded_at_zero(node).expect("a schema's encoded bound at zero limits fits u64");
+        self.nodes.push((text, encoded_at_zero));
         at
     }
+
+    fn scalar(&mut self, size: u64) -> usize {
+        self.push(format!("skein_codec::bounds::Node::Scalar({})", literal(size)), ZeroBound::Scalar(size))
+    }
+
     fn ty(&mut self, ty: &Type, bound: &str) -> usize {
-        let node = match ty {
-            Type::U8 | Type::Bool => "skein_codec::bounds::Node::Scalar(1)".into(),
-            Type::U16 => "skein_codec::bounds::Node::Scalar(2)".into(),
-            Type::U32 => "skein_codec::bounds::Node::Scalar(4)".into(),
-            Type::U64 | Type::Duration => "skein_codec::bounds::Node::Scalar(8)".into(),
-            Type::Fixed(width) => format!("skein_codec::bounds::Node::Scalar({})", literal(width)),
-            Type::Bytes(_) | Type::Secret(_) | Type::Text(_) => format!(
-                "skein_codec::bounds::Node::Bytes {{ limit: {} }}",
-                self.limits.get(bound).expect("limit collected")
+        match ty {
+            Type::U8 | Type::Bool => self.scalar(1),
+            Type::U16 => self.scalar(2),
+            Type::U32 => self.scalar(4),
+            Type::U64 | Type::Duration => self.scalar(8),
+            Type::Fixed(width) => self.scalar(u64::from(*width)),
+            Type::Bytes(_) | Type::Secret(_) | Type::Text(_) => self.push(
+                format!(
+                    "skein_codec::bounds::Node::Bytes {{ limit: {} }}",
+                    self.limits.get(bound).expect("limit collected")
+                ),
+                ZeroBound::LengthPrefix,
             ),
             Type::List(_, item) => {
                 let at = self.ty(item, &emit_limits::child_name(bound, LimitLevel::Item));
-                format!(
-                    "skein_codec::bounds::Node::List {{ limit: {}, item: {at}, size: size_of::<{}>() }}",
-                    self.limits.get(bound).expect("limit collected"),
-                    emit_types::rust_type(item)
+                self.push(
+                    format!(
+                        "skein_codec::bounds::Node::List {{ limit: {}, item: {at}, size: size_of::<{}>() }}",
+                        self.limits.get(bound).expect("limit collected"),
+                        emit_types::rust_type(item)
+                    ),
+                    ZeroBound::LengthPrefix,
                 )
             }
             Type::Option(item) => {
                 let at = self.ty(item, &emit_limits::child_name(bound, LimitLevel::Some));
-                format!("skein_codec::bounds::Node::Option {{ item: {at} }}")
+                self.push(format!("skein_codec::bounds::Node::Option {{ item: {at} }}"), ZeroBound::Option(at))
             }
-            Type::Named(name) => return *self.named.get(name.as_str()).expect("earlier declaration"),
-        };
-        self.push(node)
+            Type::Named(name) => *self.named.get(name.as_str()).expect("earlier declaration"),
+        }
     }
 }
 
-fn table(context: &Context<'_>, out: &mut String) -> Vec<usize> {
+fn table(context: &Context<'_>, out: &mut String) -> Vec<(usize, u64)> {
     let mut table = Table {
         nodes: Vec::new(),
         named: alloc::collections::BTreeMap::new(),
@@ -363,16 +409,17 @@ fn table(context: &Context<'_>, out: &mut String) -> Vec<usize> {
     };
     let mut roots = Vec::new();
     for declaration in context.declarations {
-        let node = match declaration {
+        let at = match declaration {
             Declaration::Record(record) => {
                 let fields = record
                     .fields
                     .iter()
                     .map(|field| table.ty(&field.ty, &emit_limits::bound_name(&record.name, &field.name)))
                     .collect::<Vec<_>>();
-                format!(
-                    "skein_codec::bounds::Node::Record {{ prefix: {}, fields: &{fields:?} }}",
-                    if record.versioned { 2_u64 } else { 0_u64 }
+                let prefix = if record.versioned { 2 } else { 0 };
+                table.push(
+                    format!("skein_codec::bounds::Node::Record {{ prefix: {prefix}, fields: &{fields:?} }}"),
+                    ZeroBound::Record { prefix, fields: &fields },
                 )
             }
             Declaration::Enum(enumeration) => {
@@ -383,32 +430,37 @@ fn table(context: &Context<'_>, out: &mut String) -> Vec<usize> {
                         Some(name) => {
                             let at = *table.named.get(name.as_str()).expect("earlier record");
                             if variant.boxed {
-                                table.push(format!(
-                                    "skein_codec::bounds::Node::Boxed {{ item: {at}, size: size_of::<{name}>() }}"
-                                ))
+                                table.push(
+                                    format!(
+                                        "skein_codec::bounds::Node::Boxed {{ item: {at}, size: size_of::<{name}>() }}"
+                                    ),
+                                    ZeroBound::Boxed(at),
+                                )
                             } else {
                                 at
                             }
                         }
-                        None => table.push("skein_codec::bounds::Node::Scalar(0)".into()),
+                        None => table.scalar(0),
                     })
                     .collect::<Vec<_>>();
-                format!("skein_codec::bounds::Node::Enum {{ variants: &{variants:?} }}")
+                table.push(
+                    format!("skein_codec::bounds::Node::Enum {{ variants: &{variants:?} }}"),
+                    ZeroBound::Enum(&variants),
+                )
             }
         };
-        let at = table.push(node);
         table.named.insert(declaration_name(declaration), at);
-        roots.push(at);
+        roots.push((at, table.bound(at)));
     }
     line(
         out,
         "// Table: postordered shapes, with compiler-known heap slot sizes.\nstatic TABLE: &[skein_codec::bounds::Node] = &[",
     );
-    for node in table.nodes {
+    for (node, _) in table.nodes {
         line(out, &format!("    {node},"));
     }
     line(out, "];\n\nconst DECLARATIONS: &[u32] = &[");
-    for at in &roots {
+    for (at, _) in &roots {
         line(out, &format!("    {at},"));
     }
     line(out, "];\n\nstatic CEILING_VALUES: &[u32] = &[");
@@ -450,12 +502,13 @@ pub(crate) fn generate(schema: &Schema) -> Output {
     paths(schema, &mut out);
     let nodes = table(&context, &mut out);
     let roots = crate::roots(schema);
-    for (declaration, node) in schema.declarations.iter().zip(nodes) {
+    for (declaration, (node, encoded_at_zero)) in schema.declarations.iter().zip(nodes) {
         types(declaration, &mut out);
         implementation(
             &context,
             declaration,
             node,
+            encoded_at_zero,
             roots.iter().any(|root| root == declaration_name(declaration)),
             &mut out,
         );

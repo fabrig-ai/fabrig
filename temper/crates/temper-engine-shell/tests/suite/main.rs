@@ -7,7 +7,15 @@ use temper_deployment_fixtures as deployment;
 
 mod checkpoint;
 mod fixture;
+mod forge;
+mod forge_sign_in {
+    mod tests;
+}
+mod lines {
+    mod tests;
+}
 mod restore;
+mod serve;
 mod upgrade;
 
 fn path(bytes: &[u8]) -> &Path {

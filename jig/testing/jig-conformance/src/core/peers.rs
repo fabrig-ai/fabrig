@@ -30,19 +30,17 @@ pub fn settled_answer(tool: Box<[u8]>, rendered: tools::Rendered) -> core::Settl
 
 /// The externally visible position of a core-owned restart phase.
 #[must_use]
-pub fn restart_position(phase: core::start::Phase, connectors: u16) -> Option<u32> {
+pub fn restart_position(phase: core::start::Phase, _connectors: u16) -> Option<u32> {
     use core::start::Phase;
     match phase {
         Phase::LoadCore => Some(0),
         Phase::RestoreConnector { connector } => Some(u32::from(connector)),
-        Phase::ReadAfresh { connector } => Some(u32::from(connectors) + u32::from(connector)),
         Phase::LoadInbox
         | Phase::Sweep
         | Phase::Switch
         | Phase::Link
         | Phase::Wires
         | Phase::AdoptRuns
-        | Phase::SettleOutbox { .. }
         | Phase::Open => None,
     }
 }

@@ -317,6 +317,7 @@ pub(crate) fn touch_people_event(core: &mut Core, limits: &Limits, event: &peopl
         | people::Event::CloseProject { .. }
         | people::Event::ForgetProject { .. }
         | people::Event::MakeService { .. }
+        | people::Event::ReissueService { .. }
         | people::Event::Seed { .. }
         | people::Event::ApplyRoles { .. }
         | people::Event::SignedIn { .. }

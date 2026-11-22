@@ -1864,7 +1864,7 @@ pub fn worker_pause_mode_to_domain(record: crate::people_v17::WorkerPauseMode, _
     }
 }
 
-// Maps line 240: Ask.
+// Maps line 241: Ask.
 #[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
 pub fn ask_to_record(value: &jig_domain_people::Ask, context: &crate::people_v17::Limits) -> Result<crate::people_v17::Ask, crate::people_v17::Problem> {
     match value {
@@ -2114,10 +2114,13 @@ pub fn ask_to_record(value: &jig_domain_people::Ask, context: &crate::people_v17
             worker: *field_000000,
             mode: worker_pause_mode_to_record(field_000001, context)?
         })),
+        jig_domain_people::Ask::ReissueService { party: field_000000 } => Ok(crate::people_v17::Ask::ReissueService(crate::people_v17::ServiceParty {
+            party: *field_000000
+        })),
     }
 }
 
-// Maps line 240: Ask.
+// Maps line 241: Ask.
 #[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
 pub fn ask_to_domain(record: crate::people_v17::Ask, context: &crate::people_v17::Limits) -> Result<jig_domain_people::Ask, crate::people_v17::Problem> {
     match record {
@@ -2487,10 +2490,16 @@ pub fn ask_to_domain(record: crate::people_v17::Ask, context: &crate::people_v17
                 mode: worker_pause_mode_to_domain(field_000001, context)?
             })
         },
+        crate::people_v17::Ask::ReissueService(held) => {
+            let crate::people_v17::ServiceParty { party: field_000000 } = held;
+            Ok(jig_domain_people::Ask::ReissueService {
+                party: field_000000
+            })
+        },
     }
 }
 
-// Maps line 252: FailureClass.
+// Maps line 253: FailureClass.
 pub fn failure_class_to_record(value: &jig_domain_people::FailureClass, _context: &crate::people_v17::Limits) -> Result<crate::people_v17::FailureClass, crate::people_v17::Problem> {
     match value {
         jig_domain_people::FailureClass::Transient => Ok(crate::people_v17::FailureClass::Transient),
@@ -2503,7 +2512,7 @@ pub fn failure_class_to_record(value: &jig_domain_people::FailureClass, _context
     }
 }
 
-// Maps line 252: FailureClass.
+// Maps line 253: FailureClass.
 pub fn failure_class_to_domain(record: crate::people_v17::FailureClass, _context: &crate::people_v17::Limits) -> Result<jig_domain_people::FailureClass, crate::people_v17::Problem> {
     match record {
         crate::people_v17::FailureClass::Transient => Ok(jig_domain_people::FailureClass::Transient),
@@ -2516,7 +2525,7 @@ pub fn failure_class_to_domain(record: crate::people_v17::FailureClass, _context
     }
 }
 
-// Maps line 258: Bound.
+// Maps line 259: Bound.
 pub fn bound_to_record(value: &jig_domain_people::Bound, _context: &crate::people_v17::Limits) -> Result<crate::people_v17::Bound, crate::people_v17::Problem> {
     match value {
         jig_domain_people::Bound::Reasoning => Ok(crate::people_v17::Bound::Reasoning),
@@ -2531,7 +2540,7 @@ pub fn bound_to_record(value: &jig_domain_people::Bound, _context: &crate::peopl
     }
 }
 
-// Maps line 258: Bound.
+// Maps line 259: Bound.
 pub fn bound_to_domain(record: crate::people_v17::Bound, _context: &crate::people_v17::Limits) -> Result<jig_domain_people::Bound, crate::people_v17::Problem> {
     match record {
         crate::people_v17::Bound::Reasoning => Ok(jig_domain_people::Bound::Reasoning),
@@ -2546,7 +2555,7 @@ pub fn bound_to_domain(record: crate::people_v17::Bound, _context: &crate::peopl
     }
 }
 
-// Maps line 259: Exceeded.
+// Maps line 260: Exceeded.
 pub fn exceeded_to_record(value: &jig_domain_people::Exceeded, context: &crate::people_v17::Limits) -> Result<crate::people_v17::Exceeded, crate::people_v17::Problem> {
     let jig_domain_people::Exceeded { bound: field_000000, value: field_000001 } = value;
     Ok(crate::people_v17::Exceeded {
@@ -2555,7 +2564,7 @@ pub fn exceeded_to_record(value: &jig_domain_people::Exceeded, context: &crate::
     })
 }
 
-// Maps line 259: Exceeded.
+// Maps line 260: Exceeded.
 pub fn exceeded_to_domain(record: crate::people_v17::Exceeded, context: &crate::people_v17::Limits) -> Result<jig_domain_people::Exceeded, crate::people_v17::Problem> {
     let crate::people_v17::Exceeded { bound: field_000000, value: field_000001 } = record;
     Ok(jig_domain_people::Exceeded {
@@ -2564,7 +2573,7 @@ pub fn exceeded_to_domain(record: crate::people_v17::Exceeded, context: &crate::
     })
 }
 
-// Maps line 260: HoldReason.
+// Maps line 261: HoldReason.
 pub fn hold_reason_to_record(value: &jig_domain_people::HoldReason, context: &crate::people_v17::Limits) -> Result<crate::people_v17::HoldReason, crate::people_v17::Problem> {
     match value {
         jig_domain_people::HoldReason::Failures { class: field_000000 } => Ok(crate::people_v17::HoldReason::Failures(crate::people_v17::HoldReasonFailures {
@@ -2598,7 +2607,7 @@ pub fn hold_reason_to_record(value: &jig_domain_people::HoldReason, context: &cr
     }
 }
 
-// Maps line 260: HoldReason.
+// Maps line 261: HoldReason.
 pub fn hold_reason_to_domain(record: crate::people_v17::HoldReason, context: &crate::people_v17::Limits) -> Result<jig_domain_people::HoldReason, crate::people_v17::Problem> {
     match record {
         crate::people_v17::HoldReason::Failures(held) => {
@@ -2647,7 +2656,7 @@ pub fn hold_reason_to_domain(record: crate::people_v17::HoldReason, context: &cr
     }
 }
 
-// Maps line 265: Moved.
+// Maps line 266: Moved.
 pub fn moved_to_record(value: &jig_domain_people::Moved, context: &crate::people_v17::Limits) -> Result<crate::people_v17::Moved, crate::people_v17::Problem> {
     match value {
         jig_domain_people::Moved::Hold { revision: field_000000, reason: field_000001 } => Ok(crate::people_v17::Moved::Hold(crate::people_v17::MovedHold {
@@ -2669,7 +2678,7 @@ pub fn moved_to_record(value: &jig_domain_people::Moved, context: &crate::people
     }
 }
 
-// Maps line 265: Moved.
+// Maps line 266: Moved.
 pub fn moved_to_domain(record: crate::people_v17::Moved, context: &crate::people_v17::Limits) -> Result<jig_domain_people::Moved, crate::people_v17::Problem> {
     match record {
         crate::people_v17::Moved::Hold(held) => {
@@ -2706,7 +2715,7 @@ pub fn moved_to_domain(record: crate::people_v17::Moved, context: &crate::people
     }
 }
 
-// Maps line 269: Party.
+// Maps line 270: Party.
 pub fn party_to_record(value: &jig_domain_people::Party, _context: &crate::people_v17::Limits) -> Result<crate::people_v17::Party, crate::people_v17::Problem> {
     match value {
         jig_domain_people::Party::Person(held) => Ok(crate::people_v17::Party::Person(crate::people_v17::PartyPerson { value: *held })),
@@ -2717,7 +2726,7 @@ pub fn party_to_record(value: &jig_domain_people::Party, _context: &crate::peopl
     }
 }
 
-// Maps line 269: Party.
+// Maps line 270: Party.
 pub fn party_to_domain(record: crate::people_v17::Party, _context: &crate::people_v17::Limits) -> Result<jig_domain_people::Party, crate::people_v17::Problem> {
     match record {
         crate::people_v17::Party::Person(held) => Ok(jig_domain_people::Party::Person({
@@ -2737,7 +2746,7 @@ pub fn party_to_domain(record: crate::people_v17::Party, _context: &crate::peopl
     }
 }
 
-// Maps line 272: Ending.
+// Maps line 273: Ending.
 pub fn ending_to_record(value: &jig_domain_people::Ending, context: &crate::people_v17::Limits) -> Result<crate::people_v17::Ending, crate::people_v17::Problem> {
     match value {
         jig_domain_people::Ending::Done => Ok(crate::people_v17::Ending::Done),
@@ -2754,7 +2763,7 @@ pub fn ending_to_record(value: &jig_domain_people::Ending, context: &crate::peop
     }
 }
 
-// Maps line 272: Ending.
+// Maps line 273: Ending.
 pub fn ending_to_domain(record: crate::people_v17::Ending, context: &crate::people_v17::Limits) -> Result<jig_domain_people::Ending, crate::people_v17::Problem> {
     match record {
         crate::people_v17::Ending::Done => Ok(jig_domain_people::Ending::Done),
@@ -2777,7 +2786,7 @@ pub fn ending_to_domain(record: crate::people_v17::Ending, context: &crate::peop
     }
 }
 
-// Maps line 283: CeilingHolder.
+// Maps line 284: CeilingHolder.
 pub fn ceiling_holder_to_record(value: &jig_domain_people::CeilingHolder, _context: &crate::people_v17::Limits) -> Result<crate::people_v17::CeilingHolder, crate::people_v17::Problem> {
     match value {
         jig_domain_people::CeilingHolder::Rules => Ok(crate::people_v17::CeilingHolder::Rules),
@@ -2786,7 +2795,7 @@ pub fn ceiling_holder_to_record(value: &jig_domain_people::CeilingHolder, _conte
     }
 }
 
-// Maps line 283: CeilingHolder.
+// Maps line 284: CeilingHolder.
 pub fn ceiling_holder_to_domain(record: crate::people_v17::CeilingHolder, _context: &crate::people_v17::Limits) -> Result<jig_domain_people::CeilingHolder, crate::people_v17::Problem> {
     match record {
         crate::people_v17::CeilingHolder::Rules => Ok(jig_domain_people::CeilingHolder::Rules),
@@ -2798,7 +2807,7 @@ pub fn ceiling_holder_to_domain(record: crate::people_v17::CeilingHolder, _conte
     }
 }
 
-// Maps line 284: CeilingDimension.
+// Maps line 285: CeilingDimension.
 pub fn ceiling_dimension_to_record(value: &jig_domain_people::CeilingDimension, _context: &crate::people_v17::Limits) -> Result<crate::people_v17::CeilingDimension, crate::people_v17::Problem> {
     match value {
         jig_domain_people::CeilingDimension::PeriodSpend => Ok(crate::people_v17::CeilingDimension::PeriodSpend),
@@ -2813,7 +2822,7 @@ pub fn ceiling_dimension_to_record(value: &jig_domain_people::CeilingDimension, 
     }
 }
 
-// Maps line 284: CeilingDimension.
+// Maps line 285: CeilingDimension.
 pub fn ceiling_dimension_to_domain(record: crate::people_v17::CeilingDimension, _context: &crate::people_v17::Limits) -> Result<jig_domain_people::CeilingDimension, crate::people_v17::Problem> {
     match record {
         crate::people_v17::CeilingDimension::PeriodSpend => Ok(jig_domain_people::CeilingDimension::PeriodSpend),
@@ -2828,7 +2837,7 @@ pub fn ceiling_dimension_to_domain(record: crate::people_v17::CeilingDimension, 
     }
 }
 
-// Maps line 286: Lack.
+// Maps line 287: Lack.
 pub fn lack_to_record(value: &jig_domain_people::Lack, context: &crate::people_v17::Limits) -> Result<crate::people_v17::Lack, crate::people_v17::Problem> {
     match value {
         jig_domain_people::Lack::Approver => Ok(crate::people_v17::Lack::Approver),
@@ -2896,7 +2905,7 @@ pub fn lack_to_record(value: &jig_domain_people::Lack, context: &crate::people_v
     }
 }
 
-// Maps line 286: Lack.
+// Maps line 287: Lack.
 pub fn lack_to_domain(record: crate::people_v17::Lack, context: &crate::people_v17::Limits) -> Result<jig_domain_people::Lack, crate::people_v17::Problem> {
     match record {
         crate::people_v17::Lack::Approver => Ok(jig_domain_people::Lack::Approver),
@@ -2997,7 +3006,7 @@ pub fn lack_to_domain(record: crate::people_v17::Lack, context: &crate::people_v
     }
 }
 
-// Maps line 287: LimitKind.
+// Maps line 288: LimitKind.
 pub fn limit_kind_to_record(value: &jig_domain_people::LimitKind, _context: &crate::people_v17::Limits) -> Result<crate::people_v17::LimitKind, crate::people_v17::Problem> {
     match value {
         jig_domain_people::LimitKind::Projects => Ok(crate::people_v17::LimitKind::Projects),
@@ -3051,7 +3060,7 @@ pub fn limit_kind_to_record(value: &jig_domain_people::LimitKind, _context: &cra
     }
 }
 
-// Maps line 287: LimitKind.
+// Maps line 288: LimitKind.
 pub fn limit_kind_to_domain(record: crate::people_v17::LimitKind, _context: &crate::people_v17::Limits) -> Result<jig_domain_people::LimitKind, crate::people_v17::Problem> {
     match record {
         crate::people_v17::LimitKind::Projects => Ok(jig_domain_people::LimitKind::Projects),
@@ -3105,7 +3114,7 @@ pub fn limit_kind_to_domain(record: crate::people_v17::LimitKind, _context: &cra
     }
 }
 
-// Maps line 290: Accepter.
+// Maps line 291: Accepter.
 pub fn accepter_to_record(value: &jig_domain_people::Accepter, _context: &crate::people_v17::Limits) -> Result<crate::people_v17::Accepter, crate::people_v17::Problem> {
     match value {
         jig_domain_people::Accepter::Nobody => Ok(crate::people_v17::Accepter::Nobody),
@@ -3113,7 +3122,7 @@ pub fn accepter_to_record(value: &jig_domain_people::Accepter, _context: &crate:
     }
 }
 
-// Maps line 290: Accepter.
+// Maps line 291: Accepter.
 pub fn accepter_to_domain(record: crate::people_v17::Accepter, _context: &crate::people_v17::Limits) -> Result<jig_domain_people::Accepter, crate::people_v17::Problem> {
     match record {
         crate::people_v17::Accepter::Nobody => Ok(jig_domain_people::Accepter::Nobody),
@@ -3124,7 +3133,7 @@ pub fn accepter_to_domain(record: crate::people_v17::Accepter, _context: &crate:
     }
 }
 
-// Maps line 296: NameRule.
+// Maps line 297: NameRule.
 pub fn name_rule_to_record(value: &jig_domain_people::NameRule, _context: &crate::people_v17::Limits) -> Result<crate::people_v17::NameRule, crate::people_v17::Problem> {
     match value {
         jig_domain_people::NameRule::Empty => Ok(crate::people_v17::NameRule::Empty),
@@ -3135,7 +3144,7 @@ pub fn name_rule_to_record(value: &jig_domain_people::NameRule, _context: &crate
     }
 }
 
-// Maps line 296: NameRule.
+// Maps line 297: NameRule.
 pub fn name_rule_to_domain(record: crate::people_v17::NameRule, _context: &crate::people_v17::Limits) -> Result<jig_domain_people::NameRule, crate::people_v17::Problem> {
     match record {
         crate::people_v17::NameRule::Empty => Ok(jig_domain_people::NameRule::Empty),
@@ -3146,7 +3155,7 @@ pub fn name_rule_to_domain(record: crate::people_v17::NameRule, _context: &crate
     }
 }
 
-// Maps line 298: Malformed.
+// Maps line 299: Malformed.
 pub fn malformed_to_record(value: &jig_domain_people::Malformed, context: &crate::people_v17::Limits) -> Result<crate::people_v17::Malformed, crate::people_v17::Problem> {
     match value {
         jig_domain_people::Malformed::Name(held) => Ok(crate::people_v17::Malformed::Name(crate::people_v17::MalformedName { rule: name_rule_to_record(held, context)? })),
@@ -3168,7 +3177,7 @@ pub fn malformed_to_record(value: &jig_domain_people::Malformed, context: &crate
     }
 }
 
-// Maps line 298: Malformed.
+// Maps line 299: Malformed.
 pub fn malformed_to_domain(record: crate::people_v17::Malformed, context: &crate::people_v17::Limits) -> Result<jig_domain_people::Malformed, crate::people_v17::Problem> {
     match record {
         crate::people_v17::Malformed::Name(held) => Ok(jig_domain_people::Malformed::Name({
@@ -3196,7 +3205,7 @@ pub fn malformed_to_domain(record: crate::people_v17::Malformed, context: &crate
     }
 }
 
-// Maps line 300: LlmWhy.
+// Maps line 301: LlmWhy.
 pub fn llm_why_to_record(value: &jig_domain_people::LlmWhy, _context: &crate::people_v17::Limits) -> Result<crate::people_v17::LlmWhy, crate::people_v17::Problem> {
     match value {
         jig_domain_people::LlmWhy::Unconfigured => Ok(crate::people_v17::LlmWhy::Unconfigured),
@@ -3208,7 +3217,7 @@ pub fn llm_why_to_record(value: &jig_domain_people::LlmWhy, _context: &crate::pe
     }
 }
 
-// Maps line 300: LlmWhy.
+// Maps line 301: LlmWhy.
 pub fn llm_why_to_domain(record: crate::people_v17::LlmWhy, _context: &crate::people_v17::Limits) -> Result<jig_domain_people::LlmWhy, crate::people_v17::Problem> {
     match record {
         crate::people_v17::LlmWhy::Unconfigured => Ok(jig_domain_people::LlmWhy::Unconfigured),
@@ -3220,7 +3229,7 @@ pub fn llm_why_to_domain(record: crate::people_v17::LlmWhy, _context: &crate::pe
     }
 }
 
-// Maps line 302: AccountWhy.
+// Maps line 303: AccountWhy.
 pub fn account_why_to_record(value: &jig_domain_people::AccountWhy, _context: &crate::people_v17::Limits) -> Result<crate::people_v17::AccountWhy, crate::people_v17::Problem> {
     match value {
         jig_domain_people::AccountWhy::Unknown => Ok(crate::people_v17::AccountWhy::Unknown),
@@ -3230,7 +3239,7 @@ pub fn account_why_to_record(value: &jig_domain_people::AccountWhy, _context: &c
     }
 }
 
-// Maps line 302: AccountWhy.
+// Maps line 303: AccountWhy.
 pub fn account_why_to_domain(record: crate::people_v17::AccountWhy, _context: &crate::people_v17::Limits) -> Result<jig_domain_people::AccountWhy, crate::people_v17::Problem> {
     match record {
         crate::people_v17::AccountWhy::Unknown => Ok(jig_domain_people::AccountWhy::Unknown),
@@ -3240,7 +3249,7 @@ pub fn account_why_to_domain(record: crate::people_v17::AccountWhy, _context: &c
     }
 }
 
-// Maps line 304: DependencyStatus.
+// Maps line 305: DependencyStatus.
 pub fn dependency_status_to_record(value: &jig_domain_people::DependencyStatus, _context: &crate::people_v17::Limits) -> Result<crate::people_v17::DependencyStatus, crate::people_v17::Problem> {
     match value {
         jig_domain_people::DependencyStatus::Done => Ok(crate::people_v17::DependencyStatus::Done),
@@ -3249,7 +3258,7 @@ pub fn dependency_status_to_record(value: &jig_domain_people::DependencyStatus, 
     }
 }
 
-// Maps line 304: DependencyStatus.
+// Maps line 305: DependencyStatus.
 pub fn dependency_status_to_domain(record: crate::people_v17::DependencyStatus, _context: &crate::people_v17::Limits) -> Result<jig_domain_people::DependencyStatus, crate::people_v17::Problem> {
     match record {
         crate::people_v17::DependencyStatus::Done => Ok(jig_domain_people::DependencyStatus::Done),
@@ -3258,7 +3267,7 @@ pub fn dependency_status_to_domain(record: crate::people_v17::DependencyStatus, 
     }
 }
 
-// Maps line 309: SignInRedirectWhy.
+// Maps line 310: SignInRedirectWhy.
 pub fn sign_in_redirect_why_to_record(value: &jig_domain_people::SignInRedirectWhy, _context: &crate::people_v17::Limits) -> Result<crate::people_v17::SignInRedirectWhy, crate::people_v17::Problem> {
     match value {
         jig_domain_people::SignInRedirectWhy::NotWaiting => Ok(crate::people_v17::SignInRedirectWhy::NotWaiting),
@@ -3268,7 +3277,7 @@ pub fn sign_in_redirect_why_to_record(value: &jig_domain_people::SignInRedirectW
     }
 }
 
-// Maps line 309: SignInRedirectWhy.
+// Maps line 310: SignInRedirectWhy.
 pub fn sign_in_redirect_why_to_domain(record: crate::people_v17::SignInRedirectWhy, _context: &crate::people_v17::Limits) -> Result<jig_domain_people::SignInRedirectWhy, crate::people_v17::Problem> {
     match record {
         crate::people_v17::SignInRedirectWhy::NotWaiting => Ok(jig_domain_people::SignInRedirectWhy::NotWaiting),
@@ -3278,7 +3287,7 @@ pub fn sign_in_redirect_why_to_domain(record: crate::people_v17::SignInRedirectW
     }
 }
 
-// Maps line 311: AccountMoveWhy.
+// Maps line 312: AccountMoveWhy.
 pub fn account_move_why_to_record(value: &jig_domain_people::AccountMoveWhy, _context: &crate::people_v17::Limits) -> Result<crate::people_v17::AccountMoveWhy, crate::people_v17::Problem> {
     match value {
         jig_domain_people::AccountMoveWhy::NotSignedIn => Ok(crate::people_v17::AccountMoveWhy::NotSignedIn),
@@ -3289,7 +3298,7 @@ pub fn account_move_why_to_record(value: &jig_domain_people::AccountMoveWhy, _co
     }
 }
 
-// Maps line 311: AccountMoveWhy.
+// Maps line 312: AccountMoveWhy.
 pub fn account_move_why_to_domain(record: crate::people_v17::AccountMoveWhy, _context: &crate::people_v17::Limits) -> Result<jig_domain_people::AccountMoveWhy, crate::people_v17::Problem> {
     match record {
         crate::people_v17::AccountMoveWhy::NotSignedIn => Ok(jig_domain_people::AccountMoveWhy::NotSignedIn),
@@ -3300,7 +3309,7 @@ pub fn account_move_why_to_domain(record: crate::people_v17::AccountMoveWhy, _co
     }
 }
 
-// Maps line 316: Refusal.
+// Maps line 317: Refusal.
 #[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
 pub fn refusal_to_record(value: &jig_domain_people::Refusal, context: &crate::people_v17::Limits) -> Result<crate::people_v17::Refusal, crate::people_v17::Problem> {
     match value {
@@ -3435,7 +3444,7 @@ pub fn refusal_to_record(value: &jig_domain_people::Refusal, context: &crate::pe
     }
 }
 
-// Maps line 316: Refusal.
+// Maps line 317: Refusal.
 #[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
 pub fn refusal_to_domain(record: crate::people_v17::Refusal, context: &crate::people_v17::Limits) -> Result<jig_domain_people::Refusal, crate::people_v17::Problem> {
     match record {
@@ -3633,7 +3642,7 @@ pub fn refusal_to_domain(record: crate::people_v17::Refusal, context: &crate::pe
     }
 }
 
-// Maps line 317: ProposalChoice.
+// Maps line 318: ProposalChoice.
 pub fn proposal_choice_to_record(value: &jig_domain_people::ProposalChoice, _context: &crate::people_v17::Limits) -> Result<crate::people_v17::ProposalChoice, crate::people_v17::Problem> {
     match value {
         jig_domain_people::ProposalChoice::Accepted => Ok(crate::people_v17::ProposalChoice::Accepted),
@@ -3644,7 +3653,7 @@ pub fn proposal_choice_to_record(value: &jig_domain_people::ProposalChoice, _con
     }
 }
 
-// Maps line 317: ProposalChoice.
+// Maps line 318: ProposalChoice.
 pub fn proposal_choice_to_domain(record: crate::people_v17::ProposalChoice, _context: &crate::people_v17::Limits) -> Result<jig_domain_people::ProposalChoice, crate::people_v17::Problem> {
     match record {
         crate::people_v17::ProposalChoice::Accepted => Ok(jig_domain_people::ProposalChoice::Accepted),
@@ -3655,7 +3664,7 @@ pub fn proposal_choice_to_domain(record: crate::people_v17::ProposalChoice, _con
     }
 }
 
-// Maps line 318: EscalationChoice.
+// Maps line 319: EscalationChoice.
 pub fn escalation_choice_to_record(value: &jig_domain_people::EscalationChoice, _context: &crate::people_v17::Limits) -> Result<crate::people_v17::EscalationChoice, crate::people_v17::Problem> {
     match value {
         jig_domain_people::EscalationChoice::Released => Ok(crate::people_v17::EscalationChoice::Released),
@@ -3664,7 +3673,7 @@ pub fn escalation_choice_to_record(value: &jig_domain_people::EscalationChoice, 
     }
 }
 
-// Maps line 318: EscalationChoice.
+// Maps line 319: EscalationChoice.
 pub fn escalation_choice_to_domain(record: crate::people_v17::EscalationChoice, _context: &crate::people_v17::Limits) -> Result<jig_domain_people::EscalationChoice, crate::people_v17::Problem> {
     match record {
         crate::people_v17::EscalationChoice::Released => Ok(jig_domain_people::EscalationChoice::Released),
@@ -3673,7 +3682,7 @@ pub fn escalation_choice_to_domain(record: crate::people_v17::EscalationChoice, 
     }
 }
 
-// Maps line 348: AccountHostWhy.
+// Maps line 349: AccountHostWhy.
 pub fn account_host_why_to_record(value: &jig_domain_people::AccountHostWhy, _context: &crate::people_v17::Limits) -> Result<crate::people_v17::AccountHostWhy, crate::people_v17::Problem> {
     match value {
         jig_domain_people::AccountHostWhy::NotInContact => Ok(crate::people_v17::AccountHostWhy::NotInContact),
@@ -3682,7 +3691,7 @@ pub fn account_host_why_to_record(value: &jig_domain_people::AccountHostWhy, _co
     }
 }
 
-// Maps line 348: AccountHostWhy.
+// Maps line 349: AccountHostWhy.
 pub fn account_host_why_to_domain(record: crate::people_v17::AccountHostWhy, _context: &crate::people_v17::Limits) -> Result<jig_domain_people::AccountHostWhy, crate::people_v17::Problem> {
     match record {
         crate::people_v17::AccountHostWhy::NotInContact => Ok(jig_domain_people::AccountHostWhy::NotInContact),
@@ -3691,7 +3700,7 @@ pub fn account_host_why_to_domain(record: crate::people_v17::AccountHostWhy, _co
     }
 }
 
-// Maps line 349: AccountHostFailure.
+// Maps line 350: AccountHostFailure.
 pub fn account_host_failure_to_record(value: &jig_domain_people::AccountHostFailure, context: &crate::people_v17::Limits) -> Result<crate::people_v17::AccountHostFailure, crate::people_v17::Problem> {
     let jig_domain_people::AccountHostFailure { name: field_000000, why: field_000001 } = value;
     Ok(crate::people_v17::AccountHostFailure {
@@ -3700,7 +3709,7 @@ pub fn account_host_failure_to_record(value: &jig_domain_people::AccountHostFail
     })
 }
 
-// Maps line 349: AccountHostFailure.
+// Maps line 350: AccountHostFailure.
 pub fn account_host_failure_to_domain(record: crate::people_v17::AccountHostFailure, context: &crate::people_v17::Limits) -> Result<jig_domain_people::AccountHostFailure, crate::people_v17::Problem> {
     let crate::people_v17::AccountHostFailure { name: field_000000, why: field_000001 } = record;
     Ok(jig_domain_people::AccountHostFailure {
@@ -3709,7 +3718,7 @@ pub fn account_host_failure_to_domain(record: crate::people_v17::AccountHostFail
     })
 }
 
-// Maps line 354: Given.
+// Maps line 355: Given.
 pub fn given_to_record(value: &jig_domain_people::Given, _context: &crate::people_v17::Limits) -> Result<crate::people_v17::Given, crate::people_v17::Problem> {
     let jig_domain_people::Given { task: field_000000, amount: field_000001 } = value;
     Ok(crate::people_v17::Given {
@@ -3718,7 +3727,7 @@ pub fn given_to_record(value: &jig_domain_people::Given, _context: &crate::peopl
     })
 }
 
-// Maps line 354: Given.
+// Maps line 355: Given.
 pub fn given_to_domain(record: crate::people_v17::Given, _context: &crate::people_v17::Limits) -> Result<jig_domain_people::Given, crate::people_v17::Problem> {
     let crate::people_v17::Given { task: field_000000, amount: field_000001 } = record;
     Ok(jig_domain_people::Given {
@@ -3727,7 +3736,7 @@ pub fn given_to_domain(record: crate::people_v17::Given, _context: &crate::peopl
     })
 }
 
-// Maps line 365: Outcome.
+// Maps line 366: Outcome.
 #[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
 pub fn outcome_to_record(value: &jig_domain_people::Outcome, context: &crate::people_v17::Limits) -> Result<crate::people_v17::Outcome, crate::people_v17::Problem> {
     match value {
@@ -3937,10 +3946,13 @@ pub fn outcome_to_record(value: &jig_domain_people::Outcome, context: &crate::pe
         jig_domain_people::Outcome::WorkerPauseAsked { worker: field_000000 } => Ok(crate::people_v17::Outcome::WorkerPauseAsked(crate::people_v17::OutcomeWorkerPauseAsked {
             worker: *field_000000
         })),
+        jig_domain_people::Outcome::ServiceReissued { party: field_000000 } => Ok(crate::people_v17::Outcome::ServiceReissued(crate::people_v17::ServiceParty {
+            party: *field_000000
+        })),
     }
 }
 
-// Maps line 365: Outcome.
+// Maps line 366: Outcome.
 #[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
 pub fn outcome_to_domain(record: crate::people_v17::Outcome, context: &crate::people_v17::Limits) -> Result<jig_domain_people::Outcome, crate::people_v17::Problem> {
     match record {
@@ -4294,10 +4306,16 @@ pub fn outcome_to_domain(record: crate::people_v17::Outcome, context: &crate::pe
                 worker: field_000000
             })
         },
+        crate::people_v17::Outcome::ServiceReissued(held) => {
+            let crate::people_v17::ServiceParty { party: field_000000 } = held;
+            Ok(jig_domain_people::Outcome::ServiceReissued {
+                party: field_000000
+            })
+        },
     }
 }
 
-// Maps line 366: ActKey.
+// Maps line 367: ActKey.
 pub fn act_key_to_record(value: &jig_domain_people::ActKey, _context: &crate::people_v17::Limits) -> Result<crate::people_v17::ActKey, crate::people_v17::Problem> {
     let jig_domain_people::ActKey { connector: field_000000, key: field_000001 } = value;
     Ok(crate::people_v17::ActKey {
@@ -4306,7 +4324,7 @@ pub fn act_key_to_record(value: &jig_domain_people::ActKey, _context: &crate::pe
     })
 }
 
-// Maps line 366: ActKey.
+// Maps line 367: ActKey.
 pub fn act_key_to_domain(record: crate::people_v17::ActKey, _context: &crate::people_v17::Limits) -> Result<jig_domain_people::ActKey, crate::people_v17::Problem> {
     let crate::people_v17::ActKey { connector: field_000000, key: field_000001 } = record;
     Ok(jig_domain_people::ActKey {
@@ -4315,7 +4333,7 @@ pub fn act_key_to_domain(record: crate::people_v17::ActKey, _context: &crate::pe
     })
 }
 
-// Maps line 373: Act.
+// Maps line 374: Act.
 pub fn act_to_record(value: &jig_domain_people::Act, context: &crate::people_v17::Limits) -> Result<crate::people_v17::Act, crate::people_v17::Problem> {
     match value {
         jig_domain_people::Act::MakeProject { maker: field_000000, name: field_000001, policy: field_000002 } => Ok(crate::people_v17::Act::MakeProject(crate::people_v17::ActMakeProject {
@@ -4357,7 +4375,7 @@ pub fn act_to_record(value: &jig_domain_people::Act, context: &crate::people_v17
     }
 }
 
-// Maps line 373: Act.
+// Maps line 374: Act.
 pub fn act_to_domain(record: crate::people_v17::Act, context: &crate::people_v17::Limits) -> Result<jig_domain_people::Act, crate::people_v17::Problem> {
     match record {
         crate::people_v17::Act::MakeProject(held) => {
@@ -4417,7 +4435,7 @@ pub fn act_to_domain(record: crate::people_v17::Act, context: &crate::people_v17
     }
 }
 
-// Maps line 377: DeletionStep.
+// Maps line 378: DeletionStep.
 pub fn deletion_step_to_record(value: &jig_domain_people::DeletionStep, _context: &crate::people_v17::Limits) -> Result<crate::people_v17::DeletionStep, crate::people_v17::Problem> {
     match value {
         jig_domain_people::DeletionStep::Tasks => Ok(crate::people_v17::DeletionStep::Tasks),
@@ -4426,7 +4444,7 @@ pub fn deletion_step_to_record(value: &jig_domain_people::DeletionStep, _context
     }
 }
 
-// Maps line 377: DeletionStep.
+// Maps line 378: DeletionStep.
 pub fn deletion_step_to_domain(record: crate::people_v17::DeletionStep, _context: &crate::people_v17::Limits) -> Result<jig_domain_people::DeletionStep, crate::people_v17::Problem> {
     match record {
         crate::people_v17::DeletionStep::Tasks => Ok(jig_domain_people::DeletionStep::Tasks),

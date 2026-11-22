@@ -474,6 +474,36 @@ its own:
   The real loop's stories run the route against skein's forge peer; the
   process tier (`process-tier.md`) runs `temper-box fake git` from the playground's link.
 
+**The machine at the domain face.** The worker's domain worlds answer
+each `git::Op` on skein's fake checkout themselves, through the checkout
+world's translation (`tests/worker/checkout/src/translate.rs`), which
+the worker's domain world shares: that translation is the machine as
+those worlds see it, and its layout (where a workspace, a repository and
+a store sit) is the one the worker's inspection adapter reads
+(`worker.md`, 2.1). Beyond git's effects it models, for the faults of
+`worker.md`, section 3:
+
+- **git's locks:** an index lock refuses a check out, a merge and a
+  commit in its repository, and a reference's lock an operation that
+  moves that reference, each `Broken`, as git refuses them; `Make` takes
+  them with its workspace;
+- **a cut:** a fetch, a check out or a merge cut partway at its deadline,
+  leaving what a killed git would (`worker.md`, 3.1);
+- **a capacity:** a world's bound on the bytes of the fake checkout's
+  files, past which an operation that writes fails `Broken` with git's
+  words and changes nothing (`worker.md`, 3.2);
+- **packs:** each fetch into a store leaves a pack in it, and each check
+  out's and merge's fetch of contents one in its repository; a `Pack`
+  leaves one pack in each place it names that held more than 50
+  (`../protocol/git.md`, 4.14). A pack is a file
+  `objects/pack/pack-<n>.pack`, `<n>` the place's next number in
+  decimal, in the place's git directory: the store's own directory, or
+  the repository's `.git`.
+
+The git protocol world's io, below the git component, can mark a path
+that refuses every removal (`worker.md`, 3.3). skein's fake machine
+models neither a capacity nor such a path (`worker.md`, 7).
+
 **The shell subset.** An LLM can type any command, and no fake can run a
 real build. The machine's sh interprets a small subset of POSIX sh: a few
 commands (`test`, `grep -q`, `cat`, `echo`, `exit`) joined by `&&`, `||`

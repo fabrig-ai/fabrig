@@ -1,6 +1,7 @@
 # root: status
 
-2026-11-06. Where jig's code lags or departs from [root.md](root.md).
+2026-11-20. Where jig's code lags or departs from [root.md](root.md).
+
 
 - **Not yet:** 2, 5, 6: `smith-inline-agent` composed in the engine's
   root.

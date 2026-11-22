@@ -35,12 +35,12 @@ impl OneShot {
                         return;
                     }
                 }
-                self.service_sign_in = (call.form == 1).then_some(());
+                self.service_sign_in_file = (call.form == 1).then_some(());
                 let Parsed::Call { call, .. } = arguments::parse(&[b"me"]).expect("me call") else { unreachable!() };
                 self.call = Some(Parsed::Call { call, json });
             }
             if let Some(bytes) = self.directory.link.take() {
-                let start = if self.service_sign_in.is_some() { Signing::service } else { Signing::new };
+                let start = if self.service_sign_in_file.is_some() { Signing::service } else { Signing::new };
                 match start(
                     &bytes,
                     self.directory.parent(),

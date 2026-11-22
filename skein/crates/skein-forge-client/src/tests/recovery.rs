@@ -186,44 +186,130 @@ fn a_held_update_remade_is_looked_for_first() {
 }
 
 #[test]
-fn restart_reads_before_settling_the_outbox() {
+fn a_restored_entry_reports_its_first_absent_find_once_without_delaying_settle() {
+    for restored in [false, true] {
+        for expired in [false, true] {
+            let mut h = updating(api::UpdateStyle::Merge);
+            lose_update(&mut h, api::UpdateStyle::Merge);
+            if restored {
+                h.restart(if expired { 112 } else { 100 }, 100, RecoveryClock::Monotonic);
+            } else if expired {
+                h.fire(112);
+            }
+            h.outcomes = List::with_capacity(h.outcomes.capacity());
+            h.step(Event::SettleOutbox);
+            assert_eq!(h.outbox_done, u32::from(!restored));
+            look_update(&mut h, [1; 32], false);
+            assert_eq!(h.outbox_done, 1, "the find, not its retry write, ends the settle");
+            let expected = if restored { &[(1, Outcome::Uncertain)][..] } else { &[][..] };
+            assert_eq!(h.outcomes.as_slice(), expected, "restored {restored}, expired {expired}");
+            assert!(h.store.contains_key(&1), "the first-look word is nonterminal");
+            if !expired {
+                h.fire(111);
+                look_update(&mut h, [1; 32], false);
+                assert_eq!(h.outcomes.as_slice(), expected, "only the first absent find reports");
+                assert_eq!(h.outbox_done, 1);
+            }
+        }
+    }
+    let mut h = fixture::uncertain_comment();
+    h.restart(112, 112, RecoveryClock::Monotonic);
+    h.outcomes = List::with_capacity(h.outcomes.capacity());
+    let find = h.one();
+    h.answer(find, Ok(fixture::empty_item()));
+    assert_eq!(h.outcomes.as_slice(), &[(1, Outcome::Held)], "a terminal find needs no Uncertain first");
+}
+
+fn catching_up() -> kept::Harness {
     let mut h = kept::Harness::new();
     let mut row = fixture::live();
-    row.watch = kept::watch(kept::issue(), false);
+    row.watch = kept::watch(kept::branch(), false);
     h.domain = configured(&h.env.limits);
     h.event(Event::Restore { record: Stored::Live(row) });
     h.event(Event::Restore { record: Stored::Repository(fixture::repository()) });
     h.event(Event::Restored { clock: RecoveryClock::Monotonic });
-    h.event(Event::Writer { resource: kept::issue(), taken: true });
-    h.event(Event::PauseOutbox);
     let saved = fixture::uncertain_comment().store.get(&1).expect("saved attempt").clone();
     let task = saved.task;
     h.event(Event::Make { entry: saved });
     h.event(Event::ReadAfresh);
-    assert_eq!(h.domain.fresh_owed().as_ref(), &[kept::issue(), Resource { repository: REPO, what: What::Repository }]);
+    assert_eq!(h.domain.fresh_resources_owed().as_ref(), &[kept::branch()]);
     assert!(h.domain.unsettled().is_empty(), "the outbox has not started settling");
-    let listing = h.one();
-    assert_eq!(listing.op, Op::Read(Read::Items { single: false, since: at(fixture::START_AT), page: 1, kind: None }));
-    h.answer(listing, Answer::Items { cut: false, items: Box::new([]), more: false, now: at(fixture::START_AT) });
-    assert_eq!(h.domain.fresh_owed().as_ref(), &[kept::issue()]);
-    let object = h.one();
-    assert_eq!(
-        object.op,
-        Op::Read(Read::Item { number: 9, after: u64::MAX, since: skein_lib::Time::from_nanos(u64::MAX) })
-    );
-    h.answer(object, fixture::empty_item());
-    assert_eq!(h.fresh_done, 1);
-    assert!(h.domain.fresh_owed().is_empty());
-    assert!(h.send().is_none());
     h.event(Event::SettleOutbox);
     assert_eq!(h.domain.unsettled().as_ref(), &[(1, task)]);
-    let find = h.one();
+    h
+}
+
+fn restart_calls(h: &mut kept::Harness) -> (super::Sent, super::Sent) {
+    let first = h.one();
+    let second = h.one();
+    if first.op == Op::Read(Read::Branch { branch: Box::from(b"topic".as_slice()) }) {
+        (first, second)
+    } else {
+        assert_eq!(second.op, Op::Read(Read::Branch { branch: Box::from(b"topic".as_slice()) }));
+        (second, first)
+    }
+}
+
+#[test]
+fn restart_settles_while_the_fresh_pass_is_still_out() {
+    let mut h = catching_up();
+    let (fresh, find) = restart_calls(&mut h);
     assert_eq!(find.op, Op::Read(Read::Item { number: 9, after: 0, since: skein_lib::Time::ZERO }));
+    assert_eq!((h.outbox_done, h.fresh_done), (0, 0));
     h.answer(find, fixture::empty_item());
-    assert_eq!(h.outbox_done, 1);
+    assert_eq!((h.outbox_done, h.fresh_done), (1, 0), "the first find alone ends the settle");
     assert!(h.domain.unsettled().is_empty());
+    assert_eq!(h.outcomes.as_slice(), &[Outcome::Uncertain]);
     assert!(h.send().is_none());
-    assert_eq!(h.fresh_done, 1);
+    h.answer(fresh, Answer::Commit([1; 32]));
+    assert_eq!((h.outbox_done, h.fresh_done), (1, 1));
+    assert!(h.domain.fresh_resources_owed().is_empty());
+    assert!(h.send().is_none());
+}
+
+#[test]
+fn a_failing_restored_find_holds_only_its_lane_not_the_fresh_pass() {
+    let mut h = catching_up();
+    let (fresh, find) = restart_calls(&mut h);
+    h.event(Event::Answered { call: find.call, cost: 1, free: 0, rate: None, result: Err(Error::Unavailable) });
+    h.answer(fresh, Answer::Commit([1; 32]));
+    assert_eq!((h.outbox_done, h.fresh_done), (0, 1));
+    for (number, item) in [(2, 9), (3, 10)] {
+        let mut entry = fixture::uncertain_comment().store.get(&1).expect("entry shape").clone();
+        entry.number = number;
+        entry.start = None;
+        entry.attempt = None;
+        entry.effect.write = Write::Post { number: item, key: Box::from(b"next".as_slice()), body: Box::new([]) };
+        h.event(Event::Make { entry });
+    }
+    h.clock();
+    let write = h.one();
+    assert_eq!(write.op, Op::Write(Write::Post { number: 10, key: Box::from(b"next".as_slice()), body: Box::new([]) }));
+    h.answer(write, Answer::Commented(10));
+    assert!(h.send().is_none(), "the later write on item 9 remains behind the find");
+    for _ in 0_u32..2 {
+        h.env.now = h.domain.next_deadline().expect("find retry");
+        let mut out = skein_lib::Queue::uncapped();
+        crate::fire(&mut h.domain, &h.env, &mut out);
+        h.take(&mut out);
+        let find = h.one();
+        assert_eq!(find.op, Op::Read(Read::Item { number: 9, after: 0, since: skein_lib::Time::ZERO }));
+        h.event(Event::Answered { call: find.call, cost: 1, free: 0, rate: None, result: Err(Error::Unavailable) });
+        assert_eq!((h.outbox_done, h.fresh_done), (0, 1));
+        assert!(h.send().is_none(), "repeated find failures release neither the settle nor its lane");
+    }
+    h.env.now = h.domain.next_deadline().expect("find retry");
+    let mut out = skein_lib::Queue::uncapped();
+    crate::fire(&mut h.domain, &h.env, &mut out);
+    h.take(&mut out);
+    let find = h.one();
+    h.answer(find, fixture::keyed_answer(false, b"\x01\x00\x03kit:task:milestone"));
+    assert_eq!(h.outbox_done, 1);
+    h.clock();
+    let write = h.one();
+    assert_eq!(write.op, Op::Write(Write::Post { number: 9, key: Box::from(b"next".as_slice()), body: Box::new([]) }));
+    h.answer(write, Answer::Commented(11));
+    assert!(h.send().is_none());
 }
 #[test]
 fn a_fresh_pass_ends_when_its_last_pending_watch_is_dropped() {

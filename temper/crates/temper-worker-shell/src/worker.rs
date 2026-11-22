@@ -289,12 +289,14 @@ pub(crate) fn executable_file(program: &Path, name: &str) -> Result<(), String> 
 }
 #[must_use]
 pub fn find_claude(environment: &[EnvironmentEntry]) -> Option<std::path::PathBuf> {
-    let value = temper_shell::environment::PATH.value(environment)?;
-    value
-        .split(|byte| *byte == b':')
-        .filter(|entry| entry.starts_with(b"/"))
-        .map(|entry| path(entry).join("claude"))
-        .find(|candidate| executable_file(candidate, "claude").is_ok())
+    find_claude_with(environment, temper_shell::lookup::is_executable)
+}
+
+pub(crate) fn find_claude_with(
+    environment: &[EnvironmentEntry],
+    is_executable: impl Fn(&Path) -> bool,
+) -> Option<std::path::PathBuf> {
+    temper_shell::lookup::candidates(environment, b"claude").into_iter().find(|candidate| is_executable(candidate))
 }
 #[must_use]
 pub fn figures_line(engine: &jig_protocol_config::Address, figures: &jig_protocol_worker_wire::Figures) -> String {

@@ -18,6 +18,7 @@ const TOTAL: u32 = 213; // The request's large forge, over three pages.
 
 fn forge_row(number: u16, kind: Kind, mode: Mode) -> Row {
     Row {
+        catching_up: None,
         number,
         kind,
         mode,

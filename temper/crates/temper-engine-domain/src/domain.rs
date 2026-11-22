@@ -1,7 +1,7 @@
 //! The admitted step and ordered journal release (jig's domain/root.md, 3).
 use crate::boundary::{BriefConnector, BriefSection, EndedRead, Event, Fact, Payload, Read, Released, Request, Work};
 use crate::limits::{Limits, backlog, core_limits, environment_core, payload_slots, run_policy_bound, valid};
-use crate::restart::{connector_restarting, request_load};
+use crate::restart::request_load;
 use crate::route::{forge_route, host_route, policy_translate, route_core_requests, route_into, step_routed};
 use crate::translate::{Config, RootConfig, environment_forge};
 use crate::{CallKey, Decision, Delivery, Journal, JournalOutput as Output, Range, Write, loads};
@@ -397,12 +397,12 @@ impl Domain {
         self.forge.installation(forge, installation)
     }
 
-    /// Restore as at a start, ending before the switch (domain/root.md, 8.1).
+    /// Restore as at a start, ending at the opening (domain/root.md, 8.1).
     pub fn rehearse(&mut self) {
         assert!(self.start_wall.is_none(), "rehearsal set before restart");
         self.rehearsal = Some(false);
     }
-    /// The rehearsal reached the switch without asking for it.
+    /// The rehearsal opened, with the connector's catching up begun.
     #[must_use]
     pub fn rehearsed(&self) -> bool {
         self.rehearsal == Some(true)
@@ -747,6 +747,12 @@ impl Domain {
         self.opened && self.start_stop().is_none() && !self.journal.stopped()
     }
 
+    /// Both halves of this connector's catching up have reported to the core.
+    #[must_use]
+    pub fn caught_up(&self, connector: u16) -> bool {
+        self.core.caught_up(connector)
+    }
+
     pub(crate) fn start_runtime(&self) -> bool {
         use jig_domain_core::start::Phase;
         match self.start_phase() {
@@ -759,7 +765,7 @@ impl Domain {
                 | Phase::Switch
                 | Phase::Wires,
             ) => false,
-            Some(Phase::AdoptRuns | Phase::ReadAfresh { .. } | Phase::SettleOutbox { .. } | Phase::Open) => true,
+            Some(Phase::AdoptRuns | Phase::Open) => true,
             None => self.opened,
         }
     }
@@ -1241,7 +1247,7 @@ pub(crate) fn resume_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Qu
         }
         return;
     }
-    if domain.ready() || connector_restarting(domain) {
+    if domain.ready() {
         if domain.forge.is_ready() {
             domain.settled = None;
             let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
@@ -1250,9 +1256,6 @@ pub(crate) fn resume_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Qu
             forge_route::outputs(domain, env, &mut decision, &mut child);
             route_into(domain, env, &mut decision);
             close(domain, env, decision, out);
-            return;
-        }
-        if !domain.ready() {
             return;
         }
         if !domain.settling.active()
@@ -1321,8 +1324,7 @@ pub(crate) fn fire_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Queu
         let routed = jig_domain_core::fire(&mut domain.core, &environment_core(env), timer);
         route_core_requests(domain, env, &mut decision, routed);
     }
-    let restarting = connector_restarting(domain);
-    if (restarting || domain.ready() || domain.settling.active()) && !domain.core.stopping() {
+    if (domain.ready() || domain.settling.active()) && !domain.core.stopping() {
         let mut forge_out = Queue::uncapped();
         forge::fire(&mut domain.forge, &environment_forge(env), &mut forge_out);
         forge_route::outputs(domain, env, &mut decision, &mut forge_out);

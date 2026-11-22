@@ -67,6 +67,7 @@ fn operation(value: &c::Operation, limits: &w::Limits) -> Result<w::Operation, w
         | w::Ask::ChangePolicy(_)
         | w::Ask::SetRoles(_)
         | w::Ask::MakeService(_)
+        | w::Ask::ReissueService(_)
         | w::Ask::SignIn(_)
         | w::Ask::AccountChange(_)
         | w::Ask::SignOut(_)
@@ -131,6 +132,7 @@ pub(super) fn restore(value: w::Compound, limits: &Limits) -> Result<c::Ask, w::
             | c::Ask::ChangePolicy { .. }
             | c::Ask::SetRoles { .. }
             | c::Ask::MakeService { .. }
+            | c::Ask::ReissueService { .. }
             | c::Ask::SignIn { .. }
             | c::Ask::AccountChange { .. }
             | c::Ask::SignOut { .. }

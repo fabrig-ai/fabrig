@@ -882,7 +882,7 @@ impl Judge {
 impl Judge {
     #[expect(clippy::too_many_lines, reason = "issuer admission cues join the other hosted-process story cues")]
     fn act_checked(&mut self, now: Time, procs: &mut [Proc]) -> Result<(), String> {
-        if self.patience.due() {
+        if self.patience.due(now) {
             self.capture_overdue(now, procs);
             return Ok(());
         }
@@ -1666,5 +1666,4 @@ mod tests {
     }
 }
 
-#[cfg(test)]
-mod teardown;
+pub(crate) mod teardown;

@@ -89,7 +89,7 @@ mod delegates;
 
 mod branch_reads;
 #[path = "forge_routes/change_tool.rs"]
-mod change_tool;
+pub(super) mod change_tool;
 mod read_contracts;
 
 #[path = "forge_routes/light_rules.rs"]
@@ -165,7 +165,7 @@ mod suspended;
 mod goal_tool;
 
 #[path = "forge_routes/goal_branch.rs"]
-mod goal_branch;
+pub(super) mod goal_branch;
 
 #[path = "forge_routes/per_wake.rs"]
 mod per_wake;
@@ -373,7 +373,7 @@ fn a_pushed_change_is_recovered_before_its_worker_reports_the_head() {
     world.restart(true, true);
     for _ in 0..200 {
         world.tick();
-        if world.root.ready() {
+        if world.root.caught_up(0) {
             break;
         }
     }

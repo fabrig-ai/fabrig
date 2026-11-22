@@ -35,8 +35,8 @@ fn held_pull() -> (Domain, Name) {
     };
     outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     outputs(
         &mut d,
         Event::Names { task: fixtures::CHANGE, resources: Box::new([Name { what: What::Pull(1), ..branch.clone() }]) },
