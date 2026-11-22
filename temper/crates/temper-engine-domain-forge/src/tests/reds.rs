@@ -34,7 +34,7 @@ fn red(goal: u64, key: &[u8], generation: u64) -> Red {
     Red { goal, key: call.key, head: call.head, why: call.why, by: call.by, at: call.at, generation }
 }
 fn fresh(limits: &Limits) -> Domain {
-    let mut d = domain_with_limits(limits);
+    let mut d = active_domain_with_limits(limits);
     d.restore_begin(Wall::EPOCH);
     step(
         &mut d,

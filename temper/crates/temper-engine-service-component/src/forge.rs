@@ -48,12 +48,17 @@ pub fn back(event: Box<forge::Event>) -> Result<skein_forge_connection::Answered
     }
 }
 /// Engine-owned queues and component, with its own output reservations.
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "rehearsal's call refusal is independent of connection and listener lifecycle"
+)]
 pub(crate) struct Layer {
     pub(crate) component: skein_forge_connection::Component,
     pub(crate) env: Env<skein_forge_connection::Limits>,
     pub(crate) above: Queue<skein_forge_connection::Event>,
     pub(crate) io: Queue<skein_io::Request>,
     pub(crate) closed: bool,
+    pub(crate) rehearsal: bool,
     begun: bool,
     pub(crate) held: Map<u16, Box<[u8]>>,
     pub(crate) origins: origins::Origins,
@@ -144,6 +149,7 @@ impl Layer {
             above: Queue::uncapped(),
             io: Queue::uncapped(),
             closed: false,
+            rehearsal: false,
             begun: false,
             #[cfg(test)]
             starts: List::with_capacity(limits.forges),
@@ -159,6 +165,19 @@ impl Layer {
         self.held.get(&forge).cloned()
     }
     pub(crate) fn down(&mut self, request: skein_forge_connection::Request) {
+        // The connection's closed lifecycle ignores calls; a rehearsal owes an immediate refusal.
+        if self.rehearsal
+            && let skein_forge_connection::Request::Call { call, .. } = &request
+        {
+            self.above.push(skein_forge_connection::Event::Answered(skein_forge_connection::Answered {
+                call: *call,
+                cost: 0,
+                free: 0,
+                rate: None,
+                result: Err(skein_forge::api::Error::Unavailable),
+            }));
+            return;
+        }
         if let skein_forge_connection::Request::Close = &request {
             self.begun = true; // A closed component owes no initial begin, including before the mark.
         }

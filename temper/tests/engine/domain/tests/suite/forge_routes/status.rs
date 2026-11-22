@@ -806,6 +806,7 @@ fn status_findings_follow_signers_precede_roles_and_trim_from_the_end() {
                     signature: None,
                     seen: None,
                     blame: None,
+                    repair: None,
                     cleared: None,
                 })),
             });
@@ -936,7 +937,9 @@ fn owed_red(number: u32, milestone: u64) -> Record {
             reason: Some(b"Not pursuing".as_slice().into()),
             signature: None,
             seen: None,
+            repair: None,
             blame: Some(forge_top::FindingBlame {
+                moved: None,
                 strength: forge_top::BlameStrength::Owned,
                 landings: Box::new([forge_top::BlamedLanding {
                     commit: [1; 32],

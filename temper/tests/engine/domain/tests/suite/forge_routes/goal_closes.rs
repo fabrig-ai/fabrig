@@ -481,7 +481,7 @@ fn a_goal_from_template_2_keeps_the_nothing_awaited_notice() {
     world.close();
 }
 
-fn park_goal(world: &mut World, run: &engine::Assignment) {
+pub(super) fn park_goal(world: &mut World, run: &engine::Assignment) {
     park_goal_spent(world, run, 0);
 }
 

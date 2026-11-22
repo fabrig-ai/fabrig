@@ -3,7 +3,7 @@ pub(crate) mod render;
 use crate::{
     jig::{
         self,
-        call::{Call, Project, Value, value},
+        call::{Call, Project, Value, Values, value},
         rows,
         runner::{Called, Out},
     },
@@ -14,7 +14,7 @@ use jig_client::{
     Answered, Ask, Client, Event, Family, Handle, Key, Latest, Outcome, Readable, Readout, State, Told, Watchable, Why,
     contract as c,
 };
-use skein_lib::{Env, Queue};
+use skein_lib::{Env, List, Queue};
 use temper_client_domain_forge::{forge, owner::Owner};
 use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
@@ -27,7 +27,7 @@ pub(crate) struct Findings {
     reads: BTreeMap<Handle, Pending>,
     pub(crate) json: bool,
 }
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 enum Act {
     List,
     Show,
@@ -36,6 +36,8 @@ enum Act {
     Route,
     Backlog,
     Drop,
+    Repair(Box<[u32]>),
+    Blame(Option<Box<[u8]>>),
 }
 #[derive(Debug)]
 struct Pending {
@@ -69,6 +71,8 @@ impl Findings {
 }
 pub(crate) fn owns(call: &Call) -> bool {
     (rows::FINDING_LIST_AT..=rows::FINDING_DROP_AT).contains(&call.tool)
+        || call.tool == rows::FINDING_REPAIR_AT
+        || call.tool == rows::FINDING_BLAME_AT
 }
 pub(crate) fn call(state: &mut Findings, client: &Client, env: &Env<Limits>, called: Called, out: &mut Queue<Out>) {
     state.waiting.insert(called.call_number, called);
@@ -97,10 +101,10 @@ pub(crate) fn ready(state: &mut Findings, client: &Client, env: &Env<Limits>, ou
         };
         let pending = Pending { json: called.json, called: Some(called), project, number: finding, area, act };
         let handle = Handle { asker: Owner::Forge.asker(), number: (u64::from(number) << 32_u32) | 2 };
-        match act {
+        match &pending.act {
             Act::List => watch(state, handle, pending, out),
             Act::Show => read(state, handle, pending, out),
-            Act::File | Act::Hand | Act::Route | Act::Backlog | Act::Drop => {
+            Act::File | Act::Hand | Act::Route | Act::Backlog | Act::Drop | Act::Repair(_) | Act::Blame(_) => {
                 let key = jig::key::local(Owner::Forge.asker(), number);
                 let request = w::Requesting { request: request.expect("act request") };
                 let name = Some(crate::key::engine(
@@ -205,6 +209,16 @@ fn prepare(call: &Call, me: &c::Me) -> Result<(u32, u32, Option<Box<[u8]>>, Act,
             .or(Err(b"hand-off words past their bounds".as_slice()))?;
             (Act::Hand, Some(w::Request::HandFinding(hand)))
         }
+        rows::FINDING_REPAIR_AT => {
+            let repair = repair(call, me, project, number)?;
+            let act = Act::Repair(repair.more.clone().into_boxed());
+            (act, Some(w::Request::TriageFinding(w::TriageFinding { project, number, act: w::Triage::Repair(repair) })))
+        }
+        rows::FINDING_BLAME_AT => {
+            let blame = blame(call)?;
+            let act = Act::Blame(blame.landing.clone());
+            (act, Some(w::Request::TriageFinding(w::TriageFinding { project, number, act: w::Triage::Blame(blame) })))
+        }
         rows::FINDING_ROUTE_AT | rows::FINDING_BACKLOG_AT | rows::FINDING_DROP_AT => {
             let (act, triage) = match call.tool {
                 rows::FINDING_ROUTE_AT => {
@@ -242,16 +256,85 @@ fn reference(call: &Call, me: &c::Me) -> Result<(u32, u32), &'static [u8]> {
         let Some(Value::Project(project)) = value(call, 0) else { return Err(b"missing project") };
         Ok((selected(project, me).ok_or(b"unknown project".as_slice())?, 0))
     } else {
-        let (project, number) = jig::argv::value::finding(text(call, 0)?).ok_or(b"FINDING must be P/N".as_slice())?;
-        let parsed = jig::argv::value::decode(
-            crate::table::TOOLS,
-            jig::table::Kind::Project { empty: false },
-            jig::table::Bound::None,
-            project,
-        )
-        .expect("project part");
-        let Value::Project(project) = parsed else { unreachable!("project kind") };
-        Ok((selected(&project, me).ok_or(b"unknown project".as_slice())?, number))
+        let bytes = if call.tool == rows::FINDING_REPAIR_AT {
+            let Some(Some(Values::Many(findings))) = call.values.first() else { return Err(b"missing findings") };
+            let Some(Value::Text(first)) = findings.first() else { return Err(b"missing findings") };
+            first.as_ref()
+        } else {
+            text(call, 0)?
+        };
+        finding_reference(bytes, me)
+    }
+}
+fn finding_reference(bytes: &[u8], me: &c::Me) -> Result<(u32, u32), &'static [u8]> {
+    let (project, number) = jig::argv::value::finding(bytes).ok_or(b"FINDING must be P/N".as_slice())?;
+    let parsed = jig::argv::value::decode(
+        crate::table::TOOLS,
+        jig::table::Kind::Project { empty: false },
+        jig::table::Bound::None,
+        project,
+    )
+    .expect("project part");
+    let Value::Project(project) = parsed else { unreachable!("project kind") };
+    Ok((selected(&project, me).ok_or(b"unknown project".as_slice())?, number))
+}
+fn repair(call: &Call, me: &c::Me, project: u32, number: u32) -> Result<w::FindingRepair, &'static [u8]> {
+    let Some(Some(Values::Many(findings))) = call.values.first() else { return Err(b"missing findings") };
+    let mut more = List::with_capacity(w::CEILINGS.finding_repair_more);
+    for finding in findings.iter().skip(1) {
+        let Value::Text(bytes) = finding else { return Err(b"FINDING must be P/N") };
+        let (next_project, next_number) = finding_reference(bytes, me)?;
+        if next_project != project {
+            return Err(b"repair findings must be of one project");
+        }
+        if next_number == number || more.as_slice().contains(&next_number) {
+            return Err(b"repair finding named twice");
+        }
+        more.push(next_number).or(Err(b"repair takes at most 16 findings".as_slice()))?;
+    }
+    let words = text(call, 1)?;
+    if words.is_empty() {
+        return Err(b"repair words must not be empty");
+    }
+    let repair = w::FindingRepair { more, words: words.into() };
+    repair.measure(&w::CEILINGS).or(Err(b"repair words past 4096 bytes".as_slice()))?;
+    Ok(repair)
+}
+fn blame(call: &Call) -> Result<w::FindingBlameAct, &'static [u8]> {
+    let landing = if call.form == 0 {
+        Some(commit(text(call, 1)?).ok_or(b"landing must be 40 or 64 hex digits".as_slice())?)
+    } else {
+        None
+    };
+    let why = text(call, 2)?;
+    if why.is_empty() {
+        return Err(b"blame why must not be empty");
+    }
+    let blame = w::FindingBlameAct { landing, why: why.into() };
+    blame.measure(&w::CEILINGS).or(Err(b"blame why past 200 bytes".as_slice()))?;
+    Ok(blame)
+}
+fn commit(bytes: &[u8]) -> Option<Box<[u8]>> {
+    if bytes.len() != 40 && bytes.len() != 64 {
+        return None;
+    }
+    let mut commit = List::with_capacity(32);
+    for [high, low] in bytes.as_chunks::<2>().0 {
+        let high = hex_digit(*high)?;
+        let low = hex_digit(*low)?;
+        commit.push(high.checked_mul(16)?.checked_add(low)?).ok()?;
+    }
+    Some(commit.into_boxed())
+}
+fn hex_digit(digit: u8) -> Option<u8> {
+    if digit.is_ascii_digit() {
+        digit.checked_sub(b'0')
+    } else if (b'a'..=b'f').contains(&digit) {
+        digit.checked_sub(b'a')?.checked_add(10)
+    } else if (b'A'..=b'F').contains(&digit) {
+        digit.checked_sub(b'A')?.checked_add(10)
+    } else {
+        None
     }
 }
 pub(crate) const FILTER_FLAGS: &[u8] =
@@ -284,7 +367,7 @@ pub(crate) fn filtered_subject(project: u32, filter: w::FindingsFilter) -> Watch
     }
 }
 fn watch(state: &mut Findings, handle: Handle, pending: Pending, out: &mut Queue<Out>) {
-    let (filter, mine) = match pending.act {
+    let (filter, mine) = match &pending.act {
         Act::List => {
             let call = &pending.called.as_ref().expect("live list").call;
             let filter = match value(call, 1) {
@@ -296,7 +379,9 @@ fn watch(state: &mut Findings, handle: Handle, pending: Pending, out: &mut Queue
             };
             (filter, value(call, 2).is_some())
         }
-        Act::Show | Act::File | Act::Hand | Act::Route | Act::Backlog | Act::Drop => (None, false),
+        Act::Show | Act::File | Act::Hand | Act::Route | Act::Backlog | Act::Drop | Act::Repair(_) | Act::Blame(_) => {
+            (None, false)
+        }
     };
     let call = &pending.called.as_ref().expect("live list").call;
     let watching = if let Some(goal) = jig::call::number(call, 3) {
@@ -325,7 +410,9 @@ fn read(state: &mut Findings, handle: Handle, pending: Pending, out: &mut Queue<
     state.reads.insert(handle, pending);
 }
 fn fail(called: Called, why: &[u8], out: &mut Queue<Out>) {
-    let printed = jig::render::failure(why, called.json, 1);
+    let status =
+        if called.call.tool == rows::FINDING_REPAIR_AT || called.call.tool == rows::FINDING_BLAME_AT { 2 } else { 1 };
+    let printed = jig::render::failure(why, called.json, status);
     out.push(Out::Printed { number: called.number, printed });
 }
 fn finish(pending: Pending, printed: jig::Printed, out: &mut Queue<Out>) {
@@ -362,9 +449,16 @@ pub(crate) fn told(state: &mut Findings, client: &Client, env: &Env<Limits>, tol
                 _ => None,
             };
             let printed = match findings {
-                Some(findings) if findings.project == pending.project => match pending.act {
+                Some(findings) if findings.project == pending.project => match &pending.act {
                     Act::List => render::list(&findings, pending.json, &env.limits),
-                    Act::File | Act::Hand | Act::Show | Act::Route | Act::Backlog | Act::Drop => {
+                    Act::File
+                    | Act::Hand
+                    | Act::Show
+                    | Act::Route
+                    | Act::Backlog
+                    | Act::Drop
+                    | Act::Repair(_)
+                    | Act::Blame(_) => {
                         unreachable!("finding watch context")
                     }
                 },
@@ -385,10 +479,12 @@ pub(crate) fn told(state: &mut Findings, client: &Client, env: &Env<Limits>, tol
             };
             let printed = match answer {
                 Some(answer) => match &answer.result {
-                    w::FindingResult::Finding(detail) if detail.row.number == pending.number => match pending.act {
+                    w::FindingResult::Finding(detail) if detail.row.number == pending.number => match &pending.act {
                         Act::Show => render::show(pending.project, detail, pending.json, &env.limits),
-                        Act::File | Act::Hand => render::acted(&pending, Some(&detail.row.holder), &env.limits),
-                        Act::List | Act::Route | Act::Backlog | Act::Drop => unreachable!("finding read context"),
+                        Act::File | Act::Hand => render::acted(&pending, Some(&detail.row.holder), None, &env.limits),
+                        Act::List | Act::Route | Act::Backlog | Act::Drop | Act::Repair(_) | Act::Blame(_) => {
+                            unreachable!("finding read context")
+                        }
                     },
                     w::FindingResult::NoFinding => jig::render::failure(b"no finding", pending.json, 2),
                     w::FindingResult::Finding(_) => jig::render::failure(b"unexpected finding", pending.json, 1),
@@ -440,12 +536,14 @@ fn answered(
         | Outcome::Lost => None,
     };
     let Some(answer) = answer else {
-        let tool = match pending.act {
+        let tool = match &pending.act {
             Act::File => &rows::FINDING_FILE,
             Act::Hand => &rows::FINDING_HAND,
             Act::Route => &rows::FINDING_ROUTE,
             Act::Backlog => &rows::FINDING_BACKLOG,
             Act::Drop => &rows::FINDING_DROP,
+            Act::Repair(_) => &rows::FINDING_REPAIR,
+            Act::Blame(_) => &rows::FINDING_BLAME,
             Act::List | Act::Show => unreachable!("act refusal"),
         };
         let operation = jig::render::outcome::Operation::for_call(
@@ -468,8 +566,8 @@ fn answered(
             pending.number = filed.number;
         }
         w::Outcome::Handed => {}
-        w::Outcome::Triaged => {
-            let printed = render::acted(&pending, None, &env.limits);
+        w::Outcome::Triaged(value) => {
+            let printed = render::acted(&pending, None, value.goal, &env.limits);
             finish(pending, printed, out);
             return;
         }
@@ -549,6 +647,8 @@ fn restored(ask: &Ask, json: bool) -> Option<Pending> {
                 w::Triage::Route(_) => Act::Route,
                 w::Triage::Backlog => Act::Backlog,
                 w::Triage::Drop(_) => Act::Drop,
+                w::Triage::Repair(value) => Act::Repair(value.more.clone().into_boxed()),
+                w::Triage::Blame(value) => Act::Blame(value.landing.clone()),
             },
         ),
         w::Request::Adopt(_)

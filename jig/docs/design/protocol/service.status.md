@@ -3,6 +3,7 @@
 2026-11-20. Where jig's code lags or departs from [service.md](service.md).
 
 
+
 Sections 5 and 10 have no known gap in settling in-process agent claims
 before the engine reports drained. The one-process drain story checks
 one interrupted terminal at the stop, no claim left to settle at restart

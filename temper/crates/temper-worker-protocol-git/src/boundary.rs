@@ -38,13 +38,23 @@ pub enum Request {
     Shutdown,
 }
 
-/// Start's terminal, or an operation's terminal.
+/// A start or operation terminal, or a background sweep report.
 #[derive(PartialEq, Eq, Debug)]
 #[expect(clippy::large_enum_variant, reason = "bounded diagnostics stay inline, as the checkout's Done")]
 pub enum Event {
     Started,
-    Unusable { why: Unusable },
-    Done { owner: Token, done: git::Done },
+    Unusable {
+        why: Unusable,
+    },
+    Done {
+        owner: Token,
+        done: git::Done,
+    },
+    /// An entry the sweep set aside; not an operation terminal.
+    Unswept {
+        path: Box<[u8]>,
+        error: kernel::Error,
+    },
 }
 
 /// Why the component could not start.

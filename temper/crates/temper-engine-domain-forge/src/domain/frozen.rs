@@ -17,8 +17,8 @@ fn held() -> Domain {
     let mut d = fixtures::connected_domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     outputs(&mut d, Event::Hold { entry: 0, task: GOAL, resource: name(), from: None });
     d.heads.insert(name(), BranchHead { name: name(), commit: fixtures::HEAD, owned: true }).unwrap();
     d

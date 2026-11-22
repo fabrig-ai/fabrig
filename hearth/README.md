@@ -37,8 +37,8 @@ if the new one fails.
 
 - [`docs/design/README.md`](docs/design/README.md): the overview; its
   section 2 is the reading order, its section 3 the milestones.
-- [`docs/design/STATUS.md`](docs/design/STATUS.md): how far the code is
-  from the design.
+- [`docs/design/STATUS.md`](docs/design/STATUS.md): where to find how far
+  the code is from the design and how to roll up the status files.
 - skein's foundation, which hearth follows:
   [`programming-model.md`](../skein/docs/foundation/programming-model.md),
   [`testing-strategy.md`](../skein/docs/foundation/testing-strategy.md) and
