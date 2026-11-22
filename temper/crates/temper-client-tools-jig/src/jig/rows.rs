@@ -242,16 +242,16 @@ pub const RUN: Tool = Tool {
 };
 pub const SIGN_IN: Tool = Tool {
     name: b"sign-in",
-    line: b"Sign in with a printed link or a service file",
+    line: b"Sign in with a person's link, a service link or a service file",
     prints: b"Your party, as me prints it",
     result: b"sign_in",
     forms: &[
-        &[positional(b"file", b"FILE", Kind::File, Required, b"The file holding the link, or - for stdin")],
+        &[positional(b"file", b"FILE", Kind::File, Required, b"A file holding a person's or service's link, or - for stdin")],
         &[flag(b"service", b"FILE", Kind::File, Required, b"The private file party make wrote")],
     ],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"It writes the token, engine's address and party into DIR. A link\nsigns in only into a directory not signed in: sign-out first,\n`temper ctl DIR sign-out`, or use another directory. A held token\nrefuses before sending anything, leaving the link unspent.\nA link signs in once and expires. `the sign-in link was refused`\n(exit 1) distinguishes `it was already used`, `it has expired`,\nand `temper does not know it, as another deployment's link or\none it no longer remembers`. For a fresh link, temper-box serve\nprints one, or a signed-in client asks with\n`temper ctl DIRECTORY link --out FILE`. Other refusals keep the\nline without a reason.\nWith every sign-in in use, it says when the earliest ends and\nuntil when this link stays usable. It leaves the link's file as\nit was. With --service FILE, sign in as the service at the address\nFILE holds, even into a signed-in DIR. FILE must be owner-only\nand in party make's form; otherwise exit 1 before sending anything.\n",
+    notes: b"Writes the token, engine's address and party into DIR.\nA person's link signs in once and expires. A held token refuses it\nbefore sending, leaving it unspent: run `temper ctl DIR sign-out`\nfirst, or use another directory. `the sign-in link was refused`\n(exit 1) says whether the link was used, expired, or unknown; other\nrefusals give no reason. For a fresh link, use temper-box serve or\nask with `temper ctl DIRECTORY link --out FILE` when signed in.\nWith all sign-ins in use, it says when the earliest ends and when\nthe link expires. The link's file stays as it was.\nA service link from `party reissue` signs in as the service, even\nin a signed-in DIR. If refused, an owner can replace it with\n`temper ctl DIRECTORY party reissue PARTY --out FILE`.\n`--service FILE` takes party make's owner-only file instead; it\nrefuses any other form or mode before sending.\n",
 };
 pub const LINK: Tool = Tool {
     name: b"link",

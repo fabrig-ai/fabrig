@@ -512,6 +512,10 @@ fn the_task_chat_and_inbox_references_are_what_the_table_renders() {
     }
 }
 #[test]
+fn the_sign_in_reference_is_what_the_table_renders() {
+    reference_matches(b"sign-in", b"ctl-sign-in");
+}
+#[test]
 fn the_account_reference_is_what_the_table_renders() {
     reference_matches(b"account", b"ctl-account");
 }

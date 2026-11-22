@@ -57,6 +57,61 @@ fn a_party_make_key_replay_prints_the_party_and_writes_nothing() {
     f.no_service_leaked();
 }
 #[test]
+fn a_service_link_signs_in_from_stdin_or_file() {
+    for (source, input, file) in [("-", service::LINK, b"".as_slice()), ("link-file", b"", service::LINK)] {
+        let mut f = Frame::read(&["sign-in", source]);
+        f.input = input;
+        f.link = file;
+        f.token = b"";
+        f.answer_sign_in_then_me();
+        assert_eq!(f.exit(), Some(Exit::Code(0)), "source: {source}");
+        f.assert_service_sign_in();
+        assert_eq!(f.stored(b"address"), Some(b"http://127.0.0.1:4100\n".as_slice()));
+        assert_eq!(f.stored(b"party"), Some(b"7\n".as_slice()));
+        assert!(f.stored(b"token").is_some_and(|token| token == super::fixtures::TOKEN_BYTES));
+        assert!(f.stdout().starts_with(b"party 7"), "prints me");
+        assert_eq!(f.stderr(), b"");
+        f.no_service_leaked();
+    }
+}
+#[test]
+fn a_service_link_works_in_a_signed_in_directory() {
+    let mut f = Frame::read(&["sign-in", "link-file"]);
+    f.link = service::LINK;
+    f.party = Some(b"7\n");
+    f.answer_sign_in_then_me();
+    assert_eq!(f.exit(), Some(Exit::Code(0)));
+    f.assert_service_sign_in();
+    assert_eq!(f.party_reads, 0);
+    assert_eq!(f.stored(b"token"), None, "same credential stays kept");
+    f.no_service_leaked();
+}
+#[test]
+fn a_non_loopback_service_link_is_not_sent() {
+    let mut f = Frame::read(&["sign-in", "-"]);
+    f.input = service::NON_LOOPBACK_LINK;
+    f.drain();
+    assert_eq!(f.exit(), Some(Exit::Code(1)));
+    assert_eq!(f.requests(), 0);
+    assert_eq!(f.first_connect, None);
+    assert_eq!(f.stderr(), b"temper ctl: the engine's address must be on loopback\n");
+    f.no_service_leaked();
+}
+#[test]
+fn a_refused_service_link_names_reissue_without_leaking() {
+    let mut f = Frame::sign_in(service::LINK);
+    f.refuse_link = Some(());
+    f.answer_sign_in_then_me();
+    assert_eq!(f.exit(), Some(Exit::Code(1)));
+    f.assert_service_sign_in();
+    assert_eq!(f.stdout(), b"");
+    assert_eq!(f.stderr(), b"temper ctl: the service link was refused: its credential was reissued since, or the service is unknown; an owner reissues it with temper ctl DIRECTORY party reissue PARTY --out FILE\n");
+    for file in [b"token".as_slice(), b"address", b"party"] {
+        assert_eq!(f.stored(file), None);
+    }
+    f.no_service_leaked();
+}
+#[test]
 fn sign_in_service_uses_the_files_address_and_credential_and_keeps_the_sign_in() {
     let mut f = Frame::read(&["sign-in", "--service", "link-file"]);
     f.link = service::FILE;

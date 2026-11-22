@@ -1,4 +1,4 @@
-sign-in  Sign in with a printed link or a service file
+sign-in  Sign in with a person's link, a service link or a service file
 sign-out  End the sign-in and leave the token empty
 link  Write a fresh one-time sign-in link to a private file
 pending  List the requests DIR keeps, without reaching the engine

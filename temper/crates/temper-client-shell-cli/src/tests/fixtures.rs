@@ -86,6 +86,7 @@ pub struct Frame {
     pub sign_out_answer: w::SignOutAnswer,
     pub keep_link: Option<()>,
     pub link_bearers: Vec<Option<Box<[u8]>>>,
+    pub first_connect: Option<std::net::SocketAddr>,
     pub again_links: u32,
     pub busy_links: u32,
     pub full_link: Option<(u32, Wall, Wall)>,
@@ -218,6 +219,7 @@ impl Frame {
             sign_out_answer: w::SignOutAnswer::SignedOut,
             keep_link: None,
             link_bearers: Vec::new(),
+            first_connect: None,
             again_links: 0,
             busy_links: 0,
             full_link: None,
@@ -598,7 +600,10 @@ impl Frame {
             Op::Sync { fd } if Some(*fd) == self.record_fd || *fd == FILE_PARENT => self.record_sync(*fd),
             Op::Remove { name, dir, .. } if name.as_ref() == b"record" => self.record_remove(*dir),
             Op::Sync { .. } if self.fail_store.is_some() => Err(Error::Permission),
-            Op::Connect { .. } => self.connect(),
+            Op::Connect { addr, .. } => {
+                self.first_connect = self.first_connect.or(Some(*addr));
+                self.connect()
+            }
             Op::Close { fd } if *fd == DIRECTORY && self.locked.is_some() => {
                 self.released_after = Some(self.store_count());
                 Ok(Done::Nothing)
