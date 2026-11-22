@@ -161,22 +161,26 @@ fn resource_key(name: &Name) -> String {
     format!("connector {} resource {}", name.connector, path.join("/"))
 }
 
-fn hex(key: &[u8; 16]) -> String {
+fn hex(key: &[u8; 16]) -> [u8; 32] {
     const DIGITS: &[u8; 16] = b"0123456789abcdef";
-    let mut text = String::with_capacity(32);
-    for byte in key {
-        text.push(char::from(DIGITS[usize::from(byte >> 4)]));
-        text.push(char::from(DIGITS[usize::from(byte & 15)]));
+    let mut text = [0; 32];
+    for (byte, pair) in key.iter().zip(text.as_chunks_mut::<2>().0) {
+        pair[0] = DIGITS[usize::from(byte >> 4)];
+        pair[1] = DIGITS[usize::from(byte & 15)];
     }
     text
 }
 
 fn request_key(key: &jig_domain_people::RequestKey) -> String {
-    format!("person {} request {}", key.person, hex(&key.key))
+    let digits = hex(&key.key);
+    let text = std::str::from_utf8(&digits).expect("hex digits are ASCII");
+    format!("person {} request {text}", key.person)
 }
 
 fn act_key(key: &jig_domain_people::ActKey) -> String {
-    format!("connector {} request {}", key.connector, hex(&key.key))
+    let digits = hex(&key.key);
+    let text = std::str::from_utf8(&digits).expect("hex digits are ASCII");
+    format!("connector {} request {text}", key.connector)
 }
 
 fn answer(key: String, due: Time, now: Time, withheld: bool) -> Entry {
