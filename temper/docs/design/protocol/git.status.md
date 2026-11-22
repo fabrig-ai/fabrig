@@ -2,13 +2,6 @@
 
 2026-11-22. Where temper's code lags or departs from [git.md](git.md).
 
-- **Not yet:** 4.1: the sweep starts a pass only at a `Make` or a start.
-  What a `Store`'s aside (4.11) or a run's git directory made again (4.13)
-  sets aside in `trash` waits for the next, though the sweep is to run
-  while `trash` is not empty; `what_a_store_sets_aside_is_swept_without_a_make`
-  is its ignored scenario (`../testing/worker.md`, 5), fixed by the
-  *worker disk* work.
-
 - **Not yet:** 4.7: an empty listing still refuses with its words rather
   than ending `ParentUnreachable { head, merging, parent }` [in flight:
   change 6015].

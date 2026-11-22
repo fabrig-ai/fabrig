@@ -9,5 +9,5 @@
 - **Not yet:** 3.3, and 4's git protocol world: its io has no path that refuses every removal, and nothing calls the trash's inspection or sweeps it [in flight: change 11610].
 - **Not yet:** 3.4, and 4's domain world: no fake builder, no busy placement while build places are full, and no inspection or sweep in the worker's domain world [in flight: change 11609].
 - **Not yet:** 5: `growing_packs_trigger_packing` doesn't exist [in flight: change 11587].
-- **Not yet:** 5: `an_unremovable_trash_entry_holds_back_no_other` doesn't exist [in flight: change 11610].
+- **Not yet:** 5: `an_unremovable_trash_entry_holds_back_no_other`, an ordinary step test since the sweep's cursor fixed its problem, doesn't exist [in flight: change 11610].
 - **Not yet:** 5: `what_a_store_sets_aside_is_swept_without_a_make` doesn't exist [in flight: change 11610].
