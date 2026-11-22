@@ -507,6 +507,17 @@ impl Driver {
         self.protocol.answers.iter().rev().find_map(|(named, answer)| (named.as_ref() == name).then_some(answer))
     }
 
+    /// A fresh root over an independent copy of this driver's committed store.
+    #[must_use]
+    pub fn cold_fork(&self) -> Driver {
+        Self::from_store_at(
+            self.store.fork(),
+            crate::oracle::config::copy(&self.restart_config),
+            &self.env.limits,
+            self.env.wall,
+        )
+    }
+
     /// Restart from a store at a chosen wall, without replaying the first-start source.
     #[must_use]
     pub fn from_store_at(store: Store, config: engine::Config, limits: &engine::Limits, wall: Wall) -> Driver {
