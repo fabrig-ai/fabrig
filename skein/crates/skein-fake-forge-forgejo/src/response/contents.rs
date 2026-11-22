@@ -1,4 +1,4 @@
-//! File metadata for contents reads at a commit (skein/docs/design/testing/fakes/forge.md, 4).
+//! File metadata for contents reads at a commit (skein/docs/design/testing/fakes/forgejo.md, 1).
 use crate::{Limits, response::Reply, routes};
 use alloc::boxed::Box;
 use skein_fake_forge_domain::api::Error;

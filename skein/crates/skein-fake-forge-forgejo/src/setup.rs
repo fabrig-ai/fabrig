@@ -1,5 +1,5 @@
 //! Setup's protocol state, separate from repository permissions
-//! (skein/docs/design/testing/fakes/forge.md, section 4).
+//! (skein/docs/design/testing/fakes/forgejo.md, section 1).
 use crate::{Config, Limits, response::Reply};
 use alloc::boxed::Box;
 use skein_forge::forgejo::{

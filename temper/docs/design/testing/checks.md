@@ -575,7 +575,7 @@ landing's or a change's wait and a task's resolve across inspections.
   commits, and the request.
 - **The failure table** of the draft's 3.3, each failure class's
   expected transition on each counter, is held by temper's 3.3 check,
-  beside the gates' and the runs' blame. For runs it has two halves:
+  beside the gates' (`blame.md`) and the runs' blame. For runs it has two halves:
   smith's worlds hold the retries and the run's end
   (`smith/docs/design/faults.md`, 4), since smith names no temper and
   its worlds run the runs; the system world holds the task tries and
