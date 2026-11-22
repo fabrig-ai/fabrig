@@ -1,5 +1,6 @@
 use super::*;
-use std::os::unix::fs::PermissionsExt;
+use crate::tests::machine::{Disk, ROOT};
+use skein_fake_machine::{Item, Refusal};
 use std::{ffi::OsString, os::unix::ffi::OsStringExt};
 
 #[test]
@@ -45,25 +46,25 @@ fn source_names_refuse_values_outside_smiths_alphabet_or_length() {
 
 #[test]
 fn a_worker_alone_login_reads_only_its_worker_part() {
-    let directory = std::env::temp_dir().join(format!("temper-worker-login-{}", std::process::id()));
-    std::fs::create_dir(&directory).expect("worker-alone fixture");
-    std::fs::set_permissions(&directory, std::fs::Permissions::from_mode(0o700)).expect("worker-alone fixture");
-    let (_, input) = crate::tests::worker_document(&directory);
+    let directory = Path::new(ROOT);
+    let (_, input) = crate::tests::worker_document(directory);
     let program = directory.join("claude");
-    std::fs::copy("/bin/sh", &program).expect("worker-alone program");
-    let environment = [(OsString::from("PATH"), directory.as_os_str().to_owned())];
-    std::fs::write(
-        directory.join(temper_config_shell::FILE),
-        temper_config_shell::render(&input, temper_config_shell::Shape::WorkerAlone),
-    )
-    .expect("worker-alone fixture");
-    let command = command(&crate::tests::configuration::directories(&directory), OsStr::new("source"), environment)
-        .expect("worker-alone fixture");
+    let disk = Disk::new(&[
+        Item::file(
+            temper_config_shell::FILE.as_bytes(),
+            &temper_config_shell::render(&input, temper_config_shell::Shape::WorkerAlone),
+        ),
+        Item::file(b"claude", b"claude").mode(0o700),
+    ]);
+    let command = disk.login().expect("worker-alone fixture");
     assert_eq!(command.get_program(), program.as_os_str());
     assert_eq!(command.get_args().collect::<Vec<_>>(), ["auth", "login"]);
-    assert!(!directory.join("state").exists());
-    assert!(!directory.join("secrets/worker.secret").exists(), "no link secret needed for program login");
-    std::fs::remove_dir_all(directory).expect("worker-alone fixture");
+    assert_eq!(disk.metadata(&directory.join("state")), Err(Refusal::NotFound));
+    assert_eq!(
+        disk.metadata(&directory.join("secrets/worker.secret")),
+        Err(Refusal::NotFound),
+        "no link secret needed for program login"
+    );
 }
 
 #[test]

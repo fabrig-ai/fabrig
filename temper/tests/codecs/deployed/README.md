@@ -5,6 +5,12 @@ These texts are verbatim `git show <build>:<path>` output. Nothing rewrites them
 The floor bridge, `3d1c717d379e7987fb088a3756d937079bd8e074`, is where F0 settled every value.
 The build dev.fabrig.ai runs is `13efa774615022299aea9ed57b2577df517494ad`.
 
+Each build's `inventory.txt` records its full commit, then the family,
+version, path and SHA-256 for every current crate schema in that commit.
+Take the names and versions from `git grep '^family ' <build> -- '*/crates/*/schema/*.schema' ':!*/schema/kept/*'`
+and hash the bytes from `git show <build>:<path>`. The layout checks use
+this inventory to verify the kept texts when the checkout has no Git history.
+
 Both directories use these source paths at their respective build:
 
 | Kept file | Source path |

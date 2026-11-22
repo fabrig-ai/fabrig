@@ -1,45 +1,73 @@
-//! The walk's owner argument stands in for root on either system.
+//! Paths and holding-directory facts for the system's link walk.
 
-use crate::testing::links::{configure, walk};
-use skein_scratch::Scratch;
-use std::os::unix::{ffi::OsStrExt, fs::symlink};
+use super::{Entry, walk};
+use std::cell::RefCell;
 
-fn layout(mode: u32) -> Scratch {
-    let scratch = Scratch::new("system-links");
-    configure(scratch.path(), mode, false);
-    scratch
+const OWNER: u32 = 1000;
+const DIRECTORY: libc::mode_t = libc::S_IFDIR | 0o755;
+const LINK: libc::mode_t = libc::S_IFLNK | 0o777;
+
+enum Call<'a> {
+    Stat(&'a [u8], libc::mode_t),
+    Read(&'a [u8], &'a [u8]),
 }
 
-fn parent_link(mode: u32) -> Scratch {
-    let scratch = Scratch::new("system-links");
-    configure(scratch.path(), mode, true);
-    scratch
+fn scripted_walk(path: &[u8], calls: &[Call<'_>]) -> Option<Box<[u8]>> {
+    let calls = RefCell::new(calls.iter());
+    let answer = walk(
+        path,
+        OWNER,
+        |path| {
+            let Some(Call::Stat(expected, mode)) = calls.borrow_mut().next() else {
+                panic!("unexpected stat of {path:?}");
+            };
+            assert_eq!(path, *expected);
+            Some(Entry { mode: *mode, owner: OWNER })
+        },
+        |path| {
+            let Some(Call::Read(expected, target)) = calls.borrow_mut().next() else {
+                panic!("unexpected readlink of {path:?}");
+            };
+            assert_eq!(path, *expected);
+            Some((*target).into())
+        },
+    );
+    assert_eq!(calls.into_inner().len(), 0, "the walk uses the scripted calls");
+    answer
 }
 
 #[test]
 fn dotdot_stops_before_a_link() {
-    let scratch = parent_link(0o755);
-    assert_eq!(walk(&scratch.path().join("real/../sys/f"), crate::effective_user()), None, "dotdot ends the walk");
+    assert_eq!(scripted_walk(b"real/../sys/f", &[Call::Stat(b"real", DIRECTORY)]), None, "dotdot ends the walk");
 }
 
 #[test]
 fn absolute_link_targets_restart_at_root() {
-    let scratch = layout(0o755);
-    let real = scratch.path().join("real");
-    symlink(&real, scratch.path().join("abs")).expect("absolute target");
-    let answer = walk(&scratch.path().join("abs/f"), crate::effective_user()).expect("absolute link passed");
-    assert_eq!(&*answer, real.join("f").as_os_str().as_bytes(), "an absolute target replaces the whole prefix");
+    let answer = scripted_walk(
+        b"/system/abs/f",
+        &[
+            Call::Stat(b"/system", DIRECTORY),
+            Call::Stat(b"/system/abs", LINK),
+            Call::Stat(b"/system/", DIRECTORY),
+            Call::Read(b"/system/abs", b"/real"),
+            Call::Stat(b"/real", DIRECTORY),
+        ],
+    )
+    .expect("absolute link passed");
+    assert_eq!(&*answer, b"/real/f", "an absolute target replaces the whole prefix");
     assert!(answer.starts_with(b"/"), "the answer starts again at root");
 }
 
 #[test]
 fn eight_links_are_passed_and_the_ninth_is_left() {
-    let scratch = layout(0o755);
-    for number in 1_u8..=9 {
-        let target =
-            if number == 9 { "real".into() } else { format!("l{}", number.checked_add(1).expect("small chain")) };
-        symlink(target, scratch.path().join(format!("l{number}"))).expect("chain link");
+    let names: Vec<_> = (1..=9).map(|number| format!("l{number}")).collect();
+    let mut calls = Vec::new();
+    for (name, target) in names.iter().zip(names.iter().skip(1)) {
+        calls.push(Call::Stat(name.as_bytes(), LINK));
+        calls.push(Call::Stat(b".", DIRECTORY));
+        calls.push(Call::Read(name.as_bytes(), target.as_bytes()));
     }
-    let answer = walk(&scratch.path().join("l1/f"), crate::effective_user()).expect("eight links passed");
-    assert_eq!(&*answer, scratch.path().join("l9/f").as_os_str().as_bytes(), "the ninth link is left as written");
+    calls.push(Call::Stat(b"l9", LINK));
+    let answer = scripted_walk(b"l1/f", &calls).expect("eight links passed");
+    assert_eq!(&*answer, b"l9/f", "the ninth link is left as written");
 }

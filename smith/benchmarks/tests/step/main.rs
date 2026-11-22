@@ -3,6 +3,9 @@ static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Co
 
 pub use smith_bench_fixtures::common;
 
+mod batch {
+    mod tests;
+}
 mod budget_visibility;
 mod cache_probes;
 mod codex;
@@ -26,6 +29,7 @@ mod slow_completion_probe;
 mod smith_adapter;
 mod smith_producer;
 mod summary_resources;
+mod tests;
 mod tool_output_probes;
 
 mod fuzzy {

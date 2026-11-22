@@ -1,6 +1,8 @@
 # Checkpoints
 
-2026-11-16, revised 2026-11-17. temper's part of taking a checkpoint
+2026-11-16, revised 2026-11-17 and 2026-11-22 (going back past a new
+build's first commit, 2.5, once the redeploy tool left the repository).
+temper's part of taking a checkpoint
 and restoring one (`draft/checkpoints.md`, sections 3.4, 4, 5.1 and
 5.3; milestones C1 and C2 of `draft/checkpoints.execution.md`): the
 deployment's binaries' commands, the owner's act through `temper ctl`,
@@ -22,14 +24,12 @@ jig's `protocol/store/checkpoints.md`, and how it restores one is jig's
   takes a safety checkpoint first, then makes NAME's state the
   deployment's, crash-safe (2.5).
 - **The setting:** `store.checkpoints.keep`, default 2 (4).
-- **The redeploy** (`../redeploy.md`, 4.1, 4.2 and 4.6) takes one
+- **A redeploy,** its operator's (`draft/redeploys.md`, 7), takes one
   through the act while the old build serves, for the new build's
-  check; one at each settled stop with the installed build, as its
-  backup; and goes back after the new generation's first commit by the
-  new build's `restore` of the stop's checkpoint, then starts the
-  previous build. The new build restores, since the safety checkpoint's
-  open refuses a store ahead of the build that opens it (jig's
-  `protocol/store/restoring.md`, 4.3).
+  `upgrade --check` (3; `binaries.md`, 2); one at the engine's settled
+  stop with the installed build, as its backup (2.1); and goes back
+  after the new generation's first commit by the new build's `restore`
+  of the stop's checkpoint, then starts the previous build (2.5).
 
 ## 2. The commands
 
@@ -132,6 +132,23 @@ does: no worker, no listener, no root.
   build at later levels upgrades it as it upgrades any. `upgrade --back`
   refuses with no previous generation (`binaries.md`, 2), since undoing
   a restore is restoring SAFETY.
+- **Going back past a new build's first commit:** the new build's
+  `restore` of a checkpoint taken before it started, then the previous
+  build started over the restored generation. Before that commit, the
+  new build's `upgrade --back` does it (`binaries.md`, 2). The new
+  build restores, since the safety checkpoint's open reads the store as
+  the new build left it: no binary moves a level (jig's
+  `protocol/store/records.md`, 3), but the new build registered its
+  layouts and ran its jobs there, and the previous build would have to
+  register its own over that registry, which a checkpoint's open
+  refuses (`Unready::Upgrade`, jig's `protocol/store/checkpoints.md`,
+  5), or meet a layout only the new build registered that it has no
+  plan for (jig's `protocol/store/layouts.md`, 5.3). The generation
+  restored holds the checkpoint's format row and registry, those the
+  previous build left, which it opens in place with nothing to register
+  or run (jig's `protocol/store/restoring.md`, 4.3). Where the new build
+  registered nothing the previous build lacks, the previous build also
+  opens the store as it stands, with no restore.
 
 ## 3. The act
 
@@ -201,6 +218,10 @@ enum CheckpointWhy { NotOwner, InProgress, Unavailable, Files, Unrecognized { pa
   store limits carry it as each other field
   (`configuration/README.md`, section 2), and so do the commands of 2,
   which read the same configuration.
+- **A redeploy's backup** outlives the next checkpoint at the default:
+  a redeploy that takes one for its check while the engine serves and
+  one at the settled stop as its backup keeps the backup until the next
+  redeploy's stop.
 
 ## 5. Tests
 

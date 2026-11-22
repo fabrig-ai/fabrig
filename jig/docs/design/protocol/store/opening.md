@@ -695,7 +695,7 @@ deployment's lock as a start does (1, step 1).
 - **Its reach,** `Reach`, which the request names. `Whole` is all of the
   above. `Openings` reads only the rows from which the application
   judges its workers, and ends there, for a redeploy that judges them
-  again at its stop (temper's `redeploy.md`, 4.2):
+  again at its stop (temper's `protocol/binaries.md`, section 2):
   - it locks the directory, refuses an outstanding intent and reads
     `active` as `Whole` does;
   - it makes that generation in the scratch as an upgrade makes `A + 1`
