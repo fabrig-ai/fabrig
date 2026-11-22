@@ -660,6 +660,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             crate::admission::deletion::advance(core, env, &mut out);
             out
         }
+        Event::PartPayload { record } => core.keep_part(record),
         Event::TurnPayload { run, attempt, turn, body, read, cumulative, refused } => {
             route_turn_payload(core, work, run, attempt, crate::TurnProof { turn, cumulative, read }, body, refused)
         }

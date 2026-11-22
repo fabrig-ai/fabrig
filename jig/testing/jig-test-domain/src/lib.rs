@@ -986,6 +986,17 @@ pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
             Delivery::Core(core::Held::MakeEffect { connector, entry }) => {
                 step(domain, env, Event::Connector { number: connector, event: connector::Event::Make { entry } });
             }
+            Delivery::Core(core::Held::TaskPartKept { key }) => {
+                step(
+                    domain,
+                    env,
+                    Event::Core(core::Event::Fleet(fleet::Event::PartKept {
+                        run: Token::new(key.task),
+                        attempt: Token::new(key.attempt),
+                        part: key.number,
+                    })),
+                );
+            }
             Delivery::Core(core::Held::TaskTurnKept { task, attempt, turn }) => {
                 step(
                     domain,

@@ -49,13 +49,16 @@ pub struct Transcript {
 }
 
 impl Core {
-    /// The bytes the run preparations hold or are about to hold, for a
-    /// composing root's byte budget (skein's `programming-model.md`,
+    /// The kept parts' bytes and those run preparations hold or are about to
+    /// hold, for a composing root's byte budget (skein's `programming-model.md`,
     /// 6.1): each preparation counts at its resume allowance from its start
     /// until its load is in, then at the turn bodies and text it keeps.
     #[must_use]
     pub fn transcript_bytes(&self) -> u64 {
         let mut bytes = 0_u64;
+        for (_, part) in &self.kept_parts {
+            bytes = bytes.checked_add(len_u64(part.body.len())).expect("retained part bytes fit u64");
+        }
         for (_, transcript) in &self.transcripts {
             if transcript.loaded {
                 bytes = bytes.checked_add(transcript.text_kept).expect("retained transcript text bytes fit u64");

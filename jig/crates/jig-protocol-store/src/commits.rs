@@ -150,6 +150,7 @@ pub(crate) fn operations(
                     CoreRecord::Deployment(_)
                     | CoreRecord::Settings(_)
                     | CoreRecord::Projection(_)
+                    | CoreRecord::Part(_)
                     | CoreRecord::Call(_)
                     | CoreRecord::RunProof(_)
                     | CoreRecord::Terminal(_)
@@ -266,6 +267,7 @@ fn header_id(write: &Write) -> Option<[u8; 16]> {
             Record::Core(
                 CoreRecord::Settings(_)
                 | CoreRecord::Projection(_)
+                | CoreRecord::Part(_)
                 | CoreRecord::Call(_)
                 | CoreRecord::RunProof(_)
                 | CoreRecord::Turn(_)

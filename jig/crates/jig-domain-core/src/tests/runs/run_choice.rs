@@ -583,6 +583,7 @@ fn a_lower_numbered_goals_waiting_run_starts_first() {
             &mut core.fleet,
             &environment,
             fleet::Event::Adopt {
+                kept_part: 0,
                 worker: None,
                 reply_to: ReplyTo::new(Token::new(1)),
                 run: Token::new(TASK),
@@ -2759,6 +2760,7 @@ fn an_untooled_answer_names_the_current_claim_channel_after_adoption() {
         &mut core.fleet,
         &env.with(limits.fleet),
         fleet::Event::Adopt {
+            kept_part: 0,
             worker: None,
             reply_to: ReplyTo::new(Token::new(OPEN_ATTEMPT)),
             run: Token::new(OPEN_TASK),

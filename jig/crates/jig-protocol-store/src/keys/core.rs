@@ -1,5 +1,5 @@
 //! Core-owned address fields (protocol/store/README.md, section 4.1).
-use jig_domain_core_vocabulary::{CallKey, CoreKey, ProjectionKey};
+use jig_domain_core_vocabulary::{CallKey, CoreKey, PartKey, ProjectionKey};
 use jig_domain_people::Proposer;
 use skein_kv::{KeyReader, KeyWriter};
 pub(super) fn write(writer: &mut KeyWriter, key: &CoreKey) {
@@ -22,6 +22,12 @@ pub(super) fn write(writer: &mut KeyWriter, key: &CoreKey) {
             writer.u64(key.attempt);
             writer.u64(u64::from(key.completion));
             writer.u64(u64::from(key.position));
+        }
+        CoreKey::Part(key) => {
+            writer.tag(10);
+            writer.u64(key.task);
+            writer.u64(key.attempt);
+            writer.u64(u64::from(key.number));
         }
         CoreKey::Turn { task, attempt, turn } => {
             writer.tag(4);
@@ -112,6 +118,11 @@ pub(super) fn read(reader: &mut KeyReader<'_>) -> Option<CoreKey> {
         }
         8 => CoreKey::Settings(super::settings::read(reader, false)?),
         9 => CoreKey::Settings(super::settings::read(reader, true)?),
+        10 => CoreKey::Part(PartKey {
+            task: reader.u64()?,
+            attempt: reader.u64()?,
+            number: u32::try_from(reader.u64()?).ok()?,
+        }),
         7 => CoreKey::EscalationDecision { task: reader.u64()?, revision: reader.u64()? },
         _ => return None,
     })

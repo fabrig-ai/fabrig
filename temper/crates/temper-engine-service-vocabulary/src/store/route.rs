@@ -519,6 +519,7 @@ fn cut_turn(record: &mut engine::Record) -> Option<u32> {
             core::Record::Core(
                 core::CoreRecord::ProposalDecision(_)
                 | core::CoreRecord::Settings(_)
+                | core::CoreRecord::Part(_)
                 | core::CoreRecord::Call(_)
                 | core::CoreRecord::EscalationDecision(_)
                 | core::CoreRecord::Deployment(_)

@@ -335,6 +335,7 @@ impl Driver {
             | Delivery::LimitSettingsCommitted { .. }
             | Delivery::Drained
             | Delivery::Refuse { .. }
+            | Delivery::PartBusy { .. }
             | Delivery::TurnBusy { .. }
             | Delivery::Load { .. }
             | Delivery::Result { .. } => None,

@@ -124,6 +124,7 @@ pub fn record_revision(value: &Record) -> Option<&settings::Revision> {
             )
             | CoreRecord::Deployment(_)
             | CoreRecord::RunProof(_)
+            | CoreRecord::Part(_)
             | CoreRecord::Call(_)
             | CoreRecord::Terminal(_)
             | CoreRecord::Turn(_)

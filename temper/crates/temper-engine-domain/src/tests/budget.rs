@@ -42,6 +42,7 @@ fn keep_assignment(domain: &mut Domain, assignment: crate::Assignment) {
         workstream,
         workspace,
         transcript,
+        parts,
         answered,
         settled,
         grants,
@@ -53,7 +54,7 @@ fn keep_assignment(domain: &mut Domain, assignment: crate::Assignment) {
         .insert(task, crate::boundary::AssignmentParts { saved, workstream, workspace, answered })
         .unwrap();
     domain.hub_link.keep_assignment(jig_domain_hub_link::Assignment {
-        parts: Box::new([]),
+        parts,
         task,
         attempt,
         conversation,
@@ -117,8 +118,16 @@ fn dropped_and_released_assignments_release_their_turns_and_sections_once() {
         let (mut domain, env) = resume_fixture::root();
         let mut assignment = held_assignment();
         assignment.transcript = Box::new([b"history".as_slice().into()]);
+        assignment.parts = Box::new([jig_domain_link::KeptPart {
+            attempt: 1,
+            turn: 2,
+            thread: 0,
+            call: 0,
+            kind: jig_domain_link::PartKind::Answer,
+            body: b"parts".as_slice().into(),
+        }]);
         let bytes = crate::budget::assignment_bytes(&assignment);
-        assert_eq!(bytes, 12);
+        assert_eq!(bytes, 17);
         domain.hold_bytes(bytes);
         let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
         let mut out = Queue::uncapped();
@@ -234,6 +243,7 @@ fn turn_root() -> (Domain, Env<Limits>) {
         .insert(
             1,
             core::RunProof {
+                kept_part: 0,
                 worker: None,
                 task: 1,
                 attempt: 1,

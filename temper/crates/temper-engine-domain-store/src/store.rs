@@ -671,6 +671,9 @@ impl CoreRange {
                 *proposal != 0 && found == proposer && number == proposal
             }
             CoreRange::Calls => {
+                if let Core::Core(CoreKey::Part(part)) = key {
+                    return part.task != 0 && part.attempt != 0 && part.number != 0;
+                }
                 let Core::Core(CoreKey::Call(call)) = key else { return false };
                 call.task != 0 && call.attempt != 0 && call.completion != 0
             }
@@ -887,6 +890,9 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
         Record::Core(jig_domain_core::Record::Core(
             jig_domain_core::CoreRecord::ProposalDecision(_) | jig_domain_core::CoreRecord::Deployment(_),
         )) => Some(0),
+        Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Part(part))) => {
+            Some(skein_lib::len_u64(part.body.len()))
+        }
         Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Turn(turn))) => {
             Some(skein_lib::len_u64(turn.transcript.len()))
         }
@@ -1164,6 +1170,7 @@ pub fn owned_bytes(write: &Write) -> Option<u64> {
                 | jig_domain_core::Key::Core(
                     jig_domain_core::CoreKey::Deployment
                     | jig_domain_core::CoreKey::Settings(_)
+                    | jig_domain_core::CoreKey::Part(_)
                     | jig_domain_core::CoreKey::Call(_)
                     | jig_domain_core::CoreKey::EscalationDecision { .. }
                     | jig_domain_core::CoreKey::ProposalDecision { .. }

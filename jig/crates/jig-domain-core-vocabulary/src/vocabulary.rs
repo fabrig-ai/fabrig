@@ -485,6 +485,22 @@ pub enum Held {
         task: u64,
         attempt: u64,
     },
+    /// The fleet may forget a part after its write commits.
+    TaskPartKept {
+        key: crate::PartKey,
+    },
+    AcknowledgePart {
+        channel: Token,
+        run: Token,
+        attempt: Token,
+        part: u32,
+    },
+    PartBusy {
+        channel: Token,
+        run: Token,
+        attempt: Token,
+        part: u32,
+    },
     /// The fleet may forget one accepted turn after its decision commits.
     TaskTurnKept {
         task: u64,
@@ -591,6 +607,13 @@ pub enum LinkNow {
     DropPayload {
         payload: Token,
     },
+    /// Read the root-owned part after the fleet admits it.
+    PartPayload {
+        run: Token,
+        attempt: Token,
+        part: u32,
+        body: Token,
+    },
     /// Read the root-owned turn payload before routing the charged turn.
     TurnPayload {
         run: Token,
@@ -626,37 +649,94 @@ pub enum LinkNow {
 /// Core output that follows no mutation.
 #[derive(Hash, Debug)]
 pub enum Now {
+    PartBusy {
+        key: crate::PartKey,
+    },
     /// An admitted application read, answered through `fleet::Event::Asked` without a commit.
-    Ask { channel: Token, run: Token, attempt: Token, number: u64, bytes: Box<[u8]> },
+    Ask {
+        channel: Token,
+        run: Token,
+        attempt: Token,
+        number: u64,
+        bytes: Box<[u8]>,
+    },
     /// The core's outputs for the link (domain/root.md, 5).
     Link(LinkNow),
     /// A bounded task read has no durable call record (domain/engine/executors.md, 3).
-    TaskRead { to: ReplyTo, key: CallKey, answer: Box<Result<crate::reads::run_task::TaskRead, tasks::Refusal>> },
+    TaskRead {
+        to: ReplyTo,
+        key: CallKey,
+        answer: Box<Result<crate::reads::run_task::TaskRead, tasks::Refusal>>,
+    },
     /// A settings document leaves without a durable call record (domain/engine/executors.md, 3).
-    SettingsAnswer { to: ReplyTo, key: CallKey, answer: Box<crate::reads::SettingsAnswer> },
+    SettingsAnswer {
+        to: ReplyTo,
+        key: CallKey,
+        answer: Box<crate::reads::SettingsAnswer>,
+    },
     /// A run's read as its person answered: the party read's own answer, `None(Why::Unknown)`
     /// for what is not admitted, `None(Why::Busy)` where the loads are full (domain/engine/executors.md, 3).
-    PersonAnswer { to: ReplyTo, key: CallKey, answer: Box<crate::reads::Answer> },
+    PersonAnswer {
+        to: ReplyTo,
+        key: CallKey,
+        answer: Box<crate::reads::Answer>,
+    },
     /// A run's proposal read answered (domain/engine/executors.md, 3).
-    ProposalRead { to: ReplyTo, key: CallKey, answer: Box<crate::reads::ProposalRead> },
+    ProposalRead {
+        to: ReplyTo,
+        key: CallKey,
+        answer: Box<crate::reads::ProposalRead>,
+    },
     /// The root answers this host call with its own busy payload.
-    CallBusy { to: ReplyTo },
+    CallBusy {
+        to: ReplyTo,
+    },
     /// An effect wait or capacity refusal changed no durable state.
-    EffectAnswer { to: ReplyTo, key: CallKey, part: CallPart },
+    EffectAnswer {
+        to: ReplyTo,
+        key: CallKey,
+        part: CallPart,
+    },
     /// A settled answer exceeded its bounded record or no retained call owns it.
-    SettledCallRefused { to: ReplyTo, key: CallKey, name: Box<[u8]>, tool: Box<[u8]> },
+    SettledCallRefused {
+        to: ReplyTo,
+        key: CallKey,
+        name: Box<[u8]>,
+        tool: Box<[u8]>,
+    },
     /// The protocol layer decodes this attested tool and input at the root boundary.
-    Call { to: ReplyTo, run: Token, attempt: Token, call: fleet::Call },
+    Call {
+        to: ReplyTo,
+        run: Token,
+        attempt: Token,
+        call: fleet::Call,
+    },
     /// A current host's call found no room; only its name crosses.
-    RelayBusy { channel: Token, run: Token, attempt: Token, call: Box<[u8]> },
+    RelayBusy {
+        channel: Token,
+        run: Token,
+        attempt: Token,
+        call: Box<[u8]>,
+    },
     /// A fenced call or an overlong name changed nothing.
-    DropCall { call: fleet::Call },
+    DropCall {
+        call: fleet::Call,
+    },
     /// The host did not take this message; its durable inbox word remains unread.
-    Undelivered { run: Token, attempt: Token, message: fleet::Message },
+    Undelivered {
+        run: Token,
+        attempt: Token,
+        message: fleet::Message,
+    },
     /// A sign-in whose core-owned person or session counter is exhausted.
-    SignInRefused { to: ReplyTo },
+    SignInRefused {
+        to: ReplyTo,
+    },
     /// A volatile watch refused before any durable decision.
-    WatchRefused { watcher: Token, why: WatchRefusal },
+    WatchRefused {
+        watcher: Token,
+        why: WatchRefusal,
+    },
     /// Secret-free account protocol output with no store decision.
     Account(accounts::Request),
     /// A provisional run suffix leaves through the journal door, without a commit.
@@ -671,35 +751,89 @@ pub enum Now {
         writing: Option<views::WritingCall>,
     },
     /// One page of scope index lines.
-    NotesIndexed { owner: Token, lines: List<notes::Line>, more: u32 },
+    NotesIndexed {
+        owner: Token,
+        lines: List<notes::Line>,
+        more: u32,
+    },
     /// One page of recalled entries.
-    NotesRecalled { owner: Token, entries: List<notes::Entry>, more: bool },
+    NotesRecalled {
+        owner: Token,
+        entries: List<notes::Entry>,
+        more: bool,
+    },
     /// A note request refused before changing state.
-    NotesRefused { owner: Token, why: notes::Refusal },
+    NotesRefused {
+        owner: Token,
+        why: notes::Refusal,
+    },
     /// The notes child could not serve this named call yet; the host retries its name.
-    NoteBusy { to: ReplyTo, key: CallKey },
+    NoteBusy {
+        to: ReplyTo,
+        key: CallKey,
+    },
     /// Forget the application's assignment for a run the host never started.
-    DropAssignment { task: u64 },
+    DropAssignment {
+        task: u64,
+    },
     /// Ask the root for its current readiness before a due activation route.
-    Activate { context: Box<tasks::RunContext> },
+    Activate {
+        context: Box<tasks::RunContext>,
+    },
     /// Load the current transcript window in key order from its first turn.
-    StartPreparation { task: u64, from: (u64, u32) },
+    StartPreparation {
+        task: u64,
+        from: (u64, u32),
+    },
     /// Load one proposal decision that has left live task memory.
-    SeenConversation { request: Token, task: u64 },
+    SeenConversation {
+        request: Token,
+        task: u64,
+    },
     /// Load the durable position of one ended conversation for its mark.
-    LoadEndedRead { request: Token, task: u64, party: u64 },
+    LoadEndedRead {
+        request: Token,
+        task: u64,
+        party: u64,
+    },
     /// Load one proposal decision that has left live task memory.
-    EndedProposal { request: Token, person: u64, project: u32, proposer: people::Proposer, proposal: u64 },
+    EndedProposal {
+        request: Token,
+        person: u64,
+        project: u32,
+        proposer: people::Proposer,
+        proposal: u64,
+    },
     /// Load a task proposal from the proposer's retained history.
-    DecidedProposal { to: ReplyTo, key: CallKey, proposal: u64 },
+    DecidedProposal {
+        to: ReplyTo,
+        key: CallKey,
+        proposal: u64,
+    },
     /// Load the ended owner row for a person-task act whose live row is gone.
-    EndedPersonTask { request: Token, person: u64, project: u32, task: u64 },
+    EndedPersonTask {
+        request: Token,
+        person: u64,
+        project: u32,
+        task: u64,
+    },
     /// Load an ended task row; the core retains why it needs the result.
-    EndedTask { request: Token, task: u64 },
+    EndedTask {
+        request: Token,
+        task: u64,
+    },
     /// Load the first input or ended tree root; later inputs return to the core between gets.
-    PartyInputs { request: Token, person: u64, project: u32, tasks: Box<[u64]> },
+    PartyInputs {
+        request: Token,
+        person: u64,
+        project: u32,
+        tasks: Box<[u64]>,
+    },
     /// Assemble connector-held sections for a still-current brief.
-    CompleteBrief { brief: Token, order: Box<[brief::GatherPlaced]> },
+    CompleteBrief {
+        brief: Token,
+        order: Box<[brief::GatherPlaced]>,
+    },
     /// Core-owned sections and charter documents are ready; the root may append its connector
     /// sections (domain/engine/settings.md, 9).
     BriefCorePlanned {
@@ -709,11 +843,20 @@ pub enum Now {
         documents: Box<[PlannedDocument]>,
     },
     /// The root assembles a numbered connector workspace for this core-selected attempt.
-    WorkspaceRequest { task: u64, attempt: u64, context: Box<tasks::RunContext> },
+    WorkspaceRequest {
+        task: u64,
+        attempt: u64,
+        context: Box<tasks::RunContext>,
+    },
     /// Core admission and claim preparation failed; discard root-owned assembly parts.
-    RunPreparationFailed { task: u64 },
+    RunPreparationFailed {
+        task: u64,
+    },
     /// A brief failed, for the application's log (`domain/engine/briefs.md`, 1.1).
-    BriefFailed { task: u64, failure: brief::GatherFailure },
+    BriefFailed {
+        task: u64,
+        failure: brief::GatherFailure,
+    },
     /// Core-owned run parts are ready for root assembly with the connector workspace.
     RunPrepared {
         live: crate::LiveAsk,
@@ -725,11 +868,18 @@ pub enum Now {
         messages: Box<[tasks::Word]>,
         saved: Box<[tasks::SavedResource]>,
         transcript: Box<[Box<[u8]>]>,
+        parts: Box<[jig_domain_link::KeptPart]>,
         answered: Box<[CallKey]>,
         grants: Box<[jig_domain_link::Grant]>,
     },
     /// Load one held-chat decision that has left live task memory.
-    EndedEscalation { request: Token, person: u64, project: u32, task: u64, revision: u64 },
+    EndedEscalation {
+        request: Token,
+        person: u64,
+        project: u32,
+        task: u64,
+        revision: u64,
+    },
     /// The first child admitted from a connector procedure's batch, if any.
     /// A restored task row was refused; the root must fail startup.
     RestoreRefused,
@@ -1099,6 +1249,10 @@ pub enum Event {
     People(people::Event),
     /// Host, run or attempt.
     Fleet(fleet::Event),
+    /// Root-translated part; its body remains opaque.
+    PartPayload {
+        record: crate::PartRecord,
+    },
     /// Root-translated contents of a host turn payload.
     TurnPayload {
         run: Token,
@@ -1565,6 +1719,7 @@ impl Event {
             | Self::ConnectorRepair { .. }
             | Self::PersonTask { .. }
             | Self::TranscriptLoaded { .. }
+            | Self::PartPayload { .. }
             | Self::TurnPayload { .. }
             | Self::AnswerPayload { .. }
             | Self::AcceptedTurn { .. }
@@ -1726,6 +1881,9 @@ fn fleet_new_work(event: &fleet::Event) -> bool {
         | fleet::Event::Hello { .. }
         | fleet::Event::Lost { .. }
         | fleet::Event::Answer { .. }
+        | fleet::Event::Part { .. }
+        | fleet::Event::PartKept { .. }
+        | fleet::Event::PartBusy { .. }
         | fleet::Event::Turn { .. }
         | fleet::Event::TurnKept { .. }
         | fleet::Event::TurnBusy { .. }

@@ -126,6 +126,13 @@ impl Core {
                 self.ended_groups.restart(deployment.commits);
                 Restored::Deployment { commits: deployment.commits }
             }
+            CoreRecord::Part(record) => {
+                if self.restore_part(record) {
+                    Restored::Live
+                } else {
+                    Restored::Rejected
+                }
+            }
             CoreRecord::Call(record) => {
                 {
                     let excess = match record.part.excess(limits, self.authority.limits()) {

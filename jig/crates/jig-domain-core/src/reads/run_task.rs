@@ -585,6 +585,7 @@ mod tests {
             .insert(
                 1,
                 crate::RunProof {
+                    kept_part: 0,
                     worker: None,
                     task: 1,
                     attempt: 9,

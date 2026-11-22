@@ -112,6 +112,7 @@ pub(crate) fn input_loaded(
         Record::Core(
             jig_domain_core::Record::Core(
                 jig_domain_core::CoreRecord::Settings(_)
+                | jig_domain_core::CoreRecord::Part(_)
                 | jig_domain_core::CoreRecord::Call(_)
                 | jig_domain_core::CoreRecord::Deployment(_)
                 | jig_domain_core::CoreRecord::EscalationDecision(_)
@@ -242,6 +243,7 @@ fn ordinary_note_loaded(
             Record::Core(
                 jig_domain_core::Record::Core(
                     jig_domain_core::CoreRecord::Settings(_)
+                    | jig_domain_core::CoreRecord::Part(_)
                     | jig_domain_core::CoreRecord::Call(_)
                     | jig_domain_core::CoreRecord::Deployment(_)
                     | jig_domain_core::CoreRecord::EscalationDecision(_)
@@ -423,6 +425,7 @@ fn transcript_page(
                 jig_domain_core::Record::Core(
                     jig_domain_core::CoreRecord::ProposalDecision(_)
                     | jig_domain_core::CoreRecord::Settings(_)
+                    | jig_domain_core::CoreRecord::Part(_)
                     | jig_domain_core::CoreRecord::Call(_)
                     | jig_domain_core::CoreRecord::EscalationDecision(_)
                     | jig_domain_core::CoreRecord::Deployment(_)

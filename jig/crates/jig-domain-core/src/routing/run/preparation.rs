@@ -238,6 +238,11 @@ pub(crate) fn workspace_prepared(
         None
     };
     proof.credentials = core.workspace_credentials.remove(&task).expect("prepared credentials");
+    let parts = if resume && transcript.last.is_some() {
+        core.resumed_parts(task, attempt, transcript.bytes)
+    } else {
+        Box::new([])
+    };
     let turns = if resume { core.resumed_turns(transcript) } else { Box::new([]) };
     let answered = answered_calls(core, task, attempt, env.limits.call_records);
     let mut policy = allowance.choice.policy;
@@ -300,6 +305,7 @@ pub(crate) fn workspace_prepared(
         messages,
         saved: context.saved,
         transcript: turns,
+        parts,
         answered,
         grants: grants.into_boxed(),
     })));

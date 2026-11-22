@@ -278,6 +278,7 @@ pub enum Event {
         worker: Option<u32>,
         /// The committed prefix restored with the claim; zero before its first turn.
         kept: u32,
+        kept_part: u32,
         /// Kind of host that held the claim before restart.
         kind: HostKind,
         /// Whether a turn or call was committed for this attempt.
@@ -398,6 +399,23 @@ pub enum Event {
     /// From the current worker: an opaque turn numbered from one. Its body
     /// is echoed exactly once by `Turned` or `Drop`; a duplicate before
     /// commitment is dropped unacknowledged. Strays' turns wait for adoption.
+    Part {
+        channel: Token,
+        run: Token,
+        attempt: Token,
+        part: u32,
+        body: Token,
+    },
+    PartKept {
+        run: Token,
+        attempt: Token,
+        part: u32,
+    },
+    PartBusy {
+        run: Token,
+        attempt: Token,
+        part: u32,
+    },
     Turn {
         channel: Token,
         run: Token,
@@ -617,6 +635,24 @@ pub enum Request {
     /// To the parent: this turn's body, once per admission, for commitment.
     /// The parent owns the body after this request and answers with `TurnKept`
     /// or `TurnBusy`. An engine restart may hand an uncommitted turn on again.
+    Parted {
+        run: Token,
+        attempt: Token,
+        part: u32,
+        body: Token,
+    },
+    AcknowledgePart {
+        channel: Token,
+        run: Token,
+        attempt: Token,
+        part: u32,
+    },
+    PartBusy {
+        channel: Token,
+        run: Token,
+        attempt: Token,
+        part: u32,
+    },
     Turned {
         run: Token,
         attempt: Token,

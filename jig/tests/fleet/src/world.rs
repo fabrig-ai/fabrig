@@ -1377,6 +1377,7 @@ impl World {
                         adopt: true,
                     },
                     None => Event::Adopt {
+                        kept_part: 0,
                         worker: None,
                         holds: Box::new([]),
                         grants: Box::new([]),

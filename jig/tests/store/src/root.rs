@@ -432,6 +432,7 @@ pub fn live_task(number: u64) -> core::Record {
 #[must_use]
 pub fn run_proof(task: u64) -> core::Record {
     core::Record::Core(core::CoreRecord::RunProof(core::RunProof {
+        kept_part: 0,
         worker: None,
         accounts: Box::new([]),
         placement: None,

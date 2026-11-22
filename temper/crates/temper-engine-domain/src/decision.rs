@@ -237,6 +237,12 @@ pub enum Delivery {
     },
     /// Root to worker: fleet lacked turn admission room; keep the body and retry after a backoff,
     /// without charging.
+    PartBusy {
+        channel: Token,
+        task: u64,
+        attempt: u64,
+        part: u32,
+    },
     TurnBusy {
         /// Current worker protocol channel.
         channel: Token,
@@ -385,6 +391,13 @@ impl Decision {
                     && row.turn != 0
                     && row.transcript.len() <= skein_lib::usize_of(limits.transcript_bytes)
             }
+            Write::Save(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Part(row)))) => {
+                row.key.task != 0
+                    && row.key.attempt != 0
+                    && row.key.number != 0
+                    && row.turn != 0
+                    && row.body.len() <= skein_lib::usize_of(limits.transcript_bytes)
+            }
             Write::Save(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Call(row)))) => {
                 row.key.task != 0 && row.key.attempt != 0 && row.key.completion != 0
             }
@@ -398,6 +411,7 @@ impl Decision {
                         jig_domain_core::CoreKey::EscalationDecision { .. }
                         | jig_domain_core::CoreKey::ProposalDecision { .. }
                         | jig_domain_core::CoreKey::Settings(_)
+                        | jig_domain_core::CoreKey::Part(_)
                         | jig_domain_core::CoreKey::Call(_)
                         | jig_domain_core::CoreKey::Turn { .. }
                         | jig_domain_core::CoreKey::RunProof(..)
@@ -593,6 +607,7 @@ impl Decision {
             | Delivery::Drained
             | Delivery::Refuse { .. }
             | Delivery::ReadEscalationDecision { .. }
+            | Delivery::PartBusy { .. }
             | Delivery::TurnBusy { .. }
             | Delivery::NotesLoad { .. }
             | Delivery::Start(_)
@@ -800,6 +815,9 @@ fn fleet_delivery_within(event: &jig_domain_fleet::Event) -> bool {
         | Event::Lost { .. }
         | Event::Answer { .. }
         | Event::Turn { .. }
+        | Event::Part { .. }
+        | Event::PartKept { .. }
+        | Event::PartBusy { .. }
         | Event::TurnBusy { .. }
         | Event::PauseWorker { .. }
         | Event::Paused { .. }

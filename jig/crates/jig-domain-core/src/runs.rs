@@ -18,4 +18,5 @@ pub(crate) mod transcript_text;
 pub mod waits;
 
 pub(crate) mod calls;
+pub(crate) mod parts;
 pub(crate) mod proofs;

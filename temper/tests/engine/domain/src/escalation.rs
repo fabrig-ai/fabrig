@@ -848,6 +848,7 @@ impl World {
             | Delivery::LimitSettingsCommitted { .. }
             | Delivery::Drained
             | Delivery::Refuse { .. }
+            | Delivery::PartBusy { .. }
             | Delivery::TurnBusy { .. } => panic!("unexpected escalation delivery {delivery:?}"),
             Delivery::Start(_)
             | Delivery::Fleet(_)

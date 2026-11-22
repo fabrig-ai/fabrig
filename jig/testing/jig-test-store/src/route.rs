@@ -193,6 +193,7 @@ fn window(now: core::Now) -> Option<(u64, u64, u32)> {
         | core::Now::RunPreparationFailed { .. }
         | core::Now::BriefFailed { .. }
         | core::Now::RunPrepared { .. }
+        | core::Now::PartBusy { .. }
         | core::Now::RestoreRefused
         | core::Now::SeenConversation { .. }
         | core::Now::LoadEndedRead { .. }

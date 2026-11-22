@@ -523,6 +523,7 @@ pub fn record_bytes(value: &Record) -> Option<u64> {
             CoreRecord::Settings(_)
             | CoreRecord::Deployment(_)
             | CoreRecord::RunProof(_)
+            | CoreRecord::Part(_)
             | CoreRecord::Call(_)
             | CoreRecord::Projection(_),
         )

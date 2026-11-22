@@ -461,6 +461,9 @@ fn route_core_with_job(
     for _ in 0..output.len() {
         match output.pop().expect("core output count") {
             core::Request::Write(core::Write::Save(record)) => {
+                if let core::Record::Core(core::CoreRecord::Part(part)) = &record {
+                    domain.hold_bytes(skein_lib::len_u64(part.body.len()));
+                }
                 parts::saved(domain, &record);
                 forge_route::milestone_saved(domain, &record);
                 forge_route::follow_route::saved(domain, &record);

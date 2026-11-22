@@ -109,10 +109,19 @@ pub const STORE_FAMILIES: [KeptFamily; 10] = [
                     variant: Some("escalation_decision"),
                     keys: &[KeyRange { from: &[1, 0, 7], to: &[1, 0, 8] }],
                 },
+                ValueType {
+                    number: 8,
+                    root: "Row",
+                    variant: Some("part"),
+                    keys: &[KeyRange { from: &[1, 0, 10], to: &[1, 0, 11] }],
+                },
             ],
             name: "jig-store-core",
             map: KeptMap::Store,
-            keys: &[Keys { from: &[1, 0, 0], to: &[1, 0, 8], root: "Row" }],
+            keys: &[
+                Keys { from: &[1, 0, 0], to: &[1, 0, 8], root: "Row" },
+                Keys { from: &[1, 0, 10], to: &[1, 0, 11], root: "Row" },
+            ],
             frames: Some(crate::Frames { root: "TurnRecord", texts: &[core], patches: &[] }),
         }
     },

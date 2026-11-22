@@ -207,6 +207,7 @@ impl World {
     /// Restore genuine held-chat rows and saved sessions through actual root
     /// startup pages; no direct child inputs are used
     #[must_use]
+    #[expect(clippy::too_many_lines, reason = "one fixture restores the complete role world before its first input")]
     pub fn new(settings: Settings) -> World {
         let mut store = snapshot(settings);
         story_policy(&mut store, settings);
@@ -263,6 +264,7 @@ impl World {
                     | jig_domain_core::Record::Core(
                         jig_domain_core::CoreRecord::Settings(_)
                         | jig_domain_core::CoreRecord::Projection(_)
+                        | jig_domain_core::CoreRecord::Part(_)
                         | jig_domain_core::CoreRecord::Call(_)
                         | jig_domain_core::CoreRecord::Deployment(_)
                         | jig_domain_core::CoreRecord::Turn(_)

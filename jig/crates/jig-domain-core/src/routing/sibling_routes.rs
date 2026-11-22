@@ -306,6 +306,7 @@ impl Core {
             run: Token::new(task),
             attempt: Token::new(attempt),
             kept,
+            kept_part: self.last_part(task, attempt),
         });
     }
 

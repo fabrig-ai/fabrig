@@ -1521,6 +1521,7 @@ fn proposal_decision(record: &Record) -> Option<&crate::ProposalDecisionRecord> 
             | CoreRecord::Deployment(_)
             | CoreRecord::Projection(_)
             | CoreRecord::RunProof(_)
+            | CoreRecord::Part(_)
             | CoreRecord::Call(_)
             | CoreRecord::Terminal(_)
             | CoreRecord::Turn(_)
@@ -1608,6 +1609,7 @@ fn escalation(record: &Record) -> Option<&crate::EscalationDecisionRecord> {
             CoreRecord::Projection(_)
             | CoreRecord::Settings(_)
             | CoreRecord::Deployment(_)
+            | CoreRecord::Part(_)
             | CoreRecord::Call(_)
             | CoreRecord::RunProof(_)
             | CoreRecord::Turn(_)
@@ -1628,6 +1630,7 @@ fn turn_record(record: &Record) -> Option<&crate::TurnRecord> {
             CoreRecord::Projection(_)
             | CoreRecord::Settings(_)
             | CoreRecord::Deployment(_)
+            | CoreRecord::Part(_)
             | CoreRecord::Call(_)
             | CoreRecord::RunProof(_)
             | CoreRecord::Terminal(_)
@@ -1859,6 +1862,7 @@ fn key_kind(key: &Key) -> KeyKind {
             | CoreKey::Projection(_)
             | CoreKey::Deployment
             | CoreKey::RunProof(_)
+            | CoreKey::Part(_)
             | CoreKey::Call(_)
             | CoreKey::Terminal { .. }
             | CoreKey::ProposalDecision { .. } => KeyKind::Unsupported,
@@ -1966,6 +1970,7 @@ fn terminal_record(record: &Record) -> Option<&crate::TerminalRecord> {
             CoreRecord::Settings(_)
             | CoreRecord::Deployment(_)
             | CoreRecord::RunProof(_)
+            | CoreRecord::Part(_)
             | CoreRecord::Call(_)
             | CoreRecord::Projection(_)
             | CoreRecord::Turn(_)

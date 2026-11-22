@@ -55,7 +55,7 @@ pub struct Domain {
     pub(crate) alarms: Deadlines<Id<Attempt>>,
     /// Relayed calls the parent has yet to answer.
     pub(crate) calls: Slab<PendingCall>,
-    pub(crate) turns: Map<(Id<Attempt>, u32), Pending>,
+    pub(crate) turns: Map<(Id<Attempt>, turn::Kind, u32), Pending>,
     pub(crate) turning: bool,
     /// Something changed that may let a waiting attempt be placed: the ready
     /// list.
@@ -649,7 +649,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Relay { channel, run, attempt, call } => {
             call::relay(domain, env, channel, run, attempt, call, out);
         }
-        Event::Adopt { reply_to, run, attempt, kept, kind, worked, holds, grants, worker } => match kind {
+        Event::Adopt { reply_to, run, attempt, kept, kept_part, kind, worked, holds, grants, worker } => match kind {
             HostKind::Engine => {
                 if worked {
                     out.push(Request::Lost { to: reply_to, run, attempt });
@@ -658,7 +658,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                 }
             }
             HostKind::Worker => {
-                if attempt::adopt(domain, env, reply_to, run, attempt, (kept, worker), out) {
+                if attempt::adopt(domain, env, reply_to, run, attempt, (kept, kept_part, worker), out) {
                     crate::grants::keep(domain, env, run, attempt, &holds, &grants, out);
                 }
             }
@@ -718,11 +718,16 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Answer { channel, run, attempt, answer, payload } => {
             attempt::answer(domain, channel, run, attempt, answer, payload, out);
         }
-        Event::Turn { channel, run, attempt, turn, body } => {
-            turn::received(domain, channel, run, attempt, turn, body, out);
+        Event::Part { channel, run, attempt, part, body } => {
+            turn::received(domain, turn::Kind::Part, channel, run, attempt, part, body, out)
         }
-        Event::TurnKept { run, attempt, turn } => turn::kept(domain, run, attempt, turn, out),
-        Event::TurnBusy { run, attempt, turn } => turn::busy(domain, run, attempt, turn, out),
+        Event::PartKept { run, attempt, part } => turn::kept(domain, turn::Kind::Part, run, attempt, part, out),
+        Event::PartBusy { run, attempt, part } => turn::busy(domain, turn::Kind::Part, run, attempt, part, out),
+        Event::Turn { channel, run, attempt, turn, body } => {
+            turn::received(domain, turn::Kind::Turn, channel, run, attempt, turn, body, out);
+        }
+        Event::TurnKept { run, attempt, turn } => turn::kept(domain, turn::Kind::Turn, run, attempt, turn, out),
+        Event::TurnBusy { run, attempt, turn } => turn::busy(domain, turn::Kind::Turn, run, attempt, turn, out),
 
         Event::Observe { channel, run, attempt, report } => {
             crate::progress::received(domain, env, channel, run, attempt, report, out);

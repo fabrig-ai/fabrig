@@ -257,6 +257,85 @@ fn payload(events: &[Event]) -> &[u8] {
     }
 }
 #[test]
+fn a_kept_part_uses_its_live_key_and_patches_its_held_turn_on_read() {
+    let text = smith_transcript::patches::kept::smith_transcript::TEXTS[0];
+    let old = skein_codegen::fixed_values(&skein_codegen::parse(text).expect("kept v7"))
+        .into_iter()
+        .find(|value| value.name == "record_turn_smallest.bin")
+        .expect("turn")
+        .bytes;
+    let part = domain::PartRecord {
+        key: domain::PartKey { task: 21, attempt: 2, number: 3 },
+        turn: 4,
+        thread: 0,
+        call: 5,
+        kind: jig_domain_link::PartKind::Answer,
+        body: old.clone().into_boxed_slice(),
+    };
+    let row = domain::Record::Core(domain::CoreRecord::Part(part.clone()));
+    let key = keys::encode(&row.key(), fixtures::KEY_LIMIT).unwrap();
+    assert_eq!(key.get(..3), Some([1, 0, 10].as_slice()));
+    assert_eq!(keys::decode(&key), Some(row.key()));
+    let ranges = crate::intervals::restore(&domain::RestoreRange::Core);
+    assert!(
+        ranges
+            .iter()
+            .any(|range| key.as_ref() >= range.start.as_ref() && key.as_ref() < range.end.as_ref().unwrap().as_ref())
+    );
+    let mut disk = Disk::new(&[]);
+    let mut store = disk.store();
+    let old_family = KeptFamily {
+        current: text,
+        frames: Some(crate::Frames { root: smith_transcript::ROOT, texts: Box::leak(Box::new([text])), patches: &[] }),
+        ..crate::owners::SMITH_SET.families[0]
+    };
+    let old_set = OwnerSet { families: Box::leak(Box::new([old_family])), ..crate::owners::SMITH_SET };
+    // Register this value type alone within the fixture's small commit edge.
+    let mut core = *crate::patch_set::STORE_FAMILIES.iter().find(|family| family.name == "jig-store-core").unwrap();
+    core.keys = &[crate::Keys { from: &[1, 0, 10], to: &[1, 0, 11], root: "Row" }];
+    core.types = &[crate::ValueType {
+        number: 8,
+        root: "Row",
+        variant: Some("part"),
+        keys: &[crate::KeyRange { from: &[1, 0, 10], to: &[1, 0, 11] }],
+    }];
+    core.frames = None;
+    // Only this variant's layout is needed; verify the small text against the
+    // binary's layout instead of raising the fixture's first-commit budget.
+    let actual = skein_codec::schema::parse(core.current.as_bytes()).unwrap();
+    core.current = "family jig-store-core 6\nrecord PartKey { task: u64 attempt: u64 number: u32 }\nenum PartKind { answer, result, window }\nrecord PartRecord { key: PartKey turn: u32 thread: u32 call: u32 kind: PartKind body: bytes 33554432 holds smith-transcript Turn }\nenum Value { call, deployment, projection, run_proof, turn, terminal, proposal_decision, escalation_decision, part: PartRecord }\nversioned record Row { value: Value }\n";
+    let small = skein_codec::schema::parse(core.current.as_bytes()).unwrap();
+    let smith = skein_codec::schema::parse(crate::owners::SMITH_SET.families[0].current.as_bytes()).unwrap();
+    assert_eq!(
+        actual.layout(actual.root(b"Row", Some(b"part")).unwrap(), &[&smith]).unwrap().digest(),
+        small.layout(small.root(b"Row", Some(b"part")).unwrap(), &[&smith]).unwrap().digest()
+    );
+    let jig = OwnerSet { jobs: &[], families: Box::leak(Box::new([core])), ..crate::patch_set::JIG_STORE_SET };
+    store.owner_sets(OwnerSets { sets: Box::leak(Box::new([jig, old_set])) });
+    let opened = disk.open(&mut store);
+    let Some(Event::Opened { .. }) = opened.first() else { panic!("part writer open: {opened:?}") };
+    let committed =
+        disk.request(&mut store, fixtures::commit(1, Box::new([fixtures::header(1), fixtures::save(row.clone())])));
+    let [Event::Committed { number: 1, .. }] = committed.as_ref() else { panic!("part commit: {committed:?}") };
+    let mut store = disk.store();
+    store.owner_sets(OwnerSets { sets: Box::leak(Box::new([jig, crate::owners::SMITH_SET])) });
+    let opened = disk.open(&mut store);
+    let Some(Event::Opened { .. }) = opened.first() else { panic!("part reader open: {opened:?}") };
+    let before = fixtures::get_kv(&mut store, &key).unwrap();
+    let events = disk.request(&mut store, Request::Get { owner: OWNER, key: crate::Get::Jig(row.key()) });
+    let [Event::Got { row: Some(crate::Row::Jig(domain::Record::Core(domain::CoreRecord::Part(loaded)))), .. }] =
+        events.as_ref()
+    else {
+        panic!("part read: {events:?}")
+    };
+    let mut expected = old;
+    expected[1] = 8;
+    assert_eq!(loaded.body.as_ref(), expected.as_slice());
+    assert_eq!((loaded.key, loaded.turn, loaded.thread, loaded.call, loaded.kind), (part.key, 4, 0, 5, part.kind));
+    assert_eq!(fixtures::get_kv(&mut store, &key).unwrap(), before, "patching never rewrites the kept part");
+}
+
+#[test]
 fn the_real_smith_set_patches_kept_version_seven_on_read() {
     const REAL: OwnerSets = OwnerSets { sets: &[crate::owners::SMITH_SET] };
     let text = smith_transcript::patches::kept::smith_transcript::TEXTS[0];

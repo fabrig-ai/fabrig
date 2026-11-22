@@ -10,6 +10,7 @@ use skein_lib::{List, Token};
 #[derive(Hash, Debug)]
 pub enum Payload {
     Busy,
+    Part(core::PartRecord),
     Turn {
         task: u64,
         attempt: u64,
@@ -43,7 +44,18 @@ pub enum Ending {
 #[must_use]
 pub fn up(domain: &mut Link, channel: Token, up: host::LinkUp) -> Option<core::Event> {
     let event = match up {
-        host::LinkUp::Part { .. } => return None,
+        host::LinkUp::Part { run, attempt, part } => {
+            let number = part.number;
+            let body = domain.retain(Payload::Part(core::PartRecord {
+                key: core::PartKey { task: run.raw(), attempt: attempt.raw(), number },
+                turn: part.turn,
+                thread: part.thread,
+                call: part.call,
+                kind: part.kind,
+                body: part.body,
+            }));
+            fleet::Event::Part { channel, run, attempt, part: number, body }
+        }
         host::LinkUp::Ask { run, attempt, number, bytes } => fleet::Event::Ask { channel, run, attempt, number, bytes },
         // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too builds this route.
         host::LinkUp::Paused { state } => fleet::Event::Paused { channel, state },

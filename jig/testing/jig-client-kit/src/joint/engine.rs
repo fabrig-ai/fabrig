@@ -214,6 +214,9 @@ pub fn held_event(held: core::Held) -> Option<Event> {
         | core::Held::Result { .. }
         | core::Held::Acknowledge { .. }
         | core::Held::TaskTerminalAcknowledged { .. }
+        | core::Held::TaskPartKept { .. }
+        | core::Held::AcknowledgePart { .. }
+        | core::Held::PartBusy { .. }
         | core::Held::TaskTurnKept { .. }
         | core::Held::AcknowledgeTurn { .. }
         | core::Held::Cancel { .. }
@@ -276,6 +279,7 @@ pub fn now_event(now: core::Now) -> Option<Event> {
         | core::Now::BriefFailed { .. }
         | core::Now::RunPrepared { .. }
         | core::Now::EndedEscalation { .. }
+        | core::Now::PartBusy { .. }
         | core::Now::RestoreRefused => return None,
     })
 }

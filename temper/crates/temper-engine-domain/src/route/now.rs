@@ -17,6 +17,13 @@ use skein_lib::Queue;
 #[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher routes the core's immediate vocabulary")]
 pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, now: core::Now) {
     match now {
+        core::Now::PartBusy { key } => {
+            domain.work.push(Work::Core(core::Event::Fleet(jig_domain_fleet::Event::PartBusy {
+                run: skein_lib::Token::new(key.task),
+                attempt: skein_lib::Token::new(key.attempt),
+                part: key.number,
+            })))
+        }
         core::Now::Ask { channel, run, attempt, number, bytes } => {
             let request = Request::Worker(crate::WorkerRequest::Host(Box::new(HostRequest::Ask {
                 channel,
@@ -140,6 +147,7 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             messages,
             saved,
             transcript,
+            parts,
             answered,
             grants,
         } => {
@@ -153,6 +161,7 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                 messages,
                 saved,
                 transcript,
+                parts,
                 answered,
                 grants,
             };
@@ -212,6 +221,13 @@ fn link_now(domain: &mut Domain, value: core::LinkNow) {
             if let Some(payload) = take_payload(domain, payload) {
                 domain.release_bytes(crate::budget::payload_bytes(&payload), "dropped turn payload was held");
             }
+        }
+        core::LinkNow::PartPayload { run, attempt, part, body } => {
+            if let Some(payload) = domain.hub_link.payload(body) {
+                let bytes = crate::budget::payload_bytes(payload);
+                domain.release_bytes(bytes, "part payload moved into the core");
+            }
+            crate::link::route(domain, jig_domain_hub_link::Event::PartPayload { run, attempt, part, body });
         }
         core::LinkNow::TurnPayload { run, attempt, turn, body } => {
             crate::link::route(domain, jig_domain_hub_link::Event::TurnPayload { run, attempt, turn, body });
@@ -433,15 +449,32 @@ struct Prepared {
     messages: Box<[tasks::Word]>,
     saved: Box<[tasks::SavedResource]>,
     transcript: Box<[Box<[u8]>]>,
+    parts: Box<[jig_domain_link::KeptPart]>,
     answered: Box<[core::CallKey]>,
     grants: Box<[Grant]>,
 }
 
 fn run_prepared(domain: &mut Domain, env: &Env<Limits>, prepared: Prepared) {
-    let Prepared { task, attempt, conversation, live, charter, run, messages, saved, transcript, answered, grants } =
-        prepared;
+    let Prepared {
+        task,
+        attempt,
+        conversation,
+        live,
+        charter,
+        run,
+        messages,
+        saved,
+        transcript,
+        parts,
+        answered,
+        grants,
+    } = prepared;
     for body in &transcript {
         domain.hold_bytes(skein_lib::len_u64(body.len()));
+    }
+
+    for part in &parts {
+        domain.hold_bytes(skein_lib::len_u64(part.body.len()));
     }
     let brief = domain.hub_link.take_brief(task).expect("prepared brief sections");
     let PreparedWorkspace { workspace, claim_names } =
@@ -453,16 +486,16 @@ fn run_prepared(domain: &mut Domain, env: &Env<Limits>, prepared: Prepared) {
             .push(crate::CallRecord { key, answer, settled: domain.core.call_settled.get(&key).cloned() })
             .expect("retained call bound");
     }
-    let parts = crate::boundary::AssignmentParts {
+    let application_parts = crate::boundary::AssignmentParts {
         saved: forge_route::saved_tags(&saved, domain.config.forge_connector)
             .expect("task saved names were admitted by the root"),
         workspace: workspace.workspace.clone(),
         workstream: workspace.workstream,
         answered: records.into_boxed(),
     };
-    domain.assignment_parts.insert(task, parts).expect("one temper assignment per task");
+    domain.assignment_parts.insert(task, application_parts).expect("one temper assignment per task");
     let assignment = jig_domain_hub_link::Assignment {
-        parts: Box::new([]),
+        parts,
         task,
         attempt,
         conversation,

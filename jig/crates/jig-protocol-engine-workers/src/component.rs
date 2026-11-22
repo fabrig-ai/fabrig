@@ -890,31 +890,6 @@ impl Component {
             Phase::Open => {
                 state.silence = Some(now.saturating_add(self.limits.silence));
                 if let Some(record) = crate::translate::decode(kind, body, &self.codec) {
-                    let record = match record {
-                        crate::translate::Up::Part(part) => {
-                            // A part is acknowledged at once and kept nowhere (records.md, 5).
-                            let record = crate::translate::Down::PartKept(wire::PartKept {
-                                task: part.task,
-                                attempt: part.attempt,
-                                number: part.number,
-                            });
-                            let frame = record.frame(&self.codec).expect("part acknowledgement fits");
-                            self.send_opening(now, connection, state, wire::Kind::PartKept, frame, out);
-                            state.down(ChannelRequest::Read, connection, out);
-                            return;
-                        }
-                        record @ (crate::translate::Up::Source(_)
-                        | crate::translate::Up::Ask(_)
-                        | crate::translate::Up::ListRead(_)
-                        | crate::translate::Up::Turn(_)
-                        | crate::translate::Up::Call(_)
-                        | crate::translate::Up::Answer(_)
-                        | crate::translate::Up::JobAnswer(_)
-                        | crate::translate::Up::Fact(_)
-                        | crate::translate::Up::Unauthorized(_)
-                        | crate::translate::Up::Limited(_)
-                        | crate::translate::Up::AccountRefused(_)) => record,
-                    };
                     let mut parts = crate::translate::Parts::new(self.next_part);
                     let up = crate::translate::up(record, &mut parts);
                     self.next_part = parts.next();

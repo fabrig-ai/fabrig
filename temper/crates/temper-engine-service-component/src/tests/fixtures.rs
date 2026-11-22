@@ -963,6 +963,7 @@ pub fn assignment_with_settings(
         transcript: Box::new([]),
         answered: Box::new([]),
         settled: Box::new([]),
+        parts: Box::new([]),
         grants: Box::new([]),
     }
 }
