@@ -216,9 +216,8 @@ backends; the worker family's two faults fall in different worlds.
   exactly their combinations, read from the world's state at the moment
   the fault would fall: a window longer than the session's shortest
   first backoff (domain/session.md, 4), whose reset may come after the
-  next attempt (`a_rate_window_is_waited_out`); a hang held past the
-  request's deadline where a watchdog's bound is shorter
-  (`a_silent_run_is_cut_at_its_derived_bound`).
+  next attempt (`a_rate_window_is_waited_out`). Hangs take none: the
+  request's own deadlines cut them before a watchdog acts (section 6).
 - **A fault every draw of which is its open scenario's combination is not
   configured** until its fix: the cuts, the billing refusal and the
   unserved model today. `Sweep::exclude` refuses an exclusion with no
@@ -241,7 +240,6 @@ its reason naming the work that fixes it, *provider failures*:
 | `a_rate_window_is_waited_out` | P127 | `smith-protocol-llm-world` | a 429 with reset headers and no `retry-after` is waited out: the next attempt after the reset, the run not failed |
 | `a_cut_stream_is_retried_not_failed` | the 11-20 cut streams | `smith-protocol-llm-world` | at each of the three places, the cut call is retried with backoff, nothing of the cut reply is acted on (a cut call runs once, from the completed reply), and the run completes with no failure answered, so no task try and no person |
 | `a_billing_refusal_marks_the_account` | P72 | `smith-agent-process-world` | the billing envelope ends the run refused for its account, with the refused notice, no program restart and no retry, and the edge's refusal is still retried |
-| `a_silent_run_is_cut_at_its_derived_bound` | P71 | `smith-host-world` | a run silent while its request hangs is cut by the request's own deadline, not the watchdog's |
 
 The draft's P72 row names smith's session world, which runs no program:
 the fake program runs in the agent-process world, so its scenario is
@@ -249,6 +247,13 @@ there. The task's move after the refusal is jig's, on the run's refused
 end. The rows P26, S1 and P126 need placement and an account's models,
 which are jig's: their scenarios are in temper's system world
 (`temper/docs/design/testing/checks.md`, 6.3).
+
+P71's scenario, `a_silent_run_is_cut_at_its_derived_bound` in
+`smith-host-world`, passes and is enabled, an active regression: it
+composes the protocol world's client with the host's watchdog, and on
+both dialects a run silent while its request hangs is cut by the
+request's own idle deadline, retried with backoff, and ended by its typed
+idle failure before the watchdog acts, its first piece never committed.
 
 ## 7. Testing
 
