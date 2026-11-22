@@ -412,7 +412,6 @@ pub fn agent_for(profile: &smith_agent_service::profile::Profile) -> temper_serv
 /// Apply the repository composition's policies and worker settings.
 pub fn configure(value: &mut Configuration) {
     value["workers"][0]["slots"] = AGENTS.into();
-    value.jig_over("hub.slots", AGENTS);
     let forge = value.forge.to_string();
     let grants: Vec<_> = GRANT_KINDS
         .into_iter()
@@ -431,7 +430,9 @@ pub fn configure(value: &mut Configuration) {
     ceiling["delegation"]["depth"] = AUTHORITY_DEPTH.into();
     value["world_settings"]["policies"][0]["policy"]["ceiling"] = ceiling.clone();
     value["world_settings"]["policies"][0]["policy"]["roles"][0]["authority"] = ceiling;
-    value.jig_over_all(ENGINE_OVERRIDES.map(|(name, count)| (name, u64::from(count))));
+    value.jig_over_all(
+        [("hub.slots", AGENTS)].into_iter().chain(ENGINE_OVERRIDES).map(|(name, count)| (name, u64::from(count))),
+    );
     let stock = jig_protocol_config::stock();
     let names = [
         "tasks.funders",
