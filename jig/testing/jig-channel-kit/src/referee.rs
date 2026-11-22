@@ -98,6 +98,9 @@ impl skein_world::Referee<Proc> for Referee {
             .find_map(|proc| if let Proc::Engine(host) = proc { Some(host) } else { None })
             .ok_or("engine")?;
         self.observe_engine(now, engine)?;
+        if matches!(self.story, crate::stories::Story::Resume(_)) {
+            crate::restarts::observe(now, procs, &self.store.borrow(), &mut self.views.borrow_mut().restart)?;
+        }
         let store = self.store.borrow();
         if matches!(self.story, crate::stories::Story::Providers)
             && self.views.borrow().engine_drained
@@ -154,6 +157,7 @@ impl skein_world::Referee<Proc> for Referee {
                     self.story,
                     crate::stories::Story::InvalidCharter
                         | crate::stories::Story::Shutdown
+                        | crate::stories::Story::Resume(_)
                         | crate::stories::Story::Drain
                         | crate::stories::Story::BeyondGrace
                 ) || smith_agent_process_world::fake::replied(peer)
@@ -223,6 +227,9 @@ impl skein_world::Referee<Proc> for Referee {
         if self.passed {
             return (!self.stopped).then_some(Time::ZERO);
         }
+        if let Some(at) = self.views.borrow().restart.release_at {
+            return Some(at);
+        }
         if matches!(self.story, crate::stories::Story::HeldCommit) && !self.injected
             || matches!(self.story, crate::stories::Story::Drain) && !self.store.borrow().pending.is_empty()
         {
@@ -234,12 +241,13 @@ impl skein_world::Referee<Proc> for Referee {
     fn overdue(&self, now: Time) -> Option<String> {
         (!self.passed && now >= self.horizon().ok()?).then(|| {
             format!(
-                "story {:?} completes; received hellos {}; replies {:?}, durable turns {}, rules {:?}",
+                "story {:?} completes; received hellos {}; replies {:?}, durable turns {}, rules {:?}; restart {:?}",
                 self.story,
                 self.cut_ready.get(),
                 self.party.replies,
                 turns(&self.store.borrow()).len(),
-                self.rules
+                self.rules,
+                self.views.borrow().restart.evidence
             ) + &self.formatted
         })
     }
@@ -695,6 +703,10 @@ impl Referee {
             self.views.borrow_mut().reply.act(procs, &self.store.borrow())?;
         }
 
+        if let crate::stories::Story::Resume(point) = self.story {
+            crate::restarts::act(point, now, procs, &mut self.views.borrow_mut());
+            self.injected = self.views.borrow().restart.drain.is_some();
+        }
         self.shutdown_worker(procs)?;
         let (engine, worker) = match self.story {
             crate::stories::Story::Partition { engine, worker } => (engine, worker),
@@ -711,6 +723,7 @@ impl Referee {
             | crate::stories::Story::Cuts { .. }
             | crate::stories::Story::Reconnect
             | crate::stories::Story::Shutdown
+            | crate::stories::Story::Resume(_)
             | crate::stories::Story::Drain
             | crate::stories::Story::Refusals(_)
             | crate::stories::Story::Opening(_)
@@ -974,10 +987,11 @@ impl Referee {
 
 impl Referee {
     fn shutdown_worker(&mut self, procs: &mut [Proc]) -> Result<(), String> {
-        if !matches!(self.story, crate::stories::Story::Shutdown) {
+        if !matches!(self.story, crate::stories::Story::Shutdown | crate::stories::Story::Resume(_)) {
             return Ok(());
         }
-        if !self.injected
+        if matches!(self.story, crate::stories::Story::Shutdown)
+            && !self.injected
             && !turns(&self.store.borrow()).is_empty()
             && procs.iter().any(
                 |proc| matches!(proc, Proc::Peer(peer) if smith_agent_process_world::fake::queries(peer).count() >= 2),
@@ -997,7 +1011,12 @@ impl Referee {
                 && host.service.is_empty()
                 && let Some(root) = host.restart_root.take()
             {
-                let Proc::Worker(replacement) = crate::processes::worker(root) else {
+                let replacement = if matches!(self.story, crate::stories::Story::Resume(_)) {
+                    crate::restarts::worker(root)
+                } else {
+                    crate::processes::worker(root)
+                };
+                let Proc::Worker(replacement) = replacement else {
                     return Err(String::from("replacement worker"));
                 };
                 host.service = replacement.service;

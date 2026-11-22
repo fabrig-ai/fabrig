@@ -281,12 +281,13 @@ fn worker_configured(root: kernel::Fd, bad_charter: bool, message: bool, provide
     )
 }
 #[derive(Clone, Copy)]
-enum Backend {
+pub(crate) enum Backend {
     Direct,
     List,
     Calls,
     Program,
     BothWays,
+    Resume,
 }
 pub(crate) fn worker_calls(root: kernel::Fd) -> Proc {
     static PREPARED: OnceLock<Prepared> = OnceLock::new();
@@ -299,7 +300,7 @@ pub(crate) fn worker_calls(root: kernel::Fd) -> Proc {
     });
     worker_document(root, false, false, false, Backend::Calls, prepared)
 }
-fn worker_document(
+pub(crate) fn worker_document(
     root: kernel::Fd,
     bad_charter: bool,
     message: bool,
@@ -311,6 +312,9 @@ fn worker_document(
     roots.push(root).expect("one worker root");
     let programs = matches!(backend, Backend::Program | Backend::BothWays);
     let mut agent = if programs { crate::program_runs::worker_agent() } else { fixtures::agent() };
+    if matches!(backend, Backend::Resume) {
+        agent.bounds.checks = skein_lib::Duration::from_secs(4);
+    }
     if programs {
         agent.bounds.endpoints[0].window = 272_000;
     }
@@ -574,12 +578,29 @@ impl Wire {
     }
 }
 
-pub(crate) struct Machine(pub(crate) skein_fake_machine::Machine);
+pub(crate) struct Machine(
+    pub(crate) skein_fake_machine::Machine,
+    pub(crate) Option<std::rc::Rc<std::cell::RefCell<crate::world::Views>>>,
+);
 impl skein_world::Machine for Machine {
     fn open_root(&mut self, path: &[u8]) -> Result<skein_sim::Handle, kernel::Error> {
         let root = match path {
             b"state" => 0,
             b"worker" => 2,
+            crate::restarts::PATH => 3,
+            b"restart-check" => {
+                let root = self.0.reopen_root(3);
+                crate::restarts::check_opened(
+                    &mut self.1.as_ref().expect("restart observation").borrow_mut().restart,
+                    &mut self.0,
+                    root,
+                );
+                return Ok(skein_sim::Handle::new(root.raw()));
+            }
+            b"restart-command" => {
+                self.1.as_ref().expect("restart observation").borrow_mut().restart.evidence.commands += 1;
+                3
+            }
             _ => panic!("channel story root"),
         };
         Ok(skein_sim::Handle::new(self.0.reopen_root(root).raw()))
@@ -670,7 +691,7 @@ fn worker_programs_with(inherited: &skein_world::Inherited, backend: Backend) ->
     let root = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"worker").expect("worker root").1;
     let parent = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"parent").expect("programs parent").1;
     let cache = match backend {
-        Backend::Direct | Backend::List => &DIRECT,
+        Backend::Direct | Backend::List | Backend::Resume => &DIRECT,
         Backend::Program => &PROGRAM,
         Backend::BothWays => &BOTH_WAYS,
         Backend::Calls => unreachable!("calls do not use program sources"),

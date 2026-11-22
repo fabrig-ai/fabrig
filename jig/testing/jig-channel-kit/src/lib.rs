@@ -3,6 +3,7 @@ pub mod fixtures;
 mod processes;
 pub mod referee;
 mod relay;
+pub mod restarts;
 pub mod stories;
 pub mod world;
 

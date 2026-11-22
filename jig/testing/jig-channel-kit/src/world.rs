@@ -41,6 +41,7 @@ pub struct Recorded {
 #[derive(Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independent protocol observations for story assertions")]
 pub struct Outcome {
+    pub restart: crate::restarts::Evidence,
     pub figures: Vec<jig_protocol_worker_wire::Figures>,
     pub verdict: Verdict,
     pub turns_committed: u32,
@@ -129,14 +130,18 @@ fn run_at(mut settings: Settings, script: Script, before_cut: Option<u32>) -> (O
     let _store_root = machine.lay(&[]);
     let client_root = machine.lay(&[]);
     let root = (!matches!(script.story, crate::stories::Story::Opening(_))).then(|| machine.lay(&[]));
-    let root = if matches!(script.story, crate::stories::Story::Shutdown) {
+    if matches!(script.story, crate::stories::Story::Resume(_)) {
+        let workspace = machine.lay(&crate::restarts::files());
+        machine.close(workspace);
+    }
+    let root = if matches!(script.story, crate::stories::Story::Shutdown | crate::stories::Story::Resume(_)) {
         machine.close(root.expect("worker root to reopen through startup"));
         None
     } else {
         root
     };
     let mut harness = skein_world::World::new(settings.seed, settings.config, referee, skein_world::Memory::Unchecked)
-        .with_machine(Machine(machine));
+        .with_machine(Machine(machine, Some(views.clone())));
     launch(&mut harness, root, &script, before_cut);
     harness.spawn_root(skein_sim::Handle::new(client_root.raw()), |root| {
         let mut client = jig_client_protocol_kit::native::NativeClient::new(
@@ -196,6 +201,7 @@ fn outcome(procs: &[Proc], store: &Store, views: &Views, reset_injected: bool, c
         })
         .collect();
     Outcome {
+        restart: views.restart.evidence.clone(),
         figures: worker.into_iter().flat_map(|wire| wire.frames.iter()).filter(|(_, kind, _)| *kind == 0x0190).map(|(_, _, body)| jig_protocol_worker_wire::Figures::decode(&jig_protocol_worker_wire::CEILINGS, &mut skein_lib::Reader::new(body)).expect("figures record")).collect(),
         failed_starts: procs.iter().find_map(|p| if let Proc::Engine(e) = p { Some(e.failed_starts.ended) } else { None }).unwrap_or(0),
         durable_at_restart: views.durable_at_restart,
@@ -290,7 +296,7 @@ pub(crate) fn terminal(store: &Store, task: u64, attempt: u64, scenario: crate::
             answer.end == jig_domain_tasks::End::Parked
         } else if matches!(scenario, crate::stories::Story::BeyondGrace) {
             answer.end == jig_domain_tasks::End::Recheck
-        } else if matches!(scenario, crate::stories::Story::Shutdown) && attempt == 1 {
+        } else if matches!(scenario, crate::stories::Story::Shutdown | crate::stories::Story::Resume(_)) && attempt == 1 {
             matches!(answer.end, jig_domain_tasks::End::Suspended(jig_domain_tasks::Suspended { worker: 1, why: jig_domain_tasks::SuspendWhy::Stopped, .. }))
         } else { matches!(answer.end, jig_domain_tasks::End::Finished { .. }) }
     ))
@@ -520,6 +526,7 @@ pub(crate) fn check_worker_wire(procs: &[Proc]) -> Result<&processes::Wire, Stri
 
 #[derive(Default)]
 pub(crate) struct Views {
+    pub(crate) restart: crate::restarts::State,
     pub(crate) application_answer: Option<(skein_lib::Token, skein_lib::Token, u64, jig_domain_host::AskAnswer)>,
     pub(crate) activity_seen: bool,
     pub(crate) text_bytes: usize,
@@ -574,6 +581,7 @@ fn make_referee(
             crate::stories::Story::InvalidCharter
             | crate::stories::Story::BeyondGrace
             | crate::stories::Story::Cuts { .. } => 0,
+            crate::stories::Story::Resume(_) => 3,
             crate::stories::Story::Input => 1,
             crate::stories::Story::Window => 7,
             crate::stories::Story::Facts | crate::stories::Story::InvalidTranscript => 2,
@@ -613,15 +621,18 @@ fn make_referee(
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "scenario factories share one launch sequence")]
 fn launch(
     harness: &mut skein_world::World<Proc, crate::referee::Referee, Machine>,
     root: Option<skein_fake_machine::Opened>,
     script: &Script,
     before_cut: Option<u32>,
 ) {
-    harness.host(skein_world::HostedProgram {
+    let agent_program = skein_world::HostedProgram {
         program: b"agent-program".as_slice().into(),
-        make: if matches!(script.story, crate::stories::Story::BeyondGrace) {
+        make: if matches!(script.story, crate::stories::Story::Resume(_)) {
+            crate::restarts::agent
+        } else if matches!(script.story, crate::stories::Story::BeyondGrace) {
             processes::agent_slow
         } else if matches!(script.story, crate::stories::Story::Providers) {
             processes::agent_providers
@@ -631,9 +642,28 @@ fn launch(
             processes::agent
         },
         instances: 2,
-        operations: smith_agent_process_world::limits().routes.checked_add(2).expect("agent operations"),
-    });
-    let engine_factory = if matches!(script.story, crate::stories::Story::Providers) {
+        operations: smith_agent_process_world::limits()
+            .routes
+            .checked_add(if matches!(script.story, crate::stories::Story::Resume(_)) { 8 } else { 2 })
+            .expect("agent operations"),
+    };
+    if matches!(script.story, crate::stories::Story::Resume(_)) {
+        harness.host_roots(agent_program, crate::restarts::roots);
+        harness.host_roots(
+            skein_world::HostedProgram {
+                program: b"/bin/sh".as_slice().into(),
+                make: crate::restarts::command,
+                instances: 1,
+                operations: 8,
+            },
+            crate::restarts::command_roots,
+        );
+    } else {
+        harness.host(agent_program);
+    }
+    let engine_factory = if matches!(script.story, crate::stories::Story::Resume(_)) {
+        crate::restarts::engine
+    } else if matches!(script.story, crate::stories::Story::Providers) {
         processes::engine_providers
     } else if matches!(
         script.story,
@@ -754,13 +784,17 @@ fn spawn_channel_side(
         });
     } else if let crate::stories::Story::Opening(case) = script.story {
         harness.spawn(|| Proc::Probe(Box::new(crate::relay::Peer::opening(case))));
-    } else if matches!(script.story, crate::stories::Story::Shutdown) {
+    } else if matches!(script.story, crate::stories::Story::Shutdown | crate::stories::Story::Resume(_)) {
         harness.spawn_restartable(
             vec![
                 skein_world::StartupRoot { name: b"worker".as_slice().into(), path: b"worker".as_slice().into() },
                 skein_world::StartupRoot { name: b"replacement".as_slice().into(), path: b"worker".as_slice().into() },
             ],
-            processes::worker_restarting,
+            if matches!(script.story, crate::stories::Story::Resume(_)) {
+                crate::restarts::worker_restarting
+            } else {
+                processes::worker_restarting
+            },
         );
     } else {
         let factory = if matches!(script.story, crate::stories::Story::Providers) {
@@ -879,7 +913,9 @@ pub(crate) fn provider_choices(store: &Store) -> (Option<u32>, Vec<(u32, u32, u3
 fn expected_answers(story: crate::stories::Story) -> usize {
     match story {
         crate::stories::Story::Window => 3,
-        crate::stories::Story::InvalidTranscript | crate::stories::Story::Shutdown => 2,
+        crate::stories::Story::Resume(_)
+        | crate::stories::Story::InvalidTranscript
+        | crate::stories::Story::Shutdown => 2,
         _ => 1,
     }
 }
@@ -925,7 +961,7 @@ mod tests {
         let root = machine.lay(&[]);
         let mut world =
             skein_world::World::new(fixtures::SEED, skein_sim::Config::calm(), referee, skein_world::Memory::Unchecked)
-                .with_machine(Machine(machine));
+                .with_machine(Machine(machine, None));
         world.spawn_root(skein_sim::Handle::new(root.raw()), processes::worker);
         let Err(why) = world.try_run() else { panic!("a duplicate durable turn must fail the world") };
         assert!(why.contains("a turn reaches the durable engine once"), "{why}");
