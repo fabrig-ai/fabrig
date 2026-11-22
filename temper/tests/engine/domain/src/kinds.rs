@@ -191,9 +191,8 @@ pub fn change_row(world: &crate::forge_routes::World, task: u64) -> temper_engin
     world.store.change(task).expect("durable change")
 }
 
-/// Push and finish the producer without giving its head any CI verdict.
-pub fn produce(world: &mut crate::forge_routes::World, change: u64, producer: &engine::Assignment) {
-    use jig_domain_tasks as tasks;
+/// Push a producer's branch without giving its head any CI verdict.
+pub fn push(world: &mut crate::forge_routes::World, change: u64) -> u64 {
     use skein_fake_forge_domain::{self as fake, api as raw};
     let branch = change_row(world, change).branch.clone();
     let landing = change_row(world, change).base.clone();
@@ -203,7 +202,13 @@ pub fn produce(world: &mut crate::forge_routes::World, change: u64, producer: &e
         raw::Answer::Branch(raw::Created::Created)
     );
     fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"small fix", 1)
-        .expect("producer pushed");
+        .expect("producer pushed")
+}
+
+/// Push and finish the producer without giving its head any CI verdict.
+pub fn produce(world: &mut crate::forge_routes::World, change: u64, producer: &engine::Assignment) {
+    use jig_domain_tasks as tasks;
+    push(world, change);
     let event = world.protocol.answer(
         Token::new(7),
         producer.task,

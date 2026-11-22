@@ -18,11 +18,11 @@ fn held_reads(ci: bool) -> (World, u64) {
     }
     let branch = row(&world, task).branch.clone();
     world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
-    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"fixed", 1)
+    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"fixed", 1)
         .expect("producer pushed");
     world.hold_reads_at_any_step = true;
     world.held_reads = Some(Vec::new());
-    super::ci_poll::finish(&mut world, &producer);
+    finish_reported(&mut world, &producer, head);
     for _ in 0..STEPS {
         world.tick();
         if world.held_reads.as_ref().is_some_and(|reads| !reads.is_empty())
@@ -35,6 +35,23 @@ fn held_reads(ci: bool) -> (World, u64) {
     assert!(world.held_reads.as_ref().is_some_and(|reads| !reads.is_empty()));
     assert!(matches!(row(&world, task).change.state, State::Producing { .. } | State::Checking { .. }));
     (world, task)
+}
+
+// This story stalls the procedure's gather, not its delegate's retirement read.
+fn finish_reported(world: &mut World, producer: &engine::Assignment, head: u64) {
+    super::ci_poll::finish_with_parts(
+        world,
+        producer,
+        engine::Parts {
+            saved: None,
+            preparation: None,
+            pushed: Box::new([forge_top::Pushed {
+                tag: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
+                commit: translate::commit(head),
+                checked: false,
+            }]),
+        },
+    );
 }
 
 fn stalled_words(world: &World, task: u64, step: &str, what: &str) {
@@ -85,7 +102,8 @@ fn a_busy_client_retries_then_holds_at_producing() {
         skein_lib::usize_of(world.env.limits.forge.client.calls)
     );
     let before = live_task(&world, task).attempt;
-    temper_engine_domain_world::kinds::produce(&mut world, task, &producer);
+    let head = temper_engine_domain_world::kinds::push(&mut world, task);
+    finish_reported(&mut world, &producer, head);
     world.advance_ticks(100);
     assert!(matches!(row(&world, task).change.state, State::Producing { .. }));
     assert_eq!(live_task(&world, task).attempt, before, "read retries cannot park the offered procedure step");

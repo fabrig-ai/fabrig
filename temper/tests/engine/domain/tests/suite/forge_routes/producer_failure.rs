@@ -459,7 +459,7 @@ fn producing_goal() -> (World, engine::Assignment, engine::Assignment, u64) {
     (world, goal, producer, made[0].task)
 }
 
-fn assert_production_hold(world: &mut World, task: u64, reason: &[u8]) {
+fn assert_production_hold(world: &mut World, task: u64, reason: &[u8], head: Option<u64>) {
     for _ in 0..STEPS {
         world.tick();
         if matches!(live_task(world, task).phase, tasks::Phase::Held { .. }) {
@@ -467,7 +467,7 @@ fn assert_production_hold(world: &mut World, task: u64, reason: &[u8]) {
             assert!(matches!(&change_row(world, task).change.state,
                 State::Held { was, why: Hold::Failed } if matches!(was.as_ref(), State::Producing { .. })));
             assert!(change_row(world, task).delegate.is_none());
-            assert!(change_row(world, task).change.last_head.is_none());
+            assert_eq!(change_row(world, task).change.last_head, head.map(translate::commit));
             assert_eq!(world.merges, 0);
             return;
         }
@@ -578,12 +578,13 @@ fn resume_production(world: &mut World, task: u64, first: u64, reason: &[u8]) {
 fn a_failed_producer_holds_notifies_and_restarts_on_release() {
     // The finding records these causes, but supplies no model transcript.
     for reason in [b"out of turns".as_slice(), b"missing cargo".as_slice(), b"".as_slice()] {
-        let words = if reason.is_empty() { b"producer failed for good without an account".as_slice() } else { reason };
+        let words = if reason.is_empty() { b"Its run declared failure without a reason.".as_slice() } else { reason };
         let (mut world, goal, first, task) = producing_goal();
         let reads = pending_reads(&mut world, task);
-        finish_failed_producer(&mut world, &first, task, reason);
+        // The old gather cannot hold the failed run's retirement read out of the client.
         answer_reads(&mut world, reads);
-        assert_production_hold(&mut world, task, words);
+        finish_failed_producer(&mut world, &first, task, reason);
+        assert_production_hold(&mut world, task, words, None);
         let resumed = super::reviews::next_assignment(&mut world, 2);
         assert_eq!(resumed.task, goal.task);
         assert!(resumed.messages.iter().any(|word| word.from == tasks::Party::Task(task)
@@ -611,10 +612,10 @@ fn pushed_failure_with_message(message: &[u8]) -> (World, engine::Assignment, u6
     refresh(&mut world, task);
     world.advance_ticks(20);
     let reads = pending_reads(&mut world, task);
-    finish_failed_producer(&mut world, &first, task, PUSHED_FAILURE);
     answer_reads(&mut world, reads);
+    finish_failed_producer(&mut world, &first, task, PUSHED_FAILURE);
     refresh(&mut world, task);
-    assert_production_hold(&mut world, task, PUSHED_FAILURE);
+    assert_production_hold(&mut world, task, PUSHED_FAILURE, Some(head));
     (world, first, task, head)
 }
 

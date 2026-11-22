@@ -70,12 +70,14 @@ pub(crate) struct PendingLost {
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum LostWriterKind {
+    Retired,
     Written,
     Slot,
     Design,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum LostReadState {
+    Restoring,
     Asked,
     WaitingForRoom,
     WaitingForConnection,
@@ -3284,7 +3286,7 @@ fn claim(
             emit(out, Request::Taken { task, resource: name.clone(), by: row.task });
             return;
         }
-        if design::waiting(row) {
+        if design::waiting(row) || retired_reading(d, name) {
             emit(out, Request::Taken { task, resource: name.clone(), by: row.task });
             return;
         }
@@ -3385,6 +3387,7 @@ fn answered(
             let taken = branch_written(d, name, None);
             child(d, env, skein_forge_client::Event::Writer { resource, taken }, out);
         }
+        lost_release(d, name, task, false, out);
     }
 }
 
@@ -3492,6 +3495,15 @@ fn lost(d: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, out: &mut Qu
     }
 }
 
+fn retired_reading(d: &Domain, name: &Name) -> bool {
+    for (_, pending) in &d.lost {
+        if pending.kind == LostWriterKind::Retired && &pending.name == name {
+            return true;
+        }
+    }
+    false
+}
+
 /// Ask one waiting lost writer's read again: its branch, or the ancestry
 /// of the head it found with the head the forge last knew.
 fn ask_lost_again(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
@@ -3591,10 +3603,10 @@ fn lost_read(
         Some((before, _)) => baseline != Some(before),
         None => baseline != pending.baseline,
     };
-    if pending.kind == LostWriterKind::Design && stale {
+    if (pending.kind == LostWriterKind::Design || pending.kind == LostWriterKind::Retired) && stale {
         pending.comparison = None;
         pending.state = LostReadState::WaitingForRoom;
-        d.lost.insert(owner, pending).expect("the design read retains its slot");
+        d.lost.insert(owner, pending).expect("the fresh read retains its slot");
         ask_lost_again(d, env, out);
         return;
     }
@@ -3634,14 +3646,7 @@ fn lost_read(
                     out,
                 ),
                 change::Status::Unknown | change::Status::Pending => {
-                    lost_failed(
-                        d,
-                        pending.task,
-                        pending.attempt,
-                        &pending.name,
-                        &crate::effect_words::error_words(error),
-                        out,
-                    );
+                    failed_lost_read(d, owner, pending, error, out);
                     return;
                 }
             }
@@ -3660,7 +3665,7 @@ fn lost_read(
                 Ok(_) => skein_forge::api::Error::InvalidAnswer,
                 Err(error) => error,
             };
-            lost_failed(d, pending.task, pending.attempt, &pending.name, &crate::effect_words::error_words(error), out);
+            failed_lost_read(d, owner, pending, error, out);
             return;
         }
     };
@@ -3670,7 +3675,7 @@ fn lost_read(
     }
     match pending.kind {
         LostWriterKind::Written => unreachable!("written comparison answered separately"),
-        LostWriterKind::Slot => row.writer = None,
+        LostWriterKind::Slot | LostWriterKind::Retired => row.writer = None,
         LostWriterKind::Design => {
             let mut writers = List::with_capacity(env.limits.holds);
             for writer in &row.design_writers {
@@ -3702,7 +3707,7 @@ fn lost_read(
     }
     let taken = branch_written(d, &pending.name, None);
     child(d, env, skein_forge_client::Event::Writer { resource, taken }, out);
-    lost_release(d, &pending.name, false, out);
+    lost_release(d, &pending.name, pending.task, false, out);
 }
 
 /// A later attempt keeps its slot while the lost read's branch or successful
@@ -3753,15 +3758,38 @@ fn superseded_head(
     }
 }
 
+fn failed_lost_read(
+    d: &mut Domain,
+    owner: Token,
+    mut pending: PendingLost,
+    error: skein_forge::api::Error,
+    out: &mut Queue<Request>,
+) {
+    lost_failed(d, pending.task, pending.attempt, &pending.name, &crate::effect_words::error_words(error), out);
+    if pending.kind == LostWriterKind::Retired {
+        // The old row remains durable. Reconnecting retries its read; neither a
+        // failed observation nor a crash can admit a writer over unknown writes.
+        pending.state = LostReadState::WaitingForConnection;
+        d.lost.insert(owner, pending).expect("failed retired read retains its slot");
+    }
+}
+
 fn lost_failed(d: &Domain, task: u64, attempt: u64, name: &Name, reason: &[u8], out: &mut Queue<Request>) {
-    lost_release(d, name, true, out);
+    lost_release(d, name, task, true, out);
     emit(out, Request::LostReadFailed { task, attempt, resource: name.clone(), reason: Box::from(reason) });
 }
 
-/// Wake the holder's existing release after its lost writer's reread ends.
-fn lost_release(d: &Domain, name: &Name, failed: bool, out: &mut Queue<Request>) {
-    let Some(hold) = d.holds.get(name) else { return };
-    let task = hold.task;
+/// Both the holder and its delegate stay live until the writer's fresh read ends.
+fn lost_release(d: &Domain, name: &Name, writer: u64, failed: bool, out: &mut Queue<Request>) {
+    resume_release(d, writer, failed, out);
+    if let Some(hold) = d.holds.get(name)
+        && hold.task != writer
+    {
+        resume_release(d, hold.task, failed, out);
+    }
+}
+
+fn resume_release(d: &Domain, task: u64, failed: bool, out: &mut Queue<Request>) {
     let Some(row) = d.releases.get(&task) else { return };
     if row.releasing && !row.failed && row.pending.is_none() {
         emit(
@@ -7755,6 +7783,46 @@ fn leave_room_release(d: &mut Domain, task: u64, out: &mut Queue<Request>) {
     }
 }
 
+/// A completed run may report no head. Read its remaining slots before either
+/// its task or the holder releases resources (jig's domain/tasks/holds.md, 3).
+fn release_writers(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) -> bool {
+    let mut attempts = List::with_capacity(env.limits.holds);
+    for (name, hold) in &d.holds {
+        if d.forge_ended(name.forge) {
+            continue;
+        }
+        if let Some(Writer::Run { task: writer, attempt }) = hold.writer
+            && writer == task
+            && !attempts.as_slice().contains(&attempt)
+        {
+            attempts.push(attempt).expect("attempts bounded by holds");
+        }
+    }
+    for attempt in attempts.into_boxed() {
+        lost(d, env, task, attempt, out);
+    }
+    for (name, hold) in &d.holds {
+        if d.forge_ended(name.forge) {
+            continue;
+        }
+        let writing = match hold.writer {
+            Some(Writer::Run { task: writer, .. } | Writer::Lost { task: writer, .. }) => {
+                writer == task || hold.task == task
+            }
+            Some(Writer::Entry(_)) | None => false,
+        };
+        if writing || (hold.task == task && retired_reading(d, name)) {
+            return false;
+        }
+        for writer in &hold.design_writers {
+            if writer.task == task || hold.task == task {
+                return false;
+            }
+        }
+    }
+    true
+}
+
 #[expect(clippy::too_many_lines, reason = "release drops each goal tier entry with its hold in the same transition")]
 fn continue_release_inner(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, out: &mut Queue<Request>) {
     for _ in 0..=env.limits.holds {
@@ -7767,6 +7835,9 @@ fn continue_release_inner(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u
             return;
         }
         if !row.releasing {
+            return;
+        }
+        if !release_writers(d, env, task, out) {
             return;
         }
         if !settle_held(d, task, out) {
@@ -7789,13 +7860,6 @@ fn continue_release_inner(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u
                 reds::released(d, task, &name, out);
                 emit(out, Request::Erase { key: Key::Hold(name) });
                 continue;
-            }
-            if let Some(Writer::Lost { task: lost_task, attempt }) = writer {
-                for (_, pending) in &d.lost {
-                    if pending.name == name && pending.task == lost_task && pending.attempt == attempt {
-                        return;
-                    }
-                }
             }
             if designing {
                 return;
@@ -9904,6 +9968,16 @@ fn read_afresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
             lost_runs.push((task, attempt)).expect("runs bounded by holds");
         }
     }
+    let mut retired = List::with_capacity(d.lost.len());
+    for (owner, pending) in &d.lost {
+        if pending.state == LostReadState::Restoring {
+            retired.push(*owner).expect("retired reads bounded by holds");
+        }
+    }
+    for owner in retired.into_boxed() {
+        d.lost.get_mut(&owner).expect("selected retired read").state = LostReadState::WaitingForRoom;
+    }
+    ask_lost_again(d, env, out);
     written::restart(d, env, out);
     for (task, attempt) in &lost_runs {
         lost(d, env, *task, *attempt, out);

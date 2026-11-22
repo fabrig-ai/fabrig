@@ -27,6 +27,7 @@ impl Domain {
         self.link_names(tasks, &env.limits);
         self.link_tiers(tasks, &env.limits);
         self.link_landings(tasks, env, out);
+        self.link_writers(tasks, env);
         if let Err(failure) = self.fit_restored(&env.limits) {
             return Err(StartLink::Fit(failure));
         }
@@ -35,6 +36,47 @@ impl Domain {
         }
         Ok(())
     }
+    /// A retired run cannot own a slot. Keep its old durable row until the
+    /// post-switch fresh read saves the writerless hold; a crash repeats the read
+    /// (jig's domain/tasks/holds.md, 3).
+    fn link_writers(&mut self, tasks: &jig_domain_tasks::Domain, env: &Env<Limits>) {
+        use super::{LostReadState, LostWriterKind, PendingLost};
+        let mut retired = skein_lib::List::with_capacity(self.holds.len());
+        for (name, hold) in &self.holds {
+            if let Some(crate::Writer::Run { task, attempt } | crate::Writer::Lost { task, attempt }) = hold.writer
+                && tasks.task(task).is_none()
+                && !self.forge_ended(name.forge)
+            {
+                retired.push((name.clone(), task, attempt)).expect("retired writers bounded by holds");
+            }
+        }
+        for (name, task, attempt) in retired.into_boxed() {
+            let hold = self.holds.get_mut(&name).expect("selected retired writer");
+            let previous = hold.clone();
+            hold.writer = None;
+            let repaired = hold.clone();
+            self.reconciliation.forget(&Stored::Hold(previous), &env.limits);
+            self.reconciliation.restore(&Stored::Hold(repaired.clone())).expect("repair removes one reference");
+            self.sequence = self.sequence.checked_add(1).expect("restored writer read sequence fits");
+            let owner = skein_lib::Token::new(self.sequence | (1_u64 << 62));
+            let baseline = self.branch_head(&name);
+            self.lost
+                .insert(
+                    owner,
+                    PendingLost {
+                        task,
+                        attempt,
+                        name,
+                        comparison: None,
+                        baseline,
+                        state: LostReadState::Restoring,
+                        kind: LostWriterKind::Retired,
+                    },
+                )
+                .expect("one retired read per hold");
+        }
+    }
+
     /// Establish the start's single expiry observation without resetting restored state.
     pub fn restore_begin(&mut self, started: Wall) {
         if self.restore_started.is_none() {
