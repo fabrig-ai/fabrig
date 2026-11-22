@@ -101,7 +101,7 @@ fn a_templates_closer_reaches_me() {
     template.flags.conversation = false;
     template.flags.ended_by = tasks::EndedBy::Closer(tasks::Closer { connector: 1, code: 6 });
     frame.projects.get_mut(0).unwrap().templates = skein_lib::List::from_boxed(Box::new([template]));
-    let me = crate::translate::owner::frame(&frame, &f::models(), &limits).unwrap();
+    let me = crate::translate::owner::frame(&frame, f::SIGN_IN_EXPIRES, &f::models(), &limits).unwrap();
     let bytes = skein_codec::piece::split(&mut Reader::new(me.projects.as_ref())).unwrap().unwrap();
     let project = w::MeProject::decode(&limits, &mut Reader::new(&bytes)).unwrap();
     let bytes = skein_codec::piece::split(&mut Reader::new(project.templates.as_ref())).unwrap().unwrap();

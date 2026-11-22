@@ -89,22 +89,24 @@ fn hold(world: &mut World, point: Point) -> Option<agent::Ask> {
     match point {
         Point::LlmCall => None,
         Point::ToolCall => {
-            world.say(agent::Up::Call {
-                call: CALL,
-                name: agent::CallName { activation: world.attempt.raw(), completion: 1, position: 0 },
-                deadline: world.env.now.saturating_add(Duration::from_secs(60)),
-                ask: agent::Ask::Host {
-                    tool: b"recall".as_slice().into(),
-                    effect: agent::Effect::Read,
-                    body: b"{}".as_slice().into(),
-                },
-            });
+            world
+                .say(agent::Up::Call {
+                    call: CALL,
+                    name: agent::CallName { activation: world.attempt.raw(), completion: 1, position: 0 },
+                    deadline: world.env.now.saturating_add(Duration::from_secs(60)),
+                    ask: agent::Ask::Host {
+                        tool: b"recall".as_slice().into(),
+                        effect: agent::Effect::Read,
+                        body: b"{}".as_slice().into(),
+                    },
+                })
+                .expect("worker inspection");
             None
         }
         Point::DeliveryCheck => Some(protocol::delivery(b"Delivery", b"Worker story")),
         Point::Save => {
             world.hold_push = true;
-            world.request_delivery(agent::Ask::Save);
+            world.request_delivery(agent::Ask::Save).expect("worker inspection");
             None
         }
     }
@@ -146,19 +148,21 @@ fn release(world: &mut World, point: Point) {
     match point {
         Point::ToolCall => {
             let call = world.call.take().expect("pending host call");
-            world.event(Event::Link(host::LinkDown::Relayed {
-                run: RUN,
-                attempt: world.attempt,
-                call,
-                answer: host::Relayed::Answer { error: false, text: b"answer".as_slice().into() },
-            }));
+            world
+                .event(Event::Link(host::LinkDown::Relayed {
+                    run: RUN,
+                    attempt: world.attempt,
+                    call,
+                    answer: host::Relayed::Answer { error: false, text: b"answer".as_slice().into() },
+                }))
+                .expect("worker inspection");
             assert_eq!(world.replies.len(), 1);
         }
         Point::Save => {
             let (owner, op) = world.held.take().expect("pending save push");
             world.hold_push = false;
             let done = super::translate::perform(&mut world.forge, &mut world.disk, op);
-            world.event(Event::Done { owner, done });
+            world.event(Event::Done { owner, done }).expect("worker inspection");
             assert!(matches!(world.delivery_reply, Some(agent::Delivery::Delivered(_))));
         }
         Point::LlmCall => {}
@@ -172,12 +176,13 @@ fn drain(world: &mut World, way: Way, point: Point, check: &mut Option<agent::As
         Way::Signalled => world.event(Event::Shutdown { drain: true }),
         Way::Crashed => unreachable!("crash has no settle"),
     }
+    .expect("worker inspection");
     assert_eq!(world.report.drains, 1, "only the worker receives the initial stop");
     assert_eq!(world.report.cancellations, 0, "the current turn goes on");
     let turns = if point == Point::DeliveryCheck {
         // The check outlives the drain, as a repository's check program can.
         world.env.now = world.env.now.saturating_add(world.env.limits.drain);
-        world.settle();
+        world.settle().expect("worker inspection");
         assert_eq!(world.report.cancellations, 1, "the drain bound cuts the check");
         drop(check.take().expect("running check killed"));
         assert_eq!(world.forge.branch(REMOTE, b"topic"), Some(world.first), "a cut check never pushes");
@@ -185,18 +190,20 @@ fn drain(world: &mut World, way: Way, point: Point, check: &mut Option<agent::As
     } else {
         world.env.now = world.env.now.saturating_add(Duration::from_secs(1));
         release(world, point);
-        world.say(agent::Up::Turn { turn: protocol::turn(1, 0, 8) });
+        world.say(agent::Up::Turn { turn: protocol::turn(1, 0, 8) }).expect("worker inspection");
         1
     };
-    world.say(agent::Up::Answer {
-        answer: agent::Answer {
-            read: None,
-            turns,
-            spent: 0,
-            result: agent::RunResult::Failed { failure: agent::RunFailure::Cancelled },
-        },
-    });
-    world.gone();
+    world
+        .say(agent::Up::Answer {
+            answer: agent::Answer {
+                read: None,
+                turns,
+                spent: 0,
+                result: agent::RunResult::Failed { failure: agent::RunFailure::Cancelled },
+            },
+        })
+        .expect("worker inspection");
+    world.gone().expect("worker inspection");
     let (answer, _, preparation) = world.answer.take().expect("drained attempt answered");
     assert_eq!(answer.turns, turns);
     assert_eq!(preparation, None);
@@ -205,10 +212,14 @@ fn drain(world: &mut World, way: Way, point: Point, check: &mut Option<agent::As
         host::Ending::Failed { failure: host::Failure::Cancelled(host::Reason::Shutdown), .. }
     ));
     assert_eq!(world.stops, 0, "wait for the engine to acknowledge");
-    world.event(Event::Link(host::LinkDown::Acknowledge { run: RUN, attempt: world.attempt }));
+    world
+        .event(Event::Link(host::LinkDown::Acknowledge { run: RUN, attempt: world.attempt }))
+        .expect("worker inspection");
     if turns == 1 {
         assert_eq!(world.stops, 0, "wait for the last turn too");
-        world.event(Event::Link(host::LinkDown::TurnKept { run: RUN, attempt: world.attempt, turn: 1 }));
+        world
+            .event(Event::Link(host::LinkDown::TurnKept { run: RUN, attempt: world.attempt, turn: 1 }))
+            .expect("worker inspection");
     }
     assert_eq!(world.domain.kept_answers(), 0);
     assert_eq!(world.domain.agent().agents(), 0);
@@ -257,7 +268,7 @@ fn crash(world: &mut World, check: &mut Option<agent::Ask>, recovery: Recovery) 
         "same disk or another worker's disk"
     );
     world.env.now = world.env.now.saturating_add(Duration::from_secs(2));
-    world.connect();
+    world.connect().expect("worker inspection");
     assert_eq!(world.domain.agent().agents(), 0, "new root has no old agents");
     assert!(world.workstreams.is_empty(), "no old claim in the new hello");
     next_attempt(world, false);
@@ -276,8 +287,8 @@ fn next_attempt(world: &mut World, saved: bool) {
     } else {
         wire::Start::Branch { branch: b"topic".as_slice().into() }
     };
-    world.assign(start);
-    world.say(agent::Up::Admitted);
+    world.assign(start).expect("worker inspection");
+    world.say(agent::Up::Admitted).expect("worker inspection");
     let place = temper_worker_domain::checkout::git::Place {
         git: None,
         workspace: world.workspace.expect("prepared next attempt"),
@@ -293,7 +304,7 @@ fn injected(seed: u64, draw: (Way, Point, Recovery), ledger: &mut FaultLedger) -
     let (way, point, recovery) = draw;
     let mut world = World::new(seed);
     world.restart_observer = Some(Observer::default());
-    world.start();
+    world.start().expect("worker inspection");
     world.disk.write(b"worker-state", b"old worker");
     let place = temper_worker_domain::checkout::git::Place {
         git: None,
@@ -330,9 +341,9 @@ pub fn at_point(seed: u64, way: Way, point: Point, recovery: Recovery) -> FaultL
     let mut ledger = FaultLedger::new();
     let (mut world, _) = injected(seed, (way, point, recovery), &mut ledger);
     if way == Way::Crashed {
-        super::finish_host_run(&mut world);
+        super::finish_host_run(&mut world).expect("worker inspection");
     } else if way == Way::Drained {
-        world.event(Event::Shutdown { drain: true });
+        world.event(Event::Shutdown { drain: true }).expect("worker inspection");
         assert_eq!(world.stops, 1);
     }
     ledger
@@ -357,13 +368,13 @@ fn story(seed: u64, case: Case, draw: (Way, Point, Recovery), ledger: &mut Fault
     let (mut world, fault) = injected(seed, draw, ledger);
     match way {
         Way::Drained => {
-            world.event(Event::Link(host::LinkDown::Pause { mode: PauseMode::Resume }));
+            world.event(Event::Link(host::LinkDown::Pause { mode: PauseMode::Resume })).expect("worker inspection");
             next_attempt(&mut world, true);
         }
         Way::Signalled => {
             world.domain = Domain::new(&world.env.limits, Box::new([]));
             world.env.now = world.env.now.saturating_add(Duration::from_secs(2));
-            world.connect();
+            world.connect().expect("worker inspection");
             let (hello, hosting) = *world.restart_observer.as_ref().expect("referee").hellos.last().expect("new hello");
             assert_eq!(hosting, 0, "stopped worker starts with no old claim");
             ledger.stop(fault, hello).expect("next hello closes the interval");
@@ -374,6 +385,6 @@ fn story(seed: u64, case: Case, draw: (Way, Point, Recovery), ledger: &mut Fault
     world.stops = 0;
     world.report.cancellations = 0;
     world.report.saves = 0;
-    world.story(case);
-    world.completed(case);
+    world.story(case).expect("worker inspection");
+    world.completed(case).expect("worker inspection");
 }

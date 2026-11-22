@@ -110,17 +110,27 @@ fn an_unbound_program_root_is_closed_by_the_shell() {
 
 #[test]
 fn an_unsafe_program_directory_logs_its_startup_refusal_once() {
-    let scratch = skein_scratch::Scratch::new("program-diagnostic");
-    let directory = scratch.path().join("not-a-directory");
-    std::fs::write(&directory, b"fixture").expect("non-directory fixture");
+    use crate::program::{Refusal, Unsafe};
+    use skein_lib::Secret;
+    use std::path::Path;
+
     let mut document = program_document();
+    let directory = Path::new("/fixture/not-a-directory");
     document["programs"]["claude_code"]["directory"] = directory.to_str().expect("fixture path").into();
-    let path = scratch.path().join("configuration.json");
-    std::fs::write(&path, serde_json::to_vec(&document).expect("configuration")).expect("configuration file");
-    let diagnostic = scratch.path().join("diagnostic");
-    #[expect(clippy::disallowed_types, reason = "the test reads the owned diagnostic file after run returns")]
-    let errors = std::fs::File::create(&diagnostic).expect("diagnostic file");
-    let why = crate::run(&path, Box::new(errors)).expect_err("unsafe directory refused");
+    let configuration = parse_value(&document).expect("configuration");
+    let mut diagnostic = Vec::new();
+    let why = crate::agent_shell::open_program_with(
+        configuration.program.as_ref().expect("configured program"),
+        &mut diagnostic,
+        || Ok(("/fixture/relay".into(), Secret::new(Box::new([7; 32])))),
+        |path| {
+            assert_eq!(path, directory);
+            Err(Refusal::Unsafe { path: path.to_owned(), found: Unsafe::NotADirectory })
+        },
+        |_| panic!("refused directory is not opened"),
+    )
+    .err()
+    .expect("unsafe directory refused");
     assert!(why.contains("not a directory"), "the directory refusal identifies its cause: {why}");
-    assert_eq!(std::fs::read_to_string(diagnostic).expect("diagnostic text"), format!("smith: {why}\n"));
+    assert_eq!(String::from_utf8(diagnostic).expect("diagnostic text"), format!("smith: {why}\n"));
 }

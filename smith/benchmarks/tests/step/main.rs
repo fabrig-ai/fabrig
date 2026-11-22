@@ -8,6 +8,9 @@ mod cache_probes;
 mod codex;
 mod codex_adapter;
 mod events;
+mod fault {
+    mod tests;
+}
 mod failure_probes;
 mod large_effects;
 mod large_write_probe;

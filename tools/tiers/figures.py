@@ -45,6 +45,14 @@ def number(table, key, place):
     return value
 
 
+def instructions(table, key, place):
+    if key not in table:
+        return None
+    value = table[key]
+    CPU['positive_instructions'](place, value)
+    return value
+
+
 def profile_figures(table, side, profile):
     """Read only the figure places, keeping absent bounds distinct from zero."""
     label = f'{side} gate.{profile}'
@@ -64,14 +72,22 @@ def profile_figures(table, side, profile):
             place = f'{label}.{group}.{layer}'
             figures = {key: number(row, key, f'{place}.{key}')
                        for key in ('cpu_s', 'reference_s', 'ideal_s')}
+            figures.update({key: instructions(row, key, f'{place}.{key}')
+                            for key in ('instructions', 'ideal_instructions')})
             rows[group, layer] = figures
             normalized[group][layer] = {'cpu_s': figures['cpu_s'] or 0}
     moves = Counter()
+    instruction_moves = {}
     for index, move in enumerate(table.get('moves', [])):
-        seconds = number(move, 'cpu_s', f'{label}.moves[{index}].cpu_s')
+        place = f'{label}.moves[{index}]'
+        seconds = number(move, 'cpu_s', f'{place}.cpu_s')
         if seconds is None:
-            raise ValueError(f'{label}.moves[{index}].cpu_s: expected a finite number')
-        moves[move['from'], move['to'], seconds, move['why']] += 1
+            raise ValueError(f'{place}.cpu_s: expected a finite number')
+        source, target, why = move['from'], move['to'], move['why']
+        moves[source, target, seconds, why] += 1
+        amount = instructions(move, 'instructions', f'{place}.instructions')
+        if amount is not None:
+            instruction_moves.setdefault((source, target, why), []).append(amount)
     reasons = {}
     for index, line in enumerate(table.get('reasons', [])):
         seconds = number(line, 'cpu_s', f'{label}.reasons[{index}].cpu_s')
@@ -81,7 +97,8 @@ def profile_figures(table, side, profile):
         reasons[key] = max(reasons.get(key, seconds), seconds)
     return dict(ceilings=CPU['gate_ceilings'](normalized),
                 total=sum(row['cpu_s'] or 0 for row in rows.values()),
-                references=references, ideals=ideals, rows=rows, moves=moves, reasons=reasons)
+                references=references, ideals=ideals, rows=rows, moves=moves,
+                instruction_moves=instruction_moves, reasons=reasons)
 
 
 def down(source, target, layers):
@@ -98,9 +115,11 @@ def text(value):
 def compare(base, head, layers, base_name, head_name):
     findings = []
 
-    def raised(place, old, new, *, ceiling=False):
+    def raised(place, old, new, *, ceiling=False, added=False):
         before, after = (old or 0, new or 0) if ceiling else (old, new)
-        if before is not None and (after is None or round(after, 3) > round(before, 3)):
+        if before is None and after is not None and added:
+            findings.append((place, f'figure added: {place}: {text(new)}'))
+        elif before is not None and (after is None or round(after, 3) > round(before, 3)):
             findings.append((place, f'figure raised: {place}: {text(old)} to {text(new)}'))
 
     before, after = base.get('gate', {}), head.get('gate', {})
@@ -132,13 +151,28 @@ def compare(base, head, layers, base_name, head_name):
         for (group, layer), row in sorted(new['rows'].items()):
             raised(f'{profile} {group} {layer} ideal',
                    old['rows'].get((group, layer), {}).get('ideal_s'), row['ideal_s'])
+        for group, layer in sorted(old['rows'].keys() | new['rows'].keys()):
+            key = group, layer
+            previous, row = old['rows'].get(key, {}), new['rows'].get(key, {})
+            for field, label in (('instructions', 'ceiling'), ('ideal_instructions', 'ideal')):
+                raised(f'{profile} {group} {layer} instruction {label}',
+                       previous.get(field), row.get(field), added=True)
+        for (source, target, why), amounts in sorted(new['instruction_moves'].items()):
+            remaining = Counter(old['instruction_moves'].get((source, target, why), ()))
+            changed = []
+            for rank, amount in enumerate(sorted(amounts, reverse=True), start=1):
+                if remaining[amount]:
+                    remaining[amount] -= 1
+                else:
+                    changed.append((rank, amount))
+            previous = sorted(remaining.elements(), reverse=True)
+            place = f'{profile} move {source} to {target} instructions ({why!r})'
+            for index, (rank, amount) in enumerate(changed):
+                label = f'{place} #{rank}' if rank > 1 else place
+                raised(label, previous[index] if index < len(previous) else None, amount, added=True)
         for (binary, test), seconds in sorted(new['reasons'].items()):
             place = f'{profile} reason {binary} {test}'
-            previous = old['reasons'].get((binary, test))
-            if previous is None:
-                findings.append((place, f'figure added: {place}: {seconds}'))
-            else:
-                raised(place, previous, seconds)
+            raised(place, old['reasons'].get((binary, test)), seconds, added=True)
     for pair in sorted((base.keys() | head.keys()) - {'gate', 'tools'}):
         for key in LIMITS:
             raised(f'{pair} {key}', number(base.get(pair, {}), key, f'{base_name} {pair}.{key}'),

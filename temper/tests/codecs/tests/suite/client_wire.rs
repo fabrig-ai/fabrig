@@ -23,27 +23,27 @@ fn a_core_refusal_carries_jigs_refusal_bytes_unchanged() {
 }
 
 #[test]
-fn current_request_answer_and_forges_goldens_round_trip() {
+fn current_request_answer_and_forges_fixed_values_round_trip() {
     use temper_client_protocol_wire as wire;
     for bytes in [
-        values::named(values::client(), "record_requesting_smallest.bin"),
-        values::named(values::client(), "record_requesting_full.bin"),
+        values::fixed_value(values::client(), "record_requesting_smallest.bin"),
+        values::fixed_value(values::client(), "record_requesting_full.bin"),
     ] {
-        let record = wire::decode_requesting(bytes, &v1::CEILINGS).expect("request golden");
+        let record = wire::decode_requesting(bytes, &v1::CEILINGS).expect("request fixed-rule value");
         assert_eq!(wire::requesting(&record).as_ref(), bytes);
     }
     for bytes in [
-        values::named(values::client(), "record_answer_smallest.bin"),
-        values::named(values::client(), "record_answer_full.bin"),
+        values::fixed_value(values::client(), "record_answer_smallest.bin"),
+        values::fixed_value(values::client(), "record_answer_full.bin"),
     ] {
-        let record = v1::Answer::decode(&v1::CEILINGS, &mut Reader::new(bytes)).expect("answer golden");
+        let record = v1::Answer::decode(&v1::CEILINGS, &mut Reader::new(bytes)).expect("answer fixed-rule value");
         assert_eq!(wire::answer(&record).as_ref(), bytes);
     }
     for bytes in [
-        values::named(values::client(), "record_forges_smallest.bin"),
-        values::named(values::client(), "record_forges_full.bin"),
+        values::fixed_value(values::client(), "record_forges_smallest.bin"),
+        values::fixed_value(values::client(), "record_forges_full.bin"),
     ] {
-        let record = wire::decode_forges(bytes, &v1::CEILINGS).expect("forges golden");
+        let record = wire::decode_forges(bytes, &v1::CEILINGS).expect("forges fixed-rule value");
         assert_eq!(wire::forges(&record).as_ref(), bytes);
     }
 }
@@ -231,25 +231,25 @@ fn playground_start_outcomes_round_trip_at_each_boundary() {
 }
 
 #[test]
-fn reachable_and_page_goldens_round_trip_with_ids_privacy_and_more() {
+fn reachable_and_page_fixed_values_round_trip_with_ids_privacy_and_more() {
     use temper_client_protocol_wire as wire;
     for bytes in [
-        values::named(values::client(), "enum_request_reachable_smallest.bin"),
-        values::named(values::client(), "enum_request_reachable_full.bin"),
+        values::fixed_value(values::client(), "enum_request_reachable_smallest.bin"),
+        values::fixed_value(values::client(), "enum_request_reachable_full.bin"),
     ] {
         let mut reader = Reader::new(bytes);
-        let request = v1::Request::decode(&v1::CEILINGS, &mut reader).expect("reachable golden");
+        let request = v1::Request::decode(&v1::CEILINGS, &mut reader).expect("reachable fixed-rule value");
         assert!(reader.is_empty());
         let mut writer = Writer::new(bytes.len());
         request.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured room");
         assert_eq!(writer.finish().as_ref(), bytes);
     }
     for bytes in [
-        values::named(values::client(), "enum_outcome_page_smallest.bin"),
-        values::named(values::client(), "enum_outcome_page_full.bin"),
+        values::fixed_value(values::client(), "enum_outcome_page_smallest.bin"),
+        values::fixed_value(values::client(), "enum_outcome_page_full.bin"),
     ] {
         let mut reader = Reader::new(bytes);
-        let outcome = v1::Outcome::decode(&v1::CEILINGS, &mut reader).expect("page golden");
+        let outcome = v1::Outcome::decode(&v1::CEILINGS, &mut reader).expect("page fixed-rule value");
         assert!(reader.is_empty());
         let mut writer = Writer::new(bytes.len());
         outcome.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured room");

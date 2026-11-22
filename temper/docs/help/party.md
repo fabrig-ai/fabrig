@@ -54,6 +54,8 @@ A party is who acts in a deployment, a person or a service, numbered, with a rol
   once, within 2 hours. A spent or expired link, given again,
   makes the deployment print a fresh one; the box passes on each fresh
   link alone on the terminal: a blank line, then the link.
+- **Reissued:** `party reissue PARTY --out FILE` ends a service's sign-ins
+  and writes a private link; `sign-in FILE` signs its directory in again.
 - **Signed out:** `sign-out` ends the sign-in in `DIR` (temper help
   ctl).
 

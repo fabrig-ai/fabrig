@@ -173,6 +173,7 @@ pub(crate) fn made(value: &w::Made) -> Result<c::Made, w::Problem> {
             c::Made::MovingOut { account: row.account, number: row.number, record: row.record.clone() }
         }
         w::Made::Service(row) => c::Made::Service { party: row.party },
+        w::Made::Reissued(row) => c::Made::Reissued { party: row.party },
         w::Made::PersonResult(row) => c::Made::PersonResult { task: row.task },
         w::Made::Note(row) => c::Made::Note { note: row.note, scope: note_scope(&row.scope)? },
     })
@@ -599,7 +600,7 @@ pub(crate) fn refusal(value: &w::Refusal, limits: &Limits) -> Result<c::Refusal,
         w::Refusal::KeyConflict => c::Refusal::KeyConflict,
     })
 }
-/// Takes the shell-only value beside a made service's domain answer.
+/// Takes the shell-only credential beside the answer for a made or reissued service.
 pub(crate) fn credential(record: &w::Owned, limits: &Limits) -> Option<(u64, skein_lib::Secret)> {
     if record.owner != w::Owner::Jig || record.version != jig_client_protocol_wire::VERSION {
         return None;
@@ -608,8 +609,10 @@ pub(crate) fn credential(record: &w::Owned, limits: &Limits) -> Option<(u64, ske
         return None;
     };
     let w::Outcome::Made(value) = value.outcome else { return None };
-    let w::Made::Service(value) = value.what else { return None };
-    let parts = value;
+    let parts = match value.what {
+        w::Made::Service(service) | w::Made::Reissued(service) => service,
+        w::Made::Tasks(_) | w::Made::PersonResult(_) | w::Made::Note(_) | w::Made::MovingOut(_) => return None,
+    };
     if parts.credential.expose().is_empty() {
         return None;
     }

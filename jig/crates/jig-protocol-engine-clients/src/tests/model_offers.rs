@@ -13,7 +13,7 @@ fn me_with_offer(model: w::MeModel, defaults: List<w::MeDefault>) -> w::Me {
     let limits = fixtures::client_limits();
     let mut frame = fixtures::frame_two_projects();
     frame.projects.get_mut(0).unwrap().left_out = 7;
-    let frame = crate::translate::owner::frame(&frame, &[], limits.wire()).unwrap();
+    let frame = crate::translate::owner::frame(&frame, fixtures::SIGN_IN_EXPIRES, &[], limits.wire()).unwrap();
     let first = skein_codec::piece::split(&mut Reader::new(frame.projects.as_ref())).unwrap().unwrap();
     let mut project = w::MeProject::decode(limits.wire(), &mut Reader::new(&first)).unwrap();
     project.defaults = defaults;

@@ -2,12 +2,12 @@
 
 2026-11-20. Where the tree's code lags or departs from [checks.md](checks.md).
 
-- **Not yet:** 6.1: no adapter is built: `temper-engine-inspect` and
-  `temper-worker-inspect` don't exist, and no world calls the shared
-  checks. 6.2: of the faults temper's worlds inject, only the restart
-  family's are kept in a fault ledger, drawn from the seed's streams and
-  swept with configured faults (`restarts.md`), and no check holds the
-  3.3 failure table.
+- **Not yet:** 6.1: `temper-engine-inspect` doesn't exist, and no
+  engine world calls the shared checks; the worker's adapter is
+  `worker.status.md`'s. 6.2: of the faults the engine's worlds inject,
+  only the restart family's are kept in a fault ledger, drawn from the
+  seed's streams and swept with configured faults (`restarts.md`),
+  and no check holds the 3.3 failure table.
 
 - **Departs:** 1: eighteen named real-loop stories remain in the fuzzy
   suite: sixteen scripted stories (fourteen reference-case stories,

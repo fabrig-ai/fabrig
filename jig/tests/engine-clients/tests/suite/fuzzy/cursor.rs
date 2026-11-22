@@ -7,13 +7,13 @@ fn check(bytes: &[u8]) {
         assert_eq!(held.encode(&CEILINGS).expect("decoded cursor").as_ref(), bytes);
     }
 }
-fn goldens() -> Vec<Vec<u8>> {
+fn fixed_values() -> Vec<Vec<u8>> {
     let text = jig_protocol_engine_clients::SCHEMA;
-    let mut goldens = skein_codegen::values(text).goldens.clone();
-    goldens.sort_by(|left, right| left.name.cmp(&right.name));
+    let mut fixed_values = skein_codegen::values(text).fixed.clone();
+    fixed_values.sort_by(|left, right| left.name.cmp(&right.name));
     let mut values = Vec::new();
-    for golden in goldens {
-        let name = &golden.name;
+    for fixed_value in fixed_values {
+        let name = &fixed_value.name;
         let prefix: &[u8] = if name.starts_with("record_held_") {
             &[]
         } else if name.starts_with("enum_form_") {
@@ -26,14 +26,14 @@ fn goldens() -> Vec<Vec<u8>> {
             continue;
         };
         let mut bytes = prefix.to_vec();
-        bytes.extend(golden.bytes);
+        bytes.extend(fixed_value.bytes);
         if name.starts_with("enum_note_scope_") {
             bytes.push(0);
         }
         if name.starts_with("enum_scope_") || name.starts_with("enum_note_scope_") {
             bytes.push(0);
         }
-        Held::decode(&CEILINGS, &mut Reader::new(&bytes)).expect("held golden");
+        Held::decode(&CEILINGS, &mut Reader::new(&bytes)).expect("held fixed-rule value");
         values.push(bytes);
     }
     assert_ne!(values.len(), 0);
@@ -41,7 +41,7 @@ fn goldens() -> Vec<Vec<u8>> {
 }
 #[test]
 fn arbitrary_cursor_bytes_never_panic_and_round_trip_when_they_decode() {
-    for bytes in goldens() {
+    for bytes in fixed_values() {
         check(&bytes);
     }
     let mut rng = Rng::new(0xc075_0001);
@@ -56,18 +56,18 @@ fn arbitrary_cursor_bytes_never_panic_and_round_trip_when_they_decode() {
     }
 }
 #[test]
-fn mutated_cursor_goldens_never_panic_and_round_trip_when_they_decode() {
+fn mutated_cursor_fixed_values_never_panic_and_round_trip_when_they_decode() {
     let mut rng = Rng::new(0xc075_0002);
-    for golden in goldens() {
-        check(&golden);
-        for cut in 0..golden.len() {
-            check(golden.get(..cut).expect("within golden"));
+    for fixed_value in fixed_values() {
+        check(&fixed_value);
+        for cut in 0..fixed_value.len() {
+            check(fixed_value.get(..cut).expect("within fixed-rule value"));
         }
-        let mut trailing = golden.clone();
+        let mut trailing = fixed_value.clone();
         trailing.push(0);
         assert!(Held::decode(&CEILINGS, &mut Reader::new(&trailing)).is_err());
         for _ in 0..100 {
-            let mut bytes = golden.clone();
+            let mut bytes = fixed_value.clone();
             let index = usize::try_from(rng.below(len_u64(bytes.len()))).expect("index");
             *bytes.get_mut(index).expect("chosen byte") = u8::try_from(rng.next_u64() & 0xff).expect("low byte");
             check(&bytes);

@@ -255,21 +255,15 @@ fn collect(
     machine.close(file);
 }
 
-#[cfg(test)]
-mod tests {
-    use super::Disk;
+pub(super) mod testing {
+    use super::{Disk, Limits};
     use crate::KillFrom;
 
-    #[test]
-    fn a_failed_operation_child_names_its_cut() {
-        let limits = crate::component_limits(&jig_test_profile::limits());
-        let mut disk = Disk::new(&limits);
-        disk.sweep = vec![(KillFrom::Commit(1), 0)];
-        disk.sweeping = Some(KillFrom::Commit(1));
+    pub fn fork_first_operation(limits: &Limits, from: KillFrom) -> (Result<(), String>, bool) {
+        let mut disk = Disk::new(limits);
+        disk.sweep = vec![(from, 0)];
+        disk.sweeping = Some(from);
         let result = disk.fork_boundary();
-        if disk.fork_child.is_some() {
-            std::process::exit(23);
-        }
-        assert_eq!(result, Err("forked disk cut (Commit(1), 0) failed: Code(23)".to_owned()));
+        (result, disk.fork_child.is_some())
     }
 }

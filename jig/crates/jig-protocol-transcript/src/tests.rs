@@ -547,7 +547,7 @@ fn receiving_limits_cut_without_growing_or_losing_call_outcomes() {
 }
 
 #[test]
-fn smith_smallest_golden_decodes_at_its_whole_length() {
+fn smith_smallest_fixed_value_decodes_at_its_whole_length() {
     let bytes = &smith_turn("smallest");
     assert_eq!(bytes.len(), 43);
     let value = decode(&limits(), bytes).unwrap();
@@ -565,7 +565,7 @@ fn smith_smallest_golden_decodes_at_its_whole_length() {
 }
 
 #[test]
-fn smith_full_golden_preserves_maximum_usage_at_its_whole_length() {
+fn smith_full_fixed_value_preserves_maximum_usage_at_its_whole_length() {
     let bytes = &smith_turn("full");
     assert_eq!(bytes.len(), 154);
     let mut blocks = List::with_capacity(1);
@@ -845,7 +845,7 @@ fn system_inspection_does_not_displace_conversation_words() {
 fn smith_turn(shape: &str) -> Box<[u8]> {
     let values = skein_codegen::values(smith_transcript::SCHEMA);
     let name = alloc::format!("record_turn_{shape}.bin");
-    for value in values.goldens.clone() {
+    for value in values.fixed.clone() {
         if value.name == name {
             return value.bytes.into_boxed_slice();
         }

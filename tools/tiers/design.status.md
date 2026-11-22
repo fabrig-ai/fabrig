@@ -1,6 +1,6 @@
 # design: status
 
-2026-11-20. Where the slow tier runner's code lags or departs from [design.md](design.md).
+2026-11-21. Where the slow tier runner's code lags or departs from [design.md](design.md).
 
 - **Present:** 11.9, the build and both profile listings share target selection for package and workspace runs.
 - **Not yet:** 10.1, 10.2, 11.9: `tools/tiers/one-process --alone` runs each flagged test once, and `summary`'s `references` rows have no `alone`, `main_alone` or `swinging` (`tools/tiers/references.md`, 5 and 6) [in flight: change 8831].
@@ -10,6 +10,8 @@
 - **Not yet:** 11.4: the lanes count CPUs with `os.sched_getaffinity` alone, which macOS's Python lacks, so a one-process run there fails before its tests start [in flight: change 9933].
 - **Not yet:** 7.3, 11.7: on macOS, which has no `/proc`, `cpu.py`'s `session_processes` cannot list a stopped command's session, so stopping one (a wall hard limit, an interrupt, a failed listing) raises `FileNotFoundError` in place of settling it. A run that ends by itself never reaches it, and the macOS workflow's parts set no wall hard limit, so nothing on their path reaches it before their tests run.
 - **Not yet:** 3, items 2 and 4 and *The places it may hold*: `hold()` takes the hold's first line as held, a `waiting` line included, bounds the wait at 60 s from the start alone, and writes no `smith-check:` line [in flight: change 9657].
+- **Not yet:** 10.2, 11.1, 11.2 (*By layer*) and 11.9: `run` and `execute_one_process` take no `selected_layers`, `tools/tiers/one-process` no `--layers`, and a run leaves out no layer (`tools/tiers/layers.md`, 9.1) [in flight: change 11541].
+- **Not yet:** 2.1 and 10.2: there is no `real-smith` pair to build `fake-claude` for, and `summary` sums no real pair's nextest run by layer (`tools/tiers/budgets.md`, 4.2) [in flight: change 11543].
 
 The gate tables' form and figures, the summary by layer, the ledger, the
 held budget and the moves are `tools/tiers/budgets.md`'s; its status has
