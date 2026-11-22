@@ -1095,31 +1095,107 @@ def finish(tree_id, base_id, errors, root, env, scope, commits, heads, lints=(),
     return summary(base_id, lints, tests, errors, None, location, warnings, scope, commits)
 
 
-def workspace_checks(root, paths, tree_id, base_id, merged, env, private, errors, outcomes, reds=(), *, completed_goal=False):
-    start = time.monotonic()
-    planner = runpy.run_path(str(Path(__file__).with_name('workspace.py')))
-    workspace = planner['owns_package']
-    metadata_needed = [p for p in paths if p.endswith('.rs') or workspace(root, p)]
-    data = metadata(root, env) if metadata_needed else {'packages': [], 'workspace_members': []}
-    code = code_inputs(metadata_needed, data, root) if metadata_needed else []
-    packages = members(data)
-    directories = package_directories(packages)
-    codec_outputs = {line.split()[0] for line in lines(root, 'tools/merge/codecs.txt')} if code else set()
-    formatted = {}
-    for path in code:
-        file = root / path
-        if path.endswith('.rs') and path not in codec_outputs and file.is_file():
-            name = owner(file, directories)
-            edition = packages[name]['edition'] if name else '2024'
-            formatted.setdefault(edition, []).append(path)
+def handwritten_rust(root, paths):
+    files = [p for p in paths if p.endswith('.rs') and (root / p).is_file() and not (root / p).is_symlink()]
+    outputs = {line.split()[0] for line in lines(root, 'tools/merge/codecs.txt')} if files else set()
+    return [p for p in files if p not in outputs]
 
-    groups, helpers = {}, {}
-    if packages:
+
+def format_commands(root, files, packages, *, copy=None):
+    directories = package_directories(packages)
+    groups = {}
+    for path in files:
+        name = owner(root / path, directories)
+        edition = packages[name]['edition'] if name else '2024'
+        config = _configuration(root / path, root)
+        groups.setdefault((edition, config), []).append(path)
+    for (edition, config), paths in groups.items():
+        args = ['rustfmt', '--check'] if copy is None else ['rustfmt']
+        if config:
+            args.extend(['--config-path', str(config)])
+        inputs = paths if copy is None else [str(copy / path) for path in paths]
+        yield [*args, '--edition', edition, '--config', 'skip_children=true', '--', *inputs]
+
+
+class FormatError(ValueError):
+    """rustfmt refused a selected source file."""
+
+
+def format_delivery(root, paths, original, scratch, git_dir, env, private):
+    """Format selected blobs in isolation, then apply the resulting patch to the worktree."""
+    files = handwritten_rust(root, paths)
+    if not files:
+        return original
+    packages = members(metadata(root, env))
+    copy = scratch / 'format'
+    copy.mkdir()
+    isolated = dict(private, GIT_DIR=str(git_dir), GIT_WORK_TREE=str(copy), GIT_LITERAL_PATHSPECS='1')
+
+    def in_copy(args, data=None):
+        return subprocess.run(['git', *args], cwd=copy, env=isolated, input=data,
+                              stdout=subprocess.PIPE, check=True).stdout
+
+    names = b''.join(os.fsencode(p) + b'\0' for p in files)
+    in_copy(['checkout-index', '-z', '--stdin'], names)
+    print(f'pre-pr: formatting {len(files)} changed Rust files', flush=True)
+    for args in format_commands(root, files, packages, copy=copy):
+        rc, log = run(args, root, env, stdout=True)
+        if rc:
+            raise FormatError(log)
+    in_copy(['add', '-u', '--pathspec-from-file=-', '--pathspec-file-nul'], names)
+    formatted = in_copy(['write-tree']).decode().strip()
+    if formatted != original:
+        diff = in_copy(['diff-tree', '-p', '--binary', '--no-renames', '--no-ext-diff', '--no-textconv',
+                        '--src-prefix=a/', '--dst-prefix=b/', original, formatted])
+        subprocess.run(['git', 'apply', '--whitespace=nowarn', '-'], input=diff, cwd=root, env=env, check=True)
+        print(f'pre-pr: checking formatted delivery tree {formatted}', flush=True)
+    return formatted
+
+
+def publication_merges(git_dir, base_id, root, env):
+    """Restore merge tips only for a published tree that passed this checkout's check."""
+    directory = git_dir / 'pre-pr-merges' / base_id
+    if not directory.is_dir():
+        return []
+    history = git(['log', '--first-parent', '--format=%T', base_id + '..HEAD'], root, env)
+    history.check_returncode()
+    for tree_id in history.stdout.decode().splitlines():
+        try:
+            tips = (directory / tree_id).read_text().splitlines()
+        except FileNotFoundError:
+            continue
+        if not all(FULL_COMMIT.fullmatch(tip) for tip in tips):
+            raise ValueError('invalid delivery merge context')
+        return tips
+    return []
+
+
+def remember_merges(git_dir, base_id, tree_id, tips):
+    directory = git_dir / 'pre-pr-merges' / base_id
+    directory.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(mode='w', dir=directory, delete=False) as file:
+        file.writelines(tip + '\n' for tip in tips)
+    os.replace(file.name, directory / tree_id)
+
+
+def workspace_checks(root, paths, tree_id, base_id, merged, env, private, errors, outcomes, reds=(), *,
+                     completed_goal=False, already_formatted=False):
+    start = time.monotonic()
+    rust_files = [] if already_formatted else handwritten_rust(root, paths)
+    package_paths = rust_files
+    if completed_goal:
+        planner = runpy.run_path(str(Path(__file__).with_name('workspace.py')))
+        package_paths = [p for p in paths if p.endswith('.rs') or planner['owns_package'](root, p)]
+    data = metadata(root, env) if package_paths else {'packages': [], 'workspace_members': []}
+    packages = members(data)
+
+    suites, rust_commands = [], ()
+    if completed_goal and packages:
         with (root / 'tools/tiers/layers.toml').open('rb') as file:
             layers = tomllib.load(file)
-        groups = planner['package_plan'](root, code, packages, layers)
-        helpers = test_binaries(data, root)
-    suites = sorted(name for targets, names in groups.items() if targets for name in names)
+        groups = planner['package_plan'](root, code_inputs(package_paths, data, root), packages, layers)
+        suites = sorted(name for targets, names in groups.items() if targets for name in names)
+        rust_commands = planner['rust_commands'](groups, test_binaries(data, root))
     print(f'pre-pr: selection: {len(paths)} changed paths, {len(suites)} test packages, '
           f'{time.monotonic() - start:.3f} s', flush=True)
 
@@ -1132,8 +1208,8 @@ def workspace_checks(root, paths, tree_id, base_id, merged, env, private, errors
             errors.append(failure(label, log))
         return rc
 
-    for edition, files in formatted.items():
-        if command('format', ['rustfmt', '--check', '--edition', edition, '--config', 'skip_children=true', '--', *files]):
+    for args in format_commands(root, rust_files, packages):
+        if command('format', args):
             return []
     for name in ('skein', 'smith', 'jig', 'temper', 'hearth'):
         if any((p.startswith(name + '/') and not documentation(p)) or p.startswith('tools/old_forms/') for p in paths):
@@ -1143,7 +1219,7 @@ def workspace_checks(root, paths, tree_id, base_id, merged, env, private, errors
         file = Path(path)
         if path in HOOKS or (path.startswith('tools/pre-pr/') and file.suffix == '.py'):
             python_suites.add('tools/pre-pr/test_pre_pr.py')
-        elif file.suffix == '.py':
+        elif completed_goal and file.suffix == '.py':
             suite = file if file.name.startswith('test_') else file.with_name('test_' + file.name)
             if (root / suite).is_file():
                 python_suites.add(str(suite))
@@ -1161,7 +1237,7 @@ def workspace_checks(root, paths, tree_id, base_id, merged, env, private, errors
     if not completed_goal and 'tools/tiers/budgets.toml' in paths:
         errors += figures(base_id or 'HEAD', tree_id, root, env, merged)[1]
     errors += journeys(base_id, tree_id, [] if completed_goal else paths, root, env)[1]
-    for args in planner['rust_commands'](groups, helpers):
+    for args in rust_commands:
         if command('focused tests' if args[1] == 'nextest' else 'build check', args):
             break
     return suites
@@ -1187,8 +1263,18 @@ def delivery(scope, commits):
         merged = merged_tips(base_id or 'HEAD', root, env, heads)
         tested = []
         try:
+            if base_id:
+                merged = list(dict.fromkeys([*merged, *publication_merges(git_dir, base_id, root, env)]))
             paths = delivery_paths(base_id or 'HEAD', tree_id, root, env, merged)
-            tested = workspace_checks(root, paths, tree_id, base_id, merged, env, private, errors, outcomes, reds)
+            if scope == 'delivery':
+                formatted = format_delivery(root, paths, tree_id, Path(directory), git_dir, env, private)
+                if formatted != tree_id:
+                    tree_id = formatted
+                    paths = delivery_paths(base_id or 'HEAD', tree_id, root, env, merged)
+            tested = workspace_checks(root, paths, tree_id, base_id, merged, env, private, errors, outcomes, reds,
+                                      already_formatted=scope == 'delivery')
+        except FormatError as error:
+            errors.append(failure('format', str(error)))
         except (OSError, ValueError, KeyError, RuntimeError, subprocess.SubprocessError) as error:
             errors.append(failure('workspace checks', str(error)))
         if scope == 'child' and policy_context(scope, commits, root, git_dir, env) != (base_id, heads):
@@ -1197,6 +1283,8 @@ def delivery(scope, commits):
         if tree_id != current:
             errors.append(failure('workspace', 'The delivery tree changed during checks'))
         inherited(reds, errors)
+        if scope == 'delivery' and base_id and merged and all(settled(error) for error in errors):
+            remember_merges(git_dir, base_id, tree_id, merged)
         verdict = finish(tree_id, base_id, errors, root, env, scope, commits, heads, tests=tested)
         if marker and scope == 'delivery':
             check_results(tree_id, base_id, verdict, reds, [], outcomes, errors, root, env)

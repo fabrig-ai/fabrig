@@ -1,4 +1,4 @@
-"""Plan the implementer's local tests from changed paths and one Cargo package map."""
+"""Plan the assembled goal's focused tests from changed paths and one Cargo package map."""
 from collections import defaultdict
 from pathlib import Path
 
