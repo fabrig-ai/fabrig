@@ -22,9 +22,6 @@
   survivor's coverage and CPU as it stood, and `reference-case.md` each
   step's holders now. Their placement is the user's to
   decide; no exception or cost-driven move resolves this departure.
-- **Not yet:** 1: the engine domain world's fuzzy module compiles `removal.rs` and `reset.rs` a second time, and the one-process world's fuzzy `upgrade` module repeats four focused cuts [in flight: change 11624].
-- **Not yet:** 1: the one-process world's two referee controls over supplied values run in its suite, not as step tests [in flight: change 11625].
-- **Not yet:** 1: the one-process world's fuzzy chat that reads then waits, and its merge in progress, have no system-world holders, so they still run on the simulator [in flight: change 11626].
 
 Section 1's budgets by layer start at the CI builder's gate figures of
 11-16 (`tools/tiers/budgets.md`, 6); where the code doesn't yet sum or judge
