@@ -187,6 +187,7 @@ pub(crate) fn restore_ask(value: w::Ask, limits: &Limits) -> Result<c::Ask, w::P
             }
             c::Ask::SetRoles { project: value.project, holdings }
         }
+        w::Ask::ReissueService(value) => c::Ask::ReissueService { party: value.party },
         w::Ask::MakeService(value) => c::Ask::MakeService {
             project: value.project,
             name: text(&value.name, limits)?,

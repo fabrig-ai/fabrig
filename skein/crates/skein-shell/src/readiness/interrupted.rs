@@ -1,7 +1,7 @@
 //! Interrupted calls at the readiness backend's seam (runtime/readiness.md, 4), each
 //! answered as the kernel would, without interrupting a real call.
 
-use super::{Config, Done, Error, Family, Fd, Op, OpenHow, Queue, Readiness, Submit, Token};
+use super::{Done, Error, Family, Fd, Op, OpenHow, Queue, Readiness, Submit, Token};
 use skein_io::kernel::{Entry, Signal, Spawn, Target};
 
 const FD: Fd = Fd::new(123);
@@ -14,7 +14,7 @@ fn attempted(
     resumed: bool,
     mut answer: impl FnMut(u32) -> Result<Done, Error>,
 ) -> (u32, Result<Done, Error>) {
-    let mut kernel = Readiness::open(Config { operations: 1 }).expect("the poller is usable");
+    let mut kernel = Readiness::without_poller(1);
     let index = kernel.free.pop().expect("one free slot");
     let token = Token::new(1);
     kernel.tokens.insert(token, index);

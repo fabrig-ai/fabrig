@@ -54,24 +54,6 @@ pub(crate) fn take_foreground(terminal: Fd) -> Result<(), Error> {
     if error == 0 { Ok(()) } else { Err(Error::Other(error)) }
 }
 
-#[cfg(test)]
-pub(crate) fn signal_mask() -> Vec<i32> {
-    // SAFETY: sigset_t is C storage; zeroing also initializes any unused storage.
-    let mut mask: libc::sigset_t = unsafe { std::mem::zeroed() };
-    // SAFETY: a null input only reads this thread's mask into live storage.
-    assert_eq!(unsafe { libc::pthread_sigmask(libc::SIG_BLOCK, ptr::null(), ptr::from_mut(&mut mask)) }, 0);
-    let bits = size_of_val(&mask).checked_mul(8).expect("signal set bits fit");
-    let mut members = Vec::new();
-    // The set's storage bounds all signal numbers; unsupported numbers return -1.
-    for signal in 1..=i32::try_from(bits).expect("signal numbers fit") {
-        // SAFETY: mask is initialized; sigismember only reads it during this call.
-        if unsafe { libc::sigismember(ptr::from_ref(&mask), signal) } == 1 {
-            members.push(signal);
-        }
-    }
-    members
-}
-
 fn read(fd: Fd) -> Result<libc::termios, Error> {
     let mut modes = MaybeUninit::uninit();
     // SAFETY: tcgetattr writes a complete termios into this live allocation.

@@ -27,6 +27,10 @@ mod terminal;
 mod tools;
 mod turn_landing;
 
+mod world {
+    mod teardown;
+}
+
 mod fuzzy {
     mod case_4_1_4_3;
     mod case_4_4;

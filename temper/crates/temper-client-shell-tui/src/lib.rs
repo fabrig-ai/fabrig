@@ -8,3 +8,8 @@ pub mod loopback;
 pub mod opener;
 pub mod run;
 pub mod start;
+
+#[doc(hidden)]
+pub mod testing {
+    pub use crate::start::testing::{deployment, origin};
+}

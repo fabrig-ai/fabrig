@@ -126,26 +126,26 @@ pub(crate) const EMPTY: wire::Limits = wire::Limits {
 pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
     let rules = u32::try_from(
         u64::from(domain.result_bytes.min(domain::VERDICT_FIELDS))
-            .checked_mul(wire::FieldRule::encoded_bound(&EMPTY)?.checked_add(4)?)?
+            .checked_mul(wire::FieldRule::ENCODED_AT_ZERO.checked_add(4)?)?
             .checked_add(u64::from(domain.result_bytes))?,
     )
     .ok()?;
     let fields = u32::try_from(
         u64::from(domain.result_bytes.min(domain::VERDICT_FIELDS))
-            .checked_mul(wire::ResultField::encoded_bound(&EMPTY)?.checked_add(4)?)?
+            .checked_mul(wire::ResultField::ENCODED_AT_ZERO.checked_add(4)?)?
             .checked_add(u64::from(domain.result_bytes))?,
     )
     .ok()?;
     let creations = super::people::pieces::piece_bound(
         domain.batch_bytes,
         size_of::<domain::New>(),
-        wire::Creation::encoded_bound(&EMPTY)?,
+        wire::Creation::ENCODED_AT_ZERO,
         true,
     )?;
     let members = super::people::pieces::piece_bound(
         domain.batch_bytes,
         size_of::<domain::New>(),
-        wire::Member::encoded_bound(&EMPTY)?,
+        wire::Member::ENCODED_AT_ZERO,
         true,
     )?;
     let limits = wire::Limits {
@@ -171,7 +171,7 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
         segment_bytes: domain.hold_bytes,
         name_path: u32::try_from(
             u64::from(domain.hold_segments)
-                .checked_mul(wire::Segment::encoded_bound(&EMPTY)?.checked_add(4)?)?
+                .checked_mul(wire::Segment::ENCODED_AT_ZERO.checked_add(4)?)?
                 .checked_add(u64::from(domain.hold_bytes))?,
         )
         .ok()?,
@@ -181,7 +181,7 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
         job_result_bytes: domain.result_bytes,
         spec_parameters: u32::try_from(
             u64::from(domain.parameters)
-                .checked_mul(wire::Parameter::encoded_bound(&EMPTY)?.checked_add(4)?)?
+                .checked_mul(wire::Parameter::ENCODED_AT_ZERO.checked_add(4)?)?
                 .checked_add(u64::from(domain.spec_bytes))?,
         )
         .ok()?,
@@ -189,7 +189,7 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
         part_segment_bytes: domain.hold_bytes,
         part_path_segments: u32::try_from(
             u64::from(domain.hold_segments)
-                .checked_mul(wire::PartSegment::encoded_bound(&EMPTY)?.checked_add(4)?)?
+                .checked_mul(wire::PartSegment::ENCODED_AT_ZERO.checked_add(4)?)?
                 .checked_add(u64::from(domain.hold_bytes))?,
         )
         .ok()?,
@@ -204,16 +204,16 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
         pattern_segments: domain.authority_segments,
         authority_grants: u32::try_from(
             u64::from(domain.authority_grants)
-                .checked_mul(wire::Grant::encoded_bound(&EMPTY)?.checked_add(4)?.checked_add(
-                    u64::from(domain.authority_segments).checked_mul(wire::AuthoritySegment::encoded_bound(&EMPTY)?)?,
+                .checked_mul(wire::Grant::ENCODED_AT_ZERO.checked_add(4)?.checked_add(
+                    u64::from(domain.authority_segments).checked_mul(wire::AuthoritySegment::ENCODED_AT_ZERO)?,
                 )?)?
                 .checked_add(u64::from(domain.authority_bytes))?,
         )
         .ok()?,
         authority_note_resources: u32::try_from(
             u64::from(domain.authority_grants)
-                .checked_mul(wire::ResourceScope::encoded_bound(&EMPTY)?.checked_add(4)?.checked_add(
-                    u64::from(domain.authority_segments).checked_mul(wire::AuthoritySegment::encoded_bound(&EMPTY)?)?,
+                .checked_mul(wire::ResourceScope::ENCODED_AT_ZERO.checked_add(4)?.checked_add(
+                    u64::from(domain.authority_segments).checked_mul(wire::AuthoritySegment::ENCODED_AT_ZERO)?,
                 )?)?
                 .checked_add(u64::from(domain.authority_bytes))?,
         )
@@ -251,7 +251,7 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
         recurring_state_last_batch: domain.batch,
         saved_resource_path: u32::try_from(
             u64::from(domain.authority_segments)
-                .checked_mul(wire::AuthoritySegment::encoded_bound(&EMPTY)?.checked_add(4)?)?
+                .checked_mul(wire::AuthoritySegment::ENCODED_AT_ZERO.checked_add(4)?)?
                 .checked_add(u64::from(domain.authority_bytes))?,
         )
         .ok()?,

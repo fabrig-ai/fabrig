@@ -1,12 +1,6 @@
 //! Fixed journey inputs (temper/docs/design/client/journey-walks.md, 3.2).
 
-use rand_chacha::{ChaCha20Rng, rand_core::SeedableRng};
-use rsa::{
-    RsaPrivateKey,
-    pkcs8::{EncodePrivateKey, LineEnding},
-};
 use skein_lib::{Secret, Wall};
-use std::cell::RefCell;
 use temper_fake::{backends, credential, llm, oauth};
 use temper_playground::{documents, stories, story::Start};
 
@@ -63,27 +57,17 @@ pub fn start(scripts: Option<&[u8]>) -> Result<Start, String> {
     Ok(start)
 }
 
-thread_local! {
-    // Amortize RSA generation across the fixed-seed worlds in a print or test run.
-    static PROVIDER_PEM: RefCell<Option<(u64, Secret)>> = const { RefCell::new(None) };
-}
+/// The provider's signing key: the 3072-bit RSA key `SEED` drew, kept as a
+/// fixture so that no walk spends its start drawing one.
+const PROVIDER_PEM: &[u8] = include_bytes!("provider.pem");
 
 /// Only walks opt into the box's provider. The key is a synthetic world input,
 /// not a host credential.
-pub(crate) fn prepare(disk: &mut skein_fake_machine::Machine, document: &documents::Configuration, seed: u64) {
+pub(crate) fn prepare(disk: &mut skein_fake_machine::Machine, document: &documents::Configuration) {
     if document["engine"]["clients"]["provider"].is_null() {
         return;
     }
-    PROVIDER_PEM.with_borrow_mut(|cached| {
-        if cached.as_ref().is_none_or(|(held, _)| *held != seed) {
-            let mut rng = ChaCha20Rng::seed_from_u64(seed);
-            let key = RsaPrivateKey::new(&mut rng, 3072).expect("seeded world RSA key");
-            let pem = key.to_pkcs8_pem(LineEnding::LF).expect("world provider PKCS#8");
-            *cached = Some((seed, Secret::new(pem.as_bytes().into())));
-        }
-        let (_, pem) = cached.as_ref().expect("seeded provider PEM");
-        temper_playground::machine::lay_handover(disk, b"/setup/provider.key", pem.expose());
-    });
+    temper_playground::machine::lay_handover(disk, b"/setup/provider.key", PROVIDER_PEM);
 }
 
 /// As with the composition's other private files, startup receives the contents

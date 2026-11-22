@@ -64,7 +64,7 @@ pub(crate) fn action(ask: &Ask, person: u64) -> CapacityAction {
         Ask::Compound { .. } => CapacityAction::Compound,
         Ask::Application { connector, .. } => CapacityAction::Application { connector: *connector },
         Ask::EditNote { name, .. } => CapacityAction::Note { name: *name },
-        Ask::MakeService { .. } => CapacityAction::Service,
+        Ask::MakeService { .. } | Ask::ReissueService { .. } => CapacityAction::Service,
         Ask::Adopt { .. } => CapacityAction::Adoption,
         Ask::SetRoles { .. } => CapacityAction::Roles,
         Ask::ChangeSettings { .. }
@@ -108,9 +108,10 @@ pub(crate) fn action(ask: &Ask, person: u64) -> CapacityAction {
 pub(crate) fn project(ask: &Ask) -> Option<u32> {
     match ask.family() {
         AskFamily::Project(project) | AskFamily::Application(ApplicationScope::Project(project)) => Some(project),
-        AskFamily::Restore | AskFamily::Deployment | AskFamily::Application(ApplicationScope::Deployment) => {
-            Some(crate::DEPLOYMENT)
-        }
+        AskFamily::Restore
+        | AskFamily::Deployment
+        | AskFamily::ReissueService
+        | AskFamily::Application(ApplicationScope::Deployment) => Some(crate::DEPLOYMENT),
         AskFamily::Application(ApplicationScope::Own) | AskFamily::Account | AskFamily::Lift | AskFamily::Seen => None,
     }
 }

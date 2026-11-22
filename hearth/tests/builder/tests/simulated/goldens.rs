@@ -1,5 +1,7 @@
 use hearth_builder_world::fixtures;
 use hearth_test_render::golden;
+use skein_scratch::paths;
+use std::fs;
 
 const SYNTAX: &[(&str, &str)] = &[
     ("condition", "{% if "),
@@ -27,13 +29,14 @@ const SYNTAX: &[(&str, &str)] = &[
 ];
 #[test]
 fn templates_cover_every_statement_and_filter_format_md_names() {
-    let golden = golden::load("templates");
-    let source = golden
-        .tree
-        .iter()
-        .filter(|leaf| leaf.path.ends_with(b".j2"))
-        .map(|leaf| std::str::from_utf8(&leaf.bytes).expect("template text"))
-        .collect::<String>();
+    let root = paths::tree().join("tests/render/templates/tasks/syntax/tree/etc/syntax");
+    let mut templates: Vec<_> = fs::read_dir(root)
+        .expect("syntax templates")
+        .map(|entry| entry.expect("syntax template").path())
+        .filter(|path| path.extension().is_some_and(|extension| extension == "j2"))
+        .collect();
+    templates.sort();
+    let source = templates.into_iter().map(|path| fs::read_to_string(path).expect("template text")).collect::<String>();
     for &(name, needle) in SYNTAX {
         assert!(source.contains(needle), "missing {name}");
     }
@@ -81,23 +84,17 @@ fn x1_prod_prints_render_md_9_2s_lines() {
 
 #[test]
 fn the_exports_golden_holds_hearth_20s_vpn_files() {
-    let golden = golden::load("exports");
+    let root = paths::tree().join("tests/render/exports");
     for file in fixtures::VPN {
-        let leaf = golden.tree.iter().find(|leaf| leaf.path == file.path.as_bytes()).expect(file.path);
-        assert_eq!(leaf.bytes, file.body, "{}", file.path);
+        let bytes = fs::read(root.join(file.path)).expect(file.path);
+        assert_eq!(bytes, file.body, "{}", file.path);
     }
 }
 
 #[test]
 fn the_tool_and_resolution_errors_print_through_the_protocol_world() {
-    for (name, call, _) in fixtures::PROTOCOL_ERRORS {
-        fixtures::protocol_golden(name, *call).check();
-    }
-}
-#[test]
-fn protocol_error_cases_exit_with_their_cause_class() {
-    for (name, call, code) in fixtures::PROTOCOL_ERRORS {
-        assert_eq!(fixtures::protocol_golden(name, *call).run.code, *code, "{name}");
+    for &(name, call) in fixtures::PROTOCOL_ERRORS {
+        fixtures::check_protocol_golden(name, call);
     }
 }
 

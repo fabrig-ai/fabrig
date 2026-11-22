@@ -104,3 +104,13 @@ fn status(result: i32) -> Result<(), i32> {
 #[cfg(test)]
 #[path = "listener_tests.rs"]
 mod tests;
+
+pub(crate) mod testing {
+    use skein_io::kernel::Fd;
+
+    pub const NO_ACCEPTCONN: bool = super::NO_ACCEPTCONN;
+
+    pub fn option(fd: Fd, name: i32) -> Result<i32, i32> {
+        super::option(fd, name)
+    }
+}

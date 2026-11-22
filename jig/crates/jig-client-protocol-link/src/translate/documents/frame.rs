@@ -92,6 +92,7 @@ pub(crate) fn frame_fields(value: &w::Me, limits: &Limits) -> Result<c::Me, w::P
         key_bytes: value.key_bytes,
         redirect_bytes: value.redirect_bytes,
         words_bytes: value.words_bytes,
+        sign_in_expires: Wall::from_nanos(value.sign_in_expires),
         party: frame_party_fields(&value.party, limits)?,
         projects: list0,
         needs: needs_fields(&value.needs),

@@ -11,5 +11,3 @@
 - **Not yet:** 6, *A way names it*: Draft first's kind 15, `charter 14`, and its triager started by the way's act [in flight: change 748].
 - **Not yet:** 7, *Through*: `temper ctl`'s `finding` group [in flight: change 749].
 - **Not yet:** 7, *Through*: the agents' `finding` tool [in flight: change 750].
-- **Not yet:** 7: the act `blame` on red findings [in flight: change 10617].
-- **Not yet:** 7: the act `repair` on red findings [in flight: change 10621].

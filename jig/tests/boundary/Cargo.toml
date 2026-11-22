@@ -27,4 +27,4 @@ disallowed_macros = "deny"
 disallowed_methods = "deny"
 
 [dev-dependencies]
-serde_json.workspace = true
+toml.workspace = true

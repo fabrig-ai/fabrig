@@ -136,7 +136,7 @@ fn toml_worker_claude_wins_then_path_then_fetched_in_written_configuration() {
 fn the_workers_watchdog_covers_stock_agent_figures_and_a_sixty_minute_tool() {
     use jig_protocol_worker_wire as w;
     use skein_lib::Duration;
-    let scratch = skein_scratch::Scratch::new("derived-agent-watchdog");
+    let data = std::path::Path::new("/fixture/worker");
     let mut input: serde_json::Value =
         serde_json::from_slice(&temper_config_shell::init_document(true)).expect("stock box document");
     input["engine"]["clients"]["provider"] = serde_json::Value::Null;
@@ -156,15 +156,22 @@ fn the_workers_watchdog_covers_stock_agent_figures_and_a_sixty_minute_tool() {
             agents.profile = profile;
             parts.agents = agents;
         }
+        for endpoint in parts.agents.endpoints.iter_mut() {
+            endpoint.host = b"127.0.0.1".as_slice().into();
+            endpoint.transport = w::Transport::Plaintext;
+        }
         let figures = parts;
-        let bytes =
-            agent::figures::configuration(&figures, Some(std::path::Path::new("/fixture/claude")), scratch.path(), &[])
-                .expect("agent document from engine figures");
+        let bytes = agent::figures::configuration(&figures, Some(std::path::Path::new("/fixture/claude")), data, &[])
+            .expect("agent document from engine figures");
         let configured =
             agent::decoded_bytes(&bytes).expect("decode document").resolve(&mut Vec::new()).expect("derive agent");
         let tool_deadline = configured.service.limits.domain.session.tools.tool_deadline;
         let endpoints = configured.service.domain.limits;
-        let prepared = agent::prepare_bytes(bytes).expect("worker agent settings");
+        let prepared = agent::prepare_bytes_with(bytes, &mut Vec::new(), |directory| {
+            assert_eq!(directory, data.join("programs"));
+            Ok(())
+        })
+        .expect("worker agent settings");
         let host = prepared.agent.host_limits;
         assert_eq!(host.no_progress, Duration::from_secs(expected_seconds));
         assert!(host.no_progress >= tool_deadline);
@@ -265,15 +272,15 @@ fn worker_inputs_refuse_the_old_file_and_validate_derived_program_and_claude() {
 }
 #[test]
 fn claude_lookup_requires_an_absolute_path_entry_and_executable_file() {
-    let scratch = skein_scratch::Scratch::new("claude-path");
-    let path = [(Box::from(b"PATH".as_slice()), Box::from(scratch.path().as_os_str().as_bytes()))];
-    assert_eq!(worker::find_claude(&[]), None);
-    let claude = scratch.path().join("claude");
-    fs::write(&claude, b"claude").expect("claude");
-    assert_eq!(worker::find_claude(&path), None);
-    fs::set_permissions(&claude, fs::Permissions::from_mode(0o700)).expect("executable");
-    assert_eq!(worker::find_claude(&path), Some(claude));
-    assert_eq!(worker::find_claude(&[(Box::from(b"PATH".as_slice()), Box::from(b"relative".as_slice()))]), None);
+    let path = [(Box::from(b"PATH".as_slice()), Box::from(b"/fixture/bin".as_slice()))];
+    assert_eq!(worker::find_claude_with(&[], |_| false), None);
+    let claude = std::path::PathBuf::from("/fixture/bin/claude");
+    assert_eq!(worker::find_claude_with(&path, |_| false), None);
+    assert_eq!(worker::find_claude_with(&path, |candidate| candidate == claude), Some(claude));
+    assert_eq!(
+        worker::find_claude_with(&[(Box::from(b"PATH".as_slice()), Box::from(b"relative".as_slice()))], |_| true),
+        None
+    );
 }
 
 #[test]

@@ -11,13 +11,13 @@ fn checkpoints_carry_the_request_and_both_terminal_forms_at_current_version() {
     assert_eq!(crate::requesting(&request).as_ref(), request_bytes);
     assert_eq!(crate::decode_requesting(&request_bytes, &w::CEILINGS), Some(request));
     let checkpoint =
-        w::Checkpointed::decode(&w::CEILINGS, &mut Reader::new(super::golden("record_checkpointed_smallest.bin")))
+        w::Checkpointed::decode(&w::CEILINGS, &mut Reader::new(super::fixed_value("record_checkpointed_smallest.bin")))
             .unwrap();
     let success = w::Outcome::Checkpointed(checkpoint);
-    let golden = super::golden("enum_outcome_checkpointed_smallest.bin");
-    let mut writer = skein_lib::Writer::new(golden.len().checked_add(2).unwrap());
+    let fixed_value = super::fixed_value("enum_outcome_checkpointed_smallest.bin");
+    let mut writer = skein_lib::Writer::new(fixed_value.len().checked_add(2).unwrap());
     writer.put(&[high, low]).unwrap();
-    writer.put(golden).unwrap();
+    writer.put(fixed_value).unwrap();
     let success_bytes = writer.finish();
     let refused = w::Outcome::CheckpointRefused(w::CheckpointRefused { why: w::CheckpointWhy::NotOwner });
     for (outcome, bytes) in [(success, success_bytes), (refused, Box::from([high, low, 41, 0]))] {

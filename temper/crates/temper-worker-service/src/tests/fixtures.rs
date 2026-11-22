@@ -1,11 +1,13 @@
 use crate::settings;
+pub use crate::testing::fixtures::DIALECT;
+pub(crate) use crate::testing::fixtures::WORKER_SECRET;
 use jig_domain_link::{Bounds, EndpointBound};
-pub const DIALECT: u32 = 3;
-mod agent;
 mod worker;
 mod worker_git;
 pub(crate) mod worker_peers;
-pub use agent::agent;
+pub fn agent() -> settings::Agent {
+    crate::testing::fixtures::agent(smith_agent_world::LIMITS.run)
+}
 pub use worker::*;
 pub use worker_git::*;
 pub fn wire_limits() -> temper_protocol_worker_wire::v1::Limits {

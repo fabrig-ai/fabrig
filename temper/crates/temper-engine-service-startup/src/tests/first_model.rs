@@ -310,8 +310,13 @@ impl StockBox {
 
     fn me(&mut self) -> wire::Me {
         let frame = self.frame();
-        jig_protocol_engine_clients::translate::owner::frame(&frame, &self.client_models, &self.client_limits.wire)
-            .expect("stock me fits the client wire")
+        jig_protocol_engine_clients::translate::owner::frame(
+            &frame,
+            skein_lib::Wall::from_nanos(86_400_000_000_000),
+            &self.client_models,
+            &self.client_limits.wire,
+        )
+        .expect("stock me fits the client wire")
     }
 
     fn assert_offer(&mut self, expected: &[(&[u8], &[u8])]) {
@@ -824,9 +829,13 @@ fn init_limits_hold_seven_models_and_five_previews_per_project_on_the_wire() {
     frame.login.bytes = skein_lib::bytes::zeroed(usize::try_from(limits.documents.text_bytes).unwrap());
     frame.login.bytes.fill(b'l');
     frame.name.bytes.clone_from(&frame.login.bytes);
-    let record =
-        jig_protocol_engine_clients::translate::owner::frame(&frame, &world.client_models, &world.client_limits.wire)
-            .expect("init's largest me translates to the client wire");
+    let record = jig_protocol_engine_clients::translate::owner::frame(
+        &frame,
+        skein_lib::Wall::from_nanos(86_400_000_000_000),
+        &world.client_models,
+        &world.client_limits.wire,
+    )
+    .expect("init's largest me translates to the client wire");
     assert!(
         record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")
             <= world.client_limits.message_bytes,

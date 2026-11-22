@@ -596,6 +596,7 @@ impl World {
                                 ask.as_ref(),
                                 Ask::Lift { .. }
                                     | Ask::MarkSeen { .. }
+                                    | Ask::ReissueService { .. }
                                     | Ask::AccountSignIn { .. }
                                     | Ask::AccountSignOut { .. }
                                     | Ask::AccountChange { .. }
@@ -619,6 +620,7 @@ impl World {
                             RouteKind::TakePerson
                         }
                         Ask::Compound { .. }
+                        | Ask::ReissueService { .. }
                         | Ask::Lift { .. }
                         | Ask::MarkSeen { .. }
                         | Ask::Release { .. }
@@ -838,6 +840,14 @@ impl World {
                                     &mut self.out,
                                 );
                             }
+                            Ask::ReissueService { .. } => {
+                                people::step(
+                                    &mut self.domain,
+                                    &self.env,
+                                    Event::ReissueService { request },
+                                    &mut self.out,
+                                );
+                            }
                             Ask::Propose { action: people::Action::Settings { .. }, .. } => {
                                 let proposal = self.name();
                                 people::step(
@@ -1046,6 +1056,7 @@ impl World {
                                         | Ask::AnswerPerson { .. } => Outcome::Refused(Refusal::NotWaiting),
                                         Ask::Compound { .. }
                                         | Ask::MarkSeen { .. }
+                                        | Ask::ReissueService { .. }
                                         | Ask::Application { .. }
                                         | Ask::EditNote { .. }
                                         | Ask::MakeService { .. }

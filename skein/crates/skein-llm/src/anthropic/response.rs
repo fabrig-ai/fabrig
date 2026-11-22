@@ -438,8 +438,8 @@ impl StreamDecoder {
             },
             Delta::Arguments { text: fragment } => match active {
                 Active::ToolCall { input, fragmented, too_large, bytes, .. } => {
-                    if !*fragmented {
-                        // The start's `{}` is a placeholder, replaced by partial_json.
+                    if !*fragmented && (!fragment.is_empty() || long.is_some()) {
+                        // Replace the start object when the first argument bytes arrive.
                         input.clear();
                         *bytes = 0;
                         *too_large = false;

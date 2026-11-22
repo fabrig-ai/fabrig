@@ -8,9 +8,9 @@ use wire::Record;
 #[test]
 fn placed_hold_smallest_and_full_fixed_rule_values_round_trip() {
     let values = skein_codegen::values(values::TASKS);
-    let goldens = values.goldens.clone();
+    let fixed_values = values.fixed.clone();
     for name in ["record_placed_hold_smallest.bin", "record_placed_hold_full.bin"] {
-        let bytes = goldens.iter().find(|value| value.name == name).expect("placed hold value").bytes.as_slice();
+        let bytes = fixed_values.iter().find(|value| value.name == name).expect("placed hold value").bytes.as_slice();
         let mut reader = Reader::new(bytes);
         let hold = wire::PlacedHold::decode(&wire::CEILINGS, &mut reader).expect("placed hold value");
         assert!(reader.is_empty());

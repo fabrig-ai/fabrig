@@ -31,8 +31,7 @@ fn kind() -> tooling::Kind {
 
 /// A merge in progress, the scripted command, delivery, answer and teardown
 /// (temper/docs/design/domain/worker/jobs.md).
-#[must_use]
-pub fn run(seed: u64, case: Case) -> Report {
+pub fn run(seed: u64, case: Case) -> Result<Report, String> {
     let mut limits = crate::limits();
     limits.checkout.conflicts = 1;
     limits.checkout.path_bytes = 64;
@@ -40,11 +39,11 @@ pub fn run(seed: u64, case: Case) -> Report {
     world.repository = b"fabrig".as_slice().into();
     let head = world.forge.advance(REMOTE, b"topic", b"code", b"head\n");
     let base = world.forge.advance(REMOTE, b"main", b"code", b"base\n");
-    world.event(Event::Ready);
+    world.event(Event::Ready)?;
     assert_eq!(world.report.kinds.as_ref(), [kind().bound]);
-    assign(&mut world, head, base);
-    let owner = world.start(b"fabrig/tools/merge");
-    command(&mut world, owner, head, base, case);
+    assign(&mut world, head, base)?;
+    let owner = world.start(b"fabrig/tools/merge")?;
+    command(&mut world, owner, head, base, case)?;
     let commit = world.forge.branch(REMOTE, b"topic").expect("delivery branch");
     let answer = world.report.answer.as_ref().expect("one terminal answer");
     match case {
@@ -72,14 +71,14 @@ pub fn run(seed: u64, case: Case) -> Report {
     world.report.tree = world.forge.tree(commit);
     assert_eq!(world.domain.workspaces(), 0);
     assert_eq!(world.domain.agent().agents(), 0);
-    world.event(Event::Link(host::LinkDown::Acknowledge { run: RUN, attempt: ATTEMPT }));
+    world.event(Event::Link(host::LinkDown::Acknowledge { run: RUN, attempt: ATTEMPT }))?;
     assert_eq!(world.domain.kept_answers(), 0);
-    world.event(Event::Shutdown { drain: true });
+    world.event(Event::Shutdown { drain: true })?;
     assert_eq!(world.stops, 1);
-    world.report
+    Ok(world.report)
 }
 
-fn assign(world: &mut World, head: u64, base: u64) {
+fn assign(world: &mut World, head: u64, base: u64) -> Result<(), String> {
     world.event(Event::AssignJob {
         job: host::JobAssignment {
             run: RUN,
@@ -113,10 +112,11 @@ fn assign(world: &mut World, head: u64, base: u64) {
             command: b"fabrig/tools/merge".as_slice().into(),
             request: b"request".as_slice().into(),
         }),
-    });
+    })?;
+    Ok(())
 }
 
-fn command(world: &mut World, owner: Token, head: u64, base: u64, case: Case) {
+fn command(world: &mut World, owner: Token, head: u64, base: u64, case: Case) -> Result<(), String> {
     let workspace = world.workspace.expect("merge checkout prepared");
     let directory = translate::dir(workspace);
     let repository = [directory.as_slice(), b"/fabrig"].concat();
@@ -144,19 +144,20 @@ fn command(world: &mut World, owner: Token, head: u64, base: u64, case: Case) {
             exit: tooling::Exit::Code(if case == Case::Left { 3 } else { 0 }),
             tail: Box::new([]),
         },
-    });
+    })?;
     let (read_owner, op) = world.operations.pop_front().expect("read command result");
     assert_eq!(read_owner, owner);
     let tooling::Request::Read { owner: inner, path, most } = op else { panic!("read result") };
     assert_eq!(inner, owner);
     assert_eq!(path.as_ref(), format!("workspaces/{}/result.json", workspace.raw()).as_bytes());
     assert_eq!(most, 512);
-    world.event(Event::Job { owner, event: tooling::Event::Read { owner, bytes: Some(result.into()) } });
+    world.event(Event::Job { owner, event: tooling::Event::Read { owner, bytes: Some(result.into()) } })?;
     if case == Case::Settled {
         assert!(world.report.answer.is_none(), "push before answer");
-        world.pushed(false);
+        world.pushed(false)?;
     }
     assert!(world.report.answer.is_none(), "process gone before answer");
-    world.event(Event::Job { owner, event: tooling::Event::Gone { owner } });
+    world.event(Event::Job { owner, event: tooling::Event::Gone { owner } })?;
     assert!(world.operations.is_empty());
+    Ok(())
 }

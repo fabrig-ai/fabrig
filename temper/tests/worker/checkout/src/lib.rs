@@ -30,6 +30,7 @@
 //! crossed the boundary unless some were dropped.
 
 pub mod client;
+mod faults;
 pub mod forge;
 /// The hosted fake git's fixtures, shared by the worlds that host it.
 pub mod hosted;

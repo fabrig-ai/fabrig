@@ -81,8 +81,16 @@ pub fn answer_family(family: u16, version: u32) -> Box<[u8]> {
     encoded_answer(&w::KeyedAnswer::FinalAnswer(record))
 }
 pub fn answer_done_service(credential: &[u8]) -> Box<[u8]> {
-    let row = w::MadeService { party: 7, credential: skein_lib::Secret::new(Box::from(credential)) };
-    let made = w::OutcomeMade { what: w::Made::Service(row) };
+    answer_service(w::Made::Service(service(credential)))
+}
+pub fn answer_reissued_service(credential: &[u8]) -> Box<[u8]> {
+    answer_service(w::Made::Reissued(service(credential)))
+}
+fn service(credential: &[u8]) -> w::MadeService {
+    w::MadeService { party: 7, credential: skein_lib::Secret::new(Box::from(credential)) }
+}
+fn answer_service(what: w::Made) -> Box<[u8]> {
+    let made = w::OutcomeMade { what };
     final_answer(w::Final::Done(w::Done { outcome: w::Outcome::Made(made) }))
 }
 pub fn answer_busy() -> Box<[u8]> {

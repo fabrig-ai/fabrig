@@ -1101,6 +1101,7 @@ fn frame(projects: u32) -> c::Me {
         key_bytes: 256,
         redirect_bytes: 256,
         words_bytes: 512,
+        sign_in_expires: Wall::from_nanos(86_400_000_000_000),
         party: c::MeParty { number: 1, kind: c::PartyKind::Person, login: text(b"person"), name: text(b"Person") },
         projects: List::from_boxed(projects.into_boxed_slice()),
         needs: c::Needs { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 },
