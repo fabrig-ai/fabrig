@@ -44,14 +44,14 @@ fn arbitrary(seed: u64, check: fn(&[u8])) {
 }
 fn mutated(text: &'static str, seed: u64, check: fn(&[u8])) {
     let values = skein_codegen::values(text);
-    let mut goldens = values.goldens.clone();
-    goldens.sort_by(|left, right| left.name.cmp(&right.name));
+    let mut fixed_values = values.fixed.clone();
+    fixed_values.sort_by(|left, right| left.name.cmp(&right.name));
     let mut rng = Rng::new(seed);
-    for golden in goldens.into_iter().filter(|value| value.name.ends_with("_full.bin")) {
-        let golden = golden.bytes;
-        check(&golden);
+    for fixed_value in fixed_values.into_iter().filter(|value| value.name.ends_with("_full.bin")) {
+        let fixed_value = fixed_value.bytes;
+        check(&fixed_value);
         for _ in 0_u32..100 {
-            let mut bytes = golden.clone();
+            let mut bytes = fixed_value.clone();
             if !bytes.is_empty() {
                 let index = usize::try_from(rng.below(len_u64(bytes.len()))).expect("index fits");
                 *bytes.get_mut(index).expect("chosen byte") = u8::try_from(rng.next_u64() & 0xff).expect("low byte");

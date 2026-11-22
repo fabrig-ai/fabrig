@@ -366,6 +366,77 @@ fn failure_to_open_trash_is_reported_and_retried() {
 }
 
 #[test]
+fn an_unremovable_trash_entry_holds_back_no_other() {
+    let mut component = fixtures::Started::sweep_pending();
+    component.open_sweep();
+    sweep_file(&mut component, b"first", Err(Error::Permission));
+    sweep_file(&mut component, b"later", Ok(kernel::Done::Nothing));
+    component.end_sweep();
+    report(&mut component, b"trash/first", Error::Permission);
+    assert_eq!(component.component.sweep_state(), (true, 1, true, Some(1000)));
+    component.open_sweep();
+    sweep_file(&mut component, b"first", Err(Error::Permission));
+    component.end_sweep();
+    assert_eq!(component.component.sweep_state(), (true, 2, true, Some(1000)));
+    assert_eq!(component.component.next_deadline(), Some(component.now.saturating_add(MINUTE)));
+    assert!(component.below.out.kernel.is_empty());
+}
+
+#[test]
+fn each_refused_trash_removal_is_counted_across_passes() {
+    let mut component = fixtures::Started::sweep_pending();
+    component.open_sweep();
+    sweep_file(&mut component, b"first", Err(Error::Permission));
+    sweep_file(&mut component, b"second", Err(Error::Permission));
+    sweep_file(&mut component, b"third", Ok(kernel::Done::Nothing));
+    component.end_sweep();
+    assert_eq!(component.component.sweep_state(), (true, 2, true, Some(1000)));
+    component.open_sweep();
+    sweep_file(&mut component, b"first", Err(Error::Permission));
+    sweep_file(&mut component, b"second", Err(Error::Permission));
+    component.end_sweep();
+    assert_eq!(component.component.sweep_state(), (true, 4, true, Some(1000)));
+}
+
+#[test]
+#[ignore = "worker disk: the sweep starts a pass only at a Make, a start or its retry, so what a Store or a run's git directory made again sets aside waits for the next (temper/docs/design/protocol/git-sweep.md, 4)"]
+fn what_a_store_sets_aside_is_swept_without_a_make() {
+    let mut component = fixtures::Started::laid_out();
+    assert_eq!(component.component.sweep_state(), (false, 0, false, Some(1000)));
+    component.down(Request::Io {
+        owner: fixtures::OWNER,
+        op: git::Op::Store {
+            store: skein_lib::Token::new(9),
+            aside: Some(skein_lib::Token::new(8)),
+            remote: Box::from(fixtures::REMOTE),
+            identity: 1,
+            account: None,
+            git: None,
+        },
+        deadline: fixtures::DEADLINE,
+        identity: Some(fixtures::identity()),
+    });
+    assert_eq!(component.file_operation(), rename(fixtures::STORES, b"8", b"1000"));
+    component.complete_ok();
+    assert_eq!(
+        component.file_operation(),
+        Op::Open { root: fixtures::STORES, path: Box::from(b"9".as_slice()), how: OpenHow::DirectoryNoFollow }
+    );
+    component.complete_ok();
+    assert_eq!(component.file_operation(), Op::Close { fd: fixtures::WORKSPACES });
+    component.complete_ok();
+    assert_eq!(component.done(), Some((fixtures::OWNER, git::Done::Succeeded)));
+    assert!(!component.below.out.kernel.is_empty(), "Store's aside must start a sweep without Make or start");
+    component.open_sweep();
+    open_parent(&mut component, b"1000", b"trash/1000");
+    close_parent(&mut component, b"1000");
+    component.complete_ok();
+    component.end_sweep();
+    component.empty_sweep();
+    assert_eq!(component.component.sweep_state(), (false, 0, false, Some(1001)));
+}
+
+#[test]
 fn no_sweep_pass_starts_after_shutdown() {
     let mut component = fixtures::Started::sweep_pending();
     component.open_sweep();

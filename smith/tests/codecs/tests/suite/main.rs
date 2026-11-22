@@ -3,7 +3,7 @@ static HEAP: skein_heap::Counting = skein_heap::Counting;
 
 mod support {
     pub(crate) mod events;
-    pub(crate) mod goldens;
+    pub(crate) mod fixed_values;
     pub(crate) mod patches;
     pub(crate) mod wire;
 }

@@ -14,6 +14,17 @@ pub(crate) mod programs;
 mod providers;
 pub(super) mod relationships;
 
+#[cfg(test)]
+pub(super) fn agent_document_with(
+    settings: &Settings,
+    is_executable: impl Fn(&std::path::Path) -> bool,
+) -> Result<serde_json::Value, super::Refusal> {
+    let Selection { models: active, mut settings, .. } = select(settings)?;
+    let models = models::resolve(&mut settings, &active)?;
+    let profile = document::profile(&settings)?;
+    agent_document(&settings, &models, &profile, is_executable)
+}
+
 /// Main first, followed by eligible child models, with their needed accounts.
 #[derive(Debug)]
 pub struct Selection {
@@ -80,24 +91,7 @@ pub(crate) fn build(selection: Selection, document: bool) -> Result<(Resolved, B
     let profile = smith_agent_shell::config::profile_from_value(profile_document.clone())
         .map_err(|why| relationships::native(&settings, &models, why))?;
     relationships::budget(&settings, &profile)?;
-    let endpoints = document::endpoints(&settings, &models)?;
-    let programs = programs::document(&settings, &endpoints)?;
-    let mut generated = serde_json::json!({"profile":profile_document,"endpoints":endpoints,
-        "environment":document::environment(&settings)?});
-    if let Some(programs) = programs {
-        generated.as_object_mut().expect("configuration object").insert("programs".into(), programs);
-    }
-    let trace: BTreeMap<_, _> = settings
-        .values
-        .iter()
-        .filter_map(|(key, value)| key.strip_prefix("trace.").map(|field| (field, &value.value)))
-        .collect();
-    if trace.contains_key("path") {
-        generated
-            .as_object_mut()
-            .expect("configuration object")
-            .insert("trace".into(), serde_json::to_value(trace).expect("trace settings"));
-    }
+    let generated = agent_document(&settings, &models, &profile_document, programs::executable)?;
     let bytes = if document {
         serde_json::to_vec(&generated).expect("generated agent document").into_boxed_slice()
     } else {
@@ -128,6 +122,33 @@ pub(crate) fn build(selection: Selection, document: bool) -> Result<(Resolved, B
         }
     }
     Ok((resolved, bytes))
+}
+
+fn agent_document(
+    settings: &Settings,
+    models: &[models::Model],
+    profile_document: &serde_json::Value,
+    is_executable: impl Fn(&std::path::Path) -> bool,
+) -> Result<serde_json::Value, super::Refusal> {
+    let endpoints = document::endpoints(settings, models)?;
+    let programs = programs::document(settings, &endpoints, is_executable)?;
+    let mut generated = serde_json::json!({"profile":profile_document,"endpoints":endpoints,
+        "environment":document::environment(settings)?});
+    if let Some(programs) = programs {
+        generated.as_object_mut().expect("configuration object").insert("programs".into(), programs);
+    }
+    let trace: BTreeMap<_, _> = settings
+        .values
+        .iter()
+        .filter_map(|(key, value)| key.strip_prefix("trace.").map(|field| (field, &value.value)))
+        .collect();
+    if trace.contains_key("path") {
+        generated
+            .as_object_mut()
+            .expect("configuration object")
+            .insert("trace".into(), serde_json::to_value(trace).expect("trace settings"));
+    }
+    Ok(generated)
 }
 
 /// Check the declarations shared by login and run startup without selecting a model.

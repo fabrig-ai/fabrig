@@ -106,6 +106,11 @@ pub struct Credential {
 }
 
 // Record: Credential.
+impl Credential {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for Credential {
     type Limits = Limits;
     const TAIL: Path = paths::CREDENTIAL_TAIL;

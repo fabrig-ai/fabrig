@@ -4,6 +4,9 @@ use skein_lib::Duration;
 use skein_shell::Clock;
 use skein_world::{Deadline, Expired};
 
+#[cfg(target_os = "linux")]
+mod tests;
+
 #[test]
 #[cfg(target_os = "linux")]
 #[expect(

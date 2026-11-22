@@ -259,9 +259,9 @@ and a refusal names what was too large.
 ## 8. The world
 
 - **The codec:**
-  - records-only drift and no unpinned constructs (skein's
-    `data/codec/README.md`, section 6); tests build values through
-    constructors or fixed-rule values from embedded current or kept
+  - records-only drift (skein's
+    `data/codec/README.md`, section 6); tests build values with
+    public fields or take fixed-rule values from embedded current or kept
     text, without stored golden bytes or generated test targets;
   - each decoder fuzzed.
 - **The domain's entrance,** from encoded charters:

@@ -3,6 +3,7 @@ use crate::{directory, host::Startup};
 use jig_client_shell_native::Shell;
 use skein_io::kernel::{Complete, Done, Fd, Op, OpenHow, Submit};
 use skein_lib::{Duration, Queue, Secret, Time, Token};
+use temper_client_domain_forge::sign_in::{LINK_PAGE, read_service_link};
 pub(crate) const FIRST: Duration = Duration::from_millis(100);
 const MOST: Duration = Duration::from_secs(2);
 const OPEN: Token = Token::new(1 << 59);
@@ -46,11 +47,7 @@ impl Signing {
         });
         Self {
             shell: Some(Shell::new(jig_client_shell_native::Settings {
-                mapping: jig_client_protocol_http::Mapping::with_page(
-                    b"/jig",
-                    temper_client_domain_forge::sign_in::LINK_PAGE,
-                )
-                .expect("temper mapping"),
+                mapping: jig_client_protocol_http::Mapping::with_page(b"/jig", LINK_PAGE).expect("temper mapping"),
                 engine: jig_client_shell_native::Engine::Plain(engine),
                 directory: leaf,
                 limits: connections,
@@ -82,13 +79,17 @@ impl Signing {
         connections: jig_client_shell_native::Limits,
         io: skein_io::Limits,
     ) -> Result<Self, &'static [u8]> {
+        if let Some(link) = read_service_link(bytes) {
+            let address = skein_lib::bytes::concat(&[&link.address, b"\n"]);
+            let engine = directory::address(&address)?;
+            let signing = Self::held(engine, parent, leaf, startup, out, connections, io);
+            return Ok(signing.with_service(address, link.credential));
+        }
         let bytes = bytes.strip_suffix(b"\n").unwrap_or(bytes);
         if bytes.is_empty() {
             return Err(b"sign-in: stdin held no link; give the box's sign-in link on stdin: temper ctl DIR sign-in -");
         }
-        let mapping =
-            jig_client_protocol_http::Mapping::with_page(b"/jig", temper_client_domain_forge::sign_in::LINK_PAGE)
-                .expect("temper mapping");
+        let mapping = jig_client_protocol_http::Mapping::with_page(b"/jig", LINK_PAGE).expect("temper mapping");
         let parsed = jig_client_protocol_http::printed(&mapping, bytes)
             .map_err(|_| b"the sign-in link was refused".as_slice())?;
         let mut address = b"http://".to_vec();
@@ -145,14 +146,16 @@ impl Signing {
             return Err(b"service file is not in party make's form");
         }
         let engine = directory::address(address)?;
-        let mut signing = Self::held(engine, parent, leaf, startup, out, connections, io);
-        let credential = Secret::new(credential.into());
-        signing.with = Some(credential.clone());
-        signing.link = Some(credential);
-        signing.service = Some(());
-        signing.address = Some(address.into());
-        signing.credential = Credential::New;
-        Ok(signing)
+        let signing = Self::held(engine, parent, leaf, startup, out, connections, io);
+        Ok(signing.with_service(address.into(), Secret::new(credential.into())))
+    }
+    fn with_service(mut self, address: Box<[u8]>, credential: Secret) -> Self {
+        self.with = Some(credential.clone());
+        self.link = Some(credential);
+        self.service = Some(());
+        self.address = Some(address);
+        self.credential = Credential::New;
+        self
     }
     pub(crate) fn complete(&mut self, complete: Complete) {
         if complete.op != OPEN {

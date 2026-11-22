@@ -290,7 +290,18 @@ pub fn prepare_in_with(
     directories: &Directories,
     given: &service::stock::Given,
 ) -> Result<service::Service, String> {
-    let read = temper_service_shell::configuration::read(directories, temper_config_shell::Shape::EngineAlone)
+    prepare_in_with_read(binary, environment, working, directories, given, temper_service_shell::configuration::read)
+}
+
+pub(crate) fn prepare_in_with_read(
+    binary: &str,
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    directories: &Directories,
+    given: &service::stock::Given,
+    read: impl FnOnce(&Directories, temper_config_shell::Shape) -> Result<temper_service_shell::configuration::Read, String>,
+) -> Result<service::Service, String> {
+    let read = read(directories, temper_config_shell::Shape::EngineAlone)
         .map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
     let bytes = &read.document;
     let mut owned = Vec::new();

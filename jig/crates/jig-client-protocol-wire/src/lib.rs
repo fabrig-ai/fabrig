@@ -5,7 +5,7 @@ extern crate alloc;
 
 /// The current family schema text (skein/docs/design/data/codec/README.md, section 6).
 pub const CLIENT_SCHEMA: &str =
-    concat!(include_str!("../schema/client-v42.schema"), include_str!("../schema/client-v42-part1.schema"));
+    concat!(include_str!("../schema/client-v43.schema"), include_str!("../schema/client-v43-part1.schema"));
 
 /// The current family schema text (skein/docs/design/data/codec/README.md, section 6).
 #[expect(clippy::disallowed_macros, reason = "the owner embeds its current schema text once")]
@@ -16,8 +16,8 @@ pub use approval::{ApprovalCode, CODE_ALPHABET, CODE_LETTERS, CODE_TYPED_BYTES};
 
 #[rustfmt::skip]
 #[path = "generated/client.rs"]
-pub mod v42;
-pub use v42::*;
+pub mod v43;
+pub use v43::*;
 
 #[rustfmt::skip]
 #[path = "generated/public.rs"]
@@ -36,7 +36,7 @@ pub const PUBLIC_CARD: u16 = 3;
 
 /// The client wire version this release reads and writes.
 pub const VERSION: u32 = {
-    let [high, low] = v42::VERSION.to_be_bytes();
+    let [high, low] = v43::VERSION.to_be_bytes();
     u32::from_be_bytes([0, 0, high, low])
 };
 

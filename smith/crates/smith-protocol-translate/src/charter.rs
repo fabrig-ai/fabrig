@@ -204,8 +204,9 @@ mod tests {
         let mut endpoints = List::with_capacity(1);
         endpoints.push(crate::Endpoint { name: Box::default(), number: 17, dialect: 23 }).expect("one endpoint");
         let endpoints = Endpoints::new(endpoints);
-        let golden = &charter_fixture();
-        let charter = wire::Charter::decode(&wire::CEILINGS, &mut Reader::new(golden)).expect("current golden");
+        let fixed_value = &charter_fixture();
+        let charter =
+            wire::Charter::decode(&wire::CEILINGS, &mut Reader::new(fixed_value)).expect("current fixed-rule value");
         let source = charter.encode(&wire::CEILINGS).expect("bounded charter");
         for mode in [run::Mode::Finite, run::Mode::Open] {
             let mut charter = crate::decode_charter(&source, &wire::CEILINGS, &endpoints).expect("known endpoint");
@@ -219,7 +220,7 @@ mod tests {
     }
     fn charter_fixture() -> Box<[u8]> {
         let values = skein_codegen::values(smith_charter::SCHEMA);
-        for value in values.goldens.clone() {
+        for value in values.fixed.clone() {
             if value.name == "record_charter_smallest.bin" {
                 return value.bytes.into_boxed_slice();
             }
