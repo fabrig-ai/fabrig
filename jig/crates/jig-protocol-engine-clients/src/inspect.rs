@@ -38,6 +38,7 @@ impl Component {
                 super::services::GetOwner::Service(_) | super::services::GetOwner::LinkAskService(_) => None,
             },
             Waiting::Core { held } => *held,
+            Waiting::Reissue { sign_in, .. } => *sign_in,
             Waiting::AskedWhose { .. } | Waiting::ApprovalWhose { .. } | Waiting::ApprovalCore { .. } => None,
         };
         Some((*exchange, sign_in))
