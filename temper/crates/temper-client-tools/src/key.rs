@@ -1,4 +1,4 @@
-//! The engine key of a named tools request (client/ctl/README.md, 5).
+//! The engine key of a named tools request (client/ctl/requests.md, 1).
 use crate::jig::key::{Name, named};
 pub use temper_client_domain_forge::key::TOOLS;
 #[must_use]

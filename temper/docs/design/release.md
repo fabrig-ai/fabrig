@@ -99,10 +99,10 @@ file the site serves beside it (5.1). The site that links them is
 
 ## 4. What the machine must have
 
-- **Programs:** git 2.41 or later (`protocol/configuration/README.md`, 3 and
-  6; `protocol/git.md`, 3); `/usr/bin/rg` and `/bin/sh`, at those paths,
+- **Programs:** git 2.41 or later (`protocol/configuration/worker.md`, 1, and `protocol/configuration/startup.md`, 1
+  ; `protocol/git.md`, 3); `/usr/bin/rg` and `/bin/sh`, at those paths,
   which the agents' machine tools run; `claude`, Claude Code, only for
-  Claude (`protocol/credentials.md`, 3).
+  Claude (`protocol/credentials-llm-accounts.md`, 1).
 - **CA certificates:** the system's, or the file `SSL_CERT_FILE` names,
   for every HTTPS client of temper's alike, the fetch's and the
   providers' and the forges', since no roots are embedded
@@ -116,7 +116,7 @@ file the site serves beside it (5.1). The site that links them is
   starts anything: git, `/usr/bin/rg` and `/bin/sh` where a worker runs
   agents. A missing or too old one stops it with one line naming the
   program, the version found and the one needed; where
-  `protocol/configuration/README.md` 3 and 6 let a deployment run with a
+  `protocol/configuration/worker.md`, 1, and `protocol/configuration/startup.md`, 1 let a deployment run with a
   warning, the warning stands. Forgejo's binaries are checked when a
   set up fetches them, and `claude` when a program's source is declared.
   Nothing is installed by temper.
@@ -157,7 +157,7 @@ The site's install line downloads
 `https://fabrig.ai/temper/$(uname -s)-$(uname -m)`, for x86-64 Linux and
 Apple Silicon. Apple Silicon's, `Darwin-arm64`, needs a Mac to build:
 GitHub's hosted `macos-26` runners, free on the public repository, the
-ones `testing/README.md`, 2.8 runs on. It is the site's file, not a
+ones `testing/tiers.md`, 1.8 runs on. It is the site's file, not a
 release's: no tag names it, and the workflow writes no checksum.
 
 - **One workflow,** `.github/workflows/release-macos.yml`, beside
@@ -170,7 +170,7 @@ release's: no tag names it, and the workflow writes no checksum.
   as `macos.yml` installs it: rustup reads the file in the checkout,
   and no version is written in the workflow. The file names the
   `wasm32-unknown-unknown` target the browser's bundle needs
-  (`client/web/README.md`, 2.6). Its actions
+  (`client/web/bundle.md`, 1). Its actions
   are pinned by full commit, the version in a comment, as `macos.yml`'s
   are.
 - **Its cache:** the registry may be restored by `macos.yml`'s keys,

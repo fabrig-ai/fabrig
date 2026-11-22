@@ -19,7 +19,7 @@ Draft, 2026-11-15, on the user's word. On 11-14, a goal deleted `.temper/known-r
   - The resolution's result says, for each such file, whether it kept the deletion or restored the file, and why.
   - Keeping a deliberate deletion doesn't break the preservation rule, so reword the rule so the two agree. Make the same change to the implementer charter's line.
   - The judgement stays with the agent. The merge job settles no modify/delete conflict itself, since whether the change still needs the file is a judgement.
-  - Revise `repairs.md` (the resolution's instructions) and the update path in `temper/docs/design/domain/forge/README.md`, 6, to say so.
+  - Revise `repairs.md` (the resolution's instructions) and the update path in `temper/docs/design/domain/forge/updates.md`, 1, to say so.
 
 ## 3. Out
 

@@ -24,7 +24,7 @@
   which adoption reads, `landing-settings.md`, 1.2): its head is in the branch, its merge
   commit its prefix. temper writes nothing to it at the turn.
 - **A squashed member's is recorded merged** by the landing at its
-  squash commit (`landing.md`, section 8), Forgejo's "manually merged" with that
+  squash commit (`landing-turn.md`, section 1), Forgejo's "manually merged" with that
   commit, which needs the repository to allow a manual merge (`landing-settings.md`, 1.2).
 
 ## 2. Open questions
@@ -35,9 +35,9 @@
   merge over conflicting lines would keep and a clean merge (the
   mechanism here) may not; kept as clean merges until a project needs
   more.
-- **A gate for a goal's branch's train:** none here (`landing.md`, 7.1); a project
+- **A gate for a goal's branch's train:** none here (`landing-proof.md`, 2.1); a project
   that wants one names it when one does.
 - **A merge raced by a push** waits out the client's tries before its
-  round ends (`landing.md`, section 8), its pull request's lane holding the round's
+  round ends (`landing-turn.md`, section 1), its pull request's lane holding the round's
   close behind it. A typed answer for Forgejo's `500`, or a pending merge
   withdrawn once its round is stale, would end it at once.

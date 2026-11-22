@@ -73,12 +73,12 @@ chosen.
   "temper", where the shell's is "Home · temper" (`../view.md`, 1):
   `crates/temper-client-gallery-tool/src/lib.rs`, `heading`, reads the level-1 heading, not
   the view's title.
-- **Departs:**  the elsewhere-forge address departure remains `README.status.md`, 2.3. 2: `google-sign-in`,
+- **Departs:**  the elsewhere-forge address departure remains `addresses.status.md`, 1. 2: `google-sign-in`,
   `forge-details`, `forge-setting-up-middle` and `welcome-setup-failed` are
   states the gallery holds (`crates/temper-client-gallery-tool/names.txt`,
   `crates/temper-client-gallery-tool/src/samples.rs`) that the table does not list.
 
-`README.md`, sections 2.3 and 2.4 and `look.md` have `/terminal`, its parsed and canonical
+`addresses.md`, section 1, and `sign-in.md`, section 1 and `look.md` have `/terminal`, its parsed and canonical
 `code` query, transport sign-in by cookie, the signed-out state with
 Google's way back where it is given, and the approval's code, asked
 time and field under the outside rules. `gallery.md`, section 2's twelve

@@ -1,4 +1,4 @@
-//! Decisions open before the forge catches up (domain/root.md, 8.1).
+//! Decisions open before the forge catches up (domain/root-restart.md, 1.1).
 use temper_engine_domain_world::forge_routes::change_world;
 
 #[test]

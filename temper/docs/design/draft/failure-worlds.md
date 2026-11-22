@@ -24,7 +24,7 @@ Draft, 2026-11-20, on the user's word. In the week from 13 to 20 November the re
 - **jig's conformance world** crashes the engine at every commit, and its referee checks jig's promises from outside: bounded delivery, order and ownership, and nothing lost across restarts (`jig/docs/design/domain/testing.md`, sections 5 and 6).
 - **The design states rules the checks hold:**
   - a landing's step never waits on what nothing will answer (`../domain/landing-waits.md`, section 1; `../domain/landing.md`, 4.2);
-  - a red that isn't the change's asks no repair (`../domain/landing.md`, 7.4);
+  - a red that isn't the change's asks no repair (`../domain/landing-proof.md`, 2.4);
   - jig's promises (`jig/docs/design/domain/model.md`, section 11).
 - **Most of what failed can be shown in memory.** Of the 125 problems, 79 have a mechanism a tier below the real loop can show: 50 in step tests, 24 in domain worlds, and 5 in system, machine or protocol worlds. 26 need real machines, real providers or a person's action, and 20 have no established cause (`../../development/failures-1113-1120.md`). The faults that broke things mostly fall already. What the worlds lack is three things:
   - the combinations of lifecycles they exercise;
@@ -44,7 +44,7 @@ Each check is one of three kinds, as the strategy separates them (`skein/docs/fo
 - **A harness invariant** inspects a world's frozen state between iterations, through an **inspection adapter** each component exposes to its worlds alone: the engine's for its landings, changes and tables, jig's for its tasks, waits and tables, the worker's for its workspaces and disk. An adapter is test code, built with its component, and reads what its component keeps without changing it.
 - **A settings test** runs over shipped settings, not in a world.
 
-Each returns its findings, as every check of temper's worlds does (`../testing/README.md`, 4.2), naming the object, the moment and the seed. A check that can't read what it needs is a gap in its adapter, to be built, never a finding of the product's.
+Each returns its findings, as every check of temper's worlds does (`../testing/scenarios.md`, 1.2), naming the object, the moment and the seed. A check that can't read what it needs is a gap in its adapter, to be built, never a finding of the product's.
 
 | Check | Kind | Reads |
 |---|---|---|
@@ -204,7 +204,7 @@ Each from legitimate events [composition]:
 
 ### 4.7 The engine's own bounds
 
-Every scenario runs at the shipped `small` profile (`../testing/README.md`, 4.1). The workload (section 5) runs enough goals at once to reach each bound of 3.2's table [composition]. Funds run at the stock policy's figures, so a goal's run and its delegates share its budget as production's did.
+Every scenario runs at the shipped `small` profile (`../testing/scenarios.md`, 1.1). The workload (`failure-worlds.md`, section 5) runs enough goals at once to reach each bound of 3.2's table [composition]. Funds run at the stock policy's figures, so a goal's run and its delegates share its budget as production's did.
 
 ### 4.8 Restarts, stops and upgrades
 
@@ -254,7 +254,7 @@ The mapping of every problem to its lowest tier found ten ingredients a reproduc
   - jig's engine-clients world for a sign-in's exchanges;
   - the worker's domain world for workspaces, disk and scratch;
   - smith's worlds for providers, programs and a check's clock.
-- **The composed workload** is the composed system world (`../testing/README.md`, 2.1) running:
+- **The composed workload** is the composed system world (`../testing/tiers.md`, 1.1) running:
   - several goals at once, from two parties;
   - a milestone whose goals depend on one another;
   - a goal whose changes form a landing train of several members;

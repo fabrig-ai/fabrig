@@ -1,4 +1,4 @@
-//! A landing keeps the run, not its dispatch's room (domain/landing.md, 7.1 and 15).
+//! A landing keeps the run, not its dispatch's room (domain/landing-proof.md, 2.1; domain/landing.md, 15).
 use super::{
     Domain, LandingEntry, LandingRow, Operation, ReceiptKey, Request, gate_key, input_commit, repository, runs,
 };

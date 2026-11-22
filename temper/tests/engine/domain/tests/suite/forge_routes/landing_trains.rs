@@ -1,4 +1,4 @@
-//! Goal trains through the root and worker requests (temper/docs/design/domain/landing.md, 5.2, 9, 15).
+//! Goal trains through the root and worker requests (temper/docs/design/domain/landing-prepare.md, 1.2, temper/docs/design/domain/landing-turn.md, 2, temper/docs/design/domain/landing.md, 15).
 use super::super::{goal_branch, goal_landing};
 use super::*;
 

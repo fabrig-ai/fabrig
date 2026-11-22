@@ -1,4 +1,4 @@
-//! Temper's generated store records (temper/docs/design/protocol/store.md, section 4).
+//! Temper's generated store records (temper/docs/design/protocol/store-versions.md, section 1).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;

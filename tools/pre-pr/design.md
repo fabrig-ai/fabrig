@@ -5,7 +5,7 @@ delivers: the project's checks (smith's `smith/docs/design/domain/run.md`,
 8.1; temper's `temper/docs/design/protocol/configuration/reference.md`), written
 from `temper/docs/design/draft/delivery-checks.md`, for the goal's reds,
 its flakes and its results, `temper/docs/design/draft/branch-reds.md`,
-for where its tests sit, `temper/docs/design/draft/focused-pyramid.md`,
+for where its tests sit, `temper/docs/design/draft/archive/focused-pyramid.md`,
 for the failures file, `temper/docs/design/draft/pre-pr-failure-list.md`,
 for the boundary packages and the fuzzy tests, the user's word of 2026-11-15,
 after a landing's gate caught three reds in tests no delivery had run, and,
@@ -84,7 +84,7 @@ receipts, this section takes precedence.
 - **A base the worker pins.** The worker writes `refs/temper/landing`, the
   landing branch's tip as fetched at prepare, in each change producer's
   checkout and never moves it within the hold
-  (`temper/docs/design/protocol/git.md`, 4.3;
+  (`temper/docs/design/protocol/git-operations.md`, 1.3;
   `temper/docs/design/domain/worker/checkouts.md`). The check's base is
   the merge base of that reference and `HEAD`, and `MERGE_HEAD` in a merge
   (`design.md`, section 2). Without the reference it runs today's checks alone and says so.
@@ -748,7 +748,7 @@ cause.
   then passes or fails on the wrong build. A deployment whose cargo gives
   a workspace's paths one target keeps the setting the check makes, or
   keys this worktree to a target of its own
-  (`temper/docs/design/domain/worker/README.md`, 5).
+  (`temper/docs/design/domain/worker/agent-processes.md`, 1).
 - **The goal's reds,** which temper keeps and its worker writes at each
   check's start (`temper/docs/design/domain/forge/reds.md`, 5), are
   `temper/reds` under the git directory, at `git rev-parse --git-path

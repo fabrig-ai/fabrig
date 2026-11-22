@@ -77,6 +77,13 @@ and links to the forge for code. What is still open is listed in
   (`deployment.md`, *GitHub's way, in a new tab*); the terminal prints
   the link and never opens it.
 
+- **Records and deployment documents:**
+  - `records.md`: the family and work's read models.
+  - `records-requests.md`: requests, outcomes and refusals.
+  - `records-deployment.md`: deployment reads and the forges' subject.
+  - `deployment.md`: the Forges page and each forge's row.
+  - `deployment-connect.md`: choosing, connecting and setting up a forge.
+
 ## 2. A change's panel
 
 On a change task's page, as its panel: a procedure's activity is its
@@ -110,7 +117,7 @@ producing ─ opening ─ checking ─ gating ─ queued ─ first ─ landing �
 | recreating, reopening | after drift released (5.2): its branch made again at the head temper last knew, or its pull request reopened or retargeted back |
 | landing | merging at its head |
 | landed | its merge commit, and when |
-| verifying | landed, its merge commit, and the tiers following its landing branch that have not judged it yet, each with its run in flight, if any, or, with none and the tier held by a person, `NAME held by party N: REASON` (`../../domain/after-landing.md`, sections 3 and 6) |
+| verifying | landed, its merge commit, and the tiers following its landing branch that have not judged it yet, each with its run in flight, if any, or, with none and the tier held by a person, `NAME held by party N: REASON` (`../../domain/after-landing-runs.md`, section 2, and `../../domain/after-landing.md`, section 6) |
 | red | landed, its merge commit, and each tier whose verdict blames it, with the run and the failing tests blamed on it, counted, or "many" (`../../domain/after-landing.md`, 5.3) |
 | cleared | landed and cleared by every tier following its landing branch, and the run that cleared it in each; or, past the project's verification bound with no verdict or cancelled while verifying, "landed, uncleared": the change ended there (`../../domain/after-landing.md`, section 6) |
 
@@ -152,7 +159,7 @@ admitted (`../pages/task.md`, 3). A held change shows its hold instead.
   CI, the panel says “CI not required”. A landed change retains the
   last observation at its exact head, which may still be pending when
   it landed without CI; that observation does not claim a current
-  forge verdict (`../../domain/forge/change/README.md`, 5).
+  forge verdict (`../../domain/forge/change/panel.md`, 1).
 - **Its gates** (`../../domain/forge/change/gates.md`, 1): each with its kind (a
   review by a lens, a person's approval, checks), blocking or advisory,
   who asked for it (the change, the project's landing rule, its plan),
@@ -241,14 +248,14 @@ the subject `changes` (`records.md`):
   the others their place.
 - **Landed recently:** the project's last landings, newest first, across
   its repositories, from the landing log
-  (`../../domain/after-landing.md`, section 10), which keeps each change's
+  (`../../domain/after-landing-storage.md`, section 1), which keeps each change's
   title past its close.
 - **A branch's red,** in the page's line: while a retained verdict blames
   a landing on the branch, unrepaired (`../../domain/after-landing.md`,
   5.2), or a live repair of the branch runs (`../../domain/forge/queues.md`
   ).
-- **A project that lands by turn** has no queue (`../../domain/landing.md`,
-  sections 8 and 9): its page's queue is empty, and what it lands is
+- **A project that lands by turn** has no queue (`../../domain/landing-turn.md`,
+  sections 1 and 2): its page's queue is empty, and what it lands is
   listed as landed.
 
 Each row opens its change's `Task { task }`: a change has no page of
@@ -401,7 +408,7 @@ is about, by whom and when where another hand did it, a link to each on
 the forge, and what each act will do. A release resets the change's
 repairs, resolutions and updates, and counts its stall from the release.
 Nothing on the forge is written over until the person decides
-(`../../domain/forge/change/repairs.md` and `../../domain/forge/change/README.md`, 3).
+(`../../domain/forge/change/repairs.md` and `../../domain/forge/change/drift.md`, 1).
 
 A local watch-admission wait needs no release: recovery or a departing
 read can temporarily consume the client's capacity, and temper retries.
@@ -422,11 +429,11 @@ read failure names its backend cause and what a release retries.
 | an approval declined | who declined it, at which head, and why | amended to drop the approval and released, in one request; released alone, it is held again at the same head |
 | a requirement refused at the merge (`../../domain/forge/change/gates.md`, 2) | which of its landing rule's requirements refused, at which head: CI failed, a gate asked for changes; a person's review on the forge asking for changes starts a repair instead (`../../domain/forge/change/gates.md`, 1) | takes it back, judged again at its next merge: held again while the refusal stands |
 | a delegate or a write failed for good | which: its producing task's failure, or the forge's refusal of a write (a protected branch, a forbidden write) | takes it back, to decide afresh |
-| a write uncertain, of a kind that cannot be recovered (`../../domain/forge/README.md`, section 4) | the write, that it may or may not have been made, and where to look on the forge: the branch, the pull request's reviews or comments, the issue | makes it again, or goes on without it, as the person says (jig's `client/domain/objects.md`, section 5) |
+| a write uncertain, of a kind that cannot be recovered (`../../domain/forge/effects.md`, section 1) | the write, that it may or may not have been made, and where to look on the forge: the branch, the pull request's reviews or comments, the issue | makes it again, or goes on without it, as the person says (jig's `client/domain/objects.md`, section 5) |
 
 ### 5.2 Drift
 
-A held change's card for drift (`../../domain/forge/change/README.md`, 3; jig's
+A held change's card for drift (`../../domain/forge/change/drift.md`, 1; jig's
 `domain/connectors.md`, section 11): what changed on the forge, by whom
 and when, and a link to it there.
 
@@ -455,7 +462,7 @@ On a goal's page, with what it hears (jig's `client/domain/pages.md`,
 5.2): each landing in its repositories, marked as its own, overlapping
 its work (it woke the goal), not overlapping (kept), or unknown, as for
 a landing too large to compare (it woke the goal)
-(`../../domain/forge/README.md`, 5.3).
+(`../../domain/forge/topics.md`, 1.3).
 
 ### 6.3 Findings
 
@@ -499,7 +506,7 @@ above:
   Forgejo card and files-page link in `../../testing/checks.md`, 3 of that document, with client
   and view tables for both kinds and the reasons for no review link.
   Those checks establish no rendered comparison or real review.
-- A repository link in a folded forge row: `deployment.md`, section 1.
+- A repository link in a folded forge row: `deployment.md`, section 4.
 - **A visitor's links to the forge** (9.3): a commit, a pull request or a
   run linked where its repository is known public. Default: none. The
   forge's state would have to keep whether a repository is private, and
@@ -543,7 +550,7 @@ above:
 - **A person's approval as a rule,** posted on the forge as the person
   (`../../README.md`, section 8), which the approval's card would then
   say.
-- A secret text area for the pasted key: `deployment.md`, section 1.
+- A secret text area for the pasted key: `deployment.md`, section 4.
 - **One percentage for both binaries** (`deployment.md`). Default: each binary says
   its own, so the bar starts again for the runner, until their sizes
   are pinned beside their digests (`../../protocol/setup/README.md`, section 9).
@@ -558,10 +565,10 @@ above:
   margins, empty search and More summary, and the connect actions' type.
   Settings' shared H1 and the open project menu row keep their frame's
   design, as the repair request leaves them.
-- An App of one's own, offered again: `deployment.md`, section 1.
-- A connect's stop told from the one before it: `deployment.md`, section 1.
-- A browser on another machine: `deployment.md`, section 1.
-- Mending a stopped managed or owned forge: `deployment.md`, section 1.
+- An App of one's own, offered again: `deployment.md`, section 4.
+- A connect's stop told from the one before it: `deployment.md`, section 4.
+- A browser on another machine: `deployment.md`, section 4.
+- Mending a stopped managed or owned forge: `deployment.md`, section 4.
 - The picker's pages kept: `repositories.md`, section 5.
 - **The project's own repositories in the picker:** `Reachable` names no
   project, so the engine lists them. The client joins its project’s
@@ -610,7 +617,7 @@ the public tasks jig's core hands it with the ask:
   requests for the project (`../../domain/landing.md`, 4.2), is never
   named: a public landing is reached through one of its members.
 - **A public queue merge** is a landing the landing log holds
-  (`../../domain/after-landing.md`, section 10) with at least one change,
+  (`../../domain/after-landing-storage.md`, section 1) with at least one change,
   every one of them a public change that went by the queue. A queue's
   merge has no landing's row or task, so the log is its record and
   its change's task the way to it. Past the log's ring, or once jig no

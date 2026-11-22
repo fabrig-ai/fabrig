@@ -1,4 +1,4 @@
-//! Room for landed commits (temper/docs/design/domain/forge/change/README.md, 7).
+//! Room for landed commits (temper/docs/design/domain/forge/change/records.md, 1).
 #[cfg(test)]
 mod tests;
 use super::{Domain, Env, Key, Limits, Queue, Request, Stored, emit};

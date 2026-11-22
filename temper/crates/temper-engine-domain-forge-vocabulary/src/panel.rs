@@ -1,4 +1,4 @@
-//! The connector's whole change document (domain/forge/change/README.md, 5; client/forge/README.md, 2.1).
+//! The connector's whole change document (domain/forge/change/panel.md, 1; client/forge/README.md, 2.1).
 use alloc::boxed::Box;
 use temper_engine_domain_forge_change as change;
 

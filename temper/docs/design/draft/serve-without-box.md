@@ -80,7 +80,7 @@ Ready.
 - **The browser's sign-in still lands on `/welcome`:** the welcome's
   decision sends the person of a deployment with no welcome on to the
   inbox, as it sends a whole first run's on to the chats page
-  (`../client/README.md`, 3.4 and `../client/pages/README.md`).
+  (`../client/root.md`, 1.4 and `../client/pages/README.md`).
 - **The terminal,** which opens at the inbox, takes the same fact for
   the pages of section 3.
 - **Forgejo on this machine** is offered from the forges' rows: with

@@ -4,13 +4,13 @@
 
 - **Not yet:**
   -  the request-to-repair fuzzy coverage remains `change/gates.status.md`, 1.
-  -  the real-process update-recovery trial remains `README.status.md`, 6 and 10.
+  -  the real-process update-recovery trial remains `updates.status.md`, 1, and `README.status.md`, 10.
   - `change/README.md`, 2, step 3: the base-first deployment proof remains `change/README.status.md`, 2, step 3.
   -  the repair-cause and cleanup deployment proof remains `branches.status.md` (Not yet, the whole document).
   - `change/questions.md`, 1, *Which target*: the real-model question-target proof remains `change/questions.status.md`, 1, *Which target*.
   - `change/questions.md`, 1, *The next producer merges the landing tip first*: the resumed-producer deployment proof remains `change/questions.status.md`, 1, *The next producer merges the landing tip first*.
   -  the browser readoption story remains `change/gates.status.md`, 3.
-  -  the boxless removal gap remains `adoption.status.md`, 1.
+  -  the boxless removal gap remains `adoption-connection.status.md`, 1.
   -  the GitHub status and dispatch gap remains `change/gates.status.md`, 1.
   - 1: the forge's own merge queue beyond a queued merge kept
     pending: `Pull.queued` and `dequeued` are not read, a queued change
@@ -19,7 +19,7 @@
     linear history, code owners and the App's bypass
     (`temper-service/src/family.rs`).
   -  the findings projection gap remains `issues.status.md` (Not yet, the whole document).
-  -  the parked landing hold remains `README.status.md`, 5.3.
+  -  the parked landing hold remains `topics.status.md`, 1.3.
   -  the per-change bounds and gates gap remains `change/README.status.md`, 1.
   -  the empty issue-title gap remains `issues.status.md` (Not yet).
   -  the goal-issue link remains `change/README.status.md`, 2.
@@ -34,9 +34,9 @@
   -  the failed-resolution release gap remains `change/repairs.status.md` (Not yet, the whole document).
   -  the remaining green-head repair stories remain `change/repairs.status.md` (Not yet, the whole document).
   -  the conflicting goal-landing story remains `branches.status.md`, 1.
-  -  the retarget-on-release gap remains `change/README.status.md`, 3.
+  -  the retarget-on-release gap remains `change/drift.status.md`, 1.
   -  the no-CI adoption choice remains `change/gates.status.md`, 2.
-  -  the panel's wait and charter facts remain `change/README.status.md`, 5.
+  -  the panel's wait and charter facts remain `change/panel.status.md`, 1.
   -  the change drain remains `change/README.status.md`, 6.
   -  the dependency-ancestry proof remains `change/questions.status.md`, 1.
   -  the message-room relay gap remains `change/questions.status.md`, 1.

@@ -451,7 +451,7 @@ fn failed_job_preparations_log_once_across_reconnect() {
     assert!(worker.notes().is_empty(), "neither job nor preparation logs again on replay");
 }
 
-/// Operator notes pass through without becoming link records (README.md, 4.3).
+/// Operator notes pass through without becoming link records (domain/worker/hosted-runs.md, 1.3).
 #[test]
 #[expect(clippy::manual_map, reason = "the crate's subset names each optional job kind")]
 fn checkout_notes_keep_the_assignment_and_operation() {

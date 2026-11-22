@@ -1,5 +1,5 @@
 //! The forge connector's top (jig's domain/connectors.md, sections 2–8;
-//! domain/forge/README.md, section 3 and domain/forge/adoption.md and domain/forge/keeping-up.md and domain/forge/README.md, sections 4–5 and domain/forge/change/README.md and domain/forge/queues.md and domain/forge/README.md, section 6 and domain/forge/branches.md and domain/forge/issues.md). It keeps adopted repositories, resource
+//! domain/forge/README.md, section 3 and domain/forge/adoption.md and domain/forge/keeping-up.md and domain/forge/effects.md, section 1, and domain/forge/topics.md, section 1 and domain/forge/change/README.md and domain/forge/queues.md and domain/forge/updates.md, section 1 and domain/forge/branches.md and domain/forge/issues.md). It keeps adopted repositories, resource
 //! holds, writer slots, subscriptions, procedure and projection rows, and
 //! outbox entries. The client alone executes API calls; change and issues
 //! decide policy without retained state.

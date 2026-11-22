@@ -15,7 +15,7 @@ host, not different sources for main's journeys.
   where the journey needs them (`../journey-walks.md`, 2.2).
 - **In a world:** `temper-client-walk` prints it in one process, the
   TUI's shipped host on the simulated service, with no terminal, box,
-  recording or network (section 6; `../journey-walks.md`, 3.3 and 4).
+  recording or network (section 6; `../journey-walks.md`, 3.3, and `../journey-walks-world.md`, 1).
 - **On a box:** the drive session takes the same lines, the TUI in a
   pseudo-terminal, after landing and outside every plan (section 8;
   `../drive.md`). It writes no page of main's.
@@ -80,7 +80,7 @@ redaction and scan, 6 the print, 7 the tests, 8 the box, 9 the journeys,
   Only a recording takes them: a run without one gives Alt+m and
   Alt+s to the host as any other key.
 - **A save** writes the run's file whole, `recording-TIME` in the TUI's
-  directory (`README.md`, 2; *Each run its own file*, below), `0o600`, a
+  directory (`directory.md`, 1; *Each run its own file*, below), `0o600`, a
   synced temporary replacing it, through skein-io's file layer on the
   run's own io. The recorder goes on after a save, so each save is a
   whole recording and a later one holds more. Closing saves once more,
@@ -116,7 +116,7 @@ redaction and scan, 6 the print, 7 the tests, 8 the box, 9 the journeys,
 
 ### 3.2 The file
 
-`../web/journeys.md`, 3.2's text: one record per line, its kind first, then
+`../web/journeys-recordings.md`, 1.2's text: one record per line, its kind first, then
 its fields, each after one space; a number decimal, a word bare
 (`[a-z][a-z-]*`), bytes in double quotes with `\\`, `\"` and `\xHH`
 for a byte outside printable ASCII. No other lines. A TUI's recording
@@ -128,18 +128,18 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 | `seed` | the host's seed | the start's facts, in this order (shared) |
 | `clocks` | now and wall, in nanoseconds, at the host's making | (shared) |
 | `screen` | rows, columns, `dark`, `light` or `none` | the start's size and the scheme the terminal says, `none` where it says none (`theme.md`) |
-| `background` | red, green and blue, each a number | the terminal's answer to OSC 11, when the start has one (`README.md`, 3, `Start.background`) |
-| `plain` | none | when the start's terminal draws no mark (`README.md`, 3, `Start.plain`; `pages/README.md`, 3) |
-| `version` | the build as bytes | the start's `version`, when it is not empty (`README.md`, 3) |
+| `background` | red, green and blue, each a number | the terminal's answer to OSC 11, when the start has one (`host.md`, 1, `Start.background`) |
+| `plain` | none | when the start's terminal draws no mark (`host.md`, 1, `Start.plain`; `pages/README.md`, 3) |
+| `version` | the build as bytes | the start's `version`, when it is not empty (`host.md`, 1) |
 | `address` | the origin as `Origin::print` prints it, as bytes; a bare `HOST:PORT`, as a recording made before it holds, reads as `http://HOST:PORT` | the start's origin (`README.md`, 1) |
-| `local` | none | when the start has an engine's link file to read (`README.md`, 3, `Start.local`) |
-| `box` | none | when the start is on a box (`README.md`, 2, *On a box*; `Start.boxed`) |
+| `local` | none | when the start has an engine's link file to read (`host.md`, 1, `Start.local`) |
+| `box` | none | when the start is on a box (`directory.md`, 1, *On a box*; `Start.boxed`) |
 | `front` | none | when the TUI is in front of a box (`box.md`, `Start.front`) |
 | `set-up` | none | when the TUI in front is on a box set up before (`box.md`, `Start.set_up`) |
 | `box-log` | the path as bytes | in front, the box's log's path, when the start has one (`box.md`, `Start.box_log`) |
 | `stored` | a small-store record's key and bytes | one per record loaded (shared) |
 | `credential` | the credential's bytes | when the start held one |
-| `noted` | `until` and nanoseconds, or `signed-out` | the start's note, when it held one (`README.md`, 2) |
+| `noted` | `until` and nanoseconds, or `signed-out` | the start's note, when it held one (`directory.md`, 1) |
 | `turn` | now and wall | each turn's clocks (shared) |
 | `start`, `due` | none | the `Start` and `Due` reports (shared) |
 | `key` | the key (below), then its event's print in quotes, or `none` | a `Key` report |
@@ -154,7 +154,7 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 | `kept` | `done` or `failed` | a `Kept` report |
 | `opened` | `done` or `failed` | an `Opened` report |
 | `found` | the file's bytes, or `none` | a `Local` report |
-| `handshake` | `untrusted`, `expired`, `not-yet-valid`, `other-name`, `failed` or `none` | a `Handshake` report (`README.md`, 3, *The handshake*) |
+| `handshake` | `untrusted`, `expired`, `not-yet-valid`, `other-name`, `failed` or `none` | a `Handshake` report (`host.md`, 1, *The handshake*) |
 | `listening` | the port, or `none` | a `Listening` report (`pages/sign-in.md`, 4) |
 | `returned` | `get` or `other`, the target as bytes, the `Host` as bytes or `none` | a `Returned` report |
 | `box-line` | a line of the box's, as `BoxLine::print` prints it, in quotes | a `Front` report (`box.md`) |
@@ -222,7 +222,7 @@ is told from a browser's by its first fact after `clocks`, `screen`.
   frame; any other key with an event marks the frame as drawn before it
   (3.4). A key with no event marks nothing.
 - **The events' prints,** `temper_client_tui::Event`'s, with their fields'
-  own `Debug` forms (`README.md`, 3, *The TUI's events*): `Typed {
+  own `Debug` forms (`host.md`, 1, *The TUI's events*): `Typed {
   value: [104, 105] }`, for the link's field and the box alike;
   `SignIn`; `Send`; `Command { command: Help }`; `Act { act: Choice(Model
   { index: 0, account: Some(3) }) }`, the root's act; `Aside { object: Task(9)
@@ -281,7 +281,7 @@ It changes no build, port, approval code or clock for the print.
 
 ## 5. Redaction and the last scan
 
-The browser's, with the same code (`../web/journey-redaction.md` and `../web/journeys.md`, 3.7 to 3.8), over
+The browser's, with the same code (`../web/journey-redaction.md` and `../web/journeys-recordings.md`, 1.7 to 1.8), over
 the TUI's lines.
 
 - **The shared code** gains three kinds of original, `Kind::Approval`,
@@ -339,7 +339,7 @@ the TUI's lines.
   in a `returned` record's target, whether or not a take sent it, is
   replaced by the redacted grant's and scanned, so the request still
   reads and its take still replays.
-- **The last scan** (`../web/journeys.md`, 3.7): every field of each line,
+- **The last scan** (`../web/journeys-recordings.md`, 1.7): every field of each line,
   every frame the replay drew at each turn's end as its text, and each
   printed text and page, for the originals and the shapes. An approval's
   code as shown, read from each `browse` address's `code=` and checked by
@@ -348,7 +348,7 @@ the TUI's lines.
   shape would take it; an original is still sought in the whole.
 - **A refusal** names the line and its record's kind, and where (a
   field, a frame's turn, a printed file), never the bytes.
-- **What is left to the person** is `../web/journeys.md`, 3.8's, and: a
+- **What is left to the person** is `../web/journeys-recordings.md`, 1.8's, and: a
   link typed key by key is never found whole, so its proof fails and
   nothing is written; paste it.
 ## 6. The print
@@ -585,7 +585,7 @@ not terminal escape sequences, give the frame.
 ### 8.3 A box with the TUI in front
 
 `temper box` can put the TUI in front of its child box (`box.md`;
-`../../protocol/setup/box.md`, 6). A person can record that TUI by hand
+`../../protocol/setup/box-front.md`, 1). A person can record that TUI by hand
 and print the saved file with 6.1's recording command.
 
 - **The printed link:** the host hears the box's `link` line as a
@@ -610,7 +610,7 @@ and print the saved file with 6.1's recording command.
 
 | Name | The walk | Its pages |
 |---|---|---|
-| `sign-in-approved` | version-2 `walk` in one process on the playground's composition, no `temper box` or terminal (`../journey-walks.md`, 3.3, 4 and 6): the browser signed in by the printed link at `/welcome`; the TUI started at the service's address, not signed in; the approval's frame seen and marked; `tui approve`, the approval given in the browser; the launchpad seen and marked | `01`, the approval's frame, "A tab opened in your browser", its code and its address; `02`, the launchpad of a service with no project (`pages/README.md`); its `sign-in-approved/README.md` describes the world's frames |
+| `sign-in-approved` | version-2 `walk` in one process on the playground's composition, no `temper box` or terminal (`../journey-walks.md`, 3.3, and `../journey-walks-world.md`, 1, and `../journey-walks.md`, 6): the browser signed in by the printed link at `/welcome`; the TUI started at the service's address, not signed in; the approval's frame seen and marked; `tui approve`, the approval given in the browser; the launchpad seen and marked | `01`, the approval's frame, "A tab opened in your browser", its code and its address; `02`, the launchpad of a service with no project (`pages/README.md`); its `sign-in-approved/README.md` describes the world's frames |
 | `launchpad-chat` | version-2 `walk` in one process on the playground's composition, `after project-landing`, with its `scripts.json` (`../journey-walks.md`, 6): Hello with its owned `work/hello` and the ChatGPT plan; the TUI approved as `sign-in-approved`'s is; the launchpad marked; `/` typed and the commands marked; Esc; a question typed and marked, then sent, which opens an Ask temper chat; the scripted answer marked | `01`, the launchpad in Hello; `02`, the commands under the box; `03`, the question typed; `04`, the chat answered (`pages/README.md`); its `launchpad-chat/README.md` describes the world's frames |
 | `launchpad-drawn` | version-2 `walk` in one process on the playground's composition, `after project-landing`, with its `scripts.json` (`../journey-walks.md`, 6): Hello, the TUI approved, to the launchpad; `/change` and a change asked in words, marked, then sent, which starts a chat; its scripted model starts a goal and says that a question waits, and the goal asks the chat's person a question with two choices, the first recommended, as a goal a chat calls asks (`../../domain/agent/agents.md`, 2); `/new` typed and marked, then sent, back to the launchpad, the chat under *Where you left off*, its question under Needs you and the quiet line's count, marked; `n` and the walk's prompt, marked; its first choice taken; the launchpad after the walk, marked | `01` and `02`, the words typed before Enter sends them; `03`, the launchpad as drawn, with the chat, its need and Start (`pages/launchpad.md`), `n` its key; `04`, the walk's prompt under the box (*Walking what needs you*), Enter its key; `05`, the launchpad after the walk, its note; its `launchpad-drawn/README.md` describes the world's frames |
 | `design-session` | version-2 `walk` in one process on the playground's composition, `after project-landing`, with its `scripts.json` (`../journey-walks.md`, 6): Hello, the TUI approved, to the launchpad, marked; `/draft` and the work asked in words, marked, then sent, which starts a design session; the scripted drafter's reply writing the draft and ending with numbered choices, the pane at half; Ctrl-P to all, to folded and to half again, each marked; "1" typed, marked and sent, the next reply changing a section, marked new, and saying nothing blocks the work, marked; `/goal` typed and marked, its prompt of ways marked, the first taken; the chat again, its goal linked: `/goal` no longer offered, and the quiet line without the goal's part, which at 80 columns goes first (`pages/design-session.md`, 1, *narrow*; the goal's part is the 110-column golden's), marked | `01`, Hello's launchpad; `02`, the `/draft` words typed; `03`, the session at half with the drafter's choices under the box; `04`, the pane at all; `05`, folded; `06`, half again with "1" typed; `07`, Open questions marked new; `08`, `/goal` typed; `09`, `/goal`'s ways prompt; `10`, the returned chat with its goal linked (`pages/design-session.md`, 1); its `design-session/README.md` describes the world's frames |

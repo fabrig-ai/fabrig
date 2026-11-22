@@ -97,7 +97,7 @@ fn a_rejecting_chat_keeps_its_reason_disclosure_open() {
     assert!(view.tree().find(disclosure).unwrap().states.as_slice().contains(&skein_ui::State::Expanded));
 }
 
-// One row for each confirmation in client/README.md, 3.6.
+// One row for each confirmation in client/root.md, 1.6.
 
 #[test]
 fn escape_cancels_a_confirmation_without_sending_its_action() {

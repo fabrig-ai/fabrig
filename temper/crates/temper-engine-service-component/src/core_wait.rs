@@ -1,10 +1,10 @@
-//! Input gates and the settings warning after start (temper/docs/design/protocol/README.md, 6.2;
+//! Input gates and the settings warning after start (temper/docs/design/protocol/service-process.md, 1.2;
 //! jig/docs/design/domain/engine/settings.md, 7).
 use alloc::boxed::Box;
 use jig_domain_core::start::Phase;
 use skein_lib::{Decimal, Time, bytes};
 
-/// Why the gate keeps a party's input from the root (protocol/README.md, 6.2).
+/// Why the gate keeps a party's input from the root (protocol/service-process.md, 1.2).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum CoreWait {
     Starting { step: Option<Phase> },

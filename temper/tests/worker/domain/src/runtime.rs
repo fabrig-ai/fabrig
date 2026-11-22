@@ -1,7 +1,7 @@
 //! Runtime world. The real root, hub, checkout and agent child domains meet
 //! a scripted engine and process, the protocol layer's hand-outs answered
 //! with smith's codecs, and deterministic git terminals. The turn referee's
-//! first finding returns to the run (temper/docs/design/testing/README.md, 4.2).
+//! first finding returns to the run (temper/docs/design/testing/scenarios.md, 1.2).
 
 use std::collections::VecDeque;
 use std::fmt::{self, Write};

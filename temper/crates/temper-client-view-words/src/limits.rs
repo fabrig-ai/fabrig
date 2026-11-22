@@ -109,7 +109,7 @@ impl Limits {
             // Trial (domain/trial.md, 6.2): stacked line 3, why 2, acts 4,
             // disclosure/list 2 and three steps with text/status/text 12.
             .checked_add(23)?
-            // Usage (client/pages/accounts.md, 2): one group, up to 24 held
+            // Usage (client/pages/accounts-words.md, 1): one group, up to 24 held
             // facts, each a window group, name, meter, share, pace and two texts.
             .checked_add(1_u32.checked_add(24_u32.checked_mul(7)?)?)?;
         let account_nodes = account

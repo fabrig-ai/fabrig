@@ -6,7 +6,7 @@ use temper_engine_domain as engine;
 use temper_engine_domain_forge as forge;
 
 /// The fake routing connects an accessible forge as its configured writer
-/// after each start (temper/docs/design/domain/forge/adoption.md, 1).
+/// after each start (temper/docs/design/domain/forge/adoption-connection.md, 1).
 pub(crate) fn connection(config: &engine::Config, number: u16) -> Option<engine::Event> {
     let configured = config.forges.iter().find(|configured| configured.number == number)?;
     if !matches!(configured.mode, forge::Mode::Connected | forge::Mode::Fake) {
@@ -307,7 +307,7 @@ pub fn first_start_over(
     config: engine::Config,
     limits: &engine::Limits,
 ) -> crate::store::Store {
-    // First-start rows, then the separate header-and-wires mark (domain/root.md, 8.1).
+    // First-start rows, then the separate header-and-wires mark (domain/root-restart.md, 1.1).
     const FIRST_START_COMMITS: u64 = 2;
     let mut driver = Driver::cold(store, config, limits);
     driver.period_sent = true;

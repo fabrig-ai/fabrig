@@ -46,8 +46,8 @@ proposal of settings an owner accepts (`agents.md`, 1).
   `protocol/programs.md`, 5.1).
 - **Started** from the client's Ask temper, in the rail and the tab bar of every
   page of a project, which To begin's first step opens too
-  (`../../client/pages/README.md` and `../../client/view.md`, 3), and from `chat start --project PROJECT
-  --template 5 TEXT` (`../../client/ctl/tools.md`, 3).
+  (`../../client/pages/README.md` and `../../client/view-navigation.md`, 1), and from `chat start --project PROJECT
+  --template 5 TEXT` (`../../client/ctl/tools-acts.md`, 1).
 - **Its tests:** focused and fuzzy alone; its judgement is the user's, by trying
   it. The first request's bound, on both shapes; its runs' declarations,
   `see`, `document`, `remember` and `propose_settings`, and no workspace;
@@ -67,7 +67,7 @@ stands and how it ran, the project, its goals and tasks, a task's tree,
 activity and turns, its changes and what waits on the person, it reads as the
 chat's person, of the chat's project alone, through jig's run read as its person
 (jig's `domain/engine/executors.md`, 3), over the reads a client makes
-(`../../client/ctl/tools.md`, 2 and `../../client/ctl/areas.md`).
+(`../../client/ctl/tools-reads.md`, 1 and `../../client/ctl/areas.md`).
 
 - **Its declaration:** one member, `address`, a line of text, at most 512 bytes
   once trimmed; its description, "Read temper by address, as your person, in
@@ -288,7 +288,7 @@ configuring form's calls (`tools.md`) decode as they do, and one answer serves b
     proposing call refused, once, so that a set half lost is never proposed.
   - **Only an asking charter's run** gives parts, the runs the form is declared
     to; another's `more` is refused.
-- **Words with the settings** (`../../protocol/configuration/settings.md`, 2, kinds
+- **Words with the settings** (`../../protocol/configuration/settings-kinds.md`, 1, kinds
   9 and 10): a proposal carries, beside the settings it proposes, the words
   the pages say them by, as items of their own: for each charter it sets,
   its `charter-words`, a line of what the charter does; for a change of
@@ -309,7 +309,7 @@ configuring form's calls (`tools.md`) decode as they do, and one answer serves b
   is given back in.
 - **Approvals at the call:** for an asking charter's run, each landing rule of
   the set, held or its own, that enforces approvals is judged as acceptance judges
-  it (`../../protocol/configuration/settings.md`, 2; `../forge/change/gates.md`, 3), for the chat's
+  it (`../../protocol/configuration/settings-kinds.md`, 1; `../forge/change/gates.md`, 3), for the chat's
   project alone: on a forge of the project's repositories the rule covers, a role
   with fewer eligible people than it requires refuses the call in acceptance's
   words, as does a rule covering the playground's fake forge. Another project's
@@ -319,7 +319,7 @@ configuring form's calls (`tools.md`) decode as they do, and one answer serves b
   judged at acceptance alone (`tools.md`).
 - **Its answer,** for either form, says what to tell the person, where the card
   waits and whose decision it is, after the key ctl names it by
-  (`../../client/ctl/tools.md`, 3): `proposed as t7/13 for the deployment's owners to
+  (`../../client/ctl/tools-acts.md`, 1): `proposed as t7/13 for the deployment's owners to
   decide: it waits as a card in this chat and in Needs you, and nothing changes
   until an owner accepts it. Tell the person so, without t7/13.` With no task
   known, the key is `proposal 13`.

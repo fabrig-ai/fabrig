@@ -1,5 +1,5 @@
 //! Retained accounts of procedure decisions and resource holds
-//! (temper/docs/design/domain/forge/change/repairs.md and temper/docs/design/domain/forge/change/README.md, 3 and temper/docs/design/domain/forge/branches.md).
+//! (temper/docs/design/domain/forge/change/repairs.md and temper/docs/design/domain/forge/change/drift.md, 1 and temper/docs/design/domain/forge/branches.md).
 use super::forge::hold_words::{append_recovery, drift_change};
 pub(super) use super::forge::hold_words::{effect, findings};
 use super::{

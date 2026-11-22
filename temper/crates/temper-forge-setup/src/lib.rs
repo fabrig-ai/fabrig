@@ -1,4 +1,4 @@
-//! Forge setup, checked before any command acts (protocol/setup/init.md and protocol/setup/README.md, 7).
+//! Forge setup, checked before any command acts (protocol/setup/init.md and protocol/setup/crate-layout.md, 1).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
@@ -28,11 +28,11 @@ pub use step::{FORGE_ARGUMENT, Group, Kind, Stage, Step, Steps, kinds};
 #[cfg(test)]
 mod tests;
 
-/// The first repository's starter CI (protocol/setup/owned.md, 7).
+/// The first repository's starter CI (protocol/setup/owned-repositories.md, 1).
 pub const STARTER_PATH: &[u8] = b".forgejo/workflows/ci.yml";
 pub const STARTER_WORKFLOW: &[u8] = b"on:\n  push:\n    branches: [main]\n  pull_request:\njobs:\n  check:\n    runs-on: LABEL\n    steps:\n      - run: echo \"temper's starter check passed; replace this step with your own checks\"\n";
 
-/// The sample's greeting and checks (protocol/setup/owned.md, 7).
+/// The sample's greeting and checks (protocol/setup/owned-repositories.md, 1).
 pub const SAMPLE_HELLO_PATH: &[u8] = b"hello";
 pub const SAMPLE_HELLO: &[u8] = br#"#!/bin/sh
 # Prints a greeting, to the name given or to the world: sh hello [NAME]
@@ -109,7 +109,7 @@ fn workflow(template: &[u8], label: &[u8]) -> Option<Box<[u8]>> {
     Some(writer.finish())
 }
 
-/// The playground source shared by its fake seed and its owned copy (protocol/setup/owned.md, 7).
+/// The playground source shared by its fake seed and its owned copy (protocol/setup/owned-repositories.md, 1).
 pub const PLAYGROUND_PATH: &[u8] = b"src/main.rs";
 /// Widget prints the playground table.
 pub const PLAYGROUND_MAIN: &[u8] = b"const TABLE: [(&str, u32); 3] = [(\"apples\", 3), (\"pears\", 5), (\"plums\", 2)];\n\nfn main() {\n    for (name, count) in TABLE {\n        println!(\"{name:<8}{count}\");\n    }\n}\n";

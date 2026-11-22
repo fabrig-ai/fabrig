@@ -1,5 +1,5 @@
-//! Project release survives cold starts (temper/docs/design/domain/forge/adoption.md, 1;
-//! domain/root.md, 8.1; jig/docs/design/domain/people/acts.md, 2).
+//! Project release survives cold starts (temper/docs/design/domain/forge/adoption-connection.md, 1;
+//! domain/root-restart.md, 1.1; jig/docs/design/domain/people/acts.md, 2).
 use std::collections::BTreeMap;
 
 use jig_domain_core as core;

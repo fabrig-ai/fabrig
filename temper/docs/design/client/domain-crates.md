@@ -5,7 +5,7 @@ Provisional, 2026-11-15. From `temper/docs/design/draft/gate-compile.md`, 5, mil
 `temper/docs/design/draft/crate-graph.md`, 5.2's rules, and landed as its 5.3 says. It says what
 each piece holds and why, the interface through which the pages reach the root, the preparation
 that lets every file go whole to one piece, where the tests go, the change of moves, and the
-readers. What the client root does is `README.md`'s, sections 3 and 4: nothing here changes a
+readers. What the client root does is `root.md`, section 1, and `sign-in.md`, section 1: nothing here changes a
 behaviour or a test's check, and the public paths stay but the three that section 2.4 names.
 
 ## 1. In one page

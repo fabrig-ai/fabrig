@@ -163,7 +163,7 @@ mod tests {
             Event::Start { address: domain::Address::Task { task: TASK }, kept: List::with_capacity(0), with: None },
         );
         // Successful sign-in ends the pre-sign-in read; its owner asks anew
-        // before the first me (client/README.md, 3.4). Keep that output too.
+        // before the first me (client/root.md, 1.4). Keep that output too.
         let before_sign_in = requests.len();
         for event in [
             jig_client::Event::StartUnlinked { kept: List::with_capacity(0) },

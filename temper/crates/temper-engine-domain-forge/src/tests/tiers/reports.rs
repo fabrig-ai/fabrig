@@ -1,4 +1,4 @@
-//! Failed reports and partial workflows (temper/docs/design/domain/after-landing.md, 4–5.2).
+//! Failed reports and partial workflows (temper/docs/design/domain/after-landing-runs.md, 3, and temper/docs/design/domain/after-landing.md, 5.2).
 use super::*;
 const FAILURES: &[u8] = b"suite.first\nsuite.second\n";
 const PROBE_OPEN: u64 = 301;

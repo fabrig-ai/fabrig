@@ -1,4 +1,4 @@
-//! The TUI's own state beside the client root (temper/docs/design/client/tui/pages/README.md and temper/docs/design/client/tui/box.md and temper/docs/design/client/README.md, 4.1).
+//! The TUI's own state beside the client root (temper/docs/design/client/tui/pages/README.md and temper/docs/design/client/tui/box.md and temper/docs/design/client/sign-in.md, 1.1).
 use crate::{BoxEnd, BoxLine, BoxStage, Own, Scheme, limits, theme::ThemeChoice};
 use alloc::boxed::Box;
 use jig_client::contract::{ObjectKey, TurnName};
@@ -259,7 +259,7 @@ pub enum Told {
         open: bool,
     },
 }
-/// The last TLS failure's words (temper/docs/design/client/tui/README.md, 3).
+/// The last TLS failure's words (temper/docs/design/client/tui/host.md, 1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Handshake {
     Untrusted,

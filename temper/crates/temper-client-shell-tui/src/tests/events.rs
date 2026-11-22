@@ -1,4 +1,4 @@
-//! Host event translations (temper/docs/design/client/tui/README.md, 3).
+//! Host event translations (temper/docs/design/client/tui/host.md, 1).
 use super::*;
 
 #[test]

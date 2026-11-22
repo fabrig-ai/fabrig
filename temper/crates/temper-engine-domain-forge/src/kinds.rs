@@ -1,6 +1,6 @@
 //! Judging, keeping and holding the forge's kinds
-//! (temper/docs/design/protocol/configuration/settings.md, 2;
-//! temper/docs/design/domain/forge/change/gates.md, 3, and temper/docs/design/domain/forge/README.md, 9).
+//! (temper/docs/design/protocol/configuration/settings-kinds.md, 1;
+//! temper/docs/design/domain/forge/change/gates.md, 3, and temper/docs/design/domain/forge/effects.md, 2).
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::settings::application::{Restored, RestoredEdit};
 use skein_lib::{Env, List, Map, Queue};
@@ -393,7 +393,7 @@ impl Domain {
         self.held_rules.projects.remove(&project);
     }
 
-    /// The current welcome, read without a restart (protocol/configuration/settings.md, 2).
+    /// The current welcome, read without a restart (protocol/configuration/settings-kinds.md, 1).
     #[must_use]
     pub fn welcome(&self) -> bool {
         match self.setting(20, 0, 1) {
@@ -423,7 +423,7 @@ impl Domain {
     }
 
     /// Kind 6 of a project, or no route with none stored
-    /// (temper/docs/design/protocol/configuration/settings.md, 2 and temper/docs/design/protocol/configuration/stock.md).
+    /// (temper/docs/design/protocol/configuration/settings-kinds.md, 1 and temper/docs/design/protocol/configuration/stock.md).
     #[must_use]
     pub fn project_questions(&self, project: u32) -> temper_engine_domain_forge_change::Route {
         use temper_engine_domain_forge_change::Route;
@@ -454,7 +454,7 @@ impl Domain {
     }
 
     /// Kind 8 of a project, or Agents review's stock table with none held
-    /// (temper/docs/design/protocol/configuration/settings.md, 2 and temper/docs/design/protocol/configuration/stock.md).
+    /// (temper/docs/design/protocol/configuration/settings-kinds.md, 1 and temper/docs/design/protocol/configuration/stock.md).
     #[must_use]
     pub fn project_classes(&self, project: u32) -> temper_protocol_reaches::Classes {
         match self.setting(8, project, 1) {
@@ -484,7 +484,7 @@ impl Domain {
     }
 
     /// A charter's words as held: its change, else the stock's; none where removed or never given
-    /// (temper/docs/design/protocol/configuration/settings.md, 2).
+    /// (temper/docs/design/protocol/configuration/settings-kinds.md, 1).
     #[must_use]
     pub fn charter_words(&self, charter: u32) -> Option<&[u8]> {
         match self.setting(9, 0, charter) {
@@ -513,7 +513,7 @@ impl Domain {
         }
     }
 
-    /// A project's words as held, none with none stored (temper/docs/design/protocol/configuration/settings.md, 2).
+    /// A project's words as held, none with none stored (temper/docs/design/protocol/configuration/settings-kinds.md, 1).
     #[must_use]
     pub fn project_words(&self, project: u32) -> Option<&settings::ProjectWords> {
         match self.setting(10, project, 1) {
@@ -543,7 +543,7 @@ impl Domain {
     }
 
     /// A goal template's work as held: its change, else the stock's; none where removed
-    /// or never given (temper/docs/design/protocol/configuration/settings.md, 2).
+    /// or never given (temper/docs/design/protocol/configuration/settings-kinds.md, 1).
     #[must_use]
     pub fn template_goal(&self, template: u32) -> Option<TemplateGoal> {
         match self.setting(11, 0, template) {

@@ -73,7 +73,7 @@ impl Domain {
     pub const fn approval(&self) -> Option<&crate::approve::Page> {
         self.approval.as_ref()
     }
-    /// A native client's ask (client/README.md, 4.1).
+    /// A native client's ask (client/sign-in.md, 1.1).
     #[must_use]
     pub const fn asked(&self) -> Option<crate::asked::State> {
         self.asked
@@ -87,7 +87,7 @@ impl Domain {
     pub const fn zone_minutes(&self) -> i32 {
         self.zone_minutes
     }
-    /// Set the shell's zone before its first event (temper/docs/design/client/web/README.md, 2.1).
+    /// Set the shell's zone before its first event (temper/docs/design/client/web/shell.md, 1).
     pub fn set_zone_minutes(&mut self, zone_minutes: i32) {
         self.zone_minutes = zone_minutes;
     }

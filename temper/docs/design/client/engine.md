@@ -1,6 +1,6 @@
 # On the engine's side
 
-The engine's service is `../protocol/README.md`'s (`../protocol/README.md`, section 4). What it
+The engine's service is `../protocol/README.md`'s (`../protocol/service-routing.md`, section 1). What it
 does for the client:
 
 - **The clients' listener** is `temper-service`'s: TCP on the loopback
@@ -18,7 +18,7 @@ does for the client:
   `/forges/...` (the routes, below); then to the browser's page and
   bundle, the binary's own or the one the configuration names, or else,
   from a binary built without its own and a configuration naming none,
-  to the page for no bundle (`web/README.md`, 2.2 and 2.6). Every other
+  to the page for no bundle (`web/serving.md`, 1, and `web/bundle.md`, 1). Every other
   path is answered not found.
 - **The routes,** temper's beside jig's: a GitHub connect's browser
   steps, `GET /forges/N/github/manifest`, `redirect` and `setup`, N the
@@ -39,15 +39,15 @@ does for the client:
   the call's end (jig's `protocol/client/default-http.md`, 4: "A peer's end is
   the call's end"). So a stream ends when the client closes it or its
   process ends, and its room among the profile's streams is free for
-  the next call at once (`ctl/README.md`, 6.2).
+  the next call at once (`ctl/command-line.md`, 1.2).
 - **The printed link opened in a browser:** a `GET` of the link's route
   spends nothing, and the mapping leaves it to the application's page
   (jig's `protocol/browser/README.md`, section 11); so does a `GET` of
   its page, `/sign-in`, a path of temper's outside the mapping's prefix
-  (`README.md`, section 4). With a bundle, temper's
+  (`sign-in.md`, section 1). With a bundle, temper's
   server answers it with the page, which signs the browser in by it
-  (`web/README.md`, 2.4); with none, the page for no bundle, which says
-  so and names `temper-box open` (`web/README.md`, 2.2), with
+  (`web/sign-in.md`, 1); with none, the page for no bundle, which says
+  so and names `temper-box open` (`web/serving.md`, 1), with
   `Referrer-Policy: no-referrer`, and the link is `temper-box open`'s alone
   (`line.md`, 1).
 - **jig's example guards, as they are** (jig's `protocol/browser/README.md`,
@@ -96,8 +96,8 @@ does for the client:
   | `Replace { forge }` | a new App key, one `Pasted` item; or a new API token, git token or both, and the hooks' secret when it changes | `Paste` with the kept App id, or `Check` against the kept user: it must answer as the forge's user; each new record is kept over the old, then the forge connects with them, the calls its old access began ending `Forbidden` (`../protocol/forge/engine.md`, 2) | connecting; then the watched row, connected, or its last connect's line on a stop, the forge as it was |
   | `Forget { forge }` | none | the admin's token erased; a managed forge becomes connected (`../protocol/credentials.md`) | forgotten |
   | `SetUp { forge }` | none | an owned forge, new, or kept and not set up, or whose set up failed, whose setup says `"start": "asked"`: the routing asks the box for the forge's group, `start FORGE` on its pipe (`../protocol/setup/box.md`, 1), refused "not under the box" without a pipe and "busy" while a group starts; at the box's `started`, its handover taken, then reconciled and connected (`../protocol/forge/engine.md`, 2) | setting up |
-  | `RemoveForge { forge }` | none | the forge ended in the request's decision, then removed whole by the kept acts that follow it: its live work cancelled, its box group stopped and its directory removed, its records erased (`../domain/forge/adoption.md`, 1); refused for the playground's forge, whose reset removes it | removed; remove refused, `ForgeRefusal` |
-  | `MakeRepository { forge, org, name, from, into }` | none; its scope the project `into` names, or the deployment | the row kept in the request's decision; the setup then runs `Create` or `Copy` and the connector adopts into `into` (`../domain/forge/adoption.md`, 5; `../protocol/setup/owned.md`, 9) | kept; make refused, `MakeRefusal`; then the watched row |
+  | `RemoveForge { forge }` | none | the forge ended in the request's decision, then removed whole by the kept acts that follow it: its live work cancelled, its box group stopped and its directory removed, its records erased (`../domain/forge/adoption-connection.md`, 1); refused for the playground's forge, whose reset removes it | removed; remove refused, `ForgeRefusal` |
+  | `MakeRepository { forge, org, name, from, into }` | none; its scope the project `into` names, or the deployment | the row kept in the request's decision; the setup then runs `Create` or `Copy` and the connector adopts into `into` (`../domain/forge/adoption.md`, 5; `../protocol/setup/owned-repositories.md`, 2) | kept; make refused, `MakeRefusal`; then the watched row |
   | `SetAway { project, on, until }` | none; its scope the project | the party's `Away` row moved in the request's decision, and the subject `away` marked, a row that comes out the same writing nothing (`../domain/forge/attention.md`, 4) | away; forge refused, too large |
   | `Overturn { project, number }` | none; its scope the project | the party's `Decided` row marked overturned in the request's decision, and the subject `decided` marked (`../domain/forge/attention.md`, 5) | overturned; overturn refused, already or unknown |
   | `SetDraft { project, repository, path, change }` | none; its scope the project | for `ready`, the repository's landing branch read, then the path at its head, the request held in memory while they are out; then the project's `LandedDraft` row made or moved in the request's decision, and the subject `drafts` marked; a row that comes out the same writing nothing (`../domain/forge/drafts.md`, 2) | drafted, with the row; draft refused, no repository, path, missing, not a file, unreachable, unknown or full |
@@ -240,7 +240,7 @@ does for the client:
   scope; the core admits it on the party's deployment role and asks the
   forge for the document, and again each time the forge marks it: at
   every connection the routing tells it and at the box's close
-  (`../domain/forge/adoption.md`, 1). Every field of a row is the forge
+  (`../domain/forge/adoption-connection.md`, 1). Every field of a row is the forge
   domain's: the routing encodes the document as it is, adding nothing.
 - **The forge's reads and watches** are decoded by
   `temper-client-protocol-wire` the same way and go to the root
@@ -273,7 +273,7 @@ does for the client:
   unknown. A start or a reset while another of its kind is under way
   takes that one's answer. The course is the read's, the forge's row's
   and the `accounts` document's; the answer says only how it ended.
-- **A forge's removal, answered** (`../domain/forge/adoption.md`, 1): the
+- **A forge's removal, answered** (`../domain/forge/adoption-connection.md`, 1): the
   root admits `RemoveForge` by key, of the deployment's scope, and the
   forge connector answers it in the decision that ends the forge,
   removed, or refused; the removal's kept acts go on after the answer,

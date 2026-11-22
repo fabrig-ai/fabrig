@@ -1,5 +1,5 @@
 //! A cut setup starts over; a cut removal ends whole at startup.
-//! temper/docs/design/domain/forge/adoption.md, 1; temper/docs/design/protocol/setup/owned.md, 7, and temper/docs/design/protocol/setup/testing.md, 4.
+//! temper/docs/design/domain/forge/adoption-connection.md, 1; temper/docs/design/protocol/setup/owned-repositories.md, 1, and temper/docs/design/protocol/setup/testing.md, 4.
 // The cuts find steps by their /proc command lines; the box's tree is empty on macOS.
 #![cfg(target_os = "linux")]
 use super::support::{
@@ -127,7 +127,7 @@ fn start_over(scratch: &support::Scratch, paths: &[std::path::PathBuf; 3], flags
     let mut engine_paused = false;
     let data = &paths[1];
     eprintln!("start-over {cut:?}: cut");
-    // The client keeps its sign-in across cuts (client/ctl/README.md, 6.1).
+    // The client keeps its sign-in across cuts (client/ctl/command-line.md, 1.1).
     let mut steps = Vec::new();
     if matches!(cut, Cut::Fetch) {
         steps.push(Step::Run(Call::sign_in()));

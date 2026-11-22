@@ -1,4 +1,4 @@
-//! Codec worlds (temper/docs/design/testing/README.md, 2).
+//! Codec worlds (temper/docs/design/testing/tiers.md, 1).
 
 #[global_allocator]
 static HEAP: skein_heap::Counting = skein_heap::Counting;

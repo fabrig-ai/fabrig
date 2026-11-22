@@ -1,4 +1,4 @@
-//! Deployment-started tier run tasks (temper/docs/design/domain/after-landing.md, 3, 10).
+//! Deployment-started tier run tasks (temper/docs/design/domain/after-landing-runs.md, 2, temper/docs/design/domain/after-landing-storage.md, 1).
 use super::{
     AFTER_LANDING_CODE, Box, Domain, EffectDescription, EffectForm, Env, Family, Limits, List, ProcedureStep, Recovery,
     StepEnd, Work, authority, effect_access, forge, resource_name, tasks,

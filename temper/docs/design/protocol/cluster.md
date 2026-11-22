@@ -48,13 +48,13 @@ shape, below (`binaries.md`, 1): `temper-engine serve` an engine alone (`binarie
   as configuration/README.md, section 2 gives them; an engine alone's the same, but for its
   listener and its workers, by the table's rule, and the root's for
   every shape with an engine; a worker alone's, its worker part's and its
-  entry of `application.workers` (configuration/README.md, section 3), then,
+  entry of `application.workers` (configuration/worker.md, section 1), then,
   once its engine has sent its figures, the limits' checks its side
   holds over them (configuration/figures.md, section 3; configuration/limits.md).
 - **The service** has an optional engine and an optional worker:
   standalone both, an engine alone no worker, and a worker alone no
   engine, whose loop, ending and exit are its worker's alone, with no
-  store (`README.md`, sections 4 and 5; jig's `protocol/service.md`, section 6).
+  store (`service-routing.md`, sections 1 and 2; jig's `protocol/service.md`, section 6).
 - **Three directories for each process,** its own (configuration/directories.md
   ): an engine alone's data holds the deployment's directory,
   the store and the secrets' store among it; a
@@ -67,7 +67,7 @@ shape, below (`binaries.md`, 1): `temper-engine serve` an engine alone (`binarie
 - **`temper-box program-login`** takes a worker alone's directories as it
   takes standalone's, and reads only the worker's part: each worker
   signs its programs in on its own, and none is copied to another
-  (credentials.md, section 3). `temper-worker program-login` takes a
+  (credentials-llm-accounts.md, section 1). `temper-worker program-login` takes a
   worker alone's alone (`binaries.md`, 5).
 
 ## 2. Its processes
@@ -286,8 +286,8 @@ no more; the cluster's workers of several slots are later (7).
 - **A task on each worker, on the deployment's binaries:** the same
   story on the same description, its engine started by
   `temper-engine serve`, each worker by `temper-worker serve`, and each
-  worker's agent `temper-agent AGENT.json` (configuration/README.md, section
-  4) in place of the box's `temper-box internal agent`; the fakes and the
+  worker's agent `temper-agent AGENT.json` (configuration/worker.md, section
+  2) in place of the box's `temper-box internal agent`; the fakes and the
   client stay the box's `temper-box`. The process tier builds the three
   beside the box's binary (`tools/tiers/design.md`). Written and
   compiled in its plan, and run after landing
@@ -345,7 +345,7 @@ worker added later, 4.6's hung worker.
 - **A worker stopped apart from its engine** (4): its Shutdown
   cancel's agent answer counts as `Failed(Agent)`, spending an agent
   try while the engine stays up. Giving that restart the standalone
-  stop's no-try interruption (`README.md`, section 6) is left for the cluster
+  stop's no-try interruption (`service-process.md`, section 1) is left for the cluster
   (jig's `protocol/service.md`, section 9).
 - **The engine's refusal text on the worker** (3): the text is sent
   over the channel, but jig's worker link retains only the reason code
@@ -360,6 +360,6 @@ worker added later, 4.6's hung worker.
   across starts (`README.md`, section 11).
 - **The cluster's workers of several slots,** as the case of
   `../testing/reference-case.md` has: a worker hosts an agent per slot
-  (`../domain/worker/README.md`, section 5), and the cluster's fixtures and
+  (`../domain/worker/agent-processes.md`, section 1), and the cluster's fixtures and
   stories still give each of its workers one slot.
 - **`temper-box init` for the cluster's shapes** (`README.md`, section 11).

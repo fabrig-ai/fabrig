@@ -1,5 +1,5 @@
 //! Bounded public-document rewrites for protocol/configuration/directories.md, 1. No files or sockets are opened here.
-//! The fake box's steps follow temper/docs/design/protocol/setup/box.md, 5.
+//! The fake box's steps follow temper/docs/design/protocol/setup/box-backends.md, 1.
 use crate::{Refusal, read};
 use alloc::boxed::Box;
 use core::net::{IpAddr, SocketAddr};
@@ -28,7 +28,7 @@ pub struct Peers {
     pub llm: SocketAddr,
     pub forgejo: SocketAddr,
 }
-/// Shared by the supervised welcome peers (protocol/setup/box.md, 5).
+/// Shared by the supervised welcome peers (protocol/setup/box-backends.md, 1).
 pub const SEED: u64 = 7;
 
 /// The fake program's model, alongside the credential-backed `OpenAI` model.
@@ -52,7 +52,7 @@ pub fn steps(config: &[u8], data: &[u8], peers: &Peers, scripts: Option<&[u8]>, 
         arguments.push(path(config, document)).expect("peer document counted");
         arguments.push(bytes::copy_of(b"--seed")).expect("seed flag counted");
         arguments.push(bytes::copy_of(seed.as_bytes())).expect("seed counted");
-        // protocol/setup/box.md, 5: scripts and strict belong to this start's model alone.
+        // protocol/setup/box-backends.md, 1: scripts and strict belong to this start's model alone.
         if command == b"llm" {
             if let Some(scripts) = scripts {
                 arguments.push(bytes::copy_of(b"--scripts")).expect("scripts flag counted");

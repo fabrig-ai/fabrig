@@ -1,4 +1,4 @@
-//! The deployment store’s routes over jig’s file-driver host (protocol/store.md, 3–5;
+//! The deployment store’s routes over jig’s file-driver host (protocol/store.md, 3, and protocol/store-versions.md, 1, and protocol/store-restart.md, 1;
 //! jig's protocol/store/README.md, 8).
 mod ranges;
 pub mod route;
@@ -170,7 +170,7 @@ pub fn layout(
 }
 
 // Settings carry a whole revision, including replaced values and model names.
-// Their room follows the effective capacities (protocol/store.md, 4).
+// Their room follows the effective capacities (protocol/store-versions.md, 1).
 fn settings_room(core: &jig_domain_core::Limits, mut kv: skein_kv::Limits) -> Option<skein_kv::Limits> {
     let value = protocol::sizes::settings_value(core)?;
     if value > kv.value {
@@ -180,7 +180,7 @@ fn settings_room(core: &jig_domain_core::Limits, mut kv: skein_kv::Limits) -> Op
     Some(kv)
 }
 
-// protocol/store.md, 4; jig owns current full-frame sizing.
+// protocol/store-versions.md, 1; jig owns current full-frame sizing.
 fn page_bytes(core: &jig_domain_core::Limits, transcript: u32, key: u32, value: u32) -> Option<u32> {
     Some(key.checked_add(value)?.max(protocol::sizes::frame(core, transcript)?))
 }

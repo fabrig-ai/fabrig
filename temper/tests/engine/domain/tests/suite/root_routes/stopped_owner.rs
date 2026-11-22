@@ -1,5 +1,5 @@
 //! Stop isolates a subtree; reports and queued endings survive its release
-//! (temper/docs/design/testing/README.md, 4.2).
+//! (temper/docs/design/testing/scenarios.md, 1.2).
 use super::*;
 
 fn person(driver: &mut Driver, key: u8, ask: people::Ask) {

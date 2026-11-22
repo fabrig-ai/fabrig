@@ -1,4 +1,4 @@
-//! Pipe admission before the service's first iteration (journey-walks.md, 4.4).
+//! Pipe admission before the service's first iteration (client/journey-walks-world.md, 1.4).
 use crate::box_peer::{BoxPeer, LINE_BYTES, PROGRAM};
 use skein_io::kernel::{Complete, Done, Exit, Fd, Op, Pipe, Spawn, Submit, Way};
 use skein_lib::{Queue, Time, Token, Wall};

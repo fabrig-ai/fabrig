@@ -48,7 +48,7 @@
   reads the group's CI and gives the repair its failing output.
   Default: the reason alone.
 
-- **A clean update's other words** (`repairs.md` and `../README.md`, section 6): the result still says
+- **A clean update's other words** (`repairs.md` and `../updates.md`, section 1): the result still says
   `the base broke it`, and the client panel calls its repair a semantic
   conflict, although the path proves only that CI failed after an update.
   Aligning those words needs the client's owner too. Default: the task's

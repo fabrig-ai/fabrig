@@ -190,7 +190,7 @@ fn check(misses: &mut Vec<Miss>, met: bool, promise: Promise, what: String) {
 fn text<'a>(value: &'a Value, path: &str) -> &'a str {
     pointer(value, path).and_then(Value::as_str).unwrap_or_default()
 }
-// Result words may carry a pull description after the merge id (domain/root.md, 5).
+// Result words may carry a pull description after the merge id (domain/root-translation.md, 1).
 fn landing_commit(value: &Value) -> &str {
     text(value, "/result/value/change/words/bytes").lines().next().unwrap_or_default()
 }

@@ -1,4 +1,4 @@
-//! The last scan (temper/docs/design/client/web/journeys.md, 3.7–3.8).
+//! The last scan (temper/docs/design/client/web/journeys-recordings.md, 1.7–1.8).
 use super::{Line, Originals, Streams, Undecoded, fields_mut};
 pub use temper_client_redaction::scan::{Shape, What, bytes, original, shape};
 mod join;

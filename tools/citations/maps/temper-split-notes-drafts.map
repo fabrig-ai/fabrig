@@ -1,0 +1,62 @@
+# The first split pass (temper/docs/design/draft/design-upkeep.md, 4.2 and 5): the drafts' notes and the done drafts.
+
+# The reference's reasons stay together, including its N choices.
+title temper/docs/design/draft/reference-code-production.notes.md: reference-code-production: the reasons behind it
+temper/docs/design/draft/notes.md 1 -> temper/docs/design/draft/reference-code-production.notes.md 1
+temper/docs/design/draft/notes.md 4 -> temper/docs/design/draft/reference-code-production.notes.md 4
+temper/docs/design/draft/notes.md 5 -> temper/docs/design/draft/reference-code-production.notes.md 5
+temper/docs/design/draft/notes.md 6 -> temper/docs/design/draft/reference-code-production.notes.md 6
+
+# One section becomes the whole notes file beside its draft.
+title temper/docs/design/draft/goal-as-designer.notes.md: goal-as-designer: the reasons behind it
+temper/docs/design/draft/notes.md 7 -> temper/docs/design/draft/goal-as-designer.notes.md
+title temper/docs/design/draft/per-wake.notes.md: per-wake: the reasons behind it
+temper/docs/design/draft/notes.md 8 -> temper/docs/design/draft/per-wake.notes.md
+title temper/docs/design/draft/tui.notes.md: tui: the reasons behind it
+temper/docs/design/draft/notes.md 9 -> temper/docs/design/draft/tui.notes.md
+title temper/docs/design/draft/ask-temper.notes.md: ask-temper: the reasons behind it
+temper/docs/design/draft/notes.md 10 -> temper/docs/design/draft/ask-temper.notes.md
+title temper/docs/design/draft/deployment-binaries.notes.md: deployment-binaries: the reasons behind it
+temper/docs/design/draft/notes.md 11 -> temper/docs/design/draft/deployment-binaries.notes.md
+title temper/docs/design/draft/whole-story.notes.md: whole-story: the reasons behind it
+temper/docs/design/draft/notes.md 12 -> temper/docs/design/draft/whole-story.notes.md
+title temper/docs/design/draft/cli.notes.md: cli: the reasons behind it
+temper/docs/design/draft/notes.md 13 -> temper/docs/design/draft/cli.notes.md
+title temper/docs/design/draft/claude-api.notes.md: claude-api: the reasons behind it
+temper/docs/design/draft/notes.md 14 -> temper/docs/design/draft/claude-api.notes.md
+title temper/docs/design/draft/crate-graph.notes.md: crate-graph: the reasons behind it
+temper/docs/design/draft/notes.md 15 -> temper/docs/design/draft/crate-graph.notes.md
+title temper/docs/design/draft/gate-compile.notes.md: gate-compile: the reasons behind it
+temper/docs/design/draft/notes.md 16 -> temper/docs/design/draft/gate-compile.notes.md
+title temper/docs/design/draft/panics.notes.md: panics: the reasons behind it
+temper/docs/design/draft/notes.md 17 -> temper/docs/design/draft/panics.notes.md
+title temper/docs/design/draft/design-economy.notes.md: design-economy: the reasons behind it
+temper/docs/design/draft/notes.md 18 -> temper/docs/design/draft/design-economy.notes.md
+title temper/docs/design/draft/probes-by-test.notes.md: probes-by-test: the reasons behind it
+temper/docs/design/draft/notes.md 19 -> temper/docs/design/draft/probes-by-test.notes.md
+title temper/docs/design/draft/tools-by-role.notes.md: tools-by-role: the reasons behind it
+temper/docs/design/draft/notes.md 20 -> temper/docs/design/draft/tools-by-role.notes.md
+title temper/docs/design/draft/config.notes.md: config: the reasons behind it
+temper/docs/design/draft/notes.md 21 -> temper/docs/design/draft/config.notes.md
+title temper/docs/design/draft/page-round-trips.notes.md: page-round-trips: the reasons behind it
+temper/docs/design/draft/notes.md 23 -> temper/docs/design/draft/page-round-trips.notes.md
+title temper/docs/design/draft/settings-numbers.notes.md: settings-numbers: the reasons behind it
+temper/docs/design/draft/notes.md 24 -> temper/docs/design/draft/settings-numbers.notes.md
+
+# Done drafts with citations remain available in the archive. Document moves
+# carry status and execution files; none of these drafts has a notes file.
+temper/docs/design/draft/cli-c8-tools.md -> temper/docs/design/draft/archive/cli-c8-tools.md
+temper/docs/design/draft/flake-regate.md -> temper/docs/design/draft/archive/flake-regate.md
+temper/docs/design/draft/focused-pyramid.md -> temper/docs/design/draft/archive/focused-pyramid.md
+temper/docs/design/draft/forge-reads-targeted.md -> temper/docs/design/draft/archive/forge-reads-targeted.md
+temper/docs/design/draft/gate-units.md -> temper/docs/design/draft/archive/gate-units.md
+temper/docs/design/draft/github.md -> temper/docs/design/draft/archive/github.md
+temper/docs/design/draft/project-delete-cascade.md -> temper/docs/design/draft/archive/project-delete-cascade.md
+temper/docs/design/draft/project-open-superseded.md -> temper/docs/design/draft/archive/project-open-superseded.md
+temper/docs/design/draft/queue-smooth.md -> temper/docs/design/draft/archive/queue-smooth.md
+
+# Deleted by hand (no live citation): after-landing-reds-1114,
+# bench-without-sqlite, change-landing-fixes, change-stall-after,
+# forge-polls-quiet and fuzzy-context, with their status files.
+# notes.md retains every original section heading and a destination line.
+# The N citations follow the reference's notes by hand.

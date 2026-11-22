@@ -1,4 +1,4 @@
-//! Accounts' people names use Members' ordered project reads (client/pages/accounts.md, 2).
+//! Accounts' people names use Members' ordered project reads (client/pages/accounts-words.md, 1).
 #![expect(clippy::disallowed_methods, reason = "ordinary tests inspect emitted reads and fixture rows")]
 use super::fixtures as f;
 use crate::{

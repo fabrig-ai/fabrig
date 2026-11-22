@@ -48,13 +48,13 @@ Illustrative (the request's 03, with the look request
     character is a Unicode scalar value.
   - *The place,* `temper_client_tui::place(origin: &Origin, boxed: bool)
     -> Box<[u8]>`, the one function that words it, which `temper box`'s
-    own header may call too: on a box (`../README.md`, 2, *On a box*)
+    own header may call too: on a box (`../directory.md`, 1, *On a box*)
     "box" where the origin's port is 8367, `temper-box init`'s default,
     and "box:PORT" at another port; an engine on loopback not on a box,
     `HOST:PORT`, the origin's authority; a deployment by name, NAME,
     `dev.fabrig.ai`, with `:PORT` where the port isn't 443, so "Hello /
     CSV export T2 on dev.fabrig.ai" (`../../../draft/tui-remote.md`, 3).
-    An origin by name is never on a box (`../README.md`, 2).
+    An origin by name is never on a box (`../directory.md`, 1).
   - *A narrow terminal:* while the title's parts and six columns are
     wider than the window's columns, the place and its " on " are left
     out first, then the project and its " / "; skein leaves out what
@@ -116,7 +116,7 @@ Illustrative (the request's 03, with the look request
       (`tui-faint`) and its state (`tui-hint`). The title is the task's
       words' first line, whole, as its card's facts hold it
       (`delegation::facts`'s `title`), never `shared::row_title`'s cut
-      at 80 (`../../pages/README.md`, 2, *A task's title on a line*);
+      at 80 (`../../pages/shared-behaviour.md`, 1, *A task's title on a line*);
       its state is the browser's terminal card's words
       (`shared::delegation_line`'s `state`), "Running", "Held",
       "Landed".

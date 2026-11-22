@@ -14,7 +14,7 @@ pub enum Stop {
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Note {
-    /// Each fetch and check out the checkout asks (domain/worker/README.md, 4.3).
+    /// Each fetch and check out the checkout asks (domain/worker/hosted-runs.md, 1.3).
     Git {
         run: u64,
         attempt: u64,
@@ -52,7 +52,7 @@ pub enum Note {
         signal: &'static str,
         from: Option<u32>,
     },
-    /// An agent fault, when reported, once per attempt (domain/worker/README.md, 4.3).
+    /// An agent fault, when reported, once per attempt (domain/worker/hosted-runs.md, 1.3).
     AgentStopped {
         run: u64,
         attempt: u64,

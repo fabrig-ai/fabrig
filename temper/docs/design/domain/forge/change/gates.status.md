@@ -32,19 +32,19 @@
     wait, but no fuzzy story exercising this person's request-to-repair
     path is identified in main or the supplied reports. The existing
     fuzzy stories do not establish that coverage.
-  -  the real-process update-recovery trial remains `../README.status.md`, 6 and 10.
+  -  the real-process update-recovery trial remains `../updates.status.md`, 1, and `../README.status.md`, 10.
   - `README.md`, 2, step 3: the base-first deployment proof remains `README.status.md`, 2, step 3.
   -  the repair-cause and cleanup deployment proof remains `../branches.status.md` (Not yet, the whole document).
   - `questions.md`, 1, *Which target*: the real-model question-target proof remains `questions.status.md`, 1, *Which target*.
   - `questions.md`, 1, *The next producer merges the landing tip first*: the resumed-producer deployment proof remains `questions.status.md`, 1, *The next producer merges the landing tip first*.
   - 3: a refusal's "adopt the repository again" has no story from the browser. The engine takes an adopted repository's adoption (`readopt`, `temper/tests/engine/domain/tests/suite/forge_routes/approval_identity.rs`), and by reading alone the form sends one (`../../../client/forge/family.md`, 4); it opens at its defaults, so the person types the repository, its role, prefix and landing branch again.
-  -  the boxless removal gap remains `../adoption.status.md`, 1.
+  -  the boxless removal gap remains `../adoption-connection.status.md`, 1.
   - 1: on GitHub, statuses and dispatches by temper's App for a
     project that lands by turn, and verdicts posted where an installation
     grants `statuses: write`; `status` is false there.
   -  the native-queue gap remains `../queues.status.md`, 1.
   -  the findings projection gap remains `../issues.status.md` (Not yet, the whole document).
-  -  the parked landing hold remains `../README.status.md`, 5.3.
+  -  the parked landing hold remains `../topics.status.md`, 1.3.
   -  the per-change bounds and gates gap remains `README.status.md`, 1.
   -  the empty issue-title gap remains `../issues.status.md` (Not yet).
   -  the goal-issue link remains `README.status.md`, 2.
@@ -60,9 +60,9 @@
   -  the failed-resolution release gap remains `repairs.status.md` (Not yet, the whole document).
   -  the remaining green-head repair stories remain `repairs.status.md` (Not yet, the whole document).
   -  the conflicting goal-landing story remains `../branches.status.md`, 1.
-  -  the retarget-on-release gap remains `README.status.md`, 3.
+  -  the retarget-on-release gap remains `drift.status.md`, 1.
   - 2: the explicit choice to adopt a GitHub repository without CI.
-  -  the panel's wait and charter facts remain `README.status.md`, 5.
+  -  the panel's wait and charter facts remain `panel.status.md`, 1.
   -  the change drain remains `README.status.md`, 6.
   -  the dependency-ancestry proof remains `questions.status.md`, 1.
   -  the message-room relay gap remains `questions.status.md`, 1.

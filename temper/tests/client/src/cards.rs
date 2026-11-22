@@ -113,7 +113,7 @@ pub fn seen(tree: &Tree) -> Vec<Seen> {
     seen
 }
 
-/// Temper's sheets and immediate Pause/Resume replace jig's deciding text (client/README.md, 3.6).
+/// Temper's sheets and immediate Pause/Resume replace jig's deciding text (client/root.md, 1.6).
 /// The view's confirmation tests hold their titles, active counts, fates and retry rules.
 pub fn decision(ask: &jig_client::contract::Ask) -> Option<&jig_client::contract::Ask> {
     use jig_client::contract::{Ask, DecideOn, Decision, Operation};

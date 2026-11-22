@@ -405,7 +405,7 @@ fn a_prepare_outstanding_still_waits() {
     assert_eq!(next.change, c);
 }
 
-// Both update styles use the refusal table in domain/forge/README.md, 6.
+// Both update styles use the refusal table in domain/forge/updates.md, 1.
 fn stale_change(preparing: bool) -> Change {
     if preparing {
         preparing_change()
