@@ -773,7 +773,7 @@ dependencies = [
 name = "jig-boundary"
 version = "0.0.0"
 dependencies = [
- "serde_json",
+ "toml",
 ]
 
 [[package]]
@@ -5441,6 +5441,7 @@ dependencies = [
  "skein-fake-peers",
  "skein-io",
  "skein-lib",
+ "skein-scratch",
  "skein-shell",
  "skein-tls-kit",
  "skein-world",
@@ -5838,6 +5839,7 @@ dependencies = [
  "smith-local-domain",
  "temper-agent-fixtures",
  "temper-agent-shell",
+ "temper-box-kit",
  "temper-box-machine",
  "temper-client-bundle",
  "temper-client-protocol-wire",
