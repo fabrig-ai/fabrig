@@ -53,6 +53,14 @@ fn change_wait(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) -> 
         ("change: room", room(view))
     } else {
         let mut wakes = change_wakes(view, row);
+        // Containment detaches a merge from the change before its withdrawal
+        // settles. The release still waits for that outbox entry's answer.
+        for entry in view.forge.inspection_settling_entries(task) {
+            let wake = Wake::Party(format!("forge: entry {entry}"));
+            if !wakes.contains(&wake) {
+                wakes.push(wake);
+            }
+        }
         wakes.extend(view.read_wakes(task));
         if let Some(due) = view.forge.inspection_change_due(task) {
             wakes.push(Wake::Timer(Time::from_nanos(due.as_nanos())));

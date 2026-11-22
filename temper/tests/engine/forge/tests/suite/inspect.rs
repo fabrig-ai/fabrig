@@ -183,6 +183,77 @@ fn an_emitted_wait_is_owed_to_the_scripted_root() {
     assert!(finding.contains("change: checking") && finding.contains("no live wake"), "{finding}");
 }
 
+fn settling_lost_merge() -> World {
+    const ENTRY: u64 = 100;
+    let mut world = World::new(311);
+    world.adopt();
+    world.produce(b"temper/51");
+    let pull = world.open_pull(b"temper/51", b"main");
+    let head = temper_engine_forge_world::translate::commit(world.branch(b"temper/51"));
+    let mut row = changes::change_row();
+    row.pull = Some(pull);
+    row.pending = Some(ENTRY);
+    row.change.state = change::State::Landing { head };
+    row.change.last_head = Some(head);
+    row.change.since = world.wall();
+    world.event(top::Event::Change { row });
+    world.lose_writes();
+    world.event(top::Event::Enqueue {
+        entry: Entry {
+            number: ENTRY,
+            task: 51,
+            repository: REPO,
+            effect: Effect {
+                write: skein_forge::api::Write::Merge { number: pull, head, how: skein_forge::api::MergeHow::Style },
+                condition: Condition::Merge { base: b"main".as_slice().into() },
+            },
+            start: None,
+            attempt: None,
+            failures: 0,
+            queued: false,
+        },
+    });
+    world.event(top::Event::Committed { entry: ENTRY });
+    world.run_for(1);
+    assert!(
+        world.seen().iter().any(|request| matches!(
+            request,
+            top::Request::Outcome { entry: ENTRY, outcome: skein_forge_client::Outcome::Uncertain, .. }
+        )),
+        "{:?}",
+        world.seen()
+    );
+    let merge = world.merge(pull, b"temper/51");
+    assert_eq!(
+        changes::change_step(&mut world, 101, change::Status::Passed, Box::new([])),
+        change::Decision::Finish { merge }
+    );
+    assert_eq!(world.change(51).pending, None, "containment detached the uncertain write");
+    assert!(world.stored().contains_key(&top::Key::Entry(ENTRY)), "withdrawal still awaits the client's find");
+    world.event(top::Event::SettleEffects { task: 51, root: 51, ending: top::ReleaseEnding::Done });
+    world
+}
+
+#[test]
+fn a_landed_change_waits_for_its_timed_out_merge_to_settle() {
+    let world = settling_lost_merge();
+    let inspection = world.inspection();
+    let wait = inspection.waits().iter().find(|wait| wait.waiter == "task 51").expect("change wait");
+    assert_eq!(wait.kind, "change: landing");
+    assert_eq!(wait.wakes, [Wake::Party("forge: entry 100".into())]);
+    assert_eq!(check_waits(&[&inspection], moment(&world)), Ok(()));
+}
+
+#[test]
+fn a_landed_change_without_its_settling_merge_has_no_live_wake() {
+    let mut world = settling_lost_merge();
+    world.run_for(20);
+    assert!(!world.stored().contains_key(&top::Key::Entry(100)), "the client's withdrawal settled");
+    let inspection = world.inspection();
+    let finding = check_waits(&[&inspection], moment(&world)).expect_err("no unsettled write remains");
+    assert!(finding.contains("change: landing") && finding.contains("no live wake"), "{finding}");
+}
+
 #[test]
 fn an_emitted_landing_wait_is_owed_to_the_scripted_root() {
     let mut world = super::landing_proofs::start(60);

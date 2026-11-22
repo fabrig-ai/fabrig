@@ -87,6 +87,23 @@ impl Domain {
     }
 
     /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    /// Writes still answering an owner's effect settlement, including withdrawn writes.
+    #[must_use]
+    pub fn inspection_settling_entries(&self, task: u64) -> Box<[u64]> {
+        let Some(release) = self.releases.get(&task) else { return Box::new([]) };
+        if release.effects_settled {
+            return Box::new([]);
+        }
+        let mut entries = List::with_capacity(self.entries.len());
+        for (number, row) in &self.entries {
+            if row.entry.task == task && !row.held {
+                entries.push(*number).expect("counted settling entries");
+            }
+        }
+        entries.into_boxed()
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
     #[must_use]
     pub fn inspection_making_waiters(&self) -> Box<[u64]> {
         let mut tasks = List::with_capacity(self.makings.len());
