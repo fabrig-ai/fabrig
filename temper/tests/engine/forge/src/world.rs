@@ -2,6 +2,7 @@ use skein_world::{
     faults::FaultLedger,
     streams::{Stream, Streams},
 };
+mod interleaving;
 mod ledger;
 use crate::translate;
 use skein_fake_forge_domain::{self as forge, api as raw};
@@ -168,6 +169,8 @@ pub struct World {
     seed: u64,
     engine_seed: u64,
     ledger: FaultLedger,
+    lagging: Option<interleaving::Lagging>,
+    after_write: Option<interleaving::AfterWrite>,
     writer: Option<skein_forge_client::Writer>,
     writer_saves: u32,
     writes: u32,
@@ -845,6 +848,8 @@ impl World {
             seed,
             engine_seed,
             ledger: FaultLedger::new(),
+            lagging: None,
+            after_write: None,
             writer,
             writer_saves: 0,
             writes: 0,
@@ -1668,10 +1673,20 @@ impl World {
         self.external_repository(b"org/repo", op, user)
     }
     fn external_repository(&mut self, repository: &[u8], op: raw::Op, user: u64) -> raw::Answer {
+        self.external_repository_at(repository, op, user, Time::ZERO, Wall::EPOCH)
+    }
+    fn external_repository_at(
+        &mut self,
+        repository: &[u8],
+        op: raw::Op,
+        user: u64,
+        now: Time,
+        wall: Wall,
+    ) -> raw::Answer {
         let mut config = self.forge_env.limits.clone();
         config.latency_min = Duration::ZERO;
         config.latency_max = Duration::ZERO;
-        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config };
+        let env = Env { now, wall, limits: config };
         self.serial += 1;
         let token = Token::new(self.serial);
         forge::step(
@@ -1730,7 +1745,11 @@ impl World {
                 self.timeout_merges -= 1;
                 env.limits.timeouts = 1000;
             }
+            let excluded = self.exclude_record_lag(&event);
             forge::step(&mut self.forge, &env, event, &mut self.forge_out);
+            if let Some(lag) = excluded {
+                forge::lag(&mut self.forge, lag);
+            }
             self.copy_fell();
             self.take_forge();
         } else if self.top.is_ready() {
@@ -2046,6 +2065,7 @@ impl World {
             match self.forge_out.pop().expect("counted fake output") {
                 forge::Request::Reply { to, result } => {
                     let pending = self.pending.remove(&to.into_token()).expect("pending call");
+                    self.interleave_after(&pending.op, result.is_ok());
                     let result = match result {
                         Ok(answer) => {
                             let mut answer =

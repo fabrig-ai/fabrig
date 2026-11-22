@@ -13,6 +13,7 @@ mod goal_branch_restart;
 mod green;
 mod history_world;
 mod hooks;
+mod lagging;
 mod landing;
 mod landing_batches;
 mod landing_cancelled;
@@ -49,6 +50,7 @@ mod fuzzy {
     mod branch_patterns;
     mod gate_keys;
     mod history;
+    mod lagging;
     mod landing_batches;
     mod member_message;
     mod opened;
@@ -56,6 +58,7 @@ mod fuzzy {
     mod queue_history;
     mod rules_by_path;
     mod simulation;
+    mod stale;
 }
 
 mod kept_change;
