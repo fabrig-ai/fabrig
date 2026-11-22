@@ -31,11 +31,12 @@ engine's in full.
   `Ends`: each goal a scenario names ends, is held with words naming its
   fault, or keeps going untouched, within a bound in simulated minutes and
   in steps; and after every restart the engine opens within a bound.
-- **Open problems** (section 5): twelve ignored scenarios, named as the
-  draft's section 7 names them, each ignored with the work that fixes it,
-  and an exclusion for each that every engine sweep drawing its fault
-  takes. P124's first scenario is its fix's own active test, not one of
-  them.
+- **Open problems** (section 5): a scenario for each of twelve rows,
+  named as the draft's section 7 names them, each ignored with the work
+  that fixes it, and an exclusion for each that every engine sweep
+  drawing its fault takes; a scenario whose handling holds already runs
+  active with none (P90). P124's first scenario is its fix's own active
+  test, not one of them.
 - **Out:** jig's, the worker's and smith's adapters and checks; the fault
   families (the draft, section 4); the settings tests and the store check
   (the draft, 3.6 and 3.7), whose call the settings goal adds to the kit's
@@ -341,7 +342,7 @@ wants of that symptom.
 |---|---|---|---|
 | P124 | `a_change_waiting_for_room_has_a_bound` | `temper-engine-forge-world` | bounded waits |
 | P88 | `a_refused_release_is_accounted` | `temper-engine-forge-world` | landing train |
-| P90 | `a_refused_close_of_an_open_pull_holds_with_words` | `temper-engine-forge-world` | landing train |
+| P90 | `a_refused_close_of_an_open_pull_holds_with_words` | `temper-engine-forge-world` | holds already: active |
 | P67 residual | `a_no_change_landing_repair_regates_once` | `temper-engine-forge-world` | a change's reds |
 | P37 | `a_starved_gate_is_the_runners` | `temper-engine-forge-world` | a change's reds |
 | S7 | `a_landing_without_its_prepare_task_moves` | `temper-engine-domain-world` | landing train |
@@ -367,7 +368,10 @@ wants of that symptom.
   (the draft's 4.1, *Refusing*, is the forge faults' work), so its
   scenario refuses the close of a change's pull request by permission,
   the pull request left open, which is the refusal the row's handling is
-  about.
+  about. Its handling holds already: the cleanup holds with an account
+  naming the close, the pull request and the permission, so the scenario
+  runs, not ignored, and takes no exclusion (the last bullet; the goal's
+  coordinator, 2026-11-22).
 - **P37's report:** a gate red whose report names no failing test; where
   the fake forge and the gate's report reader can say tests went
   unobserved, it says so too.
@@ -400,7 +404,6 @@ names otherwise, here, in its own change.
 |---|---|---|
 | `a_change_waiting_for_room_has_a_bound` | `bounds` / `forge write entries full` | `a change waiting for room past its stall` |
 | `a_refused_release_is_accounted` | `forge` / `a write refused` | `a task's release under way` |
-| `a_refused_close_of_an_open_pull_holds_with_words` | `forge` / `a close refused` | `the pull request still open` |
 | `a_no_change_landing_repair_regates_once` | `runs` / `a repair ends with no change` | `a landing's gate red` |
 | `a_starved_gate_is_the_runners` | `forge` / `a starved gate` | `a landing's gate` |
 | `a_landing_without_its_prepare_task_moves` | `parties` / `hold a member of a live landing` | `its landing's prepare job gone` |
