@@ -197,7 +197,7 @@ fn assert_landed(world: &World, landing: u64, changes: &[u64]) {
 }
 
 // Expiring the worker's git identity fences its claim, not the atomic admission.
-fn marked_prepare() -> (World, u64, u64) {
+pub(crate) fn marked_prepare() -> (World, u64, u64) {
     let mut world = turn_world();
     let people::Ask::Create { project, mut batch } = adoption_chat(&world) else { panic!("chat") };
     batch[0].budget = people::Budget::AsAllowed { cap: Some(250) };
@@ -340,7 +340,7 @@ fn claimed_attempts(world: &World, child: u64) -> Vec<u64> {
     attempts
 }
 
-fn start_prepare(world: &mut World, landing: u64) -> (u64, u64) {
+pub(crate) fn start_prepare(world: &mut World, landing: u64) -> (u64, u64) {
     world.send(engine::Event::Credential { number: 1, generation: 3, valid: Duration::from_secs(3600) });
     assert_eq!(await_prepare(world), landing);
     let job = (world.jobs[0].run.raw(), world.jobs[0].attempt.raw());

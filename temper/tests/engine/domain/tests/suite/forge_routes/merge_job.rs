@@ -15,7 +15,7 @@ mod history;
 #[path = "merge_job/producer.rs"]
 mod producer;
 
-pub(super) fn world(up_to_date: bool, kind: bool, authority: bool) -> World {
+pub(crate) fn world(up_to_date: bool, kind: bool, authority: bool) -> World {
     world_with_spec(up_to_date, kind, authority, Some(2048))
 }
 
@@ -60,7 +60,7 @@ fn optimistic_pull(world: &mut World) {
     }
 }
 
-fn next_job(world: &mut World, task: u64, optimistic: bool) -> host::JobAssignment {
+pub(crate) fn next_job(world: &mut World, task: u64, optimistic: bool) -> host::JobAssignment {
     let deadline =
         world.env.now.saturating_add(world.env.limits.forge.client.settle).saturating_add(Duration::from_secs(20));
     while world.env.now <= deadline {
@@ -82,7 +82,7 @@ fn next_job(world: &mut World, task: u64, optimistic: bool) -> host::JobAssignme
     );
 }
 
-fn check_job(world: &World, task: u64, job: &host::JobAssignment, head: u64, base: u64) {
+pub(crate) fn check_job(world: &World, task: u64, job: &host::JobAssignment, head: u64, base: u64) {
     assert_eq!(job.kind, JobKind(forge_top::MERGE_KIND));
     assert_eq!(job.deadline, Duration::from_secs(600));
     let workspace = job.workspace.as_ref().expect("job workspace");
@@ -114,7 +114,7 @@ fn check_job(world: &World, task: u64, job: &host::JobAssignment, head: u64, bas
     assert_eq!(change_row(world, task).change.resolutions, 1);
 }
 
-fn finish_job(world: &mut World, job: &host::JobAssignment, result: &[u8]) {
+pub(crate) fn finish_job(world: &mut World, job: &host::JobAssignment, result: &[u8]) {
     let event = world.protocol.answer_job(
         CHANNEL,
         job.run.raw(),
@@ -125,16 +125,19 @@ fn finish_job(world: &mut World, job: &host::JobAssignment, result: &[u8]) {
 }
 
 pub(super) fn push_merge(world: &mut World, task: u64, head: u64, base: u64) -> u64 {
-    let branch = change_row(world, task).branch.clone();
-    let merged = fake::merge_commit(
-        &mut world.fake,
-        &world.fake_env.limits,
+    push_merge_tree(
+        world,
+        task,
         head,
         base,
         Box::new([raw::File { path: b"file".as_slice().into(), content: b"settled".as_slice().into() }]),
-        b"Resolve merge",
     )
-    .expect("resolved merge with both parents");
+}
+
+pub(crate) fn push_merge_tree(world: &mut World, task: u64, head: u64, base: u64, tree: Box<[raw::File]>) -> u64 {
+    let branch = change_row(world, task).branch.clone();
+    let merged = fake::merge_commit(&mut world.fake, &world.fake_env.limits, head, base, tree, b"Resolve merge")
+        .expect("resolved merge with both parents");
     assert_eq!(
         world.external(2, raw::Op::Git(raw::Git::Push { branch, commit: merged, expected: Some(head) })),
         raw::Answer::Pushed(raw::Pushed::Pushed)
@@ -266,6 +269,10 @@ fn assert_preserving_resolution(words: &[u8]) {
 }
 
 pub(super) fn finish_resolution(world: &mut World, resolution: &engine::Assignment) {
+    finish_resolution_words(world, resolution, b"resolved");
+}
+
+pub(crate) fn finish_resolution_words(world: &mut World, resolution: &engine::Assignment, words: &[u8]) {
     let event = world.protocol.answer(
         CHANNEL,
         resolution.task,
@@ -277,7 +284,7 @@ pub(super) fn finish_resolution(world: &mut World, resolution: &engine::Assignme
                 connector: 0,
                 kind: 2,
                 resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
-                words: b"resolved".as_slice().into(),
+                words: words.into(),
             },
             cancel_delegates: false,
         },
@@ -357,7 +364,7 @@ fn a_resolution_that_fails_for_good_holds_and_notifies_its_requester() {
     world.close();
 }
 
-fn next_resolution(world: &mut World, task: u64) -> engine::Assignment {
+pub(crate) fn next_resolution(world: &mut World, task: u64) -> engine::Assignment {
     let deadline =
         world.env.now.saturating_add(world.env.limits.forge.client.settle).saturating_add(Duration::from_secs(20));
     while world.env.now <= deadline {

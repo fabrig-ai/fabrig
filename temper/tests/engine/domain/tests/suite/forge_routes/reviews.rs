@@ -38,7 +38,7 @@ fn read_answer(
     panic!("forge read was not answered");
 }
 
-pub(super) fn next_assignment(world: &mut World, index: usize) -> engine::Assignment {
+pub(crate) fn next_assignment(world: &mut World, index: usize) -> engine::Assignment {
     for _ in 0..MAX_TICKS {
         world.tick();
         if let Some(run) = world.assigned.get(index) {
@@ -874,7 +874,7 @@ fn assert_repository_grants(task: u64, authority: &tasks::Authority) {
     }
 }
 
-pub(super) fn finish_review(world: &mut World, reviewer: &engine::Assignment, result: tasks::TaskResult) {
+pub(crate) fn finish_review(world: &mut World, reviewer: &engine::Assignment, result: tasks::TaskResult) {
     let event = world.protocol.answer(
         CHANNEL,
         reviewer.task,

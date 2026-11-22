@@ -2,7 +2,7 @@
 use super::*;
 use skein_forge::api;
 
-fn task_row(world: &World, task: u64) -> Option<&tasks::TaskRecord> {
+pub(crate) fn task_row(world: &World, task: u64) -> Option<&tasks::TaskRecord> {
     let live = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(task)));
     let ended = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(task)));
     world.store.rows.get(&live).into_iter().chain(world.store.rows.get(&ended)).find_map(|record| match record {
@@ -153,7 +153,7 @@ fn produced_turn_change(landing_members: Option<u32>) -> (World, u64) {
     produced_turn_change_with(&StoryLimits { turn: true, landing_members, ..StoryLimits::default() })
 }
 
-fn produced_turn_change_with(limits: &StoryLimits) -> (World, u64) {
+pub(crate) fn produced_turn_change_with(limits: &StoryLimits) -> (World, u64) {
     produced_with_hold(limits, false)
 }
 fn produced_with_hold(limits: &StoryLimits, held: bool) -> (World, u64) {
@@ -739,7 +739,7 @@ fn batch_waiting(world: &World, changes: &[u64]) -> bool {
         })
 }
 
-fn landing_rows(world: &World) -> Vec<&forge_top::LandingRow> {
+pub(crate) fn landing_rows(world: &World) -> Vec<&forge_top::LandingRow> {
     world
         .store
         .rows
@@ -1146,7 +1146,7 @@ mod merge_drill;
 mod wait_drill;
 
 #[path = "landing_restarts.rs"]
-mod restarts;
+pub(crate) mod restarts;
 
 #[path = "landing_two_goals.rs"]
 mod two_goals;

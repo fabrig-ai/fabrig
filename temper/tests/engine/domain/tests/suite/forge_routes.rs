@@ -92,7 +92,7 @@ pub(super) mod change_tool;
 mod read_contracts;
 
 #[path = "forge_routes/light_rules.rs"]
-mod light_rules;
+pub(crate) mod light_rules;
 
 #[path = "forge_routes/catch_up.rs"]
 mod catch_up;
@@ -102,7 +102,7 @@ mod opened;
 mod squash_in;
 
 #[path = "forge_routes/merge_job.rs"]
-mod merge_job;
+pub(crate) mod merge_job;
 
 #[path = "forge_routes/plain_change.rs"]
 mod plain_change;
@@ -146,7 +146,7 @@ mod goal_tier;
 
 mod amended_review;
 #[path = "forge_routes/reviews.rs"]
-mod reviews;
+pub(crate) mod reviews;
 
 #[path = "forge_routes/b2_tree.rs"]
 mod b2_tree;
