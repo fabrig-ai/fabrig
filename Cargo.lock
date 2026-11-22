@@ -5082,6 +5082,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "smith-faults"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+ "skein-llm-kit",
+ "skein-world",
+ "smith-domain-run",
+]
+
+[[package]]
 name = "smith-host-domain"
 version = "0.0.0"
 dependencies = [

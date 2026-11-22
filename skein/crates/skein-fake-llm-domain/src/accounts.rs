@@ -85,7 +85,7 @@ impl Accounts {
             let active = account.swap_remove(index).expect("found strike");
             match active.strike {
                 Strike::Unserved { model } => {
-                    self.bytes = self.bytes.checked_add(len_u64(model.len())).expect("returned model bytes")
+                    self.bytes = self.bytes.checked_add(len_u64(model.len())).expect("returned model bytes");
                 }
                 Strike::Spent | Strike::SignedOut | Strike::Window { .. } => {}
             }
