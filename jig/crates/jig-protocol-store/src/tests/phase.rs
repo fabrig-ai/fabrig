@@ -31,6 +31,7 @@ mod history;
 mod jobs;
 mod layouts;
 mod registry;
+mod rehearsal;
 mod value_types;
 
 const CHUNK: u32 = 4096;

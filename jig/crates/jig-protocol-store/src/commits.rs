@@ -95,7 +95,7 @@ pub(crate) fn operations(
                 ops.push(op).ok().ok_or(Refusal::Check(CommitCheck::Capacity))?;
             }
             Write::DropTranscript { task } => {
-                if crate::upgrade::switch::pending(store) {
+                if store.rehearsal.is_some() || crate::upgrade::switch::pending(store) {
                     return Err(Refusal::Check(CommitCheck::Switching));
                 }
                 if let Err(check) = crate::transcripts::drop::queue(store, task, number) {
@@ -115,7 +115,7 @@ pub(crate) fn operations(
                 drops.push(task);
             }
             Write::Save(Record::Core(CoreRecord::Turn(turn))) => {
-                if crate::upgrade::switch::pending(store) {
+                if store.rehearsal.is_some() || crate::upgrade::switch::pending(store) {
                     return Err(Refusal::Check(CommitCheck::Switching));
                 }
                 let file = match crate::transcripts::log::file(store, turn.task) {

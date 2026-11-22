@@ -101,6 +101,113 @@ fn finding_requests_subjects_and_reads_round_trip_with_bounded_words() {
     assert_eq!(crate::decode_reading(&crate::reading(&reading), limits), Some(reading));
 }
 
+#[test]
+fn repair_requests_round_trip_and_refuse_words_and_findings_past_the_bounds() {
+    let limits = &v1::CEILINGS;
+    for count in [0, 15] {
+        for length in [1, 4096] {
+            let mut more = List::with_capacity(count);
+            for _ in 0..count {
+                more.push(u32::MAX).unwrap();
+            }
+            let record = v1::Requesting {
+                request: v1::Request::TriageFinding(v1::TriageFinding {
+                    project: 2,
+                    number: 3,
+                    act: v1::Triage::Repair(v1::FindingRepair { more, words: filled(length) }),
+                }),
+            };
+            assert_eq!(crate::decode_requesting(&crate::requesting(&record), limits), Some(record));
+        }
+    }
+    let empty = v1::Requesting {
+        request: v1::Request::TriageFinding(v1::TriageFinding {
+            project: 2,
+            number: 3,
+            act: v1::Triage::Repair(v1::FindingRepair { more: List::uncapped(), words: Box::default() }),
+        }),
+    };
+    assert!(crate::decode_requesting(&crate::requesting(&empty), limits).is_none());
+    for (count, length, path) in
+        [(16_u32, 1, v1::paths::FINDING_REPAIR_MORE), (0, 4097, v1::paths::FINDING_REPAIR_WORDS)]
+    {
+        let mut more = List::uncapped();
+        for _ in 0..count {
+            more.push(5).unwrap();
+        }
+        let value = v1::FindingRepair { more, words: filled(length) };
+        assert_eq!(value.encode(limits), Err(v1::Problem { path, reason: skein_codec::Reason::Bound }));
+    }
+    // A count beyond the cap is refused before any of its entries are read.
+    let mut writer = Writer::new(4);
+    writer.put(&16_u32.to_be_bytes()).unwrap();
+    assert_eq!(
+        v1::FindingRepair::decode(limits, &mut Reader::new(&writer.finish())),
+        Err(v1::Problem { path: v1::paths::FINDING_REPAIR_MORE, reason: skein_codec::Reason::Bound })
+    );
+}
+
+#[test]
+fn blame_requests_round_trip_both_commit_lengths_and_refuse_other_lengths_or_empty_why() {
+    let limits = &v1::CEILINGS;
+    for landing in [None, Some(filled(20)), Some(filled(32))] {
+        for length in [1, 200] {
+            let record = v1::Requesting {
+                request: v1::Request::TriageFinding(v1::TriageFinding {
+                    project: 2,
+                    number: 3,
+                    act: v1::Triage::Blame(v1::FindingBlameAct { landing: landing.clone(), why: filled(length) }),
+                }),
+            };
+            assert_eq!(crate::decode_requesting(&crate::requesting(&record), limits), Some(record));
+        }
+    }
+    for (landing, why) in [
+        (Some(filled(21)), filled(1)),
+        (Some(filled(19)), filled(1)),
+        (Some(filled(31)), filled(1)),
+        (Some(Box::default()), filled(1)),
+        (None, Box::default()),
+    ] {
+        let record = v1::Requesting {
+            request: v1::Request::TriageFinding(v1::TriageFinding {
+                project: 2,
+                number: 3,
+                act: v1::Triage::Blame(v1::FindingBlameAct { landing, why }),
+            }),
+        };
+        assert!(crate::decode_requesting(&crate::requesting(&record), limits).is_none());
+    }
+    for (landing, why, path) in [
+        (None, filled(201), v1::paths::FINDING_BLAME_ACT_WHY),
+        (Some(filled(33)), filled(1), v1::paths::FINDING_BLAME_ACT_LANDING),
+    ] {
+        assert_eq!(
+            (v1::FindingBlameAct { landing, why }).encode(limits),
+            Err(v1::Problem { path, reason: skein_codec::Reason::Bound })
+        );
+    }
+}
+
+#[test]
+fn triaged_goals_and_long_finding_refusals_round_trip() {
+    let limits = &v1::CEILINGS;
+    for outcome in [
+        v1::Outcome::Triaged(v1::Triaged { goal: Some(u64::MAX) }),
+        v1::Outcome::Triaged(v1::Triaged { goal: None }),
+        v1::Outcome::FindingRefused(v1::FindingRefused {
+            reason: v1::FindingRefusal::Words(v1::FindingWords { field: filled(1024) }),
+        }),
+    ] {
+        let record = v1::Answer { outcome };
+        assert_eq!(v1::Answer::decode(limits, &mut Reader::new(&crate::answer(&record))), Ok(record));
+    }
+    assert_eq!(
+        (v1::FindingWords { field: filled(1025) }).encode(limits),
+        Err(v1::Problem { path: v1::paths::FINDING_WORDS_FIELD, reason: skein_codec::Reason::Bound })
+    );
+}
+
 fn holder() -> v1::Holder {
     v1::Holder::Role(v1::HolderRole { number: u32::MAX })
 }
@@ -235,7 +342,11 @@ fn finding_outcomes_and_refusals_round_trip_with_all_area_names() {
         areas.push(filled(32)).unwrap();
     }
     let mut outcomes = List::uncapped();
-    for outcome in [v1::Outcome::Filed(v1::Filed { number: u32::MAX }), v1::Outcome::Handed, v1::Outcome::Triaged] {
+    for outcome in [
+        v1::Outcome::Filed(v1::Filed { number: u32::MAX }),
+        v1::Outcome::Handed,
+        v1::Outcome::Triaged(v1::Triaged { goal: None }),
+    ] {
         outcomes.push(outcome).unwrap();
     }
     for reason in [

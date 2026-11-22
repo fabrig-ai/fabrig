@@ -1368,6 +1368,7 @@ fn forges(world: World) -> Box<[u8]> {
     let mut rows = List::with_capacity(3);
     if has_playground(world) && world != (FirstRun { step: 7 }) {
         rows.push(w::ForgeRow {
+            catching_up: None,
             starts_with: w::StartsWith::Repository,
             makings: List::with_capacity(0),
             host: b"git.example:3000".as_slice().into(),
@@ -1395,6 +1396,7 @@ fn forges(world: World) -> Box<[u8]> {
             .push(w::Installation { id: 1, account: None, suspended: false, stray: false })
             .expect("installation room");
         rows.push(w::ForgeRow {
+            catching_up: None,
             starts_with: w::StartsWith::Repository,
             makings: List::with_capacity(0),
             host: b"git.example:3000".as_slice().into(),
@@ -1456,6 +1458,7 @@ fn forges(world: World) -> Box<[u8]> {
             _ => w::Connection::NotSetUp,
         };
         rows.push(w::ForgeRow {
+            catching_up: None,
             starts_with: w::StartsWith::Repository,
             makings: List::with_capacity(0),
             host: b"git.example:3000".as_slice().into(),
@@ -5148,6 +5151,7 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
             .expect("one landing");
     }
     v::ChangesPanel {
+        catching_up: None,
         landed_default: List::with_capacity(0),
         landed_default_more: 0,
         project: PROJECT,

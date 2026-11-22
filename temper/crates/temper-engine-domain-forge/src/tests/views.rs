@@ -680,6 +680,7 @@ fn changes_marks_a_verifications_save_and_erasure() {
 fn changes_owned_bytes_charges_every_field() {
     const STRINGS: usize = 4 + 4 + 4 + TITLE.len() * 2;
     let view = ChangesView {
+        catching_up: None,
         landed_default: Box::new([ChangesLanded {
             goal: None,
             chat: None,
