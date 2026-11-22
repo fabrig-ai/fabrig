@@ -270,7 +270,9 @@ loopback (skein's `testing/fakes/forge.md`, section 5). temper's worlds add:
       request's file list is past the forge's bound (skein's
       `Limits::files`) gets the files it needs, or is told which it
       can't. The bounds sweep leaves out a pull request's files past
-      their bound where a repair reads them.
+      their bound where a repair reads them; they fall where the repair
+      asked reads no files, a landing gate's, while the engine's other
+      reads of the change meet them.
 - **Its git** is reached through the fake forge's own calls, never git's
   protocol over HTTP: through its typed transport by the fake git
   program in the one-process world (3), as by the fake checkout in the
