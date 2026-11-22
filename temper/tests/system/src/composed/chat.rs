@@ -237,7 +237,7 @@ fn landing_report(world: &mut World) -> String {
             && world.root_events.is_empty()
             && !world.committing()
         {
-            world.env.now = world.env.now.saturating_add(super::Duration::from_secs(1));
+            world.jump(super::Duration::from_secs(1));
         }
         world.tick();
         let key = engine::Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(2)));
@@ -273,7 +273,7 @@ fn a_stock_chat_distinguishes_starter_ci_from_running_code() {
     assert!(report.contains(": build passed\n"), "{report}");
     let mut dark = requested_chat(Vec::new(), b"Add a dark theme to widget");
     core::mem::swap(&mut dark.forge, &mut csv.forge);
-    dark.env.now = csv.env.now;
+    dark.jump(csv.env.now.saturating_since(dark.env.now));
     let mut dark =
         echo_change(dark, "Add a dark theme to widget", "theme.css", "body { color: white; background: black; }\\n");
     let report = landing_report(&mut dark);
@@ -357,6 +357,67 @@ fn echo_change(mut world: World, request: &str, path: &str, content: &str) -> Wo
         },
     ]);
     world
+}
+
+#[test]
+fn every_composed_clock_move_visits_an_off_grid_stall_bound() {
+    for name in ["tick", "jump", "advance"] {
+        eprintln!("clock move {name}");
+        let mut world = requested_chat(Vec::new(), b"Add CSV export to widget");
+        world.env.limits.forge.change_policy.stall = super::Duration::from_secs(3);
+        world.env.limits.forge.change_policy.unknown_grace = super::Duration::ZERO;
+        world.root = engine::Domain::new(agreement::config(923), &world.env.limits).expect("short stall fixture");
+        let mut forge = super::Forge::new(923);
+        let mut checks = agreement::checks();
+        checks.silent = 1000;
+        forge.repository_with_checks(
+            b"org/repo",
+            b"main",
+            super::Tree::from([
+                (b"README.md".to_vec(), b"The answer is 42.\n".to_vec()),
+                (b"AGENTS.md".to_vec(), b"Report what you found.\n".to_vec()),
+                (b"src/lib.rs".to_vec(), b"pub fn answer() -> u32 { 42 }\n".to_vec()),
+                (b"src/main.rs".to_vec(), b"fn main() {}\n".to_vec()),
+            ]),
+            checks,
+        );
+        forge.grant(b"org/repo", 1, fake::Permission::Admin);
+        forge.grant(b"org/repo", 7, fake::Permission::Read);
+        world.forge = forge;
+        let mut world = echo_change(world, "Add CSV export to widget", "export.csv", "fruit,count\\n");
+        let bound = loop {
+            world.tick();
+            if world.observed.gone >= 2
+                && world.engine_quiet()
+                && let Some(bound) = world.checks.next_bound()
+            {
+                break bound;
+            }
+            assert!(world.iteration < super::STEPS, "change must reach its bounded CI wait");
+        };
+        // Approach the kept bound off the millisecond grid without crossing it.
+        let before = super::Time::from_nanos(bound.as_nanos().saturating_sub(500_000));
+        world.try_move_to(before).expect("approach the bound");
+        match name {
+            "tick" => world.tick(),
+            "jump" => world.jump(super::Duration::from_millis(1)),
+            "advance" => world.advance(super::Duration::from_millis(1)),
+            _ => unreachable!("the three clock moves"),
+        }
+        assert_eq!(world.env.now, bound.saturating_add(super::Duration::from_nanos(500_000)));
+        assert!(world.checks.next_bound().is_none(), "the stall is handled at its bound");
+        assert!(
+            world.store.rows.values().any(|row| matches!(row,
+            engine::Record::Forge { row, .. } if matches!(row.as_ref(),
+                temper_engine_domain_forge::Stored::ChangeHot(change)
+                    if matches!(change.change.state,
+                        temper_engine_domain_forge_change::State::Held {
+                            why: temper_engine_domain_forge_change::Hold::Stalled, .. })))),
+            "the CI wait is held at its bound {bound:?}, now {:?}",
+            world.env.now
+        );
+        world.tick();
+    }
 }
 
 fn reporting_prompt(world: &mut World) {

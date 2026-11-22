@@ -179,7 +179,7 @@ impl World {
                 && self.worker_events.is_empty()
                 && !self.committing()
             {
-                self.env.now = self.env.now.saturating_add(Duration::from_secs(1));
+                self.jump(Duration::from_secs(1));
             }
             self.tick();
             let Some(job) = self.merge_story().job else { continue };

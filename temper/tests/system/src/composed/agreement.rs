@@ -201,7 +201,7 @@ impl World {
     /// Hold the person's answer past parking with no active process to drive.
     pub fn hold_goal(&mut self, duration: Duration) {
         assert!(matches!(self.agent().answer(), run::Answer::Parked { .. }));
-        self.env.now = self.env.now.saturating_add(duration);
+        self.jump(duration);
         self.tick();
     }
 
@@ -243,7 +243,7 @@ impl World {
                 && self.worker_events.is_empty()
                 && !self.committing()
             {
-                self.env.now = self.env.now.saturating_add(Duration::from_secs(1));
+                self.jump(Duration::from_secs(1));
             }
             self.tick();
             if let Some(engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row)))) =

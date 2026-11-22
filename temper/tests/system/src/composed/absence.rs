@@ -179,7 +179,7 @@ impl World {
     /// Move the scripted clock during an absence; the next tick observes expired clocks.
     pub fn elapse_absence(&mut self, duration: Duration) {
         assert!(!self.absence.engine_running && !self.absence.link_joined);
-        self.env.now = self.env.now.saturating_add(duration);
+        self.jump(duration);
         self.tick();
     }
 
@@ -197,6 +197,8 @@ impl World {
         self.root_out.clear();
         self.store.crash(self.seed);
         self.protocol = Protocol::default();
+        // The stopped root owns no live waits; retain any finding on the world.
+        self.checks = super::Checks::new(self.seed);
     }
 
     /// Reopen only the engine root on its store. No worker Ready is generated here.
@@ -206,11 +208,14 @@ impl World {
         self.root_events = VecDeque::from([engine::Event::Restart { pending: false }]);
         self.absence.engine_running = true;
         self.absence.drained = false;
+        self.opened = false;
+        self.ends.restarted(self.env.now);
     }
 
     /// A root started and dropped before it can admit a hello is still one absence.
     pub fn refuse_engine_start(&mut self) {
         self.reopen_engine();
+        self.ends.no_opening(self.env.now);
         self.stop_engine();
         self.absence.refused_starts += 1;
     }
