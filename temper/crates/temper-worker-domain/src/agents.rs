@@ -70,7 +70,7 @@ pub(crate) fn to_agent(domain: &mut Domain, env: &Env<Limits>, request: host::To
         }
         host::ToAgent::Renewals { agent: _, held } => smith::parent::Event::Renewals { held },
         host::ToAgent::Acknowledge { agent, turn } => smith::parent::Event::Acknowledge { agent, turn },
-        host::ToAgent::AcknowledgePart { .. } => return,
+        host::ToAgent::AcknowledgePart { agent, number } => smith::parent::Event::AcknowledgePart { agent, number },
         host::ToAgent::Drain { agent, grace } => smith::parent::Event::Drain { agent, grace },
         host::ToAgent::Cancel { agent } => {
             let mut cut = false;
@@ -147,13 +147,8 @@ pub(crate) fn up(domain: &mut Domain, env: &Env<Limits>, request: smith::parent:
             host::Event::Agent(host::FromAgent::Started { owner: client, agent: bound.agent })
         }
         smith::parent::Request::Part { client, part } => {
-            let agent = domain.agents.get(&client).expect("a part belongs to a started agent").agent;
-            route::agent_step(
-                domain,
-                env,
-                smith::Input::Parent(smith::parent::Event::AcknowledgePart { agent, number: part.number }),
-            );
-            return;
+            domain.pending.push(Pending::Part { owner: client });
+            return out.push(Request::Encode { owner: client, value: Encodable::Part(part) });
         }
         smith::parent::Request::Turn { client, turn } => {
             domain.pending.push(Pending::Turn { owner: client });
@@ -406,11 +401,23 @@ pub(crate) fn encoded(
     let pending = domain.pending.pop().expect("each hand-out comes back once");
     assert!(pending.owner() == owner, "hand-outs come back in order");
     match pending {
+        Pending::Part { .. } => {
+            let event = match encoded {
+                Encoded::Part(part) => host::Event::Agent(host::FromAgent::Part { owner, part }),
+                Encoded::Undecodable => host::Event::Agent(faulted(domain, owner, host::AgentFailure::Rules, out)),
+                Encoded::Turn(_) | Encoded::CallName(_) | Encoded::Result(_) => {
+                    unreachable!("a hand-out comes back as it went")
+                }
+            };
+            route::host_step(domain, env, event);
+        }
         Pending::Turn { .. } => {
             let event = match encoded {
                 Encoded::Turn(turn) => host::Event::Agent(host::FromAgent::Turn { owner, turn }),
                 Encoded::Undecodable => host::Event::Agent(faulted(domain, owner, host::AgentFailure::Rules, out)),
-                Encoded::CallName(_) | Encoded::Result(_) => unreachable!("a hand-out comes back as it went"),
+                Encoded::Part(_) | Encoded::CallName(_) | Encoded::Result(_) => {
+                    unreachable!("a hand-out comes back as it went")
+                }
             };
             route::host_step(domain, env, event);
         }
@@ -434,12 +441,12 @@ fn result_encoded(
 ) {
     let (owner, turns, spent, read, finish) = match pending {
         Pending::Result { owner, turns, spent, read, finish } => (owner, turns, spent, read, finish),
-        Pending::Turn { .. } | Pending::Call { .. } => unreachable!("a result hand-out"),
+        Pending::Part { .. } | Pending::Turn { .. } | Pending::Call { .. } => unreachable!("a result hand-out"),
     };
     let body = match encoded {
         Encoded::Result(body) => Some(body),
         Encoded::Undecodable => None,
-        Encoded::Turn(_) | Encoded::CallName(_) => unreachable!("a hand-out comes back as it went"),
+        Encoded::Part(_) | Encoded::Turn(_) | Encoded::CallName(_) => unreachable!("a hand-out comes back as it went"),
     };
     let event = match finish {
         Finish::Refused(class) => {
@@ -488,7 +495,7 @@ fn named(
             let event = faulted(domain, owner, host::AgentFailure::Rules, out);
             return route::host_step(domain, env, host::Event::Agent(event));
         }
-        Encoded::Turn(_) | Encoded::Result(_) => unreachable!("a hand-out comes back as it went"),
+        Encoded::Part(_) | Encoded::Turn(_) | Encoded::Result(_) => unreachable!("a hand-out comes back as it went"),
     };
     let entry = domain.calls.get_mut(&(owner, call)).expect("a call waits for its name");
     entry.name = Some(name.clone());

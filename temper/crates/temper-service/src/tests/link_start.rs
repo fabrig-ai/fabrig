@@ -172,6 +172,7 @@ impl Joint {
                     | temper_worker_domain::Event::Ready
                     | temper_worker_domain::Event::Lost
                     | temper_worker_domain::Event::GracePassed
+                    | temper_worker_domain::Event::ResendPart { .. }
                     | temper_worker_domain::Event::Resend { .. }
                     | temper_worker_domain::Event::RelayCancelled { .. }
                     | temper_worker_domain::Event::Process(_)

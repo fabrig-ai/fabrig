@@ -124,6 +124,12 @@ pub enum Event {
         attempt: Token,
         turn: u32,
     },
+    /// The engine answered a part busy, and its backoff passed.
+    ResendPart {
+        run: Token,
+        attempt: Token,
+        part: u32,
+    },
     /// Terminal for `CancelRelay`.
     RelayCancelled {
         run: Token,
@@ -325,6 +331,7 @@ pub enum Request {
 /// One of smith's payloads, handed out to be encoded.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Encodable {
+    Part(agent::channel::ToldPart),
     Turn(agent::Turn),
     CallName(agent::CallName),
     Result(agent::RunResult),
@@ -333,6 +340,7 @@ pub enum Encodable {
 /// One of smith's payloads, encoded, or what could not be.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Encoded {
+    Part(jig_domain_link::Part),
     Turn(host::Turn),
     CallName(Box<[u8]>),
     Result(Box<[u8]>),

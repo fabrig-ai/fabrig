@@ -18,12 +18,14 @@ fn the_link_s_credential_names_temper_s_wire() {
 
 #[test]
 fn the_worker_sizes_each_part_from_its_payload_codec() {
-    let settings = fixtures::worker_settings();
+    let mut settings = fixtures::worker_settings();
+    settings.jig.graces.drain_grace = Duration::from_millis(73);
     let agent = fixtures::worker_agent();
     let limits = fixtures::worker_limits();
     let prepared = worker_settings::prepare(&settings, &agent, &limits).unwrap();
     assert_eq!(prepared.root.host.slots, 1);
     assert_eq!(prepared.root.drain, settings.jig.graces.drain);
+    assert_eq!(prepared.root.drain_grace, settings.jig.graces.drain_grace);
     assert_eq!(prepared.root.stop_bound, settings.jig.stop_bound);
     assert_eq!(prepared.root.after_grace, Duration::from_secs(30));
     assert_eq!(prepared.root.checkout.repositories, 1);
@@ -53,12 +55,26 @@ fn a_workspace_start_carries_one_path_per_directory() {
     }
     start.directories = directories.into_boxed();
     let table = crate::worker::credentials::Table::new(0, 0);
-    let values = crate::worker::start_values(&table, &start, b"/worker", fixtures::NOW).unwrap();
+    let values = crate::worker::start_values(&table, &mut start, b"/worker", fixtures::NOW).unwrap();
     assert_eq!(
         values.paths.as_ref(),
         [Box::from(b"/worker/workspaces/73/second".as_slice()), Box::from(b"/worker/workspaces/41/first".as_slice()),]
     );
-    encode_grants(*start, values, &agent).expect("two prepared directories encode with their paths");
+    assert_eq!(
+        start.directories[0].results.as_deref(),
+        Some(b"/worker/workspaces/73/second/.git/smith-check".as_slice())
+    );
+    assert_eq!(start.directories[1].results, None);
+    let frame = encode_grants(*start, values, &agent).expect("two prepared directories encode with their paths");
+    let offset = frame.bytes().len() - usize::try_from(frame.body_len()).unwrap();
+    let decoded =
+        smith_channel::Start::decode(&agent.limits.bodies, &mut Reader::new(&frame.bytes()[offset..])).unwrap();
+    let directories = decoded.workspace.unwrap().directories;
+    assert_eq!(
+        directories.get(0).unwrap().results.as_deref(),
+        Some(b"/worker/workspaces/73/second/.git/smith-check".as_slice())
+    );
+    assert_eq!(directories.get(1).unwrap().results, None);
 }
 
 #[test]
@@ -94,13 +110,13 @@ fn a_start_fits_against_the_prepared_workspaces_conflicts_and_schema_costs() {
         conflicts: Box::new([b"src/conflicted.rs".as_slice().into()]),
     }]);
     start.charter = smith_host_domain::Charter::new(charter, agent.host_limits.charter_bytes).unwrap();
-    let start = crate::worker::fit_start(*start, &agent);
+    let mut start = crate::worker::fit_start(*start, &agent);
     let charter = start.charter.value();
     assert_eq!(run::brief_room(charter, Some(&workspace), &agent.run_limits), Some(256));
     assert!(run::brief_bytes(&charter.brief).unwrap() <= 256);
     assert!(charter.brief.sections[0].text.ends_with(b" bytes; whole: read_ci]\n"));
     let table = crate::worker::credentials::Table::new(0, 0);
-    let values = crate::worker::start_values(&table, &start, b"/worker", fixtures::NOW).unwrap();
+    let values = crate::worker::start_values(&table, &mut start, b"/worker", fixtures::NOW).unwrap();
     encode_grants(start, values, &agent).expect("the fitted start encodes with its prepared workspace");
 }
 
@@ -573,7 +589,7 @@ fn start_and_renewal_require_the_declared_form_and_live_generation() {
                 let now = Time::from_nanos(now);
                 let mut start = decoded_chat_start(&agent);
                 start.grants = Box::new([grant]);
-                let opening = crate::worker::start_values(&table, &start, b"/worker", now);
+                let opening = crate::worker::start_values(&table, &mut start, b"/worker", now);
                 let renewal = crate::worker::grant_value(&table, grant, now);
                 let accepted = live && form == expected;
                 assert_eq!(opening.is_some(), accepted, "start {grant:?} at {now:?}");
@@ -606,7 +622,7 @@ fn a_program_grant_lends_only_its_validated_name_without_a_table_entry() {
         };
         let mut start = decoded_chat_start(&agent);
         start.grants = Box::new([grant]);
-        let values = crate::worker::start_values(&table, &start, b"/worker", Time::ZERO).unwrap();
+        let values = crate::worker::start_values(&table, &mut start, b"/worker", Time::ZERO).unwrap();
         assert_eq!(values.credentials.as_ref(), [smith_protocol_channel::GrantValue::Program(bytes.clone())]);
         assert_eq!(crate::worker::grant_value(&table, grant, Time::ZERO).unwrap().credentials, values.credentials);
         let encoded = encode_grants(*start, values, &agent).unwrap();
@@ -815,7 +831,7 @@ fn key_values_reach_smith_at_their_bound_and_fit_the_workers_memory() {
             valid: Duration::from_secs(5),
             form: smith::Form::Credential(smith::Scheme::Key),
         }]);
-        let values = crate::worker::start_values(&worker.values, &start, b"/worker", Time::ZERO).unwrap();
+        let values = crate::worker::start_values(&worker.values, &mut start, b"/worker", Time::ZERO).unwrap();
         let encoded = encode_grants(*start, values, &agent).unwrap();
         let offset = encoded.bytes().len() - usize::try_from(encoded.body_len()).unwrap();
         let decoded =

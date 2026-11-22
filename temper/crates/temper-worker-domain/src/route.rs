@@ -21,7 +21,7 @@ use crate::{agents, jobs, tooling, translate};
 
 /// What the host reads: this iteration's times, and its own limits.
 pub(crate) fn host_env(env: &Env<Limits>) -> Env<host::Limits> {
-    env.with(env.limits.host)
+    env.with(host::Limits { drain_grace: env.limits.drain_grace, ..env.limits.host })
 }
 
 /// What the checkout reads.
@@ -74,6 +74,11 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &
             host_step(domain, env, opened);
         }
         Event::Lost => host_step(domain, env, host::Event::LinkLost),
+        Event::ResendPart { run, attempt, part } => {
+            if let Some(part) = domain.host.part(run, attempt, part) {
+                out.push(Request::Link(host::LinkUp::Part { run, attempt, part }));
+            }
+        }
         Event::GracePassed => {
             domain.past = true;
             crate::stopping::contact(domain, env);

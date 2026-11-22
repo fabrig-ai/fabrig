@@ -42,6 +42,7 @@ pub fn turn_bytes() -> (u64, u64) {
 /// each, a turn window of one, with the engine's charters, and events and
 /// outcomes of a few hundred bytes.
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "the world composes each child limit in one place")]
 pub fn limits() -> Limits {
     let (encoded, owned) = turn_bytes();
     Limits {
@@ -54,7 +55,7 @@ pub fn limits() -> Limits {
         },
         watermark: temper_worker_domain::WATERMARK,
         host: host::Limits {
-            drain_grace: jig_protocol_config::DEFAULT_DRAIN_GRACE,
+            drain_grace: Duration::from_secs(10),
             application_ask_bytes: 0,
             application_answer_bytes: 0,
             program_sources: 12,
@@ -140,6 +141,7 @@ pub fn limits() -> Limits {
             reply_bytes: None,
         },
         drain: Duration::from_secs(10),
+        drain_grace: Duration::from_secs(10),
         after_grace: Duration::from_secs(15),
         stop_bound: STOP_BOUND,
     }

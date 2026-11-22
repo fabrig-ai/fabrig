@@ -24,6 +24,7 @@ pub mod faults;
 pub mod jobs;
 pub mod merge;
 pub mod orders;
+pub mod parts;
 pub mod pause;
 pub mod prepare;
 
@@ -99,6 +100,10 @@ struct World {
     shutdown_notices: u32,
     busy: Vec<(Token, Token)>,
     report: Report,
+    opening: Option<Box<agent::Start>>,
+    parts: Vec<jig_domain_link::Part>,
+    part_acks: Vec<u32>,
+    turns: Vec<host::Turn>,
 }
 
 impl World {
@@ -149,6 +154,10 @@ impl World {
             root_pauses: Vec::new(),
             shutdown_notices: 0,
             busy: Vec::new(),
+            opening: None,
+            parts: Vec::new(),
+            part_acks: Vec::new(),
+            turns: Vec::new(),
             report: Report {
                 tree: Tree::new(),
                 trace: Vec::new(),
@@ -287,6 +296,7 @@ impl World {
             host::LinkUp::Draining => self.shutdown_notices += 1,
             host::LinkUp::Turn { run, attempt, turn } => {
                 assert_eq!((run, attempt, turn.turn), (self.run, self.attempt, 1));
+                self.turns.push(turn);
             }
             host::LinkUp::Activity { run, attempt, .. } => assert_eq!((run, attempt), (self.run, self.attempt)),
             host::LinkUp::Call { run, attempt, call, tool, writes, input, .. } => {
@@ -306,8 +316,11 @@ impl World {
                     answer: host::AskAnswer::Refused,
                 }));
             }
-            host::LinkUp::Part { .. }
-            | host::LinkUp::UsageRead { .. }
+            host::LinkUp::Part { run, attempt, part } => {
+                assert_eq!((run, attempt), (self.run, self.attempt));
+                self.parts.push(part);
+            }
+            host::LinkUp::UsageRead { .. }
             | host::LinkUp::ListRead { .. }
             | host::LinkUp::Logins { .. }
             | host::LinkUp::SignedOut { .. }
@@ -413,6 +426,8 @@ impl World {
                 assert_eq!(start.directories.len(), 1);
                 assert_eq!(start.directories[0].name.as_ref(), b"app");
                 assert_eq!(start.workspace, Some(start.directories[0].root));
+                self.workspace = start.workspace;
+                self.opening = Some(Box::new(start));
             }
             agent::Down::Answer { call, reply } => {
                 assert_eq!(call, CALL);
@@ -447,8 +462,15 @@ impl World {
                 self.deliveries += 1;
             }
             agent::Down::Cancel => self.report.cancellations += 1,
-            agent::Down::Drain { grace: _ } => self.report.drains += 1,
-            agent::Down::PartKept { .. } | agent::Down::Renewals { .. } | agent::Down::Acknowledge { turn: 1 } => {}
+            agent::Down::Drain { grace } => {
+                assert_eq!(
+                    grace,
+                    self.opening.as_ref().expect("started").tell_parts.then_some(self.env.limits.drain_grace)
+                );
+                self.report.drains += 1;
+            }
+            agent::Down::PartKept { number } => self.part_acks.push(number),
+            agent::Down::Renewals { .. } | agent::Down::Acknowledge { turn: 1 } => {}
             agent::Down::Acknowledge { .. } | agent::Down::Grant { .. } | agent::Down::Message { .. } => {
                 panic!("unscripted process record")
             }
@@ -487,11 +509,23 @@ impl World {
     }
 
     fn assign_with(&mut self, start: wire::Start, save: bool) -> Result<(), String> {
+        self.assign_parts(start, save, false, Box::new([]))
+    }
+
+    fn assign_parts(
+        &mut self,
+        start: wire::Start,
+        save: bool,
+        tell_parts: bool,
+        parts: Box<[jig_domain_link::KeptPart]>,
+    ) -> Result<(), String> {
         let Event::Assign { mut assignment, items } = assignment(self.first, self.run, self.run.raw(), start) else {
             panic!("workspace assignment")
         };
         assignment.assignment.attempt = self.attempt;
         assignment.assignment.save = save;
+        assignment.tell_parts = tell_parts;
+        assignment.parts = parts;
         self.event(Event::Assign { assignment, items })?;
         Ok(())
     }

@@ -34,6 +34,8 @@ pub struct Limits {
     pub stop_bound: Duration,
     /// Time allowed to finish current turns before shutdown cancels them.
     pub drain: Duration,
+    /// Time for a drained run's calls in flight at its answer to end.
+    pub drain_grace: Duration,
     /// Stop bound left after the link's ping, silence and contact grace.
     pub after_grace: Duration,
     /// The backlog, in entries, at which the worker's service stops taking

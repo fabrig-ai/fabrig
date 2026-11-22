@@ -75,6 +75,7 @@ pub(super) fn cancelling(event: &root::Event) -> Option<crate::worker_alone::Not
         | root::Event::Ready
         | root::Event::Lost
         | root::Event::GracePassed
+        | root::Event::ResendPart { .. }
         | root::Event::Resend { .. }
         | root::Event::RelayCancelled { .. }
         | root::Event::Process(_)
@@ -114,7 +115,7 @@ fn event_tag(event: &root::Event) -> WorkerEvent {
         root::Event::Ready => WorkerEvent::Ready,
         root::Event::Lost => WorkerEvent::Lost,
         root::Event::GracePassed => WorkerEvent::GracePassed,
-        root::Event::Resend { .. } => WorkerEvent::Resend,
+        root::Event::ResendPart { .. } | root::Event::Resend { .. } => WorkerEvent::Resend,
         root::Event::RelayCancelled { .. } => WorkerEvent::RelayCancelled,
         root::Event::Process(_) | root::Event::Job { .. } => WorkerEvent::Process,
         root::Event::Live { .. } => WorkerEvent::Live,

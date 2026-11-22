@@ -124,6 +124,34 @@ fn an_unchecked_save_keeps_the_producer_tree_and_a_checked_push_replaces_its_com
 }
 
 #[test]
+fn parts_relay_before_the_answer_and_are_acknowledged_and_replayed() {
+    temper_worker_domain_world::whole::parts::relayed().expect("world checks");
+}
+
+#[test]
+fn starts_keep_ordered_parts_and_drains_use_grace_only_when_requested() {
+    temper_worker_domain_world::whole::parts::starts_and_graces().expect("world checks");
+}
+
+#[test]
+fn a_drained_answer_resumes_with_parts_in_its_kept_workspace() {
+    use temper_worker_domain_world::whole::parts::{InFlight, resumes};
+    resumes(InFlight::Answer).expect("world checks");
+}
+
+#[test]
+fn a_drained_check_resumes_with_parts_and_its_previous_results() {
+    use temper_worker_domain_world::whole::parts::{InFlight, resumes};
+    resumes(InFlight::Check).expect("world checks");
+}
+
+#[test]
+fn a_drained_command_resumes_with_its_interrupted_part() {
+    use temper_worker_domain_world::whole::parts::{InFlight, resumes};
+    resumes(InFlight::Command).expect("world checks");
+}
+
+#[test]
 fn a_shutdown_drains_the_turn_saves_its_work_and_waits_for_every_acknowledgement() {
     let report = run(112, Case::Drained).expect("world checks");
     assert_eq!((report.drains, report.cancellations, report.saves), (1, 0, 1));

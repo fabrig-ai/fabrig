@@ -38,6 +38,7 @@ pub fn is_new_work(event: &Event) -> bool {
         | Event::Ready
         | Event::Lost
         | Event::GracePassed
+        | Event::ResendPart { .. }
         | Event::Resend { .. }
         | Event::RelayCancelled { .. }
         | Event::Job { .. }
@@ -68,6 +69,7 @@ pub fn passes(event: &Event) -> bool {
             | host::LinkDown::Relayed { .. },
         )
         | Event::RelayCancelled { .. }
+        | Event::ResendPart { .. }
         | Event::Resend { .. } => true,
         Event::Assign { .. }
         | Event::AssignJob { .. }

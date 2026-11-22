@@ -8511,6 +8511,7 @@ dependencies = [
  "smith-domain-run",
  "smith-domain-session",
  "smith-protocol-channel",
+ "smith-protocol-translate",
  "smith-transcript",
  "temper-fake-checkout",
  "temper-worker-checkout-world",

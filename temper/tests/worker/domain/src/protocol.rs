@@ -177,9 +177,28 @@ pub fn decode_with_dialect(
             grants.push(grant);
         }
     }
+    let mut parts = Vec::new();
+    if source.tell_parts {
+        for part in source.parts {
+            let body = smith_protocol_translate::decode_part(&part.body, &smith_transcript::CEILINGS, &endpoints)
+                .map_err(|_| host::Undecoded::Transcript)?;
+            parts.push(agent::channel::KeptPart {
+                activation: part.attempt,
+                turn: part.turn,
+                thread: part.thread,
+                call: part.call,
+                kind: match part.kind {
+                    jig_domain_link::PartKind::Answer => record::PartKind::Answer,
+                    jig_domain_link::PartKind::Result => record::PartKind::Result,
+                    jig_domain_link::PartKind::Window => record::PartKind::Window,
+                },
+                body: agent::TurnValue::new(body, limits.transcript_bytes).ok_or(host::Undecoded::Transcript)?,
+            });
+        }
+    }
     Ok(Box::new(agent::Start {
-        parts: Box::default(),
-        tell_parts: false,
+        parts: parts.into_boxed_slice(),
+        tell_parts: source.tell_parts,
         identity: Some(smith_domain_run::Identity::new(source.identity)),
         logical_run: run,
         activation: source.activation,
@@ -225,6 +244,27 @@ pub fn encode(value: Encodable) -> Encoded {
 #[must_use]
 pub fn encode_with_dialect(value: Encodable, dialect: u32) -> Encoded {
     match value {
+        Encodable::Part(part) => {
+            match smith_protocol_translate::encode_part(
+                part.body.value(),
+                &smith_transcript::CEILINGS,
+                &endpoints_with_dialect(dialect),
+            ) {
+                Ok(body) => Encoded::Part(jig_domain_link::Part {
+                    number: part.number,
+                    turn: part.turn,
+                    thread: part.thread,
+                    call: part.call,
+                    kind: match part.kind {
+                        record::PartKind::Answer => jig_domain_link::PartKind::Answer,
+                        record::PartKind::Result => jig_domain_link::PartKind::Result,
+                        record::PartKind::Window => jig_domain_link::PartKind::Window,
+                    },
+                    body,
+                }),
+                Err(_) => Encoded::Undecodable,
+            }
+        }
         Encodable::Turn(turn) => {
             let encoded = smith_protocol_channel::encode_turn(
                 turn.body.value(),

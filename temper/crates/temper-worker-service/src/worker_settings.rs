@@ -110,6 +110,7 @@ pub fn root_limits(worker: &settings::Worker, agent: &Agent, own: &Limits) -> ro
         bounds: agent.bounds.clone(),
         stop_bound: worker.jig.stop_bound,
         drain: worker.jig.graces.drain,
+        drain_grace: worker.jig.graces.drain_grace,
         after_grace: skein_lib::Duration::from_nanos(
             worker
                 .jig

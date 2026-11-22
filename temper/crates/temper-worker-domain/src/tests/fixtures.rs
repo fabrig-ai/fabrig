@@ -26,7 +26,7 @@ pub fn limits() -> Limits {
         },
         watermark: crate::WATERMARK,
         host: host::Limits {
-            drain_grace: jig_protocol_config::DEFAULT_DRAIN_GRACE,
+            drain_grace: Duration::from_secs(10),
             application_ask_bytes: 0,
             application_answer_bytes: 0,
             program_sources: 12,
@@ -113,6 +113,7 @@ pub fn limits() -> Limits {
             reply_bytes: None,
         },
         drain: Duration::from_secs(10),
+        drain_grace: Duration::from_secs(10),
         after_grace: Duration::from_secs(15),
         stop_bound: Duration::from_secs(20),
     }
