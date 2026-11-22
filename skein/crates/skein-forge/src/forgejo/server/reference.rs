@@ -1,4 +1,4 @@
-//! Named refs are resolved by the server's store before reading their commit (skein/docs/design/testing/fakes/forge.md, 4).
+//! Named refs are resolved by the server's store before reading their commit (skein/docs/design/testing/fakes/forgejo.md, 1).
 use crate::forgejo::{
     id::ObjectId,
     request::{Page, Repo, Request},

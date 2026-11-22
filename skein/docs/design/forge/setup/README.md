@@ -339,8 +339,8 @@ The tiers and budgets are ../../../foundation/testing-strategy.md's and skein's 
   ../github.md, section 14).
 - **The setup world** (../../../foundation/testing-strategy.md, 2.4), in skein's
   `tests/forge/setup`, plays the host component over a store of items
-  and the fake forge's setup routes and GitHub layer (../../testing/fakes/forge.md,
-  section 4), through HTTP bytes. It checks:
+  and the fake forge's setup routes and GitHub layer (../../testing/fakes/forgejo.md,
+  section 1), through HTTP bytes. It checks:
   - an empty forge converged: the bot, both tokens with their scopes,
     answering as the bot, and each adopted repository's collaborator and
     hook;

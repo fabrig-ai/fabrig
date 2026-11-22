@@ -1,4 +1,4 @@
-//! Signed webhook requests for a world to write (testing/fakes/forge.md, section 4).
+//! Signed webhook requests for a world to write (testing/fakes/forgejo.md, section 1).
 use crate::{Limits, Service, routes};
 use alloc::boxed::Box;
 use core::{net::SocketAddr, str::FromStr};

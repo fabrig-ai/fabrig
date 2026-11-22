@@ -393,7 +393,7 @@ which reaches the engine over jig's client protocol, and their fake is
 skein's fake person in front of it (`fakes.md`, 4). A peer can be a client as well as
 a server: the fake forge's protocol layer sends signed deliveries to the
 engine's webhooks' listener (../protocol/forge/README.md, section 4; skein's
-`testing/fakes/forge.md`, section 4); and reconcile meets it as the engine does,
+`testing/fakes/forgejo.md`, section 1); and reconcile meets it as the engine does,
 through the setup's routes (../protocol/setup/testing.md, 2).
 
 ### 3.2 The machine

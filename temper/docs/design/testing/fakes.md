@@ -174,7 +174,7 @@ The fake forge is skein's (skein's `testing/fakes/forge.md`): its domain, with i
 refusals, timing, faults and CI (skein's `testing/fakes/forge.md`, section 2); its git, in the store the
 API reads, so a branch the worker pushes is the head the engine reads
 (skein's `testing/fakes/forge.md`, section 3); its protocol layer, which serves Forgejo's API, signed
-deliveries and the setup's routes (skein's `testing/fakes/forge.md`, section 4); and its forge peer on
+deliveries and the setup's routes (skein's `testing/fakes/forgejo.md`, section 1); and its forge peer on
 loopback (skein's `testing/fakes/forge.md`, section 5). temper's worlds add:
 
 - **What the engine's worlds need of it** (`../domain/root.md`, section 11;
@@ -184,7 +184,7 @@ loopback (skein's `testing/fakes/forge.md`, section 5). temper's worlds add:
   The domain's faults give them, drawn from the world's seed.
 - **Its fixtures.** The scenario gives the protocol layer each
   repository's id and its table of API tokens and the users they stand
-  for (skein's `testing/fakes/forge.md`, section 4), and the repositories their
+  for (skein's `testing/fakes/forgejo.md`, section 1), and the repositories their
   files and checks (`README.md`, 4.1).
 - **Its costs.** The protocol layer counts the requests it serves, by
   route, which the engine's cost checks hold to ceilings
@@ -274,8 +274,8 @@ loopback (skein's `testing/fakes/forge.md`, section 5). temper's worlds add:
 - **Its git** is reached through the fake forge's own calls, never git's
   protocol over HTTP: through its typed transport by the fake git
   program in the one-process world (3), as by the fake checkout in the
-  domain worlds; and over its git route (skein's `testing/fakes/forge.md`,
-  section 4) by the fake git program in the real loop (`real-loop.md`), as in the
+  domain worlds; and over its git route (skein's `testing/fakes/forgejo.md`,
+  section 1) by the fake git program in the real loop (`real-loop.md`), as in the
   playground's processes (../protocol/setup/playground.md). Real git meets an owned
   Forgejo in the process and live tiers, and skein's throwaway Forgejo
   in temper's transcripts (`process-tier.md`); a real-git bridge is an open question
@@ -327,7 +327,7 @@ loopback (skein's `testing/fakes/forge.md`, section 5). temper's worlds add:
   name limit. The document's `made_ci`, optional and of the same form,
   is the CI of every repository the forge makes through its setup
   routes, an admin's `CreateRepository` and a copy's destination
-  (skein's `testing/fakes/forge.md`, 4, `Config.made_checks`); absent,
+  (skein's `testing/fakes/forgejo.md`, 1, `Config.made_checks`); absent,
   they report none, as before. So the box's fake forges let a person's
   commit decide a head's checks by what it holds
   (`../protocol/setup/box.md`, 5; `../draft/landed-qa.md`, 6), and how
@@ -350,7 +350,7 @@ loopback (skein's `testing/fakes/forge.md`, section 5). temper's worlds add:
     forge holds them: those the document seeds, and those the forge
     makes later, through its setup routes and an admin's
     `CreateRepository`, as `made_ci` reaches those (skein's
-    `testing/fakes/forge.md`, 4). Each dispatch makes a run at the
+    `testing/fakes/forgejo.md`, 1). Each dispatch makes a run at the
     branch's head, read through its runs and jobs; like Forgejo's
     dispatch-only jobs, it writes no commit status (skein's
     `forge/forgejo.md`, 2; `../domain/landing.md`, 7.1). Absent, no repository holds a workflow, as before,
@@ -437,7 +437,7 @@ that forge in one of two ways (skein's `testing/fakes/forge.md`, section 3):
 through the typed transport of the fake forge's domain, sharing the
 forge with the forge peer (skein's `testing/fakes/forge.md`, section 5) where a
 world hosts both in one ring (`README.md`, 2.5); or over the forge's git route on the
-forge's listener (skein's `testing/fakes/forge.md`, section 4), from the real
+forge's listener (skein's `testing/fakes/forgejo.md`, section 1), from the real
 loop (`real-loop.md`) and from another process.
 
 - **What it takes:** the invocations of ../protocol/git.md, section 4, with
@@ -450,7 +450,7 @@ loop (`real-loop.md`) and from another process.
   keeping its git state in each repository's `.git` as skein's fake
   checkout keeps it, and reaches the fake forge through its typed
   transport. Its commits are the fake forge's counts, written as 40-digit
-  ids (skein's `testing/fakes/forge.md`, section 4).
+  ids (skein's `testing/fakes/forgejo.md`, section 1).
 - **What it prints:** what real git prints for those invocations: the
   porcelain lines, the NUL-separated paths and the ids ../protocol/git.md
   reads, and git's exit statuses; and, for the fake forge's refusals and
@@ -500,7 +500,7 @@ its own:
   the URL its clone wrote in `.git/temper-remote`, which holds no
   secret. The credential is the `Authorization` git's `http.extraHeader`
   carries (../protocol/git.md, section 5), forwarded as it is; the
-  store's calls carry none (skein's `testing/fakes/forge.md`, section 4).
+  store's calls carry none (skein's `testing/fakes/forgejo.md`, section 1).
 - **Its exits:** what real git exits, for what real git does or
   refuses; 128 and a `fatal:` line, as git's on a network failure, when
   the route is out of reach or fails; 125 and `temper-box fake git: broken:
