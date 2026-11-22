@@ -144,7 +144,9 @@ def roll_up(tree, files):
         in_flight += flying
         if any(counts.values()):
             opened.append(f"{path}, {date}: {counts_line(counts, flying)}")
-        if finished and is_draft(path) and not path.startswith(f"{tree}/docs/design/draft/archive/"):
+        if (finished and is_draft(path)
+                and not path.startswith(f"{tree}/docs/design/draft/archive/")
+                and not path.removesuffix(".status.md").endswith((".notes", ".execution"))):
             done.append(path.removesuffix(".status.md") + ".md")
     oversized.sort(key=lambda item: (-item[1], os.fsencode(item[0])))
     sections = [("Status files with an open entry:", opened),

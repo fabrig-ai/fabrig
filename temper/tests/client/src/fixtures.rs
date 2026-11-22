@@ -581,7 +581,7 @@ pub fn read(
 pub fn project() -> temper_client_domain::Address {
     temper_client_domain::Address::Home { project: 1 }
 }
-/// Start a change from the rail's new box (temper/docs/design/client/view.md, 3).
+/// Start a change from the rail's new box (temper/docs/design/client/view-navigation.md, 1).
 #[must_use]
 pub fn start_change(drafts: bool) -> Vec<skein_fake_person::Step<temper_client_domain::Address>> {
     use skein_fake_person::{Find, Step};
@@ -1560,7 +1560,7 @@ pub fn done_task(printed: &temper_client_tools::jig::Printed) -> u64 {
         .expect("task number")
 }
 
-/// client/ctl/README.md, 9: two 16 KiB parts within the tools' 32 KiB text bound.
+/// client/ctl/bounds.md, 1: two 16 KiB parts within the tools' 32 KiB text bound.
 pub const LARGE_TURN_TEXT: usize = 24_576;
 #[must_use]
 pub fn codec_for(limits: &jig_client::DomainLimits) -> jig_protocol_transcript::Limits {

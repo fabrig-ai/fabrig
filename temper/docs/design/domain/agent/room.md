@@ -15,7 +15,7 @@ smith refuses a run whose host part (its host tools, instructions, brief,
 and finish and deliver schemas) passes its bound, the room of the agent's
 smallest window (`charter.md`, 5), before any turn. The largest stock
 charter's non-brief host part is charter 1's with a Change contract and
-the control family's plan form of `change` (`tools.md`, 1); with the
+the control family's plan form of `change` (`tools-change.md`, 1); with the
 authorised brief, its task section a whole spec
 (`../../protocol/configuration/limits.md`), and 1,472 bytes for 64 stock
 sections' titles and framing (16 title bytes and 7 framing bytes each), it

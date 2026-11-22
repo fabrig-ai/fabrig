@@ -1,4 +1,4 @@
-//! Session state for what needs the person (temper/docs/design/client/pages/README.md, temper/docs/design/client/README.md, 3.6).
+//! Session state for what needs the person (temper/docs/design/client/pages/README.md, temper/docs/design/client/root.md, 1.6).
 use super::{
     Pages, Request,
     inbox::{Card, Inbox},

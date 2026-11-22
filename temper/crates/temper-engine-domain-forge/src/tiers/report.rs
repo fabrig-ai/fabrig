@@ -1,4 +1,4 @@
-//! Completed tier reports within the task contract (temper/docs/design/domain/after-landing.md, 10).
+//! Completed tier reports within the task contract (temper/docs/design/domain/after-landing-storage.md, 1).
 use super::{Box, List};
 
 /// Fit a forge-composed tier verdict to the task's report bound.

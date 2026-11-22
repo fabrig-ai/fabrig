@@ -1,4 +1,4 @@
-//! A red reaches its goals with bounded log ends (temper/docs/design/domain/after-landing.md, 7 and 10).
+//! A red reaches its goals with bounded log ends (temper/docs/design/domain/after-landing.md, 7, and temper/docs/design/domain/after-landing-storage.md, 1).
 use crate::{Class, Domain, JobLog, Limits, News, RedNews, RedOn, Request, Subscriber, TierRow, Topic, Verification};
 use alloc::boxed::Box;
 use skein_forge::api::{self, Commit, Repository};

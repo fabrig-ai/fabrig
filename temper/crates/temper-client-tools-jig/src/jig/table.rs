@@ -10,7 +10,7 @@ pub struct Limits {
     pub ask_bytes: u64,
     pub result_bytes: u64,
     pub text: u32,
-    /// Most bytes of an act's words and a model's or effort's name, checked before sending (client/ctl/README.md, 9).
+    /// Most bytes of an act's words and a model's or effort's name, checked before sending (client/ctl/bounds.md, 1).
     pub words: u32,
     pub part: u32,
     pub wait: Duration,

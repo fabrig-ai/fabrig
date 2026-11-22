@@ -236,12 +236,12 @@ command; temper-box help pages lists the pages.`
 
 - **The bare form is the box without a TUI,** what `temper box --no-tui`
   was: in a terminal or not, it prints its sign-in block and its lines
-  as `../protocol/setup/box.md`, 2 says. Its internal switches
+  as `../protocol/setup/box-supervision.md`, 1 says. Its internal switches
   `--fake-backends` and `--front` and its internal setting `--bundle
   BUNDLE` give its other forms. `--front` is `temper box`'s alone: the
   box run as the child of `temper`'s TUI, its link and its lines on the
   descriptors `temper` hands it, and nothing on its terminal
-  (`../protocol/setup/box.md`, 6). `--echo` is a flag of every form,
+  (`../protocol/setup/box-front.md`, 1). `--echo` is a flag of every form,
   the fake backends' among them. `--no-tui` and `internal tui` are gone:
   the TUI is `temper`'s alone (`../draft/cli.md`, section 5).
 - **No `box` words and no TUI:** `temper box` is the client's (7.4),
@@ -415,7 +415,7 @@ command; temper help pages lists the pages.`
 
 | Reached by | Set | Forms and what |
 |---|---|---|
-| the bare form | public | `[ADDRESS]`: the TUI on the engine at ADDRESS, else at the address its link file or its kept address names (`../client/tui/README.md`, 2) |
+| the bare form | public | `[ADDRESS]`: the TUI on the engine at ADDRESS, else at the address its link file or its kept address names (`../client/tui/directory.md`, 1) |
 | `box` | public | `[ARGUMENT...]`: in a terminal, the TUI in front of a `temper-box --front` child given ARGUMENT...; else `temper-box ARGUMENT...` in its place (`../client/tui/box.md`; `../client/box-binary.md`, 5) |
 | `help` | public | `temper_shell::table::HELP` (5) |
 | `ctl` | internal | `temper_shell::table::CTL`, the row the box's table holds too: the line client's tools |

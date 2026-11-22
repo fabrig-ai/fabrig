@@ -1,6 +1,6 @@
 # one-owner: a concept's values, defined once
 
-2026-11-14. A second pilot after `design-economy.md`'s: fewer layers for a concept where a layer adds nothing of its own (`design-economy.md`, 5.3), which the first pilot couldn't reach, since it kept every source outside its crate as it was (`design-economy.md`, 7.2). It runs from the first pilot's template and is counted the way its count was (`temper/docs/development/debt/reviews/2026-11-14-design-economy-e2.md`). The reasons are the user's (`notes.md`, 18).
+2026-11-14. A second pilot after `design-economy.md`'s: fewer layers for a concept where a layer adds nothing of its own (`design-economy.md`, 5.3), which the first pilot couldn't reach, since it kept every source outside its crate as it was (`design-economy.md`, 7.2). It runs from the first pilot's template and is counted the way its count was (`temper/docs/development/debt/reviews/2026-11-14-design-economy-e2.md`). The reasons are the user's (`design-economy.notes.md`).
 
 ## 1. In one page
 

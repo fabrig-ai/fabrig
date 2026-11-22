@@ -1,4 +1,4 @@
-//! Verdict presentation from retained policy facts (domain/after-landing.md, 5.3 and 10).
+//! Verdict presentation from retained policy facts (domain/after-landing.md, 5.3, and domain/after-landing-storage.md, 1).
 use super::*;
 
 fn verdict(blames: Box<[p::Blame]>, failing: p::Failures) -> p::Verdict {

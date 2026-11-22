@@ -1,4 +1,4 @@
-//! The engine's link at rest (temper/docs/design/client/tui/README.md, 2).
+//! The engine's link at rest (temper/docs/design/client/tui/directory.md, 1).
 use std::{
     fmt::Write as _,
     fs,

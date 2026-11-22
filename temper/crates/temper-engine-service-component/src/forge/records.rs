@@ -1,4 +1,4 @@
-//! Application secrets and forge connections after the durable start mark (domain/root.md, 8.1).
+//! Application secrets and forge connections after the durable start mark (domain/root-restart.md, 1.1).
 use alloc::boxed::Box;
 use jig_protocol_store::{Event, SecretOwner, Secrets};
 #[cfg(test)]

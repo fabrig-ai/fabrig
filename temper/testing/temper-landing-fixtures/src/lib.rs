@@ -28,7 +28,7 @@ pub struct RepositoryChecks {
     pub tiers: Box<[TierCheck]>,
 }
 pub use temper_engine_domain_forge_landing::Gate as GateCheck;
-/// A repository's tier and the branch it follows (domain/after-landing.md, 2).
+/// A repository's tier and the branch it follows (domain/after-landing-runs.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TierCheck {
     pub name: Box<[u8]>,

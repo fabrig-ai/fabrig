@@ -1,4 +1,4 @@
-//! Top-owned state and coherent current facts (domain/landing.md, 1–10).
+//! Top-owned state and coherent current facts (domain/landing.md, 1–4, and domain/landing-prepare.md, 1, and domain/landing-proof.md, 1–2, and domain/landing-turn.md, 1–2, and domain/landing.md, 10).
 use alloc::boxed::Box;
 use skein_lib::{Duration, Wall};
 
@@ -8,7 +8,7 @@ use crate::Verdict;
 pub type Commit = [u8; 32];
 /// A failing case (domain/landing-search-by-test.md, 10).
 pub type TestId = Box<[u8]>;
-/// A gate's key (domain/landing.md, 6.1).
+/// A gate's key (domain/landing-proof.md, 1.1).
 pub type Key = [u8; 32];
 /// Bound of a branch-name-safe gate or after-landing tier name.
 pub const CHECK_NAME_BYTES: usize = 32;
@@ -64,7 +64,7 @@ pub enum Status {
     Failed,
 }
 
-/// A landing's committed place (domain/landing.md, 3, 5–8).
+/// A landing's committed place (domain/landing.md, 3, and domain/landing-prepare.md, 1, and domain/landing-proof.md, 1–2, and domain/landing-turn.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Phase {
     Waiting,
@@ -77,7 +77,7 @@ pub enum Phase {
     Cancelled,
 }
 
-/// Why a release is needed (domain/landing.md, 7.4).
+/// Why a release is needed (domain/landing-proof.md, 2.4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Hold {
     Faults { member: u16, gate: u16 },
@@ -87,7 +87,7 @@ pub enum Hold {
     Turn,
 }
 
-/// One gate's proof at a member's candidate (domain/landing.md, 7).
+/// One gate's proof at a member's candidate (domain/landing-proof.md, 2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Proof {
     Unkeyed,
@@ -170,12 +170,12 @@ pub struct Landing {
     pub task: u64,
     pub project: u32,
     pub phase: Phase,
-    /// Upstream first: a member follows every member it depends on (domain/landing.md, 4.1, 8).
+    /// Upstream first: a member follows every member it depends on (domain/landing.md, 4.1, domain/landing-turn.md, 1).
     pub members: Box<[Member]>,
     /// Candidates' preparation, counted from 1.
     pub preparation: u16,
     pub stale_proofs: u32,
-    /// The train's landing branch (domain/landing.md, 9, 12).
+    /// The train's landing branch (domain/landing-turn.md, 2, domain/landing.md, 12).
     pub branch: Box<[u8]>,
     pub round: Round,
     /// Kept across rounds, which a stale end re-forms (domain/landing-preparing.md, 5).
@@ -196,7 +196,7 @@ pub struct LastPrepare {
     pub again: Option<Wall>,
 }
 
-/// A round's own branch, preparation and pull request (domain/landing.md, 5.1).
+/// A round's own branch, preparation and pull request (domain/landing-prepare.md, 1.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Round {
     pub branch: Box<[u8]>,
@@ -287,7 +287,7 @@ pub enum Preparation {
     Failed,
 }
 
-/// A prepare job's outcome for a member (domain/landing.md, 5.2).
+/// A prepare job's outcome for a member (domain/landing-prepare.md, 1.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Outcome {
     Combined,
@@ -296,7 +296,7 @@ pub enum Outcome {
 }
 
 /// Current dispatch of this key. The top follows the current try, clearing
-/// its old run when committing a retry (domain/landing.md, 7.4).
+/// its old run when committing a retry (domain/landing-proof.md, 2.4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Flight {
     None,
@@ -329,7 +329,7 @@ pub struct MemberFacts {
     pub main: Commit,
     /// Whether head contains main.
     pub contains_main: Status,
-    /// The train's tip contains the proved candidate (domain/landing.md, 8).
+    /// The train's tip contains the proved candidate (domain/landing-turn.md, 1).
     pub contains_candidate: Status,
     pub asked: bool,
     /// This landing's own merge effect: Unknown until asked, then Pending,
@@ -352,7 +352,7 @@ pub struct MemberFacts {
     pub deleted: Status,
 }
 
-/// The round's pull request read afresh after a merge not made (domain/landing.md, 8).
+/// The round's pull request read afresh after a merge not made (domain/landing-turn.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum RoundPull {
     Unread,

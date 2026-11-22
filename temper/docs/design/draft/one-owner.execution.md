@@ -12,6 +12,6 @@
 
 ## 2. Order
 
-- **No priority mark:** the pilot isn't one of v0.1.0's critical pieces. The user approved its execution (`notes.md`, 18): O2 starts once O1 is applied, when places are free and marked work isn't about to arrive.
+- **No priority mark:** the pilot isn't one of v0.1.0's critical pieces. The user approved its execution (`design-economy.notes.md`): O2 starts once O1 is applied, when places are free and marked work isn't about to arrive.
 - **O1, then O2, then O3.** Adoption (`one-owner.md`, 8) waits for the user's word on O3's figures.
 - **The area stays quiet from O2's start to its landing:** another goal changing `hearth-domain-render`, `hearth-client-protocol-records`, `hearth-protocol-builder`, `hearth-protocol-config`, their design, the tests that pin them, or the model's sections 1, 4 and 10, waits for O2 to land, or O2 waits for it.

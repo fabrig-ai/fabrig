@@ -208,7 +208,7 @@ pub fn specification(b: &mut Builder, value: &c::SpecificationDocument, words: &
     document(b, &value.specification.words);
     specification_facts(b, value, words);
 }
-/// A card's words follow its title only when they add more (client/pages/README.md, 2).
+/// A card's words follow its title only when they add more (client/pages/shared-behaviour.md, 1).
 pub fn specification_after_title(b: &mut Builder, value: &c::SpecificationDocument, words: &Words) {
     if !crate::common::chat::only_title(&value.specification.words) {
         document(b, &value.specification.words);

@@ -1,4 +1,4 @@
-//! The shipped bounds for one call (client/ctl/README.md, 9).
+//! The shipped bounds for one call (client/ctl/bounds.md, 1).
 use skein_lib::Duration;
 pub use temper_client_tools::limits::{DEADLINE, LOCK, LOCK_TRY};
 pub const INTERRUPTED: u8 = 130;

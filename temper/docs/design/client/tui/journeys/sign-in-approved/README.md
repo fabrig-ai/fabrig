@@ -2,7 +2,7 @@
 
 A version-2 `walk` in one process, on the playground's composition,
 with both shipped clients: no box or terminal
-(`../../../journey-walks.md`, 4 and 6). The browser starts signed in
+(`../../../journey-walks-world.md`, 1, and `../../../journey-walks.md`, 6). The browser starts signed in
 at `/welcome`; the TUI starts signed out. The walk sees and marks its
 approval frame, approves the address it asked to browse in that browser,
 then sees and marks the no-project launchpad.

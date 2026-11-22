@@ -2,6 +2,8 @@
 
 ## 1. The page
 
+### 1.1 A project's Home
+
 - **A project with no repository** (`../../draft/first-run-projects.md`,
   5): a project has none while the `forges` watch has delivered its
   rows and none of their `repositories` names it (`../forge/records.md`); with the
@@ -17,8 +19,8 @@
   (`../web/journeys.md`, 7); its words and its link are these.
 - **Home** (the user's greenfield mock's `home.html`; `../web/journeys.md`,
   7): `Home { project }`, at `/projects/<project>`, is the page the
-  welcome's Ready and "+ New project" (`../view.md`, 3) open, and the brand's link.
-  Going to it opens that project as a project's button does (`../view.md`, 3); with
+  welcome's Ready and "+ New project" (`../view-navigation.md`, 1) open, and the brand's link.
+  Going to it opens that project as a project's button does (`../view-navigation.md`, 1); with
   no such project in `me`, it says "Project N is not one of yours.", N
   the address's number, and the chats' link. *A deleted project:* with
   no such project in `me`, the page reads the project, jig's
@@ -74,7 +76,7 @@
     naming where the rail keeps the step: the repository on How work
     runs' Repositories tab, the way of working in Ask temper, the rail
     naming no Settings (`../../draft/surfaces.md`, section 2;
-    `../view.md`, 3). Then one
+    `../view-navigation.md`, 1). Then one
     row a step in this order, a done step keeping its place: its mark, drawn
     by style, the step's number or a green tick once done (the terminal
     says them in words); its title, a level-3 heading, over one short
@@ -85,7 +87,7 @@
        `repositories` names the project), done, "ORG/NAME is in PROJECT",
        "temper can change its code now.", with no claim that CI passed, since
        the forge rows supply no check result; ORG/NAME the project's first
-       adopted (`../view.md`, 3), one line on a laptop; with the rows' copies all in,
+       adopted (`../view-navigation.md`, 1), one line on a laptop; with the rows' copies all in,
        done, "acme/widget is in Widget", or "acme/widget, acme/other are in
        Widget", its line "temper can change its code now, on your Forgejo;
        nothing goes back where it was copied from.", or "temper can change
@@ -169,7 +171,7 @@
   - *The rail and the tab bar,* while the card shows: on Home and on Ask
     temper's page, "Home" and "Ask temper", with "Deployment" at the rail's
     foot, and the phone's tab bar "Home", "Ask" and "Deployment", three equal
-    tabs (`../view.md`, 3). So a new project's Home asks for one deliberate choice, Ask
+    tabs (`../view-navigation.md`, 1). So a new project's Home asks for one deliberate choice, Ask
     temper or Skip. Ask temper's page reads To begin's facts as Home does:
     `home::facts` reads no state of Home's page but its skip, and the
     project's chats, the `forges` rows, the `settings` document and the
@@ -177,7 +179,7 @@
     last step or a skip, the rail and the tab bar are whole again; every
     other page keeps every row.
   - *"Skip"* sends the FORGE request `Dismiss { to_begin(project) }`
-    (`../forge/records.md`), one act, one request (`../README.md`, 3.6), and the card goes at once, while
+    (`../forge/records.md`), one act, one request (`../root.md`, 1.6), and the card goes at once, while
     it is out and for as long as the person's dismissals name the
     project, so another device's Home drops it when the skip commits.
     Refused, or lost, the card comes back with "temper couldn't keep
@@ -311,7 +313,7 @@
         else", a link that opens *Needs you* at that card (`needs-you.md`, 1, *At*);
         a proposal's Accept and Reject, a held task's and a funds card's
         Release and Leave held, through the confirmation they have
-        (`../README.md`, 3.6); an approval's "Review on FORGE ↗" (`needs-you.md`, 1, *An
+        (`../root.md`, 1.6); an approval's "Review on FORGE ↗" (`needs-you.md`, 1, *An
         approval*), then "Tell it something else". A question in words
         in no line form has "Tell it something else" alone, primary.
         A choice answers in place, as on *Needs you*, with its held send
@@ -436,7 +438,7 @@
   choices print as buttons.
 
   **In the TUI** (`../tui/pages/launchpad.md`), Home is the root's page under
-  the launchpad, its look the terminal's (`../tui/README.md`, 3, *The look*), and its
+  the launchpad, its look the terminal's (`../tui/host.md`, 1, *The look*), and its
   composer, which no browser draws, asks Ask temper, as `Ask { project }`'s
   does (`ask-temper.md`, 1, *Ask temper's page*): `Act::ChatWords` writes Home's
   composer words; while Home is open the picker's choice is refreshed
@@ -452,166 +454,12 @@
   across the person's projects: Home on All projects' statuses, the
   inbox unfiltered, the decided documents of the needs' projects and
   the person's chats and goals across projects (`../tui/pages/launchpad.md`, 2).
-- **Home on All projects** (`../../draft/surfaces.md`, section 3; the whole
-  story's `home.html` and `phone-home.html`, `web/whole-story/`):
-  `AllHome`, at `/home`, Home for every project the person is in, as
-  `me` lists them and in its order, the first 16 read (`all_home::ACROSS`)
-  and the rest left out. The root, `/`, opens it for a person in two
-  projects or more or in none, and a project's Home for one in one
-  (`../web/README.md`, 2.3). It draws in the open project's frame, as `Inbox`
-  does: the rail and the tab bar are the open project's, or with none open
-  `me`'s first project's, "Home" current (`../view.md`, 3). Going to it opens no
-  project and moves none. With no project in `me` it draws its intro
-  alone. It has no To begin, no Chats, no Goals and no foot: those are a
-  project's Home's. One column of prose, in this order, each part drawn
-  by its rule (1, *A page's parts*):
-  - *Its reads.* On entering, for each project read, the subject
-    `status` (`../forge/records.md`) and `Looked` once, so that each project's `previous`
-    and `seen` move as its Home's entry moves them; the inbox unfiltered
-    and the subject `approvals`, as *Needs you* reads them across projects.
-    Its `decided` documents and showing tasks use the shared *Decided for
-    you* store (1), with the same four-project and seven-task bounds.
-    Leaving unwatches them all. A project's status counts once its look is
-    answered and its document delivered, as on its Home; a watch refused or
-    ended leaves that project's status unknown, and the rest stand.
-    While Home on All projects is the open page, and not for the
-    launchpad's reads (`boundary::Event::Launchpad`) or Needs you's, it
-    also watches the forge's `follows` document
-    (`../../domain/forge/follows.md`, section 7; `forge::follows::watch`)
-    of each of the first four projects read, in `me`'s order
-    (`all_home::FOLLOWED`, 4), each watch counted in the client's
-    `watches`: a project's watch is held while the project is among those
-    four, and dropped when it leaves them and on leaving the page. Four
-    projects' statuses, decided and `follows` documents with the session's
-    own watches hold 23, and 25 at most, of a shipped client's 26
-    (`../../protocol/configuration/limits.md`, *The engine's watch rooms
-    follow what it admits*). A document refused or ended draws none of its
-    project's boxes, and the rest stand.
-  - *The intro,* one function's composition, `all_home::intro`, so that a
-    later part joins there:
-    - *the kicker:* the day and time, as Home's; then, with the newest
-      `previous` of the projects shown over a minute old, " · you last
-      looked SPAN ago", SPAN Home's own word; then, with an Away spell of
-      the person's on a project read whose `off` is after that look, " ·
-      away SINCE to OFF", both by `../view.md`, 6's *clock*, the newest such spell;
-    - *the headline:* the landed sentence across projects, then a space
-      and the needs sentence, Home's words over every open card across
-      projects, each open need once (`needs-you.md`, 1, *What the client
-      keeps*, *The needs' rows*), "N+" where the needs' rows or
-      `approvals` is cut. With N the sum
-      over the projects shown of `landed` less `seen`, and P the number of
-      them where it is above 0: "N changes landed across P projects.",
-      P in number words to "nine", digits after; with P one, "N changes
-      landed in PROJECT." or "One change landed in PROJECT."; for N 0,
-      with a `last_landed` on any project shown, "The last change landed
-      SPAN ago.", the newest, SPAN the kicker's word, "just now" under a
-      minute; nothing with nothing landed. It never says a brief's
-      `sentence`: across projects the headline is code's;
-    - *the lede:* the briefs joined, `all_home::brief`: each project's
-      brief that is new to the person by Home's rule (1, *Home on any
-      project*), newest `at` first, at most four, each its project's name
-      and ": " in the strong weight, then the first sentence of its `lede`,
-      up to and with the first ".", "!" or "?" that ends the lede or is
-      followed by a space, the whole lede with none. The name says whose,
-      since the person's brief in each project is written in that project's words
-      (`../../draft/surfaces.md`, 15, its default);
-    - *the byline:* "Each project's brief, its first line · the newest,
-      vsr's, by the status agent at 07:52", vsr the newest joined brief's
-      project's name with "'s", and 07:52 that brief's `at` by
-      `../view.md`, 6's *clock*, in `temper-home-byline`: the same words
-      whether one brief is joined or four. A project's Home keeps its own
-      byline, "Written by the status agent at 07:52" (*Home on any
-      project*). With no brief new, neither lede nor byline.
+### 1.2 Home on All projects
 
-    Until a project's status is shown it counts nothing; while none is,
-    the intro has its kicker's day and time and its needs sentence alone,
-    the needs sentence once the inbox has answered.
-  - *Needs you,* as a project's Home's (1, *The cards*) across
-    projects: the open cards of the unfiltered inbox with every
-    `approvals` row, each card's from line with its project's chip; "All
-    needs" and "N more" open `Inbox` unfiltered.
-  - *Decided for you,* a region named "Decided for you", drawn while a
-    row shows (`README.md`, 2, *Away*: a row shows for 24 hours from its `at`): its
-    head the level-2 heading "Decided for you · N", N every row showing
-    across the projects read, and at its right "What reaches you", to the
-    open project's `Settings { project }`, whose How work runs tab holds
-    what reaches the person; then at most seven rows, the newest kept,
-    oldest first, each a `temper-decision` as a project's Home draws it
-    (`README.md`, 2, *Away*, *Home, while a decision shows*): mono "PROJECT · TITLE ·
-    01:05", then the question, what it took and why, and at its right what
-    a project's Home has there, "Overturn" on a live task. Overturn is
-    *Away*'s act under the row's project.
-  - *Projects,* a region named "Projects", while the person is in two
-    projects or more: its head the level-2 heading "Projects"; then
-    `temper-projects`, a row a project read, in `me`'s order: its name, a
-    link to its `Home`; and its health in chips: BRANCH, `temper-chip-good`,
-    while its status is shown and not `red`; "BRANCH red",
-    `temper-chip-signal`, while `red`; none while its status is unknown.
-    BRANCH is its status's `branch`, "landing" where it is empty, as Home's
-    foot says it. A project's Now, its tiers, a follow's parity and
-    "owned" are not designed here (1, *A page's parts*).
-  - *What follows what* (`../../draft/surfaces.md`, section 3;
-    `../../domain/forge/follows.md`, section 7;
-    `../../domain/forge/dependencies.md`, section 4), a region named "What
-    follows what", while a box is drawn (1, *A page's parts*): its head
-    the level-2 heading "What follows what", at its right, small and
-    muted, "across projects"; then its boxes side by side, wrapping, as
-    How work runs draws What follows a landing's (`settings.md`, 2): for
-    each project whose `follows` document has answered, in `me`'s order,
-    a box each of its follows, in the document's order, then a box each
-    of its dependencies, in the document's order, which is their numbers'.
-    Each box holds a chip, as How work runs' chips are, its title, in
-    weight, and a small muted line:
-    - *A follow:* the chip "follows SOURCE", code's mark (the path's,
-      `chat/conversation.md`, 3), SOURCE its source repository as the
-      document names it, `OWNER/NAME`; the title PROJECT, the document's
-      project's name as `me` names it; the line "LAG · PARITY" in `temper
-      ctl follow list`'s words (`../../domain/forge/follows.md`, section 7;
-      `forge::follows::lag` and `forge::follows::parity`), "2 behind ·
-      check passes at 9c04d7e1a2b3" or "caught up · no check yet"; and
-      where the follow is stopped, a second line, "Stopped: WORDS.", as
-      How work runs has it.
-    - *A dependency:* the chip "depends on DEPENDENCY", with no mark,
-      since nothing acts on it (`../../domain/forge/dependencies.md`, 3),
-      DEPENDENCY the named project's name where `me` lists that project,
-      else "project Q", as `forge::follows::dependency_line` names it
-      (`../../domain/forge/dependencies.md`, 4); the title PROJECT; the
-      line "Nothing follows its landings."
+Moved to [`home-across-projects.md`](home-across-projects.md), section 1.
 
-    So the pilot draws a box "follows acme/vsr", **vsr-rs**, "2 behind ·
-    check passes at 9c04d7e1a2b3", then "depends on vsr-rs", **fabrig**,
-    "Nothing follows its landings.". Each box is a group named by its
-    title and chip, "vsr-rs follows acme/vsr", "fabrig depends on
-    vsr-rs". Every follow and dependency a project read holds is drawn,
-    whichever project its other end is: a follow's source is a
-    repository, which the document doesn't tie to a project. Nothing in
-    the region is a control: a follow and a dependency change by
-    proposal, kinds 12 and 13, and a follow by its owner's acts in
-    `temper ctl` (`../../domain/forge/follows.md`, section 5). A
-    project's Home draws none: its follows are How work runs'
-    (`settings.md`, 2).
-  - *The Ask temper line,* `temper-ask-line` (the mockups' `.ask`), the
-    page's last part: a field named "Ask temper", its placeholder "Ask
-    temper about your projects", and the button "Ask". Enter or "Ask"
-    with words sends `Act::AskWith { words }`, which opens `Ask { project
-    }` on the project in view, the open project here, with the words in
-    its composer, unsent, as if typed there; with none it does nothing.
-  - *On a phone* (`phone-home.html`): the kicker "Sunday 08:04 · last
-    looked 9 h ago", `../view.md`, 6's short span; the headline,
-    "31 changes landed. Two things need you.", whose landed sentence names
-    no project, whatever P: "N changes landed." or "One change landed.",
-    and for N 0 the wide page's, then the needs sentence as above, a
-    level-1 heading in the phone's form beside the wide one, as the
-    kicker's two forms are; the lede as above; the byline "The status
-    agent, 07:52"; the cards in their phone
-    form; then, while a row shows, one line "Decided for you · N ›", a
-    link to *Needs you* unfiltered, which lists them. No Projects, no
-    What follows what and no Ask line: the phone asks from its Ask tab (`../../draft/surfaces.md`,
-    10). The browser's alone.
+### 1.3 A page's parts
 
-  In the terminal the page reads as Home's does there: its parts keep
-  their headings, each line one readable run of words, and the cards'
-  choices print as buttons.
 - **A page's parts** (`../../draft/surfaces.md`, section 12): what Home,
   Home on All projects and Needs you draw follows the facts, part by
   part, decided by one pure function a page in `pages::parts`, which the
@@ -644,225 +492,13 @@
   temper is no card either: it counts nowhere a card does. An Only you item is no
   card: it is counted nowhere a card is. A need's why is its card's own
   line (`needs-you.md`, 1, *Why it reached you*), no part of the page's.
-- **Findings, drawn** (`../../draft/home-for-a-person.md`, 3; the mockup
-  `../web/home-for-a-person/home.html`, whose head's rules draw these):
-  what Home draws of the findings that need the person, so that their
-  weight reads before their words. Each part is drawn wherever Home's
-  *Needs you* is, on a project's Home and on Home on All projects (1).
-  The TUI's launchpad (`../tui/pages/launchpad.md`) keeps its own lines.
-  - *Severity, drawn:* a glyph of three bars, a `temper-severity` span
-    with `temper-severity-low`, `temper-severity-medium` or
-    `temper-severity-high`, holding three empty spans, 3 px wide and 5,
-    8 and 11 px tall, bottom-aligned, gap 1.5 px: one filled for low, two
-    for medium, three for high, the rest at .28 opacity, in `--gf-faint`
-    for low, `--temper-amber` for medium and `--gf-signal` for high. The
-    mockup's `data-severity` is a class here, since a view node holds no
-    data attribute. Its name and its hint, so its label and its tooltip,
-    are its word: "low severity", "medium severity", "high severity".
-    It is the browser's alone: in the terminal it prints nothing, and a
-    part that draws it says the severity's word there where its own words
-    don't already (*A finding's row*; 1, *More*). One view function draws
-    it, `findings::severity(b: &mut Builder, words: &Words, severity:
-    w::Severity)`, public in `temper-client-view-work`'s
-    `pages::findings`, for every part here and for the triager's groups
-    after them (`../../draft/home-for-a-person.md`, 5).
-  - *A chip of findings,* `temper-chip` with `temper-chip-low`,
-    `temper-chip-medium` or `temper-chip-high`, takes its highest
-    severity's ground: low `--gf-hover`; medium `--temper-amber-pale`, its
-    ink `--temper-amber`, its border that amber at 35%; high
-    `--gf-signal-pale`, its ink `--gf-signal-ink`, its border
-    `--gf-signal-line`; medium and high in weight 500. It holds the glyph,
-    then its words. `findings::chip(b: &mut Builder, words: &Words,
-    severity: w::Severity, label: &[u8])`, beside `severity`.
-  - *Counted,* `pages::findings::counted(store: &findings::Store, open:
-    &[findings::Need<'_>]) -> findings::Counted`, `Counted { high: u32,
-    medium: u32, low: u32, only: bool }`, of the domain's: over the open
-    cards, how many findings of each severity they concern, each finding
-    once by its `findings::Id` however many cards name it, and `only`
-    where every open card concerns findings and one does at least. A
-    finding's own card concerns its finding; a group's card
-    (`needs-you.md`, 1, *A group of findings*) concerns its rows' findings;
-    no other card concerns any. `Counted::total(self) -> u32` is the
-    findings counted, `high + medium + low`. A card's own severity,
-    `findings::Need::severity(self, store: &findings::Store) ->
-    Option<w::Severity>`, is its finding's, its group's highest, and none
-    for any other card; the cards' order reads it (`needs-you.md`, 1,
-    *What the client keeps*). The needs sentence's "findings" (1, *Home
-    on any project*) is `only`, and where it holds the sentence and
-    Needs you's head count the findings, `total`, not the cards: four
-    cards, three groups of 3, 3 and 4 and a finding of the person's, say
-    "11 findings need you." and "Needs you · 11".
-  - *The head's counts,* `temper-home-sevs`, in Needs you's head after
-    its heading and before "All needs" at the right, 13 px, muted, gap
-    14 px between counts and 6 px between a count's glyph and words: a
-    count for each severity with one finding at least, high first, its
-    glyph then "2 high", "4 medium", "5 low"; none without a finding. On a
-    phone the counts wrap under the heading. In the terminal they print
-    after the heading, "2 high · 4 medium · 5 low".
-  - *A finding's row,* in `temper-finding-rows`, a list with a rule above
-    it, a row an item with a rule under it, padding 9 px 0, gap 12 px,
-    14.5 px: its glyph; its title, a link opening the finding, the act
-    the Home card's "Open" sent (`findings::Act::Open`); its kind, only
-    where the rows' findings are of more than one kind; and its age, its
-    span since it was filed, at the right in `temper-finding-when`, 12 px
-    in the mono face, faint: "qa · 1 d", or "1 d". In the terminal:
-    "TITLE · high · qa · 1 d". `findings::row(b, root, card, words,
-    bindings, times, kind: bool)`, public beside `severity`, draws
-    one item, in a list its caller opens, so that a group's card draws its
-    rows with it (`../../draft/home-for-a-person.md`, 5). A group's row
-    is drawn from its `w::FindingRow` with the same parts, its title text
-    and no link (*A group's card*, below); one function or two, the
-    view's choice, so long as both forms share these parts.
-  - *A finding's own card,* a finding the person holds (`needs-you.md`,
-    1, *A finding that is the person's*), a `temper-need-card` on Home in
-    its place among the cards:
-    - *its from line,* mono, `temper-need-from`: on Home on All projects
-      the project's chip; then its chip of findings, its kind's word,
-      "review"; then "in AREA", or "no area" where it has none;
-    - *its row,* the one finding's, its kind left to the chip;
-    - *its context,* in `temper-ask-context`, as Needs you's card says
-      them: the last hand-off's why, quoted, with who handed it; a
-      refusal; its waiting words while an act is out;
-    - *its reason line,* `needs-you.md`, 1, *Why it reached you*'s for a
-      finding, unless said once (1, *One why*);
-    - *its acts,* as on Needs you, quiet, in `temper-need-acts`: "Hand
-      on", with its area's menu and its line of why; "Route to a goal",
-      with the project's live goals' menu; "Backlog"; and "Drop with
-      reason", each opening its form in place as there. The card's state
-      is the domain's one `findings::Card`, so a form opened on Home is
-      open on Needs you, and an act sent from either answers on both.
-    - *On a phone,* its from line, its row, then "More", quiet, which
-      opens Needs you at its card, as another card's "More" does.
-  - *A group's card,* a question about a group of the triager's findings
-    (`needs-you.md`, 1, *A group of findings*;
-    `../../draft/home-for-a-person.md`, 5), a `temper-need-card` on Home
-    in its place among the cards, as `home.html`'s first three draw it:
-    - *its from line,* mono, `temper-need-from`: on Home on All projects
-      the project's chip; then its chip of findings, "3 bugs", "3 CI
-      faults", on its highest severity's ground, its count its rows' in
-      digits and its noun, or "3 findings", "1 finding" with none; then
-      its phrase, " · " and "the oldest 1 d", its oldest row's span (`../view.md`, 6),
-      or its one row's span alone: "in temper · the oldest 1 d", or "the
-      oldest 23 h" with no phrase; " · later" on a card marked later;
-    - *its question,* in `temper-ask-question`, as a question's card has
-      it;
-    - *its rows,* in `temper-finding-rows`, a row a finding in its line's
-      order (*A finding's row*), each kind said only where the rows hold
-      more than one ("qa · 1 d" beside "review · 16 h"; "1 d" where all
-      are flakes); a row's title is text, no link (`needs-you.md`, 1, *A
-      group of findings*);
-    - *its context,* in `temper-ask-context` and `temper-group-context`,
-      14 px, muted, no margin, where it has one;
-    - *its reason line,* a question's (`needs-you.md`, 1, *Why it reached
-      you*), unless said once (1, *One why*);
-    - *its acts,* a question's: its choices, the recommended one first and
-      primary with "recommended", the others quiet, then "Tell it something
-      else", the link that opens *Needs you* at its card; a choice answers
-      in place, with its held send and its Undo.
-    - *On a phone,* as another question's card: its from line, its
-      question, its recommended act full width, then "More"; its rows,
-      context and reason line are left to *Needs you*.
-    - *In the terminal,* its parts print as words: the from line "3 bugs ·
-      in temper · the oldest 1 d", its question, a row a line "TITLE · high
-      · qa · 1 d", its context, then its choices and "Tell it something
-      else" as a question's.
-    - *More:* as the fourth of four open cards, *More*'s line draws its
-      glyph, its highest severity's, then its from line's words, "3 bugs
-      in temper · the oldest 1 d"; in the terminal "One more: 3 bugs · high
-      · in temper · the oldest 1 d".
-- **Decided for you** (`../../draft/what-reaches-you.md`, section 6;
-  `../../domain/forge/attention.md`, 5): what agents decided for the person, any task's,
-  a goal's, a chat's or a delegate's, whether or not the person was away.
-  Each row shows for 24 hours from its `at` on Home and on *Needs you*,
-  then lives only in its task's history, where its call keeps its answer.
-  - *Its documents:* the subject `decided` (`../forge/records.md`) of each project the open
-    page shows, held by `Pages` while it is open, `pages::decided`: Home's
-    project; *Needs you*'s filter's project, or, unfiltered, the shown card's
-    project and then `me`'s projects in its order, at most `DECIDED_PROJECTS`,
-    4, in all, each watch counted in the client's `watches`. Other pages hold
-    none. A watch stays from one page to the next while its project does, so
-    "Answer in a row" keeps Home's. A watch refused or ended has no rows. The
-    same documents' `asked` rows give a need its reason (`needs-you.md`, 1, *Why it
-    reached you*).
-  - *A row shows* while its `at` is less than 24 hours before the wall; the
-    build asks to wake when the oldest stops showing. With none showing, the
-    page draws nothing of this; nothing of it is drawn while To begin shows.
-  - *The region,* named by its heading: a `section-head`, the level-2
-    heading "Decided for you · 4", every row showing counted, "4+" where a
-    document is `cut` or, unfiltered, `me` holds more projects than are
-    watched; at its right "Limits", to the project's Settings, on Home and on
-    a filtered *Needs you*, and on the unfiltered *Needs you* "for 24 hours,
-    then in each task's history", muted, as the whole story's `needs.html`
-    draws its head, a row being any task's. The region is named by that
-    heading on both pages. Then `temper-decided` (the mock's `.decided`, a
-    top rule), a `temper-decision` a row (`.decision`), at most 7, the newest
-    kept, oldest first: mono "TITLE · 01:05", TITLE the task's, its `at` by
-    `../view.md`, 6's *clock*, and on the unfiltered *Needs you* "PROJECT · TITLE ·
-    01:05"; a row whose task is under a milestone, by its read document's
-    lineage (`milestones::lineage`, `milestone.md`, 1), "Store shape › TITLE
-    · 01:05", the milestone's name first (`../../draft/milestones.md`, 5.1),
-    after PROJECT where PROJECT is said; muted, the question; `temper-decision-took` (500), what it took;
-    `temper-decision-allowed` (13.5 px, muted), what allowed it (below).
-    The agent's why is left to the task's page, which keeps its call
-    whole (`../../draft/home-for-a-person.md`, 3): no row draws it. At
-    the right, by the first that holds:
-    - the task ended: `temper-decision-late` (`.late`), "landed Sat 19:01",
-      its ended time, or "ended Sat 21:22" for one that did not end done.
-      A landed one takes `temper-decision-landed` too, whose `::before`
-      draws a tick, "✓" in `--gf-good`, before "landed", by style alone,
-      so the terminal prints "landed Sat 19:01";
-    - overturned: `.late`, "Overturned: it asks you again";
-    - the task live: "Overturn" (`.btn.small`);
-    - its read not delivered, or refused: nothing, TITLE reading "Task N".
+### 1.4 Findings, drawn
 
-    An overturned row's took is struck through, in `--gf-faint`
-    (`temper-decision-overturned`), ended or not. Each shown row's task is
-    read (`Read::Task`), as the inbox reads its cards, within `reads`, a read
-    kept from one page to the next while its row shows.
-  - *What allowed it,* one sentence from the row's reach, the object
-    alone: "Allowed: OBJECT." for a reach of class `decide`, and for `ask`
-    with `away`, OBJECT the reason's subject as Stop asking names it
-    (`needs-you.md`, 1): so "Allowed: test-only changes." and "Allowed:
-    wording choices." The kicker and the headline of an Away spell say
-    that the person was away, so the row doesn't. A set's name is the
-    project's classes' (`settings.md`, 2), "a path set" until they are read. A reach that
-    does not decode draws no sentence.
-  - *The same row everywhere:* these parts are the row's, one function's
-    (`decided::decision`), on Home, Home on All projects and Needs you.
-  - *On Home* (1, *Home on any project*), after *Needs you*. While the party's Away row there is on, or its spell ended less
-    than 24 hours before the wall, the intro takes the spell's form, in the
-    intro's one function, whether or not a row shows:
-    - *the kicker:* "While you were away · 23:10 to now", or "· 23:10 to
-      08:03" once off, by `../view.md`, 6's *clock*: `since`, then `off`, or `until` once
-      past;
-    - *the headline:* "57 changes landed." where `landed` less the row's
-      `landed` is above 0, "One change landed." for 1, nothing for 0; then
-      "Four things were decided for you." in number words to "Nine", digits
-      after, or "One thing was decided for you." in place of the needs
-      sentence; with no row showing, the needs sentence keeps its place,
-      so "57 changes landed. Nothing needs you.", or the needs sentence
-      alone where nothing landed. The lede and the byline as *Home on any project* has them;
-    - *Needs' head:* "Still needs you · 2", or "Still needs you" with none,
-      and the rest of *Needs you* as it is.
+Moved to [`home-findings.md`](home-findings.md), section 1.
 
-    With no such spell, the row undelivered or the `away` watch refused or
-    ended among them, the intro and the needs' head are *Home on any
-    project*'s, and the region alone says what was decided.
-  - *On Needs you,* after the card's `.next-up` and its *Answered*, and in
-    the done state after the answered lines, before "Home"
-    (`needs-you.md`, 1).
-  - *Overturn* sends `Overturn` (`../forge/records.md`), from either page, for a row it shows
-    whose task is live and that is not overturned. Answered, the client sends
-    the task its existing message (`Ask::Message`), in words: "I overturn your
-    decision. QUESTION You took TOOK. Ask me again with message, as a
-    question, and wait for my answer."; sent, the toast "Overturned: it asks
-    you again, under Needs you." Its question comes as any other. A refused
-    message (the task ended between) leaves the row marked, and the toast "It
-    has ended; a new goal can undo it." `Overturn` refused, overturned or
-    unknown: no message, the toast "That was overturned already." The
-    session's marks hold on both pages.
-  - *In the terminal* the region prints as a heading and a paragraph a row,
-    its parts one readable run of words, Overturn a numbered button.
+### 1.5 Decided for you
+
+Moved to [`home-decisions.md`](home-decisions.md), section 1.
 
 ## 2. Open questions
 
@@ -880,28 +516,15 @@
   time, as on any Home (`../../draft/to-begin.md`, 2), and the step says
   "Chats can change its code now.". Supplying a creation age or a first CI
   result needs its own protocol decision.
-- **A project's only goal ending while Home is open** (`README.md`, `../view.md`, 3):
+- **A project's only goal ending while Home is open** (`README.md`, `../view-navigation.md`, 1):
   Home reads `Domain::has_goals` to choose Goals or Chats once To begin is
   gone, and Away's *Shown* reads it too. The fact reads the ended group
   once, so once the live watch holds no row it says false of a project
   with a goal, and Home shows Chats until the project is opened again.
-  Default: one read, as `../view.md`, 3 has it.
+  Default: one read, as `../view-navigation.md`, 1 has it.
 - **How a project lands, on To begin's repository step**
   (`../../draft/to-begin.md`, 3): its line names how the project lands, by
   temper's merge queue or by its landing turn, and no client is given a
   project's `by` (`../../domain/landing-settings.md`, 1.1). A new fact of a protocol,
   the user's. Default: "Chats can change its code now." on every project,
   which names no way of landing.
-- **Decided for you across many projects** (1, *Decided for you*): the
-  unfiltered *Needs you* watches at most four projects' `decided`, the shown
-  card's first, within the client's watches; a person in more reads the
-  others' rows on each project's own pages, the count marked "+". A subject
-  of the party's rows across the deployment would lift the bound; default:
-  four.
-- **What follows what across many projects** (1, *Home on All
-  projects*): Home on All projects watches at most four projects'
-  `follows` documents, the first four read, within the client's watches;
-  a person in more sees the others' follows on each project's How work
-  runs (`settings.md`, 2), and the region says nothing of them. A forge
-  document of the person's follows and dependencies across the
-  deployment would lift the bound; default: four.

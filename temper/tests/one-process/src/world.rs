@@ -63,7 +63,7 @@ pub struct Outcome {
     pub playground: Option<stories::playground::Outcome>,
     pub model_list: Option<crate::model_list::Outcome>,
 }
-/// The signal's run and its next start (temper/docs/design/protocol/README.md, 6).
+/// The signal's run and its next start (temper/docs/design/protocol/service-process.md, 1).
 #[derive(Debug)]
 pub struct Stopped {
     pub task: u64,
@@ -661,7 +661,7 @@ impl Person {
 }
 // Select the story's project and provision its real account before its own acts.
 /// The switcher's button for a project `me` leaves unnamed, "Project N"
-/// (client/view.md, 3).
+/// (client/view-navigation.md, 1).
 fn an_unnamed_project(name: Option<&[u8]>) -> bool {
     let Some(number) = name.and_then(|name| name.strip_prefix(b"Project ".as_slice())) else { return false };
     !number.is_empty() && number.iter().all(u8::is_ascii_digit)

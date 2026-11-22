@@ -1,4 +1,4 @@
-//! Change history and catch-up production (temper/docs/design/domain/forge/change/README.md, 2, and temper/docs/design/domain/forge/README.md, 6).
+//! Change history and catch-up production (temper/docs/design/domain/forge/change/README.md, 2, and temper/docs/design/domain/forge/updates.md, 1).
 use temper_engine_domain_forge as top;
 use temper_engine_domain_forge_change as change;
 use temper_engine_forge_world::{World, changes};
@@ -154,7 +154,7 @@ fn another_hands_merge_ends_cancelled_or_no_change_without_pull_cleanup() {
     }
 }
 
-// Catch-ups use ancestry without the goal's full diff (temper/docs/design/domain/forge/change/README.md, 2, and temper/docs/design/domain/forge/README.md, 6).
+// Catch-ups use ancestry without the goal's full diff (temper/docs/design/domain/forge/change/README.md, 2, and temper/docs/design/domain/forge/updates.md, 1).
 fn catch_up_world(advance_main: bool) -> (World, skein_forge::api::Commit, skein_forge::api::Commit) {
     let mut world = World::with_comparison_room(SEED);
     world.adopt();

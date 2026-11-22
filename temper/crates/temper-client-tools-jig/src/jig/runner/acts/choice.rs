@@ -210,7 +210,7 @@ fn echo(name: &[u8]) -> Box<[u8]> {
     out.finish()
 }
 /// The first named effort of `items` that its model, as `me` shows it, doesn't offer
-/// (client/ctl/tools.md, 3).
+/// (client/ctl/tools-acts.md, 1).
 pub(crate) fn settings_effort(items: &[c::SettingItem], me: &c::Me) -> Option<Box<[u8]>> {
     for (index, item) in items.iter().enumerate() {
         let set = match &item.edit {

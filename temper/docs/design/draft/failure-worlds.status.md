@@ -5,7 +5,7 @@
 - **Design lags:**
   - 3: the inspection adapters' form, the two checks every component's waits and tables share, and the fault ledger are designed (`skein/docs/design/testing/inspection.md`; `skein/docs/design/testing/sweeps.md`, 3), with the engine's and the worker's adapters (`../testing/checks.md`, 6; the worker's waits and tables, `../testing/worker.md`, 2), jig's, with its worlds' calls and its open problems (`jig/docs/design/domain/testing.md`, 7.1 to 7.3), and smith's (`smith/docs/design/testing.md`, 6). 3.3's blame and tries are designed for gates (`../testing/blame.md`) and for runs, smith's half and the system world's (`smith/docs/design/faults.md`, 4; `../testing/checks.md`, 6.3). No design yet holds 3.4's endings within their bounds outside the system world's account case, or 3.5's comparison of two runs.
   - 4: nothing models a stop in each phase of a start. The faults marked [script], [composition] or [assertion] need no design change.
-  - 5: `../testing/README.md`, 2.1 has no world running several goals at once.
+  - 5: `../testing/tiers.md`, 1.1 has no world running several goals at once.
   - 7: no design holds its rows but the settings rows, P128, P59 and P81's residual (`../testing/settings-tests.md`, 7).
 - **Design departs:**
   - 3.7: the engine's forge world, which runs the forge without jig's core or store, checks the forge's half of a start over its stored records, by the function the root's link calls (`../testing/store-check.md`, 2); jig's half is checked in the worlds that run the core. The goal's designer, 2026-11-21.

@@ -1,4 +1,4 @@
-//! Landing defaults at the root boundary (temper/docs/design/domain/root.md, 5;
+//! Landing defaults at the root boundary (temper/docs/design/domain/root-translation.md, 1;
 //! temper/docs/design/protocol/configuration/settings.md, 3).
 use super::{Freshness, LandingRule, authority, forge};
 use alloc::boxed::Box;

@@ -51,7 +51,7 @@ pub(crate) fn covers_name(pattern: &GatePattern, name: &[Box<[u8]>]) -> bool {
 }
 /// Whether `pattern` covers `branch` of `repository`: a pattern beginning at
 /// `branch` is judged against the branch's resource path past its
-/// repository's four segments (temper/docs/design/protocol/configuration/settings.md, 2).
+/// repository's four segments (temper/docs/design/protocol/configuration/settings-kinds.md, 1).
 #[must_use]
 pub fn covers_branch(pattern: &GatePattern, repository: &Repository, branch: &[u8]) -> bool {
     match crate::domain::branch_resource_name(repository, branch) {

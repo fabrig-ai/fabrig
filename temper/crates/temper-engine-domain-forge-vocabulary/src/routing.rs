@@ -536,7 +536,7 @@ pub fn own_hold(task: &tasks::TaskRecord) -> bool {
 }
 
 /// The code-2 procedure's repository and landing parameters, shared by chat
-/// changes and deployment queue repairs (domain/agent/tools.md, 1).
+/// changes and deployment queue repairs (domain/agent/tools-change.md, 1).
 pub fn change_parameters(
     connector: u16,
     provider: skein_forge::api::Repository,

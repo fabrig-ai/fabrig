@@ -132,14 +132,14 @@ fn opening_to_store(opening: engine::WorkerOpening) -> store::WorkerOpening {
 }
 
 /// Why a commit failed: the store's cause or its routing stopping on its own
-/// (temper/docs/design/protocol/store.md, 4). In-process only.
+/// (temper/docs/design/protocol/store-versions.md, 1). In-process only.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum CommitStop {
     Store(store::CommitFailure),
     Route(RouteStop),
 }
 
-/// Why the engine's store routing stopped (temper/docs/design/protocol/store.md, 4).
+/// Why the engine's store routing stopped (temper/docs/design/protocol/store-versions.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum RouteStop {
     /// The store answered a refused open while the engine ran.

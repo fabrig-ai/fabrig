@@ -1,4 +1,4 @@
-//! The engine's place (temper/docs/design/client/tui/README.md, 2).
+//! The engine's place (temper/docs/design/client/tui/directory.md, 1).
 use core::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
 
 #[test]

@@ -96,7 +96,7 @@ fn durable_panel(panel: &mut temper_engine_domain_forge::Panel) {
 }
 
 /// Routing rebuilds connection, setup and installation observations at startup
-/// (temper/docs/design/domain/forge/adoption.md, 1). Adopted rows persist.
+/// (temper/docs/design/domain/forge/adoption-connection.md, 1). Adopted rows persist.
 #[must_use]
 pub fn forges(mut document: temper_engine_domain_forge::Forges) -> temper_engine_domain_forge::Forges {
     document.full = Box::new([]);

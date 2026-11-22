@@ -237,7 +237,7 @@ and no policy. Every type is a plain value.
   side the file lacks; without, its path alone, both `None`, and the
   dialect reads neither a merge base nor a side: the files' listing is
   the read. A reader that needs paths alone, as goal overlap does
-  (temper's `domain/forge/README.md`, 5.3), asks without `sides`.
+  (temper's `domain/forge/topics.md`, 1.3), asks without `sides`.
 - **`Item { number, after, since }`** asks for an item and its comments
   with ids above `after`. `since` is a time at or before the update of
   every comment above `after`, which the dialect sends as its forge's own
@@ -275,7 +275,7 @@ and no policy. Every type is a plain value.
   or `Recorded { commit }`, last: nothing moves, and the pull request is
   recorded merged at `commit`, which its base must already contain,
   for an owner that landed the pull request's change by a commit of its
-  own (temper's squash, temper's `domain/landing.md`, section 8). It
+  own (temper's squash, temper's `domain/landing-turn.md`, section 1). It
   answers `Merged` at `commit`; a commit the base does not contain, or
   a repository that allows no such record, is `Refused`, and a dialect
   whose forge records none answers `Refused` too.
@@ -1113,7 +1113,7 @@ the suites (../testing/README.md, section 6).
 - **The conformance on macOS.** A bottle is the pin's version and another
   build (4.3), so what the conformance checks is Linux's binaries, and a
   bottle answers only to temper's one story
-  (`temper/docs/design/testing/README.md`, 2.8). Default: so, until the
+  (`temper/docs/design/testing/tiers.md`, 1.8). Default: so, until the
   conformance joins the macOS workflow with skein's suites
   (`temper/docs/design/draft/macos.md`, section 6).
 - **GitHub's further gaps.** Settled: its dialect is a module of

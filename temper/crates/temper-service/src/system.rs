@@ -1,4 +1,4 @@
-//! One process, joined through io's workers channel (protocol/README.md, 6).
+//! One process, joined through io's workers channel (protocol/service-process.md, 1).
 use crate::{AccountsRuntime, End, Worker, clients, settings, store};
 use alloc::boxed::Box;
 use jig_protocol_config::{Path, Problems, What};
@@ -540,7 +540,7 @@ pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
 }
 pub use temper_service_core::{STAGES, Stage};
 
-/// Run one stage with the pass's times (protocol/README.md, 6.1).
+/// Run one stage with the pass's times (protocol/service-process.md, 1.1).
 pub fn iterate_stage(service: &mut Service, stage: Stage, now: Time, wall: Wall) {
     if let Some(engine) = &mut service.engine {
         engine.held_notes(service.notes.len());

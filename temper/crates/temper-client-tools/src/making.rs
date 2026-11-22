@@ -1,4 +1,4 @@
-//! Keyed repository requests and adoption waits (temper/docs/design/client/ctl/tools.md, 3 and 4).
+//! Keyed repository requests and adoption waits (temper/docs/design/client/ctl/tools-acts.md, 1, and temper/docs/design/client/ctl/tools-waiting.md, 1).
 use crate::{
     jig::{
         self,

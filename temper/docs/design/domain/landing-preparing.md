@@ -5,7 +5,7 @@ prepare that lives, read afresh at each of the landing's steps from
 jig's context and the landing's job record, and how such a round
 recovers with no person across an engine's restart, a worker's loss,
 and a person's stop and release. It is `../draft/prepare-restart.md`'s
-design. It details `landing.md`, 5.2 (*Lost or partial*) and 15 for the
+design. It details `landing-prepare.md`, 1.2 (*Lost or partial*) and 15 for the
 round's prepare; the prepare job itself, its branches and its outcome
 stay `landing.md`'s, and its events `landing-history.md`'s.
 
@@ -22,7 +22,7 @@ stay `landing.md`'s, and its events `landing-history.md`'s.
   settle (section 4). The landing never makes a second prepare child
   while one lives.
 - **Answered:** the answer is read before anything else is decided
-  (`landing.md`, 5.2, *Its outcome*), and nothing is asked again for
+  (`landing-prepare.md`, 1.2, *Its outcome*), and nothing is asked again for
   what it prepared.
 - **Absent:** the round asks the prepare once again, with no person,
   for the members above the prefixes already recovered; jig's procedure
@@ -33,7 +33,7 @@ stay `landing.md`'s, and its events `landing-history.md`'s.
   (section 3). A person's release of a landing at preparing is such a
   step too (section 6).
 - **No silent wait:** a round at preparing waits only on a live child,
-  which its job's deadline and tries bound (`landing.md`, 4.2, 5.2), or
+  which its job's deadline and tries bound (`landing.md`, 4.2, `landing-prepare.md`, 1.2), or
   on the reads an answer needs, which are retried as any landing read
   is; never on a mark alone.
 
@@ -56,13 +56,13 @@ stay `landing.md`'s, and its events `landing-history.md`'s.
      `Failed`; active, due, backing off before a retry, or closing, it is
      `Running`. Any live prepare child counts, whatever round asked it:
      two never write the members' branches at once, and a round that
-     ends settles its prepare before cleanup (`landing.md`, 5.1).
+     ends settles its prepare before cleanup (`landing-prepare.md`, 1.1).
   3. **An answer the round keeps:** the job record (`LandingRow.job`,
      `landing-history.md`, 3.3) names the current round and exactly the
      suffix; its child has ended; its outcome is none of those that end
      with no answer (`lost`, `cancelled`, `timeout`, `failed`); and the
      round still keeps that answer's report for a member of the suffix
-     (`Round.failure`, `landing.md`, 5.2, *Its outcome*). It is `Idle`:
+     (`Round.failure`, `landing-prepare.md`, 1.2, *Its outcome*). It is `Idle`:
      the step reads the kept report and the members' branches.
   4. **Proven absence:** otherwise, `Absent`. No child was admitted for
      the current round and suffix (no record names them: none was
@@ -72,13 +72,13 @@ stay `landing.md`'s, and its events `landing-history.md`'s.
 - **An earlier round's admission alone never counts,** as live or as
   answered: a record of an earlier round, or of another suffix, is no
   evidence, and a live child counts by being live, not by its record.
-- **What the policy does with it** is unchanged (`landing.md`, 5.2):
+- **What the policy does with it** is unchanged (`landing-prepare.md`, 1.2):
   `Running` waits; `Idle` waits, while the suffix is marked asked in this
   round, only until the step takes a prefix, which clears the marks;
-  `Absent` asks, within section 5's bound; `Failed` holds where the
+  `Absent` asks, within `landing-preparing.md`, section 5's bound; `Failed` holds where the
   suffix was asked; a conflict
   leaves. A round that ends waits on `Running` before its cleanup
-  (`landing.md`, 5.1).
+  (`landing-prepare.md`, 1.1).
 
 ## 3. At the start
 
@@ -120,7 +120,7 @@ stay `landing.md`'s, and its events `landing-history.md`'s.
   prepare is `Running` (section 2) and no second child is made.
 - **What it pushed is kept:** the retried job reads the members'
   branches and reuses the prefixes the lost attempt delivered
-  (`landing.md`, 5.2, *Lost or partial*); its answer gives the round
+  (`landing-prepare.md`, 1.2, *Lost or partial*); its answer gives the round
   each prefix, recovered or new.
 - **The same with a restart and without:** a lost link, and a restart
   that finds the attempt unadopted, end in the same retry.
@@ -130,7 +130,7 @@ stay `landing.md`'s, and its events `landing-history.md`'s.
 - **Proven absence asks once:** a step that reads `Absent` while the
   suffix is marked asked in the current round asks the prepare again,
   with no person. Before it delegates, the members' branches are read,
-  and the prefixes found are taken (`landing.md`, 5.2, *Lost or
+  and the prefixes found are taken (`landing-prepare.md`, 1.2, *Lost or
   partial*), so that the replacement prepares only the members above
   them: prefixes already recovered are kept. The same prepare, its
   member, head, main and suffix unchanged, is asked again only once,

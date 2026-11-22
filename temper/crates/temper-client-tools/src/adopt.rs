@@ -1,4 +1,4 @@
-//! Adoption's syntax; the forge form owns its semantic checks (client/ctl/tools.md, 3).
+//! Adoption's syntax; the forge form owns its semantic checks (client/ctl/tools-acts.md, 1).
 use crate::jig::table::{
     Keyed, Kind,
     Occurs::{Optional, Required},

@@ -1,6 +1,6 @@
 //! A held goal branch is made across restarts and releases of a failed making.
 //! Closing deletes it once a change landed it, and keeps it otherwise
-//! (temper/docs/design/domain/forge/README.md, 2, and temper/docs/design/domain/forge/branches.md, 1, and temper/docs/design/domain/forge/README.md, 9).
+//! (temper/docs/design/domain/forge/README.md, 2, and temper/docs/design/domain/forge/branches.md, 1, and temper/docs/design/domain/forge/effects.md, 2).
 //! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
 use super::{
     BranchHead, Domain, Env, Limits, LostReadState, Name, Request, Role, Stored, Writer, child, emit, keep_entry,

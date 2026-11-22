@@ -1,4 +1,4 @@
-//! Due ready changes join in queue order and never hold forming (domain/landing.md, 9).
+//! Due ready changes join in queue order and never hold forming (domain/landing-turn.md, 2).
 use super::super::{Domain, Limits, Work, forge, forge_change as change, tasks};
 use alloc::boxed::Box;
 use skein_lib::{Env, List, Queue};

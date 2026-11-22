@@ -1,4 +1,4 @@
-//! Shared objects and private workspace references (protocol/git.md, 4.1–4.3, 4.11).
+//! Shared objects and private workspace references (protocol/git-operations.md, 1.1–1.3 and 1.11).
 use super::{Action, Directories, close, fd, mkdir, open};
 use crate::{
     Settings,

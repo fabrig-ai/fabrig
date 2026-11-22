@@ -39,7 +39,7 @@ of it follows landing with the walk.
 
 - **Design lags:**
   - 4.1: `smith/docs/design/protocol/programs.md`, section 9 defers recording Claude Code's own overhead with smith's MCP server attached; the approximately 1.1 KB figure is without MCP and is outside temper's 16,384-byte bound.
-  - 5.1: `../domain/agent/ask-temper.md`, 1: the settings, their history and proposals read as the settings' renderers write them for ctl, not by 5.1's rules for how an answer reads, which hold the addresses read as the person; `settings landing` and `settings gates` read temper's configuration, since kinds 4 and 5 are no settings yet (`../protocol/configuration/settings.md`, 2). `../domain/agent/README.md`, section 8 defers how the settings' addresses read, revision values of temper's kinds and the project-policy address.
+  - 5.1: `../domain/agent/ask-temper.md`, 1: the settings, their history and proposals read as the settings' renderers write them for ctl, not by 5.1's rules for how an answer reads, which hold the addresses read as the person; `settings landing` and `settings gates` read temper's configuration, since kinds 4 and 5 are no settings yet (`../protocol/configuration/settings-kinds.md`, 1). `../domain/agent/README.md`, section 8 defers how the settings' addresses read, revision values of temper's kinds and the project-policy address.
   - 5.3: `../domain/agent/ask-temper.md`, 3, and `../domain/agent/README.md`, 8: a document moved between a call's read and write is refused naming its section; the run calls again against the newest. Retrying within the same call needs jig to accept a section splice or leave a moved write unrecorded, because jig records the refusal today.
   - 6.2: `../client/pages/chat/conversation.md`, 3 designs the `view` block and the views `path`, `way`, `proposal` and `charter`; `queue`, `task N tree` and `task N timeline`, and a part of a view opening its own view, are M3b's. The TUI prints the four views as 6.2 has it (`../client/tui/pages/README.md`).
   - 8: `../domain/agent/ask-temper.md`: the instructions carry the Showing part's first step and its sketch line in skein's flow subset alone; its other views and the actors' marks join with M3b.
@@ -58,7 +58,7 @@ of it follows landing with the walk.
 - **Design departs:** 6.2: `../client/pages/chat/conversation.md`, 3 draws a path or a charter at `@revision N` only where N is the newest revision, and says an older one is not drawn yet, because the settings as an older revision left them are jig's restore's reading (jig's `domain/engine/settings.md`, 10), which no read gives a client; and draws `proposal tN/K` for a waiting proposal alone, its "before" the newest settings, since a decided one's paths are a revision's. Decided by the `ui-ask-m3a` cut, 2026-11-08.
 - **Design departs:** 5.2 and 8: `../domain/agent/ask-temper.md`, 2, has a
   proposal carry the words the pages say its settings by, a charter's and
-  the project's (`../protocol/configuration/settings.md`, 2, kinds 9 and 10), and
+  the project's (`../protocol/configuration/settings-kinds.md`, 1, kinds 9 and 10), and
   `ask.txt`'s *Configuring* asks for them as `charter-words` and
   `project-words`, which `ask-temper.md`, section 8's text lacks; decided
   by the `ui-p3e-words` cut on the user's request of 2026-11-08. The

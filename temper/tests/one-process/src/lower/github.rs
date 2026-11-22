@@ -1,4 +1,4 @@
-//! Installation scope through the simulated service and authenticated git route (temper/docs/design/testing/real-loop.md and temper/docs/design/testing/README.md, 2.5).
+//! Installation scope through the simulated service and authenticated git route (temper/docs/design/testing/real-loop.md and temper/docs/design/testing/tiers.md, 1.5).
 use crate::{
     ctl::{Caller, Command},
     fixtures,

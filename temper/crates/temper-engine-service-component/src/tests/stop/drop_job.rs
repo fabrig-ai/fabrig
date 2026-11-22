@@ -1,4 +1,4 @@
-//! The open's drop job precedes the strict restart link check (protocol/store.md, 4).
+//! The open's drop job precedes the strict restart link check (protocol/store-versions.md, 1).
 use crate::tests::fixtures::{
     self,
     directory::{Directory, JOB},

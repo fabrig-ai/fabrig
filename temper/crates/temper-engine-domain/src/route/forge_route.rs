@@ -1693,7 +1693,7 @@ fn change_delegate_running(domain: &Domain, task: u64) -> bool {
     }
 }
 
-// Only the root knows which tracked goals still live (domain/forge/change/README.md, 7).
+// Only the root knows which tracked goals still live (domain/forge/change/records.md, 1).
 fn change_unpinned(domain: &Domain, task: u64) -> bool {
     if !domain.forge.droppable(task) && !domain.forge.droppable_last(task) {
         return false;
@@ -2279,7 +2279,7 @@ pub(crate) enum ChangeRefused {
 }
 
 /// Build a plan's changes together; jig admits all of them in one delegation.
-/// Plan members require the control family (domain/agent/tools.md, 1).
+/// Plan members require the control family (domain/agent/tools-change.md, 1).
 pub(crate) fn change_batch(
     domain: &Domain,
     env: &Env<Limits>,
@@ -3299,7 +3299,7 @@ fn change_landing_words(
     for part in parts {
         bytes = bytes.checked_add(part.len()).expect("bounded landing line");
     }
-    // The line names the landing so that the run that asked hears that the change landed (temper/docs/design/domain/root.md, 5).
+    // The line names the landing so that the run that asked hears that the change landed (temper/docs/design/domain/root-translation.md, 1).
     if skein_lib::bytes::find(out.as_slice(), b"\npull request #").is_some() && bytes <= skein_lib::usize_of(out.room())
     {
         append(&mut out, b"\n");
@@ -3717,7 +3717,7 @@ fn cancel_completed_change(domain: &Domain, env: &Env<Limits>, task: u64, reason
 }
 
 // The deployment cancels the procedure through its task control path
-// (temper/docs/design/domain/forge/adoption.md, 1).
+// (temper/docs/design/domain/forge/adoption-connection.md, 1).
 fn cancel_change(domain: &mut Domain, task: u64) {
     let Some(row) = domain.core.tasks.task(task) else { return };
     domain.work.push(Work::Tasks(tasks::Event::Cancel {
@@ -4665,7 +4665,7 @@ pub(crate) fn outputs(
             }
             forge::Request::Drift { task, resource } => {
                 if domain.forge.change(task).is_some() {
-                    // domain/forge/change/README.md, 3: let the procedure retain its precise
+                    // domain/forge/change/drift.md, 1: let the procedure retain its precise
                     // hold and current step before holding the task. A generic
                     // hold here prevents its pending wake from running.
                     domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
@@ -5273,7 +5273,7 @@ pub(crate) fn effect_ask(
         }
         jig_domain_core::effects::connector::Ask::Unname { task } => {
             if number == domain.config.forge_connector {
-                // Drop with the task's record, even with free room (domain/forge/change/README.md, 7).
+                // Drop with the task's record, even with free room (domain/forge/change/records.md, 1).
                 if change_unpinned(domain, task) {
                     let mut out = Queue::uncapped();
                     forge::step(

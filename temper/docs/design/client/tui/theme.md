@@ -31,7 +31,7 @@
   the user's request of 2026-11-08, since a fixed colour reads as black
   on a dark terminal whose ground is not the palette's:
   - *where the terminal answered its background* at start (OSC 11,
-    `Start.background`, `README.md`, 3), that background moved one step toward the
+    `Start.background`, `host.md`, 1), that background moved one step toward the
     ink: each of its red, green and blue moved by 20
     (`theme::BAND_STEP`), saturating, toward 255 on a dark ground and
     toward 0 on a light one, the ground's lightness read as the scheme's
@@ -117,7 +117,7 @@
   the fallback should the mark and the accent not show the focus
   (`../README.md`, section 5).
 - **The scheme,** the terminal's word, dark or light, found before
-  `Start`, which carries it, or none (`README.md`, 3): from `COLORFGBG` where its
+  `Start`, which carries it, or none (`host.md`, 1): from `COLORFGBG` where its
   last field, the background the
   terminal declares, is a number, light for 7 or 15 and dark for any
   other, read by the binary; else from the terminal's own background,
@@ -135,9 +135,9 @@
   `temper_client_tui::ThemeChoice`, `Auto`, `Light` or `Dark`. Auto,
   the default, draws in the terminal's scheme, dark where it says none
   (`ThemeChoice::scheme`); Light and Dark in theirs. The host gives the
-  root the chosen scheme as its look's theme (`README.md`, 3, *The look*); from
+  root the chosen scheme as its look's theme (`host.md`, 1, *The look*); from
   then on the TUI draws in the theme the root's look names.
-  - *Kept in the TUI's small store,* the native shell's `store` (`README.md`, 2),
+  - *Kept in the TUI's small store,* the native shell's `store` (`directory.md`, 1),
     as the browser keeps its look in its own: the record `theme`
     (`temper_client_tui::THEME_KEY`), its bytes `auto`, `light` or
     `dark` (`ThemeChoice::print` and `read`). The host takes it out of

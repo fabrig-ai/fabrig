@@ -194,7 +194,7 @@ const FORGE: forge::Limits = forge::Limits {
     gates: 2,
     receipts_per_gate: 4,
     ignored_paths: 4,
-    // Entries of a repository root read to make one landing key (domain/landing.md, 6.1).
+    // Entries of a repository root read to make one landing key (domain/landing-proof.md, 1.1).
     key_entries: 256,
     key_path_bytes: 1024,
     trees_in_flight: 2,
@@ -349,7 +349,7 @@ const BRIEF: engine::BriefLimits = engine::BriefLimits {
     gather: Duration::from_secs(300),
 };
 const CLIENTS: Clients = Clients {
-    // Files of a bundle, the page and both forms among them (client/web/README.md, 2.2).
+    // Files of a bundle, the page and both forms among them (client/web/serving.md, 1).
     bundle_files: 128,
     // Bytes of both forms in all, read into memory at start (protocol/configuration/limits.md).
     bundle_bytes: 32 << 20,

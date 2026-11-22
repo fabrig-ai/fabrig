@@ -1,4 +1,4 @@
-//! Usage from held account windows alone (temper/docs/design/client/pages/accounts.md, 2, Usage).
+//! Usage from held account windows alone (temper/docs/design/client/pages/accounts-words.md, 1, Usage).
 use crate::{
     accounts::words,
     look,

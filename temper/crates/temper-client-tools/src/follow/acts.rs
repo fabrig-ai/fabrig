@@ -1,4 +1,4 @@
-//! Keyed follow acts (temper/docs/design/client/ctl/tools.md, 3).
+//! Keyed follow acts (temper/docs/design/client/ctl/tools-acts.md, 1).
 use super::{
     BTreeMap, Box, Called, Client, Env, Event, Keyed, Kind, Limits, Out, Owner, Queue, Required, Told, Tool, Value,
     flag, forge, jig, number, render, value, w, wire,

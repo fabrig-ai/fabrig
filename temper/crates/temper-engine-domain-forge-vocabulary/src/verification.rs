@@ -1,9 +1,9 @@
-//! Retained landing verdicts (temper/docs/design/domain/after-landing.md, 5.3, 6 and 10).
+//! Retained landing verdicts (temper/docs/design/domain/after-landing.md, 5.3 and 6, and temper/docs/design/domain/after-landing-storage.md, 1).
 use crate::{TierVerification, Verification};
 use alloc::boxed::Box;
 use core::mem::size_of;
 
-/// What the forge knows of a landing a change names as the red it repairs (temper/docs/design/domain/agent/tools.md, 1).
+/// What the forge knows of a landing a change names as the red it repairs (temper/docs/design/domain/agent/tools-change.md, 1).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum LandingRed {
     /// No live `Verification` row of temper's has this commit in the repository.
