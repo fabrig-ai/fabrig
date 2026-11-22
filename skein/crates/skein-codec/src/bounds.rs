@@ -1,8 +1,9 @@
 //! Bounds as data, evaluated without recursion (data/codec/README.md, 4).
 //! Every edge points to an earlier node. A bounded stack follows only reached
-//! nodes, memoizing shared declarations; family bounds reuse the same memo.
+//! nodes, memoizing each in a slot indexed by the node; family bounds reuse the
+//! same slots.
 
-use skein_lib::{Map, Stack};
+use skein_lib::{List, Stack};
 
 /// One node in a postordered shape table. Sizes count heap slots, not pointees.
 #[derive(Clone, Copy, Debug)]
@@ -73,13 +74,28 @@ impl Frame {
     }
 }
 
-fn evaluate(nodes: &[Node], limits: &[u32], at: u32, memo: &mut Map<u32, Bounds>) -> Option<Bounds> {
+/// One empty slot for each node up to `at`: edges descend, so a walk from `at`
+/// reaches no later node, and never more slots than the table has nodes.
+fn slots(nodes: &[Node], at: u32) -> Option<List<Option<Bounds>>> {
+    let count = u32::try_from(nodes.len()).ok()?.min(at.checked_add(1)?);
+    let mut memo = List::allocated(count);
+    for _ in 0..count {
+        memo.push(None).ok()?;
+    }
+    Some(memo)
+}
+
+fn known(memo: &List<Option<Bounds>>, at: u32) -> Option<Bounds> {
+    memo.get(at).copied().flatten()
+}
+
+fn evaluate(nodes: &[Node], limits: &[u32], at: u32, memo: &mut List<Option<Bounds>>) -> Option<Bounds> {
     let mut stack = Stack::with_capacity(u32::try_from(nodes.len()).ok()?);
     stack.push(Frame::new(at)).ok()?;
     // Each step finishes a reached node or advances one of its edges. Edges
     // strictly descend, so stack depth and memo size are bounded by the table.
     while let Some(mut frame) = stack.pop() {
-        if memo.contains_key(&frame.at) {
+        if known(memo, frame.at).is_some() {
             continue;
         }
         let node = *nodes.get(usize::try_from(frame.at).ok()?)?;
@@ -87,7 +103,7 @@ fn evaluate(nodes: &[Node], limits: &[u32], at: u32, memo: &mut Map<u32, Bounds>
             if child >= frame.at {
                 return None;
             }
-            match memo.get(&child) {
+            match known(memo, child) {
                 Some(value) => {
                     match node {
                         Node::Enum { .. } => {
@@ -114,10 +130,10 @@ fn evaluate(nodes: &[Node], limits: &[u32], at: u32, memo: &mut Map<u32, Bounds>
             }
         } else {
             let value = node.finish(frame.sum, limits)?;
-            memo.insert(frame.at, value).ok()?;
+            *memo.get_mut(frame.at)? = Some(value);
         }
     }
-    memo.get(&at).copied()
+    known(memo, at)
 }
 
 fn valid(limits: &[u32], ceilings: &[u32]) -> Option<()> {
@@ -136,7 +152,7 @@ fn valid(limits: &[u32], ceilings: &[u32]) -> Option<()> {
 #[must_use]
 pub fn declaration(nodes: &[Node], limits: &[u32], ceilings: &[u32], at: u32) -> Option<Bounds> {
     valid(limits, ceilings)?;
-    let mut memo = Map::with_capacity(u32::try_from(nodes.len()).ok()?);
+    let mut memo = slots(nodes, at)?;
     evaluate(nodes, limits, at, &mut memo)
 }
 
@@ -144,7 +160,7 @@ pub fn declaration(nodes: &[Node], limits: &[u32], ceilings: &[u32], at: u32) ->
 #[must_use]
 pub fn family(nodes: &[Node], limits: &[u32], ceilings: &[u32], declarations: &[u32]) -> Option<Bounds> {
     valid(limits, ceilings)?;
-    let mut memo = Map::with_capacity(u32::try_from(nodes.len()).ok()?);
+    let mut memo = slots(nodes, declarations.iter().copied().max().unwrap_or(0))?;
     let mut result = Bounds { encoded: 0, decoded: 0 };
     for at in declarations {
         let value = evaluate(nodes, limits, *at, &mut memo)?;
