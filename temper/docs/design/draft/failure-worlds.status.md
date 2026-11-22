@@ -7,7 +7,7 @@
   - 3.6: the stock profiles, policy and catalogues are checked figure by figure, not against one another.
   - 3.7: the start's link checks run only at a scenario's final cold restart.
   - 4: nothing models a stop in each phase of a start. The faults marked [script], [composition] or [assertion] need no design change.
-  - 5: `../testing/README.md`, 2.1 has no world running several goals at once.
+  - 5: `../testing/tiers.md`, 1.1 has no world running several goals at once.
   - 7: nothing.
 - **Design departs:**
   - 3: an adapter is a kit of its component's tree, beside it, over `pub` reads the component documents as its adapter's, not code inside the component's crate (`skein/docs/design/testing/inspection.md`, 2): the workspace has no feature or `cfg` for test-only code, and a shipped binary links no testing crate. The adapter still changes with its component, reads it by a shared borrow and is linked only by worlds. The goal's designer, 2026-11-20.

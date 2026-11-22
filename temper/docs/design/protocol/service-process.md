@@ -53,7 +53,7 @@ Standalone is jig's one process (jig's `protocol/service.md`, section 10):
   `domain/engine/restart.md`; `../domain/root-restart.md`, 1.1). Job claims
   remain for restart recovery even after a drain, since their effects
   may have happened.
-- **Its world** is `tests/one-process` (`../testing/README.md`, 2.5).
+- **Its world** is `tests/one-process` (`../testing/tiers.md`, 1.5).
 
 ### 1.1 A long pass
 

@@ -557,7 +557,7 @@ Startup also checks the seed policy after enforced landing requirements are join
 ## 11. The world
 
 The root has no child domain of its own; its worlds are the engine's
-(`../testing/README.md`, section 2):
+(`../testing/tiers.md`, section 1):
 
 - **The engine's world,** `tests/engine/domain`: the root with jig's real
   children and the forge's crates, over jig's store through the service's
@@ -571,7 +571,7 @@ The root has no child domain of its own; its worlds are the engine's
   `domain/testing.md`, sections 5 and 8).
 - **The system worlds:** the root with the worker and smith's agent
   (`tests/system`), and with temper's client (`tests/client`)
-  (`../testing/README.md`, 2.1).
+  (`../testing/tiers.md`, 1.1).
 
 Its stories, as the root meets them: a chat that answers, parks and
 resumes from its transcript's window; a chat past its resume limit

@@ -34,7 +34,7 @@ fake forge; no real model or real forge is proved by it. `checks.md`, section 5.
 reference obligations retain their current charter words; folding in the
 goal-as-designer workflow remains in `README.md`, section 7.
 
-`README.md`, section 2.1 has no known gap in the merge job's story:
+`tiers.md`, section 1.1 has no known gap in the merge job's story:
 `a_changes_merge_job_runs_on_its_worker` (`tests/system/tests/suite/merge_job.rs`)
 runs a change's merge job in the composed world, both roots declaring the
 kind as production does (`temper-service`'s `limits::job_kinds` and

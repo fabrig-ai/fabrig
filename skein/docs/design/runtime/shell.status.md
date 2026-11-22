@@ -43,7 +43,7 @@ are milestones C3 and C5 of `temper/docs/design/draft/cli.execution.md`.
   (`skein-shell/src/listener_calls.rs`) on both answers, and only the
   constant that selects macOS's goes unrun. 8: temper's one story has not
   been seen green on the macOS workflow
-  (`temper/docs/design/testing/README.md`, 2.8), and no macOS runner runs
+  (`temper/docs/design/testing/tiers.md`, 1.8), and no macOS runner runs
   skein's suites. Whether that workflow's compile step has run is unknown;
   a cross-target build does not prove the Darwin runtime.
 - **Departs:** 6.2: `read_trust_roots` gives its caller the counts, and only

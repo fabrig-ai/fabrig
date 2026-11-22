@@ -260,7 +260,7 @@ host:
   hears its person's words, parks, and resumes from its transcript; a
   host tool answered busy by the engine, asked again and decided once.
 - **A person's words during a turn,** in the system world
-  (`../../testing/README.md`, 2.1): an Open chat's first model call
+  (`../../testing/tiers.md`, 1.1): an Open chat's first model call
   held, as the world's absence stories hold one, the person's words
   said to the chat while it is held, then the call answered and the
   run going on. Two model calls, both answered, with no nudge or retry;

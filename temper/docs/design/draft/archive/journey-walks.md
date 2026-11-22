@@ -118,7 +118,7 @@ tui mark
 ### 4.1 In a world
 
 - **One process and nothing else:** no child, socket, clock, environment or network, and no file but the journeys it reads and the directory it writes.
-- **What runs** is the playground's composition, which the one-process world and the playground's own page already run (`../../testing/README.md`, 2.5): `temper-service` with its engine and one worker, its hosted agents over the fake model, the fake forge and the fake git program, on skein's simulator.
+- **What runs** is the playground's composition, which the one-process world and the playground's own page already run (`../../testing/tiers.md`, 1.5): `temper-service` with its engine and one worker, its hosted agents over the fake model, the fake forge and the fake git program, on skein's simulator.
 - **The browser's client** is the web shell's own host and its page. `temper/tests/playground` runs it against that service today, inside a test crate, with no reload, no tab and no HTML handed out (survey, 2.1). The print is what that host draws, never a view built aside.
 - **The TUI's client** is `temper-client-shell-tui`'s host, given keys and read as frames with no terminal. Today it runs only joined to the engine's root, in the client's world (`../../client/testing.md`), where typed requests and events pass with no service between. Carrying its requests, its stream, what it keeps, its deadlines and its browse to the simulated service is new work, and a goal of its own.
 - **A walker gives the lines.** It finds a control through skein's fake person's faces (`../../testing/fakes.md`, 4), by role, exact name and order, and adds what a walk needs beyond that person's steps: the wait for a control, a key, an approval, a mark. What is generic among those is skein's.
@@ -169,7 +169,7 @@ What the binary needs sits today where it cannot be reached, so the first goal t
 - **The lines' grammar and the two printers** leave `temper-client-journeys-tool`, which depends on the browser kit, for a library that does not. The drive session and the new binary both read lines through it.
 - **The world's driver,** the web host on the simulated service with its stepping, leaves the playground's test crate for a library its tests and the binary share. The box's peer and the walker join it there.
 - **The binary links** those two, the playground's composition and the two shells, and nothing of the box, the browser kit or the drive session.
-- **Its tests' layers:** the grammar and the printers, step; a walk in a world, simulated (`../../testing/README.md`, 2). Each within its layer's budget as it stands, with the cost of a journey's walk measured by the goal that first prints one, beside the one-process stories' half a CPU second each (survey, 2.4).
+- **Its tests' layers:** the grammar and the printers, step; a walk in a world, simulated (`../../testing/tiers.md`, 1). Each within its layer's budget as it stands, with the cost of a journey's walk measured by the goal that first prints one, beside the one-process stories' half a CPU second each (survey, 2.4).
 
 ## 6. Main's pages have one writer
 

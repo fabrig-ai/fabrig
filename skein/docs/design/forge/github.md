@@ -277,7 +277,7 @@ Batched reads are later (temper's `draft/github.md`, 18).
   another App's suite with no run lists no check run.
 - **Which checks are CI** is the adoption's, the client's: the branch's
   required checks when its rules name them, else the Actions workflows'
-  (temper's `draft/github.md`, 9). The dialect reads them all.
+  (temper's `draft/github-app.md`, 5). The dialect reads them all.
 - **An Actions job** has its own id, separate from the check-run id.
   For a failed check, `html_url` with the repository's owner and name and
   `/actions/runs/<run>/job/<job>` supplies candidate run and job ids;
@@ -606,7 +606,7 @@ As README.md section 6, in GitHub's words:
   `X-GitHub-Delivery`. The verdicts are README.md 6's.
 - **Not yet reached:** GitHub delivers from the internet, and temper's
   App points its hook at an address that does not resolve (temper's
-  `draft/github.md`, 5). Every delivery fails and is listed in the log, which the
+  `draft/github-app.md`, 1). Every delivery fails and is listed in the log, which the
   component reads (9.3). A public address is later (temper's `draft/github.md`, 18);
   the fake's layer pushes to a listener when a test asks (../testing/fakes/github.md,
   section 1).

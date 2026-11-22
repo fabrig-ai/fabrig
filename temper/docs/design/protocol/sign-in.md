@@ -192,9 +192,9 @@ A deployment that opens its public projects to anyone
 What a visitor can try against a deployment that has opened, each
 answer checked against what 2.4, jig's `protocol/client/default-http.md`, 5 and `protocol/client/public-reads.md`
 , and jig's `domain/people/public-reading.md` allow. Each case is
-tested in the lowest world that owns it (`../testing/README.md`, 2.5;
+tested in the lowest world that owns it (`../testing/tiers.md`, 1.5;
 `skein/docs/foundation/testing-strategy.md`, 9). The one-process world
-(`../testing/README.md`, 2.5) plays the walk's path through temper's
+(`../testing/tiers.md`, 1.5) plays the walk's path through temper's
 real service, started from configuration's bytes, and a caching proxy
 of the world that follows 2.4, with the cases only that whole service
 shows; jig's worlds play what its mapping, its clients' component and
@@ -551,7 +551,7 @@ its sockets tagged as the server's are.
 
 - **The sign-in world,** `temper-service`'s own tests
   (`crates/temper-service/src/tests/sign_in.rs`), as its GitHub routes'
-  are (`../testing/README.md`, 2.1): the clients' composition with its
+  are (`../testing/tiers.md`, 1.1): the clients' composition with its
   Google sign-ins, jig's clients' component and the engine's root on its
   store, people's requests as calls through `fixtures::http::Peer`, and
   `skein-fake-oauth`'s `Issuer` as Google, answering the sign-ins' HTTP

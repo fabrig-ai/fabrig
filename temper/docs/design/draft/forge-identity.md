@@ -47,7 +47,7 @@ This draft decides who counts as an approver, so its reasons are kept here
    their own browser.
 5. **It lands.** A review already wakes its pull's change, by a hook on a box
    and through the delivery log on GitHub (`../domain/forge/keeping-up.md`, 2;
-   `github.md`, section 7), so this step needs nothing new.
+   `github-app.md`, section 3), so this step needs nothing new.
 
 ## 3. Who a forge account is
 
@@ -114,10 +114,10 @@ use it.
 
 ### 4.3 When it stays unknown
 
-An App that's pasted (`github.md`, 6.5) has no such link, even with a person as its
+An App that's pasted (`github-app.md`, 2.5) has no such link, even with a person as its
 owner: having its key doesn't show that the owner and the box's person are one, and a
 wrong link would count someone else as them. So nothing changes there: what adoption
-seeds counts, the refusal says so plainly (section 7), and the panel names a review
+seeds counts, the refusal says so plainly (`forge-identity.md`, section 7), and the panel names a review
 from an account temper doesn't know (`../domain/forge/change/gates.md`, 2).
 
 ### 4.4 One person, two records
@@ -158,7 +158,7 @@ author:
 
 So it counts, with no collaborator added. That measures the API and that the page
 draws, not the page's own post. On GitHub the author is the App's bot, whom the person
-isn't (`github.md`, section 5), and P8 has the App's own approval refused.
+isn't (`github-app.md`, section 1), and P8 has the App's own approval refused.
 
 ## 6. What it holds against
 

@@ -69,7 +69,7 @@ that they cover what its work waits on.
 
   The first two rows, moved by someone else's push or edit, and the
   others, comments, reviews, issues and drift, are checked from hints
-  in the worlds (`../../testing/README.md`, 2.2, and `../../testing/checks.md`, 3).
+  in the worlds (`../../testing/tiers.md`, 1.2, and `../../testing/checks.md`, 3).
 
 ## 2. Open questions
 

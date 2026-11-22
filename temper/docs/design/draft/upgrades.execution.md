@@ -115,7 +115,7 @@ design is the documents it names, written before its changes.
 
 ### M10. A story through an upgrade
 
-- **Design:** `../testing/README.md`, 2.5; `store-floor.md`, 4.4.
+- **Design:** `../testing/tiers.md`, 1.5; `store-floor.md`, 4.4.
 - **Current scope:** the story on a registry change and job, its
   referee, the unsettled stop, and a fuzzy sweep of power lost during
   the upgrade's start. Levels and versions stay.

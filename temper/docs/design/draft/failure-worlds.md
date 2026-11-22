@@ -44,7 +44,7 @@ Each check is one of three kinds, as the strategy separates them (`skein/docs/fo
 - **A harness invariant** inspects a world's frozen state between iterations, through an **inspection adapter** each component exposes to its worlds alone: the engine's for its landings, changes and tables, jig's for its tasks, waits and tables, the worker's for its workspaces and disk. An adapter is test code, built with its component, and reads what its component keeps without changing it.
 - **A settings test** runs over shipped settings, not in a world.
 
-Each returns its findings, as every check of temper's worlds does (`../testing/README.md`, 4.2), naming the object, the moment and the seed. A check that can't read what it needs is a gap in its adapter, to be built, never a finding of the product's.
+Each returns its findings, as every check of temper's worlds does (`../testing/scenarios.md`, 1.2), naming the object, the moment and the seed. A check that can't read what it needs is a gap in its adapter, to be built, never a finding of the product's.
 
 | Check | Kind | Reads |
 |---|---|---|
@@ -204,7 +204,7 @@ Each from legitimate events [composition]:
 
 ### 4.7 The engine's own bounds
 
-Every scenario runs at the shipped `small` profile (`../testing/README.md`, 4.1). The workload (section 5) runs enough goals at once to reach each bound of 3.2's table [composition]. Funds run at the stock policy's figures, so a goal's run and its delegates share its budget as production's did.
+Every scenario runs at the shipped `small` profile (`../testing/scenarios.md`, 1.1). The workload (`failure-worlds.md`, section 5) runs enough goals at once to reach each bound of 3.2's table [composition]. Funds run at the stock policy's figures, so a goal's run and its delegates share its budget as production's did.
 
 ### 4.8 Restarts, stops and upgrades
 
@@ -254,7 +254,7 @@ The mapping of every problem to its lowest tier found ten ingredients a reproduc
   - jig's engine-clients world for a sign-in's exchanges;
   - the worker's domain world for workspaces, disk and scratch;
   - smith's worlds for providers, programs and a check's clock.
-- **The composed workload** is the composed system world (`../testing/README.md`, 2.1) running:
+- **The composed workload** is the composed system world (`../testing/tiers.md`, 1.1) running:
   - several goals at once, from two parties;
   - a milestone whose goals depend on one another;
   - a goal whose changes form a landing train of several members;

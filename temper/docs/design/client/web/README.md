@@ -52,7 +52,7 @@ skein's (skein's `ui/web/README.md`), and how a client of jig's does is jig's
   mapping's cookie, and a reload signs in again by it (`sign-in.md`, 1).
 - **Browser tests only for what a browser alone shows.** temper's
   stories are the worlds' and the real loop's, through the terminal
-  shell (`../../testing/README.md`, 2.1 and `../../testing/real-loop.md` and `../../testing/checks.md`, 3). The browser tier proves
+  shell (`../../testing/tiers.md`, 1.1 and `../../testing/real-loop.md` and `../../testing/checks.md`, 3). The browser tier proves
   the bundle under its policy, signing in by the link and the cookie,
   addresses, the composer's keys and jig's attack stories that need a
   browser, and nothing a world can show (`testing.md`).

@@ -74,7 +74,7 @@ the worker that met it and on the engine, naming the job, its kind and why,
 and the way out of its hold, out of tries, points at the engine's log,
 which names each (`../../worker/jobs.status.md`). The composed system world runs
 a change's merge job from the engine through its worker to the fake forge
-(`../../../testing/README.status.md`, 2.1).
+(`../../../testing/tiers.status.md`, 1.1).
 
 - **Not yet:**
   -  the request-to-repair fuzzy coverage remains `gates.status.md`, 1.

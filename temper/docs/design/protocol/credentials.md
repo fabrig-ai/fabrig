@@ -407,7 +407,7 @@ Moved to [`credentials-git-identities.md`](credentials-git-identities.md), secti
   fact and every record of the main store for the values their fakes
   issued (LLM access tokens and keys, forges' tokens, Apps' keys,
   installations' tokens, admins' tokens, webhooks' secrets), and fail on
-  any (`../testing/README.md`, 2.5). After each real-loop story, no
+  any (`../testing/tiers.md`, 1.5). After each real-loop story, no
   secret is in a root, a fact, a record but the secrets' store's, a
   request or an answer.
 - **No live forge:** every forge these tests reach is skein's fake, and

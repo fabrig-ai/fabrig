@@ -511,7 +511,7 @@ back. The forge stays connected throughout: connected is its access
   rule changes no connector timer or admission bound.
 
 - **Which checks are CI on GitHub, without required checks:** temper's
-  draft (`../../draft/github.md`, section 9) takes the repository's Actions
+  draft (`../../draft/github-app.md`, section 5) takes the repository's Actions
   workflows' check runs there, so that another App's check run (a
   Codecov's) is not CI. That needs each row's App, which skein's
   `Status` carries only for a failed Actions run; until skein's dialect

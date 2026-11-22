@@ -1113,7 +1113,7 @@ the suites (../testing/README.md, section 6).
 - **The conformance on macOS.** A bottle is the pin's version and another
   build (4.3), so what the conformance checks is Linux's binaries, and a
   bottle answers only to temper's one story
-  (`temper/docs/design/testing/README.md`, 2.8). Default: so, until the
+  (`temper/docs/design/testing/tiers.md`, 1.8). Default: so, until the
   conformance joins the macOS workflow with skein's suites
   (`temper/docs/design/draft/macos.md`, section 6).
 - **GitHub's further gaps.** Settled: its dialect is a module of

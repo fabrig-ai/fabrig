@@ -295,7 +295,7 @@ start afresh. Staging is made again at dev's build for each drill
   write no receipts. A restart with `CURRENT_SETS` registers the
   binary's layout, whose field defaults to `unset`, and runs the job
   once in a copy before restoring, switching and committing its wires.
-  It closes no window by a mark (`../testing/README.md`, 2.5).
+  It closes no window by a mark (`../testing/tiers.md`, 1.5).
 - **The settled image** in `tests/one-process/golden/settled/` is read by
   the one-process world. It holds the four machine roots, modes and
   configuration, the fake forge's image, issued fake tokens and users,

@@ -58,7 +58,7 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   Forgejo alone and never call github.com. github.com is reached only
   by the GitHub story below and by skein's opt-in conformance (skein's
   `testing/fakes/github.md`, section 2), each run by hand by the developer who
-  holds the probe App's fixtures (`README.md`, section 2), never by an implementer.
+  holds the probe App's fixtures (`tiers.md`, section 1), never by an implementer.
 - **The stories:** the process tier's chat, answered by the real model;
   and one small change, made by the model in a repository of the owned
   Forgejo, adopted as in `process-tier.md`, and pushed by real git. The story ends

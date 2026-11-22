@@ -116,8 +116,8 @@ every setting is, its decision that project's owners'. Its value, a
 
 ## 5. The world
 
-Focused stories, in temper's domain world (`../../testing/README.md`,
-section 4) with two projects on the fake forge:
+Focused stories, in temper's domain world (`../../testing/scenarios.md`,
+section 1) with two projects on the fake forge:
 
 - an owner's dependency proposal is accepted, kept, read by `see
   settings dependency 1`, and read the same after a restart;

@@ -190,7 +190,7 @@ merge, kind 4, on a pattern of landing branches (jig's
 
 - **The explicit choice to land without CI** is offered at GitHub
   adoption only when Actions is on, there is no workflow and the landing
-  branch has no required checks (`../../../draft/github.md`, 10.3). Choosing it
+  branch has no required checks (`../../../draft/github-app.md`, 6.3). Choosing it
   adopts with CI off and allows adoption without replacement checks. Otherwise a
   repository without CI names the checks that stand for it. Neither this
   choice nor replacement checks waive a landing rule or required checks;

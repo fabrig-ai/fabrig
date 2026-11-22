@@ -292,7 +292,7 @@ fn failed_ci_requests_repair_without_merge() {
 
 #[test]
 fn pending_pull_wakes_after_ci_verdict() {
-    // QA: protocol/forge/README.md 9; draft/github.md 7: changed CI wakes its waiter.
+    // QA: protocol/forge/README.md 9; draft/github-app.md 3: changed CI wakes its waiter.
     let mut limits = temper_engine_forge_world::LIMITS;
     limits.change_policy.stall = Duration::from_secs(1800);
     let mut world = Protocol::github_with_limits(747, delayed_checks(90), &limits);
@@ -306,7 +306,7 @@ fn pending_pull_wakes_after_ci_verdict() {
 
 #[test]
 fn pending_pull_survives_token_renewal() {
-    // QA: testing/README.md 2.2; draft/github.md 11 P1, 17: watch through the hour.
+    // QA: testing/tiers.md 1.2; draft/github-app.md 7 P1, 17: watch through the hour.
     let mut limits = temper_engine_forge_world::LIMITS;
     // Deliberate long-stall story; shipped silent-CI stall remains 1800 s.
     limits.change_policy.stall = Duration::from_secs(7200);
@@ -484,7 +484,7 @@ fn mints(world: &Protocol) -> usize {
 
 #[test]
 fn pending_ci_across_token_hour_completes_on_fresh_token() {
-    // QA: testing/README.md 2.2; draft/github.md 11 P1, 17; Q4.
+    // QA: testing/tiers.md 1.2; draft/github-app.md 7 P1, 17; Q4.
     let mut limits = temper_engine_forge_world::LIMITS;
     // Explicitly extend this story's stall; do not claim silent CI may wait
     // out an hour under the shipped 1800 s policy.

@@ -124,7 +124,7 @@ fake git program's core:
 | `crates/temper-protocol-brief` | translation | a charter's brief fitted to the room its run leaves, cut from its last section with each cut's line (`../domain/agent/room.md`, 2), for the engine's translation and the worker's service alike | `smith-domain-run`, `skein-lib` |
 
 **temper's test crates, worlds and tiers** are `../testing/README.md`'s
-(`../testing/README.md`, section 2 and `../testing/fakes.md` and `../testing/README.md`, section 5): the fake git program, the worlds below the
+(`../testing/tiers.md`, section 1 and `../testing/fakes.md` and `../testing/README.md`, section 5): the fake git program, the worlds below the
 domain, the process and live tiers, and the tool that records git's
 transcripts (git.md, section 9). The fake forge's protocol layer, the
 throwaway Forgejo and the tool that records Forgejo's transcripts are

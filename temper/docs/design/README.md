@@ -215,6 +215,12 @@ forge, temper adds:
   - `domain/worker/agent-processes.md`: the worker's agent processes and their bounds.
   - `domain/worker/checkouts.md`: workspaces, preparing, delivering, saving and open questions.
   - `domain/worker/jobs.md`: job kinds, commands and failure diagnostics.
+  - `testing/README.md`: the testing overview, neighbours and layout.
+  - `testing/tiers.md`: temper's testing tiers and their open work.
+  - `testing/scenarios.md`: scenarios and their referee.
+  - `testing/reference-case.md`: the case library and its opening act.
+  - `testing/reference-case-changing-direction.md`: the case's change of direction.
+  - `testing/reference-case-milestones.md`: the case's milestones and hand-offs.
   - `testing/worker.md`: the worker's inspection adapter, the faults of its disk and workspaces, and their sweeps.
   - `testing/qa/README.md`: QA after landing, beside the deployment: its
     tool, home and loop; its ledger (`testing/qa/ledger.md`), the

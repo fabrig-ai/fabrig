@@ -459,7 +459,7 @@ the routing in the step that routes the record:
 
 ## 9. Testing
 
-Within the suites' budgets (`../testing/README.md`, section 2):
+Within the suites' budgets (`../testing/tiers.md`, section 1):
 
 - **Review delivery in the one-process world:** a fresh goal reaches a
   blocking review gate, and a small change does so after two restarts.
@@ -486,7 +486,7 @@ Within the suites' budgets (`../testing/README.md`, section 2):
   arbitrary bytes and on mutations of fixed-rule values built from the schema.
 - **Through bytes,** the one-process world carries every part on jig's
   channel joined in process: each story that prepares a workspace,
-  pushes, saves or fails to prepare (`../testing/README.md`, 2.5). jig's channel
+  pushes, saves or fails to prepare (`../testing/tiers.md`, 1.5). jig's channel
   worlds carry them as opaque bytes, and need nothing of temper's.
 - **Without bytes,** the composed system world runs the same functions
   (section 7).

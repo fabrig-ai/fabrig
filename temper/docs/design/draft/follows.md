@@ -227,7 +227,7 @@ The whole story's pilot (`whole-story.md`, 5.2) is a follow.
 ## 9. Its acceptance
 
 Focused and fuzzy tests alone, in worlds with the fake forge and the fake
-model (`../testing/fakes.md` and `../testing/README.md`, section 4).
+model (`../testing/fakes.md` and `../testing/scenarios.md`, section 1).
 
 - **Focused,** in a world with two projects on the fake forge, the target's
   adopting the source's repository as context, and a follow owned by a

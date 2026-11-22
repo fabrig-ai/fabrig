@@ -370,7 +370,7 @@ Moved to [`store-restart.md`](store-restart.md), section 1.
 
 ## 6. Testing
 
-Within the suites' budgets (`../testing/README.md`, section 2):
+Within the suites' budgets (`../testing/tiers.md`, section 1):
 
 - **Step tests** in `temper-protocol-store`: each family's key encoder
   against the derived order, and its decoder against its encoder; the
@@ -386,7 +386,7 @@ Within the suites' budgets (`../testing/README.md`, section 2):
   families. Every story runs real keys, codecs and interval with faults:
   commits held, delayed, one failed to stop the engine, and a crash
   keeping what reached the store.
-- **The one-process world** (`tests/one-process`, `../testing/README.md`, 2.5):
+- **The one-process world** (`tests/one-process`, `../testing/tiers.md`, 1.5):
   the store on skein's crashing disk, the process killed and restarted
   at drawn moments; after each restart the forge's records are those of
   the last acknowledged commit, or of that and one whole uncertain one,

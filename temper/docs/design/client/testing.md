@@ -1,6 +1,6 @@
 # Testing the client
 
-The tiers, the fakes and the budgets are `../testing/README.md`'s (`../testing/README.md`, section 2 and `../testing/fakes.md` and `../testing/checks.md`, section 1
+The tiers, the fakes and the budgets are `../testing/README.md`'s (`../testing/tiers.md`, section 1 and `../testing/fakes.md` and `../testing/checks.md`, section 1
 ); the client's joint world is its 2.1 and 6.3. The client's
 own tests:
 
@@ -215,7 +215,7 @@ own tests:
   drawn for the person's project, a question asked from its box, the
   Ask temper chat it starts opened and its answer drawn.
 - **`tests/client`** (`temper-client-world`), the joint world
-  (`../testing/README.md`, 2.1, and `../testing/checks.md`, 3): temper's client root and view, with
+  (`../testing/tiers.md`, 1.1, and `../testing/checks.md`, 3): temper's client root and view, with
   skein's fake person acting on the tree, joined to temper's engine
   root through jig's clients' component, with no transport between,
   with jig's client worlds' faults and jig's check (jig's
@@ -333,13 +333,13 @@ own tests:
   every story, said in temper's phrasebook, which temper's world gives
   jig's referee (jig's `client/domain/testing.md`, 6.2).
 - **The routes** (`engine.md`; `forge/served.md`, 1), in temper's clients'
-  world (`../testing/README.md`, 2.1): requests to the service's
+  world (`../testing/tiers.md`, 1.1): requests to the service's
   routes against the fake forge's GitHub, each answer, its headers and
   its `302`; a state used, unknown or past its life refused; a query
   past `routes.query_bytes`, a method other than `GET` and a forge not
   GitHub refused; a path jig claims never reaching them. No test calls
   github.com or uses a real credential.
-- **The one-process world** (`../testing/README.md`, 2.5): skein's fake person
+- **The one-process world** (`../testing/tiers.md`, 1.5): skein's fake person
   in front of temper's terminal client (its client root, view and
   transport), joined through bytes to `temper-service` on skein's
   simulator: the same stories through jig's default HTTP mapping and

@@ -28,7 +28,7 @@ Every world checks what the strategy lists (skein/docs/foundation/testing-strate
   also compare their complete `Debug` text, retaining checks of what
   `Hash` omits, a difference again a returned finding, before both close
   through the cold restart oracle. A test of the comparison reads its
-  finding (`README.md`, 4.2).
+  finding (`scenarios.md`, 1.2).
 - **Secrets stay beside the domains:** in every world with the protocol
   layer, no git identity's value or API token appears in a domain's
   state, a fact, a store record or a log; the fake git program checks
@@ -229,9 +229,9 @@ each behaviour in the lowest world that owns it, and one smoke above:
 | the engine's domain world, a charter's documents (`../protocol/configuration/settings.md`, 6) | through the core's plan, the root's binding and the forge's gather: a run of a charter naming a document gets its section at the branch's head; after a change lands that edits the file, the next run's section has the new text; a heading's part alone; a missing file, heading or repository, a section saying so and the run going on. The gather's own cases (a heading's bounds, a cut at a line end, each section saying why) are the forge crate's step tests | about 0.1 s, four stories |
 | fuzzy, in an existing sweep | one operation in the forge world's `suite::fuzzy::simulation`: random changes of landing rules among the changes stepping and merging; its referee holds that no merge lands without each requirement of the rules held at its decision | within the forge world's layer's fuzzy budget (1), measured with it; no new binary |
 | the client and the engine, joined (3) | Ask temper's page, and `chat start --template 5` through ctl, starting Ask temper, whose run of charter 11 proposes; "How work runs" read at its defaults and after a change, with its revisions in use; a proposal's review page split into temper enforces and your agents follow, with its effect; one accepted, making a revision; one withdrawn as stale; a member's, waiting for an owner | about 0.4 s, within the system worlds' focused budget (1) |
-| the one-process world (`README.md`, 2.5) | its fixture's document without the six members; its restart story with one change of settings before it | no new story |
+| the one-process world (`tiers.md`, 1.5) | its fixture's document without the six members; its restart story with one change of settings before it | no new story |
 | the real loop (`real-loop.md`) | one smoke: a gate added to a project's landing rule from the client, the next change asking for its review and landing after it | at most 2 s, its guide, within the real loop's focused budget (1) |
-| the system world (`README.md`, 2.1) | running work keeping its revision, and `revision advance` moving it, one story (`../client/ctl/testing.md`, 4) | at most 2 s, a world story's aim (1) |
+| the system world (`tiers.md`, 1.1) | running work keeping its revision, and `revision advance` moving it, one story (`../client/ctl/testing.md`, 4) | at most 2 s, a world story's aim (1) |
 | the process tier | Owned Forgejo gates, real signals and process-tree supervision only (`process-tier.md`). Settings reads, proposals, owner decisions and held revisions use the CLI machine, core and system worlds. | process-temper; one focused wiring smoke |
 
 - **The tests that move:** every test document and typed builder that
@@ -507,7 +507,7 @@ one complete accepted revision, with refusal and decided-call replay cases (4).
 Written from `../draft/failure-worlds.md`, sections 3, 5 and 6. Each
 check is a referee expectation, which observes only what the fakes saw,
 the facts the engine and the worker emit and the durable records
-(`README.md`, 4.2); a harness invariant, which reads a component's frozen
+(`scenarios.md`, 1.2); a harness invariant, which reads a component's frozen
 state through its inspection adapter (skein's `testing/inspection.md`);
 or a settings test, outside every world. Each returns its finding, naming
 the object, the moment and the seed.
@@ -598,7 +598,7 @@ the catalog's P26, S1 and P126 rows. The faults are skein's fake LLM's account s
 (skein's `testing/fakes/llm.md`, 2.7); smith's worlds hold the rest of
 the providers' faults (`smith/docs/design/faults.md`).
 
-- **Two accounts:** the composed system world (`README.md`, 2.1) can
+- **Two accounts:** the composed system world (`tiers.md`, 1.1) can
   give its fake LLM two accounts, each with a key source, each of its own
   party, so that each party's goal runs on its own account. The queries
   its agents make carry their account's credential index (skein's

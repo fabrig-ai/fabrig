@@ -480,7 +480,7 @@ counts are not ids.
 
 ## 9. Testing
 
-The tiers, the fakes and the layout are `../../testing/README.md`'s (`../../testing/README.md`, section 2, and `../../testing/fakes.md`, section 2, and `../../testing/README.md`, section 5
+The tiers, the fakes and the layout are `../../testing/README.md`'s (`../../testing/tiers.md`, section 1, and `../../testing/fakes.md`, section 2, and `../../testing/README.md`, section 5
 ). The kit's own tests are skein's. The forge's, in temper:
 
 - **Step tests** of the documents, the encoders and decoders, the call
@@ -579,7 +579,7 @@ The tiers, the fakes and the layout are `../../testing/README.md`'s (`../../test
     page, the redirect and the setup address; `../../client/forge/served.md`,
     1): requests through `fixtures::http::Peer` to the service's
     routes, each answer and its headers, and a state used, unknown or
-    past its life refused (`../../testing/README.md`, 2.1).
+    past its life refused (`../../testing/tiers.md`, 1.1).
 
   The stories through temper's real loops, connecting, adopting and
   landing on each dialect, are `../../testing/README.md`'s (`engine.md`, 4).

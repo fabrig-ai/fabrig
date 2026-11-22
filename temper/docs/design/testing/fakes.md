@@ -13,7 +13,7 @@ the worker's agents are smith's (protocol/llm.md, section 2). The fake is
 skein's (skein's `testing/fakes/llm.md`):
 
 - **Its domain,** `skein-fake-llm-domain` (skein's `testing/fakes/llm.md`,
-  section 2), whose scripts cue on content (`README.md`, 4.1); a scripted reply can
+  section 2), whose scripts cue on content (`scenarios.md`, 1.1); a scripted reply can
   come in pieces, held after a piece, so a world observes the reply
   partway (skein's `testing/fakes/llm.md`, 2.2).
 - **Its peer,** in `skein-fake-peers` (skein's `testing/fakes/llm.md`, section 3),
@@ -226,7 +226,7 @@ loopback (skein's `testing/fakes/forge.md`, section 5). temper's worlds add:
 - **Its fixtures.** The scenario gives the protocol layer each
   repository's id and its table of API tokens and the users they stand
   for (skein's `testing/fakes/forgejo.md`, section 1), and the repositories their
-  files and checks (`README.md`, 4.1).
+  files and checks (`scenarios.md`, 1.1).
 - **Its costs.** The protocol layer counts the requests it serves, by
   route, which the engine's cost checks hold to ceilings
   (../protocol/forge/README.md, section 9).
@@ -247,9 +247,9 @@ loopback (skein's `testing/fakes/forge.md`, section 5). temper's worlds add:
 - **Its setup routes** serve reconcile's tests (../protocol/setup/testing.md, 2),
   and on GitHub's dialect its browser's pages serve the real loop's
   connect (`real-loop.md`). temper's own routes on the clients' listener are
-  tested in `temper-service`'s tests, against no fake (`README.md`, 2.1).
+  tested in `temper-service`'s tests, against no fake (`tiers.md`, 1.1).
 - **Its referee** drains the forge's observations (skein's
-  `testing/fakes/forge.md`, 2.4; here, `README.md`, 4.2).
+  `testing/fakes/forge.md`, 2.4; here, `scenarios.md`, 1.2).
 - **Its faults, in the engine's forge world** (`temper/tests/engine/forge`;
   `../draft/failure-worlds.md`, 4.1 and 4.5):
   - **A ledger per run** (skein's `testing/sweeps.md`, 3), in a world
@@ -498,7 +498,7 @@ skein's fake forge, whose domain is its only remote state. It reaches
 that forge in one of two ways (skein's `testing/fakes/forge.md`, section 3):
 through the typed transport of the fake forge's domain, sharing the
 forge with the forge peer (skein's `testing/fakes/forge.md`, section 5) where a
-world hosts both in one ring (`README.md`, 2.5); or over the forge's git route on the
+world hosts both in one ring (`tiers.md`, 1.5); or over the forge's git route on the
 forge's listener (skein's `testing/fakes/forgejo.md`, section 1), from the real
 loop (`real-loop.md`) and from another process.
 
@@ -528,7 +528,7 @@ loop (`real-loop.md`) and from another process.
 - **Checked against real git:** its answers to the transcripts of
   `temper-git-transcripts` match real git's, masked (../protocol/git.md,
   section 9).
-- **Where it runs:** the one-process world (`README.md`, 2.5) on the typed transport;
+- **Where it runs:** the one-process world (`tiers.md`, 1.5) on the typed transport;
   the real loop (`real-loop.md`) over the git route of the forge peer it hosts, so
   that the gate runs the route; `temper-box fake git` in the playground and the
   process tier. The domain worlds keep the fake checkout at the domain
@@ -549,7 +549,7 @@ its own:
   the route's finding, naming the call asked and the call logged: the
   route answers it as it answers a call it lacks, and the program reads
   the finding after the run, before it makes another call or keeps
-  anything, and panics on it at its top (`README.md`, 4.2). A test of
+  anything, and panics on it at its top (`scenarios.md`, 1.2). A test of
   the order reads the finding. A write (a push, a branch made, a commit, a merge or a commit's
   tree stored) is made once, never again by a replay. A command's calls
   share one connection.

@@ -452,7 +452,7 @@ among temper's tiers and keeps their fakes.
   a start's refusal, `temper-service`'s.
 - **The one-process world** (`tests/one-process`): temper's services on
   skein's simulator, the worker's agents smith's processes over skein's
-  fake LLM (`temper/docs/design/testing/README.md`, 2.5).
+  fake LLM (`temper/docs/design/testing/tiers.md`, 1.5).
 
 Across them, each world checks what is its: that the engine commits each
 attempt's turns and answer once and acknowledges them in time; that each

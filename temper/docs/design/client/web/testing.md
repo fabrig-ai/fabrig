@@ -145,7 +145,7 @@ real key in that restored form.
 ## 3. Its budget, outside the gate
 
 - **A suite of its own,** outside the focused and fuzzy suites
-  (`../../testing/README.md`, section 2), in its own crate
+  (`../../testing/tiers.md`, section 1), in its own crate
   (`tests/client-browser`, `temper-client-browser-world`), run by
   `scripts/browser.sh`, a slow tier outside temper's gate, with the nextest profile `browser-temper`,
   one test at a time, on the bundle it builds first, with the dev
@@ -228,7 +228,7 @@ real key in that restored form.
   the story, or only the person and the step where no story of that
   person had begun; the test fails with it once the harness has
   returned, and a test of the attribution reads it
-  (`../../testing/README.md`, 4.2). Each story's assertions
+  (`../../testing/scenarios.md`, 1.2). Each story's assertions
   stay as its steps, in its order. It reruns whole on a flake, and a failure
   hides the steps after it: taken, for the cap. It stands on the same forty
   seconds as any run of the harness (skein's `ui/web/testing.md`, 2): a test that

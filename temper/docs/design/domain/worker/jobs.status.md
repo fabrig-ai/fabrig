@@ -32,7 +32,7 @@ its hold source, including after restart; the engine world's
 marked and unmerged, and names the first `conflicts`
 (`../../protocol/git.status.md`), and the composed system world's
 `suite::merge_job` runs a merge job that settles `conflicts + 1` files and
-delivers (`../../testing/README.status.md`, 2.1). That story's rows also hold the
+delivers (`../../testing/tiers.status.md`, 1.1). That story's rows also hold the
 request's other candidates, on fake git and a fake forge: the hello's
 kind, the command's path and request, the spec's and result's bounds,
 and a base fetched by its id into a cached clone that never fetched its

@@ -375,17 +375,17 @@ temper: its tiers, fakes, layout and budgets. What checks this layer:
   scripted stdin and stdout.
 - **The forge's protocol world,** `tests/engine/protocol-forge`: the
   forge connector world's stories through bytes, over in-memory streams
-  cut at random, with the cost checks by HTTP request (`../testing/README.md`,
-  2.2).
+  cut at random, with the cost checks by HTTP request (`../testing/tiers.md`,
+  1.2).
 - **The client's joined world,** `tests/client`: temper's client root
   and view, with skein's fake person and jig's check, joined to temper's
-  engine root (`../testing/README.md`, 2.1, and `../testing/checks.md`, 3).
+  engine root (`../testing/tiers.md`, 1.1, and `../testing/checks.md`, 3).
 - **The one-process world,** `tests/one-process`: `temper-service` on
   skein's simulator, killed and restarted at drawn moments, drained by a
   shutdown. Its referee: nothing a party, the worker or the forge saw
   depended on a lost commit; a drained shutdown ends with nothing
   waiting for a commit; no secret's value in a domain's state, a store
-  record or an agent process's environment (`../testing/README.md`, 2.5).
+  record or an agent process's environment (`../testing/tiers.md`, 1.5).
 - **Reconcile's world** is skein's: reconcile against the fake forge's
   protocol layer, serving the setup's routes (skein's `forge/setup/README.md`,
   section 5; setup/testing.md, 2).

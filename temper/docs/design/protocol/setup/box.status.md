@@ -25,7 +25,7 @@ a parent-death signal is the designed limit, deferred in `README.md`, section 9.
 
 `box-supervision.md`, section 1's orderly serve stop cancels the worker's runs and waits for
 every agent process, including a spawn in flight, before closing the
-worker. The one-process world's held-Claude-turn story (`../../testing/README.md`, 2.5) checks the program's interrupt,
+worker. The one-process world's held-Claude-turn story (`../../testing/tiers.md`, 1.5) checks the program's interrupt,
 its end and serve's drained end. No known implementation gap remains in
 that ordering. Programs surviving a forced agent-group kill remain
 `README.md`, section 9's contained-tree work.

@@ -157,7 +157,7 @@ The site's install line downloads
 `https://fabrig.ai/temper/$(uname -s)-$(uname -m)`, for x86-64 Linux and
 Apple Silicon. Apple Silicon's, `Darwin-arm64`, needs a Mac to build:
 GitHub's hosted `macos-26` runners, free on the public repository, the
-ones `testing/README.md`, 2.8 runs on. It is the site's file, not a
+ones `testing/tiers.md`, 1.8 runs on. It is the site's file, not a
 release's: no tag names it, and the workflow writes no checksum.
 
 - **One workflow,** `.github/workflows/release-macos.yml`, beside

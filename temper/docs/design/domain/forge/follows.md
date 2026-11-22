@@ -544,8 +544,8 @@ The forge's (`../../protocol/configuration/limits.md`), `small` then
 
 ## 11. The world
 
-Focused stories in temper's domain world (`../../testing/README.md`,
-section 4) with the fake forge and the fake model, two projects on it:
+Focused stories in temper's domain world (`../../testing/scenarios.md`,
+section 1) with the fake forge and the fake model, two projects on it:
 the source's owning its repository, the target's owning its own and
 adopting the source's as context, and a follow owned by a person:
 

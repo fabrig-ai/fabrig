@@ -217,7 +217,7 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
 
 ## 6. Testing
 
-Within the suites' budgets (`../testing/README.md`, section 2):
+Within the suites' budgets (`../testing/tiers.md`, section 1):
 
 - **Step tests of `temper-engine-smith`:** each tool's least input
   decoded and a wrong shape refused; each `Problem`; each answer rendered
@@ -232,7 +232,7 @@ Within the suites' budgets (`../testing/README.md`, section 2):
   once, with no commit and no record.
 - **Through bytes:** smith's agent processes over skein's fake LLM,
   calling host tools through bytes, in the one-process world
-  (`../testing/README.md`, 2.5); the process and live tiers
+  (`../testing/tiers.md`, 1.5); the process and live tiers
   (`../testing/process-tier.md` and `../testing/live-tier.md`).
 - **The program backend,** in the real loop: a run on a program's source
   through smith's fake `claude`, calling host tools that the engine

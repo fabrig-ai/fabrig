@@ -353,7 +353,7 @@ each landing.
   owner at any time;
   random wake times, where no run resumes past a quiet span and every fresh
   run follows a written Now or the session's recorded end.
-- **A world story,** with a fake model's script (`../testing/README.md`, 2.1 and `../testing/real-loop.md`
+- **A world story,** with a fake model's script (`../testing/tiers.md`, 1.1 and `../testing/real-loop.md`
   ): on the playground's repository, a standing role owns the tests. A red of its
   tier reaches the triager, which hands it to the role; it triages it, makes the repair change, and the change
   lands. It writes its Now. A wake an hour later starts fresh, its brief

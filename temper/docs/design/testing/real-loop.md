@@ -64,7 +64,7 @@ in the lower world that owns it, never here.
   delivered straight to its goal branch are the system world's
   (`../domain/agent/README.md`, 7); `chat show`'s older page at an activity cursor is
   `tests/client`'s (../client/ctl/testing.md, 2); a stop while a
-  program's turn runs is the one-process world's (`README.md`, 2.5);
+  program's turn runs is the one-process world's (`tiers.md`, 1.5);
   the welcome's pages past its Ready, its project made, To begin
   skipped and the empty Home and Work, are the joint world's
   (../client/testing.md); and the fake issuer's admission beside a
@@ -305,7 +305,7 @@ in the lower world that owns it, never here.
   judge's early diagnostic stays one second before it, and every poll,
   wait or link deadline a story sets beyond or within the patience is
   derived from it, so both move together. Each check returns
-  its finding (`README.md`, 4.2): the judge's `watch` returns a broken
+  its finding (`scenarios.md`, 1.2): the judge's `watch` returns a broken
   check, and an overdue deadline seen in its `act` with the early
   diagnostic, the report and the scheduler figures, kept for that
   `watch`; a call answered past its bound, or a CLI timeout before it,
@@ -377,7 +377,7 @@ in the lower world that owns it, never here.
   before the run's end, the latest 100 at most, oldest first, each as
   its time from the run's start in milliseconds and its `Debug`. A
   story's checks are `check(&Ran) -> Result<(), String>`, the finding
-  as a value (`README.md`, 4.2), which `checked` panics on, so a test
+  as a value (`scenarios.md`, 1.2), which `checked` panics on, so a test
   that runs a story to its end without them reads the finding itself.
   A focused story whose agent ignores its cancellation and its grace
   holds it: smith's supervision kills the agent, and the finding names
@@ -555,7 +555,7 @@ in the lower world that owns it, never here.
        `NoAccess` on the client's wire until it names `NotInstalled`:
        ../domain/forge/adoption.md, 3), with no git call and no token minted for
        `umbra`. The token renewed mid-run is the
-       one-process world's story (`README.md`, 2.5): its moment is GitHub's expiry,
+       one-process world's story (`tiers.md`, 1.5): its moment is GitHub's expiry,
        in whole seconds at GitHub's hour, which a real clock can only
        wait for;
     7. a repository granted on GitHub appearing in the picker;
@@ -572,7 +572,7 @@ in the lower world that owns it, never here.
     listener in `temper-service`'s own tests (../protocol/forge/README.md,
     section 9; ../client/forge/served.md, 1; ../protocol/sign-in.md, section
     8), a seeded App's start among the routing's, the connector's state,
-    picker and queue in the system worlds (`README.md`, 2.1); a check
+    picker and queue in the system worlds (`tiers.md`, 1.1); a check
     run's failure read from its job's log and repaired at a new head that
     lands once, in the forge's protocol world, and the repair's brief and
     a released repair's replacement in the engine's world

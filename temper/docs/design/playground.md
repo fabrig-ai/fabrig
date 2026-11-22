@@ -115,7 +115,7 @@ desktop browsers are well supported (the user, 10-26).
 ## 4. The world
 
 - **What runs** is the one-process world's composition
-  (`testing/README.md`, 2.5) without its harness: no referee, no fake
+  (`testing/tiers.md`, 1.5) without its harness: no referee, no fake
   person, no terminal client, no captures and no fault schedule.
 - **No box.** The fakes are the world's processes, as for a deployment
   without the box (`protocol/setup/box.md`, 4), at the fakes' places the
