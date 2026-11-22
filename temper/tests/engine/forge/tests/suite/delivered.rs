@@ -68,7 +68,7 @@ fn a_checked_answer_is_delivered_after_its_observed_push_only_once() {
     // The procedure may have read and retained this head before the attempt answers.
     let mut row = world.change(TASK).clone();
     row.change.last_head = Some(head);
-    world.event(top::Event::Restore { record: top::Stored::Change(Box::new(row)) });
+    world.event(top::Event::Change { row });
     claim(&mut world, 1);
     answer(&mut world, 1, head, true);
     let delivered = deliveries(&world);
@@ -81,6 +81,7 @@ fn a_checked_answer_is_delivered_after_its_observed_push_only_once() {
     answer(&mut world, 1, head, true);
     assert_eq!(deliveries(&world), delivered);
     world.restart();
+    world.run_for(1);
     answer(&mut world, 1, head, true);
     assert_eq!(deliveries(&world), delivered);
     claim(&mut world, 2);
@@ -105,6 +106,7 @@ fn an_unchecked_save_keeps_its_delivery_status_after_restart() {
     assert_eq!(delivered.len(), 1);
     assert_eq!((delivered[0].head, &delivered[0].what), (Some(head), &h::What::Delivered { checked: false }));
     world.restart();
+    world.run_for(1);
     claim(&mut world, 2);
     answer(&mut world, 2, head, true);
     assert_eq!(deliveries(&world), delivered, "the same head is not delivered again even with different evidence");

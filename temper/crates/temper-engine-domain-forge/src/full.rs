@@ -96,6 +96,7 @@ pub(crate) fn update(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>
     let reads = if reads_full { Some(read_words(d, env.limits.client.pending)) } else { None };
     advance(&mut d.full.outbox, env, FullKind::Outbox, outbox, out);
     advance(&mut d.full.reads, env, FullKind::ReadAdmission, reads, out);
+    crate::domain::catching_up::advance(d, env, out);
 }
 fn table_name(table: FullKind) -> &'static [u8] {
     match table {

@@ -382,6 +382,73 @@ class Citations(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn("allow.txt:1", result.stderr)
 
+    def status_page(self):
+        # The page cites these paths and sections even in a per-test repository.
+        self.write("DESIGN.md", "# Design\n\n## 2. Status files\n\n## 4. Keeping them\n")
+        self.write("tools/citations/status.py", "")
+        return runpy.run_path(str(SCRIPT.with_name("status.py")))["page"]("skein")
+
+    def test_a_sized_trees_fixed_page_passes(self):
+        self.write("tools/citations/sized.txt", "skein\n")
+        self.write(f"{DESIGN}/STATUS.md", self.status_page())
+        self.commit("fixed page")
+        for args in (("--all",), ("--base", "HEAD~1")):
+            with self.subTest(args=args):
+                result = self.run_check(*args)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_a_changed_fixed_page_fails_even_when_unchanged_from_base(self):
+        self.write("tools/citations/sized.txt", "skein\n")
+        page = self.status_page()
+        self.write(f"{DESIGN}/STATUS.md", page)
+        self.commit("fixed page")
+        for text in (page + "One more line.\n", page.replace("\n", "\r\n")):
+            self.write(f"{DESIGN}/STATUS.md", text)
+            self.commit("changed page")
+            for args in (("--all",), ("--base", "HEAD~1"), ("--base", "HEAD")):
+                with self.subTest(text=text, args=args):
+                    result = self.run_check(*args)
+                    self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                    self.assertEqual(result.stdout, f"{DESIGN}/STATUS.md: STATUS.md is a fixed page "
+                                     "(DESIGN.md, 4): put the gap in its document's status file\n")
+                    self.assertIn("python3 -I -B tools/citations/status.py --page TREE", result.stderr)
+
+    def test_an_unsized_trees_page_is_not_fixed(self):
+        self.write("tools/citations/sized.txt", "temper\n")
+        self.write(f"{DESIGN}/STATUS.md", "Any text.\n")
+        self.commit("unsized page")
+        for args in (("--all",), ("--base", "HEAD~1")):
+            result = self.run_check(*args)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_a_mockups_page_is_not_fixed(self):
+        self.write("tools/citations/sized.txt", "temper\n")
+        self.write("temper/docs/design/client/web/mockups/STATUS.md", "Any text.\n")
+        self.commit("mockups page")
+        for args in (("--all",), ("--base", "HEAD~1")):
+            result = self.run_check(*args)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_a_sized_tree_without_a_page_needs_no_status_script(self):
+        self.write("tools/citations/sized.txt", "skein\n")
+        self.write("tools/citations/citations.py", SCRIPT.read_text())
+        self.write("DESIGN.md", "# Design\n\n## 5. Document limits\n")
+        self.write("skein/docs/design/data/kv.md", "# Key-value data\n")
+        self.write("temper/docs/design/testing/reference-case.md", "# Reference case\n")
+        self.commit("no page or status script")
+        for args in (("--all",), ("--base", "HEAD~1")):
+            result = subprocess.run((sys.executable, "-I", "-B", "tools/citations/citations.py", *args),
+                                    cwd=self.root, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_a_sized_tree_passes_the_split_mark(self):
+        self.write("tools/citations/sized.txt", "skein\n")
+        self.write(f"{DESIGN}/c.md", "x" * 49_153)
+        self.commit("over the split mark, under the limit")
+        for args in (("--all",), ("--base", "HEAD~1")):
+            result = self.run_check(*args)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_a_sized_tree_refuses_a_document_crossing_the_limit(self):
         self.write("tools/citations/sized.txt", "skein  # sized\n")
         self.commit("sized")
@@ -389,7 +456,9 @@ class Citations(unittest.TestCase):
         self.commit("head")
         result = self.since_base()
         self.assertEqual(result.returncode, 1)
-        self.assertIn(f"{DESIGN}/c.md: size 65,541 bytes, over the 65,536-byte limit", result.stdout)
+        self.assertEqual(result.stdout, f"{DESIGN}/c.md: size 65,541 bytes, over the 65,536-byte limit: "
+                         "split it along its concepts, each piece under 40 KB (DESIGN.md, 5); "
+                         "don't cut text to fit\n")
 
     def test_a_document_already_over_the_limit_may_shrink_or_move_but_not_grow(self):
         self.write(f"{DESIGN}/c.md", "# c\n\n" + "x" * (70 * 1024))

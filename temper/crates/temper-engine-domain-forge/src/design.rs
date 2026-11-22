@@ -13,6 +13,9 @@ pub(super) fn design_claim_permitted(
     holders: &[u64],
     out: &mut Queue<Request>,
 ) -> bool {
+    if !super::repository_reads::names_fresh(d, names) {
+        return false;
+    }
     if names.len() > skein_lib::usize_of(env.limits.resources_per_task) {
         crate::refusal::resource_limit(
             out,

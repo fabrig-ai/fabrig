@@ -71,14 +71,14 @@ temper-engine forge sign-in --config CONFIG --data DATA --cache CACHE 1
 
 Held transcripts/turns, not process memory: `transcript_memory` in
 `temper-limits` (1 GiB: `1073741824`). At the bound, due tasks await
-earlier turns' saves, even after restart. Read: `temper ctl settings show`; apply: `temper ctl settings apply`.
+earlier turns' saves, even after restart. Read: `temper ctl settings show`; set: `temper ctl settings apply`.
 
 More runs: `temper ctl DIR worker places w1 PLACES --key KEY`.
 Places: worker setting, taken at next opening from engine figures.
 Engine limits: `limits`; starts name short ones. Each place: an agent
 process, up to `agents`' `declared.memory`.
 
-Expect: valid TOML; not running.
+Expect: valid TOML; stopped.
 
 If not: step 3 names bad keys.
 
@@ -105,7 +105,7 @@ temper ctl DIR worker add w1 --places 4 --digest HEX --key KEY
 
 Workers are store settings; `engine.hosts.workers` is refused.
 
-Expect: `stat -c '%U %a' FILE` prints `temper 600` for each.
+Expect: each `stat -c '%U %a' FILE` prints `temper 600`.
 
 If not: temper refuses a secret readable by another user or a link:
 give it to `temper`, mode 0600.
@@ -143,7 +143,7 @@ With `[[sign_in.forges]]` on a new store, `serve`'s stderr says
 `temper-engine serve: forge 1: no sign-in through temper-engine: no such forge is kept`
 until step 6 connects it.
 
-If not: start refusal names member, file, address or restore:
+If not: refusal names member, file, address or restore:
 `temper-engine serve: restore KIND: REASON` or
 `temper-engine serve: restart refused during PHASE: REASON`.
 Reason: store cause, record family/key if available. Keep `DATA`; report it.

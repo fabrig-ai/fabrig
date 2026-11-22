@@ -162,6 +162,9 @@ impl crate::Worker {
             match self.git.out.events.pop().expect("git events") {
                 component::Event::Started => self.git.ready = true,
                 component::Event::Unusable { .. } => self.git.refused = Some(problem(b"git", What::Form)),
+                component::Event::Unswept { path, error } => {
+                    self.notes().push(crate::worker_alone::Note::Unswept { path, error });
+                }
                 component::Event::Done { owner, done } => {
                     if self.aborted.is_none() {
                         self.events.push(temper_worker_domain::Event::Done { owner, done });

@@ -74,6 +74,7 @@ fn panel(queues: &[w::ChangesQueue], more: u32, landed: bool, landing: &[u8]) ->
             .unwrap();
     }
     w::ChangesPanel {
+        catching_up: None,
         landed_default: List::with_capacity(0),
         landed_default_more: 0,
         project: f::PROJECT,

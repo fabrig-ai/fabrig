@@ -148,8 +148,9 @@ impl Fill {
         self.step(Event::Done { owner: hold, done })
     }
 
-    fn files(&mut self, hold: Token, mut next: Vec<Asked>) -> Vec<Asked> {
-        while next.as_slice() == [Asked::Io { op: Kind::Reds }] {
+    /// Settle the prepare's final check files and any due maintenance, metering each step.
+    fn finish_prepare(&mut self, hold: Token, mut next: Vec<Asked>) -> Vec<Asked> {
+        while matches!(next.as_slice(), [Asked::Io { op: Kind::Reds | Kind::Pack }]) {
             next = self.done(hold, Done::Succeeded);
         }
         next
@@ -184,10 +185,10 @@ impl Fill {
                 [Asked::Io { op: Kind::CheckOut }]
             );
             let next = self.done(hold, Done::Succeeded);
-            let next = self.files(hold, next);
             if place + 1 < limits.repositories {
                 assert_eq!(next[..], [Asked::Io { op: Kind::Fetch }]);
             } else {
+                let next = self.finish_prepare(hold, next);
                 let [Asked::Prepared { prepared: Preparation::Ready { .. } }] = next[..] else {
                     panic!("the workspace is ready: {next:?}");
                 };
@@ -375,7 +376,7 @@ fn retired_preparations_and_live_pushes_own_maximum_conflict_sets_within_the_hea
     assert_eq!(fill.domain.holds(), limits.workspaces * 2);
     for hold in &active {
         let next = fill.done(*hold, Done::Conflicted { files: full_paths(&limits), cut: false });
-        let next = fill.files(*hold, next);
+        let next = fill.finish_prepare(*hold, next);
         let [Asked::Prepared { prepared: Preparation::Ready { conflicts, .. } }] = next[..] else { panic!("prepared") };
         assert_eq!(conflicts, u64::from(limits.repositories) * u64::from(limits.conflicts));
         assert_eq!(
