@@ -121,7 +121,7 @@
     by the box*); `launchpad-chat/04` names the place
     `127.0.0.1:PORT`, not the request's "box:40691": the world's TUI
     starts at the service's address with no local link file and explicit
-    approval (`../client/journey-walks.md`, 3.3 and 4.1). The render check and the
+    approval (`../client/journey-walks.md`, 3.3, and `../client/journey-walks-world.md`, 1.1). The render check and the
     walk follow landing (`../client/README.md`, section 5).
   - 4.1, 4.3, 4.4 and 5, the user's requests of 2026-11-09 (plan
     `tui-box-polish`), after a night of `temper box` with the TUI in

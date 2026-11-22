@@ -170,7 +170,7 @@ release's: no tag names it, and the workflow writes no checksum.
   as `macos.yml` installs it: rustup reads the file in the checkout,
   and no version is written in the workflow. The file names the
   `wasm32-unknown-unknown` target the browser's bundle needs
-  (`client/web/README.md`, 2.6). Its actions
+  (`client/web/bundle.md`, 1). Its actions
   are pinned by full commit, the version in a comment, as `macos.yml`'s
   are.
 - **Its cache:** the registry may be restored by `macos.yml`'s keys,

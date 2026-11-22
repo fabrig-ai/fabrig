@@ -184,7 +184,7 @@ document.
 - **A fake fetch for a box's rendered walk:** a real fetch lasts seconds
   and its `fetched` lines keep the page moving. Main's journeys print
   the percentage through the world's box peer, on simulator time,
-  without a box or fetch process (`../../client/journey-walks.md`, 4.4).
+  without a box or fetch process (`../../client/journey-walks-world.md`, 1.4).
 
 - **The other fake peers' refused connections** (`box-backends.md`, 1): the issuer's log
   takes a line for each connection it turns away at its cap, from skein's

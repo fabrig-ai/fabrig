@@ -451,7 +451,7 @@ Every other entry may be named in any context.
   skipped.
 
 **The bundle's nested build** sets `CARGO_RESOLVER_FEATURE_UNIFICATION=selected`
-(`temper/docs/design/client/web/README.md`, 2.6). Its own crate's step tests pin it on the nested
+(`temper/docs/design/client/web/bundle.md`, 1). Its own crate's step tests pin it on the nested
 commands they already read (`temper-client-bundle`'s `tests/steps.rs`), since the boundary suite
 can't call a build script's code.
 

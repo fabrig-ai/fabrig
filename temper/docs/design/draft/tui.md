@@ -202,7 +202,7 @@ their words and look are refined on the recording (section 5).
 - **Refused, expired or used:** the TUI and the page each say which;
   the TUI offers to ask again.
 - **The browser signed out:** the page says to open the link the box
-  printed first (`../client/web/README.md`, 2.4), then the approval's
+  printed first (`../client/web/sign-in.md`, 1), then the approval's
   address again.
 - **No browser to open** (an SSH session, no display, or the opener
   failing): the TUI prints the address and the code, to open in a
@@ -267,21 +267,21 @@ The TUI's journeys, as the browser's (`../client/web/journeys.md`), with the
 TUI's host:
 
 - **Recorded at the host's seam,** in a build of its own, on a fresh
-  fake box (`../client/web/journeys.md`, 3.5): the start's facts, the
+  fake box (`../client/web/journeys-recordings.md`, 1.5): the start's facts, the
   screen's size among them, then turn by turn the clocks, each report
   with what the host asked back, each key as the event the view makes
   of it, and a mark for each frame the person saw. A resize is a
   report. A key marks the frame as drawn, another saves; the shell
   reads both before the view does.
 - **Replayed through the shipped host,** natively, and stale where it
-  asks otherwise (`../client/web/journeys.md`, section 4).
+  asks otherwise (`../client/web/journeys-recordings.md`, section 2).
 - **Printed as frames:** a mark's screen as text, a line per row, for a
   diff; and a page that draws it in the theme's colours, linked so that
   the same keys walk the frames; with each journey's README.
 - **Kept current by a test,** as the browser's are
   (`../client/web/journeys.md`, section 6).
 - **Redacted and scanned** as the browser's, with the same code
-  (`../client/web/journey-redaction.md` and `../client/web/journeys.md`, 3.7), which gains the TUI's
+  (`../client/web/journey-redaction.md` and `../client/web/journeys-recordings.md`, 1.7), which gains the TUI's
   originals: the approval's secret, the credential it takes, and the
   bearer every exchange carries.
 - **Recorded again** by a command, on a fresh fake box, the TUI in a
@@ -329,5 +329,5 @@ TUI's host:
   server's, as the sign-in's endings are (`../protocol/sign-in.md`,
   4.3). Default: the client's. The designer's.
 - **One journey format or two:** the browser's file
-  (`../client/web/journeys.md`, 3.2) with records of the TUI's, or a file of
+  (`../client/web/journeys-recordings.md`, 1.2) with records of the TUI's, or a file of
   the TUI's own. Default: sharing what fits. The designer's.

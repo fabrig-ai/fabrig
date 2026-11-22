@@ -74,9 +74,9 @@ default; the document is `temper.json` in the configuration directory
   - `--record`, off by default, a public switch its help names: the
     page it serves records in every person's browser from its load,
     with nothing added to its address, by the page's `temper-record`
-    meta (`sign-in.md`, 7; `../client/web/README.md`, 2.1 and 2.2), so
+    meta (`sign-in.md`, 7; `../client/web/shell.md`, 1, and `../client/web/serving.md`, 1), so
     that a person can record a journey on the deployment and save it
-    with Alt+Shift+S (`../client/web/journeys.md`, 3.1). Its help line:
+    with Alt+Shift+S (`../client/web/journeys-recordings.md`, 1.1). Its help line:
     "Have every page served record a journey in its browser, saved by
     Alt+Shift+S." A worker alone serves no page, and takes it
     as it is, changing nothing. `temper-box` takes it on each of its

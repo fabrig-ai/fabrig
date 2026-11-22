@@ -15,7 +15,7 @@ host, not different sources for main's journeys.
   where the journey needs them (`../journey-walks.md`, 2.2).
 - **In a world:** `temper-client-walk` prints it in one process, the
   TUI's shipped host on the simulated service, with no terminal, box,
-  recording or network (section 6; `../journey-walks.md`, 3.3 and 4).
+  recording or network (section 6; `../journey-walks.md`, 3.3, and `../journey-walks-world.md`, 1).
 - **On a box:** the drive session takes the same lines, the TUI in a
   pseudo-terminal, after landing and outside every plan (section 8;
   `../drive.md`). It writes no page of main's.
@@ -116,7 +116,7 @@ redaction and scan, 6 the print, 7 the tests, 8 the box, 9 the journeys,
 
 ### 3.2 The file
 
-`../web/journeys.md`, 3.2's text: one record per line, its kind first, then
+`../web/journeys-recordings.md`, 1.2's text: one record per line, its kind first, then
 its fields, each after one space; a number decimal, a word bare
 (`[a-z][a-z-]*`), bytes in double quotes with `\\`, `\"` and `\xHH`
 for a byte outside printable ASCII. No other lines. A TUI's recording
@@ -281,7 +281,7 @@ It changes no build, port, approval code or clock for the print.
 
 ## 5. Redaction and the last scan
 
-The browser's, with the same code (`../web/journey-redaction.md` and `../web/journeys.md`, 3.7 to 3.8), over
+The browser's, with the same code (`../web/journey-redaction.md` and `../web/journeys-recordings.md`, 1.7 to 1.8), over
 the TUI's lines.
 
 - **The shared code** gains three kinds of original, `Kind::Approval`,
@@ -339,7 +339,7 @@ the TUI's lines.
   in a `returned` record's target, whether or not a take sent it, is
   replaced by the redacted grant's and scanned, so the request still
   reads and its take still replays.
-- **The last scan** (`../web/journeys.md`, 3.7): every field of each line,
+- **The last scan** (`../web/journeys-recordings.md`, 1.7): every field of each line,
   every frame the replay drew at each turn's end as its text, and each
   printed text and page, for the originals and the shapes. An approval's
   code as shown, read from each `browse` address's `code=` and checked by
@@ -348,7 +348,7 @@ the TUI's lines.
   shape would take it; an original is still sought in the whole.
 - **A refusal** names the line and its record's kind, and where (a
   field, a frame's turn, a printed file), never the bytes.
-- **What is left to the person** is `../web/journeys.md`, 3.8's, and: a
+- **What is left to the person** is `../web/journeys-recordings.md`, 1.8's, and: a
   link typed key by key is never found whole, so its proof fails and
   nothing is written; paste it.
 ## 6. The print
@@ -610,7 +610,7 @@ and print the saved file with 6.1's recording command.
 
 | Name | The walk | Its pages |
 |---|---|---|
-| `sign-in-approved` | version-2 `walk` in one process on the playground's composition, no `temper box` or terminal (`../journey-walks.md`, 3.3, 4 and 6): the browser signed in by the printed link at `/welcome`; the TUI started at the service's address, not signed in; the approval's frame seen and marked; `tui approve`, the approval given in the browser; the launchpad seen and marked | `01`, the approval's frame, "A tab opened in your browser", its code and its address; `02`, the launchpad of a service with no project (`pages/README.md`); its `sign-in-approved/README.md` describes the world's frames |
+| `sign-in-approved` | version-2 `walk` in one process on the playground's composition, no `temper box` or terminal (`../journey-walks.md`, 3.3, and `../journey-walks-world.md`, 1, and `../journey-walks.md`, 6): the browser signed in by the printed link at `/welcome`; the TUI started at the service's address, not signed in; the approval's frame seen and marked; `tui approve`, the approval given in the browser; the launchpad seen and marked | `01`, the approval's frame, "A tab opened in your browser", its code and its address; `02`, the launchpad of a service with no project (`pages/README.md`); its `sign-in-approved/README.md` describes the world's frames |
 | `launchpad-chat` | version-2 `walk` in one process on the playground's composition, `after project-landing`, with its `scripts.json` (`../journey-walks.md`, 6): Hello with its owned `work/hello` and the ChatGPT plan; the TUI approved as `sign-in-approved`'s is; the launchpad marked; `/` typed and the commands marked; Esc; a question typed and marked, then sent, which opens an Ask temper chat; the scripted answer marked | `01`, the launchpad in Hello; `02`, the commands under the box; `03`, the question typed; `04`, the chat answered (`pages/README.md`); its `launchpad-chat/README.md` describes the world's frames |
 | `launchpad-drawn` | version-2 `walk` in one process on the playground's composition, `after project-landing`, with its `scripts.json` (`../journey-walks.md`, 6): Hello, the TUI approved, to the launchpad; `/change` and a change asked in words, marked, then sent, which starts a chat; its scripted model starts a goal and says that a question waits, and the goal asks the chat's person a question with two choices, the first recommended, as a goal a chat calls asks (`../../domain/agent/agents.md`, 2); `/new` typed and marked, then sent, back to the launchpad, the chat under *Where you left off*, its question under Needs you and the quiet line's count, marked; `n` and the walk's prompt, marked; its first choice taken; the launchpad after the walk, marked | `01` and `02`, the words typed before Enter sends them; `03`, the launchpad as drawn, with the chat, its need and Start (`pages/launchpad.md`), `n` its key; `04`, the walk's prompt under the box (*Walking what needs you*), Enter its key; `05`, the launchpad after the walk, its note; its `launchpad-drawn/README.md` describes the world's frames |
 | `design-session` | version-2 `walk` in one process on the playground's composition, `after project-landing`, with its `scripts.json` (`../journey-walks.md`, 6): Hello, the TUI approved, to the launchpad, marked; `/draft` and the work asked in words, marked, then sent, which starts a design session; the scripted drafter's reply writing the draft and ending with numbered choices, the pane at half; Ctrl-P to all, to folded and to half again, each marked; "1" typed, marked and sent, the next reply changing a section, marked new, and saying nothing blocks the work, marked; `/goal` typed and marked, its prompt of ways marked, the first taken; the chat again, its goal linked: `/goal` no longer offered, and the quiet line without the goal's part, which at 80 columns goes first (`pages/design-session.md`, 1, *narrow*; the goal's part is the 110-column golden's), marked | `01`, Hello's launchpad; `02`, the `/draft` words typed; `03`, the session at half with the drafter's choices under the box; `04`, the pane at all; `05`, folded; `06`, half again with "1" typed; `07`, Open questions marked new; `08`, `/goal` typed; `09`, `/goal`'s ways prompt; `10`, the returned chat with its goal linked (`pages/design-session.md`, 1); its `design-session/README.md` describes the world's frames |

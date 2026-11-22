@@ -1,5 +1,7 @@
 # The browser's look
 
+## 1. The style's foundations
+
 - **temper's style tokens,** under the owner's prefix `temper-`, on the
   nodes the mockups style: the frame's top bar or rail, navigation and main; the
   cards; the conversation's turns; the composers. The view sets them
@@ -71,6 +73,8 @@
   length, which a zoom grows like any other. Dialogs are drawn inside
   main, and scale with it. Confirmation sheets stand under `#app` at their
   own scale (`../README.md`, 3.6).
+## 2. Confirmation sheets
+
 - **Confirmation sheets:** `dialog.temper-confirm`, 460 px wide at most,
   with 24 px by 26 px padding, 14 px corners and a native `::backdrop`.
   The title is 19 px; the lead 14.5 px; impacts 14 px under a hairline.
@@ -80,6 +84,8 @@
   Progress and refusal stay above the acts. A chat's end line, whichever
   its words (`../pages/README.md`), is 12.5 px between two hairlines, and the
   bar has no clock.
+## 3. Connection flows
+
 - **Connection flows** (`../pages/README.md` and `../view.md`, 2): Settings and the
   welcome share cards, panels and controls. Settings has no steps bar,
   outer Choose card or Ready card; the welcome retains its frame’s Steps.
@@ -117,85 +123,12 @@
   failed-copy row and its acts. Disabled primary acts fade and cannot send.
   At 760 px and below the sheet meets the bottom, full width, at most
   92 vh high, with 16 px side padding and a shorter bounded list.
-- **The welcome's title,** "Welcome · first run · temper" on every step,
-  whatever its level-1 heading, as Home's is "Home · temper"; the shell's
-  turn, the journeys' print and the gallery's take it from the same rule,
-  `main` styled `temper-welcome`.
-- **The welcome's states' parts,** under `temper.css`'s marker for the
-  welcome, take the greenfield mock's rules at the welcome's tokens: its
-  `.forge-status`, `.spin`, `.acts`, `.panel`, `.away-note`, `.numbered`,
-  `.field-v`, `.cmd` and `.checklist .current .mark`.
-- **The welcome's look** (the user's greenfield pass, 2026-11-04;
-  `../pages/README.md` and `../pages/welcome.md`, 2), at its own scale, in a block of its own in
-  `temper.css`, every rule scoped to the welcome's frame
-  (`#app:has(> .temper-welcome)`), so that no other page changes: IBM
-  Plex Sans, bundled under `files/fonts/` with its licence (SIL OFL
-  1.1), 15 px on paper (#f7f7f5) in ink (#18181b), ✦ before temper's
-  name in the signal colour (#c2410c). Its frame is the top bar
-  (*Outside a project*, below), 22 px by 32 px, the brand and the steps at its right in 14.5 px
-  words, each a link holding a numbered 24 px circle and its label, the
-  current one filled ink, a done one ticked green, joined by short
-  hairlines, hovered ink; below 760 px only the current label shows. After the
-  steps, the top bar's end, the link region alone, which takes no room
-  but while it says "Offline" (the look request `welcome-top`), then the
-  night switch, last (`night-switch-top`). The bar packs its rows to their
-  end (`justify-content: flex-end`) and the steps take the free space at
-  their left (`margin-left: auto`), so that the steps and the end keep
-  to the right, and an end the row cannot hold wraps to the
-  right of the next; an end straight after the brand, before the
-  deployment's read answers, takes the free space at its own left.
-  temper box's line, on the Welcome step alone, is a paragraph 28 px
-  under the cards' note, in the note's size and muted colour, wrapping
-  as the note does, "temper box" in ink at 600, its link underlined in
-  the line's colour (`--gf-line-2`, 3 px under), in the line's own size
-  and colour (`welcome-top`). The main is
-  one 680 px column: the tagline (14 px) above the level-1 heading
-  (32 px, 500),
-  the lead (17 px), then the choices as cards side by side, white on
-  paper, 12 px corners, their acts at their foot so that their
-  buttons line up; the default card, the one holding the
-  step's primary act, is outlined in ink. A primary act is a filled
-  ink button, a secondary one a white bordered button, a quiet one
-  underlined words. The muted line under the cards is 14.5 px; the
-  foot, "‹ Back" at the left and the playground alternative at the
-  right, is muted underlined words. Model's pane, "Forge and model",
-  follows the choices before the foot: from 1280 px, a 272 px pane to the right of
-  the column, its top at the heading's, with a hairline on its left;
-  narrower, in the column with a hairline above. Forge's line stacks a quiet
-  ring, the forge's strong name in ink and each detail muted on its own
-  line; once connected the ring is a green tick, drawn by style alone,
-  and "Each step" is gone. Under way, the repository precedes the status,
-  with a 3 px hairline track under it, a 35% ink segment sliding across
-  every 1.4 s; reduced motion makes it a faint full track with no animation.
-  While the fetch says how far it is, `temper-flow-meter` draws a 4 px
-  bar in its place, ink over the hairline colour, with the figure at its
-  end, muted, in tabular figures: filled to `--skein-ui-progress` with a
-  size, and with none, its `[role="progressbar"]` having no
-  `data-progress`, the same sliding segment and the bytes at its end.
-  Done, failed and GitHub's installation waits have no bar. Forgejo's sheet is a native modal dialog, 620 px
-  wide, white, 14 px corners, over a dimmed page: its heading 19 px,
-  its line 14 px muted; "Start it with" its fieldset's legend; each
-  choice a bordered card, 10 px corners, that picks its choice
-  wherever pressed, the chosen one outlined in ink; the chosen one's
-  fields under it, indented, small bold labels over 38 px inputs, the
-  addresses a monospace text area; its foot, under a hairline, the
-  quiet "Cancel" and the primary Run at its right (the user's mockup,
-  2026-11-04). Ready's pane is Model's, its lines 18 px apart:
-  each stacks its mark, a quiet ring, a green tick or the signal's "✕", its
-  name in ink at 500 and what it says muted, "Open Forgejo ↗" under the
-  forge line's words, on Model's pane and Ready's alike: at the line's
-  text indent (24 px), 2 px under its words, muted, 13.5 px, underlined in
-  the line's colour (`--gf-line-2`, 3 px under), a quiet link under its
-  forge's words (the look request `forgejo-link`); a stopped line's "WHO didn’t answer" is in the signal's
-  colour, its why 13.5 px under it, its "Try again" and quiet act a row under
-  that (the request `model-check-pane`). After the lead,
-  the first project's form, its
-  small bold label over a 300 px field, 40 px high, and "Create your
-  project" at the field's right, "Rename it whenever you like." muted
-  under them. At 760 px and under, the cards stack, the steps but the
-  current one keep their circles alone, Ready's field and act stack, the act 48 px high and
-  full width, and the gutters are 16 px in the top bar and 20 px in
-  the main. Each act keeps a focus ring.
+## 4. The welcome
+
+Moved to [`look-welcome.md`](look-welcome.md), section 1.
+
+## 5. Task pages
+
 - **The task pages' stylesheet,** `task-pages.css`, comes third, after
   `temper.css`, whose variables and rules it builds on: what an agent's
   task's and a change's pages add to the look, as `task.html` draws it in
@@ -204,60 +137,12 @@
   under its name, the list's name shown before its items. A goal's page takes
   nothing from it. `scripts/bundle.sh` passes the three to `skein-ui-bundle` in
   that order.
-- **Settings' look** is the greenfield mock's `settings.html`, its
-  `mock.css` rules taken exactly, values and all (`.col`, `.intro`, `.kicker`,
-  `.headline`, `.lede`, `.tabs`, `.settings`, `.setting`, `.checks`, `.switch`,
-  `.toggle-row`, `.section`, `.section-head`, `.lines`, `.when`, `.band`,
-  `.quiet-band`, `.facts`, `.btn.small`, and their rules at 760 px and under),
-  in `temper.css`, scoped under the project's frame with its `--gf-*` variables,
-  as Home's are, on tokens of its own, `temper-settings*`. A disabled select is
-  faint on no fill. Every select under Settings draws `files/chevron.svg` 14 px
-  in from its border, with 36 px of padding at its right, by one rule no other
-  scope in the stylesheet outweighs. A proposal of settings' card takes the conversation's
-  `.proposal`, with `.proposal.superseded` at `opacity: .5` and `.proposal-state.ok`.
-  The mock's `.proposal-split` is the review page's (`../pages/settings.md`, 2).
-  `Forges` and `Accounts` take the same values on their rows (`../pages/README.md`,
-  *The rows*): `.lines`' hairline and padding on a `details`, the chevron of
-  `.switcher > summary::after` and, opened, `.setting`, `.btn` and its kinds and
-  `.text`. A control a row shares with `ConnectForge` or the welcome takes them
-  by a rule scoped under the row, so those pages keep their look. `Builders`
-  adds `.empty`, and `Adopt` takes the `.col`, `.text` and `.btn`. No rule
-  under the `--temper-*` tokens reaches these pages: the old rows' and pages'
-  rules go, rather than being overridden. A flow's path takes `Ask`'s
-  crumbs' values, its "‹" alone at 760 px and under.
-- **An account's row** (`../pages/accounts-words.md`, 1) is the look request
-  `accounts-usage`'s (2026-11-18), its overlay's rules in `temper.css`
-  under Settings' rows, the rules they replace removed:
-  - *Usage:* the head's `temper-usage` group, 10 px under the line, its
-    windows 4 px apart; each `temper-usage-window` a grid of its name
-    (`temper-usage-name`), 40 px, its bar, 120 px, its share
-    (`temper-usage-used`), 36 px, right-aligned in ink, and its pace
-    (`temper-usage-pace`), faint, 12 px apart, in 13 px on 1.6, muted, with
-    tabular figures. The bar, `temper-usage-bar`, is skein's meter with its
-    words hidden from sight: 4 px high, 2 px corners, `--gf-ink-2` to
-    `--skein-ui-progress` on `--gf-line`; `--temper-amber` under
-    `temper-usage-warned`, 80% or more; `--temper-red`, whole, under
-    `temper-usage-limited`. "Full in", `temper-usage-fills`, is amber. At
-    760 px and under, the grid is the name, the bar and the share, and the
-    pace takes the row under the bar. The state is a token on the window,
-    where the request's overlay reads a `data-state` no element of skein's
-    carries.
-  - *The check line and the uses:* `temper-account-check` and
-    `temper-account-pays`, 13.5 px, muted.
-  - *Quiet acts,* as `.proposal`'s and Remembered's secondary acts: every
-    button and link in a row, the section head's "+ Connect a model" and
-    "Sign out", no box and no border, 6 px corners, no fill, muted 13.5 px
-    at weight 400, 32 px high on 5 px 10 px of padding; on hover the
-    `--gf-hover` ground and ink; 44 px high at 760 px and under. A row's
-    acts, `temper-account-acts`, are one wrapping line 10 px under its
-    facts, 2 px apart, hung 10 px into the margin so that the first act's
-    words align with the row's, as a source's first act is. "Remove
-    account", `temper-account-remove`, is pushed to the line's end and red
-    on hover. A move, `temper-account-move`, is 32 px wide, its arrow 15 px,
-    "↑" for `temper-account-up` and "↓" for `temper-account-down`, drawn by
-    the stylesheet over its name's words, which a named button shows and
-    a reader reads. Forges' rows, sharing the rows' values, take the quiet
-    acts too, by the overlay's selectors as they are.
+## 6. Settings and accounts
+
+Moved to [`look-settings.md`](look-settings.md), section 1.
+
+## 7. The project's frame
+
 - **The project's frame** is the greenfield mock's `home.html`, in
   the welcome's paper, ink and IBM Plex from temper's files
   (`temper.css`, The project's frame): the rail a 232 px column at the
@@ -313,6 +198,8 @@
   `switcher-links`). The rules go under `temper.css`'s marker `/* ==== ui:
   rail ==== */`, before the switcher's; the rules they replace go where they
   stand.
+## 8. Work and deployment
+
 - **Work's look** (`../pages/README.md`, *Work*; the mockup's `work.html` and
   `whole-story.css`): the head as Home's intro, its kicker, headline and lede,
   the landing's line in `small` under the lede; the filters, the mockup's
@@ -328,6 +215,8 @@
   its tab bar the same rules, its kicker "Deployment"; Members' and Limits'
   lines are Repositories' and Workers' `.setting` lines. Its rules go under
   `/* ==== ui: settings ==== */`.
+## 9. Browser layout
+
 - **A selector a browser accepts:** no rule of the shell's stylesheets
   nests `:has()` inside another `:has()`, which Chromium refuses, and the
   whole rule with it, without a word. What a rule asks of a child's own
@@ -357,249 +246,16 @@
   look request `outside-pages`): a page that is no project's has no
   navigation, switcher or menu, at any width; the top bar is drawn as
   *Outside a project* (below) says.
-- **The Chats page and every chat are the greenfield mock's**
-  (`../pages/README.md`): each selector the document names is the mock's rule
-  copied onto the client's own classes, pixel for pixel, under the sheet's
-  `/* ==== ui: chats ==== */` marker, in the `--gf-*` tokens, with
-  `--gf-hint: #8a8a93`, `--gf-signal-ink: #9a3412` and
-  `--gf-signal-line: #f1d5bd`; the mock's phone rules for those selectors
-  come from its last `@media (max-width: 760px)` block. At that width the
-  session's keyboard hint is hidden, as the configure-chat look request
-  draws it. The tokens:
-  `CHATS_PAGE` on the Chats page's main and `SESSION` on every chat's and
-  `NewChat`'s. An agent's task's page keeps its own look, `AGENT_PAGE` and
-  `TASKBAR`, with `ENTRY`, `COMPOSER_AREA`, `COMPOSER` and `HINT` for its
-  composer.
-- **An Ask temper chat's tag** (`../pages/README.md`), `CHATS_TAG`'s " · Ask
-  temper" after the chat's number in its bar, takes the number's look,
-  `.temper-byline`'s 12 px and faint, on one line, the bar's gap before it
-  taken back so that its own " · " is the only space and the two read
-  "T9 · Ask temper". At 760 px and under, where the number goes, the tag
-  stays without its " · " (the look request `ask-temper-place`). The bar's
-  spend paragraph stays hidden: the hiding rule excepts only the number's
-  `.temper-byline` and the tag's `.temper-chats-tag`.
-- **A chat's document** (`../pages/README.md`) is `configure-chat-draft`'s rules, in
-  `temper.css` under the same marker: `temper-mode-chat`, `-split` and `-draft` on
-  the session, `.temper-doc`, `.temper-doc-inner`, `.temper-doc-path`,
-  `.temper-doc-sec`, `.temper-doc-changed`, `.temper-doc-note`, `.temper-seg`, and
-  the rail's strip with `.temper-rail-unfold` and `files/menu.svg`. What those
-  name is drawn; a flow takes the tokens' look below. The view group stands after
-  the document's act, Pause or Resume, and Close, before the hidden spend, on a
-  chat with a document or a live offer and on `NewChat` while drafts are offered.
-  Choosing Split or Draft without a document opens the empty pane, sending
-  nothing; its button alone asks the write-up. The sheet to start a goal
-  is the mock's `dialog.sheet`, `.option`, `.field` and `.text`, and `Ctrl+\` steps
-  through the modes. The empty pane's acts, `.temper-doc-acts`, stand 16 px under
-  its words, and "Write it up from this chat", `.temper-doc-write-up`, has the
-  bar's quiet bordered look: an inline flex button at least 34 px high, 5 px by
-  12 px, a 1 px `--gf-line-2` border with 8 px corners on `--gf-surface`, ink,
-  13.5/1.6 in the sans, its border `--gf-control-hover-line` hovered (the look
-  request `chat-bar`).
-- **A chat's status line** (`../pages/chat/README.md`, 1, *Its status line*), the
-  look request `chat-bar`'s rules: `.temper-status-line`, the form's first row, a
-  baseline flex row with an 8 px gap, the full width up to 720 px and centred, as
-  the composer is, 8 px above it and 6 px in from its left, 13/1.5 and muted;
-  its star, `.temper-status-star`, faint; with `.temper-status-working`, the
-  star ink-2 and pulsing with the conversation's dots' animation
-  (`chat-typing`, 1.4 s, ease-in-out, repeated). Reduced motion stills it, as
-  it stills the terminal look's running star. The bar keeps no status of its own.
-- **A chat's terminal** (`../pages/README.md`) is the requests `chat-terminal`,
-  `chat-terminal-font` and `chat-terminal-draft`'s `terminal.css`, in `temper.css`
-  under `/* ==== ui: chats ==== */`, its selectors on temper's tokens:
-  - *Its tokens:* `temper-terminal` on the page's main, for the request's `.tt`,
-    with `temper-terminal-light` for `[data-theme="light"]` and
-    `temper-terminal-plex` for `[data-font="plex"]`; `temper-terminal-top`,
-    `-where`, `-star`, `-place`, `-sep`, `-task`, `-acts` and `-btn` for the top
-    line; `temper-terminal-run` for the running line; `temper-terminal-line` and
-    `-hint` for the quiet line, whose model button takes no token, as the
-    request's `.tt-model`, and so none of `-btn`'s padding or ground;
-    `temper-terminal-head` for a list's head;
-    `temper-terminal-note` for a note. No bar draws the terminal entrance
-    (`../pages/chat/terminal.md`, 1, *Entered*); the terminal look's tokens and
-    rules stay for a browser whose kept look selects it.
-    The conversation, the box, the list and the pane keep the page's own tokens
-    (`SESSION_COMPOSER`, `TURN_TOOL`, `DOC` and the rest), which the terminal's
-    rules reach under `.temper-terminal`; the list is skein's options menu, whose
-    `listbox` and `option` roles the rules select.
-  - *Its ground and ink:* dark first, the request's `--bg` `#191816`, `--ink`
-    `#e8e3da`, `--dim`, `--faint`, `--line`, `--sel`, `--accent` `#e08a68` and
-    `--good`, as variables on `.temper-terminal`, and its light ones on
-    `.temper-terminal-light`. Both themes are the terminal's: the rest of the
-    client keeps its light palette.
-  - *Its type:* DejaVu Sans Mono 400 and 700 at 11pt, line height 1.6, ligatures
-    off, a single size, 13px at 760 px or less; with `temper-terminal-plex`, IBM
-    Plex Mono at 14px, bold 500. The two DejaVu Sans Mono weights are the
-    request's subsets, in the bundle's `files/fonts/` as
-    `dejavu-sans-mono-400.woff2` and `-700.woff2`, beside the DejaVu licence
-    already there, `files/fonts/README.txt` saying where they come from and how
-    they were cut; their `@font-face` rules stand with the others, and a browser
-    fetches them only when the terminal first draws. Italic is the regular face
-    slanted; text past the subset falls back to the system's monospace.
-  - *Its layout:* fixed over the whole window, a grid of the top line and the
-    panes; the conversation's column 100 characters at most, left; Split two
-    halves behind a rule, the phone's one pane with the box at the foot; the
-    request's 760 px rules. The running line is the first line of the box's
-    form, the request's `.tt-foot`, so that only its own padding stands between
-    it and the box. The conversation's ground is the terminal's `--bg` in every
-    mode and at every width, scoped above the shell's own Split and Draft rules,
-    whose `--gf-surface` is the browser look's.
-  - *The draft beside it:* the pane keeps `.temper-doc`'s rules from *A chat's
-    document*, above; the terminal sets their variables on its pane, its ground
-    `--doc-bg` a shade lighter than the terminal's, its ink softer, a box a shade
-    above the ground, the strong box in the ink, a changed section's pale block
-    and note in the terminal's accent (the request's `--doc-*` values, light and
-    dark), and adds only what the shell's rules don't say: the pane's ground, its
-    padding, its rule and its scrollbar, the request's `scrollbar-width: thin`
-    with `scrollbar-gutter: auto` at every width, where the shell's pane keeps a
-    stable gutter on both edges. It restates none of the shell's document rules,
-    which `terminal.css` restates as a page outside `#app` must.
-- **Ask temper's ways** (`../pages/README.md` and `../pages/chat/conversation.md`, 3) are `ask-temper-ways`'s rules, in
-  `temper.css`: the opening's, `.temper-ways` with its tabs, axis, panel, card, legend
-  and act, under `/* ==== ui: settings ==== */`, where `.temper-starter`'s stand; a
-  path's, `.temper-ways-path` and its marks, under `/* ==== ui: chats ==== */`, which a
-  reply's views share. Where skein draws an element otherwise than the request's page (a
-  tab an `<a role="tab">`, a scene's stop a `<g>` with no ARIA, an open stop a token, one
-  SVG laid out by width where the page has two), the selector names what is drawn and
-  keeps the request's declarations.
-  The drawing's rules (the path's and the legend's) and the card's hold
-  under How work runs' frame as under Ask temper's page
-  (`../pages/settings.md`, 2), each selector naming both. Neither page
-  draws tabs, their axis line or an act in the path's foot, and their
-  rules go with them.
-  Ask temper's page takes `ways-current`'s rules (2026-11-16), scoped
-  under the session, `#app > .temper-session`, on tokens of their own,
-  `temper-way-*`: the region `.temper-way`, 18 px under the lede; its
-  head `.temper-way-head`, one row that wraps, the line
-  `.temper-way-line` at its left, 15 px in `--gf-ink-2`, its acts
-  `.temper-way-acts` at its right, each outlined, 34 px high, 13.5 px
-  at 500, "Use this" and "Keep it" filled in ink, at their left on a
-  phone; the drop-down `.temper-way-pick`, its button outlined with its
-  words in ink (`ways-shown`) and a chevron in `--gf-muted`, its menu
-  `.temper-way-menu` the composer's model menu's panel and rows
-  (`.temper-model-menu`; `../pages/chat/composer.md`, 1, *The work's
-  account and model*), 6 px under its button at its right,
-  the way shown ticked at 500 with a "✓" in the good marks'
-  green; and the last line `.temper-way-ask` under a `--gf-line` rule,
-  14 px in `--gf-ink-2`, its mark `.temper-way-ask-mark` in ink. Where
-  skein draws the menu otherwise than the request's page (its button
-  made by skein beside the menu, a row a `menuitem`, the tick the state
-  skein draws for a chosen item), the selector names what is drawn and
-  keeps the request's declarations. The rules for "Keep it" and "Use
-  this" in the foot of Ask temper's page go: the foot holds "How does
-  temper work?" alone, at the same height in every state.
-  Both pages take `ways-shown`'s rules (2026-11-19), under the
-  `/* ways-shown */` comment after `ways-current`'s, each selector
-  naming both `#app > .temper-session` and `#app > .temper-settings`
-  but where one page alone is said. The drop-down's button keeps its
-  look, its words in ink. In its menu the way the project runs says
-  "current" in the item's description, `[role=menuitem] >
-  [id^="skein-ui-description-"]`, at the row's right
-  (`margin-left: auto`), `--gf-faint`, 12.5 px; a ticked row holding it
-  takes its "✓" 10 px after it. The acts leave the line's row: on Ask
-  temper's page, the starter holding the ways is their frame
-  (`.temper-starter:has(> .temper-ways)`, `position: relative`), its
-  lede `.temper-ways-lede` leaves them `padding-right: 260px`, and
-  `.temper-starter > .temper-ways .temper-way-acts` sits at the lede's
-  right, `position: absolute; top: -3px; right: 0; margin: 0`. On How
-  work runs, the path's section holding the head is their frame
-  (`.temper-settings-section:has(> .temper-way-head)`), its head
-  `.temper-settings-section-head` leaves them `padding-right: 260px`,
-  and `.temper-settings-section > .temper-way-head > .temper-way-acts`
-  sits at that row's right, `position: absolute; top: -6px; right: 0;
-  margin: 0`, clear of the row's rule. At 760 px and under, each lede or
-  section head takes `padding-right: 0` and the acts `position:
-  static`, so the head wraps as before. Where skein draws the menu
-  otherwise than the request's page (the "current" a description's
-  `<span>` with an id where the page has a class, `.temper-way-current`;
-  a row's name its own text where the page wraps it in a `<span>`), the
-  selector names what is drawn and keeps the request's declarations.
-  Ask temper's lede reads "How a change is produced and lands in
-  PROJECT.". "How does temper work?" has no style token of its own,
-  taking `.temper-ways-acts > button`'s outlined look. Its hint names the
-  fixed message it sends (`../pages/ask-temper.md`, 1). This button is
-  Ask's opening's alone, never How work runs' (`ask-opening`,
-  2026-11-12).
-  A path's marks take no stroke but their own rules', as the request's
-  page has none: skein's default stroke for a scene's marks (skein's
-  `ui/web/README.md`, 10) gives way under `.temper-ways-path` by one rule of the
-  path's, scoped to its drawn figure, `stroke: none` on the marks skein's
-  rule names, outweighing skein's rule and outweighed by every mark's own
-  (the line's, the boundary's, a person's ring, the halo, the caret, a
-  focused stop's area); skein's rule stays as it is.
-  Who acts is the whole story's marks (`web/whole-story/whole-story.css`,
-  `.ways-*`; `../../draft/surfaces.md`, 13), orange the person's alone: a
-  person's ring `--gf-paper` stroked `--gf-signal` at 2; an agent's star
-  `--gf-ink`, and outlined when needed, `--gf-paper` stroked `--gf-ink`
-  at 1.3 with round joins; code's square `--gf-muted`, and outlined,
-  `--gf-paper` stroked `--gf-muted` at 1.3; a stop's small words 10 px
-  in `--gf-faint`; the legend's agent "✦" in `--gf-ink` and its agent
-  when needed the outlined star. The line's base is `--gf-line-2` at
-  1.5; each rise's fade (`../pages/chat/conversation.md`, 3) is the look request's, its
-  stops coloured by their tokens: a person's `--gf-signal` at .8 at its
-  mark, .28 at the dotted line, `--gf-line-2` at the base; an agent's
-  `--gf-ink` at .3 and .1, the whole story's lighter tone for an agent
-  (`.ways-rise.a`), then `--gf-line-2`. Night takes the same tokens'
-  night values.
-- **How work runs' look** (`../pages/settings.md`, 2, *The page*) is the whole
-  story's `web/whole-story/how.html`, its `whole-story.css` rules taken
-  exactly, values and all, in `temper.css` under `/* ==== ui: how ==== */`,
-  which stands after the ways' rules under Settings' marker, scoped under
-  the project's frame on tokens of its own, `temper-how-*`:
-  - *its column,* `temper-how-wide` on Settings' column while How work runs
-    is its tab: `.col.wide`'s 1020 px, the frame's other tabs keeping 720;
-  - *its head,* Settings' own (`.intro`, `.kicker`, `.headline`, `.lede`),
-    "Ask temper to change this" a `.btn.dark`, Settings' primary;
-  - *a section's head,* `.shead`: its title and, at its right,
-    `temper-how-way`, "the way: NAME", as `.shead span`;
-  - *the path,* Ask temper's drawing and legend under their own rules
-    (*Ask temper's ways,* above), who acts by the path's marks alone: no
-    lanes, no pills, no colour of its own;
-  - *the ways' head, card and act* take Ask temper's head's and card's
-    rules (above), the same declarations under the frame's scope, on the
-    same `temper-way-*` tokens: the head over the drawing, the card under
-    it, its caret across; Ask temper's last line is not drawn here;
-  - *Roles,* `whole-story.css`' `.rows` and `.role` rules taken exactly:
-    a role's row `.role > summary`'s grid, 200 px for the name, its line
-    small and muted, the model at its right with a "›" turning down while
-    open; opened, `.role > dl`'s terms and `.role-more`'s link under its
-    hairline; at 760 px and under the line under the name, the terms
-    stacked; on tokens of its own, `temper-how-roles`, `temper-how-role`,
-    `temper-how-role-line`, `temper-how-role-model` and
-    `temper-how-role-more`;
-  - *Budgets' row,* `temper-how-row`, `.row`'s grid with the first column
-    200 px, its small words muted and its figure at its right;
-  - *What reaches you,* `whole-story.css`' `.grid3`, `.box` and `.who`
-    rules taken exactly, on tokens of its own: `temper-how-reaches`, the
-    columns' grid, `repeat(auto-fit, minmax(240px, 1fr))` with a gap of
-    16, so two boxes share the width and a phone stacks them;
-    `temper-how-reach`, a box, its lines `.small` with no bullets' margin
-    of their own; `temper-how-who-agent` and `temper-how-who-person`, the
-    chip and its mark, `.who.a`'s star (`--star`, `--gf-ink`) and
-    `.who.p`'s ring (`--gf-signal`); `temper-how-reach-note`, the box's
-    last line, `.small.muted`; its rows under the grid Settings'
-    `.setting` rows;
-  - *Rules by path,* `whole-story.css`' `.shead a`, `.scroll` and `.tbl`
-    rules taken exactly, on tokens of its own: `temper-how-add`, "+ A
-    rule" at the head's right; `temper-how-rules`, the `.scroll` box
-    that scrolls the table across on a phone; `temper-how-table`, the
-    `.tbl` table, its header cells small and muted, its rows on
-    hairlines; `temper-how-paths`, a row's paths, `.mono`; a row's
-    sign-off What reaches you's chip, `temper-how-who-person`; an empty
-    cell's "–" `.muted`; `temper-how-rules-note`, the note under it,
-    `.small.muted`;
-  - *What follows a landing,* `whole-story.css`' `.grid2`, `.box`, `.box
-    h3`, `.chips` and `.who.c` rules taken exactly, on tokens of its own:
-    `temper-how-follows`, the boxes' grid, `repeat(auto-fit, minmax(300px,
-    1fr))` with a gap of 16; `temper-how-follow`, a box, its title `.box
-    h3`'s 17 px at 600, its words and its lag's line `.small`, the lag's
-    `.small.muted`; `temper-how-chips`, its chips' row, wrapping with a gap
-    of 6; `temper-how-who-code`, code's chip, `.who.c`'s 7 px square with
-    corners of 1.5 on `--gf-muted`, beside What reaches you's
-    `temper-how-who-agent`;
-  - *Budgets' head,* the period's words at the section head's right, as
-    `temper-how-way` is;
-  - *on a phone,* at 760 px and under, the column takes the frame's phone
-    width and the path runs down the page, as on Ask temper's page.
+## 10. Chats and their documents
+
+Moved to [`look-chats.md`](look-chats.md), section 1.
+
+## 11. Ways of working
+
+Moved to [`look-ways.md`](look-ways.md), section 1.
+
+## 12. Flows and prints
+
 - **A flow** (`skein/docs/design/ui/scenes.md`, 5) has the look of
   `skein/docs/design/draft/diagrams/preview.html`, in `temper.css` under
   `/* ==== ui: chats ==== */`: `--gf-paper` boxes on a `--gf-line-2` line, a strong
@@ -610,6 +266,8 @@
 - **What the mock lacks and a print needs** stays in the view, hidden by the
   sheet in the browser. A word the browser alone shows, or says otherwise,
   the view chooses by its shell.
+## 13. Goals
+
 - **A goal's look** is the greenfield mock's `goal.html` and its `startSheet`, its
   `mock.css`'s rules taken exactly: `.col.wide`, `.byline`, `.btn` and its
   `.primary`, `.quiet`, `.small`, `.rec`, `:disabled`; `.acts`, `.band`, `.goal-head`,
@@ -630,6 +288,8 @@
   `--gf-*` variables, as Home's are, on tokens of its own, `temper-goals*`.
   A row's top line is `--gf-mono`, 12 px, faint: IBM Plex Mono 400 and 500,
   bundled as the sans is, then JetBrains Mono, `ui-monospace`, `monospace`.
+## 14. Team
+
 - **Team's look** (`../pages/team.md`, 1; the whole story's `team.html`
   and `team/team.html`, and `whole-story.css`): its intro as Work's and
   Home's, kicker, headline and lede, in a column 1020 px wide at most
@@ -643,6 +303,8 @@
   `muted`, the line in `small`. On a phone the grid is one column, each
   box full width. Its rules go under `temper.css`'s marker `/* ==== ui:
   team ==== */`, before Settings', on tokens of its own, `temper-team*`.
+## 15. Focus and scrolling
+
 - **A page target draws no ring:** anything given `tabindex=-1` only to take
   focus (`main`, a heading, a document's section) draws no outline, by
   `skein-ui.css` (skein's `ui/web/README.md`, 10), and `temper.css` says so again of
@@ -651,6 +313,8 @@
   positioned, so a visually hidden absolute part (a who-line) is clipped by the
   pane's overflow and does not lengthen the page: a long chat's document never
   exceeds its window.
+## 16. Day and night
+
 - **Day and night** (the look request `night-mode`, 2026-11-07, a first pass the
   user keeps to refine): the mockups' palette is the day's, and `temper.css` sets
   `color-scheme: light`, where `skein-ui.css` follows the system's dark
@@ -726,31 +390,12 @@
     day's, since it draws before the shell reads the kept look. The rest of the
     client takes the tokens as they fall, and no page is left with words in
     the day's ink on the night's ground.
-- **The composers** (`NewChat`'s and a chat's) are text areas with
-  skein-ui's `SubmitsOnEnter`: Enter sends, Shift+Enter is a new line
-  (skein's `ui/web/README.md`, section 5), which the view allows in a
-  composer's words, counted within its bound (`../view.md`, 1). A
-  chat's shows its placeholder, "Reply to T6", while it is empty, as
-  `placeholder`, its name staying "Message", and `NewChat`'s "What do you
-  want done?", its name too (`../pages/README.md`). They
-  grow with their words and shrink after sending by `temper.css` alone
-  (`field-sizing: content`, from one line to a bound), with no
-  component and no script of temper's; a browser without it shows an
-  area of fixed height that scrolls.
-- **A run's live text** is a patch like any other: the chat's words
-  being written (`../pages/README.md`) change in place;
-  skein's page keeps focus, caret and scroll across it, and the
-  conversation, a log, keeps its end in view while the person has not
-  scrolled away (skein's `ui/web/README.md`, section 5). Where the window has
-  let its newest lines go, live text waits until the end is read again
-  (`../pages/chat/conversation.md`, 2).
-- **Reading the conversation** (`../pages/chat/conversation.md`, 2): the bound log's
-  head and foot ask for earlier and later lines as they near the view,
-  with no Older control. PgUp and PgDn scroll it from the composer too,
-  except while a menu or dialog is open. skein's page part measures and
-  restores the words' position when lines are read above, including in
-  a browser without `overflow-anchor`; Latest or sending on a chat
-  returns to its end, reading it again where the window let it go.
+## 17. Chat interaction
+
+Moved to [`look-chats.md`](look-chats.md), section 2.
+
+## 18. Outside a project
+
 - **Outside a project** (`../view.md`, 1; the look request
   `outside-pages`, its pages `journeys/outside-pages/01.html` to
   `08.html`): the welcome's look, on the `--gf-*` tokens, under
@@ -794,3 +439,7 @@
     every class `temper.css` selects is one `look.rs` names, and no
     source of the bundle or of the server's pages names the old mark's
     `#b8664e`.
+
+## 19. Open questions
+
+None.

@@ -87,7 +87,7 @@ impl Domain {
     pub const fn zone_minutes(&self) -> i32 {
         self.zone_minutes
     }
-    /// Set the shell's zone before its first event (temper/docs/design/client/web/README.md, 2.1).
+    /// Set the shell's zone before its first event (temper/docs/design/client/web/shell.md, 1).
     pub fn set_zone_minutes(&mut self, zone_minutes: i32) {
         self.zone_minutes = zone_minutes;
     }

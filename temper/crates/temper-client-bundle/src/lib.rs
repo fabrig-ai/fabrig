@@ -1,4 +1,4 @@
-//! The browser's bundle as temper's build made it (client/web/README.md, 2.6).
+//! The browser's bundle as temper's build made it (client/web/bundle.md, 1).
 //! `FILES` holds each file's path from the bundle's root (`index.html`, then `<digest>/...`) and its bytes,
 //! in a directory read's order; `DIGEST` names the digest directory. Built with `TEMPER_INTERNAL_BUNDLE=none`, `FILES`
 //! is empty and `DIGEST` is `None`.

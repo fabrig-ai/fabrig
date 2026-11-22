@@ -8,8 +8,8 @@
   `/projects/<project>/work`, one list of the project's work, under way and
   lately done, a project page in the rail's frame, a column as Home's, at
   most 720 px wide and centred, its parts 60 px apart, 32 on a phone. Its
-  filter, `WorkFilter`, All or Drafts, is in its address (`../web/README.md`,
-  2.3). Goals and Changes are Work's filters at their own addresses,
+  filter, `WorkFilter`, All or Drafts, is in its address (`../web/addresses.md`,
+  1). Goals and Changes are Work's filters at their own addresses,
   `Goals { project, filter }` and `Changes { project }` (1, *Goals*;
   `../forge/pages.md`, *Changes*), and Chats is reached from it (`chats.md`, 1).
   Choosing a filter is a move.
@@ -349,7 +349,7 @@
   Work's head and filters, "Goals" current, take its kicker's place, and
   under them are the project's goals, the filter in its address:
   `GoalsFilter`, All, Needs, Live or Ended, whose query is `?state=needs`,
-  `?state=live` or `?state=ended` (`../web/README.md`, 2.3). Choosing one is a move.
+  `?state=live` or `?state=ended` (`../web/addresses.md`, 1). Choosing one is a move.
   A goal is a tracked agent's task (`goal.md`, 2) at its own `Task` address, so that
   Goals is the list and draws no goal page. Its parts, in order:
   - **Its intro:** under Work's head and filters, the heading, at

@@ -84,7 +84,7 @@ desktop browsers are well supported (the user, 10-26).
 | Crate | Where | What |
 |---|---|---|
 | `temper-playground` | `crates/` | the world's composition and its stories' documents; on wasm32, the worker's start |
-| `temper-playground-page` | `crates/` | the page's entry, a `cdylib` for wasm32 with a bundle of its own: skein's worker platform for the shipped shell's loop, the starter, the frame, the failure page and the page's files (`index.html`, `playground.css`, `headers`) (section 6; `../client/web/README.md`, 2.1) |
+| `temper-playground-page` | `crates/` | the page's entry, a `cdylib` for wasm32 with a bundle of its own: skein's worker platform for the shipped shell's loop, the starter, the frame, the failure page and the page's files (`index.html`, `playground.css`, `headers`) (section 6; `client/web/shell.md`, 1) |
 | `temper-fake-git-hosted` | `crates/` | moved from `testing/`, its fixtures staying with the tests: the fake git program the world hosts ships in it; what the composition takes from `tests/fake-checkout` moves to it too |
 | `temper-playground-world` | `tests/playground` | the stories walked natively, through the client's host (section 9) |
 
@@ -138,7 +138,7 @@ desktop browsers are well supported (the user, 10-26).
 - **The clients' listener** is at the address the deployment's document
   names, and the visitor sends that address as its Host, so jig's guards
   hold as on a deployment.
-- **A start for a journey's walk** (`client/journey-walks.md`, 4.1):
+- **A start for a journey's walk** (`client/journey-walks-world.md`, 1.1):
   the composition starts at a forge address of its caller's, every part
   that names the forge taking it from that one address, and may hold a
   fake OAuth issuer among its fakes, with the service given its
@@ -237,7 +237,7 @@ delegate's phases; the frame's speed changes how long the person waits
   4). Any path answers with the page, which always starts at the
   printed link.
 - **At the site's playground address,** which the site's design names.
-- **The page's policy** is temper's (`client/web/README.md`, 2.2) with
+- **The page's policy** is temper's (`client/web/serving.md`, 1) with
   `worker-src 'self'`, and no `connect-src` beyond `'self'`: after the
   load, nothing is fetched. One function of temper's gives it, for the
   service and the playground alike; the build writes it beside the

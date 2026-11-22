@@ -51,14 +51,14 @@ deleted once no pass can need them.
     temper-engine -p temper-worker -p temper-agent`, with the bundle
     embedded as every build of the box and the engine embeds it
     (`TEMPER_INTERNAL_BUNDLE` unset, or `embed`;
-    `../../client/web/README.md`, 2.6). The drive session sets
+    `../../client/web/bundle.md`, 1). The drive session sets
     `TEMPER_INTERNAL_RECORD=1` for the TUI (`../../client/tui/journeys.md`,
     2); any other executable a later milestone names goes directly in
     `bin/` too;
   - `bundle/`: the web bundle, `temper/scripts/bundle.sh STAGE/bundle`,
     one bundle for every use, which the drive session gives a box
     (`../../client/drive.md`, 2.1): recording and loopback navigation
-    are selected by the page's query (`../../client/web/README.md`, 2.1),
+    are selected by the page's query (`../../client/web/shell.md`, 1),
     so a build keeps no recording bundle of its own.
 
   A debug build's set is about 400 MB.

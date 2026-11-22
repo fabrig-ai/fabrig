@@ -349,7 +349,7 @@ const BRIEF: engine::BriefLimits = engine::BriefLimits {
     gather: Duration::from_secs(300),
 };
 const CLIENTS: Clients = Clients {
-    // Files of a bundle, the page and both forms among them (client/web/README.md, 2.2).
+    // Files of a bundle, the page and both forms among them (client/web/serving.md, 1).
     bundle_files: 128,
     // Bytes of both forms in all, read into memory at start (protocol/configuration/limits.md).
     bundle_bytes: 32 << 20,

@@ -24,7 +24,7 @@
   - *the top bar,* on any other page, the frame wherever the rail
     isn't (the look request `outside-pages`; `web/look.md`,
     *Outside a project*): temper's mark, "temper", a link in the browser
-    to where the root goes, `rail::root_home` (`web/README.md`, 2.3), and in
+    to where the root goes, `rail::root_home` (`web/addresses.md`, 1), and in
     the terminal to the inbox; then,
     signed in, at its right: "Offline" while the link is offline and
     "Behind" while a page's watch reopens, the person's name, "Sign out did not reach the engine." while that
@@ -101,7 +101,7 @@
   paragraph:
   - *signed out:* in the shell's words, which the view takes at
     construction: the browser's "To sign in, open a sign-in link temper
-    printed." (`web/README.md`, 2.4); the terminal's heading alone, which
+    printed." (`web/sign-in.md`, 1); the terminal's heading alone, which
     says it (`line.md`, 6);
   - *signed out, with a way of signing in:* in the browser alone, in
     place of the column above, the sign-in page's column: the heading
@@ -157,7 +157,7 @@
     "This page doesn't match temper's engine. Reload it to continue.",
     then the column's one act, "Reload", filled, which loads the page
     again at its address, and with it the engine's bundle
-    (`web/README.md`, 2.2). Both causes take the same words: a page from
+    (`web/serving.md`, 1). Both causes take the same words: a page from
     the engine's own bundle reads its engine's records, so either way the
     tab holds a page its engine has replaced. What is pending stays in
     the small store (jig's `client/domain/client/watches.md`, 2).
@@ -251,7 +251,7 @@
 navigation named by the open project, in this order:
 
 - temper's name, named "temper home", a link in the browser to where
-  the root goes, `rail::root_home` (`web/README.md`, 2.3; draft-2's
+  the root goes, `rail::root_home` (`web/addresses.md`, 1; draft-2's
   answer of 2026-11-18: the mark goes where the root goes, inside and
   outside a project), and in the terminal to where "Home" goes;
 - the switcher (*Projects in the rail,* below);
@@ -734,7 +734,7 @@ the change's chip in a chat (`forge/README.md`, 2.4 and 2.5).
 ## 6. Times
 
 - **The view's clock is the shell's.** The view builds at the wall
-  time of the shell's iteration (`line.md`, 2; `web/README.md`, 2.1) and says each
+  time of the shell's iteration (`line.md`, 2; `web/shell.md`, 1) and says each
   time the domain's documents carry against it, both nanoseconds since
   the epoch. The same documents at the same time give the same words.
 - **Five forms, the mockups' own** (`web/mockups/pages.js`, and the TUI's,
@@ -764,7 +764,7 @@ the change's chip in a chat (`forge/README.md`, 2.4 and 2.5).
     when not now's.
 - **The person's zone** sets the calendar's days and the hours the
   forms say: the browser's, in minutes east of universal time, an input
-  of the shell's (`web/README.md`, 2.1), read at start, so that a change of
+  of the shell's (`web/shell.md`, 1), read at start, so that a change of
   daylight saving shows at the next load. The terminal has none: universal
   time. *ago* and *span* are differences, and it moves neither. The words
   name no zone, as the mockups' don't.
@@ -774,7 +774,7 @@ the change's chip in a chat (`forge/README.md`, 2.4 and 2.5).
   the next midnight while it drew a word of the calendar's (a later
   ago, a clock, a dated, a day's rule). The shell wakes at that instant, and the
   view builds again although the domain's shown count has not moved
-  (`line.md`, 2; `web/README.md`, 2.1). A page that draws no time asks for no wake.
+  (`line.md`, 2; `web/shell.md`, 1). A page that draws no time asks for no wake.
 - **Where they are said:** a chats line's last activity or end, an ago
   (`pages/README.md`); a chat's turns and its end, clocks under the day's rules
   (`pages/README.md`); a card's wait, a span, in the inbox and on a chat's page; an

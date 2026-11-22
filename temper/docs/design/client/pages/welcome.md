@@ -6,7 +6,7 @@
 
 - **The welcome** (`welcome.html`) is one page, `Welcome { step }`, its
   step Welcome, Forge, Model or Ready, at `/welcome` and
-  `/welcome?at=welcome`, `forge`, `model` or `ready` (`../web/README.md`, 2.3); its
+  `/welcome?at=welcome`, `forge`, `model` or `ready` (`../web/addresses.md`, 1); its
   words are its mockup's (2). The tab's title is "Welcome · first run ·
   temper" on every step (`../web/look.md`).
   - *Whether it shows* is the document's
@@ -136,8 +136,8 @@
     "Run on this machine", opens Forgejo's sheet (below), then GitHub's
     (`../forge/deployment.md`); a Forgejo deployment of the
     person's own is connected from the forges page, not here (the user,
-    2026-11-04). Its choice is in the welcome's address (`../web/README.md`,
-    2.3);
+    2026-11-04). Its choice is in the welcome's address (`../web/addresses.md`,
+    1);
     inside a choice, the foot's one "‹
     Back" returns to Forge's Choose. The welcome has no "‹ All
     forges"; `ConnectForge` keeps it. Its foot, on Forge and Model, is
@@ -150,7 +150,7 @@
     2026-11-19, the look request `local-forge`) is Forgejo on this
     machine's Details on the welcome, and on Settings' Connect a forge,
     which opens the same sheet: a modal sheet over Choose, at its
-    address (`../web/README.md`, 2.3), headed "Local forge", with
+    address (`../web/addresses.md`, 1), headed "Local forge", with
     "temper starts Forgejo here and connects to it; you connect your
     model meanwhile."; then what it starts with, "Start it with", three
     choices, each a card with its line, the chosen one's own fields
@@ -458,7 +458,7 @@ repository, and the cues the playground's, copied in from its read:
   steps' words, their order and their acts are its mockup's
   (`mockups/welcome.html`, at the states its worlds list), the set up
   card's model sentence among them (`accounts-words.md`, 1). Beyond them: a move is a link
-  (`../web/README.md`, 2.3); the foot's "‹ Back" goes to its step's Choose
+  (`../web/addresses.md`, 1); the foot's "‹ Back" goes to its step's Choose
   inside a choice, otherwise to the step before, and its "Try the
   playground instead" shows while the playground is offered (1).
   A forge cut short reads "FORGE · not finished", with "Go

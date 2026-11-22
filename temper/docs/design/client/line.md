@@ -249,7 +249,7 @@ The terminal opens at the inbox (`README.md`, 3.4) and reaches each page by its
 numbered link (5), never by a page's address: `temper-box open` takes the
 engine's address or the sign-in link (1). A browser opens a page by
 its address: a reload, or `/tasks/N` typed or opened, is a new client
-at that address (`web/README.md`, 2.3), and an inbox's address holds its
+at that address (`web/addresses.md`, 1), and an inbox's address holds its
 filter, so that `/needs?kind=question` opens the inbox filtered. Of that
 open, the path and its load are the browser's; the rest is the client
 root's, the same under both shells: a root started at a page's address,
@@ -270,7 +270,7 @@ draws its heading and its "Task brief".
   work. Default: the browser's paste or a complete ctl call from its
   help; the run-wait pointer checks of `pages/accounts-words.md`, 1 cover waiting lines alone.
 - **Sign-in words in the terminal and command help** (1, 6): the browser's
-  signed-out paragraph names the link temper printed (`view.md`, 1; `web/README.md`, 2.4),
+  signed-out paragraph names the link temper printed (`view.md`, 1; `web/sign-in.md`, 1),
   while `temper-box open`'s refusals, the terminal's link instructions and the
   command's help still name `temper-box serve`. A person may have run `temper box`.
   Default: those words stay until a wording change covers the terminal and

@@ -15,12 +15,12 @@ never streaming (`../../draft/first-release.md`, 5.3).
 | `PublicLandings { project }` | `/public/projects/<project>/landings` | the forge's *landings* |
 | `PublicLanding { project, task }` | `/public/projects/<project>/landings/<task>` | the forge's *landing*, through a member's change's task |
 
-- **By temper's address codec,** as every page's (`README.md`, 2.3); `<project>`
+- **By temper's address codec,** as every page's (`addresses.md`, 1); `<project>`
   and `<task>` are public identifiers, 16 lowercase hexadecimal digits
   (jig's `domain/people/public-reading.md`, 8), never numbers. A path under
   `/public` that does not read is `/public`.
 - **Served as every page is:** the server answers each with the page
-  and the bundle (`README.md`, 2.2); nothing on the server is new but the public
+  and the bundle (`serving.md`, 1); nothing on the server is new but the public
   kinds the forge declares to jig (`../forge/README.md`, 9.1).
 
 ## 2. How it reads

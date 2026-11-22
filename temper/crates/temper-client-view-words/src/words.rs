@@ -6652,7 +6652,7 @@ impl Word {
         PhraseId { owner, number }
     }
 }
-/// The shell whose words the view says (client/web/README.md, 2.4).
+/// The shell whose words the view says (client/web/sign-in.md, 1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Shell {
     Terminal,

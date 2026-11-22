@@ -10,7 +10,7 @@ Moved to [`needs-you-terminal.md`](needs-you-terminal.md), section 1.
 
 - **Needs you** (the user's greenfield mock's `needs.html`; `needsPage`):
   `Inbox { filter }` in the browser, its address and its filters as they
-  were (`../web/README.md`, 2.3), across projects by default
+  were (`../web/addresses.md`, 1), across projects by default
   (`../../draft/surfaces.md`, section 4; the whole story's `needs.html` and
   `phone-need.html`): no filter menus and no "+ New chat". Updates
   leave the browser's page and no page replaces them; `Seen` marking

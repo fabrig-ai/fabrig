@@ -236,7 +236,7 @@ the person to check existence and grant the repository to the App.
   page says so in its shell's words: the terminal's "This temper is out
   of date for adopting repositories: run the temper the engine runs.",
   the browser's "This page is out of date for adopting repositories:
-  reload it." (`../web/README.md`, 2.2). The button is disabled, the
+  reload it." (`../web/serving.md`, 1). The button is disabled, the
   picker sends nothing, and a pending adoption stays in the small store.
 
 ## 5. Its address and state

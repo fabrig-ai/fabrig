@@ -18,7 +18,7 @@ does for the client:
   `/forges/...` (the routes, below); then to the browser's page and
   bundle, the binary's own or the one the configuration names, or else,
   from a binary built without its own and a configuration naming none,
-  to the page for no bundle (`web/README.md`, 2.2 and 2.6). Every other
+  to the page for no bundle (`web/serving.md`, 1, and `web/bundle.md`, 1). Every other
   path is answered not found.
 - **The routes,** temper's beside jig's: a GitHub connect's browser
   steps, `GET /forges/N/github/manifest`, `redirect` and `setup`, N the
@@ -46,8 +46,8 @@ does for the client:
   its page, `/sign-in`, a path of temper's outside the mapping's prefix
   (`README.md`, section 4). With a bundle, temper's
   server answers it with the page, which signs the browser in by it
-  (`web/README.md`, 2.4); with none, the page for no bundle, which says
-  so and names `temper-box open` (`web/README.md`, 2.2), with
+  (`web/sign-in.md`, 1); with none, the page for no bundle, which says
+  so and names `temper-box open` (`web/serving.md`, 1), with
   `Referrer-Policy: no-referrer`, and the link is `temper-box open`'s alone
   (`line.md`, 1).
 - **jig's example guards, as they are** (jig's `protocol/browser/README.md`,

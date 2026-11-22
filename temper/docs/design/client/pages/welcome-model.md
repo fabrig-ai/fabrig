@@ -5,7 +5,7 @@ This document holds the Model step, split from [`welcome.md`](welcome.md).
 ## 1. The Model step
 
     *Model* is `ConnectModel`'s Choose and Details, its state and acts
-    (`accounts.md`, 1), its way in the welcome's address (`../web/README.md`, 2.3).
+    (`accounts.md`, 1), its way in the welcome's address (`../web/addresses.md`, 1).
     Its lead is "temper’s agents run on a plan you sign in to.". Its
     ways sit directly under the lead, with neither the standalone
     Choose container nor its holder controls, as two cards, one for each

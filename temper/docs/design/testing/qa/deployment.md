@@ -106,8 +106,8 @@ each a `temper.toml` of its binary's shape
   `--bundle` refuses it the same way, naming the document and saying
   that the name needs `--bundle`. A root whose engine serves the page
   names `{place.bundle}`, so that the page is the kept build's bundle
-  whatever the engine's binary holds (`../../client/web/README.md`,
-  2.6), and a place gives every session its `bundle/` (`places.md`, 4
+  whatever the engine's binary holds (`../../client/web/bundle.md`,
+  1), and a place gives every session its `bundle/` (`places.md`, 4
   and 5).
 - **Its ports** are the place's nine (`places.md`, 2), in the order
   `TEMPER_INTERNAL_FAKE_BOX_PORTS` lists a box's

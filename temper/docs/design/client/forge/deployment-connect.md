@@ -24,7 +24,7 @@ This document holds connecting a forge, split from [`deployment.md`](deployment.
   `Forges`' line saying what was added once it is connected, as `Accounts'`
   does. `forge` is none at Choose,
   or the choice: a kind to make, GitHub, Forgejo on this machine or
-  Your Forgejo, or a kept forge's number (`../web/README.md`, 2.3). The step
+  Your Forgejo, or a kept forge's number (`../web/addresses.md`, 1). The step
   shown is the choice's: none, Choose; a kind to make, or a forge whose
   row offers its connect or set up, Details (on GitHub, an App of the
   person's own); a forge
@@ -61,7 +61,7 @@ This document holds connecting a forge, split from [`deployment.md`](deployment.
     forge, its way in a new tab (*GitHub's way, in a new tab*, below). Nothing
     asks for an organization: the App is the person’s, and installation
     offers every account they may install it on. An App of their own
-    keeps its Details at a kept GitHub forge’s address (`../web/README.md`, 2.3),
+    keeps its Details at a kept GitHub forge’s address (`../web/addresses.md`, 1),
     with no card linking there.
   - *Your Forgejo:* “Your own Forgejo server. temper connects as its admin,
     or with its bot’s tokens.” “Connect your Forgejo” opens its panel,

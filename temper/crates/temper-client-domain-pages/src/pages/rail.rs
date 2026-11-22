@@ -148,7 +148,7 @@ pub fn across(root: &dyn Root) -> bool {
         || if let Address::Inbox { filter } = root.pages().address() { filter.project.is_none() } else { false }
 }
 
-/// Home reached from the browser's root and marks (client/web/README.md, 2.3).
+/// Home reached from the browser's root and marks (client/web/addresses.md, 1).
 #[must_use]
 pub fn root_home(me: Option<&jig_client::contract::Me>) -> Address {
     if let Some(me) = me

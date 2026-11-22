@@ -84,7 +84,7 @@ the nearest thing, and says so in the draft's status.
   `protocol/configuration.md`, 3 and 8; jig's `protocol/client/README.md`,
   10 and 12; `../protocol/sign-in.md`, 2.1 and 2.3;
   `../client/pages/shared-behaviour.md`, 1, *The approval page*;
-  `../client/web/README.md`, 2.3.
+  `../client/web/addresses.md`, 1.
 - **Builds:** the engine end's source address, from `X-Forwarded-For`
   by the public name and the peer otherwise; the ask's kind; the
   per-source count; the deciding browser's source beside the ask's; the

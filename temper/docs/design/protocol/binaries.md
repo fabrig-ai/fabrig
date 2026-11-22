@@ -129,8 +129,8 @@ spawned        temper-engine internal forge-child --parent PID --signal kill|ter
 - **No command is an unknown command:** `temper-engine: no command WORDS;
   temper-engine --help lists them`, the words given as far as a command
   begins with them, and exit 2 (`../cli/README.md`, 4).
-- **The bundle is in it,** as in the box's (`../client/web/README.md`,
-  2.6): of a deployment's binaries, only the engine's serves the web
+- **The bundle is in it,** as in the box's (`../client/web/bundle.md`,
+  1): of a deployment's binaries, only the engine's serves the web
   client.
 - **What it links** (1): the engine's service, `temper-engine-service`
   (`services.md`, 4); its row in 4 excludes the composition,

@@ -96,7 +96,7 @@ browsers use (`configuration/engine.md`). With one:
   GitHub forge is connected (`../client/forge/served.md`, 1). With none, they are the
   listener's, `http://<listener>/`, as before.
 - **The bundle is the same,** served at every other `GET`
-  (`../client/web/README.md`, 2.2).
+  (`../client/web/serving.md`, 1).
 
 ### 2.3 The printed link
 
@@ -347,7 +347,7 @@ with the non-sensitive scopes `openid email profile` alone.
 ### 4.1 The routes
 
 On the clients' listener, after what jig's mapping claims and beside the
-GitHub routes (`../client/web/README.md`, 2.2): `GET /sign-in/google` and
+GitHub routes (`../client/web/serving.md`, 1): `GET /sign-in/google` and
 `GET /sign-in/google/return`, any other method `405`, any other path
 under `/sign-in/` the page as today. With `sign_in` `null`, both answer
 not found. Every answer of theirs carries the page's policy,
@@ -521,7 +521,7 @@ its sockets tagged as the server's are.
 ## 7. The browser's sign-in page
 
 - **The page tells the ways.** When temper-service makes the bundle's
-  page at start (`../client/web/README.md`, 2.2), it inserts `<meta
+  page at start (`../client/web/serving.md`, 1), it inserts `<meta
   name="temper-sign-in" content="WAYS">` before the page's `</head>`,
   `WAYS` the configured ways, space-separated (`google`, or nothing),
   and the `ETag` is the page's so made; a page without `</head>` is
@@ -536,7 +536,7 @@ its sockets tagged as the server's are.
   (`binaries.md`), `<meta name="temper-record" content="on">`, made
   at start after `temper-sign-in`, before the forges' metas, the `ETag`
   the page's so made, so that the page records
-  (`../client/web/README.md`, 2.1 and 2.2).
+  (`../client/web/shell.md`, 1, and `../client/web/serving.md`, 1).
 - **The signed-out main** (`../client/view.md`, 1), in the browser
   with a way: temper's mark, the level-1 heading "Sign in", and a link
   for each way, "Continue with Google" to

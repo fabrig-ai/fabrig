@@ -158,7 +158,7 @@ above, under compiler-cache keys that no other build asks for
   dev-dependencies, so that mode's keys are the ones their builds share.
 - **The browser bundle's nested build keeps its own selection,** with
   `CARGO_RESOLVER_FEATURE_UNIFICATION=selected`
-  (`temper/docs/design/client/web/README.md`, 2.6). It always selects
+  (`temper/docs/design/client/web/bundle.md`, 1). It always selects
   the same packages, so it is a context of its own, and stable. A union
   over every member would give its module features that no package it
   builds asks for.

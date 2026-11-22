@@ -216,7 +216,7 @@ fn unreadable_message(name: &str, unreadable: &journey::Unreadable) -> String {
 }
 
 // A failed proof may hold bytes the redaction missed: only record kinds leave
-// the recording (client/web/journeys.md, 4.3).
+// the recording (client/web/journeys-recordings.md, 2.3).
 fn stale_refusal_message(name: &str, stale: &journey::Stale) -> String {
     let recorded = stale.recorded.split_whitespace().next().unwrap_or("");
     let asked = stale.asked.split_whitespace().next().unwrap_or("");

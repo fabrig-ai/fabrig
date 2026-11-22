@@ -154,7 +154,7 @@ on the timer, or after a message:
   bytes is refused, and its answer is reported as any other.
 - **A tab,** `tab::Tab`, another `Host` of the world, for a page that
   opens one and points it at an address, as a sign-in does (temper's
-  `docs/design/client/journey-walks.md`, 4.5): given an absolute
+  `client/journey-walks-world.md`, 1.5): given an absolute
   `http://` address, a `GET` on a connection of its own, its `Host` the
   address's authority, with no cookie and no `Origin`, as a new tab
   whose opener was cut sends it; a redirect, 301, 302, 303, 307 or 308,

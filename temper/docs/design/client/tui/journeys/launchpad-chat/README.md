@@ -2,7 +2,7 @@
 
 A version-2 `walk`, `after project-landing`, in one process on the
 playground's composition, with both shipped clients: no box or terminal
-(`../../../journey-walks.md`, 4 and 6). Hello has its owned Forgejo
+(`../../../journey-walks-world.md`, 1, and `../../../journey-walks.md`, 6). Hello has its owned Forgejo
 repository `work/hello` and the ChatGPT plan with the `fake` model.
 The TUI starts signed out; the browser approves the address it asks to
 browse. The walk waits for the launchpad's status and project commands,

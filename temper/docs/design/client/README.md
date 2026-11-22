@@ -74,7 +74,7 @@ section 5.
   playground's `NewChat` suggests the requests its model
   plays (`pages/welcome.md`, 2). The printed link's sign-in in a browser lands on the
   welcome where the document shows it, and on the inbox otherwise
-  (`web/README.md`, 2.4).
+  (`web/sign-in.md`, 1).
 - **The forge's family.** Its words for the connector, a repository, a
   branch, a pull request and each kind of write need no document (`forge/family.md`, 1).
   Its other parts are documents its client side reads, with requests of
@@ -120,7 +120,7 @@ section 5.
   mapping's engine end
   owns its calls in flight: the server asks for its room before it
   hands it a call. An ordinary call under `/jig` that finds none waits
-  for it, its body unread (`web/README.md`, 2.2); once the server is
+  for it, its body unread (`web/serving.md`, 1); once the server is
   stopping it answers that call itself, as it answers a path no one
   claims: `503`, with no body, closing the connection (jig's
   `protocol/client/default-http.md`, 4). A public read that finds none takes its
@@ -165,11 +165,11 @@ temper-box-shell                the box's binary's crate; `temper-box open` runs
 temper                         the deployment's client binary, bin/temper: its `main` hands temper-version's line to its crate (../cli/README.md, 2)
 temper-client-shell             `temper`'s crate: `temper [ADDRESS]` runs the TUI, `temper box` the TUI in front of a box, `temper ctl` the agents' tools (../cli/README.md, 7.4)
 └── temper-fetch-shell          the fetch of `temper-box` for `temper box` (box-binary.md)
-temper-client-shell-web         the browser: temper's shell, a library for wasm32 and on every target, its host ordinary Rust (web/README.md, 2.1)
+temper-client-shell-web         the browser: temper's shell, a library for wasm32 and on every target, its host ordinary Rust (web/shell.md, 1)
 ├── skein-ui-web                skein's browser parts: the page, the DOM, history, fetch, session storage
 ├── jig-client-shell-web        jig's client adapter over skein's fetch, and the printed link's sign-in part
 └── temper-client-redaction     the journeys' shared originals, redaction and scan (web/journeys.md, 2)
-temper-client-web-page          the shipped page's entry, built for wasm32 into the bundle (web/README.md, 2.1)
+temper-client-web-page          the shipped page's entry, built for wasm32 into the bundle (web/shell.md, 1)
 
 for agents
 temper-client-tools             the agents' tools on jig-client, beside the view (ctl/README.md, section 4): temper's part, the tools' root, and jig's part under its path (ctl/tools-crates.md)
@@ -417,8 +417,8 @@ credential.
 - **temper's pages keep no record of their own:** a client closed on
   any page opens at the inbox, and a composer's words not sent, or a
   form's values, are not kept across a restart (section 5). A browser
-  opens at its address (`web/README.md`, 2.3), and after the printed
-  link's sign-in at `Welcome` (`web/README.md`, 2.4;
+  opens at its address (`web/addresses.md`, 1), and after the printed
+  link's sign-in at `Welcome` (`web/sign-in.md`, 1;
   `../draft/archive/first-run.md`, 2.3), which shows its first step while the
   store is empty, opens at the step left undone while it is
   unfinished, and moves on to the chats page once it is whole (`pages/welcome.md`, 1).
@@ -655,9 +655,9 @@ temper's:
     a link in the route's form,
     `http://HOST:PORT/jig/v1/sign-in/link?secret=SECRET`, printed by a
     build before, still signs in wherever a link is taken, and its
-    `GET` still answers the page (`web/README.md`, 2.2), until the user
+    `GET` still answers the page (`web/serving.md`, 1), until the user
     says otherwise (5.8). Every client of temper takes either form: the
-    browser opening it (`web/README.md`, 2.4), the TUI's paste and the
+    browser opening it (`web/sign-in.md`, 1), the TUI's paste and the
     engine's link file (`tui/pages/README.md`), `temper ADDRESS`
     refusing it as an argument (`tui/README.md`, section 1),
     `temper-box open` (`line.md`, 1), `temper ctl DIRECTORY sign-in`
@@ -791,8 +791,8 @@ was answered with. A box enables it beside the printed link
     Option<ApprovalCode>)`: the origin it was given or kept, printed
     (`tui/README.md`, 1), then the approval page's printed path,
     `address::print_approve(code)`. The host gives the code on loopback,
-    `http://127.0.0.1:8367/terminal?code=WDJB-MJHT` (`web/README.md`,
-    2.3), and for the one click at a name,
+    `http://127.0.0.1:8367/terminal?code=WDJB-MJHT` (`web/addresses.md`,
+    1), and for the one click at a name,
     `https://dev.fabrig.ai/terminal?code=WDJB-MJHT`, the code an
     `ApprovalCode`, so of the code's alphabet by its type; and none for
     a typed code's ask at a name, `https://dev.fabrig.ai/terminal`, whose

@@ -3,7 +3,7 @@
 A version-2 `walk` in one process, on the playground's composition,
 signed in at `/welcome` by its printed link. The world's box's peer
 plays the owned Forgejo's set-up on the world's time: no `temper box`
-(`../../../journey-walks.md`, 4.4 and 6). The walk presses "Set up
+(`../../../journey-walks-world.md`, 1.4, and `../../../journey-walks.md`, 6). The walk presses "Set up
 temper", then Forgejo's "Run on this machine" and its sheet's own
 "Run on this machine", leaving "A sample project" chosen.
 

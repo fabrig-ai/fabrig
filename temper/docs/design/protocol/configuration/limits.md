@@ -192,7 +192,7 @@
   | `forges.` | the engine's routing's, per forge: a GitHub forge's accepted installations and every forge's log origins (../forge/README.md, section 6) |
   | `setup.` | `temper-forge-setup`'s `Limits`: reconcile's (../setup/reconcile.md), the fetch's (../setup/owned.md, 6), and the engine's setup host's states and runs (../setup/README.md, the setup host in the engine) |
   | `box.` | `temper-box-machine`'s `Limits`: the box's restarts and stop, its pipe's lines, its logs and tails (../setup/box.md, 1, and ../setup/box-supervision.md, 1) |
-  | `clients.` | `temper-service`'s clients' server's `Limits`: the browser's bundle (`../../client/web/README.md`, 2.2) |
+  | `clients.` | `temper-service`'s clients' server's `Limits`: the browser's bundle (`../../client/web/serving.md`, 1) |
   | `routes.` | `temper-service`'s clients' listener's forge routes (`../../client/README.md`, the routes) |
   | `sign_in.` | `temper-service`'s Google sign-ins on the clients' listener (`../sign-in.md`, section 6) |
   | `picker.` | the picker's reads of a forge's repositories (`../../domain/forge/adoption.md`) |

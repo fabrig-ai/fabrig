@@ -241,7 +241,7 @@ code typed from the person's own terminal (5.2).
   address is dropped for it and the field shown. An ask made by the
   listener's own address keeps today's page, its code read from the
   address (`../client/pages/shared-behaviour.md`, 1, *The approval page*;
-  `../client/web/README.md`, 2.3). The read answers which of the three
+  `../client/web/addresses.md`, 1). The read answers which of the three
   the ask is (5.4).
 - **"Sign in first", Google's way given,** keeps the code in its `then`
   for a loopback return, and drops it for an ask approved by typing.

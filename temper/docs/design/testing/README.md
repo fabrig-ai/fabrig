@@ -252,7 +252,7 @@ terminal client, the captures and the faults.
     `fakes.md`, 4).
 - **Journeys' prints** use this composition too: the browser's shipped
   host and the TUI's shipped host on the simulated service, with no box
-  and no terminal (`../client/journey-walks.md`, 3.2, 3.3 and 4). The
+  and no terminal (`../client/journey-walks.md`, 3.2 and 3.3, and `../client/journey-walks-world.md`, 1). The
   walker feeds their lines and prints their marks as pages.
 - **Stories:**
   - a person signs in by the link `temper-box serve` prints, and a chat is

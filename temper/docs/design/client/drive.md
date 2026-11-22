@@ -11,7 +11,7 @@ no browser (2.6). It runs no build and writes nothing outside its
 scratch directory. It serves QA's recipes (`recipe.md`) and a journey's
 walk on a box or deployment after landing (2.7), for what only a browser
 or terminal shows. It writes no page of main's: those are printed in a
-world (`journey-walks.md`, 4). Section 2 is the session, 3
+world (`journey-walks-world.md`, 1). `drive.md`, section 2 is the session, 3
 its lines, 4 the lines it keeps, 5 its code, 6 its tests, 7 what is
 open.
 
@@ -304,7 +304,7 @@ temper-client-journeys journey walk NAME --bin DIR [--bundle DIR] --scratch DIR 
 
 - **One line each,** a recipe's step (`recipe.md`, 3): its client first,
   `web`, `tui`, `ctl`, `forge` or `deployment`, then its record and its fields, as the
-  journeys' file writes fields (`web/journeys.md`, 3.2): each after one
+  journeys' file writes fields (`web/journeys-recordings.md`, 1.2): each after one
   space, a word bare, bytes in double quotes. Quoted bytes take printable
   ASCII alone; write other bytes as `\xHH`, with `\"` and `\\` for
   quote and backslash. Or a look (3.2 to 3.3), or
@@ -329,7 +329,7 @@ temper-client-journeys journey walk NAME --bin DIR [--bundle DIR] --scratch DIR 
 
 A role is a word of skein's roles, lowercase, as `web/journeys.md`, 8.2
 has it. In a journey's session, `textbox` finds a text field or text
-area (`journey-walks.md`, 4.2). WIDTH is 320 to 3840. At a deployment the origin is the
+area (`journey-walks-world.md`, 1.2). WIDTH is 320 to 3840. At a deployment the origin is the
 engine's clients' listener, its first link's
 (`../testing/qa/deployment.md`, 5 and 6.1).
 
@@ -350,7 +350,7 @@ The session takes them from its start, whatever line runs or none:
   origin's, the browser's own, a `data:` or a `blob:` one.
 - **After its document and its bundle's files:** the load's own document,
   and each `GET` under `/bundle/` or of a root file, `/robots.txt`,
-  `/sw.js` or `/manifest.webmanifest` (`web/README.md`, 2.2, steps 4 to
+  `/sw.js` or `/manifest.webmanifest` (`web/serving.md`, 1, steps 4 to
   6), or of `/favicon.ico`, the tab's icon, which the browser asks for by
   itself, are not listed and count in no wave. Each still counts toward
   the page's quiet (below).

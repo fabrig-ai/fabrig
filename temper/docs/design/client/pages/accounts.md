@@ -157,7 +157,7 @@
     names the source, in place of its history entry: `ConnectModel`'s at
     the way with the source,
     `/accounts/connect?provider=N&way=sign-in&source=S`, or the welcome's
-    Model step at the way with the source (`../web/README.md`, 2.3). An answer
+    Model step at the way with the source (`../web/addresses.md`, 1). An answer
     with no address, refused or lost, closes the tab (`Tab::Close`), and
     the page says why, as 2 has it; so does an answer the page has
     left. A browser that refuses the tab is told to the root
@@ -180,7 +180,7 @@
     says how the sign-in ended (skein's `oauth/accounts.md`, 5): that's the
     page's to say, and temper closes no tab it has pointed (`../README.md`, section 5).
   - *A reload while it waits,* the page is a new client at the address
-    with the source (`../web/README.md`, 2.3): it takes the source's sign-in
+    with the source (`../web/addresses.md`, 1): it takes the source's sign-in
     as its own and draws the same page, while the `accounts` watch lists
     it under way, then its end. The small store keeps the sign-in's
     address beside its source, and whether its tab was refused, so that
@@ -204,7 +204,7 @@
     agents now run on it." (2's words) and a quiet "Start a chat", to
     `NewChat`, above the rows, and goes when the person leaves the page or
     acts on it. A plan's "Manage usage" is in its row.
-  - *Its address* is its way (`../web/README.md`, 2.3): none at Choose; a
+  - *Its address* is its way (`../web/addresses.md`, 1): none at Choose; a
     way's provider and kind once one is chosen, Details and Signing in at
     the way's address. A key's and a program's card
     on Choose is a link to the way's address, Details; a sign-in's is a

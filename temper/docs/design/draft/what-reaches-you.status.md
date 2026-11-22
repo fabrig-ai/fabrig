@@ -44,7 +44,7 @@ files'.
     cards. The terminal's inbox lists no Only you (`../client/tui/pages/README.md`
     ), a later part of `what-reaches-you.md`, section 11's too, temper/tui's.
   - 9: carried by `../domain/forge/attention.md`, section 7,
-    `../client/pages/told.md`, `../client/web/README.md`, 2.7,
+    `../client/pages/told.md`, `../client/web/push.md`, 1,
     `../protocol/configuration/engine.md`'s `push` and
     `../client/ctl/tools.md`'s `push` tools, milestone N3b of
     `whole-story.execution.md`, but for these. Mail where push can't

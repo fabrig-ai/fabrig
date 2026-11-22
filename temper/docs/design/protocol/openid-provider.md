@@ -89,7 +89,7 @@ by the client, not by a route:
 1. `GET /oauth/authorize?QUERY` is answered with temper's page. The
    client root's routing reads the address as a place of its own,
    `Authorize { query }`, `QUERY` as the address carried it
-   (`../client/view.md`, 1; `../client/web/README.md`, 2.3).
+   (`../client/view.md`, 1; `../client/web/addresses.md`, 1).
 2. The client signs in by `Transport`: its exchanges are same-origin,
    started by temper's page, so the cookie goes with them whatever site
    the navigation came from.

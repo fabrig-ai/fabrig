@@ -336,7 +336,7 @@ it checks of this document:
   `temper box` on three empty scratch directories writes the
   configuration (`init.md`, 2), says so in its own log (init's line for no browser
   among its lines only from a binary built without one: the test checks the build
-  it runs in, `../../client/web/README.md`, 2.6), and prints one sign-in link,
+  it runs in, `../../client/web/bundle.md`, 1), and prints one sign-in link,
   which signs the owner in, with no forge kept and every group dormant.
   The owner starts the playground with `temper ctl playground start`
   (`../../client/ctl/areas.md`), answered running once its fake forge is

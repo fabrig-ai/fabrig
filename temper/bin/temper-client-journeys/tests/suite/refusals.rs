@@ -1,4 +1,4 @@
-//! Refusals expose positions and kinds alone (client/web/journeys.md, 3.7 and 6).
+//! Refusals expose positions and kinds alone (client/web/journeys-recordings.md, 1.7, and client/web/journeys.md, 6).
 use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::Record as _;
 use skein_lib::{

@@ -2,7 +2,7 @@
 
 Draft, 2026-11-18, from a session with the user. They asked for "an assessment of the situation and how we could turn it into a nice clean story", having seen the journeys conflict between unrelated goals, check too much in, be recorded again without need and run slowly. Their direction, the same day: the printed pages may stay on main "with the constraint that only the writer writes it"; "recording / replay should be as cheap as possible according to the context", so that an agent answering "does what I write match the diff/html in the request" does it "without a full blown process (box or whatever)", through "a world-level client with a renderer"; and a check after landing is enough. The figures are the survey's, on main at `7307b6172b` (`temper/docs/development/journeys-survey-2026-11-18.md`).
 
-It is the journeys' part of what `../codec-shape.md` does for generated code, which leaves recordings aside (`../codec-shape.md`, 5.3). Where they differ, this draft wins over the browser's journeys (`../../client/web/journeys.md`, sections 3 to 8), the TUI's (`../../client/tui/journeys.md`, sections 3 to 10), `../client/journey-clock.md`, `../../client/journey-placeholders.md`, the look requests' steps (`../../client/web/look-requests.md`, 2 to 5) and the drafts `../journey-clock.md`, `../journey-placeholders.md`, `../real-journeys.md` and `../record-anywhere.md`, until its goals fold it into them.
+It is the journeys' part of what `../codec-shape.md` does for generated code, which leaves recordings aside (`../codec-shape.md`, 5.3). Where they differ, this draft wins over the browser's journeys (`../../client/web/journeys-recordings.md`, sections 1 to 2, and `../../client/web/journeys.md`, sections 5 to 8), the TUI's (`../../client/tui/journeys.md`, sections 3 to 10), `../client/journey-clock.md`, `../../client/journey-placeholders.md`, the look requests' steps (`../../client/web/look-requests.md`, 2 to 5) and the drafts `../journey-clock.md`, `../journey-placeholders.md`, `../real-journeys.md` and `../record-anywhere.md`, until its goals fold it into them.
 
 ## 1. In one page
 
@@ -97,7 +97,7 @@ tui mark
 - **An act waits for its control** as a `see` waits for its text, up to the line's bound (`../../client/drive.md`, 3.2).
 - **Nothing is implied in a journey.** The TUI starts at the first `tui` line, not signed in; a walk that needs it signed in says `tui approve`. The browser starts on the page the printed link opens. A recipe's walk keeps its session's own sign-in (`../../client/drive.md`, 3.3): the file's first line, `walk 2` or `recipe 1`, says which holds, and `tui approve` and the marks are a journey's lines alone.
 - **No `ctl`, `forge` or `look` line.** A journey shows what a person does in a client. A state reached another way is a recipe's (`../../client/recipe.md`).
-- **A walk changes with what a person does:** a control renamed, a step added or gone. Whoever changes those words changes the walks that hold them, in the same change, as it changes a test, and prints them (section 7). A recording held through a rename (`../../client/web/journeys.md`, 3.3); a walk does not, and that is the price of a source a person can read.
+- **A walk changes with what a person does:** a control renamed, a step added or gone. Whoever changes those words changes the walks that hold them, in the same change, as it changes a test, and prints them (section 7). A recording held through a rename (`../../client/web/journeys-recordings.md`, 1.3); a walk does not, and that is the price of a source a person can read.
 - **No walk changes for the wire, the exchange, the view's shape or the look.** Two goals that rename different controls of one journey change different lines of its walk, and merge as text. Two that change the same line meet a judgement, as in any source. No conflict in a walk is settled by printing.
 
 ### 3.3 `after`
@@ -140,8 +140,8 @@ tui mark
 
 ### 4.3 By hand, on a deployment
 
-- **The recorder stays** in both clients, switched on as today (`../../client/web/journeys.md`, 3.1; `../../client/tui/journeys.md`, 2). A person records on a deployment or on a box of their own, and saves a file.
-- **`temper-client-journeys print FILE OUT`** takes that file: it redacts it, proves the replay against the saved pages, scans it and prints its pages into OUT, as `add` does today (`../../client/web/journey-redaction.md`; `../../client/web/journeys.md`, 3.7 and 4.3). OUT is laid out as 5.2 has it, and is never under the repository's journeys.
+- **The recorder stays** in both clients, switched on as today (`../../client/web/journeys-recordings.md`, 1.1; `../../client/tui/journeys.md`, 2). A person records on a deployment or on a box of their own, and saves a file.
+- **`temper-client-journeys print FILE OUT`** takes that file: it redacts it, proves the replay against the saved pages, scans it and prints its pages into OUT, as `add` does today (`../../client/web/journey-redaction.md`; `../../client/web/journeys-recordings.md`, 1.7 and 2.3). OUT is laid out as 5.2 has it, and is never under the repository's journeys.
 - **The file is the person's,** never committed, and main holds no journey made from one. Its pages may be drawn on as a hand-made page's are (`../../client/web/look-requests.md`, 2), from wherever they were printed.
 - **Printed by the build that recorded it.** A recording holds one build's wire, so the tool that prints it is built at the deployment's commit. `print` says so, by the layout's name, when it meets another.
 

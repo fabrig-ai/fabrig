@@ -660,7 +660,7 @@ digest are designed (7.4) and not built.
     `LINE` is "1 thing needs you in NAME" or "COUNT things need you in
     NAME", `COUNT` the arrival's `needs` and `NAME` the project's name as
     the core holds it; `N` the project's number, which the browser opens
-    Needs you at (`../../client/web/README.md`, 2.7). Never the
+    Needs you at (`../../client/web/push.md`, 1). Never the
     question's words, its task's title or who asked: the push service
     carries the payload sealed, but a phone shows it on a locked screen.
     A name that would take the payload past skein's `PAYLOAD_BYTES` is

@@ -144,7 +144,7 @@ This document holds across pages, split from [`README.md`](README.md).
   where a person signed in to the browser approves a terminal's sign-in,
   in the browser alone. Its terminal's side is 7.1.
   - *A place of its own,* `Place::Approve { code }`, at `/terminal`
-    (`../web/README.md`, 2.3), beside `Authorize`: no page's address, so the
+    (`../web/addresses.md`, 1), beside `Authorize`: no page's address, so the
     pages and the forge's side are left as at any place that isn't
     theirs (`../README.md`, 3.3), and the frame is the top bar alone (`../view.md`, 1). `code` is an
     `ApprovalCode` (jig's wire), or none. Its state is the root's, in a
@@ -166,11 +166,11 @@ This document holds across pages, split from [`README.md`](README.md).
     machine, its code read from the address. The page keeps whether its
     code came from the address or was typed: a code from the address
     whose read answers `typed` is dropped, the address replaced with
-    `/terminal` as a code that doesn't read is (`../web/README.md`,
-    2.3), and the field shown, empty, with no alert; a typed code whose
+    `/terminal` as a code that doesn't read is (`../web/addresses.md`,
+    1), and the field shown, empty, with no alert; a typed code whose
     read answers `typed` is the ask, waiting.
   - *With no code,* or one the address carried that doesn't read
-    (`../web/README.md`, 2.3), it asks for one: a field named "Code" and
+    (`../web/addresses.md`, 1), it asks for one: a field named "Code" and
     "Check". The field keeps what is typed up to jig's bound on a typed
     code (`CODE_TYPED_BYTES`, 32 bytes), and marks a field typed past
     it; "Check", or Enter, reads it as the address's code is read,
@@ -252,9 +252,9 @@ This document holds across pages, split from [`README.md`](README.md).
     jig's `client/domain/client/README.md`, section 9), draws "Sign in first"
     in place of the pages' signed-out paragraph and sign-in page (`../view.md`, 1).
     An answer of not a browser draws it too: the page's exchanges carry
-    the cookie (`../web/README.md`, 2.4), so the answer says they reached the
+    the cookie (`../web/sign-in.md`, 1), so the answer says they reached the
     engine without it, and the remedy is the same. The printed link's
-    sign-in lands on `/welcome` (`../web/README.md`, 2.4), so the person comes
+    sign-in lands on `/welcome` (`../web/sign-in.md`, 1), so the person comes
     back by the address their terminal shows; a Google deployment prints
     no link, and its "Continue with Google" returns to the approval with
     its code, so a person signing a terminal in there is never stuck

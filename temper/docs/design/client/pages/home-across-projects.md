@@ -10,7 +10,7 @@ This document holds home on All projects, split from [`home.md`](home.md).
   `me` lists them and in its order, the first 16 read (`all_home::ACROSS`)
   and the rest left out. The root, `/`, opens it for a person in two
   projects or more or in none, and a project's Home for one in one
-  (`../web/README.md`, 2.3). It draws in the open project's frame, as `Inbox`
+  (`../web/addresses.md`, 1). It draws in the open project's frame, as `Inbox`
   does: the rail and the tab bar are the open project's, or with none open
   `me`'s first project's, "Home" current (`../view.md`, 3). Going to it opens no
   project and moves none. With no project in `me` it draws its intro

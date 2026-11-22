@@ -288,6 +288,25 @@ forge, temper adds:
   Its documents go by surface (the user, 2026-11-07): what is generic
   to the client in `client/` itself, the browser's in `client/web/`, the
   TUI's in `client/tui/`, and `temper ctl`'s in `client/ctl/`.
+  - `client/web/README.md`: the browser shell overview.
+  - `client/web/shell.md`: the browser shell and host.
+  - `client/web/serving.md`: serving the page and bundle.
+  - `client/web/addresses.md`: addresses and navigation.
+  - `client/web/sign-in.md`: signing in.
+  - `client/web/bundle.md`: the bundle in the binary.
+  - `client/web/push.md`: push notifications.
+  - `client/web/gallery.md`: the gallery and its tests.
+  - `client/web/gallery-project-states.md`: project and settings states.
+  - `client/web/gallery-journey-states.md`: journey and interaction states.
+  - `client/web/look.md`: the shared look.
+  - `client/web/look-welcome.md`: the welcome's look.
+  - `client/web/look-settings.md`: settings and accounts' look.
+  - `client/web/look-chats.md`: chats and their documents' look.
+  - `client/web/look-ways.md`: ways of working's look.
+  - `client/web/journeys.md`: journey walks and prints.
+  - `client/web/journeys-recordings.md`: recording and replaying journeys.
+  - `client/journey-walks.md`: a journey's walk.
+  - `client/journey-walks-world.md`: executing a walk in a world.
   - `client/pages/README.md`: the pages' overview, reads and deferred checks.
   - `client/pages/address-contracts.md`: the pages' addresses, watches, reads and acts.
   - `client/pages/shared-behaviour.md`: task titles, Away and terminal approval across pages.

@@ -28,7 +28,7 @@ This document holds the terminal inbox, split from [`needs-you.md`](needs-you.md
   root, so a milestone's holds every need under its goals.
   The project menu holds All projects and each project; the goal menu holds
   All goals and the Goal field; Kind holds All kinds and each kind. A choice
-  moves to the filtered inbox's address and folds its menu (`../web/README.md`, 2.3).
+  moves to the filtered inbox's address and folds its menu (`../web/addresses.md`, 1).
 - **A card that needs the person** begins with its kind's tag, then
   "PROJECT › TN TITLE", for its own task alone, and its wait at the right
   (`../view.md`, 6). A proposal holds no proposing task's title, so its line stops at

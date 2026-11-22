@@ -175,8 +175,8 @@ binary (`jig-test`).
 | the setup host | skein's in-process host for the setup's plans, a child of the engine's protocol layer (forge/engine.md, 6) |
 | the forge's client family | temper's client side of the forge connector: its words, and the adoption form (`../client/forge/family.md`) |
 | the terminal shell | `temper-client-shell-terminal` (`../client/line.md`) |
-| the browser shell | `temper-client-shell-web` (`../client/web/README.md`, 2.1) |
-| the bundle | the browser shell's module, glue and stylesheets, skein's bundler's output, which the binary holds and the clients' listener serves (`../client/web/README.md`, 2.2 and 2.6) |
+| the browser shell | `temper-client-shell-web` (`../client/web/shell.md`, 1) |
+| the bundle | the browser shell's module, glue and stylesheets, skein's bundler's output, which the binary holds and the clients' listener serves (`../client/web/serving.md`, 1, and `../client/web/bundle.md`, 1) |
 | the tools | the agents' interface to temper, `temper ctl`: `temper-client-tools` and `temper-client-shell-cli` (`../client/ctl/README.md`, section 4) |
 | the clients' listener | `temper-engine-service`'s listener for clients, on which jig's clients' component is mounted with jig's default HTTP mapping, under `/jig` (`../client/engine.md`) |
 | the fake git program | git as the worker runs it, faked: its core `crates/temper-fake-git`, `temper-box fake git`, and its hosted half `crates/temper-fake-git-hosted` (`../testing/fakes.md`, 3) |

@@ -429,12 +429,12 @@ playground and no Forgejo on this machine.
     forge is set up until the person asks, so the person's login is
     never a reason the first run does not start;
   - *the bundle:* none to find. `clients.bundle` is always `null`, the
-    binary's own (`../../client/web/README.md`, 2.6): a temper built with its
+    binary's own (`../../client/web/bundle.md`, 1): a temper built with its
     browser starts its first run with it. From a binary built without
     one (`TEMPER_INTERNAL_BUNDLE=none`), init says the browser is not served;
     the link still signs in a terminal (`temper-box open`), and a browser
     that opens it is answered the clients' listener's page for no
-    bundle (`../../client/web/README.md`, 2.2), never a bare `404`;
+    bundle (`../../client/web/serving.md`, 1), never a bare `404`;
   - *the clients' listener's port:* 8367, when a socket binds
     `127.0.0.1:8367`, else the port the kernel assigns to a bind of port
     0; the port written fixed, as GitHub requires (`github.md`, 1). A later start on a port taken is

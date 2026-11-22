@@ -12,7 +12,7 @@
   - *Opened any other way,* its composer asks for nothing. From a list or a
     link, a new entry, the chat opens on its heading, so that a person reading
     with a screen reader or the keyboard lands on what the page is, though the
-    heading is drawn after the page (`../../web/README.md`, 2.3). An address, a reload,
+    heading is drawn after the page (`../../web/addresses.md`, 1). An address, a reload,
     Back and Forward make no new entry, and take the focus to no heading
     (skein's `ui/web/README.md`, 5).
   - *After a send,* by Enter or by "Send", whether or not it went out, the focus

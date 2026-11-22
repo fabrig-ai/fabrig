@@ -278,7 +278,7 @@ view tables hold these rules; the gallery's `start-goal` draws the sheet.
   leaving that judgement to it. The rail's watch opens while a project's frame shows, not once signed
   in: the rail alone reads it. No reason for keeping it closed until a
   project's frame is recorded. Bare `/inbox` is `/`, the Inbox's unfiltered address
-  (`../web/README.md`, 2.3). The dots are a figure, not `role=img`: skein-ui's
+  (`../web/addresses.md`, 1). The dots are a figure, not `role=img`: skein-ui's
   `Role::Image` is an image, with no children. Money reads "S of L used", not "$S
   of $L": the contract's units aren't dollars, and the request also asks the task
   page's form, which has none. Leave held takes its reason in a disclosure, as
@@ -417,4 +417,3 @@ geometry, with no passing runtime result supplied here (`../web/testing.status.m
   available acts and supplied values rather than the mock's local-only
   operations. Their extra rows and controls change the pages' lengths at
   laptop and phone widths; they are not stylesheet differences.
-

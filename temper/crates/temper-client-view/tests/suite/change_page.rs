@@ -565,7 +565,7 @@ mod tests {
     }
 
     // client/pages/task.md 3: the change's words are the forge table's;
-    // client/web/README.md 2.4 / README 6: both supported shells show the same panel facts.
+    // client/web/sign-in.md 1 / README 6: both supported shells show the same panel facts.
     #[test]
     fn terminal_and_browser_words_show_the_panel_at_the_domain_text_bound() {
         let (root, _) = show(panel_parts(w::Step::Gating));

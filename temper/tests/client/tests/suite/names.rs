@@ -33,7 +33,7 @@ fn client_crates_carry_the_client_prefix() {
             "temper-playground-page",
             "temper-playground-world",
             // The native journey world composes the service and box peer
-            // (temper/docs/design/client/journey-walks.md, 3.2 and 4.4).
+            // (temper/docs/design/client/journey-walks.md, 3.2, and temper/docs/design/client/journey-walks-world.md, 1.4).
             "temper-client-walk-world",
         ],
     );

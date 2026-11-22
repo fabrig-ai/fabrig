@@ -58,7 +58,7 @@ routes `/forges/N/github/...`, N a number in decimal, then serves the
 browser's bundle. GitHub sends the person's browser to them, and
 nothing of temper's client calls them. Every other path, the client's
 `/forges` and `/forges/connect` among them, is the bundle's
-(`../web/README.md`, 2.3).
+(`../web/addresses.md`, 1).
 
 | Route | What it does | Answers |
 |---|---|---|
