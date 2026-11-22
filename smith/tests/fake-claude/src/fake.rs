@@ -276,6 +276,9 @@ impl Fake {
                         self.observation.push(&bytes);
                     }
                 }
+                Effect::Fault(fault) => {
+                    self.effects(vec![Effect::Seen(crate::Seen::Fault { fault, at_nanos: self.now.as_nanos() })]);
+                }
                 Effect::Seen(seen) => {
                     let value = match seen {
                         crate::Seen::Selected { .. } => serde_json::json!({"selection": seen}),

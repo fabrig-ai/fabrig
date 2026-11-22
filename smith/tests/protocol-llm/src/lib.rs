@@ -2,6 +2,7 @@
 pub mod client_peer;
 pub mod codec;
 mod component_backend;
+mod faults;
 pub mod fixture;
 pub mod pool_peer;
 pub mod referee;

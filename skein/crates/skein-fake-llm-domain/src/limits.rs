@@ -94,6 +94,7 @@ pub(crate) fn scripts(scripts: &[Script]) -> Option<u64> {
             total = total.checked_add(array(turn.lines.len(), size_of::<Line>())?)?;
             for line in &turn.lines {
                 let owned = match line {
+                    Line::Cut { .. } => u64::try_from(size_of::<crate::respond::Cuts>()).ok()?,
                     Line::Pieces { pieces } => {
                         let mut owned = array(pieces.len(), size_of::<Piece>())?;
                         for piece in pieces {
@@ -157,7 +158,7 @@ pub(crate) fn scripted_answer(turn: &Turn) -> Option<u64> {
             Line::Fail { report, credentials, .. } => {
                 report_bytes(report)?.checked_add(array(credentials.len(), size_of::<u32>())?)?
             }
-            Line::Take { .. } => {
+            Line::Take { .. } | Line::Cut { .. } => {
                 total = total.checked_sub(u64::try_from(size_of::<Part>()).ok()?)?;
                 0
             }

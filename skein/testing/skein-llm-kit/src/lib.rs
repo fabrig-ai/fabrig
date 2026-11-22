@@ -390,6 +390,7 @@ impl World {
 
 /// Shared actual-client/byte-peer world; applications supply only schemas and scripts.
 pub mod fake;
+pub mod faults;
 
 /// Names of request-head fields that contain the supplied fixture value.
 #[must_use]
