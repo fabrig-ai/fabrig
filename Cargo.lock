@@ -2502,6 +2502,8 @@ dependencies = [
 name = "jig-test-connector-world"
 version = "0.0.0"
 dependencies = [
+ "jig-core-kit",
+ "jig-domain-core",
  "jig-test-connector",
  "jig-test-connector-kit",
  "jig-test-store",
@@ -6929,6 +6931,7 @@ dependencies = [
  "temper-engine-domain-forge-issues",
  "temper-engine-domain-forge-landing",
  "temper-engine-domain-forge-tiers",
+ "temper-engine-domain-limits",
  "temper-engine-domain-room",
  "temper-engine-domain-store",
  "temper-engine-domain-translate",
@@ -7033,6 +7036,24 @@ dependencies = [
  "temper-engine-domain-forge-landing",
  "temper-engine-domain-forge-tiers",
  "temper-protocol-reaches",
+]
+
+[[package]]
+name = "temper-engine-domain-limits"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-accounts",
+ "jig-domain-authority",
+ "jig-domain-brief",
+ "jig-domain-core",
+ "jig-domain-fleet",
+ "jig-domain-notes",
+ "jig-domain-people",
+ "jig-domain-tasks",
+ "jig-domain-views",
+ "skein-lib",
+ "temper-engine-domain-forge",
+ "temper-engine-domain-store",
 ]
 
 [[package]]
@@ -7524,6 +7545,7 @@ dependencies = [
  "temper-protocol-store",
  "temper-protocol-worker-wire",
  "temper-service",
+ "temper-service-core",
  "temper-service-shell",
  "temper-shell",
  "temper-test-env",

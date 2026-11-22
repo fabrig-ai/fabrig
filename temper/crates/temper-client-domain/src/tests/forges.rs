@@ -155,6 +155,7 @@ pub(super) fn wire_connection_row(
         .push(w::Adoption { owner: b"acme".as_slice().into(), name: b"app".as_slice().into(), project: 7 })
         .unwrap();
     w::ForgeRow {
+        catching_up: None,
         starts_with: w::StartsWith::Repository,
         host: b"git.example:3000".as_slice().into(),
         makings: List::with_capacity(0),
@@ -203,6 +204,7 @@ fn every_connection_decodes_into_the_forges_words() {
         let number = u16::try_from(index + 1).unwrap();
         records.push(wire_connection_row(number, kind, mode, connection, offer, fixture_wire_owned(m))).unwrap();
         let row = Row {
+            catching_up: None,
             starts_with: forge::forges::StartsWith::Repository,
             makings: Box::new([]),
             host: b"git.example:3000".as_slice().into(),
@@ -245,6 +247,7 @@ fn every_connection_decodes_into_the_forges_words() {
 #[test]
 fn the_offer_drives_the_manual_words_and_setup_actions() {
     let mut row = Row {
+        catching_up: None,
         starts_with: forge::forges::StartsWith::Repository,
         makings: Box::new([]),
         host: b"git.example:3000".as_slice().into(),
@@ -429,6 +432,7 @@ fn an_out_of_order_document_is_refused() {
     for number in [3, 1] {
         forges
             .push(w::ForgeRow {
+                catching_up: None,
                 starts_with: w::StartsWith::Repository,
                 makings: List::with_capacity(0),
                 host: b"git.example:3000".as_slice().into(),
@@ -502,6 +506,7 @@ fn first_repository_decodes_each_state_and_creation_step() {
         let mut forges = List::with_capacity(1);
         forges
             .push(w::ForgeRow {
+                catching_up: None,
                 starts_with: w::StartsWith::Repository,
                 makings: List::with_capacity(0),
                 host: b"git.example:3000".as_slice().into(),
@@ -570,6 +575,7 @@ fn installation_accounts_flags_and_connect_ends_survive_client_decode() {
     let mut forges = List::with_capacity(1);
     forges
         .push(w::ForgeRow {
+            catching_up: None,
             starts_with: w::StartsWith::Repository,
             makings: List::with_capacity(0),
             host: b"git.example:3000".as_slice().into(),
@@ -625,6 +631,7 @@ fn admin_form_and_typed_stops_survive_client_decode() {
             let mut forges = List::with_capacity(1);
             forges
                 .push(w::ForgeRow {
+                    catching_up: None,
                     starts_with: w::StartsWith::Repository,
                     makings: List::with_capacity(0),
                     host: b"git.example:3000".as_slice().into(),

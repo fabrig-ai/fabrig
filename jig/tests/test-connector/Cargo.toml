@@ -19,6 +19,8 @@ jig-test-system.workspace = true
 skein-lib.workspace = true
 
 [dev-dependencies]
+jig-core-kit.workspace = true
+jig-domain-core.workspace = true
 skein-codegen.workspace = true
 jig-test-store.workspace = true
 sha2.workspace = true

@@ -138,6 +138,19 @@ pub(crate) fn cancel_tree(
     reason: &[u8],
     out: &mut Queue<Request>,
 ) {
+    end_tree(domain, env, ancestor, by, reason, None, out);
+}
+
+/// Close the same subtree as cancellation, optionally giving its root a different ending.
+pub(crate) fn end_tree(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    ancestor: u64,
+    by: Party,
+    reason: &[u8],
+    ending: Option<Ending>,
+    out: &mut Queue<Request>,
+) {
     let mut selected = List::with_capacity(env.limits.tasks);
     for (number, _) in &domain.names {
         if below(domain, *number, ancestor, env.limits.tasks) {
@@ -157,7 +170,12 @@ pub(crate) fn cancel_tree(
                 continue;
             }
             let attempt = crate::run::run_attempt(&old.phase);
-            let closing = cancelled(&old.phase, by, env.wall, reason);
+            let mut closing = cancelled(&old.phase, by, env.wall, reason);
+            if *number == ancestor
+                && let Some(ending) = &ending
+            {
+                closing.ending = ending.clone();
+            }
             let stage = closing.stage;
             let ending = closing.ending.clone();
             task_mut(domain, *number).expect("selected task live").record.phase = Phase::Closing(closing);

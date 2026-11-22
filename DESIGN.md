@@ -42,7 +42,7 @@ A draft being carried out may have an execution file beside it, `<name>.executio
 - Documents and sections move with `tools/citations/move.py`, from a map of where each goes: it moves the text and rewrites every citation to match, so sections are renumbered freely through it (`tools/citations/README.md`). Whoever moves one repairs what the tool lists under **By hand**. A section removed outright leaves its number unused, and whoever removes it fixes every citation to it.
 - Citations are checked by code, not by hand: a branch with a broken path, section or status-label citation does not land (`tools/citations/`). Before pushing, run `python3 -I -B tools/citations/citations.py --base origin/main` from the repository root, which lists each broken one by file and line, and spend no review on hunting them.
 - A draft's reasons go beside it, as `<draft>.notes.md` (`test-budgets.notes.md`, for one), and go with it. `draft/notes.md` keeps older drafts' reasons until they move beside their drafts, and takes no new ones. Reviews, reports and debt inventories go in the tree's `docs/development/`, never in `docs/design/`.
-- No goal writes a tree's `docs/design/STATUS.md`: a gap goes in its document's status file. The page becomes a fixed one, saying where the status files are and how to roll them up (`temper/docs/design/draft/design-upkeep.md`, 3).
+- Each tree's `docs/design/STATUS.md` is the fixed page `tools/citations/status.py --page TREE` prints: where the status files are and how to roll them up. No goal writes it: a gap goes in its document's status file (`tools/citations/README.md`). At a merge the fixed page stands and any other page text is dropped, since the branch's own status files hold its gaps.
 
 ## 5. Their shape
 

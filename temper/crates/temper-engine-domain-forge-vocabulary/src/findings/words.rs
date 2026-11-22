@@ -100,6 +100,14 @@ pub fn news_words(row: &forge::Finding, hand: bool, limit: u32) -> Box<[u8]> {
         None => append(&mut out, b"no area"),
     }
     append(&mut out, b"\n");
+    if hand
+        && row.hander.is_none()
+        && let Some(why) = &row.why
+    {
+        append(&mut out, b"Back: ");
+        append(&mut out, why);
+        append(&mut out, b"\n");
+    }
     if hand && let (Some(by), Some(why)) = (row.hander, &row.why) {
         append(&mut out, b"Handed on by ");
         match by {

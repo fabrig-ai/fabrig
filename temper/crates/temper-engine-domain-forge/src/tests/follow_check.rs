@@ -99,7 +99,7 @@ fn a_follow_gate_at_registration_names_its_limit() {
 fn advance(d: &mut Domain, row: &mut ChangeRow) -> Action {
     check::advance(d, &env(), row, fixtures::HEAD, &mut Queue::uncapped())
 }
-fn keyed(d: &mut Domain, row: &mut ChangeRow) {
+pub(super) fn keyed(d: &mut Domain, row: &mut ChangeRow) {
     assert!(matches!(advance(d, row), Action::Read { kind: ReadKind::Tree(1), .. }));
     let action = check::answered(
         d,

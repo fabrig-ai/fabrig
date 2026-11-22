@@ -181,13 +181,12 @@ fn refuses_before_switch(mut world: World) {
     assert_eq!(world.store.generation_contents(b"generations/1"), source);
     assert_eq!(world.store.file_bytes(b"generations/2/manifest"), None);
     assert_eq!(world.assignments, assignments);
-    assert!(!world.restart_steps.iter().any(|step| matches!(
-        step,
-        core::start::Phase::Switch
-            | core::start::Phase::AdoptRuns
-            | core::start::Phase::ReadAfresh { .. }
-            | core::start::Phase::SettleOutbox { .. }
-    )));
+    assert!(
+        !world
+            .restart_steps
+            .iter()
+            .any(|step| matches!(step, core::start::Phase::Switch | core::start::Phase::AdoptRuns))
+    );
     world.store.crash(f::SEED).expect("crash readback");
     assert_eq!(world.store.applied, last);
     // Compare the recovered files, including every map, at the same sets.

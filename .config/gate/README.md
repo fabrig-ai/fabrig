@@ -119,10 +119,10 @@ Each list has one entry per line; `#` starts a comment line.
   selecting the packages a change reaches runs these too. The branch adding such
   a test adds its package; adding a line runs that package's tests for every change.
   A line `PACKAGE PATH-PREFIX` runs them only for a change to a path that starts with
-  the prefix, as written: for a test whose reads all lie under it. The delivery
+  the prefix, as written: for a test whose reads all lie under it. The full CI
   check reads the list too (`tools/pre-pr/design.md`, 3): a line without a prefix
   is a boundary package, whose focused and fuzzy tests run, with
-  `fabrig-boundary`'s, for every delivery that selects a check, a docs-only one
+  `fabrig-boundary`'s, for every full check that selects packages, a docs-only one
   included; a prefixed line adds its package where a changed code input starts
   with the prefix.
 - **`.config/gate/read-by-tests.txt`:** checkout-root globs of the inputs, under
@@ -174,13 +174,11 @@ Each list has one entry per line; `#` starts a comment line.
 
 ## The repository's hooks and fixture readers
 
-- **`.temper/pre-pr`:** the format check and each tree's old-forms counts at
-  delivery, then clippy on changed packages and focused tests, one process per binary
-  (`tools/tiers/one-process default`), on them, their direct dependents and
-  prefixed path readers, against `refs/temper/landing`'s
-  merge base. A lint or test failure the goal's reds in `temper/reds` name, and an
-  exceeded count or citation the base has too, refuses nothing; without a
-  base, the first two checks alone (`tools/pre-pr/design.md`, 1–9).
+- **`.temper/pre-pr`** runs the applicable format, counted-baseline, citation,
+  outward-name, journey and budget-figure checks on every worker delivery.
+  Builds and tests run in CI. The full repository checker accepts the candidate
+  and destination commit IDs as `.temper/goal-pre-pr HEAD DESTINATION`
+  (`tools/pre-pr/design.md`, 1–4).
 - **`.temper/merge`:** the reference's merge job, `tools/merge/merge.py`
   (`temper/docs/design/protocol/tooling.md`, 4.1).
 - **`.temper/close`:** fabrig's close command, `tools/close/close.py`

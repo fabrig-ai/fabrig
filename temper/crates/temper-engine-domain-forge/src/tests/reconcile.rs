@@ -625,7 +625,7 @@ fn a_restored_tier_whose_task_is_absent_drops_its_run_before_linking() {
     assert!(tiers::row(&d).record.run.is_none());
     assert!(tiers::row(&d).task.is_none());
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    let out = outputs(&mut d, Event::ReadAfresh);
+    let out = outputs(&mut d, Event::CatchUp);
     assert!(out.iter().any(|request| matches!(request,
         Request::Save { record: Stored::Tier(row), .. }
             if row.task.is_none() && row.record.run.is_none() && row.record.sequence == 1)));
