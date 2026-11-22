@@ -181,6 +181,11 @@ pub struct SavedToken {
 }
 
 // Record: SavedToken.
+impl SavedToken {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 65;
+}
+
 impl Record for SavedToken {
     type Limits = Limits;
     const TAIL: Path = paths::SAVED_TOKEN_TAIL;

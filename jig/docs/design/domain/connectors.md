@@ -91,7 +91,8 @@ application root            routes between the core and every connector
   | adopt this resource into this project | adopted, with what may be done there and the parties it knows; refused |
   | release this project, being deleted, its tasks erased: drop what you keep of its adoptions and of your kinds' settings in its scope (people/acts.md, 2); asked again at each start until answered | released, once that has committed; at once when nothing is kept |
   | an act's answer, under its key, once durable | an act in the deployment's name, under a key of its own: a person's conversation closed, the deployment's key added or account removed, one of its resources adopted, a project made or deleted (people/acts.md, 3) |
-  | restart: restore these records; read afresh; settle the outbox | done |
+  | restart: restore these records | done |
+  | catch up, from the opening: read afresh and settle the outbox | each half's report, its fresh reads in and its outbox settled |
 
 - **Tasks are named by number.** The connector keeps the numbers of the
   tasks it serves as plain values; it never sees a task. What it projects
@@ -392,7 +393,11 @@ bound: a restart can have more fresh reads under way than closing tasks.
   history.
 - **Kept up** by reading what changed, sooner when a hint arrives, with
   polling as the backstop, at a cost that follows the rate of change.
-- **Read afresh** before a decision depends on a fact: a procedure's step
+- **Read afresh** before a decision depends on a fact, after a restart
+  as at any time: a decision on a resource still waiting for its first
+  fresh read waits for that read, or for the connector's fresh reads
+  (section 14), a resource at a time, and a restart adds no barrier of
+  its own. A procedure's step
   reads what its decision needs, and a judge reads what its verdict
   needs (section 7).
 
@@ -882,16 +887,32 @@ asks for each step:
    stored (section 17); its live resources, its procedures' states and
    parameters, its outbox, its projections' states, what it made by key,
    and its own state, loaded from its live ranges;
-2. **a fresh read:** it reads afresh what its system owns of its live
-   resources, within its budget, before any of its procedures steps;
-3. **its outbox to settle:** it looks for every entry not committed as
-   made, by its key or the state it leads to (4.3);
-4. **its acts to send again:** each act in the deployment's name it
+2. **its catching up, at the opening** (`Ask::CatchUp`), once the
+   engine's own records are in and its runs adopted, its two halves
+   together while the engine serves:
+   - **a fresh read:** it reads afresh what its system owns of its live
+     resources, within its budget; it reports `RestartStage::ReadAfresh`
+     once every fresh read has answered, and from then on its **fresh
+     reads are in**;
+   - **its outbox to settle:** it hands its restored entries to its
+     outbox before any entry made since, and looks for every entry not
+     committed as made, by its key or the state it leads to (4.3); it
+     reports `RestartStage::Settled` once each has been looked at once;
+   it has **caught up** once both reports are made, and the core records
+   them (engine/restart.md, *The start's interface*). Nothing bounds it:
+   a system that stays down keeps it catching up while the engine
+   serves;
+3. **its acts to send again:** each act in the deployment's name it
    keeps unanswered, sent again under its key once the core is ready,
    answered from its saved answer when it was made (people/acts.md, 3).
 
-Then, as decisions open, it steps each of its procedures once, on what
-it read. Nothing it held in memory before the restart is needed.
+From the opening its procedures step as their wakes come. A decision
+on a fact its system owns waits for that fact's first fresh read, or for
+its fresh reads where the procedure names no read of its own (5.1); a
+write waits for the entries before it on its lane, the restored ones
+among them, and a write on another lane goes ahead (4.2). Nothing it
+held in memory before the restart is needed, and nothing is judged
+from what the store held alone.
 
 Restoration reports each stored adoption to the core through
 `Event::Adopted`, with its project, stable name, role and home flag.
@@ -899,17 +920,14 @@ The reference connector also emits `Request::Resource` to rebuild the
 core's hold report. These reports ask for no external action. Restoration
 makes no new effect or write.
 
-- **A restart reports completion after every refresh and the outbox
-  settle.** `read_afresh_complete` requires all fresh reads to finish
-  before their restart stage reports done; `outbox_settled` requires
-  every uncertain entry to settle before the outbox stage reports done.
-  The ops world holds this under load in `jig-ops-world`,
-  `connector_checks::observability_orders::a_restart_reports_only_after_every_refresh_settles`
-  and
-  `connector_checks::infrastructure_orders::a_restart_reports_only_after_every_refresh_settles`.
-  The reference connector world holds the root's fresh-read ordering
-  and the connector's outbox completion in `jig-test-connector-world`,
-  `restart_orders::a_restart_reports_only_after_every_refresh_settles`.
+- **Catching up reports each half once it has ended.** The fresh reads'
+  report waits for every fresh read to answer; the settle's for every
+  uncertain restored entry to have been looked at once. Neither waits
+  for the other, and the engine is open before both. The ops world
+  (`jig-ops-world`, its connector checks) and the reference connector
+  world (`jig-test-connector-world`, its restart orders) hold this
+  under load: each half reported only once it has ended, and the engine
+  open before either.
 
 ## 15. The world
 

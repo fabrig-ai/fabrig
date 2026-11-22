@@ -3,7 +3,7 @@ use super::{BTreeSet, Commit, Key, Record, World, forge, proof, tasks};
 use std::collections::BTreeMap;
 
 #[derive(Default)]
-pub(super) struct Referee {
+pub(in crate::fuzzy) struct Referee {
     pub moves: Vec<(Commit, bool)>,
     landed: BTreeMap<u64, Vec<Commit>>,
     order: Vec<Commit>,

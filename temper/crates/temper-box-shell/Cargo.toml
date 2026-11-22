@@ -60,8 +60,10 @@ jig-protocol-store.workspace = true
 temper-protocol-store.workspace = true
 skein-fake-forge-domain.workspace = true
 skein-kv.workspace = true
+serde_json.workspace = true
 
 [dev-dependencies]
+temper-box-kit.workspace = true
 temper-service-core.workspace = true
 temper-limits-fixtures.workspace = true
 jig-protocol-config-fixtures.workspace = true
@@ -85,7 +87,6 @@ jig-protocol-config.workspace = true
 skein-world.workspace = true
 jig-channel-kit.workspace = true
 skein-tls-kit.workspace = true
-serde_json.workspace = true
 
 [lints.rust] # binary: tools/lints/design.md, 2.2
 unsafe_code = "forbid"

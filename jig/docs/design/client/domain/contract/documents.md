@@ -8,6 +8,11 @@
 - **jig's documents:**
   - *`me`:* the signed-in party's own document, always about whoever the
     credential belongs to: the party (number, kind, login and name);
+    when the sign-in reading it expires, `sign_in_expires: Wall`, its
+    saved wall expiry, by which it ends unless signed out sooner, set by
+    the clients' component for each exchange from the sign-in it checked
+    (the wire's `Me`, `sign_in_expires: u64`, from jig's client wire 43,
+    as `SignedIn`'s `expires`), so that a party sees its end coming;
     their projects, each with its number and its name, which every
     project has and no other project of the deployment shares
     (`../../../domain/model.md`, 6.1), its public identifier while it is

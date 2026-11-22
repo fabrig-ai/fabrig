@@ -31,8 +31,8 @@ fn world(head: Commit) -> (Domain, Env<Limits>) {
     e.limits.client.settle = Duration::from_secs(30);
     let mut out = Queue::uncapped();
     step(&mut d, &e, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic }, &mut out);
-    step(&mut d, &e, Event::ReadAfresh, &mut out);
-    step(&mut d, &e, Event::SettleOutbox, &mut out);
+    step(&mut d, &e, Event::CatchUp, &mut out);
+
     let mut row = fixtures::opening_row();
     row.pending = None;
     row.change.state = change::State::Checking { head: fixtures::HEAD };

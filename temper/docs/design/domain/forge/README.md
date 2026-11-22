@@ -10,7 +10,8 @@ queue among them; updates and conflicts; issues; following another
 project's branch (`follows.md`); depending on another project
 (`dependencies.md`); a goal's reds, the failures its branch carries
 (`reds.md`); the outbox's room, and the line of writes waiting for it
-(`room.md`); and the ways temper takes part in what
+(`room.md`); catching up after a restart, while the engine serves
+(`catching-up.md`); and the ways temper takes part in what
 others own. Its protocol layer, the component that
 makes each call to a forge and hears its deliveries, is
 `../../protocol/forge/README.md`. What is still open is listed in section 11.
@@ -683,11 +684,16 @@ its reads and entries answer `NotConnected`, which narrows nothing
 (`adoption.md`, 1), so the steps below run on each forge as it connects. Before its
 records, the connector loads its kinds' values from its family
 `Setting`, is given the stock defaults and says which differ (`change/gates.md`, 3), so a
-restored change is judged by the rules as they are. temper's steps:
+restored change is judged by the rules as they are. The engine opens
+once these records are in and its runs adopted; the forge then catches
+up while it serves (`catching-up.md`): steps 1 and 2 run together from
+the opening, and each decision waits as `catching-up.md`, 4, says.
+temper's steps:
 
 1. it reads afresh each repository's landing branches' tips and each
    live pull request (head, state, mergeability, CI, its place in a
-   forge's merge queue), before any change steps;
+   forge's merge queue), and a change decides nothing on a fact of
+   these before its own read of it;
 2. it settles its outbox, each entry as its class says (section 4): a
    pull request found by its branches, a merge by its pull request's
    state (merged, in the forge's merge queue, or neither), a creation by

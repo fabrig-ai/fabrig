@@ -66,9 +66,11 @@ pub(crate) fn route(outcome: &Outcome) -> Route {
                     Route::Other
                 }
             }
-            Made::MovingOut { .. } | Made::Service { .. } | Made::PersonResult { .. } | Made::Note { .. } => {
-                Route::Other
-            }
+            Made::MovingOut { .. }
+            | Made::Service { .. }
+            | Made::Reissued { .. }
+            | Made::PersonResult { .. }
+            | Made::Note { .. } => Route::Other,
         },
         Outcome::WorkerPauseAsked { .. }
         | Outcome::Account(_)

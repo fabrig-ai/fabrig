@@ -290,6 +290,7 @@ impl Words {
                     &[Hole::Number(u64::from(*account)), Hole::Number(u64::from(*number))],
                 ),
                 Made::Service { party } => self.text(b, JigPhrase::MadeService, &[Hole::Number(*party)]),
+                Made::Reissued { party } => self.text(b, JigPhrase::ReissuedService, &[Hole::Number(*party)]),
                 Made::PersonResult { task } => self.text(b, JigPhrase::MadeResult, &[Hole::Number(*task)]),
                 Made::Note { note, .. } => self.text(b, JigPhrase::MadeNote, &[Hole::Number(*note)]),
             },

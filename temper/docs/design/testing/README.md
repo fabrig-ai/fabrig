@@ -6,7 +6,8 @@ faults, what every fake shares, what every world checks, scenarios and
 the referee, the two suites, and where a failure is fixed. This document
 keeps what is temper's: its tiers (section 2), its neighbours and their
 fakes (`README.md`, section 3 and `fakes.md`), its scenarios, referee and its case library
-(`README.md`, section 4), what its worlds check beyond the strategy (`checks.md`), its
+(`README.md`, section 4), what its worlds check beyond the strategy (`checks.md`; the
+worker's waits, disk and faults, `worker.md`), its
 layout (`README.md`, section 5), its tools and fixtures as binaries (`tools.md`), what
 macOS tests (`macos.md`), QA after landing beside the deployment (`qa/README.md`), and what
 is still open (`README.md`, section 6).
@@ -18,8 +19,8 @@ is still open (`README.md`, section 6).
   own; the system world runs the real engine and worker together, with
   smith's agents.
 - **Below the domain, one tier per layer it adds:** step tests of every
-  codec and translation with built-value round trips, records drift and
-  pinned constructs, and each parser against transcripts of real peers; machine worlds of the forge component, the git component
+  codec and translation with built-value round trips and records drift,
+  and each parser against transcripts of real peers; machine worlds of the forge component, the git component
   and the terminal shell; the forge's protocol world; temper's client
   joined to the engine's root; the one-process world on skein's
   simulator; the real-loop world on one ring; reconcile's world; the
@@ -62,7 +63,7 @@ is still open (`README.md`, section 6).
 
 | Tier (skein/docs/foundation/testing-strategy.md, section 2) | In temper |
 |---|---|
-| step tests | every domain crate and every fake; every codec (records drift, pinned constructs, built-value round trips, bounds, fuzz targets) and each translation both ways; git's argument and environment builders, and git's output parsers against transcripts of real git (../protocol/git.md, section 9); Forgejo's decoders, skein's, against the conformance's transcripts (skein's `forge/README.md`, section 9), and GitHub's, skein's (skein's `forge/github.md`); the forges' records and a git identity's value, built-value round trips and fuzz targets (../protocol/forge/engine.md, 1; ../protocol/credentials.md, section 4); `temper-service`'s routing of the forges: start, connect, stop, installations, generations and pasted values, and GitHub's three routes on the clients' listener (../protocol/forge/README.md, section 9; 2.1); the setup's machines, files and specs, and the box's machine (../protocol/setup/testing.md, 1); lib's are skein's |
+| step tests | every domain crate and every fake; every codec (records drift, built-value round trips, bounds, fuzz targets) and each translation both ways; git's argument and environment builders, and git's output parsers against transcripts of real git (../protocol/git.md, section 9); Forgejo's decoders, skein's, against the conformance's transcripts (skein's `forge/README.md`, section 9), and GitHub's, skein's (skein's `forge/github.md`); the forges' records and a git identity's value, built-value round trips and fuzz targets (../protocol/forge/engine.md, 1; ../protocol/credentials.md, section 4); `temper-service`'s routing of the forges: start, connect, stop, installations, generations and pasted values, and GitHub's three routes on the clients' listener (../protocol/forge/README.md, section 9; 2.1); the setup's machines, files and specs, and the box's machine (../protocol/setup/testing.md, 1); lib's are skein's |
 | domain worlds | each child domain with the world as its parent, and each component's root domain with its child domains; most of temper's tests |
 | system worlds | the engine, the worker and smith's agents together; temper's client joined to the engine's root (2.1) |
 | machine worlds | the git component against scripted process ends and outputs; the terminal shell's loop against a scripted stdin and stdout; skein's, for the machines it ships, the forge component among them (skein's `forge/connection.md`, section 10) |

@@ -552,6 +552,7 @@ fn random_changes(rng: &mut Rng) -> Option<w::ChangesPanel> {
         .expect("eight rows");
     }
     Some(w::ChangesPanel {
+        catching_up: None,
         project: 1,
         landing: b"main".as_slice().into(),
         queues: List::with_capacity(0),

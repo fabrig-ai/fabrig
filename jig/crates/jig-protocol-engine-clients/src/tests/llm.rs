@@ -56,7 +56,7 @@ fn me_lists_the_cores_offer_with_its_accounts_in_order() {
     let careful = models.first_mut().unwrap();
     careful.shown = Some(Box::from(b"Careful work".as_slice()));
     careful.picker = false;
-    let record = translate::owner::frame(&frame, &models, &w::CEILINGS).unwrap();
+    let record = translate::owner::frame(&frame, fixtures::SIGN_IN_EXPIRES, &models, &w::CEILINGS).unwrap();
     let some = project(&record, 0);
     assert_eq!(some.models.len(), 1);
     assert_eq!(some.models.get(0).unwrap().name.as_ref(), b"quick");
@@ -92,7 +92,7 @@ fn a_template_s_and_a_task_s_choice_are_named_by_configuration() {
     template.llm = Some(choice());
     frame.projects.get_mut(0).unwrap().templates = skein_lib::List::from_boxed(Box::new([template]));
     frame.projects.get_mut(0).unwrap().defaults = skein_lib::List::from_boxed(Box::new([(3, choice())]));
-    let record = translate::owner::frame(&frame, &models, &w::CEILINGS).unwrap();
+    let record = translate::owner::frame(&frame, fixtures::SIGN_IN_EXPIRES, &models, &w::CEILINGS).unwrap();
     let first = project(&record, 0);
     let preview = first.defaults.get(0).unwrap();
     assert_eq!(preview.template, 3);
@@ -429,7 +429,7 @@ fn an_untooled_wait_keeps_its_account_source_and_worker() {
     let wait =
         d::TaskRunWait::Account { account: Some(4), source: Some(7), why: d::TaskWaitWhy::Untooled { worker: 2 } };
     let wire = translate::task_wait::waiting(Some(wait), &limits).unwrap().unwrap();
-    assert_eq!(w::VERSION, 42);
+    assert_eq!(w::VERSION, 43);
     let w::TaskRunWait::Account(row) = wire else { panic!("account wait") };
     assert_eq!((row.account, row.source), (Some(4), Some(7)));
     let w::TaskWaitWhy::Untooled(why) = &row.why else { panic!("untooled wait") };

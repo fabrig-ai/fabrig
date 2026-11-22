@@ -61,7 +61,7 @@ pub enum Request {
     Authorized(crate::Authorized),
     Approval(Approval),
     AskedLink(AskedLink),
-    /// Shown once by the host; the client never retains it.
+    /// A made or reissued service credential, shown once by the host and never retained by the client.
     ServiceCredential {
         party: u64,
         credential: Secret,

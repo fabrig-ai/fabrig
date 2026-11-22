@@ -76,6 +76,7 @@ pub(super) fn encode_made(value: &jig_client::contract::Made, out: &mut Encoder,
             out.object_end();
             out.object_end();
         }
+        jig_client::contract::Made::Reissued { party } => reissued_json(*party, out),
         jig_client::contract::Made::PersonResult { task } => {
             out.object_start();
             out.key(b"person_result");
@@ -97,6 +98,16 @@ pub(super) fn encode_made(value: &jig_client::contract::Made, out: &mut Encoder,
             out.object_end();
         }
     }
+}
+
+pub(in crate::jig::render) fn reissued_json(party: u64, out: &mut Encoder) {
+    out.object_start();
+    out.key(b"reissued");
+    out.object_start();
+    out.key(b"party");
+    out.unsigned(party);
+    out.object_end();
+    out.object_end();
 }
 
 pub(super) fn encode_note_scope(value: &jig_client::contract::NoteScope, out: &mut Encoder, budget: &mut super::Cut) {

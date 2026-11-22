@@ -25,6 +25,14 @@ mod deliveries;
 mod store;
 pub use constructors::fixture;
 
+pub(crate) mod testing {
+    use super::{Cut, World};
+
+    pub fn fork_cut(world: &mut World, cut: Cut) -> Result<bool, String> {
+        world.fork_cut(cut)
+    }
+}
+
 /// Startup of the core world (`jig/docs/design/domain/engine/README.md`, section 9).
 #[derive(Debug)]
 pub struct Setup {
@@ -200,6 +208,7 @@ pub struct World {
     pub restore_ranges: Vec<core::RestoreRange>,
     pub census_ended: u32,
     pub hold_restart_reads: bool,
+    restart_reads: std::collections::BTreeSet<u16>,
     /// Withhold requested whole store pages during a real cold restore.
     pub hold_restore_pages: bool,
     pub hold_switch: bool,
@@ -228,7 +237,6 @@ pub struct World {
     pub observer: crate::conformance::Observer,
     heap: crate::conformance::Heap,
     restoring: Option<(core::start::Phase, usize)>,
-    restart_reads: std::collections::BTreeMap<u16, core::start::Phase>,
     pub events: VecDeque<root::Event>,
     limits: root::Limits,
     /// Pause at a selected transaction boundary, with its traffic retained.

@@ -18,10 +18,11 @@
 #
 #   fabrig: package(=fabrig-boundary)
 #
-# The tier profiles are browser-skein, live-skein; live-smith; live-jig,
-# browser-jig; process-temper, live-temper, browser-temper; and
-# conformance-hearth. Each keeps its tree's
-# own budget.
+# The tier profiles are browser-skein, live-skein, real-skein; live-smith,
+# real-smith; live-jig, browser-jig, real-jig; process-temper, live-temper,
+# browser-temper, real-temper; conformance-hearth and real-hearth.
+# A change to a tree's default or fuzzy clause changes its copy in real-TREE.
+# Real pairs report the gate layers' budgets; other tiers keep their own.
 #
 # Each tree's budget was 30 s focused and 120 s fuzzy, doubled provisionally
 # at the user's request on 10-22; the workspace's is their sum, until the
@@ -324,3 +325,224 @@ slow-timeout = { period = "2000ms" }
 [[profile.conformance-hearth.overrides]]
 platform = 'cfg(target_os = "macos")'
 slow-timeout = { period = "120s", terminate-after = 2 }
+
+[profile.real-skein]
+junit = { path = "junit.xml" }
+default-filter = """
+((
+  (package(/^skein-/) | package(=forgejo-conformance) | package(=github-conformance))
+  & not ((kind(test) | package(=skein-deflate)) & test(/^fuzzy::/)) & not binary(/^browser_/) & not binary(=live)
+) | (
+  (package(/^skein-/) | package(=forgejo-conformance) | package(=github-conformance))
+  & ((kind(test) | package(=skein-deflate)) & test(/^fuzzy::/))
+)) & (
+  binary_id(=github-conformance::suite) |
+  binary_id(=skein-browser-world::browser_facts) |
+  binary_id(=skein-browser-world::browser_real) |
+  binary_id(=skein-codec-patches::suite) |
+  binary_id(=skein-codegen::suite) |
+  binary_id(=skein-conformance-real::suite) |
+  binary_id(=skein-echo-shell::end_to_end) |
+  binary_id(=skein-echo-world::suite) |
+  binary_id(=skein-fail-stop-tests::suite) |
+  binary_id(=skein-fake-peers-tests::suite) |
+  binary_id(=skein-fake-person-browser::real) |
+  binary_id(=skein-fork::real) |
+  binary_id(=skein-io-world::real) |
+  binary_id(=skein-kv-tests::suite) |
+  binary_id(=skein-llm-world::live) |
+  binary_id(=skein-oauth-accounts-world::suite) |
+  binary_id(=skein-readiness-tests::suite) |
+  binary_id(=skein-ring-tests::suite) |
+  binary_id(=skein-shell::real) |
+  binary_id(=skein-throwaway-forgejo::suite) |
+  binary_id(=skein-ui-web-tests::browser_example) |
+  binary_id(=skein-ui-web-tests::browser_harness) |
+  binary_id(=skein-ui-web-tests::browser_stories) |
+  binary_id(=skein-ui-web-tests::suite) |
+  binary_id(=skein-world-tests::suite)
+)
+"""
+
+# macOS doubles the inherited Linux slow periods.
+[[profile.real-skein.overrides]]
+platform = 'cfg(target_os = "macos")'
+filter = "package(/^jig(-|$)/) | package(/^hearth(-|$)/)"
+slow-timeout = { period = "2000ms" }
+
+[[profile.real-skein.overrides]]
+platform = 'cfg(target_os = "macos")'
+slow-timeout = { period = "12s" }
+
+[profile.real-smith]
+junit = { path = "junit.xml" }
+default-filter = """
+((
+  package(/^smith(-|$)/)
+  & not (kind(test) & test(/^fuzzy::/))
+  & not ((package(=smith) | package(=smith-agent-process-world)) & binary(=live))
+) | (
+  package(/^smith(-|$)/)
+  & (kind(test) & test(/^fuzzy::/)) & not binary(=live)
+)) & (
+  binary_id(=smith-agent-process-world::live) |
+  binary_id(=smith-bench::real) |
+  binary_id(=smith-bench::suite) |
+  binary_id(=smith-fake-claude::suite) |
+  binary_id(=smith-local-protocol::suite) |
+  binary_id(=smith-local-shell::real) |
+  binary_id(=smith-machine-world::suite) |
+  binary_id(=smith-real-world::suite) |
+  binary_id(=smith::end_to_end) |
+  binary_id(=smith::live) |
+  binary_id(=smith::live_configuration)
+)
+"""
+
+# macOS doubles the inherited Linux slow periods.
+[[profile.real-smith.overrides]]
+platform = 'cfg(target_os = "macos")'
+filter = "package(/^jig(-|$)/) | package(/^hearth(-|$)/)"
+slow-timeout = { period = "2000ms" }
+
+[[profile.real-smith.overrides]]
+platform = 'cfg(target_os = "macos")'
+slow-timeout = { period = "12s" }
+
+[profile.real-jig]
+junit = { path = "junit.xml" }
+default-filter = """
+((
+  package(/^jig(-|$)/)
+  & not (kind(test) & test(/^fuzzy::/))
+  & not binary(=live)
+  & not binary(/^browser_/)
+) | (
+  package(/^jig(-|$)/)
+  & (kind(test) & test(/^fuzzy::/)) & not binary(=live)
+  & not binary(/^browser_/)
+)) & (
+  binary_id(=jig-client-browser-world::browser_attacks) |
+  binary_id(=jig-client-browser-world::browser_jig_stories) |
+  binary_id(=jig-client-browser-world::browser_skein_stories) |
+  binary_id(=jig-client-browser-world::browser_tier) |
+  binary_id(=jig-core-kit::real) |
+  binary_id(=jig-engine-clients-world::suite) |
+  binary_id(=jig-test-store-files::real) |
+  binary_id(=jig-test::live) |
+  binary_id(=jig-test::process) |
+  binary_id(=jig-test::real)
+)
+"""
+
+# macOS doubles the inherited Linux slow periods.
+[[profile.real-jig.overrides]]
+platform = 'cfg(target_os = "macos")'
+filter = "package(/^jig(-|$)/) | package(/^hearth(-|$)/)"
+slow-timeout = { period = "2000ms" }
+
+[[profile.real-jig.overrides]]
+platform = 'cfg(target_os = "macos")'
+slow-timeout = { period = "12s" }
+
+[profile.real-temper]
+junit = { path = "junit.xml" }
+default-filter = """
+((
+  package(/^temper(-|$)/)
+  & not test(/^tests::sign_in::fuzzy_/) & not ((kind(test) | package(=temper-engine-domain) | package(=temper-worker-domain) | package(=temper-config-shell)) & test(/^fuzzy::/))
+  & not ((package(=temper-engine-domain-forge) | package(=temper-engine-domain-forge-landing) | package(=temper-engine-domain-forge-tiers)) & kind(lib) & test(/^fuzzy::/))
+  & not binary(/^(process|live|live_github)$/)
+  & not (binary(=proof_live) & test(/^rung_b0s_/))
+  & not (binary(=live_github_managed) & test(=managed_ready_client))
+  & not binary(/^browser_/)
+) | (
+  package(/^temper(-|$)/)
+  & (((kind(test) | package(=temper-engine-domain) | package(=temper-worker-domain) | package(=temper-config-shell)) & test(/^fuzzy::/))
+     | ((package(=temper-engine-domain-forge) | package(=temper-engine-domain-forge-landing) | package(=temper-engine-domain-forge-tiers)) & kind(lib) & test(/^fuzzy::/))
+     | (package(=temper-engine-service-component) & test(/^tests::sign_in::fuzzy_/)))
+  & not binary(/^(process|live|live_github)$/)
+)) & (
+  binary_id(=temper-agent::suite) |
+  binary_id(=temper-box-machine::real_loop) |
+  binary_id(=temper-box-shell::real) |
+  binary_id(=temper-box::live) |
+  binary_id(=temper-box::live_github) |
+  binary_id(=temper-box::live_github_managed) |
+  binary_id(=temper-box::process) |
+  binary_id(=temper-box::proof_live) |
+  binary_id(=temper-box::suite) |
+  binary_id(=temper-client-browser-world::browser_all) |
+  binary_id(=temper-client-gallery::suite) |
+  binary_id(=temper-client-journeys-tool::real) |
+  binary_id(=temper-client-journeys-tool::suite) |
+  binary_id(=temper-client-journeys::suite) |
+  binary_id(=temper-client-shell-tui::real) |
+  binary_id(=temper-client-walk::suite) |
+  binary_id(=temper-config-shell::real) |
+  binary_id(=temper-engine-shell::suite) |
+  binary_id(=temper-engine::suite) |
+  binary_id(=temper-fetch-shell::real) |
+  binary_id(=temper-fixtures::real) |
+  binary_id(=temper-forge-setup-shell::suite) |
+  binary_id(=temper-git-transcripts::suite) |
+  binary_id(=temper-playground-serve::suite) |
+  binary_id(=temper-process-guard::parent) |
+  binary_id(=temper-qa-tool::suite) |
+  binary_id(=temper-qa::suite) |
+  binary_id(=temper-real-loop-world::live_text) |
+  binary_id(=temper-real-loop-world::suite) |
+  binary_id(=temper-redeploy-tool::suite) |
+  binary_id(=temper-redeploy::suite) |
+  binary_id(=temper-service-shell::real) |
+  binary_id(=temper-shell::real) |
+  binary_id(=temper-stage-one::suite) |
+  binary_id(=temper-twin::suite) |
+  binary_id(=temper-worker-checkout-world::suite) |
+  binary_id(=temper-worker-protocol-git::real) |
+  binary_id(=temper-worker-service::real) |
+  binary_id(=temper-worker-shell::real) |
+  binary_id(=temper-worker::suite) |
+  binary_id(=temper::process) |
+  binary_id(=temper::suite)
+)
+"""
+
+# macOS doubles the inherited Linux slow periods.
+[[profile.real-temper.overrides]]
+platform = 'cfg(target_os = "macos")'
+filter = "package(/^jig(-|$)/) | package(/^hearth(-|$)/)"
+slow-timeout = { period = "2000ms" }
+
+[[profile.real-temper.overrides]]
+platform = 'cfg(target_os = "macos")'
+slow-timeout = { period = "12s" }
+
+[profile.real-hearth]
+junit = { path = "junit.xml" }
+default-filter = """
+((
+  package(/^hearth(-|$)/) & not (kind(test) & test(/^fuzzy::/))
+  & not binary(/^(conformance|recorded)_/)
+) | (
+  package(/^hearth(-|$)/) & (kind(test) & test(/^fuzzy::/))
+)) & (
+  binary_id(=hearth-builder-world::conformance_render) |
+  binary_id(=hearth-builder-world::real) |
+  binary_id(=hearth-builder-world::suite) |
+  binary_id(=hearth-conformance-world::conformance_git) |
+  binary_id(=hearth-conformance-world::conformance_resolve) |
+  binary_id(=hearth::end_to_end) |
+  binary_id(=hearth::refusals)
+)
+"""
+
+# macOS doubles the inherited Linux slow periods.
+[[profile.real-hearth.overrides]]
+platform = 'cfg(target_os = "macos")'
+filter = "package(/^jig(-|$)/) | package(/^hearth(-|$)/)"
+slow-timeout = { period = "2000ms" }
+
+[[profile.real-hearth.overrides]]
+platform = 'cfg(target_os = "macos")'
+slow-timeout = { period = "12s" }

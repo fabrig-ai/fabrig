@@ -19,11 +19,12 @@ pub fn application_part(domain: &mut Domain, env: &Env<Limits>, request: Token, 
         | AskFamily::Deployment
         | AskFamily::Account
         | AskFamily::Lift
-        | AskFamily::Seen => return Err(Outcome::Refused(Refusal::NotOffered)),
+        | AskFamily::Seen
+        | AskFamily::ReissueService => return Err(Outcome::Refused(Refusal::NotOffered)),
     };
     match ask.family() {
-        // Account requests are their holder's own and may wait on the accounts component.
-        AskFamily::Restore | AskFamily::Application(_) | AskFamily::Account => {
+        // Account requests may wait on the accounts component; reissue must answer the keyed client.
+        AskFamily::Restore | AskFamily::Application(_) | AskFamily::Account | AskFamily::ReissueService => {
             return Err(Outcome::Refused(Refusal::NotOffered));
         }
         AskFamily::Project(_) | AskFamily::Deployment | AskFamily::Lift | AskFamily::Seen => {}
@@ -99,6 +100,7 @@ pub(super) fn admission(domain: &Domain, person: u64, _project: u32, role: Optio
         Ask::Compound { .. }
         | Ask::EditNote { .. }
         | Ask::MakeService { .. }
+        | Ask::ReissueService { .. }
         | Ask::Adopt { .. }
         | Ask::SetRoles { .. }
         | Ask::ChangePolicy { .. }

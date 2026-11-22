@@ -39,6 +39,11 @@ to = "temper.domain"
 cpu_s = 1.5
 why = "place the mechanics lower"
 '''
+INSTRUCTION_BASE = (BASE.replace('ideal_s = 25\n', 'ideal_s = 25\ninstructions = 9007199254740992\n'
+                                 'ideal_instructions = 250000000000\n')
+                    .replace('ideal_s = 30\n', 'ideal_s = 30\ninstructions = 1500000000000\n'))
+INSTRUCTION_MOVE = MOVE + 'instructions = 15000000000\n'
+MOVE_PLACE = "default move temper.simulated to temper.domain instructions ('place the mechanics lower')"
 REASON = '''\n[[gate.default.reasons]]
 binary = "temper-system::suite"
 test = "suite::chat::a_whole_chat_lands"
@@ -107,7 +112,8 @@ class Figures(unittest.TestCase):
                          (0, f'figures: {BUDGETS} unchanged since {self.base}\n', ''))
 
     def test_budgets_alone_are_the_users_figures(self):
-        self.head(BASE.replace('cpu_s = 136', 'cpu_s = 140') + REASON, other=False)
+        self.head(INSTRUCTION_BASE.replace('cpu_s = 136', 'cpu_s = 140') + INSTRUCTION_MOVE + REASON,
+                  other=False)
         result = self.run_check('--base', self.base)
         self.assertEqual((result.returncode, result.stdout, result.stderr),
                          (0, f"figures: {BUDGETS} alone changed since {self.base}: the user's figures\n", ''))
@@ -215,6 +221,76 @@ class Figures(unittest.TestCase):
             with self.subTest(move=move):
                 self.head(BASE + move)
                 self.check([f'figure raised: default temper simulated ceiling: 158.5 to {value}'])
+
+    def test_layer_instruction_figures_added(self):
+        self.head(INSTRUCTION_BASE)
+        self.check(['figure added: default temper domain instruction ceiling: 9007199254740992',
+                    'figure added: default temper domain instruction ideal: 250000000000',
+                    'figure added: default temper simulated instruction ceiling: 1500000000000'])
+
+    def test_layer_instruction_figures_raised_or_removed(self):
+        self.set_base(INSTRUCTION_BASE)
+        self.head(INSTRUCTION_BASE.replace('9007199254740992', '9007199254740993')
+                  .replace('250000000000', '250000000001'))
+        self.check(['figure raised: default temper domain instruction ceiling: 9007199254740992 to 9007199254740993',
+                    'figure raised: default temper domain instruction ideal: 250000000000 to 250000000001'])
+        self.head(BASE)
+        self.check(['figure raised: default temper domain instruction ceiling: 9007199254740992 to none',
+                    'figure raised: default temper domain instruction ideal: 250000000000 to none',
+                    'figure raised: default temper simulated instruction ceiling: 1500000000000 to none'])
+        start = INSTRUCTION_BASE.index('[gate.default.temper.domain]')
+        end = INSTRUCTION_BASE.index('[gate.default.temper.simulated]')
+        self.head(INSTRUCTION_BASE[:start] + INSTRUCTION_BASE[end:])
+        self.check(['figure raised: default temper domain instruction ceiling: 9007199254740992 to none',
+                    'figure raised: default temper domain instruction ideal: 250000000000 to none'])
+
+    def test_layer_instruction_figures_lowered(self):
+        self.set_base(INSTRUCTION_BASE)
+        self.head(INSTRUCTION_BASE.replace('9007199254740992', '9007199254740991')
+                  .replace('250000000000', '249999999999'))
+        self.check()
+
+    def test_move_instructions_added_or_raised(self):
+        self.set_base(INSTRUCTION_BASE)
+        self.head(INSTRUCTION_BASE + INSTRUCTION_MOVE)
+        self.check([f'figure added: {MOVE_PLACE}: 15000000000'])
+        self.set_base(INSTRUCTION_BASE + MOVE)
+        self.head(INSTRUCTION_BASE + INSTRUCTION_MOVE)
+        self.check([f'figure added: {MOVE_PLACE}: 15000000000'])
+        self.set_base(INSTRUCTION_BASE + INSTRUCTION_MOVE)
+        self.head(INSTRUCTION_BASE + INSTRUCTION_MOVE.replace('15000000000', '15000000001').replace('1.5', '2.5'))
+        self.check([f'figure raised: {MOVE_PLACE}: 15000000000 to 15000000001'])
+
+    def test_move_instructions_lowered_or_removed(self):
+        self.set_base(INSTRUCTION_BASE + INSTRUCTION_MOVE)
+        for move in (INSTRUCTION_MOVE.replace('15000000000', '14999999999'), MOVE):
+            with self.subTest(move=move):
+                self.head(INSTRUCTION_BASE + move)
+                self.check()
+
+    def test_instruction_moves_with_same_endpoints_and_reason_match_unchanged_amounts(self):
+        smaller = INSTRUCTION_MOVE.replace('15000000000', '10000000000')
+        larger = INSTRUCTION_MOVE.replace('15000000000', '16000000000')
+        self.set_base(INSTRUCTION_BASE + INSTRUCTION_MOVE + smaller)
+        self.head(INSTRUCTION_BASE + smaller + INSTRUCTION_MOVE)
+        self.check()
+        self.head(INSTRUCTION_BASE + smaller + INSTRUCTION_MOVE + smaller)
+        self.check([f'figure added: {MOVE_PLACE} #3: 10000000000'])
+        self.head(INSTRUCTION_BASE + smaller + INSTRUCTION_MOVE + larger)
+        self.check([f'figure added: {MOVE_PLACE}: 16000000000'])
+
+    def test_instruction_figures_require_positive_integers(self):
+        for content, key, original in (
+                (INSTRUCTION_BASE, 'domain.instructions', '9007199254740992'),
+                (INSTRUCTION_BASE, 'domain.ideal_instructions', '250000000000'),
+                (INSTRUCTION_BASE + INSTRUCTION_MOVE, 'moves[0].instructions', '15000000000')):
+            for value in ('true', '1.0', '0', '-1'):
+                with self.subTest(key=key, value=value):
+                    self.head(content.replace(f' = {original}\n', f' = {value}\n'))
+                    result = self.run_check('--base', self.base)
+                    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                    self.assertIn(f'{key} must be a positive integer', result.stderr)
+                    self.assertEqual(result.stdout, '')
 
     def test_only_downward_moves_are_excused_using_heads_order(self):
         self.head(BASE + MOVE)

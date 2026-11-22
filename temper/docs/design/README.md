@@ -184,6 +184,7 @@ forge, temper adds:
   - `domain/worker/README.md`: the worker's root, assignments, runs and world.
   - `domain/worker/checkouts.md`: workspaces, preparing, delivering, saving and open questions.
   - `domain/worker/jobs.md`: job kinds, commands and failure diagnostics.
+  - `testing/worker.md`: the worker's inspection adapter, the faults of its disk and workspaces, and their sweeps.
   - `testing/qa/README.md`: QA after landing, beside the deployment: its
     tool, home and loop; its ledger (`testing/qa/ledger.md`), the
     watcher on main (`testing/qa/landings.md`), kept builds
@@ -255,7 +256,7 @@ forge, temper adds:
 - **`draft/`:** the drafts, the vision this design is written from
   (the repository's `AGENTS.md`, section 6).
 - **Status files:** beside each document, `<name>.status.md`, where
-  the code lags or departs from it; `STATUS.md` indexes them.
+  the code lags or departs from it; `STATUS.md` tells how to roll them up.
 
 ## 7. Conventions
 

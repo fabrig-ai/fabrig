@@ -348,6 +348,11 @@ pub struct Blank {
 }
 
 // Record: Blank.
+impl Blank {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 2;
+}
+
 impl Record for Blank {
     type Limits = Limits;
     const TAIL: Path = paths::BLANK_TAIL;
@@ -385,6 +390,11 @@ pub struct Numbers {
 }
 
 // Record: Numbers.
+impl Numbers {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 27;
+}
+
 impl Record for Numbers {
     type Limits = Limits;
     const TAIL: Path = paths::NUMBERS_TAIL;
@@ -430,6 +440,11 @@ pub struct Texts {
 }
 
 // Record: Texts.
+impl Texts {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 12;
+}
+
 impl Record for Texts {
     type Limits = Limits;
     const TAIL: Path = paths::TEXTS_TAIL;
@@ -468,6 +483,11 @@ pub enum Light {
 }
 
 // Record: Light.
+impl Light {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for Light {
     type Limits = Limits;
     const TAIL: Path = paths::LIGHT_TAG;
@@ -510,6 +530,11 @@ pub struct Stamp {
 }
 
 // Record: Stamp.
+impl Stamp {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 19;
+}
+
 impl Record for Stamp {
     type Limits = Limits;
     const TAIL: Path = paths::STAMP_TAIL;
@@ -550,6 +575,11 @@ pub enum Shape {
 }
 
 // Record: Shape.
+impl Shape {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 28;
+}
+
 impl Record for Shape {
     type Limits = Limits;
     const TAIL: Path = paths::SHAPE_TAG;
@@ -599,6 +629,11 @@ pub struct Nest {
 }
 
 // Record: Nest.
+impl Nest {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 66;
+}
+
 impl Record for Nest {
     type Limits = Limits;
     const TAIL: Path = paths::NEST_TAIL;
@@ -657,6 +692,11 @@ pub struct Every {
 }
 
 // Record: Every.
+impl Every {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 170;
+}
+
 impl Record for Every {
     type Limits = Limits;
     const TAIL: Path = paths::EVERY_TAIL;
