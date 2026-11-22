@@ -38,6 +38,7 @@ pub(crate) struct Process {
     clock_start: Option<Time>,
     /// The fake LLM's script, extended by each resumed activation.
     pub(super) script: Script,
+    pub(super) extra_scripts: Vec<Script>,
     /// The previous activation's concrete turns, which a resume restores.
     history: Option<smith::Transcript>,
     pub(super) fresh: Option<Script>,
@@ -57,6 +58,9 @@ pub(crate) struct Process {
     exited: bool,
     sent_turns: usize,
     sent_waits: usize,
+    sent_unauthorized: usize,
+    pub(super) strikes: Vec<(u32, skein_fake_llm_domain::api::Strike)>,
+    pub(super) struck_at: Option<Time>,
     sent_calls: Vec<Token>,
     sent_deliveries: usize,
     owner: Option<Token>,
@@ -114,6 +118,22 @@ pub(crate) struct Around<'a> {
 }
 
 impl Process {
+    pub(super) fn strike(&mut self, credential: u32, strike: skein_fake_llm_domain::api::Strike) {
+        if let Some(agent) = &mut self.agent {
+            let now = agent.now();
+            agent.provider_mut().strike(credential, strike.clone(), now).expect("account fault fits");
+            self.struck_at = Some(now);
+        }
+        self.strikes.push((credential, strike));
+    }
+
+    pub(super) fn clear(&mut self, credential: u32, strike: &skein_fake_llm_domain::api::Strike) {
+        if let Some(agent) = &mut self.agent {
+            agent.provider_mut().clear(credential, strike);
+        }
+        self.strikes.retain(|(account, held)| *account != credential || held != strike);
+    }
+
     pub(crate) fn notice(&mut self, notice: agent::Up) {
         self.up.push_front(notice);
     }
@@ -124,6 +144,7 @@ impl Process {
             clocked: false,
             clock_start: None,
             script,
+            extra_scripts: Vec::new(),
             history: None,
             fresh: None,
             history_messages: None,
@@ -141,6 +162,9 @@ impl Process {
             exited: false,
             sent_turns: 0,
             sent_waits: 0,
+            sent_unauthorized: 0,
+            strikes: Vec::new(),
+            struck_at: None,
             sent_calls: Vec::new(),
             sent_deliveries: 0,
             owner: None,
@@ -211,6 +235,16 @@ impl Process {
     /// Whether the next activation is waiting to spawn its process.
     pub(crate) fn prepared(&self) -> bool {
         self.agent.is_none()
+    }
+
+    /// The next local Smith clock, mapped onto the composed world's clock.
+    pub(super) fn wake_at(&self) -> Option<Time> {
+        let start = self.clock_start?;
+        let agent = self.agent.as_ref()?;
+        if self.settled {
+            return None;
+        }
+        Some(start.saturating_add(Duration::from_nanos(agent.now().as_nanos())))
     }
 
     /// The live or last activation's smith world.
@@ -385,7 +419,12 @@ impl Process {
             answered: answered(start.answered),
             grants: grants(&start.grants),
         });
-        let mut agent = Agent::with_workspace_scripts_start(settings, mounted, Box::new([self.script.clone()]), event);
+        let scripts = std::iter::once(self.script.clone()).chain(self.extra_scripts.iter().cloned()).collect();
+        let mut agent = Agent::with_workspace_scripts_start(settings, mounted, scripts, event);
+        for (credential, strike) in &self.strikes {
+            agent.provider_mut().strike(*credential, strike.clone(), Time::ZERO).expect("account fault fits");
+            self.struck_at = Some(Time::ZERO);
+        }
         agent.enable_parent_host_calls();
         agent.enable_parent_deliveries();
         self.agent = Some(agent);
@@ -465,6 +504,18 @@ impl Process {
             }
         }
         self.settled = agent.drive(1);
+        for (_, grant) in &agent.unauthorized()[self.sent_unauthorized..] {
+            self.up.push_back(agent::Up::Unauthorized { account: grant.account, generation: grant.generation });
+        }
+        self.sent_unauthorized = agent.unauthorized().len();
+        for (_, notice) in agent.take_account_notices() {
+            self.up.push_back(match notice {
+                smith_agent_world::AccountNotice::Limited { account, reset } => agent::Up::Limited { account, reset },
+                smith_agent_world::AccountNotice::Refused { account, code, reason } => {
+                    agent::Up::Refused { account, code, reason }
+                }
+            });
+        }
         if !self.admitted
             && agent
                 .messages_seen()
@@ -513,7 +564,7 @@ impl Process {
         if self.settled {
             unmount(agent.disk(), around.disk, &self.mounts);
             let read = agent.turn_metadata().iter().filter_map(|(_, read, _)| *read).next_back();
-            let (turns, spent, result) = result(agent.answer());
+            let (turns, spent, result) = result(agent.answer(), agent.now());
             self.up.push_back(agent::Up::Answer { answer: agent::Answer { read, turns, spent, result } });
             self.answered = Some((turns, spent));
         }
@@ -522,7 +573,7 @@ impl Process {
 
 /// smith's last word on its channel. Only the endings these stories script
 /// cross; any other is a finding.
-fn result(answer: &run::Answer) -> (u32, u64, agent::RunResult) {
+fn result(answer: &run::Answer, now: Time) -> (u32, u64, agent::RunResult) {
     match crate::world::copy_answer(answer) {
         run::Answer::Accepted { outcome, spent, turns } => {
             let outcome = agent::Declared::new(outcome, u64::MAX).expect("a bounded result");
@@ -537,7 +588,22 @@ fn result(answer: &run::Answer) -> (u32, u64, agent::RunResult) {
                 run::RunFailure::Policy(run::Policy::Unfinished { nudges, rejected }) => {
                     agent::RunFailure::Policy(agent::Policy::Unfinished { nudges, rejected })
                 }
-                run::RunFailure::Model(_) => agent::RunFailure::Model(agent::ModelFault::Provider),
+                run::RunFailure::Model(fault) => {
+                    // The channel world uses a zero-based clock for this translation.
+                    let mut fault = fault;
+                    if let run::Fault::Limited { reset_at: Some(at), .. } = &mut fault {
+                        *at = Time::ZERO.saturating_add(at.saturating_since(now));
+                    }
+                    let mut channel = smith_channel_world::World::admitted();
+                    channel.agent_answers(run::Answer::Failed { failure: run::RunFailure::Model(fault), spent, turns });
+                    channel.settle();
+                    let agent::RunResult::Failed { failure } =
+                        channel.take_host_answer().expect("channel answer").result
+                    else {
+                        unreachable!("a model failure stays a failure");
+                    };
+                    failure
+                }
                 run::RunFailure::Transcript(reason) => agent::RunFailure::Transcript(match reason {
                     run::TranscriptRefusal::Version => agent::TranscriptRefusal::Version,
                     run::TranscriptRefusal::Malformed => agent::TranscriptRefusal::Malformed,

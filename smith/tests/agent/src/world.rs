@@ -288,6 +288,15 @@ pub enum CompletionTerminal {
     Cancelled,
 }
 
+/// An account notice sent to the host, retained until the outside world drains it.
+#[derive(Debug)]
+pub enum AccountNotice {
+    /// The provider reports the account's allowance spent.
+    Limited { account: u32, reset: Option<Duration> },
+    /// The provider refuses the account, with its bounded diagnostic.
+    Refused { account: u32, code: Box<[u8]>, reason: Box<[u8]> },
+}
+
 /// The provider call that submits the next delivery, independent of its fields.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum DeliveryCall {
@@ -304,6 +313,7 @@ pub struct World<B: Backend = Typed> {
     writing_opened: BTreeSet<u32>,
     settings: Settings,
     unauthorized: Vec<(Time, GrantName)>,
+    account_notices: Vec<(Time, AccountNotice)>,
     now: Time,
     rng: Rng,
     agent: agent::Domain,
@@ -461,6 +471,7 @@ impl<B: Backend> World<B> {
 
     #[expect(
         clippy::too_many_arguments,
+        clippy::too_many_lines,
         reason = "the scripted world accepts each independent Start and backend fixture"
     )]
     /// Start with caller-owned checkout, history and optional complete Start.
@@ -574,7 +585,18 @@ impl<B: Backend> World<B> {
             referee,
             terminals: 0,
             unauthorized: Vec::new(),
+            account_notices: Vec::new(),
         }
+    }
+
+    /// Drain account notices; at most 1,024 may wait between drains.
+    pub fn take_account_notices(&mut self) -> Vec<(Time, AccountNotice)> {
+        core::mem::take(&mut self.account_notices)
+    }
+
+    fn account_notice(&mut self, notice: AccountNotice) {
+        assert!(self.account_notices.len() < 1024, "drain the bounded account notices");
+        self.account_notices.push((self.now, notice));
     }
 
     /// Read only the selected lower backend's outside observations.
@@ -1386,10 +1408,12 @@ impl<B: Backend> World<B> {
                 assert!(self.host_pending.contains_key(&(relay.owner.raw(), relay.attempt)));
             }
             Request::Unauthorized { grant } => self.unauthorized.push((self.now, grant)),
+            Request::Limited { account, reset } => self.account_notice(AccountNotice::Limited { account, reset }),
+            Request::Refused { account, code, reason } => {
+                self.account_notice(AccountNotice::Refused { account, code, reason });
+            }
             Request::MessageRefused { .. }
-            | Request::Refused { .. }
             | Request::Usage { .. }
-            | Request::Limited { .. }
             | Request::Lower(smith_domain::Lower::Yield { .. } | smith_domain::Lower::Close { .. }) => {}
         }
     }
@@ -2121,6 +2145,11 @@ pub fn world(settings: &Settings, charter: run::Charter, granted: &[u32]) -> Wor
 }
 
 impl World<Typed> {
+    /// The typed fake's account-fault entrances, on the same provider that answers queries.
+    pub fn provider_mut(&mut self) -> &mut provider::Domain {
+        &mut self.backend.provider
+    }
+
     /// Creates one host request and a fresh agent tree. Fixed queue slack
     /// exercises output pressure; finite trace and delivery caps fail fast.
     #[must_use]

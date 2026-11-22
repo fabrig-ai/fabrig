@@ -72,7 +72,7 @@ fn only_retryable_completion_classes_end_as_outages() {
         (CompletionFailure::Invalid, Ended::Failed),
         (CompletionFailure::Refused, Ended::Failed),
         (CompletionFailure::Unsupported, Ended::Failed),
-        (CompletionFailure::Unauthorized, Ended::Failed),
+        (CompletionFailure::Unauthorized, Ended::Unauthorized),
         (CompletionFailure::Exhausted { retry_after: None }, Ended::Failed),
     ] {
         let answer = failed(RunFailure::Model(Fault::Completion {

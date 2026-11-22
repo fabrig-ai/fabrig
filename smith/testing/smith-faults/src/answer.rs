@@ -63,6 +63,7 @@ fn completion_end(failure: CompletionFailure) -> Ended {
             }
             CompletionPhase::Whole => Ended::Failed,
         },
+        CompletionFailure::Unauthorized => Ended::Unauthorized,
         CompletionFailure::Limit { .. }
         | CompletionFailure::ApplicationLimit
         | CompletionFailure::Protocol
@@ -71,7 +72,6 @@ fn completion_end(failure: CompletionFailure) -> Ended {
         | CompletionFailure::Invalid
         | CompletionFailure::Refused
         | CompletionFailure::Unsupported
-        | CompletionFailure::Unauthorized
         | CompletionFailure::Exhausted { .. } => Ended::Failed,
     }
 }
