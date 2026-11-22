@@ -30,7 +30,7 @@ pub(crate) fn call(
                 }
                 forge::FileFindingAnswer::Refused(why) => (0, Err(why)),
             };
-            forge::FindingReply { project, number, area, result }
+            forge::FindingReply { project, number, area, result, more: Box::default(), landing: None }
         }
         FindingCall::Hand { number, area, why } => {
             let result = findings::hand_finding(
@@ -46,13 +46,15 @@ pub(crate) fn call(
                 }
                 forge::HandFindingAnswer::Refused(why) => Err(why),
             };
-            forge::FindingReply { project, number, area: Some(area), result }
+            forge::FindingReply { project, number, area: Some(area), result, more: Box::default(), landing: None }
         }
         FindingCall::Triage { number, act } => {
-            let done = match &act {
-                forge::Triage::Route(goal) => forge::FindingDone::Routed(*goal),
-                forge::Triage::Backlog => forge::FindingDone::Backlog,
-                forge::Triage::Drop(_) => forge::FindingDone::Dropped,
+            let (done, more, landing) = match &act {
+                forge::Triage::Route(goal) => (Some(forge::FindingDone::Routed(*goal)), Box::default(), None),
+                forge::Triage::Backlog => (Some(forge::FindingDone::Backlog), Box::default(), None),
+                forge::Triage::Drop(_) => (Some(forge::FindingDone::Dropped), Box::default(), None),
+                forge::Triage::Repair(act) => (None, act.more.clone(), None),
+                forge::Triage::Blame(act) => (Some(forge::FindingDone::Blamed), Box::default(), act.landing),
             };
             let result = match findings::triage_finding(
                 domain,
@@ -61,10 +63,11 @@ pub(crate) fn call(
                 by,
                 forge::TriageFinding { project, number, act },
             ) {
-                forge::TriageFindingAnswer::Triaged => Ok(done),
+                forge::TriageFindingAnswer::Triaged => Ok(done.expect("a repair answers with its goal")),
+                forge::TriageFindingAnswer::Repaired(goal) => Ok(forge::FindingDone::Repaired(goal)),
                 forge::TriageFindingAnswer::Refused(why) => Err(why),
             };
-            forge::FindingReply { project, number, area: None, result }
+            forge::FindingReply { project, number, area: None, result, more, landing }
         }
         FindingCall::List { state, mine } => {
             let mut document =

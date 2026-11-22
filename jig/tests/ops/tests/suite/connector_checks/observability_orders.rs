@@ -95,11 +95,13 @@ fn assert_results(world: &World) {
     assert_eq!(restarts(world), [obs::RestartStage::ReadAfresh, obs::RestartStage::Outbox]);
 }
 
-/// Pins `read_afresh_complete` and `outbox_settled`: 81 live refreshes exceed
+/// Pins the two catching-up reports: 81 live refreshes exceed
 /// the 80-slot carrier concurrently; 81 ready closes run across separate steps.
-/// One fact and the effect owner's lookup reply stay held until their phase ends.
+/// One fact and the effect owner's lookup reply stay held until their half ends.
 #[test]
-fn a_restart_reports_only_after_every_refresh_settles() {
+fn each_catch_up_half_reports_only_after_ending_with_the_engine_open() {
+    let mut core = jig_core_kit::fixtures::opened_before_catch_up(714);
+    assert!(core.ready() && !core.caught_up(2));
     let mut world = loaded_world();
     let mut pending = VecDeque::new();
     enqueue(world.event(obs::Event::ReadAfresh), &mut pending);
@@ -122,6 +124,9 @@ fn a_restart_reports_only_after_every_refresh_settles() {
     let fact = held.expect("the first live service's fact is held");
     world.event(obs::Event::System(fact.clone()));
     assert_eq!(restarts(&world), [obs::RestartStage::ReadAfresh]);
+    assert!(core.ready(), "the engine is open before the fresh reads' report");
+    core.catch_up_done(2, jig_domain_core::effects::connector::RestartStage::ReadAfresh);
+    assert!(!core.caught_up(2));
 
     let calls = world.event(obs::Event::Restart);
     let mut looked = None;
@@ -138,4 +143,7 @@ fn a_restart_reports_only_after_every_refresh_settles() {
     world.event(obs::Event::System(answer.clone()));
     world.event(obs::Event::System(answer));
     assert_results(&world);
+    assert!(core.ready(), "the engine is open before the settle's report");
+    core.catch_up_done(2, jig_domain_core::effects::connector::RestartStage::Settled);
+    assert!(core.caught_up(2));
 }

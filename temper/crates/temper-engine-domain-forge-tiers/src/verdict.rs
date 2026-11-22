@@ -350,6 +350,7 @@ pub fn judged(record: &Record, verdict: &Verdict, limits: &Limits) -> Record {
     }
     Record {
         sequence: verdict.number,
+        last_run: Some(verdict.number),
         judged: Some(Judged { tip: verdict.tip, key: verdict.key }),
         failing: verdict.failing.clone(),
         flakes: flakes.into_boxed(),

@@ -119,7 +119,6 @@ fn fixture() -> (Domain, Env<Limits>) {
     rows.sort_by_key(Record::key);
     let mut domain = fixtures::domain();
     crate::step(&mut domain, &env, Event::StartBegin { pending: false });
-    let mut reads = [0_u32; 2];
     for _ in 0_u8..64 {
         let mut out = released(&mut domain, &env);
         for _ in 0..out.len() {
@@ -154,14 +153,6 @@ fn fixture() -> (Domain, Env<Limits>) {
                             }),
                         },
                     );
-                    let count = &mut reads[usize::from(connector.checked_sub(1).unwrap())];
-                    *count = count.checked_add(1).unwrap();
-                    if crate::numbered(&mut domain, connector)
-                        .specification_resource(u64::from(*count).checked_add(1).unwrap())
-                        .is_none()
-                    {
-                        crate::step(&mut domain, &env, Event::StartDone(core::start::Phase::ReadAfresh { connector }));
-                    }
                 }
                 Request::StoreCatalogue { .. }
                 | Request::Workers(_)

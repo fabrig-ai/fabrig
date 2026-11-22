@@ -1,7 +1,7 @@
 //! The git component: counted operations, explicit lifecycle, parent queues.
 use crate::{
     Event, Identity, Limits, Outputs, Request, Settings, Unfit, Unusable, Version,
-    files::{Action, Directories, Task},
+    files::{Action, Directories, SetAside, Task},
     invocation::Command,
     limits,
     operation::Operation,
@@ -10,7 +10,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use skein_io::{self as io, kernel};
-use skein_lib::{Id, List, Map, Slab, Time, Token};
+use skein_lib::{Duration, Id, List, Map, Slab, Time, Token};
 use temper_worker_domain_checkout::{self as checkout, git};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -22,6 +22,16 @@ enum Start {
     Unusable,
     Aborted,
 }
+const SWEEP_RETRY: Duration = Duration::from_secs(60);
+const SWEEP_REPORTS: u32 = 64;
+
+#[derive(Debug)]
+struct Reported {
+    path: Box<[u8]>,
+    error: kernel::Error,
+    seen: bool,
+}
+
 /// One worker's git component; the service drives it and drains its outputs.
 #[derive(Debug)]
 pub struct Component {
@@ -30,13 +40,16 @@ pub struct Component {
     pub(crate) settings: Settings,
     slots: Slab<Operation>,
     index: Map<Token, Id<Operation>>,
-    /// Arrival-ordered store waiters; each is one admitted operation (git.md, 4.13).
+    /// Arrival-ordered store waiters; each is one admitted operation (git.md, 4.14).
     store_waiters: Map<Token, Id<Operation>>,
     serial: u64,
     start: Start,
     shutting_down: bool,
     directories: Directories,
     background: Option<Task>,
+    sweep_at: Option<Time>,
+    sweep_again: bool,
+    sweep_reports: List<Reported>,
     checked: Option<(Box<[u8]>, Option<Version>)>,
 }
 fn usable(version: Option<Version>) -> bool {
@@ -66,6 +79,9 @@ impl Component {
             shutting_down: false,
             directories,
             background: None,
+            sweep_at: None,
+            sweep_again: false,
+            sweep_reports: List::with_capacity(SWEEP_REPORTS),
             checked: None,
         })
     }
@@ -136,12 +152,13 @@ impl Component {
             }
             Request::Shutdown => {
                 self.shutting_down = true;
+                self.sweep_at = None;
                 self.maintain(false, out);
             }
         }
         self.wake_stores(now, out);
     }
-    /// Lock holders and waiters are operations, bounded by `Limits::operations` (git.md, 4.13).
+    /// Lock holders and waiters are operations, bounded by `Limits::operations` (git.md, 4.14).
     fn store_step(&mut self, id: Id<Operation>, command: &Command) -> bool {
         let operation = self.slots.get(id).expect("live operation");
         let access = match &operation.op {
@@ -605,14 +622,22 @@ impl Component {
     }
     fn background(&mut self, mut task: Task, out: &mut Outputs) {
         let action = task.first(&mut self.directories, &self.settings, &self.limits);
-        self.background_action(task, action, out);
-    }
-    fn background_action(&mut self, mut task: Task, action: Action, out: &mut Outputs) {
         match action {
-            Action::Run(kind) => {
-                self.submit(&mut task, kind, out);
-                self.background = Some(task);
-            }
+            Action::Run(kind) => self.background_run(task, kind, out),
+            Action::Closed => {}
+            Action::Layout(_) | Action::Swept { .. } | Action::Operation(_) => unreachable!("background first step"),
+        }
+    }
+    fn background_run(&mut self, mut task: Task, kind: kernel::Op, out: &mut Outputs) {
+        self.submit(&mut task, kind, out);
+        self.background = Some(task);
+    }
+    fn background_action(&mut self, now: Time, mut task: Task, action: Action, out: &mut Outputs) {
+        if let Some(entry) = task.take_set_aside() {
+            self.sweep_report(entry, out);
+        }
+        match action {
+            Action::Run(kind) => self.background_run(task, kind, out),
             Action::Layout(result) => {
                 if self.start != Start::Aborted {
                     match result {
@@ -628,23 +653,54 @@ impl Component {
                 }
                 self.maintain(result.is_ok(), out);
             }
-            Action::Swept(failed) => {
-                if failed {
-                    self.directories.failures = self.directories.failures.saturating_add(1);
-                }
-                self.maintain(false, out);
-            }
+            Action::Swept { changed, set_aside } => self.sweep_end(now, changed, set_aside, out),
             Action::Closed => {}
             Action::Operation(_) => unreachable!("background file task"),
         }
     }
+    fn sweep_report(&mut self, entry: SetAside, out: &mut Outputs) {
+        let SetAside { path, error, report } = entry;
+        for held in self.sweep_reports.iter_mut() {
+            if held.path == path {
+                held.seen = true;
+                if report && held.error != error {
+                    held.error = error;
+                    event(out, Event::Unswept { path, error });
+                }
+                return;
+            }
+        }
+        if report && self.sweep_reports.room() > 0 {
+            self.sweep_reports.push(Reported { path: path.clone(), error, seen: true }).expect("report fits");
+            event(out, Event::Unswept { path, error });
+        }
+    }
+    fn sweep_end(&mut self, now: Time, changed: bool, set_aside: bool, out: &mut Outputs) {
+        // Walk backwards so each swap removes an unseen entry without revisiting the tail.
+        for index in (0..self.sweep_reports.len()).rev() {
+            let held = self.sweep_reports.get_mut(index).expect("live report");
+            if held.seen {
+                held.seen = false;
+            } else {
+                self.sweep_reports.swap_remove(index).expect("live report");
+            }
+        }
+        let again = core::mem::replace(&mut self.sweep_again, false) || changed;
+        if !self.shutting_down && !again && set_aside {
+            self.sweep_at = Some(now.saturating_add(SWEEP_RETRY));
+        }
+        self.maintain(again, out);
+    }
     fn maintain(&mut self, sweep: bool, out: &mut Outputs) {
+        let sweep = sweep && !self.shutting_down && self.start == Start::Started;
         if self.background.is_some() {
+            self.sweep_again = self.sweep_again || sweep;
             return;
         }
         if (self.shutting_down || self.start == Start::Unusable) && self.index.is_empty() {
             self.background(Task::closing(), out);
-        } else if sweep && !self.shutting_down && self.start == Start::Started {
+        } else if sweep {
+            self.sweep_at = None;
             self.background(Task::sweep(), out);
         }
     }
@@ -676,7 +732,7 @@ impl Component {
                 self.advance(id, next, out);
                 self.maintain(make, out);
             }
-            Action::Layout(_) | Action::Swept(_) | Action::Closed => unreachable!("operation file task"),
+            Action::Layout(_) | Action::Swept { .. } | Action::Closed => unreachable!("operation file task"),
         }
     }
     /// Settle owned kernel work before advancing or answering its caller.
@@ -689,7 +745,7 @@ impl Component {
             let mut task = self.background.take().expect("pending task");
             let action =
                 task.complete(complete, &mut self.directories, &self.settings, &self.limits, self.shutting_down);
-            self.background_action(task, action, out);
+            self.background_action(now, task, action, out);
             return;
         }
         let Some(id) = self.index.get(&complete.op).copied() else {
@@ -706,7 +762,7 @@ impl Component {
             task.complete(complete, &mut self.directories, &self.settings, &self.limits, operation.stop.is_some());
         self.file_action(id, task, action, out);
     }
-    /// Kill at most one due child, and settle due store waiters without a child.
+    /// Kill at most one due child, settle due store waiters, and start a due sweep.
     pub fn fire(&mut self, now: Time, out: &mut Outputs) {
         for (_, id) in &self.index {
             let operation = self.slots.get_mut(*id).expect("live index");
@@ -716,11 +772,17 @@ impl Component {
             }
         }
         self.wake_stores(now, out);
+        if let Some(at) = self.sweep_at
+            && at <= now
+        {
+            self.maintain(true, out);
+        }
     }
     /// Abort each child and pipe; retain a pending spawn until it can settle.
     pub fn abort(&mut self, out: &mut Outputs) {
         self.start = Start::Aborted;
         self.shutting_down = true;
+        self.sweep_at = None;
         for (_, id) in &self.index {
             let operation = self.slots.get_mut(*id).expect("live index");
             operation.aborted = true;
@@ -748,7 +810,8 @@ impl Component {
     }
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
-        let mut earliest = None;
+        // Armed only between passes, while started and not shutting down.
+        let mut earliest = self.sweep_at;
         for (_, id) in &self.index {
             let operation = self.slots.get(*id).expect("live index");
             if operation.op.is_some()

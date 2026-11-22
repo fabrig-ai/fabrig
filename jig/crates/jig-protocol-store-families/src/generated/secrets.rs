@@ -151,7 +151,7 @@ pub fn name(path: Path) -> Option<&'static str> {
 }
 
 // Table: postordered shapes, with compiler-known heap slot sizes.
-const TABLE: &[skein_codec::bounds::Node] = &[
+static TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(32),
     skein_codec::bounds::Node::Record { prefix: 2, fields: &[0, 1] },
@@ -187,7 +187,7 @@ const DECLARATIONS: &[u32] = &[
     18,
 ];
 
-const CEILING_VALUES: &[u32] = &[
+static CEILING_VALUES: &[u32] = &[
     274_497,
     131_072,
     131_072,

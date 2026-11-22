@@ -899,8 +899,6 @@ fn start_refusals_name_every_phase_and_the_refused_project() {
         (Some(Phase::Switch), "store switch"),
         (Some(Phase::Wires), "wires"),
         (Some(Phase::AdoptRuns), "run adoption"),
-        (Some(Phase::ReadAfresh { connector: 7 }), "connector 7 refresh"),
-        (Some(Phase::SettleOutbox { connector: 7 }), "connector 7 outbox settlement"),
         (Some(Phase::Open), "opening decisions"),
         (None, "unknown phase"),
     ] {

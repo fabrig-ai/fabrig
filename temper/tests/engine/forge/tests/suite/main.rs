@@ -2,6 +2,7 @@
 static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
 
 mod brief;
+mod catching_up_outbox;
 mod change_history;
 mod changes;
 mod check_record_open;

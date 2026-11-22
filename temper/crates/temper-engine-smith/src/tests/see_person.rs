@@ -638,6 +638,7 @@ fn panel(pull: Option<u64>) -> Box<temper_engine_domain_forge::Document> {
 fn changes() -> Box<temper_engine_domain_forge::Document> {
     use temper_engine_domain_forge as f;
     Box::new(f::Document::Changes(f::ChangesView {
+        catching_up: None,
         landed_default: Box::new([]),
         landed_default_more: 0,
         project: 7,
