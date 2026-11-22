@@ -273,6 +273,23 @@ loopback (skein's `testing/fakes/forge.md`, section 5). temper's worlds add:
       their bound where a repair reads them; they fall where the repair
       asked reads no files, a landing gate's, while the engine's other
       reads of the change meet them.
+
+    And two the sweeps found, which the draft's catalog lacks, their
+    reason `landing train: one owner for a landing's members, and a
+    landing that can always move`. Each asserts the handling that
+    `../client/forge/README.md`, 5.2 wants of a pull request merged by
+    someone else ("not held: it is landed, like any landing"):
+    - `a_late_manual_merge_record_finishes_the_landed_batch`
+      (`tests/suite/lagging.rs`): a squashed batch whose top is already
+      landed, while its manual merge record is read late
+      (`lagging/merge_late`), finishes without a person's release.
+    - `a_member_merged_by_another_lands_like_any_landing`
+      (`tests/suite/refusing.rs`): a batch member whose pull request
+      another user merges at its own commit between two of the engine's
+      reads, as the batch is formed, is landed and holds no record. The
+      batch's other member lands, and the landing finishes. The refusing
+      sweep leaves out `refusing/merged_by_another` on a member of a
+      landing's batch, from the batch's forming to its record.
 - **Its git** is reached through the fake forge's own calls, never git's
   protocol over HTTP: through its typed transport by the fake git
   program in the one-process world (3), as by the fake checkout in the
