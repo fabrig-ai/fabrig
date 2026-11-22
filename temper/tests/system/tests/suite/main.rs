@@ -4,6 +4,7 @@ mod brief;
 mod chat_words;
 mod composed;
 mod parked;
+mod qa;
 mod simulation;
 
 mod fuzzy {

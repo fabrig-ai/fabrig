@@ -3343,6 +3343,55 @@ fn an_authorized_forge_read_returns_a_bounded_typed_answer() {
 }
 
 #[test]
+fn a_tester_without_tools_cannot_write_a_forge_status() {
+    let mut world = World::configured(true, false);
+    world.adopt();
+    world.send(protocol::hello_slots(Token::new(7), 1, Box::new([])));
+    let mut ask = world.chat(1, b"Report one adversarial test");
+    let people::Ask::Create { batch, .. } = &mut ask else { panic!("tester creation") };
+    batch[0].authority.tools = 0;
+    batch[0].authority.grants = Box::new([]);
+    batch[0].authority.delegation = people::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(92)),
+        sign_in: world.signed_in.expect("owner session"),
+        key: [92; 16],
+        ask,
+    }));
+    world.until(Until::Assigned);
+    let tester = world.assigned[0].clone();
+    let before = world.writes.clone();
+    let answer = world.scripted_call(
+        &tester,
+        93,
+        engine::Tool::EffectForge {
+            repository: forge_world::REPO,
+            resource: forge_top::What::Repository,
+            write: Box::new(skein_forge::api::Write::Status {
+                commit: translate::commit(1),
+                context: b"tester-without-authority".as_slice().into(),
+                check: skein_forge::api::Check::Passed,
+                description: Box::new([]),
+                link: Box::new([]),
+            }),
+        },
+    );
+    assert!(
+        matches!(answer, engine::CallAnswer::ToolDenied { findings, .. } if findings.as_ref() == [jig_domain_authority::Finding::Tool])
+    );
+    assert_eq!(world.writes, before, "the refused tester writes nothing to the forge");
+    assert!(
+        !temper_engine_smith::charter(&tester)
+            .grants
+            .host_tools
+            .iter()
+            .any(|tool| tool.name.as_ref() == b"effect_forge")
+    );
+    world.close();
+}
+
+#[test]
 fn a_named_forge_effect_is_committed_before_its_write_and_made_once() {
     let mut world = World::configured(true, false);
     world.adopt();

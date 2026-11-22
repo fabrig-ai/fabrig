@@ -19,6 +19,8 @@ skein-llm.workspace = true
 jig-protocol-engine-workers.workspace = true
 jig-test-profile.workspace = true
 smith-protocol-llm.workspace = true
+smith-protocol-llm-world = { path = "../../../smith/tests/protocol-llm" }
+smith-protocol-llm-fixtures.workspace = true
 jig-protocol-charter.workspace = true
 skein-forge.workspace = true
 jig-protocol-config.workspace = true

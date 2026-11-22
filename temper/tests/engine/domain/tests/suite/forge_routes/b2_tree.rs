@@ -748,6 +748,12 @@ fn every_row_of_b2s_tree_reads_whole_on_standard() {
         // Owner membership permits the person to read all eleven tasks in this tree.
         let document = task_document(world.party_read(reads::Read::Task { task: expected.task }));
         assert_eq!(document.chip.number, expected.task);
+        if let Some(requester) = expected.requester {
+            assert_eq!(document.requester, tasks::Party::Task(requester));
+            assert_eq!(document.chip.phase, documents::PhaseLine::Ended);
+            assert!(document.delegates.is_empty());
+            assert!(document.result.is_some());
+        }
         // Documents display lineage root first; inspect nearest first to verify
         // that their separate line bound keeps the closest ancestors.
         let mut lineage = document.lineage.iter().map(|chip| chip.number).collect::<Vec<_>>();

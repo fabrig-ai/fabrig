@@ -118,7 +118,6 @@ pub enum Agent {
     QaOwner,
     QaSubowner,
     QaTester,
-    QaNext,
     QaCoder,
 }
 impl Agent {
@@ -170,7 +169,6 @@ impl Agent {
             Self::QaOwner => b"@case_qa_owner",
             Self::QaSubowner => b"@case_qa_subowner",
             Self::QaTester => b"@case_qa_tester",
-            Self::QaNext => b"@case_qa_next",
             Self::QaCoder => b"@case_qa_coder",
         }
     }
@@ -982,29 +980,20 @@ pub mod qa {
     pub const A: u64 = 2;
     pub const A1: u64 = 3;
     pub const T: u64 = 4;
-    pub const A2: u64 = 5;
-    pub const C: u64 = 6;
-    pub const CODER: u64 = 7;
-    pub const REVIEWER: u64 = 8;
-    pub const PERSON: &str = "@case_qa_director Delegate A for M1's end, M2's start and QA; report when done.";
-    pub const OWNER_SPEC: &str =
-        "@case_qa_owner Delegate A1, start M2's sub-owner on its M1 message, and pass that report to the director.";
-    pub const SUBOWNER_SPEC: &str = "@case_qa_subowner Message A at M1's end, stay for QA, delegate a tester then land its test through your change.";
-    pub const NEXT_SPEC: &str = "@case_qa_next M2's sub-owner: report admission only; do no work here.";
-    pub const TESTER_SPEC: &str =
-        "@case_qa_tester Report one adversarial test as path and content; try one forge status without authority.";
+    pub const C: u64 = 5;
+    pub const CODER: u64 = 6;
+    pub const REVIEWER: u64 = 7;
+    pub const PERSON: &str = "@case_qa_director Delegate A for QA; report when its tester's test lands.";
+    pub const OWNER_SPEC: &str = "@case_qa_owner Delegate A1 to land QA's test.";
+    pub const SUBOWNER_SPEC: &str = "@case_qa_subowner Delegate a tester then land its test through your change.";
+    pub const TESTER_SPEC: &str = "@case_qa_tester Report one adversarial test as path and content.";
     pub const CHANGE_SPEC: &str = "@case_qa_coder Land the test at tests/qa.rs from T's result, your named spec input.";
-    pub const M1_REPORT: &str = "M1 ended.\nDesign followed.\nChanges landed.\nCI green.\nReviews passed.\nSTATUS updated.\nNo blocker.\nM2 may start.\nQA follows.\nA1 stays live.";
     pub const QA_TEST_PATH: &str = "tests/qa.rs";
     pub const QA_TEST: &str = "#[test]\nfn regression() { assert_eq!(2 + 2, 4); }\n";
     pub const TEST_REPORT: &str = "tests/qa.rs\n#[test]\nfn regression() { assert_eq!(2 + 2, 4); }\n";
     pub const SUBOWNER_REPORT: &str = "A1 closes M1 after its change lands T's test.";
-    pub const NEXT_REPORT: &str = "A2 admitted for M2; no work performed.";
-    pub const OWNER_REPORT: &str = "A reports M1 closed after QA and M2's sub-owner admitted.";
-    pub const DIRECTOR_REPORT: &str = "The director reports M1's end, M2's start and QA's test landed through A1.";
-    pub const OWNER_HOLD: &[u8] = b"case-6-8-owner";
-    pub const TESTER_HOLD: &[u8] = b"case-6-8-tester";
-    pub const NEXT_HOLD: &[u8] = b"case-6-8-next";
+    pub const OWNER_REPORT: &str = "A reports QA's test landed through A1.";
+    pub const DIRECTOR_REPORT: &str = "The director reports QA's test landed through A1.";
     pub const STATUS_CONTEXT: &str = "tester-without-authority";
 }
 
@@ -1032,14 +1021,14 @@ pub fn fixture_6_8() -> forge::Fixture {
                 project["policy"]["ceiling"]["delegation"]["depth"] = 6.into();
                 project["policy"]["roles"][0]["authority"]["delegation"]["depth"] = 6.into();
             }
-            // Eight tasks, with A adding one ancestor over 6.6's smoke.
+            // Seven tasks, with A adding one ancestor over 6.6's smoke.
             // Keep each batch singleton and serialize each response's calls.
             value.jig_over("documents.lines", 4);
             agent["profile"]["declared"]["calls_per_response"] = 1.into();
             value.jig_over("hub.run_calls", 1);
             value.jig_over("fleet.calls", PAUSE_WORKERS.len());
             value.jig_over("hub.accounts", 2);
-            // A reserves A1 (50), A2 (10), and its run's ten; the director
+            // A reserves A1 (50) and its run's ten; the director
             // reserves A (80) and its run. All remain below the base ceiling 100.
             value["world_settings"]["cap"] = 100.into();
             for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {

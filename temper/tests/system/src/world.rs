@@ -318,8 +318,8 @@ pub fn relay(
     root.answered(call).expect("committed root call answer").clone()
 }
 
-/// Execute one root assignment in the Smith world and commit its typed output.
-pub fn run_assignment(root: &mut Driver, assignment: &engine::Assignment, agent: &mut Agent) {
+/// Drive the model and its real root host calls, leaving its turn and terminal uncommitted.
+pub fn drive_assignment(root: &mut Driver, assignment: &engine::Assignment, agent: &mut Agent) {
     agent.enable_parent_host_calls();
     loop {
         if agent.drive(1000) {
@@ -334,6 +334,11 @@ pub fn run_assignment(root: &mut Driver, assignment: &engine::Assignment, agent:
                 .expect("one pending Smith host relay");
         }
     }
+}
+
+/// Execute one root assignment in the Smith world and commit its typed output.
+pub fn run_assignment(root: &mut Driver, assignment: &engine::Assignment, agent: &mut Agent) {
+    drive_assignment(root, assignment, agent);
     for (number, read, spent) in agent.turn_metadata() {
         let index = usize::try_from(*number - 1).expect("positive turn");
         let turn = turn(assignment, *number, *read, *spent, &agent.turns()[index]);
