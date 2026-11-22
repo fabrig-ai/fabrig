@@ -68,8 +68,8 @@ fn an_unknown_identity_kind_is_refused() {
 
 #[test]
 fn a_repositorys_account_round_trips() {
-    let golden = values::named(values::worker(), "record_repository_full.bin");
-    let original = v1::Repository::decode(&v1::CEILINGS, &mut Reader::new(golden)).expect("within ceilings");
+    let fixed_value = values::fixed_value(values::worker(), "record_repository_full.bin");
+    let original = v1::Repository::decode(&v1::CEILINGS, &mut Reader::new(fixed_value)).expect("within ceilings");
     for account in [Some(0x1234_5678_9abc_def0), None, Some(1_u64 << 53), Some(u64::MAX)] {
         let parts = v1::Repository { account, ..original.clone() };
         let repository = parts;

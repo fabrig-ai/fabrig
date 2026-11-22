@@ -25,8 +25,6 @@ pub enum Phase {
     Switch,
     Wires,
     AdoptRuns,
-    ReadAfresh { connector: u16 },
-    SettleOutbox { connector: u16 },
     Open,
 }
 

@@ -372,9 +372,10 @@ fn page(f: &mut Reads, event: Event) -> Effects {
                     &temper_client_protocol_wire::v1::CEILINGS,
                 )
                 .unwrap();
-                if let temper_client_protocol_wire::v1::Watch::Findings(findings) = &watching.watch {
-                    assert!(!findings.mine);
-                    assert_eq!(findings.state, Some(temper_client_protocol_wire::v1::FindingState::New));
+                if let temper_client_protocol_wire::v1::Watch::Findings(findings) = watching.watch {
+                    let w::FindingsFilter::Triage(filter) = &findings.filter else { panic!("triage watch") };
+                    assert!(!filter.mine);
+                    assert_eq!(filter.state, Some(temper_client_protocol_wire::v1::FindingState::New));
                     let findings = findings.clone();
                     let opened = client(f, jig_client::Event::Watch { handle, subject });
                     f.findings.push((handle, opened_token(&opened), findings)).unwrap();
@@ -1403,6 +1404,7 @@ pub(super) fn landing(task: u64, at: u64, parties: &[u64]) -> w::ChangesLanded {
 }
 pub(super) fn changes(rows: &[w::ChangesLanded], more: u32) -> w::ChangesPanel {
     w::ChangesPanel {
+        catching_up: None,
         project: PROJECT,
         landing: b"main".as_slice().into(),
         queues: List::with_capacity(0),

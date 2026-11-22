@@ -13,6 +13,7 @@ pub struct MilestoneTotals {
     pub ended: Option<Wall>,
     pub last_landing: Option<MilestoneLanding>,
     pub spent: u64,
+    pub reds: u32,
 }
 
 pub const MILESTONES_PER_PROJECT: u32 = 256;

@@ -281,6 +281,7 @@ fn totals(ended: bool) -> w::MilestoneResult {
         ended: if ended { Some(120_000_000_000) } else { None },
         last_landing: Some(w::MilestoneLanding { at: 90_000_000_000, goal: 820, change: 821 }),
         spent: 212,
+        reds: 0,
     })
 }
 fn answer(result: w::MilestoneResult) -> jig_client::Readout {
@@ -323,7 +324,7 @@ fn show(json: bool, task: c::Task, result: w::MilestoneResult) -> crate::jig::Pr
 fn milestone_show_joins_facts_totals_and_goals_in_task_order() {
     let printed = show(false, milestone(), totals(false));
     assert_eq!(printed.status, 0);
-    assert_eq!(printed.stdout.as_ref(), b"milestone 812 \xc2\xb7 Store shape \xc2\xb7 whole since 1970-01-01T00:01Z\nThe store's new shape\nmade by person 1, Alice \xc2\xb7 1970-01-01T00:00Z\ngoals: 7 / 8 done \xc2\xb7 0 failed \xc2\xb7 1 closed \xc2\xb7 1 live\nspent: 2.12 of 4.00\nlast landing: 1970-01-01T00:01Z, S7 history in task logs (task 820)\ngoals:\n  813  S1 Draft the layout  done\n  820  S7 history in task logs  live\nread on with: task list --project 1 --after 1122 --parent 812\nread on with: task list --project 1 --ended --after 1122 --parent 812\n");
+    assert_eq!(printed.stdout.as_ref(), b"milestone 812 \xc2\xb7 Store shape \xc2\xb7 whole since 1970-01-01T00:01Z\nThe store's new shape\nmade by person 1, Alice \xc2\xb7 1970-01-01T00:00Z\ngoals: 7 / 8 done \xc2\xb7 0 failed \xc2\xb7 1 closed \xc2\xb7 1 live \xc2\xb7 0 reds owed\nspent: 2.12 of 4.00\nlast landing: 1970-01-01T00:01Z, S7 history in task logs (task 820)\ngoals:\n  813  S1 Draft the layout  done\n  820  S7 history in task logs  live\nread on with: task list --project 1 --after 1122 --parent 812\nread on with: task list --project 1 --ended --after 1122 --parent 812\n");
     let printed = show(true, milestone(), totals(false));
     assert_eq!(printed.status, 0);
     let text = String::from_utf8(printed.stdout.into_vec()).unwrap();
@@ -332,6 +333,17 @@ fn milestone_show_joins_facts_totals_and_goals_in_task_order() {
     assert_eq!(text.matches("\"title\":{\"bytes\":\"S7 history in task logs\"").count(), 1);
     assert!(!text.contains("old duplicate"));
     assert!(text.contains("\"read_on\":[\"task list --project 1 --after 1122 --parent 812\""));
+    for (reds, words) in [(0, "0 reds owed"), (1, "1 red owed"), (2, "2 reds owed")] {
+        let w::MilestoneResult::Totals(totals) = totals(false) else { panic!("totals") };
+        let mut parts = totals;
+        parts.reds = reds;
+        let result = w::MilestoneResult::Totals(parts);
+        let printed = show(false, milestone(), result.clone());
+        assert!(has(&printed.stdout, format!(" · {words}\nspent:").as_bytes()));
+        let printed = show(true, milestone(), result);
+        f::unique_keys(&printed.stdout).unwrap();
+        assert!(has(&printed.stdout, format!("\"reds\":{reds}").as_bytes()));
+    }
     assert_eq!(rows::MILESTONE_SHOW.result, b"milestone_show");
 }
 #[test]

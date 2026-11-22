@@ -1,256 +1,12 @@
-//! Whole provider values at the codec edge (jig/docs/design/domain/engine/llm-providers.md, 6).
+//! Socket and host addresses at the settings boundary (jig/docs/design/domain/engine/llm-providers.md, 6).
 use crate::settings_v3 as wire;
 use jig_domain_core_vocabulary::settings::providers as p;
-use skein_lib::List;
-fn problem(reason: skein_codec::Reason) -> wire::Problem {
-    wire::Problem { path: wire::paths::PROVIDER_SETTING_ENDPOINTS, reason }
-}
-fn encode_provider_list(value: &p::ProviderList, limits: &wire::Limits) -> Result<wire::ProviderList, wire::Problem> {
-    let mut keep = List::with_capacity(limits.provider_list_keep);
-    for item in &value.keep {
-        let item = wire::ProviderText { bytes: item.clone() };
-        if keep.push(item).is_err() {
-            return Err(problem(skein_codec::Reason::Bound));
-        }
-    }
-    let mut drop = List::with_capacity(limits.provider_list_drop);
-    for item in &value.drop {
-        let item = wire::ProviderText { bytes: item.clone() };
-        if drop.push(item).is_err() {
-            return Err(problem(skein_codec::Reason::Bound));
-        }
-    }
-    Ok(wire::ProviderList { keep, drop })
-}
-fn decode_provider_list(value: &wire::ProviderList) -> p::ProviderList {
-    let mut keep = List::with_capacity(value.keep.len());
-    for item in &value.keep {
-        let item = item.bytes.clone();
-        keep.push(item).expect("decoded list length");
-    }
-    let keep = keep.into_boxed();
-    let mut drop = List::with_capacity(value.drop.len());
-    for item in &value.drop {
-        let item = item.bytes.clone();
-        drop.push(item).expect("decoded list length");
-    }
-    let drop = drop.into_boxed();
-    p::ProviderList { keep, drop }
-}
-fn encode_provider_registration(
-    value: &p::Registration,
-    limits: &wire::Limits,
-) -> Result<wire::ProviderRegistration, wire::Problem> {
-    let issuer = value.issuer.clone();
-    let client = value.client.clone();
-    let mut scopes = List::with_capacity(limits.provider_registration_scopes);
-    for item in &value.scopes {
-        let item = wire::ProviderText { bytes: item.clone() };
-        if scopes.push(item).is_err() {
-            return Err(problem(skein_codec::Reason::Bound));
-        }
-    }
-    let name_hint = value.name_hint.clone();
-    let authorization = value.authorization.clone();
-    let token = value.token.clone();
-    let revocation = value.revocation.clone();
-    let keys = value.keys.clone();
-    let endpoint_transport = encode_provider_transport(&value.endpoint_transport, limits);
-    let mut must_grant = List::with_capacity(limits.provider_registration_must_grant);
-    for item in &value.must_grant {
-        let item = wire::ProviderText { bytes: item.clone() };
-        if must_grant.push(item).is_err() {
-            return Err(problem(skein_codec::Reason::Bound));
-        }
-    }
-    let resource = value.resource.clone();
-    let redirect_path = value.redirect_path.clone();
-    let redirect_port = value.redirect_port;
-    Ok(wire::ProviderRegistration {
-        issuer,
-        client,
-        scopes,
-        name_hint,
-        authorization,
-        token,
-        revocation,
-        keys,
-        endpoint_transport,
-        must_grant,
-        resource,
-        redirect_path,
-        redirect_port,
-    })
-}
-fn decode_provider_registration(value: &wire::ProviderRegistration) -> p::Registration {
-    let issuer = value.issuer.clone();
-    let client = value.client.clone();
-    let mut scopes = List::with_capacity(value.scopes.len());
-    for item in &value.scopes {
-        let item = item.bytes.clone();
-        scopes.push(item).expect("decoded list length");
-    }
-    let scopes = scopes.into_boxed();
-    let name_hint = value.name_hint.clone();
-    let authorization = value.authorization.clone();
-    let token = value.token.clone();
-    let revocation = value.revocation.clone();
-    let keys = value.keys.clone();
-    let endpoint_transport = decode_provider_transport(&value.endpoint_transport);
-    let mut must_grant = List::with_capacity(value.must_grant.len());
-    for item in &value.must_grant {
-        let item = item.bytes.clone();
-        must_grant.push(item).expect("decoded list length");
-    }
-    let must_grant = must_grant.into_boxed();
-    let resource = value.resource.clone();
-    let redirect_path = value.redirect_path.clone();
-    let redirect_port = value.redirect_port;
-    p::Registration {
-        issuer,
-        client,
-        scopes,
-        name_hint,
-        authorization,
-        token,
-        revocation,
-        keys,
-        endpoint_transport,
-        must_grant,
-        resource,
-        redirect_path,
-        redirect_port,
-    }
-}
-fn encode_provider(value: &p::Provider, limits: &wire::Limits) -> Result<wire::Provider, wire::Problem> {
-    let name = value.name.clone();
-    let number = value.number;
-    let endpoint = value.endpoint.clone();
-    let direct = value.direct.clone();
-    let list = match &value.list {
-        Some(value) => Some(encode_provider_list(value, limits)?),
-        None => None,
-    };
-    let signed_in_plan = value.signed_in_plan;
-    let manage_usage = value.manage_usage.clone();
-    let sign_in = match &value.sign_in {
-        Some(value) => Some(encode_provider_registration(value, limits)?),
-        None => None,
-    };
-    let keys = value.keys;
-    let mut programs = List::with_capacity(limits.provider_programs);
-    for item in &value.programs {
-        let item = wire::ProviderText { bytes: item.clone() };
-        if programs.push(item).is_err() {
-            return Err(problem(skein_codec::Reason::Bound));
-        }
-    }
-    Ok(wire::Provider { name, number, endpoint, direct, list, signed_in_plan, manage_usage, sign_in, keys, programs })
-}
-fn decode_provider(value: &wire::Provider) -> p::Provider {
-    let name = value.name.clone();
-    let number = value.number;
-    let endpoint = value.endpoint.clone();
-    let direct = value.direct.clone();
-    let list = match &value.list {
-        Some(value) => Some(decode_provider_list(value)),
-        None => None,
-    };
-    let signed_in_plan = value.signed_in_plan;
-    let manage_usage = value.manage_usage.clone();
-    let sign_in = match &value.sign_in {
-        Some(value) => Some(decode_provider_registration(value)),
-        None => None,
-    };
-    let keys = value.keys;
-    let mut programs = List::with_capacity(value.programs.len());
-    for item in &value.programs {
-        let item = item.bytes.clone();
-        programs.push(item).expect("decoded list length");
-    }
-    let programs = programs.into_boxed();
-    p::Provider { name, number, endpoint, direct, list, signed_in_plan, manage_usage, sign_in, keys, programs }
-}
-fn encode_provider_header(value: &p::Header, _limits: &wire::Limits) -> wire::ProviderHeader {
-    let name = value.name.clone();
-    let value = value.value.clone();
-    wire::ProviderHeader { name, value }
-}
-fn decode_provider_header(value: &wire::ProviderHeader) -> p::Header {
-    let name = value.name.clone();
-    let value = value.value.clone();
-    p::Header { name, value }
-}
-fn encode_provider_endpoint(
-    value: &p::Endpoint,
-    limits: &wire::Limits,
-) -> Result<wire::ProviderEndpoint, wire::Problem> {
-    let name = value.name.clone();
-    let number = value.number;
-    let dialect = value.dialect;
-    let provider = value.provider.clone();
-    let program = value.program.clone();
-    let address = encode_provider_address(&value.address, limits);
-    let transport = encode_provider_transport(&value.transport, limits);
-    let mut headers = List::with_capacity(limits.provider_endpoint_headers);
-    for item in &value.headers {
-        let item = encode_provider_header(item, limits);
-        if headers.push(item).is_err() {
-            return Err(problem(skein_codec::Reason::Bound));
-        }
-    }
-    let connect = value.connect;
-    let handshake = value.handshake;
-    Ok(wire::ProviderEndpoint {
-        name,
-        number,
-        dialect,
-        provider,
-        program,
-        address,
-        transport,
-        headers,
-        connect,
-        handshake,
-    })
-}
-fn decode_provider_endpoint(value: &wire::ProviderEndpoint) -> p::Endpoint {
-    let name = value.name.clone();
-    let number = value.number;
-    let dialect = value.dialect;
-    let provider = value.provider.clone();
-    let program = value.program.clone();
-    let address = decode_provider_address(&value.address);
-    let transport = decode_provider_transport(&value.transport);
-    let mut headers = List::with_capacity(value.headers.len());
-    for item in &value.headers {
-        let item = decode_provider_header(item);
-        headers.push(item).expect("decoded list length");
-    }
-    let headers = headers.into_boxed();
-    let connect = value.connect;
-    let handshake = value.handshake;
-    p::Endpoint { name, number, dialect, provider, program, address, transport, headers, connect, handshake }
-}
-
-fn encode_provider_transport(value: &p::Transport, _limits: &wire::Limits) -> wire::ProviderTransport {
-    match value {
-        p::Transport::Plaintext => wire::ProviderTransport::Plaintext,
-        p::Transport::Tls { server_name, trust } => {
-            wire::ProviderTransport::Tls(wire::ProviderTls { server_name: server_name.clone(), trust: trust.clone() })
-        }
-    }
-}
-fn decode_provider_transport(value: &wire::ProviderTransport) -> p::Transport {
-    match value {
-        wire::ProviderTransport::Plaintext => p::Transport::Plaintext,
-        wire::ProviderTransport::Tls(value) => {
-            p::Transport::Tls { server_name: value.server_name.clone(), trust: value.trust.clone() }
-        }
-    }
-}
-fn encode_provider_address(value: &p::EndpointAddress, _limits: &wire::Limits) -> wire::ProviderAddress {
-    match value {
+#[expect(clippy::unnecessary_wraps, reason = "by-hand maps pairs share the generated fallible signature")]
+pub(crate) fn provider_address_to_record(
+    value: &p::EndpointAddress,
+    _limits: &wire::Limits,
+) -> Result<wire::ProviderAddress, wire::Problem> {
+    Ok(match value {
         p::EndpointAddress::Host { name, port } => {
             wire::ProviderAddress::Host(wire::ProviderHost { name: name.clone(), port: *port })
         }
@@ -265,11 +21,15 @@ fn encode_provider_address(value: &p::EndpointAddress, _limits: &wire::Limits) -
                 scope_id: value.scope_id(),
             })
         }
-    }
+    })
 }
-fn decode_provider_address(value: &wire::ProviderAddress) -> p::EndpointAddress {
-    match value {
-        wire::ProviderAddress::Host(value) => p::EndpointAddress::Host { name: value.name.clone(), port: value.port },
+#[expect(clippy::unnecessary_wraps, reason = "by-hand maps pairs share the generated fallible signature")]
+pub(crate) fn provider_address_to_domain(
+    value: wire::ProviderAddress,
+    _limits: &wire::Limits,
+) -> Result<p::EndpointAddress, wire::Problem> {
+    Ok(match value {
+        wire::ProviderAddress::Host(value) => p::EndpointAddress::Host { name: value.name, port: value.port },
         wire::ProviderAddress::Ipv4(value) => p::EndpointAddress::Socket(core::net::SocketAddr::V4(
             core::net::SocketAddrV4::new(core::net::Ipv4Addr::from(value.ip), value.port),
         )),
@@ -281,28 +41,5 @@ fn decode_provider_address(value: &wire::ProviderAddress) -> p::EndpointAddress 
                 value.scope_id,
             )))
         }
-    }
-}
-pub(super) fn encode(
-    value: &p::ProviderSetting,
-    limits: &wire::Limits,
-) -> Result<wire::ProviderSetting, wire::Problem> {
-    let provider = encode_provider(&value.provider, limits)?;
-    let mut endpoints = List::with_capacity(limits.provider_setting_endpoints);
-    for endpoint in &value.endpoints {
-        let endpoint = encode_provider_endpoint(endpoint, limits)?;
-        if endpoints.push(endpoint).is_err() {
-            return Err(problem(skein_codec::Reason::Bound));
-        }
-    }
-    Ok(wire::ProviderSetting { provider, endpoints, withdrawn: value.withdrawn })
-}
-pub(super) fn decode(value: &wire::ProviderSetting) -> p::ProviderSetting {
-    let provider = decode_provider(&value.provider);
-    let mut endpoints = List::with_capacity(value.endpoints.len());
-    for endpoint in &value.endpoints {
-        let endpoint = decode_provider_endpoint(endpoint);
-        endpoints.push(endpoint).expect("decoded endpoint count");
-    }
-    p::ProviderSetting { provider, endpoints: endpoints.into_boxed(), withdrawn: value.withdrawn }
+    })
 }

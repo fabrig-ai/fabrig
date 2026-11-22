@@ -42,6 +42,7 @@ pub const WORKSPACE: skein_lib::Token = skein_lib::Token::new(7);
 pub const DEADLINE: skein_lib::Time = skein_lib::Time::from_nanos(1000);
 pub const PARENT: git::Commit = COMMIT_256;
 pub const EXPECTED: git::Commit = COMMIT_256;
+pub const SWEEP_CURSOR: skein_io::kernel::Fd = skein_io::kernel::Fd::new(30);
 pub const TRASH: skein_io::kernel::Fd = skein_io::kernel::Fd::new(4);
 pub const MAKING: skein_io::kernel::Fd = skein_io::kernel::Fd::new(7);
 pub const STORES: skein_io::kernel::Fd = skein_io::kernel::Fd::new(6);
@@ -219,6 +220,11 @@ impl Started {
         started.component.reclaim();
     }
     pub fn laid_out() -> Started {
+        let mut started = Self::sweep_pending();
+        started.empty_sweep();
+        started
+    }
+    pub fn sweep_pending() -> Started {
         let mut started = Self::unstarted();
         started.component = crate::Component::new(
             &limits(),
@@ -232,7 +238,6 @@ impl Started {
             started.complete_ok();
         }
         assert_eq!(started.below.out.events.pop(), Some(crate::Event::Started));
-        started.empty_sweep();
         started
     }
     pub fn file_operation(&mut self) -> skein_io::kernel::Op {
@@ -392,11 +397,37 @@ impl Started {
         }
         self.complete(Ok(skein_io::kernel::Done::Count(u32::try_from(values.len()).expect("test page"))));
     }
+    pub fn open_sweep(&mut self) {
+        use skein_io::kernel::{Done, Op, OpenHow};
+        assert_eq!(
+            self.file_operation(),
+            Op::Open {
+                root: skein_io::kernel::Fd::new(3),
+                path: Box::from(b"trash".as_slice()),
+                how: OpenHow::DirectoryNoFollow,
+            }
+        );
+        self.complete(Ok(Done::Fd(SWEEP_CURSOR)));
+    }
+    pub fn sweep_page(&mut self, fd: skein_io::kernel::Fd, values: &[(&[u8], skein_io::kernel::Kind)]) {
+        let skein_io::kernel::Op::List { fd: listed, entries, names } = self.file_operation() else {
+            panic!("expected List")
+        };
+        let limits = self.component.limits();
+        let size = if fd == SWEEP_CURSOR { 1 } else { limits.sweep_entries };
+        assert_eq!(listed, fd);
+        assert_eq!(entries.len(), usize::try_from(size).expect("test page size"));
+        assert_eq!(names.len(), usize::try_from(limits.sweep_bytes).expect("test name bytes"));
+        self.listing(values);
+    }
+    pub fn end_sweep(&mut self) {
+        self.sweep_page(SWEEP_CURSOR, &[]);
+        assert_eq!(self.file_operation(), skein_io::kernel::Op::Close { fd: SWEEP_CURSOR });
+        self.complete_ok();
+    }
     pub fn empty_sweep(&mut self) {
-        for _ in 0_u8..3 {
-            self.file_operation();
-            self.complete_ok();
-        }
+        self.open_sweep();
+        self.end_sweep();
     }
     pub fn shutdown(&mut self) {
         self.down(crate::Request::Shutdown);
@@ -467,11 +498,14 @@ impl Started {
         values.into_boxed()
     }
     pub fn done(&mut self) -> Option<(skein_lib::Token, git::Done)> {
-        match self.below.out.events.pop() {
-            Some(crate::Event::Done { owner, done }) => Some((owner, done)),
-            None => None,
-            Some(crate::Event::Started | crate::Event::Unusable { .. }) => panic!("unexpected start terminal"),
+        while let Some(event) = self.below.out.events.pop() {
+            match event {
+                crate::Event::Done { owner, done } => return Some((owner, done)),
+                crate::Event::Unswept { .. } => {}
+                crate::Event::Started | crate::Event::Unusable { .. } => panic!("unexpected start terminal"),
+            }
         }
+        None
     }
 }
 fn clone_file_kind(kind: &skein_io::kernel::Op) -> skein_io::kernel::Op {

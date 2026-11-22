@@ -6,6 +6,8 @@ use crate::{
 use alloc::boxed::Box;
 use skein_lib::{List, Map, Queue, Wall};
 pub use temper_engine_domain_forge_vocabulary::findings::*;
+pub(crate) mod judging;
+mod repairing;
 static NO_FINDINGS: Map<(u32, u32), Finding> = Map::with_capacity(0);
 impl Domain {
     pub(crate) fn finding_rows(&self) -> &Map<(u32, u32), Finding> {
@@ -44,6 +46,27 @@ impl Domain {
     }
     pub fn findings(&self, project: u32) -> impl DoubleEndedIterator<Item = (&(u32, u32), &Finding)> {
         self.finding_rows().range((project, 0)..=(project, u32::MAX))
+    }
+    /// Count uncleared reds once per finding, whatever its triage state (red-findings.md, 10).
+    #[must_use]
+    pub fn reds_owed(&self, project: u32, milestone: u64) -> u32 {
+        let mut count = 0u32;
+        for (_, finding) in self.findings(project) {
+            if !finding.uncleared_red() {
+                continue;
+            }
+            let Some(blame) = &finding.blame else { continue };
+            let mut blamed = false;
+            for landing in &blame.landings {
+                for goal in &landing.goals {
+                    blamed |= goal.milestone == Some(milestone);
+                }
+            }
+            if blamed {
+                count = count.saturating_add(1);
+            }
+        }
+        count
     }
     /// One open flake per test suffices; count each chosen finding once (landing-regate.md, 2).
     pub(crate) fn gate_flakes(
@@ -156,6 +179,7 @@ impl Domain {
                 signature: None,
                 seen: None,
                 blame: None,
+                repair: None,
                 cleared: None,
             },
             erase,
@@ -256,10 +280,16 @@ impl Domain {
         row.state = FindingState::New;
         Ok(FindingWrite { row, erase: None })
     }
-    pub fn prepare_triage_finding(&self, call: TriageFinding) -> Result<FindingWrite, FindingRefusal> {
+    /// Single-finding acts; a repair's batch is admitted by `prepare_repair_findings` and made by the root.
+    pub fn prepare_triage_finding(&self, by: Filer, call: TriageFinding) -> Result<FindingWrite, FindingRefusal> {
         let mut row = self.finding(call.project, call.number).ok_or(FindingRefusal::NoFinding)?.clone();
-        if row.state.ended() {
-            return Err(FindingRefusal::Ended);
+        match &call.act {
+            Triage::Route(_) | Triage::Backlog | Triage::Drop(_) => {
+                if row.state.ended() {
+                    return Err(FindingRefusal::Ended);
+                }
+            }
+            Triage::Repair(_) | Triage::Blame(_) => {}
         }
         match call.act {
             Triage::Route(goal) => {
@@ -274,11 +304,88 @@ impl Domain {
                 row.state = FindingState::Dropped;
                 row.reason = Some(reason);
             }
+            Triage::Repair(_) => return Err(FindingRefusal::NoGoal),
+            Triage::Blame(act) => row.blame = Some(self.moved_blame(&row, by, act)?),
         }
         Ok(FindingWrite { row, erase: None })
     }
+    /// A move reads only today's tier settings and the retained log (domain/red-repairs.md, 3).
+    fn moved_blame(&self, row: &Finding, by: Filer, act: BlameAct) -> Result<FindingBlame, FindingRefusal> {
+        let address = crate::tiers::joined(&[
+            b"finding ",
+            skein_lib::Decimal::of(u64::from(row.project)).as_bytes(),
+            b"/",
+            skein_lib::Decimal::of(u64::from(row.number)).as_bytes(),
+        ]);
+        if row.kind != FindingKind::Red || row.blame.is_none() {
+            return Err(FindingRefusal::Words(crate::tiers::joined(&[
+                &address,
+                b" has no blame: it is no red filed under landed",
+            ])));
+        }
+        if row.cleared.is_some() {
+            return Err(FindingRefusal::Words(crate::tiers::joined(&[&address, b" is cleared"])));
+        }
+        if !crate::settings::words_fit(&act.why, 200) {
+            return Err(FindingRefusal::Words(b"why".as_slice().into()));
+        }
+        let landings: Box<[BlamedLanding]> = match act.landing {
+            None => Box::default(),
+            Some(commit) => {
+                let signature = row.signature.as_ref().expect("landed finding signature");
+                let mut branch = None;
+                for tier in crate::tiers::configured_all(self, signature.repository) {
+                    if tier.name == signature.source {
+                        branch = crate::tiers::followed(self, signature.repository, tier);
+                        break;
+                    }
+                }
+                let Some(branch) = branch else {
+                    return Err(FindingRefusal::Words(crate::tiers::joined(&[
+                        &address,
+                        b"'s tier ",
+                        &signature.source,
+                        b" has no followed branch",
+                    ])));
+                };
+                let mut found = None;
+                if let Some(log) = self.landing_log(signature.repository) {
+                    for landing in &log.landings {
+                        if landing.commit == commit && landing.branch == branch {
+                            found = Some(blamed_landing(commit, &landing.changes, self.landing.limits.landing_members));
+                            break;
+                        }
+                    }
+                }
+                let Some(landing) = found else {
+                    let digits = crate::commit_text(&commit);
+                    return Err(FindingRefusal::Words(crate::tiers::joined(&[
+                        b"landing ",
+                        digits.get(..12).expect("commit digits"),
+                        b" is not one the landing log holds on ",
+                        &branch,
+                    ])));
+                };
+                Box::new([landing])
+            }
+        };
+        Ok(FindingBlame { strength: BlameStrength::Moved, landings, moved: Some(BlameMove { by, why: act.why }) })
+    }
     pub fn commit_finding(&mut self, limits: &Limits, write: FindingWrite, out: &mut Queue<Request>) {
         let FindingWrite { row, erase } = write;
+        let mut subjects = Map::uncapped();
+        let mut milestones = Map::uncapped();
+        if let Some(previous) = self.finding(row.project, row.number) {
+            blame_marks(previous, &mut subjects, &mut milestones);
+        }
+
+        if let Some(number) = erase
+            && let Some(previous) = self.finding(row.project, number)
+        {
+            blame_marks(previous, &mut subjects, &mut milestones);
+        }
+
+        blame_marks(&row, &mut subjects, &mut milestones);
         if let Some(number) = erase {
             self.finding_rows_mut(limits).remove(&(row.project, number));
             out.push(Request::Erase { key: Key::Finding { project: row.project, number } });
@@ -287,6 +394,20 @@ impl Domain {
         self.finding_rows_mut(limits).insert((project, row.number), row.clone()).expect("judged finding room");
         out.push(Request::Save { record: Stored::Finding(row), release: None, read_afresh: None });
         mark_findings(project, out);
+        let mut batch = List::with_capacity(crate::MARKED);
+        for (subject, ()) in &subjects {
+            batch.push(*subject).expect("bounded marks batch");
+            if batch.len() == crate::MARKED {
+                out.push(Request::Marked { tasks: batch.into_boxed() });
+                batch = List::with_capacity(crate::MARKED);
+            }
+        }
+        if !batch.is_empty() {
+            out.push(Request::Marked { tasks: batch.into_boxed() });
+        }
+        for (task, ()) in &milestones {
+            out.push(Request::MilestoneMarked { task: *task });
+        }
     }
     pub fn answer_finding(
         &mut self,
@@ -298,6 +419,44 @@ impl Domain {
         self.connect.answer(request, token, answer, out);
     }
 }
+/// Filing and moves retain each goal once in member order (domain/red-findings.md, 3).
+pub(crate) fn blamed_landing(
+    commit: skein_forge::api::Commit,
+    members: &[crate::LoggedChange],
+    bound: u32,
+) -> BlamedLanding {
+    let mut goals = List::with_capacity(bound);
+    for member in members {
+        let Some(goal) = member.goal else { continue };
+        let mut seen = false;
+        for kept in &goals {
+            let kept: &BlamedGoal = kept;
+            seen |= kept.goal == goal;
+        }
+        if !seen && goals.room() > 0 {
+            goals.push(BlamedGoal { goal, milestone: member.milestone, person: member.person }).expect("goal room");
+        }
+    }
+    BlamedLanding { commit, goals: goals.into_boxed() }
+}
+/// Union the old, written and evicted blames; one finding can name a goal more than once.
+fn blame_marks(row: &Finding, subjects: &mut Map<u64, ()>, milestones: &mut Map<u64, ()>) {
+    let Some(blame) = &row.blame else { return };
+    for landing in &blame.landings {
+        for goal in &landing.goals {
+            if let Some(subject) = findings_subject(row.project, FindingsFilter::Goal(goal.goal)) {
+                subjects.insert(subject, ()).expect("blame subjects");
+            }
+            if let Some(milestone) = goal.milestone {
+                milestones.insert(milestone, ()).expect("blamed milestones");
+                if let Some(subject) = findings_subject(row.project, FindingsFilter::Milestone(milestone)) {
+                    subjects.insert(subject, ()).expect("blame subjects");
+                }
+            }
+        }
+    }
+}
+
 pub(crate) fn erase_project(d: &mut Domain, project: u32, out: &mut Queue<Request>) {
     let mut numbers = List::with_capacity(d.finding_rows().len());
     for (_, row) in d.findings(project) {

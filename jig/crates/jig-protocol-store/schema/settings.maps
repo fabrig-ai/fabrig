@@ -1,0 +1,135 @@
+records crate::settings_v3
+use c = jig_domain_core_vocabulary
+use v = jig_domain_core_vocabulary::settings
+use ap = jig_domain_core_vocabulary::settings::application
+use pr = jig_domain_core_vocabulary::settings::providers
+use a = jig_domain_authority
+use t = jig_domain_tasks
+use p = jig_domain_people
+use s = skein_codec::convert
+use own = crate::codec::settings
+by hand crate::codec::settings
+context crate::settings_v3::Limits
+
+record Text stands for bytes
+record ModelName = v::ModelName { efforts slice }
+record Model = c::Model { efforts slice }
+record RunPolicy = c::RunPolicy { alternatives slice, tools via own::run_tools }
+enum Kinds = jig_domain_fleet::Kinds
+record WakeBatch
+record WakePace
+enum WakeRule = t::WakeRule
+enum ResultsWake = t::ResultsWake
+record WakePolicy = t::WakePolicy
+record Segment stands for bytes
+record Document by hand
+record CharterPart = c::CharterPart { on via own::charter_reasons }
+record Charter = c::Charter { documents slice, parts slice }
+record Overlay = v::Overlay { alternatives slice, tools via own::run_tools, documents slice, parts slice }
+enum ModelSource = v::ModelSource
+record CatalogueModel = v::CatalogueModel { first_read via s::wall }
+record ProviderNumber stands for number
+record ProviderText stands for bytes
+record ProviderList = jig_domain_accounts::ProviderList { keep slice, drop slice }
+record ProviderTls
+enum ProviderTransport = pr::Transport
+record ProviderRegistration = pr::Registration { scopes slice, must_grant slice }
+record Provider = pr::Provider { programs slice }
+record ProviderIpv4 by hand
+record ProviderIpv6 by hand
+record ProviderHost
+enum ProviderAddress by hand
+record ProviderHeader = pr::Header
+record ProviderEndpoint = pr::Endpoint { headers slice }
+record ProviderSetting = pr::ProviderSetting { endpoints slice }
+record WorkerNumber stands for number
+record WorkerSetting = v::WorkerSetting
+record ModelNumber stands for number
+record CharterNumber stands for number
+record TemplateNumber stands for number
+record PolicyNumber stands for number
+record ApplicationSetting
+record ProjectPolicySetting
+enum Setting = v::Setting { charter tuple, template tuple, policy tuple, model tuple, worker tuple, provider tuple }
+record LastExact stands for bytes
+record LastOpen stands for bytes
+enum Last = a::Last { exact tuple, open tuple }
+record Pattern = a::Pattern { segments slice }
+record Grant = a::Grant
+record ResourceScope = a::ResourceScope
+record ExecutorCharter stands for number
+record ExecutorProcedure stands for number
+record ExecutorRole stands for number
+record ExecutorJob stands for kind
+enum Executor = a::Executor { charter tuple, procedure tuple, role tuple, job tuple }
+record Delegation = a::Delegation { kinds slice }
+record Models by hand
+record Budget = a::Budget { deadline via s::wall }
+record Authority = a::Authority { tools via own::authority_tools, grants slice, notes via own::note_scopes, note_resources slice }
+record Judge = a::Judge
+record Observed
+enum Guard = a::Guard
+record Requirement = a::Requirement
+record Implication = a::Implication
+record Rules by hand
+record Role = a::Role { requests via own::role_requests, decides via own::role_proposals }
+record Policy = a::Policy { projections slice, roles slice, requirements slice }
+record PermissionRole = p::PermissionRole
+record TemplateCharter stands for number
+enum TemplateExecutor = p::TemplateExecutor { charter tuple }
+record Amount stands for amount
+record AsAllowed
+enum TemplateBudget = p::TemplateBudget { amount tuple }
+record Span stands for span
+enum TemplateDeadline = p::TemplateDeadline { span tuple }
+record TemplateOverride = p::TemplateOverride
+record ConfiguredPolicy = c::ConfiguredPolicy { permissions slice, templates slice }
+record FieldRule = t::FieldRule
+record Verdict by hand
+enum PartKind = t::PartKind
+record PartPath stands for segments
+record PartNumber stands for number
+enum PartKey = t::PartKey { path tuple, number tuple }
+record Part = t::Part
+record Approval
+record Report
+record VerdictChoices { choices slice }
+record Change
+enum Contract by hand
+enum Retention = t::Retention
+record Closer = t::Closer
+enum EndedBy = t::EndedBy { closer tuple }
+record Flags = t::Flags
+record ModelEffort = t::ModelEffort
+record LlmLater = t::LlmLater { subagents slice }
+record LlmChoice = t::LlmChoice { subagents slice }
+record Symbol = p::Symbol
+record Template = c::Template { resources slice }
+record Override = v::Override
+record LimitsValue by hand
+enum Value by hand
+record Party stands for number
+record ListDecider
+enum Decider = v::Decider { party tuple }
+enum Proposer = p::Proposer { task tuple, party tuple }
+record ProposalId by hand
+record Head = v::Head { at via s::wall }
+record Set stands for value
+enum Edit = v::Edit { set tuple }
+record Item = v::Item
+enum Replaced = v::Replaced { value tuple }
+record RevisionItem = v::RevisionItem
+record FollowsRevision
+enum Follows = ap::Follows
+record SizedSet
+enum SizedEdit = ap::SizedEdit
+record Recorded = ap::Recorded
+enum SizedReplaced = ap::Replaced
+record RevisionRecorded = ap::RevisionRecorded
+record ApplicationState = ap::State { charters slice }
+record Default by hand
+record Changed by hand
+record Revision by hand
+record Extent by hand
+record CharterVersion = v::CharterVersion { charter boxed, overlay boxed }
+record Proposal by hand

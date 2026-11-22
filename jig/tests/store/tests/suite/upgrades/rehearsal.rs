@@ -146,14 +146,14 @@ fn job_rehearsal_reads_shared_transcripts_without_cutting_them() {
 }
 
 #[test]
-fn rehearsal_refuses_switch_and_close_is_only_for_rehearsals() {
+fn rehearsal_switches_only_scratch_and_close_is_only_for_rehearsals() {
     let mut world = previous();
     world.owner_sets(AFTER);
     let _ = world.rehearse();
     let before = world.contents();
     let events = world.request(Request::Switch { owner: OWNER });
-    assert!(matches!(events.as_slice(), [Event::OpenRefused { why: OpenRefusal::Failed, .. }]), "{events:?}");
-    assert_eq!(world.contents(), before);
+    assert!(matches!(events.as_slice(), [Event::Switched { owner: OWNER }]), "{events:?}");
+    assert_eq!(world.contents(), before, "switch changes the scratch, not the source");
     close(&mut world);
     let mut ordinary = World::new(SEED);
     let before = ordinary.contents();

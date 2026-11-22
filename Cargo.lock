@@ -2502,6 +2502,8 @@ dependencies = [
 name = "jig-test-connector-world"
 version = "0.0.0"
 dependencies = [
+ "jig-core-kit",
+ "jig-domain-core",
  "jig-test-connector",
  "jig-test-connector-kit",
  "jig-test-store",
@@ -6934,6 +6936,7 @@ dependencies = [
  "temper-engine-domain-forge-issues",
  "temper-engine-domain-forge-landing",
  "temper-engine-domain-forge-tiers",
+ "temper-engine-domain-limits",
  "temper-engine-domain-room",
  "temper-engine-domain-store",
  "temper-engine-domain-translate",
@@ -6974,6 +6977,8 @@ dependencies = [
  "temper-engine-domain-forge-landing",
  "temper-engine-domain-forge-tiers",
  "temper-engine-domain-forge-vocabulary",
+ "temper-engine-domain-trials",
+ "temper-engine-domain-ways",
  "temper-protocol-reaches",
 ]
 
@@ -7036,6 +7041,24 @@ dependencies = [
  "temper-engine-domain-forge-landing",
  "temper-engine-domain-forge-tiers",
  "temper-protocol-reaches",
+]
+
+[[package]]
+name = "temper-engine-domain-limits"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-accounts",
+ "jig-domain-authority",
+ "jig-domain-brief",
+ "jig-domain-core",
+ "jig-domain-fleet",
+ "jig-domain-notes",
+ "jig-domain-people",
+ "jig-domain-tasks",
+ "jig-domain-views",
+ "skein-lib",
+ "temper-engine-domain-forge",
+ "temper-engine-domain-store",
 ]
 
 [[package]]
@@ -7526,6 +7549,7 @@ dependencies = [
  "temper-protocol-store",
  "temper-protocol-worker-wire",
  "temper-service",
+ "temper-service-core",
  "temper-service-shell",
  "temper-shell",
  "temper-test-env",
@@ -7627,6 +7651,7 @@ name = "temper-fake-checkout"
 version = "0.0.0"
 dependencies = [
  "skein-fake-checkout",
+ "skein-lib",
 ]
 
 [[package]]
@@ -8654,6 +8679,7 @@ dependencies = [
  "temper-fake-git",
  "temper-test-env",
  "temper-worker-domain-checkout",
+ "temper-worker-inspect",
  "temper-worker-protocol-git",
 ]
 
@@ -8705,6 +8731,20 @@ dependencies = [
  "temper-fake-checkout",
  "temper-worker-checkout-world",
  "temper-worker-domain",
+ "temper-worker-inspect",
+]
+
+[[package]]
+name = "temper-worker-inspect"
+version = "0.0.0"
+dependencies = [
+ "skein-fake-checkout",
+ "skein-lib",
+ "skein-world",
+ "temper-fake-checkout",
+ "temper-worker-domain",
+ "temper-worker-domain-checkout",
+ "temper-worker-protocol-git",
 ]
 
 [[package]]
@@ -8726,6 +8766,7 @@ dependencies = [
  "skein-scratch",
  "skein-world",
  "temper-worker-domain-checkout",
+ "temper-worker-inspect",
  "temper-worker-protocol-git",
 ]
 

@@ -12,6 +12,8 @@ mod admission;
 mod agent_reads;
 mod applications;
 mod budget;
+mod catching_up;
+mod catching_up_progress;
 mod checkpoints;
 mod configuring;
 mod deleted_project;
@@ -30,6 +32,7 @@ mod mark;
 mod memory;
 mod notes_load;
 mod opened;
+mod opening;
 mod oracle;
 mod orders;
 mod panel_before_change;
@@ -60,6 +63,8 @@ mod fuzzy {
     mod follows;
     mod landing_settings;
     mod loads;
+    mod opening;
+    mod reds_owed;
     #[expect(clippy::duplicate_mod, reason = "the same crash cases run in both profiles")]
     #[path = "../removal.rs"]
     mod removal;

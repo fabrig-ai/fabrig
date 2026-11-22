@@ -203,11 +203,12 @@ The floor stays 16 and the block is not breaking.
     So `assignment cannot encode: Assignment.transcript 5,000,000,
     bound 4,194,304, wire ceiling 134,217,728`, and `assignment cannot
     encode: Message.words not UTF-8`.
-  - **Its figures.** Where the encoder measures a value before its
-    constructor (an assignment's charter and its framed transcript, a
-    list's count), it gives the figure, the configured limit and the
-    family's ceiling, and no reason, which they say; a constructor's
-    refusal alone gives its path and reason. A refusal with no codec path names the encoder's own field:
+  - **Its figures.** Where the translation checks a value before encoding
+    (an assignment's charter and its framed transcript, a list's count),
+    it gives the figure, the configured limit and the family's ceiling,
+    and no reason, which they say; a codec's refusal gives its path and
+    reason. Records have public fields, checked where bytes are made or
+    read (skein's `data/codec/README.md`, section 4). A refusal with no codec path names the encoder's own field:
     a missing part, a grant whose value doesn't match its form, a
     program's sources that repeat a name.
   - **One record for temper's too.** temper's translation fits a charter

@@ -117,7 +117,8 @@ pub(crate) fn valid_ask(limits: &Limits, ask: &Ask) -> bool {
                     None => false,
                 }
         }
-        Ask::RemoveProject { .. }
+        Ask::ReissueService { .. }
+        | Ask::RemoveProject { .. }
         | Ask::SetVisibility { .. }
         | Ask::ChangeSettings { .. }
         | Ask::PauseWorker { .. }
@@ -227,6 +228,7 @@ pub(crate) fn invalid_ask(limits: &Limits, ask: &Ask) -> Refusal {
             LimitKind::Words
         }
         Ask::MarkSeen { .. }
+        | Ask::ReissueService { .. }
         | Ask::Application { .. }
         | Ask::TakePerson { .. }
         | Ask::HandBackPerson { .. }
@@ -314,6 +316,7 @@ mod classifications {
                     (0, None, None, true)
                 }
                 AskFamily::Seen => (0, None, None, false),
+                AskFamily::ReissueService => (crate::DEPLOYMENT, Some(crate::DEPLOYMENT), None, false),
             };
             assert_eq!(project(&ask), scope, "{ask:?}");
             assert_eq!(crate::capacity::project(&ask), capacity, "{ask:?}");

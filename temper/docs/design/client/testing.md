@@ -94,7 +94,7 @@ own tests:
   path shape and every kind, the form and its picker in each state,
   every outcome, the forges' page with a forge in each state of
   `forge/deployment.md`);
-  `temper-client-protocol-wire` (records drift, pinned constructs, built-value
+  `temper-client-protocol-wire` (records drift, built-value
   round trips, bounds and fuzz targets, as skein's `data/codec/README.md`, section 6 has them); and the engine's routing
   of the forge's family both ways, a change's panel's watch to the root
   with its scope, and its document encoded with the pull request's

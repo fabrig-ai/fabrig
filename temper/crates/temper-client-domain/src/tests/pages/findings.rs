@@ -80,8 +80,9 @@ fn setup_watches_with(
         {
             let watching = wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap();
             if let w::Watch::Findings(subject) = &watching.watch {
-                assert_eq!(&subject.state, &Some(w::FindingState::New));
-                assert!(subject.mine);
+                let w::FindingsFilter::Triage(filter) = &subject.filter else { panic!("triage watch") };
+                assert_eq!(filter.state, Some(w::FindingState::New));
+                assert!(filter.mine);
                 watches.push((subject.project, *watch)).unwrap();
             }
             if let w::Watch::Decided(subject) = &watching.watch {
@@ -105,6 +106,9 @@ fn row(number: u32, at: u64) -> w::FindingRow {
         holder: w::Holder::Party(w::HolderParty { number: f::PARTY }),
         why: Some(b"Your area owns the view".as_slice().into()),
         hander: Some(w::Filer::Task(w::HolderTask { number: 55 })),
+        goal: None,
+        reason: None,
+        cleared: None,
     }
 }
 fn document(project: u32, rows: Box<[w::FindingRow]>, cut: bool) -> w::Findings {
@@ -369,18 +373,18 @@ fn finding_acts_send_the_forge_requests_and_keep_the_card_until_refresh() {
     let w::Request::TriageFinding(route) = sent(act(&mut root, Act::Route { id: ID })) else { panic!("triage") };
     let w::Triage::Route(goal) = &route.act else { panic!("route") };
     assert_eq!(goal.task, 41);
-    answer(&mut root, w::Outcome::Triaged);
+    answer(&mut root, w::Outcome::Triaged(w::Triaged { goal: None }));
     assert_eq!(ids(&root).as_ref(), [ID], "the answer never removes the card before the subject");
     let w::Request::TriageFinding(backlog) = sent(act(&mut root, Act::Backlog { id: ID })) else { panic!("triage") };
     assert_eq!(&backlog.act, &w::Triage::Backlog);
-    answer(&mut root, w::Outcome::Triaged);
+    answer(&mut root, w::Outcome::Triaged(w::Triaged { goal: None }));
     act(&mut root, Act::Reason { id: ID, words: Box::new([b'x'; 401]) });
     assert!(act(&mut root, Act::Drop { id: ID }).is_empty(), "a drop reason fits the forge's bound");
     act(&mut root, Act::Reason { id: ID, words: b"Duplicate of the same report".as_slice().into() });
     let w::Request::TriageFinding(drop) = sent(act(&mut root, Act::Drop { id: ID })) else { panic!("triage") };
     let w::Triage::Drop(reason) = &drop.act else { panic!("drop") };
     assert_eq!(reason.reason.as_ref(), b"Duplicate of the same report");
-    answer(&mut root, w::Outcome::Triaged);
+    answer(&mut root, w::Outcome::Triaged(w::Triaged { goal: None }));
     deliver(&mut root, watch, document(ID.project, Box::new([]), false));
     assert!(ids(&root).is_empty());
 }
@@ -527,11 +531,12 @@ fn open_findings(out: &Queue<Request>) -> Option<Token> {
                     down: Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } },
                 },
         } = request
-            && let w::Watch::Findings(subject) = &wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch
-            && !subject.mine
+            && let w::Watch::Findings(subject) = wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch
+            && let w::FindingsFilter::Triage(filter) = subject.filter
+            && !filter.mine
         {
             assert_eq!(subject.project, 2);
-            assert_eq!(&subject.state, &Some(w::FindingState::New));
+            assert_eq!(filter.state, Some(w::FindingState::New));
             assert!(found.is_none(), "one open findings watch per project");
             found = Some(*watch);
         }

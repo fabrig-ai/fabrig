@@ -198,6 +198,9 @@ pub fn main(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindin
     let branch = branch_words(panel, words, Word::ChangesItsBranch);
     b.text(Run::Plain, &words.say(Word::ChangesLede, &[Hole::Name(branch)]));
     b.close();
+    if let Some(line) = temper_client_domain::forge::words::catching_up(panel.catching_up.as_ref()) {
+        text(b, Role::Paragraph, &line, Some(look::HOME_QUIET));
+    }
     b.close();
     queues(b, root, words, bindings, panel, times);
     section(b, &words.say(Word::ChangesLanded, &[]));

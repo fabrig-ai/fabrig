@@ -1,5 +1,8 @@
 //! Reds of no goal's reach the triager without holding verification (after-landing.md, 7).
+mod filtered;
 mod follows;
+mod owed;
+mod repairs;
 use super::*;
 use temper_engine_domain_world::{
     kinds,
@@ -11,9 +14,18 @@ fn world() -> (World, u64) {
 }
 
 fn world_with_wait(wait: temper_engine_domain_forge_change::Wait) -> (World, u64) {
-    let mut world = tier_runs::findings_world_with(tier_runs::Tier { wait, ..tier_runs::Tier::default() });
-    // One new finding fills this project's bound.
-    world.env.limits.forge.findings_per_project = 1;
+    world_with_findings(wait, 1)
+}
+
+fn world_with_findings(wait: temper_engine_domain_forge_change::Wait, bound: u32) -> (World, u64) {
+    world_with_sessions(wait, bound, Duration::from_secs(60))
+}
+
+fn world_with_sessions(wait: temper_engine_domain_forge_change::Wait, bound: u32, lifetime: Duration) -> (World, u64) {
+    let mut world = tier_runs::findings_world_with(tier_runs::Tier { wait, ..tier_runs::Tier::default() })
+        .with_sign_in_lifetime(lifetime);
+    world.env.limits.forge.findings_per_project = bound;
+    world.env.limits.tasks.project_goals = world.env.limits.tasks.project_goals.max(bound);
     let client = world.env.limits.forge.client;
     let mut world = world.with_forge_client(client);
     world.adopt();
@@ -158,6 +170,7 @@ fn a_landing_ended_before_verification_posts_red_from_the_log_and_files_once_wit
     assert_eq!(
         finding.blame,
         Some(forge_top::FindingBlame {
+            moved: None,
             strength: forge_top::BlameStrength::Owned,
             landings: Box::new([forge_top::BlamedLanding {
                 commit,
@@ -283,6 +296,49 @@ fn full_new_findings_do_not_hold_an_outside_landings_red() {
         tier(world).record.sequence == 3 && tier(world).posting.is_none()
     });
     assert_eq!(tier(&world).record.failing, temper_engine_domain_forge_tiers::Failures::Tests(Box::new([])));
+}
+
+#[test]
+fn an_unlanded_routed_goal_ends_and_returns_its_red_to_the_triager_with_the_judged_run() {
+    let (mut world, triager) = world_with_wait(temper_engine_domain_forge_change::Wait::Landed);
+    external_red(&mut world);
+    let finding = findings(&world)[0].clone();
+    tiers::sign_in(&mut world);
+    let milestone = milestones::milestone(&mut world, b"Route the red");
+    let goal = milestones::goal_with_words(&mut world, milestone, false, b"Investigate without landing");
+    let triager_run = world.assigned.iter().find(|run| run.task == triager).unwrap().clone();
+    let answer = world.scripted_call(
+        &triager_run,
+        410,
+        engine::Tool::Finding(engine::FindingCall::Triage {
+            number: finding.number,
+            act: forge_top::Triage::Route(goal.task),
+        }),
+    );
+    assert!(
+        matches!(answer, engine::CallAnswer::Finding(answer) if matches!(answer.as_ref(), engine::FindingToolAnswer::Write(forge_top::FindingReply { result: Ok(forge_top::FindingDone::Routed(_)), .. })))
+    );
+    assert_eq!(findings(&world)[0].goal, Some(goal.task));
+    goal_landing::finish_goal(&mut world, &goal);
+    let back = findings(&world)[0];
+    assert_eq!(back.state, forge_top::FindingState::New);
+    assert_eq!(back.goal, None);
+    assert_eq!(back.hander, None);
+    let repair = back.repair.as_ref().unwrap();
+    assert_eq!(
+        (repair.goal, repair.made, repair.attempts, repair.until, repair.judging),
+        (goal.task, false, 0, None, None)
+    );
+    assert_eq!(repair.failing.as_ref(), [Box::from(b"suite.alpha".as_slice())]);
+    let why = format!("goal {} ended and slow run 2 still fails 1 of its tests", goal.task);
+    assert_eq!(back.why.as_deref(), Some(why.as_bytes()));
+    let words = news(&world, triager);
+    assert!(
+        words
+            .iter()
+            .any(|word| core::str::from_utf8(&word.words).unwrap().lines().nth(2) == Some(&format!("Back: {why}")))
+    );
+    assert_eq!(tier(&world).record.last_run, Some(2));
 }
 
 #[test]

@@ -188,6 +188,10 @@ fn description(root: &Domain, w: &Words, row: &Row, setting_up: bool) -> Box<[u8
         &w.say(Word::ForgeSummary, &[Hole::Number(u64::from(row.number)), Hole::Name(w.say(kind, &[]))]),
         &connection(row, root, w),
     );
+    let summary = match forge::words::catching_up(row.catching_up.as_ref()) {
+        Some(line) => skein_lib::bytes::concat(&[&summary, b"\n", &line]),
+        None => summary,
+    };
     let line = repository_line(root, w, row);
     if let Some(line) = line {
         let bytes = summary

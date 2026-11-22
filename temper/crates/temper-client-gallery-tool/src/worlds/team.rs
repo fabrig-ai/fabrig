@@ -161,7 +161,7 @@ pub(super) fn world(name: &str) -> Domain {
             Down::Open { watch, subject: Watchable::Family { record, .. } }
                 if role
                     && wire::decode_watching(&record.bytes, &w::CEILINGS).is_some_and(
-                        |watching| matches!(&watching.watch, w::Watch::Findings(subject) if !subject.mine),
+                        |watching| matches!(&watching.watch, w::Watch::Findings(subject) if !matches!(&subject.filter, w::FindingsFilter::Triage(filter) if filter.mine)),
                     ) =>
             {
                 step(
@@ -262,6 +262,7 @@ fn changes(reader: u64, alone: bool) -> w::ChangesPanel {
         }
     }
     w::ChangesPanel {
+        catching_up: None,
         project: PROJECT,
         landing: b"main".as_slice().into(),
         queues: List::with_capacity(0),

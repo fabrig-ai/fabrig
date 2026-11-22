@@ -14,9 +14,7 @@ mod tests {
     use skein_codegen::diff::{Change, Kind, Op, Rename, Version, diff};
 
     fn shipped_schemas() -> Vec<(&'static str, &'static str)> {
-        let mut families: Vec<_> = generated::families().into_iter().map(|family| (family.name, family.text)).collect();
-        families.push(("notes", skein_ui_example_view_codec::SCHEMA));
-        families
+        generated::families().into_iter().map(|family| (family.name, family.text)).collect()
     }
 
     fn shipped_schema(name: &str, text: &str) -> Schema {

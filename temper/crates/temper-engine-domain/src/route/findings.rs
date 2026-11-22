@@ -6,7 +6,36 @@ use alloc::boxed::Box;
 pub(crate) use forge::findings::{cut_words, news_words, ownership_words};
 use forge::{Filer, FindingRefusal, Holder, settings::AreaOwner};
 use skein_lib::{List, Map, Queue};
+mod repairing;
 
+pub(crate) fn goal_ended(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    decision: &mut Decision,
+    task: u64,
+    ending: forge::ReleaseEnding,
+) {
+    let Some(row) = domain.core.tasks.task(task) else { return };
+    let project = row.project;
+    let mut out = Queue::uncapped();
+    domain.forge.judge_goal_findings(&super::environment_forge(env), project, task, ending, &mut out);
+    forge_route::outputs(domain, env, decision, &mut out);
+}
+pub(crate) fn fail_repair(domain: &mut Domain, project: u32, task: u64, until: skein_lib::Wall) {
+    let Some(row) = domain.core.tasks.task(task) else { return };
+    let hours = until.as_nanos().saturating_sub(row.created_at.as_nanos()).div_euclid(3_600_000_000_000);
+    let mut words = List::uncapped();
+    for part in [b"past its repair deadline of ".as_slice(), skein_lib::Decimal::of(hours).as_bytes(), b" hours"] {
+        for &byte in part {
+            words.push(byte).expect("bounded deadline reason");
+        }
+    }
+    domain.work.push(Work::Tasks(tasks::Event::Fail {
+        reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(task)),
+        by: tasks::Party::Deployment { project },
+        operation: tasks::Fail { task, reason: words.into_boxed() },
+    }));
+}
 fn live(row: &tasks::TaskRecord, project: u32) -> bool {
     if row.project != project {
         return false;
@@ -173,8 +202,29 @@ pub fn triage_finding(
     by: Filer,
     call: forge::TriageFinding,
 ) -> forge::TriageFindingAnswer {
+    match &call.act {
+        forge::Triage::Repair(act) => {
+            return match repairing::repair(domain, env, decision, by, call.project, call.number, act) {
+                Ok(goal) => forge::TriageFindingAnswer::Repaired(goal),
+                Err(why) => forge::TriageFindingAnswer::Refused(why),
+            };
+        }
+        forge::Triage::Route(_) | forge::Triage::Backlog | forge::Triage::Drop(_) | forge::Triage::Blame(_) => {}
+    }
+    let blame = match &call.act {
+        forge::Triage::Blame(_) => true,
+        forge::Triage::Route(_) | forge::Triage::Backlog | forge::Triage::Drop(_) | forge::Triage::Repair(_) => false,
+    };
     let result = prepare_triage(domain, by, call);
-    match commit_prepared(domain, env, decision, result, false) {
+    let result = if blame {
+        match result {
+            Ok(write) => Ok(commit_without_news(domain, env, decision, write)),
+            Err(why) => Err(why),
+        }
+    } else {
+        commit_prepared(domain, env, decision, result, false)
+    };
+    match result {
         Ok(_) => forge::TriageFindingAnswer::Triaged,
         Err(why) => forge::TriageFindingAnswer::Refused(why),
     }
@@ -185,13 +235,16 @@ fn prepare_triage(
     call: forge::TriageFinding,
 ) -> Result<forge::FindingWrite, FindingRefusal> {
     permitted(domain, call.project, call.number, by)?;
-    if let forge::Triage::Route(goal) = call.act {
-        let Some(row) = domain.core.tasks.task(goal) else { return Err(FindingRefusal::NoGoal) };
-        if !live(row, call.project) || row.label != 2 || row.tracked.is_none() {
-            return Err(FindingRefusal::NoGoal);
+    match &call.act {
+        forge::Triage::Route(goal) => {
+            let Some(row) = domain.core.tasks.task(*goal) else { return Err(FindingRefusal::NoGoal) };
+            if !live(row, call.project) || row.label != 2 || row.tracked.is_none() {
+                return Err(FindingRefusal::NoGoal);
+            }
         }
+        forge::Triage::Backlog | forge::Triage::Drop(_) | forge::Triage::Repair(_) | forge::Triage::Blame(_) => {}
     }
-    domain.forge.prepare_triage_finding(call)
+    domain.forge.prepare_triage_finding(by, call)
 }
 fn commit_prepared(
     domain: &mut Domain,
@@ -231,11 +284,19 @@ pub(crate) fn commit(
     {
         domain.work.push(Work::Tasks(event));
     }
-    let number = row.number;
+    Ok(commit_without_news(domain, env, decision, write))
+}
+fn commit_without_news(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    decision: &mut Decision,
+    write: forge::FindingWrite,
+) -> u32 {
+    let number = write.row.number;
     let mut output = Queue::uncapped();
     domain.forge.commit_finding(&env.limits.forge, write, &mut output);
     forge_route::outputs(domain, env, decision, &mut output);
-    Ok(number)
+    number
 }
 /// Read the old holders while the effective settings still precede the save.
 /// Only the grouped delta crosses the commit barrier (domain/areas.md, 5).
@@ -361,22 +422,22 @@ fn subscribed(domain: &Domain, task: u64, number: u64) -> bool {
     false
 }
 #[must_use]
-pub fn document(
-    domain: &Domain,
-    project: u32,
-    party: u64,
-    state: Option<forge::FindingState>,
-    only_mine: bool,
-) -> forge::Findings {
+pub fn document(domain: &Domain, project: u32, party: u64, filter: forge::FindingsFilter) -> forge::Findings {
     let mut rows = List::with_capacity(128);
     let mut cut = false;
     for (_, row) in domain.forge.findings(project).rev() {
         let held = holder(domain, project, row.area.as_deref());
-        if (match state {
-            Some(state) => state != row.state,
-            None => false,
-        }) || (only_mine && (row.needs_no_triage() || !mine(domain, project, party, held)))
-        {
+        let keep = match filter {
+            forge::FindingsFilter::Triage { state, mine: only_mine } => {
+                let state_kept = match state {
+                    Some(state) => state == row.state,
+                    None => true,
+                };
+                state_kept && (!only_mine || (!row.needs_no_triage() && mine(domain, project, party, held)))
+            }
+            forge::FindingsFilter::Goal(_) | forge::FindingsFilter::Milestone(_) => blamed_on(row, filter),
+        };
+        if !keep {
             continue;
         }
         if rows.push(row.row(held)).is_err() {
@@ -404,6 +465,22 @@ pub fn document(
         cut,
     }
 }
+fn blamed_on(row: &forge::Finding, filter: forge::FindingsFilter) -> bool {
+    let Some(blame) = &row.blame else { return false };
+    for landing in &blame.landings {
+        for goal in &landing.goals {
+            let found = match filter {
+                forge::FindingsFilter::Goal(number) => goal.goal == number,
+                forge::FindingsFilter::Milestone(number) => goal.milestone == Some(number),
+                forge::FindingsFilter::Triage { .. } => false,
+            };
+            if found {
+                return true;
+            }
+        }
+    }
+    false
+}
 #[must_use]
 pub fn read(domain: &Domain, project: u32, number: u32) -> Option<forge::FindingAnswer> {
     let row = domain.forge.finding(project, number)?;
@@ -411,7 +488,6 @@ pub fn read(domain: &Domain, project: u32, number: u32) -> Option<forge::Finding
         row: row.row(holder(domain, project, row.area.as_deref())),
         body: row.body.clone(),
         filer: row.filer,
-        goal: row.goal,
-        reason: row.reason.clone(),
+        blame: row.blame.clone(),
     })
 }

@@ -519,7 +519,8 @@ same. Then it moves into skein.
   randomness runs the few seeds that show its behaviour, and a cheap random
   world may stand as a smoke test. They run by default (`tools/tiers/one-process
   default`, a binary's tests in one process, with nextest selecting and
-  building them: `tools/tiers/design.md`, 11), and the suite takes at most **30 seconds** (15 seconds
+  building them: `tools/tiers/design.md`, 11), the layers that replay
+  unless the caller asks for others (`tools/tiers/layers.md`, 9.1), and the suite takes at most **30 seconds** (15 seconds
   before the user's doubling of 10-22, provisional), so it can serve as
   quick feedback during development, as often as is useful.
 - **Fuzzy tests** look for what no scenario names: sweeps of many random
@@ -532,7 +533,19 @@ same. Then it moves into skein.
   It is usually left alone until the merge gate, or run in part (one world's
   sweep, a few seeds) when that is worth it.
 
-**The merge gate runs both suites in full,** whatever ran before it.
+**The merge gate runs both suites' layers that replay,** whatever ran
+before it: step tests and the domain, system, machine, protocol, io and
+simulated worlds, with the repository's checks, which the delivery check
+runs too (`tools/tiers/layers.md`, 9.1). Each owns its clock, its seeds
+and its kernel (section 1), so their verdict is the head's alone, and a
+main that admits only green heads is green by construction.
+**The real loop and end to end run after landing,** at each landing,
+each tree's in its slow pair `real-<tree>` (`tools/tiers/layers.md`,
+9.2): they trade replay for the real kernel, so their failures and their
+cost can follow its scheduling, which is no head's to answer for at the
+gate. A red there is the after-landing tier's, repaired from the lowest
+tier that shows it (section 9). Anyone's own run of the suites asks for
+them with `--layers` (`tools/tiers/design.md`, 11.9).
 **Live tests** (2.9) are a separate suite, run only with the root
 configuration's `live-<tree>` profile, one at a time, with a CPU budget
 and a wall hard limit like every tier (8.1). The gate never runs them.
@@ -553,9 +566,9 @@ their values. Common per-test guides quoted by those plans are:
 | 5 s for a fuzzy test | 10 s (5 s before the user's doubling of 10-22, provisional) |
 
 CPU budgets and wall hard limits are separate (8.1). Every run of the
-focused and fuzzy suites reports their CPU by tree and layer, beside each
-layer's budget, per-test reference and ideal
-(`tools/tiers/budgets.md`, 4), and its elapsed wall time; the gate
+focused and fuzzy suites reports their CPU by tree and by each layer it
+ran, beside each layer's budget, per-test reference and ideal
+(`tools/tiers/budgets.md`, 4 and 4.1), and its elapsed wall time; the gate
 reports them for both suites. The guides above are each layer's per-test
 references there, a tree's testing document setting its own where it has
 one, and the gate holds them (8.1). The three questions in 8.1 govern a
@@ -639,12 +652,19 @@ fixes it, and its owner runs it until then.
 ### 8.1 CPU budgets, wall hard limits and the repair rule
 
 Every tree's focused and fuzzy suites, and each slow tier (browser,
-process and live), have a CPU budget and a wall hard limit. A test's
+process, live and real), have a CPU budget and a wall hard limit. A test's
 provenance (who wrote it, or why) is never a tier.
 A slow tier's rule holds wherever it runs: after landing, through
 `tools/tiers/run`, or in anyone's own run. Slow tiers never run in the
 gate. **The focused and fuzzy suites' CPU budgets are judged at the merge
-gate:** a layer over its budget there is red. A delivery check on a
+gate,** in the layers it runs, those that replay and the repository's
+checks: a layer over its budget there is red. The real loop's and end to
+end's layers keep their figures in `tools/tiers/budgets.toml`, which the
+real pairs' runs after landing report as warnings, never red, until a
+draft of their own sets those runs' budgets
+(`temper/docs/design/draft/test-budgets.md`, 11; `tools/tiers/budgets.md`,
+4.2); until then the real pairs have no wall of their own but the focused
+profile's backstop. A delivery check on a
 builder that keeps main's ledgers judges the delivery as the gate will
 and refuses it there, so a goal hears it before its pull request (the
 user, 11-17). Every other run (a delivery check without them, a
@@ -710,8 +730,9 @@ since it builds nothing at its base; every other run judges nothing alone
 **Every test binary is in one layer,** a tier of section 2, since a
 process runs one binary's tests and its CPU is the binary's:
 `tools/tiers/layers.toml` places each, and a boundary check keeps it
-whole (`tools/tiers/layers.md`). A crate's own tests and its generated
-codec tests are step tests by rule; the repository's own checks are a
+whole (`tools/tiers/layers.md`). A crate's own tests are step tests by
+rule; each owner's codec drift, fuzzing and memory tests sit in its world,
+placed by that table as any binary is. The repository's own checks are a
 group of their own. A binary whose tests span two tiers is split, or
 takes the higher one until it is. What its tests check places it, never
 their cost (the first question below).
@@ -746,10 +767,15 @@ times the gate's limit, 810 seconds focused and 645 seconds fuzzy, a last
 resort for builders that may be busy (the user, 11-16), and its expiry
 stays starved. The wall limits aren't ratcheted, since a selection's wall
 says nothing of the whole suite's: they change by the user's word alone.
+With the real loop and end to end out of the gate, its runs wait on no
+real io, and their limits are the user's figures for the new runs, set
+from those runs' walls; until the user sets them, 270 and 215 seconds
+stand (`temper/docs/design/draft/test-budgets.md`, 7).
 A harness's own deadline keeps 2.10's rule.
 
 **Over budget is red,** at the gate for the focused and fuzzy suites'
-layers and wherever a slow tier runs. Its repair starts by reading this
+layers it runs and wherever a slow tier runs, but the real pairs' layers,
+which warn (above). Its repair starts by reading this
 strategy in full, as the red says; then it asks these questions, in order:
 
 1. **Does the test belong to this tier?** Use the tier definitions in

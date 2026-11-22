@@ -36,7 +36,8 @@ pub(crate) fn valid(ask: &Ask) -> bool {
             is_utf8(reason) && amendment_words(amendment)
         }
         Ask::Amend { amendment, .. } => amendment_words(amendment),
-        Ask::Compound { .. }
+        Ask::ReissueService { .. }
+        | Ask::Compound { .. }
         | Ask::MarkSeen { .. }
         | Ask::Application { .. }
         | Ask::Adopt { .. }

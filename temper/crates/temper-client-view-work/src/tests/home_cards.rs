@@ -634,6 +634,9 @@ fn finding_root_with(count: u32, kind: temper_client_protocol_wire::v1::FindingK
                     holder: holder.clone(),
                     why: Some(b"Your area owns the view".as_slice().into()),
                     hander: Some(w::Filer::Task(w::HolderTask { number: 55 })),
+                    goal: None,
+                    reason: None,
+                    cleared: None,
                 })
                 .collect::<Vec<_>>();
             let document = w::Findings {

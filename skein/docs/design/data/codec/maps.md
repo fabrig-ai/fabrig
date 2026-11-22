@@ -155,6 +155,10 @@ record Row by hand
   mapped domain type, or, for a payload that stands for its field, that
   field's value.
 
+A variant's block belongs only to an inline payload; a `tuple` payload
+goes through its declaration's own map; a payload record marked `by hand`
+must be held `tuple`.
+
 ### 3.3 What stays by hand
 
 The owner's own shape (`temper/docs/design/draft/codec-shape.md`, 4.1,
@@ -184,6 +188,12 @@ only for a shape that recurs (9).
   schema's order:
   - `<decl>_to_record(value: &D, context: &C) -> Result<R, Problem>`;
   - `<decl>_to_domain(record: R, context: &C) -> Result<D, Problem>`;
+
+  A by-hand pair's `value` may take what `&D` dereferences to, such as
+  `&[T]` when `D` is a boxed slice, because the generated call passes `&D`
+  and the compiler coerces it, keeping clippy's `borrowed_box` quiet
+  without an expectation (as in temper's store `FollowFiles` pair,
+  `follow_files_to_record`).
 
   `<decl>` the declaration's name in snake case, `R` its record, `D` the
   domain's type, `C` the header's context and `Problem` the family's
@@ -256,6 +266,8 @@ schema's name, for:
   doesn't hold;
 - `tuple` or a block on a unit variant; `via` on a field whose value is
   a declaration;
+- a block on a `tuple` variant, or an inline payload whose record is
+  `by hand`;
 - `slice` on a field whose value, or an option's, isn't a list; `boxed`
   on a field whose value, or an option's, isn't a mapped declaration's
   domain type, or on a variant without `tuple`;

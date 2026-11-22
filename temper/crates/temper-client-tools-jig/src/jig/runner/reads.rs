@@ -219,7 +219,9 @@ fn start_detail(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut rea
             };
             read(runner, &mut reading, 1, what, out);
         }
-        rows::MILESTONE_SHOW_AT | rows::ROLE_SHOW_AT => read(runner, &mut reading, 1, c::Read::Task { task }, out),
+        rows::MILESTONE_SHOW_AT | rows::ROLE_SHOW_AT | rows::GOAL_SHOW_AT => {
+            read(runner, &mut reading, 1, c::Read::Task { task }, out);
+        }
         rows::DEPLOYMENT_CENSUS_AT | rows::WORKER_LIST_AT | rows::WORKER_PAUSE_AT..=rows::WORKER_RESUME_AT => {
             read(runner, &mut reading, 1, c::Read::Deployment, out);
         }
@@ -365,13 +367,14 @@ pub(super) fn page(
         complete(runner, client, env, reading, out);
         return;
     }
-    if reading.called.call.tool == rows::TASK_AT && local == 8 {
+    if (reading.called.call.tool == rows::TASK_AT || reading.called.call.tool == rows::GOAL_SHOW_AT) && local == 8 {
         person_page(runner, client, env, reading, page, out);
         return;
     }
     if (reading.called.call.tool == rows::TASK_AT
         || reading.called.call.tool == rows::TASK_TEXT_AT
-        || reading.called.call.tool == rows::ROLE_SHOW_AT)
+        || reading.called.call.tool == rows::ROLE_SHOW_AT
+        || reading.called.call.tool == rows::GOAL_SHOW_AT)
         && local == 7
     {
         super::specification::accept(&mut reading, &page);
@@ -400,7 +403,7 @@ fn accept_page(
     page: Readout,
     out: &mut Queue<Out>,
 ) {
-    if reading.called.call.tool == rows::TASK_AT
+    if (reading.called.call.tool == rows::TASK_AT || reading.called.call.tool == rows::GOAL_SHOW_AT)
         && local == 1
         && let Readout::Jig(c::ReadResult::Value(document)) = &page
         && let Some((task, _)) = render::read_task(document)
@@ -526,10 +529,19 @@ pub(super) fn changed(runner: &mut Runner, client: &Client, env: &Env<Limits>, h
     if reading.pending & bit != 0
         && let Some(document) = client.document(handle)
         && (document.state == jig_client::State::Live || document.state == jig_client::State::Ended)
-        && let Some(Latest::Jig(delivery)) = document.latest
+        && let Some(latest) = document.latest
     {
         reading.pending &= !bit;
-        reading.documents.insert(local, delivery.clone());
+        match latest {
+            Latest::Jig(delivery) => {
+                reading.documents.insert(local, delivery.clone());
+            }
+            Latest::Family(record) => {
+                reading
+                    .pages
+                    .insert(local, Readout::Family { family: record.family, record: Some(record.bytes.clone()) });
+            }
+        }
         if local == 4 {
             reading.text = client.text(handle).cloned();
             if let Some(c::Delivery::RunState(run)) = reading.documents.get_mut(&local)
@@ -555,7 +567,7 @@ pub(super) fn ended(
     let Some(mut reading) = runner.active.remove(&prefix) else { return };
     // A first delivery already filled this slot; its closure cannot cancel
     // the other documents still needed by the call.
-    if reading.documents.contains_key(&local) {
+    if reading.documents.contains_key(&local) || reading.pages.contains_key(&local) {
         runner.active.insert(prefix, reading);
         return;
     }
@@ -582,6 +594,11 @@ pub(super) fn ended(
     finish(reading, printed, out);
 }
 fn close(runner: &Runner, reading: &Reading, out: &mut Queue<Out>) {
+    if let Some((local, _)) = reading.parts.extra_watch(reading)
+        && reading.pending & 1u8.checked_shl(local).expect("host watch slot") != 0
+    {
+        out.push(Out::Client { event: Event::Unwatch { handle: handle(runner, reading.called.call_number, local) } });
+    }
     for local in [3, 4] {
         if reading.pending & 1u8.checked_shl(local).expect("fixed watch slot") != 0 {
             out.push(Out::Client {
@@ -590,6 +607,10 @@ fn close(runner: &Runner, reading: &Reading, out: &mut Queue<Out>) {
         }
     }
 }
+#[expect(
+    clippy::too_many_lines,
+    reason = "the read completion dispatch keeps host and worker follow-up reads together"
+)]
 fn complete(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut reading: Reading, out: &mut Queue<Out>) {
     if reading.called.call.tool == 1
         && let Some((local, what)) = next_inbox_detail(&mut reading, env.limits.rows)
@@ -628,6 +649,14 @@ fn complete(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut reading
     }
     if let Some(what) = super::specification::next(&mut reading, &env.limits) {
         read(runner, &mut reading, 7, what, out);
+        runner.active.insert(reading.called.call_number, reading);
+        return;
+    }
+    if let Some((local, subject)) = reading.parts.extra_watch(&reading) {
+        reading.pending |= 1u8.checked_shl(local).expect("host watch slot");
+        out.push(Out::Client {
+            event: Event::Watch { handle: handle(runner, reading.called.call_number, local), subject },
+        });
         runner.active.insert(reading.called.call_number, reading);
         return;
     }

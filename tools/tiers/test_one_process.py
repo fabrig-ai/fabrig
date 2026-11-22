@@ -510,6 +510,161 @@ class PlacementTests(RunnerFixture):
                          [dict(binary_id=binary_id, tree=tree, layer=layer, listed=True)
                           for binary_id, (tree, layer) in sorted(expected.items())])
 
+    def replay_layers(self):
+        rows = [
+            ('app', 'temper/crates/app/Cargo.toml', 'lib', 'temper', 'step'),
+            ('app::sim', 'temper/crates/app/Cargo.toml', 'test', 'temper', 'simulated'),
+            ('app::real', 'temper/crates/app/Cargo.toml', 'test', 'temper', 'real-loop'),
+            ('app::end', 'temper/crates/app/Cargo.toml', 'test', 'temper', 'end-to-end'),
+            ('app::unplaced', 'temper/crates/app/Cargo.toml', 'test', 'temper', None),
+            ('check::suite', 'tests/check/Cargo.toml', 'test', 'repository', 'checks'),
+        ]
+        self.placement_binaries(rows)
+        self.metadata['workspace_members'] = [p['id'] for p in self.metadata['packages']]
+        self.command[5] = 'app'
+        layers = self.root / 'tools/tiers/layers.toml'
+        layers.parent.mkdir(parents=True)
+        layers.write_text('layers = ["step", "domain", "system", "machine", "protocol", "io", '
+                          '"simulated", "real-loop", "end-to-end"]\n'
+                          '[temper]\n"app::sim" = "simulated"\n"app::real" = "real-loop"\n'
+                          '"app::end" = "end-to-end"\n')
+        return rows
+
+    def test_default_and_fuzzy_run_only_replaying_layers(self):
+        rows = self.replay_layers()
+        self.config.write_text('[profile.default]\n[profile.fuzzy]\n[profile.other]\n')
+        self.prepare()
+        for profile in ('default', 'fuzzy', 'other'):
+            with self.subTest(profile=profile):
+                self.directory = self.root / profile
+                command = [*self.command[:7], profile, *self.command[8:]]
+                with contextlib.chdir(self.root), contextlib.redirect_stdout(io.StringIO()):
+                    self.run(command, self.env, self.directory, profile, {}, self.config)
+                result = json.loads((self.directory / 'results.json').read_text())
+                plan = json.loads((self.directory / 'plan.json').read_text())
+                all_layers = ['step', 'domain', 'system', 'machine', 'protocol', 'io',
+                              'simulated', 'real-loop', 'end-to-end', 'checks']
+                expected = rows if profile == 'other' else [r for r in rows if r[4] not in ('real-loop', 'end-to-end')]
+                wanted = {r[0] for r in expected}
+                self.assertEqual({b['binary_id'] for b in plan['binaries']}, wanted)
+                self.assertEqual({p['binary_id'] for p in result['processes']}, wanted)
+                self.assertEqual(result['selected_layers'], all_layers if profile == 'other' else all_layers[:7] + ['checks'])
+                output = (self.directory / 'command-output.txt').read_text()
+                self.assertEqual(output.count('layers: leaving out real-loop, end-to-end: 2 binaries\n'),
+                                 0 if profile == 'other' else 1)
+                calls = [json.loads(line) for line in (self.root / 'cargo-argv.jsonl').read_text().splitlines()]
+                self.assertTrue(all('-E' not in call for call in calls))
+
+    def test_explicit_layers_and_all(self):
+        rows = self.replay_layers()
+        for index, selected in enumerate((['end-to-end', 'real-loop'], ['all'], ['checks'])):
+            with self.subTest(selected=selected):
+                self.directory = self.root / f'explicit-{index}'
+                result = self.invoke(selected_layers=selected)
+                wanted = {r[0] for r in rows if r[4] is None or r[4] in selected or selected == ['all']}
+                self.assertEqual({p['binary_id'] for p in result['processes']}, wanted)
+                expected = ['real-loop', 'end-to-end'] if index == 0 else (
+                    result['layers'] + ['checks'] if index == 1 else ['checks'])
+                self.assertEqual(result['selected_layers'], expected)
+        (self.root / 'tools/tiers/layers.toml').unlink()
+        self.directory = self.root / 'absent-all'
+        result = self.invoke(selected_layers=['all'])
+        self.assertEqual({p['binary_id'] for p in result['processes']}, {r[0] for r in rows})
+        self.assertIsNone(result['selected_layers'])
+
+    def test_caller_filter_selects_within_layers(self):
+        self.replay_layers()
+        cpu = runpy.run_path(str(HERE / 'cpu.py'))
+        for binary, rule, expected in (('app::sim', 'fail', 0), ('app::real', 'fail', 4),
+                                       ('app::real', 'warn', 0)):
+            with self.subTest(binary=binary, rule=rule):
+                self.directory = self.root / f'{binary}-{rule}'
+                expression = f'binary_id(={binary}) & test(=a)'
+                # Fake nextest supplies the caller's selection; the runner must only narrow it.
+                for name, suite in self.listing['rust-suites'].items():
+                    suite['testcases']['a']['filter-match'] = {
+                        'status': 'matches' if name == binary else 'mismatch'}
+                self.prepare()
+                command = [*self.command, '-E', expression, f'--no-tests={rule}']
+                with contextlib.chdir(self.root), contextlib.redirect_stdout(io.StringIO()):
+                    code = cpu['execute_one_process'](command, self.env, self.directory, 'default', {}, self.config)
+                self.assertEqual(code, expected)
+                result = json.loads((self.directory / 'results.json').read_text())
+                self.assertEqual({p['binary_id'] for p in result['processes']},
+                                 {binary} if binary == 'app::sim' else set())
+                output = (self.directory / 'command-output.txt').read_text()
+                self.assertEqual('warning: no tests to run\n' in output, rule == 'warn')
+                calls = [json.loads(line) for line in (self.root / 'cargo-argv.jsonl').read_text().splitlines()]
+                for call in calls:
+                    if call[:2] == ['nextest', 'list']:
+                        self.assertEqual(call.count('-E'), 1)
+                        self.assertIn(call[call.index('-E') + 1],
+                                      ('binary_id(=app::sim) & test(=a)', 'binary_id(=app::real) & test(=a)'))
+
+    def test_layer_refusals_before_commands(self):
+        self.replay_layers()
+        for selected in ([], ['bogus'], ['checks', 'bogus'], ['']):
+            with self.subTest(selected=selected), self.assertRaises(ValueError):
+                self.invoke(selected_layers=selected)
+        (self.root / 'tools/tiers/layers.toml').unlink()
+        with self.assertRaises(ValueError):
+            self.invoke(selected_layers=['checks'])
+        for args in (['--layers', 'bogus', 'default'], ['--layers', '', 'default'],
+                     ['--layers', 'all', '--again', 'absent', 'app', 'a'],
+                     ['--layers', 'all', '--alone', 'absent']):
+            with self.subTest(args=args):
+                result = subprocess.run([str(HERE / 'one-process'), *args], cwd=self.root, env=self.env,
+                                        stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=10)
+                self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertFalse((self.root / 'cargo-argv.jsonl').exists())
+        self.assertFalse((self.root / 'prefix-argv.jsonl').exists())
+
+    def test_left_out_layer_still_checks_default_filter_proof(self):
+        self.replay_layers()
+        self.config.write_text('[profile.default]\ndefault-filter="not binary_id(=app::real)"\n')
+        with self.assertRaisesRegex(ValueError, 'default-filter disagrees.*app::real'):
+            self.invoke()
+
+    def test_narrowed_targets_leave_out_unselected_layers(self):
+        self.replay_layers()
+        table, selected = self.module['layer_selection'](self.root / 'tools/tiers/layers.toml', 'default', None)
+        calls = []
+        for binary in ('app::real', 'app::end'):
+            del self.listing['rust-suites'][binary]
+
+        def roots(cargo, selection, env):
+            calls.append(selection)
+            targets = self.metadata['packages'][0]['targets']
+            return {('app', 'test', tuple(t['kind']), t['name'], 'same') for t in targets
+                    if selection == ['-p', 'app'] or
+                    (t['kind'] == ['lib'] and '--lib' in selection) or
+                    any(selection[n:n + 2] == ['--test', t['name']] for n in range(len(selection) - 1))}
+
+        with mock.patch.dict(self.module['profile_target_groups'].__globals__, cargo_test_roots=roots), \
+                contextlib.redirect_stdout(io.StringIO()):
+            for variable in ('TIERS_PRE_PR_TARGETS', 'TIERS_PROFILE_TARGETS'):
+                self.prepare()
+                with contextlib.chdir(self.root):
+                    _, _, _, output, _ = self.module['listed_plan'](
+                        self.command, dict(self.env, **{variable: '1'}), 'default', {},
+                        self.config, None, self.root / 'tools/tiers/layers.toml', selected_layers=None)
+                self.assertIn(b'layers: leaving out real-loop, end-to-end: 2 binaries\n', output)
+                call = json.loads((self.root / 'cargo-argv.jsonl').read_text().splitlines()[-1])
+                # Metadata can follow the listing only outside the narrowing path.
+                self.assertEqual(call[:2], ['nextest', 'list'])
+                self.assertIn('--lib', call)
+                self.assertIn('sim', call)
+                self.assertIn('unplaced', call)
+                self.assertNotIn('real', call)
+                self.assertNotIn('end', call)
+            checks = self.module['profile_target_groups'](['-p', 'app'], self.metadata,
+                    [self.module['filterset']('all()')], ['cargo'], self.env, table, ['checks'])
+            self.assertEqual(checks, [['-p', 'app', '--test', 'unplaced']])
+            broad = self.module['profile_target_groups'](['-p', 'app'], self.metadata,
+                    [self.module['filterset']('all()')], ['cargo'], self.env, table, None)
+            self.assertEqual(broad, [['-p', 'app']])
+        self.assertTrue(calls)
+
     def test_layers_place_binaries_by_tree_and_ordered_rules(self):
         rows = [
             ('a::suite', 'temper/crates/a/Cargo.toml', 'test', 'temper', 'domain'),

@@ -150,7 +150,7 @@ fn file_steps(root: &Path, mut task: Task, fail: bool) -> git::Done {
                 );
             }
             Action::Operation(Next::End(done)) => return done,
-            Action::Operation(_) | Action::Layout(_) | Action::Swept(_) | Action::Closed => {
+            Action::Operation(_) | Action::Layout(_) | Action::Swept { .. } | Action::Closed => {
                 panic!("check files finish")
             }
         }

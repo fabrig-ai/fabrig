@@ -1,4 +1,10 @@
 //! Each finding act and the subject/read's printed forms.
+#![expect(
+    clippy::disallowed_types,
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    reason = "ordinary fixture collections and UTF-8 output assertions in step tests"
+)]
 use super::fixtures as f;
 use crate::{
     finding,
@@ -13,9 +19,12 @@ use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 fn root() -> f::Harness {
+    root_at(3)
+}
+fn root_at(project: u32) -> f::Harness {
     let mut root = f::started(List::with_capacity(0));
     let mut me = f::me(f::PARTY);
-    me.projects.get_mut(0).unwrap().project = 3;
+    me.projects.get_mut(0).unwrap().project = project;
     root.deliver(c::Delivery::Me(Box::new(me)));
     root
 }
@@ -39,6 +48,9 @@ fn row() -> w::FindingRow {
         at: 77,
         why: Some(b"words, not code".as_slice().into()),
         hander: Some(w::Filer::Task(w::HolderTask { number: 39 })),
+        goal: None,
+        reason: None,
+        cleared: None,
     }
 }
 fn document() -> w::Findings {
@@ -76,10 +88,9 @@ fn serve(root: &mut f::Harness, call: u32) {
         row: row(),
         body: b"Boot twice".as_slice().into(),
         filer: w::Filer::Party(w::HolderParty { number: 8 }),
-        goal: None,
-        reason: None,
+        blame: None,
     };
-    let answer = w::FindingAnswer { result: w::FindingResult::Finding(detail) };
+    let answer = w::FindingAnswer { result: w::FindingResult::Finding(Box::new(detail)) };
     root.serve_readout(
         call,
         client::Readout::Family { family: wire::FORGE, record: Some(wire::finding_answer(&answer)) },
@@ -150,10 +161,218 @@ fn finding_acts_send_their_fields_and_print_the_committed_holder() {
         let call = root.submit(argv);
         let w::Request::TriageFinding(triage) = request(&root, call) else { panic!("TriageFinding") };
         assert_eq!(triage, w::TriageFinding { project: 3, number: 12, act });
-        root.adoption_answer(call, w::Outcome::Triaged);
+        root.adoption_answer(call, w::Outcome::Triaged(w::Triaged { goal: None }));
         assert_eq!(root.answer(call).unwrap().stdout.as_ref(), output.as_bytes());
     }
 }
+fn triage(root: &f::Harness, call: u32) -> w::TriageFinding {
+    let client::Ask::Family { scope, record } = root.adoption_bytes(call) else { panic!("family request") };
+    assert_eq!(*scope, c::Scope::Project(2));
+    let w::Request::TriageFinding(triage) = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
+    else {
+        panic!("TriageFinding")
+    };
+    triage
+}
+
+#[test]
+fn finding_repair_sends_the_group_and_prints_the_committed_goal() {
+    for json in [false, true] {
+        let mut root = root_at(2);
+        let call = root
+            .submit_call(f::call(&["finding", "repair", "2/3", "shop/5", "repair together", "--key", "repair"]), json);
+        assert_eq!(root.sends.len(), 1);
+        assert_eq!(
+            triage(&root, call),
+            w::TriageFinding {
+                project: 2,
+                number: 3,
+                act: w::Triage::Repair(w::FindingRepair {
+                    more: List::from_boxed(Box::new([5])),
+                    words: b"repair together".as_slice().into(),
+                })
+            }
+        );
+        root.adoption_answer(call, w::Outcome::Triaged(w::Triaged { goal: Some(90) }));
+        let printed = root.answer(call).unwrap();
+        assert_eq!(printed.status, 0);
+        if json {
+            f::unique_keys(&printed.stdout).unwrap();
+            assert!(f::has(&printed, br#""goal":90,"more":[5]"#));
+        } else {
+            assert_eq!(printed.stdout.as_ref(), b"repair goal 90 made for 2/3, 2/5\n");
+        }
+        assert!(root.family_reads.is_empty(), "triage answers need no further read");
+    }
+    // The one-finding form must reserve its last positional, even when TEXT looks like a finding.
+    let mut root = root_at(2);
+    let call = root.submit(&["finding", "repair", "2/3", "2/5", "--key", "one"]);
+    assert_eq!(
+        triage(&root, call).act,
+        w::Triage::Repair(w::FindingRepair { more: List::uncapped(), words: b"2/5".as_slice().into() })
+    );
+    root.adoption_answer(call, w::Outcome::Triaged(w::Triaged { goal: Some(91) }));
+    assert_eq!(root.answer(call).unwrap().stdout.as_ref(), b"repair goal 91 made for 2/3\n");
+}
+
+#[test]
+fn finding_repair_refuses_mixed_repeated_and_excess_findings_before_sending() {
+    for findings in [["2/3", "3/5"], ["2/3", "shop/3"], ["2/3", "2/3"]] {
+        let mut root = root_at(2);
+        let call = root.submit(&["finding", "repair", findings[0], findings[1], "repair together", "--key", "repair"]);
+        assert_eq!(root.answer(call).unwrap().status, 2);
+        assert!(root.nothing_sent());
+    }
+    let names = [
+        "2/1", "2/2", "2/3", "2/4", "2/5", "2/6", "2/7", "2/8", "2/9", "2/10", "2/11", "2/12", "2/13", "2/14", "2/15",
+        "2/16", "2/17",
+    ];
+    for count in [16, 17] {
+        let mut argv = List::uncapped();
+        argv.push("finding").unwrap();
+        argv.push("repair").unwrap();
+        for name in names.iter().take(count) {
+            argv.push(*name).unwrap();
+        }
+        for word in ["repair together", "--key", "repair"] {
+            argv.push(word).unwrap();
+        }
+        if count == 17 {
+            f::parse(argv.as_slice()).expect_err("at most sixteen findings");
+        } else {
+            let mut root = root_at(2);
+            let call = root.submit(argv.as_slice());
+            let w::Triage::Repair(repair) = triage(&root, call).act else { panic!("repair") };
+            assert_eq!(repair.more.len(), 15);
+            assert_eq!(repair.more.as_slice().last(), Some(&16));
+        }
+    }
+    assert!(f::parse(&["finding", "repair", "2/3", "repair together"]).is_err(), "key required");
+    assert!(f::parse(&["finding", "repair", "repair together", "--key", "repair"]).is_err(), "finding required");
+    let mut root = root_at(2);
+    let mut call = f::call(&["finding", "repair", "2/3", "repair together", "--key", "repair"]);
+    let mut findings = List::uncapped();
+    for _ in 0_u32..17 {
+        findings.push(Value::Text(b"2/3".as_slice().into())).unwrap();
+    }
+    *call.values.get_mut(0).unwrap() = Some(Values::Many(findings.into_boxed()));
+    let call = root.submit_call(call, false);
+    assert_eq!(root.answer(call).unwrap().status, 2);
+    assert!(root.nothing_sent());
+    for words in ["", &"x".repeat(4097)] {
+        let mut root = root_at(2);
+        let call = root.submit(&["finding", "repair", "2/3", words, "--key", "repair"]);
+        assert_eq!(root.answer(call).unwrap().status, 2);
+        assert!(root.nothing_sent());
+    }
+}
+
+#[test]
+fn finding_blame_sends_both_commit_lengths_or_none_and_prints_the_landing() {
+    for (commit, bytes, printed) in [
+        (
+            "1234567890abcdef1234567890abcdef12345678",
+            &b"\x12\x34\x56\x78\x90\xab\xcd\xef\x12\x34\x56\x78\x90\xab\xcd\xef\x12\x34\x56\x78"[..],
+            b"blamed: 2/3 on landing 1234567890ab\n".as_slice(),
+        ),
+        (
+            "abababababababababababababababababababababababababababababababab",
+            &[0xab; 32][..],
+            b"blamed: 2/3 on landing abababababab\n".as_slice(),
+        ),
+    ] {
+        let mut root = root_at(2);
+        let call = root.submit(&["finding", "blame", "2/3", "--landing", commit, "this landing", "--key", "blame"]);
+        assert_eq!(
+            triage(&root, call),
+            w::TriageFinding {
+                project: 2,
+                number: 3,
+                act: w::Triage::Blame(w::FindingBlameAct {
+                    landing: Some(bytes.into()),
+                    why: b"this landing".as_slice().into()
+                })
+            }
+        );
+        assert_eq!(root.sends.len(), 1);
+        root.adoption_answer(call, w::Outcome::Triaged(w::Triaged { goal: None }));
+        assert_eq!(root.answer(call).unwrap().stdout.as_ref(), printed);
+    }
+    let mut root = root_at(2);
+    let call = root.submit(&["finding", "blame", "2/3", "--none", "no landing", "--key", "blame"]);
+    assert_eq!(
+        triage(&root, call).act,
+        w::Triage::Blame(w::FindingBlameAct { landing: None, why: b"no landing".as_slice().into() })
+    );
+    root.adoption_answer(call, w::Outcome::Triaged(w::Triaged { goal: None }));
+    assert_eq!(root.answer(call).unwrap().stdout.as_ref(), b"blamed: 2/3 on no landing\n");
+}
+
+#[test]
+fn finding_blame_refuses_missing_conflicting_flags_bad_commits_and_missing_keys() {
+    for argv in [
+        &["finding", "blame", "2/3", "why", "--key", "blame"][..],
+        &[
+            "finding",
+            "blame",
+            "2/3",
+            "--landing",
+            "1234567890abcdef1234567890abcdef12345678",
+            "--none",
+            "why",
+            "--key",
+            "blame",
+        ][..],
+        &["finding", "blame", "2/3", "--none", "why"][..],
+        &["finding", "blame", "2/3", "--landing", "1234567890abcdef1234567890abcdef12345678", "why"][..],
+    ] {
+        assert!(f::parse(argv).is_err(), "{argv:?}");
+    }
+    for commit in [
+        "1234",
+        "z234567890abcdef1234567890abcdef12345678",
+        "1234567890abcdef1234567890abcdef1234567",
+        "1234567890abcdef1234567890abcdef123456789",
+    ] {
+        let mut root = root_at(2);
+        let call = root.submit(&["finding", "blame", "2/3", "--landing", commit, "why", "--key", "blame"]);
+        assert_eq!(root.answer(call).unwrap().status, 2);
+        assert!(root.nothing_sent());
+    }
+    for why in ["", &"x".repeat(201)] {
+        let mut root = root_at(2);
+        let call = root.submit(&["finding", "blame", "2/3", "--none", why, "--key", "blame"]);
+        assert_eq!(root.answer(call).unwrap().status, 2);
+        assert!(root.nothing_sent());
+    }
+}
+
+#[test]
+fn finding_triage_prints_act_refusal_words_whole_but_keeps_field_refusals_named() {
+    for argv in [
+        &["finding", "repair", "2/3", "repair together", "--key", "repair"][..],
+        &["finding", "blame", "2/3", "--none", "why", "--key", "blame"][..],
+    ] {
+        for words in ["x".repeat(1024), "why".into()] {
+            let mut root = root_at(2);
+            let call = root.submit(argv);
+            root.adoption_answer(
+                call,
+                w::Outcome::FindingRefused(w::FindingRefused {
+                    reason: w::FindingRefusal::Words(w::FindingWords { field: words.as_bytes().into() }),
+                }),
+            );
+            let printed = root.answer(call).unwrap();
+            assert_eq!(printed.status, 2);
+            assert!(skein_lib::bytes::find(&printed.stderr, words.as_bytes()).is_some());
+            assert_eq!(
+                skein_lib::bytes::find(&printed.stderr, b"finding words past their bounds:").is_some(),
+                words == "why"
+            );
+        }
+    }
+}
+
 #[test]
 fn finding_reads_print_areas_triager_and_the_whole_finding() {
     for json in [false, true] {
@@ -178,13 +397,17 @@ fn finding_reads_print_areas_triager_and_the_whole_finding() {
         let reading = w::Reading::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&record.bytes)).unwrap();
         assert_eq!(&reading.read, &w::Read::Finding(w::FindingRead { project: 3, number: 12 }));
         let detail = w::FindingDetail {
-            row: row(),
+            row: {
+                let mut parts = row();
+                parts.goal = Some(90);
+                parts.reason = Some(b"duplicate".as_slice().into());
+                parts
+            },
             body: b"Boot twice".as_slice().into(),
             filer: w::Filer::Party(w::HolderParty { number: 8 }),
-            goal: Some(90),
-            reason: Some(b"duplicate".as_slice().into()),
+            blame: None,
         };
-        let answer = w::FindingAnswer { result: w::FindingResult::Finding(detail) };
+        let answer = w::FindingAnswer { result: w::FindingResult::Finding(Box::new(detail)) };
         root.serve_readout(
             show,
             client::Readout::Family { family: wire::FORGE, record: Some(wire::finding_answer(&answer)) },
@@ -198,6 +421,326 @@ fn finding_reads_print_areas_triager_and_the_whole_finding() {
             assert!(f::has(&printed, b"filer: party 8\nfiled: 77\nhanded on: words, not code\ngoal: task 90\ndropped: duplicate\n\nBoot twice\n"));
         }
         assert_eq!(root.watches.len(), 0, "reads close the findings watch");
+    }
+}
+fn goal_document(rows: Vec<w::FindingRow>, cut: bool) -> w::Findings {
+    let mut parts = document();
+    parts.project = 2;
+    parts.rows = List::from_boxed(rows.into_boxed_slice());
+    parts.cut = cut;
+    parts
+}
+fn goal_filter() -> client::Watchable {
+    filtered(2, w::FindingsFilter::Goal(w::FindingsGoal { goal: 820 }))
+}
+fn red(number: u32, state: w::FindingState, title: &[u8]) -> w::FindingRow {
+    let mut parts = row();
+    parts.number = number;
+    parts.state = state;
+    parts.title = title.into();
+    parts.goal = if parts.state == w::FindingState::Routed { Some(830) } else { None };
+    parts.reason = if parts.state == w::FindingState::Dropped { Some(b"duplicate".as_slice().into()) } else { None };
+    parts
+}
+fn goal_task() -> c::Task {
+    let mut task = f::goal(820, c::WaitsOn::Nothing);
+    task.project = 2;
+    task
+}
+#[test]
+fn goal_show_reads_the_task_then_its_reds_uncleared_first_in_every_place() {
+    let mut cleared = red(9, w::FindingState::Routed, b"1 test fails in nightly since S7 landed");
+    cleared.cleared = Some(clearing());
+    let rows = vec![
+        cleared,
+        red(14, w::FindingState::Routed, b"3 tests fail in nightly since S7 landed"),
+        red(13, w::FindingState::New, b"Waiting"),
+        red(12, w::FindingState::Backlog, b"Backlogged"),
+        red(11, w::FindingState::Dropped, b"Dropped"),
+        {
+            let mut parts = red(10, w::FindingState::Routed, b"Repairing");
+            parts.goal = None;
+            parts
+        },
+    ];
+    for json in [false, true] {
+        let mut root = root();
+        let call = root.submit_prepared(f::call(&["goal", "show", "820"]), json, None);
+        assert_eq!(root.reads.get(&call).unwrap().1, c::Read::Task { task: 820 });
+        assert!(root.watches.is_empty(), "read the task before the findings");
+        root.serve(call, f::task_result(goal_task()));
+        assert!(root.answer(call).is_none(), "the task alone does not complete goal show");
+        deliver_document(&mut root, &goal_filter(), &goal_document(rows.clone(), true));
+        let printed = root.answer(call).unwrap();
+        assert_eq!(printed.status, 0);
+        let ordinary = root.submit_prepared(f::call(&["task", "show", "820"]), json, None);
+        root.serve(ordinary, f::task_result(goal_task()));
+        let task = root.answer(ordinary).unwrap();
+        if json {
+            f::unique_keys(&printed.stdout).unwrap();
+            let text = String::from_utf8(printed.stdout.into_vec()).unwrap();
+            assert!(
+                text.starts_with(&format!(
+                    "{{\"task\":{},\"reds\":[",
+                    String::from_utf8(task.stdout.into_vec()).unwrap()
+                ))
+            );
+            for place in [
+                r#""stands":{"kind":"repairing","goal":830}"#,
+                r#""stands":{"kind":"waiting"}"#,
+                r#""stands":{"kind":"backlog"}"#,
+                r#""stands":{"kind":"dropped","reason":"duplicate"}"#,
+                r#""stands":{"kind":"repairing"}"#,
+                r#""stands":{"kind":"cleared","tier":"nightly","run":412}"#,
+            ] {
+                assert!(text.contains(place), "{place}: {text}");
+            }
+            let order: Vec<usize> =
+                [14u32, 13, 12, 11, 10, 9].iter().map(|n| text.find(&format!("\"number\":{n},")).unwrap()).collect();
+            assert!(order.windows(2).all(|pair| pair[0] < pair[1]));
+            assert!(text.ends_with("],\"cut\":true}"));
+        } else {
+            let suffix = printed.stdout.strip_prefix(task.stdout.as_ref()).expect("task show's document, unchanged");
+            assert_eq!(suffix, "reds after landing:\n  2/14 3 tests fail in nightly since S7 landed · being repaired by goal 830\n  2/13 Waiting · waiting for triage\n  2/12 Backlogged · in the backlog\n  2/11 Dropped · dropped: duplicate\n  2/10 Repairing · being repaired\n  2/9 1 test fails in nightly since S7 landed · cleared by nightly run 412\n[cut]\n".as_bytes());
+        }
+        assert!(root.watches.is_empty());
+    }
+}
+#[test]
+fn goal_show_prints_none_and_cut_for_a_goal_or_other_task_live_or_ended() {
+    for goal in [false, true] {
+        for ended in [false, true] {
+            for cut in [false, true] {
+                for json in [false, true] {
+                    let mut root = root();
+                    let mut task = goal_task();
+                    if !goal {
+                        task.goal = None;
+                    }
+                    let page = if ended { f::ended_task_result(task, c::Ending::Done) } else { f::task_result(task) };
+                    let ordinary = root.submit_prepared(f::call(&["task", "show", "820"]), json, None);
+                    root.serve(ordinary, page.clone());
+                    let document = root.answer(ordinary).unwrap();
+                    let call = root.submit_prepared(f::call(&["goal", "show", "820"]), json, None);
+                    root.serve(call, page);
+                    deliver_document(&mut root, &goal_filter(), &goal_document(vec![], cut));
+                    let printed = root.answer(call).unwrap();
+                    assert_eq!(printed.status, 0);
+                    if json {
+                        let expected = format!(
+                            "{{\"task\":{},\"reds\":[],\"cut\":{cut}}}",
+                            String::from_utf8(document.stdout.into_vec()).unwrap()
+                        );
+                        assert_eq!(printed.stdout.as_ref(), expected.as_bytes());
+                    } else {
+                        let suffix = printed.stdout.strip_prefix(document.stdout.as_ref()).unwrap();
+                        assert_eq!(
+                            suffix,
+                            if cut {
+                                b"reds after landing: none\n[cut]\n".as_slice()
+                            } else {
+                                b"reds after landing: none\n"
+                            }
+                        );
+                    }
+                    assert!(root.watches.is_empty());
+                }
+            }
+        }
+    }
+}
+#[test]
+fn goal_show_keeps_supplemental_task_words_and_refuses_a_missing_task() {
+    let mut root = root();
+    let call = root.submit(&["goal", "show", "820"]);
+    let mut task = goal_task();
+    task.spec.specification.words = f::document_text(b"First");
+    task.spec.specification.words.cut = true;
+    root.serve(call, f::task_result(task));
+    assert_eq!(
+        root.reads.get(&call).unwrap().1,
+        c::Read::TaskText { task: 820, field: c::TaskTextField::Specification, from: 5 }
+    );
+    assert!(root.watches.is_empty(), "finish the task's source before its findings");
+    root.serve(call, c::ReadResult::None(c::ReadNone::Unknown));
+    deliver_document(&mut root, &goal_filter(), &goal_document(vec![], false));
+    let printed = root.answer(call).expect("refused supplemental words keep the prefix and continuation");
+    assert_eq!(printed.status, 0);
+    assert!(f::has(&printed, b"asked: First"));
+    assert!(f::has(&printed, b"task text 820 --field specification --from 0"));
+    assert!(printed.stdout.ends_with(b"reds after landing: none\n"));
+    let missing = root.submit(&["goal", "show", "821"]);
+    root.serve(missing, c::ReadResult::None(c::ReadNone::Unknown));
+    assert_eq!(root.answer(missing).unwrap().status, 2);
+    assert!(root.watches.is_empty());
+}
+fn blamed_goal(goal: u64, milestone: Option<u64>, person: Option<u64>) -> w::BlamedGoal {
+    w::BlamedGoal { goal, milestone, person }
+}
+fn landing(goals: Vec<w::BlamedGoal>) -> w::BlamedLanding {
+    let mut commit = [0; 32];
+    commit[..6].copy_from_slice(&[0x1a, 0x2b, 0x3c, 0x4d, 0x5e, 0x6f]);
+    w::BlamedLanding { commit, goals: List::from_boxed(goals.into_boxed_slice()) }
+}
+#[test]
+fn finding_show_prints_blame_landings_and_clearing_before_the_body() {
+    for (blame, text, json_blame) in [
+        (
+            Some((w::BlameStrength::Owned, vec![landing(vec![blamed_goal(820, Some(812), Some(4))])])),
+            "blame: owned\n  landing 1a2b3c4d5e6f: goal 820 in milestone 812, person 4\ncleared: nightly run 412 at 2026-11-19T09:40Z\n",
+            r#""blame":{"strength":"owned","landings":[{"commit":"1a2b3c4d5e6f0000000000000000000000000000000000000000000000000000","goals":[{"goal":820,"milestone":812,"person":4}]}]}"#,
+        ),
+        (
+            Some((
+                w::BlameStrength::Suspected,
+                vec![
+                    landing(vec![blamed_goal(820, None, Some(4)), blamed_goal(821, Some(812), None)]),
+                    landing(vec![]),
+                ],
+            )),
+            "blame: suspected\n  landing 1a2b3c4d5e6f: goal 820, person 4; goal 821 in milestone 812\n  landing 1a2b3c4d5e6f: no goal\ncleared: nightly run 412 at 2026-11-19T09:40Z\n",
+            r#""blame":{"strength":"suspected","landings":[{"commit":"1a2b3c4d5e6f0000000000000000000000000000000000000000000000000000","goals":[{"goal":820,"milestone":null,"person":4},{"goal":821,"milestone":812,"person":null}]},{"commit":"1a2b3c4d5e6f0000000000000000000000000000000000000000000000000000","goals":[]}]}"#,
+        ),
+        (
+            Some((w::BlameStrength::Unblamed, vec![landing(vec![])])),
+            "blame: none\n  landing 1a2b3c4d5e6f: no goal\ncleared: nightly run 412 at 2026-11-19T09:40Z\n",
+            r#""blame":{"strength":"none","landings":[{"commit":"1a2b3c4d5e6f0000000000000000000000000000000000000000000000000000","goals":[]}]}"#,
+        ),
+        (None, "cleared: nightly run 412 at 2026-11-19T09:40Z\n", r#""blame":null"#),
+    ] {
+        for json in [false, true] {
+            let mut root = root();
+            let call = root.submit_prepared(f::call(&["finding", "show", "3/12"]), json, None);
+            let mut parts = row();
+            parts.reason = Some(b"duplicate".as_slice().into());
+            parts.cleared = Some(clearing());
+            let blame = blame.clone().map(|(strength, landings)| w::FindingBlame {
+                strength,
+                landings: List::from_boxed(landings.into_boxed_slice()),
+            });
+            let detail = w::FindingDetail {
+                row: parts,
+                body: b"Boot twice".as_slice().into(),
+                filer: w::Filer::Party(w::HolderParty { number: 8 }),
+                blame: blame.clone(),
+            };
+            let answer = w::FindingAnswer { result: w::FindingResult::Finding(Box::new(detail)) };
+            root.serve_readout(
+                call,
+                client::Readout::Family { family: wire::FORGE, record: Some(wire::finding_answer(&answer)) },
+            );
+            let printed = root.answer(call).unwrap();
+            assert_eq!(printed.status, 0);
+            if json {
+                f::unique_keys(&printed.stdout).unwrap();
+                assert!(f::has(&printed, json_blame.as_bytes()), "{}", String::from_utf8_lossy(&printed.stdout));
+                assert!(f::has(&printed, br#""cleared":{"tier":"nightly","run":412,"at":1795081200000000000}"#));
+            } else {
+                assert!(
+                    f::has(&printed, format!("dropped: duplicate\n{text}\nBoot twice\n").as_bytes()),
+                    "{}",
+                    String::from_utf8_lossy(&printed.stdout)
+                );
+                if blame.is_none() {
+                    assert!(!f::has(&printed, b"blame:"));
+                }
+            }
+        }
+    }
+}
+fn filtered(project: u32, filter: w::FindingsFilter) -> client::Watchable {
+    let subject = w::FindingsSubject { project, filter };
+    let watch = w::Watching { watch: w::Watch::Findings(subject) };
+    client::Watchable::Family {
+        scope: c::Scope::Project(project),
+        window: c::Window { rows: 0, after: None },
+        record: client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::watching(&watch) },
+    }
+}
+fn clearing() -> w::FindingClearing {
+    w::FindingClearing { tier: b"nightly".as_slice().into(), run: 412, at: 1_795_081_200_000_000_000 }
+}
+fn deliver_document(root: &mut f::Harness, subject: &client::Watchable, document: &w::Findings) {
+    let watch = root.watch_token(subject);
+    root.client(client::Event::Up {
+        up: client::Up::FamilyDelivered {
+            watch,
+            record: client::Family {
+                family: wire::FORGE,
+                version: wire::CLIENT_VERSION,
+                bytes: wire::findings(document),
+            },
+        },
+    });
+}
+#[test]
+fn finding_list_filters_blame_and_prints_clearing_and_row_fields() {
+    for (flag, task, filter) in [
+        ("--goal", "820", w::FindingsFilter::Goal(w::FindingsGoal { goal: 820 })),
+        ("--milestone", "812", w::FindingsFilter::Milestone(w::FindingsMilestone { milestone: 812 })),
+    ] {
+        for json in [false, true] {
+            let mut root = root();
+            let call = root.submit_call(f::call(&["finding", "list", "--project", "shop", flag, task]), json);
+            let mut parts = document();
+            let mut cleared = row();
+            cleared.goal = Some(830);
+            cleared.reason = Some(b"duplicate".as_slice().into());
+            cleared.cleared = Some(clearing());
+            parts.rows = List::from_boxed(Box::new([cleared, row()]));
+            deliver_document(&mut root, &filtered(3, filter.clone()), &parts);
+            let printed = root.answer(call).unwrap();
+            assert_eq!(printed.status, 0);
+            if json {
+                f::unique_keys(&printed.stdout).unwrap();
+                assert!(f::has(&printed, br#""goal":830,"reason":"duplicate","cleared":{"tier":"nightly","run":412,"at":1795081200000000000}"#));
+                assert!(f::has(&printed, br#""goal":null,"reason":null,"cleared":null"#));
+            } else {
+                assert!(f::has(&printed, "Flaky boot · cleared by nightly run 412\n".as_bytes()));
+            }
+            assert!(root.watches.is_empty());
+        }
+    }
+}
+#[test]
+fn finding_list_refuses_mixed_filters_naming_the_flags() {
+    for (left, right) in [
+        (&["--goal", "820"][..], &["--milestone", "812"][..]),
+        (&["--goal", "820"][..], &["--state", "new"][..]),
+        (&["--goal", "820"][..], &["--mine"][..]),
+        (&["--milestone", "812"][..], &["--state", "new"][..]),
+        (&["--milestone", "812"][..], &["--mine"][..]),
+    ] {
+        let mut argv = vec!["finding", "list", "--project", "2"];
+        argv.extend_from_slice(left);
+        argv.extend_from_slice(right);
+        let why = f::parse(&argv).expect_err("mixed filters");
+        let bytes: Vec<&[u8]> = argv.iter().map(|word| word.as_bytes()).collect();
+        let mut measure = skein_lib::Writer::measure(512);
+        crate::table::refusal(why, &bytes, &mut measure).unwrap();
+        let mut text = skein_lib::Writer::new(measure.written());
+        crate::table::refusal(why, &bytes, &mut text).unwrap();
+        let text = String::from_utf8(text.finish().into_vec()).unwrap();
+        assert!(text.contains(left[0]) && text.contains(right[0]), "{text}");
+        // Prepared calls bypass argv but must still be usage failures, sending nothing.
+        let mut call = f::call(&["finding", "list", "--project", "2"]);
+        for words in [left, right] {
+            let (index, value) = match words[0] {
+                "--goal" => (3, Value::Number(820)),
+                "--milestone" => (4, Value::Number(812)),
+                "--state" => (1, Value::Word(0)),
+                "--mine" => (2, Value::Switch),
+                _ => unreachable!(),
+            };
+            *call.values.get_mut(index).unwrap() = Some(Values::One(value));
+        }
+        let mut root = root();
+        let number = root.submit_call(call, false);
+        let printed = root.answer(number).unwrap();
+        assert_eq!(printed.status, 1);
+        let text = String::from_utf8(printed.stderr.into_vec()).unwrap();
+        assert!(text.contains(left[0]) && text.contains(right[0]), "{text}");
+        assert!(root.nothing_sent());
     }
 }
 #[test]

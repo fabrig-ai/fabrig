@@ -57,6 +57,11 @@ bounds are section 9, and what they take of jig section 10; an MCP endpoint and 
 - **Workers are settings** (`workers.md`): `worker add`, `places` and
   `remove`, each one settings change by an owner, and `worker list`,
   each worker up or down and its runs.
+- **Findings and a goal's reds are read in their own document**
+  (`findings.md`): `finding list`, by triage or by the goal or milestone
+  a red is blamed on, `finding show` with its blame, and `goal show`, a
+  goal and the reds after landing blamed on it; milestones are
+  `milestones.md`'s.
 - **Grown by areas,** the first, the fifth and the sixth designed in
   full, the others named (`areas.md`); **later, named:** the MCP endpoint and
   the extraction into `jig-client-tools` (section 11).
@@ -340,7 +345,9 @@ temper ctl help [GROUP [VERB]]
   (`../README.md`, section 4), and `party`. A DIRECTORY that holds a
   token, a non-empty `token`, is refused before anything is sent
   (*signed in*, below): a link is never sent beside a held token, so
-  the link stays unspent, and `sign-out` is the way out. Its answers,
+  the link stays unspent, and `sign-out` is the way out. A service link
+  (section 7) is no person's link: it signs in as `sign-in --service`
+  does, a signed-in DIRECTORY too. Its answers,
   each exit 1 with one line, and none writing `token`, `address` or
   `party`:
   - *empty* (no link after stripping one trailing newline): `temper ctl:
@@ -556,9 +563,50 @@ An agent runs a wait while it acts, or several agents share a party.
   `0o600`, refused if the file exists, and never prints it. The agent
   signs in with it (`sign-in --service FILE`) and acts within that
   role's authority and pool. QA plays several parties this way.
+- **A service's credential reissued** (area 3): `party reissue PARTY
+  --out FILE`, keyed optionally, asks jig's `ReissueService { party }`
+  (jig's `domain/people/acts.md`, 1): the service's sign-ins end at once,
+  and the new credential, answered once, is written as a *service link*,
+  `http://HOST:PORT/sign-in#service=CREDENTIAL`: DIRECTORY's `address`,
+  the link's page (`../README.md`, section 4) and the 40 bytes in
+  unpadded base64url. In the fragment, no browser sends it to a server,
+  and jig's mapping reads it as no link, so `sign-in` alone takes it.
+  `temper-client-domain-forge`'s `sign_in` module writes it,
+  `service_link`, and reads it, `read_service_link`.
+  - *FILE* holds the link and a newline, written as `party make --out`
+    writes, `0o600`, refused if it exists before anything is sent,
+    durable before success prints. With `-`, stdout holds the link and
+    a newline alone and the answer goes to stderr, so `temper ctl OWNER
+    party reissue 9 --out - | temper ctl SERVICE sign-in -` signs the
+    service's DIRECTORY in again. The link is never an argument, in a
+    log or in an error.
+  - *Answered:* `reissued: party N; its sign-ins have ended; sign its
+    directory in with temper ctl DIRECTORY sign-in FILE`, FILE as given,
+    exit 0; `--json`, `{"operation": "reissue-service", "outcome":
+    {"reissued": {"party": N}}}`. Sent again under its key, it reissues
+    again (jig's `domain/people/acts.md`, 1).
+  - *Refused:* PARTY the party DIRECTORY is signed in as, before
+    sending, exit 1, `temper ctl: party N is this directory's own party;
+    an owner's directory reissues its credential`; exit 2, jig's `role`,
+    `temper ctl: refused: party N's credential is reissued by an owner
+    of the deployment, or of every project it holds a role in`, and
+    `not_offered`, `temper ctl: refused: party N is not a service; only
+    a service's credential is reissued`, `unknown` as any act's.
+  - *FILE not written* once answered: `FILE could not be written:
+    ERROR`, exit 1; the credential is lost, and a reissue replaces it.
+  - *At `sign-in`,* a service link the engine refuses prints `temper
+    ctl: the service link was refused: its credential was reissued
+    since, or the service is unknown; an owner reissues it with temper
+    ctl DIRECTORY party reissue PARTY --out FILE`.
+- **A sign-in's end, seen coming:** `me` prints `sign-in expires: U`
+  below its party line, U jig's `sign_in_expires`,
+  `YYYY-MM-DDTHH:MM:SSZ`, and `--json` `"sign_in_expires": U`. Nothing
+  renews a sign-in: a service's DIRECTORY signs in again with its kept
+  service link, or after a reissue.
 - **Credentials are files,** private, never arguments, never printed;
-  the printed link too, which `sign-in` reads from a file or stdin, and
-  an asked link, which `link` writes to one.
+  the printed link too, which `sign-in` reads from a file or stdin, an
+  asked link, which `link` writes to one, and a service link, which
+  `party reissue` writes to one, or to stdout when asked.
 - **The agent's LLM is not the deployment's.** The LLM the agent itself
   runs on, to drive `temper ctl`, is its harness's. The deployment's
   runs are paid by jig's LLM accounts, added from the client
@@ -814,8 +862,8 @@ Each is named here and designed when it comes.
   `temper-settings-form` today (`tools-crates.md`, 7).
 - **The forge's read family's tools,** beside `forge list` (area 6), as the
   engine serves each of the forge's other parts (`../forge/served.md`).
-- **A service's credential reissued, or a service removed** (jig's
-  `domain/people/README.md`, section 3): tools of area 3.
+- **A service removed** (jig's `domain/people/README.md`, section 3): a
+  tool of area 3, once jig builds the act.
 - **An older moved form patched at `account import`** (`areas.md`, area 5, the
   file's versions): jig's form patches, then skein's record patches,
   before the engine's checks, when a form 2 exists.

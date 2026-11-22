@@ -128,7 +128,7 @@ Focused, in the worlds that own each side, with their simulated clocks:
   `Told` with the wait; one at 14 sent nothing, `Told` with none and
   14; a connection whose hello is not heard told nothing; a second ask
   sent again.
-- **The wire:** generated records' drift and pinned constructs, as skein's
+- **The wire:** generated records' drift, as skein's
   `data/codec/README.md`, section 6 has it; the patch's goldens up and down
   with the variant refused below 15, and `KINDS` against the schema (`wires.md`, 7).
 - **Fuzzy,** in the worker-link world's seeded runs: any order of words,

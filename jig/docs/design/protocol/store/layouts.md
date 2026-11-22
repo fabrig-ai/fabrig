@@ -37,7 +37,7 @@ is converted as it is read, and written at the binary's layout.
   registration on their versions stay, and no patch names them (skein's
   `data/codec/README.md`, section 5).
 - **Outside the registry:** the component's own rows under its tag (the
-  format row, the layouts and wires rows, transcripts' places and
+  format and wires rows, transcripts' places and
   attempts, the workers' openings and the registry's own rows, 3), read
   before the registry or holding it; the secrets' store's families
   (`secrets.md`), read once at open from a store copied whole at each

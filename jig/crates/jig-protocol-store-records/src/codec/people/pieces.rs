@@ -1,9 +1,6 @@
 //! Byte-summed collections, framed without multiplying nested lists (skein/docs/design/data/codec/README.md, 3).
-use super::{
-    Box, List, Reader, count, decode_executor, decode_grant, decode_parameter, decode_permission_role,
-    decode_requirement, decode_resource_scope, domain, encode_executor, encode_grant, encode_parameter,
-    encode_permission_role, encode_requirement, encode_resource_scope, problem, wire,
-};
+use super::{Box, List, Reader, count, domain, problem, wire};
+use crate::generated::people as mapped;
 use skein_lib::length::len_u64;
 use wire::Record;
 
@@ -130,7 +127,7 @@ pub(super) fn encode_delegation_kinds(
     let mut used = 0;
     for value in values {
         spend(&mut used, u64::try_from(size_of::<domain::Executor>()).ok(), sum)?;
-        let value = encode_executor(*value, limits);
+        let value = mapped::executor_to_record(value, limits)?;
         let item = value.encode(limits)?;
         items.push(item).expect("same item count");
     }
@@ -150,7 +147,7 @@ pub(super) fn decode_delegation_kinds(
     let mut used = 0;
     while let Some(bytes) = split(&mut reader)? {
         let value = wire::Executor::decode(limits, &mut Reader::new(&bytes))?;
-        let value = decode_executor(value);
+        let value = mapped::executor_to_domain(value, limits)?;
         spend(&mut used, u64::try_from(size_of::<domain::Executor>()).ok(), sum)?;
         values.push(value).expect("piece contains at most one item per length");
     }
@@ -167,7 +164,7 @@ pub(super) fn encode_authority_note_resources(
     let mut used = 0;
     for value in values {
         spend(&mut used, scope_bytes(value), sum)?;
-        let value = encode_resource_scope(value, limits)?;
+        let value = mapped::resource_scope_to_record(value, limits)?;
         let item = value.encode(limits)?;
         items.push(item).expect("same item count");
     }
@@ -187,7 +184,7 @@ pub(super) fn decode_authority_note_resources(
     let mut used = 0;
     while let Some(bytes) = split(&mut reader)? {
         let value = wire::ResourceScope::decode(limits, &mut Reader::new(&bytes))?;
-        let value = decode_resource_scope(value, limits)?;
+        let value = mapped::resource_scope_to_domain(value, limits)?;
         spend(&mut used, scope_bytes(&value), sum)?;
         values.push(value).expect("piece contains at most one item per length");
     }
@@ -204,7 +201,7 @@ pub(super) fn encode_grant_piece(
     let mut used = 0;
     for value in values {
         spend(&mut used, grant_bytes(value), sum)?;
-        let value = encode_grant(value, limits)?;
+        let value = mapped::grant_to_record(value, limits)?;
         let item = value.encode(limits)?;
         items.push(item).expect("same item count");
     }
@@ -224,7 +221,7 @@ pub(super) fn decode_grant_piece(
     let mut used = 0;
     while let Some(bytes) = split(&mut reader)? {
         let value = wire::Grant::decode(limits, &mut Reader::new(&bytes))?;
-        let value = decode_grant(value, limits)?;
+        let value = mapped::grant_to_domain(value, limits)?;
         spend(&mut used, grant_bytes(&value), sum)?;
         values.push(value).expect("piece contains at most one item per length");
     }
@@ -241,7 +238,7 @@ pub(super) fn encode_requirement_piece(
     let mut used = 0;
     for value in values {
         spend(&mut used, requirement_bytes(value), sum)?;
-        let value = encode_requirement(value, limits)?;
+        let value = mapped::requirement_to_record(value, limits)?;
         let item = value.encode(limits)?;
         items.push(item).expect("same item count");
     }
@@ -261,7 +258,7 @@ pub(super) fn decode_requirement_piece(
     let mut used = 0;
     while let Some(bytes) = split(&mut reader)? {
         let value = wire::Requirement::decode(limits, &mut Reader::new(&bytes))?;
-        let value = decode_requirement(value, limits)?;
+        let value = mapped::requirement_to_domain(value, limits)?;
         spend(&mut used, requirement_bytes(&value), sum)?;
         values.push(value).expect("piece contains at most one item per length");
     }
@@ -278,7 +275,7 @@ pub(super) fn encode_spec_parameters(
     let mut used = 0;
     for value in values {
         spend(&mut used, parameter_bytes(value), sum)?;
-        let value = encode_parameter(value, limits);
+        let value = mapped::parameter_to_record(value, limits)?;
         let item = value.encode(limits)?;
         items.push(item).expect("same item count");
     }
@@ -298,7 +295,7 @@ pub(super) fn decode_spec_parameters(
     let mut used = 0;
     while let Some(bytes) = split(&mut reader)? {
         let value = wire::Parameter::decode(limits, &mut Reader::new(&bytes))?;
-        let value = decode_parameter(value);
+        let value = mapped::parameter_to_domain(value, limits)?;
         spend(&mut used, parameter_bytes(&value), sum)?;
         values.push(value).expect("piece contains at most one item per length");
     }
@@ -348,7 +345,7 @@ pub(super) fn encode_permissions(
     let mut used = 0;
     for value in values {
         spend(&mut used, u64::try_from(size_of::<domain::PermissionRole>()).ok(), sum)?;
-        let value = encode_permission_role(*value, limits);
+        let value = mapped::permission_role_to_record(value, limits)?;
         let item = value.encode(limits)?;
         items.push(item).expect("same item count");
     }
@@ -368,7 +365,7 @@ pub(super) fn decode_permissions(
     let mut used = 0;
     while let Some(bytes) = split(&mut reader)? {
         let value = wire::PermissionRole::decode(limits, &mut Reader::new(&bytes))?;
-        let value = decode_permission_role(value);
+        let value = mapped::permission_role_to_domain(value, limits)?;
         spend(&mut used, u64::try_from(size_of::<domain::PermissionRole>()).ok(), sum)?;
         values.push(value).expect("piece contains at most one item per length");
     }

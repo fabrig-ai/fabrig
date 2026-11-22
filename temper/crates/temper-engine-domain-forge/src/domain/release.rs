@@ -284,6 +284,8 @@ fn outputs(
             | Request::TierRun { .. }
             | Request::FileRedFinding { .. }
             | Request::FileVerdict { .. }
+            | Request::ReturnFinding(_)
+            | Request::FailRepair { .. }
             | Request::TierDecision { .. }
             | Request::ProjectReleased { .. }
             | Request::ForgeKept(_)
@@ -307,6 +309,7 @@ fn outputs(
             | Request::Reachable { .. }
             | Request::CarriedUnused { .. }
             | Request::EraseCarried { .. }
+            | Request::MilestoneMarked { .. }
             | Request::Marked { .. }
             | Request::FullTableFact { .. }
             | Request::MarkedForges

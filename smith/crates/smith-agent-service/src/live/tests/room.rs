@@ -213,7 +213,7 @@ impl Room {
 
 fn charter_fixture() -> Box<[u8]> {
     let values = skein_codegen::values(smith_charter::SCHEMA);
-    for value in values.goldens.clone() {
+    for value in values.fixed.clone() {
         if value.name == "record_charter_smallest.bin" {
             return value.bytes.into_boxed_slice();
         }

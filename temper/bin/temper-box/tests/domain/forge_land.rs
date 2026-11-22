@@ -580,6 +580,7 @@ fn referee_me() -> jig_client::contract::Me {
         key_bytes: 256,
         redirect_bytes: 256,
         words_bytes: 8192,
+        sign_in_expires: skein_lib::Wall::from_nanos(86_400_000_000_000),
         needs: c::Needs { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 },
         needs_total: 0,
         updates: c::Count { value: 0, limited: false },

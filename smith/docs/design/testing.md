@@ -64,7 +64,7 @@ document's "The world" section.
 
 | Tier (testing-strategy.md, section 2) | In smith |
 |---|---|
-| step tests | every crate; the codecs' built values, records-only drift, pinned constructs and bounds; the shell crates' parsing, settings and refusals; the profile's derivation properties (2.5) |
+| step tests | every crate; the codecs' built values, records-only drift and bounds; the shell crates' parsing, settings and refusals; the profile's derivation properties (2.5) |
 | domain worlds | the agent's tools, session and run, each with the world as its parent; the agent's root with its children, on a scripted host; the host world, on a scripted parent: the host domain with a scripted agent, and the inline agent with smith's real domain, under one referee (domain/host.md, section 10) |
 | system worlds | the local host with the agent in it, a scripted person and skein's fake provider |
 | machine worlds | skein's: smith has no protocol machine of its own |
@@ -76,9 +76,9 @@ document's "The world" section.
 | benchmarks | not a test tier: real agents on real models, measured (2.4) |
 
 Domain worlds use domains and fakes only, never protocol crates. Codec
-tests build values through constructors or fixed-rule encodings from
+tests build values with public fields or fixed-rule encodings from
 embedded schema text; earlier versions use their kept texts. Drift compares
-the records' module and refuses unpinned constructs (skein's
+the records' module with the committed code (skein's
 `data/codec/README.md`, section 6). Families keep no golden files or
 generated test targets; event JSONL and patch goldens remain. Memory and
 boundary tests check the generated `encoded_bound` and `decoded_bound`
@@ -692,6 +692,21 @@ Every world checks what the strategy lists (testing-strategy.md, section
 
   These need cgroup v2 delegated to the user and unprivileged user
   namespaces. A test fails, saying so, where they are missing.
+- **What smith holds, through its inspection adapter**
+  (`skein/docs/design/testing/inspection.md`;
+  `temper/docs/design/draft/failure-worlds.md`, 3.1 and 3.2):
+  `smith/testing/smith-inspect`, `smith_inspect::inspect(domain:
+  &smith_domain::Domain, into: &mut Inspection)`, component `smith`, over
+  the domain's and its children's `pub` reads, each private table gaining
+  a `pub` read documented as its adapter's.
+  - **Waits:** a session's call waiting on its provider's answer, bound
+    by the request's own deadline; a retry waiting out a rate window, its
+    wake the window's reset; a run waiting on a tool's or a job's end.
+    Each waiter is named by its run, `run N`, as its host numbers it.
+  - **Tables:** the requests in flight, released by each one's answer or
+    deadline; the sessions, runs and kits, released by their run's end.
+  - **Called** at each world's quiet point: the agent world's drive
+    once its agent reclaims, and the session, run and host worlds' own.
 
 ### 6.1 The suites
 
@@ -753,7 +768,7 @@ crates/*/src/tests.rs            step tests
 crates/smith-*-service           the profile, and its derivation properties
 crates/smith-*-shell             the shells' parsing, settings and refusals
 crates/smith-local-protocol/tests the chat store's real-directory layout cases (2.5)
-tests/codecs                     the codecs: built values, records-only drift, pinned constructs, bounds, fuzzy decoding
+tests/codecs                     the codecs: built values, records-only drift, bounds, fuzzy decoding
 tests/tools                      the tools child domain's world
 tests/session                    the session child domain's world
 tests/run                        the run child domain's world

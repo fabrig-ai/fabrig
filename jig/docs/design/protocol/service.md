@@ -184,8 +184,11 @@ listed in section 9.
    store's and the connectors' parts of each step as the root asks; the
    core wants every signed-in source from its first step
    (`../domain/root.md`, section 8; `../domain/engine/README.md`, section 6).
-6. **Decisions open** once the core says so; from then on the root takes
-   every event.
+6. **Decisions open** once the core says so, which is once the engine's
+   own records are in and its runs adopted, before any connector has
+   caught up (`../domain/engine/restart.md`, steps 4 and 5); from then on
+   the root takes every event, and clients are answered whatever a
+   connector's system does.
 
 ## 4. iterate
 

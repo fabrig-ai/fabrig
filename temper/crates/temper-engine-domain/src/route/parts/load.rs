@@ -127,6 +127,7 @@ fn ordinary(
                 ended: row.ended_at,
                 last_landing: None,
                 spent: row.numbers.spent.checked_add(row.numbers.spent_below).expect("task accounting"),
+                reds: 0,
             };
             domain.parts.entry(project, task).ended = Some(Ended {
                 count: totals.done.saturating_add(totals.failed).saturating_add(totals.closed),

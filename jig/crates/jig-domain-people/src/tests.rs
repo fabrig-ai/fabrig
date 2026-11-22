@@ -8,6 +8,7 @@ mod arrivals;
 mod fixtures;
 mod names;
 mod projects;
+mod services;
 use crate::*;
 use skein_lib::{Duration, Env, List, Queue, ReplyTo, Time, Token, Wall};
 
@@ -2744,6 +2745,7 @@ pub(crate) fn outcome_classes() -> Vec<(Outcome, OutcomeFamily, ActStatus, Optio
         ),
         (Outcome::SignedOut, F::SignedOut, Refused, None),
         (Outcome::ServiceMade { person: 9 }, F::ServiceMade(9), Refused, None),
+        (Outcome::ServiceReissued { party: 9 }, F::ServiceReissued, Refused, None),
         (Outcome::RolesSet { project: 7 }, F::RolesSet(7), Refused, None),
         (Outcome::ProjectMade { project: 7 }, F::ProjectMade(7), Refused, None),
         (Outcome::Refused(limit.clone()), F::Refused, Refused, Some(limit)),
@@ -2797,6 +2799,7 @@ pub(crate) fn ask_classes() -> Vec<(Ask, AskFamily)> {
             F::Project(7),
         ),
         (Ask::MakeProject { name: "project".into(), policy: 9 }, F::Deployment),
+        (Ask::ReissueService { party: 9 }, F::ReissueService),
         (Ask::AccountSignIn { holder: AccountHolder::Own, provider: 9 }, F::Account),
         (Ask::AccountSignOut { holder: AccountHolder::Deployment, source: 9 }, F::Account),
         (Ask::AccountChange { holder: AccountHolder::Own, change: AccountChange::MoveOut { account: 9 } }, F::Account),

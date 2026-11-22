@@ -1,6 +1,9 @@
 //! The owner chain and bounded retained findings (domain/areas.md, 4; findings.md, 9).
 use super::*;
+use crate::findings::findings_filter;
 use crate::settings::{Area, AreaOwner, ProjectAreas};
+mod repairing;
+use skein_lib::List;
 
 #[test]
 fn the_owner_chain_uses_standing_then_triager_then_project_owners() {
@@ -23,6 +26,275 @@ fn the_owner_chain_uses_standing_then_triager_then_project_owners() {
     assert_eq!(owner(Some(b"tests"), &areas, Some(AreaOwner::Party(8)), &[]), Holder::Role(0));
     assert_eq!(owner(None, &areas, Some(AreaOwner::Role(9)), &[]), Holder::Role(9));
 }
+fn move_fixture() -> (Domain, Finding) {
+    let mut d = tiers::restoring(Some(b"release"));
+    let mut row = blamed_red(1, FindingState::New);
+    row.project = 5;
+    row.signature = Some(FindingSignature { source: b"browser".as_slice().into(), ..signature() });
+    let member = LoggedChange {
+        task: 51,
+        pull: Some(101),
+        title: b"member".as_slice().into(),
+        signed: Box::new([]),
+        goal: Some(91),
+        milestone: Some(81),
+        person: Some(7),
+        goal_title: None,
+        draft: None,
+        fixes: Box::new([]),
+    };
+    d.landing_logs
+        .insert(
+            REPO,
+            LandingLog {
+                repository: REPO,
+                landings: Box::new([
+                    LoggedLanding {
+                        commit: [0xab; 32],
+                        branch: b"release".as_slice().into(),
+                        at: Wall::EPOCH,
+                        tiers: Box::new([]),
+                        changes: Box::new([
+                            member.clone(),
+                            LoggedChange { task: 52, milestone: Some(99), ..member.clone() },
+                            LoggedChange { task: 53, goal: None, ..member.clone() },
+                            LoggedChange { task: 54, goal: Some(92), milestone: None, person: None, ..member.clone() },
+                        ]),
+                    },
+                    LoggedLanding {
+                        commit: [0xcd; 32],
+                        branch: b"release".as_slice().into(),
+                        at: Wall::EPOCH,
+                        tiers: Box::new([]),
+                        changes: Box::new([]),
+                    },
+                    LoggedLanding {
+                        commit: [0xef; 32],
+                        branch: b"main".as_slice().into(),
+                        at: Wall::EPOCH,
+                        tiers: Box::new([]),
+                        changes: Box::new([member]),
+                    },
+                ]),
+            },
+        )
+        .unwrap();
+    (d, row)
+}
+fn move_call(landing: Option<skein_forge::api::Commit>) -> TriageFinding {
+    TriageFinding {
+        project: 5,
+        number: 1,
+        act: Triage::Blame(BlameAct { landing, why: b"better evidence".as_slice().into() }),
+    }
+}
+#[test]
+fn blame_replaces_only_the_blame_in_every_state_with_logged_goals_in_member_order() {
+    for state in [FindingState::New, FindingState::Routed, FindingState::Backlog, FindingState::Dropped] {
+        let (mut d, mut expected) = move_fixture();
+        expected.state = state;
+        expected.goal = Some(99);
+        let mut out = Queue::uncapped();
+        d.commit_finding(&LIMITS, FindingWrite { row: expected.clone(), erase: None }, &mut out);
+        for (by, commit, goals) in [
+            (
+                Filer::Task(40),
+                Some([0xab; 32]),
+                [
+                    BlamedGoal { goal: 91, milestone: Some(81), person: Some(7) },
+                    BlamedGoal { goal: 92, milestone: None, person: None },
+                ]
+                .as_slice()
+                .into(),
+            ),
+            (Filer::Party(7), Some([0xcd; 32]), Box::default()),
+            (Filer::Task(41), None, Box::default()),
+        ] {
+            let write = d.prepare_triage_finding(by, move_call(commit)).unwrap();
+            expected.blame = Some(FindingBlame {
+                strength: BlameStrength::Moved,
+                moved: Some(BlameMove { by, why: b"better evidence".as_slice().into() }),
+                landings: match commit {
+                    Some(commit) => Box::new([BlamedLanding { commit, goals }]),
+                    None => Box::default(),
+                },
+            });
+            assert_eq!(write.row, expected, "{state:?}: every other fact is unchanged");
+            let mut out = Queue::uncapped();
+            d.commit_finding(&LIMITS, write, &mut out);
+            assert_eq!(d.finding(5, 1), Some(&expected));
+            let mut saved = false;
+            for request in &out {
+                saved |= matches!(request, Request::Save { record: Stored::Finding(row), .. } if row == &expected);
+            }
+            assert!(saved);
+        }
+    }
+}
+#[test]
+fn blame_refuses_non_landed_or_cleared_findings_and_commits_not_logged_on_the_tier_branch() {
+    for (kind, blame, cleared, expected) in [
+        (FindingKind::Qa, true, false, "finding 5/1 has no blame: it is no red filed under landed"),
+        (FindingKind::Red, false, false, "finding 5/1 has no blame: it is no red filed under landed"),
+        (FindingKind::Red, true, true, "finding 5/1 is cleared"),
+    ] {
+        let (mut d, mut row) = move_fixture();
+        row.kind = kind;
+        if !blame {
+            row.blame = None;
+        }
+        if cleared {
+            row.cleared = Some(FindingCleared { run: 8, at: Wall::EPOCH });
+        }
+        d.commit_finding(&LIMITS, FindingWrite { row: row.clone(), erase: None }, &mut Queue::uncapped());
+        for commit in [None, Some([0xab; 32])] {
+            let refusal = d.prepare_triage_finding(Filer::Party(7), move_call(commit)).unwrap_err();
+            assert_eq!(refusal.words(5, 1, b"").as_ref(), expected.as_bytes());
+            assert_eq!(d.finding(5, 1), Some(&row));
+        }
+    }
+    let (mut d, row) = move_fixture();
+    d.commit_finding(&LIMITS, FindingWrite { row: row.clone(), erase: None }, &mut Queue::uncapped());
+    for (commit, short) in [([0xef; 32], "efefefefefef"), ([0xff; 32], "ffffffffffff")] {
+        let refusal = d.prepare_triage_finding(Filer::Party(7), move_call(Some(commit))).unwrap_err();
+        assert_eq!(
+            refusal.words(5, 1, b"").as_ref(),
+            format!("landing {short} is not one the landing log holds on release").as_bytes()
+        );
+        assert_eq!(d.finding(5, 1), Some(&row));
+    }
+    assert!(d.landing_logs.remove(&REPO).is_some());
+    assert_eq!(
+        d.prepare_triage_finding(Filer::Party(7), move_call(Some([0xab; 32]))).unwrap_err().words(5, 1, b"").as_ref(),
+        b"landing abababababab is not one the landing log holds on release"
+    );
+}
+#[test]
+fn blame_uses_todays_followed_branch_and_none_needs_no_tier() {
+    for (follows, expected) in [
+        (None, b"finding 5/1's tier browser has no followed branch".as_slice()),
+        (Some(Follows::Goals), b"finding 5/1's tier browser has no followed branch"),
+        (
+            Some(Follows::Branch(b"later".as_slice().into())),
+            b"landing abababababab is not one the landing log holds on later",
+        ),
+    ] {
+        let (mut d, row) = move_fixture();
+        let repositories = &mut d.landing.projects.get_mut(&5).unwrap().1;
+        let tiers = &mut repositories[0].tiers;
+        match follows {
+            Some(follows) => tiers[0].follows = follows,
+            None => *tiers = Box::new([]),
+        }
+        d.commit_finding(&LIMITS, FindingWrite { row: row.clone(), erase: None }, &mut Queue::uncapped());
+        let why = d.prepare_triage_finding(Filer::Party(7), move_call(Some([0xab; 32]))).unwrap_err();
+        assert_eq!(why.words(5, 1, b"").as_ref(), expected);
+        let write = d.prepare_triage_finding(Filer::Party(7), move_call(None)).unwrap();
+        assert!(write.row.blame.unwrap().landings.is_empty());
+    }
+}
+#[test]
+fn findings_filter_keys_are_bounded_invertible_and_apart_from_other_subjects() {
+    let goal = FindingsFilter::Goal(820);
+    let milestone = FindingsFilter::Milestone(812);
+    assert_eq!(findings_subject(3, goal), Some((1_u64 << 62_u32) | (1 << 41_u32) | 0x0334));
+    assert_eq!(findings_subject(3, milestone), Some((1_u64 << 62_u32) | (1 << 42_u32) | 0x032c));
+    for project in [1, u32::MAX] {
+        let mut keys = List::uncapped();
+        for filter in [
+            goal,
+            milestone,
+            FindingsFilter::Goal(0),
+            FindingsFilter::Milestone(0),
+            FindingsFilter::Goal((1_u64 << 41_u32) - 1),
+            FindingsFilter::Milestone((1_u64 << 41_u32) - 1),
+        ] {
+            let key = findings_subject(project, filter).unwrap();
+            assert_eq!(findings_filter(key, project), Some(filter));
+            assert_eq!(findings_filter(key, 2), Some(filter), "task numbers are deployment-wide");
+            assert!(!keys.as_slice().contains(&key));
+            keys.push(key).unwrap();
+        }
+        for (state, code) in [
+            (None, 0_u64),
+            (Some(FindingState::New), 1),
+            (Some(FindingState::Routed), 2),
+            (Some(FindingState::Backlog), 3),
+            (Some(FindingState::Dropped), 4),
+        ] {
+            for mine in [false, true] {
+                let filter = FindingsFilter::Triage { state, mine };
+                let key = findings_subject(project, filter).unwrap();
+                assert_eq!(
+                    key,
+                    (1_u64 << 59_u32) | (code << 33_u32) | (u64::from(mine) << 32_u32) | u64::from(project)
+                );
+                assert_eq!(findings_filter(key, project), Some(filter));
+                assert_eq!(findings_filter(key, 2), None);
+                assert!(!keys.as_slice().contains(&key));
+                keys.push(key).unwrap();
+            }
+        }
+        for other in [
+            0,
+            820,
+            812,
+            (1_u64 << 63_u32) | 0x0334,
+            AWAY_SUBJECT,
+            DEVICES_SUBJECT,
+            DISMISSED_SUBJECT,
+            APPROVALS_SUBJECT,
+            decided_subject(project),
+            drafts_subject(project),
+            status_subject(project),
+            changes_subject(project),
+            landings_subject(project, false),
+            landings_subject(project, true),
+            follows_subject(project),
+            temper_engine_domain_trials::TRIALS_SUBJECT,
+            temper_engine_domain_ways::subject(project),
+        ] {
+            assert!(!keys.as_slice().contains(&other), "collision with {other:x}");
+            assert_eq!(findings_filter(other, project), None);
+        }
+    }
+    for number in [1_u64 << 41_u32, (1_u64 << 41_u32) + 1, u64::MAX] {
+        assert_eq!(findings_subject(3, FindingsFilter::Goal(number)), None);
+        assert_eq!(findings_subject(3, FindingsFilter::Milestone(number)), None);
+    }
+    assert_eq!(findings_filter(u64::MAX, 3), None);
+    assert_eq!(findings_filter((1_u64 << 62_u32) | (1 << 41_u32) | (1 << 42_u32), 3), None);
+}
+
+#[test]
+fn finding_rows_keep_routing_drops_and_clearing_with_or_without_a_signature() {
+    let mut row = blamed_red(1, FindingState::Dropped);
+    row.goal = Some(820);
+    row.reason = Some(b"duplicate".as_slice().into());
+    row.cleared = Some(FindingCleared { run: 17, at: Wall::from_nanos(19) });
+    for source in [None, Some(b"slow".as_slice())] {
+        row.signature = match source {
+            Some(source) => Some(FindingSignature {
+                repository: REPO,
+                source: source.into(),
+                ids: Box::new([b"a::one".as_slice().into()]),
+                first: Box::new([]),
+                many: false,
+            }),
+            None => None,
+        };
+        let got = row.row(Holder::Party(4));
+        assert_eq!(got.goal, Some(820));
+        assert_eq!(got.reason.as_deref(), Some(b"duplicate".as_slice()));
+        assert_eq!(
+            got.cleared,
+            Some(FindingClearing { tier: source.unwrap_or_default().into(), run: 17, at: Wall::from_nanos(19) })
+        );
+    }
+    row.cleared = None;
+    assert_eq!(row.row(Holder::Role(0)).cleared, None);
+}
+
 fn call() -> FileFinding {
     FileFinding {
         project: 1,
@@ -47,11 +319,10 @@ fn a_full_project_erases_only_its_oldest_ended_finding_and_restore_keeps_the_bou
         FindingRefusal::Full(3)
     );
     let ended = d
-        .prepare_triage_finding(TriageFinding {
-            project: 1,
-            number: 2,
-            act: Triage::Drop(b"duplicate".as_slice().into()),
-        })
+        .prepare_triage_finding(
+            Filer::Party(7),
+            TriageFinding { project: 1, number: 2, act: Triage::Drop(b"duplicate".as_slice().into()) },
+        )
         .unwrap();
     d.commit_finding(&limits, ended, &mut out);
     let write = d.prepare_file_finding(&limits, Wall::EPOCH, Filer::Task(40), call()).unwrap();
@@ -62,7 +333,7 @@ fn a_full_project_erases_only_its_oldest_ended_finding_and_restore_keeps_the_bou
     assert!(d.finding(1, 2).is_none());
     let mut restored = domain_with_limits(&limits);
     restored.restore_begin(Wall::EPOCH);
-    let mut saves = skein_lib::List::with_capacity(3);
+    let mut saves = List::with_capacity(3);
     for (_, row) in d.findings(1) {
         saves.push(row.clone()).unwrap();
     }
@@ -82,7 +353,9 @@ fn a_full_project_erases_only_its_oldest_ended_finding_and_restore_keeps_the_bou
     let mut marked = false;
     for request in &out {
         if let Request::Marked { tasks } = request {
-            marked |= tasks.contains(&findings_subject(1, Some(FindingState::New), true));
+            marked |= tasks.contains(
+                &findings_subject(1, FindingsFilter::Triage { state: Some(FindingState::New), mine: true }).unwrap(),
+            );
         }
     }
     assert!(marked);
@@ -98,16 +371,95 @@ fn blamed_red(number: u32, state: FindingState) -> Finding {
     row.number = number;
     row.kind = FindingKind::Red;
     row.state = state;
-    row.blame = Some(FindingBlame { strength: BlameStrength::Unblamed, landings: Box::new([]) });
+    row.blame = Some(FindingBlame { moved: None, strength: BlameStrength::Unblamed, landings: Box::new([]) });
     row
 }
+#[test]
+fn reds_owed_counts_each_projects_uncleared_finding_once_in_every_state() {
+    let mut d = domain();
+    for (number, project, milestone, state, kind, cleared, strength, landings) in [
+        (1, 2, 812, FindingState::New, FindingKind::Red, false, BlameStrength::Owned, 1),
+        (2, 2, 812, FindingState::New, FindingKind::Red, false, BlameStrength::Suspected, 2),
+        (3, 2, 812, FindingState::Dropped, FindingKind::Red, false, BlameStrength::Owned, 1),
+        (4, 2, 812, FindingState::New, FindingKind::Red, true, BlameStrength::Owned, 1),
+        (5, 2, 812, FindingState::New, FindingKind::Flake, false, BlameStrength::Owned, 1),
+        (6, 2, 813, FindingState::New, FindingKind::Red, false, BlameStrength::Owned, 1),
+        (7, 3, 812, FindingState::New, FindingKind::Red, false, BlameStrength::Owned, 1),
+    ] {
+        let mut row = blamed_red(number, state);
+        row.project = project;
+        row.kind = kind;
+        row.cleared = cleared.then_some(FindingCleared { run: 17, at: Wall::from_nanos(19) });
+        let mut blamed = List::with_capacity(2);
+        for landing in 0..landings {
+            blamed
+                .push(BlamedLanding {
+                    commit: [landing; 32],
+                    goals: Box::new([BlamedGoal { goal: 820, milestone: Some(milestone), person: Some(4) }]),
+                })
+                .expect("at most two blamed landings");
+        }
+        row.blame = Some(FindingBlame { strength, landings: blamed.into_boxed(), moved: None });
+        d.commit_finding(&LIMITS, FindingWrite { row, erase: None }, &mut Queue::uncapped());
+    }
+    assert_eq!(d.reds_owed(2, 812), 3);
+    assert_eq!(d.reds_owed(2, 813), 1);
+    assert_eq!(d.reds_owed(2, 999), 0);
+}
+fn blame(goal: u64, milestone: u64) -> FindingBlame {
+    FindingBlame {
+        moved: None,
+        strength: BlameStrength::Owned,
+        landings: Box::new([BlamedLanding {
+            commit: [1; 32],
+            goals: Box::new([BlamedGoal { goal, milestone: Some(milestone), person: None }]),
+        }]),
+    }
+}
+
+#[test]
+fn a_finding_write_marks_the_previous_written_and_evicted_blames() {
+    let mut d = domain();
+    for (number, goal, milestone) in [(1, 820, 812), (2, 821, 813)] {
+        let mut row = blamed_red(number, FindingState::Dropped);
+        row.blame = Some(blame(goal, milestone));
+        row.cleared = Some(FindingCleared { run: 17, at: Wall::from_nanos(19) });
+        d.commit_finding(&LIMITS, FindingWrite { row, erase: None }, &mut Queue::uncapped());
+    }
+    let mut row = d.finding(1, 1).unwrap().clone();
+    row.blame = Some(blame(822, 814));
+    let mut out = Queue::uncapped();
+    d.commit_finding(&LIMITS, FindingWrite { row, erase: Some(2) }, &mut out);
+    assert!(d.finding(1, 2).is_none());
+    for (goal, milestone) in [(820, 812), (821, 813), (822, 814)] {
+        for filter in [FindingsFilter::Goal(goal), FindingsFilter::Milestone(milestone)] {
+            let subject = findings_subject(1, filter).unwrap();
+            let mut marks = 0u32;
+            for request in &out {
+                if let Request::Marked { tasks } = request {
+                    assert!(tasks.len() <= skein_lib::usize_of(MARKED));
+                    if tasks.contains(&subject) {
+                        marks = marks.saturating_add(1);
+                    }
+                }
+            }
+            assert_eq!(marks, 1, "each old or new filtered subject: {filter:?}");
+        }
+        let mut marked = false;
+        for request in &out {
+            marked |= *request == Request::MilestoneMarked { task: milestone };
+        }
+        assert!(marked, "parts of milestone {milestone}");
+    }
+}
+
 #[test]
 fn uncleared_red_requires_red_kind_blame_and_no_clearing() {
     let mut row = blamed_red(1, FindingState::Dropped);
     assert!(row.uncleared_red());
     row.blame = None;
     assert!(!row.uncleared_red());
-    row.blame = Some(FindingBlame { strength: BlameStrength::Owned, landings: Box::new([]) });
+    row.blame = Some(FindingBlame { moved: None, strength: BlameStrength::Owned, landings: Box::new([]) });
     row.cleared = Some(FindingCleared { run: 8, at: Wall::from_nanos(9) });
     assert!(!row.uncleared_red());
     row.cleared = None;

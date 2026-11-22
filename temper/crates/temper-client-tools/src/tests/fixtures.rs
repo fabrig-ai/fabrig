@@ -88,6 +88,20 @@ pub(crate) const OPEN_CHANGE: &[&str] = &[
     "--key",
     "open-change",
 ];
+pub(crate) const FINDING_REPAIR_CALL: &[&str] =
+    &["finding", "repair", "1/3", "shop/5", "repair together", "--key", "repair"];
+pub(crate) const FINDING_BLAME_LANDING_CALL: &[&str] = &[
+    "finding",
+    "blame",
+    "1/3",
+    "--landing",
+    "1234567890abcdef1234567890abcdef12345678",
+    "this landing",
+    "--key",
+    "blame-landing",
+];
+pub(crate) const FINDING_BLAME_NONE_CALL: &[&str] =
+    &["finding", "blame", "1/3", "--none", "no landing", "--key", "blame-none"];
 pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["link", "--out", "record"],
     &["deployment", "checkpoint"],
@@ -110,6 +124,9 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["finding", "route", "3/12", "--goal", "41", "--key", "route"],
     &["finding", "backlog", "3/12", "--key", "backlog"],
     &["finding", "drop", "3/12", "duplicate", "--key", "drop"],
+    FINDING_REPAIR_CALL,
+    FINDING_BLAME_LANDING_CALL,
+    FINDING_BLAME_NONE_CALL,
     &[
         "need",
         "ask",
@@ -130,6 +147,7 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["role", "start", "--project", "2", "--budget", "0.50", "Owns the tests", "--key", "k"],
     &["role", "list", "--project", "shop"],
     &["role", "show", "41"],
+    &["goal", "show", "820"],
     &["role", "talk", "41", "Hello", "--key", "talk"],
     &["role", "talk", "41", "--leave", "--key", "leave"],
     &["project", "make", "Second", "--key", "second-project"],
@@ -282,6 +300,7 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["worker", "pause", "w1"],
     &["worker", "drain", "w1"],
     &["worker", "resume", "w1"],
+    PARTY_REISSUE_CALL,
 ];
 
 pub(crate) const WORKER_ADD: &[&str] = &[
@@ -424,6 +443,8 @@ use jig_client::{self as client, contract as c};
 use skein_lib::{Env, Queue, Time, Token, Wall};
 /// Distinct from the other party in recovery tests.
 pub(crate) const PARTY: u64 = 73;
+pub(crate) const SERVICE_PARTY: u64 = 9;
+pub(crate) const PARTY_REISSUE_CALL: &[&str] = &["party", "reissue", "9", "--out", "service"];
 /// The first goal read throughout this session.
 pub(crate) const TASK: u64 = 41;
 /// A second task makes call correlation observable out of order.
@@ -483,6 +504,7 @@ pub(crate) fn me(party: u64) -> c::Me {
         key_bytes: 256,
         redirect_bytes: 256,
         words_bytes: 8192,
+        sign_in_expires: Wall::from_nanos(1_800_000_000_000_000_000),
         party: c::MeParty {
             number: party,
             kind: c::PartyKind::Service,
@@ -786,6 +808,7 @@ impl Harness {
                 | crate::jig::rows::WORKER_LIST_AT..=crate::jig::rows::WORKER_REMOVE_AT
                 | crate::jig::rows::WORKER_PAUSE_AT..=crate::jig::rows::WORKER_RESUME_AT
                 | crate::jig::rows::MILESTONE_LIST_AT
+                | crate::jig::rows::GOAL_SHOW_AT
                 | crate::jig::rows::MILESTONE_SHOW_AT
                 | crate::jig::rows::MILESTONE_WHOLE_AT
                 | crate::jig::rows::ROLE_LIST_AT

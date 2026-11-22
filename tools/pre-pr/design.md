@@ -12,16 +12,27 @@ after a landing's gate caught three reds in tests no delivery had run, and,
 for the failures file's place in the tree and a prose-only delivery's check
 with no build, `temper/docs/design/draft/small-fixes-1116.md`, 1 and 3,
 and, for the budgets it holds where its builder keeps main's ledgers,
-`temper/docs/design/draft/test-budgets.md`, 3.
-Coding agents run no build
-or test; this check runs what the delivery changed, on the agent's warm
-checkout, before anything is pushed. A pull request into a goal's branch runs
-no CI, so this is a change's only check before it lands there; the landing's
-CI into main, the project's full gate (`.config/gate/README.md`), is the
-guard. An agent can change what this check runs: it is not a security
-boundary (smith's run.md, 8.1).
+`temper/docs/design/draft/test-budgets.md`, 3, and for the layers it
+runs, the same draft's 4.
 
 ## 1. In one page
+
+Every worker `deliver` and `finish` runs `.temper/pre-pr` in the checkout.
+This is the light check for changes, direct deliveries and repairs on every
+destination. It uses the format and counted-baseline checks for code and the
+applicable citation, outward-name, journey and budget-figure rules. Formatting uses offline `cargo fmt --all --check`. The light
+check invokes the formatter directly through Cargo's fmt subcommand and
+skips the build hold, Clippy, test builds and test suites, including when
+the checkout has no landing pin. It writes its own diagnostics to
+`target/temper/pre-pr-light-failures.json` and its observed results for the
+worker to `temper/check-results` when the worker requests them.
+
+The designated CI job invokes `.temper/goal-pre-pr HEAD DESTINATION` for
+the full selected builds and tests against the accumulated diff (section 2).
+Main's landing Gate has its own workflow. Both repository commands run
+afresh. The older combined driver's selection, hold, cache and repair
+behavior is documented below for interpreting earlier checkouts and tests.
+A light pass certifies the checks that ran on that delivery.
 
 - **A base the worker pins.** The worker writes `refs/temper/landing`, the
   landing branch's tip as fetched at prepare, in each change producer's
@@ -59,8 +70,17 @@ boundary (smith's run.md, 8.1).
   the same set, run through `tools/tiers/one-process default` and
   `tools/tiers/one-process fuzzy`: each test binary's selected tests in one
   process, one at a time, binaries in parallel, nextest only selecting and
-  building (section 4). Before linking, the delivery omits an integration
-  target when neither profile can select any of its cases. A filter on a case
+  building (section 4).
+- **The layers that replay, as the gate runs them.** One-process runs by
+  default the binaries of the layers that replay, step tests and domain,
+  system, machine, protocol, io and simulated worlds, with the
+  repository's checks, and leaves out the real loop and end to end, which
+  run after landing (`tools/tiers/layers.md`, 9;
+  `skein/docs/foundation/testing-strategy.md`, 8). The check passes no
+  `--layers`, so it runs what the gate runs, judges only those layers, and
+  builds no real-loop or end-to-end binary. Before linking, the delivery
+  omits an integration target when neither profile can select any of its
+  cases, or its layer is one the run leaves out. A filter on a case
   name keeps the target whenever the name could match. Cargo must resolve
   the same build units and dependency features for every retained target;
   otherwise the delivery keeps the ordinary package build. A starved run
@@ -181,6 +201,30 @@ boundary (smith's run.md, 8.1).
   The worker writes it at prepare alone, and the next hold writes it
   afresh.
 
+### Delivery and CI entry points
+
+The default light check requires no goal ID, destination argument or
+worker upgrade. A checkout with a landing pin uses it for the per-change
+comparison. The explicit `.temper/goal-child-pre-pr DESTINATION` command
+also checks light rules and verifies that the supplied commit matches the
+worker's pin. Its scoped report is `target/temper/goal-child-pre-pr.json`.
+
+`.temper/goal-pre-pr HEAD DESTINATION` checks a completed goal in an
+isolated checkout at HEAD. The caller supplies both full commit IDs and
+the history needed to find their common ancestor. The command requires a
+clean index and worktree, the specified head, and a single merge base.
+It selects the entire diff from that base to HEAD, including changes
+introduced by merged children. An independent advance on the destination
+leaves the comparison at the fork. The selected packages run through the
+ordinary build, lint and test commands with the same builder hold.
+
+Journey file mixing and budget figure changes are judged on each delivery.
+The whole-tree empty-overlay rule also applies at goal completion.
+The completed-goal command runs afresh and records the goal head,
+destination and comparison base in its verdict. The CI caller uses the
+exit status and validates the receipt against the exact pair it requested.
+A later head or destination requires a fresh invocation.
+
 ## 3. What it selects
 
 - **The tree** is the working tree as git sees it, untracked files
@@ -210,7 +254,8 @@ boundary (smith's run.md, 8.1).
 - **Code inputs:** Rust (`.rs`); Cargo manifests and locks; rustfmt,
   clippy and Rust toolchain configuration, including under `docs/`;
   non-docs paths under a `.cargo/` directory, `.config/` and `tools/`;
-  `.temper/pre-pr`; `skein/scripts/*.sh` (the boundary profile check's
+  `.temper/pre-pr`, `.temper/goal-child-pre-pr` and `.temper/goal-pre-pr`;
+  `skein/scripts/*.sh` (the boundary profile check's
   inputs); each tree's
   `scripts/old_forms.py` and `scripts/old-forms.txt`; and non-docs paths
   owned by workspace packages or matching a prefixed path reader below.
@@ -346,17 +391,18 @@ failure, when observed, in the Git directory’s `temper/repair-trial-result.jso
    `.config/nextest.toml`'s `default` profile and building
    (`tools/tiers/design.md`, 11;
    `skein/docs/foundation/testing-strategy.md`, 8, *A binary is a
-   process*). The check passes no budgets and no configuration of its own:
+   process*). One-process runs the binaries of the layers that replay and
+   the repository's checks, as at the gate, and leaves out the real-loop and
+   end-to-end ones (`tools/tiers/layers.md`, 9.1). The check passes no budgets and no configuration of its own:
    the repository's `.config/nextest.toml` is read as it stands, and the
    profile's `global-timeout` is the run's only bound. one-process compares
    each layer the run measured with `tools/tiers/budgets.toml`. Where the
    check took main's ledger for the run's profile (*Main's ledgers*,
-   below), it passes `--ledger LEDGER --gate` before the profile, and the
-   run is judged whole, its new and flagged tests run alone, as the gate's
-   is (`tools/tiers/budgets.md`, 5 and 8; `tools/tiers/references.md`, 3);
-   otherwise it passes neither, and a layer over its budget is a warning in
-   its output, never a failure. The run's exit
-   decides:
+   below), it passes `--ledger LEDGER` before the profile. The run includes
+   the ledger's unselected binaries in its comparison and measures new and
+   flagged tests alone (`tools/tiers/budgets.md`, 5 and 8;
+   `tools/tiers/references.md`, 3). Both profiles print layer budget and
+   per-test CPU reference overruns as warnings. The run's exit decides:
    - **0:** passed, a starved run included (below);
    - **100:** test failures, each a `testcase` of the run directory's
      `junit.xml` with a `failure` or an `error`, named by its suite (the
@@ -369,25 +415,6 @@ failure, when observed, in the Git directory’s `temper/repair-trial-result.jso
      joined by `, `, so that a test which cannot yet share its binary's
      process is told from one that fails alone. A 100 that leaves no failure is a failure of the check
      itself;
-   - **1, where the check passed `--gate`:** over budget, which comes
-     before a test failure in one-process's exit
-     (`tools/tiers/budgets.md`, 5). The check reads the verdict with
-     `python3 -I -B tools/tiers/cpu-summary <run directory> --budgets
-     tools/tiers/budgets.toml --ledger LEDGER --gate --json`, from the
-     tree's root, `--budgets` only where that file exists, as one-process
-     takes it (`tools/tiers/design.md`, 10.1). Each entry of its result's
-     `over_budget` is a failure, its log the entry whole: one whose first
-     line starts `layer over budget: ` is named `budget` and that line's
-     words up to its next `: `, as `budget temper default domain`
-     (`tools/tiers/budgets.md`, 4 and 8); one starting `test over its
-     reference: `, `reference` and the words up to the next `: `, as
-     `reference temper-engine::domain forge::opens`
-     (`tools/tiers/references.md`, 6); any other, `budget <profile>`.
-     Then the run's test failures are read from `junit.xml` as for 100,
-     where it has any. A `cpu-summary` that exits other than 1, or whose
-     output is not one JSON object whose `over_budget` is a nonempty list
-     of strings, is a failure of the check itself, its log `cpu-summary`'s
-     output;
    - **2, its output ending with the line `one-process: nextest listing
      exited with 101`:** a build failure. The listing builds the tests as
      nextest's run would (`tools/tiers/design.md`, 11.2), and nextest's
@@ -403,7 +430,9 @@ failure, when observed, in the Git directory’s `temper/repair-trial-result.jso
    for each binary listed, in order, since nextest builds only the selected
    packages' own. A failed build is a build failure, and no test runs.
    `smith`'s end-to-end tests run `smith-fake-claude`'s `fake-claude`
-   (`smith/docs/design/testing.md`, 2.3).
+   (`smith/docs/design/testing.md`, 2.3); since they run after landing,
+   in `real-smith` (`tools/tiers/layers.md`, 9.2), the build serves none
+   of the check's runs, and is kept while `[test-binaries]` names it.
 
    **A starved run is a warning** (`skein/docs/foundation/testing-strategy.md`,
    8.1). Where the directory's `run.json` has `starved` true, or
@@ -487,15 +516,15 @@ failure, when observed, in the Git directory’s `temper/repair-trial-result.jso
      `<profile>-ledger.json` in the check's private temporary directory,
      and that copy read by `tools/tiers/cpu.py`'s `ledger()`. It is taken
      where `ledger()` returns and its `profile` is the profile: `pre-pr:
-     budgets: <profile> judged with main's ledger
+     budgets: <profile> warnings only with main's ledger
      (TIERS_LEDGER/<profile>.json)`. Otherwise the profile has none, and
      one line says why, `pre-pr: budgets: <profile> warnings only
      (<why>)`, `<why>` one of `no <profile>.json in TIERS_LEDGER`,
      `<profile>.json unreadable: <error>`, `<profile>.json refused:
      <error>` and `<profile>.json holds the <other> ledger`, `<error>` the
      error's first line, at most 512 bytes, cut at a character's end.
-   - **The copy is what a run takes,** as `--ledger` and in its
-     `cpu-summary` read; `--again` takes neither, as one-process requires.
+   - **The copy is what a run takes,** as `--ledger`;
+     `--again` omits it, as one-process requires.
    - **Never a failure:** a missing or refused ledger refuses nothing;
      its line is the deployment's, which the summary does not repeat, as
      the hold's. A layer over at main stays a warning, as at the gate
@@ -726,9 +755,7 @@ cause.
 - **A build failure** (section 4's, `build` or `build fuzzy`) is always
   the delivery's, whatever the goal's reds hold; so is a failure of a
   check itself (`check clippy`, `check one-process`, `check one-process
-  fuzzy`, `check outward`, `check selection`), and a budget's or a
-  reference's (section 4), which no entry's form names and which never
-  runs again.
+  fuzzy`, `check outward`, `check selection`).
 - **A starved test** is neither failed nor inherited: section 4's warning
   names it, and it refuses nothing, named by an entry or not.
 - **A flake,** a failing test that passed when its process ran again
@@ -780,8 +807,7 @@ cause.
   count. Then:
   - for each failure this delivery made: its check (`format`, `old-forms
     <tree>`, `clippy <package>`, `test <binary id> <name>`, `build`,
-    `build fuzzy`, `budget <tree> <profile> <layer>`, `reference <binary
-    id> <name>`, `check <name>` for a check that failed of itself), then the last lines
+    `build fuzzy`, `check <name>` for a check that failed of itself), then the last lines
     of its log: a test's JUnit output, with its alone label last where it
     has one, an error's rendered text, a tool's
     output; each at most 1,536 bytes, cut at a line's start and marked
@@ -857,8 +883,8 @@ cause.
       "file", "message"}` (`code` and `file` empty where the compiler
       gave none), an exceeded count's `{"kind": "old-forms", "tree",
       "form", "count", "baseline"}`, its numbers as numbers, and `null`
-      for any other failure (`format`, `build`, `budget …`, `reference
-      …`, `check <name>`, an old-forms run's failure, citations), whose
+      for any other failure (`format`, `build`,
+      `check <name>`, an old-forms run's failure, citations), whose
       name says it whole.
 
     It holds no log: the summary keeps the logs that fit.
@@ -889,8 +915,7 @@ cause.
   - then each flake, `flake <key>`, its first run's log as the summary
     cuts it, each line `| <text>`, an empty one `|`.
 
-  A budget's or a reference's failure is in it as any new failure is, by
-  the check line's `refused` alone. A cache hit writes none, nor does a
+  CPU warnings appear in the streamed run output. A cache hit writes no record, nor does a
   check that wrote no summary.
 
 ## 7. The passed-tree cache
@@ -978,7 +1003,7 @@ is left when it runs again (`temper/docs/design/draft/worker-restarts.md`, secti
   process of its own beside its binary's empty one, and twice more each
   where the first passes its limit (`tools/tiers/references.md`, 3 and
   4), within the profile's
-  `global-timeout`; a `cpu-summary` read of a run over budget; and a pass
+  `global-timeout`; and a pass
   reused only under the ledgers it was judged by, which the runner
   replaces after each landing on main (section 7).
 - **No build or test at the base.** A lint, test or build failure goes
@@ -1061,11 +1086,9 @@ tests'. Its stories, a test each:
     unheld to the verdict it would have given.
 11. **Main's ledgers:** `TIERS_LEDGER` naming a directory with
     `default.json` and `fuzzy.json` of `ledger()`'s form, both runs given
-    `--ledger`, a copy of the file's bytes, and `--gate` before their
-    profile; the focused run exiting 1 and a fake `tools/tiers/cpu-summary`
-    giving a layer's over line, which refuses as `budget …` with the line
-    in its log, and is in the failures file with a `null` key; one-process
-    and `cpu-summary` see no `TIERS_LEDGER`.
+    `--ledger` and a private copy of the file before their profile. A CPU
+    warning appears in the log and the successful run writes a pass receipt.
+    The invoked tool sees no `TIERS_LEDGER`.
 
 ### 9.2 The driver's unit tests
 
@@ -1224,11 +1247,9 @@ check's environment naming another and naming none.
 
 Main's ledgers (section 4): unset, empty, a file missing, unreadable,
 refused or the other profile's, each with its line and its run as
-before; one profile's taken alone; a relative directory. Exit 1 under
-`--gate`: each name form refusing with its entry as its log, never
-inherited or run again, beside `junit.xml`'s failures; a `cpu-summary`
-exiting 0 or 2, or with no entry, `check one-process` (or `… fuzzy`);
-exit 1 without `--gate` as before. The cache judges again when either
+before; one profile's taken alone; a relative directory. Both profiles
+report an unexpected exit 1 as a checker failure. JUnit failures and
+replays retain their classification with a ledger. The cache judges again when either
 file's bytes change, go or come.
 
 ## 10. Later

@@ -92,8 +92,13 @@ impl Party {
         reads::ask(world, 90, core::reads::Read::Frame);
         let core::reads::Answer::Document(document) = reads::latest(world) else { panic!("real Me") };
         let core::documents::Document::Frame(frame) = document.as_ref() else { panic!("real frame") };
-        let me = jig_protocol_engine_clients::translate::owner::frame(frame, &settings.models, &w::CEILINGS)
-            .expect("Me codec");
+        let me = jig_protocol_engine_clients::translate::owner::frame(
+            frame,
+            Wall::from_nanos(86_400_000_000_000),
+            &settings.models,
+            &w::CEILINGS,
+        )
+        .expect("Me codec");
         let value = w::DeliveryValue::Me(me);
         let mut bytes =
             Writer::new(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture") as usize);

@@ -1,6 +1,9 @@
 # testing: status
 
-2026-11-17. Where jig's code lags or departs from [testing.md](testing.md).
+2026-11-20. Where jig's code lags or departs from [testing.md](testing.md).
+
+- **Not yet:** 7: jig's inspection adapter, `jig-inspect`, and the
+  core's and engine-clients worlds' calls of the shared checks.
 
 Section 5's keyed durable-row evidence and exhaustive forked cuts are
 present. Section 7's core row names retain typed keys until a failure

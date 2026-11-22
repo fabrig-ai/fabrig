@@ -283,7 +283,7 @@ fn end_answer(outcome: &jig_client::Outcome, limits: Limits) -> Option<EndAnswer
         | w::Outcome::Tried
         | w::Outcome::Filed(_)
         | w::Outcome::Handed
-        | w::Outcome::Triaged
+        | w::Outcome::Triaged(_)
         | w::Outcome::FindingRefused(_)
         | w::Outcome::Drafted(_)
         | w::Outcome::DraftRefused(_)
@@ -369,7 +369,7 @@ pub fn answer(value: &jig_client::Answered, limits: &Limits) -> Option<StartAnsw
         | w::Outcome::Tried
         | w::Outcome::Filed(_)
         | w::Outcome::Handed
-        | w::Outcome::Triaged
+        | w::Outcome::Triaged(_)
         | w::Outcome::FindingRefused(_)
         | w::Outcome::Drafted(_)
         | w::Outcome::DraftRefused(_)

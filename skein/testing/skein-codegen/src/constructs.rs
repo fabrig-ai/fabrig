@@ -231,11 +231,6 @@ fn without(found: Vec<Construct>, pinned: &[Construct]) -> Vec<Construct> {
     found.into_iter().filter(|construct| !pinned.contains(construct)).collect()
 }
 
-/// Finds the text's constructs not held by [`CONSTRUCTS`], in the same order.
-pub fn unpinned(text: &str) -> Result<Vec<Construct>, Error> {
-    Ok(without(constructs(text)?, CONSTRUCTS))
-}
-
 /// Finds the constructs of [`CONSTRUCTS`] the text lacks, in pin order, each once.
 /// Refuses the same texts, with the same error, as [`crate::parse`].
 pub fn missing(text: &str) -> Result<Vec<Construct>, Error> {

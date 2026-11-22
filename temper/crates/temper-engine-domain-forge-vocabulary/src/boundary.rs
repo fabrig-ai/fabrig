@@ -670,9 +670,22 @@ pub struct AdoptedRow {
     pub project: u32,
 }
 
+/// What one forge still owes after a restart (domain/forge/catching-up.md, 5).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct CatchingUp {
+    pub fresh: u32,
+    pub gathers: u32,
+    pub ci: u32,
+    pub goal_files: u32,
+    pub lost_writers: u32,
+    pub goal_branches: u32,
+    pub uncertain: u32,
+}
+
 /// One configured forge, including its connection, offer and first repository.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Row {
+    pub catching_up: Option<CatchingUp>,
     pub read_only: bool,
     pub number: u16,
     /// The host in repository resource names, including an explicit port.
@@ -2230,6 +2243,11 @@ pub enum Event {
     Landing {
         row: LandingRow,
     },
+    /// An uncommitted merge waits for authority: give up its number, not the turn.
+    DeferLandingMerge {
+        task: u64,
+        entry: u64,
+    },
     VetoLanding {
         task: u64,
         entry: u64,
@@ -2747,10 +2765,8 @@ pub enum Event {
     Restored {
         clock: skein_forge_client::RecoveryClock,
     },
-    /// Read the system's live resources before procedures step.
-    ReadAfresh,
-    /// Look for each restored uncertain entry before procedures step.
-    SettleOutbox,
+    /// Read afresh and settle the restored outbox while the engine serves.
+    CatchUp,
     /// A connected Forgejo's Check found the user its tokens answer as: the connector keeps its
     /// login as the record's bot (protocol/forge/engine.md, 2).
     BotLogin {
@@ -2873,6 +2889,14 @@ pub enum Request {
         task: u64,
         filing: crate::findings::VerdictFiling,
     },
+    /// Return a judged finding through the root's holder and news path.
+    ReturnFinding(crate::Finding),
+    /// A live repair passed its wall deadline; ask jig to fail it once per start.
+    FailRepair {
+        project: u32,
+        task: u64,
+        until: skein_lib::Wall,
+    },
     TierDecision {
         task: u64,
         decision: TierDecision,
@@ -2981,6 +3005,10 @@ pub enum Request {
     },
     /// The deployment's forges document changed.
     MarkedForges,
+    /// A finding's blame changed a milestone's parts (domain/red-findings.md, 10).
+    MilestoneMarked {
+        task: u64,
+    },
     /// Changed panel subjects, bounded by `MARKED` (domain/root.md, 9).
     Marked {
         tasks: Box<[u64]>,
@@ -3278,6 +3306,14 @@ pub struct TierGoal {
     /// When its last run started.
     pub started: Option<skein_lib::Time>,
 }
+/// Why a tier's run is held (temper/docs/design/domain/after-landing.md, section 3).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum TierHeld {
+    /// Past the project's `tier_retries`: the last runner fault's kind.
+    Faults(landing::Fault),
+    /// Waiting or blocked for a runner past `forge.change_policy.runner_wait_ms`.
+    RunnerWait,
+}
 /// Family 28's policy and task (temper/docs/design/domain/after-landing.md, 10).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TierRow {
@@ -3300,7 +3336,7 @@ pub struct TierRow {
     /// The current or completed probe, retained until its branch is released.
     pub probe: Option<TierProbeBranch>,
     pub flight: Option<TierFlight>,
-    pub held: Option<landing::Fault>,
+    pub held: Option<TierHeld>,
     pub hold: Option<TierHold>,
     /// The final part observation or cached receipt awaiting release and judgement.
     pub result: Option<Receipt>,
@@ -3323,7 +3359,7 @@ pub struct TierPosting {
     /// Status is 0; comment i is i + 1.
     pub next: u32,
     pub entry: Option<u64>,
-    /// Zero for a verdict, a distinct positive status part at each fault hold.
+    /// Zero for a verdict, a distinct positive status part at each run hold.
     pub part: u16,
     /// Retains the rendering bound across restart and settings changes.
     pub op_bytes: u32,
@@ -3373,6 +3409,7 @@ pub struct TierProbeBranch {
 /// Durable follower progress; trees and workflow details are read again after restart.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TierFlight {
+    pub clock: Option<change::Clock>,
     pub entry: u64,
     pub start: Option<skein_lib::Time>,
     pub since: Option<skein_lib::Time>,

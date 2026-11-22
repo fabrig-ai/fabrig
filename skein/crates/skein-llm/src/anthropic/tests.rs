@@ -154,6 +154,39 @@ fn signed_and_redacted_thinking_preserve_replay_material() {
 }
 
 #[test]
+fn empty_argument_delta_preserves_start_object() {
+    let mut decoder = StreamDecoder::new(&LIMITS);
+    let mut out = Queue::uncapped();
+    progress(&mut decoder, START, &LIMITS, &mut out);
+    progress(
+        &mut decoder,
+        br#"{"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"call","name":"wait","input":{}}}"#,
+        &LIMITS,
+        &mut out,
+    );
+    feed(
+        &mut decoder,
+        br#"{"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":""}}"#,
+        &LIMITS,
+        &mut out,
+    );
+    assert_eq!(out.pop(), Some(Output::ArgumentsDelta { index: 0, delta: bytes::copy_of(b"") }));
+    progress(&mut decoder, TEXT_STOP, &LIMITS, &mut out);
+    feed(&mut decoder, br#"{"type":"message_delta","delta":{"stop_reason":"tool_use"},"usage":{}}"#, &LIMITS, &mut out);
+    assert_eq!(
+        out.pop(),
+        Some(Output::Part(Part::ToolCall {
+            id: bytes::copy_of(b"call"),
+            name: bytes::copy_of(b"wait"),
+            input: bytes::copy_of(b"{}"),
+            too_large: false,
+            bytes: 2,
+            cut: false,
+        }))
+    );
+}
+
+#[test]
 fn tool_fragments_replace_start_placeholder_and_keep_malformed_json() {
     let mut decoder = StreamDecoder::new(&LIMITS);
     let mut out = Queue::uncapped();

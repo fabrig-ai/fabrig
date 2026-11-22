@@ -433,7 +433,8 @@ one always among them:
 
 - **Step tests,** in `jig-protocol-store`: a name and a temporary's
   formatted and parsed, and every other form refused; the record's and
-  the manifest's bytes, with golden bytes; a selection over a map with
+  the manifest's bytes, with fixed-rule values built from the schema's
+  text; a selection over a map with
   live and ended tasks, transcripts and logs, each source taken as 4.3's
   table says; a second request refused `InProgress`; a memory store's
   `Unavailable`; the first start's refusal and the sweep.

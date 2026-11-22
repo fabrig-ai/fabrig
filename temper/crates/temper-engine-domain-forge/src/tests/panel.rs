@@ -403,8 +403,8 @@ fn ending_a_change_saves_its_last_ci_with_its_history() {
     row.pending = None;
     let mut d = with_row(row);
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     let read = change::Ci { head: fixtures::HEAD, status: change::Status::Failed };
     let mut out = Queue::uncapped();
     domain::keep_panel_ci(&mut d, fixtures::CHANGE, read, &mut out);
@@ -458,8 +458,8 @@ fn landed_panel_keeps_passed_ci_across_a_restart() {
     let mut d = fixtures::connected_domain();
     outputs(&mut d, Event::Restore { record: repository });
     outputs(&mut d, Event::Restored { clock: RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     let mut row = fixtures::opening_row();
     row.pending = None;
     row.effect = change::EffectResult::None;
@@ -490,8 +490,8 @@ fn landed_panel_keeps_passed_ci_across_a_restart() {
         outputs(&mut restarted, Event::Restore { record });
     }
     outputs(&mut restarted, Event::Restored { clock: RecoveryClock::Monotonic });
-    outputs(&mut restarted, Event::ReadAfresh);
-    outputs(&mut restarted, Event::SettleOutbox);
+    outputs(&mut restarted, Event::CatchUp);
+
     let after = panel(&restarted);
     assert_eq!(before.step, PanelStep::Landed { merge: fixtures::BASE });
     assert_eq!(after.step, PanelStep::Landed { merge: fixtures::BASE });
@@ -716,6 +716,7 @@ fn running_tier(d: &mut Domain, number: u64, tip: skein_forge::api::Commit, comm
                 started: None,
                 record: p::Record {
                     sequence: number,
+                    last_run: None,
                     judged: None,
                     failing: p::Failures::Tests(Box::new([])),
                     flakes: Box::new([]),

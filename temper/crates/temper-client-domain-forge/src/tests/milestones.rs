@@ -170,6 +170,7 @@ fn milestone_parts_translate_goal_lines_and_count_undecodable_lines_as_more() {
         ended: None,
         last_landing: None,
         spent: 40,
+        reds: 0,
     };
     let value = w::MilestonePart {
         whole: Some(17),
@@ -240,6 +241,7 @@ fn totals_answers_require_the_family_and_complete_versioned_bytes() {
         ended: Some(89),
         last_landing: Some(w::MilestoneLanding { at: 87, goal: 815, change: 816 }),
         spent: 100,
+        reds: 0,
     });
     let answer = w::MilestoneAnswer { result: result.clone() };
     let bytes = wire::milestone_answer(&answer);

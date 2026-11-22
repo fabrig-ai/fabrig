@@ -242,7 +242,7 @@ fn print(pending: &Pending, outcome: &Outcome, structured: bool, limits: &Limits
         | w::Outcome::Tried
         | w::Outcome::Filed(_)
         | w::Outcome::Handed
-        | w::Outcome::Triaged
+        | w::Outcome::Triaged(_)
         | w::Outcome::FindingRefused(_)
         | w::Outcome::Drafted(_)
         | w::Outcome::DraftRefused(_)

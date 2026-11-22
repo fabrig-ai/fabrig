@@ -28,9 +28,9 @@ pub(super) fn limits() -> jig_protocol_worker_link::Limits {
     limits.sizes.turn = 1024;
     limits
 }
-pub(super) fn golden(text: &'static str, name: &str) -> Box<[u8]> {
+pub(super) fn fixed_value(text: &'static str, name: &str) -> Box<[u8]> {
     skein_codegen::values(text)
-        .goldens
+        .fixed
         .clone()
         .into_iter()
         .find(|g| g.name == format!("{name}.bin"))
@@ -39,7 +39,7 @@ pub(super) fn golden(text: &'static str, name: &str) -> Box<[u8]> {
         .into_boxed_slice()
 }
 pub(super) fn charter(contract: u16) -> Box<[u8]> {
-    let bytes = golden(
+    let bytes = fixed_value(
         smith_charter::patches::kept::smith_charter::TEXTS.last().expect("bounded translation fixture"),
         "record_charter_smallest",
     );
@@ -77,7 +77,7 @@ fn capped_components_translate_smith_payloads_and_refuse_an_unheld_charter_witho
     assert_eq!(assignment.assignment.charter, expected);
     assert_eq!(&expected[..2], &[0, 5]);
     assert!(world.engine_records().contains(&wire::Kind::Wires.number()));
-    let outcome = golden(
+    let outcome = fixed_value(
         smith_charter::patches::kept::smith_charter::TEXTS.last().expect("bounded translation fixture"),
         "record_run_result_smallest",
     );

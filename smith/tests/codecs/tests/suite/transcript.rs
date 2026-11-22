@@ -1,6 +1,6 @@
 //! Turn wire boundaries (protocol/transcript.md, sections 2, 6 and 7).
 
-use crate::support::goldens::Goldens;
+use crate::support::fixed_values::FixedValues;
 use smith_transcript::Record;
 
 use skein_codec::Reason;
@@ -8,9 +8,9 @@ use skein_lib::Reader;
 use smith_transcript::v8::{CEILINGS, Turn, paths};
 
 #[test]
-fn turn_goldens_decode_at_their_measured_length() {
-    let goldens = Goldens::new("transcript", 8);
-    goldens.assert_measured("turn", |bytes| {
+fn turn_fixed_values_decode_at_their_measured_length() {
+    let fixed_values = FixedValues::new("transcript", 8);
+    fixed_values.assert_measured("turn", |bytes| {
         Turn::decode(&CEILINGS, &mut Reader::new(bytes))
             .expect("turn decodes")
             .measure(&CEILINGS)
@@ -25,11 +25,11 @@ fn turn_rejects_an_unsupported_version_before_fields() {
 }
 
 #[test]
-fn nesting_problem_goldens_have_their_own_wire_tag() {
+fn nesting_problem_fixed_values_have_their_own_wire_tag() {
     use smith_transcript::v8::CallProblem;
     for bytes in [
-        crate::support::goldens::bytes("transcript", 8, "enum_call_problem_nesting_full.bin").as_slice(),
-        crate::support::goldens::bytes("transcript", 8, "enum_call_problem_nesting_smallest.bin").as_slice(),
+        crate::support::fixed_values::fixed_value("transcript", 8, "enum_call_problem_nesting_full.bin").as_slice(),
+        crate::support::fixed_values::fixed_value("transcript", 8, "enum_call_problem_nesting_smallest.bin").as_slice(),
     ] {
         let mut reader = Reader::new(bytes);
         assert_eq!(CallProblem::decode(&CEILINGS, &mut reader).expect("nesting problem"), CallProblem::Nesting);
@@ -38,7 +38,7 @@ fn nesting_problem_goldens_have_their_own_wire_tag() {
 }
 
 #[test]
-fn failure_goldens_keep_their_tags_and_now_require_a_resolved_path_payload() {
+fn failure_fixed_values_keep_their_tags_and_now_require_a_resolved_path_payload() {
     use smith_transcript::{Outcome, Resolved, ResolvedFailure, WorkingPath};
     let failure = ResolvedFailure { path: Resolved::Working(WorkingPath { path: Box::new([]) }) };
     for (name, tag, expected) in [
@@ -47,16 +47,17 @@ fn failure_goldens_keep_their_tags_and_now_require_a_resolved_path_payload() {
         ("not_found", 10, Outcome::NotFound(failure.clone())),
         ("not_directory", 14, Outcome::NotDirectory(failure)),
     ] {
-        let bytes = crate::support::goldens::bytes("transcript", 8, &format!("enum_outcome_{name}_smallest.bin"));
+        let bytes =
+            crate::support::fixed_values::fixed_value("transcript", 8, &format!("enum_outcome_{name}_smallest.bin"));
         assert_eq!(bytes, [tag, 0, 0, 0, 0, 0], "tag, Working descriptor, zero path length");
-        let decoded = Outcome::decode(&CEILINGS, &mut Reader::new(&bytes)).expect("resolved golden");
+        let decoded = Outcome::decode(&CEILINGS, &mut Reader::new(&bytes)).expect("resolved fixed-rule value");
         assert_eq!(decoded, expected);
         assert!(Outcome::decode(&CEILINGS, &mut Reader::new(&[tag])).is_err(), "bare failure lacks its path");
     }
 }
 
 #[test]
-fn indexed_edit_failure_goldens_keep_the_first_failure_and_matching_reason() {
+fn indexed_edit_failure_fixed_values_keep_the_first_failure_and_matching_reason() {
     use skein_lib::{List, Writer};
     use smith_transcript::{Ambiguous, EditFailed, LineNumber, Mismatch, Outcome};
     let mut lines = List::with_capacity(2);
@@ -75,7 +76,7 @@ fn indexed_edit_failure_goldens_keep_the_first_failure_and_matching_reason() {
 #[test]
 fn a_turn_round_trips_its_highest_job_number() {
     use skein_lib::Writer;
-    let smallest = &crate::support::goldens::bytes("transcript", 8, "record_turn_smallest.bin");
+    let smallest = &crate::support::fixed_values::fixed_value("transcript", 8, "record_turn_smallest.bin");
     let mut parts = Turn::decode(&CEILINGS, &mut Reader::new(smallest)).expect("smallest turn");
     parts.jobs = 37;
     let turn = parts;
@@ -144,7 +145,7 @@ fn the_real_patch_reads_seven_and_only_interrupted_halts_going_back() {
     let capacity = Capacity { versions: 2, patches: 2, text: 16_384, bytes: 4096, nodes: 256 };
     let mut bridge = smith_transcript::patches::kept::smith_transcript::bridge(capacity).expect("real bridge");
     let kept = smith_transcript::patches::kept::smith_transcript::TEXTS[0];
-    let old = skein_codegen::goldens(&skein_codegen::parse(kept).expect("v7"))
+    let old = skein_codegen::fixed_values(&skein_codegen::parse(kept).expect("v7"))
         .into_iter()
         .find(|value| value.name == "record_turn_smallest.bin")
         .expect("kept turn")
@@ -281,7 +282,7 @@ fn a_version_five_transcript_is_refused() {
 
 #[test]
 fn a_turn_carries_its_dialects_number() {
-    let smallest = &crate::support::goldens::bytes("transcript", 8, "record_turn_smallest.bin");
+    let smallest = &crate::support::fixed_values::fixed_value("transcript", 8, "record_turn_smallest.bin");
     for (name, dialect) in [("openai", 3), ("anthropic", 2)] {
         let mut parts = Turn::decode(&CEILINGS, &mut Reader::new(smallest)).expect("turn");
         parts.dialect = dialect;
