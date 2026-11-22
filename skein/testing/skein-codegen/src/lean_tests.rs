@@ -48,6 +48,7 @@ fn lean_roots_have_a_concrete_debug_decode_entry() {
 fn lean_surface_is_public() {
     let schema = parse(FIXTURE).expect("helper schema");
     let output = generate(&schema).records;
+    assert_eq!(output.matches("pub const ENCODED_AT_ZERO: u64").count(), schema.declarations.len());
     for required in [
         "pub words: Box<[u8]>",
         "impl Record for Words",
