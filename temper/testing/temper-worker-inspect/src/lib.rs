@@ -149,7 +149,9 @@ pub fn inspect_disk(checkout: &Domain, limits: &Limits, disk: &Checkout, into: &
             if relative.ends_with(b".lock")
                 && let Some(workspace) = layout::reference_workspace(relative)
             {
-                locks.entries.push(lock(path, cached.get(&workspace).copied().unwrap_or(false)));
+                let trusted =
+                    cached.get(&workspace).copied().unwrap_or(false) && checkout.workspace_uses_store(workspace, store);
+                locks.entries.push(lock(path, trusted));
             }
         }
     }

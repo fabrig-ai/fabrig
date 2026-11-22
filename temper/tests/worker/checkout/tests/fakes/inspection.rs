@@ -49,13 +49,17 @@ impl Fixture {
     }
 
     fn prepare(&mut self, key: &[u8]) -> Token {
+        self.prepare_remote(key, b"forge/app")
+    }
+
+    fn prepare_remote(&mut self, key: &[u8], remote: &[u8]) -> Token {
         self.step(Event::Prepare {
             client: Token::new(1),
             spec: Spec {
                 key: key.into(),
                 repositories: Box::new([Repository {
                     name: b"app".as_slice().into(),
-                    remote: b"forge/app".as_slice().into(),
+                    remote: remote.into(),
                     git: None,
                     start: Start::Branch { branch: b"main".as_slice().into() },
                     identity: 0,
@@ -193,6 +197,61 @@ fn locks_find_trusted_workspaces_but_pass_after_a_timeout() {
     let found = f.inspect();
     assert!(table(&found, "git's locks").entries.iter().all(|entry| entry.release == Release::Pending));
     assert_eq!(check_tables(&[&found], f.moment()), Ok(()));
+}
+
+#[test]
+fn a_store_lock_is_due_only_while_the_workspace_uses_that_store() {
+    let mut f = Fixture::new(1);
+    f.env.limits.workspaces = 1;
+    f.domain = Domain::new(&f.env.limits);
+    f.forge.repository(b"forge/other", b"main", Tree::from([(b"other".to_vec(), b"contents".to_vec())]));
+    let first = f.prepare(b"first");
+    let workspace = f.domain.held().iter().next().expect("hold").1.workspace();
+    // A cut fetch leaves its store's ref lock and spoils the workspace.
+    while let Some((owner, op, _)) = f.operations.pop_front() {
+        let cut = matches!(op, Op::Fetch { .. });
+        let done = if cut {
+            translate::cut(&mut f.forge, &mut f.disk, op)
+        } else {
+            translate::perform(&mut f.forge, &mut f.disk, op)
+        };
+        f.step(Event::Done { owner, done });
+        if cut {
+            break;
+        }
+    }
+    let old_lock = f.disk.files().keys().find(|path| path.ends_with(b".lock")).expect("cut ref lock").to_vec();
+    f.step(Event::Release { hold: first });
+    f.domain.reclaim();
+    let second = f.prepare_remote(b"second", b"forge/other");
+    f.settle();
+    assert_eq!(f.domain.held().iter().next().expect("hold").1.workspace(), workspace, "eviction keeps the token");
+    assert!(f.disk.exists(&old_lock), "Make names only the new repositories' stores");
+    let found = f.inspect();
+    assert_eq!(check_tables(&[&found], f.moment()), Ok(()), "the old store is not trusted by this workspace");
+    assert_eq!(table(&found, "git's locks").entries[0].release, Release::Pending);
+
+    let store = f
+        .domain
+        .stores()
+        .iter()
+        .find(|(_, store)| f.domain.workspace_uses_store(workspace, store.token()))
+        .expect("current store")
+        .1
+        .token();
+    let new_lock =
+        [layout::store_path(store), format!("/refs/temper/{}/fetched.lock", workspace.raw()).into_bytes()].concat();
+    f.disk.write(&new_lock, b"lock");
+    let found = f.inspect();
+    let finding = check_tables(&[&found], f.moment()).expect_err("a lock in the current store is due");
+    assert!(finding.contains(&String::from_utf8_lossy(&new_lock).to_string()), "{finding}");
+    f.disk.remove(&new_lock);
+    f.step(Event::Release { hold: second });
+    f.domain.reclaim();
+    f.prepare(b"third");
+    f.settle();
+    assert!(!f.disk.exists(&old_lock), "returning to the old store makes its refs afresh");
+    assert_eq!(check_tables(&[&f.inspect()], f.moment()), Ok(()));
 }
 
 #[test]

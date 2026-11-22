@@ -175,6 +175,22 @@ impl Store {
 }
 
 impl Cache {
+    pub(crate) fn workspace_uses_store(&self, workspace: Token, store: Token) -> bool {
+        let Some(workspace) = self.workspaces.get(Id::from_token(workspace)) else {
+            return false;
+        };
+        let repositories = match &workspace.disk {
+            Disk::Holds { repositories } => repositories,
+            Disk::Unknown => return false,
+        };
+        for repository in repositories {
+            if self.stores.get(repository.store).expect("a clone's store is cached").token == store {
+                return true;
+            }
+        }
+        false
+    }
+
     /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
     pub(crate) const fn workspaces(&self) -> &Slab<Workspace> {
         &self.workspaces
