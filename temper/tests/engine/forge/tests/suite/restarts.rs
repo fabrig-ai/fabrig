@@ -56,8 +56,8 @@ fn entry(injector: &Injector, kind: Kind, from: Time, until: Option<Time>) {
     assert_eq!(entry.struck, Struck::default());
 }
 
-fn settled(world: &World) -> bool {
-    world.seen().contains(&top::Request::RestartDone { stage: top::RestartStage::Settled })
+fn stage_seen(world: &World, stage: top::RestartStage) -> bool {
+    world.seen().contains(&top::Request::RestartDone { stage })
 }
 
 #[test]
@@ -108,14 +108,15 @@ fn forge_down_until_refuses_every_call_then_reads_and_settles() {
     let mut injector = Injector::new(377);
     injector.inject(&mut world, &[kinds::FORGE_DOWN_UNTIL], Some(until));
     world.run_for(4);
-    assert!(!settled(&world));
+    assert!(!stage_seen(&world, top::RestartStage::ReadAfresh));
     let calls = world.take_calls();
     assert_ne!(calls, []);
     assert_eq!(calls.len(), world.restart_answers().len(), "every outage call refused");
     assert!(world.restart_answers().iter().all(|(at, _, error)| *at < until && *error == Error::Unavailable));
     world.run_for(20);
     assert!(world.take_calls().iter().any(|op| matches!(op, Op::Read(Read::Branch { .. }))));
-    assert!(settled(&world));
+    assert!(stage_seen(&world, top::RestartStage::ReadAfresh));
+    assert!(stage_seen(&world, top::RestartStage::Settled));
     entry(&injector, kinds::FORGE_DOWN_UNTIL, from, Some(Time::from_nanos(until.as_nanos())));
 }
 
@@ -130,7 +131,7 @@ fn forge_down_for_good_refuses_through_the_horizon() {
     assert!(calls.len() > 1, "the start retries");
     assert_eq!(calls.len(), world.restart_answers().len());
     assert!(world.restart_answers().iter().all(|(_, _, error)| *error == Error::Unavailable));
-    assert!(!settled(&world));
+    assert!(!stage_seen(&world, top::RestartStage::ReadAfresh));
     assert_eq!(world.now(), from.saturating_add(Duration::from_secs(20)));
     entry(&injector, kinds::FORGE_DOWN_FOR_GOOD, from, None);
 }
@@ -142,7 +143,7 @@ fn ended_owners_fill_the_restored_outbox_and_a_new_making_waits() {
     let mut injector = Injector::new(377);
     injector.inject(&mut world, &[kinds::ENTRIES_HELD_BY_ENDED], None);
     world.run_for(2);
-    assert!(settled(&world));
+    assert!(stage_seen(&world, top::RestartStage::Settled));
     for number in [1, 2] {
         let Some(top::Stored::Entry { entry, held: true }) = world.stored().get(&top::Key::Entry(number)) else {
             panic!("every entry stays held after restoration");
@@ -160,7 +161,7 @@ fn ended_owners_fill_the_restored_outbox_and_a_new_making_waits() {
 }
 
 #[test]
-fn missing_held_branch_is_read_before_settle_and_made_after_it() {
+fn missing_held_branch_is_read_before_it_is_made() {
     let mut world = watching();
     world.observe_entry_saves();
     let from = world.now();
@@ -170,30 +171,44 @@ fn missing_held_branch_is_read_before_settle_and_made_after_it() {
     assert!(
         !world.stored().iter().any(|(_, row)| matches!(row, top::Stored::Entry { entry, .. } if entry.task == GOAL))
     );
+    let read = Read::Branch { branch: BRANCH.into() };
+    world.run_until_read(&read);
+    let op = Op::Read(read);
+    assert!(world.awaiting_forge_reply(&op), "the branch read is in flight");
+    let end = world.now().saturating_add(Duration::from_secs(2));
+    for _ in 0..100 {
+        assert!(
+            !world.seen().contains(&top::Request::ContinueGoalBranch { task: GOAL }),
+            "the making waits for the branch read's answer"
+        );
+        if !world.awaiting_forge_reply(&op) {
+            break;
+        }
+        assert!(world.step_until(end));
+    }
+    assert!(!world.awaiting_forge_reply(&op), "the branch read answered");
+    let answered = world.seen().len();
     world.run_for(2);
-    assert!(world.take_calls().contains(&Op::Read(Read::Branch { branch: BRANCH.into() })));
     let seen = world.seen();
-    let read = seen
-        .iter()
-        .position(|r| *r == top::Request::RestartDone { stage: top::RestartStage::ReadAfresh })
-        .expect("read");
     let settle = seen
         .iter()
         .position(|r| *r == top::Request::RestartDone { stage: top::RestartStage::Settled })
         .expect("settle");
     let making = seen.iter().position(|r| *r == top::Request::ContinueGoalBranch { task: GOAL }).expect("making");
-    assert!(read < settle && settle < making);
+    assert!(answered <= making, "the branch read answers before the making request");
+    assert!(settle < making, "the outbox settles before the making request");
     assert!(
-        seen.iter().take(settle).all(|request| !matches!(request,
+        seen.iter().take(making).all(|request| !matches!(request,
             top::Request::Save { record: top::Stored::Entry { entry, .. }, .. } if entry.task == GOAL
         )),
-        "no creation entry during read-afresh"
+        "no creation entry before the making request"
     );
     assert!(!world.has_branch(BRANCH));
     world.event(top::Event::ContinueGoalBranch { task: GOAL, entry: 3 });
     world.run_for(2);
     assert_eq!(world.branch(BRANCH), world.branch(b"main"));
     assert_eq!(world.writes(), 1);
+    assert!(stage_seen(&world, top::RestartStage::ReadAfresh));
     entry(&injector, kinds::BRANCH_THE_FORGE_LACKS, from, Some(from));
 }
 
@@ -251,6 +266,6 @@ fn startup_read_is_rate_limited_on_every_attempt() {
             .iter()
             .all(|(_, _, error)| matches!(error, Error::RateLimited { after } if *after > Duration::ZERO))
     );
-    assert!(!settled(&world));
+    assert!(!stage_seen(&world, top::RestartStage::ReadAfresh));
     entry(&injector, kinds::READ_ALWAYS_LIMITED, from, None);
 }

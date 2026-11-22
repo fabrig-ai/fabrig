@@ -1251,6 +1251,11 @@ impl World {
     pub fn take_calls(&mut self) -> Vec<skein_forge::api::Op> {
         core::mem::take(&mut self.call_ops)
     }
+    /// Whether the fake still owes this generation a reply to the named operation.
+    #[must_use]
+    pub fn awaiting_forge_reply(&self, op: &skein_forge::api::Op) -> bool {
+        self.pending.iter().any(|(_, pending)| pending.generation == self.generation && pending.op == *op)
+    }
     #[must_use]
     pub fn stored(&self) -> &Map<top::Key, top::Stored> {
         &self.stored
