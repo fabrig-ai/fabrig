@@ -222,7 +222,7 @@ digest: task 7c1e09a2b44f0d13
   resource is a path, `../forge/family.md`, 1), then the call that reads its
   panel, `change show TASK`; the id is the words' first line. The
   pull request line, after any verification words, with its address
-  (`../../domain/root.md`, section 5), prints as `pull request: ADDRESS` when the task's document
+  (`../../domain/root-translation.md`, section 1), prints as `pull request: ADDRESS` when the task's document
   carries it whole: a line the document's text window cut prints
   nothing, and `change show TASK` has the address. Verification words
   immediately after the id remain readable: `Cleared by TIER run N.`,

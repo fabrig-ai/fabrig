@@ -1,5 +1,5 @@
 //! A goal lands its held branch without handing it to the change
-//! (temper/docs/design/domain/agent/tools.md, 1; temper/docs/design/domain/forge/change/README.md, 1 and temper/docs/design/domain/forge/branches.md).
+//! (temper/docs/design/domain/agent/tools-change.md, 1; temper/docs/design/domain/forge/change/README.md, 1 and temper/docs/design/domain/forge/branches.md).
 //! Its delegates' moves become its landing's new head, and its close releases the branch
 //! (temper/docs/design/domain/forge/change/drift.md, 1; temper/docs/design/domain/after-landing.md, 6).
 use super::goal_branch::{branch_tip, change, forge_hold, resource, running_goal, writer};

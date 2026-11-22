@@ -324,7 +324,7 @@ bounds a worker entry's `environment` had before the entries went:
   from the agent's configuration written from them (section 4), as jig's
   reference binary derives them, but for the agents the host holds, which
   are its slots, the smaller of its `slots` and the figures' places
-  (`../../domain/worker/README.md`, section 5); its stop bound from jig's
+  (`../../domain/worker/agent-processes.md`, section 1); its stop bound from jig's
   graces.
 - **Workers are alike** (jig's `protocol/configuration.md`, section 4):
   no credential but the worker's secret, and no forge configuration.
@@ -413,7 +413,7 @@ stop timeout are unchanged.
   `temper-worker serve`, which reads it back for smith's host limits,
   the channel's limits and the agent's bounds, as jig's reference binary
   reads it; the start pins those same bytes, with the program, in its
-  root (`../../domain/worker/README.md`, section 5), and each agent
+  root (`../../domain/worker/agent-processes.md`, section 1), and each agent
   process reads the pinned copy as it starts. Figures that change, or a
   replaced program, change what the worker's next start pins, never a
   running worker's agents.
@@ -423,7 +423,7 @@ stop timeout are unchanged.
   `protocol/agent.md`, section 4), bounds each reasoning item the model
   sends; past it, with smith's default `oversized_reasoning` of `fail`,
   the call fails and the run holds at once, naming the bound and its
-  value (`../../domain/worker/README.md`, 4.3). smith derives its largest turn
+  value (`../../domain/worker/hosted-runs.md`, 1.3). smith derives its largest turn
   from it, so the allowance and the hub's bounds go together: the start
   refuses a document whose bounds do not hold that turn (`limits.md`).
   temper's documents give a plan's model an allowance its reasoning
@@ -534,7 +534,7 @@ stop timeout are unchanged.
   - **each project's landing rules** join its policy as it is seeded;
   - **a project made after the first start** (jig's `MakeProject`, its
     `jig/docs/design/domain/model.md`, 6.1) has the deployment's landing rules, which
-    every start applies (`../../domain/root.md`, section 5), and none of
+    every start applies (`../../domain/root-translation.md`, section 1), and none of
     `landing.projects`, which names seeded projects alone; its first
     period is made with it (jig's `domain/people/acts.md`, 2). The default
     document seeds no project, its first owners the deployment's alone,
@@ -555,7 +555,7 @@ stop timeout are unchanged.
     is refused before io starts when a remote or a part could pass its
     bound;
   - the root's configuration is held to the root's limits before the
-    root is made (`../../domain/root.md`, section 5): a start that breaks
+    root is made (`../../domain/root-translation.md`, section 1): a start that breaks
     one is refused, naming it;
   - each provider's fixed `sources.sign_in.redirect_port` differs from
     the clients', webhooks', the machine's owned and fake and `demo`'s

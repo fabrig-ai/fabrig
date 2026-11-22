@@ -28,7 +28,7 @@ deleted once no pass can need them.
 ## 2. The deployment's build
 
 - **When:** at a tip of main its after-landing work reaches, a tier of
-  its own or a part of one (`../../domain/after-landing.md`, 2). Not
+  its own or a part of one (`../../domain/after-landing-runs.md`, 1). Not
   every tip is kept, since one run covers several landings and a tip a
   receipt judges has no run; a case waits for the next kept build that
   holds its landing (`ledger.md`, 4.7).

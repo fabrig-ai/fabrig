@@ -220,7 +220,7 @@ pub enum Delivery {
         watcher: Token,
         why: jig_domain_views::End,
     },
-    /// The durable stop asks workers to keep their runs (domain/root.md, 8.2).
+    /// The durable stop asks workers to keep their runs (domain/root-restart.md, 1.2).
     Restarting {
         wait: skein_lib::Duration,
     },

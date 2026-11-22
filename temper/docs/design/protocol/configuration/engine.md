@@ -75,17 +75,17 @@ field. The landing rules were settings already, temper's kinds 1 and 2
   a repository at most once (`../../domain/landing-settings.md`, 1.1;
   `../../domain/after-landing.md`, section 11). A gate's `base`, false
   when absent, says that it reads the base: it is given `temper_base`
-  and its key holds the base's tree (`../../domain/landing.md`, 6.1 and
-  7.1). A gate's `report`, none when absent, names the artifact its
+  and its key holds the base's tree (`../../domain/landing-proof.md`, 1.1 and
+  2.1). A gate's `report`, none when absent, names the artifact its
   failed run uploads and its format, read as a tier's, and `fuzzy`, when
   present, the name prefix of its fuzzy tests, all others focused: the
-  failed tests a landing's repair names (`../../domain/landing.md`, 7.3;
+  failed tests a landing's repair names (`../../domain/landing-proof.md`, 2.3;
   `../../domain/forge/change/repairs.md`, *A landing's repair*). Its
   artifact is bounded as a tier's (below), its `fuzzy` 1 to 64 bytes
   (2026-11-15). A tier's `branch` is the
   branch it follows, by its name on the forge, the repository's landing
   branch when absent, or `goal`, the goals' own branches, a tier that
-  judges no landing (`../../domain/after-landing.md`, section 2). Its
+  judges no landing (`../../domain/after-landing-runs.md`, section 1). Its
   `span_ms` is the least time between the starts of two of its runs on
   one branch, none when absent or 0.
 - **A tier's `description`:** what the tier checks, in words written with
@@ -115,7 +115,7 @@ field. The landing rules were settings already, temper's kinds 1 and 2
   tier follows lives to cleared or ends at landed; `tier_retries`, a
   u8, 2 when absent; `verification_bound_ms`, the
   project's verification bound, a u64, 7,200,000 (two hours) when absent
-  (`../../domain/after-landing.md`, sections 3 and 6).
+  (`../../domain/after-landing-runs.md`, section 2, and `../../domain/after-landing.md`, section 6).
 - **Prepare under `turn`:** a document that selects `by: turn` needs job
   kind 1 declared: `engine.limits`' `tasks.spec_bytes` at least 16,384 and
   `tasks.result_bytes` at least 4,096. A start below either bound is
@@ -124,7 +124,7 @@ field. The landing rules were settings already, temper's kinds 1 and 2
   (`../../domain/worker/jobs.md`).
 - **The batch,** beside `by`: `batch`, a u16 from 1 to the deployment's
   `forge.landing_members`, 1 when absent: the most changes a landing
-  into a repository's main forms with (`../../domain/landing.md`, section 9, and `../../domain/landing-settings.md`, section 1.1
+  into a repository's main forms with (`../../domain/landing-turn.md`, section 2, and `../../domain/landing-settings.md`, section 1.1
   ). One past its bounds refuses the start at its
   member, `application.landing.projects[i].batch`, naming
   `forge.landing_members` where it passes that.
@@ -134,15 +134,15 @@ field. The landing rules were settings already, temper's kinds 1 and 2
   the trains into a repository's main and `other` for those into any
   other branch; a member absent, or `combine` absent, takes its stock,
   `merge` for `main` and `squash` for `other`
-  (`../../domain/landing.md`, 5.2, and `../../domain/landing-settings.md`, 1.1). Another value refuses the
+  (`../../domain/landing-prepare.md`, 1.2, and `../../domain/landing-settings.md`, 1.1). Another value refuses the
   start at its member, `application.landing.projects[i].combine.main`
   or `.other`.
 - **The gates' bound,** beside `by`: `gate_timeout_ms`, a u64 of
   milliseconds from 60,000 to 86,400,000, 3,600,000 (one hour) when
   absent: how long a gate's run may be in flight before it holds its
-  landing (`../../domain/landing.md`, 7.1); and `gate_retries`, a u8, 2
+  landing (`../../domain/landing-proof.md`, 2.1); and `gate_retries`, a u8, 2
   when absent: how many times a runner's fault is dispatched again per
-  key (`../../domain/landing.md`, 7.4). One past its bounds refuses
+  key (`../../domain/landing-proof.md`, 2.4). One past its bounds refuses
   the start at its member,
   `application.landing.projects[i].gate_timeout_ms` or `.gate_retries`.
 - **The merge job's command,** beside `by`, by either way: `merge_job`,
@@ -174,7 +174,7 @@ field. The landing rules were settings already, temper's kinds 1 and 2
   `prepare_timeout`; `pins`, a list of `{"downstream": REPOSITORY,
   "upstream": REPOSITORY}`, each a repository as `gates` names one;
   `pins_follow_main`, false when absent; `dependencies_join`, true when
-  absent (`../../domain/landing.md`, 4.1 and 5.3).
+  absent (`../../domain/landing.md`, 4.1, and `../../domain/landing-prepare.md`, 1.3).
 
 A landing rule, the value of kinds 1 and 2 (`settings.md`, 2), is a `LandingRule`,
 member for member:

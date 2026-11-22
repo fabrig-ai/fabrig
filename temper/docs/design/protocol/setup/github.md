@@ -15,7 +15,7 @@ listener's (`../../client/forge/README.md`, the browser's steps).
   contents, pull requests, issues and merge queues, write; checks,
   statuses, actions, administration and metadata, read; never
   workflows, never administration's write. Its events are skein's
-  (`reconcile.md`, 6). Beside them (`../../domain/landing.md`, 8): statuses and actions,
+  (`reconcile.md`, 6). Beside them (`../../domain/landing-turn.md`, 1): statuses and actions,
   write,
   so that a project landing by turn has its gates dispatched and its
   receipts and verdicts posted; installations made before keep reading

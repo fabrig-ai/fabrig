@@ -91,7 +91,7 @@ temper-box
   its configuration names, never a copy in its data but one: its agents
   run the worker's pin of that executable, copied into the worker's
   `agent/` afresh as the worker starts, the previous copy removed first
-  (`../../domain/worker/README.md`, 5), so a start pins the build then
+  (`../../domain/worker/agent-processes.md`, 1), so a start pins the build then
   installed. So the engine, its agents, its adapters and the served
   bundle all run the new build, and nothing the old. Its forges, an owned Forgejo or the fake forges with
   their state (5), its repositories, pull requests, checks and tasks come

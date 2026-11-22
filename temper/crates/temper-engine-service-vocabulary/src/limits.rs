@@ -194,7 +194,7 @@ const FORGE: forge::Limits = forge::Limits {
     gates: 2,
     receipts_per_gate: 4,
     ignored_paths: 4,
-    // Entries of a repository root read to make one landing key (domain/landing.md, 6.1).
+    // Entries of a repository root read to make one landing key (domain/landing-proof.md, 1.1).
     key_entries: 256,
     key_path_bytes: 1024,
     trees_in_flight: 2,

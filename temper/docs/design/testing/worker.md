@@ -60,7 +60,7 @@ pub fn inspect_trash(component: &temper_worker_protocol_git::Component, trash: &
 
 A cancelled prepare waiting for its operation to end is the third kind: it ends once that operation does.
 
-A check waiting for a build place is no wait of the worker's. Build places are the deployment's (`../domain/worker/README.md`, 5, *Its build places too*), and the domain world's fake builder (3.4) inspects its own, under component `builder`, kind `a check waiting for a build place`, woken by each check holding a place.
+A check waiting for a build place is no wait of the worker's. Build places are the deployment's (`../domain/worker/agent-processes.md`, 1, *Its build places too*), and the domain world's fake builder (3.4) inspects its own, under component `builder`, kind `a check waiting for a build place`, woken by each check holding a place.
 
 ### 2.3 Its tables
 
@@ -118,7 +118,7 @@ Each is drawn from the world's `Faults` stream, part `worker` (`skein/docs/desig
 
 ### 3.4 A placement refused as busy while build places are full
 
-- **The fault** [composition, reachable]: in the worker's domain world, a fake builder holds a few build places, as a deployment's hold does (`../domain/worker/README.md`, 5, *Its build places too*). A run's delivery check holds a place, or waits for one, until the world ends it. With every run slot taken by a run in its check, an assignment arrives and the worker refuses it `Busy`; the world places it again after its backoff, as the engine does.
+- **The fault** [composition, reachable]: in the worker's domain world, a fake builder holds a few build places, as a deployment's hold does (`../domain/worker/agent-processes.md`, 1, *Its build places too*). A run's delivery check holds a place, or waits for one, until the world ends it. With every run slot taken by a run in its check, an assignment arrives and the worker refuses it `Busy`; the world places it again after its backoff, as the engine does.
 - **What the model tests:** the refusal is `Busy` and the worker keeps nothing of the refused attempt: no workspace, prepare or slot. Once a check ends and its run ends, the attempt placed again is admitted.
 - **Outside the proof:** the deployment's build places and their hold (`tools/tiers/design.md`, 3), smith's check clock while it waits for a place (the draft's 4.3, smith's run world), and the engine's placement (P41).
 - **Ledger:** from the refusal, stopped when the attempt placed again is admitted.

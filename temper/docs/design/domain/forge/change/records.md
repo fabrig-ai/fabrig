@@ -66,7 +66,7 @@ changes live at once, never every change made.
   then finds nothing and is dropped), its goal files, and its `landed`
   commits, each erased where it is stored; and the queue repairs it
   made leave its landing branch's count of them. Its landing log entries stay
-  (`../../after-landing.md`, 10), so its project's landed history and
+  (`../../after-landing-storage.md`, 1), so its project's landed history and
   status, which read the log, keep it.
 - **Its landed commits are bounded alike:** the forge's `landed` table,
   each merge temper made and its task (the store's `Landed` row,
@@ -90,7 +90,7 @@ changes live at once, never every change made.
   its ended record, and wakes no one; a public merge one of whose
   members is gone shows that member from the landing log's own entry,
   its task, pull request and title; a tier reads its landing as one
-  not its own (`../../after-landing.md`, 2).
+  not its own (`../../after-landing-runs.md`, 1).
 - **Refused, named:** a new change that finds the table full and
   nothing to drop is held before it registers, its words naming the
   bound, as every limit's refusal does

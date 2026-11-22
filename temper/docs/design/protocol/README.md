@@ -203,7 +203,7 @@ Starting, ending, `iterate`'s passes, room and timers are jig's
   back to the component, which holds it and offers it again (jig's
   `protocol/service.md`, section 2, room); one the root returns during
   its drain stays with the component until it closes (forge/engine.md
-  ; `../domain/root.md`, 8.2). Each forge's access is the component's
+  ; `../domain/root-restart.md`, 1.2). Each forge's access is the component's
   alone (credentials.md, section 5).
 - **A forge's start check** (credentials.md, section 5; skein's
   `forge/connection.md`, section 3): when a forge refuses its access, or
@@ -240,7 +240,7 @@ Starting, ending, `iterate`'s passes, room and timers are jig's
   forge, so workers need no forge configuration.
   As it decodes an answer, it decodes the work and the preparation into
   the root's `Parts` (channel.md, sections 4, 5 and 7;
-  `../domain/root.md`, 6.4).
+  `../domain/root-translation.md`, 2.4).
 - **temper's families.** The root's forge records go to the store under
   jig's application tag, encoded by `temper-protocol-store`, in the same
   commits as jig's; the forge's restart step loads them as one interval
@@ -251,8 +251,8 @@ Starting, ending, `iterate`'s passes, room and timers are jig's
   each value in the table, then gives the root one `Event::Credential`
   for it, before its restart for a Forgejo forge's, and
   `jig-protocol-engine-workers` fills grants' values from the table
-  through the routing (credentials.md, section 4; `../domain/root.md`,
-  6.1).
+  through the routing (credentials.md, section 4; `../domain/root-translation.md`,
+  2.1).
 - **Host tools, the charter and results through `temper-engine-smith`,**
   called in the routing, with smith's codecs, in the step that routes
   them, keeping no state (llm.md, sections 4 and 5; `../domain/routing.md`,
@@ -302,7 +302,7 @@ No store; starting, ending and smith's payloads are jig's (jig's
   environment holding no credential: the box's `temper-box internal agent
   AGENT.json`, or a deployment's `temper-agent AGENT.json` (`binaries.md`, 3),
   each spawned from the copies the worker pinned at its start, the
-  program's and AGENT.json's (`../domain/worker/README.md`, section 5).
+  program's and AGENT.json's (`../domain/worker/agent-processes.md`, section 1).
 - **A model list's launch** (smith's `protocol/agent.md`, 6.1) runs the
   same program, its arguments by the run's form, and smith's host half
   puts `--list` before them: `internal agent AGENT.json` lists as
@@ -333,7 +333,7 @@ No store; starting, ending and smith's payloads are jig's (jig's
   above. Existing worker diagnostic tests check those matches; the
   wire and `Closed` facts keep their values.
 - **Starting:** configuration, the worker's root directory opened, the
-  agent pinned in it (`../domain/worker/README.md`, section 5), the
+  agent pinned in it (`../domain/worker/agent-processes.md`, section 1), the
   components, then the link dialled at once (jig's
   `protocol/service.md`, section 6).
 - **Ending:** the first termination signal drains the worker, and its
@@ -349,7 +349,7 @@ No store; starting, ending and smith's payloads are jig's (jig's
   `KillMode=control-group`, so no agent, program or command of the
   worker's outlives it, and its next start finds nothing of its previous
   life still writing in its workspaces
-  (`../domain/worker/README.md`, section 5).
+  (`../domain/worker/agent-processes.md`, section 1).
 
 ## 6. One process
 
@@ -397,9 +397,9 @@ Standalone is jig's one process (jig's `protocol/service.md`, section 10):
   of a run's task, a coding run's among them, and moves none of its
   change's counts; the task is due again at the next start, its next
   attempt resuming from the turns it committed and starting from the
-  work it saved last (`../domain/worker/README.md`, 4.2 and `../domain/worker/checkouts.md`). After a crash,
+  work it saved last (`../domain/worker/hosted-runs.md`, 1.2 and `../domain/worker/checkouts.md`). After a crash,
   the next start settles them at once, lost or not started (jig's
-  `domain/engine/restart.md`; `../domain/root.md`, 8.1). Job claims
+  `domain/engine/restart.md`; `../domain/root-restart.md`, 1.1). Job claims
   remain for restart recovery even after a drain, since their effects
   may have happened.
 - **Its world** is `tests/one-process` (`../testing/README.md`, 2.5).
@@ -452,7 +452,7 @@ log says when that happened; nothing else about the loop changes.
 
 The engine's service hands a party's input to the root only while its
 gate is open: the root started and its decisions open
-(`../domain/root.md`, 8.1), the forges' records loaded and connected,
+(`../domain/root-restart.md`, 1.1), the forges' records loaded and connected,
 the first periods given (configuration/README.md, section 6) and the forges'
 names resolved (forge/engine.md, 2). While the gate is shut, the clients'
 component answers a party's input not ready and a public read busy, at
@@ -519,7 +519,7 @@ cancelled landings held.
 - **Its age, in words:** below 2 min in seconds, `30 s`, `60 s`; from
   2 min on in whole minutes, rounded down, `2 min`, `17 min`.
 - **A step of the start past it.** Once one step of the start
-  (`../domain/root.md`, 8.1) has lasted the bound, counted from the
+  (`../domain/root-restart.md`, 1.1) has lasted the bound, counted from the
   core's asking for it, the service writes one stderr line, then one
   each time the step's age doubles (60 s, 2 min, 4 min, ...), until the
   step ends; the next step counts from its own beginning:
@@ -854,7 +854,7 @@ Each document keeps its own; these cross them:
   end their programs; a second signal or forced close has no such guarantee.
 - **A whole stop's bound** (section 6; `cluster.md`, 4): an engine's stop ends
   within what its parts' own deadlines give, the forge's settling
-  (`../domain/root.md`, 8.2), the drain, and its workers' channels
+  (`../domain/root-restart.md`, 1.2), the drain, and its workers' channels
   within the stall deadline of the close (jig's `protocol/channel/README.md`,
   9.2), with no deadline of its own, while a service manager kills it
   at its own stop timeout. Default: so; a stop deadline over the whole

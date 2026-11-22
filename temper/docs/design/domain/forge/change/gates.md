@@ -284,7 +284,7 @@ merge, kind 4, on a pattern of landing branches (jig's
     of each account. At most `SIGN_OFFS`, 8, are kept, the earliest `at`
     first, a tie the lower person first; those past it are left out.
   - *Kept from the admission:* the decision that admits a change's merge,
-    under the queue or a member's under the turn (`../../landing.md`, 8),
+    under the queue or a member's under the turn (`../../landing-turn.md`, 1),
     keeps that judgement's sign-offs on the change's record,
     `ChangeRow`'s `signed`, saved with it and replacing an earlier
     admission's, so a restart between the admission and the merge's
@@ -292,7 +292,7 @@ merge, kind 4, on a pattern of landing branches (jig's
     leaves them for the next admission to replace.
   - *Into the landing log:* when temper's merge settles merged, the
     change's entry in its repository's landing log takes its record's
-    `signed` (`../../after-landing.md`, 10), so the sign-offs outlive
+    `signed` (`../../after-landing-storage.md`, 1), so the sign-offs outlive
     the change's record (`records.md`, 1). A change whose pull request
     someone else merged keeps none in the log.
   - *Read* through each landed row of the project's changes document
@@ -348,7 +348,7 @@ merge, kind 4, on a pattern of landing branches (jig's
   current head, else `Touched::UNKNOWN`. Under the turn, the turn's merge
   of a member reads the comparison of its main's tip, read afresh, and its
   candidate, with the member's reviews, into its `LandingEvidence`'s
-  change evidence (`../../landing.md`, 8).
+  change evidence (`../../landing-turn.md`, 1).
 - **The `paths` kind and a rule by path are two judgements:** `decided`
   judges whether a choice may be made for a person, on the paths a call
   names (`../attention.md`, 6); the rule judges whether a change may

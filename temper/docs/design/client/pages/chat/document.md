@@ -164,7 +164,7 @@
     on the engine's, refused in place if over, are "NAME", a blank line, "Implement
     this draft. First commit it, as it stands, at docs/design/draft/SLUG.md.", a blank
     line, the body, a blank line and the line `goal`'s root gives a goal, so that
-    charter 1's instructions read it as a goal (`../../../domain/agent/tools.md`, 2), a
+    charter 1's instructions read it as a goal (`../../../domain/agent/tools-goal.md`, 1), a
     constant the root and the client reach, in `temper-client-protocol-wire`; then
     `../goal.md`, 3's `Draft:` and `Chat:` lines, and `Asks: always` where it is chosen.
   - *Answered:* `../goal.md`, 3's ends; on `Judged::Create` the fact `GoalFrom` is sent (`../../forge/records.md`)

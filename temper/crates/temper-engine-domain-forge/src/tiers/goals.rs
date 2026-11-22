@@ -1,4 +1,4 @@
-//! Each goal branch keeps its own tip, failures and span (temper/docs/design/domain/after-landing.md, 3).
+//! Each goal branch keeps its own tip, failures and span (temper/docs/design/domain/after-landing-runs.md, 2).
 use super::{configured_all, empty, joined, name, p, red, save, settings};
 use crate::{Class, Domain, Follows, Limits, Name, News, RedNews, RedOn, Request, Tier, TierGoal, TierRow};
 use alloc::boxed::Box;

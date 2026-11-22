@@ -59,7 +59,7 @@ The root resolves it before anything is made. Each refusal is
   goal's branch as the target is section 8's. A branch the repository
   lacks is not refused here: the change is held at its opening, the
   forge refusing its pull request, as a run's call naming one is
-  (`../../agent/tools.md`, 1).
+  (`../../agent/tools-change.md`, 1).
 - **Their names:** a source or landing branch past the deployment's
   forge name bound, which the client cannot know before sending, is
   refused naming the bound (`name_past`).

@@ -189,11 +189,11 @@ installs another build.
   a copy of the place's `bin/` file its agent document names, and that
   document, into its root's `agent/` as it starts, the previous ones
   removed first (`../../protocol/binaries.md`, 5;
-  `../../domain/worker/README.md`, 5). That directory is the build's,
+  `../../domain/worker/agent-processes.md`, 1). That directory is the build's,
   not the setup's state, so a copy leaves it out: a copy's save never
   archives it, and a restore leaves none of it at the place from any
   copy that holds it, removing it once unpacked and before anything
-  else reads the scratch directory (section 8). A copy holds the
+  else reads the scratch directory (`places.md`, section 8). A copy holds the
   setup's state alone, and every box restored at
   the place pins its agent from the place's `bin/` as it starts, the
   pass's build's. The directory, by its path below the scratch

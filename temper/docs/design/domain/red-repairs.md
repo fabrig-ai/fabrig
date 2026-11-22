@@ -80,8 +80,8 @@ filed it. What waits is section 11.
   blame`, by the finding's holder or a project owner (`areas.md`,
   section 7), on a red finding with a blame (one filed under `wait:
   landed`), uncleared, in any state.
-- **To a landing:** a commit that the landing log (`after-landing.md`,
-  section 10) holds as a landing of the finding's repository on the
+- **To a landing:** a commit that the landing log (`after-landing-storage.md`,
+  section 1) holds as a landing of the finding's repository on the
   branch its tier follows. The finding's blame then names that landing
   alone, with its members' goals, milestones and persons as filing
   takes them (`red-findings.md`, section 3).

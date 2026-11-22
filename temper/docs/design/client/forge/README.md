@@ -110,7 +110,7 @@ producing ─ opening ─ checking ─ gating ─ queued ─ first ─ landing �
 | recreating, reopening | after drift released (5.2): its branch made again at the head temper last knew, or its pull request reopened or retargeted back |
 | landing | merging at its head |
 | landed | its merge commit, and when |
-| verifying | landed, its merge commit, and the tiers following its landing branch that have not judged it yet, each with its run in flight, if any, or, with none and the tier held by a person, `NAME held by party N: REASON` (`../../domain/after-landing.md`, sections 3 and 6) |
+| verifying | landed, its merge commit, and the tiers following its landing branch that have not judged it yet, each with its run in flight, if any, or, with none and the tier held by a person, `NAME held by party N: REASON` (`../../domain/after-landing-runs.md`, section 2, and `../../domain/after-landing.md`, section 6) |
 | red | landed, its merge commit, and each tier whose verdict blames it, with the run and the failing tests blamed on it, counted, or "many" (`../../domain/after-landing.md`, 5.3) |
 | cleared | landed and cleared by every tier following its landing branch, and the run that cleared it in each; or, past the project's verification bound with no verdict or cancelled while verifying, "landed, uncleared": the change ended there (`../../domain/after-landing.md`, section 6) |
 
@@ -241,14 +241,14 @@ the subject `changes` (`records.md`):
   the others their place.
 - **Landed recently:** the project's last landings, newest first, across
   its repositories, from the landing log
-  (`../../domain/after-landing.md`, section 10), which keeps each change's
+  (`../../domain/after-landing-storage.md`, section 1), which keeps each change's
   title past its close.
 - **A branch's red,** in the page's line: while a retained verdict blames
   a landing on the branch, unrepaired (`../../domain/after-landing.md`,
   5.2), or a live repair of the branch runs (`../../domain/forge/queues.md`
   ).
-- **A project that lands by turn** has no queue (`../../domain/landing.md`,
-  sections 8 and 9): its page's queue is empty, and what it lands is
+- **A project that lands by turn** has no queue (`../../domain/landing-turn.md`,
+  sections 1 and 2): its page's queue is empty, and what it lands is
   listed as landed.
 
 Each row opens its change's `Task { task }`: a change has no page of
@@ -610,7 +610,7 @@ the public tasks jig's core hands it with the ask:
   requests for the project (`../../domain/landing.md`, 4.2), is never
   named: a public landing is reached through one of its members.
 - **A public queue merge** is a landing the landing log holds
-  (`../../domain/after-landing.md`, section 10) with at least one change,
+  (`../../domain/after-landing-storage.md`, section 1) with at least one change,
   every one of them a public change that went by the queue. A queue's
   merge has no landing's row or task, so the log is its record and
   its change's task the way to it. Past the log's ring, or once jig no

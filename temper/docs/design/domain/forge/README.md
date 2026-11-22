@@ -170,11 +170,11 @@ Documents:
   failed step and the end of that step's output; reviews' remarks. And
   a fourth for any run, a document its charter names, at its branch's
   head (`../../protocol/configuration/settings.md`, 6).
-- **Workspace items:** for each repository a run works in (../root.md,
-  6.1), a checkout: where it starts (a landing branch or the
+- **Workspace items:** for each repository a run works in (../root-translation.md,
+  2.1), a checkout: where it starts (a landing branch or the
   repository's default, a branch, saved work, or a merge in progress),
   whether it may be written and the branch it pushes, and the git
-  identity it is fetched and pushed with (`../worker/README.md`, 4.1;
+  identity it is fetched and pushed with (`../worker/hosted-runs.md`, 1.1;
   `../../protocol/credentials.md`, section 4).
 - **Documents and parts** (jig's `domain/connectors.md`, 5.5): what
   temper's client shows of the forge, made from the connector's records
@@ -417,7 +417,7 @@ requirement its branch's enforced rules name, guarded ones met at the
 exact head merged and up to date met on the reads of the decision that
 merged it; merges land exactly the heads decided; temper never writes to
 what it does not own, and its runs never force a push (the forge's prepare
-rebase is `../landing.md`, 5.2); a held change makes no effect;
+rebase is `../landing-prepare.md`, 1.2); a held change makes no effect;
 a landing wakes a goal exactly when it overlaps; no change waits in a
 queue past the aging window behind changes that became ready after it;
 temper's own pushes while it holds the writer slot are never taken for
@@ -481,7 +481,7 @@ whole.
 - **A failure that is the runner's, not the change's:** a job whose
   set-up step failed, or whose runner was lost, is a repair like any
   other under the queue, where landing by turn retries it, never
-  repaired (`../landing.md`, 7.4). Running the job again first, through the
+  repaired (`../landing-proof.md`, 2.4). Running the job again first, through the
   API, is `../../draft/ci-on-forgejo-17.md`, with the stalls' reasons and
   the agents' log tools.
 

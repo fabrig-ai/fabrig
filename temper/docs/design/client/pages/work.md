@@ -514,7 +514,7 @@
   draft. Default: so; a landed draft's row names its goal, which a later
   card may read.
 - **A week's landings past the log** (1, *Work*): Landed this week reads the
-  landing log (`../../domain/after-landing.md`, section 10), a ring of
+  landing log (`../../domain/after-landing-storage.md`, section 1), a ring of
   `landings_kept` landings per repository, through `landed_default`'s
   `forge.changes_landed` rows, so a busy week's landings into goal branches
   can push its older landing-branch landings out of the ring, and more than

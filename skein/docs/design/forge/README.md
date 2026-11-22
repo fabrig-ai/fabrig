@@ -275,7 +275,7 @@ and no policy. Every type is a plain value.
   or `Recorded { commit }`, last: nothing moves, and the pull request is
   recorded merged at `commit`, which its base must already contain,
   for an owner that landed the pull request's change by a commit of its
-  own (temper's squash, temper's `domain/landing.md`, section 8). It
+  own (temper's squash, temper's `domain/landing-turn.md`, section 1). It
   answers `Merged` at `commit`; a commit the base does not contain, or
   a repository that allows no such record, is `Refused`, and a dialect
   whose forge records none answers `Refused` too.

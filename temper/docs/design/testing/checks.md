@@ -549,7 +549,7 @@ landing's or a change's wait and a task's resolve across inspections.
     store, and an operation in flight, a workspace's fetch among them. A
     check waiting for a build place is the domain world's fake builder's,
     inspected beside the worker, since build places are the deployment's
-    (`../domain/worker/README.md`, 5).
+    (`../domain/worker/agent-processes.md`, 1).
   - **Tables:** workspaces and per-run scratch, released by the run's end
     or the workspace's release; prepare permits; the Git stores' packs,
     released by the packing their own counts trigger; git's locks; run

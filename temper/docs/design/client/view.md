@@ -695,7 +695,7 @@ the change's chip in a chat (`forge/README.md`, 2.4 and 2.5).
   merge commit ABCDEFG", ABCDEFG the first seven characters of the
   result's words' first line, which is the merge commit's id in hex (the
   engine's landing words, whose second line names the pull request,
-  `../domain/root.md`, section 5); any other result's words as they are; a failed
+  `../domain/root-translation.md`, section 1); any other result's words as they are; a failed
   task's reason.
 - **The steps are a stand-in:** none ticked while the change lives, all
   four once it has landed, none otherwise. A ticked step is skein-ui's

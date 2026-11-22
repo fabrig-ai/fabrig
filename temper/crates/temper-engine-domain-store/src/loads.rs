@@ -12,7 +12,7 @@
 //! emitting entry point requires one reserved output slot. Whole-page row
 //! and deep-byte checks precede any kept prefix. Ordinary reads also check
 //! membership, order and cursor agreement; startup asserts transport progress
-//! (temper/docs/design/domain/root.md, 8.1).
+//! (temper/docs/design/domain/root-restart.md, 1.1).
 //! Byte cuts carry exact omitted rows/bytes and a potentially nonprogressing
 //! continuation; the walking root stops rather than restoring a cut page.
 use crate::{Key, Range, Record};

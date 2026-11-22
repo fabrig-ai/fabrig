@@ -73,7 +73,7 @@
     failed 28 to 48 tests a run on 2026-11-17 and 18. It bounds each
     list of failing tests it bounds in the stock, a tier's record's
     failures and flakes, a gate's selection and a receipt's among them
-    (`../../domain/after-landing.md`, sections 4 and 10). `small`'s
+    (`../../domain/after-landing-runs.md`, section 3, and `../../domain/after-landing-storage.md`, section 1). `small`'s
     figure, a test's, stays 16.
   - **Times:** a time is dev's where that is above `standard`'s: the
     brief's gathering 300 s and the checkout's local timeout 60 s, for
@@ -165,7 +165,7 @@
   in both, at least 1, so that a project whose changes end at landing
   (`../../domain/after-landing.md`, section 6) keeps a slow tier's
   backlog of landings with their members until it is judged, past which
-  the oldest is judged with no member to comment on (section 10 there).
+  the oldest is judged with no member to comment on (`../../domain/after-landing-storage.md`, section 1 there).
   Their sum is at most the store's 256 a log holds, and with
   `forge.landing_members` and `forge.changes` it bounds a tier's posted
   comments, `(forge.landings_kept + forge.landings_pending) *
@@ -217,7 +217,7 @@
   stock, its cap below: at least the largest `batch` a project names, which the
   start checks (`engine.md`, the batch), so a deployment whose project
   raises `batch` raises it with it. A landing holds a branch per member
-  (`../../domain/landing.md`, 5.1), so `forge.resources_per_task` has
+  (`../../domain/landing-prepare.md`, 1.1), so `forge.resources_per_task` has
   room for `forge.landing_members` branches beside the train's, and
   `forge.holds` for that many per live landing, where the start ties
   them as it ties the rest. It is at most 5, and the start refuses one
@@ -269,7 +269,7 @@
   found is looked for until its lifetime ends (skein's
   `forge/client.md`, 7.5), and a stop's settling waits at most twice
   the lifetime and `forge.client.clock_margin_ms`
-  (`../../domain/root.md`, 8.2), cut under the box by its long step's
+  (`../../domain/root-restart.md`, 1.2), cut under the box by its long step's
   grace (`../setup/box.md`, 2). The engine forge world's fixture keeps
   its 10 s lifetime in its own limits; a test that needs a profile with
   the fixture's lifetime or deadline overrides them in its own

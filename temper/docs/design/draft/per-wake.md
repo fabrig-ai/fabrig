@@ -172,7 +172,7 @@ cut longer than a pending escalation's stall (jig's `domain/tasks/README.md`, se
   chooses the task's kept account again at its first later run, as any change
   of that provider does (jig's `domain/tasks/README.md`, section 3).
 - **Fresh runs only,** as parts are: a task whose charter resumes takes no
-  `later`. A change's `llm` (`../domain/agent/tools.md`, 1) carries none, since a
+  `later`. A change's `llm` (`../domain/agent/tools-change.md`, 1) carries none, since a
   change's producers resume or finish in one activation.
 - **What shows it.** The task's document shows the choice its next run would
   take (jig's `client/domain/contract/documents.md`, 1).

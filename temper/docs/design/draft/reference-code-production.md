@@ -375,7 +375,7 @@ jig's rules, unchanged (jig's `domain/tasks/lifecycle.md`, 6 and `domain/tasks/p
 ## 10. Checked along the way
 
 g is followed by a tier of its own (N5): the project's gate without its
-slowest suites, defined as a tier is (`after-landing.md`, section 2).
+slowest suites, defined as a tier is (`../domain/after-landing-runs.md`, section 1).
 Main's tiers follow main only.
 
 - **One run at a time,** at g's newest tip, at most once per span; a run

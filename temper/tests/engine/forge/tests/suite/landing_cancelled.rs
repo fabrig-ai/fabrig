@@ -1,4 +1,4 @@
-//! A person's cancellation redispatches proof without repairing the member (domain/landing.md, 7.4, 15–16).
+//! A person's cancellation redispatches proof without repairing the member (domain/landing-proof.md, 2.4, and domain/landing.md, 15–16).
 use skein_fake_forge_domain::api as raw;
 use skein_forge::api;
 use skein_lib::Duration;

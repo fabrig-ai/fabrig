@@ -27,7 +27,7 @@ The change's agents run under the charters the change was made with,
 kept on it whatever later changes of settings make them
 (`../../protocol/configuration/settings.md`, 2): its producing, repairs and
 resolutions under its producer's charter, the one its `change` named
-(`tools.md`, 1) or else the forge's change charter, a coding agent's; its reviews
+(`tools-change.md`, 1) or else the forge's change charter, a coding agent's; its reviews
 under the forge's review charter, a reviewer's, whose instructions are
 to judge the change through its brief and the forge's reads and give a
 verdict, or fail saying why it cannot (../forge/change/gates.md, 1), and whose tools
@@ -222,7 +222,7 @@ of `../../draft/v0.1.0.md`, 2.1.
 
 - **The work that waits asks; a change asks only as it is made to.** A
   change is decided work, asked for once what to change is agreed. Made
-  with `questions` `"none"` (`tools.md`, 1), the default, its agents, the
+  with `questions` `"none"` (`tools-change.md`, 1), the default, its agents, the
   table's first four rows, ask no one: the change procedure delegates
   each with the Message family taken out of the tool families it passes
   on, which a child's authority otherwise keeps (jig's
@@ -233,7 +233,7 @@ of `../../draft/v0.1.0.md`, 2.1.
   the change relays their questions (../forge/change/questions.md, 1); what follows is a
   chat's, whose changes take none.
 - **The chat delegates the work as a goal** when its person asks to
-  agree it first, with `goal` (`tools.md`, 2) and the person's words: a
+  agree it first, with `goal` (`tools-goal.md`, 1) and the person's words: a
   delegate under charter 1 holding the authority to call `change` and
   to ask; never `change` itself, which would start the work at once. The stock
   chat's instructions (charter 1, `../../protocol/configuration/stock.md`)
@@ -243,12 +243,12 @@ of `../../draft/v0.1.0.md`, 2.1.
   inbox, not through the chat. When the person answers the goal's question,
   the goal has the answer and does the work; the chat never calls `change`
   or `goal` for that answer and tells the person the work goes ahead. The chat passes the person's words whole, at once, even where they
-  ask for an advisor first, since the goal asks one itself (`tools.md`, 2): it
+  ask for an advisor first, since the goal asks one itself (`tools-goal.md`, 1): it
   never sets `advisor` for such work, writes the plan or asks the
   go-ahead in its own reply, nor calls `change`. The goal, once it has
   asked, waits for the answer: it never finishes before it, nor before
   every agreed change has landed. The brief opens with the caller's words
-  so that the task's title is the work (`tools.md`, 2); a blank line follows,
+  so that the task's title is the work (`tools-goal.md`, 1); a blank line follows,
   then the root's goal line and its line that the work is to be agreed,
   then the person's heading and words.
 - **A held change or goal waits for the person at once.** jig skips
@@ -293,7 +293,7 @@ of `../../draft/v0.1.0.md`, 2.1.
     that person's role. Another role is refused with
     `missing executor permission`; a person with no project role is
     refused with `Refused: executor`. A goal a chat calls loses every role
-    kind as `goal` narrows its authority (`tools.md`, 1 names what it keeps), so
+    kind as `goal` narrows its authority (`tools-change.md`, 1 names what it keeps), so
     it may address no one. Among holders of one role, the charter's words
     alone say "its requester" (`README.md`, section 8).
 - **Its person by name** (`../../draft/home-for-a-person.md`, section 7). A
@@ -566,7 +566,7 @@ conversation its person ends, kept, listed among the project's chats.
   them: the declaration is the rail. Its charter names no inspect, modify or
   shell, so its runs are given no repository (`charter.md`, 2): it reads the project's
   code through the forge's reads, `read_forge what=branch` for a repository's head and
-  then `read_forge what=file`, as a chat does (`tools.md`, 1), and its model's sub-agents survey
+  then `read_forge what=file`, as a chat does (`tools-change.md`, 1), and its model's sub-agents survey
   where it has them, its charter's `agents` set.
 - **Its draft** is the chat's document (3): a `note` in its own task's
   scope, which its authority's goal scope admits, as a chat's.
@@ -586,7 +586,7 @@ conversation its person ends, kept, listed among the project's chats.
 
 - **A goal a chat calls naming its person** (`agents.md`, 2, *Its person by
   name*): its requester is the chat, so its brief names no one, and its
-  words say "your person". The root's goal line (`tools.md`, 2), a fixed
+  words say "your person". The root's goal line (`tools-goal.md`, 1), a fixed
   text that fakes cue on, could name the chat's person. Default: no name;
   the chat's own words may carry one.
 

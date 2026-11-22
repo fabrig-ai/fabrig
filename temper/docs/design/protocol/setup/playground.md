@@ -106,7 +106,7 @@ them as it does any Forgejo.
      settings hold it when the act is sent, or none once it is removed:
      jig's core reads no template, so temper's root reads it and fills
      the act, as it reads the goal template for a goal
-     (`../../domain/agent/tools.md`, 2). It is answered removed once the
+     (`../../domain/agent/tools-goal.md`, 1). It is answered removed once the
      project is closed, so the step passes then; its chats are asked to
      finish within that grace, as their person's close asks one, then
      cancelled and erased with it in the deletion's own kept steps,

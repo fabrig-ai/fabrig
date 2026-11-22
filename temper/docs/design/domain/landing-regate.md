@@ -46,9 +46,9 @@ findings are `findings.md`'s, and a repair, its result and its release
 ## 2. A flake rerun
 
 - **When:** a gate's run at a key ends failed (7.3), its failed jobs
-  and its report read (7.3, `after-landing.md`, 4), and before the
-  receipt is made: the report names its failed tests (`landing.md`,
-  6.2's report ids: not unset, unread or past its bound), at least one
+  and its report read (7.3, `after-landing-runs.md`, 3), and before the
+  receipt is made: the report names its failed tests (`landing-proof.md`,
+  1.2's report ids: not unset, unread or past its bound), at least one
   and at most 64 (a signature's own bound, `findings.md`, section 4),
   and each of them is named by an open flake finding; and this landing
   has not rerun this key for flakes before. Otherwise the receipt is

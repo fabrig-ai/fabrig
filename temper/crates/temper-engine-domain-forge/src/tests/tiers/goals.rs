@@ -1,4 +1,4 @@
-//! Goal branches run independently and tell their own reds (temper/docs/design/domain/after-landing.md, 3 and 7).
+//! Goal branches run independently and tell their own reds (temper/docs/design/domain/after-landing-runs.md, 2, and temper/docs/design/domain/after-landing.md, 7).
 use super::*;
 
 const GOAL: u64 = 1;

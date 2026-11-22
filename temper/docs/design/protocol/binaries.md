@@ -126,7 +126,7 @@ default; the document is `temper.json` in the configuration directory
     from fd 3, its clients' and webhooks' listeners take them by their
     addresses (skein's `runtime/shell.md`, 6.6).
   - A first termination signal settles the engine's forge writes, then
-    drains it (`../domain/root.md`, 8.2; jig's `protocol/service.md`,
+    drains it (`../domain/root-restart.md`, 1.2; jig's `protocol/service.md`,
     section 5), and a worker alone's runs its worker's ending (jig's
     `protocol/service.md`, section 6); a second turns either into an
     abort, which keeps the reason of a failure that started the drain
@@ -135,7 +135,7 @@ default; the document is `temper.json` in the configuration directory
     line each, and the exit is still 0:
     `temper-box serve: stopped before task {task}'s forge write {entry} settled; the next start settles it`.
   - A start refused at a step of its restart (jig's `domain/engine/restart.md`
-    ; `../domain/root.md`, 8.1), which only a store that does
+    ; `../domain/root-restart.md`, 1.1), which only a store that does
     not decode, a live set past the limits or a link that cannot be
     made can be, prints the refusal
     in the restart's own words, `temper-box serve: ` then the step and what
@@ -207,9 +207,10 @@ default; the document is `temper.json` in the configuration directory
   such as last night's backup, which it never writes and whose lock it
   holds while it reads, so that a checkpoint it reads is not removed
   under it (jig's `protocol/store/checkpoints.md`, 6). Over a
-  checkpoint it runs while the engine serves the deployment, as a
-  redeploy runs it (`../redeploy.md`, 4.1): nothing before the
-  rehearsal takes the deployment's lock or writes under `--data`. It
+  checkpoint it runs while the engine serves the deployment, the
+  checkpoint an owner's act took (`checkpoints.md`, 3), so that a
+  redeploy checks the new build before anything stops: nothing before
+  the rehearsal takes the deployment's lock or writes under `--data`. It
   works in a scratch under the cache directory, `upgrade-SEED`, SEED
   sixteen lowercase hex digits from a fresh seed, with the
   configuration `temper-box serve` would read, and holds it under io's
@@ -276,9 +277,10 @@ default; the document is `temper.json` in the configuration directory
   section 3.1; `../draft/redeploys.md`, 5.1). Exit 0 when the
   start opens, 1 when a start would be refused before it.
 - **`temper-box upgrade --workers DIRECTORY`:** `--check`'s verdict on
-  the workers alone, for a redeploy's stop (`../redeploy.md`, 4.2) and
-  once before it, over the check's checkpoint while the engine serves
-  (`../redeploy.md`, 4.1, step 10): a
+  the workers alone, over the checkpoint taken at the engine's settled
+  stop (`../domain/root-restart.md`, 1.2; `checkpoints.md`, 2.1), and over the
+  check's checkpoint while the engine serves, so that a build that
+  cannot read the verdict at the stop is found before anything stops: a
   rehearsal over DIRECTORY, as `--check`'s, of jig's reach `Openings`
   (jig's `protocol/store/opening.md`, 5), which makes the active
   generation's maps in its scratch without their task logs, linking
@@ -296,8 +298,8 @@ default; the document is `temper.json` in the configuration directory
 
   then `--check`'s lines from its verdict's alone (`wires.md`, 10.2,
   steps 1 to 4), in their words and order, and exits 0 once they are
-  printed, whatever the verdict. A redeploy notes the count, from the
-  first line that starts so (`../redeploy.md`, 6.3). A refusal before
+  printed, whatever the verdict. The count is the first line that
+  starts so; no later line carries one. A refusal before
   the rows are read (DIRECTORY in use, an unfinished restore, an
   unreadable `active`, a copy or a recovery failing) is printed as
   `--check` prints a refusal, exit 1.
@@ -501,7 +503,7 @@ spawned        temper-engine internal forge-child --parent PID --signal kill|ter
     floor, then `layout NAME VERSION FINGERPRINT` for each version from
     LOWEST to HIGHEST, FINGERPRINT its layout's 64 lowercase hex digits;
   - `bound stop SECONDS`, the settled stop's bound at the stock limits
-    (`../domain/root.md`, 8.2), `bound stop 602`, then `bound report
+    (`../domain/root-restart.md`, 1.2), `bound stop 602`, then `bound report
     SECONDS`, a wait's report bound (`README.md`, 6.3), `bound report
     30`, each in whole seconds, rounded up
     (`configuration/derived.md`, 5.6). A deployment whose limits it
@@ -780,7 +782,7 @@ public  temper-worker help [NAME | pages | --search WORDS...]
   worker's part read and checked, its agent's document read by
   `smith-agent-document`, its root, program sources and the launcher's
   links made (setup/owned.md, 6), its agent's program and document
-  pinned in its root (`../domain/worker/README.md`, section 5), its link
+  pinned in its root (`../domain/worker/agent-processes.md`, section 1), its link
   dialled, and its loop, ending and
   exit its worker's (`cluster.md`, 1). It takes no `--box`, and has no bundle, no
   fakes and no store.

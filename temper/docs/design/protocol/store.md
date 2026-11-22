@@ -87,7 +87,7 @@ configuration/limits.md).
 | 18 | `Binding` | `Binding(address)`: a member's address, ASCII letters folded to lower case | the Google subject that first signed in with that member's address, `{ address, subject }`, the subject at most 255 bytes (`sign-in.md`, section 5). Written by the first sign-in alone, never erased. A family of the forge connector's though it is people's, as `Playground` is: `Stored` holds every family of temper's, restored in the one restart step and written in the root's decisions, so it takes no range of its own | `bindings`, the configured members |
 | 19 | reserved | none | no row, as 17 | none |
 | 20 | `Setting` | `Setting { kind, scope, number, slot }`: a kind of temper's (1, 2, 3, 6, 7, 8, 9, 10, 11 or 12), 0 or a project's number, the setting's number, and the slot, `Default`, `Change`, `Proposal(proposal)`, the proposal as jig's core names it to its connector (jig's `domain/engine/settings.md`, 6), or `Replaced(revision)`, the revision whose change replaced the value | its key's fields and its edit: a value of temper's kinds (configuration/settings.md, 2), a `LandingRule`, the forge's charter's number, a project's questions' route, a `ProjectWays`, a `ProjectClasses`, a `CharterWords`, a `ProjectWords`, a `TemplateGoal` or a `Follow`, with its size, the bytes of its encoding that jig counts; a removal; or, for a proposal's item alone, a reset. The stock default the binary last gave, the current change, a removal being a change with no value, a pending proposal's item, or the value a committed change replaced, kept for a restore (jig's `domain/engine/settings.md`, 10). Written in jig's decisions as jig's `domain/engine/settings.md`, 5 says: a default in the release's revision when the stock differs, a change at its commit, beside it the value it replaced where the setting held a change with a value, a proposal's item at its making; erased with the change a reset undoes, with the proposal's end, and a replaced value with its revision's record, in the decision that erases it from jig's history | the forge's `landing_rules` per scope, each project's questions, ways, classes and words, each charter's words and each template's work, times the scopes and the slots, plus the pending proposals of settings' items and, for each revision jig's history keeps (`settings.history`), a whole set of its kinds' values |
-| 21 | `Flight` | `Flight { task, entry }`: the entry's task, then its number | a write the forge sent and has not settled for good: saved in the commit that records an entry's attempt, beside the `Entry` row; kept through an uncertain outcome, a retry, a merge queued on the forge's queue and the restart's settlement; erased in the commit that settles the entry for good (made, failed for good, withdrawn, not made) or holds it for a person, and saved again before a held entry is made again. So after a stop that settled none is left (`../domain/root.md`, 8.2). Its record is its key's fields, `{ task, entry }`, as every row holds its key's (`store.md`, section 3); the restart settles an unresolved write from its kept entry, and registry conversion does not refuse merely because it is in flight | `entries` |
+| 21 | `Flight` | `Flight { task, entry }`: the entry's task, then its number | a write the forge sent and has not settled for good: saved in the commit that records an entry's attempt, beside the `Entry` row; kept through an uncertain outcome, a retry, a merge queued on the forge's queue and the restart's settlement; erased in the commit that settles the entry for good (made, failed for good, withdrawn, not made) or holds it for a person, and saved again before a held entry is made again. So after a stop that settled none is left (`../domain/root-restart.md`, 1.2). Its record is its key's fields, `{ task, entry }`, as every row holds its key's (`store.md`, section 3); the restart settles an unresolved write from its kept entry, and registry conversion does not refuse merely because it is in flight | `entries` |
 | 22 | `Delivery` | `Delivery(CallKey)`: the call's task, attempt, completion and position | a delivery's reply, typed in temper's schema (from smith's `DeliveryReply`), which the worker's routing renders for a resumed run: saved in the decision that settles the delivery, first settlement kept, erased when the call retires (a later turn commits, or the task ends); the routing encodes smith's reply from it into the assignment's evidence (jig's `protocol/channel/README.md`, 5.2). | `named_calls` |
 
 - **Beside them** (`../domain/landing.md`, section 12): 23
@@ -122,8 +122,8 @@ configuration/limits.md).
   item, and the state. Written at admission and at each state, erased
   once adopted, once made with no `into`, and in its forge's removal's
   decision. Bounded by `forge.makings`.
-- **Beside them,** after the forges (`../domain/after-landing.md`,
-  section 10; `../domain/findings.md`, section 9): 28 `Tier`, keyed by
+- **Beside them,** after the forges (`../domain/after-landing-storage.md`,
+  section 1; `../domain/findings.md`, section 9): 28 `Tier`, keyed by
   repository and tier, its run in flight, last judged tip, failures
   and flakes, and up to 8192 bytes of execution observations until their
   task words are saved, and, for a tier following goal branches, each
@@ -133,7 +133,7 @@ configuration/limits.md).
   repaired it, the run and the landing; 30 `LandingLog`, keyed by repository, one row, its
   landings oldest first, up to `landings_pending` that a tier following
   their branch has still to judge and the last `landings_kept` judged
-  (`../domain/after-landing.md`, section 10), each its commit, branch and time, its changes,
+  (`../domain/after-landing-storage.md`, section 1), each its commit, branch and time, its changes,
   each with its task, pull request and title (at most 256 bytes), its
   goal and that goal's milestone (`goal` and `milestone`, none when
   read from before) and its sign-offs, `signed`, at most 8, as the
@@ -149,8 +149,8 @@ configuration/limits.md).
   and the root's filing of a red, erased with its project, bounded by
   `forge.findings_per_project` times `forge.judge_projects`; 32
   `Mark` and 33 `QaPass`. A
-  receipt of a tier's keeps its failing tests (`../domain/after-landing.md`,
-  section 2), and the `Change` family's `Landed` state means verifying,
+  receipt of a tier's keeps its failing tests (`../domain/after-landing-runs.md`,
+  section 1), and the `Change` family's `Landed` state means verifying,
   or, for a change ended there (no tier following its branch, or its
   project's `wait: landed`), landed,
   `Red`, `Cleared` and `Uncleared` joining it after its last state
@@ -306,7 +306,7 @@ configuration/limits.md).
   follows and settings.
   Its writes go in pages of at most 512, the first holding every save,
   and each leaves every row's links whole for the restart's check
-  (`../domain/root.md`, 8.1).
+  (`../domain/root-restart.md`, 1.1).
 - **A new variant** of `Stored` is a new value type at a free family
   byte. It is registered in the owner set, with `STORE_VERSION` held
   at 25 and no patch (`floor.md`, 6; section 4).
@@ -482,7 +482,7 @@ configuration/limits.md).
 - **The job `deleted-repository-forge-rows`** drops what a project's
   deletion left naming a repository whose `Repository` row is gone
   (`../draft/deleted-repository-rows.md`), so that the restart's link
-  check (`../domain/root.md`, 8.1) meets none of it; the check stays
+  check (`../domain/root-restart.md`, 1.1) meets none of it; the check stays
   strict for everything else. It judges by the store alone, never by
   the deployment's configuration:
   - **Present:** a repository with a row in family 2. **An ended

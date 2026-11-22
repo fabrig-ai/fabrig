@@ -48,7 +48,7 @@ engine already decides each call by (`temper/crates/temper-engine-domain/src/tra
   families: it is how a run reads the whole form of a tool (2), and it
   costs 465 bytes. It is the only such tool.
 - **`change` in its plan form** is declared where the run's authority
-  also holds the control family (`tools.md`, 1); otherwise its short form.
+  also holds the control family (`tools-change.md`, 1); otherwise its short form.
 - **One rule, in one place:** each declaration in `temper-engine-smith`
   carries its offer (`calls.rs`, `Offer`): the family whose tools it is,
   `read_docs`' every run but an asking one, or an asking charter's own.

@@ -162,7 +162,7 @@ pub fn resumed_start(engine: &config::Engine, problems: &mut Problems) {
     );
 }
 /// The deployment's provider is not 0, which the root keeps for the forge's
-/// sign-in (domain/root.md, 5).
+/// sign-in (domain/root-translation.md, 1).
 pub fn provider(engine: &config::Engine, problems: &mut Problems) {
     for (index, provider) in engine.providers.iter().enumerate() {
         match provider.kind {
@@ -497,7 +497,7 @@ fn index_of(numbers: &[u32], number: u32) -> usize {
     index
 }
 /// What the root's construction asserts, refused before it is made, each
-/// naming the configuration that breaks it (domain/root.md, 5).
+/// naming the configuration that breaks it (domain/root-translation.md, 1).
 #[expect(clippy::too_many_lines, reason = "root admission checks each landing bound before construction")]
 pub fn root(
     mut core: jig_domain_core::Config,

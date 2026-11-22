@@ -517,7 +517,7 @@ impl Application for Temper {
                 peers.started = true;
                 // The project's first period comes from outside the root, once
                 // (jig's `protocol/configuration.md`, 5); the repository's git
-                // identity is an application credential (domain/root.md, 6.1).
+                // identity is an application credential (domain/root-translation.md, 2.1).
                 if !store.rows.keys().any(|key| {
                     matches!(
                         key,

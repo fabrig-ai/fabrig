@@ -479,7 +479,7 @@
   count reads the changes' `landed_default` rows, at most
   `forge.changes_landed` (8 in `small`) across the project's
   repositories, from landing logs of `landings_kept` landings each
-  (`../../domain/after-landing.md`, section 10), so a busy week's count
+  (`../../domain/after-landing-storage.md`, section 1), so a busy week's count
   is a floor, as Work's Landed this week is (`work.md`, 2). Default: so,
   nothing stored added; or the changes' document counts each person's
   sign-offs over every landing its logs keep, a wire field.

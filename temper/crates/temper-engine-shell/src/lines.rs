@@ -859,7 +859,7 @@ fn start_wait_line(binary: &str, words: &[u8]) -> String {
     line
 }
 
-// temper/docs/design/domain/worker/README.md, 4.3: one bounded, escaped operator line.
+// temper/docs/design/domain/worker/hosted-runs.md, 1.3: one bounded, escaped operator line.
 fn run_refusal_line(binary: &str, diagnostic: temper_engine_service::RunRefusalDiagnostic) -> String {
     let temper_engine_service::RunRefusalDiagnostic { task, run, attempt, reason } = diagnostic;
     let (class, detail) = match &reason {

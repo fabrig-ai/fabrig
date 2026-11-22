@@ -252,7 +252,7 @@
   section 9).
 - **`TierActRequest`,** `tier_act`, appended after `TriageFinding`: of
   the project it names, from a project owner or the deployment's owner,
-  as `FollowActRequest` (`../../domain/after-landing.md`, section 3, *A
+  as `FollowActRequest` (`../../domain/after-landing-runs.md`, section 2, *A
   person's hold*): `project`, u32; `repository`, an option of
   `DraftRepository`, none for the project's home; `tier`, at most 32
   bytes; `act`, `TierAct`: `hold`, `TierHoldAct`, its `reason`, 1 to
@@ -733,7 +733,7 @@
   - `landed`, at most `forge.changes_landed` (8 in `small`), newest first,
     across the project's repositories, a row for each change of each
     landing, each a `ChangesLanded`: `task`, `title` and `at`, the landing
-    log's (`../../domain/after-landing.md`, section 10); `commit`, the
+    log's (`../../domain/after-landing-storage.md`, section 1); `commit`, the
     landing's, 32 bytes; `default_branch`, whether the branch the
     landing moved is its repository's landing branch, the main one
     (`../../domain/forge/adoption.md`, 8), whatever the forge's default

@@ -1,4 +1,4 @@
-//! A person's hold and the independent task hold (after-landing.md, 3).
+//! A person's hold and the independent task hold (domain/after-landing-runs.md, 2).
 use super::*;
 const PARTY: u64 = 19;
 const TOKEN: Token = Token::new(91);

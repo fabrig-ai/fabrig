@@ -156,7 +156,7 @@ branches it follows (N5), and main's follow main alone.
 - **Main's tiers** are the suites too slow for the gate (a browser suite,
   exhaustive profiles). Each runs on main's tip as it moves, one run per
   tier at a time, the next at the newest tip, so one run covers every
-  landing since the last (`../../domain/after-landing.md`, section 3).
+  landing since the last (`../../domain/after-landing-runs.md`, section 2).
 - **A verdict** (`../../domain/after-landing.md`, section 5): green clears every
   landing in the run's range. Red reruns the failed tests alone: those
   that pass are a flake. What failed in the tier's previous run too is

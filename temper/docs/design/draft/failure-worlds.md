@@ -24,7 +24,7 @@ Draft, 2026-11-20, on the user's word. In the week from 13 to 20 November the re
 - **jig's conformance world** crashes the engine at every commit, and its referee checks jig's promises from outside: bounded delivery, order and ownership, and nothing lost across restarts (`jig/docs/design/domain/testing.md`, sections 5 and 6).
 - **The design states rules the checks hold:**
   - a landing's step never waits on what nothing will answer (`../domain/landing-waits.md`, section 1; `../domain/landing.md`, 4.2);
-  - a red that isn't the change's asks no repair (`../domain/landing.md`, 7.4);
+  - a red that isn't the change's asks no repair (`../domain/landing-proof.md`, 2.4);
   - jig's promises (`jig/docs/design/domain/model.md`, section 11).
 - **Most of what failed can be shown in memory.** Of the 125 problems, 79 have a mechanism a tier below the real loop can show: 50 in step tests, 24 in domain worlds, and 5 in system, machine or protocol worlds. 26 need real machines, real providers or a person's action, and 20 have no established cause (`../../development/failures-1113-1120.md`). The faults that broke things mostly fall already. What the worlds lack is three things:
   - the combinations of lifecycles they exercise;

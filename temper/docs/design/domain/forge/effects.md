@@ -14,7 +14,7 @@ recovery are skein's `forge/client.md`, section 7. temper's effects:
 |---|---|---|---|---|
 | 3 | open a pull request | a creation: from a branch into its landing branch, with a title, a body and a key | conditional: only while no pull request for its branches is open; Forgejo keeps it, closed or not | by its branches; the change accepts an open pull request alone, never a closed or merged one (`change/README.md`, 2, step 2) |
 | 10 | edit a pull request's title, body or base | a set | idempotent | written again |
-| 11 | update a pull request from its base | a transition: the base's tip merged into its branch, or its commits rebased onto it (`../landing.md`, 5.2), by the forge | idempotent: every copy leaves its head containing the base, or changes nothing; a late copy may move the head (`updates.md`, section 1) | its head contains the base tip it asked for |
+| 11 | update a pull request from its base | a transition: the base's tip merged into its branch, or its commits rebased onto it (`../landing-prepare.md`, 1.2), by the forge | idempotent: every copy leaves its head containing the base, or changes nothing; a late copy may move the head (`updates.md`, section 1) | its head contains the base tip it asked for |
 | 4 | merge a pull request | a transition, conditional on its exact head; or, where the forge keeps a merge queue on the base, the pull request queued there (`queues.md`, 1) | conditional | merged, and at which commit; or in the forge's merge queue |
 | 12 | close, reopen a pull request | a set | idempotent | written again |
 | 5 | post a review | a creation, with a key | unrecoverable | by its key, among the reviews after the entry's start |
@@ -55,7 +55,7 @@ recovery are skein's `forge/client.md`, section 7. temper's effects:
   family converts at read; an in-flight write is not an upgrade
   refusal. The forge's restore links a `Flight` row to its entry, and one whose entry
   it does not hold is a writer's bug, a link that cannot be made, which
-  refuses the start (`../root.md`, 8.1; jig's `domain/engine/restart.md`
+  refuses the start (`../root-restart.md`, 1.1; jig's `domain/engine/restart.md`
   ).
 - **Classes follow what the forges offer** (skein's `forge/client.md`,
   section 7.3; the facts, skein's `forge/forgejo.md`, section 2, and
@@ -141,7 +141,7 @@ recovery are skein's `forge/client.md`, section 7. temper's effects:
   again once the forge connects (`adoption-connection.md`, 1). A forge away is none either: an
   entry the client fails `Unavailable`, never sent, is committed again
   after a wait that grows (`keeping-up.md`, 5).
-- **A stop settles first** (../root.md, 8.2): told to settle, the connector
+- **A stop settles first** (../root-restart.md, 1.2): told to settle, the connector
   tells its client to (skein's `forge/client.md`, 7.8), so no write
   starts and none is tried again; a committed entry's notification is
   retired unmade, its row durable; no change steps. The writes already
@@ -149,7 +149,7 @@ recovery are skein's `forge/client.md`, section 7. temper's effects:
   saved as ever. It says it has settled when its client does: at once if
   nothing sent lacked its outcome, or at the client's bound, with each
   write still without one named by its entry and its task, which the
-  next start settles as its class says (section 2).
+  next start settles as its class says (`effects.md`, section 2).
 
 ## 2. Restart
 
@@ -177,7 +177,7 @@ named to the routing for its reconcile (`adoption.md`, 2). Each `Names` row of a
 jig holds live is that task's names, and every other row a kept task's
 (`adoption-connection.md`, 1), whatever forges it names; a start with more live rows than
 `forge.tasks`, or more kept ones than `forge.repositories`, is refused
-as any record past the limits (`../root.md`, 8.1). Until a forge connects,
+as any record past the limits (`../root-restart.md`, 1.1). Until a forge connects,
 its reads and entries answer `NotConnected`, which narrows nothing
 (`adoption-connection.md`, 1), so the steps below run on each forge as it connects. Before its
 records, the connector loads its kinds' values from its family
@@ -226,11 +226,11 @@ named, in the words and order of `../../protocol/README.md`, 6.3:
   by its number and task.
 
 The root reports them past the report bound as its step's waiters
-(`../root.md`, 8.1). Nothing in them is a deadline.
+(`../root-restart.md`, 1.1). Nothing in them is a deadline.
 
 **A stop during steps 1 and 2.** Told to settle while it reads afresh
-or settles its outbox (`../root.md`, 8.2), the forge stops waiting for
-either: it settles as at any stop (section 1), its client sending
+or settles its outbox (`../root-restart.md`, 1.2), the forge stops waiting for
+either: it settles as at any stop (`effects.md`, section 1), its client sending
 nothing new (skein's `forge/client.md`, 7.8). A read or a find
 answered after is taken as a fact and steps nothing, and the end of
 either step is no longer awaited, its report, should it come, dropped.

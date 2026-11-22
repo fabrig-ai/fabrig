@@ -171,7 +171,7 @@ hold passes the turn on, as every hold does.
 ### 2.5 The contract
 
 `temper-engine-domain-forge-change`'s boundary owns the clock, and a
-landing's gate counts the same one (`../../landing.md`, 7.1):
+landing's gate counts the same one (`../../landing-proof.md`, 2.1):
 
 ```rust
 /// What a reading saw of the pending CI at a head (2.1).

@@ -1,4 +1,4 @@
-//! Hold the core’s stop while sent forge entries finish (domain/root.md, 8.2).
+//! Hold the core’s stop while sent forge entries finish (domain/root-restart.md, 1.2).
 use crate::boundary::{Request, Unsettled, Work};
 use crate::domain::{Domain, now};
 use alloc::boxed::Box;

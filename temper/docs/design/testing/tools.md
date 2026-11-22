@@ -2,10 +2,9 @@
 
 Provisional, 2026-11-11, from `../draft/cli-c8-tools.md`, milestone C8
 of `../draft/cli.execution.md`, with landed QA's tool from milestone Q1
-of `../draft/landed-qa.execution.md`, and the redeploy's tool from
-milestone R6 of `../draft/redeploys.execution.md`. The binaries temper's
-development, tests, QA and its deployments' operator run beside its
-products: each an internal binary in a package
+of `../draft/landed-qa.execution.md`. The binaries temper's
+development, tests and QA run beside its products: each an internal
+binary in a package
 of its own under `temper/bin/`, built as the repository's command line
 says (`skein/docs/foundation/cli.md`). What each one does is designed
 with its subject (section 2); this document says how each is laid out,
@@ -52,7 +51,6 @@ transcripts' and playground-serve's are, it takes two lines of the page.
 | `temper-stage-one` | `temper/tools/stage-one`, package and binary `temper-stage-one` | configuring's stage 1: its golden, check, judge and evidence. | `checks.md`, 5 |
 | `temper-twin` | `temper/tools/twin`, package `temper-twin`, binary `twin` | a live run's twin: a fake LLM document that replays its agents. | `fakes.md`, 1; `real-loop.md` |
 | `temper-qa` | new, landed QA's | QA after landing: main's landings triaged into cases, and passes run on builds kept for them. | `qa/README.md` |
-| `temper-redeploy` | new, the redeploy's | a deployment's redeploy: the engine alone by default, workers in turn, every part together across a breaking change, and its referee. | `../redeploy.md` |
 
 Their forms are today's:
 
@@ -75,11 +73,7 @@ Their forms are today's:
   TASK=PHRASE]... [--replace OLD=NEW]...`;
 - `temper-qa run`, `temper-qa build keep COMMIT DIR`, `temper-qa triage
   none WHY`, `temper-qa triage case FILE`, `temper-qa show` and
-  `temper-qa lines` (`qa/README.md`, 2), new, its arguments its own;
-- `temper-redeploy stage DESCRIPTION COMMIT`, `temper-redeploy run
-  DESCRIPTION COMMIT --record FILE [--workers | --together]` and
-  `temper-redeploy referee DESCRIPTION RECORD` (`../redeploy.md`, 3, 4
-  and 6), new.
+  `temper-qa lines` (`qa/README.md`, 2), new, its arguments its own.
 
 ## 3. A binary and its crate
 

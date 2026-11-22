@@ -1,5 +1,5 @@
 //! Lost updates and their copies (domain/forge/updates.md, 1, and domain/forge/README.md, 10;
-//! domain/landing.md, 5.2 and 16; jig/docs/design/domain/connectors.md, 15).
+//! domain/landing-prepare.md, 1.2, and domain/landing.md, 16; jig/docs/design/domain/connectors.md, 15).
 use skein_fake_forge_domain::api as raw;
 use skein_forge::api;
 use skein_lib::Duration;

@@ -92,7 +92,7 @@ pub enum Repair {
     Gate(u64),
     /// CI failed after a clean update from the base.
     Semantic,
-    /// A landing's gate failed at its candidate (domain/landing.md, 7.3).
+    /// A landing's gate failed at its candidate (domain/landing-proof.md, 2.3).
     Landing { gate: u16 },
     /// A person's request for changes on the forge, at the head they reviewed (domain/forge/change/gates.md, 1).
     Review { head: Commit },
@@ -197,7 +197,7 @@ pub enum State {
     Gating { head: Commit, asked: Box<[u64]> },
     /// Ready at `head`: its landing prepares, proves and lands it (domain/landing.md, 3).
     Ready { head: Commit, ready_since: Wall },
-    /// The prepare's rebase onto `main` is outstanding (domain/landing.md, 5.2).
+    /// The prepare's rebase onto `main` is outstanding (domain/landing-prepare.md, 1.2).
     Preparing { from: Commit, main: Commit, ready_since: Wall },
     /// CI failed; cancelled gate delegates must end before repair is funded.
     CancellingGates { head: Commit },
@@ -563,7 +563,7 @@ pub enum Effect {
     Retarget,
     /// Merge the landing branch into the change's branch.
     Update { head: Commit, base: Commit },
-    /// Rebase the pull request onto `main` (domain/landing.md, 5.2).
+    /// Rebase the pull request onto `main` (domain/landing-prepare.md, 1.2).
     Prepare { head: Commit, main: Commit },
     /// Merge the pull request at its checked head.
     Merge { head: Commit, base: Commit },
@@ -616,7 +616,7 @@ pub struct Stepped {
 }
 
 /// Bounds on delegates, updates, stalls and supplied gate facts
-/// (temper/docs/design/domain/agent/tools.md, 1).
+/// (temper/docs/design/domain/agent/tools-change.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
     /// Re-runs of a job the runner failed at one head, counted by the forge's attempts.

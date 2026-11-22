@@ -75,7 +75,7 @@ pub struct JobSpec {
     pub request: Box<[u8]>,
 }
 
-/// The repositories a run works in (`domain/worker/README.md`, 4.1). The checkout
+/// The repositories a run works in (`domain/worker/hosted-runs.md`, 1.1). The checkout
 /// that holds them is keyed by jig's workstream, the holding task's number;
 /// an empty list means the run has no workspace items, so no checkout is
 /// prepared or held.

@@ -1,4 +1,4 @@
-//! A landing gate with no uploaded verdict is the runner's (landing.md, 7.4).
+//! A landing gate with no uploaded verdict is the runner's (domain/landing-proof.md, 2.4).
 use super::*;
 use crate::history::{Event as HistoryEvent, GateVerdict, What};
 use skein_forge::api::{self, Answer, Op, Read, Write};

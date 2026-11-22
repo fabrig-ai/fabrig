@@ -153,12 +153,12 @@ trips".
   commit, each file and its checksum. A build is published to the pass
   only once every executable prints that commit as its version. temper
   needs nothing for this: it is the deployment's, on its disk, a tier of
-  its own or a part of one (`../domain/after-landing.md`, 2).
+  its own or a part of one (`../domain/after-landing-runs.md`, 1).
 - **Not every tip is kept:** after-landing work covers several landings
   at once and a receipt may judge a tip with no run
-  (`../domain/after-landing.md`, 3). A case waits for the next kept build
+  (`../domain/after-landing-runs.md`, 2). A case waits for the next kept build
   that holds its landing. One that has waited past the deployment's bound
-  is a line for the owner (section 2).
+  is a line for the owner (`landed-qa.md`, section 2).
 - **A build is deleted** when no pass holds it, triage has reached it
   (section 4), and either a newer build triage has reached is kept, or no
   queued case's landing is in it. Nothing else deletes one. So what is

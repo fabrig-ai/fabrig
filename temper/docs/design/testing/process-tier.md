@@ -227,7 +227,7 @@
   tree, read once the link is printed and again while a run started
   after the restart is live, runs a file of the new `bin/`, by device
   and inode, or, an agent, the worker's pin of the new `temper-box`
-  (`../protocol/setup/box.md`, 1; `../domain/worker/README.md`, 5): a
+  (`../protocol/setup/box.md`, 1; `../domain/worker/agent-processes.md`, 1): a
   file in the worker's `agent/`, its bytes the new `temper-box`'s, and
   not the file the first start pinned, by device and inode; none an old
   or a deleted file, and none a Forgejo or a runner. A process that has
@@ -351,7 +351,7 @@
   surviving it, not what a power loss does, which the one-process world
   draws (`README.md`, 2.5). Every end outside a named crash, cancellation or setup cut, is a deployment's healthy stop
   (skein's `runtime/shell.md`, 12): the test sends `Terminate`, the engine
-  drains (`../domain/root.md`, 8.2), the service closes what it started, and the
+  drains (`../domain/root-restart.md`, 1.2), the service closes what it started, and the
   binary exits 0 with none of its tree running. A process left at that
   exit is temper's failure, its shutdown's; one left by the crash's kill
   is skein's test kit's (skein's `examples.md`, 6). Neither is relaxed.
@@ -447,7 +447,7 @@
     `account list --until settled`) and opens a chat on gpt-6-luna in
     project 1 asking for one README line, unique to the run. The
     chat's agent calls `change`, naming `work/hello`, and the root
-    delegates the change procedure on it (../domain/agent/tools.md, 1; ../domain/forge/change/README.md
+    delegates the change procedure on it (../domain/agent/tools-change.md, 1; ../domain/forge/change/README.md
     ); the coder edits on the plan's grant, its
     pull's starter workflow passes on the owned runner, the change
     lands with no review, since init's landing rule names no gate, and

@@ -62,7 +62,7 @@ place (jig's `domain/engine/overlays.md`).
   goals close, run their merges and ask their person through a person
   task (jig's `domain/people/README.md`, section 7), and jig's control
   family to their tools and role 0's, so the goal's agent may name
-  `change`'s plan members (`../../domain/agent/tools.md`, 1), and jig's
+  `change`'s plan members (`../../domain/agent/tools-change.md`, 1), and jig's
   notes family beside it, in the goal's and the project's scopes, so
   that it notes what it learns: in all, tools 1,983 with the decide,
   propose, subscribe and recall families its row names and no effect
@@ -103,8 +103,8 @@ place (jig's `domain/engine/overlays.md`).
   project 1's `merge_job`, `.temper/merge`, and its tiers (below).
 - **The tiers,** in the same member, project 1's `gates` entry for its
   repository (`forge` and `repository` filled in as the rules' host and
-  name are), with no gate and two tiers (`../../domain/after-landing.md`,
-  section 2): main's, `slow`, the slow suites, workflow
+  name are), with no gate and two tiers (`../../domain/after-landing-runs.md`,
+  section 1): main's, `slow`, the slow suites, workflow
   `tier-slow.yml`, following main; and g's tier, `goal`, the gate
   without its slowest suites, workflow `tier-goal.yml`, `branch`
   `goal`, `span_ms` 1,200,000 (20 minutes); each uploading its failing
@@ -217,7 +217,7 @@ place (jig's `domain/engine/overlays.md`).
   `domain/run.md`, 8.1). Its tiers' workflows are
   `tier-slow.yml` and `tier-goal.yml`, dispatch-only, each running the
   ids in its `temper_tests` input alone when given them
-  (`../../domain/after-landing.md`, section 2). Its merge command is its
+  (`../../domain/after-landing-runs.md`, section 1). Its merge command is its
   `.temper/merge` (`../tooling.md`, 4.1), which recounts a counted
   baseline left in conflict (each tree's `scripts/old-forms.txt`, by
   its `scripts/old_forms.py --write`) and leaves every other conflict.

@@ -419,7 +419,7 @@ fn restarts_in_proving_probing_and_turn_keep_every_identity_once() {
     }
 }
 
-/// A key's follower survives its dispatcher's departure (domain/landing.md, 6 and 7).
+/// A key's follower survives its dispatcher's departure (domain/landing-proof.md, 1 and 2).
 #[test]
 fn a_departed_landings_run_proves_a_successor_with_the_same_key() {
     for restart in [false, true] {

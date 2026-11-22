@@ -11,7 +11,7 @@ use jig_domain_tasks as tasks;
 use skein_lib::{Env, Map, ReplyTo};
 use temper_engine_domain_forge as forge;
 
-/// Startup configuration, supplied once by the shell (domain/root.md, 5):
+/// Startup configuration, supplied once by the shell (domain/root-translation.md, 1):
 /// the core's whole, as jig's applications hold it, and temper's own.
 #[derive(Debug)]
 pub struct Config {
@@ -54,7 +54,7 @@ pub(crate) struct RootConfig {
     pub(crate) forge_connector: u16,
 }
 
-/// Landing rules for test worlds' builders alone (domain/root.md, 5).
+/// Landing rules for test worlds' builders alone (domain/root-translation.md, 1).
 #[derive(Debug)]
 pub struct LandingRules {
     pub deployment: Box<[LandingRule]>,
@@ -553,7 +553,7 @@ fn call_mode(tool: &Tool) -> (bool, bool) {
     }
 }
 
-/// Translate test worlds' landing rules to forge stock (temper/docs/design/domain/root.md, 5).
+/// Translate test worlds' landing rules to forge stock (temper/docs/design/domain/root-translation.md, 1).
 #[must_use]
 pub fn landing_stock(
     deployment: &[LandingRule],

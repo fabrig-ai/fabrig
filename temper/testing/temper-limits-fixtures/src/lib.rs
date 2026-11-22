@@ -165,7 +165,7 @@ const FORGE: forge::Limits = forge::Limits {
     receipts_per_gate: 4,
     ignored_paths: 4,
     // Entries of one tree a landing key reads: a real repository's root runs past the
-    // fixture's 16 (domain/landing.md, 6.1); forge.key_entries overrides it.
+    // fixture's 16 (domain/landing-proof.md, 1.1); forge.key_entries overrides it.
     key_entries: 256,
     key_path_bytes: 1024,
     trees_in_flight: 2,

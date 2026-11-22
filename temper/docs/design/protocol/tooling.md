@@ -2,7 +2,7 @@
 
 Provisional, 2026-11-10. The contract between temper
 and a project's own tooling: the `prepare` and `key` commands a project
-that lands by turn may name (`../domain/landing.md`, 5.3 and 6.1),
+that lands by turn may name (`../domain/landing-prepare.md`, 1.3, and `../domain/landing-proof.md`, 1.1),
 the `merge` command any project may name for the merge job
 (`../domain/forge/change/repairs.md`), and the `close` command any project may name
 for a goal's closer (`../domain/forge/branches.md`, 2); what temper gives them,
@@ -77,13 +77,13 @@ what they write, and how they end. temper runs them as jobs on a worker
   COMMIT}], "gates": [NAME]}`; commits as 40 or 64 hexadecimal digits,
   names as the project's settings give them, `main` the round's base.
   - **`from`** is the commit the round stacks from: `main`, or the last
-    prefix the round keeps (`../domain/landing.md`, 5.1).
+    prefix the round keeps (`../domain/landing-prepare.md`, 1.1).
   - **`members`** are those the job stacks, in the landing's order,
     each onto the one below and the first onto `from`: `number` its
     number in the landing, from 1; `branch` its own branch; `prefix`
     its branch in the landing, where its prefix is pushed
-    (`../domain/landing.md`, 5.1).
-  - **`combine`** is the train's (`../domain/landing.md`, 5.2, and `../domain/landing-settings.md`, 1.1
+    (`../domain/landing-prepare.md`, 1.1).
+  - **`combine`** is the train's (`../domain/landing-prepare.md`, 1.2, and `../domain/landing-settings.md`, 1.1
     ), and **`train_upstream`** its upstream's tip as the round read
     it, present only where the train has an upstream: a member whose
     head holds a commit `main` lacks and `train_upstream` holds is
@@ -115,7 +115,7 @@ what they write, and how they end. temper runs them as jobs on a worker
     line, so the trailers are always the message's last paragraph.
   - **The engine knows a squash** on the landing's branch by its
     `Head: HEAD` line in the message's last paragraph
-    (`../domain/landing.md`, 5.2).
+    (`../domain/landing-prepare.md`, 1.2).
 - **temper's own,** where the project names no prepare command: the
   same request, read by the worker itself, with no command run, and the
   results below with `{"combined": [{"member": N, "by": "merge" |
@@ -128,7 +128,7 @@ what they write, and how they end. temper runs them as jobs on a worker
   `cut` true when the list was cut to its bound. The member is skipped
   and the next stacked on the same prefix. temper resolves a conflict
   with the branch under that member in a workspace of its own, main's
-  tip merged into the member's head (`../domain/landing.md`, 5.2), and
+  tip merged into the member's head (`../domain/landing-prepare.md`, 1.2), and
   lets one with a member wait; nothing of the command's directory is
   kept.
 - **`result.json`, exit 0,** where at least one member combined:

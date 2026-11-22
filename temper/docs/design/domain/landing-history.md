@@ -93,7 +93,7 @@ what the row's `head` and `base` hold.
 | `round-ended` | that round ends | `cause`: `turned`, `left` (a member left), `stale`, `cancelled`, `cut` (its search cut the stack) | none; the round's base | the landing's task, the round |
 | `gate` | a gate's run at the round's top or a probed prefix is first known by its id, not yet ended: its dispatch's run found, or its rerun made; its `source_at` the run's creation | `gate`, its number in the repository's gates; `key` | the prefix; none | the run's id, its attempt |
 | `gate-ended` | that run's outcome is heard | `gate`; `key`; `verdict`: `passed`, `failed`, `fault` (the runner's, retried), `timeout` or `superseded` (its round or head gone) | the prefix; none | the run's id, its attempt |
-| `proved` | the round's top, or its search's green prefix, is proved | `proofs`, each a gate and its run, or none where a receipt already held proved it (`landing.md`, 7.2) | the prefix; the round's base | the landing's task, the round |
+| `proved` | the round's top, or its search's green prefix, is proved | `proofs`, each a gate and its run, or none where a receipt already held proved it (`landing-proof.md`, 2.2) | the prefix; the round's base | the landing's task, the round |
 | `search` | the round's search by prefixes starts (`landing-search.md`, 2) | none | the round's top; its base | the landing's task, the round |
 | `searched` | the search holds its boundary (`landing-search.md`, 4) | `green`, the green prefix, none for the base; `red`, the red prefix; `blamed`, the blamed unit | none; the round's base | the landing's task, the round |
 | `probe` | a probe starts at a prefix (`landing-search.md`, 3) | none | the prefix | the round, 0 |

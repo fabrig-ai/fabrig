@@ -16,7 +16,7 @@
     task, for its first member and `temper/<root>/l<task>-<n>` for its
     member n, each held by the landing from its making, deleted as a
     round that changed its prefix ends unlanded and as the landing
-    closes (`../landing.md`, 5.1);
+    closes (`../landing-prepare.md`, 1.1);
   - a goal's own branch: `temper/<root>/g<task>`, the goal's number, in
     its project's home, held by the goal (1);
   - an agent's task's own branch, for runs that push outside a change,

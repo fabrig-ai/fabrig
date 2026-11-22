@@ -164,9 +164,9 @@ findings, kept in the store and never read back. What is open is `findings.md`, 
 
 ## 5. A flake at a gate
 
-- **When a gate fails** at a candidate (`landing.md`, 7.3) and every
-  failing test of the run (its artifact, as a tier's: after-landing.md,
-  section 4) matches an open flake finding, its failed jobs are rerun
+- **When a gate fails** at a candidate (`landing-proof.md`, 2.3) and every
+  failing test of the run (its artifact, as a tier's: after-landing-runs.md,
+  section 3) matches an open flake finding, its failed jobs are rerun
   once (skein's `Write::Rerun`). Passing, the receipt is made as a pass
   and the flake counted; failing again, it is a real failure, and a
   repair. A test matches a flake finding of the gate's repository whose

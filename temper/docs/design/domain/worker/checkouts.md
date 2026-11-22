@@ -167,7 +167,7 @@ runs as contained processes and whose output it parses.
     taking no permit.
   - **Only preparing waits.** A push or a save takes no permit, so a
     run's delivery never waits behind another run's preparation. Run
-    slots are as they were (`README.md`, section 5): an admitted run keeps
+    slots are as they were (`agent-processes.md`, section 1): an admitted run keeps
     its slot while its preparation is queued.
   - **So a forge meets a few clones at once,** one per worker by default,
     after a worker's restart or a burst of due work alike
@@ -182,7 +182,7 @@ runs as contained processes and whose output it parses.
   needs before then are made by the engine, as effects (../forge/branches.md
   ).
 - **The landing pin.** A repository whose item names a landing branch
-  (`README.md`, 4.1) has it fetched once per hold, during prepare, after its start is
+  (`hosted-runs.md`, 1.1) has it fetched once per hold, during prepare, after its start is
   fetched, on the same remote, into
   `refs/temper/landing` (`../../protocol/git.md`, 4.3), or, where it is the
   branch the start fetched, pointed at that fetch's commit: every start of a
@@ -234,7 +234,7 @@ runs as contained processes and whose output it parses.
   start, push, expected head, own delivery, ownership and drift admission
   are a repair's as before. An item naming both a pin and a landing branch
   is refused at the worker's entrance as an invalid start that names it
-  (`README.md`, 4.1).
+  (`hosted-runs.md`, 1.1).
 - **A goal's reds for each check** (`../forge/reds.md`, 5.2 and 5.3), in
   each writable repository with a pin, under the run's git directory, at
   `.git/temper` (`../../protocol/git.md`, 4.13): prepare
@@ -462,7 +462,7 @@ runs as contained processes and whose output it parses.
   then parked ends its hold, and its next run's hold starts with nothing
   of its own pushed, at the head that run delivered. So the assignment
   names, for each writable repository, the task's own delivery,
-  `delivered` (`README.md`, 4.1; `../../protocol/channel.md`, 4): the
+  `delivered` (`hosted-runs.md`, 1.1; `../../protocol/channel.md`, 4): the
   head of this task's last checked push to that push branch, as the
   engine recorded it (`../forge/change/questions.md`, 1, *A checked
   head*), or none.
@@ -610,7 +610,7 @@ of this bound never goes.
   to `hub.detail_bytes`, its wire's bound, keeping its head. An answer the
   hub sends again after a relink carries the same. A prepare refused at
   the entrance or aborted (`prepare refused: Busy`, `prepare aborted`,
-  `README.md`, 4.3) takes the host too, with no fields.
+  `hosted-runs.md`, 1.3) takes the host too, with no fields.
 - **One line each.** The worker logs a line for each failed preparation, a
   run's or a job's, through its notes (`worker_alone`'s `Note`), which its
   shell writes, an in-process worker's among serve's:
@@ -627,7 +627,7 @@ of this bound never goes.
 
 ### 1.4 Serve prints it whole
 
-Serve's run-failure line (`README.md`, 4.3) prints the detail whole, every
+Serve's run-failure line (`hosted-runs.md`, 1.3) prints the detail whole, every
 byte escaped. The wire bounds it at 4,096 bytes; a longer one, which no
 wire carries, keeps its first 4,096, where the fields are.
 

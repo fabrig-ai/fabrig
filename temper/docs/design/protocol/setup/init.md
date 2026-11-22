@@ -277,7 +277,7 @@ QA's host starts from a copy and `temper box --config COPY` runs it
   (../configuration/stock.md).
 - **Its `application.limits`** are temper's `standard` with
   `checkout.workspaces` and `git_component.operations` 4, the least the
-  worker's slots take (`../../domain/worker/README.md`, section 5);
+  worker's slots take (`../../domain/worker/agent-processes.md`, section 1);
   `checkout.message_bytes` the agent's payload, so the checkout accepts
   the agent's largest call; `forge.client.op_bytes` the engine's result
   bound, which the root holds it to, and `forge_component.body_bytes`

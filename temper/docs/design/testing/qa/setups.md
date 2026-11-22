@@ -298,12 +298,12 @@ machinery alone. A root recipe, at a deployment's place
   conversation (skein's `testing/fakes/llm.md`, 2.4 to 2.6): two goals
   started on Hello whose changes into `main` are ready at one forming
   decision, so that they land in one landing of two
-  (`../../domain/landing.md`, 9), by a latch the person releases
+  (`../../domain/landing-turn.md`, 2), by a latch the person releases
   through ctl, as the owned Forgejo's red narrowed keeps its changes
   together (`../process-tier.md`, landing by turn on a real Forgejo), and their
   reviews; each change's content its own file, a member made red by its
   `.fake-forge/gate`. The same scripts are the real loop's fixture for
-  the story that proves them (section 6).
+  the story that proves them (`setups.md`, section 6).
 - **Its README** says the state and the ctl groups it serves: `landing`,
   `change`, `goal`, `task` and `repository`.
 - **Ctl alone,** so that its walk is a deployment's ctl session

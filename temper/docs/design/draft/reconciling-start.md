@@ -60,7 +60,7 @@ That cycle is one case of a wider gap. The start waits on its forge as one barri
   - **After the opening:** the settled stop as today, the forge's reconciliation included. A forge that reconciles never holds a stop past the settled stop's bound, past which the stop ends unsettled and names what it leaves (`temper/docs/design/draft/upgrades.md`, 8).
   - **A second signal aborts,** as today.
   - **The bounds derive from one another.** The engine prints its stop bound and its start's report bound (section 5) in its `--version` details. A unit written for it, by temper's help or a deployment's description, takes its stop timeout from there, with a margin, and never sets a start timeout below the store's open.
-  - Revise `temper/docs/design/domain/root.md`, 8.2 (the stop during a start), `temper/docs/help/server.md` (the units' timeouts) and the configuration's derived figures, with their status files.
+  - Revise `temper/docs/design/domain/root-restart.md`, 1.2 (the stop during a start), `temper/docs/help/server.md` (the units' timeouts) and the configuration's derived figures, with their status files.
 
 ## 5. A wait says what it waits for
 

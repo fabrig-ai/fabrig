@@ -142,7 +142,7 @@ Then the goal parks (jig's `domain/engine/executors.md`, 4).
   MCP server has never run. The largest seen is about 10 KB.
 - **Budgets aren't a plan's bound yet:** the pipeline has none, so a deployment
   starts goals with `--as-allowed`, or too high to hit. The half a `change` carves
-  (`../domain/agent/tools.md`, 1) stays.
+  (`../domain/agent/tools-change.md`, 1) stays.
 
 `model-catalogue.md` moves models into the store, and keeps window and output the
 stock's (its section 2). This section changes the reference's figures. Whether the

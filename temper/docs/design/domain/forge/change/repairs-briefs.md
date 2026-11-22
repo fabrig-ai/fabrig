@@ -76,7 +76,7 @@ This document holds the gathering of a change's forge brief, split from [`repair
   deadline time its reads, so a section waiting on no read would meet
   neither and fail its brief `SECTION: not gathered by its deadline` at
   every attempt, however long the deadline. A landing's repair's CI
-  section (`../../landing.md`, 7.3; `../../landing-search.md`, 7) reads no
+  section (`../../landing-proof.md`, 2.3; `../../landing-search.md`, 7) reads no
   forge: it is the failure the landing pinned, the round's failure while
   the landing keeps its row and then the gate's failed receipt, which
   outlives the row. Where the landing keeps neither, its row retired and

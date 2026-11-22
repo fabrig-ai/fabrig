@@ -1,4 +1,4 @@
-//! Top-owned landing rows, coherent reads, receipts and effects (domain/landing.md, 2–15).
+//! Top-owned landing rows, coherent reads, receipts and effects (domain/landing.md, 2–4, and domain/landing-prepare.md, 1, and domain/landing-proof.md, 1–2, and domain/landing-turn.md, 1–2, and domain/landing.md, 10–15).
 //! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
 use crate::domain::{child, emit, keep_entry};
 use crate::{
@@ -39,7 +39,7 @@ pub(crate) struct State {
     pub(crate) main_keys: Map<RepositoryGate, KeyAt>,
     pub(crate) flights: Map<ReceiptKey, runs::Follow>,
     pub(crate) faults: Map<Position, runs::Follow>,
-    /// Effect status and whether its outcome is a known refusal (landing.md, 8).
+    /// Effect status and whether its outcome is a known refusal (domain/landing-turn.md, 1).
     pub(crate) results: Map<(u64, u16, u16, u8), (policy::Status, bool)>,
     pub(crate) limits: Limits,
 }
@@ -494,7 +494,7 @@ impl Domain {
         *cap = batch;
         true
     }
-    /// Main takes the project's batch; another train takes one whole unit (landing.md, 9).
+    /// Main takes the project's batch; another train takes one whole unit (domain/landing-turn.md, 2).
     #[must_use]
     pub fn train_batch(&self, repository: api::Repository, branch: &[u8]) -> u16 {
         let Some(repo) = self.repository(repository) else { return 1 };
@@ -666,7 +666,7 @@ impl Domain {
         );
         words.into_boxed()
     }
-    /// Trains and their waiting changes are derived, never reserved (domain/landing.md, 9).
+    /// Trains and their waiting changes are derived, never reserved (domain/landing-turn.md, 2).
     #[must_use]
     pub fn train_free(&self, repository: api::Repository, branch: &[u8]) -> bool {
         for (_, row) in &self.landing.rows {
@@ -692,7 +692,7 @@ impl Domain {
         }
         trains.into_boxed()
     }
-    /// The first eligible waiting change of a free train with room (domain/landing.md, 9).
+    /// The first eligible waiting change of a free train with room (domain/landing-turn.md, 2).
     #[must_use]
     pub fn first_waiting(&self, repository: api::Repository, branch: &[u8], kept: &[u64], now: Wall) -> Option<u64> {
         let units = self.waiting_units(repository, branch, kept, &[], now);
@@ -1067,7 +1067,7 @@ fn pending_for(d: &Domain, task: u64) -> Option<Token> {
     }
     existing
 }
-// A procedure consumes its result even when a prefix read is busy (domain/landing.md, 5.2).
+// A procedure consumes its result even when a prefix read is busy (domain/landing-prepare.md, 1.2).
 fn remember_preparation(d: &mut Domain, env: &Env<Limits>, task: u64, heard: &LandingHeard, out: &mut Queue<Request>) {
     let preparation = heard.preparation.unwrap_or(policy::Preparation::Running);
     if heard.outcomes.is_empty()
@@ -1111,7 +1111,7 @@ fn unread_evidence(member: u64, change: &crate::ChangeRow) -> crate::LandingEvid
 
 // No prepare can belong to a train round before its base is initialized.
 // Retire repeated results before prefix reads can wait on a deleted branch
-// (temper/docs/design/domain/landing.md, 5.1–5.2, 15).
+// (temper/docs/design/domain/landing-prepare.md, 1.1–1.2, and temper/docs/design/domain/landing.md, 15).
 fn retire_preparation(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -2497,7 +2497,7 @@ fn squash_head(message: &[u8], head: api::Commit) -> bool {
 }
 
 /// A receipt is shared by project, repository, gate and filtered tree, independent
-/// of the landing that dispatched it (domain/landing.md, 6 and 7).
+/// of the landing that dispatched it (domain/landing-proof.md, 1 and 2).
 fn reads_key(d: &Domain, row: &LandingRow, key: &ReceiptKey) -> bool {
     if row.landing.project != key.project {
         return false;
@@ -3494,7 +3494,7 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
         decision
     };
     // A terminal round still owns its dispatched runs until their receipts
-    // settle the outbox (domain/landing.md, 7.1), while its members are free to land again.
+    // settle the outbox (domain/landing-proof.md, 2.1), while its members are free to land again.
     let decision = if decision == policy::Decision::Finish
         && let Some(on) = following_wait(d, p.task)
     {
@@ -3974,7 +3974,7 @@ fn finish_flight(d: &mut Domain, key: &ReceiptKey, probed: Option<(u64, bool)>, 
     }
 }
 /// A turn's merge belongs to its member's change; its effect is the landing's
-/// (domain/forge/topics.md, 1.3; domain/landing.md, 8).
+/// (domain/forge/topics.md, 1.3; domain/landing-turn.md, 1).
 pub(crate) fn merged_owner(d: &Domain, task: u64, entry: u64) -> u64 {
     let Some(row) = d.landing.rows.get(&task) else {
         return task;
@@ -4502,7 +4502,7 @@ pub(crate) fn rebuild(d: &mut Domain) {
 
 /// A successful rerun write may precede the forge's next attempt. Only a terminal
 /// reading beyond every kept job attempt can make its receipt; runner faults keep
-/// their retry path (landing-regate.md, 2; landing.md, 7.4).
+/// their retry path (landing-regate.md, 2; domain/landing-proof.md, 2.4).
 fn old_flake_attempt(d: &Domain, key: &ReceiptKey, answer: &Result<api::Answer, api::Error>) -> bool {
     let Ok(api::Answer::Run(run)) = answer else { return false };
     if run.state != api::RunState::Completed {
@@ -4919,7 +4919,7 @@ fn following_wait(d: &Domain, task: u64) -> Option<policy::Awaited> {
 }
 
 /// Startup's fresh-read wake may precede task activation; rebuild the poll at `CatchUp`
-/// (domain/landing.md, 12; domain/root.md, 8.1).
+/// (domain/landing.md, 12; domain/root-restart.md, 1.1).
 pub(crate) fn restore_waits(d: &mut Domain, env: &Env<Limits>) {
     for (task, row) in &d.landing.rows {
         if row.room.is_some() {
@@ -5521,7 +5521,7 @@ impl Domain {
     }
 }
 /// Authority's wait is not a refused merge: it spent no send and keeps its turn
-/// (domain/forge/catching-up.md, 4; domain/landing.md, 8).
+/// (domain/forge/catching-up.md, 4; domain/landing-turn.md, 1).
 pub(crate) fn defer_merge(d: &mut Domain, task: u64, entry: u64, out: &mut Queue<Request>) {
     if !matches_entry(d, task, entry) {
         return;
@@ -5668,7 +5668,7 @@ pub(crate) fn closing(
     }
 }
 
-// An ending landing frees only its repository and branch (domain/landing.md, 4.2 and 9).
+// An ending landing frees only its repository and branch (domain/landing.md, 4.2, and domain/landing-turn.md, 2).
 fn wake_train_ready(d: &Domain, task: u64, out: &mut Queue<Request>) {
     let Some(landing) = d.landing.rows.get(&task) else { return };
     let Some(member) = landing.landing.members.first() else { return };
@@ -5811,7 +5811,7 @@ fn matches_failed(left: Option<policy::Leave>, gate: u16) -> bool {
     }
 }
 
-/// A failed step's end waits until the gate's report decides its verdict (landing.md, 7.3–7.4).
+/// A failed step's end waits until the gate's report decides its verdict (domain/landing-proof.md, 2.3–2.4).
 fn reported_end(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -5828,7 +5828,7 @@ fn reported_end(
     }
 }
 
-/// Keep the failed run's job attempts for the policy's retry, never a receipt (landing.md, 7.4).
+/// Keep the failed run's job attempts for the policy's retry, never a receipt (domain/landing-proof.md, 2.4).
 fn retain_fault(d: &mut Domain, key: &ReceiptKey, out: &mut Queue<Request>) {
     let flight = d.landing.flights.get(key).expect("faulting flight");
     let dispatching = d.landing.rows.get(&flight.task).expect("dispatching landing");
@@ -5882,7 +5882,7 @@ fn receipt_report(
     }
 }
 
-/// Snapshot each failed job before publishing the failed receipt (domain/landing.md, 7.3).
+/// Snapshot each failed job before publishing the failed receipt (domain/landing-proof.md, 2.3).
 #[expect(clippy::too_many_arguments, reason = "one coherent failed run and its bounded log cursor")]
 fn failed_jobs(
     d: &mut Domain,
@@ -5967,7 +5967,7 @@ fn failed_jobs(
     failed_receipt(d, env, owner, p, key, run, evidence, None, row_logs, out);
 }
 
-/// An uploaded report keeps the gate's failure (domain/landing.md, 7.3).
+/// An uploaded report keeps the gate's failure (domain/landing-proof.md, 2.3).
 #[expect(
     clippy::too_many_arguments,
     reason = "the failed run and both report interpretations complete one landing read"

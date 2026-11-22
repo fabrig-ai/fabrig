@@ -1,5 +1,5 @@
 //! Holds: a client's hold on a workspace, from its prepare to its release,
-//! and the operations it runs there, one at a time (domain/worker/README.md, 4.2
+//! and the operations it runs there, one at a time (domain/worker/hosted-runs.md, 1.2
 //! steps 2, 7 and 8, and 5). Preparations take permits in arrival order
 //! (domain/worker/checkouts.md, Preparations a few at a time).
 //!

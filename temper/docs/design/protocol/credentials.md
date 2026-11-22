@@ -540,7 +540,7 @@ sources in its holder's order. temper configures the LLM providers
   never kept.
 - **The order:** the routing puts each value in the identities' table,
   then gives the root `Event::Credential { number, generation, valid }`
-  (jig's `domain/engine/README.md`, 6.1; `../domain/root.md`, 6.1). At start,
+  (jig's `domain/engine/README.md`, 6.1; `../domain/root-translation.md`, 2.1). At start,
   each Forgejo identity with a value is announced before the root's
   restart, so it is usable when decisions open. A GitHub forge's entries
   gathered before its first `Connected` since the start make no
@@ -595,7 +595,7 @@ sources in its holder's order. temper configures the LLM providers
   an agent its LLM grants only.
 - **A forge that refuses the identity** fails the workspace, never the
   credential: a preparation it refuses is `Preparation::Refused`
-  (`../domain/worker/README.md`, 4.3), a push `Landing::Refused`
+  (`../domain/worker/hosted-runs.md`, 1.3), a push `Landing::Refused`
   (`../domain/worker/checkouts.md`). Limited, refused and unauthorized
   are LLM accounts' notices only (jig's `domain/accounts.md`, 3.5).
 - **Withdrawn with its forge.** A forge's removal takes its identity's

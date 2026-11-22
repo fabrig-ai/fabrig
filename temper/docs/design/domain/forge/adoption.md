@@ -22,8 +22,8 @@
   back by one pair of functions in the forge's domain; a tag with a bit
   set above the forge's names none. A delegation's resource,
   a workspace's repository, what a run left and a pushed head carry it,
-  and a saved resource's path is the pair itself (`../root.md`, section
-  5), so two forges' repositories with the same id in one project stay
+  and a saved resource's path is the pair itself (`../root-translation.md`, section
+  1), so two forges' repositories with the same id in one project stay
   two. A tag whose pair the task's project has not adopted names none.
 - **The adoption request is the forge's own,** keyed as any party's
   request (`../../client/forge/family.md`, 4): the root takes it from the protocol
@@ -277,7 +277,7 @@ narrowed, and its changes wait.
   statuses and dispatches workflows (`../../protocol/setup/github.md`, 1), so
   that its receipts and verdicts are mirrored (`../landing.md`, 10), and
   adoption says, for each landing branch, whether its bypass is
-  `Always`, which the turn needs (`../landing.md`, 8).
+  `Always`, which the turn needs (`../landing-turn.md`, 1).
 
 ## 5. A repository made or copied
 
@@ -451,7 +451,7 @@ apart.
 - **Everything that means the branch temper lands into reads
   `landing`:**
   - a change whose landing is left out, otherwise its applicable held
-    goal branch (`../agent/tools.md`, 1); `"branch": "mine"`'s with
+    goal branch (`../agent/tools-change.md`, 1); `"branch": "mine"`'s with
     none; a change a person opens with no `into`
     (`change/opened.md`); and a change's base and its landing news's
     topic where its parameters name none;

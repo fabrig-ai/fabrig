@@ -14,7 +14,7 @@
 
 ## 2. Where it starts
 
-- **Built in `turn`:** a landing task per ready change; prepare by the forge's rebase onto main's tip (`../domain/landing.md`, 5.2); keys and receipts (6); gates dispatched at the candidate, runner faults retried (7.1, 7.4); the turn, a fast-forward of main (8); restart recovery (15); views.
+- **Built in `turn`:** a landing task per ready change; prepare by the forge's rebase onto main's tip (`../domain/landing-prepare.md`, 1.2); keys and receipts (6); gates dispatched at the candidate, runner faults retried (7.1, 7.4); the turn, a fast-forward of main (8); restart recovery (15); views.
 - **Designed in `turn`, not built:** several members in one repository, prepared by a job (4.1, 5.3); a project's prepare and key commands.
 - **What keeps `turn` from being a queue:**
   - **Proofs run side by side** (7.2) and the first proved lands first (9): with n ready changes, each proves at once, one lands, and the rest go stale and prove again: n, then n-1, and so on.
@@ -67,13 +67,13 @@
 
 ### 5.1 The merge train
 
-- **Every landing prepares by a job** (`../domain/landing.md`, 5.3; `../domain/worker/jobs.md`), a stack of one included, temper's own when the project names no prepare command: from the round's base, for each member in order, its head combined onto the prefix below by the train's `combine` (10):
+- **Every landing prepares by a job** (`../domain/landing-prepare.md`, 1.3; `../domain/worker/jobs.md`), a stack of one included, temper's own when the project names no prepare command: from the round's base, for each member in order, its head combined onto the prefix below by the train's `combine` (10):
   - **merge:** a merge of the member's head, no fast-forward, the branch's line as the first parent, the member's title and change in the message;
   - **squash:** one commit whose tree is that merge's, its only parent the prefix below, its message the member's title, then its change, pull request and head as trailers.
 - **Each such commit is a prefix,** pushed by the worker to a branch of its own that the landing makes and holds, named per landing, round and member under the landing's branch name (`../domain/forge/branches.md`), each push expecting the branch new. The last is the round's candidate. The job writes under the landing's hold, as a pin-only member's does (`../domain/landing.md`, 4.1).
-- **Its report** gives, per member, the prefix commit it pushed, or the conflict that made it skip the member (5.2); and each prefix's keys where the project's key command runs in it, otherwise the top reads the prefixes' trees and computes them (`../domain/landing.md`, 6.1).
+- **Its report** gives, per member, the prefix commit it pushed, or the conflict that made it skip the member (5.2); and each prefix's keys where the project's key command runs in it, otherwise the top reads the prefixes' trees and computes them (`../domain/landing-proof.md`, 1.1).
 - **Prepares again** only from the first prefix that changed, a new round's branches beside the old. The prefixes below it keep their commits, keys and receipts.
-- **Lost or partial:** a job let go is found again by the branches it named and their expected trees, and what it didn't push is pushed afresh; a job's own failure is the project's, not a member's, as `../domain/landing.md`, 5.3 says.
+- **Lost or partial:** a job let go is found again by the branches it named and their expected trees, and what it didn't push is pushed afresh; a job's own failure is the project's, not a member's, as `../domain/landing-prepare.md`, 1.3 says.
 - **Cleaned up:** a round's branches, and its pull request if it opened one, are closed and released when the round ends; the landing's, when it ends.
 
 ### 5.2 A conflict
@@ -86,17 +86,17 @@
 
 ### 5.3 Why merges or squashes, not rebases
 
-A goal's branch takes its changes and main's tip by merges, and its resolutions live in those merges. A rebase replays its commits one by one onto the new base, meeting those conflicts again, and rewrites a branch its goal may be delivering to. A merge of the branch's head meets only the conflicts its tree has with the base, and rewrites nothing; main's first-parent line gains one landing merge per member, and the goal's branch, child and catch-up merges included, stays reachable below it. Keys are trees (`../domain/landing.md`, 6.1), so the merge's commits cost no receipt. `../domain/landing.md`, 5.2's forge rebase is no longer used by a project that lands this way.
+A goal's branch takes its changes and main's tip by merges, and its resolutions live in those merges. A rebase replays its commits one by one onto the new base, meeting those conflicts again, and rewrites a branch its goal may be delivering to. A merge of the branch's head meets only the conflicts its tree has with the base, and rewrites nothing; main's first-parent line gains one landing merge per member, and the goal's branch, child and catch-up merges included, stays reachable below it. Keys are trees (`../domain/landing-proof.md`, 1.1), so the merge's commits cost no receipt. `../domain/landing-prepare.md`, 1.2's forge rebase is no longer used by a project that lands this way.
 
 **Merge or squash** follows whether a member goes on after it lands. A goal's branch does (its close-out, repairs, follow-ups), so it merges onto main and stays an ancestor of it. A change into a goal's branch ends when it lands, so it squashes: the goal's branch reads one commit per change, and no member's own commits, work in progress among them, reach it. A squash meets the same conflicts as the merge it stands for, and its tree, so its keys, are the same. A member that brings commits its branch's own upstream already has (a catch-up of main made as a change into a goal's branch) is merged whatever `combine` says, so that those commits stay the upstream's.
 
 ## 6. Proof
 
-- **At the top only:** the train's gates dispatched at the round's candidate, on its prefix's branch, as `../domain/landing.md`, 7.1 dispatches at a member's candidate, with the round's base as an input (section 11). A key with a receipt is not run again.
-- **A key** is `../domain/landing.md`, 6.1's, with the base's tree added for a gate that compares with the base (section 11), so a verdict never depends on what isn't in its key.
+- **At the top only:** the train's gates dispatched at the round's candidate, on its prefix's branch, as `../domain/landing-proof.md`, 2.1 dispatches at a member's candidate, with the round's base as an input (`merge-queue.md`, section 11). A key with a receipt is not run again.
+- **A key** is `../domain/landing-proof.md`, 1.1's, with the base's tree added for a gate that compares with the base (`merge-queue.md`, section 11), so a verdict never depends on what isn't in its key.
 - **Judgement gates,** as `../domain/landing.md`, 3 and `../domain/forge/change/gates.md`, 1 and 2 say, each member's candidate being its prefix: a `clean` verdict given at the member's head carries over a merge that settled no conflict; an `exact` verdict, or any after a settled conflict, is asked again at the member's prefix, on the landing's pull request for its round, and the landing waits for it there rather than the member leaving; a refusal makes the member leave. A rebuilt prefix asks again.
 - **The forge's own rules on the branch** (required approvals, required statuses) judge the landing's pull request: adoption checks that temper can meet them with each member's evidence and the gates' statuses on the prefix (`../domain/landing.md`, 13.2).
-- **A runner's fault** is retried, never repaired, within `gate_retries` (`../domain/landing.md`, 7.4).
+- **A runner's fault** is retried, never repaired, within `gate_retries` (`../domain/landing-proof.md`, 2.4).
 - **A real failure** is a red (section 7).
 - **One gate run at a time** per train follows from section 3: a landing proves, then probes, one run after another.
 
@@ -104,7 +104,7 @@ A goal's branch takes its changes and main's tip by merges, and its resolutions 
 
 ### 7.1 A round of one unit
 
-Its members' changes are repaired, given the failed run's output (`../domain/landing.md`, 7.3), and leave. The landing ends with nothing landed from that round.
+Its members' changes are repaired, given the failed run's output (`../domain/landing-proof.md`, 2.3), and leave. The landing ends with nothing landed from that round.
 
 ### 7.2 Narrowing by prefixes
 
@@ -128,7 +128,7 @@ The red, the prefix it was found at and the green one below it, the members that
 ## 8. The turn
 
 - **First, freshness:** the branch's tip and each member's head in the prefix are read afresh; one that moved makes the round stale (7.3), and the turn goes.
-- **Then the branch fast-forwards to the proved prefix,** by the merge of the round's own pull request from that prefix's branch into it, fast-forward only (`../domain/landing.md`, 8, on Forgejo), judged by the landing rules at that commit (6).
+- **Then the branch fast-forwards to the proved prefix,** by the merge of the round's own pull request from that prefix's branch into it, fast-forward only (`../domain/landing-turn.md`, 1, on Forgejo), judged by the landing rules at that commit (6).
 - **Each member in the prefix lands:** the branch contains its head, merged, or its squash commit. Its change's landed commit is its prefix, the commit that brought it, and the change is kept for its goal as any landed change is (`../domain/forge/change/records.md`, 1). Its pull request reads merged: a merged member's by the forge's detection of a manual merge; a squashed member's recorded merged at its squash commit by the landing, as the forge lets a manual merge be recorded. Adoption checks both (`../domain/landing.md`, 13.2). A squashed member's branch is done once it lands: later work on its goal starts from the goal's branch.
 - **Recorded before the next round:** the landed members and the round's result; a merge found done at a restart, with its record missing, is recorded, never merged again.
 - **No empty turn:** a round whose green prefix is its base lands nothing and goes straight to the next round.
@@ -153,12 +153,12 @@ The red, the prefix it was found at and the green one below it, the members that
 
 The project's own choices, in its configuration and its repository, not temper's code:
 
-- **Its gates for a train:** each a workflow dispatched only (`../domain/landing.md`, 7.1), given the candidate and the round's base. What it runs is the project's. Its verdict depends only on what its key holds (6): a gate that compares a failure with the base reads the base it was given, and its definition says so, so the base joins its key.
+- **Its gates for a train:** each a workflow dispatched only (`../domain/landing-proof.md`, 2.1), given the candidate and the round's base. What it runs is the project's. Its verdict depends only on what its key holds (6): a gate that compares a failure with the base reads the base it was given, and its definition says so, so the base joins its key.
 - **A train into a branch other than main** may have no gate, each delivery's own check standing for it.
-- **No pull request CI into a branch its gates prove:** the gate is the landing's (`../domain/landing.md`, 7.1).
+- **No pull request CI into a branch its gates prove:** the gate is the landing's (`../domain/landing-proof.md`, 2.1).
 - **The forge,** as adoption checks (`../domain/landing.md`, 13.2): fast-forward merges allowed, detection of a manual merge on, and the branch's rules met by the landing's pull request.
 - **`by` `turn`, `batch` and `combine`** (section 10).
-- **Tiers after landing** that run only what a train's gate already ran add nothing for its branch (`../domain/after-landing.md`, 2).
+- **Tiers after landing** that run only what a train's gate already ran add nothing for its branch (`../domain/after-landing-runs.md`, 1).
 
 ## 12. Acceptance
 
@@ -190,4 +190,4 @@ After landing, on a staging deployment: goals land through it at a realistic vol
 - **Probes by test:** drafted in `probes-by-test.md`.
 - **The next batch proved on top of the one proving,** to overlap proofs when one at a time runs short.
 - **A project prepare command** that regenerates derived files a merge conflicts on, such as generated totals, so those conflicts never reach a goal.
-- **Batches across repositories,** with pins and upstream-first turns (`../domain/landing.md`, 5.3 and 8), and GitHub's turn.
+- **Batches across repositories,** with pins and upstream-first turns (`../domain/landing-prepare.md`, 1.3, and `../domain/landing-turn.md`, 1), and GitHub's turn.

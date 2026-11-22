@@ -10,7 +10,7 @@ pub const CHANGE: u64 = 51;
 pub const LANDING: u64 = 61;
 
 /// The scripted root takes the landing's branch holds as it forms the task
-/// (domain/landing.md, 4.2, 5.1).
+/// (domain/landing.md, 4.2, domain/landing-prepare.md, 1.1).
 pub fn register(world: &mut World, row: top::LandingRow) {
     for member in &row.landing.members {
         world.event(top::Event::Hold {

@@ -82,7 +82,7 @@ Kind: overlap. Owner: `temper/docs/design/client/forge/repositories.md`.
 
 Kind: overlap. Owner: `temper/docs/design/domain/forge/change/gates.md`.
 
-`temper/docs/design/domain/forge/change/gates.md`, 2 says force-pushing does not exist and no kind moves a branch backwards, while `temper/docs/design/domain/landing.md`, 5.2 explicitly permits a prepare rebase and the preamble of `temper/docs/design/domain/worker/jobs.md` permits the prepare job's leased rewrite. Suggest having gates distinguish a run's delivery from landing prepare and cite that exception, rather than leaving two meanings of the prohibition. The landing text already distinguishes the two; no exception is being added by this report.
+`temper/docs/design/domain/forge/change/gates.md`, 2 says force-pushing does not exist and no kind moves a branch backwards, while `temper/docs/design/domain/landing-prepare.md`, 1.2 explicitly permits a prepare rebase and the preamble of `temper/docs/design/domain/worker/jobs.md` permits the prepare job's leased rewrite. Suggest having gates distinguish a run's delivery from landing prepare and cite that exception, rather than leaving two meanings of the prohibition. The landing text already distinguishes the two; no exception is being added by this report.
 
 ### 2.4 O4: Who owns the settling reread
 
@@ -238,39 +238,39 @@ failed-link item keeps the existing client-root wording instead.
 
 ### 3.1 Proposal-form diagnostics
 
-Map item 1: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 3.
+Map item 1: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 9.
 
 ### 3.2 A charter where the process has no local agent
 
-Map item 2: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 3.
+Map item 2: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 9.
 
 ### 3.3 A collaborator's login in `read_collaborators`
 
-Map item 3: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 3.
+Map item 3: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 9.
 
 ### 3.4 `read_permission`'s login held to the settings family
 
-Map item 4: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 3.
+Map item 4: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 9.
 
 ### 3.5 Which host tools a charter offers
 
-Map item 5: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 3.
+Map item 5: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 9.
 
 ### 3.6 Who may name a plan's members of `change`
 
-Map item 6: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 3.
+Map item 6: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 9.
 
 ### 3.7 A change's foremen's LLM choice
 
-Map item 7: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 3.
+Map item 7: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 9.
 
 ### 3.8 A cancel's grace
 
-Map item 8: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 3.
+Map item 8: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 9.
 
 ### 3.9 A change produced by a job of any kind
 
-Map item 9: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 3.
+Map item 9: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 9.
 
 ### 3.10 A permission for its own requester alone
 
@@ -747,7 +747,7 @@ Map item 127: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/de
 
 ### 3.128 A real chat choosing `change`
 
-Map item 128: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 3.
+Map item 128: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 9.
 
 ### 3.129 A closer's stops on a goal's path
 

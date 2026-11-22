@@ -17,7 +17,7 @@ top dispatches, reads and writes for it as for the round's top.
 ## 1. In one page
 
 - **A red round of several units searches** (section 2); a round of one
-  unit repairs its changes as `landing.md`, 7.3 says.
+  unit repairs its changes as `landing-proof.md`, 2.3 says.
 - **Unit boundaries:** the prefix of each unit's last member in the
   round's stack, the round's base below them all. The base is green;
   the candidate, where the gates failed, is red.
@@ -43,11 +43,11 @@ top dispatches, reads and writes for it as for the round's top.
 
 ## 2. When it starts
 
-- **A real failure at the candidate** (`landing.md`, 7.3): a blocking
+- **A real failure at the candidate** (`landing-proof.md`, 2.3): a blocking
   test gate's failed receipt at the round's candidate, in a round whose
   stack holds two units or more. A refused judgement gate makes its
   member leave (`landing.md`, 4.3), a runner's fault is retried
-  (`landing.md`, 7.4) and a run past `gate_timeout` holds the landing:
+  (`landing-proof.md`, 2.4) and a run past `gate_timeout` holds the landing:
   none of them starts a search.
 - **The round's units** are the units with a prefix in the round, in
   the stack's order, numbered here from 1 to n. Boundary k, for k from 1
@@ -65,8 +65,8 @@ top dispatches, reads and writes for it as for the round's top.
   highest boundary known green and r the lowest known red, while
   `r - g` is 2 or more. It starts with g at 0 and r at n.
 - **A probe** dispatches the train's blocking test gates at the
-  boundary's prefix as `landing.md`, 7.1 dispatches them at the
-  candidate: each gate keyed at that prefix (`landing.md`, 6.1), with
+  boundary's prefix as `landing-proof.md`, 2.1 dispatches them at the
+  candidate: each gate keyed at that prefix (`landing-proof.md`, 1.1), with
   the round's base's tree for a gate that reads the base; a key with a
   receipt holds by it; a key in flight is waited for; otherwise the
   gate's workflow is dispatched on the branch in the landing of the
@@ -74,7 +74,7 @@ top dispatches, reads and writes for it as for the round's top.
   prefix, `temper_key` its key, `temper_probe` `yes` and, for a gate
   that reads the base, `temper_base` the round's base. `temper_probe`
   tells the gate's workflow that only red or green is asked, so that it
-  may stop at its first red (`landing.md`, 7.1); the round's top is
+  may stop at its first red (`landing-proof.md`, 2.1); the round's top is
   given none. Each gate's status,
   `temper/gate/<name>`, goes on that prefix (`landing.md`, section 10).
   An advisory gate is the candidate's alone: no probe dispatches it.
@@ -82,7 +82,7 @@ top dispatches, reads and writes for it as for the round's top.
   given `temper_tests` too, posts no pending status, and judges its
   probes by their selected cases (`landing-search-by-test.md`, 4).
 - **`temper_probe`'s reach:** the inputs are fixed at a key's first
-  dispatch, so a rerun or a dispatch afresh (`landing.md`, 7.4) sends
+  dispatch, so a rerun or a dispatch afresh (`landing-proof.md`, 2.4) sends
   them again, and a key in flight from the top serves a probe as it is,
   as one from a probe serves a later top. A follow's check
   (`forge/follows.md`) and a tier (`after-landing.md`), whose own
@@ -93,7 +93,7 @@ top dispatches, reads and writes for it as for the round's top.
   (skein's `forge/forgejo.md`, 2, still lists a dispatch's inputs
   reaching the run among what is to record). GitHub refuses an input
   its workflow does not declare, and its turn is not built
-  (`landing.md`, section 8): it is GitHub's turn's to settle.
+  (`landing-turn.md`, section 1): it is GitHub's turn's to settle.
 - **Its verdict:** red at the first of its blocking gates with a failed
   receipt at that prefix, which makes r the boundary; green once every
   one has a passed receipt there, which makes g the boundary. A run
@@ -109,10 +109,10 @@ top dispatches, reads and writes for it as for the round's top.
   most 5 (`../protocol/configuration/limits.md`), three.
 - **Bounded as any run:** a runner's fault at a probe is retried within
   `gate_retries` per key, never repaired, and past it holds the landing
-  (`landing.md`, 7.4); a probe's run in flight past `gate_timeout`
-  holds it (`landing.md`, 7.1). Their holds' words are those of a run at
+  (`landing-proof.md`, 2.4); a probe's run in flight past `gate_timeout`
+  holds it (`landing-proof.md`, 2.1). Their holds' words are those of a run at
   the candidate. A release prepares again in a new round
-  (`landing.md`, 4.2), which ends the search (section 6).
+  (`landing.md`, 4.2), which ends the search (`landing-search.md`, section 6).
 - **Five units, the third breaking the gate:** g 0 and r 5 probe
   boundary 2, which passes; g 2 and r 5 probe boundary 3, which fails;
   with g 2 and r 3 the search holds its boundary after two probes: unit
@@ -137,11 +137,11 @@ top dispatches, reads and writes for it as for the round's top.
      prefix and GREEN the green one, the base's commit where g is 0,
      each at the forge's length. Each of its changes repairs (section
      7). Leaving so does not end the round, as another leaving after
-     the job stacked it would (`landing.md`, 5.1).
+     the job stacked it would (`landing-prepare.md`, 1.1).
   2. **The stack is cut above the green prefix.** The round's pull
      request is closed and the branches from the blamed unit's first
      member up are deleted, as a round ending unlanded deletes them from
-     its first changed member (`landing.md`, 5.1). The members above the
+     its first changed member (`landing-prepare.md`, 1.1). The members above the
      blamed unit stay in the landing, with no prefix in this round, and
      none is stacked again in it.
   3. **The green prefix lands** in the round's turn (section 5), where
@@ -152,7 +152,7 @@ top dispatches, reads and writes for it as for the round's top.
   4. **The next round** takes the members still in the landing, the
      units above the blamed one, in their order: its base the train's
      tip read afresh, the green prefix where it landed, and its job
-     stacks them onto it (`landing.md`, 5.2). They are first in line,
+     stacks them onto it (`landing-prepare.md`, 1.2). They are first in line,
      being the landing's own. With no member left, the landing ends
      (`landing.md`, 4.2), its result naming what landed and the blamed
      members that left.
@@ -164,13 +164,13 @@ top dispatches, reads and writes for it as for the round's top.
 - **The round's proved prefix is the green one:** its blocking test
   gates passed at exactly that prefix, by its probe or by receipts, and
   each of its members' judgement gates holds at the member's own prefix
-  (`landing.md`, section 3 and 7.2). The landing waits for a judgement
+  (`landing.md`, section 3, and `landing-proof.md`, section 2.2). The landing waits for a judgement
   still asked there.
 - **Its pull request** is the round's, opened anew from the branch of
   boundary g's member, the green prefix its head, titled for the
   members it lands and its body written as `landing.md`, section 10
   says, with the search's line (section 8).
-- **The turn is `landing.md`, section 8's at that prefix:** the train's
+- **The turn is `landing-turn.md`, section 1's at that prefix:** the train's
   tip and the head of each member up to the green prefix read afresh; a
   moved head makes its member leave and ends the round unlanded, a moved
   tip makes the round stale; then the pull request is merged
@@ -182,7 +182,7 @@ top dispatches, reads and writes for it as for the round's top.
 - **The round ends at its turn** and the next starts (section 4, step
   4). A round that ends otherwise between the boundary and the turn, by
   a member of the green prefix leaving, a stale base or a hold's
-  release, ends unlanded as `landing.md`, 5.1 says: the next round
+  release, ends unlanded as `landing-prepare.md`, 1.1 says: the next round
   stacks every member still in the landing, the units above the blamed
   one among them, from its first changed prefix.
 
@@ -199,10 +199,10 @@ top dispatches, reads and writes for it as for the round's top.
   unit at the boundary apart; a head moving; a stale base; a hold's
   release. The next round proves its own candidate afresh and searches
   anew if that is red, a receipt found earlier holding for its key
-  (`landing.md`, 6.2).
+  (`landing-proof.md`, 1.2).
 - **Late outcomes make receipts for their exact keys,** and nothing
   else: a run a probe or the candidate dispatched, followed to its end
-  after its verdict was taken or its round ended (`landing.md`, 7.1),
+  after its verdict was taken or its round ended (`landing-proof.md`, 2.1),
   moves no bound and blames no unit. A later round's probe or candidate
   whose key has that receipt holds by it. A run by test makes a failed
   receipt where it is red, and nothing otherwise
@@ -214,7 +214,7 @@ top dispatches, reads and writes for it as for the round's top.
 
 ## 7. The blamed unit's repair
 
-- **Its brief** carries the red as `landing.md`, 7.3's repair carries a
+- **Its brief** carries the red as `landing-proof.md`, 2.3's repair carries a
   failure at the candidate, the red prefix in the candidate's place:
   the gate, its run's link, the red prefix and the round's base, and
   each failed job's failed step with the end of its log, from the red
@@ -280,7 +280,7 @@ top dispatches, reads and writes for it as for the round's top.
 
 - **The round's search** (`landing.md`, section 12): absent until the
   candidate fails in a round of several units, then its green and red
-  bounds, each a member's number in the landing (`landing.md`, 5.1), 0
+  bounds, each a member's number in the landing (`landing-prepare.md`, 1.1), 0
   for the base; kept until the round ends. Its probes' gates are the
   members' gate states at their prefixes, which `Landing` already keeps.
 - **A member's leaving** gains `blamed`: the gate, its run, the red

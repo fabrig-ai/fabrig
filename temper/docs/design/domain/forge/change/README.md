@@ -62,7 +62,7 @@ branch. Its parameters:
   requester; and how many it takes, a bound beside the others.
 
 A run asks for one with `change`, giving the words, and the root fills
-in the rest from the project (`../../agent/tools.md`, 1). A run whose authority
+in the rest from the project (`../../agent/tools-change.md`, 1). A run whose authority
 holds jig's control family names, too, what a plan decides: the landing
 branch, its own goal branch or a branch of the repository; its
 dependencies, task numbers or changes of the same call; several
@@ -98,7 +98,7 @@ remaining authority counts tasks already made over its life, including
 ended tasks, rather than allowances granted by earlier calls.
 
 Its agents hold the forge's reads (kind 1, `../README.md`, section 2) on its
-repository, beside the kinds it makes (`../../agent/tools.md`, 1): a reviewer
+repository, beside the kinds it makes (`../../agent/tools-change.md`, 1): a reviewer
 reads its own pull request and its files, and a repair a failed job's
 log, through the reads an agent may call, past what its brief carries.
 
@@ -141,7 +141,7 @@ A goal across repositories is several change tasks, ordered by their
 dependencies: skein's change lands before temper's that bumps its lock.
 
 **A change on its requester's held branch** (`change`'s `"branch":
-"mine"`, `../../agent/tools.md`, 1) is how a goal lands what it holds: the
+"mine"`, `../../agent/tools-change.md`, 1) is how a goal lands what it holds: the
 goal's landing, a change into the base whose branch is the goal's own
 (`../branches.md`, 1). What a goal's runs write needs no such change: they push it
 straight to the goal's branch (`../branches.md`, 3). It is an ordinary change, but for
@@ -338,7 +338,7 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    branch starts at the next step. Every producing delegate's writable
    repository carries the change's landing branch beside its write
    destination, whatever its start, and the worker pins its tip for the
-   project's checks (`../../worker/README.md`, 4.1 and `../../worker/checkouts.md`). A producing delegate
+   project's checks (`../../worker/hosted-runs.md`, 1.1 and `../../worker/checkouts.md`). A producing delegate
    retried while it still owns an existing change branch starts at that
    branch. Only a writable producer whose start is that destination gets
    the comparison for existing work;
@@ -472,7 +472,7 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    where the forge's queue landed it, whose id in hexadecimal is the
    result's words' first line, the pull request with its address the
    second, and the landing said in words the third, `Landed: pull request
-   #7 merged into main as 0123456789ab.`: `../../root.md`, section 5; then its
+   #7 merged into main as 0123456789ab.`: `../../root-translation.md`, section 1; then its
    repairs, when any were asked, with their count, why each was asked
    (a check that failed, a review's remarks), and each successful repair's
    result words, attributed to its task in completion order; then its

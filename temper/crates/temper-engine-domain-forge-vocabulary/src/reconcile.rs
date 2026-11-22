@@ -1,4 +1,4 @@
-//! Reference reconciliation before Switch (domain/root.md, 8.1; protocol/store.md, 2).
+//! Reference reconciliation before Switch (domain/root-restart.md, 1.1; protocol/store.md, 2).
 use crate::{Key, Limits, Name};
 use skein_forge::api::Repository;
 

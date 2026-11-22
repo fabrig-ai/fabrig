@@ -25,7 +25,7 @@ Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
   - the project's landing, by queue or by turn, whether it names a
     merge job (`repairs.md`, *The merge job*), and the repository's CI, its test
     gates and its tiers, each with the branch it follows (`../../landing-settings.md`,
-    1.1; `../../after-landing.md`, section 2);
+    1.1; `../../after-landing-runs.md`, section 1);
   - the project's path sets, its classes' `sets` (kind 8; `../attention.md`,
     6), each its number, name and patterns, which its rules by path name
     (*A rule by path*, below);
@@ -83,8 +83,8 @@ Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
      never by an agent; a clean merge is the queue's update, no stop of
      its own, said in the conflict's and the merge's cards; a clash
      takes the change out of the queue to its resolution (`repairs.md`). Then
-     "merge", code, opening the queue. *By turn* (`../../landing.md`, section
-     8): "prepare", code, opening the turn; "resolve", the producer's;
+     "merge", code, opening the queue. *By turn* (`../../landing-turn.md`, section
+     1): "prepare", code, opening the turn; "resolve", the producer's;
      "prove", code, where the repository has test gates, opening the
      turn, its card naming the gates, since a stop opens a rule's gate
      by number and a repository's test gates have none
@@ -212,8 +212,8 @@ Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
   holds them, joined by ", " and a last " and ", but those a test gate
   or a tier of the repository names: temper dispatches those on its own
   branches, never at a change's head, so they report no check CI folds,
-  and their own stops name them (`../../landing.md`, 7.1; `../../after-landing.md`,
-  section 2); with none left, no such fact. Then its fact "Checks",
+  and their own stops name them (`../../landing-proof.md`, 2.1; `../../after-landing-runs.md`,
+  section 1); with none left, no such fact. Then its fact "Checks",
   where the landing branch's protection names required checks (`gates.md`, 2,
   the forge's `contexts`), "the CI workflows' checks A, B and C, at the
   change's head", each context as the forge holds it, joined the same

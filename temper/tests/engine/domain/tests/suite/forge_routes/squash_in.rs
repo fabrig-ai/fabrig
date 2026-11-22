@@ -1,5 +1,5 @@
 //! A goal's train preserves main's commits and starts follow-ups at its tip
-//! (temper/docs/design/draft/squash-in.md, 2, 4; temper/docs/design/domain/landing.md, 5, 8, 9).
+//! (temper/docs/design/draft/squash-in.md, 2, 4; temper/docs/design/domain/landing-prepare.md, 1, temper/docs/design/domain/landing-turn.md, 1, 2).
 use super::catch_up::{catch_up, check_job, finish_job, next_job, push_merge};
 use super::goal_branch::{branch_tip, forge_hold};
 use super::light_rules::change_row;

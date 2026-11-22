@@ -364,7 +364,7 @@ rules; their statuses say where the design still lags.
   choices, a producer's charter or the merge job, or naming the red they
   repair (`repairs`, `after-landing.md`, section 7). A run may delegate
   to the change procedure under the stock rules, but cannot know what
-  the procedure's delegate needs (`../domain/agent/tools.md`, 1); `change` builds it.
+  the procedure's delegate needs (`agent/tools-change.md`, 1); `change` builds it.
 
 ### N23. A charter's default wake policy
 
@@ -409,7 +409,7 @@ reference:
 | J7, J8 a conversation's questions | not needed: no chat stands between the goal and its person; jig's `domain/tasks/messages.md`, 5 keeps them |
 | J10 an address by role | not needed: questions and escalations go up the tree |
 | J11 a fresh run at a context's bound | the coordinator starts fresh on each wake (jig's `domain/engine/executors.md`, 4); a long run on Claude Code is the program's to compact |
-| F1 skein's artifact read | needed by tiers (`after-landing.md`, section 4) |
+| F1 skein's artifact read | needed by tiers (`after-landing-runs.md`, section 3) |
 | F2 to F5 GitHub's turn and permissions | not needed: the reference lands by queue |
 
 ## 7. The goal as designer

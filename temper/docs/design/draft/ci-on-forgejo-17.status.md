@@ -2,7 +2,7 @@
 
 2026-11-11. Where the design lags or departs from [ci-on-forgejo-17.md](ci-on-forgejo-17.md).
 
-skein's forge kit has the re-run (skein's `forge/README.md`: `Write::Rerun { attempt }` and its facts), and a landing's gates re-run the runner's failures (`../domain/landing.md`, 7.4, bounded by `gate_retries`). Section 2 is designed for a change's CI (`../domain/forge/change/README.md`, 2, step 3; `../domain/forge/effects.md`, section 1, kind 17; `../protocol/configuration/limits.md`, `forge.change_policy.reruns`), by the request `queue-smooth.md`. `ci-on-forgejo-17.md`, section 3 is designed for a change's CI and a landing's gate run (`../domain/forge/change/stalls.md`, 4; `../domain/landing.md`, 4.2; skein's `forge/job-state.md`), by the request `tier-controls.md`.
+skein's forge kit has the re-run (skein's `forge/README.md`: `Write::Rerun { attempt }` and its facts), and a landing's gates re-run the runner's failures (`../domain/landing-proof.md`, 2.4, bounded by `gate_retries`). `ci-on-forgejo-17.md`, section 2 is designed for a change's CI (`../domain/forge/change/README.md`, 2, step 3; `../domain/forge/effects.md`, section 1, kind 17; `../protocol/configuration/limits.md`, `forge.change_policy.reruns`), by the request `queue-smooth.md`. `ci-on-forgejo-17.md`, section 3 is designed for a change's CI and a landing's gate run (`../domain/forge/change/stalls.md`, 4; `../domain/landing.md`, 4.2; skein's `forge/job-state.md`), by the request `tier-controls.md`.
 
 - **Design lags:**
   - 4: `../domain/agent/tools.md`'s `read_job` takes `head`, `run`, `job`, `attempt` and `max_bytes`, with no step and no search, and `../protocol/forge/README.md` 2.2's job read has neither.

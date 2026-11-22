@@ -2,7 +2,7 @@
 
 Under a project's queue. A project that lands by turn has no queue of
 its own: its trains take its waiting changes in this order
-(`../landing.md`, section 9), and its changes view shows each train
+(`../landing-turn.md`, section 2), and its changes view shows each train
 (`../landing.md`, section 14).
 
 One per landing branch that has changes ready. A repository belongs to
@@ -85,7 +85,7 @@ are comparable.
   changes' own states, so a restart rebuilds it from them.
 - **The branch's own CI,** for a branch no tier follows: a branch
   tiers follow is judged by their verdicts instead, and its queue never
-  pauses for them (`../after-landing.md`, sections 2 and 7). A landing temper did
+  pauses for them (`../after-landing-runs.md`, section 1, and `../after-landing.md`, section 7). A landing temper did
   not make may break the branch. Once CI fails on the branch's tip, the queue pauses and one
   repair is made: a change task into that branch, first in its queue,
   its words, and its producer's, opening with what it repairs, as a

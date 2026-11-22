@@ -46,9 +46,9 @@ pub struct Limits {
     /// Live landing procedure rows (domain/landing.md, 12).
     pub landings: u32,
     pub landing_members: u32,
-    /// Judged landings retained per repository (domain/after-landing.md, 10).
+    /// Judged landings retained per repository (domain/after-landing-storage.md, 1).
     pub landings_kept: u32,
-    /// Landings retained until every following tier judges them (domain/after-landing.md, 10).
+    /// Landings retained until every following tier judges them (domain/after-landing-storage.md, 1).
     pub landings_pending: u32,
     /// Queued rows and recent landed changes in the changes document (client/forge/records.md).
     pub changes_rows: u32,
@@ -125,7 +125,7 @@ impl Limits {
     }
 }
 
-/// Per-repository tiers and reported failures (temper/docs/design/domain/after-landing.md, 10).
+/// Per-repository tiers and reported failures (temper/docs/design/domain/after-landing-storage.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct TierLimits {
     pub tiers: u32,

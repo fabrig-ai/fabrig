@@ -262,7 +262,7 @@ other does.
   `application.sign_in`, which nothing refuses today. So plain `temper serve` makes no link,
   though its document may look alike.
 - **When that stops being true:** at each start, when core and forge are both loaded
-  (`../domain/root.md`, 8.1), the root hands the connector the sole owner's party, or none;
+  (`../domain/root-restart.md`, 1.1), the root hands the connector the sole owner's party, or none;
   "sole" means the deployment's roster holds one owner, and it's the link's person. If not,
   the connector clears the link in that decision and logs it. Lookups fall back to seeds,
   and a rule resting on the link waits, saying so. jig's people have no accessor for this

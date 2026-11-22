@@ -319,7 +319,7 @@ pub struct Domain {
     pub(crate) sequence: u64,
     pub(crate) closing: crate::closer::State,
     pub(crate) changes: Map<u64, ChangeRow>,
-    /// Unstored step and head of each spent train hold (domain/landing.md, 9).
+    /// Unstored step and head of each spent train hold (domain/landing-turn.md, 2).
     pub(crate) forming_holds: Map<u64, (u64, skein_forge::api::Commit)>,
     /// The cold part last put, also held while restart collects the two parts.
     pub(crate) change_cold: Map<u64, crate::ChangeCold>,
@@ -366,7 +366,7 @@ pub struct Domain {
     pub(crate) held_charters: crate::ForgeCharters,
     pub(crate) landing_logs: Map<skein_forge::api::Repository, crate::LandingLog>,
     pub(crate) verifications: Map<(skein_forge::api::Repository, skein_forge::api::Commit), crate::Verification>,
-    /// Restored timers stay passive until the scripted fresh-read stage (domain/root.md, 8.1).
+    /// Restored timers stay passive until the scripted fresh-read stage (domain/root-restart.md, 1.1).
     restore_phase: RestorePhase,
     pub(crate) reconciliation: crate::reconcile::Reconciliation,
     restore_started: Option<skein_lib::Wall>,
@@ -2733,7 +2733,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     continue;
                 }
                 let looked = outcome != skein_forge_client::Outcome::Queued && d.entry_looks.remove(&entry);
-                // The landing settles every merge outcome by readback (landing.md, 8).
+                // The landing settles every merge outcome by readback (domain/landing-turn.md, 1).
                 // Its terminal entry is retired before the route sees this output.
                 let mut landing_merge = false;
                 if let Some(row) = d.landing.rows.get(&task) {
@@ -4540,7 +4540,7 @@ fn delegate_result(
     }
 }
 
-/// The last done dependency refreshes readiness before forming (domain/landing.md, 9).
+/// The last done dependency refreshes readiness before forming (domain/landing-turn.md, 2).
 fn dependencies_met(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
     read_session::ended(d, env, task, env.wall);
     let Some(row) = d.changes.get(&task) else { return };
@@ -9615,7 +9615,7 @@ fn publish(d: &Domain, topic: Topic, news: News, out: &mut Queue<Request>) {
 )]
 fn updating_entry(d: &Domain, task: u64) -> bool {
     let Some(change) = d.changes.get(&task) else { return false };
-    // domain/landing.md, 5.2: the pending prepare's rebase moves its own branch.
+    // domain/landing-prepare.md, 1.2: the pending prepare's rebase moves its own branch.
     if !match change.change.state {
         change::State::Updating { .. } | change::State::Preparing { .. } => true,
         _ => false,
@@ -9997,7 +9997,7 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
             d.bindings.insert(address, subject).expect("restored binding within limits");
         }
         Stored::Flight { task, entry } => {
-            // Cross-record reconciliation is the later restart stage (domain/root.md, 8.1).
+            // Cross-record reconciliation is the later restart stage (domain/root-restart.md, 1.1).
             d.flights.insert((task, entry), ()).expect("restored flights within entry limit");
         }
         Stored::Writer(row) => {
@@ -10686,7 +10686,7 @@ fn failed_at(held: &crate::Connection, failed: Option<crate::FailedStep>) -> Opt
 }
 
 impl Domain {
-    /// Find a referencing row only on an unmade link (temper/docs/design/domain/root.md, 8.1).
+    /// Find a referencing row only on an unmade link (temper/docs/design/domain/root-restart.md, 1.1).
     #[expect(clippy::too_many_lines, reason = "one exhaustive failure-path scan of the referencing family")]
     pub(super) fn restored_link_key(
         &self,

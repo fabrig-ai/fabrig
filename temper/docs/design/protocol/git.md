@@ -106,7 +106,7 @@ the worker's root directory     workers[].root
 ├── making/<m>/                 a store being made, moved into `stores` once whole (4.11)
 ├── trash/<n>/                  what Make set aside, emptied by the sweep
 ├── home/                       git's HOME: empty, private
-└── agent/                      the agent's program and configuration, pinned at start (../domain/worker/README.md, section 5)
+└── agent/                      the agent's program and configuration, pinned at start (../domain/worker/agent-processes.md, section 1)
 ```
 
 - **The root's requests reach it through the routing,** which keeps no
@@ -191,7 +191,7 @@ lacks rather than fetching it.
   beneath the root: in a checkout `--git-dir=gitdirs/<token>/<repository>`
   and `--work-tree=workspaces/<token>/<repository>`, the workspace's token
   in decimal and the repository's name one path component
-  (`../domain/worker/README.md`, 4.1); in a store `--git-dir=stores/<token>`
+  (`../domain/worker/hosted-runs.md`, 1.1); in a store `--git-dir=stores/<token>`
   alone. `git version` names neither, and `init` and `clone` name the
   directory they make as their operand. So git never looks for a
   repository from where it runs, never reads the `.git` a work tree holds,
@@ -679,8 +679,8 @@ receipt.
 `Brings { at, head, base, upstream }` asks whether fetched `head` holds a
 commit that fetched `base` lacks and fetched `upstream` holds: a prepare
 job's question of a member under `squash`, which brings its upstream's
-commits only by a merge (`../domain/worker/jobs.md`; `../domain/landing.md`,
-5.2). It is local, changes no file or ref, and needs no forge credential:
+commits only by a merge (`../domain/worker/jobs.md`; `../domain/landing-prepare.md`,
+1.2). It is local, changes no file or ref, and needs no forge credential:
 
 ```
 git merge-base --all <head> <upstream>                 the merge bases, one id a line
@@ -696,7 +696,7 @@ it with false. Any other exit, a malformed id, or output past
 
 `DiffPaths { at, before, after, markdown }` streams changed paths. With
 `markdown` true it retains the first differing path, including Markdown,
-for a prepare's whole-tree comparison (`../domain/landing.md`, 5.2).
+for a prepare's whole-tree comparison (`../domain/landing-prepare.md`, 1.2).
 With `markdown` false it admits a design delivery's changed paths:
 
 ```

@@ -5,7 +5,7 @@ This document holds lazy, mechanical updates, split from [`README.md`](README.md
 ## 1. Updates: lazy and mechanical
 
 Under a project's queue; by turn, a landing prepares its candidates
-instead (`../landing.md`, section 5).
+instead (`../landing-prepare.md`, section 1).
 
 - **Lazy:** a change takes its base when it is first in its queue, about
   to get a run for another reason (`change/README.md`, 2), or at its check with its head
@@ -36,8 +36,8 @@ instead (`../landing.md`, section 5).
   send of its own (skein's `forge/client.md`, 7.5), says nothing of the
   change: the forge did not answer, or what it was decided on has gone,
   perhaps to a copy of its own. The top keeps its account and reports no
-  result, and a change updating or preparing (`../landing.md`, 5.2 and
-  12) with no result and none outstanding decides again on a fresh read
+  result, and a change updating or preparing (`../landing-prepare.md`, 1.2, and `../landing.md`, 12
+  ) with no result and none outstanding decides again on a fresh read
   of its head and base, the base being its pin, the tip the update asked
   for, though the branch has moved on since:
 
@@ -118,13 +118,13 @@ instead (`../landing.md`, section 5).
   (`change/repairs.md`).
 - **A catch-up** takes a base's commit into a branch that no update
   reaches, a goal's own (`branches.md`, 1): a change into that branch, made by the
-  goal's coordinator naming the commit (`../agent/tools.md`, 1), main's
+  goal's coordinator naming the commit (`../agent/tools-change.md`, 1), main's
   tip as it reads it, only for a change of the goal that needs what the
   base gained (`../../draft/squash-in.md`, 4); its producer
   the merge job, which merges the commit into a branch made at the
   landing branch's tip (`change/README.md`, 2, step 1); its project must name a
   `merge_job`. It lands as any change into the branch does; under
-  `turn` its train merges it, never squashing it (`../landing.md`, 5.2),
+  `turn` its train merges it, never squashing it (`../landing-prepare.md`, 1.2),
   so the goal's branch shows it as a merge of the base. Nothing makes
   one but its requester's call.
 - **A semantic conflict** is CI failing on a change's head after a clean

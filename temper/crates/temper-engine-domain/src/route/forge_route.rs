@@ -2279,7 +2279,7 @@ pub(crate) enum ChangeRefused {
 }
 
 /// Build a plan's changes together; jig admits all of them in one delegation.
-/// Plan members require the control family (domain/agent/tools.md, 1).
+/// Plan members require the control family (domain/agent/tools-change.md, 1).
 pub(crate) fn change_batch(
     domain: &Domain,
     env: &Env<Limits>,
@@ -3299,7 +3299,7 @@ fn change_landing_words(
     for part in parts {
         bytes = bytes.checked_add(part.len()).expect("bounded landing line");
     }
-    // The line names the landing so that the run that asked hears that the change landed (temper/docs/design/domain/root.md, 5).
+    // The line names the landing so that the run that asked hears that the change landed (temper/docs/design/domain/root-translation.md, 1).
     if skein_lib::bytes::find(out.as_slice(), b"\npull request #").is_some() && bytes <= skein_lib::usize_of(out.room())
     {
         append(&mut out, b"\n");

@@ -63,7 +63,7 @@ every setting is (`configuring.md`, 5.2). It holds:
   its owner's word; or `code`, where each starts once the one before it
   has landed, and the owner wakes only for a question, a hold or a red.
 - **Its producer:** the charter and LLM choice a follow change's producer
-  runs under, as `change` names them (`../domain/agent/tools.md`, 1). For a
+  runs under, as `change` names them (`../domain/agent/tools-change.md`, 1). For a
   port, the charter carries the port's rules: line by line, the source's
   names and order kept.
 - **Its check:** a gate of the target's repository (`../domain/forge/change/gates.md`,
@@ -80,7 +80,7 @@ every setting is (`configuring.md`, 5.2). It holds:
 
 ## 3. What code does, what the owner judges
 
-A follow is close to a tier (`../domain/after-landing.md`, section 3): both
+A follow is close to a tier (`../domain/after-landing-runs.md`, section 2): both
 follow a branch's tip. A tier's verdict judges the landings in its range; a
 follow's answer is a change in another repository. A tier covers several
 landings with one run; a follow makes one change a landing, because a port
@@ -136,7 +136,7 @@ Its owner, at a wake (`standing-roles.md`, section 3):
   1), which the follow names and every follow change carries beside the
   target's landing rule.
 - **Given the followed commit:** dispatched as a gate is
-  (`../domain/landing.md`, 7.1), with the newest source commit the change
+  (`../domain/landing-proof.md`, 2.1), with the newest source commit the change
   follows as one more input beside its commit and key, so its workflow can
   fetch the source there. For a port, the source's tests at that commit,
   built against the target.
@@ -144,7 +144,7 @@ Its owner, at a wake (`standing-roles.md`, section 3):
   (`../domain/forge/change/repairs.md`), its producer told which of the source's
   tests fail. A change that keeps failing is held, and its owner hears it.
 - **After landing,** the target's tiers follow its main as any repository's
-  do (`../domain/after-landing.md`, section 3): the slow suites, the
+  do (`../domain/after-landing-runs.md`, section 2): the slow suites, the
   source's fuzzing replayed on the target's build. A red there is filed as
   a finding (`../domain/findings.md`, section 4) and routed to the follow's
   owner by its area (`standing-roles.md`, section 4).
@@ -159,8 +159,8 @@ Its owner, at a wake (`standing-roles.md`, section 3):
   with its reason. Zero when caught up.
 - **Parity:** the check's state at the newest followed commit: green, or
   the number of the source's tests failing on the target, read from the
-  gate's report as a tier's run is read (`../domain/after-landing.md`,
-  section 4).
+  gate's report as a tier's run is read (`../domain/after-landing-runs.md`,
+  section 3).
 - **Where they show:** on Home's "what follows what", one line a follow,
   "vsr-rs follows vsr · 2 behind · all C tests pass on Rust"
   (`surfaces.md`, section 3); on Team, the owner's row and card (section
@@ -178,7 +178,7 @@ Its owner, at a wake (`standing-roles.md`, section 3):
   repository the project hasn't adopted is refused.
 - **A context repository's landings** are heard for its follows: the forge
   follows the source's branch for as long as a follow names it, as it does
-  for a tier (`../domain/after-landing.md`, section 3).
+  for a tier (`../domain/after-landing-runs.md`, section 2).
 - **Who makes one:** an owner of the target's project, by accepting a
   proposal. The source's project is told nothing and gives nothing:
   reading is all a follow does there.

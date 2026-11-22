@@ -86,7 +86,7 @@
   `a person asked for changes on the forge` (`README.md`, 2), its panel's line
   "Repairing: a person asked for changes on the forge."
   (`../../../client/pages/task.md`, 3). A green head does not end it (below).
-- **A landing's repair** (`../../landing.md`, 7.3; `../../landing-search.md`,
+- **A landing's repair** (`../../landing-proof.md`, 2.3; `../../landing-search.md`,
   7) names what failed in its words, as a CI repair's name its failed
   check, so that its agent finds the failure without its brief. After its
   opening and instruction come, each on a line of its own: where its
@@ -105,11 +105,11 @@
   gate ran at (the candidate, or the red prefix) and BASE the round's
   base, each in full, `base unknown` where the receipt keeps none; then
   `Failed test: KEY (PROFILE)` for each test the run reports failed
-  (`../../landing.md`, 7.3), KEY as the check's summary names it
+  (`../../landing-proof.md`, 2.3), KEY as the check's summary names it
   (`test <binary_id> <name>`) and PROFILE `focused` or `fuzzy`, or
   `Failed tests: more than N` past the report's bound; then `Failed job:
   NAME: read_ci what=job commit=PREFIX run=RUN job=JOB attempt=ATTEMPT` for each
-  failed job the receipt keeps (`../../landing.md`, 6.2). KEY is `test
+  failed job the receipt keeps (`../../landing-proof.md`, 1.2). KEY is `test
   CLASS NAME` for a JUnit case, or a `lines` report's line as written,
   and a KEY or a job's NAME is made text as it is written (each byte
   outside UTF-8 a `?`, skein's `runtime/lib.md`, 6), so a report's bytes
@@ -131,7 +131,7 @@
   gate ran at, so that `read_ci what=job` reads its log as any job's.
   Its delivery is judged against the base its landing used: where its
   reason (`Landing` or `LandingAt`) resolves to a failed receipt that
-  keeps a base (`../../landing.md`, 6.2), its item names that base as its
+  keeps a base (`../../landing-proof.md`, 1.2), its item names that base as its
   pin (`../../worker/checkouts.md`, *A named pin*), so its check compares
   its diff, its figures and its tests with what the landing judged, never
   with the change's head or the source it was opened from (`opened.md`).
@@ -170,7 +170,7 @@
     a repair's push is.
   - **Other reasons are not touched:** a gate's request, a review's or a
     check's; a person's request for changes on the forge (`gates.md`, 1); a
-    landing's gate at its candidate (`../../landing.md`, 7.3); a
+    landing's gate at its candidate (`../../landing-proof.md`, 2.3); a
     resolution; and a forge's merge queue ejecting the change (`../queues.md`, 1), whose CI
     at its own head may well have passed.
   - **A hold ends too,** with no party's release, where the change is held on

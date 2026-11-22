@@ -35,13 +35,13 @@ too; a run's `settings`, `see settings project-classes` and
 - **Not yet:** `ask-temper.md`, 4, *Its answer* and *Its refusals*: the remember-answer and refusal gaps remain `ask-temper.status.md`, 4.
 - **Not yet:** `ask-temper.md`, 4, *Its declaration*: the tool-declaration gap remains `ask-temper.status.md`, 4.
 
-`tools.md`, section 1 has no known gap in a change's role choice carrying no
+`tools-change.md`, section 1 has no known gap in a change's role choice carrying no
 `later`: the change-choice parser constructs each choice with none,
 so producers, repairs, resolutions and agent gates keep one choice.
 The goal template's first/later choice is separate, as
 `../../protocol/configuration/reference.md` specifies.
 
-`tools.md`, section 1 has no known gap in a batch's members: a `change` call with
+`tools-change.md`, section 1 has no known gap in a batch's members: a `change` call with
 `changes` and any of the ten members beside them, a `null` too, is refused
 as it is decoded, before any change is made, naming the first in the
 declaration's order (`temper-engine-smith/src/calls.rs`,
@@ -141,7 +141,7 @@ record has run a real model on the sentence.
 
 - **Design departs:** `agents.md`, 1, the whole-charter catalogue departure remains `agents.status.md`, 1.
 
-The remaining gaps concern verdict follow-up tasks (`charter.status.md`, 3), what a delivery keeps of a run's history, change-refusal model wording (`tools.status.md`, 1), shell authority for runs that cannot deliver (`tools.status.md`, Departs, the whole document), the fake's goal script (`agents.status.md`, 3), who is offered `decided` (`tools.status.md`, Design departs, ui-away), what Ask temper can read to size temper's own way (`ask-temper.status.md`, 1), and real-model proof of a document built in parts (`agents.status.md`, 3) and a receipt's words (`charter.status.md`, 3).
+The remaining gaps concern verdict follow-up tasks (`charter.status.md`, 3), what a delivery keeps of a run's history, change-refusal model wording (`tools-change.status.md`, 1), shell authority for runs that cannot deliver (`tools.status.md`, Departs, the whole document), the fake's goal script (`agents.status.md`, 3), who is offered `decided` (`tools.status.md`, Design departs, ui-away), what Ask temper can read to size temper's own way (`ask-temper.status.md`, 1), and real-model proof of a document built in parts (`agents.status.md`, 3) and a receipt's words (`charter.status.md`, 3).
 `tools.md` has no gap in combined charter and workspace ownership fitting.
 `tools.md` has no known implementation gap in a goal's delivery grant.
 Stock and reference instructions remain separate work (`README.md`, section 8 and

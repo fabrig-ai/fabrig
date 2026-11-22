@@ -149,7 +149,7 @@ once all of it works, with no part of the page drawn by hand.
   an agent's "close-out" after main's merge where it makes one, as the
   reference's do (`../protocol/configuration/reference.md`).
 - **Under `turn`,** the turn's own steps take the queue's
-  (`../domain/landing.md`, section 8).
+  (`../domain/landing-turn.md`, section 1).
 - **No agent's stop below the line:** an update or a merge is always
   code's, whatever the settings.
 - **One derivation:** the engine derives, and every client draws what

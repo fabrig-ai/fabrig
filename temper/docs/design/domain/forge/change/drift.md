@@ -32,7 +32,7 @@ the change reads the head afresh once the slot is freed. Otherwise:
   (2, step 2), and a branch its own step reads as missing is deleted
   (below), not moved. Under its
   project's turn, no prepare writes the change's branch: its landing's
-  job pushes to the landing's own (`../../landing.md`, 5.2). A head
+  job pushes to the landing's own (`../../landing-prepare.md`, 1.2). A head
   moved while the change is in a landing takes it out of the landing
   (`../../landing.md`, 4.3). A release
   takes the new head as the change's and checks it, gates asked again,

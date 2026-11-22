@@ -1139,7 +1139,7 @@ pub struct ChangeRow {
     pub report: Box<[u8]>,
     /// Its agents' questions and their relay (domain/forge/change/questions.md, 1).
     pub questions: change::Questions,
-    /// The red landing this change repairs (temper/docs/design/domain/agent/tools.md, 1).
+    /// The red landing this change repairs (temper/docs/design/domain/agent/tools-change.md, 1).
     pub repairs: Option<skein_forge::api::Commit>,
     pub follows: Option<ChangeFollows>,
     pub follow_check: Option<FollowCheck>,
@@ -1539,7 +1539,7 @@ pub struct RepositoryGates {
 /// A tier description's byte bound (temper/docs/design/protocol/configuration/engine.md).
 pub const DESCRIPTION_BYTES: usize = 120;
 
-/// A repository's tier and followed branch (temper/docs/design/domain/after-landing.md, 2).
+/// A repository's tier and followed branch (temper/docs/design/domain/after-landing-runs.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Tier {
     pub name: Box<[u8]>,
@@ -1551,7 +1551,7 @@ pub struct Tier {
     pub span: Option<skein_lib::Duration>,
     pub description: Box<[u8]>,
 }
-/// What a tier follows (temper/docs/design/domain/after-landing.md, 2).
+/// What a tier follows (temper/docs/design/domain/after-landing-runs.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Follows {
     /// The repository's landing branch, its adoption's default.
@@ -1646,13 +1646,13 @@ pub struct LandingHeard {
     pub released: bool,
     pub cancelled: bool,
 }
-/// Family 24, a result of a run dispatched by temper (domain/landing.md, 6.2).
+/// Family 24, a result of a run dispatched by temper (domain/landing-proof.md, 1.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Receipt {
     pub report: ReceiptReport,
     pub base: Option<skein_forge::api::Commit>,
     pub jobs: Box<[ReceiptJob]>,
-    /// Failed workflow jobs, captured before this receipt is published (domain/landing.md, 7.3).
+    /// Failed workflow jobs, captured before this receipt is published (domain/landing-proof.md, 2.3).
     pub logs: Box<[u8]>,
     pub failures: Option<temper_engine_domain_forge_tiers::Failures>,
     pub passed: bool,
@@ -1660,7 +1660,7 @@ pub struct Receipt {
     pub candidate: skein_forge::api::Commit,
     pub ended: skein_lib::Wall,
 }
-/// Failed tests retained independently of a tier's failures (domain/landing.md, 7.3).
+/// Failed tests retained independently of a tier's failures (domain/landing-proof.md, 2.3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ReceiptReport {
     Unset,
@@ -1674,7 +1674,7 @@ pub struct ReceiptTest {
     pub fuzzy: bool,
 }
 
-/// A failed gate job, retained for `read_job` (domain/landing.md, 6.2).
+/// A failed gate job, retained for `read_job` (domain/landing-proof.md, 1.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ReceiptJob {
     pub job: u64,
@@ -2773,7 +2773,7 @@ pub enum Event {
         forge: u16,
         login: Box<[u8]>,
     },
-    /// The deployment's sole owner, handed by the root at each start (temper/docs/design/domain/root.md, 8.1).
+    /// The deployment's sole owner, handed by the root at each start (temper/docs/design/domain/root-restart.md, 1.1).
     Owner {
         party: Option<u64>,
     },
@@ -3277,7 +3277,7 @@ pub struct Unfinished {
     pub task: u64,
 }
 
-/// A tier task's step (temper/docs/design/domain/after-landing.md, 10).
+/// A tier task's step (temper/docs/design/domain/after-landing-storage.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum TierDecision {
     Wait { until: Option<skein_lib::Wall> },
@@ -3290,7 +3290,7 @@ pub struct TierHeard {
     /// The root's `tasks.message_bytes`, for the red finding's news body.
     pub message_bytes: u32,
 }
-/// A goal branch a tier following goal branches follows (temper/docs/design/domain/after-landing.md, 3).
+/// A goal branch a tier following goal branches follows (temper/docs/design/domain/after-landing-runs.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TierGoal {
     /// The goal task holding the branch.
@@ -3306,7 +3306,7 @@ pub struct TierGoal {
     /// When its last run started.
     pub started: Option<skein_lib::Time>,
 }
-/// Why a tier's run is held (temper/docs/design/domain/after-landing.md, section 3).
+/// Why a tier's run is held (temper/docs/design/domain/after-landing-runs.md, section 2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum TierHeld {
     /// Past the project's `tier_retries`: the last runner fault's kind.
@@ -3314,7 +3314,7 @@ pub enum TierHeld {
     /// Waiting or blocked for a runner past `forge.change_policy.runner_wait_ms`.
     RunnerWait,
 }
-/// Family 28's policy and task (temper/docs/design/domain/after-landing.md, 10).
+/// Family 28's policy and task (temper/docs/design/domain/after-landing-storage.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TierRow {
     /// The judged run's whole report's names, retained until the next run starts.
@@ -3346,7 +3346,7 @@ pub struct TierRow {
     pub goal: Option<u64>,
     pub started: Option<skein_lib::Time>,
 }
-/// Kept verdict projections (temper/docs/design/domain/after-landing.md, sections 9 and 10).
+/// Kept verdict projections (temper/docs/design/domain/after-landing.md, section 9, and temper/docs/design/domain/after-landing-storage.md, section 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TierPosting {
     pub number: u64,
@@ -3382,7 +3382,7 @@ pub enum TierCommentKind {
     Verdict { at: u16 },
     Repaired { by: Option<u64> },
 }
-/// A person's independent hold of a tier (domain/after-landing.md, sections 3 and 10).
+/// A person's independent hold of a tier (domain/after-landing-runs.md, section 2, and domain/after-landing-storage.md, section 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TierHold {
     pub party: u64,
@@ -3421,7 +3421,7 @@ pub struct TierFlight {
     /// A failed part awaiting its artifact, read again after restart.
     pub report: Option<ReceiptRun>,
 }
-/// Family 29's landing verdicts (temper/docs/design/domain/after-landing.md, 10).
+/// Family 29's landing verdicts (temper/docs/design/domain/after-landing-storage.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Verification {
     pub repository: skein_forge::api::Repository,
@@ -3449,7 +3449,7 @@ pub struct TierRepair {
     pub by: Option<skein_forge::api::Commit>,
 }
 
-/// Family 30's ring, oldest first (temper/docs/design/domain/after-landing.md, 10).
+/// Family 30's ring, oldest first (temper/docs/design/domain/after-landing-storage.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingLog {
     pub repository: skein_forge::api::Repository,

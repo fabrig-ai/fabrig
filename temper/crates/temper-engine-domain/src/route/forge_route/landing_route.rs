@@ -80,7 +80,7 @@ pub(super) fn pending(
 
 /// Judge every derived train at quiescence, after readiness, ending, priority and
 /// restart work has settled. One queued decision is committed before judging again
-/// so neither a train nor the live-row bound can be reserved twice (landing.md, 9).
+/// so neither a train nor the live-row bound can be reserved twice (domain/landing-turn.md, 2).
 pub(crate) fn form_landings(domain: &mut Domain, env: &Env<Limits>) -> bool {
     if domain.forge.landing_held() {
         return false;
@@ -114,7 +114,7 @@ fn form_train(domain: &mut Domain, env: &Env<Limits>, repository: skein_forge::a
     }
     // Due ready changes join in queue order and never hold forming. Only a
     // non-ready change whose gates and dependencies have settled holds this
-    // train, for one due step at that head (domain/landing.md, 9).
+    // train, for one due step at that head (domain/landing-turn.md, 2).
     let mut excluded = List::with_capacity(env.limits.forge.changes);
     for task in domain.forge.changes_for(repository, env.limits.forge.changes) {
         let Some(row) = domain.forge.change(task) else { continue };
@@ -191,7 +191,7 @@ fn form_train(domain: &mut Domain, env: &Env<Limits>, repository: skein_forge::a
 }
 
 /// The current gate's terminal can be in jig's retained task or its owner's
-/// inbox before the change step copies it into the row (domain/landing.md, 9).
+/// inbox before the change step copies it into the row (domain/landing-turn.md, 2).
 fn returned_gate(domain: &Domain, row: &forge::ChangeRow) -> Option<(u64, skein_forge::api::Commit)> {
     let (child, kind) = row.delegate?;
     let gate = match kind {
@@ -583,7 +583,7 @@ pub(super) fn landing_decision(domain: &mut Domain, env: &Env<Limits>, task: u64
     }
 }
 
-// A landing ends for its train alone (domain/landing.md, 4.2 and 9).
+// A landing ends for its train alone (domain/landing.md, 4.2, and domain/landing-turn.md, 2).
 fn wake_train_ready(domain: &mut Domain, env: &Env<Limits>, task: u64) {
     for change in domain.forge.waiting_after_landing(task, env.limits.forge.changes) {
         domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task: change }));

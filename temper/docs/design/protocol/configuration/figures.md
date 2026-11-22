@@ -117,7 +117,7 @@ filled so:
    run on the places it's built with.
 4. **The agent configuration** is written from the figures and the
    machine (6), and pinned in the worker's root as today's file is
-   (`../../domain/worker/README.md`, section 5).
+   (`../../domain/worker/agent-processes.md`, section 1).
 5. **Checked and built** as today's start does from its document and
    agent configuration (`README.md`, sections 2 to 4). A problem refuses
    the start, naming the figure and saying the engine sent it, such as
@@ -340,7 +340,7 @@ written as JSON by the worker's start:
 
 - **Pinned as today's file is:** `agent/agent.json` under the worker's
   root, private, with the agent program copied beside it, both afresh at
-  each start (`../../domain/worker/README.md`, section 5). smith's
+  each start (`../../domain/worker/agent-processes.md`, section 1). smith's
   decoder reads the bytes back before the start goes on, so smith's
   checks hold them.
 - **The agent program is temper's own,** derived and never written. The

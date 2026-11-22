@@ -8,7 +8,7 @@ This document holds topics and landings as news, split from [`README.md`](README
 
 | Topic | Published when | Read by |
 |---|---|---|
-| landings on a repository's branch | a landing branch's tip moves | goals working in that repository; landing queues; tiers (`../after-landing.md`, section 3); follows of that branch (`follows.md`, section 3); a subscription naming trailers (`../after-landing.md`, section 8) |
+| landings on a repository's branch | a landing branch's tip moves | goals working in that repository; landing queues; tiers (`../after-landing-runs.md`, section 2); follows of that branch (`follows.md`, section 3); a subscription naming trailers (`../after-landing.md`, section 8) |
 | CI on a head | a head's CI, as `keeping-up.md`, 3 reads it, changes | changes; tasks that subscribe |
 | a pull request's state | opened, closed, merged, its head moved, its mergeability known | changes; tasks that subscribe |
 | comments and reviews on a participating object | another party writes there | the task dealing with it (`README.md`, section 7) |

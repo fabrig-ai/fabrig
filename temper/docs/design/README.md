@@ -89,7 +89,7 @@ One story:
    the adoption form (`client/forge/family.md`, 4).
 4. The person starts a chat and asks for a change; the stock chat reads
    the code through the forge and delegates the change whole to a change
-   task (`domain/agent/tools.md`, 1; `domain/forge/change/README.md`, 1).
+   task (`domain/agent/tools-change.md`, 1; `domain/forge/change/README.md`, 1).
 5. Agents do the rest: the change is produced, its pull request opened,
    checked by CI and by an agent's review (a gate the usual landing rule
    asks for, `domain/forge/change/gates.md`, 1 and 2), repaired when either
@@ -181,6 +181,20 @@ forge, temper adds:
   what temper fills in of smith's agent; and `testing/README.md`, temper's tiers, its fakes, its scenarios and its layout,
   on skein's testing strategy and jig's worlds. Its `README.md` gives the
   reading order, the structure, the names and the decisions.
+  - `domain/root.md`: temper's root.
+  - `domain/root-translation.md`: the root's boundary translation and output assembly.
+  - `domain/root-restart.md`: restarting and stopping the root.
+  - `domain/landing.md`: landing by turn.
+  - `domain/landing-prepare.md`: preparing candidates, rounds and merge trains.
+  - `domain/landing-proof.md`: keys, receipts and proof by dispatch.
+  - `domain/landing-turn.md`: the landing turn and its trains.
+  - `domain/after-landing.md`: verdicts and clearing after landing.
+  - `domain/after-landing-runs.md`: tier definitions, scheduling and run reports.
+  - `domain/after-landing-storage.md`: after-landing effects, reads and durable records.
+  - `domain/agent/tools.md`: the agent's tool families and call contracts.
+  - `domain/agent/tools-forge.md`: the agent's forge reads.
+  - `domain/agent/tools-change.md`: a change in the run's words.
+  - `domain/agent/tools-goal.md`: a goal in the run's words.
   - `domain/forge/README.md`: the forge connector and its documents.
   - `domain/forge/effects.md`: effects and recovery across restarts.
   - `domain/forge/topics.md`: topics and landings as news.
@@ -197,6 +211,8 @@ forge, temper adds:
   - `domain/forge/change/repairs-briefs.md`: gathering the forge sections of a brief.
   - `domain/forge/change/repairs-releases.md`: holds and releases.
   - `domain/worker/README.md`: the worker's root, assignments, runs and world.
+  - `domain/worker/hosted-runs.md`: assignments, lifecycle and failures.
+  - `domain/worker/agent-processes.md`: the worker's agent processes and their bounds.
   - `domain/worker/checkouts.md`: workspaces, preparing, delivering, saving and open questions.
   - `domain/worker/jobs.md`: job kinds, commands and failure diagnostics.
   - `testing/worker.md`: the worker's inspection adapter, the faults of its disk and workspaces, and their sweeps.
@@ -264,10 +280,6 @@ forge, temper adds:
   its identity and floors, what the machine must have, how a release
   is made, Apple Silicon's file for the site, and its walk on a fresh
   machine.
-- **`redeploy.md`:** a deployment taking a new build while its work
-  goes on: the deployment's description, the build staged, the engine
-  alone by default, workers in turn, every part together, the record and
-  the referee, in `temper-redeploy`.
 - **`draft/`:** the drafts, the vision this design is written from
   (the repository's `AGENTS.md`, section 6).
 - **Status files:** beside each document, `<name>.status.md`, where

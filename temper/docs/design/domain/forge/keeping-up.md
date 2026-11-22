@@ -219,8 +219,8 @@ part:
   decision still uses the rules held then (`change/gates.md`, 2, and `change/panel.md`, 1, and `change/gates.md`, 3); hints do not replace
   polling, settling or stall deadlines (`change/gates.md`, section 1 and `change/stalls.md` and `queues.md`).
 - **temper's own polls fall back too.** A landing's or a tier's flight
-  polling its runs in flight (`../landing.md`, 7.1; `../after-landing.md`,
-  section 3), a landing waiting on a fact it lacks (`../landing.md`, 5.2)
+  polling its runs in flight (`../landing-proof.md`, 2.1; `../after-landing-runs.md`,
+  section 2), a landing waiting on a fact it lacks (`../landing-prepare.md`, 1.2)
   and a queued merge's look (skein's `forge/client.md`, 7.7)
   are due at `Domain::poll_at` for their repository with `poll`, so
   while it hears they come at the later of `poll` and its last hint
@@ -329,7 +329,7 @@ meanwhile. Only what invalidates a gather (1) starts its reads again
 from its branch; the read of its paths, refused, is left unread, as
 before. A gather begun again at each refusal would lose its reads to
 every other caller's while the client is full, keeping a train's
-waiting changes due for minutes (`../landing.md`, 9).
+waiting changes due for minutes (`../landing-turn.md`, 2).
 
 An agent's fresh read refused `Busy` by the client's local admission
 returns the host's predecision Busy reply, never a rendered forge-read
@@ -380,7 +380,7 @@ for it, never a read of another kind or another party's.
   refuses as too large to list, is not; any other failure, or an empty
   page that says more follow, leaves it unknown. Its readers:
   - **a landing's candidate,** whether its head contains main's tip
-    (`../landing.md`, 5.2): `before` the head, `after` main's tip;
+    (`../landing-prepare.md`, 1.2): `before` the head, `after` main's tip;
     contained, the head is the candidate as it is; not contained, it is
     prepared; unknown, the landing waits as it does for any fact it lacks;
   - **a goal's closer,** whether its base holds the goal branch's tip

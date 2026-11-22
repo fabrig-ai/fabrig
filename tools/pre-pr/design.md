@@ -735,7 +735,7 @@ cause.
   then passes or fails on the wrong build. A deployment whose cargo gives
   a workspace's paths one target keeps the setting the check makes, or
   keys this worktree to a target of its own
-  (`temper/docs/design/domain/worker/README.md`, 5).
+  (`temper/docs/design/domain/worker/agent-processes.md`, 1).
 - **The goal's reds,** which temper keeps and its worker writes at each
   check's start (`temper/docs/design/domain/forge/reds.md`, 5), are
   `temper/reds` under the git directory, at `git rev-parse --git-path

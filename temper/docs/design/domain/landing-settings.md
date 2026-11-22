@@ -17,7 +17,7 @@ the forge's, judged in the change's decision:
 | Kind | Scope | Numbers | Value |
 |---|---|---|---|
 | 4, a project's landing | each project | 1 | the members below |
-| 5, a project's gates | each project | 1 | `repositories`, each one of the project's repositories at most once: the repository (its forge and id); `gates`, its test gates, each a name, the workflow's file, its ignored paths, whether it blocks, and whether it reads the base (`base`, no when absent), and its `report`, if any: an artifact, its format and its fuzzy tests' name prefix (`landing.md`, 7.3; `landing-search-by-test.md`, 2), each proving the trains into its main (`landing.md`, 7.1); `tiers`, each a name, the workflow's file, its ignored paths, the artifact and its format, the branch it follows (`after-landing.md`, section 2), its span and its description |
+| 5, a project's gates | each project | 1 | `repositories`, each one of the project's repositories at most once: the repository (its forge and id); `gates`, its test gates, each a name, the workflow's file, its ignored paths, whether it blocks, and whether it reads the base (`base`, no when absent), and its `report`, if any: an artifact, its format and its fuzzy tests' name prefix (`landing-proof.md`, 2.3; `landing-search-by-test.md`, 2), each proving the trains into its main (`landing-proof.md`, 2.1); `tiers`, each a name, the workflow's file, its ignored paths, the artifact and its format, the branch it follows (`after-landing-runs.md`, section 1), its span and its description |
 
 Kind 5 was a repository's gates, numbered by the repository's adoption
 packed in 32 bits beside its forge's number. A repository's id is the
@@ -30,17 +30,17 @@ Kind 4's members, each with its default and the section it serves:
 | Member | Default | Serves |
 |---|---|---|
 | `by`: `queue` or `turn` | `queue` | `landing.md`, section 1 |
-| `batch`: the most changes a landing into a repository's main forms with, from 1 to the deployment's `landing_members` | 1 | `landing.md`, 4.1, `landing.md`, section 9 |
-| `combine`: how a train combines its members (`landing.md`, 5.2), `merge` or `squash`, `main` for the trains into a repository's main and `other` for those into any other branch | `merge`; `squash` | `landing.md`, 5.2 and section 8 |
-| `prepare`, `key`: paths in the home, or none; `home_revision`; `prepare_timeout` | temper's own prepare and key | `landing.md`, 5.3, 6.1 |
+| `batch`: the most changes a landing into a repository's main forms with, from 1 to the deployment's `landing_members` | 1 | `landing.md`, 4.1, `landing-turn.md`, section 2 |
+| `combine`: how a train combines its members (`landing-prepare.md`, 1.2), `merge` or `squash`, `main` for the trains into a repository's main and `other` for those into any other branch | `merge`; `squash` | `landing-prepare.md`, 1.2, and `landing-turn.md`, 1 |
+| `prepare`, `key`: paths in the home, or none; `home_revision`; `prepare_timeout` | temper's own prepare and key | `landing-prepare.md`, 1.3, `landing-proof.md`, 1.1 |
 | `merge_job`: a path in each repository it merges, or none | none: a conflict goes to a resolution at once | `forge/change/repairs.md` and `forge/updates.md`, 1 |
 | `close_job`: a path in each repository a goal's branch is in, or none; `landing_attempts`, 1 to 255 | none; 3 | `forge/branches.md`, 2 |
 | `check_timeout`: the delivery checks' wall bound in a run delegated for one of the project's changes, or none | none: the agent's own | `../protocol/configuration/engine.md`, `landing` |
 | `dependencies_join` | yes | `landing.md`, 4.1 |
-| `pins`: each a downstream and an upstream repository; `pins_follow_main` | none; no | `landing.md`, 4.1, 5.3 |
-| `gate_retries`; `gate_timeout` | 2; one hour | `landing.md`, 7.4; `landing.md`, 7.1 |
+| `pins`: each a downstream and an upstream repository; `pins_follow_main` | none; no | `landing.md`, 4.1, `landing-prepare.md`, 1.3 |
+| `gate_retries`; `gate_timeout` | 2; one hour | `landing-proof.md`, 2.4; `landing-proof.md`, 2.1 |
 | `wait`: `cleared` or `landed`, whether a change into a branch a tier follows lives to cleared or ends at landed | `cleared` | `after-landing.md`, section 6 |
-| `tier_retries`; `verification_bound`; `suspects`: `bisect` or `tell_all`; `red_pauses` | 2; two hours; `bisect`; no | `after-landing.md`, 3, 5.2, 6, 7 |
+| `tier_retries`; `verification_bound`; `suspects`: `bisect` or `tell_all`; `red_pauses` | 2; two hours; `bisect`; no | `after-landing-runs.md`, 2, `after-landing.md`, 5.2, 6, 7 |
 | `findings`: on or off; `triager` and `chooser`, a task or a role; `tester_charter`; `areas`, each a repository and an area | off; the person's chat; the chat; none | `findings.md`, 2, 6, 8 |
 | `repairs`: `repair_goals`, `repair_attempts`, `repair_deadline` and `goal`, the repair goal's shape; refused without `wait: landed` | none; when set 2, 2, 24 hours, `goal` required | `red-repairs.md`, section 7 |
 | `questions_on_forge` | off | `forge/issues.md`, 1 |
@@ -59,7 +59,7 @@ Kind 4's members, each with its default and the section it serves:
   from kinds 4 and 5 as they stand when it restores its settings, and
   keeps it until the next start. A change of either, accepted while the
   engine runs, is stored and waits. Gates and tiers are positional in
-  the proofs and trains in flight (`landing.md`, 7.1 and section 9), so
+  the proofs and trains in flight (`landing-proof.md`, 2.1, and `landing-turn.md`, 2), so
   a change mid-run would leave them naming another gate. The
   settings-fields page and each kind's line say "at the next start".
 - **Judged when proposed,** by the forge with the root's facts, each
@@ -93,7 +93,7 @@ Kind 4's members, each with its default and the section it serves:
   follows, as the forge holds them, so that a path draws "prepare",
   "prove" and "turn" under `turn` and a tier's stops where it has one.
 - **`turn` is refused** for a project with a repository where temper
-  cannot fast-forward main to a candidate (`landing.md`, section 8: on GitHub, no
+  cannot fast-forward main to a candidate (`landing-turn.md`, section 1: on GitHub, no
   `Always` bypass of a rule requiring a pull request, or a required
   merge queue; or an installation that cannot write statuses or
   dispatch workflows), naming the repository and the setting that
@@ -116,7 +116,7 @@ Kind 4's members, each with its default and the section it serves:
   merged member's pull request (`landing.md`, section 10); where one of the project's
   trains squashes, whether the forge lets a pull request be recorded
   merged by hand (Forgejo's "allow manual merge"), which a squashed
-  member's record needs (`landing.md`, section 8); and whether the branch's rules
+  member's record needs (`landing-turn.md`, section 1); and whether the branch's rules
   admit the landing's pull request with the gates' statuses on the
   candidate.
 

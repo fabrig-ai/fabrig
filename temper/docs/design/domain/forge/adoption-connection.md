@@ -294,7 +294,7 @@ This document holds a forge's connection, access state and removal, split from [
   page whole: pending work first, then observations, then the
   `Repository` row; a change's two parts in one page; and no row before
   a row that links to it, so that no page leaves a row linking to one
-  gone (`../root.md`, 8.1). A restart between pages so finds a
+  gone (`../root-restart.md`, 1.1). A restart between pages so finds a
   store whose every row links whole and starts; the core asks for the
   release again once the start opens (jig's `domain/people/acts.md`,
   2), and the release, finding the project's repositories still kept

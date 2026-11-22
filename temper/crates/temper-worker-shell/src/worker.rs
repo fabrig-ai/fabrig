@@ -145,7 +145,7 @@ pub fn root(
 }
 
 /// Write a fresh, private agent from the start's checked bytes
-/// (domain/worker/README.md, 5). Only exact configuration arguments are replaced.
+/// (domain/worker/agent-processes.md, 1). Only exact configuration arguments are replaced.
 pub fn pin(
     root: &Path,
     agent: &jig_protocol_config::Agent,

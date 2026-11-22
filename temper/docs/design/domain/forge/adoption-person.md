@@ -12,7 +12,7 @@ One person on a box means at most one link per forge, so it has no family, no
 bound and no restore of its own, and it goes with the forge if that's removed.
 
 - **The person is the deployment's sole owner,** handed by the root at each
-  start, once the core's and the forge's records are loaded (`../root.md`, 8.1):
+  start, once the core's and the forge's records are loaded (`../root-restart.md`, 1.1):
   the party jig's people answer as the deployment's sole owner (jig's
   `domain/people/README.md`, section 4), or none. In that decision every link whose
   person isn't that party is cleared and logged, and while the root has

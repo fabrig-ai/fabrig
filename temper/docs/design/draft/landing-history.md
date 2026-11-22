@@ -18,8 +18,8 @@ temper keeps what a change and a landing are now, not how they got there. A chan
   - a change's first ready time, its step, its head and the time of its last step, replaced at the next (`../domain/forge/change/README.md`, 2);
   - its updates, repairs and resolutions as counts, not times;
   - a landing's members, their heads and why each left, without when, and its current round only (`../domain/landing.md`, 12);
-  - each gate's receipts by key, with the time temper recorded the verdict, a few per gate (`../domain/landing.md`, 6.2);
-  - the landing log, the recent landings per repository, a ring (`../domain/after-landing.md`, 10).
+  - each gate's receipts by key, with the time temper recorded the verdict, a few per gate (`../domain/landing-proof.md`, 1.2);
+  - the landing log, the recent landings per repository, a ring (`../domain/after-landing-storage.md`, 1).
 - **Kept elsewhere:** jig keeps each task's activity, attempts, milestones and holds with their times after the task ends: the agents' side of resolutions and repairs, not the change's or the landing's steps. The forge keeps pushes, merges and runs with its own times; the runner keeps a gate's inner steps in its logs.
 - **What goes with the rows:** the forge's limits evict ended changes and ended landings as room is needed (`../protocol/configuration/limits.md`): a change read after that has no panel, and an ended landing no row.
 - **Never kept:** when a change became ready again, joined a queue or a landing, was taken by it, was updated, left it and why; when a job ran; when a delivery was accepted; when a gate's outcome was seen; when the turn was taken. These are the boundaries a timeline rebuilt by hand can only infer.
@@ -43,7 +43,7 @@ temper keeps what a change and a landing are now, not how they got there. A chan
 | `paused`, `resumed` | its CI is paused or resumed (`../domain/forge/change/README.md`, 2, step 3) | why |
 | `formed`, `round-ended` | a landing forms or a round starts; a round ends | landing, round, base, its units and their members in order with their heads; the cause: turned, a member left, stale, cancelled |
 | `gate`, `gate-ended` | a gate's run is dispatched or seen running; its outcome is heard | gate, key, head or prefix, run and attempt; verdict, a runner's fault and its retry, or superseded |
-| `proved` | a candidate or prefix is proved, by runs or by receipts already held (`../domain/landing.md`, 7.2) | the prefix; each gate's receipt or run |
+| `proved` | a candidate or prefix is proved, by runs or by receipts already held (`../domain/landing-proof.md`, 2.2) | the prefix; each gate's receipt or run |
 | `search`, `searched` | the search by prefixes starts, and holds its boundary (`../domain/landing-search.md`, 2 to 4) | round; the green and red prefixes, the blamed unit |
 | `probe`, `probe-ended` | a probe runs at a prefix, and its outcome is heard | prefix; outcome |
 | `turn` | the branch moves to a proved prefix, or a `queue` change's merge is made by temper | prefix or head, members landed |

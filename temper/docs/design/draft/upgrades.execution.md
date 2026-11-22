@@ -108,7 +108,7 @@ design is the documents it names, written before its changes.
 ### M9. temper's commands
 
 - **Design:** `../protocol/binaries.md` (`upgrade`, job lines);
-  `../domain/root.md`, 8.1.
+  `../domain/root-restart.md`, 1.1.
 - **Builds:** both binaries' `upgrade --check` and `--back`, the
   rehearsing root, the job lines; the one-process world's rehearsal
   and going-back stories.

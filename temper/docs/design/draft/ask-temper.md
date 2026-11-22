@@ -122,8 +122,8 @@ carries it out (`ask-temper.md`, section 11). Reasons: `notes.md`, section 10.
   (`../domain/forge/attention.md`, 3), and has no inspect, modify, shell or agents
   family, so that its runs have no checkout, no file tools, no shell and no
   sub-agents. Charter 3 names no repository either, yet the root gives every run
-  but a change's delegate the project's home repository (`../domain/root.md`,
-  6.1), and in the capture of 2026-11-07 its runs had inspect tools, a
+  but a change's delegate the project's home repository (`../domain/root-translation.md`,
+  2.1), and in the capture of 2026-11-07 its runs had inspect tools, a
   `## Checkout` and a git working directory.
 - **smith's mechanics** for an open run then say nothing of a checkout: no
   `## Tools` section on reading files and no `## Checkout` (smith's

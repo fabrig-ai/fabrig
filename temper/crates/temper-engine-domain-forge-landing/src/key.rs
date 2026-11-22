@@ -1,4 +1,4 @@
-//! Canonical filtered-tree keys (domain/landing.md, 6.1).
+//! Canonical filtered-tree keys (domain/landing-proof.md, 1.1).
 use crate::{Commit, Gate, Key, Repository};
 use alloc::{
     boxed::Box,
@@ -47,7 +47,7 @@ pub struct KeyLimits {
 
 /// Workflow, ignored-path count and paths, each length-prefixed by a
 /// big-endian u16; then one byte for blocking and, only when true, base
-/// (domain/landing.md, 6.1). An optional report follows with tag 2, its
+/// (domain/landing-proof.md, 1.1). An optional report follows with tag 2, its
 /// length-prefixed artifact and format (domain/landing-search-by-test.md, 2).
 #[must_use]
 pub fn definition(gate: &Gate) -> Box<[u8]> {
@@ -98,7 +98,7 @@ enum Pending {
 }
 
 /// Hash the candidate and optional base filtered trees, requesting missing trees
-/// in path order (domain/landing.md, 6.1).
+/// in path order (domain/landing-proof.md, 1.1).
 #[must_use]
 #[expect(clippy::too_many_arguments, reason = "a base tree is optional beside the candidate tree and key identity")]
 pub fn key(

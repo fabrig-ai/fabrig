@@ -204,8 +204,8 @@ writes only `slots`.
 From `../../draft/reconciling-start.md`, 4 and 5: the bounds derive from
 one another, and a unit takes its timeouts from the engine's.
 
-- **The stop bound** is the settled stop's (`../../domain/root.md`,
-  8.2): twice the sum of the forge client's write lifetime and clock
+- **The stop bound** is the settled stop's (`../../domain/root-restart.md`,
+  1.2): twice the sum of the forge client's write lifetime and clock
   margin, `forge.client.lifetime_ms` and `forge.client.clock_margin_ms`
   (skein's `forge/client.md`, 7.8), from the limits in force at the
   start (`limit-settings.md`). At the stock's 300 s and 1 s it is 602 s.

@@ -30,7 +30,7 @@ use temper_worker_domain as root;
 use worker_settings::problem;
 
 /// The worker's root directory and pinned agent, prepared by the shell
-/// (domain/worker/README.md, 5).
+/// (domain/worker/agent-processes.md, 1).
 #[derive(Debug)]
 pub struct WorkerRuntime {
     pub root: Fd,

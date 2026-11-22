@@ -90,7 +90,7 @@ pass meets (section 4).
 - **The worker's line:** the worker takes each report as one of its notes,
   `worker_alone`'s `Note::Unswept { path, error }`, which its shell writes
   to stderr (`services.md`, 7), as it does a stopped agent's
-  (`../domain/worker/README.md`, 4.3):
+  (`../domain/worker/hosted-runs.md`, 1.3):
 
   ```
   <binary> worker: trash entry not removed: <path>: <error>

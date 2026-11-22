@@ -69,7 +69,7 @@ read.
   and its run are each person's (3).
 
   A landing is counted in the decision that first logs its change in
-  the landing log (`../after-landing.md`, section 10), once a change; the
+  the landing log (`../after-landing-storage.md`, section 1), once a change; the
   row is saved and the subject `status` marked there. A project with no
   repository left in `repositories` counts nothing. Past the bound a
   landing is not counted, as `Landed`'s are not past theirs
@@ -178,7 +178,7 @@ and only with something new to say to them
   it. A run in flight over an hour counts as none, so one that is held or
   waits on an account never stops the next, and its late result is
   dropped, as `running` no longer names it.
-- **Made** as a tier run's task is (`../after-landing.md`, section 3):
+- **Made** as a tier run's task is (`../after-landing-runs.md`, section 2):
   `Request::StatusRun { project, party, since, words, findings, signers
   }`; the root makes a procedure task, code `STATUS_CODE`, funded from
   the party's pool in the project, on `Core::pool_seed(project, party)`

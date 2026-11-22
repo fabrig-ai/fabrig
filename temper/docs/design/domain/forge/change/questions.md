@@ -17,7 +17,7 @@ relays none. The routes are `none` and `up` alone: `foreman`, which had
 a delegate of the forge's charter 3 settle each question first, is
 retired (`../../../draft/stock-charters.md`, 3), since the implementer
 now checks its spec itself before it asks. A `change` naming it, alone
-or in a batch, is refused by name (`../../agent/tools.md`, 1), and a
+or in a batch, is refused by name (`../../agent/tools-change.md`, 1), and a
 stored setting naming it is refused, not read, naming the setting
 (`../../../protocol/configuration/settings.md`, 2).
 
@@ -456,7 +456,7 @@ early, by these rules:
   recorded, and nothing else sets or clears either. It is stored with
   the change, so it too holds across a park and a restart. A delegate's
   next assignment names `last_checked` as its own delivery
-  (`../../worker/README.md`, 4.1; `../../../protocol/channel.md`, 4)
+  (`../../worker/hosted-runs.md`, 1.1; `../../../protocol/channel.md`, 4)
   exactly when `last_checked_by` is that delegate's task and its item
   is writable, so a producer, a repair or a resolution that delivered,
   asked and parked delivers that head again when its next run finishes
@@ -510,7 +510,7 @@ early, by these rules:
   rules ask no update (a goal's own branch, `../branches.md` and `gates.md`, section 2), whose
   workspace would start from the change's pushed branch or from saved
   work, starts instead from a merge in progress: that start, with the landing branch's tip as the
-  base merged into it (`../../worker/README.md`, 4.1 and `../../worker/checkouts.md`). A clean merge is
+  base merged into it (`../../worker/hosted-runs.md`, 1.1 and `../../worker/checkouts.md`). A clean merge is
   committed before its run starts, so the run finds a clean tree with the
   tip in its head. A conflict is left in its checkout for it to settle.
   Either way its first push delivers the merge. A tip that start already contains is no merge, so a resume with
@@ -523,7 +523,7 @@ early, by these rules:
   brought up to date by the forge's update (`../updates.md`, section 1).
 - **A running producer catches up.** A dependency started from may land
   while the early producer that started from it still runs. Its landing
-  squashes its work into one new commit (`../../landing.md`, 5.2) and
+  squashes its work into one new commit (`../../landing-prepare.md`, 1.2) and
   its branch is deleted as its task closes (`../branches.md`), so the
   head the producer's workspace merged is on no branch of the forge any
   more, and a delivery or a save whose second parent it is would be

@@ -202,7 +202,7 @@ fn a_saved_delivery_survives_worker_loss_and_engine_restart_beside_proof() {
             })
             .count();
         assert!(live <= 1, "the train has at most one live landing");
-        // Landed frees the train before the change task ends (domain/landing.md, 9).
+        // Landed frees the train before the change task ends (domain/landing-turn.md, 2).
         for row in &rows {
             if row.landing.task != first_landing {
                 assert_eq!(

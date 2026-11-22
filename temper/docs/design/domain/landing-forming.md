@@ -1,13 +1,13 @@
 # A landing's forming
 
 Provisional, 2026-11-19. How the decision that forms a landing
-(`landing.md`, section 9) is made whole: its task made first, and the
+(`landing-turn.md`, section 2) is made whole: its task made first, and the
 landing's row, its members' links and its branches' holds saved only
 once jig holds that task; a make jig refuses forming nothing, its train
 waiting a queue window, the refusal a warning in the engine's log; and
 a start over a store that already holds a landing whose task was never
 made ending that landing, so its members wait again. Which units form a
-landing, and when forming is judged, is `landing.md`, section 9; the
+landing, and when forming is judged, is `landing-turn.md`, section 2; the
 landing task is `landing.md`, 4.2; the restart is `landing.md`, section
 15.
 
@@ -34,11 +34,11 @@ landing task is `landing.md`, 4.2; the restart is `landing.md`, section
 
 ### 2.1 Its order
 
-The decision that forms a free train's landing (`landing.md`, section 9)
+The decision that forms a free train's landing (`landing-turn.md`, section 2)
 does, in this order:
 
 1. **Its names reported** to jig: each member's branch in the landing
-   (`landing.md`, 5.1), as before.
+   (`landing-prepare.md`, 1.1), as before.
 2. **Its task's make:** jig's `Event::ConnectorRepair` with the
    project's procedure seed, the landing's spec, contract and holdings
    (`landing.md`, 4.2), as before.
@@ -83,7 +83,7 @@ does, in this order:
   reuses one.
 - **Its members wait,** ready, in no landing, each keeping the time it
   first became ready, so the train's next landing takes them in their
-  order (`landing.md`, section 9). No member is held, repaired or told:
+  order (`landing-turn.md`, section 2). No member is held, repaired or told:
   the refusal is the deployment's room, configuration or funding, never
   a member's fault.
 - **Its train waits a queue window:** the running engine remembers,

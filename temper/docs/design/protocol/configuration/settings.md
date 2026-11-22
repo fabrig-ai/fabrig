@@ -265,14 +265,14 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
   reads its own kind 3, as it holds it, and the root grants the
   change's procedure delegation to its producer's charter and its
   review charter. Its producer's charter is the one its `change` call
-  names (`../../domain/agent/tools.md`, 1), or, with none, the change's
+  names (`../../domain/agent/tools-change.md`, 1), or, with none, the change's
   charter (number 1), its default. The change keeps their numbers on
   its row: its producing, its repairs, its resolutions and its checks'
   gates run under the producer's charter it was made with, its agents'
   gates, the reviews, under the
   review charter it was made with (number 2; the stock's charter 4),
   and a newer charter of either reaches the
-  changes made after it (`../../domain/root.md`, section 5).
+  changes made after it (`../../domain/root-translation.md`, section 1).
 - **The foreman is retired** (`../../draft/stock-charters.md`, 3): kind 3
   has no number 3 and kind 6 no `foreman`. Their codecs keep each
   remaining value's encoding and reuse none: a stored kind 3 number 3,
@@ -608,7 +608,7 @@ next run.
   the repository, `branch` and the branch's segments), a path, and
   optionally a heading. temper's stock charters name none.
 - **The forge gathers each** for a run of the charter, as a brief
-  section of its own (`../../domain/root.md`, 6.2): the file at the
+  section of its own (`../../domain/root-translation.md`, 2.2): the file at the
   branch's head as the forge resolves it when it gathers the section,
   one commit named in the section and kept for its whole life, read as
   `read_forge what=file` reads one (`../../domain/forge/README.md`, section 2). With a
