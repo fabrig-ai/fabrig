@@ -214,6 +214,13 @@ pub fn transcript<B: smith_agent_world::backend::Backend>(agent: &smith_agent_wo
     }
 }
 
+/// Size the immutable registry once, without rebuilding every schema per activation.
+#[must_use]
+pub(crate) fn host_tool_count() -> u32 {
+    static COUNT: std::sync::OnceLock<u32> = std::sync::OnceLock::new();
+    *COUNT.get_or_init(|| u32::try_from(temper_engine_smith::tools(Duration::from_secs(10)).len()).expect("tool count"))
+}
+
 fn agent_for_with_options(
     assignment: &engine::Assignment,
     transcript: Option<smith::Transcript>,
@@ -258,8 +265,7 @@ fn agent_for_with_options(
         time: assignment.run.policy.time,
     };
     settings.limits.run.budget = settings.budget;
-    settings.limits.run.host_tools =
-        u32::try_from(temper_engine_smith::tools(Duration::from_secs(10)).len()).expect("tool count");
+    settings.limits.run.host_tools = host_tool_count();
     settings.limits.run.brief_sections = 16;
     settings.limits.session.spend = settings.budget.spend;
     let largest = smith::max_turn_bytes(&settings.limits).expect("bounded Smith turn");

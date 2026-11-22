@@ -880,8 +880,7 @@ fn activation_settings(seed: u64, charter: &run::Charter, resumed: bool, receivi
     settings.resume = resumed;
     settings.budget = charter.budget;
     settings.limits.run.budget = charter.budget;
-    settings.limits.run.host_tools =
-        u32::try_from(temper_engine_smith::tools(Duration::from_secs(10)).len()).expect("tool count");
+    settings.limits.run.host_tools = crate::world::host_tool_count();
     settings.limits.run.brief_sections = 16;
     settings.limits.run.host_reply_bytes = 8192;
     settings.limits.session.spend = charter.budget.spend;
