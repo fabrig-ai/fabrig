@@ -8,7 +8,7 @@ use temper_engine_forge_world::{REPO, World};
 
 const GOAL: u64 = 77;
 const BRANCH: &[u8] = b"temper/77/g77";
-const ENDED: u64 = 63;
+const OWNER: u64 = 63;
 const FRESH: u64 = 3;
 const SLOW: &[u8] = b"slow-read";
 
@@ -51,19 +51,19 @@ fn before_restart() -> World {
     world
 }
 
-fn cancelled_landing() -> top::LandingRow {
+fn held_landing() -> top::LandingRow {
     top::LandingRow {
         last_event: None,
         turn_since: None,
-        waiting: None,
+        waiting: Some(landing::Awaited::Release),
         room: None,
         job: None,
         landing: landing::Landing {
             last_left: None,
             searched: None,
-            task: ENDED,
+            task: OWNER,
             project: 5,
-            phase: landing::Phase::Cancelled,
+            phase: landing::Phase::Held { was: Box::new(landing::Phase::Waiting), why: landing::Hold::Prepare },
             members: Box::new([]),
             preparation: 0,
             stale_proofs: 0,
@@ -91,7 +91,7 @@ fn held_dispatch(number: u64) -> top::Stored {
     top::Stored::Entry {
         entry: Entry {
             number,
-            task: ENDED,
+            task: OWNER,
             repository: REPO,
             effect: Effect {
                 write: Write::Dispatch {
@@ -169,7 +169,7 @@ fn finish_making(world: &mut World) {
 #[test]
 fn a_full_outbox_lines_up_a_restarted_goal_making_until_a_holder_is_released() {
     let mut world = before_restart();
-    world.store_before_restart(top::Stored::Landing(cancelled_landing()));
+    world.store_before_restart(top::Stored::Landing(held_landing()));
     for number in [1, 2] {
         world.store_before_restart(held_dispatch(number));
     }

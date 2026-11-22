@@ -152,6 +152,20 @@ enum RoundRead {
     Upstream,
 }
 
+impl Domain {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_landing_read_waiters(&self) -> Box<[u64]> {
+        let mut tasks = List::with_capacity(self.landing.pending.len());
+        for (_, pending) in &self.landing.pending {
+            if pending.retry == Retry::Waiting {
+                tasks.push(pending.task).expect("counted landing readers");
+            }
+        }
+        tasks.into_boxed()
+    }
+}
+
 /// The repositories whose receipts and heads a train judges.
 pub(crate) fn repositories(row: &LandingRow, capacity: u32) -> Box<[api::Repository]> {
     let mut repositories = List::with_capacity(capacity);

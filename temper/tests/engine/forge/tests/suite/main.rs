@@ -12,6 +12,7 @@ mod goal_branch_restart;
 mod green;
 mod history_world;
 mod hooks;
+mod inspect;
 mod landing;
 mod landing_batches;
 mod landing_cancelled;

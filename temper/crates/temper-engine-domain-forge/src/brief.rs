@@ -42,6 +42,29 @@ pub(crate) struct BriefFetch {
     ci: Option<crate::brief_ci::Section>,
 }
 
+impl Domain {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_brief_read_waiters(&self) -> Box<[u64]> {
+        let mut tasks = List::with_capacity(self.brief_fetches.len());
+        for (_, fetch) in &self.brief_fetches {
+            if fetch.refused.is_some()
+                && fetch.deadline.is_none()
+                && let Some(task) = fetch.task
+            {
+                tasks.push(task).expect("counted brief readers");
+            }
+        }
+        tasks.into_boxed()
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_brief_task(&self, owner: Token) -> Option<u64> {
+        self.brief_fetches.get(&owner)?.task
+    }
+}
+
 /// A request quotes the reviewed head while the section stays pinned to the change's head
 /// (domain/forge/change/repairs.md).
 #[derive(Hash, Debug)]

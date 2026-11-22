@@ -39,7 +39,7 @@ fn workflow(seconds: u64) -> raw::Workflow {
     workflow.latency_max = workflow.latency_min;
     workflow
 }
-fn start(seconds: u64) -> World {
+pub(super) fn start(seconds: u64) -> World {
     let mut world = landings::turn_in(World::batch_turn(31, Some(workflow(seconds))));
     world.produce(b"temper/51");
     world.push_file(b"main", b"base", b"main moved");
@@ -52,7 +52,7 @@ fn step(world: &mut World, entry: u64) -> landing::Decision {
     changes::change_step_task(world, CHANGE, entry + 10000, change::Status::Passed, Box::new([]), false, false);
     decision
 }
-fn until_dispatch(world: &mut World) {
+pub(super) fn until_dispatch(world: &mut World) {
     for entry in 100..160 {
         if matches!(step(world, entry), landing::Decision::Dispatch { .. }) {
             return;

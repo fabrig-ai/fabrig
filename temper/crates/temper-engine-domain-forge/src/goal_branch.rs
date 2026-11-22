@@ -30,6 +30,20 @@ pub(crate) struct RoomWait {
     pub(crate) order: u64,
 }
 
+impl Domain {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_making_read_waiters(&self) -> Box<[u64]> {
+        let mut tasks = List::with_capacity(self.makings.len());
+        for (_, pending) in &self.makings {
+            if pending.state == LostReadState::WaitingForRoom && pending.retry_at.is_none() {
+                tasks.push(pending.task).expect("counted making readers");
+            }
+        }
+        tasks.into_boxed()
+    }
+}
+
 /// A taking retains its outbox number through branch reads and read retries,
 /// but gives it up while waiting for outbox room (domain/forge/branches.md, 1).
 pub(super) fn reserved_before(d: &Domain, number: u64) -> bool {

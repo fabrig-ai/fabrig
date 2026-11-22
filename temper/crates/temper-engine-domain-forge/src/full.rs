@@ -63,6 +63,25 @@ impl State {
         next
     }
 }
+impl Domain {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_reservations(&self) -> Box<[u64]> {
+        let mut tasks = List::with_capacity(self.full.reservations.len());
+        for (reservation, (_, task)) in &self.full.reservations {
+            let live = match reservation {
+                Reservation::Asked(waiter) => self.room.asked.contains(waiter),
+                Reservation::Call(owner) => self.call_room.contains(owner),
+                Reservation::Projection(entry) => self.projection_room.contains(entry),
+            };
+            if live {
+                tasks.push(*task).expect("counted reservations");
+            }
+        }
+        tasks.into_boxed()
+    }
+}
+
 fn start(state: &mut Option<Full>, now: Time, wall: u64) {
     if state.is_none() {
         *state = Some(Full { clock: Report::new(now), wall, words: None });

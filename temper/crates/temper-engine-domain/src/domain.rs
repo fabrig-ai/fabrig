@@ -277,6 +277,12 @@ impl Domain {
         self.core.fleet.reply_bound(Token::new(key.task), Token::new(key.attempt)).or(self.limits.host_reply_bytes)
     }
 
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn forge(&self) -> &temper_engine_domain_forge::Domain {
+        &self.forge
+    }
+
     /// The live task arena, for a world to inspect between iterations.
     #[must_use]
     pub const fn tasks(&self) -> &tasks::Domain {

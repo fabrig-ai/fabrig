@@ -30,6 +30,7 @@ pub(crate) mod full;
 mod goal_branch;
 pub(crate) mod heads;
 mod hints;
+mod inspection;
 mod landed;
 #[cfg(test)]
 mod limit_refusals;
