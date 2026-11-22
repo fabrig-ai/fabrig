@@ -98,6 +98,8 @@ pub(crate) struct Pull {
     pub(crate) commit: u64,
     /// Forge time until which mergeability is being checked.
     pub(crate) checked: Time,
+    /// A transient read projection; images retain only the truth.
+    pub(crate) lagging: Option<crate::lag::View>,
     /// The commit its merge made.
     pub(crate) merged: Option<u64>,
     pub(crate) queue_merged: bool,

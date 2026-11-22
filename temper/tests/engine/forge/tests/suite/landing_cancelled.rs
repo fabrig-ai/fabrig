@@ -14,16 +14,26 @@ use temper_engine_forge_world::{
 const RETRIES: u32 = 1;
 
 fn start() -> World {
+    start_with_room(false).0
+}
+
+fn start_with_room(bounded: bool) -> (World, Trains) {
     let mut workflow = super::landing_batches::workflow(false);
     workflow.latency_min = Duration::from_secs(300);
     workflow.latency_max = workflow.latency_min;
-    let mut world = landings::turn_in(World::batch_turn(31, Some(workflow)));
+    let mut world = World::batch_turn(31, Some(workflow));
+    if bounded {
+        world.limit_entries(1);
+        world.limit_landings(1);
+    }
+    let mut world = landings::turn_in(world);
     world.gate_policy(landing::Project { gate_retries: RETRIES, ..landing::Project::DEFAULT });
     world.produce(b"temper/51");
     landings::ready_change(&mut world, CHANGE, b"temper/51");
     world.push_as(b"main", b"base", b"another hand moved main", 2);
-    Trains::default().judge(&mut world);
-    world
+    let mut trains = Trains::default();
+    trains.judge(&mut world);
+    (world, trains)
 }
 fn step(world: &mut World, entry: u64) -> landing::Decision {
     let decision = landings::step_landing(world, LANDING, entry);
@@ -40,6 +50,148 @@ fn until_dispatch(world: &mut World, first: u64) {
     }
     panic!("no dispatch: {:?}", world.landing(LANDING));
 }
+const WAITER: u64 = 52;
+const WAITING_ENTRY: u64 = 400;
+
+fn dispatch_in_flight(world: &mut World) -> u64 {
+    for entry in 100..160 {
+        let heard = top::LandingHeard {
+            job: None,
+            outcomes: Box::new([]),
+            dependencies: Box::new([]),
+            held: Box::new([]),
+            failure: Box::new([]),
+            preparation: Some(landing::Preparation::Idle),
+            released: false,
+            cancelled: false,
+            kept: Box::new([]),
+        };
+        let step = landings::read_landing_step(world, LANDING, entry, heard);
+        if matches!(step.decision, landing::Decision::Dispatch { .. }) {
+            assert_eq!(step.entry, Some(entry));
+            world.slow_dispatches(Duration::from_secs(5));
+            world.event(top::Event::Committed { entry });
+            world.run_for(1);
+            assert!(world.stored().contains_key(&top::Key::Flight { task: LANDING, entry }));
+            assert!(world.take_calls().iter().any(|op| matches!(op, api::Op::Write(api::Write::Dispatch { .. }))));
+            return entry;
+        }
+        if let Some(entry) = step.entry {
+            world.event(top::Event::Committed { entry });
+            world.run_for(1);
+        }
+        if matches!(step.decision, landing::Decision::Prepare { .. }) {
+            world.prepare_landing(LANDING, false);
+        }
+        changes::change_step_task(world, CHANGE, entry + 10000, change::Status::Passed, Box::new([]), false, false);
+    }
+    panic!("no dispatch: {:?}", world.landing(LANDING));
+}
+
+fn open_waiter(world: &mut World, entry: u64) {
+    world.event(top::Event::StepChange {
+        task: WAITER,
+        entry,
+        heard: change::Heard {
+            review_request: None,
+            start_conflict: None,
+            lacking: None,
+            spend: None,
+            delegate: change::Status::Passed,
+            delegate_running: false,
+            flake: false,
+            no_test: false,
+            delegate_live: false,
+            effect: change::EffectResult::None,
+            released: false,
+            cancelled: false,
+        },
+        gates: Box::new([]),
+        queue_repair_active: false,
+        pending: Box::new([]),
+        kept: false,
+        merge_job: false,
+    });
+    world.run_for(1);
+}
+
+fn wait_for_room(world: &mut World) {
+    let mut row = changes::change_row();
+    row.task = WAITER;
+    row.change.task = WAITER;
+    row.branch = Box::from(b"temper/52".as_slice());
+    row.change.state = change::State::Opening { requested: false };
+    world.event(top::Event::Change { row });
+    open_waiter(world, WAITING_ENTRY);
+    let panel = world.change_panel(WAITER, landings::PROJECT);
+    assert_eq!(panel.expect("opening change").wait, Some(top::PanelWait::OutboxRoom));
+    assert!(!world.stored().contains_key(&top::Key::Entry(WAITING_ENTRY)));
+    world.take_seen();
+}
+
+fn frees_room_for_waiter(world: &mut World, dispatch: u64) -> Box<[top::Request]> {
+    world.run_for(5);
+    let seen = world.take_seen();
+    assert!(seen.iter().any(|request| matches!(request, top::Request::Outcome {
+        task: LANDING, entry, outcome: skein_forge_client::Outcome::Made { .. }, ..
+    } if *entry == dispatch)));
+    assert!(!world.stored().contains_key(&top::Key::Entry(dispatch)), "made dispatch must free its room");
+    assert!(!world.stored().contains_key(&top::Key::Flight { task: LANDING, entry: dispatch }));
+    assert!(seen.iter().any(|request| matches!(request, top::Request::WakeProcedure { task: WAITER })));
+    open_waiter(world, WAITING_ENTRY + 1);
+    let panel = world.change_panel(WAITER, landings::PROJECT);
+    assert_eq!(panel.expect("asked change").wait, None);
+    assert!(matches!(world.stored().get(&top::Key::Entry(WAITING_ENTRY + 1)),
+        Some(top::Stored::Entry { entry, held: false }) if entry.task == WAITER));
+    world.event(top::Event::Committed { entry: WAITING_ENTRY + 1 });
+    world.run_for(1);
+    seen
+}
+
+#[test]
+fn cancelled_landing_frees_its_write_entries() {
+    let (mut world, mut trains) = start_with_room(true);
+    world.produce(b"temper/52");
+    let dispatch = dispatch_in_flight(&mut world);
+    wait_for_room(&mut world);
+    world.event(top::Event::SettleEffects { task: LANDING, root: LANDING, ending: top::ReleaseEnding::Cancelled });
+    assert_eq!(world.landing(LANDING).landing.phase, landing::Phase::Cancelled);
+    assert!(world.stored().contains_key(&top::Key::Entry(dispatch)), "do not erase a sent write at cancel");
+    assert!(!world.take_seen().iter().any(|request| matches!(request, top::Request::EffectsSettled { task: LANDING })));
+    trains.judge(&mut world);
+    assert_eq!(world.change(CHANGE).change.landing, None, "the unsettled write still holds the row's place");
+    let seen = frees_room_for_waiter(&mut world, dispatch);
+    assert!(seen.iter().any(|request| matches!(request, top::Request::ContinueRelease { task: LANDING })));
+    world.event(top::Event::ContinueRelease { task: LANDING, entry: 0 });
+    assert!(world.take_seen().iter().any(|request| matches!(request, top::Request::EffectsSettled { task: LANDING })));
+    assert!(world.landing(LANDING).entries.is_empty());
+    assert_eq!(world.landing(LANDING).follows(), []);
+    trains.judge(&mut world);
+    assert_eq!(world.change(CHANGE).change.landing, Some(LANDING + 1));
+    assert!(!world.stored().contains_key(&top::Key::Landing(LANDING)));
+}
+
+#[test]
+fn a_landed_landing_frees_its_write_entries() {
+    let (mut world, mut trains) = start_with_room(true);
+    world.produce(b"temper/52");
+    let dispatch = dispatch_in_flight(&mut world);
+    wait_for_room(&mut world);
+    frees_room_for_waiter(&mut world, dispatch);
+    assert_eq!(runs(&world)[0].state, raw::RunState::Running);
+    assert_eq!(world.landing(LANDING).landing.phase, landing::Phase::Proving);
+    landings::drive_landing(&mut world, LANDING);
+    assert_eq!(world.landing(LANDING).landing.phase, landing::Phase::Landed);
+    assert_eq!(runs(&world)[0].conclusion, Some(raw::Conclusion::Success));
+    world.event(top::Event::SettleEffects { task: LANDING, root: LANDING, ending: top::ReleaseEnding::Done });
+    assert!(world.take_seen().iter().any(|request| matches!(request, top::Request::EffectsSettled { task: LANDING })));
+    world.produce(b"temper/53");
+    landings::ready_change(&mut world, 53, b"temper/53");
+    trains.judge(&mut world);
+    assert_eq!(world.change(53).change.landing, Some(LANDING + 1));
+    assert!(!world.stored().contains_key(&top::Key::Landing(LANDING)));
+}
+
 fn runs(world: &World) -> Box<[raw::Run]> {
     let raw::Answer::Runs(runs) = world.inspect(&raw::Read::Runs {
         workflow: Some(b"gate.yml".as_slice().into()),

@@ -21,22 +21,54 @@ fn contains(world: &World, tip: u64, commit: api::Commit) -> bool {
     commits.is_empty()
 }
 #[derive(Debug, PartialEq)]
-struct Replay {
+pub(crate) struct Replay {
     landing: landing::Landing,
     main: u64,
     calls: Vec<api::Op>,
     histories: Vec<Vec<top::history::Event>>,
 }
-#[expect(clippy::too_many_lines, reason = "batch effects and search invariants share one bounded replay loop")]
+struct Workload {
+    rng: Rng,
+    count: u64,
+    squash: bool,
+    red: bool,
+    conflict: Option<u64>,
+    moving: Option<u64>,
+    red_member: u64,
+}
+impl Workload {
+    fn new(seed: u64) -> Self {
+        let mut rng = Rng::new(seed);
+        let count = 2 + rng.below(3);
+        let squash = rng.below(2) == 0;
+        let red = rng.below(2) == 0;
+        let conflict = (rng.below(2) == 0).then(|| 1 + rng.below(count - 1));
+        let moving = (rng.below(2) == 0).then(|| rng.below(count));
+        let red_member = rng.below(count);
+        Self { rng, count, squash, red, conflict, moving, red_member }
+    }
+}
+pub(crate) fn workload_workflow(seed: u64) -> raw::Workflow {
+    workflow(Workload::new(seed).red)
+}
 fn run(seed: u64) -> Replay {
-    let mut rng = Rng::new(seed);
-    let count = 2 + rng.below(3);
-    let squash = rng.below(2) == 0;
-    let red = rng.below(2) == 0;
-    let conflict = (rng.below(2) == 0).then(|| 1 + rng.below(count - 1));
-    let moving = (rng.below(2) == 0).then(|| rng.below(count));
-    let red_member = rng.below(count);
-    let mut world = landings::turn_in(World::batch_turn(seed, Some(workflow(red))));
+    let world = World::batch_turn(seed, Some(workload_workflow(seed)));
+    run_in(world, seed, 160).1
+}
+/// Run the same workload and checks, retaining the world for a sweep's ledger.
+pub(crate) fn run_in(world: World, seed: u64, horizon: u64) -> (World, Replay) {
+    run_workload(world, seed, horizon, Workload::new(seed))
+}
+
+/// Keep this workload's draws and checks, with a red member for repair sweeps.
+pub(crate) fn run_repairing_in(world: World, seed: u64, horizon: u64) -> (World, Replay) {
+    run_workload(world, seed, horizon, Workload { red: true, ..Workload::new(seed) })
+}
+
+#[expect(clippy::too_many_lines, reason = "batch effects and search invariants share one bounded replay loop")]
+fn run_workload(world: World, seed: u64, horizon: u64, workload: Workload) -> (World, Replay) {
+    let Workload { mut rng, count, squash, red, conflict, moving, red_member } = workload;
+    let mut world = landings::turn_in(world);
     world.batch(u16::try_from(count).expect("small batch"));
     world.push_file(b"main", b"file", b"fixed");
     for index in 0..count {
@@ -48,7 +80,7 @@ fn run(seed: u64) -> Replay {
         let path = format!("member{}", if conflict == Some(index) { 0 } else { index });
         world.push_file(branch.as_bytes(), path.as_bytes(), &index.to_be_bytes());
         if red && index == red_member {
-            world.push_file(branch.as_bytes(), b"file", b"broken");
+            world.push_wrong_tree(branch.as_bytes(), b"file", b"broken");
         }
         landings::ready_change(&mut world, 51 + index, branch.as_bytes());
     }
@@ -60,8 +92,11 @@ fn run(seed: u64) -> Replay {
     let mut probed = Vec::new();
     let mut search_round = 0;
     let mut max_probes = 0;
+    // A timed-out call can move main in a later step. Each issued, proved
+    // candidate may explain exactly one move; no other engine move is allowed.
+    let mut issued = Vec::new();
     let restart = rng.below(4);
-    for step in 0..160 {
+    for step in 0..horizon {
         if step == restart {
             let before: Vec<_> = (51..51 + count).map(|change| world.history(change)).collect();
             world.restart();
@@ -70,12 +105,9 @@ fn run(seed: u64) -> Replay {
         }
         let prior = world.landing(LANDING).landing.clone();
         let before = world.branch(b"main");
-        let decision = landings::step_landing_heard(
-            &mut world,
-            LANDING,
-            10_000 + step,
-            pending.take().unwrap_or_else(|| heard(landing::Preparation::Idle, b"")),
-        );
+        let mut news = pending.take().unwrap_or_else(|| heard(landing::Preparation::Idle, b""));
+        news.released = world.release_restored_fault(LANDING);
+        let decision = landings::step_landing_heard(&mut world, LANDING, 10_000 + step, news);
         let next = &world.landing(LANDING).landing;
         if let Some(search) = &next.round.search {
             if prior.round.search.is_none() {
@@ -114,17 +146,31 @@ fn run(seed: u64) -> Replay {
                 }
             }
         }
-        if world.branch(b"main") != before {
-            let landing::Decision::Merge { member, candidate } = decision else {
-                panic!("seed {seed}: main moved outside the turn")
-            };
-            assert_eq!(translate::commit(world.branch(b"main")), candidate, "seed {seed}: only the proved top lands");
-            assert!(contains(&world, number(candidate), translate::commit(before)), "seed {seed}: fast-forward only");
-            let top = &world.landing(LANDING).landing.members[usize::from(member)];
-            assert!(
-                top.gates.iter().all(|gate| matches!(gate.proof, landing::Proof::Passed { .. })),
-                "seed {seed}: proof before turn"
-            );
+        if let landing::Decision::Merge { member, candidate } = decision {
+            let green = prior.members[usize::from(member)]
+                .gates
+                .iter()
+                .all(|gate| matches!(gate.proof, landing::Proof::Passed { .. }));
+            issued.push((member, candidate, before, green));
+        }
+        let others = world.take_other_merges();
+        let after = world.branch(b"main");
+        if after != before {
+            let matching: Vec<_> = issued
+                .iter()
+                .enumerate()
+                .filter(|(_, (_, candidate, _, _))| number(*candidate) == after)
+                .map(|(index, _)| index)
+                .collect();
+            let external: Vec<_> = others.iter().filter(|(_, from, to)| *from == before && *to == after).collect();
+            assert_eq!(matching.len() + external.len(), 1, "seed {seed}: main moved outside the turn");
+            if let Some(index) = matching.first() {
+                let (_, candidate, base, green) = issued.remove(*index);
+                assert!(green, "seed {seed}: proof before turn");
+                assert!(contains(&world, number(candidate), translate::commit(base)), "seed {seed}: fast-forward only");
+            } else {
+                assert_eq!(external.len(), 1, "seed {seed}: only the world's recorded other user may move main");
+            }
         }
         if matches!(decision, landing::Decision::Prepare { .. }) {
             let selected: Vec<_> = (0..usize::try_from(count).expect("members"))
@@ -178,7 +224,8 @@ fn run(seed: u64) -> Replay {
         super::history::check(seed, change, &events);
         histories.push(events);
     }
-    Replay { landing: row, main, calls: world.take_calls(), histories }
+    let replay = Replay { landing: row, main, calls: world.take_calls(), histories };
+    (world, replay)
 }
 #[test]
 fn seeded_batches_keep_the_fast_forward_prefix_and_cleanup_invariants() {

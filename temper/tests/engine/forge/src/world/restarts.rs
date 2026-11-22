@@ -268,6 +268,7 @@ pub fn synthetic_cancelled_landing(entries: &[u64]) -> top::LandingRow {
                 run: None,
             })
             .collect(),
+        follows: None,
         flake_reruns: Box::new([]),
     }
 }
