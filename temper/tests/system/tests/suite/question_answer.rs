@@ -12,8 +12,7 @@ use temper_system_world::{composed::call, world};
 const QUESTION: &[u8] = b"May M1 use B's files?";
 const ANSWER: &[u8] = b"Green light: M1 may use B's files.";
 
-#[test]
-fn a_plan_question_and_its_answer_are_sent_and_delivered_once_in_order() {
+fn root() -> Driver {
     let config = std::array::from_fn(|_| {
         let mut config = world::config(955);
         config.core.defaults.charters[0].policy.resume = false;
@@ -35,6 +34,12 @@ fn a_plan_question_and_its_answer_are_sent_and_delivered_once_in_order() {
     root.settle();
     root.sign_in();
     root.settle();
+    root
+}
+
+#[test]
+fn a_plan_question_and_its_answer_are_sent_and_delivered_once_in_order() {
+    let mut root = root();
     root.send(engine::Event::Party(engine::PartyInput::Ask {
         models: Box::new([]),
         reply_to: ReplyTo::new(Token::new(401)),
@@ -82,8 +87,9 @@ fn a_plan_question_and_its_answer_are_sent_and_delivered_once_in_order() {
     assert!(matches!(hearing.answer(), smith_domain_run::Answer::Parked { .. }));
     assert_eq!(deliveries(hearing.prompts(), QUESTION), 1);
     assert_eq!(deliveries(hearing.prompts(), ANSWER), 0, "question arrives before the answer exists");
+    let acknowledgement = format!("Message {question} sent");
     assert!(asking.prompts().iter().any(|query| query.messages.iter().flat_map(|message| &message.parts).any(|part|
-        matches!(part, Part::ToolOutput { output, .. } if output.windows(format!("Message {question} sent").len()).any(|part| part == format!("Message {question} sent").as_bytes()))
+        matches!(part, Part::ToolOutput { output, .. } if output.windows(acknowledgement.len()).any(|part| part == acknowledgement.as_bytes()))
     )), "the question call is acknowledged by number");
 
     // Answer through the person's task inbox, just as the director's person does.
