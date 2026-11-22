@@ -154,7 +154,14 @@ impl Runs {
 
 /// The end a run's answer names, as its host reads it.
 pub fn ended(answer: &smith_domain_run::Answer) -> Ended;
+/// The same end, as a hosted program world's host reads the channel's answer.
+pub fn ended_channel(answer: &smith_channel::Answer) -> Ended;
 ```
+
+- **`ended_channel`:** classifies `smith_channel::Answer` by the rule
+  below, its `ModelFault` and `CompletionFailure` taken as `ended` takes
+  the domain's; a focused parity test holds that each pair the channel
+  carries ends as its domain twin.
 
 - **`ended`:** `Answer::Accepted` and `Answer::Parked` are `Completed`;
   `Answer::Failed` names `Limited`, `Refused`, `Unauthorized` or
