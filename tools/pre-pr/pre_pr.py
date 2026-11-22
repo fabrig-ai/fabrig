@@ -1097,29 +1097,31 @@ def finish(tree_id, base_id, errors, root, env, scope, commits, heads, lints=(),
 
 def workspace_checks(root, paths, tree_id, base_id, merged, env, private, errors, outcomes, reds=(), *, completed_goal=False):
     start = time.monotonic()
-    planner = runpy.run_path(str(Path(__file__).with_name('workspace.py')))
-    workspace = planner['owns_package']
-    metadata_needed = [p for p in paths if p.endswith('.rs') or workspace(root, p)]
-    data = metadata(root, env) if metadata_needed else {'packages': [], 'workspace_members': []}
-    code = code_inputs(metadata_needed, data, root) if metadata_needed else []
+    rust_files = [p for p in paths if p.endswith('.rs') and (root / p).is_file()]
+    if rust_files:
+        codec_outputs = {line.split()[0] for line in lines(root, 'tools/merge/codecs.txt')}
+        rust_files = [p for p in rust_files if p not in codec_outputs]
+
+    package_paths = rust_files
+    if completed_goal:
+        planner = runpy.run_path(str(Path(__file__).with_name('workspace.py')))
+        package_paths = [p for p in paths if p.endswith('.rs') or planner['owns_package'](root, p)]
+    data = metadata(root, env) if package_paths else {'packages': [], 'workspace_members': []}
     packages = members(data)
     directories = package_directories(packages)
-    codec_outputs = {line.split()[0] for line in lines(root, 'tools/merge/codecs.txt')} if code else set()
     formatted = {}
-    for path in code:
-        file = root / path
-        if path.endswith('.rs') and path not in codec_outputs and file.is_file():
-            name = owner(file, directories)
-            edition = packages[name]['edition'] if name else '2024'
-            formatted.setdefault(edition, []).append(path)
+    for path in rust_files:
+        name = owner(root / path, directories)
+        edition = packages[name]['edition'] if name else '2024'
+        formatted.setdefault(edition, []).append(path)
 
-    groups, helpers = {}, {}
-    if packages:
+    suites, rust_commands = [], ()
+    if completed_goal and packages:
         with (root / 'tools/tiers/layers.toml').open('rb') as file:
             layers = tomllib.load(file)
-        groups = planner['package_plan'](root, code, packages, layers)
-        helpers = test_binaries(data, root)
-    suites = sorted(name for targets, names in groups.items() if targets for name in names)
+        groups = planner['package_plan'](root, code_inputs(package_paths, data, root), packages, layers)
+        suites = sorted(name for targets, names in groups.items() if targets for name in names)
+        rust_commands = planner['rust_commands'](groups, test_binaries(data, root))
     print(f'pre-pr: selection: {len(paths)} changed paths, {len(suites)} test packages, '
           f'{time.monotonic() - start:.3f} s', flush=True)
 
@@ -1143,7 +1145,7 @@ def workspace_checks(root, paths, tree_id, base_id, merged, env, private, errors
         file = Path(path)
         if path in HOOKS or (path.startswith('tools/pre-pr/') and file.suffix == '.py'):
             python_suites.add('tools/pre-pr/test_pre_pr.py')
-        elif file.suffix == '.py':
+        elif completed_goal and file.suffix == '.py':
             suite = file if file.name.startswith('test_') else file.with_name('test_' + file.name)
             if (root / suite).is_file():
                 python_suites.add(str(suite))
@@ -1161,7 +1163,7 @@ def workspace_checks(root, paths, tree_id, base_id, merged, env, private, errors
     if not completed_goal and 'tools/tiers/budgets.toml' in paths:
         errors += figures(base_id or 'HEAD', tree_id, root, env, merged)[1]
     errors += journeys(base_id, tree_id, [] if completed_goal else paths, root, env)[1]
-    for args in planner['rust_commands'](groups, helpers):
+    for args in rust_commands:
         if command('focused tests' if args[1] == 'nextest' else 'build check', args):
             break
     return suites

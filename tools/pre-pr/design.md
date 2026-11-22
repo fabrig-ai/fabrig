@@ -24,21 +24,22 @@ leaves staging intact. The local prepare pin identifies committed work since
 the branch started. The hook neither fetches a branch nor checks out a base.
 It uses the workspace's existing Cargo target and works offline.
 
-The Python selector takes one Cargo package map only when a change belongs to
-a Rust package. It selects the changed package and its immediate consumers.
-An edit confined to an integration test target selects that target alone.
-The focused profile runs the selected targets from the layers that replay.
-Formatting covers changed Rust files except codec outputs listed in
-`tools/merge/codecs.txt`. Changes to those outputs still select their packages
-for focused tests. Changes to the delivery checker run its
-subprocess-free Python suite. Text, journey and budget rules still apply.
+Delivery formats changed handwritten Rust files with rustfmt and skips codec
+outputs listed in `tools/merge/codecs.txt`. It reads offline Cargo metadata
+for their editions. Counted baselines, citations, outward names, journey and
+budget rules apply to the changed paths. Checker changes also run its
+subprocess-free Python suite. Delivery and finish perform no Rust build or test.
 The worker receives its check results and the receipt at
 `target/temper/pre-pr-light-failures.json`. A new tree requires a new check.
 
 After status settlement a checked close passes the pinned main commit to
 `pre_pr.py --close DESTINATION`. It applies the lightweight checks above
 to the entire difference from the merge base to the staged goal tree,
-including earlier children and a close that changed no files. Per-delivery
+including earlier children and a close that changed no files. The selector
+runs focused Rust tests for changed packages and their immediate consumers.
+An edit confined to an integration test target selects that target alone.
+Close builds any required test helpers, checks packages without test targets
+and runs changed Python modules’ sibling suites. Per-delivery
 journey mixing and budget edits were checked on delivery. The final goal
 tree still receives the overlay check. The receipt records the pre-settlement
 head, staged tree, destination and merge base. A changed snapshot refuses.
@@ -1006,10 +1007,10 @@ tree that passed here.
 ### 9.1 The worker entry point
 
 Offline acceptance runs invoke `.temper/pre-pr` in a prepared workspace with
-its real local pin and target directory. Use a real Rust edit and a failing
-assertion to exercise selection and refusal. Measure the full invocation,
-including any time waiting for a builder. The target is two minutes on a
-typical warm delivery. A wide shared-crate edit can select many consumers.
+its real local pin. A formatting error must refuse delivery. A formatted Rust
+change with a failing assertion must pass the light checks without a build,
+then fail focused testing at goal close even if settlement changes no files.
+The target is two minutes on a typical warm delivery.
 
 ### 9.2 The driver's unit tests
 
