@@ -182,13 +182,15 @@ pub const fn repeated(
     flag(name, shown, kind, Occurs::Repeated { most }, line)
 }
 
-/// A repeated settings-file input takes at least one file; other repeats may be absent.
+/// Repeated files and findings take at least one positional value; flag repeats may be absent.
 #[must_use]
 pub fn required(argument: &Argument) -> bool {
     match argument.occurs {
         Occurs::Required => true,
         Occurs::Optional => false,
-        Occurs::Repeated { .. } => argument.place == Place::Positional && argument.kind == Kind::File,
+        Occurs::Repeated { .. } => {
+            argument.place == Place::Positional && (argument.kind == Kind::File || argument.kind == Kind::Finding)
+        }
     }
 }
 

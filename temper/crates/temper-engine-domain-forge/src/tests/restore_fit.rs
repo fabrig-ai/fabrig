@@ -259,6 +259,7 @@ pub(crate) fn row(kind: RecordKind, number: u32) -> Stored {
             signature: None,
             seen: None,
             blame: None,
+            repair: None,
             cleared: None,
         }),
         RecordKind::Red => Stored::Red(Red {
@@ -557,8 +558,7 @@ fn references_refuse_before_mutation_and_first_failure_stops_recovery() {
     for event in [
         Event::Restore { record: row(RecordKind::Binding, 1) },
         Event::Restored { clock: skein_forge_client::RecoveryClock::Wall },
-        Event::ReadAfresh,
-        Event::SettleOutbox,
+        Event::CatchUp,
         Event::Settle,
     ] {
         assert!(outputs(&mut d, event).is_empty());
@@ -1130,6 +1130,7 @@ fn tier_row(number: u32) -> TierRow {
         tier: Box::from(b"tier".as_slice()),
         record: temper_engine_domain_forge_tiers::Record {
             sequence: 0,
+            last_run: None,
             judged: None,
             failing: temper_engine_domain_forge_tiers::Failures::Tests(Box::new([])),
             flakes: Box::new([]),

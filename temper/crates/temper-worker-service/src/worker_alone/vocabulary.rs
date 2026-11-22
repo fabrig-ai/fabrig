@@ -66,6 +66,11 @@ pub enum Note {
         failure: jig_domain_host::Failure,
         detail: Box<[u8]>,
     },
+    /// An entry the git sweep could not remove (protocol/git-sweep.md, 3).
+    Unswept {
+        path: Box<[u8]>,
+        error: skein_io::kernel::Error,
+    },
     ResultsIgnored {
         owner: u64,
         tag: u64,

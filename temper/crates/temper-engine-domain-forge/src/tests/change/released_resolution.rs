@@ -9,8 +9,8 @@ fn failed(kind: Delegate) -> Domain {
     let mut d = fixtures::connected_domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     let mut row = fixtures::opening_row();
     row.pending = None;
     row.effect = temper_engine_domain_forge_change::EffectResult::None;
@@ -91,8 +91,8 @@ fn a_failed_delegates_terminal_and_words_are_retired_across_restore() {
         outputs(&mut restored, Event::Restore { record: Stored::Repository(adopted()) });
         outputs(&mut restored, Event::Restore { record: Stored::Change(Box::new(released.clone())) });
         outputs(&mut restored, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        outputs(&mut restored, Event::ReadAfresh);
-        outputs(&mut restored, Event::SettleOutbox);
+        outputs(&mut restored, Event::CatchUp);
+
         for domain in [&mut d, &mut restored] {
             outputs(
                 domain,

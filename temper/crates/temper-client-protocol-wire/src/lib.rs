@@ -419,7 +419,19 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
         v1::Request::HandFinding(value) if value.why.is_empty() => return None,
         v1::Request::TriageFinding(value) => match &value.act {
             v1::Triage::Drop(reason) if reason.reason.is_empty() => return None,
-            v1::Triage::Drop(_) | v1::Triage::Route(_) | v1::Triage::Backlog => {}
+            v1::Triage::Repair(value) if value.words.is_empty() => return None,
+            v1::Triage::Blame(value) => {
+                if value.why.is_empty() {
+                    return None;
+                }
+                if let Some(landing) = &value.landing
+                    && landing.len() != 20
+                    && landing.len() != 32
+                {
+                    return None;
+                }
+            }
+            v1::Triage::Drop(_) | v1::Triage::Route(_) | v1::Triage::Backlog | v1::Triage::Repair(_) => {}
         },
         v1::Request::FileFinding(_)
         | v1::Request::HandFinding(_)

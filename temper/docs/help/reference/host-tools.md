@@ -12,19 +12,22 @@ File, pull-file and compare replies fit min(core.call_answer_bytes minus tool na
 
 ## finding
 
-file: kind severity title body [area]; hand: number area why; route: number goal; backlog: number; drop: number reason; list: [state] [mine]; show: number
+File, hand, route, backlog or drop a finding; repair: numbers words; blame: number [commit] why; list: [state] [mine]; show: number.
 
 A write.
 Offered where the run's charter names the delegate family and its authority holds it.
 
-- `act`: one of `file|hand|route|backlog|drop|list|show`; required. The act.
+- `act`: one of `file|hand|route|backlog|drop|repair|blame|list|show`; required. The act.
 - `kind`: one of `qa|flake|red|review|feedback`. Finding kind.
 - `severity`: one of `low|medium|high`. Severity.
 - `area`: text. Area name.
 - `title`: text. Finding title.
 - `body`: text. Finding body.
 - `number`: integer. Finding number.
-- `why`: text. Why hand it.
+- `why`: text. Why hand it or move blame: one line of 1 to 200 UTF-8 bytes.
+- `numbers`: array. Repair's 1 to 16 distinct finding numbers, oldest first as given.
+- `words`: text. Repair's words: 1 to 4,096 UTF-8 bytes.
+- `commit`: text. Blame's landing: 40 or 64 lowercase hex digits; omit for none.
 - `goal`: integer. Goal task.
 - `reason`: text. Why drop it.
 - `state`: text. State filter.

@@ -88,11 +88,8 @@ pub(super) fn ready_changes(changes: &[u64], batch_size: u16) -> (Domain, Env<Li
         },
         &mut Queue::uncapped(),
     );
-    for event in [
-        forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic },
-        forge::Event::ReadAfresh,
-        forge::Event::SettleOutbox,
-    ] {
+    for event in [forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic }, forge::Event::CatchUp]
+    {
         forge::step(&mut domain.forge, &crate::translate::environment_forge(&env), event, &mut Queue::uncapped());
     }
     super::turn_project(&mut domain);

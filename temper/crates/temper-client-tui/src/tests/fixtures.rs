@@ -510,6 +510,7 @@ pub(super) fn goal_forges(repository: bool) -> List<temper_client_protocol_wire:
             .unwrap();
     }
     List::from_boxed(Box::new([w::ForgeRow {
+        catching_up: None,
         number: 2,
         host: b"git.example".as_slice().into(),
         kind: w::Kind::Forgejo,

@@ -130,14 +130,22 @@ fn a_saved_delivery_survives_worker_loss_and_engine_restart_beside_proof() {
     assert_eq!(resumed.workspace.repositories[0].push.as_deref(), Some(branch.as_ref()));
     assert_eq!(world.fake.branch(REPOSITORY, &branch), Some(head));
     assert_eq!(world.fake.branch(REPOSITORY, &saved), Some(head));
+    for _ in 0..600 {
+        if world.root.caught_up(0) {
+            break;
+        }
+        world.tick();
+    }
+    assert!(world.root.caught_up(0), "the independent proof is read after opening");
     let recovered =
         landing_rows(&world).into_iter().find(|row| row.landing.task == first_landing).expect("restored landing");
     assert_eq!(recovered.landing.phase, forge_top::LandingPhase::Proving);
     assert!(
-        recovered.entries.iter().any(|entry| entry.run.is_some_and(|run| {
-            run.id == first_run.id && run.attempt == first_run.attempt && run.ended == first_run.ended
-        })),
-        "same in-flight run found"
+        recovered
+            .entries
+            .iter()
+            .any(|entry| entry.run.is_some_and(|run| { run.id == first_run.id && run.attempt == first_run.attempt })),
+        "the same run is recovered; it may finish while the saved producer resumes"
     );
     assert!(
         world.forge_reads.as_ref().expect("reads").iter().any(|(_, read)| matches!(read,
