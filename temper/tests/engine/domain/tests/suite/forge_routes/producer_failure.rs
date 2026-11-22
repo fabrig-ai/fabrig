@@ -459,7 +459,7 @@ fn producing_goal() -> (World, engine::Assignment, engine::Assignment, u64) {
     (world, goal, producer, made[0].task)
 }
 
-fn assert_production_hold(world: &mut World, task: u64, reason: &[u8], head: Option<u64>) {
+fn assert_production_hold(world: &mut World, task: u64, reason: &[u8], head: Option<skein_forge::api::Commit>) {
     for _ in 0..STEPS {
         world.tick();
         if matches!(live_task(world, task).phase, tasks::Phase::Held { .. }) {
@@ -467,7 +467,11 @@ fn assert_production_hold(world: &mut World, task: u64, reason: &[u8], head: Opt
             assert!(matches!(&change_row(world, task).change.state,
                 State::Held { was, why: Hold::Failed } if matches!(was.as_ref(), State::Producing { .. })));
             assert!(change_row(world, task).delegate.is_none());
-            assert_eq!(change_row(world, task).change.last_head, head.map(translate::commit));
+            assert_eq!(
+                change_row(world, task).change.last_head,
+                head,
+                "the ending writer's read retains its observed head"
+            );
             assert_eq!(world.merges, 0);
             return;
         }
@@ -518,7 +522,13 @@ fn replacement_lands(world: &mut World, task: u64, first: &engine::Assignment) {
     panic!("replacement did not land: {:?}", change_row(world, task));
 }
 
-fn finish_failed_producer(world: &mut World, first: &engine::Assignment, task: u64, reason: &[u8]) {
+fn finish_failed_producer(
+    world: &mut World,
+    first: &engine::Assignment,
+    task: u64,
+    reason: &[u8],
+    reads: Vec<engine::Event>,
+) {
     let event = world.protocol.answer(
         CHANNEL,
         first.task,
@@ -528,6 +538,9 @@ fn finish_failed_producer(world: &mut World, first: &engine::Assignment, task: u
         engine::Parts::none(),
     );
     world.send(event);
+    // The ending waits for its lost-writer read, including a response shared
+    // with the gather that was already pending when the worker answered.
+    answer_reads(world, reads);
     let ended = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(first.task)));
     for _ in 0..STEPS {
         if world.store.rows.contains_key(&ended) {
@@ -581,9 +594,7 @@ fn a_failed_producer_holds_notifies_and_restarts_on_release() {
         let words = if reason.is_empty() { b"Its run declared failure without a reason.".as_slice() } else { reason };
         let (mut world, goal, first, task) = producing_goal();
         let reads = pending_reads(&mut world, task);
-        // The old gather cannot hold the failed run's retirement read out of the client.
-        answer_reads(&mut world, reads);
-        finish_failed_producer(&mut world, &first, task, reason);
+        finish_failed_producer(&mut world, &first, task, reason, reads);
         assert_production_hold(&mut world, task, words, None);
         let resumed = super::reviews::next_assignment(&mut world, 2);
         assert_eq!(resumed.task, goal.task);
@@ -612,10 +623,9 @@ fn pushed_failure_with_message(message: &[u8]) -> (World, engine::Assignment, u6
     refresh(&mut world, task);
     world.advance_ticks(20);
     let reads = pending_reads(&mut world, task);
-    answer_reads(&mut world, reads);
-    finish_failed_producer(&mut world, &first, task, PUSHED_FAILURE);
+    finish_failed_producer(&mut world, &first, task, PUSHED_FAILURE, reads);
     refresh(&mut world, task);
-    assert_production_hold(&mut world, task, PUSHED_FAILURE, Some(head));
+    assert_production_hold(&mut world, task, PUSHED_FAILURE, Some(translate::commit(head)));
     (world, first, task, head)
 }
 

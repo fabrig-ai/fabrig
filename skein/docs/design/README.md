@@ -5,8 +5,8 @@ its crates and its design document, how the crates depend on one
 another, and what skein leaves to the services built on it. The rules
 every part follows are skein's foundation documents: `programming-model.md`,
 `testing-strategy.md` and `notes.md`. How a service is built on skein is
-`examples.md`, section 10. `STATUS.md` says how far the code is from
-this design.
+`examples.md`, section 10. `STATUS.md` says where to find how far the
+code is from this design and how to roll up the status files.
 
 ## 1. In one page
 

@@ -269,6 +269,9 @@ const DIRECT_CALLS: &[&[&str]] = &[
     &["finding", "route", "1/12", "--goal", "41", "--key", "route-finding"],
     &["finding", "backlog", "1/12", "--key", "backlog-finding"],
     &["finding", "drop", "shop/12", "duplicate", "--key", "drop-finding"],
+    f::FINDING_REPAIR_CALL,
+    f::FINDING_BLAME_LANDING_CALL,
+    f::FINDING_BLAME_NONE_CALL,
     &[
         "need",
         "ask",

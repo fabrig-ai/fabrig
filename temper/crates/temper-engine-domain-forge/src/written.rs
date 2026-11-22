@@ -14,13 +14,25 @@ pub(super) fn defer(
     out: &mut Queue<Request>,
 ) -> bool {
     let Some(hold) = d.holds.get(name) else { return false };
-    let Some(beside) = hold.beside else { return false };
-    if d.branch_head(name) != Some(beside.head) || commit == beside.head {
+    let head = match hold.beside {
+        Some(beside) => beside.head,
+        None => {
+            if super::repository_fresh(d, super::repository_reads::repository(name)) {
+                return false;
+            }
+            let Some(head) = d.branch_head(name) else { return false };
+            head
+        }
+    };
+    if d.branch_head(name) != Some(head) || commit == head {
         return false;
     }
     let hold = d.holds.get_mut(name).expect("held branch");
-    hold.beside = Some(crate::HeadBeside { head: beside.head, waiting: Some(commit) });
+    hold.beside = Some(crate::HeadBeside { head, waiting: Some(commit) });
     save_hold(out, hold.clone());
+    if let Some(resource) = to_client(name, &env.limits) {
+        child(d, env, skein_forge_client::Event::Writer { resource, taken: true }, out);
+    }
     compare(d, env, name, task, out);
     true
 }

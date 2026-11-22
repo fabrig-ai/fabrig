@@ -8,6 +8,25 @@ use temper_engine_domain_forge_change::State;
 
 const STEPS: u32 = 1000; // A read, durable hold and escalation through the root.
 
+fn push_for_delivery(world: &mut World, task: u64, producer: &engine::Assignment) -> engine::Parts {
+    let branch = row(world, task).branch.clone();
+    let base = row(world, task).base.clone();
+    let tip = world.fake.branch(b"org/repo", &base).expect("base branch");
+    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: tip }));
+    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"fixed", 1)
+        .expect("producer pushed");
+    // These stories stall the change's gather, not the ending writer's read.
+    // Reporting the push frees its writer in the terminal's own commit.
+    engine::Parts {
+        pushed: Box::new([forge_top::Pushed {
+            tag: producer.workspace.repositories[0].tag,
+            commit: translate::commit(head),
+            checked: true,
+        }]),
+        ..engine::Parts::none()
+    }
+}
+
 fn held_reads(ci: bool) -> (World, u64) {
     let (mut world, _, task, producer) = preparing(false);
     if ci {
@@ -16,13 +35,10 @@ fn held_reads(ci: bool) -> (World, u64) {
         assert!(matches!(row(&world, task).change.state, State::Checking { .. }));
         return (world, task);
     }
-    let branch = row(&world, task).branch.clone();
-    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
-    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"fixed", 1)
-        .expect("producer pushed");
+    let parts = push_for_delivery(&mut world, task, &producer);
     world.hold_reads_at_any_step = true;
     world.held_reads = Some(Vec::new());
-    finish_reported(&mut world, &producer, head);
+    super::ci_poll::finish_with_parts(&mut world, &producer, parts);
     for _ in 0..STEPS {
         world.tick();
         if world.held_reads.as_ref().is_some_and(|reads| !reads.is_empty())
@@ -35,23 +51,6 @@ fn held_reads(ci: bool) -> (World, u64) {
     assert!(world.held_reads.as_ref().is_some_and(|reads| !reads.is_empty()));
     assert!(matches!(row(&world, task).change.state, State::Producing { .. } | State::Checking { .. }));
     (world, task)
-}
-
-// This story stalls the procedure's gather, not its delegate's retirement read.
-fn finish_reported(world: &mut World, producer: &engine::Assignment, head: u64) {
-    super::ci_poll::finish_with_parts(
-        world,
-        producer,
-        engine::Parts {
-            saved: None,
-            preparation: None,
-            pushed: Box::new([forge_top::Pushed {
-                tag: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
-                commit: translate::commit(head),
-                checked: false,
-            }]),
-        },
-    );
 }
 
 fn stalled_words(world: &World, task: u64, step: &str, what: &str) {
@@ -77,6 +76,7 @@ fn an_unanswered_producing_gather_holds_its_row_and_task() {
 fn a_busy_client_retries_then_holds_at_producing() {
     let (mut world, _, task, producer) = preparing(false);
     world.advance_ticks(50);
+    let parts = push_for_delivery(&mut world, task, &producer);
     world.busy_reads = true;
     // Unanswered independent reads occupy the client's bounded slots. Every
     // read of the change's step is then refused Busy at client admission.
@@ -102,8 +102,7 @@ fn a_busy_client_retries_then_holds_at_producing() {
         skein_lib::usize_of(world.env.limits.forge.client.calls)
     );
     let before = live_task(&world, task).attempt;
-    let head = temper_engine_domain_world::kinds::push(&mut world, task);
-    finish_reported(&mut world, &producer, head);
+    super::ci_poll::finish_with_parts(&mut world, &producer, parts);
     world.advance_ticks(100);
     assert!(matches!(row(&world, task).change.state, State::Producing { .. }));
     assert_eq!(live_task(&world, task).attempt, before, "read retries cannot park the offered procedure step");

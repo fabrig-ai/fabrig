@@ -29,8 +29,9 @@ does with all of it is ../root.md. The mechanics are those of skein's
   (section 5). The core says, of every output, whether it waits for the
   decision's commit; the root's journal holds it until it is durable.
 - **A restart is the core's script** (`restart.md`): its own records, then
-  each connector's, then the runs adopted, the connectors reading afresh
-  and settling their outboxes, and only then decisions.
+  each connector's, then the runs adopted, and decisions open; the
+  connectors then catch up while the engine serves, reading afresh and
+  settling their outboxes, each decision waiting for the facts it reads.
 - **Agents run from their task** (`executors.md`). A run is given its task's
   charter, a brief built for why it runs, the messages waiting in its
   task's inbox, its transcript's current window if it resumes, and the

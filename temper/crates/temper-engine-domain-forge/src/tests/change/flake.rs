@@ -74,8 +74,8 @@ pub(super) fn restart(d: &Domain, key: &ReceiptKey) -> Domain {
     }
     fixtures::connect(&mut restored);
     outputs(&mut restored, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut restored, Event::ReadAfresh);
-    outputs(&mut restored, Event::SettleOutbox);
+    outputs(&mut restored, Event::CatchUp);
+
     restored.landing.main_keys.insert((REPO, b"gate".as_slice().into()), (fixtures::BASE, key.key)).unwrap();
     restored
 }

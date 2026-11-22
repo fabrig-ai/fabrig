@@ -50,8 +50,8 @@ skein also holds the foundation that every tree of fabrig follows.
   its design, and their crates.
 - [`docs/design/examples.md`](docs/design/examples.md): the example
   services, and how a service is built on skein.
-- [`docs/design/STATUS.md`](docs/design/STATUS.md): how far the code is
-  from the design.
+- [`docs/design/STATUS.md`](docs/design/STATUS.md): where to find how far
+  the code is from the design and how to roll up the status files.
 
 Before changing code, read [`AGENTS.md`](AGENTS.md).
 

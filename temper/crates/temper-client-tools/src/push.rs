@@ -399,7 +399,7 @@ fn answer(request: &Ask, outcome: &Outcome, number: u32, json: bool, limits: &Li
         | w::Outcome::Tier(_)
         | w::Outcome::Filed(_)
         | w::Outcome::Handed
-        | w::Outcome::Triaged
+        | w::Outcome::Triaged(_)
         | w::Outcome::FindingRefused(_)
         | w::Outcome::NotTheirs => return render::failure(b"unknown push outcome", json, 1),
     };

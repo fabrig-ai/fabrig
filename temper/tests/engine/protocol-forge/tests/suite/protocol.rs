@@ -617,6 +617,8 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::TierDecision { .. }
                 | top::Request::FileRedFinding { .. }
                 | top::Request::FileVerdict { .. }
+                | top::Request::ReturnFinding(_)
+                | top::Request::FailRepair { .. }
                 | top::Request::MakingCopied { .. }
                 | top::Request::MakingAct { .. }
                 | top::Request::LandingUnmade { .. }

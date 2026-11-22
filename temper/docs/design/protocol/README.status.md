@@ -4,6 +4,7 @@
 
 
 
+
 `binaries.md`, section 3's feature-free `temper-agent` is present, with its shared
 help, run, list, relay, program-child and argv0 Claude launcher
 dispatch, the launcher and the substitution `temper-launcher`'s, and

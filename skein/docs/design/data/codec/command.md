@@ -48,11 +48,11 @@
   library (`#[path = "../patches/mod.rs"] pub mod patches;`), and
   depends on skein-codec, and on skein-codegen in its tests.
 - **A codec crate apart from its owner** (`README.md`, section 2) holds
-  the family's generated record code alone. The command keeps the
-  owner's files of the table above, and never reads or writes generated
-  code, wherever it sits. The owner's drift test (`README.md`, section
-  6), which names each family's codec crate, writes the code there when
-  asked.
+  the family's generated record code alone. The `patch` subcommand keeps
+  the owner's files of the table above, and never reads or writes
+  generated code, wherever it sits. The owner's drift test (`README.md`,
+  section 6), which names each family's codec crate, writes the code
+  there when asked.
 - **A family's baseline is its owner's** (`README.md`, section 5). A crate with no
   kept text, landed or its own, is before its baseline, and a run there
   is refused unless given `--baseline`, which its owner passes once, at
@@ -70,9 +70,9 @@
   test builds that version's fixed-rule values from its kept text
   (`README.md`, section 6). A
   version move renames the current text to its new version (5), and the
-  new version's generated file, which the drift test writes, replaces
-  the old one. The boundary suite's one-version check holds both
-  (`tools/crates/design.md`, 3.2).
+  new version's generated file replaces the old one. The generator or
+  drift test writes it. The boundary suite's one-version check holds
+  both (`tools/crates/design.md`, 3.2).
 - **Fixtures stand for families past their baseline:** `tests/codec`'s
   `every` texts and `tests/codec-patches`' families belong to no build
   that stores, sends or embeds them, and move their versions as their
@@ -390,9 +390,11 @@ pub enum Error {
   ls-tree` and `git show <base>:<path>`, the base `git merge-base HEAD
   origin/main` unless `--base` names another, prints the report, its proposals as the
   `--rename` that confirms each, and exits 1 while a finding is left.
-  `--check` runs the check alone. `skein-codegen <schema>... <out-dir>`
-  writes a family's records' module (`README.md`, 4); a schema is never
-  named `patch`.
+  `--check` runs the check alone. `skein-codegen <schema>... [<maps>] <out-dir>`
+  reads the schema texts, then an optional `.maps` file, then the output
+  directory. Without maps it writes the family's records' module
+  (`README.md`, 4); with maps, its translation (`maps.md`, 7). A schema is
+  never named `patch`.
 - `Report`, `Outcome`, `Finding` and `Error` derive `Clone`, `Debug` and
   equality, and display as the command prints them.
 

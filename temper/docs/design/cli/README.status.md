@@ -2,5 +2,4 @@
 
 2026-11-21. Where temper's code lags or departs from [README.md](README.md).
 
-No known implementation gap.
-
+No gap.
