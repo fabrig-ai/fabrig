@@ -883,7 +883,7 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
     warnings.extend(f'unplaced: {binary} has no layer (tools/tiers/layers.md)'
                     for binary in sorted({p['binary_id'] for p in processes if p['layer'] is None}))
     (over if gate else warnings).extend(layer_over)
-    references = reference_rows(data, gate_limits, ledger, base, warnings)
+    references = reference_rows(data, gate_limits, ledger, base, warnings, over if gate else warnings)
     swings = [row for row in swinging_tests(ledger) if layer_selected(row['layer'], selected_layers)] if ledger is not None else []
     for row in swings:
         a, b, c = row['alone']
@@ -938,7 +938,7 @@ def swinging_tests(ledger):
     return rows
 
 
-def reference_rows(data, profile, ledger, base, warnings):
+def reference_rows(data, profile, ledger, base, warnings, over):
     """Each test's reference and figure at main (tools/tiers/references.md, 6)."""
     at_base = {}
     if base is not None:
@@ -985,7 +985,7 @@ def reference_rows(data, profile, ledger, base, warnings):
         if cpu is None:
             warnings.append(f"test not measured alone: {label}: {entry['outcome']}")
         elif is_over:
-            warnings.append(f'test over its reference: {label}: {cpu:.3f} CPU s alone, limit {limit:.3f} s')
+            over.append(f'test over its reference: {label}: {cpu:.3f} CPU s alone, limit {limit:.3f} s')
         elif why == 'flagged' and line is None and main_cpu is None and cpu > reference:
             warnings.append(f'test flagged without its figure at main: {label}: '
                             f'{cpu:.3f} CPU s alone, reference {reference:.3f} s')
