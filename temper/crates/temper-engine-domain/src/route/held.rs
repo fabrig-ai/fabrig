@@ -124,7 +124,7 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
             Delivery::Link { channel, down: host::LinkDown::PartKept { run, attempt, part } },
         ),
         core::Held::PartBusy { channel, run, attempt, part } => {
-            emit(decision, &env.limits, Delivery::PartBusy { channel, task: run.raw(), attempt: attempt.raw(), part })
+            emit(decision, &env.limits, Delivery::PartBusy { channel, task: run.raw(), attempt: attempt.raw(), part });
         }
         core::Held::TaskTurnKept { task, attempt, turn } => {
             emit(

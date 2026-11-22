@@ -22,7 +22,7 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                 run: skein_lib::Token::new(key.task),
                 attempt: skein_lib::Token::new(key.attempt),
                 part: key.number,
-            })))
+            })));
         }
         core::Now::Ask { channel, run, attempt, number, bytes } => {
             let request = Request::Worker(crate::WorkerRequest::Host(Box::new(HostRequest::Ask {
