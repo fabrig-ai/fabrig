@@ -108,8 +108,7 @@ pub enum Agent {
     BudgetInvestigator,
     BudgetAdvisor,
     // 6.6
-    WaitingDirector,
-    WaitingOwner,
+    WaitingStarter,
     WaitingKitCoder,
     WaitingAppCoder,
     // 6.4
@@ -131,8 +130,7 @@ impl Agent {
             Self::BudgetInvestigator => b"@case_budget_investigator",
             Self::BudgetAdvisor => b"@case_budget_advisor",
             // 6.6
-            Self::WaitingDirector => b"@case_waiting_director",
-            Self::WaitingOwner => b"@case_waiting_owner",
+            Self::WaitingStarter => b"@case_waiting_start",
             Self::WaitingKitCoder => b"@case_waiting_kit",
             Self::WaitingAppCoder => b"@case_waiting_app",
             // 6.4
@@ -866,14 +864,9 @@ pub fn fixture_6_4() -> forge::Fixture {
 // Act 3, step 6.6 (testing/reference-case.md). These identities belong only
 // to this two-repository case; earlier steps retain KIT = acme/app.
 pub mod waiting {
-    pub const DIRECTOR: u64 = 1;
-    pub const A1: u64 = 2;
-    pub const E1: u64 = 3;
-    pub const REPIN: u64 = 4;
-    pub const E1_CODER: u64 = 6;
-    pub const E1_REVIEWER: u64 = 7;
-    pub const REPIN_CODER: u64 = 5;
-    pub const REPIN_REVIEWER: u64 = 8;
+    pub const STARTER: u64 = 1;
+    pub const E1: u64 = 2;
+    pub const REPIN: u64 = 3;
     pub const KIT_ID: u32 = 3;
     pub const APP_ID: u32 = 2;
     pub const KIT: &str = "acme/kit";
@@ -883,20 +876,15 @@ pub mod waiting {
     pub const PIN: &str = "kit.pin";
     pub const CI_FILE: &str = "ci.txt";
     pub const GREEN: &str = "green\n";
-    pub const PERSON: &str = "@case_waiting_director Yes: let e1 land in kit, then app's waiting repin; report both.";
-    pub const OWNER_SPEC: &str = "@case_waiting_owner Delegate e1 in kit and app's repin together; repin depends on batch member zero. Wait for both results; send no relay.";
-    pub const E1_SPEC: &str = "@case_waiting_kit Fix B's fake in src/fake.rs and land e1 in kit.";
+    pub const PERSON: &str = "@case_waiting_start Land e1 in kit, then repin app to its merge.";
+    pub const E1_SPEC: &str = "@case_waiting_kit Fix src/fake.rs and land e1 in kit.";
     pub const REPIN_SPEC: &str = "@case_waiting_app Repin kit.pin to e1's landed kit commit and land in app.";
-    pub const OWNER_REPORT: &str = "A1 reports e1 and app's waiting repin landed without relay.";
-    pub const DIRECTOR_REPORT: &str = "The director reports kit e1 and app's dependent repin landed.";
-    pub const REVIEW_HOLD: &[u8] = b"case-6-6-e1-review";
+    pub const REPORT: &str = "Kit and app landed.";
     pub const REPIN_HOLD: &[u8] = b"case-6-6-repin-producer";
     // Script inputs only: app root 1, kit root 2, e1 coder 3, kit merge 4,
     // repin coder 5, app merge 6. The repin turn waits for kit to land.
     // The oracle instead renders the unique kit Merged.commit.
-    pub const KIT_REVIEW_HEAD: u64 = 3;
     pub const PIN_INPUT: u64 = 4;
-    pub const APP_REVIEW_HEAD: u64 = 5;
 
     #[must_use]
     pub fn pin_input() -> String {
@@ -940,9 +928,7 @@ pub fn fixture_6_6() -> forge::Fixture {
             // Configuring-3's new admission check measures this two-repository
             // project policy at 4398 bytes, above the landing fixture's 4096.
             value.jig_over("core.policy_bytes", 8192);
-            // Eight tasks, two batch members, one dependency. The deepest child
-            // has three requester ancestors + its terminal result = four joins;
-            // repin has two ancestors + dependency + result = four as well.
+            // One starter, two changes and their producers and reviewers.
             for name in ["tasks.batch", "authority.batch"] {
                 value.jig_over(name, 2);
             }
@@ -950,20 +936,18 @@ pub fn fixture_6_6() -> forge::Fixture {
             // also cover the maximum requester ancestry. Two adopted repositories
             // and two checkout repositories fit the existing small capacities.
             value.jig_over("documents.lines", 3);
-            // The coder's write + finish and each owner's delegate + wait share
+            // The coder's write + finish and the starter's delegate + wait share
             // one completion, serialized by the existing single call slot.
             agent["profile"]["declared"]["calls_per_response"] = 1.into();
             value.jig_over("hub.run_calls", 1);
             value.jig_over("hub.accounts", 2);
             value.jig_over("fleet.calls", 1);
-            // F10: the atomic A1 batch exceeds the inherited 2048-byte link
+            // F10: the atomic batch exceeds the inherited 2048-byte link
             // input. Until F10 admission/drop handling is fixed, this fixture
             // gives both link sides the agent's existing tool_payload bound.
             value.jig_over("core.call_answer_bytes", 4096);
-            value.jig_over("core.call_answer_bytes", 4096);
-            // Each procedure reserves ten, A1 adds its ten-unit run reserve,
-            // and the director adds ten: spends 20, 30 and 40 respectively.
-            value["world_settings"]["cap"] = 40.into();
+            // Two ten-unit procedures and the starter's ten-unit run reserve.
+            value["world_settings"]["cap"] = 30.into();
             // Hooks/adoption supply changes; retain the case's PATIENCE+1 polls.
             let story_ms = crate::PATIENCE.as_nanos().div_euclid(1_000_000);
             for name in ["poll_ms", "poll_max_ms"] {

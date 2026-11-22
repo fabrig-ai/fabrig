@@ -1056,31 +1056,17 @@ fn finish_change(mut work: Turn, title: &str, body: &str) -> Turn {
 // Act 3, step 6.6 (testing/reference-case.md)
 #[must_use]
 pub fn step_6_6(forge: SocketAddr) -> Box<[Script]> {
-    use super::waiting::{
-        APP_ID, APP_REVIEW_HEAD, DIRECTOR_REPORT, E1_SPEC, FILE, FIXED, KIT_ID, KIT_REVIEW_HEAD, OWNER_REPORT,
-        OWNER_SPEC, PIN, REPIN_HOLD, REPIN_SPEC, REVIEW_HOLD, pin_input,
-    };
-    let mut owner = direction_owner(forge, OWNER_SPEC, 30, 0, 6);
-    owner["authority"]["tools"] = 1.into();
+    use super::waiting::{APP_ID, E1_SPEC, FILE, FIXED, KIT_ID, PIN, REPIN_HOLD, REPIN_SPEC, REPORT, pin_input};
     let e1 = repository_change(forge, KIT_ID, E1_SPEC, FILE, 2);
     let mut repin = repository_change(forge, APP_ID, REPIN_SPEC, PIN, 2);
     repin["dependencies"] = json!([{"kind":"batch","number":0}]);
-    let verdict = || call(b"finish", &json!({"form":"verdict","label":"1","text":REVIEWED,"fields":{},"items":[]}));
     Box::new([
         Script {
-            cue: Agent::WaitingDirector.cue().into(),
+            cue: Agent::WaitingStarter.cue().into(),
             turns: Box::new([
-                then_wait(call(b"delegate", &json!({"batch":[owner]})), "A1 owns the two changes."),
-                report(DIRECTOR_REPORT),
-                wait("A1 is still working."),
-            ]),
-        },
-        Script {
-            cue: Agent::WaitingOwner.cue().into(),
-            turns: Box::new([
-                then_wait(call(b"delegate", &json!({"batch":[e1,repin]})), "e1 and the waiting repin are delegated."),
-                report(OWNER_REPORT),
-                wait("Waiting for both landing results; no relay."),
+                then_wait(call(b"delegate", &json!({"batch":[e1,repin]})), "Both changes delegated."),
+                report(REPORT),
+                wait("Waiting for app to land."),
             ]),
         },
         Script {
@@ -1088,10 +1074,9 @@ pub fn step_6_6(forge: SocketAddr) -> Box<[Script]> {
             turns: Box::new([finish_change(
                 call(b"write", &json!({"path":FILE,"content":FIXED})),
                 "e1",
-                "Fix B's fake.",
+                "Fix the fake.",
             )]),
         },
-        Script { cue: review_cue(KIT_REVIEW_HEAD), turns: Box::new([direction_held(REVIEW_HOLD, verdict())]) },
         Script {
             cue: task_cue(Agent::WaitingAppCoder.cue()),
             turns: Box::new([direction_held(
@@ -1103,21 +1088,27 @@ pub fn step_6_6(forge: SocketAddr) -> Box<[Script]> {
                 ),
             )]),
         },
-        Script { cue: review_cue(APP_REVIEW_HEAD), turns: Box::new([verdict()]) },
+        Script {
+            cue: Agent::Review.cue().into(),
+            turns: Box::new([call(
+                b"finish",
+                &json!({"form":"verdict","label":"1","text":REVIEWED,"fields":{},"items":[]}),
+            )]),
+        },
     ])
 }
 
 #[must_use]
 pub fn step_6_6_rules() -> Box<[Box<[Rule]>]> {
-    use super::waiting::{A1, OWNER_REPORT, REPIN};
-    let table = |entries: &[(&str, u32)]| -> Box<[Rule]> {
-        entries.iter().map(|(cue, turn)| Rule { cue: cue.as_bytes().into(), turn: *turn }).collect()
-    };
+    use super::waiting::REPIN;
     Box::new([
-        table(&[(OWNER_REPORT, 1), (CROSSED, 1), (&format!("{DELEGATED}{A1}"), 2), (BEGIN, 0), ("", 2)]),
-        // e1's ending selects only a wait; the repin producer is already running.
-        table(&[(&format!("Result from task {REPIN}:"), 1), (CROSSED, 1), (DELEGATED, 2), (BEGIN, 0), ("", 2)]),
-        Box::new([]),
+        Box::new([
+            Rule { cue: format!("Result from task {REPIN}:").into_bytes().into(), turn: 1 },
+            Rule { cue: CROSSED.as_bytes().into(), turn: 1 },
+            Rule { cue: DELEGATED.as_bytes().into(), turn: 2 },
+            Rule { cue: BEGIN.as_bytes().into(), turn: 0 },
+            Rule { cue: Box::new([]), turn: 2 },
+        ]),
         Box::new([]),
         Box::new([]),
         Box::new([]),

@@ -203,8 +203,7 @@ fn cued(system: &[u8]) -> Option<Agent> {
         Agent::BudgetInvestigator,
         Agent::BudgetAdvisor,
         // 6.6
-        Agent::WaitingDirector,
-        Agent::WaitingOwner,
+        Agent::WaitingStarter,
         Agent::WaitingKitCoder,
         Agent::WaitingAppCoder,
         // 6.4
@@ -6459,41 +6458,9 @@ fn complete_call_part<'a>(call: &'a Value, part: &str) -> Option<&'a str> {
 }
 
 // Act 3, step 6.6 (testing/reference-case.md).
-const WAITING_IDENTITIES: Promise = Promise::Must("one atomic batch names kit e1 and app repin with its dependency");
-const WAITING_CHECKPOINT: Promise = Promise::Must("repin produces early while e1's exact-head review writes");
-const WAITING_LANDING: Promise = Promise::Must("each repository lands its pushed, green, exactly reviewed head");
+const WAITING_LANDING: Promise = Promise::Must("each repository merges a green head");
 const WAITING_ORDER: Promise = Promise::Must("kit merge precedes repin's first push and app merge");
-const WAITING_PIN: Promise = Promise::Must("app pins the actual kit merge and both results name actual merges");
-const WAITING_RELEASE: Promise =
-    Promise::Must("repin starts early and completes after its dependency without targeted relay");
-const WAITING_DELIVERY: Promise = Promise::Must("requesters hear each actual ending exactly once");
-const WAITING_ATTEMPTS: Promise = Promise::Add("complete journals end all attempts without failure or live leftovers");
-
-fn waiting_tasks() -> [(Read, u64, u64, bool); 8] {
-    use super::waiting::{A1, DIRECTOR, E1, E1_CODER, E1_REVIEWER, REPIN, REPIN_CODER, REPIN_REVIEWER};
-    [
-        (Read::WaitingDirectorEnded, DIRECTOR, 0, true),
-        (Read::WaitingOwnerEnded, A1, DIRECTOR, true),
-        (Read::WaitingE1Ended, E1, A1, false),
-        (Read::WaitingRepinEnded, REPIN, A1, false),
-        (Read::WaitingE1CoderEnded, E1_CODER, E1, true),
-        (Read::WaitingE1ReviewerEnded, E1_REVIEWER, E1, true),
-        (Read::WaitingRepinCoderEnded, REPIN_CODER, REPIN, true),
-        (Read::WaitingRepinReviewerEnded, REPIN_REVIEWER, REPIN, true),
-    ]
-}
-fn waiting_page(observed: &Observed, read: Read, task: u64) -> bool {
-    let page = pause_activity(observed, read);
-    let rows = check_activity(observed, read);
-    page["cut"] == false
-        && page["before"].is_null()
-        && page["after"].is_null()
-        && !rows.is_empty()
-        && rows.iter().enumerate().all(|(at, row)| {
-            number(row, "/task") == Some(task) && number(row, "/position") == u64::try_from(rows.len() - at).ok()
-        })
-        && number(task_document(observed, read), "/activity") == Some(skein_lib::len_u64(rows.len()))
-}
+const WAITING_PIN: Promise = Promise::Must("app pins the actual kit merge");
 
 // A completed tool is an assistant call plus the numbered person result in
 // the same committed turn. Resumed LLM histories can contain only a recap;
@@ -6548,20 +6515,6 @@ fn waiting_tools(observed: &Observed, read: Read) -> Vec<(u64, Value, String, St
     }
     tools
 }
-fn waiting_raw_tools(observed: &Observed, read: Read) -> Vec<&Value> {
-    document(observed, read)
-        .pointer("/activity/rows")
-        .and_then(Value::as_array)
-        .into_iter()
-        .flatten()
-        .filter_map(|r| r.pointer("/event/owner/decoded/turn/decoded/messages").and_then(Value::as_array))
-        .flatten()
-        .filter(|m| m["speaker"] == "assistant")
-        .filter_map(|m| m["blocks"].as_array())
-        .flatten()
-        .filter_map(|b| b.get("call"))
-        .collect()
-}
 fn waiting_parameters(doc: &Value, repository: u32, path: &str, parameter: u64) -> bool {
     let expected = serde_json::json!([
         {"resource":{"connector":1,"name":1,"resource":temper_engine_domain_forge::tag(1, repository)}},
@@ -6569,17 +6522,6 @@ fn waiting_parameters(doc: &Value, repository: u32, path: &str, parameter: u64) 
         {"bytes":{"name":parameter,"value":{"bytes":path,"cut":false}}}
     ]);
     doc.pointer("/spec/specification/parameters") == Some(&expected)
-}
-fn waiting_dependency(doc: &Value, pending: bool) -> bool {
-    doc["dependency_facts"]
-        == serde_json::json!([
-            {"number":super::waiting::E1,"pending":pending,"keeps":pending,"added":null,"status":null}
-        ])
-        && doc["dependencies"].as_array().is_some_and(|rows| {
-            rows.len() == 1
-                && number(&rows[0], if pending { "/live/task" } else { "/retained/chip/task" })
-                    == Some(super::waiting::E1)
-        })
 }
 fn waiting_batch_member(member: &Value, repository: u32, spec: &str, path: &str) -> bool {
     member["executor"] == serde_json::json!({"kind":"procedure","connector":1,"code":2})
@@ -6608,263 +6550,6 @@ fn waiting_delivery(observed: &Observed, read: Read, from: u64, words: &str, age
         })
 }
 
-#[must_use]
-pub fn step_6_6(observed: &Observed) -> Vec<Miss> {
-    // The two producers are created concurrently; ctl reads both candidate
-    // numbers and requester identity assigns their documents to the story.
-    let mut resolved = observed.clone();
-    if number(task_document(observed, Read::WaitingE1CoderEnded), "/requester/task") == Some(super::waiting::REPIN) {
-        for (to, from) in [
-            (Read::WaitingE1CoderEnded, Read::WaitingRepinCoderEnded),
-            (Read::WaitingRepinCoderEnded, Read::WaitingE1CoderEnded),
-        ] {
-            if let Some(doc) = observed.documents.get(&from) {
-                resolved.documents.insert(to, doc.clone());
-            }
-        }
-    }
-    let observed = &resolved;
-    let mut misses = Vec::new();
-    waiting_identities(observed, &mut misses);
-    waiting_batches(observed, &mut misses);
-    waiting_checkpoint(observed, &mut misses);
-    waiting_landings(observed, &mut misses);
-    waiting_results(observed, &mut misses);
-    waiting_release(observed, &mut misses);
-    misses
-}
-fn ending_charter(read: Read) -> u64 {
-    if matches!(read, Read::WaitingE1ReviewerEnded | Read::WaitingRepinReviewerEnded | Read::QaReviewerEnded) {
-        4
-    } else {
-        1
-    }
-}
-
-fn waiting_identities(observed: &Observed, misses: &mut Vec<Miss>) {
-    for (read, task, parent, agent) in waiting_tasks() {
-        let doc = task_document(observed, read);
-        let task = if matches!(read, Read::WaitingE1CoderEnded | Read::WaitingRepinCoderEnded) {
-            number(doc, "/chip/task")
-                .filter(|n| [super::waiting::E1_CODER, super::waiting::REPIN_CODER].contains(n))
-                .unwrap_or(0)
-        } else {
-            task
-        };
-        step_check(
-            misses,
-            "6.6",
-            number(doc, "/chip/task") == Some(task)
-                && number(doc, "/project") == Some(PROJECT)
-                && number(doc, "/spec_revision/value") == Some(0)
-                && (if parent == 0 {
-                    number(doc, "/requester/person") == Some(1)
-                } else {
-                    number(doc, "/requester/task") == Some(parent)
-                })
-                && (if agent {
-                    number(doc, "/chip/executor/agent/charter") == Some(ending_charter(read))
-                } else {
-                    doc.pointer("/chip/executor/procedure") == Some(&serde_json::json!({"connector":1,"kind":2}))
-                }),
-            WAITING_IDENTITIES,
-            format_args!("{read:?}: named task, requester, executor, project and revision"),
-        );
-        step_check(
-            misses,
-            "6.6",
-            text(doc, "/chip/phase") == "ended"
-                && doc.pointer("/result/ending/task/done").is_some_and(Value::is_object)
-                && doc["delegates"].as_array().is_some_and(Vec::is_empty)
-                && waiting_page(observed, read, task)
-                && (if agent {
-                    batch_done(observed, read, task)
-                } else {
-                    check_activity(observed, read)
-                        .iter()
-                        .all(|r| r.pointer("/line/run_began").is_none() && r.pointer("/line/run_ended").is_none())
-                })
-                && document(observed, read).pointer("/activity/rows").and_then(Value::as_array).is_some_and(|rows| {
-                    rows.iter().all(|r| {
-                        r.pointer("/event/owner/source/line/turn").is_none()
-                            || r.pointer("/event/owner/decoded/turn/decoded/cut") == Some(&Value::Bool(false))
-                    })
-                }),
-            WAITING_ATTEMPTS,
-            format_args!("{read:?}: done with a complete successful journal and no live delegate"),
-        );
-    }
-}
-fn waiting_batches(observed: &Observed, misses: &mut Vec<Miss>) {
-    use super::waiting::{A1, APP_ID, E1, E1_SPEC, FILE, KIT_ID, OWNER_SPEC, PIN, REPIN, REPIN_SPEC};
-    let e1 = task_document(observed, Read::WaitingE1Ended);
-    let repin = task_document(observed, Read::WaitingRepinEnded);
-    let owner = task_document(observed, Read::WaitingOwnerEnded);
-    let director_tools = waiting_tools(observed, Read::WaitingDirectorEnded);
-    let owner_tools = waiting_tools(observed, Read::WaitingOwnerEnded);
-    let director_batch: Vec<_> = director_tools.iter().filter(|(_, _, tool, _)| tool == "delegate").collect();
-    let batches: Vec<_> = owner_tools.iter().filter(|(_, _, tool, _)| tool == "delegate").collect();
-    step_check(
-        misses,
-        "6.6",
-        director_batch.len() == 1
-            && director_batch.iter().all(|(_, args, _, output)| {
-                output == &format!("Delegated tasks: {A1}")
-                    && args["batch"].as_array().is_some_and(|b| {
-                        b.len() == 1
-                            && b[0]["spec"]["words"] == OWNER_SPEC
-                            && b[0]["executor"] == serde_json::json!({"kind":"agent","charter":1})
-                    })
-            })
-            && batches.len() == 1
-            && batches.iter().all(|(_, args, _, output)| {
-                output == &format!("Delegated tasks: {E1}, {REPIN}")
-                    && args["batch"].as_array().is_some_and(|b| {
-                        b.len() == 2
-                            && waiting_batch_member(&b[0], KIT_ID, E1_SPEC, FILE)
-                            && waiting_batch_member(&b[1], APP_ID, REPIN_SPEC, PIN)
-                            && b[0].get("dependencies").is_none()
-                            && b[1]["dependencies"] == serde_json::json!([{"kind":"batch","number":0}])
-                    })
-            })
-            && number(owner, "/goal") == Some(A1)
-            && number(owner, "/priority") == Some(1)
-            && waiting_parameters(e1, KIT_ID, FILE, 6)
-            && waiting_parameters(repin, APP_ID, PIN, 6)
-            && text(e1, "/spec/specification/words/bytes") == E1_SPEC
-            && text(repin, "/spec/specification/words/bytes") == REPIN_SPEC,
-        WAITING_IDENTITIES,
-        "the successful director and atomic A1 batches identify the exact resources and dependency",
-    );
-}
-fn waiting_results(observed: &Observed, misses: &mut Vec<Miss>) {
-    use super::waiting::{A1, DIRECTOR_REPORT, E1, OWNER_REPORT, REPIN};
-    let e1 = task_document(observed, Read::WaitingE1Ended);
-    let repin = task_document(observed, Read::WaitingRepinEnded);
-    let owner = task_document(observed, Read::WaitingOwnerEnded);
-    let e1_words = text(e1, "/result/value/change/words/bytes");
-    let repin_words = text(repin, "/result/value/change/words/bytes");
-    step_check(
-        misses,
-        "6.6",
-        !e1_words.is_empty()
-            && !repin_words.is_empty()
-            && waiting_delivery(observed, Read::WaitingOwnerEnded, E1, e1_words, Agent::WaitingOwner)
-            && waiting_delivery(observed, Read::WaitingOwnerEnded, REPIN, repin_words, Agent::WaitingOwner)
-            && waiting_delivery(observed, Read::WaitingDirectorEnded, A1, OWNER_REPORT, Agent::WaitingDirector)
-            && text(owner, "/result/value/report/bytes") == OWNER_REPORT
-            && text(task_document(observed, Read::WaitingDirectorEnded), "/result/value/report/bytes")
-                == DIRECTOR_REPORT,
-        WAITING_DELIVERY,
-        "each requester hears the actual numbered ending once before its accepted report",
-    );
-}
-fn waiting_release(observed: &Observed, misses: &mut Vec<Miss>) {
-    let e1 = task_document(observed, Read::WaitingE1Ended);
-    let repin = task_document(observed, Read::WaitingRepinEnded);
-    let owner_tools = waiting_tools(observed, Read::WaitingOwnerEnded);
-    let pending = task_document(observed, Read::WaitingRepinPending);
-    let start = check_activity(observed, Read::WaitingRepinCoderEnded)
-        .into_iter()
-        .filter(|r| r.pointer("/line/run_began").is_some())
-        .filter_map(|r| number(r, "/at"))
-        .min();
-    let finish = number(e1, "/result/at");
-    let no_relay = waiting_tasks().iter().all(|(read, _, _, _)| {
-        waiting_raw_tools(observed, *read).iter().all(|call| {
-            matches!(text(call, "/tool"), "delegate" | "wait" | "finish" | "write") && call["failed"] == false
-        }) && check_activity(observed, *read).iter().all(|r| r.pointer("/line/amended").is_none())
-    });
-    let roots = document(observed, Read::WaitingRootsEnded);
-    step_check(
-        misses,
-        "6.6",
-        waiting_dependency(pending, true)
-            && waiting_dependency(repin, false)
-            && number(pending, "/spec_revision/value") == Some(0)
-            && number(repin, "/spec_revision/value") == Some(0)
-            && repin.pointer("/dependencies/0/retained/at").and_then(Value::as_u64) == finish
-            && finish.zip(start).is_some_and(|(end, start)| start < end)
-            && no_relay
-            && owner_tools.iter().filter(|(_, _, tool, _)| tool == "delegate").count() == 1
-            && observed.commands
-                == [
-                    "repository adopt",
-                    "repository adopt",
-                    "chat start",
-                    "task show",
-                    "task show",
-                    "task show",
-                    "task show",
-                    "task show",
-                    "task show",
-                    "task show",
-                    "task show",
-                    "task show",
-                    "task show",
-                    "task show",
-                    "task show",
-                    "task show",
-                    "task show",
-                    "task show",
-                    "task show",
-                    "task show",
-                    "task list",
-                ],
-        WAITING_RELEASE,
-        "repin's first coder starts before dependency completion with revision zero and no targeted relay",
-    );
-    step_check(
-        misses,
-        "6.6",
-        roots["live"] == serde_json::json!([])
-            && roots["live_after"] == Value::Null
-            && roots.pointer("/ended/rows/rows") == Some(&serde_json::json!([]))
-            && roots.pointer("/ended/rows/after") == Some(&Value::Null)
-            && roots.pointer("/ended/rows/cut") == Some(&Value::Bool(false)),
-        WAITING_ATTEMPTS,
-        "the final complete root list has no live or further ended roots",
-    );
-}
-fn waiting_checkpoint(observed: &Observed, misses: &mut Vec<Miss>) {
-    use super::waiting::{A1, APP_ID, E1, E1_REVIEWER, PIN, REPIN};
-    let pending = task_document(observed, Read::WaitingRepinPending);
-    let e1 = task_document(observed, Read::WaitingE1Pending);
-    step_check(
-        misses,
-        "6.6",
-        number(pending, "/chip/task") == Some(REPIN)
-            && number(pending, "/project") == Some(PROJECT)
-            && number(pending, "/requester/task") == Some(A1)
-            && text(pending, "/chip/phase") == "idle"
-            && pending["result"].is_null()
-            && pending["delegates"].as_array().is_some_and(|ds| {
-                ds.len() == 1
-                    && number(&ds[0], "/chip/task")
-                        == number(task_document(observed, Read::WaitingRepinCoderEnded), "/chip/task")
-            })
-            && pending["resources"].as_array().is_some_and(|resources| {
-                resources.len() == 1 && resources[0].pointer("/taken") == Some(&Value::Bool(true))
-            })
-            && waiting_page(observed, Read::WaitingRepinPending, REPIN)
-            && number(pending, "/chip/details/owner/details/attempt").is_some_and(|attempt| attempt > 0)
-            && pending.pointer("/waits_on/dependencies/pending") == Some(&serde_json::json!([E1]))
-            && waiting_dependency(pending, true)
-            && waiting_parameters(pending, APP_ID, PIN, 6)
-            && check_activity(observed, Read::WaitingRepinPending)
-                .iter()
-                .all(|r| r.pointer("/line/run_began").is_none())
-            && number(e1, "/chip/task") == Some(E1)
-            && e1["result"].is_null()
-            && text(e1, "/chip/phase") == "idle"
-            && e1["delegates"]
-                .as_array()
-                .is_some_and(|ds| ds.len() == 1 && number(&ds[0], "/chip/task") == Some(E1_REVIEWER))
-            && batch_writing(observed, Read::WaitingReviewWriting, E1_REVIEWER, Read::WaitingE1ReviewerEnded),
-        WAITING_CHECKPOINT,
-        "before the review release, repin owns its branch and has a producer while e1 awaits its reviewer",
-    );
-}
 fn waiting_head(head: u64) -> String {
     use std::fmt::Write;
     let mut hex = String::new();
@@ -6891,343 +6576,88 @@ fn waiting_review(observed: &Observed, read: Read, task: u64, head: u64) -> bool
                 && output == "accepted"
         })
 }
-type WaitingChange = (&'static str, u32, u64, Read, Read, u64, Read, Agent);
-fn waiting_changes() -> [WaitingChange; 2] {
-    use super::waiting::{APP, APP_ID, E1, E1_REVIEWER, KIT, KIT_ID, REPIN, REPIN_REVIEWER};
-    [
-        (
-            KIT,
-            KIT_ID,
-            E1,
-            Read::WaitingE1Ended,
-            Read::WaitingE1CoderEnded,
-            E1_REVIEWER,
-            Read::WaitingE1ReviewerEnded,
-            Agent::WaitingKitCoder,
-        ),
-        (
-            APP,
-            APP_ID,
-            REPIN,
-            Read::WaitingRepinEnded,
-            Read::WaitingRepinCoderEnded,
-            REPIN_REVIEWER,
-            Read::WaitingRepinReviewerEnded,
-            Agent::WaitingAppCoder,
-        ),
-    ]
-}
-fn waiting_landings(observed: &Observed, misses: &mut Vec<Miss>) {
-    use super::waiting::{APP, DIRECTOR, KIT, REPIN};
+#[must_use]
+pub fn step_6_6(observed: &Observed) -> Vec<Miss> {
+    use super::waiting::{APP, KIT, REPIN, STARTER};
     use skein_fake_forge_domain::{Observation, api};
     let records = &observed.kit.records;
     let merges: Vec<_> = records
         .iter()
         .enumerate()
-        .filter_map(|(at, r)| {
-            let Observation::Merged { repository, number, base, head, commit, .. } = r else { return None };
-            Some((at, repository.as_ref(), *number, base.as_ref(), *head, *commit))
+        .filter_map(|(at, row)| {
+            if let Observation::Merged { repository, base, head, commit, .. } = row {
+                Some((at, repository.as_ref(), base.as_ref(), *head, *commit))
+            } else {
+                None
+            }
         })
         .collect();
-    let kit = merges.iter().find(|m| m.1 == KIT.as_bytes());
-    let app = merges.iter().find(|m| m.1 == APP.as_bytes());
-    let first_push = records.iter().position(|r| {
-        matches!(r, Observation::Moved { repository, branch, .. }
-        if repository.as_ref() == APP.as_bytes() && branch.as_ref() == format!("temper/{DIRECTOR}/c{REPIN}").as_bytes())
+    let kit = merges.iter().find(|merge| merge.1 == KIT.as_bytes());
+    let app = merges.iter().find(|merge| merge.1 == APP.as_bytes());
+    let first_push = records.iter().position(|row| {
+        matches!(row,
+        Observation::Moved { repository, branch, .. }
+        if repository.as_ref() == APP.as_bytes() && branch.as_ref() == format!("temper/{STARTER}/c{REPIN}").as_bytes())
     });
+    let mut misses = Vec::new();
     step_check(
-        misses,
+        &mut misses,
         "6.6",
         merges.len() == 2
             && kit.zip(app).is_some_and(|(kit, app)| first_push.is_some_and(|push| kit.0 < push && push < app.0)),
         WAITING_ORDER,
         "actual kit merge < first app repin push < actual app merge",
     );
-    step_check(
-        misses,
-        "6.6",
-        observed.kit.pulls == pull_digest(records)
-            && observed.kit.pulls.len() == 2
-            && merges.len() == 2
-            && observed.kit.merged_green,
-        WAITING_LANDING,
-        "exactly two repository-qualified pulls agree with the ordered forge records",
-    );
-    for (repository, repository_id, task, read, coder_read, reviewer, review_read, agent) in waiting_changes() {
-        let branch = format!("temper/{DIRECTOR}/c{task}");
-        let merge = merges.iter().find(|m| m.1 == repository.as_bytes());
-        let pull =
-            observed.kit.pulls.iter().find(|p| p.repository == repository.as_bytes() && p.branch == branch.as_bytes());
-        let review = task_document(observed, review_read);
-        let coder = task_document(observed, coder_read);
-        let valid = merge.zip(pull).is_some_and(|(m, p)| {
-            let green = records[..m.0].iter().rev().find_map(|r| {
-                let Observation::Reported { repository: repo, commit, context, state, .. } = r else { return None };
-                (repo.as_ref() == repository.as_bytes() && *commit == m.4 && context.as_ref() == b"check")
-                    .then_some(*state)
-            }) == Some(api::Check::Passed);
-            green
-                && m.3 == b"main"
-                && p.number == m.2
-                && p.pushed == Some(p.opened)
-                && number(task_document(observed, read), "/result/value/change/part/connector") == Some(1)
-                && number(task_document(observed, read), "/result/value/change/part/key/number") == Some(m.2)
-                && number(task_document(observed, read), "/result/value/change/kind") == Some(1)
-                && p.merged_head == Some(m.4)
-                && p.opened == m.4
-                && p.landed == Some(m.5)
-                && p.merged
-                && !p.closed
-                && waiting_parameters(review, repository_id, &branch, 3)
-                && waiting_parameters(coder, repository_id, &branch, 3)
-                && waiting_review(observed, review_read, task, m.4)
-                && observed.told.iter().any(|t| t.agent == agent)
-                && check_activity(observed, read)
-                    .iter()
-                    .filter(|r| {
-                        number(r, "/line/heard/from/task") == Some(reviewer)
-                            && number(r, "/line/heard/kind/result/verdict/code") == Some(1)
-                    })
-                    .count()
-                    == 1
+    for repository in [KIT, APP] {
+        let green = merges.iter().find(|merge| merge.1 == repository.as_bytes()).is_some_and(|merge| {
+            merge.2 == b"main"
+                && records[..merge.0].iter().rev().find_map(|row| {
+                    if let Observation::Reported { repository: repo, commit, context, state, .. } = row {
+                        (repo.as_ref() == repository.as_bytes() && *commit == merge.3 && context.as_ref() == b"check")
+                            .then_some(*state)
+                    } else {
+                        None
+                    }
+                }) == Some(api::Check::Passed)
         });
-        step_check(
-            misses,
-            "6.6",
-            valid,
-            WAITING_LANDING,
-            format_args!(
-                "{repository}: qualified pushed/opened/merged head, latest CI and exact-head reviewer verdict"
-            ),
-        );
-        step_check(
-            misses,
-            "6.6",
-            merge.is_some_and(|m| landing_commit(task_document(observed, read)) == direction_commit(m.5)),
-            WAITING_PIN,
-            format_args!("{repository}'s terminal result names its actual merge"),
-        );
+        step_check(&mut misses, "6.6", green, WAITING_LANDING, format_args!("{repository}: green head at merge"));
     }
-    waiting_pin(observed, kit.map(|m| m.5), misses);
-}
-fn waiting_pin(observed: &Observed, merge: Option<u64>, misses: &mut Vec<Miss>) {
-    use super::waiting::{CI_FILE, GREEN, PIN};
     step_check(
-        misses,
+        &mut misses,
         "6.6",
-        merge.is_some_and(|commit| {
-            observed.kit.main.get(PIN.as_bytes()).is_some_and(|pin| pin == direction_commit(commit).as_bytes())
-        }) && observed.kit.main.get(b"README.md".as_slice()).is_some_and(|b| b == crate::landing::README)
-            && observed.kit.main.get(CI_FILE.as_bytes()).is_some_and(|b| b == GREEN.as_bytes())
-            && observed.kit.main.get(b"conflict.txt".as_slice()).is_some_and(|b| b == b"base\n"),
+        kit.is_some_and(|merge| {
+            observed
+                .kit
+                .main
+                .get(super::waiting::PIN.as_bytes())
+                .is_some_and(|pin| pin == direction_commit(merge.4).as_bytes())
+        }),
         WAITING_PIN,
-        "app's exact pin bytes equal the independently rendered actual kit merge; app baseline files remain",
+        "app's pin bytes equal the independently rendered actual kit merge",
     );
+    misses
 }
 
 #[cfg(test)]
 mod waiting_tests {
-    use super::batch_tests::{input, told};
     use super::*;
     use crate::case::waiting::*;
-    use crate::case::waiting::{DIRECTOR, DIRECTOR_REPORT};
-    use serde_json::json;
-    use skein_fake_forge_domain::{Branches, Observation, api};
-    // Independent local forge names: deliberately unlike the script's 3/4/5/6.
+    use skein_fake_forge_domain::{Observation, api};
+    // Independent forge identities, unlike the scripts' 3/4/5/6.
     const KIT_HEAD: u64 = 11;
     const KIT_MERGE: u64 = 12;
     const APP_HEAD: u64 = 21;
     const APP_MERGE: u64 = 22;
-    const KIT_ENDED: u64 = 200;
-    const APP_STARTED: u64 = 100;
-
-    fn params(repository: u32, path: &str, parameter: u64) -> Value {
-        json!([
-            {"resource":{"connector":1,"name":1,"resource":temper_engine_domain_forge::tag(1,repository)}},
-            {"bytes":{"name":2,"value":{"bytes":"main","cut":false}}},
-            {"bytes":{"name":parameter,"value":{"bytes":path,"cut":false}}}
-        ])
-    }
-    fn member(repository: u32, spec: &str, path: &str) -> Value {
-        json!({"executor":{"kind":"procedure","connector":1,"code":2},
-            "spec":{"words":spec,"parameters":[
-                {"name":1,"kind":"resource","connector":1,"resource":temper_engine_domain_forge::tag(1,repository)},
-                {"name":2,"kind":"bytes","value":"main"},{"name":6,"kind":"bytes","value":path}]},
-            "contract":{"kind":"change","connector":1,"change_kind":1,"words":128}})
-    }
-    fn call(tool: &str, args: &Value, output: &str) -> Value {
-        let part = |text: &str| json!({"text":text,"from":0,"bytes_left":0});
-        json!({"call":{"tool":tool,"number":1,"failed":false,"input":part(&args.to_string()),"outcome":part(output)},
-            "result":{"call":1,"failed":false,"summary":part(output)}})
-    }
-    fn committed_row(task: u64, position: usize, at: u64, call: &Value) -> Value {
-        json!({"event":{"owner":{
-            "source":{"task":task,"position":position,"at":at,"line":{"turn":{"attempt":task,"turn":position}}},
-            "decoded":{"turn":{"decoded":{"cut":false,"messages":[
-                {"speaker":"assistant","blocks":[{"call":call["call"]}]},
-                {"speaker":"person","blocks":[{"result":call["result"]}]}]}}}
-        }}})
-    }
-    fn journal(task: u64, start: u64, calls: &[Value], heard: &[Value]) -> Value {
-        let mut rows = vec![
-            json!({"event":{"owner":{"source":{"task":task,"position":1,"at":start,"line":{"run_began":{"attempt":task}}}}}}),
-        ];
-        for call in calls.iter().filter(|call| call["call"]["tool"] != "finish") {
-            rows.push(committed_row(task, rows.len() + 1, start + 1, call));
-        }
-        for h in heard {
-            let from = h[0].as_u64().expect("sender");
-            let words = h[1].as_str().expect("words");
-            let line = json!({"heard":{"from":{"task":from},"words":words,"number":from,"kind":{"result":"report"}}});
-            rows.push(
-                json!({"event":{"owner":{"source":{"task":task,"position":rows.len()+1,"at":start+2,"line":line}}}}),
-            );
-        }
-        for call in calls.iter().filter(|call| call["call"]["tool"] == "finish") {
-            rows.push(committed_row(task, rows.len() + 1, start + 3, call));
-        }
-        rows.push(json!({"event":{"owner":{"source":{"task":task,"position":rows.len()+1,"at":start+4,"line":{"run_ended":{"attempt":task,"end":"finished","spent":1}}}}}}));
-        rows.reverse();
-        json!({"rows":rows,"before":null,"after":null,"cut":false})
-    }
-    fn documents() -> BTreeMap<Read, Value> {
-        let mut docs = BTreeMap::new();
-        for (read, task, parent, agent) in waiting_tasks() {
-            let page = journal(task, if task == REPIN_CODER { APP_STARTED } else { 10 }, &[], &[]);
-            docs.insert(read, json!({"task":{
-                "chip":{"task":task,"phase":"ended","executor":if agent {json!({"agent":{"charter":ending_charter(read)}})} else {json!({"procedure":{"connector":1,"kind":2}})}},
-                "project":PROJECT,"spec_revision":{"value":0},"requester":if parent==0 {json!({"person":1})} else {json!({"task":parent})},
-                "goal":A1,"priority":1,"activity":page["rows"].as_array().expect("rows").len(),"delegates":[],
-                "result":{"at":KIT_ENDED,"ending":{"task":{"done":{}}}},
-            },"activity":page}));
-        }
-        let mut repin_member = member(APP_ID, REPIN_SPEC, PIN);
-        repin_member["dependencies"] = json!([{"kind":"batch","number":0}]);
-        for (read, task, calls, heard) in [
-            (
-                Read::WaitingDirectorEnded,
-                DIRECTOR,
-                vec![
-                    call(
-                        "delegate",
-                        &json!({"batch":[{"executor":{"kind":"agent","charter":1},"spec":{"words":OWNER_SPEC}}]}),
-                        "Delegated tasks: 2",
-                    ),
-                    call("finish", &json!({"form":"report"}), "accepted"),
-                ],
-                vec![json!([A1, OWNER_REPORT])],
-            ),
-            (
-                Read::WaitingOwnerEnded,
-                A1,
-                vec![
-                    call(
-                        "delegate",
-                        &json!({"batch":[member(KIT_ID,E1_SPEC,FILE),repin_member]}),
-                        "Delegated tasks: 3, 4",
-                    ),
-                    call("finish", &json!({"form":"report"}), "accepted"),
-                ],
-                vec![json!([E1, direction_commit(KIT_MERGE)]), json!([REPIN, direction_commit(APP_MERGE)])],
-            ),
-            (
-                Read::WaitingE1ReviewerEnded,
-                E1_REVIEWER,
-                vec![call(
-                    "finish",
-                    &json!({"fields":{},"form":"verdict","items":[],"label":"1","text":super::super::REVIEWED}),
-                    "accepted",
-                )],
-                vec![],
-            ),
-            (
-                Read::WaitingRepinReviewerEnded,
-                REPIN_REVIEWER,
-                vec![call(
-                    "finish",
-                    &json!({"fields":{},"form":"verdict","items":[],"label":"1","text":super::super::REVIEWED}),
-                    "accepted",
-                )],
-                vec![],
-            ),
-        ] {
-            let page = journal(task, 10, &calls, &heard);
-            docs.get_mut(&read).expect("doc")["task"]["activity"] = json!(page["rows"].as_array().expect("rows").len());
-            docs.get_mut(&read).expect("doc")["activity"] = page;
-        }
-        for (read, report) in [(Read::WaitingDirectorEnded, DIRECTOR_REPORT), (Read::WaitingOwnerEnded, OWNER_REPORT)] {
-            docs.get_mut(&read).expect("report")["task"]["result"]["value"] = json!({"report":{"bytes":report}});
-        }
-        for (read, repository, task, spec, path, commit, reviewer) in [
-            (Read::WaitingE1Ended, KIT_ID, E1, E1_SPEC, FILE, KIT_MERGE, E1_REVIEWER),
-            (Read::WaitingRepinEnded, APP_ID, REPIN, REPIN_SPEC, PIN, APP_MERGE, REPIN_REVIEWER),
-        ] {
-            let doc = docs.get_mut(&read).expect("change");
-            doc["task"]["spec"] =
-                json!({"specification":{"words":{"bytes":spec},"parameters":params(repository,path,6)}});
-            doc["task"]["result"]["value"] = json!({"change":{"kind":1,"part":{"connector":1,"key":{"number":1},"kind":"result"},"words":{"bytes":direction_commit(commit)}}});
-            doc["activity"] = json!({"rows":[{"event":{"owner":{"source":{"task":task,"position":1,"line":{"heard":{"from":{"task":reviewer},"kind":{"result":{"verdict":{"code":1}}}}}}}}}],"cut":false,"before":null,"after":null});
-            doc["task"]["activity"] = 1.into();
-        }
-        for (read, repository, task) in [
-            (Read::WaitingE1CoderEnded, KIT_ID, E1),
-            (Read::WaitingE1ReviewerEnded, KIT_ID, E1),
-            (Read::WaitingRepinCoderEnded, APP_ID, REPIN),
-            (Read::WaitingRepinReviewerEnded, APP_ID, REPIN),
-        ] {
-            docs.get_mut(&read).expect("child")["task"]["spec"] =
-                json!({"specification":{"parameters":params(repository,&format!("temper/{DIRECTOR}/c{task}"),3)}});
-        }
-        for read in [Read::WaitingE1ReviewerEnded, Read::WaitingRepinReviewerEnded] {
-            docs.get_mut(&read).expect("review")["task"]["result"]["value"] =
-                json!({"owner_verdict":{"verdict":1,"words":{"bytes":super::super::REVIEWED}}});
-        }
-        checkpoints(&mut docs);
-        docs
-    }
-    fn checkpoints(docs: &mut BTreeMap<Read, Value>) {
-        let dependency = json!([{"number":E1,"pending":false,"keeps":false,"added":null,"status":null}]);
-        docs.get_mut(&Read::WaitingRepinEnded).expect("repin")["task"]["dependency_facts"] = dependency;
-        docs.get_mut(&Read::WaitingRepinEnded).expect("repin")["task"]["dependencies"] =
-            json!([{"retained":{"chip":{"task":E1},"at":KIT_ENDED}}]);
-        let mut pending = docs[&Read::WaitingRepinEnded].clone();
-        pending["task"]["chip"] = json!({"task":REPIN,"phase":"idle","details":{"owner":{"details":{"attempt":2}}}});
-        pending["task"]["result"] = Value::Null;
-        pending["task"]["resources"] = json!([{"taken":true}]);
-        pending["task"]["delegates"] = json!([{"chip":{"task":REPIN_CODER},"requester":{"task":REPIN}}]);
-        pending["task"]["waits_on"] = json!({"dependencies":{"pending":[E1]}});
-        pending["task"]["dependency_facts"][0]["keeps"] = true.into();
-        pending["task"]["dependency_facts"][0]["pending"] = true.into();
-        pending["task"]["dependencies"] = json!([{"live":{"task":E1}}]);
-        pending["activity"] = json!({"cut":false,"before":null,"after":null,"rows":[{"event":{"owner":{"source":{"task":REPIN,"position":1,"line":{"milestone":{"position":1}}}}}}]});
-        docs.insert(Read::WaitingRepinPending, pending);
-        docs.insert(Read::WaitingE1Pending,json!({"task":{"chip":{"task":E1,"phase":"idle"},"result":null,"delegates":[{"chip":{"task":E1_REVIEWER}}]}}));
-        docs.insert(Read::WaitingReviewWriting,json!({"task":{"chip":{"task":E1_REVIEWER,"phase":"running","details":{"owner":{"phase":{"active":{"running":{"attempt":E1_REVIEWER}}},"details":{"observation":{"work":"writing"}}}}}}}));
-        docs.insert(
-            Read::WaitingRootsEnded,
-            json!({"live":[],"live_after":null,"ended":{"rows":{"rows":[],"after":null,"cut":false}}}),
-        );
-    }
 
     fn records() -> Vec<Observation> {
         let mut records = Vec::new();
         for (repository, task, head, commit) in [(KIT, E1, KIT_HEAD, KIT_MERGE), (APP, REPIN, APP_HEAD, APP_MERGE)] {
-            let branch = format!("temper/{DIRECTOR}/c{task}").into_bytes().into_boxed_slice();
+            let branch = format!("temper/{STARTER}/c{task}").into_bytes().into_boxed_slice();
             records.push(Observation::Moved {
                 repository: repository.as_bytes().into(),
                 branch: branch.clone(),
                 from: None,
                 to: head,
-                by: 1,
-            });
-            records.push(Observation::Opened {
-                repository: repository.as_bytes().into(),
-                number: 1,
-                kind: api::Kind::Pull,
-                title: Box::new([]),
-                body: Box::new([]),
-                labels: Box::new([]),
-                branches: Some(Branches { head: branch, base: b"main".as_slice().into(), commit: head }),
                 by: 1,
             });
             records.push(Observation::Reported {
@@ -7250,82 +6680,24 @@ mod waiting_tests {
     }
     fn met() -> Observed {
         let records = records();
-        let mut queries = vec![
-            told(Agent::WaitingKitCoder, &[]),
-            told(Agent::WaitingAppCoder, &[]),
-            told(
-                Agent::WaitingOwner,
-                &[input(&format!(
-                    "Result from task {E1}:\n{}\nResult from task {REPIN}:\n{}",
-                    direction_commit(KIT_MERGE),
-                    direction_commit(APP_MERGE)
-                ))],
-            ),
-            told(Agent::WaitingDirector, &[input(&format!("Result from task {A1}:\n{OWNER_REPORT}"))]),
-        ];
-        for (task, head) in [(E1, KIT_HEAD), (REPIN, APP_HEAD)] {
-            let head = waiting_head(head);
-            queries.push(
-                Told::new(
-                    format!(
-                        "{}\n[Requested by task {task}]\nPull request at head {head}",
-                        std::str::from_utf8(Agent::Review.cue()).expect("cue")
-                    )
-                    .as_bytes(),
-                    b"fake",
-                    None,
-                    &[],
-                )
-                .expect("review cue"),
-            );
-        }
         Observed {
-            activity_aliases: std::collections::BTreeSet::new(),
+            activity_aliases: BTreeSet::new(),
             observed_at: BTreeMap::new(),
-            documents: documents(),
-            told: queries,
-            commands: [
-                "repository adopt",
-                "repository adopt",
-                "chat start",
-                "task show",
-                "task show",
-                "task show",
-                "task show",
-                "task show",
-                "task show",
-                "task show",
-                "task show",
-                "task show",
-                "task show",
-                "task show",
-                "task show",
-                "task show",
-                "task show",
-                "task show",
-                "task show",
-                "task show",
-                "task list",
-            ]
-            .map(str::to_owned)
-            .into(),
+            documents: BTreeMap::new(),
+            told: vec![],
+            commands: vec![],
             kit: Kit {
-                pulls: pull_digest(&records),
+                pulls: vec![],
                 records,
                 merged_green: true,
-                main: BTreeMap::from([
-                    (PIN.as_bytes().to_vec(), direction_commit(KIT_MERGE).into_bytes()),
-                    (b"README.md".to_vec(), crate::landing::README.to_vec()),
-                    (CI_FILE.as_bytes().to_vec(), GREEN.as_bytes().to_vec()),
-                    (b"conflict.txt".to_vec(), b"base\n".to_vec()),
-                ]),
+                main: BTreeMap::from([(PIN.as_bytes().to_vec(), direction_commit(KIT_MERGE).into_bytes())]),
             },
         }
     }
     fn rejects(observed: &Observed, promise: Promise) {
         let misses = step_6_6(observed);
         assert!(
-            misses.iter().any(|m| m.promise == promise),
+            misses.iter().any(|miss| miss.promise == promise),
             "expected {promise:?}: {}",
             misses.iter().map(ToString::to_string).collect::<Vec<_>>().join("\n")
         );
@@ -7333,48 +6705,6 @@ mod waiting_tests {
     #[test]
     fn two_repository_waiting_fixture_meets_its_promises() {
         assert_met(&step_6_6(&met()));
-    }
-
-    #[test]
-    fn concurrent_coder_documents_are_resolved_by_requester() {
-        let mut observed = met();
-        let kit = observed.documents.remove(&Read::WaitingE1CoderEnded).expect("kit coder");
-        let app = observed.documents.remove(&Read::WaitingRepinCoderEnded).expect("app coder");
-        observed.documents.insert(Read::WaitingE1CoderEnded, app);
-        observed.documents.insert(Read::WaitingRepinCoderEnded, kit);
-        assert_met(&step_6_6(&observed));
-    }
-
-    #[test]
-    fn changed_documents_break_each_independent_waiting_promise() {
-        let passing = met();
-        let rows = [
-            (Read::WaitingOwnerEnded, "/task/project", WAITING_IDENTITIES),
-            (Read::WaitingE1Ended, "/task/requester/task", WAITING_IDENTITIES),
-            (Read::WaitingRepinEnded, "/task/spec/specification/parameters/0/resource/resource", WAITING_IDENTITIES),
-            (Read::WaitingRepinPending, "/task/chip/phase", WAITING_CHECKPOINT),
-            (Read::WaitingRepinPending, "/task/dependency_facts/0/pending", WAITING_CHECKPOINT),
-            (Read::WaitingReviewWriting, "/task/chip/details/owner/details/observation/work", WAITING_CHECKPOINT),
-            (Read::WaitingRepinEnded, "/task/spec_revision/value", WAITING_RELEASE),
-            (Read::WaitingE1Ended, "/task/result/at", WAITING_RELEASE),
-            (Read::WaitingE1ReviewerEnded, "/task/result/value/owner_verdict/verdict", WAITING_LANDING),
-            (
-                Read::WaitingRepinReviewerEnded,
-                "/task/spec/specification/parameters/2/bytes/value/bytes",
-                WAITING_LANDING,
-            ),
-            (Read::WaitingE1Ended, "/task/result/value/change/words/bytes", WAITING_PIN),
-            (Read::WaitingOwnerEnded, "/task/result/value/report/bytes", WAITING_DELIVERY),
-            (Read::WaitingRootsEnded, "/ended/rows/cut", WAITING_ATTEMPTS),
-            (Read::WaitingRepinCoderEnded, "/activity/cut", WAITING_ATTEMPTS),
-        ];
-        for (read, path, promise) in rows {
-            let mut changed = passing.clone();
-            let field = changed.documents.get_mut(&read).expect("document").pointer_mut(path).expect("field");
-            assert_ne!(*field, Value::Null, "{read:?} {path}");
-            *field = Value::Null;
-            rejects(&changed, promise);
-        }
     }
     fn wrong_ci(record: &mut Observation) -> bool {
         if let Observation::Reported { repository, state, .. } = record
@@ -7444,7 +6774,6 @@ mod waiting_tests {
                 count += usize::from(edit(record));
             }
             assert_eq!(count, 1, "{name}");
-            changed.kit.pulls = pull_digest(&changed.kit.records);
             rejects(&changed, promise);
         }
     }
@@ -7464,7 +6793,6 @@ mod waiting_tests {
         let at = positions[0];
         let push = changed.kit.records.remove(at);
         changed.kit.records.insert(0, push);
-        changed.kit.pulls = pull_digest(&changed.kit.records);
         rejects(&changed, WAITING_ORDER);
         let mut changed = met();
         *changed.kit.main.get_mut(PIN.as_bytes()).expect("pin") = b"script-counter-is-not-truth".to_vec();
@@ -7472,143 +6800,17 @@ mod waiting_tests {
     }
 
     #[test]
-    fn committed_tools_require_exact_arguments_numbered_results_and_no_relay() {
-        let passing = met();
-        let rows = [
-            ("failed", json!(true), WAITING_IDENTITIES),
-            ("input/from", json!(1), WAITING_IDENTITIES),
-            ("outcome/text", json!("not delegated"), WAITING_IDENTITIES),
-            ("tool", json!("message"), WAITING_RELEASE),
-        ];
-        for (path, value, promise) in rows {
-            let mut changed = passing.clone();
-            let mut count = 0;
-            for row in changed.documents.get_mut(&Read::WaitingOwnerEnded).expect("owner")["activity"]["rows"]
-                .as_array_mut()
-                .expect("rows")
-            {
-                let Some(messages) =
-                    row.pointer_mut("/event/owner/decoded/turn/decoded/messages").and_then(Value::as_array_mut)
-                else {
-                    continue;
-                };
-                for message in messages {
-                    for block in message["blocks"].as_array_mut().expect("blocks") {
-                        if let Some(call) = block.get_mut("call")
-                            && call["tool"] == "delegate"
-                        {
-                            *call.pointer_mut(&format!("/{path}")).expect("field") = value.clone();
-                            count += 1;
-                        }
-                    }
-                }
-            }
-            assert_eq!(count, 1, "{path}");
-            rejects(&changed, promise);
-        }
-        let mut changed = passing.clone();
-        let mut count = 0;
-        for row in changed.documents.get_mut(&Read::WaitingOwnerEnded).expect("owner")["activity"]["rows"]
-            .as_array_mut()
-            .expect("rows")
-        {
-            let Some(messages) =
-                row.pointer_mut("/event/owner/decoded/turn/decoded/messages").and_then(Value::as_array_mut)
-            else {
-                continue;
-            };
-            for message in messages {
-                for block in message["blocks"].as_array_mut().expect("blocks") {
-                    if let Some(call) = block.get_mut("call")
-                        && call["tool"] == "delegate"
-                    {
-                        let mut args: Value =
-                            serde_json::from_str(call["input"]["text"].as_str().expect("args")).expect("JSON");
-                        args["batch"][1]["dependencies"][0]["number"] = 1.into();
-                        call["input"]["text"] = args.to_string().into();
-                        count += 1;
-                    }
-                }
-            }
-        }
-        assert_eq!(count, 1);
-        rejects(&changed, WAITING_IDENTITIES);
-    }
-    #[test]
-    fn every_attempt_and_delivery_requires_its_complete_unique_history() {
-        let passing = met();
-        for (read, _, _, _) in waiting_tasks().into_iter().filter(|row| row.3) {
-            let mut changed = passing.clone();
-            let mut count = 0;
-            for row in changed.documents.get_mut(&read).expect("doc")["activity"]["rows"].as_array_mut().expect("rows")
-            {
-                if let Some(end) = row.pointer_mut("/event/owner/source/line/run_ended") {
-                    end["end"] = json!({"failed":{"class":"agent"}});
-                    count += 1;
-                }
-            }
-            assert_eq!(count, 1, "{read:?}");
-            rejects(&changed, WAITING_ATTEMPTS);
-            let mut changed = passing.clone();
-            changed.documents.get_mut(&read).expect("doc")["activity"]["before"] = json!({"value":"missing-page"});
-            rejects(&changed, WAITING_ATTEMPTS);
-        }
-        let mut changed = passing.clone();
-        changed.told.push(told(
-            Agent::WaitingOwner,
-            &[input(&format!("Result from task {REPIN}:\n{}", direction_commit(APP_MERGE)))],
-        ));
-        rejects(&changed, WAITING_DELIVERY);
-        let mut changed = passing.clone();
-        let mut count = 0;
-        for row in changed.documents.get_mut(&Read::WaitingRepinCoderEnded).expect("coder")["activity"]["rows"]
-            .as_array_mut()
-            .expect("rows")
-        {
-            if row.pointer("/event/owner/source/line/run_began").is_some() {
-                row["event"]["owner"]["source"]["at"] = json!(KIT_ENDED + 1);
-                count += 1;
-            }
-        }
-        assert_eq!(count, 1);
-        rejects(&changed, WAITING_RELEASE);
-        let mut changed = passing;
-        let mut count = 0;
-        for row in changed.documents.get_mut(&Read::WaitingRepinEnded).expect("repin")["activity"]["rows"]
-            .as_array_mut()
-            .expect("rows")
-        {
-            if let Some(heard) = row.pointer_mut("/event/owner/source/line/heard") {
-                heard["kind"] = json!({"met":{"dependency":E1,"removed":false}});
-                count += 1;
-            }
-        }
-        assert_eq!(count, 1);
-        rejects(&changed, WAITING_LANDING);
-    }
-    #[test]
-    fn review_cue_and_latest_qualified_ci_are_exact() {
-        let mut changed = met();
-        let mut count = 0;
-        for query in &mut changed.told {
-            if query.agent == Agent::Review && contains(&query.system, &format!("[Requested by task {E1}]")) {
-                query.system =
-                    b"Review this change at the named head\n[Requested by task 3]\nPull request at head wrong"
-                        .as_slice()
-                        .into();
-                count += 1;
-            }
-        }
-        assert_eq!(count, 1);
-        rejects(&changed, WAITING_LANDING);
+    fn the_latest_qualified_ci_at_each_merge_is_green() {
         let mut changed = met();
         let at = changed
             .kit
             .records
             .iter()
-            .position(|r| matches!(r,Observation::Merged{repository,..} if repository.as_ref()==KIT.as_bytes()))
+            .position(|row| {
+                matches!(row,
+            Observation::Merged { repository, .. } if repository.as_ref() == KIT.as_bytes())
+            })
             .expect("kit merge");
-        let before = changed.kit.records.len();
         changed.kit.records.insert(
             at,
             Observation::Reported {
@@ -7619,7 +6821,6 @@ mod waiting_tests {
                 by: 1,
             },
         );
-        assert_eq!(changed.kit.records.len() - before, 1, "one later CI record inserted");
         rejects(&changed, WAITING_LANDING);
     }
 }

@@ -169,6 +169,12 @@ fn large_pull_review(seed: u64, bytes: usize) {
     let agent = world.review_agent(task);
     assert!(!agent.prompts().is_empty(), "large review must reach a model turn: {:?}", agent.answer());
     assert!(matches!(agent.answer(), run::Answer::Accepted { .. }), "{:?}", agent.answer());
+    let head_text = temper_engine_domain::commit_text(&head);
+    let cue = format!("Pull request at head {}", std::str::from_utf8(&head_text).expect("head hex"));
+    assert!(
+        agent.prompts().iter().any(|query| query.system.windows(cue.len()).any(|bytes| bytes == cue.as_bytes())),
+        "the review query names its exact head"
+    );
     assert_forge_reads(agent);
     let fitted = world.review_charter(task);
     assert_eq!(fitted.instructions, uncut.instructions);

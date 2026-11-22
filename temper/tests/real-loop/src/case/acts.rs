@@ -94,19 +94,6 @@ pub enum Read {
     BudgetSubownerFirst,
     BudgetOwnerFirst,
     BudgetDirectorFirst,
-    // 6.6
-    WaitingE1Pending,
-    WaitingRepinPending,
-    WaitingReviewWriting,
-    WaitingDirectorEnded,
-    WaitingOwnerEnded,
-    WaitingE1Ended,
-    WaitingRepinEnded,
-    WaitingE1CoderEnded,
-    WaitingE1ReviewerEnded,
-    WaitingRepinCoderEnded,
-    WaitingRepinReviewerEnded,
-    WaitingRootsEnded,
     // 6.4
     RedChangeEnded,
     RedReviewEnded,
@@ -978,43 +965,12 @@ pub fn step_6_4() -> Vec<calls::Step> {
     steps
 }
 
-// Act 3, step 6.6. Name every call position: holds and releases make no call.
-const WAITING_SIGN_IN: usize = 0;
-const WAITING_ADOPT_APP: usize = WAITING_SIGN_IN + 1;
-const WAITING_ADOPT_KIT: usize = WAITING_ADOPT_APP + 1;
-const WAITING_CHAT: usize = WAITING_ADOPT_KIT + 1;
-const WAITING_DIRECTOR_REPLIED: usize = WAITING_CHAT + 1;
-const WAITING_OWNER_REPLIED: usize = WAITING_DIRECTOR_REPLIED + 1;
-const WAITING_REVIEW_CREATED: usize = WAITING_OWNER_REPLIED + 1;
-const WAITING_REVIEW_WRITING: usize = WAITING_REVIEW_CREATED + 1;
-const WAITING_E1_PENDING: usize = WAITING_REVIEW_WRITING + 1;
-const WAITING_REPIN_PENDING: usize = WAITING_E1_PENDING + 1;
-const WAITING_DIRECTOR_ENDED: usize = WAITING_REPIN_PENDING + 3;
-const WAITING_ENDED_FIRST: usize = WAITING_DIRECTOR_ENDED + 1;
-pub const READS_6_6: &[(Read, usize)] = &[
-    (Read::WaitingReviewWriting, WAITING_REVIEW_WRITING),
-    (Read::WaitingE1Pending, WAITING_E1_PENDING),
-    (Read::WaitingRepinPending, WAITING_REPIN_PENDING),
-    (Read::WaitingDirectorEnded, WAITING_ENDED_FIRST),
-    (Read::WaitingOwnerEnded, WAITING_ENDED_FIRST + 1),
-    (Read::WaitingE1Ended, WAITING_ENDED_FIRST + 2),
-    (Read::WaitingRepinEnded, WAITING_ENDED_FIRST + 3),
-    (Read::WaitingE1CoderEnded, WAITING_ENDED_FIRST + 4),
-    (Read::WaitingE1ReviewerEnded, WAITING_ENDED_FIRST + 5),
-    (Read::WaitingRepinCoderEnded, WAITING_ENDED_FIRST + 6),
-    (Read::WaitingRepinReviewerEnded, WAITING_ENDED_FIRST + 7),
-    (Read::WaitingRootsEnded, WAITING_ENDED_FIRST + 8),
-];
+// Act 3, step 6.6 observes the forge, not task journals.
+pub const READS_6_6: &[(Read, usize)] = &[];
 
 #[must_use]
 pub fn step_6_6() -> Vec<calls::Step> {
-    use super::{
-        Agent,
-        waiting::{
-            A1, DIRECTOR, E1, E1_CODER, E1_REVIEWER, PERSON, REPIN, REPIN_CODER, REPIN_HOLD, REPIN_REVIEWER,
-            REVIEW_HOLD,
-        },
-    };
+    use super::waiting::{E1, PERSON, REPIN, REPIN_HOLD, STARTER};
     let mut steps = vec![sign_in(D1)];
     for name in ["app", "kit"] {
         steps.push(call(
@@ -1038,34 +994,12 @@ pub fn step_6_6() -> Vec<calls::Step> {
     }
     steps.extend([
         call(D1, argv!["chat", "start", "--project", number(PROJECT), "--key", "waiting", PERSON]),
-        call(D1, argv!["task", "show", number(DIRECTOR), "--until", "replied"]),
-        call(D1, argv!["task", "show", number(A1), "--until", "replied"]),
-        until(D1, argv!["task", "show", number(E1), "--json"], Agent::Review.cue(), b"\"task\""),
-        until(
-            D1,
-            argv!["task", "show", calls::delegate(WAITING_REVIEW_CREATED), "--json"],
-            b"\"work\":\"writing\"",
-            b"\"task\"",
-        ),
-        call(D1, argv!["task", "show", number(E1), "--json"]),
-        call(D1, argv!["task", "show", number(REPIN), "--activity", "32", "--json"]),
-        until(
-            D1,
-            argv!["task", "show", calls::delegate(WAITING_REPIN_PENDING), "--json"],
-            b"\"work\":\"writing\"",
-            b"\"task\"",
-        ),
-        calls::release_hold(REVIEW_HOLD),
-        // The producer is already running. Its scripted write waits for the
-        // kit result so it can pin the landing commit.
+        call(D1, argv!["task", "show", number(STARTER), "--until", "replied"]),
         call(D1, argv!["task", "show", number(E1), "--until", "ended"]),
         calls::release_hold(REPIN_HOLD),
-        call(D1, argv!["task", "show", number(DIRECTOR), "--until", "ended"]),
+        call(D1, argv!["task", "show", number(REPIN), "--until", "ended"]),
+        call(D1, argv!["task", "show", number(STARTER), "--until", "ended"]),
     ]);
-    for task in [DIRECTOR, A1, E1, REPIN, E1_CODER, E1_REVIEWER, REPIN_CODER, REPIN_REVIEWER] {
-        steps.push(call(D1, argv!["task", "show", number(task), "--activity", "32", "--json"]));
-    }
-    steps.push(call(D1, argv!["task", "list", "--project", number(PROJECT), "--ended", "--json"]));
     steps
 }
 

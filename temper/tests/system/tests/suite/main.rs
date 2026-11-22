@@ -20,5 +20,6 @@ mod merge_job;
 
 mod close_job;
 
+mod endings;
 mod notes;
 mod timer_results;
