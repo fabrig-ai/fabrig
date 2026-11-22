@@ -32,27 +32,12 @@ pub const CHECK_REASON: &str = "The two-hour check found the benchmark stalled; 
 pub const B_REPORT: &str = "The benchmark was cancelled; B has nothing left running.";
 pub const CHECK_REPORT: &str = "The two-hour check cancelled the stalled benchmark and B reported.";
 pub const FIRST_ACCOUNT: u64 = 1;
-pub const SECOND_ACCOUNT: u64 = 3;
 pub const SECOND_KEY_FILE: &str = "second.key";
 pub const DEFAULT_MODEL: &str = "fake";
 pub const DEFAULT_MODEL_NUMBER: u8 = 0;
-pub const SURVEY: u64 = 3;
-pub const PACE_QUESTION_MESSAGE: u64 = 1;
-pub const PACE_PERSON: &str = "@case_director Ask about the pace and keep my answer.";
-pub const PACE_QUESTION: &str = "Claude spends eight times what the week can sustain. I recommend moving what needs no taste to Codex and switching s2 to the second subscription. Keep the pace?";
-pub const PACE_ANSWER: &str = "Keep the pace while the hardware allows; move what needs no taste.";
-pub const PACE_NOTE: &str = "Pace";
-pub const PACE_PENDING: &str = "The pace question is waiting for your answer.";
-pub const PACE_A_SPEC: &str =
-    "@case_a Ask the director whether to keep the pace; on its direction, have a survey delegated and report.";
-// Distinct from the initial question's cue after smith recaps on a model change.
-pub const PACE_A_RESUMED_SPEC: &str = "@case_a resumed Have the survey delegated and report on the pace direction.";
 pub const HELD_PERSON: &str = "@case_director Delegate A's report and wait for it.";
 pub const HELD_A_SPEC: &str = "@case_a Report when your account allows the work to continue.";
-pub const SURVEY_SPEC: &str = "@case_survey Survey the work that needs no taste and report.";
 pub const RESUMED_REPORT: &str = "The work continued on its account.";
-pub const PACE_REPORT: &str = "The pace is kept and the survey is done.";
-pub const SURVEY_REPORT: &str = "Work needing no taste can move.";
 // The fake forge's one repository stands as kit, since forge.rs names it,
 // until the fixture holds two.
 pub const KIT: &str = "acme/app";
@@ -90,7 +75,6 @@ pub enum Agent {
     A,
     Design,
     Review,
-    Survey,
     Check,
     B,
     Benchmark,
@@ -181,7 +165,6 @@ impl Agent {
             Self::Director => b"@case_director",
             Self::A => b"@case_a ",
             Self::Design => b"@case_design",
-            Self::Survey => b"@case_survey",
             Self::Review => b"Review this change at the named head",
             Self::QaDirector => b"@case_qa_director",
             Self::QaOwner => b"@case_qa_owner",
@@ -320,21 +303,6 @@ fn small_two_call_window(value: &mut Value, agent: &mut Value) {
         model["window"] = 262_144.into();
     }
     agent["endpoints"][0]["limits"]["window"] = 262_144.into();
-}
-
-#[must_use]
-pub fn fixture_4_4() -> forge::Fixture {
-    forge::Fixture {
-        configure: |value, agent, forge| {
-            (fixture().configure)(value, agent, forge);
-            // The survey's delegate and wait share one completion. Its
-            // resumed script then cannot collide with the model-change recap.
-            agent["profile"]["declared"]["calls_per_response"] = 2.into();
-            small_two_call_window(value, agent);
-            value.jig_over("hub.run_calls", 2);
-        },
-        ..fixture()
-    }
 }
 
 /// The check keeps all three runs in place, with timer and cancellation authority.

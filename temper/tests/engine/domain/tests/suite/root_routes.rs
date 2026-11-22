@@ -2,6 +2,8 @@
 mod deadlines;
 #[path = "root_routes/milestones.rs"]
 mod milestones;
+#[path = "root_routes/pace.rs"]
+mod pace;
 #[path = "root_routes/parts.rs"]
 mod parts;
 
@@ -451,11 +453,17 @@ fn ask_question(
 #[test]
 fn a_person_answers_a_question_its_task_has_already_read() {
     use jig_domain_core::{documents, reads};
+    // The fixture asks one question; reading it must not duplicate its inbox row.
+    const ONE_QUESTION: u32 = 1;
 
     const REQUESTS: u32 = 2; // The original command and its identical retry.
     const ANSWERS: usize = 1; // One answer and one resulting report.
 
     let (mut driver, parent, question, asker) = unanswered_question();
+    assert!(
+        messages_to(&driver, &parent).iter().any(|(number, words)| *number == question && words.as_ref() == b"ship?")
+    );
+    assert!(matches!(driver.answered(2035), Some(engine::CallAnswer::Sent { message }) if *message == question));
     driver.send(protocol::turn(Token::new(7), parent.task, parent.attempt, 1, 1, Some(question), b"read question"));
     driver.settle();
     assert!(!live(&driver, parent.task).inbox.iter().any(|word| word.number == question));
@@ -481,9 +489,10 @@ fn a_person_answers_a_question_its_task_has_already_read() {
             if let Delivery::Read { answer: reads::Answer::Page(page), .. } = delivery { Some(page) } else { None }
         })
         .expect("person's questions inbox");
+    assert_eq!(waiting.rows.len(), ONE_QUESTION);
     assert!(waiting.rows.iter().any(|row| matches!(row,
         reads::PageRow::Inbox(entry) if matches!(&entry.task, documents::TaskLink::Live(chip) if chip.number == parent.task)
-            && entry.object == documents::InboxObject::Question { message: question }
+            && entry.project == Some(1) && entry.object == documents::InboxObject::Question { message: question }
     )));
     // Retrying the person's command must not send a second answer to A.
     for _ in 0..REQUESTS {
@@ -510,7 +519,9 @@ fn a_person_answers_a_question_its_task_has_already_read() {
         live(&driver, parent.task)
             .inbox
             .iter()
-            .any(|word| word.kind == (tasks::MessageKind::QuestionAnswered { question }))
+            .any(|word| word.kind == (tasks::MessageKind::QuestionAnswered { question })
+                && word.from == tasks::Party::Task(asker.task)
+                && word.words.as_ref() == b"yes")
     );
     assert!(live(&driver, asker.task).inbox.iter().any(|word| word.kind == tasks::MessageKind::Answer { question }
         && word.from == tasks::Party::Task(parent.task)
@@ -1544,7 +1555,11 @@ fn note_config() -> engine::Config {
 }
 
 fn note_fixture() -> (Driver, engine::Assignment) {
-    let mut driver = Driver::configured(Store::new(), [note_config(), note_config()], &limits());
+    note_fixture_with(&limits())
+}
+
+fn note_fixture_with(bounds: &engine::Limits) -> (Driver, engine::Assignment) {
+    let mut driver = Driver::configured(Store::new(), [note_config(), note_config()], bounds);
     hello(&mut driver);
     driver.settle();
     driver.sign_in();
@@ -1939,12 +1954,20 @@ fn written_note_name(driver: &Driver, expected_call: u64) -> u64 {
 
 #[test]
 fn a_note_written_corrected_by_a_person_and_recalled_is_durable() {
-    let (mut driver, assignment) = note_fixture();
+    let mut bounds = limits();
+    // The write and the recalls before and after correction are three retained calls.
+    bounds.call_records = 3;
+    let (mut driver, assignment) = note_fixture_with(&bounds);
     let author = notes::Author::Task { task: assignment.task, attempt: assignment.attempt };
     tool_call(&mut driver, &assignment, 3101, new_note(b"original", b"first body", author));
     let name = written_note_name(&driver, 3101);
     assert!(matches!(driver.store.rows.get(&Key::Core(jig_domain_core::Key::Notes(notes::Key::Entry { name }))),
         Some(Record::Core(jig_domain_core::Record::Notes(notes::Record::Entry(entry)))) if entry.body.as_ref() == b"first body"
+    ));
+    tool_call(&mut driver, &assignment, 3104, engine::Tool::Recall { by: notes::Recall::Name { name }, page: 0 });
+    assert!(matches!(driver.answered(3104),
+        Some(engine::CallAnswer::NoteRecalled { entries, more: false })
+            if entries.len() == 1 && entries[0].revision == 1 && entries[0].body.as_ref() == b"first body"
     ));
     let change = people::NoteChange::Correct {
         description: b"corrected".as_slice().into(),
@@ -1971,7 +1994,7 @@ fn a_note_written_corrected_by_a_person_and_recalled_is_durable() {
         Some(engine::CallAnswer::NoteRecalled { entries, more: false })
             if entries.len() == 1 && entries[0].revision == 2 && entries[0].body.as_ref() == b"second body"
     ));
-    let mut restarted = Driver::configured(driver.take_store(), [note_config(), note_config()], &limits());
+    let mut restarted = Driver::configured(driver.take_store(), [note_config(), note_config()], &bounds);
     let hosting = protocol::hosting(assignment.task, assignment.attempt, jig_domain_link::Phase::Active);
     restarted.send(hello_with(Token::new(7), 1, Duration::from_secs(1), Box::new([hosting])));
     restarted.settle();

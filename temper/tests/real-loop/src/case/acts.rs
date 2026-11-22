@@ -34,9 +34,6 @@ pub enum Read {
     AWaiting,
     Refused,
     Limited,
-    PaceAsked,
-    Ranked,
-    SurveyEnded,
     CheckEnded,
     DirectorActivity,
     DirectorTimer,
@@ -260,57 +257,6 @@ fn held(key: &'static str, act: Option<calls::Step>) -> Vec<calls::Step> {
         b"\"phase\":\"running\"",
     ));
     steps
-}
-
-const PACE_DIRECTOR_ENDED: usize = 3;
-const PACE_ASKED: usize = 6;
-const RANKED: usize = 8;
-const SURVEY_ENDED: usize = 10;
-const PACE_A_ENDED: usize = 11;
-pub const READS_4_4: &[(Read, usize)] = &[
-    (Read::DirectorEnded, PACE_DIRECTOR_ENDED),
-    (Read::PaceAsked, PACE_ASKED),
-    (Read::Ranked, RANKED),
-    (Read::SurveyEnded, SURVEY_ENDED),
-    (Read::AEnded, PACE_A_ENDED),
-];
-
-#[must_use]
-pub fn step_4_4() -> Vec<calls::Step> {
-    use super::{PACE_ANSWER, PACE_PERSON, PACE_QUESTION_MESSAGE, SECOND_ACCOUNT, SECOND_KEY_FILE, SURVEY};
-    vec![
-        sign_in(D1),
-        call(D1, argv!["account", "add-key", "1", calls::file(SECOND_KEY_FILE), "--deployment", "--key", "second-llm"]),
-        call(D1, argv!["chat", "start", "--project", number(PROJECT), "--key", "pace", PACE_PERSON]),
-        start(D1, argv!["task", "show", number(DIRECTOR), "--until", "ended", "--json"]),
-        call(D1, argv!["inbox", "--until", "waiting"]),
-        // A's question makes the director due. Wait for its acknowledgement
-        // run to park before the person reads the question: it must outlive
-        // that acknowledgement (jig's domain/tasks/messages.md, 2). Polling chat
-        // instead races its live run watch with that run's end and can retry.
-        call(D1, argv!["task", "show", number(DIRECTOR), "--until", "phase:idle"]),
-        call(D1, argv!["inbox", "--kind", "questions", "--json"]),
-        call(D1, argv!["account", "rank", number(SECOND_ACCOUNT), "1"]),
-        call(D1, argv!["account", "list", "--json"]),
-        call(
-            D1,
-            argv![
-                "task",
-                "answer",
-                number(DIRECTOR),
-                number(PACE_QUESTION_MESSAGE),
-                PACE_ANSWER,
-                "--key",
-                "pace-answer"
-            ],
-        ),
-        // The director reports after A, which reports after the survey. Its
-        // existing live watch is the completion barrier; read their ended
-        // documents once afterwards, without polling or opening ended watches.
-        join(PACE_DIRECTOR_ENDED),
-        call(D1, argv!["task", "show", number(SURVEY), "--json"]),
-        call(D1, argv!["task", "show", number(A), "--json"]),
-    ]
 }
 
 // Call positions within the signed-in check suffix; non-call steps consume none.

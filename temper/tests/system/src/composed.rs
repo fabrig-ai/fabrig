@@ -38,6 +38,7 @@ mod agreement;
 #[cfg(test)]
 mod chat;
 pub mod close_job;
+mod delegates;
 #[cfg(test)]
 mod design_delivery;
 mod link;
@@ -50,6 +51,7 @@ mod process;
 mod review;
 
 pub use agreement::call;
+pub use delegates::survey_delegation;
 use process::{Around, Process};
 
 const CHANNEL: Token = Token::new(7);
@@ -1230,6 +1232,9 @@ impl World {
 
     fn web_reply(&mut self, to: Token, reply: people::Reply) {
         if self.notes.answered(to, &reply) {
+            return;
+        }
+        if delegates::ranked(to, &reply) {
             return;
         }
         if next_turn::picked(to, &reply) {
