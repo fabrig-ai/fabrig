@@ -94,7 +94,8 @@ its tests, is `cluster.md`.
 6. **store.md:** temper's families in jig's store.
 7. **llm.md:** where LLM calls are made, host tools, the charter and a
    run's result.
-8. **git.md:** the checkout's io: the git component.
+8. **git.md:** the checkout's io: the git component; its sweep of
+   `trash` in `git-sweep.md`.
 9. **forge/README.md:** the forge's protocol layer on skein's forge kit: what
    temper hands the forge component, the setup host, its marks, its
    webhooks' address, and what it relies on of Forgejo and GitHub.

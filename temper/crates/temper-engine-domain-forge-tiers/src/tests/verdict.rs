@@ -205,6 +205,7 @@ fn a_green_run_clears_range_and_moves_record() {
         judged(&record, &verdict, &LIMITS),
         crate::Record {
             sequence: 1,
+            last_run: Some(1),
             judged: Some(Judged { tip: TIP, key: K_TIP }),
             failing: tests(&[]),
             flakes: Box::new([]),
