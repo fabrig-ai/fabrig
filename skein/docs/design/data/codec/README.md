@@ -336,6 +336,8 @@ For each record and enumeration:
   limits once, where it is asked: a bound costs the types it reaches,
   not their number times the family's limits. The family's bounds are
   the most of its declarations'.
+  The generator also computes each record's encoded bound at zero limits
+  from the same table and emits it as `ENCODED_AT_ZERO`.
 
 ```rust
 // skein_codec; Path and Problem are Clone, Copy, Debug, equality and
