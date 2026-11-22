@@ -1,4 +1,4 @@
-//! Requests counted at their HTTP entrance (testing/fakes/forge.md, section 4).
+//! Requests counted at their HTTP entrance (testing/fakes/forgejo.md, section 1).
 use skein_lib::Map;
 // 75 HTTP routes and the ten git routes.
 pub(crate) const ROUTES: u32 = 85;

@@ -34,12 +34,26 @@ fn standalone_file_refusal(text: &[u8]) -> String {
 
 #[test]
 fn toml_box_problem_names_public_key_and_line_on_serve_output() {
-    let (_scratch, directories) =
-        fixture("# configuration\n\nlisten = \"127.0.0.1:7100\"\npublic = \"http://example.com\"\n");
+    let directories = super::configuration::directories(std::path::Path::new("/fixture"));
     let mut arguments = vec![Box::from(b"serve".as_slice())];
     arguments.extend(directories.flags());
-    let command = crate::configure_with(&arguments, &[], b"/").expect("serve command");
-    let why = crate::run(command, &[], b"/", b"temper-box", "test", "test").expect_err("refused before io");
+    let crate::Command::Serve { directories, .. } =
+        crate::configure_with(&arguments, &[], b"/").expect("serve command")
+    else {
+        panic!("expected serve");
+    };
+    let temper_config_shell::Read { file, document, keys } = temper_box_kit::configuration::parse(
+        b"# configuration\n\nlisten = \"127.0.0.1:7100\"\npublic = \"http://example.com\"\n",
+        temper_config_shell::Shape::Standalone,
+    );
+    let read = temper_service_shell::configuration::Read { file, document, keys };
+    let programs = read.programs().expect("no program paths");
+    let Err(why) = read.prepare(|bytes| {
+        crate::serve::prepare("temper-box", &[], b"/", &directories, bytes, &mut Vec::new(), &programs)
+    }) else {
+        panic!("refused before io");
+    };
+    let why = crate::prefixed("temper-box serve", &why);
     assert_eq!(why, format!("temper-box serve: {FILE}:4: public: invalid form\n"));
 }
 
@@ -94,88 +108,64 @@ fn toml_box_upgrade_reads_the_file() {
 
 #[test]
 fn toml_box_git_wins_over_path_and_absent_key_uses_path() {
-    use skein_io::kernel::{Complete, Done, Fd, Op};
-    use skein_lib::{Time, Wall};
+    use skein_io::{Request, kernel::Fd};
+    use skein_lib::{Queue, Time};
+    use temper_worker_protocol_git::{Component, KERNEL_SUBMISSIONS, Outputs, Settings};
+    use temper_worker_service::{startup, worker_settings};
+
+    let root = std::path::Path::new("/fixture");
+    let directories = super::configuration::directories(root);
+    let dirs = temper_service_shell::jig_directories(&directories);
+    let named = root.join("named-git");
+    let found = root.join("git");
+    let path = [(Box::from(b"PATH".as_slice()), Box::from(root.as_os_str().as_bytes()))];
+    let limits = worker_settings::Limits::shared(temper_service_core::limits::stock());
+    let checkout = worker_settings::checkout(limits.checkout);
+    let git_limits = worker_settings::git_component(limits.git_component);
+    let io = jig_protocol_config::stock().io;
+    let mut out =
+        Outputs { events: Queue::uncapped(), io: Queue::uncapped(), kernel: Queue::with_capacity(KERNEL_SUBMISSIONS) };
+
     for (explicit, on_path) in [(true, true), (true, false), (false, true)] {
-        let scratch = skein_scratch::Scratch::new("box-program-git");
-        let root = scratch.path();
-        let directories = super::configuration::directories(root);
-        let named = root.join("named-git");
-        let found = root.join("git");
-        fs::copy("/bin/sh", &named).expect("named executable");
-        fs::copy("/bin/sh", &found).expect("PATH executable");
-        fs::write(root.join("worker.secret"), b"fixture-worker-secret").expect("fixture secret");
-        fs::set_permissions(root.join("worker.secret"), fs::Permissions::from_mode(0o600)).expect("private");
         let text = if explicit {
             format!("listen = \"127.0.0.1:7100\"\n[programs]\ngit = {named:?}\n")
         } else {
             "listen = \"127.0.0.1:7100\"\n".into()
         };
-        fs::write(root.join(FILE), text).expect("box file");
-        let environment = if on_path {
-            vec![(Box::from(b"PATH".as_slice()), Box::from(root.as_os_str().as_bytes()))]
-        } else {
-            Vec::new()
-        };
-        let mut service =
-            crate::serve::prepare_in("temper-box", &environment, b"/", &directories).expect("prepared box");
-        let mut program = None;
-        let mut descriptor = 1000_i32;
-        for _ in 0..32 {
-            temper_service::iterate(&mut service, Time::ZERO, Wall::EPOCH);
-            for _ in 0..service.submissions().len() {
-                let submit = service.submissions().pop().expect("counted submissions");
-                let result = match &submit.kind {
-                    Op::Socket { .. } => {
-                        descriptor += 1;
-                        Some(Done::Fd(Fd::new(descriptor)))
-                    }
-                    Op::Bind { addr, .. } => Some(Done::Bound(*addr)),
-                    Op::Listen { .. } => Some(Done::Nothing),
-                    Op::Spawn { spawn } => {
-                        assert_eq!(spawn.args.last().expect("version argument").as_ref(), b"version");
-                        program = Some(spawn.program.clone());
-                        None
-                    }
-                    Op::Accept { .. }
-                    | Op::Connect { .. }
-                    | Op::Recv { .. }
-                    | Op::Send { .. }
-                    | Op::Shutdown { .. }
-                    | Op::Close { .. }
-                    | Op::Open { .. }
-                    | Op::Read { .. }
-                    | Op::Write { .. }
-                    | Op::Append { .. }
-                    | Op::Truncate { .. }
-                    | Op::Sync { .. }
-                    | Op::Lock { .. }
-                    | Op::Stat { .. }
-                    | Op::Rename { .. }
-                    | Op::HardLink { .. }
-                    | Op::Remove { .. }
-                    | Op::MakeDirectory { .. }
-                    | Op::List { .. }
-                    | Op::Wait { .. }
-                    | Op::Signal { .. }
-                    | Op::Usage
-                    | Op::Window { .. }
-                    | Op::ReadSignal { .. }
-                    | Op::PipeRead { .. }
-                    | Op::PipeWrite { .. }
-                    | Op::Cancel { .. } => None,
-                };
-                if let Some(result) = result {
-                    service.completions().push(Complete { op: submit.op, kind: submit.kind, result: Ok(result) });
-                }
-            }
-            if program.is_some() {
-                break;
-            }
-        }
+        let read = temper_box_kit::configuration::parse(text.as_bytes(), temper_config_shell::Shape::Standalone);
+        let environment: &[crate::EnvironmentEntry] = if on_path { &path } else { &[] };
+        let git = crate::serve::git_program(&read.file.programs, || {
+            temper_shell::lookup::lookup(environment, b"git", &[(found.clone(), true)])
+        });
+        let mut problems = startup::Problems::empty();
+        let fixed = startup::worker::application::fixed(
+            &dirs,
+            git.as_deref().map(|path| path.as_os_str().as_bytes()),
+            Box::new([]),
+            &mut problems,
+        )
+        .expect("fixed worker paths");
+        assert!(problems.is_empty());
+        let mut component = Component::new(
+            &git_limits,
+            &checkout,
+            Settings {
+                git: fixed.git,
+                home: [fixed.root.as_ref(), b"/home"].concat().into_boxed_slice(),
+                root: Fd::new(2),
+                prefix: 0,
+                serial: 7,
+                largest_read: io.intake,
+                largest_room: io.output,
+            },
+        )
+        .expect("Git component startup");
+        component.start(Time::ZERO, &mut out);
+
+        let Some(Request::Spawn { spawn, .. }) = out.io.pop() else { panic!("Git version probe") };
+        assert_eq!(spawn.args.last().expect("version argument").as_ref(), b"version");
         let expected = if explicit { &named } else { &found };
-        assert_eq!(program.as_deref(), Some(expected.as_os_str().as_bytes()));
-        temper_engine_shell::serve::close_limits_store(service.engine_component().store()).expect("close store");
+        assert_eq!(spawn.program.as_ref(), expected.as_os_str().as_bytes());
     }
 }
 

@@ -522,6 +522,51 @@ fn late_branch_creation_and_recorded_merge_survive_an_image() {
     }
 }
 
+fn commit_ci() -> (Harness, u64) {
+    let mut configured = setup();
+    configured.checks.latency_min = Duration::from_secs(10);
+    configured.checks.latency_max = Duration::from_secs(10);
+    let mut h = Harness::with(calm(), configured);
+    let head = h.commit(FIRST, &[(b"src", b"one")]);
+    h.push(ENGINE, b"work", head).unwrap();
+    (h, head)
+}
+
+#[test]
+fn a_cancelled_commit_ci_run_survives_its_image() {
+    let (mut h, head) = commit_ci();
+    h.ok(MAINTAINER, write(Write::Cancel { run: 1 }));
+    let mut other = restored(&h);
+    for read in [Read::Run { run: 1 }, Read::Jobs { run: 1 }, Read::Statuses { commit: head }] {
+        assert_eq!(other.inspect(&read), h.inspect(&read));
+    }
+    let Answer::Run(run) = other.inspect(&Read::Run { run: 1 }).unwrap() else { panic!("run") };
+    assert_eq!(run.cancelled_by, Some(MAINTAINER));
+    assert_eq!(run.conclusion, Some(crate::api::Conclusion::Cancelled));
+    other.settle();
+    assert_eq!(other.inspect(&Read::Run { run: 1 }), Ok(Answer::Run(run)));
+}
+
+#[test]
+fn a_version_three_image_keeps_commit_ci_uncancelled() {
+    let (h, head) = commit_ci();
+    let bytes = h.domain.image().unwrap();
+    let table = skein_lib::bytes::find(&bytes, b"CICOMMIT").expect("commit cancellation table");
+    let mut previous = copy_of(&bytes[..table]);
+    for (out, byte) in previous.iter_mut().zip(b"FORGEIM3") {
+        *out = *byte;
+    }
+    let domain = Domain::from_image(&h.env.limits, &previous).unwrap();
+    let Answer::Run(run) = domain.inspect(&h.env.limits, REPOSITORY, &Read::Run { run: 1 }).unwrap() else {
+        panic!("run")
+    };
+    assert_eq!(run.cancelled_by, None);
+    assert_eq!(run.state, crate::api::RunState::Running);
+    for read in [Read::Run { run: 1 }, Read::Jobs { run: 1 }, Read::Statuses { commit: head }] {
+        assert_eq!(domain.inspect(&h.env.limits, REPOSITORY, &read), h.inspect(&read));
+    }
+}
+
 #[test]
 fn job_state_images_keep_requirements_and_bridge_legacy_defaults() {
     use crate::api::{JobRequirements, JobWait};
@@ -536,7 +581,7 @@ fn job_state_images_keep_requirements_and_bridge_legacy_defaults() {
     let mut h = Harness::with(Config { runner_labels: Some(Box::new([])), ..calm() }, configured);
     h.ok(ENGINE, write(Write::Dispatch { workflow: copy_of(b"wf"), branch: copy_of(MAIN), inputs: Box::new([]) }));
     let bytes = h.domain.image().unwrap();
-    assert_eq!(bytes.get(..8), Some(b"FORGEIM3".as_slice()));
+    assert_eq!(bytes.get(..8), Some(b"FORGEIM4".as_slice()));
     let mut other = restored(&h);
     let Answer::Jobs(jobs) = other.inspect(&Read::Jobs { run: 1 }).unwrap() else { panic!("jobs") };
     assert_eq!((jobs[0].labels.as_ref(), jobs[0].wait), (names(&[b"docker"]).as_ref(), Some(JobWait::Runner)));

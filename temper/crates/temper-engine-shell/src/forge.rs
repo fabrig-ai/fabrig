@@ -193,6 +193,14 @@ pub(super) struct Inputs<'a> {
     pub(super) sign_in: &'a SignIn<'a>,
 }
 
+type PrepareDirectory<'a> = dyn Fn(&std::path::Path, bool) -> Result<u32, String> + 'a;
+type PrepareFake<'a> = dyn Fn(&std::path::Path) -> Result<(), String> + 'a;
+
+pub(super) struct Preparation<'a> {
+    pub(super) directory: &'a PrepareDirectory<'a>,
+    pub(super) fake: &'a PrepareFake<'a>,
+}
+
 pub fn start(
     directories: &super::Directories,
     arguments: &[OsString],
@@ -255,10 +263,6 @@ fn start_with_binary_reader(
     )
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "one forge command dispatches its binary-shaped document, checked setup and process lifecycle"
-)]
 pub(super) fn start_with_inputs(
     binary: &str,
     shape: temper_config_shell::Shape,
@@ -267,6 +271,30 @@ pub(super) fn start_with_inputs(
     ssl_cert_file: Option<std::path::PathBuf>,
     environment: &[EnvironmentEntry],
     inputs: &Inputs<'_>,
+) -> Result<u8, Refused> {
+    start_with_preparation(
+        binary,
+        shape,
+        directories,
+        arguments,
+        ssl_cert_file,
+        environment,
+        (inputs, &Preparation { directory: &prepare_directory, fake: &prepare_fake }),
+    )
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "one forge command dispatches its binary-shaped document, checked setup and process lifecycle"
+)]
+pub(super) fn start_with_preparation(
+    binary: &str,
+    shape: temper_config_shell::Shape,
+    directories: &super::Directories,
+    arguments: &[OsString],
+    ssl_cert_file: Option<std::path::PathBuf>,
+    environment: &[EnvironmentEntry],
+    (inputs, preparation): (&Inputs<'_>, &Preparation<'_>),
 ) -> Result<u8, Refused> {
     let usage = || Refused {
         verb: "prepare",
@@ -332,19 +360,9 @@ pub(super) fn start_with_inputs(
         return fetch(owned.expect("fetch requires owned"), checked.fetch_bytes, ssl_cert_file).map_err(refused);
     }
     let directory = super::path(&entry.directory);
-    if which.is_none() && !directory.exists() {
-        fs::DirBuilder::new()
-            .recursive(true)
-            .mode(0o700)
-            .create(directory)
-            .map_err(|why| refused(format!("{}: {why}", directory.display())))?;
-    }
-    let user = skein_shell::effective_user();
-    if directory.exists() {
-        super::private_root(directory, user).map_err(|why| refused(format!("{}: {why}", directory.display())))?;
-    }
+    let user = (preparation.directory)(directory, which.is_none()).map_err(refused)?;
     let Some(owned) = owned else {
-        prepare_fake(&directory.join("admin_token")).map_err(refused)?;
+        (preparation.fake)(&directory.join("admin_token")).map_err(refused)?;
         return Ok(0);
     };
     let place =
@@ -475,6 +493,21 @@ fn run_process(
     }
     Err(run_failure(binary, host::run(limits, &launch), &launch, number, directories))
 }
+fn prepare_directory(directory: &std::path::Path, create: bool) -> Result<u32, String> {
+    if create && !directory.exists() {
+        fs::DirBuilder::new()
+            .recursive(true)
+            .mode(0o700)
+            .create(directory)
+            .map_err(|why| format!("{}: {why}", directory.display()))?;
+    }
+    let user = skein_shell::effective_user();
+    if directory.exists() {
+        super::private_root(directory, user).map_err(|why| format!("{}: {why}", directory.display()))?;
+    }
+    Ok(user)
+}
+
 /// The fake shares only the private directory and token with an owned forge (protocol/setup/playground.md).
 fn prepare_fake(path: &std::path::Path) -> Result<(), String> {
     match fs::symlink_metadata(path) {

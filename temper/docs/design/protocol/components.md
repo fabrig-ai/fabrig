@@ -128,7 +128,7 @@ fake git program's core:
 domain, the process and live tiers, and the tool that records git's
 transcripts (git.md, section 9). The fake forge's protocol layer, the
 throwaway Forgejo and the tool that records Forgejo's transcripts are
-skein's (`testing/fakes/forge.md`, section 4, and `testing/fakes/throwaway.md`, sections 1 and 2).
+skein's (`testing/fakes/forgejo.md`, section 1, and `testing/fakes/throwaway.md`, sections 1 and 2).
 
 **What temper's components share** is what every component of jig's
 does (jig's `protocol/README.md`, section 1; skein/docs/foundation/programming-model.md,

@@ -555,7 +555,8 @@ fn a_program_without_modify_has_no_remove_tool() {
         .iter()
         .filter_map(|seen| match seen {
             Seen::Tools { names } => Some(names),
-            Seen::Selected { .. }
+            Seen::Fault { .. }
+            | Seen::Selected { .. }
             | Seen::Interrupted
             | Seen::Terminated
             | Seen::Settings { .. }

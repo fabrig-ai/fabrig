@@ -24,6 +24,8 @@ pub enum RestoreSet {
     LandingGates,
     LandingAsks,
     LandingEntries,
+    LandingFollows,
+    LandingReruns,
     LandingFlakeReruns,
     LandingFlakeFindings,
     LandingFlakeJobs,

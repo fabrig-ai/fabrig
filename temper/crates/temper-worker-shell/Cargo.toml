@@ -30,6 +30,7 @@ skein-lib.workspace = true
 [dev-dependencies]
 temper-limits-fixtures.workspace = true
 temper-agent-fixtures.workspace = true
+skein-fake-machine.workspace = true
 skein-scratch.workspace = true
 temper-engine-service-vocabulary.workspace = true
 temper-service.workspace = true

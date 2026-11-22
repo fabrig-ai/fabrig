@@ -127,6 +127,7 @@ members = [
     "smith/testing/smith-agent-document-fixtures",
     "smith/testing/smith-bench-fixtures",
     "smith/testing/smith-end-to-end-kit",
+    "smith/testing/smith-faults",
     "smith/testing/smith-domain-tools-fixtures",
     "smith/testing/smith-domain-run-fixtures",
     "smith/testing/smith-domain-session-fixtures",
@@ -331,6 +332,7 @@ members = [
     "temper/testing/temper-agent-fixtures",
     "temper/testing/temper-landing-fixtures",
     "temper/testing/temper-engine-inspect",
+    "temper/testing/temper-blame",
     "temper/testing/temper-test-env",
     "temper/testing/temper-deployment-fixtures",
     "temper/crates/temper-box-shell",
@@ -395,8 +397,6 @@ members = [
     "temper/bin/temper-twin",
     "temper/crates/temper-qa-tool",
     "temper/bin/temper-qa",
-    "temper/crates/temper-redeploy-tool",
-    "temper/bin/temper-redeploy",
     "temper/crates/temper-protocol-worker-wire",
     "temper/tests/codecs",
     "temper/crates/temper-protocol-store",
@@ -582,6 +582,7 @@ smith-agent-world = { path = "smith/tests/agent" }
 smith-machine-world = { path = "smith/tests/machine" }
 smith-domain = { path = "smith/crates/smith-domain" }
 smith-domain-run = { path = "smith/crates/smith-domain-run" }
+smith-faults = { path = "smith/testing/smith-faults" }
 smith-domain-session = { path = "smith/crates/smith-domain-session" }
 smith-domain-tools = { path = "smith/crates/smith-domain-tools" }
 smith-protocol-llm = { path = "smith/crates/smith-protocol-llm" }
@@ -781,7 +782,6 @@ temper-client-journeys-tool = { path = "temper/crates/temper-client-journeys-too
 temper-client-walk-lines = { path = "temper/crates/temper-client-walk-lines" }
 temper-twin-tool = { path = "temper/crates/temper-twin-tool" }
 temper-qa-tool = { path = "temper/crates/temper-qa-tool" }
-temper-redeploy-tool = { path = "temper/crates/temper-redeploy-tool" }
 temper-stage-one-tool = { path = "temper/crates/temper-stage-one-tool" }
 temper-client-tools = { path = "temper/crates/temper-client-tools" }
 temper-client-tools-jig = { path = "temper/crates/temper-client-tools-jig" }

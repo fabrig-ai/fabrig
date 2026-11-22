@@ -1,13 +1,13 @@
 # checks: status
 
-2026-11-20. Where the tree's code lags or departs from [checks.md](checks.md).
+2026-11-21. Where the tree's code lags or departs from [checks.md](checks.md).
 
 Section 6.1's engine adapter is `engine-checks.md`'s; the worker's
 adapter is `worker.status.md`'s.
 
-- **Not yet:** 6.2: no engine world keeps a fault ledger, draws
-  from the seed's streams or sweeps with configured faults and
-  exclusions, and no check holds the 3.3 failure table.
+- **Not yet:** 6.2: no engine world but the engine's forge world
+  keeps a fault ledger, draws from the seed's streams or sweeps with
+  configured faults and exclusions.
 
 - **Departs:** 1: eighteen named real-loop stories remain in the fuzzy
   suite: sixteen scripted stories (fourteen reference-case stories,

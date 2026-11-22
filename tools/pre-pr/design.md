@@ -21,8 +21,7 @@ Every worker `deliver` and `finish` calls `.temper/pre-pr` in the implementer's
 checkout. The hook checks the worktree as delivered, including staged,
 unstaged and new files. Its private Git index records the checked tree and
 leaves staging intact. The local prepare pin identifies committed work since
-the branch started. The hook neither fetches a branch nor checks out a base.
-It uses the workspace's existing Cargo target and works offline.
+the branch started. Cargo uses the workspace's existing target and works offline.
 
 Delivery formats changed handwritten Rust files with rustfmt and skips codec
 outputs listed in `tools/merge/codecs.txt`. It reads offline Cargo metadata
@@ -33,12 +32,26 @@ needs one formatter pass per edition and configuration. The remaining checks
 and publication use the formatted tree. Explicit child and goal-close
 checks are read-only.
 
-The worker can establish the scope at its comparison base, from the last
-check of the same base and exact published tree in this checkout, or from
-a main fetch made since the worker installed the checkout and integrated
-at HEAD or in the pending merge. Without that evidence delivery refuses
-before Cargo metadata or rustfmt. Fetching main and merging it reestablishes
-the scope. The hook does no fetch and writes no source-tree receipt.
+Delivery reuses the comparison base and exact checked tree recorded in the
+checkout, or a named main fetch made after checkout preparation and integrated
+in HEAD or the pending merge. At the comparison base no refresh is needed.
+For a cold Rust delivery the hook asks the worker's `temper-public-source
+fabrig-ai/fabrig` for this repository's anonymous HTTPS Git URL. An installed
+helper returns that URL on one line or exits 1 for an unconfigured repository.
+A fresh fetch from the configured source takes precedence over another fetch.
+Otherwise the hook fetches main once in place, checks its ancestry and
+recomputes the producer's changed paths. For formatting, first-parent edits,
+merge resolutions and working edits count. Git computes a merge comparison
+from objects in place so cleanly combined upstream edits stay untouched. The landing pin still identifies
+the comparison base. The worker's fetched and landing refs do not name main.
+
+If that tip needs integration, the check reports its exact commit. The
+implementer can merge it in place, or ask the goal to integrate it through
+its catch-up and resume the saved change. An unresolved merge waits for
+the implementer. The check leaves HEAD, the caller's index and the worktree
+in place while obtaining the comparison. A worker without the helper can
+use the existing manual main refresh. Child and close checks do no recovery
+fetch.
 
 Counted baselines, citations, outward names, journey and
 budget rules apply to the changed paths. Checker changes also run its
