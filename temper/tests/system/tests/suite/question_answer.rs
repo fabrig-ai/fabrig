@@ -147,7 +147,7 @@ fn deliveries(queries: &[Query], words: &[u8]) -> usize {
             .filter(|message| message.role == skein_fake_llm_domain::api::Role::User)
             .flat_map(|message| &message.parts)
             .map(|part| match part {
-                Part::Text { text } => text.windows(words.len()).filter(|part| *part == words).count(),
+                Part::Text { text } => super::text::occurrences(text, words),
                 Part::ToolCall { .. } | Part::ToolOutput { .. } | Part::Opaque { .. } => 0,
             })
             .sum::<usize>();

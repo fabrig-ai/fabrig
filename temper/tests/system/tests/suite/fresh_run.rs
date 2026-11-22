@@ -158,7 +158,7 @@ fn occurrences(query: &Query, words: &[u8]) -> usize {
                 Part::ToolCall { arguments, .. } => arguments,
                 Part::Opaque { .. } => return 0,
             };
-            bytes.windows(words.len()).filter(|part| *part == words).count()
+            super::text::occurrences(bytes, words)
         })
         .sum()
 }

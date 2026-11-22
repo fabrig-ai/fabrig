@@ -85,7 +85,7 @@ fn words(query: &Query, needle: &[u8]) -> usize {
         .iter()
         .flat_map(|message| &message.parts)
         .map(|part| match part {
-            Part::Text { text } => text.windows(needle.len()).filter(|part| *part == needle).count(),
+            Part::Text { text } => super::text::occurrences(text, needle),
             Part::ToolCall { .. } | Part::ToolOutput { .. } | Part::Opaque { .. } => 0,
         })
         .sum()

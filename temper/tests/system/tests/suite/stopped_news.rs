@@ -75,7 +75,7 @@ fn occurrences(query: &Query, words: &[u8]) -> usize {
         .iter()
         .flat_map(|message| &message.parts)
         .map(|part| match part {
-            Part::Text { text } => text.windows(words.len()).filter(|part| *part == words).count(),
+            Part::Text { text } => super::text::occurrences(text, words),
             Part::ToolCall { .. } | Part::ToolOutput { .. } | Part::Opaque { .. } => 0,
         })
         .sum()

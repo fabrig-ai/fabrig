@@ -87,19 +87,16 @@ fn hear(driver: &mut Driver, task: u64, results: &[(u64, &[u8])], report: &[u8])
     assert_ne!(agent.prompts(), []);
     for (sender, words) in results {
         let expected = format!("Result from task {sender}:\n{}", std::str::from_utf8(words).expect("result"));
-        let count: usize = agent
-            .prompts()
-            .iter()
-            .flat_map(|query| &query.messages)
-            .flat_map(|message| &message.parts)
-            .map(|part| {
-                if let Part::Text { text } = part {
-                    text.windows(expected.len()).filter(|window| *window == expected.as_bytes()).count()
-                } else {
-                    0
-                }
-            })
-            .sum();
+        let count: usize =
+            agent
+                .prompts()
+                .iter()
+                .flat_map(|query| &query.messages)
+                .flat_map(|message| &message.parts)
+                .map(|part| {
+                    if let Part::Text { text } = part { super::text::occurrences(text, expected.as_bytes()) } else { 0 }
+                })
+                .sum();
         assert_eq!(count, 1, "each numbered ending reaches its requester once: {expected}");
     }
 }

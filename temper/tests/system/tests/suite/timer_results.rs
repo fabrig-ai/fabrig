@@ -85,9 +85,7 @@ fn occurrences(messages: &[Message], words: &[u8]) -> usize {
         .filter(|message| message.role == Role::User)
         .flat_map(|message| &message.parts)
         .map(|part| match part {
-            Part::Text { text } | Part::ToolOutput { output: text, .. } => {
-                text.windows(words.len()).filter(|part| *part == words).count()
-            }
+            Part::Text { text } | Part::ToolOutput { output: text, .. } => super::text::occurrences(text, words),
             Part::ToolCall { .. } | Part::Opaque { .. } => 0,
         })
         .sum()

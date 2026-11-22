@@ -54,7 +54,7 @@ fn park(root: &mut Driver, assignment: &engine::Assignment, call: u64) {
 }
 
 fn occurrences(query: &Query, words: &[u8]) -> usize {
-    let count = |text: &[u8]| text.windows(words.len()).filter(|bytes| *bytes == words).count();
+    let count = |text: &[u8]| super::text::occurrences(text, words);
     count(&query.system)
         + query
             .messages
