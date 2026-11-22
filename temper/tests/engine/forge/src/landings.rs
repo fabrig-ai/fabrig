@@ -155,7 +155,7 @@ pub fn read_landing_step(world: &mut World, task: u64, entry: u64, heard: top::L
     let mut committed = None;
     let mut evidence = None;
     let mut news = Vec::new();
-    for _ in 0..20 {
+    for _ in 0..world.landing_step_seconds() {
         world.run_for(1);
         for request in world.take_seen() {
             if let top::Request::LandingNews { task, member, step } = request {
@@ -441,27 +441,22 @@ pub fn stack_files(
     tree.into_iter().map(|(path, content)| skein_fake_forge_domain::api::File { path, content }).collect()
 }
 pub fn close_landing(world: &mut World, task: u64) {
+    close_landing_at(world, task, 90_000);
+}
+/// Release several landings in one world with disjoint root entry ranges.
+pub fn close_landing_at(world: &mut World, task: u64, first: u64) {
     world.event(top::Event::SettleEffects { task, root: task, ending: top::ReleaseEnding::Done });
-    world.event(top::Event::Release {
-        task,
-        root: task,
-        ending: top::ReleaseEnding::Done,
-        reason: None,
-        entry: 90_000,
-    });
-    world.event(top::Event::Committed { entry: 90_000 });
+    world.event(top::Event::Release { task, root: task, ending: top::ReleaseEnding::Done, reason: None, entry: first });
+    world.event(top::Event::Committed { entry: first });
     world.run_for(5);
-    for entry in 90_001..90_010 {
+    for entry in first + 1..first + 10 {
         world.event(top::Event::ContinueRelease { task, entry });
         world.event(top::Event::Committed { entry });
         world.run_for(5);
-        if world
-            .take_seen()
-            .iter()
-            .any(|request| matches!(request, top::Request::Released { task: ended } if *ended == task))
-        {
+        let requests = world.take_seen();
+        if requests.iter().any(|request| matches!(request, top::Request::Released { task: ended } if *ended == task)) {
             return;
         }
     }
-    panic!("landing did not release");
+    panic!("landing {task} did not release");
 }

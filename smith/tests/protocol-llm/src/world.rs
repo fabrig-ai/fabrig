@@ -109,6 +109,54 @@ impl World {
             None,
         ))
     }
+    /// Strike one accepted credential at the world's current clock.
+    ///
+    /// # Errors
+    /// Returns the fake's refusal when its account capacity is exceeded.
+    pub fn strike(&mut self, credential: u32, strike: provider::api::Strike) -> Result<(), provider::api::Error> {
+        let now = self.0.now();
+        self.0.backend_mut().strike(credential, strike, now)
+    }
+
+    /// Supply a renewed bearer after the host observes an unauthorized notice.
+    /// The fake's sign-out ends only when the host supplies that next generation.
+    pub fn renew_sign_in(&mut self, generation: u64) {
+        let now = self.now();
+        let valid = skein_lib::Duration::from_secs(7200);
+        self.0.backend_mut().renew(generation, now.saturating_add(valid));
+        self.0
+            .grant_at(now, agent::Grant { renewable: true, name: agent::GrantName { account: 0, generation }, valid });
+        self.clear(0, &provider::api::Strike::SignedOut);
+    }
+
+    /// Clear a strike at the world's current clock, ending its ledger interval.
+    pub fn clear(&mut self, credential: u32, strike: &provider::api::Strike) {
+        let now = self.0.now();
+        self.0.backend_mut().clear(credential, strike, now);
+    }
+
+    /// Record an excluded draw at its injection boundary.
+    pub fn leave_out_fault(&mut self, scenario: &'static str, kind: skein_world::faults::Kind) {
+        let now = self.now();
+        self.0.backend_mut().faults.ledger.leave_out(scenario, kind, now);
+    }
+
+    /// This seed's ledger, recorded at fake boundaries.
+    #[must_use]
+    pub fn fault_ledger(&self) -> &skein_world::faults::FaultLedger {
+        &self.0.backend().faults.ledger
+    }
+
+    /// Judge this seed once, retaining the attributed counters beside its faults.
+    /// # Errors
+    /// Returns the run-blame table's findings.
+    pub fn judge_faults(&mut self) -> Result<(), String> {
+        let mut ledger = core::mem::take(&mut self.0.backend_mut().faults.ledger);
+        let result = self.0.judge_faults(&mut ledger);
+        self.0.backend_mut().faults.ledger = ledger;
+        result
+    }
+
     /// Logical completion calls and their independently received HTTP requests.
     #[must_use]
     pub fn protocol_calls(&self) -> &[crate::component_backend::Call] {

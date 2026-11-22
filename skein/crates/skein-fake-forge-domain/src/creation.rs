@@ -1,4 +1,4 @@
-//! Repository and contents creation in the shared git store (testing/fakes/forge.md, 4).
+//! Repository and contents creation in the shared git store (testing/fakes/forgejo.md, 1).
 #[path = "copy.rs"]
 pub(crate) mod copy;
 

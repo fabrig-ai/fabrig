@@ -194,7 +194,7 @@ fn check_answer(turn: &api::Turn, p: &Path) -> Result<(), Refusal> {
     let mut size = u64::try_from(wrappers).expect("bounded wrappers");
     for line in &turn.lines {
         let bytes = match line {
-            Line::Take { .. } => {
+            Line::Take { .. } | Line::Cut { .. } => {
                 size = size
                     .checked_sub(u64::try_from(size_of::<api::Part>()).expect("part wrapper"))
                     .expect("one wrapper per line");

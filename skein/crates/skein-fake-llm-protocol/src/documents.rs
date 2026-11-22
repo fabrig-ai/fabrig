@@ -446,6 +446,83 @@ fn anthropic_event(
     Ok(None)
 }
 
+/// Stream a cut reply with deltas and leave its final block open (fakes/llm.md, 2.8).
+pub(crate) fn cut_event(
+    provider: Provider,
+    answer: &api::Answer,
+    sequence: u32,
+    call: u64,
+    limits: &Limits,
+) -> Result<Option<Outgoing>, Error> {
+    if sequence == 0 {
+        return event_with_options(
+            provider,
+            answer,
+            0,
+            call,
+            &[],
+            Options { echo: openai::Echo::NONE, usage_fields: UsageFields::ALL },
+            limits,
+        );
+    }
+    let mut left = sequence.checked_sub(1).expect("past opening");
+    let mut original = 1_u32;
+    for (index, part) in answer.parts.iter().enumerate() {
+        let count = match part {
+            api::Part::Text { .. } | api::Part::ToolCall { .. } => 3,
+            api::Part::Opaque { .. } | api::Part::ToolOutput { .. } => match provider {
+                Provider::Anthropic => 3,
+                Provider::OpenAi => 2,
+            },
+        };
+        if left < count {
+            if index.checked_add(1) == Some(answer.parts.len()) && left == count.checked_sub(1).expect("block events") {
+                return Ok(None);
+            }
+            if provider == Provider::OpenAi {
+                match part {
+                    api::Part::Text { text } if left == 1 => {
+                        let event = openai::Event::TextDelta {
+                            index: u32::try_from(index).or(Err(Error::TooLarge))?,
+                            content_index: 0,
+                            text: text.clone(),
+                        };
+                        return Ok(Some(Outgoing {
+                            name: bytes::copy_of(b"response.output_text.delta"),
+                            data: openai::encode_event(&event, &limits.openai).or(Err(Error::TooLarge))?,
+                            id: None,
+                            retry: None,
+                        }));
+                    }
+                    api::Part::Text { .. } => {
+                        if left == 2 {
+                            left = 1;
+                        }
+                    }
+                    api::Part::ToolCall { .. } | api::Part::Opaque { .. } | api::Part::ToolOutput { .. } => {}
+                }
+            }
+            let at = original.checked_add(left).ok_or(Error::TooLarge)?;
+            return event_with_options(
+                provider,
+                answer,
+                at,
+                call,
+                &[],
+                Options { echo: openai::Echo::NONE, usage_fields: UsageFields::ALL },
+                limits,
+            );
+        }
+        left = left.checked_sub(count).expect("past block");
+        let ordinary = match provider {
+            Provider::Anthropic => 3,
+            Provider::OpenAi => openai_part_events(part, answer.finish),
+        };
+        original = original.checked_add(ordinary).ok_or(Error::TooLarge)?;
+    }
+    Ok(None)
+}
+
 fn openai_part_events(part: &api::Part, finish: api::Finish) -> u32 {
     match part {
         api::Part::ToolCall { .. } if finish != api::Finish::Length => 3,

@@ -1,4 +1,4 @@
-//! Forgejo's HTTP vocabulary over the fake forge (testing/fakes/forge.md, section 4).
+//! Forgejo's HTTP vocabulary over the fake forge (testing/fakes/forgejo.md, section 1).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
@@ -43,7 +43,7 @@ pub struct Repository {
     pub full: Box<[u8]>,
     pub protected: Option<Box<[u8]>>,
 }
-/// A catalogue address and its domain source (skein/docs/design/testing/fakes/forge.md, 4).
+/// A catalogue address and its domain source (skein/docs/design/testing/fakes/forgejo.md, 1).
 #[derive(Debug)]
 pub struct Source {
     pub address: Box<[u8]>,

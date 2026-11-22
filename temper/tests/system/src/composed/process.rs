@@ -61,6 +61,9 @@ pub(crate) struct Process {
     exited: bool,
     sent_turns: usize,
     sent_waits: usize,
+    sent_unauthorized: usize,
+    pub(super) strikes: Vec<(u32, skein_fake_llm_domain::api::Strike)>,
+    pub(super) struck_at: Option<Time>,
     sent_calls: Vec<Token>,
     sent_deliveries: usize,
     owner: Option<Token>,
@@ -119,6 +122,23 @@ pub(crate) struct Around<'a> {
 }
 
 impl Process {
+    pub(super) fn strike(&mut self, credential: u32, strike: skein_fake_llm_domain::api::Strike) {
+        if let Some(agent) = &mut self.agent {
+            let now = agent.now();
+            agent.backend_mut().strike(credential, strike.clone(), now);
+            self.struck_at = Some(now);
+        }
+        self.strikes.push((credential, strike));
+    }
+
+    pub(super) fn clear(&mut self, credential: u32, strike: &skein_fake_llm_domain::api::Strike) {
+        if let Some(agent) = &mut self.agent {
+            let now = agent.now();
+            agent.backend_mut().clear(credential, strike, now);
+        }
+        self.strikes.retain(|(account, held)| *account != credential || held != strike);
+    }
+
     pub(crate) fn notice(&mut self, notice: agent::Up) {
         self.up.push_front(notice);
     }
@@ -149,6 +169,9 @@ impl Process {
             exited: false,
             sent_turns: 0,
             sent_waits: 0,
+            sent_unauthorized: 0,
+            strikes: Vec::new(),
+            struck_at: None,
             sent_calls: Vec::new(),
             sent_deliveries: 0,
             owner: None,
@@ -226,6 +249,16 @@ impl Process {
     /// Whether the next activation is waiting to spawn its process.
     pub(crate) fn prepared(&self) -> bool {
         self.agent.is_none()
+    }
+
+    /// The next local Smith clock, mapped onto the composed world's clock.
+    pub(super) fn wake_at(&self) -> Option<Time> {
+        let start = self.clock_start?;
+        let agent = self.agent.as_ref()?;
+        if self.settled {
+            return None;
+        }
+        Some(start.saturating_add(Duration::from_nanos(agent.now().as_nanos())))
     }
 
     /// The live or last activation's smith world.
@@ -416,8 +449,11 @@ impl Process {
         });
         let mut agent =
             Agent::with_selected_backend(&settings, None, Box::default(), None, mounted, provider, None, Some(event));
+        for (credential, strike) in &self.strikes {
+            agent.backend_mut().strike(*credential, strike.clone(), Time::ZERO);
+            self.struck_at = Some(Time::ZERO);
+        }
         if self.wire {
-            agent.enable_parent_account_notices();
             agent.start_at(around.now);
         }
         agent.enable_parent_host_calls();
@@ -505,19 +541,21 @@ impl Process {
                 around.observed.queries.push((around.assignment.expect("query's assignment").task, now, query.clone()));
             }
             self.sent_queries = agent.prompts().len();
-            for notice in agent.take_account_notices() {
-                self.up.push_back(match notice {
-                    smith::Request::Unauthorized { grant } => {
-                        agent::Up::Unauthorized { account: grant.account, generation: grant.generation }
-                    }
-                    smith::Request::Limited { account, reset } => {
-                        around.observed.limits.push((account, reset));
-                        agent::Up::Limited { account, reset }
-                    }
-                    smith::Request::Refused { account, code, reason } => agent::Up::Refused { account, code, reason },
-                    _ => unreachable!("account notices only"),
-                });
-            }
+        }
+        for (_, grant) in &agent.unauthorized()[self.sent_unauthorized..] {
+            self.up.push_back(agent::Up::Unauthorized { account: grant.account, generation: grant.generation });
+        }
+        self.sent_unauthorized = agent.unauthorized().len();
+        for (_, notice) in agent.take_account_notices() {
+            self.up.push_back(match notice {
+                smith_agent_world::AccountNotice::Limited { account, reset } => {
+                    around.observed.limits.push((account, reset));
+                    agent::Up::Limited { account, reset }
+                }
+                smith_agent_world::AccountNotice::Refused { account, code, reason } => {
+                    agent::Up::Refused { account, code, reason }
+                }
+            });
         }
         if !self.admitted
             && agent
@@ -567,7 +605,7 @@ impl Process {
         if self.settled {
             unmount(agent.disk(), around.disk, &self.mounts);
             let read = agent.turn_metadata().iter().filter_map(|(_, read, _)| *read).next_back();
-            let (turns, spent, result) = result(agent.answer());
+            let (turns, spent, result) = result(agent.answer(), agent.now());
             self.up.push_back(agent::Up::Answer { answer: agent::Answer { read, turns, spent, result } });
             self.answered = Some((turns, spent));
         }
@@ -576,7 +614,7 @@ impl Process {
 
 /// smith's last word on its channel. Only the endings these stories script
 /// cross; any other is a finding.
-fn result(answer: &run::Answer) -> (u32, u64, agent::RunResult) {
+fn result(answer: &run::Answer, now: Time) -> (u32, u64, agent::RunResult) {
     match crate::world::copy_answer(answer) {
         run::Answer::Accepted { outcome, spent, turns } => {
             let outcome = agent::Declared::new(outcome, u64::MAX).expect("a bounded result");
@@ -591,7 +629,22 @@ fn result(answer: &run::Answer) -> (u32, u64, agent::RunResult) {
                 run::RunFailure::Policy(run::Policy::Unfinished { nudges, rejected }) => {
                     agent::RunFailure::Policy(agent::Policy::Unfinished { nudges, rejected })
                 }
-                run::RunFailure::Model(_) => agent::RunFailure::Model(agent::ModelFault::Provider),
+                run::RunFailure::Model(fault) => {
+                    // The channel world uses a zero-based clock for this translation.
+                    let mut fault = fault;
+                    if let run::Fault::Limited { reset_at: Some(at), .. } = &mut fault {
+                        *at = Time::ZERO.saturating_add(at.saturating_since(now));
+                    }
+                    let mut channel = smith_channel_world::World::admitted();
+                    channel.agent_answers(run::Answer::Failed { failure: run::RunFailure::Model(fault), spent, turns });
+                    channel.settle();
+                    let agent::RunResult::Failed { failure } =
+                        channel.take_host_answer().expect("channel answer").result
+                    else {
+                        unreachable!("a model failure stays a failure");
+                    };
+                    failure
+                }
                 run::RunFailure::Transcript(reason) => agent::RunFailure::Transcript(match reason {
                     run::TranscriptRefusal::Version => agent::TranscriptRefusal::Version,
                     run::TranscriptRefusal::Malformed => agent::TranscriptRefusal::Malformed,
@@ -760,6 +813,16 @@ fn host_calls(agent: &Agent, sent_calls: &mut Vec<Token>, now: Time, up: &mut Ve
 }
 
 fn receiving(tool_payload: Option<u32>) -> run::Limits {
+    // The shipped profile is immutable; retain only its derived, allocation-free
+    // limits, not another parsed stock document for every activation.
+    static STOCK: std::sync::OnceLock<run::Limits> = std::sync::OnceLock::new();
+    match tool_payload {
+        None => *STOCK.get_or_init(|| derive_receiving(None)),
+        Some(_) => derive_receiving(tool_payload),
+    }
+}
+
+fn derive_receiving(tool_payload: Option<u32>) -> run::Limits {
     use smith_agent_service::profile::{self, Configuration, Endpoint, Limits as DeclaredLimits};
     let agents = temper_engine_service_stock::stock::agents();
     let endpoint = agents.fallback;

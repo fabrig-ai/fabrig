@@ -227,7 +227,7 @@ reproduced in skein's own tier, and fixed there.
 A service that works on a forge takes the forge's fakes from skein: the
 domain and the protocol layer in its protocol worlds, the forge peer in
 its real loop, and the throwaway Forgejo in its tools and process tiers
-(fakes/forge.md, sections 2 to 5, and fakes/throwaway.md, section 1). The peer serves plaintext on loopback
+(fakes/forge.md, sections 2 to 3, and fakes/forgejo.md, section 1, and fakes/forge.md, section 5, and fakes/throwaway.md, section 1). The peer serves plaintext on loopback
 over a forge the service may share with its own fake of git. Its
 transcripts of git stay its own.
 
@@ -576,7 +576,7 @@ crates/skein-ui-bundle          the bundler, a tool built optimized (../ui/web/b
 crates/skein-fake-llm-*         the scripted LLM peer: its domain and its byte peer (fake-llm.md), a product the worlds and the real loop use
 crates/skein-fake-forge-domain  the fake forge's domain (fakes/forge.md, 2 and 3)
 crates/skein-fake-forge-http    what its two layers share (fakes/github.md, 3)
-crates/skein-fake-forge-forgejo its Forgejo protocol layer (fakes/forge.md, 4)
+crates/skein-fake-forge-forgejo its Forgejo protocol layer (fakes/forgejo.md, 1)
 crates/skein-fake-oauth         an independent rotating OAuth issuer (../oauth/README.md, 5)
 crates/skein-fake-peers         the LLM, OAuth and forge peers hosted on loopback io, in a world or as an application's own process (fakes/forge.md, 5); links skein-fake-forge-github for GitHub's API/browser and blob faces
 crates/skein-fake-checkout      files, scripted commands and local git for a service's domain worlds, and for a service's fake git as a program (fake-checkout.md)
