@@ -47,7 +47,8 @@ pub(super) fn milestone(domain: &mut Domain, env: &Env<Limits>, party: u64, row:
     if !kept.loaded {
         return delegates(env, party, row.project, task, kept, 0, None);
     }
-    let Some(totals) = totals.or(kept.totals) else { return unreadable() };
+    let Some(mut totals) = totals.or(kept.totals) else { return unreadable() };
+    totals.reds = domain.forge.reds_owed(row.project, task);
     let mut ordered = Map::uncapped();
     if let Some(live) = domain.core.tasks.task(task) {
         for goal in &live.delegates {

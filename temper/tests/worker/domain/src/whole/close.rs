@@ -33,8 +33,7 @@ fn kind() -> tooling::Kind {
 
 /// The goal's tip on the close branch, the command, delivery, answer and teardown
 /// (temper/docs/design/domain/worker/jobs.md; temper/docs/design/protocol/tooling.md, 4.2).
-#[must_use]
-pub fn run(seed: u64, case: Case) -> Report {
+pub fn run(seed: u64, case: Case) -> Result<Report, String> {
     let mut limits = crate::limits();
     limits.tooling.file_bytes = 16_384;
     let mut world = World::new(seed, kind(), limits);
@@ -44,11 +43,11 @@ pub fn run(seed: u64, case: Case) -> Report {
     let head = world.forge.advance(REMOTE, b"topic", b"docs/a.status.md", b"in flight\n");
     world.forge.create_branch(REMOTE, b"goal", head).expect("goal branch");
     world.forge.advance(REMOTE, b"main", b"code", b"later main\n");
-    world.event(Event::Ready);
+    world.event(Event::Ready)?;
     assert_eq!(world.report.kinds.as_ref(), [kind().bound]);
-    assign(&mut world, head);
-    let owner = world.start(b"fabrig/tools/close");
-    command(&mut world, owner, head, case);
+    assign(&mut world, head)?;
+    let owner = world.start(b"fabrig/tools/close")?;
+    command(&mut world, owner, head, case)?;
     let commit = world.forge.branch(REMOTE, b"topic").expect("close branch");
     assert_eq!(world.forge.branch(REMOTE, b"goal"), Some(head));
     if case == Case::Changed {
@@ -78,14 +77,14 @@ pub fn run(seed: u64, case: Case) -> Report {
     world.report.tree = world.forge.tree(commit);
     assert_eq!(world.domain.workspaces(), 0);
     assert_eq!(world.domain.agent().agents(), 0);
-    world.event(Event::Link(host::LinkDown::Acknowledge { run: RUN, attempt: ATTEMPT }));
+    world.event(Event::Link(host::LinkDown::Acknowledge { run: RUN, attempt: ATTEMPT }))?;
     assert_eq!(world.domain.kept_answers(), 0);
-    world.event(Event::Shutdown { drain: true });
+    world.event(Event::Shutdown { drain: true })?;
     assert_eq!(world.stops, 1);
-    world.report
+    Ok(world.report)
 }
 
-fn assign(world: &mut World, head: u64) {
+fn assign(world: &mut World, head: u64) -> Result<(), String> {
     world.event(Event::AssignJob {
         job: host::JobAssignment {
             run: RUN,
@@ -116,10 +115,11 @@ fn assign(world: &mut World, head: u64) {
             }]),
         }),
         spec: Ok(wire::JobSpec { command: b"fabrig/tools/close".as_slice().into(), request: REQUEST.into() }),
-    });
+    })?;
+    Ok(())
 }
 
-fn command(world: &mut World, owner: Token, head: u64, case: Case) {
+fn command(world: &mut World, owner: Token, head: u64, case: Case) -> Result<(), String> {
     let workspace = world.workspace.expect("close checkout prepared");
     let directory = translate::dir(workspace);
     let repository = [directory.as_slice(), b"/fabrig"].concat();
@@ -143,7 +143,7 @@ fn command(world: &mut World, owner: Token, head: u64, case: Case) {
             exit: tooling::Exit::Code(u8::from(case == Case::Failed)),
             tail: if case == Case::Failed { b"close failed".as_slice().into() } else { Box::new([]) },
         },
-    });
+    })?;
     if case != Case::Failed {
         let (read_owner, op) = world.operations.pop_front().expect("read command result");
         assert_eq!(read_owner, owner);
@@ -151,13 +151,14 @@ fn command(world: &mut World, owner: Token, head: u64, case: Case) {
         assert_eq!(inner, owner);
         assert_eq!(path.as_ref(), format!("workspaces/{}/result.json", workspace.raw()).as_bytes());
         assert_eq!(most, 512);
-        world.event(Event::Job { owner, event: tooling::Event::Read { owner, bytes: Some(result.into()) } });
+        world.event(Event::Job { owner, event: tooling::Event::Read { owner, bytes: Some(result.into()) } })?;
         if world.report.pushes != 0 {
             assert!(world.report.answer.is_none(), "push before answer");
-            world.pushed(false);
+            world.pushed(false)?;
         }
     }
     assert!(world.report.answer.is_none(), "process gone before answer");
-    world.event(Event::Job { owner, event: tooling::Event::Gone { owner } });
+    world.event(Event::Job { owner, event: tooling::Event::Gone { owner } })?;
     assert!(world.operations.is_empty());
+    Ok(())
 }

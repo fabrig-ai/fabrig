@@ -67,7 +67,52 @@ fn layer_names<'a>(table: &'a toml::Table, findings: &mut Vec<String>) -> BTreeS
     names
 }
 
-fn findings(metadata: &str, table: &str) -> Result<Vec<String>, String> {
+fn real_profiles(table: &toml::Table, config: &str, findings: &mut Vec<String>) -> Result<(), String> {
+    let config: toml::Table = toml::from_str(config).map_err(|why| format!("nextest configuration: {why}"))?;
+    let profiles = config.get("profile").and_then(toml::Value::as_table);
+    let mut trees: BTreeSet<&str> = TREES.into_iter().collect();
+    if let Some(profiles) = profiles {
+        trees.extend(profiles.keys().filter_map(|name| name.strip_prefix("real-")));
+    }
+    for tree in trees {
+        let expected: BTreeSet<&str> = table
+            .get(tree)
+            .and_then(toml::Value::as_table)
+            .into_iter()
+            .flat_map(|lines| lines.iter())
+            .filter(|(_, layer)| layer.as_str().is_some_and(|layer| ["real-loop", "end-to-end"].contains(&layer)))
+            .map(|(id, _)| id.as_str())
+            .collect();
+        let name = format!("real-{tree}");
+        let profile = profiles.and_then(|profiles| profiles.get(&name));
+        if expected.is_empty() {
+            if profile.is_some() {
+                findings.push(format!("{tree}: [profile.{name}] has no real-loop or end-to-end lines"));
+            }
+            continue;
+        }
+        let Some(profile) = profile else {
+            findings.push(format!("{tree}: missing [profile.{name}]"));
+            continue;
+        };
+        let filter = profile.get("default-filter").and_then(toml::Value::as_str).unwrap_or_default();
+        let named: BTreeSet<&str> = filter
+            .split("binary_id(")
+            .skip(1)
+            .filter_map(|part| part.split_once(')'))
+            .filter_map(|(id, _)| id.trim().strip_prefix('=').map(str::trim))
+            .collect();
+        for id in expected.difference(&named) {
+            findings.push(format!("{tree}: [profile.{name}] missing binary_id(={id})"));
+        }
+        for id in named.difference(&expected) {
+            findings.push(format!("{tree}: [profile.{name}] names {id}, not a real-loop or end-to-end line"));
+        }
+    }
+    Ok(())
+}
+
+fn findings(metadata: &str, table: &str, config: &str) -> Result<Vec<String>, String> {
     let binaries = binaries(metadata)?;
     let table: toml::Table = match toml::from_str(table) {
         Ok(table) => table,
@@ -119,6 +164,7 @@ fn findings(metadata: &str, table: &str) -> Result<Vec<String>, String> {
             findings.push(format!("{id}: missing line under [{}]", tree.as_deref().expect("a tree binary")));
         }
     }
+    real_profiles(&table, config, &mut findings)?;
     findings.sort();
     Ok(findings)
 }
@@ -192,7 +238,7 @@ fn rules_on_fixtures() {
         (&world, "[skein]\n\"demo::world\" = 7", vec!["[skein] demo::world: layer must be a string"]),
     ] {
         let table = format!("layers = ['step', 'domain']\n{table}");
-        assert_eq!(findings(metadata, &table).expect("fixture metadata reads"), expected, "{metadata}\n{table}");
+        assert_eq!(findings(metadata, &table, "").expect("fixture metadata reads"), expected, "{metadata}\n{table}");
     }
     for (metadata, table, expected) in [
         (&library, "", vec!["layers: expected a list of layer names"]),
@@ -212,7 +258,38 @@ fn rules_on_fixtures() {
             ],
         ),
     ] {
-        assert_eq!(findings(metadata, table).expect("fixture metadata reads"), expected, "{table}");
+        assert_eq!(findings(metadata, table, "").expect("fixture metadata reads"), expected, "{table}");
+    }
+}
+
+#[test]
+fn real_pair_rules_on_fixtures() {
+    let world = fixture("skein/crates/demo", "world", &["test"], true);
+    let real = "layers = ['step', 'real-loop', 'end-to-end']\n[skein]\n\"demo::world\" = 'real-loop'";
+    let end_to_end = "layers = ['step', 'real-loop', 'end-to-end']\n[skein]\n\"demo::world\" = 'end-to-end'";
+    let profile = "[profile.real-skein]\ndefault-filter = 'binary_id(=demo::world)'";
+    for (table, config, expected) in [
+        (real, profile, vec![]),
+        (end_to_end, profile, vec![]),
+        (end_to_end, "", vec!["skein: missing [profile.real-skein]"]),
+        (
+            real,
+            "[profile.real-skein]\ndefault-filter = 'all()'",
+            vec!["skein: [profile.real-skein] missing binary_id(=demo::world)"],
+        ),
+        (
+            real,
+            "[profile.real-skein]\ndefault-filter = 'binary_id(=demo::world) | binary_id(=extra::world)'",
+            vec!["skein: [profile.real-skein] names extra::world, not a real-loop or end-to-end line"],
+        ),
+        (real, "", vec!["skein: missing [profile.real-skein]"]),
+        (
+            "layers = ['step', 'domain']\n[skein]\n\"demo::world\" = 'domain'",
+            profile,
+            vec!["skein: [profile.real-skein] has no real-loop or end-to-end lines"],
+        ),
+    ] {
+        assert_eq!(findings(&world, table, config).expect("fixture texts read"), expected, "{table}\n{config}");
     }
 }
 
@@ -227,6 +304,7 @@ fn workspace_binaries_have_layers() {
     assert!(output.status.success(), "cargo metadata: {}\n{}", output.status, String::from_utf8_lossy(&output.stderr));
     let metadata = String::from_utf8(output.stdout).expect("cargo metadata is UTF-8");
     let table = fs::read_to_string(root.join("tools/tiers/layers.toml")).expect("the layer table reads");
-    let findings = findings(&metadata, &table).expect("workspace metadata reads");
+    let config = fs::read_to_string(root.join(".config/nextest.toml")).expect("the nextest configuration reads");
+    let findings = findings(&metadata, &table, &config).expect("workspace texts read");
     assert!(findings.is_empty(), "{}", findings.join("\n"));
 }

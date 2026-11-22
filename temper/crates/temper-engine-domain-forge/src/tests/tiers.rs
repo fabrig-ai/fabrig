@@ -6,6 +6,7 @@
     reason = "ordinary lifecycle stories collect and inspect requests outside the step implementation"
 )]
 use super::*;
+use core::fmt::Write as _;
 use fixtures::{BASE, CHANGE, HEAD, OPEN};
 use skein_forge::api;
 use temper_engine_domain_forge_landing as keys;
@@ -65,10 +66,23 @@ fn restoring_in(mut d: Domain, follows: Follows) -> Domain {
     ));
     d
 }
+/// Complete the restart's branch reads before exercising the restored tier's policy.
+fn fresh_reads(d: &mut Domain, tip: api::Commit) {
+    for _ in 0..LIMITS.client.pending {
+        if domain::fresh_reads_in(d) {
+            return;
+        }
+        let (call, op) = fixtures::next_at(d, &env());
+        assert!(matches!(op, api::Op::Read(api::Read::Branch { .. })), "{op:?}");
+        fixtures::answer(d, call, Ok(api::Answer::Commit(tip)));
+    }
+    assert!(domain::fresh_reads_in(d));
+}
+
 fn configured(branch: Option<&[u8]>) -> Domain {
     let mut d = restoring(branch);
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
+    outputs(&mut d, Event::CatchUp);
     d
 }
 pub(super) fn row(d: &Domain) -> &TierRow {
@@ -277,7 +291,10 @@ fn workflow(d: &Domain, conclusion: api::Conclusion, failed_step: Option<u32>) -
     }
 }
 fn answer(d: &mut Domain, answer: api::Answer) -> Box<[Request]> {
-    d.tier_ops.reads.insert(READ, crate::tiers::Read { tier: (REPO, TIER.into()), baseline: false }).unwrap();
+    d.tier_ops
+        .reads
+        .insert(READ, crate::tiers::Read { tier: (REPO, TIER.into()), baseline: false, job_state: false })
+        .unwrap();
     let mut out = Queue::uncapped();
     crate::tiers::answered(d, &env(), READ, Ok(answer), &mut out);
     collect(out)
@@ -376,7 +393,7 @@ fn baseline_reads_past_a_stale_head_at_start_and_restart() {
         }
         assert_eq!(requests(&collect(out)).len(), 0);
         assert!(row(&d).baseline.is_none(), "a restored head is not a baseline");
-        assert_eq!(requests(&outputs(&mut d, Event::ReadAfresh)).len(), 0);
+        assert_eq!(requests(&outputs(&mut d, Event::CatchUp)).len(), 0);
         assert_eq!(d.tier_ops.reads.len(), 1);
         let out = baseline_answer(&mut d, Ok(api::Answer::Commit(NEXT_TIP)));
         assert_eq!(requests(&out).len(), 0);
@@ -418,7 +435,7 @@ fn a_missing_baseline_branch_waits_for_its_next_move() {
     let mut out = Queue::uncapped();
     crate::tiers::start_due(&mut d, &env(), REPO, &mut out);
     assert_eq!(requests(&collect(out)).len(), 0);
-    assert_eq!(requests(&outputs(&mut d, Event::ReadAfresh)).len(), 0);
+    assert_eq!(requests(&outputs(&mut d, Event::CatchUp)).len(), 0);
     let out = baseline_answer(&mut d, Err(api::Error::Missing));
     assert_eq!(requests(&out).len(), 0);
     assert!(row(&d).baseline.is_none());
@@ -433,9 +450,12 @@ fn a_missing_baseline_branch_waits_for_its_next_move() {
 #[test]
 fn a_baseline_waits_for_another_tier_read() {
     let mut d = restoring(None);
-    d.tier_ops.reads.insert(READ, crate::tiers::Read { tier: (REPO, TIER.into()), baseline: false }).unwrap();
+    d.tier_ops
+        .reads
+        .insert(READ, crate::tiers::Read { tier: (REPO, TIER.into()), baseline: false, job_state: false })
+        .unwrap();
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    assert_eq!(requests(&outputs(&mut d, Event::ReadAfresh)).len(), 0);
+    assert_eq!(requests(&outputs(&mut d, Event::CatchUp)).len(), 0);
     assert_eq!(d.tier_ops.reads.len(), 1, "wait for the occupied read slot");
     assert!(row(&d).baseline.is_none());
     let mut out = Queue::uncapped();
@@ -578,7 +598,10 @@ fn failed_run_without_a_report_is_a_fault() {
     let mut d = dispatched();
     completed(&mut d, api::Conclusion::Failure, Some(1));
     let mut out = Queue::uncapped();
-    d.tier_ops.reads.insert(READ, crate::tiers::Read { tier: (REPO, TIER.into()), baseline: false }).unwrap();
+    d.tier_ops
+        .reads
+        .insert(READ, crate::tiers::Read { tier: (REPO, TIER.into()), baseline: false, job_state: false })
+        .unwrap();
     crate::tiers::answered(&mut d, &env(), READ, Err(api::Error::Missing), &mut out);
     let run = row(&d).record.run.as_ref().unwrap();
     assert_eq!((run.faults, &run.part), (1, &p::Part::Whole));
@@ -622,6 +645,181 @@ fn exhausted_faults_hold_until_released_then_run_green() {
             Some(&TierDecision::Done { words: b"Tier browser run 1: green, cleared 0 landings".as_slice().into() })
         );
     }
+}
+
+#[test]
+fn a_fault_hold_reads_pending_jobs_once_and_keeps_whole_clauses() {
+    for (count, unread) in [(4, false), (1, true)] {
+        let mut d = dispatched();
+        d.tiers.get_mut(&(REPO, TIER.into())).unwrap().record.run.as_mut().unwrap().faults = RETRIES;
+        let mut run = workflow(&d, api::Conclusion::Success, Some(1));
+        run.state = api::RunState::Running;
+        run.conclusion = None;
+        run.jobs = (0..count)
+            .map(|id| api::RunJob {
+                id: JOB + id,
+                name: format!("job{id}").into_bytes().into(),
+                attempt: 1,
+                state: api::RunState::Waiting,
+                conclusion: None,
+                steps: 3,
+                step: None,
+            })
+            .collect();
+        answer(&mut d, api::Answer::Runs { runs: Box::new([run.clone()]), more: false });
+        run.commit = NEXT_TIP;
+        answer(&mut d, api::Answer::Run(run));
+        assert_eq!(row(&d).held, Some(TierHeld::Faults(keys::Fault::OtherCommit)));
+        settled_step(&mut d, 100, false);
+        let mut out = settled_step(&mut d, 101, false);
+        assert!(!matches!(choice(&out), Some(TierDecision::Held { .. })), "gather first");
+        let mut clauses = String::new();
+        for id in 0..count.min(8) {
+            let (owner, read) = d.tier_ops.reads.iter().find(|(_, read)| read.job_state).expect("pending job read");
+            let owner = *owner;
+            assert!(read.job_state);
+            let attempt = api::JobAttempt { head: NEXT_TIP, run: RUN, job: JOB + id, attempt: 1 };
+            let state = match id % 4 {
+                0 => api::JobState::Waiting,
+                1 => api::JobState::Blocked,
+                2 => api::JobState::Running,
+                _ => api::JobState::Completed,
+            };
+            let why = if unread {
+                "pending, its job unread"
+            } else {
+                match state {
+                    api::JobState::Waiting => "waiting for a runner labelled docker, linux",
+                    api::JobState::Blocked => "blocked by the jobs it needs",
+                    api::JobState::Running => "running at step 2, test",
+                    api::JobState::Completed => "completed",
+                }
+            };
+            write!(&mut clauses, "; job{id}: {why}").unwrap();
+            let answer = if unread {
+                Err(api::Error::MissingJob)
+            } else {
+                Ok(api::Answer::JobState {
+                    attempt,
+                    state,
+                    labels: Box::new([b"docker".as_slice().into(), b"linux".as_slice().into()]),
+                    step: (state == api::JobState::Running)
+                        .then(|| api::Step { number: 2, name: b"test".as_slice().into() }),
+                    cut: false,
+                })
+            };
+            let mut answered = Queue::uncapped();
+            crate::tiers::answered(&mut d, &env(), owner, answer, &mut answered);
+            out = settled_step(&mut d, 110 + id, false);
+        }
+        let expected = TierDecision::Held {
+            words: format!("Tier browser run 1 held after 3 runner faults, last: other commit{clauses}")
+                .into_bytes()
+                .into(),
+        };
+        assert_eq!(choice(&out), Some(&expected));
+        let out = settled_step(&mut d, 120, false);
+        assert_eq!(choice(&out), Some(&expected));
+        assert!(d.tier_ops.reads.is_empty(), "do not gather a second time");
+        assert_eq!(
+            row(&d).posting.as_ref().unwrap().description.as_ref(),
+            b"held after 3 runner faults, last: other commit"
+        );
+        settled_step(&mut d, 121, true);
+        assert!(!d.stall_words.contains_key(&TIER_TASK), "release drops clauses");
+    }
+    hold_report_limits();
+}
+
+// The report bounds job reads and retains only whole clauses, including its remainder.
+fn hold_report_limits() {
+    let d = dispatched();
+    let mut run = workflow(&d, api::Conclusion::Success, None);
+    run.jobs = (0..10)
+        .map(|id| api::RunJob {
+            id: JOB.checked_add(id).expect("bounded pending jobs"),
+            name: format!("job{id}").into_bytes().into(),
+            attempt: 1,
+            state: api::RunState::Waiting,
+            conclusion: None,
+            steps: 3,
+            step: None,
+        })
+        .collect();
+    let report = stall::Report::run(&run);
+    let mut clauses = String::new();
+    for id in 0..8_u64 {
+        write!(&mut clauses, "; job{id}: pending, its job unread").unwrap();
+    }
+    assert_eq!(
+        report.words(b"held", jig_domain_tasks::HOLD_ACCOUNT_BYTES).as_ref(),
+        format!("held{clauses}; and 2 more pending").as_bytes()
+    );
+    assert_eq!(report.words(b"held", 60).as_ref(), b"held; job0: pending, its job unread; and 9 more pending");
+}
+
+#[test]
+fn a_restored_flight_counts_the_rest_of_its_runner_wait_and_restores_held_without_clauses() {
+    let mut d = dispatched();
+    // The first reading arrives halfway through the bound: the dispatch wait still counts.
+    let mut clock = env();
+    let half = Duration::from_secs(120);
+    clock.limits.client.poll = Duration::from_secs(600);
+    clock.limits.client.fallback = Duration::from_secs(600);
+    clock.now = clock.now.saturating_add(half);
+    clock.wall = Wall::from_nanos(clock.now.as_nanos());
+    d.tier_ops.follows.get_mut(&(REPO, TIER.into())).unwrap().wall = Some(env().wall);
+    let mut run = workflow(&d, api::Conclusion::Success, Some(1));
+    run.state = api::RunState::Waiting;
+    run.conclusion = None;
+    run.jobs[0].state = api::RunState::Waiting;
+    d.tier_ops
+        .reads
+        .insert(READ, crate::tiers::Read { tier: (REPO, TIER.into()), baseline: false, job_state: false })
+        .unwrap();
+    let mut listed = run.clone();
+    listed.jobs = Box::new([]);
+    crate::tiers::answered(
+        &mut d,
+        &clock,
+        READ,
+        Ok(api::Answer::Runs { runs: Box::new([listed]), more: false }),
+        &mut Queue::uncapped(),
+    );
+    let saved = row(&d).clone();
+    assert_eq!(saved.flight.as_ref().unwrap().clock.unwrap().waited(clock.wall), half);
+    assert_eq!(
+        saved.flight.as_ref().unwrap().next,
+        Some(clock.now.saturating_add(half)),
+        "read by the runner-wait bound even when the poll is later"
+    );
+    let mut cold = restoring(None);
+    outputs(&mut cold, Event::Restore { record: Stored::Tier(saved) });
+    outputs(&mut cold, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut cold, Event::CatchUp);
+    clock.now = clock.now.saturating_add(half);
+    clock.wall = Wall::from_nanos(clock.now.as_nanos());
+    cold.tier_ops
+        .reads
+        .insert(READ, crate::tiers::Read { tier: (REPO, TIER.into()), baseline: false, job_state: false })
+        .unwrap();
+    crate::tiers::answered(&mut cold, &clock, READ, Ok(api::Answer::Run(run)), &mut Queue::uncapped());
+    assert_eq!(row(&cold).held, Some(TierHeld::RunnerWait));
+    assert_eq!(row(&cold).flight.as_ref().unwrap().next, None);
+    let saved = row(&cold).clone();
+    let mut restored = restoring(None);
+    outputs(&mut restored, Event::Restore { record: Stored::Tier(saved) });
+    outputs(&mut restored, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut restored, Event::CatchUp);
+    fresh_reads(&mut restored, BASE);
+    let out = settled_step(&mut restored, 100, false);
+    assert_eq!(
+        choice(&out),
+        Some(&TierDecision::Held {
+            words: b"Tier browser run 1 held after 4 minutes waiting for a runner".as_slice().into(),
+        })
+    );
+    assert!(restored.tier_ops.reads.is_empty());
 }
 
 #[test]
@@ -678,7 +876,8 @@ fn a_missing_workflow_in_the_saved_flight_keeps_its_words_after_restart() {
     let mut cold = restoring(None);
     outputs(&mut cold, Event::Restore { record: Stored::Tier(saved) });
     outputs(&mut cold, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut cold, Event::ReadAfresh);
+    outputs(&mut cold, Event::CatchUp);
+    fresh_reads(&mut cold, BASE);
     let out = settled_step(&mut cold, RELEASE + 3, false);
     let kind = b"workflow tier.yml not found at 0404040404040404040404040404040404040404040404040404040404040404";
     assert_eq!(
@@ -738,7 +937,8 @@ fn cold_restart_follows_a_run_without_dispatching_it_again() {
     let mut cold = restoring(None);
     outputs(&mut cold, Event::Restore { record: Stored::Tier(saved.clone()) });
     outputs(&mut cold, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut cold, Event::ReadAfresh);
+    outputs(&mut cold, Event::CatchUp);
+    fixtures::answer_next(&mut cold, Ok(api::Answer::Commit(BASE)));
     answer(&mut cold, api::Answer::Run(run));
     let out = finish(&mut cold);
     assert_eq!(
@@ -966,7 +1166,10 @@ fn tier_hearing_row((hint, fallback, elapsed, other, delay): (bool, u64, u64, bo
         let owner = if walking {
             *d.tier_ops.reads.iter().next().unwrap().0
         } else {
-            d.tier_ops.reads.insert(READ, crate::tiers::Read { tier: (REPO, TIER.into()), baseline: false }).unwrap();
+            d.tier_ops
+                .reads
+                .insert(READ, crate::tiers::Read { tier: (REPO, TIER.into()), baseline: false, job_state: false })
+                .unwrap();
             READ
         };
         let result = match running {
@@ -1222,7 +1425,7 @@ fn restart_spends_tier_waits_and_wakes_their_tasks() {
     outputs(&mut d, Event::Restore { record: Stored::Tier(saved) });
     d.wait_tier(&env(), TIER_TASK, None);
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    let out = outputs(&mut d, Event::ReadAfresh);
+    let out = outputs(&mut d, Event::CatchUp);
     assert!(out.contains(&Request::WakeProcedure { task: TIER_TASK }));
     assert_eq!(d.next_wall_deadline(), None);
 }
@@ -1270,7 +1473,7 @@ fn tier_definitions_pin_landing_and_explicit_branch_bytes() {
 fn goal_tiers_start_no_run_without_a_held_goal_branch() {
     let mut d = restoring_following(Follows::Goals);
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    let out = outputs(&mut d, Event::ReadAfresh);
+    let out = outputs(&mut d, Event::CatchUp);
     assert_eq!(requests(&out).len(), 0);
     assert!(crate::tiers::watched(&d).is_empty());
     for branch in [b"main".as_slice(), b"temper/1/g1"] {

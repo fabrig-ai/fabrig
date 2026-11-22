@@ -99,6 +99,19 @@ impl Hub {
         self.hosted.len()
     }
 
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn hosted_at(&self, index: u32) -> Option<(Token, Token)> {
+        let mut position = 0_u32;
+        for (_, entry) in &self.hosted {
+            if position == index {
+                return Some((entry.run, entry.attempt));
+            }
+            position = position.checked_add(1).expect("hosted slots fit in a u32");
+        }
+        None
+    }
+
     /// Runs that have not answered yet: those hosted, closed ones aside.
     #[must_use]
     pub fn unanswered(&self) -> u32 {
@@ -286,6 +299,7 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
             hosted::called(domain, env, owner, call, ask, out);
         }
         Event::Agent(crate::FromAgent::Withdrawn { owner, call }) => hosted::withdrawn(domain, owner, call, out),
+        Event::Agent(crate::FromAgent::Part { owner, part }) => hosted::parted(domain, owner, part.number, out),
         Event::Agent(crate::FromAgent::Turn { owner, turn }) => hosted::turned(domain, env, owner, turn, out),
         Event::Agent(crate::FromAgent::Piece { owner, piece }) => crate::live::reported(domain, env, owner, piece),
         Event::Agent(crate::FromAgent::Activity { owner, activity }) => {
@@ -397,6 +411,7 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
             }
             LinkDown::AssignJob { job } => crate::jobs::assign(domain, env, job, out),
             LinkDown::Assign { assignment } => hosted::assign(domain, env, assignment, out),
+            LinkDown::PartKept { .. } => {}
             LinkDown::TurnKept { run, attempt, turn } => hosted::acknowledge_turn(domain, env, run, attempt, turn, out),
             LinkDown::Grant { run, attempt, grant } => hosted::grant(domain, run, attempt, grant, out),
             LinkDown::Pause { mode } => pause(domain, mode, out),

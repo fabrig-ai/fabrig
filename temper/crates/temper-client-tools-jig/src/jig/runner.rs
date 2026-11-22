@@ -205,6 +205,7 @@ fn run(runner: &mut Runner, client: &Client, env: &Env<crate::jig::Limits>, call
         | rows::MILESTONE_SHOW_AT
         | rows::ROLE_LIST_AT
         | rows::ROLE_SHOW_AT
+        | rows::GOAL_SHOW_AT
         | rows::PROJECT_SHOW_AT
         | rows::DEPLOYMENT_CENSUS_AT
         | rows::WORKER_LIST_AT..=rows::WORKER_REMOVE_AT
@@ -233,6 +234,7 @@ fn run(runner: &mut Runner, client: &Client, env: &Env<crate::jig::Limits>, call
         | rows::RESTORE_AT
         | rows::PROJECT_MAKE_AT
         | rows::PARTY_MAKE_AT
+        | rows::PARTY_REISSUE_AT
         | rows::PROJECT_FUND_AT
         | rows::PROJECT_AMEND_AT
         | rows::PROJECT_DELETE_AT => {

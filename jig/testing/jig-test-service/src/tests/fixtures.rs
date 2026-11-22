@@ -366,6 +366,7 @@ pub fn assignment(config: &jig_protocol_config::Engine) -> jig_test_domain::Assi
     use jig_domain_link::{Form, Grant, Scheme};
     use skein_lib::Duration;
     jig_test_domain::Assignment {
+        parts: Box::new([]),
         live: core::LiveAsk::NONE,
         conversation: 3,
         task: 2,

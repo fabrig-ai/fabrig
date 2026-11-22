@@ -70,7 +70,8 @@ pub(crate) fn to_agent(domain: &mut Domain, env: &Env<Limits>, request: host::To
         }
         host::ToAgent::Renewals { agent: _, held } => smith::parent::Event::Renewals { held },
         host::ToAgent::Acknowledge { agent, turn } => smith::parent::Event::Acknowledge { agent, turn },
-        host::ToAgent::Drain { agent } => smith::parent::Event::Drain { agent, grace: None },
+        host::ToAgent::AcknowledgePart { .. } => return,
+        host::ToAgent::Drain { agent, grace } => smith::parent::Event::Drain { agent, grace },
         host::ToAgent::Cancel { agent } => {
             let mut cut = false;
             for (owner, bound) in &domain.agents {

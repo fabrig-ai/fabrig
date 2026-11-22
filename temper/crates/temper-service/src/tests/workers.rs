@@ -64,6 +64,7 @@ fn admit_review_wire(assignment: &host::Assignment, settings: &crate::settings::
     let bodies = wire::sizes::limits(&limits.sizes).unwrap();
     let run = &assignment.assignment;
     let record = wire::Assignment {
+        parts: Box::new([]),
         task: run.run.raw(),
         attempt: run.attempt.raw(),
         identity: run.identity,

@@ -165,6 +165,7 @@ impl Domain {
                         | host::LinkUp::Usage { .. }
                         | host::LinkUp::Limited { .. }
                         | host::LinkUp::AccountRefused { .. }
+                        | host::LinkUp::Part { .. }
                         | host::LinkUp::Turn { .. }
                         | host::LinkUp::Ask { .. }
                         | host::LinkUp::Call { .. },

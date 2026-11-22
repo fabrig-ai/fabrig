@@ -193,7 +193,7 @@ fn forget(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, task:
 }
 
 pub(crate) fn reconcile(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision) {
-    if domain.start_phase().is_some() {
+    if domain.start_phase().is_some() || !domain.forge.fresh_reads_in() {
         return;
     }
     for row in domain.forge_limit_holds() {
@@ -282,7 +282,7 @@ pub(super) fn set(member: &str, operation: &[u8], resource: Option<&forge::Name>
 }
 
 pub(super) fn room_freed(domain: &mut Domain, limits: &forge::Limits) {
-    if domain.start_phase().is_some() {
+    if domain.start_phase().is_some() || !domain.forge.fresh_reads_in() {
         return;
     }
     let mut freed = Map::with_capacity(domain.forge_limit_holds.len());

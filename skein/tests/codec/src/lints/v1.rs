@@ -856,7 +856,7 @@ pub fn name(path: Path) -> Option<&'static str> {
 }
 
 // Table: postordered shapes, with compiler-known heap slot sizes.
-const TABLE: &[skein_codec::bounds::Node] = &[
+static TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Scalar(1),
     skein_codec::bounds::Node::Scalar(1),
     skein_codec::bounds::Node::Scalar(1),
@@ -1004,7 +1004,7 @@ const DECLARATIONS: &[u32] = &[
     130,
 ];
 
-const CEILING_VALUES: &[u32] = &[
+static CEILING_VALUES: &[u32] = &[
     10_000,
     4,
     4,
@@ -1136,6 +1136,11 @@ pub struct HostTool {
 }
 
 // Record: HostTool.
+impl HostTool {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 12;
+}
+
 impl Record for HostTool {
     type Limits = Limits;
     const TAIL: Path = paths::HOST_TOOL_TAIL;
@@ -1186,6 +1191,11 @@ pub struct Boundless {
 }
 
 // Record: Boundless.
+impl Boundless {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for Boundless {
     type Limits = Limits;
     const TAIL: Path = paths::BOUNDLESS_TAIL;
@@ -1226,6 +1236,11 @@ pub struct Payload {
 }
 
 // Record: Payload.
+impl Payload {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for Payload {
     type Limits = Limits;
     const TAIL: Path = paths::PAYLOAD_TAIL;
@@ -1257,6 +1272,11 @@ pub struct OtherPayload {
 }
 
 // Record: OtherPayload.
+impl OtherPayload {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for OtherPayload {
     type Limits = Limits;
     const TAIL: Path = paths::OTHER_PAYLOAD_TAIL;
@@ -1291,6 +1311,11 @@ pub enum Shared {
 }
 
 // Record: Shared.
+impl Shared {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for Shared {
     type Limits = Limits;
     const TAIL: Path = paths::SHARED_TAG;
@@ -1331,6 +1356,11 @@ pub struct OneByteItems {
 }
 
 // Record: OneByteItems.
+impl OneByteItems {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for OneByteItems {
     type Limits = Limits;
     const TAIL: Path = paths::ONE_BYTE_ITEMS_TAIL;
@@ -1371,6 +1401,11 @@ pub struct OptionalPayload {
 }
 
 // Record: OptionalPayload.
+impl OptionalPayload {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for OptionalPayload {
     type Limits = Limits;
     const TAIL: Path = paths::OPTIONAL_PAYLOAD_TAIL;
@@ -1404,6 +1439,11 @@ pub enum BoxedChoice {
 }
 
 // Record: BoxedChoice.
+impl BoxedChoice {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 6;
+}
+
 impl Record for BoxedChoice {
     type Limits = Limits;
     const TAIL: Path = paths::BOXED_CHOICE_TAG;
@@ -1452,6 +1492,11 @@ pub enum InlineChoice {
 }
 
 // Record: InlineChoice.
+impl InlineChoice {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 6;
+}
+
 impl Record for InlineChoice {
     type Limits = Limits;
     const TAIL: Path = paths::INLINE_CHOICE_TAG;
@@ -1498,6 +1543,11 @@ pub struct FixedWidthItems {
 }
 
 // Record: FixedWidthItems.
+impl FixedWidthItems {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for FixedWidthItems {
     type Limits = Limits;
     const TAIL: Path = paths::FIXED_WIDTH_ITEMS_TAIL;
@@ -1639,6 +1689,11 @@ pub struct LongRecord {
 }
 
 // Record: LongRecord.
+impl LongRecord {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 400;
+}
+
 impl Record for LongRecord {
     type Limits = Limits;
     const TAIL: Path = paths::LONG_RECORD_TAIL;

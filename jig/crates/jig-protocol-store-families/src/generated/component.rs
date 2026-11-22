@@ -286,7 +286,7 @@ pub fn name(path: Path) -> Option<&'static str> {
 }
 
 // Table: postordered shapes, with compiler-known heap slot sizes.
-const TABLE: &[skein_codec::bounds::Node] = &[
+static TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Option { item: 0 },
     skein_codec::bounds::Node::Scalar(4),
@@ -378,7 +378,7 @@ const DECLARATIONS: &[u32] = &[
     70,
 ];
 
-const CEILING_VALUES: &[u32] = &[
+static CEILING_VALUES: &[u32] = &[
     32,
     16,
     64,
@@ -410,6 +410,11 @@ pub struct Levels {
 }
 
 // Record: Levels.
+impl Levels {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 20;
+}
+
 impl Record for Levels {
     type Limits = Limits;
     const TAIL: Path = paths::LEVELS_TAIL;
@@ -448,6 +453,11 @@ pub struct Wire {
 }
 
 // Record: Wire.
+impl Wire {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for Wire {
     type Limits = Limits;
     const TAIL: Path = paths::WIRE_TAIL;
@@ -481,6 +491,11 @@ pub struct Wires {
 }
 
 // Record: Wires.
+impl Wires {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 6;
+}
+
 impl Record for Wires {
     type Limits = Limits;
     const TAIL: Path = paths::WIRES_TAIL;
@@ -532,6 +547,11 @@ pub struct Format {
 }
 
 // Record: Format.
+impl Format {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 56;
+}
+
 impl Record for Format {
     type Limits = Limits;
     const TAIL: Path = paths::FORMAT_TAIL;
@@ -594,6 +614,11 @@ pub struct Count {
 }
 
 // Record: Count.
+impl Count {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 20;
+}
+
 impl Record for Count {
     type Limits = Limits;
     const TAIL: Path = paths::COUNT_TAIL;
@@ -636,6 +661,11 @@ pub struct Manifest {
 }
 
 // Record: Manifest.
+impl Manifest {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 88;
+}
+
 impl Record for Manifest {
     type Limits = Limits;
     const TAIL: Path = paths::MANIFEST_TAIL;
@@ -695,6 +725,11 @@ pub struct CheckpointFile {
 }
 
 // Record: CheckpointFile.
+impl CheckpointFile {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 18;
+}
+
 impl Record for CheckpointFile {
     type Limits = Limits;
     const TAIL: Path = paths::CHECKPOINT_FILE_TAIL;
@@ -738,6 +773,11 @@ pub struct Checkpoint {
 }
 
 // Record: Checkpoint.
+impl Checkpoint {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 70;
+}
+
 impl Record for Checkpoint {
     type Limits = Limits;
     const TAIL: Path = paths::CHECKPOINT_TAIL;
@@ -796,6 +836,11 @@ pub struct RestoreIntent {
 }
 
 // Record: RestoreIntent.
+impl RestoreIntent {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 58;
+}
+
 impl Record for RestoreIntent {
     type Limits = Limits;
     const TAIL: Path = paths::RESTORE_INTENT_TAIL;
@@ -847,6 +892,11 @@ pub struct Transcript {
 }
 
 // Record: Transcript.
+impl Transcript {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 18;
+}
+
 impl Record for Transcript {
     type Limits = Limits;
     const TAIL: Path = paths::TRANSCRIPT_TAIL;
@@ -891,6 +941,11 @@ pub struct Attempt {
 }
 
 // Record: Attempt.
+impl Attempt {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 10;
+}
+
 impl Record for Attempt {
     type Limits = Limits;
     const TAIL: Path = paths::ATTEMPT_TAIL;
@@ -933,6 +988,11 @@ pub struct HistoryLog {
 }
 
 // Record: HistoryLog.
+impl HistoryLog {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 11;
+}
+
 impl Record for HistoryLog {
     type Limits = Limits;
     const TAIL: Path = paths::HISTORY_LOG_TAIL;
@@ -975,6 +1035,11 @@ pub struct TurnLog {
 }
 
 // Record: TurnLog.
+impl TurnLog {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 11;
+}
+
 impl Record for TurnLog {
     type Limits = Limits;
     const TAIL: Path = paths::TURN_LOG_TAIL;
@@ -1017,6 +1082,11 @@ pub struct LogAttempt {
 }
 
 // Record: LogAttempt.
+impl LogAttempt {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 10;
+}
+
 impl Record for LogAttempt {
     type Limits = Limits;
     const TAIL: Path = paths::LOG_ATTEMPT_TAIL;
@@ -1060,6 +1130,11 @@ pub struct Floor {
 }
 
 // Record: Floor.
+impl Floor {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 10;
+}
+
 impl Record for Floor {
     type Limits = Limits;
     const TAIL: Path = paths::FLOOR_TAIL;

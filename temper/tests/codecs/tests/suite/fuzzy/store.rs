@@ -33,9 +33,9 @@ fn key(bytes: &[u8]) {
         assert_eq!(keys::encode(&key, u32::MAX).expect("decoded key fits").as_ref(), bytes, "durable key");
     }
 }
-fn golden(bytes: &[u8], bounds: &Bounds) {
+fn fixed_value(bytes: &[u8], bounds: &Bounds) {
     record(bytes, bounds);
-    // Value's goldens hold each family; prepend Row's version to reach its decoder.
+    // Value's fixed-rule values hold each family; prepend Row's version to reach its decoder.
     let mut versioned =
         u16::try_from(temper_protocol_store::STORE_VERSION).expect("store version").to_be_bytes().to_vec();
     versioned.extend_from_slice(bytes);
@@ -102,7 +102,7 @@ fn person_fact(rng: &mut Rng) -> forge::PersonFact {
 fn store_decoders_never_panic_and_reencode_the_same() {
     let bounds = temper_protocol_store::bounds(&LIMITS, LIMITS.client.op_bytes).expect("fixture limits fit");
     let mut rng = Rng::new(0x7e3d_0405);
-    let goldens = values::store();
+    let fixed_values = values::store();
     for _ in 0..2_000 {
         let address = format!("member{}@example.com", rng.next_u64()).into_bytes().into_boxed_slice();
         let binding =
@@ -248,11 +248,11 @@ fn store_decoders_never_panic_and_reencode_the_same() {
     for _ in 0..8 {
         record(&temper_codecs_world::mutated(&mut rng, &bytes), &bounds);
     }
-    for value in goldens {
+    for value in fixed_values {
         let bytes = &value.bytes;
-        golden(bytes, &bounds);
+        fixed_value(bytes, &bounds);
         for _ in 0..8 {
-            golden(&temper_codecs_world::mutated(&mut rng, bytes), &bounds);
+            fixed_value(&temper_codecs_world::mutated(&mut rng, bytes), &bounds);
         }
     }
 }
@@ -417,6 +417,7 @@ fn tier_rows(rng: &mut Rng, bounds: &Bounds) {
         task: if rng.below(2) == 0 { None } else { Some(rng.next_u64()) },
         record: p::Record {
             sequence: rng.next_u64(),
+            last_run: Some(rng.next_u64()),
             judged: if rng.below(2) == 0 { None } else { Some(p::Judged { tip: [5; 32], key: [6; 32] }) },
             failing: failures.clone(),
             flakes: Box::new([p::Flake { test: Box::from(b"flake".as_slice()), count: 2 }]),
@@ -440,6 +441,7 @@ fn tier_rows(rng: &mut Rng, bounds: &Bounds) {
                 many,
             },
             blame: Some(forge::FindingBlame {
+                moved: None,
                 strength: match rng.below(3) {
                     0 => forge::BlameStrength::Owned,
                     1 => forge::BlameStrength::Suspected,
@@ -763,6 +765,7 @@ fn finding_rows(rng: &mut Rng, bounds: &Bounds) {
             });
         }
         Some(forge::FindingBlame {
+            moved: None,
             strength: match rng.below(3) {
                 0 => forge::BlameStrength::Owned,
                 1 => forge::BlameStrength::Suspected,
@@ -817,6 +820,7 @@ fn finding_rows(rng: &mut Rng, bounds: &Bounds) {
         },
         seen: if rng.below(2) == 0 { None } else { Some(u32::try_from(rng.below(100) + 1).expect("count")) },
         blame,
+        repair: None,
         cleared: if rng.below(2) == 0 {
             None
         } else {

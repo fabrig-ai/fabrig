@@ -445,6 +445,7 @@ pub fn grants(down: &hub::LinkDown) -> &[Grant] {
         | hub::LinkDown::Message { .. }
         | hub::LinkDown::Asked { .. }
         | hub::LinkDown::Relayed { .. }
+        | hub::LinkDown::PartKept { .. }
         | hub::LinkDown::TurnKept { .. }
         | hub::LinkDown::Acknowledge { .. }
         | hub::LinkDown::Cancel { .. } => &[],

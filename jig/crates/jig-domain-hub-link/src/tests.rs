@@ -92,6 +92,7 @@ fn run() -> Box<core::RunCharter> {
 }
 fn assignment() -> Assignment {
     Assignment {
+        parts: Box::new([]),
         live: core::LiveAsk::NONE,
         brief: Box::new([]),
         conversation: 1,
@@ -1068,6 +1069,8 @@ fn asking_hub() -> (host::Hub, skein_lib::Env<host::Limits>) {
         &env,
         host::Event::Down(host::LinkDown::Assign {
             assignment: host::Assignment {
+                parts: Box::new([]),
+                tell_parts: false,
                 assignment: host::RunAssignment {
                     identity: [0; 16],
                     run: RUN,

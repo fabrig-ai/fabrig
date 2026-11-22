@@ -234,7 +234,7 @@ impl World {
                     );
                 }
             }
-            Request::Figures { .. } => self.root.push(request),
+            Request::ResendPart { .. } | Request::Figures { .. } => self.root.push(request),
             Request::Ready => {
                 self.trace.push(Trace::Ready);
                 self.root.push(Request::Ready);
@@ -268,6 +268,7 @@ impl World {
                     }
                     // jig/docs/design/domain/hosts/hub.md, 7, Paused over the link.
                     jig_domain_host::LinkDown::Pause { .. }
+                    | jig_domain_host::LinkDown::PartKept { .. }
                     | jig_domain_host::LinkDown::AssignJob { .. }
                     | jig_domain_host::LinkDown::Assign { .. }
                     | jig_domain_host::LinkDown::Message { .. }

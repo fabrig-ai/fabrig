@@ -139,7 +139,7 @@ pub fn name(path: Path) -> Option<&'static str> {
 }
 
 // Table: postordered shapes, with compiler-known heap slot sizes.
-const TABLE: &[skein_codec::bounds::Node] = &[
+static TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
@@ -197,7 +197,7 @@ const DECLARATIONS: &[u32] = &[
     40,
 ];
 
-const CEILING_VALUES: &[u32] = &[
+static CEILING_VALUES: &[u32] = &[
     65_536,
     65_565,
 ];
@@ -228,6 +228,11 @@ pub enum ProjectSection {
 }
 
 // Record: ProjectSection.
+impl ProjectSection {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for ProjectSection {
     type Limits = Limits;
     const TAIL: Path = paths::PROJECT_SECTION_TAG;
@@ -285,6 +290,11 @@ pub enum TaskSection {
 }
 
 // Record: TaskSection.
+impl TaskSection {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for TaskSection {
     type Limits = Limits;
     const TAIL: Path = paths::TASK_SECTION_TAG;
@@ -329,6 +339,11 @@ pub struct AddressInbox {
 }
 
 // Record: AddressInbox.
+impl AddressInbox {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for AddressInbox {
     type Limits = Limits;
     const TAIL: Path = paths::ADDRESS_INBOX_TAIL;
@@ -360,6 +375,11 @@ pub struct AddressConversations {
 }
 
 // Record: AddressConversations.
+impl AddressConversations {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for AddressConversations {
     type Limits = Limits;
     const TAIL: Path = paths::ADDRESS_CONVERSATIONS_TAIL;
@@ -392,6 +412,11 @@ pub struct AddressTask {
 }
 
 // Record: AddressTask.
+impl AddressTask {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
 impl Record for AddressTask {
     type Limits = Limits;
     const TAIL: Path = paths::ADDRESS_TASK_TAIL;
@@ -426,6 +451,11 @@ pub struct AddressProject {
 }
 
 // Record: AddressProject.
+impl AddressProject {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for AddressProject {
     type Limits = Limits;
     const TAIL: Path = paths::ADDRESS_PROJECT_TAIL;
@@ -463,6 +493,11 @@ pub enum Address {
 }
 
 // Record: Address.
+impl Address {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 10;
+}
+
 impl Record for Address {
     type Limits = Limits;
     const TAIL: Path = paths::ADDRESS_TAG;
@@ -506,6 +541,11 @@ pub struct Place {
 }
 
 // Record: Place.
+impl Place {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 18;
+}
+
 impl Record for Place {
     type Limits = Limits;
     const TAIL: Path = paths::PLACE_TAIL;
@@ -542,6 +582,11 @@ pub struct Draft {
 }
 
 // Record: Draft.
+impl Draft {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 28;
+}
+
 impl Record for Draft {
     type Limits = Limits;
     const TAIL: Path = paths::DRAFT_TAIL;
@@ -580,6 +625,11 @@ pub enum ViewRecord {
 }
 
 // Record: ViewRecord.
+impl ViewRecord {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 29;
+}
+
 impl Record for ViewRecord {
     type Limits = Limits;
     const TAIL: Path = paths::VIEW_RECORD_TAG;
@@ -626,6 +676,11 @@ pub struct StoredRecord {
 }
 
 // Record: StoredRecord.
+impl StoredRecord {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for StoredRecord {
     type Limits = Limits;
     const TAIL: Path = paths::STORED_RECORD_TAIL;

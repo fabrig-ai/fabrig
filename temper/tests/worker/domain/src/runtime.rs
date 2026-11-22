@@ -96,6 +96,8 @@ enum Bodies {
 }
 
 pub struct World {
+    iteration: u64,
+    builder: crate::builder::Builder,
     settings: Settings,
     env: Env<Limits>,
     domain: Domain,
@@ -167,6 +169,8 @@ impl World {
         let observed = Vec::with_capacity(64);
         let meter = Meter::new();
         World {
+            iteration: 0,
+            builder: crate::builder::Builder::new(1),
             settings,
             out,
             domain: Domain::new(&limits, Box::new([])),
@@ -263,7 +267,16 @@ impl World {
                 self.drain()?;
                 continue;
             }
-            let Some(event) = self.owed.pop_front() else { return Ok(()) };
+            let Some(event) = self.owed.pop_front() else {
+                return crate::inspection::check(
+                    self.settings.seed,
+                    &self.env,
+                    &mut self.iteration,
+                    &self.domain,
+                    None,
+                    &self.builder,
+                );
+            };
             self.remember(&event);
             self.meter.start();
             step(&mut self.domain, &self.env, event, &mut self.out);
@@ -538,6 +551,8 @@ impl World {
             },
         };
         let assignment = host::Assignment {
+            parts: Box::new([]),
+            tell_parts: false,
             messages: Box::new([]),
             turns: Box::new([protocol::transcript_turn(1, crate::TURN_TEXT, true)]),
             answered: Box::new([]),

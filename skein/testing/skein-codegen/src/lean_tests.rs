@@ -48,6 +48,7 @@ fn lean_roots_have_a_concrete_debug_decode_entry() {
 fn lean_surface_is_public() {
     let schema = parse(FIXTURE).expect("helper schema");
     let output = generate(&schema).records;
+    assert_eq!(output.matches("pub const ENCODED_AT_ZERO: u64").count(), schema.declarations.len());
     for required in [
         "pub words: Box<[u8]>",
         "impl Record for Words",
@@ -55,7 +56,8 @@ fn lean_surface_is_public() {
         "pub type Path = skein_codec::Path<Limits>;",
         "pub type Problem = skein_codec::Problem<Limits>;",
         "pub const WORDS_WORDS: Path = Path::new(1, 0);",
-        "const TABLE: &[skein_codec::bounds::Node]",
+        "static TABLE: &[skein_codec::bounds::Node]",
+        "static CEILING_VALUES: &[u32]",
         "pub fn name(path: Path) -> Option<&'static str>",
         "Node::List",
         "size_of::<Words>()",
@@ -64,4 +66,7 @@ fn lean_surface_is_public() {
     }
     assert!(!output.contains("WordsParts"));
     assert!(!output.contains("pub fn new"));
+    // Every bound names the tables: as constants, each mention is its own copy in the binary.
+    assert!(!output.contains("const TABLE:"));
+    assert!(!output.contains("const CEILING_VALUES:"));
 }

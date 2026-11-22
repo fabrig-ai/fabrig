@@ -13,13 +13,17 @@ const GOLDENS: &[(Option<u8>, &str)] = &[
     (Some(jig::rows::FINDING_ROUTE_AT), "help_finding_route"),
     (Some(jig::rows::FINDING_BACKLOG_AT), "help_finding_backlog"),
     (Some(jig::rows::FINDING_DROP_AT), "help_finding_drop"),
+    (Some(jig::rows::FINDING_REPAIR_AT), "help_finding_repair"),
+    (Some(jig::rows::FINDING_BLAME_AT), "help_finding_blame"),
     (Some(jig::rows::NEED_ASK_AT), "help_need_ask"),
     (Some(jig::rows::PARTY_MAKE_AT), "help_party_make"),
+    (Some(jig::rows::PARTY_REISSUE_AT), "help_party_reissue"),
     (Some(jig::rows::SIGN_IN_AT), "help_sign_in"),
     (Some(65), "help_repository_make"),
     (Some(66), "help_repository_copy"),
     (Some(jig::rows::PROJECT_AMEND_AT), "help_project_amend"),
     (Some(jig::rows::GOAL_START_AT), "help_goal_start"),
+    (Some(jig::rows::GOAL_SHOW_AT), "help_goal_show"),
     (Some(jig::rows::ROLE_START_AT), "help_role_start"),
     (Some(jig::rows::ROLE_LIST_AT), "help_role_list"),
     (Some(jig::rows::ROLE_SHOW_AT), "help_role_show"),
@@ -286,6 +290,7 @@ const USAGES: &[(u8, &[u8])] = &[
     (jig::rows::ME_AT, b"me [--since DIGEST] [--until CONDITION] [--timeout DURATION]\n"),
     (jig::rows::SIGN_IN_AT, b"sign-in FILE\nsign-in --service FILE\n"),
     (jig::rows::PARTY_MAKE_AT, b"party make --project PROJECT --role ROLE --out FILE TEXT [--key KEY]\n"),
+    (jig::rows::PARTY_REISSUE_AT, b"party reissue PARTY --out FILE [--key KEY]\n"),
     (jig::rows::HELP_AT, b"help [GROUP [VERB]]\n"),
     (jig::rows::SETTING_AT, b"settings show charter|template|policy|model|worker|provider NUMBER [--revision REVISION]\nsettings show rules\nsettings show landing-rule NUMBER [--project PROJECT] [--revision REVISION]\nsettings show forge-charter NUMBER [--revision REVISION]\nsettings show project-ways|project-questions|project-classes|project-words|project-areas|project-triager|project-landing|project-gates PROJECT [--revision REVISION]\nsettings show charter-words NUMBER [--revision REVISION]\nsettings show template-goal NUMBER [--revision REVISION]\nsettings show follow NUMBER --project PROJECT [--revision REVISION]\nsettings show dependency NUMBER --project PROJECT [--revision REVISION]\nsettings show agents [--revision REVISION]\nsettings show welcome [--revision REVISION]\nsettings show limits\nsettings show temper-limits [--revision REVISION]\n"),
 ];
@@ -509,8 +514,16 @@ fn the_task_chat_and_inbox_references_are_what_the_table_renders() {
     }
 }
 #[test]
+fn the_sign_in_reference_is_what_the_table_renders() {
+    reference_matches(b"sign-in", b"ctl-sign-in");
+}
+#[test]
 fn the_account_reference_is_what_the_table_renders() {
     reference_matches(b"account", b"ctl-account");
+}
+#[test]
+fn the_finding_reference_is_what_the_table_renders() {
+    reference_matches(b"finding", b"ctl-finding");
 }
 #[test]
 fn the_draft_reference_is_what_the_table_renders() {
@@ -569,6 +582,7 @@ fn the_proposal_reference_is_what_the_table_renders() {
 #[test]
 fn the_goal_reference_is_what_the_table_renders() {
     reference_matches(b"goal", b"ctl-goal");
+    reference_matches(b"finding", b"ctl-finding");
     reference_matches(b"role", b"ctl-role");
     reference_matches(b"milestone", b"ctl-milestone");
 }

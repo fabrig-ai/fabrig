@@ -164,6 +164,8 @@ pub fn assignment() -> jig_domain_host::Assignment {
     use jig_domain_host as host;
     use skein_lib::Token;
     host::Assignment {
+        parts: Box::new([]),
+        tell_parts: false,
         assignment: host::RunAssignment {
             live: host::LiveAsk::NONE,
             identity: [7; 16],

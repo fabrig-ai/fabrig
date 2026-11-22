@@ -1,6 +1,7 @@
 # acts: status
 
-2026-11-19. Where the tree's code lags or departs from [acts.md](acts.md).
+2026-11-21. Where the tree's code lags or departs from [acts.md](acts.md).
+
 
 - **Not yet:** 1: a connector's refusal for its own full table of
   answers, a `Limit` of kind `ApplicationAnswers`: jig's `LimitKind`

@@ -525,6 +525,7 @@ fn route_now(
                 env.now,
                 jig_domain_hub_link::Event::Prepared {
                     assignment: crate::Assignment {
+                        parts: Box::new([]),
                         live,
                         task,
                         attempt,
@@ -716,6 +717,9 @@ pub(super) fn route_connector(
                         resource: tasks::Name { connector: number, path: resource.segments.clone() },
                     })));
                 }
+            }
+            connector::Request::ReadAfreshDone => {
+                domain.core.catch_up_done(number, core::effects::connector::RestartStage::ReadAfresh);
             }
             connector::Request::RestartDone => work.push(Work::ConnectorRestartDone { number }),
             connector::Request::Save { record } => {
@@ -941,6 +945,7 @@ fn route_effect_ask(domain: &mut Domain, number: u16, ask: core::effects::connec
                 state: u64::from_be_bytes(bytes),
             }
         }
+        core::effects::connector::Ask::CatchUp => connector::Event::CatchUp,
         core::effects::connector::Ask::Unname { task } => connector::Event::Unnamed { task },
         core::effects::connector::Ask::Names { .. }
         | core::effects::connector::Ask::Hold { .. }
@@ -962,9 +967,7 @@ fn route_effect_ask(domain: &mut Domain, number: u16, ask: core::effects::connec
         | core::effects::connector::Ask::Prepare { .. }
         | core::effects::connector::Ask::Left { .. }
         | core::effects::connector::Ask::Adopt { .. }
-        | core::effects::connector::Ask::Restore { .. }
-        | core::effects::connector::Ask::ReadAfresh
-        | core::effects::connector::Ask::SettleOutbox => unreachable!("effect handoff vocabulary"),
+        | core::effects::connector::Ask::Restore { .. } => unreachable!("effect handoff vocabulary"),
         core::effects::connector::Ask::JudgeSettings { owner, revision, proposal, items } => {
             let token = domain.hub_link.fresh();
             domain.settings_judges.insert(token, owner).expect("settings judgment route fits");
@@ -1133,6 +1136,7 @@ fn application_answer(outcome: people::Outcome) -> connector::ApplicationCoreAns
         | people::Outcome::SignedOut
         | people::Outcome::NoteEdited { .. }
         | people::Outcome::ServiceMade { .. }
+        | people::Outcome::ServiceReissued { .. }
         | people::Outcome::Adopted { .. }
         | people::Outcome::Created { .. }
         | people::Outcome::Proposed { .. }

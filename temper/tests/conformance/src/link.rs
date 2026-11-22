@@ -181,6 +181,7 @@ pub(crate) fn down(peers: &mut Peers, now: Time, down: host::LinkDown) -> Vec<r:
         // The scripted worker carries no jobs, grant values or application asks.
         // jig/docs/design/domain/hosts/hub.md, 7, Paused over the link.
         host::LinkDown::Pause { .. }
+        | host::LinkDown::PartKept { .. }
         | host::LinkDown::Asked { .. }
         | host::LinkDown::AssignJob { .. }
         | host::LinkDown::Grant { .. } => Vec::new(),

@@ -359,7 +359,7 @@ fn cannot_encode_words(
             reason: None,
             figure: Some(settings.jig.limits.hub.transcript_bytes.checked_add(u64::try_from(extra).unwrap()).unwrap()),
             bound: Some(settings.jig.limits.hub.transcript_bytes),
-            ceiling: Some(u64::from(wire::v21::CEILINGS.assignment_transcript)),
+            ceiling: Some(u64::from(wire::v22::CEILINGS.assignment_transcript)),
         }
         .words(b"assignment"),
         Part::Inbox => Box::from(b"assignment cannot encode: Message.words too large".as_slice()),
@@ -386,7 +386,7 @@ fn cannot_encode_words(
                 reason: None,
                 figure: Some(figure),
                 bound: Some(bound),
-                ceiling: Some(u64::from(wire::v21::CEILINGS.assignment_charter)),
+                ceiling: Some(u64::from(wire::v22::CEILINGS.assignment_charter)),
             }
             .words(b"assignment")
         }
@@ -416,15 +416,16 @@ fn assert_assignment(
     if let Some(workspace) = &mut expected.assignment.workspace {
         workspace.items = actual.assignment.workspace.as_ref().unwrap().items;
     }
+    expected.tell_parts = true;
     assert_eq!(*actual, expected, "every call reaches the worker root in order, newest answers whole");
 }
 
-// The frame's fixed fields and list counts take 65 bytes with its header;
+// The frame's fixed fields and list counts take 69 bytes with its header;
 // workspace, turn, message and host-call overheads follow the wire schema
 // (jig/docs/design/protocol/channel/records.md, 2, and jig/docs/design/protocol/channel/README.md, 10).
 fn fitted_frame(assignment: &hub::Assignment, parts: &[wire::Part], settings: &settings::Engine) -> (usize, usize) {
     assert!(assignment.assignment.grants.is_empty(), "these stock starts carry no grants");
-    let mut bytes = 65_usize.checked_add(assignment.assignment.charter.len()).unwrap();
+    let mut bytes = 69_usize.checked_add(assignment.assignment.charter.len()).unwrap();
     if let Some(workspace) = &assignment.assignment.workspace {
         assert_eq!(parts.len(), 1, "the workspace is the start's only part");
         let items = parts.first().unwrap();

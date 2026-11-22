@@ -343,6 +343,14 @@ impl Joined {
             turn: 1,
         });
     }
+    pub fn engine_part_busy(&mut self) {
+        self.engine_event(engine::Event::PartBusy {
+            channel: self.channel.expect("admitted hello"),
+            run: fixtures::RUN_SEVEN,
+            attempt: fixtures::ATTEMPT_TWO,
+            part: 1,
+        });
+    }
     pub fn engine_restarting(&mut self, wait: Duration) {
         self.engine_event(engine::Event::Restarting { wait });
     }
@@ -391,7 +399,8 @@ impl Joined {
                 self.worker_order.push("value");
                 self.values.push(request);
             }
-            Request::Figures { .. }
+            Request::ResendPart { .. }
+            | Request::Figures { .. }
             | Request::RelayCancelled { .. }
             | Request::Lost
             | Request::Restarting { .. }
@@ -432,6 +441,7 @@ impl Joined {
                         Some(host::LinkDown::Acknowledge { run: *run, attempt: *attempt })
                     }
                     host::LinkUp::Ask { .. }
+                    | host::LinkUp::Part { .. }
                     | host::LinkUp::Piece { .. }
                     | host::LinkUp::Activity { .. }
                     | host::LinkUp::Unauthorized { .. }

@@ -85,7 +85,7 @@ impl LinkPeer {
             engine_pings: 0,
             worker_pings: 0,
             room,
-            engine_frames: jig_protocol_worker_wire::sizes::engine_cap(&limits.sizes).unwrap().frames,
+            engine_frames: jig_protocol_worker_wire::sizes::engine_cap(&limits.sizes, limits.room).unwrap().frames,
             records: List::with_capacity(LINK_RECORDS),
             component: engine_link::Component::new(
                 limits,

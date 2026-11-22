@@ -1,6 +1,6 @@
 //! Channel kind and body checks (protocol/channel.md, sections 2-4).
 
-use crate::support::goldens::Goldens;
+use crate::support::fixed_values::FixedValues;
 use smith_channel::Record;
 
 use skein_channel::Direction;
@@ -8,39 +8,39 @@ use skein_lib::Reader;
 use smith_channel::{Answer, CEILINGS, Start, V14, schema};
 
 #[test]
-fn channel_goldens_decode_at_their_measured_length() {
-    let goldens = Goldens::new("channel", smith_channel::wire::VERSION);
-    goldens.assert_measured("list_ask", |bytes| {
+fn channel_fixed_values_decode_at_their_measured_length() {
+    let fixed_values = FixedValues::new("channel", smith_channel::wire::VERSION);
+    fixed_values.assert_measured("list_ask", |bytes| {
         smith_channel::ListAsk::decode(&CEILINGS, &mut Reader::new(bytes))
             .expect("list ask decodes")
             .measure(&CEILINGS)
             .expect("bounded record")
     });
-    goldens.assert_measured("list_row", |bytes| {
+    fixed_values.assert_measured("list_row", |bytes| {
         smith_channel::ListRow::decode(&CEILINGS, &mut Reader::new(bytes))
             .expect("list row decodes")
             .measure(&CEILINGS)
             .expect("bounded record")
     });
-    goldens.assert_measured("start", |bytes| {
+    fixed_values.assert_measured("start", |bytes| {
         Start::decode(&CEILINGS, &mut Reader::new(bytes))
             .expect("start decodes")
             .measure(&CEILINGS)
             .expect("bounded record")
     });
-    goldens.assert_measured("drain", |bytes| {
+    fixed_values.assert_measured("drain", |bytes| {
         smith_channel::Drain::decode(&CEILINGS, &mut Reader::new(bytes))
             .expect("drain decodes")
             .measure(&CEILINGS)
             .expect("bounded record")
     });
-    goldens.assert_measured("signalled", |bytes| {
+    fixed_values.assert_measured("signalled", |bytes| {
         smith_channel::Signalled::decode(&CEILINGS, &mut Reader::new(bytes))
             .expect("signal notice decodes")
             .measure(&CEILINGS)
             .expect("bounded signal notice")
     });
-    goldens.assert_measured("answer", |bytes| {
+    fixed_values.assert_measured("answer", |bytes| {
         Answer::decode(&CEILINGS, &mut Reader::new(bytes))
             .expect("answer decodes")
             .measure(&CEILINGS)
@@ -102,9 +102,9 @@ fn every_required_kind_has_its_direction_and_bound_in_the_schema() {
 }
 
 #[test]
-fn message_refusal_goldens_keep_each_typed_reason() {
-    let goldens = Goldens::new("channel", smith_channel::wire::VERSION);
-    goldens.assert_measured("message_refused", |bytes| {
+fn message_refusal_fixed_values_keep_each_typed_reason() {
+    let fixed_values = FixedValues::new("channel", smith_channel::wire::VERSION);
+    fixed_values.assert_measured("message_refused", |bytes| {
         smith_channel::MessageRefused::decode(&CEILINGS, &mut Reader::new(bytes))
             .expect("refusal decodes")
             .measure(&CEILINGS)
@@ -113,57 +113,57 @@ fn message_refusal_goldens_keep_each_typed_reason() {
 }
 
 #[test]
-fn channel_start_goldens_seal_the_optional_fixed_sixteen_byte_identity() {
+fn channel_start_fixed_values_seal_the_optional_fixed_sixteen_byte_identity() {
     let absent = Start::decode(
         &CEILINGS,
-        &mut Reader::new(&crate::support::goldens::bytes(
+        &mut Reader::new(&crate::support::fixed_values::fixed_value(
             "channel",
             smith_channel::wire::VERSION,
             "record_start_smallest.bin",
         )),
     )
-    .expect("absent identity golden");
+    .expect("absent identity fixed-rule value");
     assert_eq!((&absent.identity), &None);
     let present = Start::decode(
         &CEILINGS,
-        &mut Reader::new(&crate::support::goldens::bytes(
+        &mut Reader::new(&crate::support::fixed_values::fixed_value(
             "channel",
             smith_channel::wire::VERSION,
             "record_start_full.bin",
         )),
     )
-    .expect("present identity golden");
+    .expect("present identity fixed-rule value");
     assert_eq!((&present.identity), &Some([165; 16]));
 }
 
 #[test]
-fn channel_turn_goldens_keep_the_declared_window_flag() {
+fn channel_turn_fixed_values_keep_the_declared_window_flag() {
     let first = smith_channel::Turn::decode(
         &CEILINGS,
-        &mut Reader::new(&crate::support::goldens::bytes(
+        &mut Reader::new(&crate::support::fixed_values::fixed_value(
             "channel",
             smith_channel::wire::VERSION,
             "record_turn_full.bin",
         )),
     )
-    .expect("window flag golden");
+    .expect("window flag fixed-rule value");
     assert!(first.opens_window);
     let ordinary = smith_channel::Turn::decode(
         &CEILINGS,
-        &mut Reader::new(&crate::support::goldens::bytes(
+        &mut Reader::new(&crate::support::fixed_values::fixed_value(
             "channel",
             smith_channel::wire::VERSION,
             "record_turn_smallest.bin",
         )),
     )
-    .expect("ordinary flag golden");
+    .expect("ordinary flag fixed-rule value");
     assert!(!ordinary.opens_window);
 }
 
 #[test]
-fn live_goldens_decode_at_their_measured_length() {
-    let goldens = Goldens::new("channel", smith_channel::wire::VERSION);
-    goldens.assert_measured("live", |bytes| {
+fn live_fixed_values_decode_at_their_measured_length() {
+    let fixed_values = FixedValues::new("channel", smith_channel::wire::VERSION);
+    fixed_values.assert_measured("live", |bytes| {
         smith_channel::Live::decode(&CEILINGS, &mut Reader::new(bytes))
             .expect("live decodes")
             .measure(&CEILINGS)

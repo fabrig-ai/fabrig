@@ -721,6 +721,9 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
             let record = match unsent.kind {
                 Kind::Hello => "hello",
                 Kind::Turn => "turn",
+                Kind::Part => "part",
+                Kind::PartKept => "part-kept",
+                Kind::PartBusy => "part-busy",
                 Kind::Call => "call",
                 Kind::Answer => "answer",
                 Kind::Fact => "fact",
@@ -1136,8 +1139,6 @@ fn start_phase(phase: jig_domain_core::start::Phase) -> String {
         Phase::Wires => "wires".into(),
         Phase::Switch => "store switch".into(),
         Phase::AdoptRuns => "run adoption".into(),
-        Phase::ReadAfresh { connector } => format!("connector {connector} refresh"),
-        Phase::SettleOutbox { connector } => format!("connector {connector} outbox settlement"),
         Phase::Open => "opening decisions".into(),
     }
 }

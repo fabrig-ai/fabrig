@@ -113,7 +113,7 @@ pub fn name(path: Path) -> Option<&'static str> {
 }
 
 // Table: postordered shapes, with compiler-known heap slot sizes.
-const TABLE: &[skein_codec::bounds::Node] = &[
+static TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Bytes { limit: 0 },
     skein_codec::bounds::Node::Bytes { limit: 1 },
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
@@ -140,7 +140,7 @@ const DECLARATIONS: &[u32] = &[
     15,
 ];
 
-const CEILING_VALUES: &[u32] = &[
+static CEILING_VALUES: &[u32] = &[
     4,
     4,
     8,
@@ -165,6 +165,11 @@ pub struct Field {
 }
 
 // Record: Field.
+impl Field {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for Field {
     type Limits = Limits;
     const TAIL: Path = paths::FIELD_TAIL;
@@ -199,6 +204,11 @@ pub enum Effect {
 }
 
 // Record: Effect.
+impl Effect {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for Effect {
     type Limits = Limits;
     const TAIL: Path = paths::EFFECT_TAG;
@@ -240,6 +250,11 @@ pub struct Report {
 }
 
 // Record: Report.
+impl Report {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 23;
+}
+
 impl Record for Report {
     type Limits = Limits;
     const TAIL: Path = paths::REPORT_TAIL;
@@ -284,6 +299,11 @@ pub enum Choice {
 }
 
 // Record: Choice.
+impl Choice {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 24;
+}
+
 impl Record for Choice {
     type Limits = Limits;
     const TAIL: Path = paths::CHOICE_TAG;
@@ -328,6 +348,11 @@ pub struct Marker {
 }
 
 // Record: Marker.
+impl Marker {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 0;
+}
+
 impl Record for Marker {
     type Limits = Limits;
     const TAIL: Path = paths::MARKER_TAIL;

@@ -4,6 +4,7 @@
 
 
 
+
 - **Not yet:** *`OpenChange`* and *A project's changes*: `into` left
   empty, `landing` and the `default_branch` flag mean the forge's
   default branch rather than the repository's landing branch [in flight:
@@ -145,4 +146,3 @@ macOS, is `../README.md`, section 5's after-landing work, owned by temper/tui.
 
 - **Not yet:** the subject `approvals`: `ApprovalRow`'s `size` and `ApprovalSize` on the wire [in flight: change 533].
 - **Not yet:** the subject `approvals`: `size` filled from the change's approval evidence [in flight: change 534].
-- **Not yet:** `TriageFinding`'s `repair` and `blame`, the triaged outcome's `goal` and `FindingRefusal`'s longer `words`, in the wire's next layout [in flight: change 10374].

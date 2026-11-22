@@ -376,7 +376,8 @@ impl Worker {
                     }
                 }
                 link::Request::Closed => self.closed = true,
-                link::Request::Figures { .. }
+                link::Request::ResendPart { .. }
+                | link::Request::Figures { .. }
                 | link::Request::Refused { .. }
                 | link::Request::Fact { .. }
                 | link::Request::Restarting { .. }
@@ -1103,7 +1104,7 @@ mod admission_tests {
             let limits = crate::limits::worker_link(&worker);
             let codec = wire::sizes::limits(&limits.sizes).expect("codec");
             let mut channel_limits = link::channel_limits(&limits).expect("channel limits");
-            let cap = wire::sizes::engine_cap(&limits.sizes).expect("engine cap");
+            let cap = wire::sizes::engine_cap(&limits.sizes, limits.room).expect("engine cap");
             channel_limits.output_bytes = cap.bytes;
             channel_limits.output_frames = cap.frames;
             let mut peer = Self {
@@ -1124,7 +1125,7 @@ mod admission_tests {
                     .push(wire::AgreedWire { name: spoken.name.as_bytes().into(), version: spoken.highest() })
                     .expect("four wires");
             }
-            let record = wire::v21::Agreed { wires };
+            let record = wire::v22::Agreed { wires };
             let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(
                 record.measure(&wire::CEILINGS).expect("statement within limits"),
             ));

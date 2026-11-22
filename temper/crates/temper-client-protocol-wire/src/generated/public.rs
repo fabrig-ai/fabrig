@@ -345,7 +345,7 @@ pub fn name(path: Path) -> Option<&'static str> {
 }
 
 // Table: postordered shapes, with compiler-known heap slot sizes.
-const TABLE: &[skein_codec::bounds::Node] = &[
+static TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
@@ -553,7 +553,7 @@ const DECLARATIONS: &[u32] = &[
     173,
 ];
 
-const CEILING_VALUES: &[u32] = &[
+static CEILING_VALUES: &[u32] = &[
     64,
     8,
     8,
@@ -600,6 +600,11 @@ pub enum PublicStep {
 }
 
 // Record: PublicStep.
+impl PublicStep {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for PublicStep {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_STEP_TAG;
@@ -670,6 +675,11 @@ pub struct PublicGateNumber {
 }
 
 // Record: PublicGateNumber.
+impl PublicGateNumber {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for PublicGateNumber {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_GATE_NUMBER_TAIL;
@@ -703,6 +713,11 @@ pub struct PublicBlamed {
 }
 
 // Record: PublicBlamed.
+impl PublicBlamed {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 72;
+}
+
 impl Record for PublicBlamed {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_BLAMED_TAIL;
@@ -739,6 +754,11 @@ pub struct PublicSearchBound {
 }
 
 // Record: PublicSearchBound.
+impl PublicSearchBound {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 34;
+}
+
 impl Record for PublicSearchBound {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_SEARCH_BOUND_TAIL;
@@ -774,6 +794,11 @@ pub struct PublicSearch {
 }
 
 // Record: PublicSearch.
+impl PublicSearch {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 101;
+}
+
 impl Record for PublicSearch {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_SEARCH_TAIL;
@@ -813,6 +838,11 @@ pub enum PublicRepair {
 }
 
 // Record: PublicRepair.
+impl PublicRepair {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
 impl Record for PublicRepair {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_REPAIR_TAG;
@@ -868,6 +898,11 @@ pub enum PublicHold {
 }
 
 // Record: PublicHold.
+impl PublicHold {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for PublicHold {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_HOLD_TAG;
@@ -931,6 +966,11 @@ pub enum PublicCi {
 }
 
 // Record: PublicCi.
+impl PublicCi {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for PublicCi {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_CI_TAG;
@@ -973,6 +1013,11 @@ pub enum PublicGateKind {
 }
 
 // Record: PublicGateKind.
+impl PublicGateKind {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for PublicGateKind {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_GATE_KIND_TAG;
@@ -1014,6 +1059,11 @@ pub enum PublicVerdict {
 }
 
 // Record: PublicVerdict.
+impl PublicVerdict {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for PublicVerdict {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_VERDICT_TAG;
@@ -1057,6 +1107,11 @@ pub struct PublicGate {
 }
 
 // Record: PublicGate.
+impl PublicGate {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 11;
+}
+
 impl Record for PublicGate {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_GATE_TAIL;
@@ -1095,6 +1150,11 @@ pub struct PublicUsed {
 }
 
 // Record: PublicUsed.
+impl PublicUsed {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for PublicUsed {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_USED_TAIL;
@@ -1129,6 +1189,11 @@ pub enum PublicWay {
 }
 
 // Record: PublicWay.
+impl PublicWay {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for PublicWay {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_WAY_TAG;
@@ -1178,6 +1243,11 @@ pub struct PublicChange {
 }
 
 // Record: PublicChange.
+impl PublicChange {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 118;
+}
+
 impl Record for PublicChange {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_CHANGE_TAIL;
@@ -1253,6 +1323,11 @@ pub enum PublicLandingPhase {
 }
 
 // Record: PublicLandingPhase.
+impl PublicLandingPhase {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for PublicLandingPhase {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_LANDING_PHASE_TAG;
@@ -1303,6 +1378,11 @@ pub struct PublicLandingLine {
 }
 
 // Record: PublicLandingLine.
+impl PublicLandingLine {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
 impl Record for PublicLandingLine {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_LANDING_LINE_TAIL;
@@ -1340,6 +1420,11 @@ pub struct PublicQueued {
 }
 
 // Record: PublicQueued.
+impl PublicQueued {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 12;
+}
+
 impl Record for PublicQueued {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_QUEUED_TAIL;
@@ -1375,6 +1460,11 @@ pub struct PublicQueue {
 }
 
 // Record: PublicQueue.
+impl PublicQueue {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for PublicQueue {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_QUEUE_TAIL;
@@ -1408,6 +1498,11 @@ pub struct PublicLandings {
 }
 
 // Record: PublicLandings.
+impl PublicLandings {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 13;
+}
+
 impl Record for PublicLandings {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_LANDINGS_TAIL;
@@ -1458,6 +1553,11 @@ pub enum PublicLandingHold {
 }
 
 // Record: PublicLandingHold.
+impl PublicLandingHold {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for PublicLandingHold {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_LANDING_HOLD_TAG;
@@ -1501,6 +1601,11 @@ pub enum PublicCombined {
 }
 
 // Record: PublicCombined.
+impl PublicCombined {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for PublicCombined {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_COMBINED_TAG;
@@ -1549,6 +1654,11 @@ pub enum PublicLandingStep {
 }
 
 // Record: PublicLandingStep.
+impl PublicLandingStep {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for PublicLandingStep {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_LANDING_STEP_TAG;
@@ -1613,6 +1723,11 @@ pub enum PublicLeave {
 }
 
 // Record: PublicLeave.
+impl PublicLeave {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 73;
+}
+
 impl Record for PublicLeave {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_LEAVE_TAG;
@@ -1661,6 +1776,11 @@ pub struct PublicJudgement {
 }
 
 // Record: PublicJudgement.
+impl PublicJudgement {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 37;
+}
+
 impl Record for PublicJudgement {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_JUDGEMENT_TAIL;
@@ -1701,6 +1821,11 @@ pub enum PublicProof {
 }
 
 // Record: PublicProof.
+impl PublicProof {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for PublicProof {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_PROOF_TAG;
@@ -1749,6 +1874,11 @@ pub struct PublicGateProof {
 }
 
 // Record: PublicGateProof.
+impl PublicGateProof {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 15;
+}
+
 impl Record for PublicGateProof {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_GATE_PROOF_TAIL;
@@ -1795,6 +1925,11 @@ pub struct PublicMember {
 }
 
 // Record: PublicMember.
+impl PublicMember {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 250;
+}
+
 impl Record for PublicMember {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_MEMBER_TAIL;
@@ -1848,6 +1983,11 @@ pub struct PublicLanding {
 }
 
 // Record: PublicLanding.
+impl PublicLanding {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 124;
+}
+
 impl Record for PublicLanding {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_LANDING_TAIL;

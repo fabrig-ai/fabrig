@@ -60,6 +60,7 @@ pub(super) fn cancelling(event: &root::Event) -> Option<crate::worker_alone::Not
             | hub::LinkDown::Assign { .. }
             | hub::LinkDown::Message { .. }
             | hub::LinkDown::Relayed { .. }
+            | hub::LinkDown::PartKept { .. }
             | hub::LinkDown::TurnKept { .. }
             | hub::LinkDown::Acknowledge { .. }
             | hub::LinkDown::Grant { .. } => None,
@@ -104,6 +105,7 @@ fn event_tag(event: &root::Event) -> WorkerEvent {
             hub::LinkDown::AssignJob { .. } | hub::LinkDown::Assign { .. } => WorkerEvent::Link(LinkEvent::Assign),
             hub::LinkDown::Message { .. } => WorkerEvent::Link(LinkEvent::Message),
             hub::LinkDown::Relayed { .. } => WorkerEvent::Link(LinkEvent::Relayed),
+            hub::LinkDown::PartKept { .. } => WorkerEvent::Link(LinkEvent::PartKept),
             hub::LinkDown::TurnKept { .. } => WorkerEvent::Link(LinkEvent::TurnKept),
             hub::LinkDown::Acknowledge { .. } => WorkerEvent::Link(LinkEvent::Acknowledge),
             hub::LinkDown::Cancel { .. } => WorkerEvent::Link(LinkEvent::Cancel),

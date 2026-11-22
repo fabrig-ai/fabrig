@@ -22,7 +22,7 @@ fn upward(seed: u64) -> Vec<(host::LinkUp, Box<[wire::Part]>)> {
                 answer: host::RunAnswer { ending: host::Ending::Ended { outcome, .. }, .. },
                 ..
             } => {
-                *outcome = translation::golden(
+                *outcome = translation::fixed_value(
                     smith_charter::patches::kept::smith_charter::TEXTS.last().expect("bounded translation fixture"),
                     "record_run_result_smallest",
                 );
@@ -56,6 +56,7 @@ fn upward(seed: u64) -> Vec<(host::LinkUp, Box<[wire::Part]>)> {
     ]);
     records
 }
+#[expect(clippy::too_many_lines, reason = "one conversation exercises every kind at the agreed version")]
 fn exercise(world: &mut Joined, seed: u64, version: u16) {
     for (record, parts) in upward(seed) {
         world.worker_up(record, parts);
@@ -136,6 +137,32 @@ fn exercise(world: &mut Joined, seed: u64, version: u16) {
         world.worker_up(host::LinkUp::Paused { state: jig_domain_link::PauseState::Paused }, Box::new([]));
         world.run();
     }
+    if version >= 22 {
+        let body = translation::fixed_value(
+            smith_transcript::patches::kept::smith_transcript::TEXTS.last().expect("kept transcript"),
+            "record_turn_smallest",
+        );
+        world.worker_up(
+            host::LinkUp::Part {
+                run: RUN,
+                attempt: ATTEMPT,
+                part: jig_domain_link::Part {
+                    number: 1,
+                    turn: 1,
+                    thread: 0,
+                    call: 1,
+                    kind: jig_domain_link::PartKind::Answer,
+                    body,
+                },
+            },
+            Box::new([]),
+        );
+        world.run();
+        world.engine_part_busy();
+        world.run();
+        world.engine_down(host::LinkDown::PartKept { run: RUN, attempt: ATTEMPT, part: 1 }, Box::new([]), Box::new([]));
+        world.run();
+    }
     world.figures(fixtures::figures());
     world.run();
     world.engine_busy();
@@ -203,14 +230,24 @@ fn fuzzy_every_kind_at_drawn_agreed_versions_arrives_unchanged_or_is_refused() {
     let mut refusals = 0;
     for seed in 0..12 {
         let mut rng = Rng::new(seed);
-        let version = u16::try_from(rng.between(u64::from(wire::wire::FLOOR), u64::from(wire::VERSION)))
-            .expect("bounded translation fixture");
+        let version = if seed == 0 {
+            wire::VERSION
+        } else {
+            u16::try_from(rng.between(u64::from(wire::wire::FLOOR), u64::from(wire::VERSION)))
+                .expect("bounded translation fixture")
+        };
         let charter = u16::try_from(rng.between(4, 5)).expect("bounded translation fixture");
         let mut current = translation::world(wire::VERSION, 5, seed);
         let mut capped = translation::world(version, charter, seed);
         exercise(&mut current, seed, version);
         exercise(&mut capped, seed, version);
         assert_eq!(format!("{:?}", capped.engine_root), format!("{:?}", current.engine_root), "seed {seed}");
+        for request in &mut current.worker_root {
+            if let Request::Down { down: host::LinkDown::Assign { assignment }, .. } = request {
+                assert!(assignment.tell_parts, "current channel carries parts");
+                assignment.tell_parts = version >= 22;
+            }
+        }
         assert_eq!(format!("{:?}", capped.worker_root), format!("{:?}", current.worker_root), "seed {seed}");
         usage_records(&mut current, seed, wire::VERSION);
         usage_records(&mut capped, seed, version);

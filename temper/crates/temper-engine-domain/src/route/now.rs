@@ -317,6 +317,13 @@ fn workspace(domain: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, co
     }
     let mut credentials = List::with_capacity(env.limits.forge.resources_per_task);
     let workspace = forge_route::run_workspace(domain, env, &context, attempt);
+    if workspace.is_none() && domain.forge.workspace_reads_waiting() {
+        domain
+            .run_workspaces
+            .insert(task, WorkspacePreparation::Workspace { attempt, context })
+            .expect("one workspace request per live task");
+        return;
+    }
     let writes = match workspace {
         Some(workspace) => {
             match forge_route::claim_names(domain, &env.limits, task, &workspace.names, &workspace.designs) {
@@ -455,6 +462,7 @@ fn run_prepared(domain: &mut Domain, env: &Env<Limits>, prepared: Prepared) {
     };
     domain.assignment_parts.insert(task, parts).expect("one temper assignment per task");
     let assignment = jig_domain_hub_link::Assignment {
+        parts: Box::new([]),
         task,
         attempt,
         conversation,

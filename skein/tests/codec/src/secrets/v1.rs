@@ -73,7 +73,7 @@ pub fn name(path: Path) -> Option<&'static str> {
 }
 
 // Table: postordered shapes, with compiler-known heap slot sizes.
-const TABLE: &[skein_codec::bounds::Node] = &[
+static TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Bytes { limit: 0 },
     skein_codec::bounds::Node::Bytes { limit: 1 },
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
@@ -83,7 +83,7 @@ const DECLARATIONS: &[u32] = &[
     2,
 ];
 
-const CEILING_VALUES: &[u32] = &[
+static CEILING_VALUES: &[u32] = &[
     64,
     64,
 ];
@@ -106,6 +106,11 @@ pub struct Credential {
 }
 
 // Record: Credential.
+impl Credential {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for Credential {
     type Limits = Limits;
     const TAIL: Path = paths::CREDENTIAL_TAIL;

@@ -21,6 +21,12 @@ impl Report {
         self.since
     }
 
+    /// Whether this wait has emitted its first report.
+    #[must_use]
+    pub fn reported(&self) -> bool {
+        self.next != WAIT_REPORT
+    }
+
     #[must_use]
     pub fn deadline(&self) -> Time {
         self.since.saturating_add(self.next)

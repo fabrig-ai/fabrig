@@ -132,7 +132,7 @@ pub fn name(path: Path) -> Option<&'static str> {
 }
 
 // Table: postordered shapes, with compiler-known heap slot sizes.
-const TABLE: &[skein_codec::bounds::Node] = &[
+static TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
@@ -160,7 +160,7 @@ const DECLARATIONS: &[u32] = &[
     17,
 ];
 
-const CEILING_VALUES: &[u32] = &[
+static CEILING_VALUES: &[u32] = &[
     256,
     4_096,
     32,
@@ -189,6 +189,11 @@ pub enum Label {
 }
 
 // Record: Label.
+impl Label {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for Label {
     type Limits = Limits;
     const TAIL: Path = paths::LABEL_TAG;
@@ -232,6 +237,11 @@ pub struct Note {
 }
 
 // Record: Note.
+impl Note {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 25;
+}
+
 impl Record for Note {
     type Limits = Limits;
     const TAIL: Path = paths::NOTE_TAIL;
@@ -278,6 +288,11 @@ pub struct Add {
 }
 
 // Record: Add.
+impl Add {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 25;
+}
+
 impl Record for Add {
     type Limits = Limits;
     const TAIL: Path = paths::ADD_TAIL;
@@ -328,6 +343,11 @@ pub struct Notes {
 }
 
 // Record: Notes.
+impl Notes {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for Notes {
     type Limits = Limits;
     const TAIL: Path = paths::NOTES_TAIL;

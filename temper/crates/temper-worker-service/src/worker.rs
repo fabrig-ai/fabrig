@@ -194,7 +194,7 @@ impl Worker {
             events: Queue::uncapped(),
             engine: Queue::uncapped(),
             held: Queue::with_capacity(
-                jig_protocol_worker_wire::sizes::engine_cap(&prepared.link.sizes)
+                jig_protocol_worker_wire::sizes::engine_cap(&prepared.link.sizes, prepared.link.room)
                     .ok_or(problem(b"limits", What::Bound))?
                     .frames
                     .checked_add(3)
@@ -657,6 +657,7 @@ impl Worker {
                     self.io.push(io::Request::Abort { entity });
                 }
             }
+            link::Request::ResendPart { .. } => {}
             link::Request::Closed => self.closed = true,
             link::Request::Refused { reason, text } => {
                 self.notes.push(crate::worker_alone::Note::OpeningRefused { reason, text });
@@ -1668,7 +1669,7 @@ mod prepared_tests {
                     assert_eq!((lowest, highest), (16, 16));
                     opening = Some(
                         jig_protocol_worker_wire::Credential::decode(
-                            &jig_protocol_worker_wire::v21::CEILINGS,
+                            &jig_protocol_worker_wire::v22::CEILINGS,
                             &mut Reader::new(&credential),
                         )
                         .expect("worker credential"),

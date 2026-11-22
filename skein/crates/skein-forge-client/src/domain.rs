@@ -102,6 +102,21 @@ impl Domain {
         let alarms = alarms.checked_add(2).expect("validated alarm capacity");
         self.alarms.raise(alarms);
     }
+    /// Reads still owed by this forge in the restart's fresh pass (forge/client.md, 8).
+    #[must_use]
+    pub fn fresh_owed(&self, forge: u16) -> u32 {
+        self.keep.fresh_owed(forge)
+    }
+    /// Reads still owed by this repository in the restart's fresh pass (forge/client.md, 8).
+    #[must_use]
+    pub fn fresh_owed_in(&self, repository: api::Repository) -> u32 {
+        self.keep.fresh_owed_in(repository)
+    }
+    /// Restored attempts this forge has not looked at once (forge/client.md, 8).
+    #[must_use]
+    pub fn finds_owed(&self, forge: u16) -> u32 {
+        self.outbox.finds_owed(forge)
+    }
     /// The owner's next poll, stretched while the repository hears
     /// (forge/client.md, 4.1). Reads state and changes none.
     #[must_use]
@@ -159,7 +174,7 @@ impl Domain {
     /// Fresh resources, then listings (`What::Repository`), still owed, in table order.
     /// Observes only; bounded by the keep's tables (forge/client.md, 8).
     #[must_use]
-    pub fn fresh_owed(&self) -> Box<[Resource]> {
+    pub fn fresh_resources_owed(&self) -> Box<[Resource]> {
         keep::restore::fresh_owed(self)
     }
     /// Unchecked restored entries, as (entry number, task), in number order.
@@ -243,7 +258,6 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             outbox::restored(d, clock);
             keep::restore::restored(d);
         }
-        Event::PauseOutbox => outbox::pause(d),
         Event::ReadAfresh => {
             keep::restore::start_fresh(d);
             if keep::restore::fresh_done(d) {

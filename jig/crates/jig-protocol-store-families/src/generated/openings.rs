@@ -114,7 +114,7 @@ pub fn name(path: Path) -> Option<&'static str> {
 }
 
 // Table: postordered shapes, with compiler-known heap slot sizes.
-const TABLE: &[skein_codec::bounds::Node] = &[
+static TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Bytes { limit: 0 },
     skein_codec::bounds::Node::Scalar(2),
     skein_codec::bounds::Node::Scalar(32),
@@ -137,7 +137,7 @@ const DECLARATIONS: &[u32] = &[
     13,
 ];
 
-const CEILING_VALUES: &[u32] = &[
+static CEILING_VALUES: &[u32] = &[
     32,
     16,
     256,
@@ -164,6 +164,11 @@ pub struct OpenedWire {
 }
 
 // Record: OpenedWire.
+impl OpenedWire {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 10;
+}
+
 impl Record for OpenedWire {
     type Limits = Limits;
     const TAIL: Path = paths::OPENED_WIRE_TAIL;
@@ -200,6 +205,11 @@ pub struct OpenedTerm {
 }
 
 // Record: OpenedTerm.
+impl OpenedTerm {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 6;
+}
+
 impl Record for OpenedTerm {
     type Limits = Limits;
     const TAIL: Path = paths::OPENED_TERM_TAIL;
@@ -237,6 +247,11 @@ pub struct WorkerOpening {
 }
 
 // Record: WorkerOpening.
+impl WorkerOpening {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 26;
+}
+
 impl Record for WorkerOpening {
     type Limits = Limits;
     const TAIL: Path = paths::WORKER_OPENING_TAIL;

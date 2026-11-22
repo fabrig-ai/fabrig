@@ -70,7 +70,7 @@ fn ask(d: &mut Domain, env: &Env<Limits>, key: (Repository, Box<[u8]>), read: ap
     let repository = key.0;
     d.tier_ops
         .reads
-        .insert(owner, super::Read { tier: key, baseline: false })
+        .insert(owner, super::Read { tier: key, baseline: false, job_state: false })
         .expect("one log read per tier alongside its key walk");
     crate::domain::child(d, env, skein_forge_client::Event::Read { owner, repository, read }, out);
 }

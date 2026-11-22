@@ -230,7 +230,7 @@ pub fn name(path: Path) -> Option<&'static str> {
 }
 
 // Table: postordered shapes, with compiler-known heap slot sizes.
-const TABLE: &[skein_codec::bounds::Node] = &[
+static TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
@@ -333,7 +333,7 @@ const DECLARATIONS: &[u32] = &[
     85,
 ];
 
-const CEILING_VALUES: &[u32] = &[
+static CEILING_VALUES: &[u32] = &[
     256,
     64,
     4_096,
@@ -367,6 +367,11 @@ pub enum PublicExecutor {
 }
 
 // Record: PublicExecutor.
+impl PublicExecutor {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for PublicExecutor {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_EXECUTOR_TAG;
@@ -419,6 +424,11 @@ pub enum PublicPhase {
 }
 
 // Record: PublicPhase.
+impl PublicPhase {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for PublicPhase {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_PHASE_TAG;
@@ -494,6 +504,11 @@ pub enum PublicHold {
 }
 
 // Record: PublicHold.
+impl PublicHold {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for PublicHold {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_HOLD_TAG;
@@ -566,6 +581,11 @@ pub struct PublicCounts {
 }
 
 // Record: PublicCounts.
+impl PublicCounts {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 20;
+}
+
 impl Record for PublicCounts {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_COUNTS_TAIL;
@@ -619,6 +639,11 @@ pub struct PublicLine {
 }
 
 // Record: PublicLine.
+impl PublicLine {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 95;
+}
+
 impl Record for PublicLine {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_LINE_TAIL;
@@ -679,6 +704,11 @@ pub struct PublicProject {
 }
 
 // Record: PublicProject.
+impl PublicProject {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 12;
+}
+
 impl Record for PublicProject {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_PROJECT_TAIL;
@@ -713,6 +743,11 @@ pub struct PublicProjects {
 }
 
 // Record: PublicProjects.
+impl PublicProjects {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for PublicProjects {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_PROJECTS_TAIL;
@@ -757,6 +792,11 @@ pub struct PublicGoal {
 }
 
 // Record: PublicGoal.
+impl PublicGoal {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 103;
+}
+
 impl Record for PublicGoal {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_GOAL_TAIL;
@@ -796,6 +836,11 @@ pub struct PublicBoard {
 }
 
 // Record: PublicBoard.
+impl PublicBoard {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 24;
+}
+
 impl Record for PublicBoard {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_BOARD_TAIL;
@@ -847,6 +892,11 @@ pub struct PublicCard {
 }
 
 // Record: PublicCard.
+impl PublicCard {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 107;
+}
+
 impl Record for PublicCard {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_CARD_TAIL;
@@ -894,6 +944,11 @@ pub struct PublicApplication {
 }
 
 // Record: PublicApplication.
+impl PublicApplication {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for PublicApplication {
     type Limits = Limits;
     const TAIL: Path = paths::PUBLIC_APPLICATION_TAIL;

@@ -197,7 +197,7 @@ pub fn name(path: Path) -> Option<&'static str> {
 }
 
 // Table: postordered shapes, with compiler-known heap slot sizes.
-const TABLE: &[skein_codec::bounds::Node] = &[
+static TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
     skein_codec::bounds::Node::Bytes { limit: 0 },
@@ -354,7 +354,7 @@ const DECLARATIONS: &[u32] = &[
     139,
 ];
 
-const CEILING_VALUES: &[u32] = &[
+static CEILING_VALUES: &[u32] = &[
     16,
     16,
     4,
@@ -384,6 +384,11 @@ pub struct Reference {
 }
 
 // Record: Reference.
+impl Reference {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for Reference {
     type Limits = Limits;
     const TAIL: Path = paths::REFERENCE_TAIL;
@@ -415,6 +420,11 @@ pub struct Label {
 }
 
 // Record: Label.
+impl Label {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for Label {
     type Limits = Limits;
     const TAIL: Path = paths::LABEL_TAIL;
@@ -446,6 +456,11 @@ pub struct Item {
 }
 
 // Record: Item.
+impl Item {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for Item {
     type Limits = Limits;
     const TAIL: Path = paths::ITEM_TAIL;
@@ -476,6 +491,11 @@ pub struct Empty {
 }
 
 // Record: Empty.
+impl Empty {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 0;
+}
+
 impl Record for Empty {
     type Limits = Limits;
     const TAIL: Path = paths::EMPTY_TAIL;
@@ -505,6 +525,11 @@ pub struct Shared {
 }
 
 // Record: Shared.
+impl Shared {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for Shared {
     type Limits = Limits;
     const TAIL: Path = paths::SHARED_TAIL;
@@ -536,6 +561,11 @@ pub struct Checked {
 }
 
 // Record: Checked.
+impl Checked {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for Checked {
     type Limits = Limits;
     const TAIL: Path = paths::CHECKED_TAIL;
@@ -568,6 +598,11 @@ pub enum HandChoice {
 }
 
 // Record: HandChoice.
+impl HandChoice {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for HandChoice {
     type Limits = Limits;
     const TAIL: Path = paths::HAND_CHOICE_TAG;
@@ -611,6 +646,11 @@ pub enum Event {
 }
 
 // Record: Event.
+impl Event {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for Event {
     type Limits = Limits;
     const TAIL: Path = paths::EVENT_TAG;
@@ -676,6 +716,11 @@ pub struct Packet {
 }
 
 // Record: Packet.
+impl Packet {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 79;
+}
+
 impl Record for Packet {
     type Limits = Limits;
     const TAIL: Path = paths::PACKET_TAIL;
@@ -741,6 +786,11 @@ pub struct Root {
 }
 
 // Record: Root.
+impl Root {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 79;
+}
+
 impl Record for Root {
     type Limits = Limits;
     const TAIL: Path = paths::ROOT_TAIL;
@@ -879,6 +929,11 @@ pub enum LongChoice {
 }
 
 // Record: LongChoice.
+impl LongChoice {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for LongChoice {
     type Limits = Limits;
     const TAIL: Path = paths::LONG_CHOICE_TAG;

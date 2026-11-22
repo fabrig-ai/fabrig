@@ -89,7 +89,10 @@ fn finding_requests_subjects_and_reads_round_trip_with_bounded_words() {
     ] {
         for mine in [false, true] {
             let watching = v1::Watching {
-                watch: v1::Watch::Findings(v1::FindingsSubject { project: 3, state: state.clone(), mine }),
+                watch: v1::Watch::Findings(v1::FindingsSubject {
+                    project: 3,
+                    filter: v1::FindingsFilter::Triage(v1::FindingsTriage { state: state.clone(), mine }),
+                }),
             };
             assert_eq!(crate::decode_watching(&crate::watching(&watching), limits), Some(watching));
         }
@@ -98,11 +101,121 @@ fn finding_requests_subjects_and_reads_round_trip_with_bounded_words() {
     assert_eq!(crate::decode_reading(&crate::reading(&reading), limits), Some(reading));
 }
 
+#[test]
+fn repair_requests_round_trip_and_refuse_words_and_findings_past_the_bounds() {
+    let limits = &v1::CEILINGS;
+    for count in [0, 15] {
+        for length in [1, 4096] {
+            let mut more = List::with_capacity(count);
+            for _ in 0..count {
+                more.push(u32::MAX).unwrap();
+            }
+            let record = v1::Requesting {
+                request: v1::Request::TriageFinding(v1::TriageFinding {
+                    project: 2,
+                    number: 3,
+                    act: v1::Triage::Repair(v1::FindingRepair { more, words: filled(length) }),
+                }),
+            };
+            assert_eq!(crate::decode_requesting(&crate::requesting(&record), limits), Some(record));
+        }
+    }
+    let empty = v1::Requesting {
+        request: v1::Request::TriageFinding(v1::TriageFinding {
+            project: 2,
+            number: 3,
+            act: v1::Triage::Repair(v1::FindingRepair { more: List::uncapped(), words: Box::default() }),
+        }),
+    };
+    assert!(crate::decode_requesting(&crate::requesting(&empty), limits).is_none());
+    for (count, length, path) in
+        [(16_u32, 1, v1::paths::FINDING_REPAIR_MORE), (0, 4097, v1::paths::FINDING_REPAIR_WORDS)]
+    {
+        let mut more = List::uncapped();
+        for _ in 0..count {
+            more.push(5).unwrap();
+        }
+        let value = v1::FindingRepair { more, words: filled(length) };
+        assert_eq!(value.encode(limits), Err(v1::Problem { path, reason: skein_codec::Reason::Bound }));
+    }
+    // A count beyond the cap is refused before any of its entries are read.
+    let mut writer = Writer::new(4);
+    writer.put(&16_u32.to_be_bytes()).unwrap();
+    assert_eq!(
+        v1::FindingRepair::decode(limits, &mut Reader::new(&writer.finish())),
+        Err(v1::Problem { path: v1::paths::FINDING_REPAIR_MORE, reason: skein_codec::Reason::Bound })
+    );
+}
+
+#[test]
+fn blame_requests_round_trip_both_commit_lengths_and_refuse_other_lengths_or_empty_why() {
+    let limits = &v1::CEILINGS;
+    for landing in [None, Some(filled(20)), Some(filled(32))] {
+        for length in [1, 200] {
+            let record = v1::Requesting {
+                request: v1::Request::TriageFinding(v1::TriageFinding {
+                    project: 2,
+                    number: 3,
+                    act: v1::Triage::Blame(v1::FindingBlameAct { landing: landing.clone(), why: filled(length) }),
+                }),
+            };
+            assert_eq!(crate::decode_requesting(&crate::requesting(&record), limits), Some(record));
+        }
+    }
+    for (landing, why) in [
+        (Some(filled(21)), filled(1)),
+        (Some(filled(19)), filled(1)),
+        (Some(filled(31)), filled(1)),
+        (Some(Box::default()), filled(1)),
+        (None, Box::default()),
+    ] {
+        let record = v1::Requesting {
+            request: v1::Request::TriageFinding(v1::TriageFinding {
+                project: 2,
+                number: 3,
+                act: v1::Triage::Blame(v1::FindingBlameAct { landing, why }),
+            }),
+        };
+        assert!(crate::decode_requesting(&crate::requesting(&record), limits).is_none());
+    }
+    for (landing, why, path) in [
+        (None, filled(201), v1::paths::FINDING_BLAME_ACT_WHY),
+        (Some(filled(33)), filled(1), v1::paths::FINDING_BLAME_ACT_LANDING),
+    ] {
+        assert_eq!(
+            (v1::FindingBlameAct { landing, why }).encode(limits),
+            Err(v1::Problem { path, reason: skein_codec::Reason::Bound })
+        );
+    }
+}
+
+#[test]
+fn triaged_goals_and_long_finding_refusals_round_trip() {
+    let limits = &v1::CEILINGS;
+    for outcome in [
+        v1::Outcome::Triaged(v1::Triaged { goal: Some(u64::MAX) }),
+        v1::Outcome::Triaged(v1::Triaged { goal: None }),
+        v1::Outcome::FindingRefused(v1::FindingRefused {
+            reason: v1::FindingRefusal::Words(v1::FindingWords { field: filled(1024) }),
+        }),
+    ] {
+        let record = v1::Answer { outcome };
+        assert_eq!(v1::Answer::decode(limits, &mut Reader::new(&crate::answer(&record))), Ok(record));
+    }
+    assert_eq!(
+        (v1::FindingWords { field: filled(1025) }).encode(limits),
+        Err(v1::Problem { path: v1::paths::FINDING_WORDS_FIELD, reason: skein_codec::Reason::Bound })
+    );
+}
+
 fn holder() -> v1::Holder {
     v1::Holder::Role(v1::HolderRole { number: u32::MAX })
 }
 fn row() -> v1::FindingRow {
     v1::FindingRow {
+        goal: Some(820),
+        reason: Some(filled(400)),
+        cleared: Some(v1::FindingClearing { tier: b"slow".as_slice().into(), run: 19, at: 23 }),
         number: u32::MAX,
         kind: v1::FindingKind::Feedback,
         severity: v1::Severity::High,
@@ -113,6 +226,28 @@ fn row() -> v1::FindingRow {
         at: u64::MAX,
         why: Some(filled(200)),
         hander: Some(v1::Filer::Party(v1::HolderParty { number: u64::MAX })),
+    }
+}
+fn blame() -> v1::FindingBlame {
+    let mut landings = List::with_capacity(2);
+    for (commit, goal, milestone, person) in [([1; 32], 820, Some(812), Some(4)), ([2; 32], 821, None, None)] {
+        let mut goals = List::with_capacity(1);
+        goals.push(v1::BlamedGoal { goal, milestone, person }).unwrap();
+        landings.push(v1::BlamedLanding { commit, goals }).unwrap();
+    }
+    v1::FindingBlame { strength: v1::BlameStrength::Owned, landings }
+}
+
+#[test]
+fn goal_and_milestone_findings_subjects_round_trip() {
+    let limits = &v1::CEILINGS;
+    for filter in [
+        v1::FindingsFilter::Goal(v1::FindingsGoal { goal: 820 }),
+        v1::FindingsFilter::Milestone(v1::FindingsMilestone { milestone: 812 }),
+    ] {
+        let subject = v1::FindingsSubject { project: 3, filter };
+        let watching = v1::Watching { watch: v1::Watch::Findings(subject) };
+        assert_eq!(crate::decode_watching(&crate::watching(&watching), limits), Some(watching));
     }
 }
 fn owner() -> v1::AreaOwner {
@@ -187,13 +322,12 @@ fn findings_documents_and_details_round_trip_at_their_caps() {
     }
     for result in [
         v1::FindingResult::NoFinding,
-        v1::FindingResult::Finding(v1::FindingDetail {
+        v1::FindingResult::Finding(Box::new(v1::FindingDetail {
             row: row(),
             body: filled(4096),
             filer: v1::Filer::Task(v1::HolderTask { number: u64::MAX }),
-            goal: Some(u64::MAX),
-            reason: Some(filled(400)),
-        }),
+            blame: Some(blame()),
+        })),
     ] {
         let answer = v1::FindingAnswer { result };
         assert_eq!(crate::decode_finding_answer(&crate::finding_answer(&answer), limits), Some(answer));
@@ -208,7 +342,11 @@ fn finding_outcomes_and_refusals_round_trip_with_all_area_names() {
         areas.push(filled(32)).unwrap();
     }
     let mut outcomes = List::uncapped();
-    for outcome in [v1::Outcome::Filed(v1::Filed { number: u32::MAX }), v1::Outcome::Handed, v1::Outcome::Triaged] {
+    for outcome in [
+        v1::Outcome::Filed(v1::Filed { number: u32::MAX }),
+        v1::Outcome::Handed,
+        v1::Outcome::Triaged(v1::Triaged { goal: None }),
+    ] {
         outcomes.push(outcome).unwrap();
     }
     for reason in [

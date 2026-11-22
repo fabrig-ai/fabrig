@@ -107,7 +107,7 @@ pub fn name(path: Path) -> Option<&'static str> {
 }
 
 // Table: postordered shapes, with compiler-known heap slot sizes.
-const TABLE: &[skein_codec::bounds::Node] = &[
+static TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Bytes { limit: 0 },
     skein_codec::bounds::Node::Bytes { limit: 1 },
     skein_codec::bounds::Node::Option { item: 1 },
@@ -128,7 +128,7 @@ const DECLARATIONS: &[u32] = &[
     11,
 ];
 
-const CEILING_VALUES: &[u32] = &[
+static CEILING_VALUES: &[u32] = &[
     256,
     256,
     16,
@@ -156,6 +156,11 @@ pub struct Layout {
 }
 
 // Record: Layout.
+impl Layout {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 79;
+}
+
 impl Record for Layout {
     type Limits = Limits;
     const TAIL: Path = paths::LAYOUT_TAIL;
@@ -206,6 +211,11 @@ pub struct Text {
 }
 
 // Record: Text.
+impl Text {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 6;
+}
+
 impl Record for Text {
     type Limits = Limits;
     const TAIL: Path = paths::TEXT_TAIL;
@@ -248,6 +258,11 @@ pub struct Job {
 }
 
 // Record: Job.
+impl Job {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 10;
+}
+
 impl Record for Job {
     type Limits = Limits;
     const TAIL: Path = paths::JOB_TAIL;

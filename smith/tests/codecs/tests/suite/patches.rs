@@ -13,9 +13,9 @@ use crate::support::patches;
 const TRANSCRIPT: &str = smith_transcript::SCHEMA;
 
 #[test]
-fn each_version_one_golden_patches_to_its_version_two_golden() {
+fn each_version_one_fixed_value_patches_to_its_version_two_golden() {
     let output =
-        skein_codegen::goldens(&skein_codegen::parse(fixture::kept::fixture_turn::TEXTS[0]).expect("v1 schema"));
+        skein_codegen::fixed_values(&skein_codegen::parse(fixture::kept::fixture_turn::TEXTS[0]).expect("v1 schema"));
     let directory = skein_scratch::paths::tree().join("tests/transcript-patches/patches/golden/0001/fixture-turn");
     let files: BTreeSet<_> = fs::read_dir(&directory)
         .expect("patch goldens")
@@ -23,11 +23,11 @@ fn each_version_one_golden_patches_to_its_version_two_golden() {
         .collect();
     let mut checked = BTreeSet::new();
     let mut patcher = patches::fixture_patcher();
-    for golden in output {
+    for value in output {
         let bytes =
-            patches::patch_to_current(&mut patcher, golden.bytes.into_boxed_slice()).expect("v1 golden patches");
-        assert_eq!(bytes.as_ref(), fs::read(directory.join(&golden.name)).expect("v2 golden"), "{}", golden.name);
-        checked.insert(std::ffi::OsString::from(golden.name));
+            patches::patch_to_current(&mut patcher, value.bytes.into_boxed_slice()).expect("v1 fixed value patches");
+        assert_eq!(bytes.as_ref(), fs::read(directory.join(&value.name)).expect("v2 golden"), "{}", value.name);
+        checked.insert(std::ffi::OsString::from(value.name));
     }
     assert_eq!(checked, files, "every patch golden checked exactly once");
 }
@@ -108,8 +108,8 @@ fn the_real_written_answers_every_site_no_site() {
     let plan = patcher.plan_from(1).expect("v1 plan");
     let root = patcher.schema(1).expect("v1 schema").find(smith_transcript::ROOT.as_bytes()).expect("Turn");
     let output =
-        skein_codegen::goldens(&skein_codegen::parse(fixture::kept::fixture_turn::TEXTS[0]).expect("v1 schema"));
-    patcher.start(plan, root, output[0].bytes.clone().into_boxed_slice()).expect("start golden");
+        skein_codegen::fixed_values(&skein_codegen::parse(fixture::kept::fixture_turn::TEXTS[0]).expect("v1 schema"));
+    patcher.start(plan, root, output[0].bytes.clone().into_boxed_slice()).expect("start fixed value");
     let (old, new) = patcher.parts();
     let mut context = smith_transcript::patches::Context::default();
     for site in [Site::new(0, 0), Site::new(1, 0), Site::new(u32::MAX, u32::MAX)] {

@@ -123,7 +123,7 @@ fn sweep_rows_wait_for_each_erase_continuation() {
 }
 
 #[test]
-fn each_connectors_fresh_reads_finish_before_the_start_opens() {
+fn each_connectors_fresh_reads_finish_after_the_start_opens() {
     use core::start::Phase;
     let document = fixtures::with(&fixtures::accounts_document(),
         br#"{"prefix":["one"],"resources":[]},{"prefix":["two"],"resources":[]}"#,
@@ -133,40 +133,32 @@ fn each_connectors_fresh_reads_finish_before_the_start_opens() {
     for _ in 0..64_u32 {
         fixtures::turn(&mut service);
         let engine = fixtures::engine(&mut service);
-        match engine.domain.core_mut().start_phase() {
-            Some(Phase::Sweep) => {
-                // This fixture supplies no expired people rows in its sweep.
-                if let Some(StoreEvent::Page { owner, .. }) = engine.store.host.above.pop() {
-                    engine.store.host.above.push(StoreEvent::Page { owner, items: Box::new([]), next: None });
-                }
+        if engine.domain.core_mut().start_phase() == Some(Phase::Sweep) {
+            // This fixture supplies no expired people rows in its sweep.
+            if let Some(StoreEvent::Page { owner, .. }) = engine.store.host.above.pop() {
+                engine.store.host.above.push(StoreEvent::Page { owner, items: Box::new([]), next: None });
             }
-            Some(Phase::ReadAfresh { connector }) => {
-                if phases.last() != Some(&connector) {
-                    let mut facts = 0_u32;
-                    for event in &engine.events {
-                        if let jig_test_domain::Event::Connector {
-                            number,
-                            event: jig_test_connector::Event::System(jig_test_connector::SystemEvent::Fact { .. }),
-                        } = event
-                        {
-                            assert_eq!(*number, connector);
-                            facts = facts.checked_add(1).expect("configured read count");
-                        }
-                    }
-                    assert_eq!(facts, if connector == 1 { 2 } else { 1 });
-                    phases.push(connector).expect("two connectors");
-                    assert!(!engine.domain.ready());
-                }
-            }
-            Some(_) | None => {}
         }
-        if engine.domain.ready() {
+        for event in &engine.events {
+            if let jig_test_domain::Event::Connector {
+                number,
+                event: jig_test_connector::Event::System(jig_test_connector::SystemEvent::Fact { .. }),
+            } = event
+            {
+                assert!(engine.domain.ready(), "the engine opens before fresh reads answer");
+                if !phases.as_slice().contains(number) {
+                    phases.push(*number).expect("two connectors");
+                }
+            }
+        }
+        if engine.domain.core_mut().caught_up(1) && engine.domain.core_mut().caught_up(2) {
             break;
         }
     }
     assert_eq!(phases.as_slice(), [1, 2]);
     assert!(fixtures::engine(&mut service).domain.ready());
-    assert_eq!(fixtures::engine(&mut service).restart_reads, None);
+    assert!(fixtures::engine(&mut service).domain.core_mut().caught_up(1));
+    assert!(fixtures::engine(&mut service).domain.core_mut().caught_up(2));
     assert_eq!(service.end(), None);
 }
 
@@ -813,10 +805,10 @@ fn a_program_grant_needs_no_table_entry() {
 
 #[test]
 fn program_names_share_the_wire_and_domain_bounds() {
-    use jig_protocol_worker_wire::v21;
+    use jig_protocol_worker_wire::v22;
     // Schema source names and grant names both admit exactly 32 bytes.
-    let bound = skein_lib::length::usize_of(v21::CEILINGS.program_value_name);
-    assert_eq!(v21::CEILINGS.program_value_name, v21::CEILINGS.program_source_name);
+    let bound = skein_lib::length::usize_of(v22::CEILINGS.program_value_name);
+    assert_eq!(v22::CEILINGS.program_value_name, v22::CEILINGS.program_source_name);
     let past = bound.checked_add(1).expect("small name bound");
     let name = [b'a'; 33]; // The schema's 32-byte name plus one byte.
     for (length, admitted) in [(bound, true), (past, false)] {

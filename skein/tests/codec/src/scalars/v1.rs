@@ -81,7 +81,7 @@ pub fn name(path: Path) -> Option<&'static str> {
 }
 
 // Table: postordered shapes, with compiler-known heap slot sizes.
-const TABLE: &[skein_codec::bounds::Node] = &[
+static TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
@@ -102,7 +102,7 @@ const DECLARATIONS: &[u32] = &[
     11,
 ];
 
-const CEILING_VALUES: &[u32] = &[
+static CEILING_VALUES: &[u32] = &[
 ];
 
 #[must_use]
@@ -121,6 +121,11 @@ pub struct Empty {
 }
 
 // Record: Empty.
+impl Empty {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 0;
+}
+
 impl Record for Empty {
     type Limits = Limits;
     const TAIL: Path = paths::EMPTY_TAIL;
@@ -160,6 +165,11 @@ pub enum Flag {
 }
 
 // Record: Flag.
+impl Flag {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for Flag {
     type Limits = Limits;
     const TAIL: Path = paths::FLAG_TAG;
@@ -203,6 +213,11 @@ pub struct Scalars {
 }
 
 // Record: Scalars.
+impl Scalars {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 27;
+}
+
 impl Record for Scalars {
     type Limits = Limits;
     const TAIL: Path = paths::SCALARS_TAIL;

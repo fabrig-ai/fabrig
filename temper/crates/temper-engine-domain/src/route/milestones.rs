@@ -19,6 +19,7 @@ pub(super) fn read(domain: &Domain, project: u32, task: u64) -> Option<Milestone
                 ended: Some(end.at),
                 last_landing: row.last_landing.clone(),
                 spent: end.spent,
+                reds: domain.forge.reds_owed(row.project, task),
             });
         }
     }
@@ -44,5 +45,6 @@ pub(super) fn read(domain: &Domain, project: u32, task: u64) -> Option<Milestone
             None => None,
         },
         spent,
+        reds: domain.forge.reds_owed(record.project, task),
     })
 }

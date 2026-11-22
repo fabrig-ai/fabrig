@@ -68,7 +68,7 @@ fn kept(d: &mut Domain, signature: FindingSignature, kind: FindingKind) -> Findi
         body: Box::new([]),
         signature,
         blame: if kind == FindingKind::Red {
-            Some(FindingBlame { strength: BlameStrength::Unblamed, landings: Box::new([]) })
+            Some(FindingBlame { moved: None, strength: BlameStrength::Unblamed, landings: Box::new([]) })
         } else {
             None
         },

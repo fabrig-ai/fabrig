@@ -80,6 +80,8 @@ pub enum Word {
     MsRunning,
     MsMoreOne,
     MsMoreMany,
+    MsRedsOne,
+    MsRedsMany,
     MsMetaCount,
     MsEndedAt,
     MsNoGoalsWhole,
@@ -467,6 +469,15 @@ pub enum Word {
     GoalCloseStays,
     GoalSideTasks,
     GoalLandingTitle,
+    GoalRedsTitle,
+    GoalRedLine,
+    GoalMoreReds,
+    GoalRedCleared,
+    GoalRedWaiting,
+    GoalRedRepairingGoal,
+    GoalRedRepairing,
+    GoalRedBacklog,
+    GoalRedDropped,
     GoalHowTitle,
     GoalDecidedTitle,
     GoalAlwaysAsks,
@@ -2296,7 +2307,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
-const PHRASES: u32 = 2857;
+const PHRASES: u32 = 2868;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2323,10 +2334,10 @@ const PHRASES: u32 = 2857;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 5311;
+const SEGMENTS: u32 = 5344;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 67087;
-const ALL: [Word; 2121] = [
+const ENGLISH_BYTES: u32 = 67290;
+const ALL: [Word; 2132] = [
     Word::WorkMilestoneLede,
     Word::MsGoals,
     Word::MsWhole,
@@ -2362,6 +2373,8 @@ const ALL: [Word; 2121] = [
     Word::MsRunning,
     Word::MsMoreOne,
     Word::MsMoreMany,
+    Word::MsRedsOne,
+    Word::MsRedsMany,
     Word::MsMetaCount,
     Word::MsEndedAt,
     Word::MsNoGoalsWhole,
@@ -2740,6 +2753,15 @@ const ALL: [Word; 2121] = [
     Word::GoalCloseStays,
     Word::GoalSideTasks,
     Word::GoalLandingTitle,
+    Word::GoalRedsTitle,
+    Word::GoalRedLine,
+    Word::GoalMoreReds,
+    Word::GoalRedCleared,
+    Word::GoalRedWaiting,
+    Word::GoalRedRepairingGoal,
+    Word::GoalRedRepairing,
+    Word::GoalRedBacklog,
+    Word::GoalRedDropped,
     Word::GoalHowTitle,
     Word::GoalDecidedTitle,
     Word::GoalAlwaysAsks,
@@ -4791,6 +4813,15 @@ impl Word {
             Self::GoalCloseStays => 3537,
             Self::GoalSideTasks => 3500,
             Self::GoalLandingTitle => 3501,
+            Self::GoalRedsTitle => 9900,
+            Self::GoalRedLine => 9901,
+            Self::GoalMoreReds => 9902,
+            Self::GoalRedCleared => 9903,
+            Self::GoalRedWaiting => 9904,
+            Self::GoalRedRepairingGoal => 9905,
+            Self::GoalRedRepairing => 9906,
+            Self::GoalRedBacklog => 9907,
+            Self::GoalRedDropped => 9908,
             Self::GoalHowTitle => 3502,
             Self::GoalDecidedTitle => 3503,
             Self::GoalAlwaysAsks => 3504,
@@ -5335,6 +5366,8 @@ impl Word {
             Self::MsRunning => 9749,
             Self::MsMoreOne => 9750,
             Self::MsMoreMany => 9751,
+            Self::MsRedsOne => 9909,
+            Self::MsRedsMany => 9910,
             Self::MsMetaCount => 9800,
             Self::MsEndedAt => 9805,
             Self::MsNoGoalsWhole => 9806,
@@ -6675,6 +6708,23 @@ const FOLLOW_WORDS: [Word; 12] = [
 ];
 #[expect(clippy::too_many_lines, reason = "one table prices each phrase-specific input bound")]
 fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32, Invalid> {
+    // A goal's reds retain wire-bounded titles, tiers and drop reasons (client/pages/goal.md, 2).
+    if kind == HoleKind::Name {
+        let bounds = temper_client_protocol_wire::v1::CEILINGS;
+        if word == Word::GoalRedLine {
+            return if last {
+                bounds.finding_row_reason_some.checked_add(9).ok_or(Invalid::Overflow)
+            } else {
+                bounds.finding_row_title.checked_add(3).ok_or(Invalid::Overflow)
+            };
+        }
+        if word == Word::GoalRedDropped {
+            return Ok(bounds.finding_row_reason_some);
+        }
+        if word == Word::GoalRedCleared {
+            return Ok(bounds.finding_clearing_tier);
+        }
+    }
     // Limit names and reasons have wire bounds independent of the client's ordinary text projection.
     if word == Word::LimitsSetting && kind == HoleKind::Name {
         return Ok(if last { 120 } else { 13 });
@@ -7448,6 +7498,15 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::GoalCloseStays => (&[b"What landed on its branch stays there."], &[]),
         Word::GoalSideTasks => (&[b"Tasks"], &[]),
         Word::GoalLandingTitle => (&[b"Landing"], &[]),
+        Word::GoalRedsTitle => (&[b"Reds after landing"], &[]),
+        Word::GoalRedLine => (&[b"", b"/", b" ", b" \xc2\xb7 ", b""], &[Number, Number, Name, Name]),
+        Word::GoalMoreReds => (&[b"More of its reds are not shown."], &[]),
+        Word::GoalRedCleared => (&[b"cleared by ", b" run ", b""], &[Name, Number]),
+        Word::GoalRedWaiting => (&[b"waiting for triage"], &[]),
+        Word::GoalRedRepairingGoal => (&[b"being repaired by goal ", b""], &[Number]),
+        Word::GoalRedRepairing => (&[b"being repaired"], &[]),
+        Word::GoalRedBacklog => (&[b"in the backlog"], &[]),
+        Word::GoalRedDropped => (&[b"dropped: ", b""], &[Name]),
         Word::GoalHowTitle => (&[b"How it runs"], &[]),
         Word::GoalDecidedTitle => (&[b"Decided by the goal"], &[]),
         Word::GoalAlwaysAsks => (&[b"", b" \xc2\xb7 always asks you"], &[Name]),
@@ -7602,6 +7661,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::MsRunning => (&[b"", b" ", b": ", b""], &[Name, Name, Name]),
         Word::MsMoreOne => (&[b"", b", and one more running."], &[Name]),
         Word::MsMoreMany => (&[b"", b", and ", b" more running."], &[Name, Number]),
+        Word::MsRedsOne => (&[b"", b"; 1 red after landing owed."], &[Name]),
+        Word::MsRedsMany => (&[b"", b"; ", b" reds after landing owed."], &[Name, Number]),
         Word::GoalCount => (&[b"", b" / ", b""], &[Number, Number]),
         Word::GoalNeedsFunds => (&[b"needs funds"], &[]),
         Word::GoalNeedsYou => (&[b"needs you"], &[]),

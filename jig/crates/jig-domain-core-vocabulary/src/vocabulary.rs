@@ -30,6 +30,7 @@ pub struct Assignment {
     /// Whole words and prior committed conversation offered to the worker.
     pub messages: Box<[tasks::Word]>,
     pub transcript: Box<[Box<[u8]>]>,
+    pub parts: Box<[jig_domain_link::KeptPart]>,
     pub answered: Box<[crate::Settled]>,
     /// The selected account and application credential grants.
     pub grants: Box<[jig_domain_link::Grant]>,
@@ -1614,6 +1615,7 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         | tasks::Event::WithdrawProposal { .. }
         | tasks::Event::Conclude { .. }
         | tasks::Event::Cancel { .. }
+        | tasks::Event::Fail { .. }
         | tasks::Event::Release { .. }
         | tasks::Event::Amend { .. }
         | tasks::Event::Move { .. }
@@ -1750,6 +1752,7 @@ fn people_new_work(event: &people::Event) -> bool {
         | people::Event::ConversationSeen { .. }
         | people::Event::Forget { .. }
         | people::Event::MakeService { .. }
+        | people::Event::ReissueService { .. }
         | people::Event::Waiting { .. }
         | people::Event::ApplyRoles { .. }
         | people::Event::Decided { .. }

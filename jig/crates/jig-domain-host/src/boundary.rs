@@ -214,6 +214,10 @@ pub enum ToAgent {
         agent: Token,
         turn: u32,
     },
+    AcknowledgePart {
+        agent: Token,
+        number: u32,
+    },
     Grant {
         agent: Token,
         grant: Grant,
@@ -222,6 +226,7 @@ pub enum ToAgent {
     /// report `Gone` as for a cancel (domain/hosts/hub.md, 7).
     Drain {
         agent: Token,
+        grace: Option<Duration>,
     },
     /// Cancel the run and end what remains past its grace. The start reports
     /// `Gone` once the agent and everything it started have ended.
@@ -235,45 +240,115 @@ pub enum ToAgent {
 #[derive(PartialEq, Eq, Debug)]
 pub enum FromAgent {
     /// A named host or delivery call with arguments.
-    Called { owner: Token, call: Box<[u8]>, ask: Ask },
+    Called {
+        owner: Token,
+        call: Box<[u8]>,
+        ask: Ask,
+    },
     /// The agent withdrew its named call.
-    Withdrawn { owner: Token, call: Box<[u8]> },
+    Withdrawn {
+        owner: Token,
+        call: Box<[u8]>,
+    },
     /// One completed conversation turn from the agent.
-    Turn { owner: Token, turn: Turn },
+    Turn {
+        owner: Token,
+        turn: Turn,
+    },
+    Part {
+        owner: Token,
+        part: jig_domain_link::Part,
+    },
     /// A piece of live content (domain/hosts/hub.md, 5).
-    Piece { owner: Token, piece: crate::Piece },
+    Piece {
+        owner: Token,
+        piece: crate::Piece,
+    },
     /// Typed agent activity, kept best effort for the engine.
-    Activity { owner: Token, activity: crate::AgentActivity },
+    Activity {
+        owner: Token,
+        activity: crate::AgentActivity,
+    },
     /// The provider rejected the account's credential of `generation`.
-    Unauthorized { owner: Token, account: u32, generation: u64 },
+    Unauthorized {
+        owner: Token,
+        account: u32,
+        generation: u64,
+    },
     /// A program's usage window, naming the source by its grant's number.
-    Usage { owner: Token, account: u32, window: jig_domain_link::UsageWindow },
+    Usage {
+        owner: Token,
+        account: u32,
+        window: jig_domain_link::UsageWindow,
+    },
     /// The account reached its provider limit; `reset`, when the provider
     /// gave one, is how long until it lifts.
-    Limited { owner: Token, account: u32, reset: Option<Duration> },
+    Limited {
+        owner: Token,
+        account: u32,
+        reset: Option<Duration>,
+    },
     /// The provider refused the account, with its code and reason.
-    AccountRefused { owner: Token, account: u32, code: Box<[u8]>, reason: Box<[u8]> },
+    AccountRefused {
+        owner: Token,
+        account: u32,
+        code: Box<[u8]>,
+        reason: Box<[u8]>,
+    },
     /// Last word, with cumulative accounting.
-    Finished { owner: Token, turns: u32, spent: u64, read: Option<Token>, finish: Finish },
+    Finished {
+        owner: Token,
+        turns: u32,
+        spent: u64,
+        read: Option<Token>,
+        finish: Finish,
+    },
     /// Routing decoded the start's charter (domain/hosts/hub.md, 8).
-    Decoded { owner: Token, contract: u16 },
+    Decoded {
+        owner: Token,
+        contract: u16,
+    },
     /// The agent started, and `agent` names it from now on.
-    Started { owner: Token, agent: Token },
+    Started {
+        owner: Token,
+        agent: Token,
+    },
     /// The agent refused its start, before any run began.
-    StartRefused { cause: StartCause, owner: Token, why: Box<[u8]> },
+    StartRefused {
+        cause: StartCause,
+        owner: Token,
+        why: Box<[u8]>,
+    },
     /// The agent had no room for the run's start, before any run began.
-    StartBusy { owner: Token },
+    StartBusy {
+        owner: Token,
+    },
     /// The start carries a wire version the worker cannot read.
-    StartVersion { owner: Token, mismatch: Mismatch },
+    StartVersion {
+        owner: Token,
+        mismatch: Mismatch,
+    },
     /// The agent could not take an inbound event for the run.
-    Refused { owner: Token, name: Token, reason: MessageRefusal },
+    Refused {
+        owner: Token,
+        name: Token,
+        reason: MessageRefusal,
+    },
     /// The run waits for its next inbound event.
-    Yielded { owner: Token },
+    Yielded {
+        owner: Token,
+    },
     /// The agent capability is stopping the agent for `fault`.
-    Faulted { owner: Token, fault: AgentFailure },
+    Faulted {
+        owner: Token,
+        fault: AgentFailure,
+    },
     /// Terminal for `Start`: the agent and everything it started are gone.
     /// `detail` is for operators, such as the tail of its error output.
-    Gone { owner: Token, detail: Box<[u8]> },
+    Gone {
+        owner: Token,
+        detail: Box<[u8]>,
+    },
 }
 
 /// The agent's complete start (domain/hosts/README.md, sections 2 and 7).
@@ -325,6 +400,8 @@ pub struct Assignment {
     pub turns: Box<[Box<[u8]>]>,
     /// Calls settled after the last committed turn, in commit order.
     pub answered: Box<[AnsweredCall]>,
+    pub parts: Box<[jig_domain_link::KeptPart]>,
+    pub tell_parts: bool,
 }
 
 /// A call committed after the last turn, to tell the next activation.
@@ -679,6 +756,7 @@ impl Event {
                 crate::LinkDown::Asked { .. }
                 | crate::LinkDown::Relayed { .. }
                 | crate::LinkDown::TurnKept { .. }
+                | crate::LinkDown::PartKept { .. }
                 | crate::LinkDown::Acknowledge { .. }
                 | crate::LinkDown::Pause { .. }
                 | crate::LinkDown::Cancel { .. }
@@ -709,6 +787,7 @@ impl FromAgent {
             FromAgent::Called { .. } => true,
             FromAgent::Withdrawn { .. }
             | FromAgent::Turn { .. }
+            | FromAgent::Part { .. }
             | FromAgent::Piece { .. }
             | FromAgent::Activity { .. }
             | FromAgent::Unauthorized { .. }

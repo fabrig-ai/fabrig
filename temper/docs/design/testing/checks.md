@@ -501,3 +501,88 @@ one complete accepted revision, with refusal and decided-call replay cases (4).
 - **Walked,** never in the gate: a pass of QA, run again whenever the
   agent's instructions, the documentation in the binary or a reference
   milestone's settings change (`../draft/configuring.md`, 8.1).
+
+## 6. Checks every world holds
+
+Written from `../draft/failure-worlds.md`, sections 3, 5 and 6. Each
+check is a referee expectation, which observes only what the fakes saw,
+the facts the engine and the worker emit and the durable records
+(`README.md`, 4.2); a harness invariant, which reads a component's frozen
+state through its inspection adapter (skein's `testing/inspection.md`);
+or a settings test, outside every world. Each returns its finding, naming
+the object, the moment and the seed.
+
+### 6.1 The inspection adapters
+
+Each is a kit of its component's tree, of skein's form (skein's
+`testing/inspection.md`, 2): one function from a borrow of the component
+to the records of section 3 there, over the component's `pub` reads, each
+private table gaining a `pub` read documented as its adapter's. Every
+adapter names a waiter `task N`, by its task's number, so that a
+landing's or a change's wait and a task's resolve across inspections.
+
+- **The engine's,** `temper/testing/temper-engine-inspect`:
+  `temper_engine_inspect::inspect(root: &temper_engine_domain::Domain,
+  into: &mut Inspection)`, component `engine`.
+  - **Waits:** each live landing in its named wait
+    (`../domain/landing-waits.md`, 2), and each change in its
+    procedure's wait, each kind in its design's words, with the bound
+    its design gives.
+  - **Tables,** as the draft's 3.2 names them: forge write entries;
+    forge read admissions; branch holds and landing rows with their asks.
+  - **The tasks the root holds** are jig's adapter's
+    (`jig/docs/design/domain/testing.md`, 7), over `Domain::tasks()`:
+    an engine world runs both, and checks the two inspections together.
+  - **Called** at the direct driver's fence once it has drained its
+    immediate work (`temper/tests/engine/domain/src/direct.rs`), at the
+    forge world's and the walking world's quiet points, and at the
+    system world's.
+- **The worker's,** `temper/testing/temper-worker-inspect`:
+  `temper_worker_inspect::inspect(domain: &temper_worker_domain::Domain,
+  limits: &temper_worker_domain::Limits, disk:
+  &skein_fake_checkout::Checkout, into: &mut Inspection)`, component
+  `worker`: the domain's workspaces and the world's fake disk, the limits
+  the world steps it with giving the tables' capacities,
+  with a function for each part a world holds alone, the checkout child,
+  the fake disk and the git component's trash (`worker.md`, 2).
+  - **Waits:** a prepare queued for a permit or waiting for another's
+    store, and an operation in flight, a workspace's fetch among them. A
+    check waiting for a build place is the domain world's fake builder's,
+    inspected beside the worker, since build places are the deployment's
+    (`../domain/worker/README.md`, 5).
+  - **Tables:** workspaces and per-run scratch, released by the run's end
+    or the workspace's release; prepare permits; the Git stores' packs,
+    released by the packing their own counts trigger; git's locks; run
+    slots; and trash, released by the sweep. Build places are the fake
+    builder's table.
+  - **Called** where the checkout world checks its bounds each
+    iteration, before its domain reclaims
+    (`temper/tests/worker/checkout/src/world.rs`), at the worker
+    domain world's quiet point, and in the git protocol world after each
+    operation (`worker.md`, 4).
+- **smith's and jig's** are their trees' (`smith/docs/design/testing.md`,
+  6; `jig/docs/design/domain/testing.md`, 7); the system world calls
+  each beside the engine's and the worker's.
+
+### 6.2 Faults, streams and sweeps
+
+- **The fault ledger** (skein's `testing/sweeps.md`, 3): a world that
+  injects faults keeps one per run. The world records its own (a party's
+  action, a restart, a worker drained or killed, a store's fault) as it
+  injects them, and copies the fake forge's and fake LLM's from each
+  fake's own report of what fell. Its identities: the fake LLM's account,
+  the fake forge's runner and gate run, the candidate's and base's
+  commits, and the request.
+- **The failure table** of the draft's 3.3, each failure class's
+  expected transition on each counter, is held by temper's 3.3 check,
+  beside the gates' and the runs' blame.
+- **Streams** (skein's `testing/sweeps.md`, 2): a world that sweeps
+  seeds its workload (goals, items, trees and scripts) from `Workload`;
+  each injector from its own part of `Faults` (`forge`, `llm`, `worker`,
+  `store`, `restarts`); each party from its own part of `Parties`; and
+  its simulated world, latencies and delivery order from `Scheduling`.
+- **Sweeps and exclusions** (skein's `testing/sweeps.md`, 4 and 5): each
+  sweep configures the faults it draws, and its only exclusions name the
+  ignored scenarios of the draft's section 7. A condition an exclusion
+  names is read through the adapters of 6.1, or from the world's own
+  state, at the moment the fault would be injected.

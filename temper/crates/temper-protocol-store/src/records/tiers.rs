@@ -1,12 +1,12 @@
 //! Family 28's bounded policy record (temper/docs/design/protocol/store.md, 2).
-use super::{FITS, answers, landing, names, verification, w};
+use super::{FITS, landing, names, verification, w};
 use crate::Undecodable;
 use alloc::boxed::Box;
 use skein_lib::List;
 use skein_lib::Time;
 use temper_engine_domain_forge_tiers as p;
 use temper_engine_domain_forge_vocabulary as d;
-mod post;
+pub(super) mod post;
 
 pub(super) fn encode_tests(tests: &[Box<[u8]>]) -> List<w::FailingTest> {
     let mut values = List::with_capacity(u32::try_from(tests.len()).expect(FITS));
@@ -63,22 +63,27 @@ fn decode_shown(tests: List<w::ShownTest>) -> Result<Box<[Box<[u8]>]>, Undecodab
 fn encode_landings(landings: &[p::Landing]) -> List<w::TierLanding> {
     let mut values = List::with_capacity(u32::try_from(landings.len()).expect(FITS));
     for landing in landings {
-        values.push(w::TierLanding { commit: landing.commit, key: landing.key }).expect(FITS);
+        values
+            .push(crate::generated::store::tier_landing_to_record(landing, &super::Context::UNBOUNDED).expect(FITS))
+            .expect(FITS);
     }
     values
 }
 fn decode_landings(landings: List<w::TierLanding>) -> Box<[p::Landing]> {
     let mut values = List::with_capacity(landings.len());
     for landing in landings.into_boxed() {
-        let w::TierLanding { commit, key } = landing;
-        values.push(p::Landing { commit, key }).expect(FITS);
+        values
+            .push(crate::generated::store::tier_landing_to_domain(landing, &super::Context::UNBOUNDED).expect(FITS))
+            .expect(FITS);
     }
     values.into_boxed()
 }
 fn encode_finding(finding: &p::Finding) -> w::TierFinding {
     let mut blamed = List::with_capacity(u32::try_from(finding.blamed.len()).expect(FITS));
     for blame in &finding.blamed {
-        blamed.push(verification::encode_blame(blame)).expect(FITS);
+        blamed
+            .push(crate::generated::store::blame_to_record(blame, &super::Context::UNBOUNDED).expect(FITS))
+            .expect(FITS);
     }
     w::TierFinding {
         failing: verification::encode_failures(&finding.failing),
@@ -90,7 +95,12 @@ fn decode_finding(finding: w::TierFinding) -> Result<p::Finding, Undecodable> {
     let w::TierFinding { failing, flakes, blamed } = finding;
     let mut values = List::with_capacity(blamed.len());
     for blame in blamed.into_boxed() {
-        values.push(verification::decode_blame(blame)?).expect(FITS);
+        values
+            .push(
+                crate::generated::store::blame_to_domain(blame, &super::Context::UNBOUNDED)
+                    .or(Err(Undecodable::Malformed))?,
+            )
+            .expect(FITS);
     }
     Ok(p::Finding {
         failing: verification::decode_failures(failing)?,
@@ -113,11 +123,9 @@ fn decode_selection(tests: w::TierSelection) -> Result<p::Selection, Undecodable
 fn encode_groups(groups: &[p::Group]) -> List<w::TierGroup> {
     let mut values = List::with_capacity(u32::try_from(groups.len()).expect(FITS));
     for group in groups {
-        let mut tests = List::with_capacity(u32::try_from(group.tests.len()).expect(FITS));
-        for place in &group.tests {
-            tests.push(*place).expect(FITS);
-        }
-        values.push(w::TierGroup { low: group.low, high: group.high, tests }).expect(FITS);
+        values
+            .push(crate::generated::store::tier_group_to_record(group, &super::Context::UNBOUNDED).expect(FITS))
+            .expect(FITS);
     }
     values
 }
@@ -144,7 +152,15 @@ fn decode_groups(
             }
             previous = Some(*place);
         }
-        values.push(p::Group { low, high, tests: tests.into_boxed() }).expect(FITS);
+        values
+            .push(
+                crate::generated::store::tier_group_to_domain(
+                    w::TierGroup { low, high, tests },
+                    &super::Context::UNBOUNDED,
+                )
+                .expect(FITS),
+            )
+            .expect(FITS);
     }
     Ok(values.into_boxed())
 }
@@ -221,11 +237,7 @@ pub(super) fn encode(row: &d::TierRow) -> w::TierRow {
             Some(tip) => Some(encode_tip(tip)),
             None => None,
         },
-        branch: match row.branch {
-            d::TierBranch::Absent => w::TierBranch::Absent,
-            d::TierBranch::Made => w::TierBranch::Made,
-            d::TierBranch::Pending { entry } => w::TierBranch::Pending(w::TierBranchEntry { entry }),
-        },
+        branch: encode_branch(row.branch),
         probe: match &row.probe {
             Some(probe) => Some(w::TierProbeBranch { landing: probe.landing, branch: encode_branch(probe.branch) }),
             None => None,
@@ -235,13 +247,16 @@ pub(super) fn encode(row: &d::TierRow) -> w::TierRow {
             None => None,
         },
         hold: match &row.hold {
-            Some(hold) => Some(w::TierHold { party: hold.party, at: hold.at.as_nanos(), reason: hold.reason.clone() }),
+            Some(hold) => {
+                Some(crate::generated::store::tier_hold_to_record(hold, &super::Context::UNBOUNDED).expect(FITS))
+            }
             None => None,
         },
         held: match row.held {
-            Some(fault) => Some(encode_fault(fault)),
-            None => None,
+            Some(d::TierHeld::Faults(fault)) => Some(encode_fault(fault)),
+            Some(d::TierHeld::RunnerWait) | None => None,
         },
+        runner_wait: row.held == Some(d::TierHeld::RunnerWait),
         result: match &row.result {
             Some(receipt) => Some(landing::encode_receipt_value(receipt)),
             None => None,
@@ -278,6 +293,7 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
         flight,
         probe,
         held,
+        runner_wait,
         hold,
         result,
         received,
@@ -318,11 +334,7 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
             Some(tip) => Some(decode_tip(tip)),
             None => None,
         },
-        branch: match branch {
-            w::TierBranch::Absent => d::TierBranch::Absent,
-            w::TierBranch::Made => d::TierBranch::Made,
-            w::TierBranch::Pending(entry) => d::TierBranch::Pending { entry: entry.entry },
-        },
+        branch: decode_branch(branch),
         probe: decode_probe(probe, run)?,
         flight: match flight {
             Some(flight) => Some(decode_flight(flight)),
@@ -330,14 +342,17 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
         },
         hold: match hold {
             Some(hold) => {
-                let w::TierHold { party, at, reason } = hold;
-                Some(d::TierHold { party, at: skein_lib::Wall::from_nanos(at), reason })
+                Some(crate::generated::store::tier_hold_to_domain(hold, &super::Context::UNBOUNDED).expect(FITS))
             }
             None => None,
         },
-        held: match held {
-            Some(fault) => Some(decode_fault(fault)),
-            None => None,
+        held: if runner_wait {
+            Some(d::TierHeld::RunnerWait)
+        } else {
+            match held {
+                Some(fault) => Some(d::TierHeld::Faults(decode_fault(fault))),
+                None => None,
+            }
         },
         result: match result {
             Some(receipt) => Some(landing::decode_receipt_value(receipt)?),
@@ -369,11 +384,11 @@ fn decode_many(many: Option<w::ManyTests>) -> Result<Option<p::ManyTests>, Undec
 }
 
 fn encode_tip(tip: d::TierLanding) -> w::TierPending {
-    w::TierPending { commit: tip.commit, key: tip.key }
+    crate::generated::store::tier_pending_to_record(&tip, &super::Context::UNBOUNDED).expect(FITS)
 }
 fn decode_tip(tip: w::TierPending) -> d::TierLanding {
-    let w::TierPending { commit, key } = tip;
-    d::TierLanding { commit, key }
+    crate::generated::store::tier_pending_to_domain(tip, &super::Context::UNBOUNDED)
+        .expect("infallible store translation")
 }
 fn encode_pending(tips: &[d::TierLanding]) -> List<w::TierPending> {
     let mut values = List::with_capacity(u32::try_from(tips.len()).expect(FITS));
@@ -390,113 +405,26 @@ fn decode_pending(tips: List<w::TierPending>) -> Box<[d::TierLanding]> {
     values.into_boxed()
 }
 fn encode_fault(fault: temper_engine_domain_forge_landing::Fault) -> w::TierFault {
-    use temper_engine_domain_forge_landing::Fault;
-    match fault {
-        Fault::SetUp => w::TierFault::Setup,
-        Fault::Completion => w::TierFault::Completion,
-        Fault::NoStep => w::TierFault::NoStep,
-        Fault::Cancelled => w::TierFault::Cancelled,
-        Fault::OtherCommit => w::TierFault::OtherCommit,
-        Fault::Lost => w::TierFault::Lost,
-        Fault::MissingWorkflow => w::TierFault::MissingWorkflow,
-        Fault::Unreported => w::TierFault::Unreported,
-    }
+    crate::generated::store::tier_fault_to_record(&fault, &super::Context::UNBOUNDED).expect(FITS)
 }
 fn decode_fault(fault: w::TierFault) -> temper_engine_domain_forge_landing::Fault {
-    use temper_engine_domain_forge_landing::Fault;
-    match fault {
-        w::TierFault::Setup => Fault::SetUp,
-        w::TierFault::Completion => Fault::Completion,
-        w::TierFault::NoStep => Fault::NoStep,
-        w::TierFault::Cancelled => Fault::Cancelled,
-        w::TierFault::OtherCommit => Fault::OtherCommit,
-        w::TierFault::Lost => Fault::Lost,
-        w::TierFault::MissingWorkflow => Fault::MissingWorkflow,
-        w::TierFault::Unreported => Fault::Unreported,
-    }
+    crate::generated::store::tier_fault_to_domain(fault, &super::Context::UNBOUNDED)
+        .expect("infallible store translation")
 }
 pub(super) fn encode_flight(flight: &d::TierFlight) -> w::TierFlight {
-    let mut pending = List::with_capacity(u32::try_from(flight.pending.len()).expect(FITS));
-    for attempt in &flight.pending {
-        pending.push(answers::encode_job_attempt(attempt)).expect(FITS);
-    }
-    w::TierFlight {
-        entry: flight.entry,
-        start: match flight.start {
-            Some(at) => Some(at.as_nanos()),
-            None => None,
-        },
-        since: match flight.since {
-            Some(at) => Some(at.as_nanos()),
-            None => None,
-        },
-        waiting: flight.waiting,
-        next: match flight.next {
-            Some(at) => Some(at.as_nanos()),
-            None => None,
-        },
-        report: match &flight.report {
-            Some(run) => Some(w::ReceiptRun { id: run.id, number: run.number, url: run.url.clone() }),
-            None => None,
-        },
-        run: flight.run,
-        pending,
-        fault: match flight.fault {
-            Some(fault) => Some(encode_fault(fault)),
-            None => None,
-        },
-    }
+    crate::generated::store::tier_flight_to_record(flight, &super::Context::UNBOUNDED).expect(FITS)
 }
 pub(super) fn decode_flight(flight: w::TierFlight) -> d::TierFlight {
-    let w::TierFlight { entry, start, since, waiting, next, run, pending, fault, report } = flight;
-    let mut attempts = List::with_capacity(pending.len());
-    for attempt in pending.into_boxed() {
-        attempts.push(answers::decode_job_attempt(attempt)).expect(FITS);
-    }
-    d::TierFlight {
-        entry,
-        start: match start {
-            Some(at) => Some(Time::from_nanos(at)),
-            None => None,
-        },
-        since: match since {
-            Some(at) => Some(Time::from_nanos(at)),
-            None => None,
-        },
-        waiting,
-        next: match next {
-            Some(at) => Some(Time::from_nanos(at)),
-            None => None,
-        },
-        report: match report {
-            Some(run) => {
-                let w::ReceiptRun { id, number, url } = run;
-                Some(d::ReceiptRun { id, number, url })
-            }
-            None => None,
-        },
-        run,
-        pending: attempts.into_boxed(),
-        fault: match fault {
-            Some(fault) => Some(decode_fault(fault)),
-            None => None,
-        },
-    }
+    crate::generated::store::tier_flight_to_domain(flight, &super::Context::UNBOUNDED)
+        .expect("infallible store translation")
 }
 
 fn encode_branch(branch: d::TierBranch) -> w::TierBranch {
-    match branch {
-        d::TierBranch::Absent => w::TierBranch::Absent,
-        d::TierBranch::Made => w::TierBranch::Made,
-        d::TierBranch::Pending { entry } => w::TierBranch::Pending(w::TierBranchEntry { entry }),
-    }
+    crate::generated::store::tier_branch_to_record(&branch, &super::Context::UNBOUNDED).expect(FITS)
 }
 fn decode_branch(branch: w::TierBranch) -> d::TierBranch {
-    match branch {
-        w::TierBranch::Absent => d::TierBranch::Absent,
-        w::TierBranch::Made => d::TierBranch::Made,
-        w::TierBranch::Pending(entry) => d::TierBranch::Pending { entry: entry.entry },
-    }
+    crate::generated::store::tier_branch_to_domain(branch, &super::Context::UNBOUNDED)
+        .expect("infallible store translation")
 }
 
 fn decode_probe(
@@ -520,10 +448,12 @@ fn decode_probe(
 fn encode_record(record: &p::Record) -> w::TierRecord {
     let mut flakes = List::with_capacity(u32::try_from(record.flakes.len()).expect(FITS));
     for flake in &record.flakes {
-        flakes.push(w::TierFlake { test: flake.test.clone(), count: flake.count }).expect(FITS);
+        flakes
+            .push(crate::generated::store::tier_flake_to_record(flake, &super::Context::UNBOUNDED).expect(FITS))
+            .expect(FITS);
     }
     let judged = match record.judged {
-        Some(j) => Some(w::TierJudged { tip: j.tip, key: j.key }),
+        Some(j) => Some(crate::generated::store::tier_judged_to_record(&j, &super::Context::UNBOUNDED).expect(FITS)),
         None => None,
     };
     let run = match &record.run {
@@ -532,6 +462,7 @@ fn encode_record(record: &p::Record) -> w::TierRecord {
     };
     w::TierRecord {
         sequence: record.sequence,
+        last_run: record.last_run,
         judged,
         failing: verification::encode_failures(&record.failing),
         flakes,
@@ -540,12 +471,9 @@ fn encode_record(record: &p::Record) -> w::TierRecord {
 }
 
 fn decode_record(record: w::TierRecord) -> Result<p::Record, Undecodable> {
-    let w::TierRecord { sequence, judged, failing, flakes, run } = record;
+    let w::TierRecord { sequence, judged, failing, flakes, run, last_run } = record;
     let judged = match judged {
-        Some(j) => {
-            let w::TierJudged { tip, key } = j;
-            Some(p::Judged { tip, key })
-        }
+        Some(j) => Some(crate::generated::store::tier_judged_to_domain(j, &super::Context::UNBOUNDED).expect(FITS)),
         None => None,
     };
     let run = match run {
@@ -561,10 +489,16 @@ fn decode_record(record: w::TierRecord) -> Result<p::Record, Undecodable> {
                 return Err(Undecodable::Malformed);
             }
         }
-        values.push(p::Flake { test, count }).expect(FITS);
+        values
+            .push(
+                crate::generated::store::tier_flake_to_domain(w::TierFlake { test, count }, &super::Context::UNBOUNDED)
+                    .expect(FITS),
+            )
+            .expect(FITS);
     }
     Ok(p::Record {
         sequence,
+        last_run,
         judged,
         failing: verification::decode_failures(failing)?,
         flakes: values.into_boxed(),
@@ -576,17 +510,7 @@ fn encode_goals(goals: &[d::TierGoal]) -> List<w::TierGoal> {
     let mut values = List::with_capacity(u32::try_from(goals.len()).expect(FITS));
     for goal in goals {
         values
-            .push(w::TierGoal {
-                goal: goal.goal,
-                branch: goal.branch.clone(),
-                tip: goal.tip,
-                ran: goal.ran,
-                failing: verification::encode_failures(&goal.failing),
-                started: match goal.started {
-                    Some(at) => Some(at.as_nanos()),
-                    None => None,
-                },
-            })
+            .push(crate::generated::store::tier_goal_to_record(goal, &super::Context::UNBOUNDED).expect(FITS))
             .expect(FITS);
     }
     values
@@ -594,29 +518,29 @@ fn encode_goals(goals: &[d::TierGoal]) -> List<w::TierGoal> {
 fn decode_goals(goals: List<w::TierGoal>) -> Result<Box<[d::TierGoal]>, Undecodable> {
     let mut values = List::with_capacity(goals.len());
     for goal in goals.into_boxed() {
-        let w::TierGoal { goal, branch, tip, ran, failing, started } = goal;
-        if branch.is_empty() {
+        if goal.branch.is_empty() {
             return Err(Undecodable::Malformed);
         }
         if let Some(previous) = values.as_slice().last() {
             let previous: &d::TierGoal = previous;
-            if previous.goal >= goal {
+            if previous.goal >= goal.goal {
                 return Err(Undecodable::Malformed);
             }
         }
         values
-            .push(d::TierGoal {
-                goal,
-                branch,
-                tip,
-                ran,
-                failing: verification::decode_failures(failing)?,
-                started: match started {
-                    Some(at) => Some(Time::from_nanos(at)),
-                    None => None,
-                },
-            })
+            .push(
+                crate::generated::store::tier_goal_to_domain(goal, &super::Context::UNBOUNDED)
+                    .or(Err(Undecodable::Malformed))?,
+            )
             .expect(FITS);
     }
     Ok(values.into_boxed())
+}
+
+pub fn failures_to_record(value: &p::Failures, _context: &super::Context) -> Result<w::Failures, w::Problem> {
+    Ok(verification::encode_failures(value))
+}
+
+pub fn failures_to_domain(value: w::Failures, _context: &super::Context) -> Result<p::Failures, w::Problem> {
+    verification::decode_failures(value).or(Err(w::paths::FAILURES_TAG.problem(skein_codec::Reason::Malformed)))
 }

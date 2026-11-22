@@ -80,6 +80,27 @@ fn parts_follow_release_order_and_hold_one_exchange_through_done() {
     assert_eq!(world.component.active(f::NUMBER), 0);
 }
 #[test]
+fn a_batch_me_read_reports_the_batch_sign_ins_saved_expiry() {
+    let mut world = f::read_exchange();
+    let expires = skein_lib::Wall::from_nanos(1_800_000_000_000_000_001);
+    let owner = world.send(Message::Batch(encoded(&[w::Member::Read(read())])));
+    world.authenticate_until(expires);
+    let reply = take_read(&mut world);
+    world.release_read(
+        reply,
+        core::reads::Answer::Document(Box::new(core::documents::Document::Frame(f::frame_two_projects()))),
+    );
+    let w::ReadAnswer::Value(value) = read_answer(part(&mut world, owner, 0)) else { panic!("me read") };
+    let w::ReadValue::Me(me) =
+        w::ReadValue::decode(&world.env.limits.wire, &mut Reader::new(&value.record)).expect("read value")
+    else {
+        panic!("me")
+    };
+    assert_eq!(me.sign_in_expires, expires.as_nanos());
+    done(&mut world, owner);
+}
+
+#[test]
 fn reads_alone_and_in_batches_share_the_sign_ins_read_room() {
     let mut world = f::Exchange::new();
     world.env.limits.reads_per_client = 2;

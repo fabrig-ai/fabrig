@@ -103,7 +103,7 @@ pub fn name(path: Path) -> Option<&'static str> {
 }
 
 // Table: postordered shapes, with compiler-known heap slot sizes.
-const TABLE: &[skein_codec::bounds::Node] = &[
+static TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Bytes { limit: 0 },
     skein_codec::bounds::Node::Bytes { limit: 1 },
     skein_codec::bounds::Node::Bytes { limit: 2 },
@@ -117,7 +117,7 @@ const DECLARATIONS: &[u32] = &[
     6,
 ];
 
-const CEILING_VALUES: &[u32] = &[
+static CEILING_VALUES: &[u32] = &[
     64,
     2_048,
     255,
@@ -148,6 +148,11 @@ pub struct Moved {
 }
 
 // Record: Moved.
+impl Moved {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 26;
+}
+
 impl Record for Moved {
     type Limits = Limits;
     const TAIL: Path = paths::MOVED_TAIL;

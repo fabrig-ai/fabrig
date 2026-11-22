@@ -1,7 +1,7 @@
 //! Nested bytes before outer records on send; outer before nested on receipt
 //! (jig/docs/design/protocol/channel/bridges.md, 5, 6 and 8).
-use crate::v21::Record;
-use crate::{Agreed, Application, Carried, Kept, Root, v21 as wire};
+use crate::v22::Record;
+use crate::{Agreed, Application, Carried, Kept, Root, v22 as wire};
 use alloc::boxed::Box;
 use skein_channel::{Frame, frame_writer};
 use skein_codec::{
@@ -155,7 +155,7 @@ impl Translation {
         for tag in 0..count {
             let variant = current.variant(VariantIx::new(first.index().checked_add(tag).expect("bounded variants")));
             let name = current.spelled(variant.name);
-            if name == b"paused" {
+            if name == b"paused" || name == b"part" {
                 continue;
             }
             let mut present = false;
@@ -167,7 +167,7 @@ impl Translation {
                 }
             }
             let record = current.declaration(variant.record.expect("each kind holds a record"));
-            let total = if name == b"hello" {
+            let total = if name == b"hello" && version < 21 {
                 self.before_fresh.total(version, current.spelled(record.name))
             } else {
                 self.jig.total(version, current.spelled(record.name))
@@ -210,7 +210,9 @@ impl Translation {
         }
         // A kept window's turns carry their own versions, even on a current link.
         !(self.transcript.first() < self.transcript.current()
-            && (kind == crate::Kind::Turn.number() || kind == crate::Kind::Assignment.number()))
+            && (kind == crate::Kind::Turn.number()
+                || kind == crate::Kind::Part.number()
+                || kind == crate::Kind::Assignment.number()))
     }
 
     fn application_total(&mut self, wire: &Agreed) -> bool {
@@ -334,7 +336,7 @@ impl Translation {
         let mut reader = Reader::new(&value);
         if root == b"FromEngine" {
             let record = wire::FromEngine::decode(limits, &mut reader).or(Err(order()))?;
-            let record = self.engine(record, agreed, down)?;
+            let record = self.engine(record, agreed, down, limits)?;
             record.encode(limits).or(Err(order()))
         } else {
             let record = wire::FromWorker::decode(limits, &mut reader).or(Err(order()))?;
@@ -592,11 +594,13 @@ impl Translation {
         record: wire::Assignment,
         agreed: &[Agreed],
         down: bool,
+        limits: &wire::Limits,
     ) -> Result<wire::Assignment, Untranslated> {
         let workspace = self.workspace(record.workspace, agreed, down)?;
         let charter = self.smith(true, b"Charter", record.charter, agreed, down, false)?;
         let transcript = self.window(record.transcript, agreed, down)?;
         let grants = self.grants(record.grants, agreed, down)?;
+        let parts = self.parts(record.parts, agreed, down, limits)?;
         Ok(wire::Assignment {
             task: record.task,
             attempt: record.attempt,
@@ -609,7 +613,30 @@ impl Translation {
             answered: record.answered,
             messages: record.messages,
             grants,
+            parts,
         })
+    }
+    fn parts(
+        &mut self,
+        bytes: Box<[u8]>,
+        agreed: &[Agreed],
+        down: bool,
+        limits: &wire::Limits,
+    ) -> Result<Box<[u8]>, Untranslated> {
+        if down && version_of(agreed, crate::wire::FAMILY.as_bytes()).unwrap_or(crate::VERSION) < 22 {
+            return Ok(Box::new([]));
+        }
+        let parts = crate::parts::decode(&bytes, limits).or(Err(order()))?;
+        let mut translated = List::with_capacity(parts.len());
+        for mut part in parts.into_boxed() {
+            part.body = match self.smith(false, b"Turn", part.body, agreed, down, true) {
+                Ok(body) => body,
+                Err(_) if down => continue,
+                Err(error) => return Err(error),
+            };
+            translated.push(part).expect("translated parts do not grow");
+        }
+        crate::parts::encode(translated.as_slice(), limits).or(Err(order()))
     }
     fn job(&mut self, record: wire::Job, agreed: &[Agreed], down: bool) -> Result<wire::Job, Untranslated> {
         let workspace = self.workspace(record.workspace, agreed, down)?;
@@ -753,6 +780,7 @@ impl Translation {
         record: wire::FromEngine,
         agreed: &[Agreed],
         down: bool,
+        limits: &wire::Limits,
     ) -> Result<wire::FromEngine, Untranslated> {
         Ok(match record {
             wire::FromEngine::Asked(record) => {
@@ -767,7 +795,7 @@ impl Translation {
                 wire::FromEngine::Asked(record)
             }
             wire::FromEngine::Assignment(record) => {
-                wire::FromEngine::Assignment(self.assignment(record, agreed, down)?)
+                wire::FromEngine::Assignment(self.assignment(record, agreed, down, limits)?)
             }
             wire::FromEngine::Job(record) => wire::FromEngine::Job(self.job(record, agreed, down)?),
             wire::FromEngine::Grant(record) => wire::FromEngine::Grant(self.granted(record, agreed, down)?),
@@ -776,6 +804,8 @@ impl Translation {
             | wire::FromEngine::Relayed(_)
             | wire::FromEngine::TurnKept(_)
             | wire::FromEngine::TurnBusy(_)
+            | wire::FromEngine::PartKept(_)
+            | wire::FromEngine::PartBusy(_)
             | wire::FromEngine::Acknowledge(_)
             | wire::FromEngine::Cancel(_)
             | wire::FromEngine::Sources(_)
@@ -799,6 +829,11 @@ impl Translation {
                 let mut record = record;
                 record.bytes = self.carried(Carried::Ask, record.bytes, agreed, down)?;
                 wire::FromWorker::Ask(record)
+            }
+            wire::FromWorker::Part(record) => {
+                let mut record = record;
+                record.body = self.smith(false, b"Turn", record.body, agreed, down, false)?;
+                wire::FromWorker::Part(record)
             }
             wire::FromWorker::Turn(record) => wire::FromWorker::Turn(self.turn(record, agreed, down)?),
             wire::FromWorker::Answer(record) => wire::FromWorker::Answer(self.answer(record, agreed, down)?),

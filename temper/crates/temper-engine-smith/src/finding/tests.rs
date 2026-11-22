@@ -5,6 +5,119 @@ use skein_lib::Wall;
 use temper_engine_domain_forge as f;
 
 #[test]
+#[expect(clippy::disallowed_types, reason = "ordinary Rust text fixtures at byte bounds")]
+fn repair_checks_distinct_u32_numbers_and_words_at_their_byte_bounds() {
+    for (numbers, expected) in [
+        ("[]", Problem::Range(b"numbers: 1 to 16 distinct finding numbers")),
+        ("[3,3]", Problem::Range(b"numbers: 1 to 16 distinct finding numbers")),
+        ("[0]", Problem::Range(b"numbers: 1 to 16 distinct finding numbers")),
+        ("[4294967296]", Problem::Range(b"numbers")),
+        ("[-1]", Problem::Range(b"numbers")),
+        ("[1.5]", Problem::Range(b"numbers")),
+        ("[true]", Problem::Type(b"numbers")),
+        ("[\"3\"]", Problem::Type(b"numbers")),
+        ("false", Problem::Type(b"numbers")),
+        ("[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17]", Problem::Range(b"numbers: 1 to 16 distinct finding numbers")),
+    ] {
+        let input = format!(r#"{{"act":"repair","numbers":{numbers},"words":"fix"}}"#);
+        assert_eq!(decided(b"finding", input.as_bytes()), Err(expected), "{input}");
+    }
+    for numbers in ["[3]", "[3,5]", "[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,4294967295]"] {
+        for (words, fits) in [
+            (String::new(), false),
+            ("x".into(), true),
+            ("é".repeat(2048), true),
+            (format!("{}x", "é".repeat(2048)), false),
+        ] {
+            let input = format!(r#"{{"act":"repair","numbers":{numbers},"words":"{words}"}}"#);
+            let decoded = decided(b"finding", input.as_bytes());
+            if fits {
+                let engine::Tool::Finding(Call::Triage { act: f::Triage::Repair(act), .. }) = decoded.unwrap().tool
+                else {
+                    panic!("repair triage")
+                };
+                assert_eq!(act.words.as_ref(), words.as_bytes());
+            } else {
+                assert_eq!(decoded, Err(Problem::Range(b"words: 1 to 4,096 UTF-8 bytes")));
+            }
+        }
+    }
+    let schema = crate::json::parse(crate::finding::SPEC.schema).unwrap();
+    let numbers = schema.required(b"properties").unwrap().required(b"numbers").unwrap();
+    assert_eq!(numbers.required(b"minItems").unwrap().number(b"minItems"), Ok(1));
+    assert_eq!(numbers.required(b"maxItems").unwrap().number(b"maxItems"), Ok(16));
+}
+
+#[test]
+#[expect(clippy::disallowed_types, reason = "ordinary Rust text fixtures at byte bounds")]
+fn blame_decodes_full_commits_or_none_and_checks_why_like_hand() {
+    for digits in [40, 64] {
+        let commit = "ab".repeat(digits / 2);
+        let input = format!(r#"{{"act":"blame","number":3,"commit":"{commit}","why":"reassigned"}}"#);
+        let expected = crate::forge::commit(&crate::json::Value::String(commit.as_bytes().into()), b"commit").unwrap();
+        assert_eq!(
+            decided(b"finding", input.as_bytes()).unwrap().tool,
+            engine::Tool::Finding(Call::Triage {
+                number: 3,
+                act: f::Triage::Blame(f::BlameAct { landing: Some(expected), why: b"reassigned".as_slice().into() })
+            })
+        );
+    }
+    for commit in ["a".repeat(39), "a".repeat(41), "a".repeat(63), "a".repeat(65), "z".repeat(40)] {
+        let input = format!(r#"{{"act":"blame","number":3,"commit":"{commit}","why":"reassigned"}}"#);
+        assert_eq!(
+            decided(b"finding", input.as_bytes()),
+            Err(Problem::Range(b"commit: 40 or 64 lowercase hex digits"))
+        );
+    }
+    for act in ["hand", "blame"] {
+        for why in [String::new(), "x".repeat(201), r"line\nline".into(), r"tab\tline".into()] {
+            let area = if act == "hand" { r#", "area":"tests""# } else { "" };
+            let input = format!(r#"{{"act":"{act}","number":3{area},"why":"{why}"}}"#);
+            assert_eq!(
+                decided(b"finding", input.as_bytes()),
+                Err(Problem::Range(b"why: one line of 1 to 200 UTF-8 bytes, no control characters"))
+            );
+        }
+        let area = if act == "hand" { r#", "area":"tests""# } else { "" };
+        let input = format!(r#"{{"act":"{act}","number":3{area},"why":"{}"}}"#, "é".repeat(100));
+        decided(b"finding", input.as_bytes()).expect("why at its byte bound");
+    }
+}
+
+#[test]
+fn repair_and_blame_answers_use_only_the_kept_reply_context() {
+    for (done, more, landing, expected) in [
+        (
+            f::FindingDone::Repaired(40),
+            [5, 7].as_slice().into(),
+            None,
+            "Repair goal 40 made for findings 3/12, 3/5, 3/7.",
+        ),
+        (f::FindingDone::Repaired(40), Box::default(), None, "Repair goal 40 made for findings 3/12."),
+        (
+            f::FindingDone::Blamed,
+            Box::default(),
+            Some([0xab; 32]),
+            "Moved finding 3/12's blame to landing abababababab.",
+        ),
+        (f::FindingDone::Blamed, Box::default(), None, "Moved finding 3/12's blame to no landing."),
+    ] {
+        let answer = engine::CallAnswer::Finding(Box::new(Answer::Write(f::FindingReply {
+            project: 3,
+            number: 12,
+            area: None,
+            result: Ok(done),
+            more,
+            landing,
+        })));
+        let rendered = crate::answer(&answer);
+        assert!(!rendered.error());
+        assert_eq!(rendered.text(), expected.as_bytes());
+    }
+}
+
+#[test]
 fn every_finding_act_decodes_its_minimum_shape_and_names_a_wrong_member() {
     for (input, expected) in [
         (
@@ -26,6 +139,20 @@ fn every_finding_act_decodes_its_minimum_shape_and_names_a_wrong_member() {
         (
             r#"{"act":"drop","number":12,"reason":"duplicate"}"#,
             Call::Triage { number: 12, act: f::Triage::Drop(b"duplicate".as_slice().into()) },
+        ),
+        (
+            r#"{"act":"repair","numbers":[3,5],"words":"fix these"}"#,
+            Call::Triage {
+                number: 3,
+                act: f::Triage::Repair(f::RepairAct { more: Box::new([5]), words: b"fix these".as_slice().into() }),
+            },
+        ),
+        (
+            r#"{"act":"blame","number":3,"why":"no landing"}"#,
+            Call::Triage {
+                number: 3,
+                act: f::Triage::Blame(f::BlameAct { landing: None, why: b"no landing".as_slice().into() }),
+            },
         ),
         (r#"{"act":"list"}"#, Call::List { state: None, mine: false }),
         (r#"{"act":"show","number":12}"#, Call::Show { number: 12 }),
@@ -66,7 +193,7 @@ fn every_finding_act_decodes_its_minimum_shape_and_names_a_wrong_member() {
     }
     let schema = crate::json::parse(crate::finding::SPEC.schema).unwrap();
     let properties = schema.required(b"properties").unwrap();
-    assert_eq!(properties.required(b"act").unwrap().required(b"enum").unwrap().array(b"enum").unwrap().len(), 7);
+    assert_eq!(properties.required(b"act").unwrap().required(b"enum").unwrap().array(b"enum").unwrap().len(), 9);
     for field in [
         b"kind".as_slice(),
         b"severity",
@@ -79,6 +206,9 @@ fn every_finding_act_decodes_its_minimum_shape_and_names_a_wrong_member() {
         b"reason",
         b"state",
         b"mine",
+        b"numbers",
+        b"words",
+        b"commit",
     ] {
         assert!(properties.field(field).unwrap().is_some());
     }
@@ -89,6 +219,8 @@ fn write(result: Result<f::FindingDone, f::FindingRefusal>) -> engine::CallAnswe
         number: 12,
         area: Some(b"tests".as_slice().into()),
         result,
+        more: Box::default(),
+        landing: None,
     })))
 }
 fn row(number: u32) -> f::FindingRow {
@@ -103,6 +235,9 @@ fn row(number: u32) -> f::FindingRow {
         at: Wall::from_nanos(19),
         why: Some(b"flake".as_slice().into()),
         hander: Some(f::Filer::Task(39)),
+        goal: None,
+        reason: None,
+        cleared: None,
     }
 }
 #[test]
@@ -135,11 +270,10 @@ fn finding_answers_use_the_tools_words_and_mark_refusals_as_errors() {
         project: 3,
         number: 12,
         finding: Some(f::FindingAnswer {
-            row: row(12),
+            row: f::FindingRow { goal: Some(99), reason: Some(b"duplicate".as_slice().into()), ..row(12) },
             body: "reproduce é".as_bytes().into(),
             filer: f::Filer::Task(2),
-            goal: Some(99),
-            reason: Some(b"duplicate".as_slice().into()),
+            blame: None,
         }),
     })));
     assert!(!shown.error());

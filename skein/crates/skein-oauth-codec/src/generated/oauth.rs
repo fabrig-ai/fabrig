@@ -118,7 +118,7 @@ pub fn name(path: Path) -> Option<&'static str> {
 }
 
 // Table: postordered shapes, with compiler-known heap slot sizes.
-const TABLE: &[skein_codec::bounds::Node] = &[
+static TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
@@ -144,7 +144,7 @@ const DECLARATIONS: &[u32] = &[
     18,
 ];
 
-const CEILING_VALUES: &[u32] = &[
+static CEILING_VALUES: &[u32] = &[
     65_536,
     65_536,
     65_536,
@@ -181,6 +181,11 @@ pub struct SavedToken {
 }
 
 // Record: SavedToken.
+impl SavedToken {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 65;
+}
+
 impl Record for SavedToken {
     type Limits = Limits;
     const TAIL: Path = paths::SAVED_TOKEN_TAIL;

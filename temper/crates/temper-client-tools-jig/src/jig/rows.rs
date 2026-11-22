@@ -108,7 +108,7 @@ pub const DEPLOYMENT_CENSUS: Tool = Tool {
 pub const ME: Tool = Tool {
     name: b"me",
     line: b"Read your party: its projects, what it may start, and what waits on it",
-    prints: b"`party N`, its login and name, its projects and bounds, what waits on it, the requests' retention, the providers it may use, and `digest: me`",
+    prints: b"`party N`, its login and name, `sign-in expires: U` in UTC, its projects and bounds, what waits on it, the requests' retention, the providers it may use, and `digest: me`",
     result: b"me",
     forms: &[&[
         flag(b"since", b"DIGEST", Kind::Digest, Optional, b"Wait until it differs from the read that printed DIGEST"),
@@ -242,16 +242,16 @@ pub const RUN: Tool = Tool {
 };
 pub const SIGN_IN: Tool = Tool {
     name: b"sign-in",
-    line: b"Sign in with a printed link or a service file",
+    line: b"Sign in with a person's link, a service link or a service file",
     prints: b"Your party, as me prints it",
     result: b"sign_in",
     forms: &[
-        &[positional(b"file", b"FILE", Kind::File, Required, b"The file holding the link, or - for stdin")],
+        &[positional(b"file", b"FILE", Kind::File, Required, b"A file holding a person's or service's link, or - for stdin")],
         &[flag(b"service", b"FILE", Kind::File, Required, b"The private file party make wrote")],
     ],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"It writes the token, engine's address and party into DIR. A link\nsigns in only into a directory not signed in: sign-out first,\n`temper ctl DIR sign-out`, or use another directory. A held token\nrefuses before sending anything, leaving the link unspent.\nA link signs in once and expires. `the sign-in link was refused`\n(exit 1) distinguishes `it was already used`, `it has expired`,\nand `temper does not know it, as another deployment's link or\none it no longer remembers`. For a fresh link, temper-box serve\nprints one, or a signed-in client asks with\n`temper ctl DIRECTORY link --out FILE`. Other refusals keep the\nline without a reason.\nWith every sign-in in use, it says when the earliest ends and\nuntil when this link stays usable. It leaves the link's file as\nit was. With --service FILE, sign in as the service at the address\nFILE holds, even into a signed-in DIR. FILE must be owner-only\nand in party make's form; otherwise exit 1 before sending anything.\n",
+    notes: b"Writes the token, engine's address and party into DIR.\nA person's link signs in once and expires. A held token refuses it\nbefore sending, leaving it unspent: run `temper ctl DIR sign-out`\nfirst, or use another directory. `the sign-in link was refused`\n(exit 1) says whether the link was used, expired, or unknown; other\nrefusals give no reason. For a fresh link, use temper-box serve or\nask with `temper ctl DIRECTORY link --out FILE` when signed in.\nWith all sign-ins in use, it says when the earliest ends and when\nthe link expires. The link's file stays as it was.\nA service link from `party reissue` signs in as the service, even\nin a signed-in DIR. If refused, an owner can replace it with\n`temper ctl DIRECTORY party reissue PARTY --out FILE`.\n`--service FILE` takes party make's owner-only file instead; it\nrefuses any other form or mode before sending.\n",
 };
 pub const LINK: Tool = Tool {
     name: b"link",
@@ -1190,6 +1190,18 @@ pub const ROLE_TALK: Tool = Tool {
 };
 
 pub const GOAL_START_AT: u8 = 62;
+pub const GOAL_SHOW_AT: u8 = 117;
+/// A read-once join, not a watched task read (client/ctl/findings.md, 4).
+pub const GOAL_SHOW: Tool = Tool {
+    name: b"goal show",
+    line: b"Read a goal and its reds after landing",
+    prints: b"The task's document, then reds after landing, uncleared first, and where each stands",
+    result: b"goal_show",
+    forms: &[&[positional(b"task", b"TASK", Kind::Number, Required, b"The goal's task number")]],
+    keyed: Keyed::Never,
+    area: 2,
+    notes: b"Reads the task, then its project's findings blamed on it, once.\nA task that is not a goal has no reds. A cut is marked.\n--since and --until are not taken. --json prints task, reds with stands, and cut.\n",
+};
 /// Fill a project's offered goal template and submit a keyed request.
 pub const GOAL_START: Tool = Tool {
     name: b"goal start",
@@ -1372,6 +1384,20 @@ pub const PARTY_MAKE: Tool = Tool {
     area: 3,
     notes: b"The project's owner makes a party with no person, holding ROLE.\nFILE existing refuses the call before anything is sent, exit 1.\nThe host writes FILE at 0o600, with this engine's address and\nthe credential answered once. The credential is never printed\nor passed in argv. A key replay prints the party and writes nothing.\n",
 };
+pub const PARTY_REISSUE_AT: u8 = 120;
+pub const PARTY_REISSUE: Tool = Tool {
+    name: b"party reissue",
+    line: b"Reissue a service's credential and write its service link",
+    prints: b"`reissued: party N; its sign-ins have ended`, then how to sign its directory in again",
+    result: b"reissue-service",
+    forms: &[&[
+        positional(b"party", b"PARTY", Kind::Number, Required, b"The service's party number"),
+        flag(b"out", b"FILE", Kind::File, Required, b"A new private file for sign-in, or - for stdout"),
+    ]],
+    keyed: Keyed::Optional,
+    area: 3,
+    notes: b"An owner of the deployment or of every project the service holds\na role in reissues it, not the service itself. Its sign-ins end at once.\nFILE must not exist; the service link is written at 0o600.\nWith --out -, stdout holds only the service link and the answer goes\nto stderr. Sign the service directory in again with sign-in FILE.\n",
+};
 pub const PROJECT_MAKE_AT: u8 = 70;
 /// Create a project from policy 1 and return its number under a kept key.
 pub const PROJECT_MAKE: Tool = Tool {
@@ -1393,6 +1419,8 @@ pub const FINDING_HAND_AT: u8 = 92;
 pub const FINDING_ROUTE_AT: u8 = 93;
 pub const FINDING_BACKLOG_AT: u8 = 94;
 pub const FINDING_DROP_AT: u8 = 95;
+pub const FINDING_REPAIR_AT: u8 = 118;
+pub const FINDING_BLAME_AT: u8 = 119;
 pub const NEED_ASK_AT: u8 = 96;
 const FINDING: super::table::Argument = positional(
     b"finding",
@@ -1405,20 +1433,22 @@ const AREA: super::table::Argument = flag(b"area", b"AREA", Kind::Literal, Requi
 pub const FINDING_LIST: Tool = Tool {
     name: b"finding list",
     line: b"Read a project's areas, triager and findings, newest first",
-    prints: b"Each area's NAME owner OWNER, held by HOLDER: WORDS, the triager, then P/N, state, kind, severity, area or -, holder and title per finding",
+    prints: b"Each area's NAME owner OWNER, held by HOLDER: WORDS, the triager, then P/N, state, kind, severity, area or -, holder and title per finding; cleared rows end with cleared by TIER run N",
     result: b"findings",
     forms: &[&[
         flag(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project"),
         flag(b"state", b"new|routed|backlog|dropped", Kind::Word { set: &[b"new", b"routed", b"backlog", b"dropped"] }, Optional, b"Only this state"),
         switch(b"mine", b"Only findings held by you or a role you hold"),
+        flag(b"goal", b"TASK", Kind::Number, Optional, b"Blamed on this goal; not with --milestone, --state or --mine"),
+        flag(b"milestone", b"TASK", Kind::Number, Optional, b"Blamed on this milestone's goals; not with --goal, --state or --mine"),
     ]],
     keyed: Keyed::Never, area: 2,
-    notes: b"Reads the findings subject once. At most 128 findings; a cut is marked.\n",
+    notes: b"Reads the findings subject once. At most 128 findings; a cut is marked.\n--goal and --milestone take neither each other nor --state or --mine.\n--json rows carry goal, reason and cleared, null where absent.\n",
 };
 pub const FINDING_SHOW: Tool = Tool {
     name: b"finding show",
     line: b"Read one finding whole",
-    prints: b"Its line, filer, filing time, last hand-off's why, goal and drop reason, then its body",
+    prints: b"Its line, filer, filing time, last hand-off's why, goal and drop reason, blame and its landings, clearing, then its body",
     result: b"finding",
     forms: &[&[FINDING]],
     keyed: Keyed::Never,
@@ -1493,6 +1523,38 @@ pub const FINDING_DROP: Tool = Tool {
     keyed: Keyed::Required,
     area: 2,
     notes: b"Only its holder or a project owner may triage. Its issue, if any, closes with the reason.\n",
+};
+pub const FINDING_REPAIR: Tool = Tool {
+    name: b"finding repair",
+    line: b"Make one repair goal for findings of one project",
+    prints: b"repair goal G made for P/N, P/M",
+    result: b"finding_repaired",
+    forms: &[&[
+        positional(
+            b"findings",
+            b"FINDING",
+            Kind::Finding,
+            Repeated { most: 16 },
+            b"One to sixteen findings of one project, each named once",
+        ),
+        positional(b"words", b"TEXT", Kind::Text, Required, b"The repair's words, 1 to 4096 bytes"),
+    ]],
+    keyed: Keyed::Required,
+    area: 2,
+    notes: b"Only the holder or a project owner may triage. A refusal prints its words, exit 2.\n",
+};
+pub const FINDING_BLAME: Tool = Tool {
+    name: b"finding blame",
+    line: b"Move a finding's blame to a landing or to no landing",
+    prints: b"blamed: P/N on landing COMMIT (its first twelve digits), or blamed: P/N on no landing",
+    result: b"finding_blamed",
+    forms: &[
+        &[FINDING, flag(b"landing", b"COMMIT", Kind::Literal, Required, b"The landing's full commit, 40 or 64 hex digits"), positional(b"why", b"TEXT", Kind::Text, Required, b"Why, 1 to 200 bytes")],
+        &[FINDING, super::table::Argument { occurs: Required, ..switch(b"none", b"Blame no landing") }, positional(b"why", b"TEXT", Kind::Text, Required, b"Why, 1 to 200 bytes")],
+    ],
+    keyed: Keyed::Required,
+    area: 2,
+    notes: b"Name exactly one of --landing and --none. Only the holder or a project owner may triage. A refusal prints its words, exit 2.\n",
 };
 pub const NEED_ASK: Tool = Tool {
     name: b"need ask", line: b"Ask a person a question with choices and why", prints: b"done: task N, need", result: b"need",

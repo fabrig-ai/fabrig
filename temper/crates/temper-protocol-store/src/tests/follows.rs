@@ -170,6 +170,7 @@ fn a_changes_follow_workflow_progress_round_trips_with_its_allocated_bytes() {
         faults: 2,
         held: Some(b"runner fault".as_slice().into()),
         flight: Some(d::TierFlight {
+            clock: None,
             entry: 11,
             start: Some(skein_lib::Time::from_nanos(10)),
             since: Some(skein_lib::Time::from_nanos(11)),

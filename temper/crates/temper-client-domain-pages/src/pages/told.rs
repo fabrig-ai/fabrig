@@ -451,7 +451,7 @@ fn answer(outcome: &Outcome, limits: Limits) -> Option<Answer> {
         | w::Outcome::Tier(_)
         | w::Outcome::Filed(_)
         | w::Outcome::Handed
-        | w::Outcome::Triaged
+        | w::Outcome::Triaged(_)
         | w::Outcome::FindingRefused(_)
         | w::Outcome::Away => None,
     }

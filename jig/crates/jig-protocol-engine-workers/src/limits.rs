@@ -32,7 +32,7 @@ pub struct Timers {
 pub(crate) fn channel(limits: &Limits) -> Option<skein_channel::Limits> {
     let codec = sizes::limits(&limits.sizes)?;
     let credential = u32::try_from(wire::Credential::encoded_bound(&codec)?).ok()?;
-    let cap = sizes::engine_cap(&limits.sizes)?;
+    let cap = sizes::engine_cap(&limits.sizes, limits.room)?;
     Some(skein_channel::Limits {
         chunk: limits.chunk,
         credential,
@@ -100,5 +100,5 @@ pub fn valid_with_schema(limits: &Limits, schema: &Schema) -> bool {
     }
     limits.workers.checked_add(limits.opening).is_some()
         && skein_channel::valid(schema, Role::Responder, &channel)
-        && wire::v21::decoded_bound(&codec).is_some()
+        && wire::v22::decoded_bound(&codec).is_some()
 }

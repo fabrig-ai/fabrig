@@ -151,7 +151,7 @@ pub fn name(path: Path) -> Option<&'static str> {
 }
 
 // Table: postordered shapes, with compiler-known heap slot sizes.
-const TABLE: &[skein_codec::bounds::Node] = &[
+static TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(32),
     skein_codec::bounds::Node::Record { prefix: 2, fields: &[0, 1] },
@@ -187,7 +187,7 @@ const DECLARATIONS: &[u32] = &[
     18,
 ];
 
-const CEILING_VALUES: &[u32] = &[
+static CEILING_VALUES: &[u32] = &[
     274_497,
     131_072,
     131_072,
@@ -213,6 +213,11 @@ pub struct Digest {
 }
 
 // Record: Digest.
+impl Digest {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 42;
+}
+
 impl Record for Digest {
     type Limits = Limits;
     const TAIL: Path = paths::DIGEST_TAIL;
@@ -257,6 +262,11 @@ pub struct SourceRecord {
 }
 
 // Record: SourceRecord.
+impl SourceRecord {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for SourceRecord {
     type Limits = Limits;
     const TAIL: Path = paths::SOURCE_RECORD_TAIL;
@@ -288,6 +298,11 @@ pub struct SourceKey {
 }
 
 // Record: SourceKey.
+impl SourceKey {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for SourceKey {
     type Limits = Limits;
     const TAIL: Path = paths::SOURCE_KEY_TAIL;
@@ -320,6 +335,11 @@ pub enum SourceValue {
 }
 
 // Record: SourceValue.
+impl SourceValue {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for SourceValue {
     type Limits = Limits;
     const TAIL: Path = paths::SOURCE_VALUE_TAG;
@@ -356,6 +376,11 @@ pub struct Source {
 }
 
 // Record: Source.
+impl Source {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 7;
+}
+
 impl Record for Source {
     type Limits = Limits;
     const TAIL: Path = paths::SOURCE_TAIL;
@@ -398,6 +423,11 @@ pub struct CarriedKey {
 }
 
 // Record: CarriedKey.
+impl CarriedKey {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for CarriedKey {
     type Limits = Limits;
     const TAIL: Path = paths::CARRIED_KEY_TAIL;
@@ -429,6 +459,11 @@ pub struct CarriedValue {
 }
 
 // Record: CarriedValue.
+impl CarriedValue {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for CarriedValue {
     type Limits = Limits;
     const TAIL: Path = paths::CARRIED_VALUE_TAIL;
@@ -460,6 +495,11 @@ pub struct CarriedMoved {
 }
 
 // Record: CarriedMoved.
+impl CarriedMoved {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for CarriedMoved {
     type Limits = Limits;
     const TAIL: Path = paths::CARRIED_MOVED_TAIL;
@@ -493,6 +533,11 @@ pub enum Carrying {
 }
 
 // Record: Carrying.
+impl Carrying {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for Carrying {
     type Limits = Limits;
     const TAIL: Path = paths::CARRYING_TAG;
@@ -531,6 +576,11 @@ pub struct Carried {
 }
 
 // Record: Carried.
+impl Carried {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 7;
+}
+
 impl Record for Carried {
     type Limits = Limits;
     const TAIL: Path = paths::CARRIED_TAIL;
@@ -573,6 +623,11 @@ pub struct NextCarried {
 }
 
 // Record: NextCarried.
+impl NextCarried {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 10;
+}
+
 impl Record for NextCarried {
     type Limits = Limits;
     const TAIL: Path = paths::NEXT_CARRIED_TAIL;

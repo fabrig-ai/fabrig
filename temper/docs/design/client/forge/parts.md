@@ -77,7 +77,9 @@ versioned record MilestonePart { whole: option u64 totals: MilestoneTotals goals
     (`../../domain/milestones.md`, section 3), none while so far;
   - `totals`, as the read `Milestone` answers them (`records.md`, *A
     milestone's totals*; `../../domain/milestones.md`, section 7), exact
-    over all its goals;
+    over all its goals, its `reds` counted as the part is made and never
+    kept with an ended milestone's cached totals
+    (`../../domain/red-findings.md`, section 10);
   - `goals`, its delegates, the live first by priority, the lower first,
     then the lower number, then the ended by newest `ended_at`, then the
     lower number; at most 16, and only while the record fits its kind's
@@ -126,9 +128,11 @@ versioned record MilestonePart { whole: option u64 totals: MilestoneTotals goals
   headline in them comes from that goal's own entry.
 - **Marked by its inputs** (jig's `domain/engine/views.md`, 2): a goal's
   and a chat's part by their notes; a milestone's by its line, its
-  goals' lines and their notes, and by its forge row: the root sends
-  `PartsMarked { connector: FORGE, tasks }` naming M wherever the forge's
-  row of M changes (its last landing, its end).
+  goals' lines and their notes, by its forge row, and by its reds: the
+  root sends `PartsMarked { connector: FORGE, tasks }` naming M wherever
+  the forge's row of M changes (its last landing, its end), and wherever
+  a decision writes a finding whose blame names M, before the write or
+  after (`../../domain/red-findings.md`, section 10).
 - **Visibility** is its row's (jig's `client/domain/contract/parts.md`,
   4): a part reads only within its row's project.
 

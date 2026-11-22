@@ -29,18 +29,22 @@ fn forge_input(domain: &mut Domain, env: &Env<crate::Limits>, event: forge::Even
     forge::step(&mut domain.forge, &crate::translate::environment_forge(env), event, &mut out);
     // Restore's report is the completed Link work supplied by at_phase.
     for request in &out {
-        let (forge::Request::RestartDone { .. } | forge::Request::Save { .. } | forge::Request::MarkedForges) = request
+        let (forge::Request::RestartDone { .. }
+        | forge::Request::Save { .. }
+        | forge::Request::MarkedForges
+        | forge::Request::Marked { .. }) = request
         else {
             panic!("forge fixture: {request:?}")
         };
     }
 }
 
-fn prepare_forge(domain: &mut Domain, env: &Env<crate::Limits>, phase: Phase) {
+fn prepare_forge(domain: &mut Domain, env: &Env<crate::Limits>, outbox: bool) {
     use skein_forge::api::Repository;
     let repository = Repository { forge: 1, repository: 1 };
+    domain.forge.restore_begin(env.wall);
     forge_input(domain, env, forge::Event::Restore { record: forge::Stored::Repository(super::resume::repository()) });
-    if phase == (Phase::ReadAfresh { connector: 0 }) {
+    if !outbox {
         forge_input(
             domain,
             env,
@@ -56,7 +60,7 @@ fn prepare_forge(domain: &mut Domain, env: &Env<crate::Limits>, phase: Phase) {
             },
         );
     }
-    if phase == (Phase::SettleOutbox { connector: 0 }) {
+    if outbox {
         let mut second = super::resume::repository();
         second.provider.repository = 2;
         forge_input(domain, env, forge::Event::Restore { record: forge::Stored::Repository(second.clone()) });
@@ -73,9 +77,6 @@ fn prepare_forge(domain: &mut Domain, env: &Env<crate::Limits>, phase: Phase) {
             state: forge::Connection::Connected { id: 1, login: b"writer".as_slice().into() },
         },
     );
-    if phase == (Phase::SettleOutbox { connector: 0 }) {
-        forge_input(domain, env, forge::Event::ReadAfresh);
-    }
 }
 
 use temper_limits_fixtures::start_forge::{status, uncertain};
@@ -174,9 +175,8 @@ fn held_work(
                 );
             }
             Some(request) => held.push(request),
-            None if before_mark || phase == Some(Phase::AdoptRuns) || phase.is_none() => break,
+            None if before_mark || phase == Some(Phase::AdoptRuns) || expected == 0 => break,
             None => {
-                let expected = if phase == Some(Phase::SettleOutbox { connector: 0 }) { 2 } else { 1 };
                 if held.len() >= expected {
                     break;
                 }
@@ -192,18 +192,18 @@ fn held_work(
 #[test]
 #[expect(clippy::wildcard_enum_match_arm, reason = "every unlisted held request fails the phase contract")]
 fn a_stop_at_each_start_step_drains_and_the_next_start_opens() {
-    for (phase, before_mark, held_count) in [
-        (Some(Phase::LoadCore), true, 1),
-        (Some(Phase::LoadInbox), true, 1),
-        (Some(Phase::RestoreConnector { connector: 0 }), true, 1),
-        (Some(Phase::Link), true, 0),
-        (Some(Phase::Sweep), true, 1),
-        (Some(Phase::Switch), true, 1),
-        (Some(Phase::Wires), true, 1),
-        (Some(Phase::AdoptRuns), false, 0),
-        (Some(Phase::ReadAfresh { connector: 0 }), false, 1),
-        (Some(Phase::SettleOutbox { connector: 0 }), false, 2),
-        (None, false, 0),
+    for (phase, before_mark, held_count, catching_up) in [
+        (Some(Phase::LoadCore), true, 1, None),
+        (Some(Phase::LoadInbox), true, 1, None),
+        (Some(Phase::RestoreConnector { connector: 0 }), true, 1, None),
+        (Some(Phase::Link), true, 0, None),
+        (Some(Phase::Sweep), true, 1, None),
+        (Some(Phase::Switch), true, 1, None),
+        (Some(Phase::Wires), true, 1, None),
+        (Some(Phase::AdoptRuns), false, 0, None),
+        (None, false, 1, Some(false)),
+        (None, false, 2, Some(true)),
+        (None, false, 0, None),
     ] {
         let mut store = seeded();
         let (mut domain, env) = match phase {
@@ -212,21 +212,22 @@ fn a_stop_at_each_start_step_drains_and_the_next_start_opens() {
         };
         assert_eq!(domain.start_runtime(), !before_mark, "the root owns the mark boundary");
         let mut owed = Queue::uncapped();
+        if let Some(outbox) = catching_up {
+            assert!(domain.ready(), "catching up follows the opening");
+            prepare_forge(&mut domain, &env, outbox);
+            let row = crate::Record::Forge { row: Box::new(forge::Stored::Repository(super::resume::repository())) };
+            store.rows.insert(row.key(), row);
+            if outbox {
+                let mut repository = super::resume::repository();
+                repository.provider.repository = 2;
+                let row = crate::Record::Forge { row: Box::new(forge::Stored::Repository(repository)) };
+                store.rows.insert(row.key(), row);
+            }
+            crate::step(&mut domain, &env, Event::Forge(Box::new(forge::Event::CatchUp)));
+        }
         match phase {
             Some(Phase::Link | Phase::AdoptRuns) | None => {}
             Some(phase) => {
-                if !before_mark {
-                    prepare_forge(&mut domain, &env, phase);
-                    let row =
-                        crate::Record::Forge { row: Box::new(forge::Stored::Repository(super::resume::repository())) };
-                    store.rows.insert(row.key(), row);
-                    if phase == (Phase::SettleOutbox { connector: 0 }) {
-                        let mut repository = super::resume::repository();
-                        repository.provider.repository = 2;
-                        let row = crate::Record::Forge { row: Box::new(forge::Stored::Repository(repository)) };
-                        store.rows.insert(row.key(), row);
-                    }
-                }
                 serve(&mut domain, &env, phase);
                 crate::release(&mut domain, &env, &mut owed);
                 crate::release(&mut domain, &env, &mut owed);
@@ -255,7 +256,7 @@ fn a_stop_at_each_start_step_drains_and_the_next_start_opens() {
                     assert!(!before_mark, "no forge read before the mark");
                 }
                 Request::Forge { call, op: skein_forge::api::Op::Write(_), .. } => {
-                    assert_eq!(phase, Some(Phase::SettleOutbox { connector: 0 }));
+                    assert_eq!(catching_up, Some(true));
                     crate::release(&mut domain, &env, &mut out);
                     assert!(!domain.core.stopping(), "the sent write holds the settled stop");
                     for request in &out {

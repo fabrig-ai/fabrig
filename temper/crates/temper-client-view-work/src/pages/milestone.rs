@@ -133,13 +133,13 @@ impl Shown<'_> {
                 self.page.milestone.totals.as_ref(),
                 self.needs,
             );
-            let report = match headline {
-                ms::Headline::Running { goal, .. } => self.page.headline(goal),
-                ms::Headline::Count(_)
-                | ms::Headline::Complete(_)
-                | ms::Headline::Closed(_)
-                | ms::Headline::Open(_)
-                | ms::Headline::Ended { .. } => None,
+            let report = match headline.case {
+                ms::HeadlineCase::Running { goal, .. } => self.page.headline(goal),
+                ms::HeadlineCase::Count(_)
+                | ms::HeadlineCase::Complete(_)
+                | ms::HeadlineCase::Closed(_)
+                | ms::HeadlineCase::Open(_)
+                | ms::HeadlineCase::Ended { .. } => None,
             };
             goal::text(
                 b,

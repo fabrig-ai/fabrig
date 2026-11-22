@@ -1,0 +1,585 @@
+# Translation only; the store schema owns the bytes (skein/docs/design/data/codec/maps.md).
+records crate::v25
+use a = skein_forge::api
+use c = temper_engine_domain_forge_change
+use d = temper_engine_domain_forge_vocabulary
+use h = temper_engine_domain_forge_vocabulary::history
+use l = temper_engine_domain_forge_landing
+use o = temper_engine_domain_forge_closer
+use p = temper_engine_domain_forge_tiers
+use s = skein_codec::convert
+use own = crate::converters
+by hand crate::records::by_hand
+context crate::records::Context
+
+record Repository = a::Repository
+record Number stands for number
+record Commit stands for commit
+record Segment stands for name
+record AnswerName stands for name
+record Segments by hand
+enum What = d::What { branch tuple, pull tuple, issue tuple }
+record Name = d::Name
+enum ItemState = a::State
+enum Ci = a::Ci
+enum Bypass = a::Bypass
+record Protection by hand
+record Settings = a::Settings
+enum Role = d::Role
+record Kinds = d::Kinds
+enum RepositoryProtection = d::Protection { rule tuple }
+record Adopted by hand
+record RunWriter
+enum Writer = d::Writer { entry tuple }
+record BranchDrift
+record Retargeted
+enum DriftChange = d::DriftChange
+record Drift = d::Drift { at via s::wall }
+record DesignWriter = d::DesignWriter
+record HeadBeside = d::HeadBeside
+record Hold = d::Hold { design_writers slice }
+record Names by hand
+enum LimitSet = d::LimitSet { design_writers tuple }
+record LimitHold = d::LimitHold { at via s::wall }
+record LandingsTopic
+record CiTopic
+record NumberTopic
+record BranchHead = d::BranchHead
+record PullState = d::PullState
+record CiState = d::CiState
+record Landed by hand
+enum ReleaseEnding = d::ReleaseEnding
+record PendingRelease by hand
+record ReleaseRow = d::ReleaseRow { pending_release = pending }
+enum Verdict = a::Verdict
+enum Check = a::Check
+record CreateIssue
+record OpenPull
+record Post
+record PostReview
+record Edit
+record SetReviewers { reviewers slice }
+record JobAttempt = a::JobAttempt
+record RecordedMerge
+enum MergeHow = a::MergeHow
+enum UpdateStyle = a::UpdateStyle
+record MergeWrite
+record UpdateWrite
+record DispatchInput = a::Input
+record DispatchWrite { inputs slice }
+record SetStatus { status = check }
+record CreateBranch
+record DeleteBranch
+enum Write by hand
+record MergeCondition
+record UpdateCondition
+enum Condition = skein_forge_client::Condition { review { commit = head } }
+record Effect = skein_forge_client::Effect
+record Position = skein_forge_client::Position { at via s::time }
+record Attempt = skein_forge_client::Attempt { sent via s::time, deadline via s::time, wall via s::wall, expires via s::wall }
+record Entry = skein_forge_client::Entry
+record EntryRow by hand
+record ProposedEffect = d::ProposedEffect
+record RateLimited
+record BaseMoved
+enum Bound = a::Bound
+record Excess = a::Excess
+enum Error by hand
+record ErrorValue stands for error
+enum Made = skein_forge_client::Made { created tuple, commented tuple, reviewed tuple, merged tuple, updated tuple, branch tuple }
+record OutcomeMade
+record OutcomeRaced
+enum Outcome = skein_forge_client::Outcome { failed tuple }
+enum Permission = a::Permission
+enum BranchCreation = a::BranchCreation
+record Pull by hand
+record Step = a::Step
+record JobAnswer
+record FileAnswer
+enum DirectoryKind = a::EntryKind
+record DirectoryEntry = a::Entry
+record DirectoryAnswer by hand
+record BranchesAnswer by hand
+record ProtectionAnswer stands for protection
+record PermissionValue = a::UserPermission
+record BranchCreationValue stands for creation
+enum Kind = a::Kind
+enum Provenance = a::Provenance
+record Summary by hand
+record Comment = a::Comment { created via s::time }
+record Review = a::Review { at via s::time }
+record ItemsAnswer by hand
+record ItemAnswer by hand
+record ReviewsAnswer by hand
+record Status = a::Status { at via s::time, verdict = check }
+record Remark = a::Remark
+record File = a::File
+record Collaborator = a::Collaborator
+record StatusesAnswer by hand
+record RemarksAnswer by hand
+record PullFilesAnswer by hand
+record CompareAnswer { files slice }
+record ChecksAnswer by hand
+record CollaboratorsAnswer { collaborators slice }
+record Located
+enum Answer by hand
+record AnswerValue stands for answer
+enum ReadResult by hand
+record CallRead stands for result
+record CallEffect { deadline via s::wall }
+enum ReachKind = temper_protocol_reaches::Kind
+enum ReachClass = temper_protocol_reaches::Class
+record ReachSet stands for number
+enum ReachReason = temper_protocol_reaches::Reason { set tuple }
+record Reach by hand
+record CallDecided
+record NamedCall = d::NamedCall
+record LiveBranch stands for branch
+enum LiveWhat = skein_forge_client::What { branch tuple, pull tuple, issue tuple }
+record LiveResource = skein_forge_client::Resource
+record Watch = skein_forge_client::Watch
+record Delivery = skein_forge_client::Delivery
+enum Echo = skein_forge_client::Echo { comment tuple, review tuple }
+record Cached = skein_forge_client::Cached
+record LiveRecord = skein_forge_client::LiveRecord { listed via s::time, comments slice, reviews slice, cached boxed, echoes slice }
+record RepositoryRecord = skein_forge_client::RepositoryRecord { mark via s::time, clock via s::time }
+enum ClientValue by hand
+record ClientRow stands for value
+enum ChangeStatus = c::Status
+enum Freshness = c::Freshness
+enum GateKind = c::GateKind
+enum AuthorityLack = c::AuthorityLack
+record AuthorityHold by hand
+enum ChangeHold = c::Hold { authority tuple }
+enum EffectResult = c::EffectResult
+record LandingRepair
+record LandedBelow = c::Landed
+record LandingBelow by hand
+record LandingRepairAt
+enum Repair = c::Repair { gate tuple, review { commit = head } }
+record RepairValue stands for why
+record DelegateGate
+record MergeDelegate
+enum Delegate = c::Delegate { repair tuple, resolve { commit = base } }
+record DelegateRef by hand
+record Producing
+record ChangeHead
+record Reopening
+record Gating
+record ReadyHead
+record Updating
+record Resolving
+record WaitingProducer
+record Repairing
+record MergeChange
+record LandedChange
+record NoChange
+record Preparing
+record Judgement = c::Judgement
+record Judging
+enum ChangeLive by hand
+record ChangeState by hand
+record Gate = c::Gate
+record GateReport = c::GateReport
+record GateFailure = c::GateFailure
+record GateRemark = d::GateRemark
+enum Way = c::Way
+record StartedFrom = c::StartedFrom
+record EarlyHeads stands for heads
+enum Early by hand
+enum Execution = c::Execution
+record ExecutionClock = c::Clock { since via s::wall, ran via s::duration, waited via s::duration, unknown via s::duration, at via s::wall }
+record LandingPrepare
+record LandingRepairAsk
+record LandingPrefix
+record LandingResolve
+enum LandingAsk = c::Ask { judge tuple }
+record Change by hand
+record ChangeCi = c::Ci
+record EffectAccount = d::EffectAccount
+record ResultText = d::ResultText
+record ChangeResult = d::ChangeResult
+record ModelEffort = jig_domain_tasks::ModelEffort
+record LlmChoice by hand
+enum Route by hand
+record Held
+enum Stands by hand
+record Open = c::Open
+record Waiting = c::Waiting
+record Answered = c::Answered
+record Amended = c::Amended
+record Questions = c::Questions { open slice, waiting slice, answered slice, amended slice }
+record ChangeFailure
+enum ChangeEnding = d::Ending
+record SignOff = d::SignOff { at via s::wall }
+record ChangeFollows = d::ChangeFollows { commits slice }
+enum Phase = temper_engine_domain_forge_issues::Phase
+record PlanItem = temper_engine_domain_forge_issues::PlanItem { text via s::text }
+record Lifecycle
+record TaskRevision
+enum MilestoneKey = temper_engine_domain_forge_issues::MilestoneKey { revision tuple, change_landed tuple, change_held tuple, report tuple }
+record Milestone = temper_engine_domain_forge_issues::Milestone { text via s::text }
+record GoalView = temper_engine_domain_forge_issues::GoalView { title via s::text, goal_text via s::text, plan slice, milestones slice, finished via s::text }
+record Projected = temper_engine_domain_forge_issues::Projected { last_body via s::wall, milestones slice }
+record IssueRow = d::IssueRow
+record ApplicationAdopted = d::AdoptedRepository
+record CoreRefused by hand
+enum ForgeReason = d::AdoptionRefusal
+record ForgeRefused stands for reason
+record MakingKey = d::MakingKey
+record CopyFrom
+enum MakeFrom = d::MakeFrom
+record MakeInto = d::MakeInto
+enum MakeStep = d::MakeStep
+record MakeStatus
+enum MakeFailure = d::MakeFailure
+record MakingFailed = d::MakingFailed
+record MakingMade
+enum MakingState = d::MakingState { failed tuple }
+record RepositoryMaking = d::RepositoryMaking { asked via s::wall }
+enum MakeRefusal = d::MakeRefusal
+record MakeRefused stands for reason
+record FollowAt
+record FollowReasonAct
+record FollowMergeAct { afters slice }
+enum FollowAct = d::follows::FollowAct
+record FollowOutcome stands for refusal
+record Opened
+record OpenRepository = d::DraftRepository
+record SeveralRepositories by hand
+record UnderPrefix
+record NamePast
+enum OpenRefusal = d::OpenRefusal { several tuple }
+record OpenRefused stands for reason
+enum ApplicationOutcome = d::ApplicationOutcome { adopted tuple, core_refused tuple, forge_refused tuple, make_refused tuple, follow tuple, open_refused tuple }
+record Application by hand
+record ForgeWriter = skein_forge_client::Writer
+record Binding by hand
+record Flight by hand
+record LandingAt
+enum LandingPlace by hand
+record LandingFaults
+record LandingPhase by hand
+record GateKey
+record DispatchedKey
+enum GateProofState = l::Proof
+enum GatePosted = l::Posted
+record GateProof = l::GateProof
+record LandingTimeout
+record LandingGateRefused
+record LandingGateFailed
+record LandingLeftChange
+record LandingFallback
+record LandingBlamed
+enum LandingLeave by hand
+enum LandingCombine = l::Combine
+record LandingMember by hand
+enum LandingRoundEnd = l::RoundEnd
+record LandingRecordHold
+enum LandingOwnHold by hand
+record FailingTest stands for test_id
+record ShownTest stands for test_id
+record ManyTests by hand
+record LandingSelection stands for tests
+record LandingSelectedGate stands for selection
+record LandingProbed = l::Probed
+record LandingByTest { gates slice, probed slice }
+enum LandingSearchTests by hand
+record LandingSearch = l::Search
+record LandingSearched = l::Searched { changes slice }
+record LandingRound = l::Round
+record LandingLastPrepare = l::LastPrepare { suffix slice, again via s::wall }
+record LandingState by hand
+record LandingAskSlot stands for ask
+enum LandingOperation = d::Operation
+record LandingRun = d::LandingRun
+record LandingEntry = d::LandingEntry
+enum HistoryJob = h::Job
+enum HistoryJobFailure = h::JobFailure
+record HistoryJobFailed
+enum HistoryJobOutcome by hand
+record HistoryJobRecord by hand
+record ReceiptName stands for name
+enum ReceiptCheck = d::Check { gate tuple, tier tuple }
+record ReceiptKey = d::ReceiptKey { check_name = check }
+record LandingFlakeRerun = d::FlakeRerun { findings slice, pending slice }
+record LandingWaitMember
+record LandingWaitGate
+enum LandingAwaited = l::Awaited
+record LandingRow = d::LandingRow { last_event via s::wall, turn_since via s::wall, asks slice, entries slice, flake_reruns slice }
+record ReceiptRun = d::ReceiptRun
+record FailedTests
+enum Failures by hand
+record BlamedFailures stands for failures
+enum Blame = p::Blame { owns tuple, suspect tuple }
+record TierVerdict = d::TierVerdict
+record TierRepair = d::TierRepair
+record TierVerification = d::TierVerification
+record Verification by hand
+record TierJudged = p::Judged
+record TierFlake = p::Flake
+record TierLanding = p::Landing
+record TierTests
+enum TierSelection by hand
+record TierFinding by hand
+record TierGroup = p::Group { tests slice }
+record TierProbe
+enum TierPart by hand
+record TierRun by hand
+record TierRecord by hand
+record TierPending = d::TierLanding
+record TierBranchEntry
+enum TierBranch = d::TierBranch
+enum TierFault = l::Fault { setup = SetUp }
+record TierProbeBranch by hand
+record TierFlight = d::TierFlight { start via s::time, since via s::time, next via s::time, pending slice }
+record ReceiptJob = d::ReceiptJob
+record ReceiptTest = d::ReceiptTest
+record ReceiptTests stands for tests
+record ReceiptMany
+enum ReceiptReport by hand
+record Receipt by hand
+record TierGoal = d::TierGoal { started via s::time }
+record TierHold = d::TierHold { at via s::wall }
+record TierPostedTests
+enum TierPostedBlame by hand
+record TierPostedLanding = d::TierPostedLanding
+record TierCommentVerdict
+record TierCommentRepair
+enum TierCommentKind = d::TierCommentKind
+record TierComment = d::TierComment
+record TierPosting by hand
+record ReceiptRow by hand
+enum ForgeKind = d::Kind { github = GitHub }
+enum ForgeMode = d::Mode
+record Address = d::Address
+record Place = d::Place
+record Bot = d::Bot
+record EmptyIntent = d::EmptyIntent
+record CopyIntent { addresses slice }
+enum FirstIntent = d::FirstIntent { empty tuple }
+record EndedForge
+enum ForgeState = d::ForgeState
+record ForgeLink by hand
+record Forge = d::ForgeRecord
+record ForgeNumber by hand
+enum ResetStep = d::ResetStep
+record Resetting stands for step
+enum PlaygroundState = d::PlaygroundState { resetting tuple }
+record Playground = d::Playground
+enum PatternLast = d::GateLast { exact tuple, open tuple }
+record RulePattern by hand
+record RuleGate by hand
+record RuleApproval by hand
+record LandingRule = d::settings::LandingRule { gates slice, approvals slice, sets slice }
+record CharterValue stands for number
+record TemplateGoal = d::settings::TemplateGoal
+record ProjectQuestions stands for route
+enum SettingsLandingWay = c::Way
+enum SettingsLandingWait = c::Wait
+enum SettingsCombine = l::Combine
+record NamedModel = d::settings::NamedModel
+record NamedLater = d::settings::NamedLater { subagents slice }
+record NamedLlm = d::settings::NamedLlm { subagents slice }
+record RepairGoalSettings = d::settings::RepairGoalSettings
+record RepairSettings = d::settings::RepairSettings
+record ProjectLanding = d::settings::ProjectLanding
+enum SettingsReportFormat = p::Format
+record SettingsGateReport = l::GateReport
+record SettingsGate = l::Gate { ignored slice }
+record SettingsBranch stands for name
+enum SettingsFollows = d::Follows { branch tuple }
+record SettingsTier by hand
+record RepositoryGates by hand
+record ProjectGates by hand
+record ProjectWays = d::settings::ProjectWays
+record ReachKindOf stands for kind
+enum ClassSubject = temper_protocol_reaches::Subject { kind tuple, set tuple }
+record ClassItem = temper_protocol_reaches::Item
+record PathSet = temper_protocol_reaches::PathSet { patterns slice }
+record ProjectClasses by hand
+record CharterWords by hand
+record ProjectWords by hand
+record Dependency = d::settings::Dependency
+record FollowRepository = a::Repository
+record FollowSource = d::settings::FollowSource { paths slice }
+record FollowTarget = d::settings::FollowTarget
+record FollowPerson stands for person
+record FollowOwnerTask stands for task
+enum FollowOwner = d::settings::FollowOwner { person tuple, task tuple }
+enum FollowStart = d::settings::FollowStart
+enum FollowFormat = p::Format
+record FollowCheck = d::settings::FollowCheck
+record Follow = d::settings::Follow { verification = check }
+enum SettingSlot = d::settings::SettingSlot { proposal tuple, replaced tuple }
+record ToBegin
+record GoalFrom
+record KeepAsking
+enum PersonFact = d::PersonFact
+record Dismissed by hand
+record LoggedChange = d::LoggedChange { fixes slice, signed slice }
+record LoggedCleared
+record LoggedMany
+record LoggedRed by hand
+enum LoggedVerdict by hand
+record LoggedTier = d::LoggedTier
+record LoggedLanding by hand
+record MilestoneLanding = d::MilestoneLanding { at via s::wall }
+enum MilestoneOutcome = d::MilestoneOutcome
+record MilestoneEnd = d::MilestoneEnd { at via s::wall }
+record MilestoneRow = d::MilestoneRow
+record LandingLog = d::LandingLog { landings slice }
+record StatusBrief = d::Brief { at via s::wall }
+record StatusRunning = d::StatusRunning { since via s::wall }
+record ProjectFacts = d::ProjectFacts { last_landed via s::wall }
+record PersonBrief = d::PersonBrief { unpaid via s::wall }
+record Looked = d::Looked { previous via s::wall, latest via s::wall }
+record Away = d::Away { since via s::wall, until via s::wall, off via s::wall }
+record Decided by hand
+enum ClosingStep = o::Step
+record ClosingRun = o::Running
+record ClosingTasks stands for tasks
+record ClosingJobs { attempts slice }
+record ClosingLine
+enum ClosingSelectionProgress = o::SelectionProgress
+record ClosingSelection = o::PullSelection
+record ClosingAsked
+enum ClosingStands = o::relay::Stands
+record ClosingQuestion = o::relay::Question
+enum ClosingForm = o::relay::Form { answer { number = question } }
+record ClosingMessage = o::relay::Message
+record ClosingRelay = o::relay::Relay { replies slice }
+record Closer by hand
+record LandedDraft by hand
+record FollowCommit = d::FollowCommit
+record FollowReason stands for reason
+enum FollowState = d::FollowState { held_by_owner tuple, waits_for tuple, held tuple, ended tuple }
+record FollowFiles by hand
+record FollowEntry = d::FollowEntry { commits slice }
+record FollowSkip = d::FollowSkip
+record FollowFailing stands for count
+enum FollowVerdict = d::FollowVerdict { failing tuple }
+record FollowParity = d::FollowParity
+record FollowQuestion = d::FollowQuestion
+record FollowRow = d::FollowRow { queue slice, skips slice, questions slice }
+record FollowCheckProgress = d::FollowCheck
+record ChangeHistory = h::ChangeHistory
+record HistoryMark = h::Mark { hour via s::wall }
+record HistoryProject = h::Project { whole_since via s::wall, marks slice }
+record HistoryInLanding = h::InLanding
+enum HistoryUnready = h::Unready
+enum HistoryLine = h::Line
+record HistoryJoined { priority via own::signed }
+record HistoryLandingDeparture stands for cause
+enum HistoryDeparture = h::Departure { landing tuple }
+record HistoryDeparted
+record HistoryUpdate
+enum HistoryUpdateOutcome = h::UpdateOutcome
+record HistoryUpdated
+record HistoryJobStarted
+record HistoryJobEnded
+enum HistoryWith = h::With
+record HistoryConflict
+enum HistoryAsk = h::Ask
+record HistoryAsked
+enum HistoryAnswer = h::Answer
+record HistoryAnswered
+record HistoryDelivered
+enum HistoryPause = h::Pause
+record HistoryPaused
+record HistoryMember = h::Member
+record HistoryFormed { members slice }
+enum HistoryRoundCause = h::RoundCause
+record HistoryRoundEnded
+record HistoryGate
+enum HistoryGateVerdict = h::GateVerdict
+record HistoryGateEnded
+record HistoryProof = h::Proof
+record HistoryProved { proofs slice }
+record HistorySearched
+record HistoryProbeEnded
+record HistoryTurn
+enum HistoryRecordedState = h::RecordedState
+record HistoryRecorded
+enum HistoryEnding = h::Ending
+record HistoryEnded
+enum HistoryLandingOutcome = h::LandingOutcome
+record HistoryLandingEnded
+enum HistoryOn = h::On
+enum HistoryBy = h::By { party tuple, task tuple }
+record HistoryHold
+enum HistoryAfterVerdict = h::AfterVerdict
+record HistoryAfter
+record HistoryUnreadyStep
+enum HistoryWhat = h::What
+record HistoryEvent = h::Event { at via s::wall, source_at via s::wall }
+record HistoryChange = h::ChangeIndex
+record HistoryLanding = h::LandingIndex
+record HistoryLast = h::Last { at via s::wall }
+record TaskRelease = d::TaskRelease { at via s::wall }
+record FindingsTopic
+enum Topic = d::Topic
+record ChangeSource = d::ChangeSource
+record ChangeCold = d::ChangeCold
+record Regate = d::Regate
+record ChangeHot = d::ChangeHot { signed slice, repair_tasks slice, resolution_tasks slice, priority via own::signed, verdicts slice, gate_remarks slice }
+record Subscriber = d::Subscriber { goal_tasks slice, paths slice }
+record FindingCount stands for number
+enum FindingHolder = d::Holder { task tuple, party tuple, role tuple }
+record FindingHeld stands for holder
+record FindingAreas by hand
+record FindingWords stands for words
+enum FindingRefusal = d::FindingRefusal { no_area tuple, full tuple, not_yours tuple, words tuple }
+record FindingRefused stands for why
+enum FindingResult by hand
+record FindingReply = d::FindingReply { more slice }
+record CallFollow
+enum Recorder = d::Recorder { task tuple, party tuple }
+record Red by hand
+record RedNumber by hand
+record RedPass by hand
+record RedRecorded by hand
+record RedFull
+enum RedRefusal = d::RedRefusal
+record RedRefused stands for why
+enum RedResult by hand
+record RedReply by hand
+enum CallPayload = d::CallPayload { refused tuple, read tuple boxed, finding tuple boxed, red tuple boxed }
+record Call by hand
+record AreaTask stands for number
+record AreaParty stands for number
+record AreaRole stands for number
+record AreaCharter stands for number
+enum AreaOwner = d::settings::AreaOwner { task tuple, party tuple, role tuple, charter tuple }
+record Area = d::settings::Area
+record ProjectAreas = d::settings::ProjectAreas { areas slice }
+record ProjectTriager = d::settings::ProjectTriager
+record Welcome = d::settings::Welcome
+record LimitOverride = jig_domain_core_vocabulary::settings::Override
+record LimitOverrides by hand
+record AgentFigure = temper_client_protocol_wire::v1::AgentFigure
+enum Oversized = temper_client_protocol_wire::v1::Oversized
+record AgentLimits = temper_client_protocol_wire::v1::AgentLimits
+record AgentEndpointLimits = temper_client_protocol_wire::v1::AgentEndpointLimits
+record AgentFigures = temper_client_protocol_wire::v1::AgentFigures
+enum SettingValue by hand
+record SizedValue = d::settings::SizedValue
+enum SettingEdit = d::settings::Edit { set tuple }
+record SettingRow by hand
+enum FindingKind = d::FindingKind
+enum Severity = d::Severity
+enum FindingState = d::FindingState
+enum Filer = d::Filer { task tuple, party tuple }
+enum BlameStrength = d::BlameStrength { none = Unblamed }
+record BlamedGoal = d::BlamedGoal
+record BlamedLanding = d::BlamedLanding { goals slice }
+record BlameMove = d::BlameMove
+record FindingBlame = d::FindingBlame { landings slice }
+record FindingCleared = d::FindingCleared { at via s::wall }
+record FindingSignature by hand
+record VerdictFiling = d::VerdictFiling
+record TierRow by hand
+record Finding by hand
+record Device by hand
+enum Value by hand
+record Row by hand

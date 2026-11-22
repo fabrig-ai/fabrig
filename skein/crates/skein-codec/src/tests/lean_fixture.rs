@@ -112,7 +112,7 @@ pub fn name(path: Path) -> Option<&'static str> {
 }
 
 // Table: postordered shapes, with compiler-known heap slot sizes.
-const TABLE: &[skein_codec::bounds::Node] = &[
+static TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[] },
     skein_codec::bounds::Node::Bytes { limit: 0 },
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[1] },
@@ -138,7 +138,7 @@ const DECLARATIONS: &[u32] = &[
     14,
 ];
 
-const CEILING_VALUES: &[u32] = &[
+static CEILING_VALUES: &[u32] = &[
     3,
     2,
     3,
@@ -162,6 +162,11 @@ pub struct Empty {
 }
 
 // Record: Empty.
+impl Empty {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 0;
+}
+
 impl Record for Empty {
     type Limits = Limits;
     const TAIL: Path = paths::EMPTY_TAIL;
@@ -200,6 +205,11 @@ pub struct Words {
 }
 
 // Record: Words.
+impl Words {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for Words {
     type Limits = Limits;
     const TAIL: Path = paths::WORDS_TAIL;
@@ -233,6 +243,11 @@ pub enum Choice {
 }
 
 // Record: Choice.
+impl Choice {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for Choice {
     type Limits = Limits;
     const TAIL: Path = paths::CHOICE_TAG;
@@ -271,6 +286,11 @@ pub struct Row {
 }
 
 // Record: Row.
+impl Row {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 7;
+}
+
 impl Record for Row {
     type Limits = Limits;
     const TAIL: Path = paths::ROW_TAIL;
@@ -315,6 +335,11 @@ pub struct Nested {
 }
 
 // Record: Nested.
+impl Nested {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 13;
+}
+
 impl Record for Nested {
     type Limits = Limits;
     const TAIL: Path = paths::NESTED_TAIL;

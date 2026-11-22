@@ -57,14 +57,14 @@ fn arbitrary_and_mutated_wires_never_panic_and_round_trip_when_valid() {
     }
 
     for (family, version) in [("charter", 5), ("transcript", 8), ("channel", smith_channel::wire::VERSION)] {
-        for value in crate::support::goldens::all(family, version)
+        for value in crate::support::fixed_values::all(family, version)
             .into_iter()
             .filter(|value| value.name.starts_with("record_") && value.name.ends_with("_full.bin"))
         {
-            let golden = value.bytes;
-            check_all(&golden);
+            let fixed_value = value.bytes;
+            check_all(&fixed_value);
             for _round in 0_u32..100 {
-                let mut mutated = golden.clone();
+                let mut mutated = fixed_value.clone();
                 if !mutated.is_empty() {
                     let index = usize::try_from(rng.below(skein_lib::len_u64(mutated.len()))).expect("index fits");
                     *mutated.get_mut(index).expect("chosen byte") =

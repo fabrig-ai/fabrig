@@ -175,7 +175,9 @@ section 5, is `../client/pages/milestone.md` and the pages it names.
 - **Its outcome,** from its ending and its goals' endings: *complete*,
   ended done with no goal failed; *ended*, ended done with some failed;
   *closed*, cancelled, by Close or a cancel of its tree. A goal closed
-  (cancelled) never keeps it from completing.
+  (cancelled) never keeps it from completing, and nor do the reds after
+  landing its goals owe (section 7, `reds`; `red-findings.md`, section
+  10).
 - **Its count,** "7 / 8": its goals done, then its goals done, failed
   and live, the closed ones left out of both, as jig's task line counts
   `delegates_done` and `delegates_total`.
@@ -223,12 +225,17 @@ section 5, is `../client/pages/milestone.md` and the pages it names.
   - `spent`, u64: its own spend, its ended goals' settled spend, and its
     live goals' own and settled spend below them, never a reservation:
     `spent + spent_below` of the milestone, plus `spent + spent_below`
-    of each live goal (jig's `domain/authority.md`, section 7).
+    of each live goal (jig's `domain/authority.md`, section 7);
+  - `reds`, u32: the uncleared red findings of its project blamed on
+    its goals, each once, whatever their state (`red-findings.md`,
+    section 10), the forge's `Domain::reds_owed`.
 
   A live milestone's are composed at the root from jig's live records
   and the forge's row; an ended one's from its ended record as jig
-  stored it, or the forge's row (section 8). A page that has not read
-  them says what it holds, and never "complete".
+  stored it, or the forge's row (section 8). Its `reds` are counted at
+  each read from the forge's findings, live or ended, and kept nowhere.
+  A page that has not read them says what it holds, and never
+  "complete".
 
 ## 8. The forge's milestone row
 
@@ -277,7 +284,7 @@ What the forge keeps of a milestone, since jig keeps no landing:
   ```
   Milestones:
   - Store shape: whole; 7 of 8 goals done; last landing 2026-11-16T21:38Z
-  - Search: complete at 2026-11-16T21:40Z; 5 of 5 goals done, 1 closed; last landing 2026-11-16T21:40Z
+  - Search: complete at 2026-11-16T21:40Z; 5 of 5 goals done, 1 closed; last landing 2026-11-16T21:40Z; 2 reds owed
   - Moves: open; 2 of 4 goals done, 1 failed
   ```
 
@@ -285,8 +292,9 @@ What the forge keeps of a milestone, since jig keeps no landing:
   `complete`, `ended` or `closed`, with `at` and its end, UTC to the
   minute. Then `D of N goals done`, its count (section 6), `, F
   failed` where some failed, `, C closed` where some were; then `; last
-  landing TIME` where one is known. The part is absent when the project
-  has none.
+  landing TIME` where one is known; then `; R reds owed`, `; 1 red
+  owed` for one, where its `reds` (section 7) are above zero. The part
+  is absent when the project has none.
 - **Its instructions** gain a sentence: "Name a goal by its milestone
   where it has one, and say when a milestone completed and when its
   last goal landed." (`forge/attention.md`, section 3, *Its
@@ -323,7 +331,9 @@ Focused stories, each where its owner's are:
   goal beneath a gathering whose `decided` writes its row for the maker;
   its landing setting the milestone's last landing; the milestone's end
   recorded with no issue; `Milestone` answered live and ended; the
-  status words naming milestones and a goal by its milestone.
+  status words naming milestones and a goal by its milestone; the reds
+  its goals owe counted and said, a complete milestone staying complete
+  (`red-findings.md`, section 11).
 - **The client's tools' harness and the joined client world**
   (`temper/tests/client`): `temper ctl`'s milestone commands and `goal
   start`'s flags (`../client/ctl/milestones.md`, section 5).

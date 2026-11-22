@@ -43,6 +43,7 @@ pub enum Ending {
 #[must_use]
 pub fn up(domain: &mut Link, channel: Token, up: host::LinkUp) -> Option<core::Event> {
     let event = match up {
+        host::LinkUp::Part { .. } => return None,
         host::LinkUp::Ask { run, attempt, number, bytes } => fleet::Event::Ask { channel, run, attempt, number, bytes },
         // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too builds this route.
         host::LinkUp::Paused { state } => fleet::Event::Paused { channel, state },

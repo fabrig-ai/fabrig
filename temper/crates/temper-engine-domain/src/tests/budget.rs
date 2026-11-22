@@ -53,6 +53,7 @@ fn keep_assignment(domain: &mut Domain, assignment: crate::Assignment) {
         .insert(task, crate::boundary::AssignmentParts { saved, workstream, workspace, answered })
         .unwrap();
     domain.hub_link.keep_assignment(jig_domain_hub_link::Assignment {
+        parts: Box::new([]),
         task,
         attempt,
         conversation,

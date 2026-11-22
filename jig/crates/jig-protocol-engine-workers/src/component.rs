@@ -42,7 +42,7 @@ pub struct Component {
     workers_ready: bool,
     names: Map<u32, Box<[u8]>>,
     pub(crate) wires: List<wire::Spoken>,
-    pub(crate) codec: wire::v21::Limits,
+    pub(crate) codec: wire::v22::Limits,
     pub(crate) connections: Map<Token, Connection>,
     pub(crate) figures: Option<wire::Figures>,
     schema: skein_channel::Schema,
@@ -213,6 +213,16 @@ impl Component {
                 self.fire(now, out);
             }
             event @ Event::Down { .. } => self.deliver(now, event, out),
+            Event::PartBusy { channel, run, attempt, part } => {
+                if let Some(connection) = self.target(channel) {
+                    let record = crate::translate::Down::PartBusy(wire::PartBusy {
+                        task: run.raw(),
+                        attempt: attempt.raw(),
+                        number: part,
+                    });
+                    self.send(now, connection, Some(record), Reply::Drop, out);
+                }
+            }
             Event::TurnBusy { channel, run, attempt, turn } => {
                 if let Some(connection) = self.target(channel) {
                     let record = crate::translate::turn_busy(run, attempt, turn);
@@ -322,6 +332,7 @@ impl Component {
                     | jig_domain_host::LinkDown::Message { .. }
                     | jig_domain_host::LinkDown::Asked { .. }
                     | jig_domain_host::LinkDown::Relayed { .. }
+                    | jig_domain_host::LinkDown::PartKept { .. }
                     | jig_domain_host::LinkDown::TurnKept { .. }
                     | jig_domain_host::LinkDown::Acknowledge { .. }
                     | jig_domain_host::LinkDown::Cancel { .. }
@@ -444,6 +455,13 @@ impl Component {
             self.dropped_down = self.dropped_down.saturating_add(1);
             return;
         };
+        let kind = record.kind();
+        if kind == wire::Kind::PartKept || kind == wire::Kind::PartBusy {
+            let version = self.connections.get(&connection).expect("target channel exists").version;
+            if self.schema.version(version).expect("agreed version").kind(kind.number()).is_none() {
+                return;
+            }
+        }
         // Fit the translated record before encoding the frame the room measures
         // (jig/docs/design/protocol/channel/README.md, 8 and 10).
         let (record, past) = match record {
@@ -474,6 +492,8 @@ impl Component {
             | crate::translate::Down::AssignJob(_)
             | crate::translate::Down::Message(_)
             | crate::translate::Down::Relayed(_)
+            | crate::translate::Down::PartKept(_)
+            | crate::translate::Down::PartBusy(_)
             | crate::translate::Down::TurnKept(_)
             | crate::translate::Down::TurnBusy(_)
             | crate::translate::Down::Acknowledge(_)
@@ -746,7 +766,7 @@ impl Component {
                             };
                             wires.push(record).expect("agreed wires fit credential limits");
                         }
-                        let record = wire::v21::Agreed { wires };
+                        let record = wire::v22::Agreed { wires };
                         let length = record.measure(&self.codec).expect("agreed statement fits limits");
                         let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(length));
                         record.write(&self.codec, &mut body).expect("measured statement");
@@ -870,6 +890,31 @@ impl Component {
             Phase::Open => {
                 state.silence = Some(now.saturating_add(self.limits.silence));
                 if let Some(record) = crate::translate::decode(kind, body, &self.codec) {
+                    let record = match record {
+                        crate::translate::Up::Part(part) => {
+                            // A part is acknowledged at once and kept nowhere (records.md, 5).
+                            let record = crate::translate::Down::PartKept(wire::PartKept {
+                                task: part.task,
+                                attempt: part.attempt,
+                                number: part.number,
+                            });
+                            let frame = record.frame(&self.codec).expect("part acknowledgement fits");
+                            self.send_opening(now, connection, state, wire::Kind::PartKept, frame, out);
+                            state.down(ChannelRequest::Read, connection, out);
+                            return;
+                        }
+                        record @ (crate::translate::Up::Source(_)
+                        | crate::translate::Up::Ask(_)
+                        | crate::translate::Up::ListRead(_)
+                        | crate::translate::Up::Turn(_)
+                        | crate::translate::Up::Call(_)
+                        | crate::translate::Up::Answer(_)
+                        | crate::translate::Up::JobAnswer(_)
+                        | crate::translate::Up::Fact(_)
+                        | crate::translate::Up::Unauthorized(_)
+                        | crate::translate::Up::Limited(_)
+                        | crate::translate::Up::AccountRefused(_)) => record,
+                    };
                     let mut parts = crate::translate::Parts::new(self.next_part);
                     let up = crate::translate::up(record, &mut parts);
                     self.next_part = parts.next();

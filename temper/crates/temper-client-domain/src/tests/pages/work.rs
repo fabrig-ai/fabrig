@@ -667,6 +667,7 @@ impl Fixture {
                 .unwrap();
         }
         let panel = w::ChangesPanel {
+            catching_up: None,
             landed_default: List::with_capacity(0),
             landed_default_more: 0,
             project: f::PROJECT,
@@ -1272,6 +1273,7 @@ fn busy_live_goals_use_the_same_milestone_as_goals_groups() {
             ended: None,
             last_landing: None,
             spent: 0,
+            reds: 0,
         },
         &[(child.clone(), None)],
         0,

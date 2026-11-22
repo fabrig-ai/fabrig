@@ -71,7 +71,7 @@ pub fn limits() -> Limits {
 
 pub fn charter_bytes() -> Box<[u8]> {
     let source = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(&charter_fixture()))
-        .expect("golden charter");
+        .expect("fixed-rule value charter");
     let mut parts = source;
     parts.mode = smith_charter::Mode::Finite;
     parts.budget = smith_charter::Budget {
@@ -110,6 +110,8 @@ pub fn charter_value() -> smith::Charter {
 
 pub fn assignment(charter: Box<[u8]>) -> host::Assignment {
     host::Assignment {
+        parts: Box::new([]),
+        tell_parts: false,
         messages: Box::new([]),
         turns: Box::new([]),
         answered: Box::new([]),
@@ -375,7 +377,7 @@ pub fn encoded_turn() -> host::Turn {
 
 fn charter_fixture() -> Box<[u8]> {
     let values = skein_codegen::values(smith_charter::SCHEMA);
-    for value in values.goldens.clone() {
+    for value in values.fixed.clone() {
         if value.name == "record_charter_smallest.bin" {
             return value.bytes.into_boxed_slice();
         }

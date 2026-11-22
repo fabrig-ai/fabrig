@@ -1,15 +1,15 @@
 //! Generator regressions for data/codec/README.md, sections 3 and 6.
 
-use crate::{Golden, generate, goldens, parse};
+use crate::{FixedValue, fixed_values, generate, parse};
 
 #[test]
 fn fixed_rule_values_keep_names_order_and_bytes() {
     let schema = parse("family f 1 record Note { title: text 8 }").expect("valid note");
     assert_eq!(
-        goldens(&schema),
+        fixed_values(&schema),
         [
-            Golden { name: "record_note_smallest.bin".into(), bytes: vec![0, 0, 0, 0] },
-            Golden { name: "record_note_full.bin".into(), bytes: vec![0, 0, 0, 3, b'a', b'b', b'c'] },
+            FixedValue { name: "record_note_smallest.bin".into(), bytes: vec![0, 0, 0, 0] },
+            FixedValue { name: "record_note_full.bin".into(), bytes: vec![0, 0, 0, 3, b'a', b'b', b'c'] },
         ]
     );
 }

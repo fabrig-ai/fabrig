@@ -259,6 +259,7 @@ impl Fixture {
             List::with_capacity(0)
         };
         let panel = w::ChangesPanel {
+            catching_up: None,
             landed_default: landed.clone(),
             landed_default_more: 0,
             project: f::PROJECT,
@@ -425,6 +426,7 @@ fn landed_this_week_names_the_goal_once_at_its_main_commit() {
         default_branch: true,
     };
     let panel = w::ChangesPanel {
+        catching_up: None,
         project: f::PROJECT,
         landing: b"main".as_slice().into(),
         queues: List::with_capacity(0),
@@ -843,7 +845,7 @@ fn ended_page(rows: &[c::TaskLine]) -> c::ReadValue {
     }))
 }
 fn milestone_totals(done: u32, failed: u32, live: u32) -> w::MilestoneTotals {
-    w::MilestoneTotals { task: M, done, failed, live, closed: 0, spent: 212, ended: None, last_landing: None }
+    w::MilestoneTotals { task: M, done, failed, live, closed: 0, spent: 212, ended: None, last_landing: None, reds: 0 }
 }
 fn milestone_goal(task: u64, title: &[u8]) -> c::TaskLine {
     let mut line = line(task, title);
@@ -874,6 +876,7 @@ fn queued_change(task: u64) -> w::ChangesQueued {
 }
 fn send_panel(page: &mut Fixture, queued: &[w::ChangesQueued], landed: &[w::ChangesLanded]) {
     let panel = w::ChangesPanel {
+        catching_up: None,
         project: f::PROJECT,
         landing: b"main".as_slice().into(),
         more: 0,
@@ -901,6 +904,10 @@ fn send_panel(page: &mut Fixture, queued: &[w::ChangesQueued], landed: &[w::Chan
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one fixture checks the grouped live card and its ended headline in both shells"
+)]
 fn milestones_hold_their_goals_changes_and_folds_in_both_shells() {
     let mut page = Fixture::new(None, false);
     page.populate(false);
@@ -930,7 +937,9 @@ fn milestones_hold_their_goals_changes_and_folds_in_both_shells() {
     assert_eq!(styled(&unread, look::WORK_HEADLINE).len(), 1);
     assert!(styled(&unread, look::WORK_HEADLINE)[0].text.is_empty(), "ended milestone list still unread");
     send_panel(&mut page, &[queued_change(21)], &[]);
-    page.serve_milestone(&own, &[waiting, running], &[failed, closed, done], true, Some(&milestone_totals(1, 1, 2)));
+    let mut owed = milestone_totals(1, 1, 2);
+    owed.reds = 2;
+    page.serve_milestone(&own, &[waiting, running], &[failed, closed, done], true, Some(&owed));
     let facts = temper_client_domain::pages::work::facts(&page.root, f::PROJECT).unwrap();
     assert_eq!(facts.milestones.len(), 1);
     assert_eq!(facts.goals.len(), 5, "includes the drawn milestone's ended goals");
@@ -949,7 +958,7 @@ fn milestones_hold_their_goals_changes_and_folds_in_both_shells() {
             "A milestone opens to its goals, and a goal to its tasks and changes;",
             "4 goals · whole",
             "212 spent of 400",
-            "1 of 4 goals done.",
+            "1 of 4 goals done; 2 reds after landing owed.",
             "running · 5 / 7",
             "Move the reader",
             "waits on C4",
@@ -992,6 +1001,34 @@ fn milestones_hold_their_goals_changes_and_folds_in_both_shells() {
             }
         }
         assert_eq!(links.as_slice(), &[M, 3, 21, 5, 4, 6, 7]);
+    }
+    // The renderer also words an ended card; placement only keeps live cards in flight.
+    let mut own = own;
+    own.chip.phase = c::Phase::Ended;
+    own.chip.details.phase = c::ChipPhase::Ended;
+    own.chip.details.details.ending = Some(c::ChipEnding::Done(c::ResultValue::Report(text(b"done"))));
+    let mut totals = milestone_totals(1, 0, 0);
+    totals.reds = 2;
+    assert_eq!(
+        temper_client_domain::pages::milestones::state(&own, &[], Some(&totals), false),
+        temper_client_domain::pages::milestones::State::Complete
+    );
+    own.parts = list(&[f::milestones::part(Some(NOW), totals, &[], 0)]);
+    page.live(watch, &[own]);
+    for words in [f::browser_words(), f::words()] {
+        let mut b = Builder::new(&f::tree_limits());
+        let mut bindings = Bindings::new(f::tree_limits().bindings);
+        work::card_view(
+            &mut b,
+            &page.root,
+            &words,
+            &mut bindings,
+            &mut Times::new(NOW),
+            f::PROJECT,
+            &Card { item: Item::Milestone(M), changes: List::uncapped(), goals: List::uncapped() },
+        );
+        let tree = b.finish();
+        assert!(has(&tree, "All 1 goal done; 2 reds after landing owed."));
     }
 }
 
@@ -1108,7 +1145,6 @@ fn landed_goal_rows_name_their_milestone_and_only_its_recent_completing_change()
         let mut totals = milestone_totals(1, failed, 0);
         totals.ended = Some(completed);
         totals.last_landing = Some(w::MilestoneLanding { at: RECENT, goal: 3, change: last_change });
-        let totals = totals;
         let landing = w::ChangesLanded {
             goal: Some(origin(3, b"C4 running")),
             chat: None,
@@ -1255,6 +1291,73 @@ fn milestone_groups_cut_their_from_and_goal_titles_in_both_shells() {
                 let link = title_link(&tree, &bindings, Address::Task { task });
                 assert!(skein_lib::bytes::find(link.name.as_deref().unwrap(), cut).is_some());
                 assert!(skein_lib::bytes::find(&subtree_text(&tree, link), cut).is_some());
+            }
+        }
+    }
+}
+
+#[test]
+fn changes_shows_catching_up_below_the_lede_and_removes_it() {
+    let mut page = Fixture::new(None, false);
+    page.populate(false);
+    let temper_client_domain::pages::changes::State::Shown(panel) = page.root.pages().changes().unwrap().state() else {
+        panic!("changes shown");
+    };
+    let mut panel = panel.clone();
+    let zero =
+        w::CatchingUp { fresh: 0, gathers: 0, ci: 0, goal_files: 0, lost_writers: 0, goal_branches: 0, uncertain: 0 };
+    for (state, expected) in [
+        (
+            Some(w::CatchingUp { fresh: 3, uncertain: 2, ..zero.clone() }),
+            Some("Catching up: 3 fresh reads, 2 uncertain writes"),
+        ),
+        (Some(w::CatchingUp { goal_branches: 1, ..zero.clone() }), Some("Catching up: 1 goal-branch read")),
+        (Some(zero), Some("Catching up")),
+        (None, None),
+    ] {
+        panel.catching_up = state;
+        page.up(Up::FamilyDelivered {
+            watch: page.changes,
+            record: jig_client::Family {
+                family: wire::FORGE,
+                version: wire::CLIENT_VERSION,
+                bytes: wire::changes_panel(&panel),
+            },
+        });
+        let temper_client_domain::pages::changes::State::Shown(shown) = page.root.pages().changes().unwrap().state()
+        else {
+            panic!("still shown")
+        };
+        assert_eq!(shown.catching_up, panel.catching_up, "new delivery reaches page");
+        for words in [f::browser_words(), f::words()] {
+            let mut b = Builder::new(&f::tree_limits());
+            crate::pages::changes::main(
+                &mut b,
+                &page.root,
+                &words,
+                &mut Bindings::new(f::tree_limits().bindings),
+                f::PROJECT,
+                &mut Times::new(NOW),
+            );
+            let tree = b.finish();
+            let mut line = None;
+            for (index, node) in tree.nodes().iter().enumerate() {
+                let text = f::node_text(&tree, index);
+                if node.role == Role::Paragraph && text.starts_with(b"Catching up") {
+                    assert!(line.is_none(), "one progress line");
+                    assert!(node.styles.as_slice().contains(&look::HOME_QUIET));
+                    line = Some(text);
+                }
+            }
+            let expected_bytes = match expected {
+                Some(expected) => Some(expected.as_bytes()),
+                None => None,
+            };
+            assert_eq!(line.as_deref(), expected_bytes);
+            if let Some(expected) = expected {
+                let text = f::text(&tree);
+                let lede = skein_lib::bytes::find(&text, b"before it lands.").unwrap();
+                assert!(lede < skein_lib::bytes::find(&text, expected.as_bytes()).unwrap());
             }
         }
     }

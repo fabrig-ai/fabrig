@@ -1139,7 +1139,7 @@ pub fn name(path: Path) -> Option<&'static str> {
 }
 
 // Table: postordered shapes, with compiler-known heap slot sizes.
-const TABLE: &[skein_codec::bounds::Node] = &[
+static TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
     skein_codec::bounds::Node::Scalar(8),
@@ -1679,7 +1679,7 @@ const DECLARATIONS: &[u32] = &[
     408,
 ];
 
-const CEILING_VALUES: &[u32] = &[
+static CEILING_VALUES: &[u32] = &[
     8_192,
     1_048_576,
     1_048_576,
@@ -1725,6 +1725,11 @@ pub struct MovedPlacedHold {
 }
 
 // Record: MovedPlacedHold.
+impl MovedPlacedHold {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for MovedPlacedHold {
     type Limits = Limits;
     const TAIL: Path = paths::MOVED_PLACED_HOLD_TAIL;
@@ -1756,6 +1761,11 @@ pub struct HoldOwnerParty {
 }
 
 // Record: HoldOwnerParty.
+impl HoldOwnerParty {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for HoldOwnerParty {
     type Limits = Limits;
     const TAIL: Path = paths::HOLD_OWNER_PARTY_TAIL;
@@ -1787,6 +1797,11 @@ pub struct HoldOwnerTask {
 }
 
 // Record: HoldOwnerTask.
+impl HoldOwnerTask {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for HoldOwnerTask {
     type Limits = Limits;
     const TAIL: Path = paths::HOLD_OWNER_TASK_TAIL;
@@ -1819,6 +1834,11 @@ pub enum HoldOwner {
 }
 
 // Record: HoldOwner.
+impl HoldOwner {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
 impl Record for HoldOwner {
     type Limits = Limits;
     const TAIL: Path = paths::HOLD_OWNER_TAG;
@@ -1858,6 +1878,11 @@ pub struct CallPartHoldOwner {
 }
 
 // Record: CallPartHoldOwner.
+impl CallPartHoldOwner {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 33;
+}
+
 impl Record for CallPartHoldOwner {
     type Limits = Limits;
     const TAIL: Path = paths::CALL_PART_HOLD_OWNER_TAIL;
@@ -1895,6 +1920,11 @@ pub struct ProposerTask {
 }
 
 // Record: ProposerTask.
+impl ProposerTask {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for ProposerTask {
     type Limits = Limits;
     const TAIL: Path = paths::PROPOSER_TASK_TAIL;
@@ -1926,6 +1956,11 @@ pub struct ProposerParty {
 }
 
 // Record: ProposerParty.
+impl ProposerParty {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for ProposerParty {
     type Limits = Limits;
     const TAIL: Path = paths::PROPOSER_PARTY_TAIL;
@@ -1958,6 +1993,11 @@ pub enum Proposer {
 }
 
 // Record: Proposer.
+impl Proposer {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
 impl Record for Proposer {
     type Limits = Limits;
     const TAIL: Path = paths::PROPOSER_TAG;
@@ -1998,6 +2038,11 @@ pub enum ProposalChoice {
 }
 
 // Record: ProposalChoice.
+impl ProposalChoice {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for ProposalChoice {
     type Limits = Limits;
     const TAIL: Path = paths::PROPOSAL_CHOICE_TAG;
@@ -2040,6 +2085,11 @@ pub struct EscalationDecisionReject {
 }
 
 // Record: EscalationDecisionReject.
+impl EscalationDecisionReject {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for EscalationDecisionReject {
     type Limits = Limits;
     const TAIL: Path = paths::ESCALATION_DECISION_REJECT_TAIL;
@@ -2073,6 +2123,11 @@ pub enum EscalationDecision {
 }
 
 // Record: EscalationDecision.
+impl EscalationDecision {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for EscalationDecision {
     type Limits = Limits;
     const TAIL: Path = paths::ESCALATION_DECISION_TAG;
@@ -2116,6 +2171,11 @@ pub enum ProposalKind {
 }
 
 // Record: ProposalKind.
+impl ProposalKind {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for ProposalKind {
     type Limits = Limits;
     const TAIL: Path = paths::PROPOSAL_KIND_TAG;
@@ -2160,6 +2220,11 @@ pub struct EscalationOutcomePassed {
 }
 
 // Record: EscalationOutcomePassed.
+impl EscalationOutcomePassed {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for EscalationOutcomePassed {
     type Limits = Limits;
     const TAIL: Path = paths::ESCALATION_OUTCOME_PASSED_TAIL;
@@ -2196,6 +2261,11 @@ pub enum EscalationOutcome {
 }
 
 // Record: EscalationOutcome.
+impl EscalationOutcome {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
 impl Record for EscalationOutcome {
     type Limits = Limits;
     const TAIL: Path = paths::ESCALATION_OUTCOME_TAG;
@@ -2244,6 +2314,11 @@ pub enum ProposalOutcome {
 }
 
 // Record: ProposalOutcome.
+impl ProposalOutcome {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for ProposalOutcome {
     type Limits = Limits;
     const TAIL: Path = paths::PROPOSAL_OUTCOME_TAG;
@@ -2289,6 +2364,11 @@ pub enum Source {
 }
 
 // Record: Source.
+impl Source {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for Source {
     type Limits = Limits;
     const TAIL: Path = paths::SOURCE_TAG;
@@ -2338,6 +2418,11 @@ pub struct Lacks {
 }
 
 // Record: Lacks.
+impl Lacks {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
 impl Record for Lacks {
     type Limits = Limits;
     const TAIL: Path = paths::LACKS_TAIL;
@@ -2387,6 +2472,11 @@ pub struct Judge {
 }
 
 // Record: Judge.
+impl Judge {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for Judge {
     type Limits = Limits;
     const TAIL: Path = paths::JUDGE_TAIL;
@@ -2425,6 +2515,11 @@ pub enum Answer {
 }
 
 // Record: Answer.
+impl Answer {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for Answer {
     type Limits = Limits;
     const TAIL: Path = paths::ANSWER_TAG;
@@ -2466,6 +2561,11 @@ pub struct FindingAuthority {
 }
 
 // Record: FindingAuthority.
+impl FindingAuthority {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 10;
+}
+
 impl Record for FindingAuthority {
     type Limits = Limits;
     const TAIL: Path = paths::FINDING_AUTHORITY_TAIL;
@@ -2499,6 +2599,11 @@ pub struct FindingExecutor {
 }
 
 // Record: FindingExecutor.
+impl FindingExecutor {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for FindingExecutor {
     type Limits = Limits;
     const TAIL: Path = paths::FINDING_EXECUTOR_TAIL;
@@ -2530,6 +2635,11 @@ pub struct FindingTasks {
 }
 
 // Record: FindingTasks.
+impl FindingTasks {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for FindingTasks {
     type Limits = Limits;
     const TAIL: Path = paths::FINDING_TASKS_TAIL;
@@ -2561,6 +2671,11 @@ pub struct FindingSpend {
 }
 
 // Record: FindingSpend.
+impl FindingSpend {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for FindingSpend {
     type Limits = Limits;
     const TAIL: Path = paths::FINDING_SPEND_TAIL;
@@ -2592,6 +2707,11 @@ pub struct FindingGrant {
 }
 
 // Record: FindingGrant.
+impl FindingGrant {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for FindingGrant {
     type Limits = Limits;
     const TAIL: Path = paths::FINDING_GRANT_TAIL;
@@ -2623,6 +2743,11 @@ pub struct FindingPrice {
 }
 
 // Record: FindingPrice.
+impl FindingPrice {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for FindingPrice {
     type Limits = Limits;
     const TAIL: Path = paths::FINDING_PRICE_TAIL;
@@ -2654,6 +2779,11 @@ pub struct FindingScope {
 }
 
 // Record: FindingScope.
+impl FindingScope {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for FindingScope {
     type Limits = Limits;
     const TAIL: Path = paths::FINDING_SCOPE_TAIL;
@@ -2685,6 +2815,11 @@ pub struct FindingRequired {
 }
 
 // Record: FindingRequired.
+impl FindingRequired {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for FindingRequired {
     type Limits = Limits;
     const TAIL: Path = paths::FINDING_REQUIRED_TAIL;
@@ -2716,6 +2851,11 @@ pub struct FindingFailed {
 }
 
 // Record: FindingFailed.
+impl FindingFailed {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for FindingFailed {
     type Limits = Limits;
     const TAIL: Path = paths::FINDING_FAILED_TAIL;
@@ -2747,6 +2887,11 @@ pub struct FindingUnguarded {
 }
 
 // Record: FindingUnguarded.
+impl FindingUnguarded {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for FindingUnguarded {
     type Limits = Limits;
     const TAIL: Path = paths::FINDING_UNGUARDED_TAIL;
@@ -2803,6 +2948,11 @@ pub enum Finding {
 }
 
 // Record: Finding.
+impl Finding {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 11;
+}
+
 impl Record for Finding {
     type Limits = Limits;
     const TAIL: Path = paths::FINDING_TAG;
@@ -2888,6 +3038,11 @@ pub enum HostKind {
 }
 
 // Record: HostKind.
+impl HostKind {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for HostKind {
     type Limits = Limits;
     const TAIL: Path = paths::HOST_KIND_TAG;
@@ -2924,6 +3079,11 @@ pub struct OutboxOutcomeHeld {
 }
 
 // Record: OutboxOutcomeHeld.
+impl OutboxOutcomeHeld {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for OutboxOutcomeHeld {
     type Limits = Limits;
     const TAIL: Path = paths::OUTBOX_OUTCOME_HELD_TAIL;
@@ -2960,6 +3120,11 @@ pub enum OutboxOutcome {
 }
 
 // Record: OutboxOutcome.
+impl OutboxOutcome {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
 impl Record for OutboxOutcome {
     type Limits = Limits;
     const TAIL: Path = paths::OUTBOX_OUTCOME_TAG;
@@ -3009,6 +3174,11 @@ pub enum DeliveryOutcome {
 }
 
 // Record: DeliveryOutcome.
+impl DeliveryOutcome {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for DeliveryOutcome {
     type Limits = Limits;
     const TAIL: Path = paths::DELIVERY_OUTCOME_TAG;
@@ -3054,6 +3224,11 @@ pub struct SettledAnswerHost {
 }
 
 // Record: SettledAnswerHost.
+impl SettledAnswerHost {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for SettledAnswerHost {
     type Limits = Limits;
     const TAIL: Path = paths::SETTLED_ANSWER_HOST_TAIL;
@@ -3088,6 +3263,11 @@ pub struct SettledAnswerDelivery {
 }
 
 // Record: SettledAnswerDelivery.
+impl SettledAnswerDelivery {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for SettledAnswerDelivery {
     type Limits = Limits;
     const TAIL: Path = paths::SETTLED_ANSWER_DELIVERY_TAIL;
@@ -3122,6 +3302,11 @@ pub enum SettledAnswer {
 }
 
 // Record: SettledAnswer.
+impl SettledAnswer {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 6;
+}
+
 impl Record for SettledAnswer {
     type Limits = Limits;
     const TAIL: Path = paths::SETTLED_ANSWER_TAG;
@@ -3160,6 +3345,11 @@ pub struct SettledCall {
 }
 
 // Record: SettledCall.
+impl SettledCall {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 18;
+}
+
 impl Record for SettledCall {
     type Limits = Limits;
     const TAIL: Path = paths::SETTLED_CALL_TAIL;
@@ -3198,6 +3388,11 @@ pub struct CallKey {
 }
 
 // Record: CallKey.
+impl CallKey {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 24;
+}
+
 impl Record for CallKey {
     type Limits = Limits;
     const TAIL: Path = paths::CALL_KEY_TAIL;
@@ -3238,6 +3433,11 @@ pub struct CallPartEffect {
 }
 
 // Record: CallPartEffect.
+impl CallPartEffect {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 28;
+}
+
 impl Record for CallPartEffect {
     type Limits = Limits;
     const TAIL: Path = paths::CALL_PART_EFFECT_TAIL;
@@ -3275,6 +3475,11 @@ pub struct CallPartConnector {
 }
 
 // Record: CallPartConnector.
+impl CallPartConnector {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 2;
+}
+
 impl Record for CallPartConnector {
     type Limits = Limits;
     const TAIL: Path = paths::CALL_PART_CONNECTOR_TAIL;
@@ -3307,6 +3512,11 @@ pub struct CallPartEffectDenied {
 }
 
 // Record: CallPartEffectDenied.
+impl CallPartEffectDenied {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for CallPartEffectDenied {
     type Limits = Limits;
     const TAIL: Path = paths::CALL_PART_EFFECT_DENIED_TAIL;
@@ -3341,6 +3551,11 @@ pub struct CallPartToolDenied {
 }
 
 // Record: CallPartToolDenied.
+impl CallPartToolDenied {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for CallPartToolDenied {
     type Limits = Limits;
     const TAIL: Path = paths::CALL_PART_TOOL_DENIED_TAIL;
@@ -3376,6 +3591,11 @@ pub struct CallPartEscalationDecided {
 }
 
 // Record: CallPartEscalationDecided.
+impl CallPartEscalationDecided {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 25;
+}
+
 impl Record for CallPartEscalationDecided {
     type Limits = Limits;
     const TAIL: Path = paths::CALL_PART_ESCALATION_DECIDED_TAIL;
@@ -3411,6 +3631,11 @@ pub struct Number {
 }
 
 // Record: Number.
+impl Number {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for Number {
     type Limits = Limits;
     const TAIL: Path = paths::NUMBER_TAIL;
@@ -3443,6 +3668,11 @@ pub struct PolicyHolder {
 }
 
 // Record: PolicyHolder.
+impl PolicyHolder {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for PolicyHolder {
     type Limits = Limits;
     const TAIL: Path = paths::POLICY_HOLDER_TAIL;
@@ -3478,6 +3708,11 @@ pub enum ProposalHolder {
 }
 
 // Record: ProposalHolder.
+impl ProposalHolder {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
 impl Record for ProposalHolder {
     type Limits = Limits;
     const TAIL: Path = paths::PROPOSAL_HOLDER_TAG;
@@ -3517,6 +3752,11 @@ pub struct CallPartProposed {
 }
 
 // Record: CallPartProposed.
+impl CallPartProposed {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 17;
+}
+
 impl Record for CallPartProposed {
     type Limits = Limits;
     const TAIL: Path = paths::CALL_PART_PROPOSED_TAIL;
@@ -3551,6 +3791,11 @@ pub struct CallPartProposalDecided {
 }
 
 // Record: CallPartProposalDecided.
+impl CallPartProposalDecided {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
 impl Record for CallPartProposalDecided {
     type Limits = Limits;
     const TAIL: Path = paths::CALL_PART_PROPOSAL_DECIDED_TAIL;
@@ -3584,6 +3829,11 @@ pub struct CallPartControlDenied {
 }
 
 // Record: CallPartControlDenied.
+impl CallPartControlDenied {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for CallPartControlDenied {
     type Limits = Limits;
     const TAIL: Path = paths::CALL_PART_CONTROL_DENIED_TAIL;
@@ -3615,6 +3865,11 @@ pub struct CallPartSent {
 }
 
 // Record: CallPartSent.
+impl CallPartSent {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for CallPartSent {
     type Limits = Limits;
     const TAIL: Path = paths::CALL_PART_SENT_TAIL;
@@ -3646,6 +3901,11 @@ pub struct CallPartSubscribed {
 }
 
 // Record: CallPartSubscribed.
+impl CallPartSubscribed {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for CallPartSubscribed {
     type Limits = Limits;
     const TAIL: Path = paths::CALL_PART_SUBSCRIBED_TAIL;
@@ -3678,6 +3938,11 @@ pub struct CallPartDelegationDenied {
 }
 
 // Record: CallPartDelegationDenied.
+impl CallPartDelegationDenied {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for CallPartDelegationDenied {
     type Limits = Limits;
     const TAIL: Path = paths::CALL_PART_DELEGATION_DENIED_TAIL;
@@ -3711,6 +3976,11 @@ pub struct CallPartNoteDeleted {
 }
 
 // Record: CallPartNoteDeleted.
+impl CallPartNoteDeleted {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for CallPartNoteDeleted {
     type Limits = Limits;
     const TAIL: Path = paths::CALL_PART_NOTE_DELETED_TAIL;
@@ -3749,6 +4019,11 @@ pub struct CallPartNoteWritten {
 }
 
 // Record: CallPartNoteWritten.
+impl CallPartNoteWritten {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 36;
+}
+
 impl Record for CallPartNoteWritten {
     type Limits = Limits;
     const TAIL: Path = paths::CALL_PART_NOTE_WRITTEN_TAIL;
@@ -3795,6 +4070,11 @@ pub struct CallPartWordsRecorded {
 }
 
 // Record: CallPartWordsRecorded.
+impl CallPartWordsRecorded {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for CallPartWordsRecorded {
     type Limits = Limits;
     const TAIL: Path = paths::CALL_PART_WORDS_RECORDED_TAIL;
@@ -3828,6 +4108,11 @@ pub struct TaskBytes {
 }
 
 // Record: TaskBytes.
+impl TaskBytes {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for TaskBytes {
     type Limits = Limits;
     const TAIL: Path = paths::TASK_BYTES_TAIL;
@@ -3859,6 +4144,11 @@ pub struct CallPartEscalationRefused {
 }
 
 // Record: CallPartEscalationRefused.
+impl CallPartEscalationRefused {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for CallPartEscalationRefused {
     type Limits = Limits;
     const TAIL: Path = paths::CALL_PART_ESCALATION_REFUSED_TAIL;
@@ -3890,6 +4180,11 @@ pub struct CallPartProposalRefused {
 }
 
 // Record: CallPartProposalRefused.
+impl CallPartProposalRefused {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for CallPartProposalRefused {
     type Limits = Limits;
     const TAIL: Path = paths::CALL_PART_PROPOSAL_REFUSED_TAIL;
@@ -3921,6 +4216,11 @@ pub struct CallPartControlRefused {
 }
 
 // Record: CallPartControlRefused.
+impl CallPartControlRefused {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for CallPartControlRefused {
     type Limits = Limits;
     const TAIL: Path = paths::CALL_PART_CONTROL_REFUSED_TAIL;
@@ -3952,6 +4252,11 @@ pub struct CallPartMessageRefused {
 }
 
 // Record: CallPartMessageRefused.
+impl CallPartMessageRefused {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for CallPartMessageRefused {
     type Limits = Limits;
     const TAIL: Path = paths::CALL_PART_MESSAGE_REFUSED_TAIL;
@@ -3983,6 +4288,11 @@ pub struct CallPartSubscriptionRefused {
 }
 
 // Record: CallPartSubscriptionRefused.
+impl CallPartSubscriptionRefused {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for CallPartSubscriptionRefused {
     type Limits = Limits;
     const TAIL: Path = paths::CALL_PART_SUBSCRIPTION_REFUSED_TAIL;
@@ -4014,6 +4324,11 @@ pub struct CallPartDelegationRefused {
 }
 
 // Record: CallPartDelegationRefused.
+impl CallPartDelegationRefused {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for CallPartDelegationRefused {
     type Limits = Limits;
     const TAIL: Path = paths::CALL_PART_DELEGATION_REFUSED_TAIL;
@@ -4047,6 +4362,11 @@ pub struct Made {
 }
 
 // Record: Made.
+impl Made {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 25;
+}
+
 impl Record for Made {
     type Limits = Limits;
     const TAIL: Path = paths::MADE_TAIL;
@@ -4082,6 +4402,11 @@ pub struct CallPartDelegated {
 }
 
 // Record: CallPartDelegated.
+impl CallPartDelegated {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for CallPartDelegated {
     type Limits = Limits;
     const TAIL: Path = paths::CALL_PART_DELEGATED_TAIL;
@@ -4113,6 +4438,11 @@ pub struct NoteBytes {
 }
 
 // Record: NoteBytes.
+impl NoteBytes {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for NoteBytes {
     type Limits = Limits;
     const TAIL: Path = paths::NOTE_BYTES_TAIL;
@@ -4145,6 +4475,11 @@ pub struct CallPartNoteRecalled {
 }
 
 // Record: CallPartNoteRecalled.
+impl CallPartNoteRecalled {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for CallPartNoteRecalled {
     type Limits = Limits;
     const TAIL: Path = paths::CALL_PART_NOTE_RECALLED_TAIL;
@@ -4178,6 +4513,11 @@ pub struct NoteRefusalMoved {
 }
 
 // Record: NoteRefusalMoved.
+impl NoteRefusalMoved {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for NoteRefusalMoved {
     type Limits = Limits;
     const TAIL: Path = paths::NOTE_REFUSAL_MOVED_TAIL;
@@ -4209,6 +4549,11 @@ pub struct NoteRefusalPastEnd {
 }
 
 // Record: NoteRefusalPastEnd.
+impl NoteRefusalPastEnd {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for NoteRefusalPastEnd {
     type Limits = Limits;
     const TAIL: Path = paths::NOTE_REFUSAL_PAST_END_TAIL;
@@ -4241,6 +4586,11 @@ pub struct NoteRefusalPastBound {
 }
 
 // Record: NoteRefusalPastBound.
+impl NoteRefusalPastBound {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for NoteRefusalPastBound {
     type Limits = Limits;
     const TAIL: Path = paths::NOTE_REFUSAL_PAST_BOUND_TAIL;
@@ -4282,6 +4632,11 @@ pub enum NoteRefusal {
 }
 
 // Record: NoteRefusal.
+impl NoteRefusal {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
 impl Record for NoteRefusal {
     type Limits = Limits;
     const TAIL: Path = paths::NOTE_REFUSAL_TAG;
@@ -4332,6 +4687,11 @@ pub struct CallPartNoteRefused {
 }
 
 // Record: CallPartNoteRefused.
+impl CallPartNoteRefused {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
 impl Record for CallPartNoteRefused {
     type Limits = Limits;
     const TAIL: Path = paths::CALL_PART_NOTE_REFUSED_TAIL;
@@ -4364,6 +4724,11 @@ pub struct CallPartRevised {
 }
 
 // Record: CallPartRevised.
+impl CallPartRevised {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 16;
+}
+
 impl Record for CallPartRevised {
     type Limits = Limits;
     const TAIL: Path = paths::CALL_PART_REVISED_TAIL;
@@ -4403,6 +4768,11 @@ pub enum FailureClass {
 }
 
 // Record: FailureClass.
+impl FailureClass {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for FailureClass {
     type Limits = Limits;
     const TAIL: Path = paths::FAILURE_CLASS_TAG;
@@ -4449,6 +4819,11 @@ pub struct HoldReasonFailures {
 }
 
 // Record: HoldReasonFailures.
+impl HoldReasonFailures {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for HoldReasonFailures {
     type Limits = Limits;
     const TAIL: Path = paths::HOLD_REASON_FAILURES_TAIL;
@@ -4480,6 +4855,11 @@ pub struct HoldReasonDependency {
 }
 
 // Record: HoldReasonDependency.
+impl HoldReasonDependency {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for HoldReasonDependency {
     type Limits = Limits;
     const TAIL: Path = paths::HOLD_REASON_DEPENDENCY_TAIL;
@@ -4511,6 +4891,11 @@ pub struct HoldReasonPlaced {
 }
 
 // Record: HoldReasonPlaced.
+impl HoldReasonPlaced {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for HoldReasonPlaced {
     type Limits = Limits;
     const TAIL: Path = paths::HOLD_REASON_PLACED_TAIL;
@@ -4542,6 +4927,11 @@ pub struct HoldReasonUncertain {
 }
 
 // Record: HoldReasonUncertain.
+impl HoldReasonUncertain {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for HoldReasonUncertain {
     type Limits = Limits;
     const TAIL: Path = paths::HOLD_REASON_UNCERTAIN_TAIL;
@@ -4573,6 +4963,11 @@ pub struct HoldReasonPoolLost {
 }
 
 // Record: HoldReasonPoolLost.
+impl HoldReasonPoolLost {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for HoldReasonPoolLost {
     type Limits = Limits;
     const TAIL: Path = paths::HOLD_REASON_POOL_LOST_TAIL;
@@ -4612,6 +5007,11 @@ pub enum Bound {
 }
 
 // Record: Bound.
+impl Bound {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for Bound {
     type Limits = Limits;
     const TAIL: Path = paths::BOUND_TAG;
@@ -4663,6 +5063,11 @@ pub struct Exceeded {
 }
 
 // Record: Exceeded.
+impl Exceeded {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
 impl Record for Exceeded {
     type Limits = Limits;
     const TAIL: Path = paths::EXCEEDED_TAIL;
@@ -4713,6 +5118,11 @@ pub enum HoldReason {
 }
 
 // Record: HoldReason.
+impl HoldReason {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 10;
+}
+
 impl Record for HoldReason {
     type Limits = Limits;
     const TAIL: Path = paths::HOLD_REASON_TAG;
@@ -4782,6 +5192,11 @@ pub struct MovedHold {
 }
 
 // Record: MovedHold.
+impl MovedHold {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 18;
+}
+
 impl Record for MovedHold {
     type Limits = Limits;
     const TAIL: Path = paths::MOVED_HOLD_TAIL;
@@ -4815,6 +5230,11 @@ pub struct MovedSpec {
 }
 
 // Record: MovedSpec.
+impl MovedSpec {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for MovedSpec {
     type Limits = Limits;
     const TAIL: Path = paths::MOVED_SPEC_TAIL;
@@ -4846,6 +5266,11 @@ pub struct MovedPerson {
 }
 
 // Record: MovedPerson.
+impl MovedPerson {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for MovedPerson {
     type Limits = Limits;
     const TAIL: Path = paths::MOVED_PERSON_TAIL;
@@ -4877,6 +5302,11 @@ pub struct MovedNote {
 }
 
 // Record: MovedNote.
+impl MovedNote {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for MovedNote {
     type Limits = Limits;
     const TAIL: Path = paths::MOVED_NOTE_TAIL;
@@ -4912,6 +5342,11 @@ pub enum Moved {
 }
 
 // Record: Moved.
+impl Moved {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 19;
+}
+
 impl Record for Moved {
     type Limits = Limits;
     const TAIL: Path = paths::MOVED_TAG;
@@ -4955,6 +5390,11 @@ pub struct CallPartMoved {
 }
 
 // Record: CallPartMoved.
+impl CallPartMoved {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 27;
+}
+
 impl Record for CallPartMoved {
     type Limits = Limits;
     const TAIL: Path = paths::CALL_PART_MOVED_TAIL;
@@ -4989,6 +5429,11 @@ pub struct CallPartAgain {
 }
 
 // Record: CallPartAgain.
+impl CallPartAgain {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
 impl Record for CallPartAgain {
     type Limits = Limits;
     const TAIL: Path = paths::CALL_PART_AGAIN_TAIL;
@@ -5022,6 +5467,11 @@ pub struct CallPartPassedUp {
 }
 
 // Record: CallPartPassedUp.
+impl CallPartPassedUp {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for CallPartPassedUp {
     type Limits = Limits;
     const TAIL: Path = paths::CALL_PART_PASSED_UP_TAIL;
@@ -5053,6 +5503,11 @@ pub struct CallPartEffectRefused {
 }
 
 // Record: CallPartEffectRefused.
+impl CallPartEffectRefused {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for CallPartEffectRefused {
     type Limits = Limits;
     const TAIL: Path = paths::CALL_PART_EFFECT_REFUSED_TAIL;
@@ -5084,6 +5539,11 @@ pub struct SettingsRefusal {
 }
 
 // Record: SettingsRefusal.
+impl SettingsRefusal {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for SettingsRefusal {
     type Limits = Limits;
     const TAIL: Path = paths::SETTINGS_REFUSAL_TAIL;
@@ -5148,6 +5608,11 @@ pub enum CallPart {
 }
 
 // Record: CallPart.
+impl CallPart {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 37;
+}
+
 impl Record for CallPart {
     type Limits = Limits;
     const TAIL: Path = paths::CALL_PART_TAG;
@@ -5250,6 +5715,11 @@ pub struct CallRecord {
 }
 
 // Record: CallRecord.
+impl CallRecord {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 80;
+}
+
 impl Record for CallRecord {
     type Limits = Limits;
     const TAIL: Path = paths::CALL_RECORD_TAIL;
@@ -5296,6 +5766,11 @@ pub struct Deployment {
 }
 
 // Record: Deployment.
+impl Deployment {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 105;
+}
+
 impl Record for Deployment {
     type Limits = Limits;
     const TAIL: Path = paths::DEPLOYMENT_TAIL;
@@ -5349,6 +5824,11 @@ pub struct PhaseBytes {
 }
 
 // Record: PhaseBytes.
+impl PhaseBytes {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for PhaseBytes {
     type Limits = Limits;
     const TAIL: Path = paths::PHASE_BYTES_TAIL;
@@ -5380,6 +5860,11 @@ pub struct ChangeBytes {
 }
 
 // Record: ChangeBytes.
+impl ChangeBytes {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for ChangeBytes {
     type Limits = Limits;
     const TAIL: Path = paths::CHANGE_BYTES_TAIL;
@@ -5411,6 +5896,11 @@ pub struct EndBytes {
 }
 
 // Record: EndBytes.
+impl EndBytes {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for EndBytes {
     type Limits = Limits;
     const TAIL: Path = paths::END_BYTES_TAIL;
@@ -5442,6 +5932,11 @@ pub struct PartyTask {
 }
 
 // Record: PartyTask.
+impl PartyTask {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for PartyTask {
     type Limits = Limits;
     const TAIL: Path = paths::PARTY_TASK_TAIL;
@@ -5473,6 +5968,11 @@ pub struct PartyPerson {
 }
 
 // Record: PartyPerson.
+impl PartyPerson {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for PartyPerson {
     type Limits = Limits;
     const TAIL: Path = paths::PARTY_PERSON_TAIL;
@@ -5504,6 +6004,11 @@ pub struct PartyDeployment {
 }
 
 // Record: PartyDeployment.
+impl PartyDeployment {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for PartyDeployment {
     type Limits = Limits;
     const TAIL: Path = paths::PARTY_DEPLOYMENT_TAIL;
@@ -5537,6 +6042,11 @@ pub enum Party {
 }
 
 // Record: Party.
+impl Party {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
 impl Record for Party {
     type Limits = Limits;
     const TAIL: Path = paths::PARTY_TAG;
@@ -5576,6 +6086,11 @@ pub struct MilestoneLifecycle {
 }
 
 // Record: MilestoneLifecycle.
+impl MilestoneLifecycle {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 16;
+}
+
 impl Record for MilestoneLifecycle {
     type Limits = Limits;
     const TAIL: Path = paths::MILESTONE_LIFECYCLE_TAIL;
@@ -5610,6 +6125,11 @@ pub struct MilestoneRevision {
 }
 
 // Record: MilestoneRevision.
+impl MilestoneRevision {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 16;
+}
+
 impl Record for MilestoneRevision {
     type Limits = Limits;
     const TAIL: Path = paths::MILESTONE_REVISION_TAIL;
@@ -5644,6 +6164,11 @@ pub enum MilestoneId {
 }
 
 // Record: MilestoneId.
+impl MilestoneId {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 17;
+}
+
 impl Record for MilestoneId {
     type Limits = Limits;
     const TAIL: Path = paths::MILESTONE_ID_TAG;
@@ -5683,6 +6208,11 @@ pub struct ProjectionMilestone {
 }
 
 // Record: ProjectionMilestone.
+impl ProjectionMilestone {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 31;
+}
+
 impl Record for ProjectionMilestone {
     type Limits = Limits;
     const TAIL: Path = paths::PROJECTION_MILESTONE_TAIL;
@@ -5720,6 +6250,11 @@ pub struct Connector {
 }
 
 // Record: Connector.
+impl Connector {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 2;
+}
+
 impl Record for Connector {
     type Limits = Limits;
     const TAIL: Path = paths::CONNECTOR_TAIL;
@@ -5752,6 +6287,11 @@ pub struct ProjectionMilestoneRow {
 }
 
 // Record: ProjectionMilestoneRow.
+impl ProjectionMilestoneRow {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 39;
+}
+
 impl Record for ProjectionMilestoneRow {
     type Limits = Limits;
     const TAIL: Path = paths::PROJECTION_MILESTONE_ROW_TAIL;
@@ -5791,6 +6331,11 @@ pub struct ProjectionGoalHot {
 }
 
 // Record: ProjectionGoalHot.
+impl ProjectionGoalHot {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 34;
+}
+
 impl Record for ProjectionGoalHot {
     type Limits = Limits;
     const TAIL: Path = paths::PROJECTION_GOAL_HOT_TAIL;
@@ -5837,6 +6382,11 @@ pub struct ProjectionTaskHot {
 }
 
 // Record: ProjectionTaskHot.
+impl ProjectionTaskHot {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 29;
+}
+
 impl Record for ProjectionTaskHot {
     type Limits = Limits;
     const TAIL: Path = paths::PROJECTION_TASK_HOT_TAIL;
@@ -5876,6 +6426,11 @@ pub struct ProjectionWords {
 }
 
 // Record: ProjectionWords.
+impl ProjectionWords {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 20;
+}
+
 impl Record for ProjectionWords {
     type Limits = Limits;
     const TAIL: Path = paths::PROJECTION_WORDS_TAIL;
@@ -5915,6 +6470,11 @@ pub enum ProjectionRecord {
 }
 
 // Record: ProjectionRecord.
+impl ProjectionRecord {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 40;
+}
+
 impl Record for ProjectionRecord {
     type Limits = Limits;
     const TAIL: Path = paths::PROJECTION_RECORD_TAG;
@@ -5960,6 +6520,11 @@ pub struct TerminalRecord {
 }
 
 // Record: TerminalRecord.
+impl TerminalRecord {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 28;
+}
+
 impl Record for TerminalRecord {
     type Limits = Limits;
     const TAIL: Path = paths::TERMINAL_RECORD_TAIL;
@@ -5999,6 +6564,11 @@ pub struct TurnProof {
 }
 
 // Record: TurnProof.
+impl TurnProof {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 21;
+}
+
 impl Record for TurnProof {
     type Limits = Limits;
     const TAIL: Path = paths::TURN_PROOF_TAIL;
@@ -6036,6 +6606,11 @@ pub struct Window {
 }
 
 // Record: Window.
+impl Window {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 13;
+}
+
 impl Record for Window {
     type Limits = Limits;
     const TAIL: Path = paths::WINDOW_TAIL;
@@ -6071,6 +6646,11 @@ pub struct Credential {
 }
 
 // Record: Credential.
+impl Credential {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for Credential {
     type Limits = Limits;
     const TAIL: Path = paths::CREDENTIAL_TAIL;
@@ -6104,6 +6684,11 @@ pub struct AccountBinding {
 }
 
 // Record: AccountBinding.
+impl AccountBinding {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 12;
+}
+
 impl Record for AccountBinding {
     type Limits = Limits;
     const TAIL: Path = paths::ACCOUNT_BINDING_TAIL;
@@ -6155,6 +6740,11 @@ pub struct RunProof {
 }
 
 // Record: RunProof.
+impl RunProof {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 137;
+}
+
 impl Record for RunProof {
     type Limits = Limits;
     const TAIL: Path = paths::RUN_PROOF_TAIL;
@@ -6225,6 +6815,11 @@ pub struct TurnRecord {
 }
 
 // Record: TurnRecord.
+impl TurnRecord {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 52;
+}
+
 impl Record for TurnRecord {
     type Limits = Limits;
     const TAIL: Path = paths::TURN_RECORD_TAIL;
@@ -6273,6 +6868,11 @@ pub struct Created {
 }
 
 // Record: Created.
+impl Created {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 16;
+}
+
 impl Record for Created {
     type Limits = Limits;
     const TAIL: Path = paths::CREATED_TAIL;
@@ -6313,6 +6913,11 @@ pub struct ProposalDecisionRecord {
 }
 
 // Record: ProposalDecisionRecord.
+impl ProposalDecisionRecord {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 56;
+}
+
 impl Record for ProposalDecisionRecord {
     type Limits = Limits;
     const TAIL: Path = paths::PROPOSAL_DECISION_RECORD_TAIL;
@@ -6364,6 +6969,11 @@ pub struct EscalationDecisionRecord {
 }
 
 // Record: EscalationDecisionRecord.
+impl EscalationDecisionRecord {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 49;
+}
+
 impl Record for EscalationDecisionRecord {
     type Limits = Limits;
     const TAIL: Path = paths::ESCALATION_DECISION_RECORD_TAIL;
@@ -6407,6 +7017,11 @@ pub struct ProjectionValue {
 }
 
 // Record: ProjectionValue.
+impl ProjectionValue {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 40;
+}
+
 impl Record for ProjectionValue {
     type Limits = Limits;
     const TAIL: Path = paths::PROJECTION_VALUE_TAIL;
@@ -6445,6 +7060,11 @@ pub enum Value {
 }
 
 // Record: Value.
+impl Value {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 138;
+}
+
 impl Record for Value {
     type Limits = Limits;
     const TAIL: Path = paths::VALUE_TAG;
@@ -6493,6 +7113,11 @@ pub struct Row {
 }
 
 // Record: Row.
+impl Row {
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 140;
+}
+
 impl Record for Row {
     type Limits = Limits;
     const TAIL: Path = paths::ROW_TAIL;

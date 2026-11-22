@@ -3,6 +3,8 @@
 2026-11-20. Where smith's code lags or departs from [testing.md](testing.md).
 
 - **Not yet:**
+  - 6: smith's inspection adapter, `smith-inspect`, and its worlds'
+    calls of the shared checks.
   - 2.1: only the local-process world sweeps the simulator's faults
     (`tests/local-process/tests/suite/fuzzy/world.rs`), and no world
     asserts that each fault fell.
