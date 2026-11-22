@@ -126,6 +126,28 @@ impl Wall {
         out.put(&bytes)
     }
 
+    /// Twenty UTC bytes in extended form, `YYYY-MM-DDTHH:MM:SSZ`, discarding fractional seconds.
+    #[must_use]
+    pub fn utc_second(self) -> [u8; 20] {
+        let date = self.civil();
+        let seconds = self.as_secs();
+        let mut bytes = *b"0000-00-00T00:00:00Z";
+        for (range, mut value) in [
+            (0..4, u64::from(date.year)),
+            (5..7, u64::from(date.month)),
+            (8..10, u64::from(date.day)),
+            (11..13, seconds.div_euclid(3_600).rem_euclid(24)),
+            (14..16, seconds.div_euclid(60).rem_euclid(60)),
+            (17..19, seconds.rem_euclid(60)),
+        ] {
+            for byte in bytes.get_mut(range).expect("UTC component within twenty bytes").iter_mut().rev() {
+                *byte = b'0'.saturating_add(u8::try_from(value.rem_euclid(10)).expect("decimal digit"));
+                value = value.div_euclid(10);
+            }
+        }
+        bytes
+    }
+
     /// The UTC date holding this time. Every `Wall` has one.
     #[must_use]
     pub fn civil(self) -> Civil {

@@ -330,6 +330,7 @@ impl Core {
                 | people::Outcome::SignedOut
                 | people::Outcome::NoteEdited { .. }
                 | people::Outcome::ServiceMade { .. }
+                | people::Outcome::ServiceReissued { .. }
                 | people::Outcome::Adopted { .. }
                 | people::Outcome::Proposed { .. }
                 | people::Outcome::Withdrawn { .. }

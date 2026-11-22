@@ -85,8 +85,13 @@ fn offered(frame: &Frame) -> &[u32] {
 
 fn browser_frame(frame: &Frame, models: &[jig_protocol_engine_clients::Model]) -> jig_client::contract::Me {
     use jig_client_protocol_wire as w;
-    let wire =
-        jig_protocol_engine_clients::translate::owner::frame(frame, models, &w::CEILINGS).expect("stock wire offer");
+    let wire = jig_protocol_engine_clients::translate::owner::frame(
+        frame,
+        Wall::from_nanos(86_400_000_000_000),
+        models,
+        &w::CEILINGS,
+    )
+    .expect("stock wire offer");
     let mut writer = Writer::new(
         usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("me bytes"),
     );

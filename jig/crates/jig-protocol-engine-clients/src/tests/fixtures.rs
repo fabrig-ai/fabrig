@@ -10,6 +10,7 @@ use super::super::*;
 pub use envelope::*;
 use skein_lib::{Duration, List, Secret, Wall, Writer};
 pub const NUMBER: u64 = 41;
+pub const SIGN_IN_EXPIRES: Wall = Wall::from_nanos(86_400_000_000_000);
 // Keep the old intake's 256-byte cap, enough for these small message records.
 pub const MESSAGE_BYTES: u32 = 256;
 pub fn message_bytes(size: usize) -> Box<[u8]> {
@@ -184,10 +185,7 @@ impl Exchange {
         let mut out = Queue::with_capacity(8);
         let component = Component::new(settings, &env, &mut out).expect("starts");
         out.pop();
-        let mut token = Writer::new(40);
-        token.put(&NUMBER.to_be_bytes()).expect("number");
-        token.put(&[7; 32]).expect("random bytes");
-        Self { component, env, out, token: token.finish(), via: crate::Via::Listener, source: None }
+        Self { component, env, out, token: sign_in_token(NUMBER), via: crate::Via::Listener, source: None }
     }
     pub fn send(&mut self, message: crate::Message) -> Token {
         let owner = self.component.name();
@@ -223,17 +221,20 @@ impl Exchange {
         owner
     }
     pub fn authenticate(&mut self) {
-        self.authenticate_until(Wall::from_nanos(86_400_000_000_000));
+        self.authenticate_until(SIGN_IN_EXPIRES);
     }
     pub fn authenticate_until(&mut self, expires: Wall) {
+        self.authenticate_sign_in_until(NUMBER, expires);
+    }
+    pub fn authenticate_sign_in_until(&mut self, sign_in: u64, expires: Wall) {
         let Some(Request::Secrets(SecretsRequest::Get { owner })) = self.out.pop() else {
             panic!("digest get");
         };
-        assert_eq!(owner, SecretOwner::SignIn(NUMBER));
+        assert_eq!(owner, SecretOwner::SignIn(sign_in));
         self.component.down(
             &self.env,
             Event::Secrets(SecretsAnswer::Got {
-                owner: SecretOwner::SignIn(NUMBER),
+                owner,
                 value: Some(Kept { digest: sign_in::digest(&self.token), expires }),
             }),
             &mut self.out,
@@ -254,6 +255,13 @@ impl Exchange {
             },
         }
     }
+}
+
+pub fn sign_in_token(sign_in: u64) -> Box<[u8]> {
+    let mut token = Writer::new(40);
+    token.put(&sign_in.to_be_bytes()).expect("number");
+    token.put(&[7; 32]).expect("random bytes");
+    token.finish()
 }
 
 pub fn other_asks() -> [(w::Ask, people::Ask); 17] {
