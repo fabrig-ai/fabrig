@@ -11,7 +11,8 @@
   calls at each durable commit, and its sweeps' restarts.
   [in flight: change 11667]
   7: the store check in the conformance harness: `Harness::check_store`,
-  the applications' three methods, and its cuts' restarts.
+  the applications' four methods (jig's test root, the example
+  application's root and temper's), and its cuts' restarts.
   [in flight: change 11672]
 
 Section 5's keyed durable-row evidence and exhaustive forked cuts are

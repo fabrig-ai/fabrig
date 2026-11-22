@@ -454,14 +454,19 @@ more than one world needs them (testing-strategy.md, section 4):
     its start's refusal in its `Debug` form; and `start_phase(domain:
     &Self::Domain) -> String`, the phase its start is in, which names a
     refusal's phase and a stalled start's, so that no finding parses a
-    phase out of a refusal's text. The per-commit check clones the
-    application's configuration and peers, so those associated types are
-    `Clone`, and builds its systems afresh (`Application::systems`, from
-    the configuration and the harness's seed), never a copy of the live
-    ones: its start stops before the switch, so no connector reaches its
-    system, and a fake's pending calls hold reply capabilities no copy may
-    duplicate. Its verdict is the start's alone: it runs no outside
-    inspection of the referee's, whose systems it would not match.
+    phase out of a refusal's text. Every application of the harness
+    gives them from its own root: jig's test root, the example
+    application's root (`examples.md`, 4) and temper's. The per-commit
+    check clones the application's configuration, so that associated
+    type is `Clone`, and builds its peers and systems afresh
+    (`Application::peers` and `Application::systems`, from the
+    configuration and the harness's seed), never a copy of the live
+    ones: the cold readback (`Application::cold`) gives the fresh peers
+    what the store holds, its start stops before the switch, so no
+    connector reaches its system, and a fake's pending calls and a peer's
+    held outputs hold reply capabilities no copy may duplicate. Its
+    verdict is the start's alone: it runs no outside inspection of the
+    referee's, whose systems it would not match.
     `Harness::store_checks(&mut self, StoreChecks)` sets the commits,
     sampled from the harness's seed by default, and `Outcome` gains
     `checked: u64`.
