@@ -109,6 +109,15 @@ impl World {
             None,
         ))
     }
+    /// Strike one accepted credential at the world's current clock.
+    ///
+    /// # Errors
+    /// Returns the fake's refusal when its account capacity is exceeded.
+    pub fn strike(&mut self, credential: u32, strike: provider::api::Strike) -> Result<(), provider::api::Error> {
+        let now = self.0.now();
+        self.0.backend_mut().strike(credential, strike, now)
+    }
+
     /// Logical completion calls and their independently received HTTP requests.
     #[must_use]
     pub fn protocol_calls(&self) -> &[crate::component_backend::Call] {

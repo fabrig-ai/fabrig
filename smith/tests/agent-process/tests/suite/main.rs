@@ -22,6 +22,7 @@ mod program_open;
 mod program_resume;
 mod program_tools;
 mod program_turns;
+mod provider_faults;
 mod signals;
 mod stories;
 
