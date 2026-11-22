@@ -407,6 +407,7 @@ members = [
     "temper/crates/temper-engine-domain-store",
     "temper/crates/temper-engine-domain-calendar",
     "temper/crates/temper-engine-domain-room",
+    "temper/crates/temper-engine-domain-limits",
     "temper/crates/temper-engine-domain-translate",
     "temper/crates/temper-engine-domain-trials",
     "temper/crates/temper-engine-smith",
@@ -808,6 +809,7 @@ temper-engine-domain = { path = "temper/crates/temper-engine-domain" }
 temper-engine-domain-store = { path = "temper/crates/temper-engine-domain-store" }
 temper-engine-domain-calendar = { path = "temper/crates/temper-engine-domain-calendar" }
 temper-engine-domain-room = { path = "temper/crates/temper-engine-domain-room" }
+temper-engine-domain-limits = { path = "temper/crates/temper-engine-domain-limits" }
 temper-engine-domain-translate = { path = "temper/crates/temper-engine-domain-translate" }
 temper-engine-domain-trials = { path = "temper/crates/temper-engine-domain-trials" }
 temper-engine-shell = { path = "temper/crates/temper-engine-shell" }

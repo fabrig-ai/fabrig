@@ -21,6 +21,7 @@ fn row(app: w::AppWay, ids: &[(u64, bool, bool)], ended: Option<&[u8]>) -> w::Fo
         installations.push(w::Installation { id: *id, account: None, stray: *stray, suspended: *suspended }).unwrap();
     }
     w::ForgeRow {
+        catching_up: None,
         starts_with: w::StartsWith::Nothing,
         makings: List::with_capacity(0),
         number: 2,

@@ -270,6 +270,8 @@ fn remaining(entry: &Entry, clock: RecoveryClock, env: &Env<Limits>) -> Duration
 }
 pub(super) fn not_found(d: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>) {
     let writing = d.outbox.entries.get_mut(&number).expect("find owns entry");
+    let first = !writing.restart_checked;
+    let task = writing.entry.task;
     writing.restart_checked = true;
     writing.items = None;
     let w = d.outbox.entries.get(&number).expect("find owns entry");
@@ -289,5 +291,10 @@ pub(super) fn not_found(d: &mut Domain, env: &Env<Limits>, number: u64, out: &mu
     } else {
         let phase = super::find(&w.entry);
         super::wait(d, number, phase, env.now.saturating_add(left));
+    }
+    // The first completed find wakes this entry's owner independently of the
+    // other lanes (skein/docs/design/forge/client.md, 8).
+    if first && d.outbox.entries.contains_key(&number) {
+        out.push(Request::Outcome { entry: number, task, outcome: Outcome::Uncertain });
     }
 }

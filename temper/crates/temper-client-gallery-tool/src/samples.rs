@@ -3498,6 +3498,7 @@ fn home_forges(name: &str, in_project: bool) -> skein_lib::List<temper_client_pr
         })
     };
     rows.push(w::ForgeRow {
+        catching_up: None,
         starts_with: if name.starts_with("home-add-repository") {
             w::StartsWith::Nothing
         } else {

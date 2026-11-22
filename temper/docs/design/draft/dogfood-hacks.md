@@ -149,6 +149,14 @@ The aim that excuses all of it, the user's: match what the pipeline we develop w
 - **The pipeline:** its trunks land through the same queue directly, their commits kept.
 - **A real design:** temper landing on this repository's `main` itself, with 2.9's CI as the gate, once new plans start in temper by default. This entry goes then.
 
+### 2.15 Every OpenAI request asks for Ultrafast
+
+- **What:** the development deployment's agent, built with a patch outside this repository, adds `"service_tier": "ultrafast"` to every request of OpenAI's Responses dialect, whatever its run chose. Made ready on 2026-11-21, for the user's yes.
+- **Why:** the user's, to make implementers faster at once, while [model-speeds.md](model-speeds.md) is built.
+- **Cost and risk:** temper still charges each completion at the model's configured prices. Where those are a model's standard ones, a goal's spend and its budget count about a third of what Ultrafast costs until 2027-02-28, and a sixth from then. A model outside Ultrafast's list, or an account or region that refuses it, fails every OpenAI completion. Each build of the agent needs the patch again.
+- **The pipeline:** runs its models at their standard speed.
+- **A real design:** [model-speeds.md](model-speeds.md): a speed chosen per model choice, sent where chosen and charged as served. This entry goes once every worker's agent is built without the patch and the deployment's own setting has taken over (`model-speeds.md`, section 9).
+
 ## 3. Left out, with its gap
 
 For the user to weigh; each can become an entry.

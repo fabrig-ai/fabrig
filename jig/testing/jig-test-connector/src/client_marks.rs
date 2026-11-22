@@ -192,6 +192,7 @@ pub(crate) fn collect(domain: &Domain, env: &Env<Limits>, out: &mut Queue<Reques
                 | Request::Section { .. }
                 | Request::Workspace { .. }
                 | Request::DriftResource { .. }
+                | Request::ReadAfreshDone
                 | Request::RestartDone
                 | Request::Described { .. }
                 | Request::EffectRefused { .. }

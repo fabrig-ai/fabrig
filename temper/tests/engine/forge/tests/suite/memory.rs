@@ -9,9 +9,9 @@ fn drain(out: &mut Queue<top::Request>) {
     }
 }
 
-// Measured peak including the kept-forge record map: 4,874 bytes;
+// Measured peak including the kept-forge record map: 6,122 bytes;
 // 25% headroom, rounded up to two significant digits.
-const CONNECTOR_HEAP_CEILING: u64 = 6_100;
+const CONNECTOR_HEAP_CEILING: u64 = 7_700;
 
 #[test]
 fn bounded_connector_tables_and_client_fit_the_declared_heap() {

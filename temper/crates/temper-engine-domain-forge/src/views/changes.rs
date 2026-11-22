@@ -89,6 +89,7 @@ impl Domain {
             }
         }
         let mut view = ChangesView {
+            catching_up: self.project_catching_up(project),
             project,
             landing: Box::default(),
             queues: queues.into_boxed(),
@@ -100,6 +101,19 @@ impl Domain {
         };
         self.changes_history(&mut view, limits)?;
         Some(view)
+    }
+
+    fn project_catching_up(&self, project: u32) -> Option<crate::CatchingUp> {
+        let mut forge = None;
+        for (repository, adopted) in &self.repositories {
+            if adopted.project == project && (forge.is_none() || adopted.home) {
+                forge = Some(repository.forge);
+                if adopted.home {
+                    break;
+                }
+            }
+        }
+        self.catching_up(forge?)
     }
 
     fn train_landing(&self, change: &ChangeRow) -> Option<TrainLanding> {

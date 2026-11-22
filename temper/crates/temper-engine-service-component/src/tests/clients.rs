@@ -10,7 +10,7 @@ use temper_engine_domain as root;
 fn another_temper_keyed_version_is_not_served_and_admits_nothing() {
     use jig_client_protocol_wire as w;
     use skein_lib::{Reader, Writer};
-    for version in [35, temper_client_protocol_wire::CLIENT_VERSION + 1] {
+    for version in [35, 41, temper_client_protocol_wire::CLIENT_VERSION + 1] {
         let mut service = super::fixtures::ready();
         let link = service.links().pop().expect("sign-in link");
         let engine = service.engine.as_mut().expect("engine");

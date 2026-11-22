@@ -76,6 +76,7 @@ fn document(task: u64) -> forge::ChangesView {
         default_branch: true,
     };
     forge::ChangesView {
+        catching_up: None,
         project: 1,
         landing: b"main".as_slice().into(),
         more: 0,
