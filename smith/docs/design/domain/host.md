@@ -198,8 +198,9 @@ policy.
   sent to it; while a call waits for its answer, which the run's own
   deadline for it bounds; and while a turn waits for room to be sent
   (section 6). It stretches to the span of the long operations the run
-  reports (its checks, its LLM completions, its commands, its `job`
-  calls' waits, a completion's wait for a grant: session.md, section 4),
+  reports (its checks, its LLM completions and their waits out of a
+  rate limit, its commands, its `job` calls' waits, a completion's wait
+  for a grant: session.md, section 4),
   each bounded by the run's own deadlines, until the run
   says each is done. A job that runs on between calls is no long
   operation: the run reports the calls that read it. What
@@ -688,11 +689,6 @@ budgets.
 
 ## 12. Open questions
 
-- **A retry's wait past the no-progress deadline:** a provider's
-  `Retry-After` or an exhausted account's reset longer than the derived
-  deadline (section 4) stops the run, since a retry's wait reports no long
-  operation. Whether it should report one, as a grant's wait does, or
-  answer as limited, is open.
 - **A host without a durable record** and host tools that write: refused
   by rule, as section 2 says, or allowed with a warning to the LLM.
 - **Containment in one process:** whether commands may still run under a

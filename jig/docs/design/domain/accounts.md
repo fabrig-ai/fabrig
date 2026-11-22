@@ -353,8 +353,9 @@ says (`../protocol/llm.md`, section 5) and what runs' agents notice
   host's half checks the login again, and the source needs sign-in on
   that host when it fails.
 - **Limited:** a run's agent says its source is spent (skein's
-  `exhausted`, or the program's usage limit), with how long until it
-  resets where it gives that; the core makes it a time on its clock as
+  `exhausted`, the program's usage limit, or a rate limit whose wait
+  outlasts its session: smith's `domain/session.md`, section 4), with
+  how long until it resets where it gives that; the core makes it a time on its clock as
   it hears the notice. The child marks the source limited until then,
   or until its holder resumes it, and asks nothing of the component.
 - **Refused:** a run's agent says the LLM provider refused the account
