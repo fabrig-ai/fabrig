@@ -13,7 +13,7 @@ Provisional, 2026-11-21. What the worker's worlds check of its waits and its dis
 
   All four are reachable: a legitimate sequence of events makes each. What each models is what the world tests; the real mechanism stays outside its proof.
 - **Three worlds** (section 4): the checkout world and the worker's domain world inject the first two, and the domain world the fourth; the git protocol world injects the third. Each calls skein's two checks at its quiet point and sweeps its faults over 8 seeds.
-- **Open problems** (section 5): P109's scenario, and a stuck trash entry holding back every entry behind it, found by this design. Each is an ignored scenario naming *worker disk*, the work the draft's section 7 names. Neither needs an exclusion, since no sweep's check finds either.
+- **Open problems** (section 5): P109's scenario; a stuck trash entry holding back every entry behind it, found by this design; and what a `Store` or a run's git directory made again sets aside waiting for the next `Make` or start, found by the trash check. Each is an ignored scenario naming *worker disk*, the work the draft's section 7 names. None needs an exclusion: no sweep's check finds any, since the trash table holds an entry set aside after the last pass `Pending`.
 - **No fix:** the worker's disk handling is unchanged. The faults show what it does, and the scenarios what it should do.
 
 ## 2. The adapter
@@ -72,7 +72,7 @@ A check waiting for a build place is no wait of the worker's. Build places are t
 | Git stores' packs | 2 × `checkout.workspaces` × `checkout.repositories` | each store and each workspace repository holding packs on the fake disk (`fakes.md`, 3), `store <s>` or `workspace <t> <repository>` | the packing its own count triggers (`../domain/worker/checkouts.md`, *Kept packed*) | `Pending` at 75 packs or fewer; `Due` above 75, past the most a place holds between two counts |
 | git's locks | none: `u64::MAX` | each `*.lock` on the fake disk beneath a workspace or a store's `refs/temper/<t>`, keyed by its path | the workspace's making again (`../protocol/git.md`, 4.1 and 7, *Kill at once*) | `Pending` while its workspace is untrusted, not cached, or being prepared (a prepare of its hold active or queued, or an operation of its hold in flight), since a prepare reusing a kept workspace finds a lock by its check out and makes the workspace again; `Due` while the checkout trusts the workspace it belongs to, at rest: its cache records the workspace holding its repositories, and no prepare of it runs and no operation of its hold is in flight. A lock beneath a store's `refs/temper/<t>` belongs to workspace `<t>` only while its cache records it holding a repository on that store: a workspace evicted to another workstream keeps its token, and its `Make` takes `refs/temper/<t>` only in the stores it names, so a lock left in a store it no longer uses stays `Pending` until a `Make` of `<t>` names that store again. No operation of `<t>` reaches that store before such a `Make`, and such leftovers are bounded by `checkout.workspaces` × the stores |
 | run slots | the hub's slots | each hosted run, `run <r> attempt <a>` | the run's end, its answer acknowledged | `Pending` |
-| trash | none: `u64::MAX`, since `../protocol/git.md`, 8 bounds trash by what it took, not by a count | each entry beneath `trash/`, `trash/<n>` | the sweep (`../protocol/git.md`, 4.1) | `Pending` while a pass runs or is due, and after a pass that ended at a refused removal, its failure counted, which leaves what it hadn't reached for the next pass; `Due` once no pass runs or is due, the last ended with no failure, and the entry is still there |
+| trash | none: `u64::MAX`, since `../protocol/git.md`, 8 bounds trash by what it took, not by a count | each entry beneath `trash/`, `trash/<n>` | the sweep (`../protocol/git.md`, 4.1) | `Pending` while a pass runs or is due, and after a pass that ended at a refused removal, its failure counted, which leaves what it hadn't reached for the next pass; `Pending` too for an entry set aside since the last pass ended (its serial number at or past the one next when that pass ended), as a `Store`'s aside or a run's git directory made again sets one aside (`../protocol/git.md`, 4.11 and 4.13): the component starts a pass only at a `Make` or a start (4.1), so such an entry waits for the next, section 5's third scenario; `Due` once no pass runs or is due, the last ended with no failure, and an entry set aside before it ended is still there |
 
 The fake builder's table, `build places`, has the builder's places as capacity, each check holding a place as an entry keyed `run <r>`, released by the check's end (`Due` once its run has ended), and each check waiting for a place as `Refused`, since it asked.
 
@@ -86,7 +86,7 @@ Each gains a `pub` read documented as its adapter's (`skein/docs/design/testing/
   - the active prepares and the queued ones, each queued one with when it was queued;
   - each hold's operation in flight, with its deadline, and whether the hold has ended.
 - **`temper_worker_domain::Domain`:** the hub's hosted runs and its slots, through `host()`.
-- **`temper_worker_protocol_git::Component`:** the sweep's state: whether a pass runs or is due, the failures it has counted, and whether the last pass ended at a refused removal.
+- **`temper_worker_protocol_git::Component`:** the sweep's state: whether a pass runs or is due, the failures it has counted, whether the last pass ended at a refused removal, and the serial number `trash` names would take next when the last pass ended.
 
 ## 3. The faults
 
@@ -145,7 +145,7 @@ pub const PLACEMENT_BUSY: Kind = Kind { family: "worker", name: "a placement ref
 
 - **Each call** makes one `Moment` (the seed, the world's time, its iteration) and runs `check_waits` and `check_tables` over the world's inspections. The first `Err` is the run's finding, which fails it (`skein/docs/design/testing/inspection.md`, 5).
 - **Each sweep** is a fuzzy test: it seeds each run with `Streams::new(seed)` (the workload from `Workload`, the faults from `Faults`'s part `worker`), folds each run's ledger, and ends with `check_fell` (`skein/docs/design/testing/sweeps.md`, 4). Today's tests in these worlds keep their own seeding.
-- **No exclusion:** neither of section 5's problems is a finding of these checks. A finding of a check here that is the worker's own behaviour, not the adapter's or a fake's gap, is an open problem the draft's section 7 missed: it gets its ignored scenario and exclusion, by name, with its reason (`../draft/failure-worlds.execution.md`, 2).
+- **No exclusion:** none of section 5's problems is a finding of these checks. A finding of a check here that is the worker's own behaviour, not the adapter's or a fake's gap, is an open problem the draft's section 7 missed: it gets its ignored scenario and exclusion, by name, with its reason (`../draft/failure-worlds.execution.md`, 2).
 - **The budget:** 8 + 8 seeds are the plan's for 4.3 (`../../development/failure-worlds-budget.md`). The git protocol world's 8 are beyond it, and draw a few short operations each.
 
 ## 5. Open problems: ignored scenarios
@@ -154,6 +154,7 @@ pub const PLACEMENT_BUSY: Kind = Kind { family: "worker", name: "a placement ref
 |---|---|---|---|---|
 | P109 | `growing_packs_trigger_packing` | the checkout's step tests, `temper/crates/temper-worker-domain-checkout/src/tests/` | a store into which 25 fetches have gone since it was last packed is named, with `store: Some`, by a `Pack` the next prepare asks before it ends ready (`../domain/worker/checkouts.md`, *Kept packed*) | worker disk |
 | found here | `an_unremovable_trash_entry_holds_back_no_other` | the git component's step tests, `temper/crates/temper-worker-protocol-git/src/tests/files.rs` | with an entry first in `trash` that refuses removal and others after it, the next pass removes the others and leaves the stuck one, its failure counted | worker disk |
+| found here | `what_a_store_sets_aside_is_swept_without_a_make` | the git component's step tests, `temper/crates/temper-worker-protocol-git/src/tests/files.rs` | after a pass has ended with no failure, a `Store` whose `aside` names a store there sets it aside into `trash`, and with no `Make` and no start after it, the sweep removes it (`../protocol/git.md`, 4.1: the sweep runs while `trash` is not empty); today a pass starts only at a `Make` or a start, so what a `Store` or a run's git directory made again sets aside waits for the next, and a worker that reuses its workspaces keeps it | worker disk |
 
 Each is `#[ignore = "<reason>"]`, its reason naming the work and what the worker does today. The fixing work removes the `#[ignore]` (the draft's section 6).
 
