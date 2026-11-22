@@ -1,4 +1,4 @@
-//! Telling you (temper/docs/design/client/pages/told.md; client/web/README.md, 2.7).
+//! Telling you (temper/docs/design/client/pages/told.md; client/web/push.md, 1).
 use super::Request;
 use crate::{
     forge::{Limits, devices, wire_limits},

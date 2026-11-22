@@ -16,7 +16,7 @@ use skein_lib::{Env, Id, List, Map, Queue, ReplyTo, Slab, Time, Token, Wall};
 use temper_engine_domain_calendar as calendar;
 use temper_engine_domain_forge as forge;
 
-/// Why a start stopped before decisions opened (temper/docs/design/domain/root.md, 8.1).
+/// Why a start stopped before decisions opened (temper/docs/design/domain/root-restart.md, 1.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum StartStop {
     /// jig's start refused a fit at this phase (jig/docs/design/domain/engine/restart.md).
@@ -149,7 +149,7 @@ pub struct Domain {
     /// Loads of durable rows outside the working set: a run's preparation
     /// (transcript, dependencies, inputs) and historical queries.
     pub(crate) archive_reads: Slab<Option<Read>>,
-    /// Ended tasks wait for archive and load room, in the core's read-flight bound (root.md, 7).
+    /// Ended tasks wait for archive and load room, in the core's read-flight bound (domain/root.md, 7).
     pub(crate) ended_waiting: Queue<EndedRead>,
     /// Read loads' answers that waited for journal room (jig's `domain/root.md`, 3).
     pub(crate) store_answers: Queue<Event>,
@@ -161,7 +161,7 @@ pub struct Domain {
     pub(crate) facts_lost: u64,
 }
 
-/// Volatile operator queues (temper/docs/design/domain/worker/README.md, 4.3).
+/// Volatile operator queues (temper/docs/design/domain/worker/hosted-runs.md, 1.3).
 #[derive(Hash, Debug)]
 pub(crate) struct RunDiagnostics {
     /// Accepted failed answers awaiting the operator sink.
@@ -357,7 +357,7 @@ impl Domain {
         self.core.current.newest()
     }
 
-    /// The deployment's current welcome (protocol/configuration/settings.md, 2).
+    /// The deployment's current welcome (protocol/configuration/settings-kinds.md, 1).
     #[must_use]
     pub fn welcome(&self) -> bool {
         self.forge.welcome()
@@ -397,7 +397,7 @@ impl Domain {
         self.forge.installation(forge, installation)
     }
 
-    /// Restore as at a start, ending at the opening (domain/root.md, 8.1).
+    /// Restore as at a start, ending at the opening (domain/root-restart.md, 1.1).
     pub fn rehearse(&mut self) {
         assert!(self.start_wall.is_none(), "rehearsal set before restart");
         self.rehearsal = Some(false);
@@ -741,7 +741,7 @@ impl Domain {
         self.core.settings_kept()
     }
 
-    /// Decisions open and the journal is not stopped (temper/docs/design/domain/root.md, 8.1).
+    /// Decisions open and the journal is not stopped (temper/docs/design/domain/root-restart.md, 1.1).
     #[must_use]
     pub fn ready(&self) -> bool {
         self.opened && self.start_stop().is_none() && !self.journal.stopped()
@@ -883,14 +883,14 @@ impl Domain {
     }
 
     /// Take the oldest accepted failed answer's operator evidence, once.
-    /// Both socket and in-process worker answers pass through this queue (temper/docs/design/domain/worker/README.md, 4.3).
+    /// Both socket and in-process worker answers pass through this queue (temper/docs/design/domain/worker/hosted-runs.md, 1.3).
     pub fn pop_run_diagnostic(&mut self) -> Option<crate::RunDiagnostic> {
         self.changed();
         self.run_diagnostics.failed.pop()
     }
 
     /// Take the oldest accepted refusal's operator evidence, once.
-    /// Both socket and in-process worker answers pass through this queue (temper/docs/design/domain/worker/README.md, 4.3).
+    /// Both socket and in-process worker answers pass through this queue (temper/docs/design/domain/worker/hosted-runs.md, 1.3).
     pub fn pop_run_refusal(&mut self) -> Option<crate::RunRefusalDiagnostic> {
         self.changed();
         self.run_diagnostics.refused.pop()
@@ -1483,7 +1483,7 @@ fn released_into(
 }
 
 /// Configuration `Domain::new` asserts against (or, for `Workers`, returns),
-/// refused at start before the root is made (domain/root.md, 5), each naming
+/// refused at start before the root is made (domain/root-translation.md, 1), each naming
 /// the part that breaks it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Refused {

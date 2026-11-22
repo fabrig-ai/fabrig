@@ -65,11 +65,11 @@ cites it for, its acceptance and its order (section 9).
 
   | From the reference | Kind | In temper |
   |---|---|---|
-  | The coordinator on Opus 5.5 at xhigh, its surveys at high; producers on gpt-6.1-sol | structure | the charters' models, and each change's LLM choices (`notes.md`, N19) |
-  | A goal per draft, holding a branch of its own | structure | the goal template; its own branch is a gap (`notes.md`, N3) |
-  | Every change of the goal lands into its branch, with no CI | structure | a landing rule for goal branches (`notes.md`, N4) |
-  | The coordinator woken at once by questions and results, by a tier's red at most every 30 minutes | structure | its charter's wake policy (`notes.md`, N23) |
-  | At most four questions per change, through a foreman | structure | the change's question bound, which no design has yet (`notes.md`, N1) |
+  | The coordinator on Opus 5.5 at xhigh, its surveys at high; producers on gpt-6.1-sol | structure | the charters' models, and each change's LLM choices (`reference-code-production.notes.md`, N19) |
+  | A goal per draft, holding a branch of its own | structure | the goal template; its own branch is a gap (`reference-code-production.notes.md`, N3) |
+  | Every change of the goal lands into its branch, with no CI | structure | a landing rule for goal branches (`reference-code-production.notes.md`, N4) |
+  | The coordinator woken at once by questions and results, by a tier's red at most every 30 minutes | structure | its charter's wake policy (`reference-code-production.notes.md`, N23) |
+  | At most four questions per change, through a foreman | structure | the change's question bound, which no design has yet (`reference-code-production.notes.md`, N1) |
   | Designers write the design under `docs/design`, a status file beside each document | rule | the designer's charter's instructions |
   | A producer pushes early and finishes with a Left list | rule | the coding agent's charter's instructions |
   | A producer never fixes what it does not own | rule | authority is per repository, not per path |
@@ -155,7 +155,7 @@ configures work:
   refused, as any unknown member is (`../protocol/configuration/README.md`,
   section 1); a removed member is first accepted
   for one release with a warning (`upgrades.md`, section 10); an operator who keeps settings in a file proposes it
-  whole with `settings propose` (`../client/ctl/tools.md`, 3).
+  whole with `settings propose` (`../client/ctl/tools-acts.md`, 1).
 - **Bounds stay the start's.** A change is checked as the start checks
   a document today: charters within jig's `tasks.charters`, a charter's
   instructions within the journal's run bytes, templates within jig's
@@ -395,12 +395,12 @@ the second once the reference case walks.
   document:
   - the providers and models the reference names (Opus 5.5 for the
     coordinator and designers, gpt-6.1-sol on smith's direct backend
-    for producers, `notes.md`, N20), with the accounts they run on, and
+    for producers, `reference-code-production.notes.md`, N20), with the accounts they run on, and
     a real model for the configuring chat;
   - the limits: for this stage, room for the settings the reference
     adds beside the stock's, its coordinator's, designer's and foreman's
     charters among them, which Small's charters cannot hold; for 8.2,
-    the reference's, sized for a goal of a hundred changes (`notes.md`,
+    the reference's, sized for a goal of a hundred changes (`reference-code-production.notes.md`,
     N21), once `reference-case.execution.md`'s M10 gives them;
   - the project, with rung C's repository adopted, holding what the
     golden's table asks of a repository: its `AGENTS.md`, its code and

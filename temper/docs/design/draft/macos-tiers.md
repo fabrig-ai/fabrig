@@ -23,7 +23,7 @@ frequent run takes less than three hours.
   temper does the rest: one run per tier at a time over every landing
   since the last, failures rerun alone, new ones bisected to the
   landing that brought them, and each red filed and repaired
-  (`../domain/after-landing.md`, sections 2 to 7). Nothing in temper
+  (`../domain/after-landing-runs.md`, sections 1 to 3, and `../domain/after-landing.md`, sections 5 to 7). Nothing in temper
   changes.
 - **The tiers relay** (section 5): temper dispatches only on fabrig's
   own forge, and the Macs are GitHub's. Each macOS tier's workflow
@@ -74,7 +74,7 @@ section 1).
 - **Linux's after landing** is one tier, `main`, its workflow
   `tier-main.yml` on fabrig's forge, whose job runs the runner's
   `$CI_TIER` and uploads `junit.xml` as the artifact `junit`
-  (`../domain/after-landing.md`, section 4). The live stories run once a
+  (`../domain/after-landing-runs.md`, section 3). The live stories run once a
   day apart from it (`../testing/live-tier.md`).
 
 ## 3. The sets
@@ -85,8 +85,8 @@ section 1).
 | `suites` | `macos-suites` | the focused and the fuzzy suites of skein, smith, jig and temper | every 6 hours, then daily | 300 minutes a run |
 | `live` | none | temper's key landing story and skein's Anthropic stories, on a real model and the owned Forgejo | daily | 60 minutes |
 
-- **How often is the tier's span** (`../domain/after-landing.md`,
-  section 2): the least time between the starts of its runs. A run
+- **How often is the tier's span** (`../domain/after-landing-runs.md`,
+  section 1): the least time between the starts of its runs. A run
   waits for main to move, then takes its newest tip.
 - **Within is the run's bound,** dispatch to report, the relay's wait
   included. `e2e`'s keeps a run inside its span, as the user asks.
@@ -117,7 +117,7 @@ section 1).
   `main` and checks this commit out.
 - **`tests`:** ids one a line, as tier main's report names them; empty
   runs the whole set. Given, it is a rerun or a bisect's probe
-  (`../domain/after-landing.md`, section 2).
+  (`../domain/after-landing-runs.md`, section 1).
 - **`request`:** the run's title, `run-name`, so that whoever
   dispatched it finds it among the workflow's runs.
 
@@ -213,7 +213,7 @@ does. Its contract:
 - **It writes the report:** the failing cases of the run's `junit`, as
   tier main's report has them. A run cancelled, past its bound, or
   ended with no report is a fault, so temper retries it and then holds
-  the tier, saying why (`../domain/after-landing.md`, section 4).
+  the tier, saying why (`../domain/after-landing-runs.md`, section 3).
 - **Its token** is GitHub's, fine-grained, for this repository alone,
   reading and writing its Actions, and kept by the runner's host in a
   private file. It is never in this repository, nor among the
@@ -260,8 +260,8 @@ does. Its contract:
    a goal can't run its tests on a Mac: it lands on its reading of the
    failures, and the next run by hand judges it.
 4. **A tier turned on once its set is green,** so that its baseline
-   blames no old red on a new landing (`../domain/after-landing.md`,
-   section 2): `macos-e2e` first, since its one story already passes;
+   blames no old red on a new landing (`../domain/after-landing-runs.md`,
+   section 1): `macos-e2e` first, since its one story already passes;
    `macos-suites` tree by tree, its failing trees' parts left out of
    the set until each is green.
 

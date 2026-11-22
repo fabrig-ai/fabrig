@@ -73,7 +73,7 @@ Under `web/journeys/` and `tui/journeys/`:
    journey as it was, and the others still print.
 4. **Its lines,** on stdout, one a journey in that order: `printed
    NAME`, files changed; `fresh NAME`, no byte differed; `stopped NAME:
-   WHY`, the journey and line that stopped it (`journey-walks.md`, 4.3).
+   WHY`, the journey and line that stopped it (`journey-walks-world.md`, 1.3).
    Every other word goes to stderr.
 5. **Its exit:** 0, every walk printed; 1, a walk stopped, once the
    others are printed; 2, usage; 3, the print could not finish, a root

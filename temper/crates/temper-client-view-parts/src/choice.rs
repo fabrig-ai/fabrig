@@ -1,4 +1,4 @@
-//! Supplied next-run choices and account waits (client/pages/README.md and client/pages/accounts.md, 2).
+//! Supplied next-run choices and account waits (client/pages/README.md and client/pages/accounts-words.md, 1).
 use crate::cards::CardWords as _;
 pub mod picker;
 pub use crate::words::MODEL_SHOWN;
@@ -183,7 +183,7 @@ pub(crate) fn changeable(root: &Domain, task: Option<&c::Task>) -> bool {
             (Some(_), None) | (None, _) => false,
         }
 }
-/// Feedback and the no-model offer stay above the composer (client/pages/accounts.md, 2).
+/// Feedback and the no-model offer stay above the composer (client/pages/accounts-words.md, 1).
 pub fn above_composer(
     b: &mut Builder,
     root: &Domain,
@@ -696,7 +696,7 @@ fn editable(task: &c::Task) -> bool {
         Some(c::Admission::Refused(_)) | None => false,
     }
 }
-/// A wait for a host, in a box's words on a box (temper/docs/design/client/pages/accounts.md, 2).
+/// A wait for a host, in a box's words on a box (temper/docs/design/client/pages/accounts-words.md, 1).
 fn host_wait(root: &Domain) -> W {
     if crate::forge::connect::owned(root) { W::WaitCapacityBox } else { W::WaitCapacity }
 }
@@ -756,7 +756,7 @@ fn refused(w: &Words, times: &mut Times, why: c::TaskWaitRefused) -> Box<[u8]> {
     }
 }
 
-/// Bound figures keep their units and the fleet's largest offer (temper/docs/design/client/pages/accounts.md, 2).
+/// Bound figures keep their units and the fleet's largest offer (temper/docs/design/client/pages/accounts-words.md, 1).
 fn bound_refusal(
     w: &Words,
     times: &mut Times,

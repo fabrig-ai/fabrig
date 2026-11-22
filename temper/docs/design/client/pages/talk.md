@@ -50,8 +50,8 @@
   next run, which starts its talk's next session fresh from its Now
   (`../../domain/agent/standing.md`, 7, *A rule changes its charter*);
   elsewhere a card's Accept keeps `Running::Stays`, as today. Its
-  confirmation and refusal are a card's, as anywhere (`../README.md`,
-  3.6).
+  confirmation and refusal are a card's, as anywhere (`../root.md`,
+  1.6).
 - **Its reads beside the chat's:** the role's Now, jig's `Read::Notes {
   scope: NoteScope::Task { project, task }, description: Some("now"),
   after: None }`, the lowest-numbered note so described, read as Team

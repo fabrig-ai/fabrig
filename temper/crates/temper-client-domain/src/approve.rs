@@ -1,4 +1,4 @@
-//! The browser's approval page (client/pages/README.md, The approval page; client/web/README.md, 2.3 and 2.4).
+//! The browser's approval page (client/pages/README.md, The approval page; client/web/addresses.md, 1, and client/web/sign-in.md, 1).
 use crate::{Domain, Limits, Place, Request};
 use alloc::boxed::Box;
 use core::net::IpAddr;

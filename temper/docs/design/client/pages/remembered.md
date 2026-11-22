@@ -6,7 +6,7 @@ The person's own page of what Ask temper keeps about them
 there. It draws what the engine holds, with no placeholder.
 
 - **Its address,** `Remembered`, at `/remembered`, of no project: the
-  person's menu (`../view.md`, 3) and, on a phone, the `Accounts` tab's last row (`settings.md`, 1)
+  person's menu (`../view-navigation.md`, 1) and, on a phone, the `Accounts` tab's last row (`settings.md`, 1)
   open it. It takes the rail's frame and the
   column of Deployment's tabs, 720 wide, with no kicker and no tabs, under its
   own level-1 heading, "What temper remembers about you", and its lede, "What

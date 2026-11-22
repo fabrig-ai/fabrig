@@ -30,7 +30,7 @@ pub enum Echo {
     None,
     Steps,
 }
-/// The first link drawn by the box (protocol/setup/box.md, 2). Debug hides its credentials and URL.
+/// The first link drawn by the box (protocol/setup/box-supervision.md, 1). Debug hides its credentials and URL.
 pub struct FirstLink {
     pub url: Box<[u8]>,
     pub secret: Secret,
@@ -41,7 +41,7 @@ impl core::fmt::Debug for FirstLink {
         f.debug_struct("FirstLink").finish_non_exhaustive()
     }
 }
-/// The parent's pipes (temper/docs/design/protocol/setup/box.md, 6).
+/// The parent's pipes (temper/docs/design/protocol/setup/box-front.md, 1).
 pub struct Front {
     pub input: Fd,
     pub link_output: Fd,
@@ -64,15 +64,15 @@ pub struct Settings {
     pub root: Fd,
     pub echo: Echo,
     pub data: Box<[u8]>,
-    /// Whole lines, with line feeds and no time, that open the box log (protocol/setup/box.md, 2).
+    /// Whole lines, with line feeds and no time, that open the box log (protocol/setup/box-supervision.md, 1).
     pub log_lines: Box<[Box<[u8]>]>,
     pub first_link: Option<FirstLink>,
     pub front: Option<Front>,
-    /// How the first and fresh links reach stdout (temper/docs/design/protocol/setup/box.md, 2).
+    /// How the first and fresh links reach stdout (temper/docs/design/protocol/setup/box-supervision.md, 1).
     pub link_form: terminal::LinkForm,
-    /// The word running this binary (temper/docs/design/protocol/setup/box.md, 2).
+    /// The word running this binary (temper/docs/design/protocol/setup/box-supervision.md, 1).
     pub word: Box<[u8]>,
-    /// Whole untimed lines following the first block on stderr (protocol/setup/box.md, 2).
+    /// Whole untimed lines following the first block on stderr (protocol/setup/box-supervision.md, 1).
     pub after_block: Box<[u8]>,
     pub signals: Fd,
     pub stdout: Fd,

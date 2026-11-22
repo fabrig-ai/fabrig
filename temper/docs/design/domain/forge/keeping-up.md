@@ -14,7 +14,7 @@ Held by skein's `forge/client.md`, section 3. temper's part:
   `domain/connectors.md`, 3.4). A resource enters when a live task names
   it, and leaves when none does. The top names them to the client. A
   task's names leave the working set at its release: what the
-  connector keeps of them for a kept task watches nothing (`adoption.md`, 1).
+  connector keeps of them for a kept task watches nothing (`adoption-connection.md`, 1).
 - **What temper watches:**
   - per repository: the landing branches' tips, and the CI on each tip;
   - per pull request temper owns that a live task names: its head and
@@ -83,7 +83,7 @@ Held by skein's `forge/client.md`, section 3. temper's part:
   pushed, wrote or last observed it, and whether temper made it
   (`owned`), a `BranchHead` row per branch (`../../protocol/store.md`,
   2). A drift's baseline, a landing's `before`, a change's and a goal's
-  start, and the making a later adoption checks (`adoption.md`, 1) are
+  start, and the making a later adoption checks (`adoption-connection.md`, 1) are
   read from them. A head follows temper's writes in the order the forge
   took them: the record of a write never moves it back to an ancestor of
   a head temper recorded beside that write (`branches.md`, 3, *In the
@@ -99,7 +99,7 @@ Held by skein's `forge/client.md`, section 3. temper's part:
     probe branch is it, or an outbox entry not yet settled writes it.
     Every other head is erased, its row with it, in the decision that
     completes a task's release, its named resources cleaned up
-    (`README.md`, 4), and in the one
+    (`effects.md`, 1), and in the one
     that finds the table full, before the record is refused. So heads
     leave as changes and goals end, a removed forge's and a repository's
     no longer adopted among them, and a head temper made stays no
@@ -216,11 +216,11 @@ part:
   A relevant wake during a fresh-read step still restarts that step before
   deciding; an irrelevant hint adds no restart. Gate results, task
   dependencies and queue changes keep their existing wake routes. Each
-  decision still uses the rules held then (`change/gates.md`, 2, and `change/README.md`, 5, and `change/gates.md`, 3); hints do not replace
+  decision still uses the rules held then (`change/gates.md`, 2, and `change/panel.md`, 1, and `change/gates.md`, 3); hints do not replace
   polling, settling or stall deadlines (`change/gates.md`, section 1 and `change/stalls.md` and `queues.md`).
 - **temper's own polls fall back too.** A landing's or a tier's flight
-  polling its runs in flight (`../landing.md`, 7.1; `../after-landing.md`,
-  section 3), a landing waiting on a fact it lacks (`../landing.md`, 5.2)
+  polling its runs in flight (`../landing-proof.md`, 2.1; `../after-landing-runs.md`,
+  section 2), a landing waiting on a fact it lacks (`../landing-prepare.md`, 1.2)
   and a queued merge's look (skein's `forge/client.md`, 7.7)
   are due at `Domain::poll_at` for their repository with `poll`, so
   while it hears they come at the later of `poll` and its last hint
@@ -302,7 +302,7 @@ part:
   moves (skein's `forge/github.md`): within the window both are not
   known, and read again, as Forgejo's not mergeable is. An update GitHub
   accepts it makes after it answers: the update is done once the head,
-  read afresh, contains the base's tip it asked for (`README.md`, section 6).
+  read afresh, contains the base's tip it asked for (`updates.md`, section 1).
 
 ## 3. Fresh reads
 
@@ -315,7 +315,7 @@ tip, the pull request's reviews, and the files of the pull requests an
 overlap compares. These are also the facts the forge's requirements are
 judged on (`change/gates.md`, 2).
 
-A change that has landed or ended gathers no brief, and no comparison of its saved work or its branch against its head is read for it, however its watched resources move; a read already in flight is answered and its answer dropped. Its verification's reads of its landing (`../after-landing.md`, section 6) are its only reads. Its panel keeps its last facts (`change/README.md`, 5). **Its facts are frozen** (2026-11-15) from the step that ends it, its ending decided, before its row's state is: its pull request and its branch raise no drift on any live task, whatever the forge says of them (closed, reopened, retargeted, moved or deleted), so they wake and hold neither a change on the same branch, nor the branch's holder, nor its goal, and its history gains no event from them (`../landing-history.md`, 2.2). A live change on the same branch judges its own pull request and branch as ever (`change/README.md`, 3).
+A change that has landed or ended gathers no brief, and no comparison of its saved work or its branch against its head is read for it, however its watched resources move; a read already in flight is answered and its answer dropped. Its verification's reads of its landing (`../after-landing.md`, section 6) are its only reads. Its panel keeps its last facts (`change/panel.md`, 1). **Its facts are frozen** (2026-11-15) from the step that ends it, its ending decided, before its row's state is: its pull request and its branch raise no drift on any live task, whatever the forge says of them (closed, reopened, retargeted, moved or deleted), so they wake and hold neither a change on the same branch, nor the branch's holder, nor its goal, and its history gains no event from them (`../landing-history.md`, 2.2). A live change on the same branch judges its own pull request and branch as ever (`change/drift.md`, 1).
 
 **A release reads in order** (2026-11-15; `change/repairs.md`, *A release*, *In order*). The release first fences the change's branch and pull request: the gather outstanding is abandoned, and the answer of every read of either asked before the release, a watch's poll or a hint's among them, changes nothing when it comes (skein's `forge/client.md`, 4, *A fence*). Then it reads its branch, its base and its pull request afresh, as any decision does (above), and decides on those reads alone.
 
@@ -329,7 +329,7 @@ meanwhile. Only what invalidates a gather (1) starts its reads again
 from its branch; the read of its paths, refused, is left unread, as
 before. A gather begun again at each refusal would lose its reads to
 every other caller's while the client is full, keeping a train's
-waiting changes due for minutes (`../landing.md`, 9).
+waiting changes due for minutes (`../landing-turn.md`, 2).
 
 An agent's fresh read refused `Busy` by the client's local admission
 returns the host's predecision Busy reply, never a rendered forge-read
@@ -367,7 +367,7 @@ for it, never a read of another kind or another party's.
   same rule (`change/README.md`, 2, step 1). This read collects no changed
   files or file contents, so a goal's diff and forward history do not
   bound its landing. After an update the proof is made again at the
-  new head (`README.md`, section 6).
+  new head (`updates.md`, section 1).
 - **Every containment reader reads ancestry, never a comparison.** A
   reader that needs only whether one commit contains another reads the
   ancestry range by the rule above, never `Read::Compare`: `Read::Commits
@@ -380,7 +380,7 @@ for it, never a read of another kind or another party's.
   refuses as too large to list, is not; any other failure, or an empty
   page that says more follow, leaves it unknown. Its readers:
   - **a landing's candidate,** whether its head contains main's tip
-    (`../landing.md`, 5.2): `before` the head, `after` main's tip;
+    (`../landing-prepare.md`, 1.2): `before` the head, `after` main's tip;
     contained, the head is the candidate as it is; not contained, it is
     prepared; unknown, the landing waits as it does for any fact it lacks;
   - **a goal's closer,** whether its base holds the goal branch's tip
@@ -405,7 +405,7 @@ for it, never a read of another kind or another party's.
   when any of them failed; else pending when any is pending or a
   required context has no row; else passed when any is there; else
   unknown, which the change waits on as pending (`change/stalls.md`, 2). The
-  head's, the base tip's and the CI a topic publishes (`README.md`, 5.1) are read
+  head's, the base tip's and the CI a topic publishes (`topics.md`, 1.1) are read
   and folded alike, on every forge: on Forgejo the checks are
   its statuses, each context's latest, so its CI reads as before.
 - **Each commit's CI is read once in a gather.** A pull request's read
@@ -468,7 +468,7 @@ a 503, timeouts), because it restarts, fails or its host is down, and
 then answers again, is ridden: nothing temper holds fails or is held for
 an outage that ends, and what changed meanwhile is read once it is
 back. The forge stays connected throughout: connected is its access
-(`adoption.md`, 1), not whether it answers.
+(`adoption-connection.md`, 1), not whether it answers.
 
 - **Keeping reads** wait and read again as skein's `forge/client.md`,
   section 4 has them.
@@ -484,10 +484,10 @@ back. The forge stays connected throughout: connected is its access
   (`TooLarge`, `Forbidden`, `Refused`) and `Missing` keep their own
   rules.
 - **Writes are never sent blind.** One the client holds uncertain is
-  found as its class says (`README.md`, section 4). One the client fails
+  found as its class says (`effects.md`, section 1). One the client fails
   `Unavailable`, never sent, once it has spent its attempts, is
   committed again by the connector, as one failed `NotConnected` is
-  (`adoption.md`, 1), after a wait as a fresh read's: its purpose gives it the same
+  (`adoption-connection.md`, 1), after a wait as a fresh read's: its purpose gives it the same
   key, so nothing is made twice.
 - **CI is read again.** A checks read (3) that ends `Unavailable` or
   `Timeout` is asked again as any fresh read is, never dropped. And once
@@ -511,7 +511,7 @@ back. The forge stays connected throughout: connected is its access
   rule changes no connector timer or admission bound.
 
 - **Which checks are CI on GitHub, without required checks:** temper's
-  draft (`../../draft/github.md`, section 9) takes the repository's Actions
+  draft (`../../draft/github-app.md`, section 5) takes the repository's Actions
   workflows' check runs there, so that another App's check run (a
   Codecov's) is not CI. That needs each row's App, which skein's
   `Status` carries only for a failed Actions run; until skein's dialect

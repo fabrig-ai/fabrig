@@ -2,7 +2,7 @@
 
 A version-2 `walk`, `after project-landing`, in one process on the
 playground's composition, with both shipped clients and no terminal
-(`../../../journey-walks.md`, 4 and 6). Hello has the owned `work/hello`
+(`../../../journey-walks-world.md`, 1, and `../../../journey-walks.md`, 6). Hello has the owned `work/hello`
 repository and the OpenAI sign-in account shown as "your ChatGPT plan".
 The browser approves the TUI. `/draft Plan a farewell line for hello.`
 opens a design session whose drafter writes `farewell-line.md`, asks

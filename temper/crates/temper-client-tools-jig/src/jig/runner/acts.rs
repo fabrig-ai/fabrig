@@ -29,7 +29,7 @@ pub(super) struct Sent {
     alternate: Option<c::Ask>,
 }
 /// A durable visibility answer waits within its call for me to carry its page
-/// (client/ctl/tools.md, 3).
+/// (client/ctl/tools-acts.md, 1).
 #[derive(Debug)]
 pub(super) struct Visibility {
     called: Called,
@@ -130,7 +130,7 @@ fn immediate(call: &Call, limits: &Limits) -> Option<Prepared> {
     };
     Some(request)
 }
-// client/ctl/tools.md, 3: the host alone handles the output file.
+// client/ctl/tools-acts.md, 1: the host alone handles the output file.
 fn party_make(call: &Call, me: &c::Me, limits: &Limits) -> Prepared {
     let project = super::reads::project(call, me).ok_or(Failed::Fixed(b"unknown project"))?;
     let role = match u32::try_from(number(call, 1).expect("role argument")).expect("role fits") {
@@ -301,7 +301,7 @@ fn chat(call: &Call, me: &c::Me, limits: &Limits) -> Prepared {
         shapes::Fall::Refused(_) | shapes::Fall::NotOffered(_) => Err(Failed::Fixed(b"chat exceeds offered bounds")),
     }
 }
-// client/ctl/tools.md, 3: name the chat templates offered here.
+// client/ctl/tools-acts.md, 1: name the chat templates offered here.
 fn chat_template_refusal(me: &c::Me, project: u32, template: u64) -> Failed {
     let number = Decimal::of(template);
     let prefix = b"template ";

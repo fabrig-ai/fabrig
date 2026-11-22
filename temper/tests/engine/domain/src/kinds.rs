@@ -1,6 +1,6 @@
 //! Kinds through the party entrance and the root's real store
-//! (temper/docs/design/domain/routing.md, 6, and temper/docs/design/domain/root.md, 8.1;
-//! temper/docs/design/protocol/configuration/settings.md, 2 to 3 and temper/docs/design/protocol/configuration/stock.md).
+//! (temper/docs/design/domain/routing.md, 6, and temper/docs/design/domain/root-restart.md, 1.1;
+//! temper/docs/design/protocol/configuration/settings-kinds.md, 1, and temper/docs/design/protocol/configuration/settings.md, 3 and temper/docs/design/protocol/configuration/stock.md).
 use jig_domain_core::settings as s;
 use skein_lib::{ReplyTo, Token};
 use temper_engine_domain::{self as engine, Key, Record};

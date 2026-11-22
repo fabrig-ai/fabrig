@@ -1,4 +1,4 @@
-//! DIRECTORY's private files and its engine address (client/ctl/README.md, 6.1).
+//! DIRECTORY's private files and its engine address (client/ctl/command-line.md, 1.1).
 use crate::{arguments::Class, host::Startup, limits};
 use skein_io::{
     Addr, file,
@@ -756,7 +756,7 @@ fn party(bytes: &[u8]) -> Option<u64> {
     }
     std::str::from_utf8(line).ok()?.parse().ok()
 }
-/// What a failed or unexpected answer says (client/ctl/README.md, 6.1): the file layer's error
+/// What a failed or unexpected answer says (client/ctl/command-line.md, 1.1): the file layer's error
 /// by name, `too large`, or `unexpected answer`; never an event's bytes.
 fn answer_words(event: &file::Event) -> String {
     match event {

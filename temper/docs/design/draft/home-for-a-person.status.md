@@ -4,7 +4,7 @@
 
 Section 3 is designed, milestone H1 of `home-for-a-person.execution.md` (`../client/pages/home.md`, 1; `../client/pages/needs-you.md`, 1; `../client/pages/work.md`, 1); the rest is carried out there, with `milestones.md`.
 
-Section 3's title cut past 80 characters holds on every line, row and card that names a task by its title, not on Goals' rows alone, by Work's one function (`../client/pages/README.md`, 2, *A task's title on a line*); a task's own page keeps its whole first line as its heading.
+Section 3's title cut past 80 characters holds on every line, row and card that names a task by its title, not on Goals' rows alone, by Work's one function (`../client/pages/shared-behaviour.md`, 1, *A task's title on a line*); a task's own page keeps its whole first line as its heading.
 
 Section 2's *Kept for the thing's own page* and section 3 hold on a held, funds or person task card, on Home and on Needs you, in the browser and the terminal: a card's body never repeats the title its from line names, the terminal's inbox card, with no from line, keeping it; and a held card leads with why it's held, one sentence for a person, "Forge could not release this task's resources.", its hold's whole words, revision, parameters and recovery acts left to its task's page (`../client/pages/needs-you.md`, 1, *Its title once*, *Why it's held*; `../client/pages/home.md`, 1, *The cards*).
 

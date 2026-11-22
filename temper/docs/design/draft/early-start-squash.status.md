@@ -2,7 +2,7 @@
 
 2026-11-17. Where the design lags or departs from [early-start-squash.md](early-start-squash.md).
 
-The design carries the draft: section 2 in `../domain/forge/change/questions.md`, 1 (*Early starts*: *A running producer catches up*); `../domain/worker/checkouts.md` (*The landing pin*, *Push commits what the run checked*, *A save pushes unchecked* and *A landed dependency's catch-up*, with its open question *An earlier head lost*); `../protocol/git.md`, 4.7; and `../protocol/channel.md`, section 1.
+The design carries the draft: section 2 in `../domain/forge/change/questions.md`, 1 (*Early starts*: *A running producer catches up*); `../domain/worker/checkouts.md` (*The landing pin*, *Push commits what the run checked*, *A save pushes unchecked* and *A landed dependency's catch-up*, with its open question *An earlier head lost*); `../protocol/git-operations.md`, 1.7; and `../protocol/channel.md`, section 1.
 
 - **Design lags:** none.
 - **Design departs:**

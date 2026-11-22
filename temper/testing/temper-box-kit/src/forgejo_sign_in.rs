@@ -684,7 +684,7 @@ fn ctl(directory: &Path, arguments: &[&str]) -> std::process::Output {
 }
 
 fn owned_command(directory: &Path, printed_command: &str) -> String {
-    // temper/docs/design/protocol/setup/owned.md, 8: sign-in instructions name no kept forge.
+    // temper/docs/design/protocol/setup/owned-sign-in.md, 1: sign-in instructions name no kept forge.
     // Supply this disposable server's binary and work path around that generic command.
     let quote = |path: &Path| {
         use std::os::unix::ffi::OsStrExt;

@@ -436,7 +436,7 @@ fn a_finished_goals_page_shows_its_report() {
 
 // A chat's goal and its report, reached through Home and Goals
 // (temper/docs/design/testing/process-tier.md and temper/docs/design/testing/checks.md, 3;
-// temper/docs/design/client/view.md, 3, and temper/docs/design/client/pages/goal.md, 2, and temper/docs/design/client/pages/settings.md, 2;
+// temper/docs/design/client/view-navigation.md, 1, and temper/docs/design/client/pages/goal.md, 2, and temper/docs/design/client/pages/settings.md, 2;
 // temper/docs/design/domain/agent/agents.md, 3).
 #[test]
 fn a_chats_goal_shows_its_report_from_its_goals_row() {

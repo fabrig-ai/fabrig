@@ -492,7 +492,7 @@ fn landing_shared_gather_row((same, other_repository): (bool, bool)) {
     }
     let repo = change.repository;
     d.changes.insert(52, change).expect("second member");
-    // A stack's gather can name one repository more than once (landing.md, 5.3).
+    // A stack's gather can name one repository more than once (domain/landing-prepare.md, 1.3).
     let row = d.landing.rows.get_mut(&61).expect("landing");
     let first = row.landing.members.first().expect("first member").clone();
     let mut second = first.clone();
@@ -3024,7 +3024,7 @@ fn a_busy_landing_read_retries_before_the_hearing_fallback() {
     assert!(d.is_ready(), "the retained read is immediately runnable after reclamation");
 }
 
-/// A successor reads the key's run even after its dispatcher ends (domain/landing.md, 6 and 7).
+/// A successor reads the key's run even after its dispatcher ends (domain/landing-proof.md, 1 and 2).
 #[test]
 fn a_waiting_landing_reads_and_takes_a_departed_landings_run() {
     use skein_forge::api::{Answer, Op, Read};

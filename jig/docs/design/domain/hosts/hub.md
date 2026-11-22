@@ -201,7 +201,7 @@ history as an invalid start or a model failure.
 program source, gave a first output (its init) without smith's tools
 (smith's `protocol/programs.md`, 5.6), so the program source's login
 on this host, not the task, is at fault. Its application names it from
-its agent's own fault (temper's `domain/worker/README.md`, 4.3), its
+its agent's own fault (temper's `domain/worker/hosted-runs.md`, 1.3), its
 detail the agent's bounded words as for any failed run, and `model`
 none. It crosses the channel as `untooled` (`../../protocol/channel/records.md`,
 1), and the engine keeps the task off that place without spending a

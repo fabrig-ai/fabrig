@@ -260,7 +260,7 @@ impl Workers {
         self.host.abort(now);
         self.pull(events);
     }
-    /// Queue the restart word before the workers' part closes (domain/root.md, 8.2).
+    /// Queue the restart word before the workers' part closes (domain/root-restart.md, 1.2).
     pub fn restarting(&mut self, wait: skein_lib::Duration, events: &mut Queue<root::Event>) {
         self.host.restarting(wait);
         self.pull(events);

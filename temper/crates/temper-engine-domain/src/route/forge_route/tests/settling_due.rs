@@ -1,4 +1,4 @@
-//! Only one readiness step at a gating head holds forming (domain/landing.md, 9).
+//! Only one readiness step at a gating head holds forming (domain/landing-turn.md, 2).
 use super::super::{Domain, Limits, forge, forge_change as change, tasks};
 use super::due_ready::{members, ready_changes, settle, wake};
 use alloc::boxed::Box;

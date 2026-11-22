@@ -1,4 +1,4 @@
-//! Project deletion (temper/docs/design/client/ctl/tools.md, 3; results.md, 1).
+//! Project deletion (temper/docs/design/client/ctl/tools-acts.md, 1; results.md, 1).
 use crate::{
     jig::{argv::Usage, rows},
     tests::fixtures as f,

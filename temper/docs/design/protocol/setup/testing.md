@@ -90,7 +90,7 @@ relies on.
   `temper-agent`'s own link reaches the build the same way, in its
   package's suite (`../binaries.md`, 3); the substitution's cases are
   temper-launcher's.
-- **A fetch's lines** (`box.md`, 2), in temper-box: each relayed as a `fetched`
+- **A fetch's lines** (`box-supervision.md`, 1), in temper-box: each relayed as a `fetched`
   line for the group the box is starting, in its log and on no terminal,
   with `--echo steps` and in a failure's tail too; one from a group
   started already named and dropped, one it cannot read named; one left
@@ -117,7 +117,7 @@ relies on.
   launching nothing; a held spawn's late start and late failure during a
   box's stop, and a late start during a group's stop, the box ending with
   nothing open.
-- **The box's terminal and logs** (`box.md`, 2), in temper-box, its clock the
+- **The box's terminal and logs** (`box-supervision.md`, 1), in temper-box, its clock the
   test's: given one pipe for its stdout and its stderr, serve's link
   written in pieces between other steps' lines reads whole there; the
   sign-in block's exact bytes before any step's spawn and nothing else on
@@ -150,7 +150,7 @@ relies on.
   and no duplicate final give up. A failed requested group leaves serve
   usable. Held output acknowledgements preserve facts' source wall values
   and the complete sign-in block.
-- **The box in front of `temper box`** (`box.md`, 6): in temper-box, the
+- **The box in front of `temper box`** (`box-front.md`, 1): in temper-box, the
   box's lines' bytes, their bound and their cut at a UTF-8 boundary, and
   the lines a fact and a terminal's line give; on the simulated host,
   with `--front`, the local link's URL alone on fd 3, written and closed
@@ -295,7 +295,7 @@ the preparation relies on stays here:
 The tier, its budget and its referee are `../../testing/README.md`'s (2.6). What
 it checks of this document:
 
-- **The box's lifetime with running steps** (`box.md`, 1, 2), in
+- **The box's lifetime with running steps** (`box.md`, 1, `box-supervision.md`, 1), in
   `bin/temper-box/tests/suite/box_lifetime.rs`: a hangup stops a box whose
   playground steps run, nothing left, its log's last line `Stopped`,
   and the same retained configuration binds again; and, on Linux, a
@@ -317,17 +317,17 @@ it checks of this document:
   budget (../configuration/limits.md; `../../domain/forge/change/repairs.md`), and its
   CI's job outlasting `settle` from the change's push, so that it lands
   within its budget only if the job's end is delivered and the reads
-  that follow it (`../../domain/forge/README.md`, section 6, "Checked"); and with no conflict resolved,
+  that follow it (`../../domain/forge/updates.md`, section 1, "Checked"); and with no conflict resolved,
   since its changes never conflict. With no webhooks, the same story
   misses its budget.
 - **`temper box`,** a test of its own on a scratch directory, with no
   `--echo`, its terminal the sign-in block alone and each step's lines in its
   log; a story that reads a step's lines runs it with `--echo steps`: the sign-in
   link on its stdout, and whole on one pipe given as both its stdout and
-  its stderr, as a terminal is (`box.md`, 2); a port taken refused with nothing on
+  its stderr, as a terminal is (`box-supervision.md`, 1); a port taken refused with nothing on
   its stdout; the engine's link file holding its local link alone, never
   the printed link's, and that secret on no stdout, stderr or log
-  (`../../client/tui/README.md`, 2); the first link opened at once, before
+  (`../../client/tui/directory.md`, 1); the first link opened at once, before
   serve listens, waiting and then signing in, the link file left as it
   was; a killed serve's fresh link, with the socket held
   across the restart; Forgejo killed and restarted, with the engine still
@@ -336,7 +336,7 @@ it checks of this document:
   `temper box` on three empty scratch directories writes the
   configuration (`init.md`, 2), says so in its own log (init's line for no browser
   among its lines only from a binary built without one: the test checks the build
-  it runs in, `../../client/web/README.md`, 2.6), and prints one sign-in link,
+  it runs in, `../../client/web/bundle.md`, 1), and prints one sign-in link,
   which signs the owner in, with no forge kept and every group dormant.
   The owner starts the playground with `temper ctl playground start`
   (`../../client/ctl/areas.md`), answered running once its fake forge is
@@ -376,14 +376,14 @@ it checks of this document:
   no `forge-N`, `box/groups/N` or `box/started/N`. A set up after the
   four makes forge 5, since numbers are never reused, connects it and
   makes its first repository; the cache's binaries are the ones placed,
-  unchanged (`owned.md`, 7). Then a removal the box's death cut, the box held
+  unchanged (`owned-repositories.md`, 1). Then a removal the box's death cut, the box held
   after the removal was answered and killed: the next box ends it whole
   at its start, no forge listed and nothing of it left.
 - **GitHub gone on after a restart,** a test of its own, on `temper box
-  --fake-backends`' fake GitHub (`box.md`, 5): GitHub's set up stopped after
+  --fake-backends`' fake GitHub (`box-backends.md`, 1): GitHub's set up stopped after
   its App's records are kept, the box restarted, and the forge found
   unfinished, then gone on, to the App's installation, with no Start
-  over, and connected (`owned.md`, 7).
+  over, and connected (`owned-repositories.md`, 1).
 - **A first run set up for real,** a test of its own: `temper box` on
   three empty scratch directories, with the binaries `TEMPER_TEST_FORGEJO`
   and `TEMPER_TEST_FORGEJO_RUNNER` name placed where the fetch looks,
@@ -396,7 +396,7 @@ it checks of this document:
   made, followed by `forge list --until settled`, goes through "Setting
   up" and "Connecting" to "Connected as temper", with no restart, and
   its first repository made, `work/hello`; the call adopts it into the
-  new project `hello`, project 1, the first made (`owned.md`, 7). The
+  new project `hello`, project 1, the first made (`owned-repositories.md`, 1). The
   workflow's push has run on the owned runner: before the owner's first
   task, the runner's output, which the box, run with `--echo steps`,
   gives on its stderr as `runner-1: ` lines, says it took a task on `work/hello`, main's
@@ -419,7 +419,7 @@ it checks of this document:
   serve starts first, to answer the source's discovery (../openid-provider.md, 9). Preparation makes a new handover; serve takes it over,
   its file gone again, and connects forge 1 from its records (`owned.md`, 5), and the task is found
   landed, its CI at its head unknown until a next step reads it
-  (`../../domain/forge/change/README.md`, 5).
+  (`../../domain/forge/change/panel.md`, 1).
 - **A Forgejo connected as its admin, on this host:** on a real Forgejo
   with its API on loopback, each repository adopted has one hook at
   `http://<listener>/hooks/<number>` (`reconcile.md`, 4), and has it again, with its
@@ -427,7 +427,7 @@ it checks of this document:
   step 6). Its delivery is not this story's. With a hook that delivers
   nothing, a step test shows the forge staying connected with nothing
   ended, and the forge's world wakes a watched change on its pull's CI
-  with no delivery heard, by polling (`README.md`, section 6).
+  with no delivery heard, by polling (`webhooks.md`, section 1).
 - **The first-run behaviours** past these use their lower owners: the
   stock scripts' data tests, the real-loop playground stories, and the
   client and engine setup/reset worlds. The process tier has one short

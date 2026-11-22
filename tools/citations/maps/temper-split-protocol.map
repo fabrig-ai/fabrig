@@ -1,0 +1,36 @@
+# The first split pass (temper/docs/design/draft/design-upkeep.md, 4.3): protocol, beside configuration and setup.
+
+# Store versions and restart, beside the family catalogue and keys.
+title temper/docs/design/protocol/store-versions.md: The store's records and versions
+temper/docs/design/protocol/store.md 4 -> temper/docs/design/protocol/store-versions.md 1
+
+title temper/docs/design/protocol/store-restart.md: Restoring temper's store
+temper/docs/design/protocol/store.md 5 -> temper/docs/design/protocol/store-restart.md 1
+
+# The git operations, beside invocation mechanics and testing.
+title temper/docs/design/protocol/git-operations.md: The checkout's git operations
+temper/docs/design/protocol/git.md 4 -> temper/docs/design/protocol/git-operations.md 1
+
+# Service composition and the shared process are separate from the layer's page.
+title temper/docs/design/protocol/service-routing.md: The services' routing
+temper/docs/design/protocol/README.md 4 -> temper/docs/design/protocol/service-routing.md 1
+temper/docs/design/protocol/README.md 5 -> temper/docs/design/protocol/service-routing.md 2
+
+title temper/docs/design/protocol/service-process.md: The services in one process
+temper/docs/design/protocol/README.md 6 -> temper/docs/design/protocol/service-process.md 1
+
+# Account sign-in and git identities, beside the credential records and forge access.
+title temper/docs/design/protocol/credentials-llm-accounts.md: LLM account credentials
+temper/docs/design/protocol/credentials.md 3 -> temper/docs/design/protocol/credentials-llm-accounts.md 1
+
+title temper/docs/design/protocol/credentials-git-identities.md: Git identity credentials
+temper/docs/design/protocol/credentials.md 4 -> temper/docs/design/protocol/credentials-git-identities.md 1
+
+# The box's command surface and the client binary, numbered in the preparation commit.
+title temper/docs/design/protocol/binaries-box.md: The box's binary
+temper/docs/design/protocol/binaries.md 6 -> temper/docs/design/protocol/binaries-box.md 1
+temper/docs/design/protocol/binaries.md 8 -> temper/docs/design/protocol/binaries-box.md 2
+temper/docs/design/protocol/binaries.md 9 -> temper/docs/design/protocol/binaries-box.md 3
+
+title temper/docs/design/protocol/binaries-client.md: The client's binary
+temper/docs/design/protocol/binaries.md 7 -> temper/docs/design/protocol/binaries-client.md 1

@@ -1,5 +1,5 @@
 //! Retained isolated startup for `temper-box --fake-backends` (protocol/configuration/directories.md, 1).
-//! The fake box's steps follow temper/docs/design/protocol/setup/box.md, 5.
+//! The fake box's steps follow temper/docs/design/protocol/setup/box-backends.md, 1.
 use crate::directories::jig_directories;
 mod import;
 use crate::directories::{Directories, make_private, private_root};
@@ -26,7 +26,7 @@ use temper_config_shell::{FILE, Shape};
 pub const ADAPTER: &str = "fake-claude.path";
 const REQUIRED: &[&str] = &[FILE, "github.json", "oauth.json", "llm.json", "forgejo.json", ADAPTER];
 
-/// A new sandbox's nine ports, the process tier's (temper/docs/design/protocol/setup/box.md, 5).
+/// A new sandbox's nine ports, the process tier's (temper/docs/design/protocol/setup/box-backends.md, 1).
 pub(crate) const FAKE_BOX_PORTS: skein_shell::Variable = skein_shell::Variable {
     name: "TEMPER_INTERNAL_FAKE_BOX_PORTS",
     set: skein_shell::Set::Internal,
@@ -147,7 +147,7 @@ pub(crate) fn run(
     drop(lock);
     result
 }
-/// Per-start scripts and arguments; retained peer documents are never rewritten (protocol/setup/box.md, 5).
+/// Per-start scripts and arguments; retained peer documents are never rewritten (protocol/setup/box-backends.md, 1).
 fn scripts_for_start(
     dirs: &Directories,
     peers: &Peers,
@@ -448,7 +448,7 @@ fn peer_document(dirs: &Directories, name: &str, bound: u32) -> Result<Box<[u8]>
         .map_err(|why| format!("{}: {}", path.display(), crate::unread(why)))
 }
 /// The ports no peer may take: the callback's and the ordinary box's listeners and readiness
-/// (temper/docs/design/protocol/setup/box.md, 5).
+/// (temper/docs/design/protocol/setup/box-backends.md, 1).
 fn ordinary_ports(dirs: &Directories, bytes: &[u8]) -> Result<Vec<u16>, String> {
     let deployment = crate::setup::check(bytes, &jig_directories(dirs))?;
     ordinary_ports_checked(dirs, &deployment)

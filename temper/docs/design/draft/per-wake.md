@@ -18,8 +18,8 @@ twentieth and a sixth of what the first run spent. The user asked "would it be
 possible to have the same model in temper?", picked instructions chosen by why
 the goal woke over a task added to answer each question, and asked for "the
 full story in place: per-wake instruction and focused prompts ... cut and answer
-are separate prompts" before the next comparison. Reasons: `notes.md`,
-section 8.
+are separate prompts" before the next comparison. Reasons: `per-wake.notes.md`
+.
 
 ## 1. In one page
 
@@ -103,7 +103,7 @@ doing. Every other kind chooses parts: `question`,
   charters member) carries `"parts": [{"on": ["question"], "instructions":
   "..."}]`. An unknown kind, an always-offered kind, an empty `on` or a part
   past the limit refuses the change at its path. temper's settings form and `temper ctl
-  settings show` and `apply` carry them (`../client/ctl/tools.md`, 3).
+  settings show` and `apply` carry them (`../client/ctl/tools-acts.md`, 1).
 
 ## 4. What a run is offered
 
@@ -172,7 +172,7 @@ cut longer than a pending escalation's stall (jig's `domain/tasks/README.md`, se
   chooses the task's kept account again at its first later run, as any change
   of that provider does (jig's `domain/tasks/README.md`, section 3).
 - **Fresh runs only,** as parts are: a task whose charter resumes takes no
-  `later`. A change's `llm` (`../domain/agent/tools.md`, 1) carries none, since a
+  `later`. A change's `llm` (`../domain/agent/tools-change.md`, 1) carries none, since a
   change's producers resume or finish in one activation.
 - **What shows it.** The task's document shows the choice its next run would
   take (jig's `client/domain/contract/documents.md`, 1).
@@ -183,7 +183,7 @@ cut longer than a pending escalation's stall (jig's `domain/tasks/README.md`, se
   itself.
 - **Not per kind.** One run takes one model and may run for several reasons,
   so a choice per kind would need an order among them. The need measured so far
-  is the first run against the rest (`notes.md`, N11).
+  is the first run against the rest (`reference-code-production.notes.md`, N11).
 
 ## 6. The goal's charter in parts
 

@@ -1,4 +1,4 @@
-//! Project classes in settings files (temper/docs/design/client/ctl/tools.md, 3).
+//! Project classes in settings files (temper/docs/design/client/ctl/tools-acts.md, 1).
 use crate::file::{Decoder, Error, error, field, optional};
 use alloc::boxed::Box;
 use skein_json::writer::Encoder;

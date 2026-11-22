@@ -1,4 +1,4 @@
-//! Real host and view evidence for redaction (temper/docs/design/client/web/journeys.md, 3.3 and temper/docs/design/client/web/journey-redaction.md and temper/docs/design/client/web/journeys.md, 3.7–3.8 and 4).
+//! Real host and view evidence for redaction (temper/docs/design/client/web/journeys-recordings.md, 1.3 and temper/docs/design/client/web/journey-redaction.md and temper/docs/design/client/web/journeys-recordings.md, 1.7–1.8 and 2).
 use super::{walk, written};
 use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::Record as _;

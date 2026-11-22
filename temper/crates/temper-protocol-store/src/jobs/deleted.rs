@@ -1,4 +1,4 @@
-//! Deleted repositories' forge rows (temper/docs/design/protocol/store.md, 4).
+//! Deleted repositories' forge rows (temper/docs/design/protocol/store-versions.md, 1).
 use super::refusal;
 use crate::{Bounds, keys, records};
 use alloc::boxed::Box;

@@ -11,8 +11,8 @@
   other's read is refused, and the page says so in jig's words, and a
   request the root refuses for the role says "Your role does not hold
   the deployment's forges." Its acts are the FORGE
-  requests (`../engine.md`), each sent as `../README.md`, 3.6
-  says; a pasted key or token is a secret field (`../README.md`, 3.6). A connect's or
+  requests (`../engine.md`), each sent as `../root.md`, 1.6
+  says; a pasted key or token is a secret field (`../root.md`, 1.6). A connect's or
   an install's link is where a new tab goes, opened by the press and
   pointed once from the answer (`Tab::Open`, `Tab::Point`), the request
   naming no `back` (`../engine.md`); the page stays and waits, its note

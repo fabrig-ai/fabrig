@@ -19,7 +19,7 @@ A delivery's check builds and tests nothing at its base, so it can't tell a fail
 - **Its writers:** a goal's coordinator, confirming that a red a change inherited has no live owner, adds it to the goal's notes and to the goal branch's list and delivers; the change's implementer adds the line it is given (`stock-charters.md`, 10.1, 10.2, 10.4 and 10.5). Each goal writes its own prose at the top. Nothing removes an entry but a person or an agent, and nothing checks that one still fails.
 - **What it costs:** in one week of the reference repository's history the list changed on main 36 times and on branches reachable from it hundreds of times; it twice passed its cap, once in a resolution that stopped to ask what to keep. In one eight-hour window it was in 10 of 11 conflicts between main and a goal's branch, and the only file in 5. Of its test entries on main that day, 11 of 25 named tests ignored in their source, which never run.
 - **How a check reaches temper today:** the run executes the project's check itself; a refused check goes back to the agent and never reaches a delivery, and the run tells its host only that its checks started and ended (smith's `domain/run.md`, 8.1; `../domain/agent/README.md`, 5).
-- **What temper already keeps:** after-landing's tiers record failing tests by their own ids and count flakes; a flake is a finding, filed and matched by its signature (`../domain/after-landing.md`, 4 and 5.2; `../domain/findings.md`, 2, 4 and 5).
+- **What temper already keeps:** after-landing's tiers record failing tests by their own ids and count flakes; a flake is a finding, filed and matched by its signature (`../domain/after-landing-runs.md`, 3, and `../domain/after-landing.md`, 5.2; `../domain/findings.md`, 2, 4 and 5).
 - **The merge job's rule** for the list (`known-reds-merge.md`), a stopgap until this draft is built, settles it without an agent.
 
 ## 3. A goal's reds
@@ -30,7 +30,7 @@ A delivery's check builds and tests nothing at its base, so it can't tell a fail
 
 ## 4. Who records one
 
-- **The goal's coordinator, by judgement,** when a change asks about a failure its check refused and the coordinator finds it inherited and owned by no live change: by a host tool, `red`, that records it with its key and why at the goal branch's head the change was based on, or ends one (`../domain/agent/tools.md`, 2). The change's next check passes it, without the change delivering anything for it.
+- **The goal's coordinator, by judgement,** when a change asks about a failure its check refused and the coordinator finds it inherited and owned by no live change: by a host tool, `red`, that records it with its key and why at the goal branch's head the change was based on, or ends one (`../domain/agent/tools-goal.md`, 1). The change's next check passes it, without the change delivering anything for it.
 - **Nobody else:** an implementer neither records nor ends one; it asks, as today.
 
 ## 5. How the check reads them
@@ -53,7 +53,7 @@ A delivery's check builds and tests nothing at its base, so it can't tell a fail
 - **Its process again:** after its run, the project's check runs each failing test's process once more, the same binary's selected tests in the same order up to that test, with nothing else of the check running, before it judges. A test that passes then failed under load, since its predecessors were the same: it refuses nothing, and the summary names it, with both logs' tails within its bound. A test that fails again is judged as today: inherited when an entry names it, otherwise the delivery's. One-process's own alone diagnostic still labels a test that depends on an earlier one, and that failure stays the delivery's (`../../../../tools/tiers/design.md`, 11.6).
 - **Bounded:** at most `rerun_processes` processes; past it, none is run again and every failure is judged as today, since that many is no flake.
 - **Filed as a flake:** each test that passed when its process ran again is written to the results file, `flake KEY`, with its logs' tails; the engine files or counts a `flake` finding on the repository for it, its source the delivery's check, its signature the repository and the key, routed to the area owning the test's package or, with none, to the project's triage (`../domain/findings.md`, 2 and 4; `../domain/areas.md`), once per check identity.
-- **The landing's gate stays the guard:** a delivery passed on a flake still lands only through its landing's gate, by the gate's own rules (`../domain/landing.md`, 7.3; `../domain/findings.md`, 5); a change that made a test flaky meets it there, or in the findings that grow after it lands.
+- **The landing's gate stays the guard:** a delivery passed on a flake still lands only through its landing's gate, by the gate's own rules (`../domain/landing-proof.md`, 2.3; `../domain/findings.md`, 5); a change that made a test flaky meets it there, or in the findings that grow after it lands.
 
 ## 8. What goes, and when
 
@@ -68,7 +68,7 @@ A delivery's check builds and tests nothing at its base, so it can't tell a fail
 
 ## 10. Upgrades
 
-- **A new stored family,** the goal's reds and the changes' kept observations, registered with defaults (`../protocol/store.md`, 2 and 4).
+- **A new stored family,** the goal's reds and the changes' kept observations, registered with defaults (`../protocol/store.md`, 2, and `../protocol/store-versions.md`, 1).
 - **The worker's wire** gains the read of a goal's reds and the results' report: it moves its version and the newer side bridges the previous one (`redeploys.md`, 4.1 and 4.2). A worker of the previous version reads and reports nothing: its checks have no reds file, as a tree without the list has none today. A hold of a goal with reds is placed on a worker that speaks the new version (`redeploys.md`, 4.3).
 - **The host tools** gain `red`, versioned as the host tools' contract is (`../protocol/wires.md`). The run's channel to its host is unchanged: it already tells checks' start and end.
 

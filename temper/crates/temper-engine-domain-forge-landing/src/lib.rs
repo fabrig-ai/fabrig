@@ -1,4 +1,4 @@
-//! Pure landing-by-turn policy (domain/landing.md, sections 1–10).
+//! Pure landing-by-turn policy (domain/landing.md, sections 1–4, and domain/landing-prepare.md, section 1, and domain/landing-proof.md, sections 1–2, and domain/landing-turn.md, sections 1–2, and domain/landing.md, section 10).
 //!
 //! This crate keeps nothing. The connector top owns each landing, receipts,
 //! keys in flight and effects. A step returns one decision and the state to

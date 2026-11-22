@@ -26,7 +26,7 @@ body at 65,536 bytes independently of `forge.client.op_bytes`, with a
 marked cut and the change's stored words kept whole. The engine's batch
 table admits 32 changes and refuses 33 at an authority batch bound of 32.
 
-`README.md`, section 5.2 has no known gap in a goal's topics from the core: they are
+`topics.md`, section 1.2 has no known gap in a goal's topics from the core: they are
 its landing branches' alone, and a goal's CI subscription held at
 restart is dropped with its jig row (`temper-engine-domain-forge/src/domain.rs`,
 `restored`, by `Request::GoalUntopic`), while a task's own stays.
@@ -36,11 +36,11 @@ the worker that met it and on the engine, naming the job, its kind and why,
 and the way out of its hold, out of tries, points at the engine's log,
 which names each (`../worker/jobs.status.md`). The composed system world runs
 a change's merge job from the engine through its worker to the fake forge
-(`../../testing/README.status.md`, 2.1).
+(`../../testing/tiers.status.md`, 1.1).
 
 - **Not yet:**
   -  the request-to-repair fuzzy coverage remains `change/gates.status.md`, 1.
-  -  the real-process update-recovery trial remains `README.status.md`, 6 and 10.
+  -  the real-process update-recovery trial remains `updates.status.md`, 1, and `README.status.md`, 10.
   - `change/README.md`, 2, step 3: the base-first deployment proof remains `change/README.status.md`, 2, step 3.
   - the whole document: the `landing-fixes-2` request of 2026-11-06 takes the next
     landing plan on a real deployment as its proof, and no result is supplied.
@@ -53,11 +53,11 @@ a change's merge job from the engine through its worker to the fake forge
   - `change/questions.md`, 1, *Which target*: the real-model question-target proof remains `change/questions.status.md`, 1, *Which target*.
   - `change/questions.md`, 1, *The next producer merges the landing tip first*: the resumed-producer deployment proof remains `change/questions.status.md`, 1, *The next producer merges the landing tip first*.
   -  the browser readoption story remains `change/gates.status.md`, 3.
-  -  the boxless removal gap remains `adoption.status.md`, 1.
+  -  the boxless removal gap remains `adoption-connection.status.md`, 1.
   -  the GitHub status and dispatch gap remains `change/gates.status.md`, 1.
   -  the native-queue gap remains `queues.status.md`, 1.
   -  the findings projection gap remains `issues.status.md` (Not yet, the whole document).
-  -  the parked landing hold remains `README.status.md`, 5.3.
+  -  the parked landing hold remains `topics.status.md`, 1.3.
   -  the per-change bounds and gates gap remains `change/README.status.md`, 1.
   -  the empty issue-title gap remains `issues.status.md` (Not yet).
   -  the goal-issue link remains `change/README.status.md`, 2.
@@ -84,9 +84,9 @@ a change's merge job from the engine through its worker to the fake forge
     forge world steps such a landing to its merge job and a resolution
     on scripted delegations alone, with no job or resolution run
     (`a_first_change_behind_its_base_takes_it_or_goes_to_its_merge_job`).
-  -  the retarget-on-release gap remains `change/README.status.md`, 3.
+  -  the retarget-on-release gap remains `change/drift.status.md`, 1.
   -  the no-CI adoption choice remains `change/gates.status.md`, 2.
-  -  the panel's wait and charter facts remain `change/README.status.md`, 5.
+  -  the panel's wait and charter facts remain `change/panel.status.md`, 1.
   -  the change drain remains `change/README.status.md`, 6.
   -  the dependency-ancestry proof remains `change/questions.status.md`, 1.
   -  the message-room relay gap remains `change/questions.status.md`, 1.

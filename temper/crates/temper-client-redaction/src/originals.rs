@@ -1,4 +1,4 @@
-//! The originals of a recording (temper/docs/design/client/web/journeys.md, 3.3 and temper/docs/design/client/web/journey-redaction.md).
+//! The originals of a recording (temper/docs/design/client/web/journeys-recordings.md, 1.3 and temper/docs/design/client/web/journey-redaction.md).
 use skein_lib::sha256::digest;
 use std::{cmp::Reverse, fmt};
 

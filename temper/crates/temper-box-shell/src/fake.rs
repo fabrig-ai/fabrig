@@ -1,5 +1,5 @@
 //! The deployment and document forms' files and peer loop (protocol/setup/playground.md).
-//! The fake box's steps follow temper/docs/design/protocol/setup/box.md, 5.
+//! The fake box's steps follow temper/docs/design/protocol/setup/box-backends.md, 1.
 use crate::directories::jig_directories;
 pub(crate) mod check;
 mod control;

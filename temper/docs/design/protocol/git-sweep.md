@@ -1,12 +1,12 @@
 # The checkout's io: the sweep
 
 Provisional, 2026-11-21. How the git component, `temper-worker-protocol-git`,
-empties `trash`, where `Make` sets aside what it replaces (`git.md`, 4.1),
+empties `trash`, where `Make` sets aside what it replaces (`git-operations.md`, 1.1),
 a start what the last one left (`git.md`, 2), and `Store` a store it
-replaces (`git.md`, 4.11). io never removes a tree (skein's
+replaces (`git-operations.md`, 1.11). io never removes a tree (skein's
 `runtime/io/files.md`), so the sweep removes one entry at a time, in the
-background, beside the operations of `git.md`, section 4. Moved from
-`git.md`, 4.1, and revised the same day so that an entry it can't remove
+background, beside the operations of `git-operations.md`, section 1. Moved from
+`git-operations.md`, 1.1, and revised the same day so that an entry it can't remove
 no longer stops it: on a deployment, one entry owned by root stopped a
 worker's sweep for good, and its disk filled until a person fixed the
 entry by hand. Why an entry belongs to another user is the deployment's.
@@ -45,7 +45,7 @@ A pass runs one file operation at a time, beneath the worker's root:
    pages of `sweep_entries` entries within `sweep_bytes`, each from where
    the last stopped. Each child it removes as a file; a child that is a
    directory it renames to `trash/<n>`, refusing replacement as `Make`
-   does (`git.md`, 4.1), so that this pass or the next meets it as an
+   does (`git-operations.md`, 1.1), so that this pass or the next meets it as an
    entry of `trash`; a child gone (`NotFound`) is nothing. A child whose
    removal or rename fails any other way is set aside, as
    `trash/<e>/<child>`. A page that comes back empty ends the listing: it
@@ -90,7 +90,7 @@ pass meets (section 4).
 - **The worker's line:** the worker takes each report as one of its notes,
   `worker_alone`'s `Note::Unswept { path, error }`, which its shell writes
   to stderr (`services.md`, 7), as it does a stopped agent's
-  (`../domain/worker/README.md`, 4.3):
+  (`../domain/worker/hosted-runs.md`, 1.3):
 
   ```
   <binary> worker: trash entry not removed: <path>: <error>
@@ -106,7 +106,7 @@ pass meets (section 4).
 ## 4. When a pass runs
 
 - **It starts** once the layout is made at a start (`git.md`, 2), when a
-  `Make` ends, succeeded or failed (`git.md`, 4.1), and when its time
+  `Make` ends, succeeded or failed (`git-operations.md`, 1.1), and when its time
   comes (below). One pass runs at a time: a `Make` that ends while a pass
   runs has the next pass start as soon as that one ends, since its cursor
   may be past what the `Make` added.

@@ -12,7 +12,7 @@ fixed, with a focused test that reproduces it first.
   candidate, for over 40 minutes: its procedure task (`landing`, made with
   a budget of zero, `../domain/landing.md`, 4) is due to run, with no
   run since, no live delegate, and no prepare job ever delegated
-  (`../domain/landing.md`, 5). The project's landings report `turn: free`.
+  (`../domain/landing-prepare.md`, 1). The project's landings report `turn: free`.
   An engine restart only moved its attempt on; it stayed due. Nothing in
   the engine's or the worker's log names it.
 - **Questions to answer first:** why a due procedure task with a budget of

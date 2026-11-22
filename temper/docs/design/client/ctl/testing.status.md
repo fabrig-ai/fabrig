@@ -15,10 +15,10 @@
   existing final refusal, without reproducing that walk's silence. The next
   QA walk remains the requested proof (`README.md`, section 11).
 - **Not yet:**  the absent command groups remain `tools.status.md`, 1.
-   the absent read commands remain `tools.status.md`, 2.  the absent deciding commands remain `tools.status.md`, 3.
+   the absent read commands remain `tools-reads.status.md`, 1.  the absent deciding commands remain `tools-acts.status.md`, 1.
    the missing area operations remain `areas.status.md` (Not yet, the whole document).
    the hello stop-bound units remain `results.status.md`, 1.
-   the trailing-help command syntax remains `README.status.md`, 6.1. 2:
+   the trailing-help command syntax remains `command-line.status.md`, 1.1. 2:
   the joined story of a model's amendment (`tests/client`'s
   `amend_tools.rs` parses `--model` alone); the joined stories of
   `playground end`, `forge remove`, and a set up or a connect without

@@ -1,4 +1,4 @@
-//! The shared engine/TUI path and private link (client/tui/README.md, 2).
+//! The shared engine/TUI path and private link (client/tui/directory.md, 1).
 use crate::link_file;
 
 #[test]

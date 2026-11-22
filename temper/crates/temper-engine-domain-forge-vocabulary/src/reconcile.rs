@@ -1,4 +1,4 @@
-//! Reference reconciliation before Switch (domain/root.md, 8.1; protocol/store.md, 2).
+//! Reference reconciliation before Switch (domain/root-restart.md, 1.1; protocol/store.md, 2).
 use crate::{Key, Limits, Name};
 use skein_forge::api::Repository;
 
@@ -51,7 +51,7 @@ pub enum RecordKind {
 }
 impl RecordKind {
     /// History survives removal without retaining its repository's row
-    /// (temper/docs/design/domain/forge/adoption.md, 1).
+    /// (temper/docs/design/domain/forge/adoption-connection.md, 1).
     pub const fn historical_repository(self) -> bool {
         match self {
             RecordKind::BranchHead

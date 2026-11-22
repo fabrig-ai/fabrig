@@ -151,7 +151,7 @@ section 9.
   the worker finds the check's base as the check does before stepping
   past unchecked saves (`../../../../../tools/pre-pr/design.md`, 2), in its
   own git directory, whose HEAD and pin the run's holds too
-  (`../../protocol/git.md`, 4.13):
+  (`../../protocol/git-operations.md`, 1.13):
   `git merge-base refs/temper/landing HEAD`, with `MERGE_HEAD` as a third
   where a merge is in progress, the first it prints. It keeps each red
   whose head is an ancestor of that base or is that base
@@ -409,7 +409,7 @@ with the check. The reference's check writes it as
   restore refuses a store past either, as other families' bounds are
   checked.
 - **Restored** at the forge's restart step, as every family is
-  (`../../protocol/store.md`, 5).
+  (`../../protocol/store-restart.md`, 1).
 
 ## 7. The limits
 

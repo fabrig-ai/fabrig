@@ -54,7 +54,7 @@ pub const TABLE: Table = Table {
     commands: &[PRINT, PAGES],
     settings: &[],
     variables: &[],
-    more: "temper-client-walk COMMAND --help prints a command; read temper/docs/design/client/journey-walks.md, sections 4 and 5.",
+    more: "temper-client-walk COMMAND --help prints a command; read temper/docs/design/client/journey-walks-world.md, section 1, and temper/docs/design/client/journey-walks.md, section 5.",
 };
 
 pub fn main(version: &'static str, commit: &'static str) -> ExitCode {

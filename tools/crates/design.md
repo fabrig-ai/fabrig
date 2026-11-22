@@ -7,7 +7,7 @@ finds test code that two test binaries of one package compile, which moves to a 
 after landing, reads a timed build from scratch and the week's landings. Each later milestone adds
 its check of the draft's section 7 (features, codec crates) to section 3. The one-version check of
 section 3.2 comes from `temper/docs/design/draft/gate-compile.md`, 4.2 and 7, milestone C2 of its
-execution file. Section 3's one walk per binary comes from `temper/docs/design/draft/focused-pyramid.md`, 5,
+execution file. Section 3's one walk per binary comes from `temper/docs/design/draft/archive/focused-pyramid.md`, 5,
 milestone K14 of its execution file.
 
 ## 1. In one page
@@ -115,7 +115,7 @@ The checks share one reader of the metadata and of module trees by section 2's r
 on. It holds no tests of its own (section 3.2); the reader's tests stay in `sizes.rs`.
 
 **One walk per binary.** A check reads each source it needs once in a run, and every rule and
-every target that needs that source takes it from the one read (`temper/docs/design/draft/focused-pyramid.md`,
+every target that needs that source takes it from the one read (`temper/docs/design/draft/archive/focused-pyramid.md`,
 5). The runner gives each test its own process, so a run is one test's: what is shared is
 shared within the test that reads the tree.
 
@@ -218,7 +218,7 @@ covers no finding fails the check.
   others don't link, is a kit of its own, which those users name. `temper-fixtures`' agent and
   landing fixtures are `temper-agent-fixtures` and `temper-landing-fixtures`, and `temper-box-kit`'s
   process guard is `temper-process-guard`, its tests linking it alone
-  (`temper/docs/design/draft/gate-units.md`, 4 and 5).
+  (`temper/docs/design/draft/archive/gate-units.md`, 4 and 5).
 
 **Today's findings,** read on main at `c3729d66f0`, and where each goes. The check lands with an
 exception for each, and each move removes its own:
@@ -308,8 +308,8 @@ It has no exceptions. An exception, were one needed, is a package, excuses every
 package, names what removes it, and fails the check once it matches no finding, as an allowance
 does. Every package of `temper/docs/design/draft/crate-graph.md`, 4.2 keeps its generated record
 code in codec crates below it, named and placed as skein's `data/codec/README.md`, section 2 says.
-The two stores' are G2's (jig's `protocol/README.md`, section 5; temper's `protocol/store.md`,
-section 4). The other eight are G3's, one codec crate each, its owner's `-codec`:
+The two stores' are G2's (jig's `protocol/README.md`, section 5; temper's `protocol/store-versions.md`,
+section 1). The other eight are G3's, one codec crate each, its owner's `-codec`:
 
 | Owner | Its codec crate | Directory | Module |
 |---|---|---|---|
@@ -451,7 +451,7 @@ Every other entry may be named in any context.
   skipped.
 
 **The bundle's nested build** sets `CARGO_RESOLVER_FEATURE_UNIFICATION=selected`
-(`temper/docs/design/client/web/README.md`, 2.6). Its own crate's step tests pin it on the nested
+(`temper/docs/design/client/web/bundle.md`, 1). Its own crate's step tests pin it on the nested
 commands they already read (`temper-client-bundle`'s `tests/steps.rs`), since the boundary suite
 can't call a build script's code.
 

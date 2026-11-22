@@ -106,12 +106,12 @@ each a `temper.toml` of its binary's shape
   `--bundle` refuses it the same way, naming the document and saying
   that the name needs `--bundle`. A root whose engine serves the page
   names `{place.bundle}`, so that the page is the kept build's bundle
-  whatever the engine's binary holds (`../../client/web/README.md`,
-  2.6), and a place gives every session its `bundle/` (`places.md`, 4
+  whatever the engine's binary holds (`../../client/web/bundle.md`,
+  1), and a place gives every session its `bundle/` (`places.md`, 4
   and 5).
 - **Its ports** are the place's nine (`places.md`, 2), in the order
   `TEMPER_INTERNAL_FAKE_BOX_PORTS` lists a box's
-  (`../../protocol/setup/box.md`, 5), each position bound by the
+  (`../../protocol/setup/box-backends.md`, 1), each position bound by the
   deployment as a box binds it where they share a use:
 
   | Position | A box binds | A deployment binds |
@@ -195,7 +195,7 @@ nowhere. Each within its bound; a failure is the deployment's (section
    SCRATCH/config/model.json --ready "listening "`, with `--scripts
    SCRATCH/session/scripts.json` where the session was given scripts,
    its files joined into that one as the box joins its `--scripts`
-   (`../../protocol/setup/box.md`, 5), and `--strict` as given; ready at
+   (`../../protocol/setup/box-backends.md`, 1), and `--strict` as given; ready at
    `listening `, within 60 seconds.
 3. **The engine:** `temper-engine serve --config SCRATCH/config/engine
    --data SCRATCH/data/engine --cache SCRATCH/cache/engine`, ready once
@@ -204,7 +204,7 @@ nowhere. Each within its bound; a failure is the deployment's (section
    seconds.
 4. **ctl, signed in from a file:** the engine's first link written to
    `session/link`, 0o600, then `temper ctl SCRATCH/session/ctl sign-in
-   SCRATCH/session/link </dev/null` (`../../client/ctl/README.md`, 6.1),
+   SCRATCH/session/link </dev/null` (`../../client/ctl/command-line.md`, 1.1),
    exit 0 within 60 seconds, then `session/link` removed.
 5. **The worker's setting:** an engine admits only a worker its settings
    hold (`../../draft/config.md`, 6.7), so the session adds it as its
@@ -348,7 +348,7 @@ owner writes in the file, such as `public` or `[sign_in.google]`.
   | Status | When | Its last lines on stdout |
   |---|---|---|
   | 0 | ended, every process stopped cleanly, whatever the lines answered | `ended` |
-  | 3 | a store refused by name: the engine's log holds a line starting `temper-engine serve: ` that names a directory under the scratch directory (`../../protocol/store.md`, 5), or the fake Forgejo's a line starting `temper-box fake forge: state ` naming a file under it (`../fakes.md`, 2) | `refused: ` and that line |
+  | 3 | a store refused by name: the engine's log holds a line starting `temper-engine serve: ` that names a directory under the scratch directory (`../../protocol/store-restart.md`, 1), or the fake Forgejo's a line starting `temper-box fake forge: state ` naming a file under it (`../fakes.md`, 2) | `refused: ` and that line |
   | 4 | the deployment failed: a process exited, panicked, or missed its ready line within its bound, ctl's sign-in failed, the browser's start failed (its fresh link or the page not within its bound, or a trouble at the start that `../../client/drive.md`, 2.3 counts, in its words), or a stop passed its bound | `deployment failed: WHY`, then the last 20 lines of each process's log, each prefixed `\| ` |
   | 1 | the session's own failure: its command line, a document missing, past its bound or no JSON, a `{place.NAME}` of no name, `{place.bundle}` with no `--bundle`, `config/` or `data/` alone | `failed: WHY`, on stderr |
 
@@ -368,7 +368,7 @@ owner writes in the file, such as `public` or `[sign_in.google]`.
   box's does.
 - **Upgraded at open:** the engine plans the store's registry and runs
   pending jobs in a copy before restoring and switching, as a new
-  build's start does (`../../protocol/store.md`, 4 and 5;
+  build's start does (`../../protocol/store-versions.md`, 1, and `../../protocol/store-restart.md`, 1;
   `../../protocol/binaries.md`, section 2). A
   store below the floor is refused by name (`../../protocol/floor.md`,
   4), status 3, and the place makes the copy again. The fake Forgejo restores its state; a state it

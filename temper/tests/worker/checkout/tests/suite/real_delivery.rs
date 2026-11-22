@@ -1,5 +1,5 @@
 //! Delivery and isolation from a run's git, against real git and a throwaway HTTP remote.
-//! temper/docs/design/protocol/git.md, 3, 4.7, 9; domain/worker/checkouts.md, Two git directories.
+//! temper/docs/design/protocol/git.md, 3, temper/docs/design/protocol/git-operations.md, 1.7, temper/docs/design/protocol/git.md, 9; domain/worker/checkouts.md, Two git directories.
 use skein_lib::{Env, Queue, Secret, Time, Token, Wall};
 use skein_throwaway_forgejo::{Forgejo, Init, Settings};
 use std::{

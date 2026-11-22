@@ -25,7 +25,7 @@ listed box source before Forgejo starts, refusing `owned.public` beside
 `owned.sign_in`, or keeping serve before discovery while taking the late
 handover before connecting. The five repair stories' outcomes and the
 combined default-box proof remain unverified as recorded in
-`setup/box.status.md`, 1 and 2, and `setup/testing.status.md`, 4.
+`setup/box.status.md`, 1, and `setup/box-supervision.status.md`, 1, and `setup/testing.status.md`, 4.
 
 `openid-provider.md`, section 3's cross-site restart admission is repaired in the client
 link: cancelled watch exchanges and cleanup calls retain transport

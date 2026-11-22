@@ -107,13 +107,13 @@ engine's routing encodes it (`../../protocol/llm.md`, section 5).
 
 The connectors name the repositories, where each starts, which may be
 written and the branch a change goes to (jig's `domain/engine/executors.md`, 1;
-../worker/README.md, 4.1); the worker prepares them and gives smith the workspace:
+../worker/hosted-runs.md, 1.1); the worker prepares them and gives smith the workspace:
 each repository's directory and name, whether it may be written, and for
 a merge in progress the files in conflict (../worker/checkouts.md). Every
 temper workspace is git repositories. A run with no repository, such as
-a chat that names none, runs with no workspace (../worker/README.md, 4.1). A run
+a chat that names none, runs with no workspace (../worker/hosted-runs.md, 1.1). A run
 whose charter is an asking one (`tools.md`) is given no repository, whatever
-its project's home and context repositories (`../root.md`, 6.1; `ask-temper.md`), so it
+its project's home and context repositories (`../root-translation.md`, 2.1; `ask-temper.md`), so it
 runs with no workspace: no checkout, no file tools, no shell, and smith
 says nothing of a checkout (smith's `domain/run.md`, 3.3; through Claude
 Code, smith's `protocol/programs.md`, 5.1). A run whose charter names none
@@ -137,7 +137,7 @@ A change's `body` holds the producer's report, what its brief asks it to
 report, whole, within the contract's words (jig's `domain/hosts/charters.md`), which
 for a change the `change` tool or its procedure makes are `tasks.result_bytes`:
 so a report follows the call's payload and is a setting
-(`../../protocol/configuration/settings.md`, 7). Smith's outcome holds the `title`, the
+(`../../protocol/configuration/settings-output.md`, 1). Smith's outcome holds the `title`, the
 `body` and their framing together, at the payload; its `title` and the
 contract's other texts stay within 1,024. The run's contract prints
 the bound. The coding charter's words say that the report goes there, and that
@@ -212,7 +212,7 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
   likes, work in progress among them; none of them reaches its base but
   through the change's tree, and it never pushes to its base or
   rewrites it. The change lands as one commit, a squash into a goal's
-  branch or temper's merge into main (`../landing.md`, 5.2), whose
+  branch or temper's merge into main (`../landing-prepare.md`, 1.2), whose
   message is the change's title, its description's first paragraph and
   its trailers (`../../protocol/tooling.md`, 4): so the coding
   charter's words have it write its `finish`'s `title` and its report's
@@ -226,8 +226,8 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
 - **Main into a goal's branch only for a change that needs it**
   (`../../draft/squash-in.md`, 4 and 5; `../forge/branches.md`, 1).
   The goal's agent's words have it ask for main's tip, a catch-up
-  (`../forge/README.md`, section 6, made with the `change` tool's
-  `merge`, `tools.md`, 1), only for a change of the goal whose work
+  (`../forge/updates.md`, section 1, made with the `change` tool's
+  `merge`, `tools-change.md`, 1), only for a change of the goal whose work
   rests on what main gained since the goal's branch was made, that
   change naming the catch-up in its `after`; never to keep the branch
   current, and never as a coding change whose only work is the
@@ -241,8 +241,8 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
   is the agent's own field, with no second text beside it for the
   person (that draft's section 10 keeps the question open), so the
   stock charters' words have it written for both:
-  - **A goal's or a change's title,** its words' first line (`tools.md`,
-    1 and 2): at most 60 characters naming the work for a person in
+  - **A goal's or a change's title,** its words' first line (`tools-change.md`, 1, and `tools-goal.md`, 1
+    ): at most 60 characters naming the work for a person in
     plain words, with no draft or milestone codes and no internal names,
     the rest of the words on the lines below it. Charter 1's
     instructions, for a goal and for the person's chat, and charters 13
@@ -340,7 +340,7 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
   next words, whether its run still listens or has parked (jig's
   `domain/tasks/changes.md`). Their credentials, or a program source's
   name, come to the agent as grants through the worker
-  (`../../protocol/credentials.md`, section 3). A run on a program has
+  (`../../protocol/credentials-llm-accounts.md`, section 1). A run on a program has
   smith's sub-agents, inspect only, each a program session of its own
   (smith's `protocol/programs.md`, 5.10).
   The stock demo is temper's fake model, declared with `gpt-6-luna`'s
@@ -355,7 +355,7 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
   the separate combined ownership bound, shortening the brief when needed
   (`tools.md`). A message offered a run is at
   most an offer and the agent's tool payload, which the model's output
-  bounds (`../../protocol/configuration/settings.md`, 7).
+  bounds (`../../protocol/configuration/settings-output.md`, 1).
 - **Waiting and resuming:** the waiting time is the charter's; a
   coordinator's is zero. A chat resumes its transcript, and a
   coordinator starts fresh from its brief (jig's `domain/engine/executors.md`,

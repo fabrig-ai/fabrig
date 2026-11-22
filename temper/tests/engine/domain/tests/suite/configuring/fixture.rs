@@ -1,5 +1,5 @@
 //! Stock defaults with the world's scripted model and bounded store.
-//! Box identity worlds follow temper/docs/design/domain/forge/adoption.md, 6.
+//! Box identity worlds follow temper/docs/design/domain/forge/adoption-person.md, 1.
 use super::*;
 use serde_json::{Value, json};
 use skein_lib::Duration;
@@ -208,7 +208,7 @@ fn box_owner_identity() -> people::IdentityKey {
 pub(super) fn restart_box_with_second_owner(world: &mut World) {
     use temper_engine_domain_forge as forge;
     // A link retained by the person's earlier one-owner deployment is stale
-    // under this world's two configured owners (temper/docs/design/domain/forge/adoption.md, 6).
+    // under this world's two configured owners (temper/docs/design/domain/forge/adoption-person.md, 1).
     let mut record = world
         .driver
         .store

@@ -1,0 +1,32 @@
+# The first split pass (temper/docs/design/draft/design-upkeep.md, 4.3): the client's root documents and the TUI.
+
+# The client keeps its overview, crates and documents by surface.
+title temper/docs/design/client/root.md: The client root
+temper/docs/design/client/README.md 3 -> temper/docs/design/client/root.md 1
+temper/docs/design/client/README.md 5.10 -> temper/docs/design/client/root.md 2
+heading temper/docs/design/client/root.md 2: Open questions
+
+title temper/docs/design/client/sign-in.md: Signing in and the small store
+temper/docs/design/client/README.md 4 -> temper/docs/design/client/sign-in.md 1
+temper/docs/design/client/README.md 5.8 -> temper/docs/design/client/sign-in.md 2
+heading temper/docs/design/client/sign-in.md 2: Open questions
+
+# The view's navigation is one concept, shared by its shells.
+title temper/docs/design/client/view-navigation.md: The view's navigation
+temper/docs/design/client/view.md 3 -> temper/docs/design/client/view-navigation.md 1
+
+# The TUI keeps its overview and loop, with directory and host beside it.
+title temper/docs/design/client/tui/directory.md: The TUI's directory
+temper/docs/design/client/tui/README.md 2 -> temper/docs/design/client/tui/directory.md 1
+title temper/docs/design/client/tui/host.md: The TUI's host and seam
+temper/docs/design/client/tui/README.md 3 -> temper/docs/design/client/tui/host.md 1
+
+# The box's startup screens, terminal lending and browser command.
+title temper/docs/design/client/tui/box-startup.md: The box front's startup screens
+temper/docs/design/client/tui/box.md 2 -> temper/docs/design/client/tui/box-startup.md 1
+temper/docs/design/client/tui/box.md 3 -> temper/docs/design/client/tui/box-startup.md 2
+temper/docs/design/client/tui/box.md 4 -> temper/docs/design/client/tui/box-startup.md 3
+title temper/docs/design/client/tui/box-lending.md: Lending the box front's terminal
+temper/docs/design/client/tui/box.md 5 -> temper/docs/design/client/tui/box-lending.md 1
+title temper/docs/design/client/tui/box-web.md: Opening the browser from the box front
+temper/docs/design/client/tui/box.md 9 -> temper/docs/design/client/tui/box-web.md 1
