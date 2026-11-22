@@ -1203,6 +1203,7 @@ impl World {
             | Delivery::ReadEscalationDecision { .. }
             | Delivery::Fleet(_)
             | Delivery::PartLoad { .. }
+            | Delivery::PartBusy { .. }
             | Delivery::ReadLoad { .. }
             | Delivery::Public { .. }
             | Delivery::PublicWait { .. }

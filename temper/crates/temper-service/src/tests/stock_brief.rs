@@ -241,6 +241,7 @@ fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
                 workspace,
                 transcript: None,
                 resumed: false,
+                tell_parts: false,
             },
             &mut out,
         );

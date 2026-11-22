@@ -263,6 +263,7 @@ fn a_full_fleet_refuses_new_work_and_drains() {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one measured lifecycle keeps adoption, relay and teardown in order")]
 fn every_entry_point_preserves_its_lifecycle() {
     let mut fleet = Measured::new(LIMITS);
     // Hellos: a worker with strays and answers it holds, before the parent

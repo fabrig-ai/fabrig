@@ -345,6 +345,7 @@ pub fn assignment_with_settings(
         workstream: 7,
         workspace: temper_engine_domain::ForgeWorkspace { repositories: Box::new([repository]) },
         transcript: Box::new([]),
+        parts: Box::new([]),
         answered: Box::new([]),
         settled: Box::new([]),
         grants: Box::new([]),

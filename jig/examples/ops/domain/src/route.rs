@@ -369,6 +369,14 @@ fn core_held(
                 }),
             );
         }
+        core::Held::TaskPartKept { key } => child(
+            decision,
+            Released::Fleet(fleet::Event::PartKept {
+                run: Token::new(key.task),
+                attempt: Token::new(key.attempt),
+                part: key.number,
+            }),
+        ),
         core::Held::TaskTurnKept { task: run, attempt, turn } => {
             child(
                 decision,
@@ -406,6 +414,8 @@ fn core_held(
         | core::Held::Restarting { .. }
         | core::Held::Grant { .. }
         | core::Held::AcknowledgeTurn { .. }
+        | core::Held::AcknowledgePart { .. }
+        | core::Held::PartBusy { .. }
         | core::Held::Cancel { .. }
         | core::Held::Acknowledge { .. }
         | core::Held::ReadUsage { .. }
@@ -1301,6 +1311,13 @@ fn core_now(
     work: &mut Queue<Work>,
 ) {
     match value {
+        core::Now::PartBusy { key } => {
+            work.push(Work::Core(core::Event::Fleet(fleet::Event::PartBusy {
+                run: Token::new(key.task),
+                attempt: Token::new(key.attempt),
+                part: key.number,
+            })));
+        }
         core::Now::Ask { channel, run, attempt, number, bytes: _ } => {
             work.push(Work::Core(core::Event::Fleet(jig_domain_fleet::Event::Asked {
                 channel,

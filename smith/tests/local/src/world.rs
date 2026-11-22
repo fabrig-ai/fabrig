@@ -1421,6 +1421,10 @@ impl World {
     )]
     fn agent_request(&mut self, request: Lower) {
         match request {
+            Lower::Classify { owner, content, tools, served, asker, .. } => {
+                let completion = translate::classify(content, tools, &served, asker);
+                self.events.push_back(self.below(Below::Classified { owner, completion }));
+            }
             Lower::Complete { owner, prompt, .. } => {
                 self.observe(Seen::Complete { owner });
                 self.completions += 1;

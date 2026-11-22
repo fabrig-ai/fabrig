@@ -284,7 +284,7 @@ fn tell_output(
 fn kept_output(domain: &mut Domain, _env: &Env<Limits>, run: Token, number: u32, part: bool) {
     let mut found = None;
     for (id, context) in &domain.starts {
-        if context.run == Some(run) {
+        if context.run == Some(run) && !context.flow.done() {
             found = Some(id);
             break;
         }
@@ -448,6 +448,7 @@ fn start(
     };
     if parts.is_none()
         && let Some(history) = &transcript
+        && history.version == session::record::VERSION
         && history.turns.is_empty()
     {
         transcript = None;

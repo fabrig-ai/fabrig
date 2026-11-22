@@ -594,6 +594,7 @@ fn attempt_records(driver: &Driver, assignment: &engine::Assignment) -> Vec<(usi
             let (task, attempt) = match row {
                 core::CoreRecord::Call(call) => (call.key.task, call.key.attempt),
                 core::CoreRecord::Turn(turn) => (turn.task, turn.attempt),
+                core::CoreRecord::Part(part) => (part.key.task, part.key.attempt),
                 core::CoreRecord::Terminal(terminal) => (terminal.task, terminal.attempt),
                 core::CoreRecord::RunProof(proof) => (proof.task, proof.attempt),
                 core::CoreRecord::Deployment(_)

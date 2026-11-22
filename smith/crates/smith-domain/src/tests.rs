@@ -494,6 +494,32 @@ fn root_refuses_incompatible_conversation_limits_before_admission() {
 }
 
 #[test]
+fn an_empty_transcript_with_an_unknown_version_is_not_a_fresh_start() {
+    let mut h = Harness::new();
+    let emitted = h.step(Event::Start(crate::Start {
+        grants: account_grants(),
+        transcript: Some(session::record::Transcript {
+            version: session::record::VERSION.checked_add(1).expect("next version fits"),
+            endpoint: Some(session::llm::Endpoint(1)),
+            dialect: 1,
+            turns: Box::new([]),
+        }),
+        ..crate::fixture::start(Token::new(7), Charter { resume: true, ..charter() })
+    }));
+    let [Request::Admitted { .. }, Request::Answer { answer, .. }] = emitted.as_ref() else {
+        panic!("unknown transcript version must be refused before a provider request: {emitted:?}");
+    };
+    assert_eq!(
+        answer,
+        &run::Answer::Failed {
+            failure: run::RunFailure::Transcript(run::TranscriptRefusal::Version),
+            spent: run::Spend::ZERO,
+            turns: 0,
+        }
+    );
+}
+
+#[test]
 fn oversized_resume_history_is_refused_when_the_conversation_opens() {
     let mut h = Harness::new();
     let mut turns = List::with_capacity(17);
@@ -923,6 +949,21 @@ fn an_accepted_finish_closes_main_and_the_run_answers_the_worker() {
     assert_eq!((spent.turns, spent.input), (1, USAGE.input_tokens));
     h.domain.reclaim();
     assert_eq!((h.domain.peers(), h.domain.tickets(), h.domain.flights()), (0, 0, 0), "main's tickets went with it");
+}
+
+#[test]
+fn a_turn_kept_after_the_answer_before_reclaim_does_not_retire_the_start_twice() {
+    let mut h = Harness::new();
+    let (run, main, _) = h.admit(7, charter());
+    assert!(h.answer(main, Box::new([served(b"f1", verdict(b"approve"))])).is_empty());
+    let emitted = h.next();
+    let [Request::Answer { answer: run::Answer::Accepted { .. }, .. }] = emitted.as_ref() else {
+        panic!("the run answered before its turn was kept: {emitted:?}");
+    };
+    assert_eq!(h.turns.len(), 1);
+    assert!(h.step(Event::Acknowledge { run, turn: 1 }).is_empty());
+    h.domain.reclaim();
+    assert_eq!(h.domain.starts.len(), 0);
 }
 
 #[test]
