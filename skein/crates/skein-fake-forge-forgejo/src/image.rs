@@ -1,4 +1,4 @@
-//! Protocol state kept across restarts (testing/fakes/forge.md, section 4).
+//! Protocol state kept across restarts (testing/fakes/forgejo.md, section 1).
 //! Counts and integers are big-endian; byte strings carry their u64 length.
 use crate::{Repository, Service, delivery::Endpoint};
 use alloc::boxed::Box;

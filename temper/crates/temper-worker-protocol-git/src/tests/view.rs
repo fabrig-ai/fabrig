@@ -1,4 +1,4 @@
-//! Scripted file steps of the disposable view (protocol/git.md, 4.13).
+//! Scripted file steps of the disposable view (protocol/git-operations.md, 1.13).
 use super::fixtures::{self, Started};
 use crate::{Request, invocation};
 use alloc::boxed::Box;

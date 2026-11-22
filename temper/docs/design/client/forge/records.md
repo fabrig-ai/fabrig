@@ -575,7 +575,7 @@
   the clients' component's memory alone, as `app` is the forge domain's, so
   false after a restart; the engine delivers the document again when it
   turns true. After `linked`, `full`, the forge connector's tables full
-  past their report bound (`../../protocol/README.md`, 6.3), at most 2,
+  past their report bound (`../../protocol/service-process.md`, 1.3), at most 2,
   each `FullTable`: its `table`, `FullKind` (outbox or read admission),
   `since`, the wall time it filled in nanoseconds (u64), and `words`, the
   holders' words after the engine's line's `AGE: ` (at most 1,024

@@ -90,7 +90,7 @@ is open `github.md`, section 19.
   engine starts and serves; the client's deployment page says "Not
   connected" with its Connect action, and the adoption form offers none
   of its repositories. Nothing on it runs. This is how an LLM provider
-  with no account is shown (credentials.md, section 3).
+  with no account is shown (../protocol/credentials-llm-accounts.md, section 1).
 - **Who connects:** a person whose role holds the deployment's
   connectors (jig's `client/domain/pages.md`, section 7): in standalone,
   the deployment's owner.
@@ -233,7 +233,7 @@ is open `github.md`, section 19.
   installations' tokens (GitHub, section 8). The engine announces
   `Event::Credential` with a new generation whenever the value changes,
   at runtime, where today it announces generation 1 at start alone
-  (jig's `domain/engine/README.md`, 6.1; credentials.md, section 4). The
+  (jig's `domain/engine/README.md`, 6.1; ../protocol/credentials-git-identities.md, section 1). The
   worker keeps the two newest generations, so an operation in flight
   across a change finishes on the value it began with.
 - **The forge writer at runtime.** skein's forge client takes its
@@ -893,7 +893,7 @@ is cited by its probe's number across this document.
   reconcile without orgs' teams and hooks (12.2); its host, as an
   in-process one too.
 - **skein, the fakes:** a GitHub protocol layer over the fake forge's
-  domain (skein's `testing/fakes/forge.md`, section 4): the REST and GraphQL
+  domain (skein's `testing/fakes/forgejo.md`, section 1): the REST and GraphQL
   temper uses, the manifest's form and conversion, installations and
   their tokens with expiry on the fake's clock, the delivery log, the
   merge queue, rulesets; the forge peer serving it.
@@ -1078,8 +1078,8 @@ Each with the default the draft takes.
   on the deployment's page.
 - **Git's identity on GitHub:** one identity whose value holds every
   installation's token (section 8), or an identity per installation.
-  Default: one, since a forge has one identity (credentials.md, section
-  4) and accounts come and go at runtime.
+  Default: one, since a forge has one identity (../protocol/credentials-git-identities.md, section
+  1) and accounts come and go at runtime.
 - **`log_poll` and the hook's fate:** five seconds by default; GitHub
   publishes no rate for the App's JWT calls, and may one day disable a
   hook that never answers. The probe App's hook is to be checked again

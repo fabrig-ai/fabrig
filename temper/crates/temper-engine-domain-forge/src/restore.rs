@@ -20,7 +20,7 @@ impl Domain {
     pub fn restore_fit_failure(&self) -> Option<&RestoreFit> {
         self.restore_fit.as_deref()
     }
-    /// A change with only one part is an unreadable row (protocol/store.md, 5).
+    /// A change with only one part is an unreadable row (protocol/store-restart.md, 1).
     #[must_use]
     pub fn unjoined_change(&self) -> Option<crate::Key> {
         for (task, _) in &self.change_cold {
@@ -184,6 +184,15 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             }
             field(K::Landing, RestoreSet::LandingAsks, count(row.asks.len()), u64::from(l.landing_members))?;
             field(K::Landing, RestoreSet::LandingEntries, count(row.entries.len()), u64::from(l.entries))?;
+            field(
+                K::Landing,
+                RestoreSet::LandingFollows,
+                count(row.follows().len()),
+                u64::from(crate::landing::follow_slots(l).expect("checked follow bound")),
+            )?;
+            for flight in row.follows() {
+                field(K::Landing, RestoreSet::LandingReruns, count(flight.reruns.len()), u64::from(l.client.rows))?;
+            }
             field(K::Landing, RestoreSet::LandingFlakeReruns, count(row.flake_reruns.len()), u64::from(l.entries))?;
             for rerun in &row.flake_reruns {
                 field(K::Landing, RestoreSet::LandingFlakeFindings, count(rerun.findings.len()), 64)?;

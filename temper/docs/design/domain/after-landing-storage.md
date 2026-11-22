@@ -175,13 +175,13 @@ This document holds after-landing effects, reads and durable records, split from
   each at most what a finding's signature holds, 64 ids of at most 512
   bytes (`findings.md`, section 4), which a start checks
   (`../protocol/configuration/limits.md`), and within the store's 1,024
-  bytes of an id (`../protocol/store.md`, 4); and a tier's name at most
+  bytes of an id (`../protocol/store-versions.md`, 1); and a tier's name at most
   32 bytes. A many's names, wherever kept, hold at most
   `failing_tests` ids. A tier row's `many` and a landing log's red
   entry keep at most 64 of them, the store's ceiling (2026-11-19).
   A tier row's `many` uses `list 64 ShownTest`,
   `ShownTest { test_id: bytes 1024 }`, which the store's wide text
-  (`../protocol/store.md`, 4) leaves alone: no older layout holds them.
+  (`../protocol/store-versions.md`, 1) leaves alone: no older layout holds them.
   A tier row is within 223 KB of the store codec's `u32` worst case at 759 landings,
   which 1,024 names of 1,024 bytes pass; 256 landings of 32 tiers each
   keeping 1,024 ids of 1,024 bytes pass the store codec's `u32` worst

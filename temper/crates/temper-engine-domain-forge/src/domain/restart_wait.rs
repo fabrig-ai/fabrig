@@ -1,5 +1,5 @@
 //! Restart's unfinished terms, without changing them (domain/forge/effects.md, 2;
-//! protocol/README.md, 6.3). Tokens in each pending table share a kind tag;
+//! protocol/service-process.md, 1.3). Tokens in each pending table share a kind tag;
 //! their low sequence bits, and hence table order, are their order of making.
 use super::{Domain, RestartStage};
 use alloc::boxed::Box;

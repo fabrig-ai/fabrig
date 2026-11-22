@@ -22,9 +22,9 @@ runs as contained processes and whose output it parses.
   own. Each repository the worker's prepares name, by its remote, has one
   bare store on the worker's disk, outside every workspace, whose objects
   every checkout of it borrows through an alternates file
-  (`../../protocol/git.md`, 4.2 and 4.11). Every fetch from the forge goes
+  (`../../protocol/git-operations.md`, 1.2 and 1.11). Every fetch from the forge goes
   into the store, and then points the checkout's reference at what it
-  fetched (`../../protocol/git.md`, 4.3); a clone asks the forge for nothing.
+  fetched (`../../protocol/git-operations.md`, 1.3); a clone asks the forge for nothing.
   So a checkout made from an empty directory (a workstream's first on the
   worker, an evicted one, a saved start, a damaged one) transfers only
   what no earlier fetch on the worker brought, and never a branch the
@@ -33,7 +33,7 @@ runs as contained processes and whose output it parses.
   into it bring the history's commits and trees whole and no file
   contents (git's `--filter=blob:none`), and a check out or a merge fetches
   the contents it needs from the forge into its checkout, which keeps them
-  (`../../protocol/git.md`, 4.5, 4.6 and 4.11). A prepare makes
+  (`../../protocol/git-operations.md`, 1.5, 1.6 and 1.11). A prepare makes
   each store its repositories need that the cache has not made yet, before
   its workspace, as a bare clone of the forge's default branch alone, the
   one way git takes the remote's object format, SHA-1 or SHA-256 (a fetch
@@ -43,7 +43,7 @@ runs as contained processes and whose output it parses.
   it is made, and a making that fails or is cancelled passes to the one
   prepare that has waited longest, not to every one. Stores outlive a
   restart: a start keeps them, and the making of a store already there
-  clones nothing (`../../protocol/git.md`, 4.11), so the first prepares
+  clones nothing (`../../protocol/git-operations.md`, 1.11), so the first prepares
   after a restart fetch only what each store lacks, while the workspaces
   still start empty. A store's token is its remote's, the first eight
   bytes of the SHA-256 digest of the remote's bytes read big-endian, so a
@@ -78,7 +78,7 @@ runs as contained processes and whose output it parses.
     moves its own, a view of its HEAD, index, merge and pins, so a run's
     git, its checks among them, works as with one directory: clean at the
     start, a merge in progress shown, `refs/temper/landing` the pin
-    (`../../protocol/git.md`, 4.13). A run that breaks its `.git` has it
+    (`../../protocol/git-operations.md`, 1.13). A run that breaks its `.git` has it
     made again by the next such operation.
   - **A delivery commits the work tree's files** on the worker's HEAD and
     merge (*Push commits what the run checked*, below), so a commit or a
@@ -101,13 +101,13 @@ runs as contained processes and whose output it parses.
   it, and for each workspace's repository, the check outs and merges asked
   in it and the commits asked with a delivery's or a save's snapshot,
   whose check of a second parent fetches into its worker's git directory
-  (`../../protocol/git.md`, 4.7), each since the last `Pack` that named
+  (`../../protocol/git-operations.md`, 1.7), each since the last `Pack` that named
   it, from 0 when it is made and at the worker's start. A repository's
   count is its worker's git directory's: it stays with the clone while
   the workspace is reused or kept, and starts at 0 again when the
   workspace is made again. A store is due at 25, and so is a
   repository: half the 50 packs past which a `Pack` repacks
-  (`../../protocol/git.md`, 4.14), so a place holds about 75 packs at
+  (`../../protocol/git-operations.md`, 1.14), so a place holds about 75 packs at
   most between two counts. A prepare, a run's or a job's, that would end
   ready asks first, in the spec's order, one `Pack` for each repository
   whose store or itself is due, naming the store only where it is due:
@@ -117,7 +117,7 @@ runs as contained processes and whose output it parses.
   allows: a repack puts its new pack in place before it deletes the old
   ones, and a reader that misses a pack looks again and finds the new one
   (the user, 2026-11-19); the git component keeps any other repack or
-  fetch out of the store meanwhile (`../../protocol/git.md`, 4.14).
+  fetch out of the store meanwhile (`../../protocol/git-operations.md`, 1.14).
   Asking a `Pack` sets the counts of the places it names back to 0,
   whatever its end, so that a prepare in another workspace meanwhile
   does not name the same store again, and what is fetched while it runs
@@ -176,7 +176,7 @@ runs as contained processes and whose output it parses.
   starting point. It fetches each branch of a repository at most once: a
   pin or a baseline naming a branch this prepare has fetched, or a commit
   it has fetched, takes that fetch's commit, and a pin is pointed at it
-  locally (`../../protocol/git.md`, 4.12). A branch or base that does not exist is a preparation
+  locally (`../../protocol/git-operations.md`, 1.12). A branch or base that does not exist is a preparation
   failure, permanent until something changes on the forge: the worker
   creates no branch but by pushing a run's change, and branches temper
   needs before then are made by the engine, as effects (../forge/branches.md
@@ -184,7 +184,7 @@ runs as contained processes and whose output it parses.
 - **The landing pin.** A repository whose item names a landing branch
   (`hosted-runs.md`, 1.1) has it fetched once per hold, during prepare, after its start is
   fetched, on the same remote, into
-  `refs/temper/landing` (`../../protocol/git.md`, 4.3), or, where it is the
+  `refs/temper/landing` (`../../protocol/git-operations.md`, 1.3), or, where it is the
   branch the start fetched, pointed at that fetch's commit: every start of a
   change's producer, a saved or resumed one's included, and a goal's later
   run. That tip is frozen for the hold: no later operation of the hold
@@ -222,9 +222,9 @@ runs as contained processes and whose output it parses.
   repair*). Prepare fetches the push branch's head as for the replaced
   head's pin, the one fetch serving its baseline and, where it is the
   start's branch, its start, and points `refs/temper/landing` at the pin in
-  place of that head: a `Point` (`../../protocol/git.md`, 4.12) where this
+  place of that head: a `Point` (`../../protocol/git-operations.md`, 1.12) where this
   prepare already fetched that commit, otherwise one fetch of it into
-  `Into::Landing` (`../../protocol/git.md`, 4.3), its want the commit. A
+  `Into::Landing` (`../../protocol/git-operations.md`, 1.3), its want the commit. A
   pin the remote lacks fails preparation as a missing commit; it never
   falls back to the replaced head. So a landing's repair is judged as that
   landing judged its change: its diff, its figures and its tests against
@@ -237,7 +237,7 @@ runs as contained processes and whose output it parses.
   (`hosted-runs.md`, 1.1).
 - **A goal's reds for each check** (`../forge/reds.md`, 5.2 and 5.3), in
   each writable repository with a pin, under the run's git directory, at
-  `.git/temper` (`../../protocol/git.md`, 4.13): prepare
+  `.git/temper` (`../../protocol/git-operations.md`, 1.13): prepare
   removes `temper/reds` and writes `temper/reds-wait`; a check's start
   removes `temper/reds`, and, once the engine answers, the checkout finds
   the check's base and each red's ancestry with git, in the worker's
@@ -254,8 +254,8 @@ runs as contained processes and whose output it parses.
   checks out the base's tip, and merges each head into it in their
   order, committing each merge at once, with two parents (what was
   checked out so far and the head) and the repository's identity as its
-  author, and checks that commit out before going on (`../../protocol/git.md`,
-  4.7: a commit moves neither HEAD nor the merge's state), so that the next
+  author, and checks that commit out before going on (`../../protocol/git-operations.md`,
+  1.7: a commit moves neither HEAD nor the merge's state), so that the next
   merge can run and the agent is handed a checkout on the last commit with no
   merge in progress; a head the checkout already contains is no merge. The last
   commit is the checkout's start, for its saves and its push alike, and
@@ -265,7 +265,7 @@ runs as contained processes and whose output it parses.
   merges is kept, and nothing is pushed. The change it was for then
   waits for its dependencies to land (`../forge/change/questions.md`, 1).
   This is the one conflict a prepare refuses, and only an early producer's
-  start meets it; its detail (section 1) is stage and fault
+  start meets it; its detail (`checkouts.md`, section 1) is stage and fault
   `merge: Conflicted`, and its words say why,
   `head <head> does not merge into <branch>`, `<head>`
   the head's full id in lowercase hexadecimal, 40 digits for a SHA-1 id and
@@ -282,7 +282,7 @@ runs as contained processes and whose output it parses.
   push, and the run is told which. More files in conflict than the
   checkout's `conflicts` still make a merge in progress: each stays
   marked, and the start names the first `conflicts` of them, in git's
-  order (`../../protocol/git.md`, 4.6). A conflict this start meets is the
+  order (`../../protocol/git-operations.md`, 1.6). A conflict this start meets is the
   run's to settle, never a failure of the prepare: a resolution's start,
   whether it merges the base into the change's branch or, with nothing of
   the change pushed, into the base branch, is always prepared so, its
@@ -294,7 +294,7 @@ runs as contained processes and whose output it parses.
   always merges. A producer's base that merges cleanly is committed at once,
   as a base with heads merged in is: two parents (the commit it merged into
   and the base), the repository's identity as its author, the title
-  `Merge <base>`, and that commit checked out (`../../protocol/git.md`, 4.7). So
+  `Merge <base>`, and that commit checked out (`../../protocol/git-operations.md`, 1.7). So
   its run starts on a clean tree with no merge state, its earlier work and the
   base's files both in its head, and nothing staged to misread or remove. The
   commit it merged into stays the checkout's start, so a save with nothing new
@@ -322,7 +322,7 @@ runs as contained processes and whose output it parses.
   staging or committing; a head of a base with heads merged in whose
   dependency has landed is caught up with instead (*A landed dependency's
   catch-up*, below). A new delivery commit becomes the checkout's HEAD
-  and clears its completed merge state (../../protocol/git.md, 4.7).
+  and clears its completed merge state (../../protocol/git-operations.md, 1.7).
   A push is a fast-forward and never forced: if
   the branch moved incompatibly with the run's commit, the push fails and
   the run is told. When the assignment names an expected head, the
@@ -355,7 +355,7 @@ runs as contained processes and whose output it parses.
   delivery's is. The hold records that its last push was a save while its
   head is that commit: the next commit of the hold, a checked delivery's or
   the save of saved work, is made even when the tree is unchanged
-  (`../../protocol/git.md`, 4.7, `always`), with that commit's own message,
+  (`../../protocol/git-operations.md`, 1.7, `always`), with that commit's own message,
   so a save's commit is never what the hold's next delivery or saved work
   names. An unchecked save uses the same checkout snapshot as a checked delivery:
   staged merges keep both parents, a matching local commit is kept, and a
@@ -369,7 +369,7 @@ runs as contained processes and whose output it parses.
   (`../forge/change/questions.md`, 1, *A running producer catches up*),
   so no reference on the remote reaches the head, and the delivery's
   check of its second parent ends `ParentUnreachable { head, merging,
-  parent }` (`../../protocol/git.md`, 4.7). The hold then catches up,
+  parent }` (`../../protocol/git-operations.md`, 1.7). The hold then catches up,
   in a delivery and a save alike; this is the one reconciliation a hold
   makes with its landing branch:
   - **When.** The repository's start is a base with heads merged in and
@@ -392,13 +392,13 @@ runs as contained processes and whose output it parses.
   - **Landed: the work kept.** The working tree is committed locally on
     the `head` the delivery read, with the `merging` it found in progress
     as its second parent, the push's own title and body, and a
-    delivery's staging (`../../protocol/git.md`, 4.7); a tree equal to
+    delivery's staging (`../../protocol/git-operations.md`, 1.7); a tree equal to
     `head`'s commits nothing. That commit, or `head`, becomes the
     checkout's HEAD with every working file as it was, ignored files and
     hidden logs included. Nothing is pushed yet.
   - **The pin moved.** The landing branch, the start's branch, is
-    fetched afresh into `refs/temper/landing` (`../../protocol/git.md`,
-    4.3): the one move of the pin a hold makes, explicit, so the checks
+    fetched afresh into `refs/temper/landing` (`../../protocol/git-operations.md`,
+    1.3): the one move of the pin a hold makes, explicit, so the checks
     that follow take the tip just caught up with as their base, and the
     goal's reds are read against it (`../forge/reds.md`, 5.2).
   - **The merge, work first.** That tip is merged into the work as a
@@ -698,13 +698,13 @@ wire carries, keeps its first 4,096, where the fields are.
   shows the repeated fetches. A store made full before stores were
   blob-less stays whole, its later fetches blob-less.
 - **An earlier head lost.** A delivery checks HEAD's second parent
-  alone (`../../protocol/git.md`, 4.7), so of a start with several heads
+  alone (`../../protocol/git-operations.md`, 1.7), so of a start with several heads
   merged in only the last is checked and caught up with (*A landed
   dependency's catch-up*); an earlier head whose dependency landed or
   was cancelled goes up beneath the push, as it did. Default: so; a
   check of every head the start merged, if a deployment shows a push
   carrying a cancelled dependency's work.
-- **The delivery's second-parent fetch** (`../../protocol/git.md`, 4.7) still
+- **The delivery's second-parent fetch** (`../../protocol/git-operations.md`, 1.7) still
   asks the forge for every branch and tag, into the checkout: with the store
   borrowed, git sends only those branches' commits neither holds. Default:
   kept, since its rule is reachability from any branch or tag.

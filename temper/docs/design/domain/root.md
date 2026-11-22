@@ -17,7 +17,7 @@ and the agent agent/README.md. What is still open is listed in section 12.
   jig's core, `jig-domain-core`, the forge connector's crates, and the
   calendar, `temper-engine-domain-calendar`, which renews each project's
   funding period (`routing.md`, 7). It alone faces the engine's protocol layer
-  (section 3; `../protocol/README.md`, section 4).
+  (section 3; `../protocol/service-routing.md`, section 1).
 - **It routes and translates; jig's core decides.** What commits
   together, what waits for a commit, the order of a restart and the check
   on every effect are the core's or the journal's (jig's
@@ -73,8 +73,8 @@ temper-engine-domain                       the root: the journal, routing, trans
   (`hosts: "workers"`), so the fleet places every run on a worker (jig's
   `domain/hosts/README.md`, section 3).
 - **Workers in the engine's process, in standalone.** The worker joins
-  the engine by an in-process address (`../protocol/README.md`, section
-  6), so the core is configured with its workers in process
+  the engine by an in-process address (`../protocol/service-process.md`, section
+  1), so the core is configured with its workers in process
   (`workers_in_process`, which jig's configuration sets from an
   in-process hosts' listener), and a restart settles their claims at once
   (jig's `domain/engine/restart.md`). temper's domain worlds run their
@@ -119,8 +119,8 @@ temper-engine-domain/src/
 What crosses the domain boundary, in `boundary.rs`: an exhaustive enum
 per direction, one variant per peer. The engine's service on the other
 side, its components and what its routing does with each, is
-`../protocol/README.md`, section 4; in standalone it shares its process
-with the worker's (`../protocol/README.md`, section 6).
+`../protocol/service-routing.md`, section 1; in standalone it shares its process
+with the worker's (`../protocol/service-process.md`, section 1).
 
 - **In, `Event`:**
   - the store's answers (`StoreInput`): a commit durable, with the
@@ -300,8 +300,8 @@ release(root):   (the service's iterate)
   commit that failed, the answer refused with the commits sent and
   durable, the decision past the store's edge, or the counter at its
   end. A root whose journal has stopped never stays up undeciding: the
-  engine ends with that reason in its log (`../protocol/README.md`,
-  6.2).
+  engine ends with that reason in its log (`../protocol/service-process.md`,
+  1.2).
 
 ### 4.1 The byte budget
 
@@ -475,7 +475,7 @@ Startup also checks the seed policy after enforced landing requirements are join
     a commit only while fewer are in flight, the store's credit, and the
     rest wait in the journal); the service passes `root.journal.commits`
     and `root.journal.writes` as jig's store `sizes::Commits`'s
-    `in_flight` and `writes` (`../protocol/store.md`, 4); with the door's
+    `in_flight` and `writes` (`../protocol/store-versions.md`, 1); with the door's
     outputs, it gives the watermark; a row's bytes, a result's bytes
     and a charter's bytes,
     which size the store's records (edges); the journal itself, its

@@ -259,7 +259,7 @@ What waits is section 12.
   pull request's body names; the change's row gains the first three.
 - **The tier's record** gains its `waiting` filings, at most 8, and
   `unkept`, the count of those not kept.
-- **Read from before** (`../protocol/store.md`, sections 2 and 4): each
+- **Read from before** (`../protocol/store.md`, section 2, and `../protocol/store-versions.md`, section 1): each
   is an added field of the registered `temper-store` family with its
   default, so no version moves and no patch comes: a finding with no
   blame, uncleared and not many, so that a red finding filed before

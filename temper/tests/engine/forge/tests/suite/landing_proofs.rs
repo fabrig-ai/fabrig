@@ -371,12 +371,12 @@ fn restarts_in_proving_probing_and_turn_keep_every_identity_once() {
     for entry in 1000..2000 {
         let decision = landings::step_landing(&mut world, LANDING, entry);
         let row = world.landing(LANDING);
-        let checkpoint = if !proving && row.entries.iter().any(|e| e.run.is_some()) {
+        let checkpoint = if !proving && row.follows().iter().any(|follow| follow.entry.run.is_some()) {
             proving = true;
             true
         } else if !search_seen
             && row.landing.round.search.is_some()
-            && row.entries.iter().any(|e| e.member == 0 && e.run.is_some())
+            && row.follows().iter().any(|follow| follow.entry.member == 0 && follow.entry.run.is_some())
         {
             search_seen = true;
             true

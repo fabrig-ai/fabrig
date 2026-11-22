@@ -159,7 +159,7 @@ findings are `findings.md`'s, and a repair, its result and its release
   arm `no_test` of `Hold` and `PublicHold`: each moves its version,
   unbridged (`../draft/redeploys.md`).
 - **No store version moves:** each is a registered family's added
-  field or arm (`../protocol/store.md`, section 4).
+  field or arm (`../protocol/store-versions.md`, section 1).
 
 ## 6. The world
 

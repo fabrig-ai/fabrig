@@ -1,6 +1,6 @@
 # On the engine's side
 
-The engine's service is `../protocol/README.md`'s (`../protocol/README.md`, section 4). What it
+The engine's service is `../protocol/README.md`'s (`../protocol/service-routing.md`, section 1). What it
 does for the client:
 
 - **The clients' listener** is `temper-service`'s: TCP on the loopback

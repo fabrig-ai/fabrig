@@ -1,13 +1,15 @@
+use super::machine::{Disk, ROOT};
 use crate::{agent, testing::launch, worker};
+use skein_fake_machine::Item;
 use std::{
     fs,
     os::unix::{ffi::OsStrExt, fs::PermissionsExt},
+    path::Path,
 };
 
 #[test]
 fn pinned_launch_survives_edits_and_renames_of_its_sources() {
-    let scratch = skein_scratch::Scratch::new("worker-redeploy");
-    let root = scratch.path();
+    let root = Path::new(ROOT);
     let program = root.join("temper-agent");
     let configuration = root.join("agent.json");
     let configured = configuration.as_os_str().as_bytes();
@@ -16,10 +18,11 @@ fn pinned_launch_survives_edits_and_renames_of_its_sources() {
         vec![configured],
         vec![b"/other.json", configured, configured],
     ] {
-        fs::write(&program, b"program at start").expect("pin fixture");
-        fs::write(&configuration, b"configuration at start").expect("pin fixture");
-        let pinned = worker::pin(root, &launch(&program, &configuration, &words), b"configuration at start")
-            .expect("pin fixture");
+        let disk = Disk::new(&[
+            Item::file(b"temper-agent", b"program at start"),
+            Item::file(b"agent.json", b"configuration at start"),
+        ]);
+        let pinned = disk.pin(root, &launch(&program, &configuration, &words), b"configuration at start");
         assert_eq!(crate::path(&pinned.program), root.join("agent/temper-agent"));
         assert!(crate::path(&pinned.program).is_absolute());
         for (before, after) in words.iter().zip(&pinned.arguments) {
@@ -41,11 +44,11 @@ fn pinned_launch_survives_edits_and_renames_of_its_sources() {
                 &pinned.configuration,
             ),
         ] {
-            fs::write(path, changed).expect("pin fixture");
-            assert_eq!(fs::read(crate::path(copy)).expect("pin fixture"), original, "in-place overwrite");
-            fs::write(&replacement, changed).expect("pin fixture");
-            fs::rename(replacement, path).expect("pin fixture");
-            assert_eq!(fs::read(crate::path(copy)).expect("pin fixture"), original, "rename replacement");
+            disk.overwrite(path, changed);
+            assert_eq!(disk.read(crate::path(copy)), original, "in-place overwrite");
+            disk.create(&replacement, changed, 0o600);
+            disk.rename(&replacement, path);
+            assert_eq!(disk.read(crate::path(copy)), original, "rename replacement");
         }
     }
 }

@@ -63,7 +63,7 @@ component's own formats:
   `protocol/store/transcripts.md`, 6).
 - **The levels** stay jig 6 and temper 14. `STORE_VERSION` is 25,
   `temper-store`'s version in jig's format row; a registered schema
-  change moves neither it nor an owner's level (`store.md`, 4).
+  change moves neither it nor an owner's level (`store-versions.md`, 1).
 - **The floor row** records a number and the build that wrote it.
   Jig's `FLOOR` is 1 and `FLOOR_BRIDGE` is `3d1c717d379e`. A fresh
   store's first commit writes the row, beside its format and

@@ -488,7 +488,7 @@ apart.
     (`../agent/tools.md`, *The forge's reads are three tools*), each
     read of `settings.default_branch`'s name;
   - a repository's store, a bare clone of the forge's default branch,
-    git's `HEAD` (`../../protocol/git.md`, 4.5;
+    git's `HEAD` (`../../protocol/git-operations.md`, 1.5;
     `../worker/checkouts.md`), from which every checkout then fetches
     its own base.
 - **Reads that show the record show it:**

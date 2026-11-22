@@ -154,7 +154,7 @@ Kind: answered question. Owner: `temper/docs/design/protocol/channel.md`.
 
 Kind: answered question. Owner: `temper/docs/design/protocol/git.md`.
 
-"HEAD after saving unfinished work" in `temper/docs/design/protocol/git-later.md`, 1 is now a complete answer: a nonsnapshot commit does not move HEAD, preparation checks it out, and save/delivery snapshots advance it. Those rules are designed in `temper/docs/design/protocol/git.md`, 4.7 and in the preamble of `temper/docs/design/domain/worker/checkouts.md`. Suggest removing the answered question rather than moving its restatement.
+"HEAD after saving unfinished work" in `temper/docs/design/protocol/git-later.md`, 1 is now a complete answer: a nonsnapshot commit does not move HEAD, preparation checks it out, and save/delivery snapshots advance it. Those rules are designed in `temper/docs/design/protocol/git-operations.md`, 1.7 and in the preamble of `temper/docs/design/domain/worker/checkouts.md`. Suggest removing the answered question rather than moving its restatement.
 
 ### 2.16 A10: Clients that are not a person's
 

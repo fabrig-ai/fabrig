@@ -80,7 +80,7 @@ The default, for a project with no prepare command:
   once that earlier member lands, any conflict is with the branch.
   A member stacked directly onto the base conflicts with the branch.
 - **Authored and committed** by the repository's git identity
-  (`../protocol/credentials.md`, 4), both ways: the identity the
+  (`../protocol/credentials-git-identities.md`, 1), both ways: the identity the
   deployment's agents' commits carry, and temper's own.
 - **A goal's branch reads one commit per change,** its title and
   trailers naming the change's task, pull request, head and goal, and a

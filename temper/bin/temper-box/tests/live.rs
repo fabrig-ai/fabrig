@@ -75,7 +75,7 @@ fn the_held_record_returns_on_a_box_of_its_own() {
     .unwrap_or_else(|message| panic!("{}", support::held_login::not_back(&message, &store)));
 }
 
-/// testing/live-tier.md and protocol/credentials.md, 3: a held login used in place.
+/// testing/live-tier.md and protocol/credentials-llm-accounts.md, 1: a held login used in place.
 #[test]
 #[ignore = "live: a held Claude Code login, TEMPER_TEST_LIVE_CLAUDE; the after-landing tier, or scripts/proof-live.sh forge-land-claude"]
 fn a_person_asks_claude_code_to_land_a_change_on_the_owned_forge() {

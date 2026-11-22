@@ -387,7 +387,7 @@ merge, kind 4, on a pattern of landing branches (jig's
   resolution (`repairs.md`): the rule a goal's own branch lands under (`../branches.md`, 1).
 - **Force-pushing does not exist.** No kind forces a push or moves a
   branch backwards: a run's push is a fast-forward
-  (`../../../protocol/git.md`, 4.8), an update merges the base in
+  (`../../../protocol/git-operations.md`, 1.8), an update merges the base in
   (`../updates.md`, section 1), and a branch found moved backwards is drift (`drift.md`, 1).
 
 - **Two standing requirements** replace the four above as landing rules'

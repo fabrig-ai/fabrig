@@ -487,7 +487,7 @@ of the sign-in (jig's `domain/terminal-login.md`, 6).
      TUI's own (`Way::Inherit`, skein's `runtime/io/processes.md`,
      section 1); the captured environment and working directory, as the
      box's; in a process group of its own, which takes the terminal's
-     foreground itself (`../../protocol/credentials.md`, 3, *Its
+     foreground itself (`../../protocol/credentials-llm-accounts.md`, 1, *Its
      terminal's foreground*). Nothing from the engine but NAME reaches
      its arguments or environment. A NAME refused, a box with no path
      yet, or a spawn that fails is the end `NotStarted`, at once.

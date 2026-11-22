@@ -471,7 +471,7 @@ words do: "didn’t", never "didn't".
   count; since rows outlive their members, a new member can find the
   table full. A row past it is refused at restart, as each family's is.
 - **Never erased:** a binding outlives its member's removal; a store made
-  again binds afresh (`store.md`, 4).
+  again binds afresh (`store-versions.md`, 1).
 
 ## 6. The sign-in's exchanges
 

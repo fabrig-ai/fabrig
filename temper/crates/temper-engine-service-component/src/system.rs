@@ -404,7 +404,7 @@ pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
 }
 pub use temper_service_core::{STAGES, Stage};
 
-/// Run one stage with the pass's times (protocol/README.md, 6.1).
+/// Run one stage with the pass's times (protocol/service-process.md, 1.1).
 pub fn iterate_stage(service: &mut Service, stage: Stage, now: Time, wall: Wall) {
     match stage {
         Stage::Io => {

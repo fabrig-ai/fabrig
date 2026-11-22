@@ -340,7 +340,7 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
   next words, whether its run still listens or has parked (jig's
   `domain/tasks/changes.md`). Their credentials, or a program source's
   name, come to the agent as grants through the worker
-  (`../../protocol/credentials.md`, section 3). A run on a program has
+  (`../../protocol/credentials-llm-accounts.md`, section 1). A run on a program has
   smith's sub-agents, inspect only, each a program session of its own
   (smith's `protocol/programs.md`, 5.10).
   The stock demo is temper's fake model, declared with `gpt-6-luna`'s

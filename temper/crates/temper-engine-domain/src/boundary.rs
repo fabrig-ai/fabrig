@@ -651,11 +651,11 @@ pub enum Missing {
 /// An observation of the root, which decides nothing (domain/root.md, 3, and domain/root-translation.md, 2.4).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Fact {
-    /// A forge table full past its bound or free again (protocol/README.md, 6.3).
+    /// A forge table full past its bound or free again (protocol/service-process.md, 1.3).
     ForgeTable {
         words: Box<[u8]>,
     },
-    /// A start step past the report bound (protocol/README.md, 6.3).
+    /// A start step past the report bound (protocol/service-process.md, 1.3).
     StartWaiting {
         step: jig_domain_core::start::Phase,
         age: skein_lib::Duration,

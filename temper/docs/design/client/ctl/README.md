@@ -389,7 +389,7 @@ temper ctl help [GROUP [VERB]]
     this link stays usable until it expires`, and after not ready,
     `temper ctl: temper is not ready: it is starting, or its core is not
     answering, and temper-box serve's log says why; this link stays usable
-    until it expires` (`../../protocol/README.md`, 6.2). A sign-in never
+    until it expires` (`../../protocol/service-process.md`, 1.2). A sign-in never
     answered keeps the deadline's own line.
 
   `sign-out`
@@ -610,8 +610,8 @@ An agent runs a wait while it acts, or several agents share a party.
 - **The agent's LLM is not the deployment's.** The LLM the agent itself
   runs on, to drive `temper ctl`, is its harness's. The deployment's
   runs are paid by jig's LLM accounts, added from the client
-  (`../../protocol/credentials.md`, section 3): on a box, by the deployment's
-  key the harness adds (section 8), which pays for every party's runs
+  (`../../protocol/credentials-llm-accounts.md`, section 1): on a box, by the deployment's
+  key the harness adds (`README.md`, section 8), which pays for every party's runs
   (jig's `domain/accounts.md`, 4.2). An agent acting for a person
   connects that person's own accounts with area 5's tools, as the
   person would on the accounts page.
@@ -627,7 +627,7 @@ directory of its harness's:
   serve`'s sign-in links, and the harness passes the first to `temper
   ctl DIRECTORY sign-in -` on stdin.
 - **The deployment's LLM key:** a fresh box has no LLM account, so no
-  run starts (`../../protocol/credentials.md`, section 3). Once signed in,
+  run starts (`../../protocol/credentials-llm-accounts.md`, section 1). Once signed in,
   the harness adds one before the agent's first act: `account add-key
   PROVIDER FILE --deployment --key box-llm`, from a private file of its
   own, then `account list --until usable` (`tools.md`, 4). The key is the
@@ -820,7 +820,7 @@ Each is named here and designed when it comes.
   whose model refused its resume answered late or never. The next QA walk
   must capture the engine's answer and the client's pending state together,
   using `results.md`, 3's diagnostic and the service's long-pass line
-  (`../../protocol/README.md`, 6.1), before attributing that wait to the engine
+  (`../../protocol/service-process.md`, 1.1), before attributing that wait to the engine
   or the client. The 30 s deadline stays.
 - **A kept request the engine cannot decode** (6.2): the HTTP client
   treats every status other than 200 as a lost answer, so a request that

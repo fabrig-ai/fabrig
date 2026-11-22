@@ -98,8 +98,8 @@ temper's workspace items beside it:
   `../../protocol/channel.md`, section 2). The worker carries the rest
   opaque, within its limits.
 - **Grants.** The credentials the run's LLM accounts and git identities
-  need, as names the protocol layer fills (`../../protocol/credentials.md`,
-  sections 3 and 4). The hub hands the agent its LLM accounts' grants
+  need, as names the protocol layer fills (`../../protocol/credentials-llm-accounts.md`, section 1, and `../../protocol/credentials-git-identities.md`, section 1
+  ). The hub hands the agent its LLM accounts' grants
   only; the worker keeps the git identities' for its own git operations.
 
 Its sizes and names are checked at the entrance against the worker's
@@ -254,8 +254,8 @@ number and verb as its failure line prints them (`jobs.md`), so that
 both join by the same words: `temper worker: run 9551 attempt 3 job 1
 prepare fetch fabrig commit <id> into fetched`. `<run>` and `<attempt>` are its assignment's,
 `<repository>` the repository's directory, `<source>` what the fetch
-names (`branch <name>`, `commit <id>` or `default`; `../../protocol/git.md`,
-4.3), `<into>` `fetched` or `landing`, and ids are in full, as
+names (`branch <name>`, `commit <id>` or `default`; `../../protocol/git-operations.md`,
+1.3), `<into>` `fetched` or `landing`, and ids are in full, as
 `../../protocol/git.md`, section 3 writes them. Each line goes through the
 worker's notes, escaped to one line, as the agent's stop line does: operator
 output that no fact or turn holds.

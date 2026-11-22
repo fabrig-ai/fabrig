@@ -167,6 +167,18 @@ impl FaultLedger {
             .collect()
     }
 
+    /// The faults that fell at or before `at` and share a named identity in
+    /// the same field of `struck`, stopped or not, in the order they fell.
+    #[must_use]
+    pub fn fallen(&self, at: Time, struck: &Struck) -> Vec<Injection> {
+        self.entries
+            .iter()
+            .enumerate()
+            .filter(|(_, injected)| injected.from <= at && injected.struck.shares_identity(struck))
+            .map(|(index, _)| Injection(index))
+            .collect()
+    }
+
     /// The kinds that fell, each once, whether or not still in force.
     #[must_use]
     pub fn fell(&self) -> BTreeSet<Kind> {

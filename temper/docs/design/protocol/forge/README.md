@@ -11,7 +11,7 @@ webhooks Forgejo sends back to a listener on loopback and the deliveries
 a GitHub App's log keeps, the client, the component, the setup and the
 fake forge. A forge's credentials are records in jig's secrets' store,
 loaded at start and handed over at runtime (`engine.md`; ../credentials.md,
-the forges' records). The overview is ../components.md and ../README.md, section 4); the
+the forges' records). The overview is ../components.md and ../service-routing.md, section 1); the
 vocabulary carried is skein's (`forge/README.md`, section 3), and the forge
 client's use of it is `../../domain/forge/README.md`'s (`../../domain/forge/keeping-up.md` and `../../domain/forge/effects.md`, section 1); the
 machines are skein's (skein's `http.md`, `skein/docs/design/data/json.md`, `skein/docs/design/net/tls.md`). What
@@ -145,7 +145,7 @@ be read from:
   address, and each results origin's, is the placeholder
   `127.0.0.1:0` a held forge has (../setup/init.md, 3), which the engine
   replaces as each resolves and never hands to a socket. The binary's
-  `names` stage (../README.md, 6.1) resolves at most one of them a
+  `names` stage (../service-process.md, 1.1) resolves at most one of them a
   pass, through the machine's resolver and with no network probe, the
   API host before any results host, so a pass holds at most one
   lookup. A name that does not resolve is named in the log and never
@@ -160,7 +160,7 @@ be read from:
   the placeholder, as a held forge is (../setup/init.md, 3); its connect
   from the records and each setup run asked for it wait, and none of
   them is answered unreachable; and it does not hold the start's
-  serving (../README.md, 6.2). Resolved, each forge on that host is
+  serving (../service-process.md, 1.2). Resolved, each forge on that host is
   added again with the address, as a forge resolved at start is, and
   what waited goes on; a forge kept later takes the address at once.
   Not resolved, each is held for the run as a forge whose name a start
@@ -462,7 +462,7 @@ each start from the records and the events (`../../domain/forge/adoption-connect
 
 ## 8. The fake forge's protocol layer
 
-Held by skein's `testing/fakes/forge.md`, section 4, for Forgejo's dialect, and
+Held by skein's `testing/fakes/forgejo.md`, section 1, for Forgejo's dialect, and
 skein's `testing/fakes/github.md`, section 1, its GitHub layer, for GitHub's (with skein's
 `forge/github.md`): its App, installations, installation tokens, merge
 queue, delivery log, job log redirect, rate windows and pauses, its
@@ -675,7 +675,7 @@ temper's part:
 - **The setup's, and git's.** What the setup relies on is skein's
   (`forge/setup/forgejo.md`, section 2; ../setup/testing.md, 3); what git relies on of
   Forgejo (a renamed repository's redirect, a protected branch's refusal
-  of a push) is ../git.md's (`../git.md`, section 3 and 4.8), named in
+  of a push) is ../git.md's (`../git.md`, section 3, and `../git-operations.md`, section 1.8), named in
   `crates/temper-git-transcripts-tool/facts.txt`.
 - **GitHub's,** each a named fact of skein's `forge/github.md`, which
   temper's tests run against skein's fake alone (section 9): the App's

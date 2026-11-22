@@ -46,7 +46,7 @@ smith's agent processes, and declares in its hello the kinds it runs:
   (skein's `runtime/io/processes.md`, section 5).
 - **Then the delivery:** a prepare job's prefixes are pushed, each to
   its member's branch in the landing, the branches the items name as
-  writable, expecting each new (`../../protocol/git.md`, 4.4,
+  writable, expecting each new (`../../protocol/git-operations.md`, 1.4,
   `Create`); a branch already there fails the job as undelivered, and
   the landing reads its branches (`../landing-prepare.md`, 1.2). A key job delivers nothing. A delivering
   kind other than prepare delivers, on exit 0, the head of the repository
@@ -102,15 +102,15 @@ smith's agent processes, and declares in its hello the kinds it runs:
   commit, not a branch's tip: that commit checked out, and each
   member's head, in the request's order, fetched by its commit and
   merged with no fast-forward onto the prefix below
-  (`../../protocol/git.md`, 4.6), a head the prefix contains still a
+  (`../../protocol/git-operations.md`, 1.6), a head the prefix contains still a
   merge, and, where the request names the train's upstream, its tip
   fetched by its commit beside them. Each merge is committed at once
-  (`../../protocol/git.md`, 4.7) by the request's `combine`, the
+  (`../../protocol/git-operations.md`, 1.7) by the request's `combine`, the
   repository's identity as its author, and is the prefix the next
   member is merged onto:
   - **`merge`,** or **`squash` for a member that brings its upstream's
-    commits** (`../landing-prepare.md`, 1.2), which `Brings` (`../../protocol/git.md`,
-    4.9) tells of the head, the request's `main` and the upstream's tip:
+    commits** (`../landing-prepare.md`, 1.2), which `Brings` (`../../protocol/git-operations.md`,
+    1.9) tells of the head, the request's `main` and the upstream's tip:
     two parents, the prefix below and the head, and the member's
     `message` from the request as its message;
   - **`squash`** otherwise: the same tree, one parent, the prefix
@@ -165,11 +165,11 @@ resolves relative to the job's workspace root (2026-11-04).
 A merge job prepares whatever the count of the files in conflict. Past
 the checkout's `conflicts`, every file stays marked in the tree and
 unmerged in the index, and the checkout names the first `conflicts` of
-them (`checkouts.md`; `../../protocol/git.md`, 4.6). The command reads the
+them (`checkouts.md`; `../../protocol/git-operations.md`, 1.6). The command reads the
 index, never that list, and stages each file it settles, in the run's own
 git directory (`checkouts.md`, *Two git directories*); its delivery scans
 every file the merge left in conflict, in pages past `conflicts`, and
-refuses one still marked (`../../protocol/git.md`, 4.7) (2026-11-09).
+refuses one still marked (`../../protocol/git-operations.md`, 1.7) (2026-11-09).
 
 A job's failure is a line on the side that met it, and on the engine's
 too (2026-11-09):

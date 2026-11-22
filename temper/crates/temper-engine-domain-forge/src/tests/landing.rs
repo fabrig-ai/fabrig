@@ -308,6 +308,7 @@ fn landing_row(task: u64, phase: policy::Phase) -> LandingRow {
         last_event: None,
         turn_since: None,
         waiting: None,
+        follows: None,
         flake_reruns: Box::new([]),
         room: None,
         job: None,
@@ -344,16 +345,18 @@ fn landing_preflight_checks_rules_and_live_room() {
     assert_eq!(d.landing_admits(5, &[fixtures::CHANGE]), Err(LandingRefusal::Landings));
     d.landing.rows.get_mut(&100).expect("landing").landing.phase = policy::Phase::Landed;
     assert_eq!(d.landing_admits(5, &[fixtures::CHANGE]), Ok(()));
-    d.landing.rows.get_mut(&100).expect("landing").entries = Box::new([LandingEntry {
-        run: None,
-        preparation: None,
-        base: None,
-        entry: 1,
-        member: 0,
-        gate: 0,
-        operation: Operation::Merge,
-    }]);
+    let mut entry = refusals::entry(1);
+    entry.task = 100;
+    outputs(&mut d, Event::Restore { record: Stored::Entry { entry, held: false } });
     assert_eq!(d.landing_admits(5, &[fixtures::CHANGE]), Err(LandingRefusal::Landings));
+    d.entries.remove(&1);
+    let mut flight = runs::follow();
+    flight.task = 100;
+    let key = ReceiptKey { project: 5, repository: REPO, check: Check::Gate(b"gate".as_slice().into()), key: [7; 32] };
+    d.landing.flights.insert(key.clone(), flight).unwrap();
+    assert_eq!(d.landing_admits(5, &[fixtures::CHANGE]), Err(LandingRefusal::Landings));
+    d.landing.flights.remove(&key);
+    assert_eq!(d.landing_admits(5, &[fixtures::CHANGE]), Ok(()));
 }
 
 #[test]
@@ -3364,6 +3367,9 @@ fn reporting_gate(format: temper_engine_domain_forge_tiers::Format) -> (Domain, 
     }
     .identity()
     .unwrap();
+    flight.inputs = landing::inputs(fixtures::HEAD, key.key, None, false);
+    let row = d.landing.rows.get_mut(&61).unwrap();
+    row.follows = Some(Box::new([saved_dispatch(row, &flight, 0, 1)]));
     d.landing.flights.insert(key.clone(), flight).unwrap();
     let run = api::Run {
         id: 7,
@@ -3387,6 +3393,31 @@ fn reporting_gate(format: temper_engine_domain_forge_tiers::Format) -> (Domain, 
         }]),
     };
     (d, key, run)
+}
+
+fn saved_dispatch(row: &LandingRow, flight: &crate::runs::Follow, member: u16, try_number: u16) -> LandingFollow {
+    LandingFollow {
+        entry: LandingEntry {
+            preparation: Some(row.landing.preparation),
+            base: Some(fixtures::BASE),
+            entry: flight.entry,
+            member,
+            gate: 0,
+            operation: Operation::Dispatch,
+            run: None,
+        },
+        dispatch: Some(LandingDispatch {
+            workflow: flight.workflow.clone(),
+            branch: flight.branch.clone(),
+            inputs: flight.inputs.clone(),
+        }),
+        start: flight.start,
+        since: flight.since,
+        wall: flight.wall,
+        try_number,
+        failed: false,
+        reruns: Box::new([]),
+    }
 }
 
 fn begin_reporting_gate(d: &mut Domain, entry: u64) {
@@ -3609,10 +3640,7 @@ fn a_regate_in_flight_is_rebuilt_from_saved_rows_and_followed_without_another_di
         &mut restarted,
         Event::Restore { record: Stored::Receipt { key: key.clone(), receipt: d.receipt(&key).unwrap().clone() } },
     );
-    outputs(
-        &mut restarted,
-        Event::Restore { record: Stored::Entry { entry: d.entries.get(&91).unwrap().entry.clone(), held: false } },
-    );
+    assert!(!d.entries.contains_key(&91), "the made regate follows from its landing row");
     fixtures::connect(&mut restarted);
     outputs(&mut restarted, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut restarted, Event::CatchUp);

@@ -76,8 +76,8 @@ One story:
 1. `temper-box serve` runs on a deployment's directories,
    configured for one Forgejo (with Actions, or with project checks), one
    git identity, one worker and its LLM providers, never an account
-   (`protocol/configuration/README.md`; `protocol/credentials.md`, sections 3
-   and 4). The forge is connected, managed, or owned on a box
+   (`protocol/configuration/README.md`; `protocol/credentials-llm-accounts.md`, section 1, and `protocol/credentials-git-identities.md`, section 1
+   ). The forge is connected, managed, or owned on a box
    (`protocol/setup/README.md`).
 2. `temper-box open DIRECTORY LINK` signs the person in by the printed link
    and shows their inbox (`client/line.md` and `client/README.md`, section 4). With
@@ -232,6 +232,20 @@ forge, temper adds:
   accounts, the forge's protocol on skein's forge kit (skein's
   `forge/README.md`), git, and the forge's setup. Its `README.md` gives the
   reading order and the names.
+  - `protocol/README.md`: the protocol layer's overview, reading order and names.
+  - `protocol/service-routing.md`: the engine and worker services' routing.
+  - `protocol/service-process.md`: the services in one process, its waits and stops.
+  - `protocol/binaries.md`: the deployment's binaries and their closures.
+  - `protocol/binaries-box.md`: the box's commands and standalone processes.
+  - `protocol/binaries-client.md`: the client binary's interface.
+  - `protocol/credentials.md`: credential records and forge access.
+  - `protocol/credentials-llm-accounts.md`: LLM accounts and program sign-in.
+  - `protocol/credentials-git-identities.md`: git identity credentials.
+  - `protocol/store.md`: the store's families, keys and testing.
+  - `protocol/store-versions.md`: records and store version changes.
+  - `protocol/store-restart.md`: the store's restart and restore protocol.
+  - `protocol/git.md`: git invocation mechanics, processes and testing.
+  - `protocol/git-operations.md`: the checkout's git operations.
 - **`client/`:** temper's client on `jig-client`. Its `README.md` is the
   client: its client root and pages, the forge's client family, its view,
   the terminal, signing in, and the clients' listener; `client/forge/README.md` is the

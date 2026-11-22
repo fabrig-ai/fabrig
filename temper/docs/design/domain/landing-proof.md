@@ -109,6 +109,9 @@ This document holds landing keys, receipts and proof, split from [`landing.md`](
   it. A run an ended round dispatched is followed to its end for its
   key's receipt, and acts in a later round only through that receipt,
   where its key is that round's (`landing-search.md`, section 6).
+  A dispatch's or rerun's entry leaves the outbox at its outcome
+  (`forge/room.md`, 2): the landing's row keeps what following needs,
+  the dispatch, its entry's start and the run's mark.
 - **Bounded:** a run in flight that has run longer than the project's
   `gate_timeout` holds the landing (`landing.md`, 4.2), counted by a change's
   execution clock (`forge/change/stalls.md`, 2.2) from its dispatch or

@@ -426,7 +426,7 @@
   as the deployment's, and the agents' tools' test with `temper ctl
   account add-key` (../client/ctl/testing.md, 4); it is then kept in jig's
   secrets' store, and no file the configuration names holds an LLM account
-  (../protocol/credentials.md, section 3). The forge's API token, its user
+  (../protocol/credentials-llm-accounts.md, section 1). The forge's API token, its user
   and the git identity's token are records the setup host's plans write
   in jig's secrets' store, and the admin's token the preparation's
   handover, `admin_token`, which the setup host takes once

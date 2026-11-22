@@ -1,4 +1,4 @@
-//! A long start step's observations, independent of admission (protocol/README.md, 6.3;
+//! A long start step's observations, independent of admission (protocol/service-process.md, 1.3;
 //! domain/root-restart.md, 1.1). The forge supplies its own restart terms.
 use crate::{Domain, Fact, Limits, Range};
 use alloc::boxed::Box;

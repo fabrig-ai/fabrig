@@ -221,7 +221,7 @@ one another, and a unit takes its timeouts from the engine's.
   as long as its store's open and its steps take, and a step past the
   report bound says what holds it.
 - **The report bound** is 30 s, `WAIT_REPORT`, one fixed figure for
-  every step of a start and every full table (`../README.md`, 6.3),
+  every step of a start and every full table (`../service-process.md`, 1.3),
   with `Report`, the clock of its doublings, beside it in
   `temper-engine-domain-forge`, the lowest crate every one of its
   readers names (the forge, the root and the engine's shell).

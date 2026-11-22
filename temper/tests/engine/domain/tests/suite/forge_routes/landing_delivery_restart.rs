@@ -67,13 +67,14 @@ fn a_saved_delivery_survives_worker_loss_and_engine_restart_beside_proof() {
         world.tick();
         if landing_rows(&world).iter().any(|row| {
             row.landing.phase == forge_top::LandingPhase::Proving
-                && row.entries.iter().any(|entry| entry.run.is_some_and(|run| !run.ended))
+                && row.follows().iter().any(|follow| follow.entry.run.is_some_and(|run| !run.ended))
         }) {
             break;
         }
     }
     let first_landing = landing_rows(&world)[0].landing.task;
-    let first_run = landing_rows(&world)[0].entries.iter().find_map(|entry| entry.run).expect("proof in flight");
+    let first_run =
+        landing_rows(&world)[0].follows().iter().find_map(|follow| follow.entry.run).expect("proof in flight");
     assert!(!first_run.ended);
     assert_eq!(landing_rows(&world)[0].landing.phase, forge_top::LandingPhase::Proving);
 
@@ -141,10 +142,10 @@ fn a_saved_delivery_survives_worker_loss_and_engine_restart_beside_proof() {
         landing_rows(&world).into_iter().find(|row| row.landing.task == first_landing).expect("restored landing");
     assert_eq!(recovered.landing.phase, forge_top::LandingPhase::Proving);
     assert!(
-        recovered
-            .entries
-            .iter()
-            .any(|entry| entry.run.is_some_and(|run| { run.id == first_run.id && run.attempt == first_run.attempt })),
+        recovered.follows().iter().any(|follow| follow
+            .entry
+            .run
+            .is_some_and(|run| { run.id == first_run.id && run.attempt == first_run.attempt })),
         "the same run is recovered; it may finish while the saved producer resumes"
     );
     assert!(

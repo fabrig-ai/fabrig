@@ -10,9 +10,9 @@ built: the drive session (`../client/drive.md`), recipes and their walk
 switch (`../protocol/setup/box.md`, 5; skein's `testing/fakes/llm.md`,
 2.5), a box started again with a newer build (`../protocol/setup/box.md`,
 1) and a store below the floor refused by name, naming bridge build
-`3d1c717d379e`, with no finding (`../protocol/store.md`, 5). The draft
-leaves `../domain/findings.md`, 8, temper's own pass, as it is (section
-2).
+`3d1c717d379e`, with no finding (`../protocol/store-restart.md`, 1). The draft
+leaves `../domain/findings.md`, 8, temper's own pass, as it is (`landed-qa.md`, section 2
+).
 
 Milestone Q3, passes on the web client, is designed in
 `../testing/qa/places.md` (places, copies, their making again and the
@@ -42,7 +42,7 @@ recipe's files to the fake Forgejo as the person, no credential named),
 `../client/recipe.md`, 2 and 4 (a recipe's `files/`, in its hash), a
 pass's `files/` (`../testing/qa/passes.md`, 2; `../testing/qa/places.md`,
 5 and 6), a head's CI declared by what it holds (skein's
-`testing/fakes/forge.md`, 2.3 and 4; `../testing/fakes.md`, 2;
+`testing/fakes/forge.md`, 2.3, and `testing/fakes/forgejo.md`, 1; `../testing/fakes.md`, 2;
 `../protocol/setup/box.md`, 5), and the process-tier story of a box at
 its place on its fake forges' state (`../testing/process-tier.md`).
 

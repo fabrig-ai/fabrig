@@ -175,7 +175,7 @@ Documents:
   repository's default, a branch, saved work, or a merge in progress),
   whether it may be written and the branch it pushes, and the git
   identity it is fetched and pushed with (`../worker/hosted-runs.md`, 1.1;
-  `../../protocol/credentials.md`, section 4).
+  `../../protocol/credentials-git-identities.md`, section 1).
 - **Documents and parts** (jig's `domain/connectors.md`, 5.5): what
   temper's client shows of the forge, made from the connector's records
   and working set: a change's way to landing, its result and its hold,

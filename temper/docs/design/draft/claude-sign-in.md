@@ -11,7 +11,7 @@ terminal's frames. Its design documents are the welcome's
 (`../client/pages/welcome.md`), the accounts page's
 (`../client/pages/accounts.md`), the TUI in front of a box's
 (`../client/tui/box.md`) and `temper-box program-login`'s
-(`../protocol/credentials.md`, 3).
+(`../protocol/credentials-llm-accounts.md`, 1).
 
 ## 1. In one page
 
@@ -25,7 +25,7 @@ terminal's frames. Its design documents are the welcome's
   login (jig's `domain/providers.md`, 3.1 to 3.3; smith's
   `protocol/programs.md`, 4.1). Today the person copies the printed
   `temper-box program-login ... NAME` into a terminal, which hands that
-  terminal to `claude auth login` (`../protocol/credentials.md`, 3).
+  terminal to `claude auth login` (`../protocol/credentials-llm-accounts.md`, 1).
 - **So the TUI lends its terminal, and takes nothing:** on the
   browser's press, the TUI steps aside and runs that same command in
   the terminal the person started `temper box` in, as git hands a
@@ -114,7 +114,7 @@ in the light theme.
     box's own `temper-box` and the box's directories, as a child that
     holds the terminal. `program-login` makes the source's directory
     and replaces itself with `claude auth login`
-    (`../protocol/credentials.md`, 3).
+    (`../protocol/credentials-llm-accounts.md`, 1).
   - The child is the terminal's foreground process group while it runs,
     as a shell runs a job. skein's spawn gives every child a group of
     its own, and a background group that reads the terminal is
@@ -138,7 +138,7 @@ in the light theme.
 ## 4. Out of reach
 
 - **A TUI on another machine than the worker's.** The login belongs to
-  the worker's host (`../protocol/credentials.md`, 3). Forwarding
+  the worker's host (`../protocol/credentials-llm-accounts.md`, 1). Forwarding
   Claude Code's callback through temper would put temper inside
   Anthropic's sign-in, which the rule forbids (jig's
   `domain/providers.md`, 3.1). There the printed command stays: run on
@@ -154,13 +154,13 @@ Each holds for the first pass and for any change after it.
 - **Claude Code's own sign-in, in the person's own terminal.** It is the
   unmodified `claude auth login`, in the terminal the person started
   `temper box` in, never a pseudo-terminal temper makes, reads or
-  logs. That terminal is the person's, so `../protocol/credentials.md`,
-  3's "sign one in at a terminal of its own" stays out of temper.
+  logs. That terminal is the person's, so `../protocol/credentials-llm-accounts.md`,
+  1's "sign one in at a terminal of its own" stays out of temper.
 - **No code, link or redirect through temper.** No temper page, request,
   answer, fact, notice or log carries a Claude Code sign-in code, a
   sign-in URL or a redirect: no page has a field for one, and a code is
   pasted into Claude Code. A later change, such as reusing ChatGPT's
-  paste (`../protocol/credentials.md`, 3), would cross "collect, store,
+  paste (`../protocol/credentials-llm-accounts.md`, 1), would cross "collect, store,
   or intermediate" (jig's `domain/providers.md`, 3.1).
 - **No sign-in way restricted.** The settings temper writes for the
   source never set `forceLoginMethod` or `forceLoginOrgUUID`. Claude
@@ -173,7 +173,7 @@ Each holds for the first pass and for any change after it.
 - **Only the person's own TUI.** The ask reaches only a TUI in front of
   this box, signed in as the person who pressed, on the worker's
   machine, so that the login is that person's source alone
-  (`../protocol/credentials.md`, 3, the host that keeps a person's
+  (`../protocol/credentials-llm-accounts.md`, 1, the host that keeps a person's
   program logins).
 - **The words.** "Sign in to Claude Code" names what the terms allow,
   signing in to the unmodified Claude Code binary, and no feature of
@@ -197,7 +197,7 @@ Each holds for the first pass and for any change after it.
 - **`../client/tui/box.md`, *The welcome*:** the TUI follows the steps
   and takes none, but for this one act: lending its terminal on the
   engine's ask, with t2's line, the three notices, and Model's detail.
-- **`../protocol/credentials.md`, 3:** `temper-box program-login` is
+- **`../protocol/credentials-llm-accounts.md`, 1:** `temper-box program-login` is
   also started by the TUI in front, in the person's terminal, as the
   person starts it by hand.
 - **The engine and the TUI's seam** (`../client/tui/README.md`, 3): the

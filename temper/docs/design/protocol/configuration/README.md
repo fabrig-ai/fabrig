@@ -79,7 +79,7 @@ document says what temper adds. What is open is listed in `README.md`, section 9
   endpoints are settings in the store, the stock's their defaults, each
   applied at the engine's next start (`providers.md`). Accounts are made
   at runtime from the client, and jig keeps them (section 2;
-  ../credentials.md, section 3).
+  ../credentials-llm-accounts.md, section 1).
 - **One format rule** for temper's typed members: member names are the
   Rust field names, and the parser follows the types (section 8).
 - **Limits by name,** their numbers in `temper-service`'s limits module,
@@ -148,7 +148,7 @@ document says what temper adds. What is open is listed in `README.md`, section 9
   kept, and every check below of a provider runs on them. A provider
   holds no model, account, key or record: models are settings
   (`stock.md`; jig's `domain/engine/settings.md`, 11), and accounts are
-  made from the client (../credentials.md, section 3). The
+  made from the client (../credentials-llm-accounts.md, section 1). The
   registration's name hint is `temper` in every deployment (jig's
   `domain/providers.md`, 2.2); a provider temper does not ship is
   another setting, such as a local model's endpoint on loopback with no
@@ -418,7 +418,7 @@ stop timeout are unchanged.
   replaced program, change what the worker's next start pins, never a
   running worker's agents.
 - **It holds no credential:** an agent's grants come over smith's
-  channel (../credentials.md, section 3).
+  channel (../credentials-llm-accounts.md, section 1).
 - **A model's reasoning allowance,** its `reasoning_item` (smith's
   `protocol/agent.md`, section 4), bounds each reasoning item the model
   sends; past it, with smith's default `oversized_reasoning` of `fail`,
@@ -433,7 +433,7 @@ stop timeout are unchanged.
   the agent may run as a backend, by its adapter, with the program's
   absolute path and its programs directory, which holds a configuration
   directory for each program source, `<directory>/NAME`
-  (../credentials.md, section 3). Its paths are smith's, absolute, but for
+  (../credentials-llm-accounts.md, section 1). Its paths are smith's, absolute, but for
   Claude Code's `path` `"fetched"`, temper's pinned build, which temper
   turns into its launcher's absolute path before smith reads the
   document (../setup/owned.md, 6); the
@@ -502,7 +502,7 @@ stop timeout are unchanged.
   2 and 2.1).
 - **No LLM account's file.** LLM accounts' records and keys are in
   jig's secrets' store, and a program's login is in its configuration
-  directory, which temper never reads (../credentials.md, section 3).
+  directory, which temper never reads (../credentials-llm-accounts.md, section 1).
 
 ## 6. First start and every start
 
@@ -597,7 +597,7 @@ stop timeout are unchanged.
     the flag has no pipe, and leaves those fds alone;
   - every kept forge's identity that has a value is announced at
     generation 1 before the root's restart; a GitHub forge's, once its first tokens
-    are minted (../credentials.md, section 4). Every connected forge's user
+    are minted (../credentials-git-identities.md, section 1). Every connected forge's user
     is checked by the forge component's first exchange (../credentials.md,
     section 5);
   - the branch namespace is derived from the deployment's id, the same
@@ -630,7 +630,7 @@ stop timeout are unchanged.
   section 6).
 - **`temper-box program-login [DIRECTORIES] NAME`** reads the same document
   as `temper-box serve`, and the agent's configuration it names
-  (../credentials.md, section 3). `DIRECTORIES` is `[--config DIR] [--data
+  (../credentials-llm-accounts.md, section 1). `DIRECTORIES` is `[--config DIR] [--data
   DIR] [--cache DIR]`, each with its variable and its default (`directories.md`
   ), given anywhere among the command's arguments.
 - **`temper-box internal agent AGENT.json`** reads smith's agent configuration

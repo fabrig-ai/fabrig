@@ -262,7 +262,7 @@ connected  the forge component       ◄── its access, built from the record
 
 - **What temper strictly needs** of a connected Forgejo: the bot's API
   token and its git token, and, for webhooks, their secret; the bot's
-  id is read with the tokens (../credentials.md, sections 4 and 5). The
+  id is read with the tokens (../credentials-git-identities.md, section 1, and ../credentials.md, section 5). The
   scopes (skein's `forge/setup/forgejo.md`, section 2): `read:user`,
   `write:issue` and `write:repository` for the API token;
   `write:repository` and `read:user` for the git token, the second so
@@ -335,7 +335,7 @@ connected  the forge component       ◄── its access, built from the record
   admin's token only while a plan that asked for it runs, and drops it
   at its end.
 - **No secret in an argument, a URL or a log,** for Forgejo's command
-  line as for git (../credentials.md, section 4): 6.3.
+  line as for git (../credentials-git-identities.md, section 1): 6.3.
 - **No new credential to set up from the client:** `temper-box forge
   fetch` sends none and keeps none, its downloads trusted by their
   pinned digests alone (`owned.md`, 6); the box's pipe carries no secret, a
@@ -518,7 +518,7 @@ temper-engine                the engine's binary: the forge's commands through t
   machines are written on skein, under the subset, and the process tier
   provisions its Forgejo with them (`testing.md`, 4).
 - **The fake forge serves the setup's documents** too
-  (`skein-fake-forge-forgejo`, skein's `testing/fakes/forge.md`, section 4),
+  (`skein-fake-forge-forgejo`, skein's `testing/fakes/forgejo.md`, section 1),
   from the server's side of `skein-forge`, as it serves the engine's.
 - **The fakes are product,** `crates/skein-fake-*` (skein's
   `testing/fakes/forge.md`, section 1), since `temper-box fake`
@@ -662,7 +662,7 @@ Each is intended; what it needs is named with it.
 - The other fake peers' refused connections: `box.md`, section 7.
 - A Forgejo's own links at its `web`: `../../client/forge/served.md`, section 3.
 - An adopted row's kinds after the forge changes: `reconcile.md`, section 7.
-- **Agents in contained trees** (`box.md`, 2; ../README.md, sections 6 and 11): a
+- **Agents in contained trees** (`box.md`, 2; ../service-process.md, section 1, and ../README.md, section 11): a
   serve the box closes, or one a second signal aborts, kills its agents'
   groups, and a program an agent started, in a group of its own,
   outlives it. Ending both needs skein's contained trees (skein's
@@ -708,7 +708,7 @@ Each is intended; what it needs is named with it.
   them; a family of temper's decisions, `(repository, pull, head)`
   written in the merge's `Entry`'s commit, is the route when a run
   needs either, a store schema change in place until the first release
-  (../store.md, section 4; skein's `data/codec/README.md`, section 5).
+  (../store-versions.md, section 1; skein's `data/codec/README.md`, section 5).
 - **Demo after a reset** (`playground.md`; `../../draft/first-run-projects.md`, 9):
   a second playground run makes "Demo" again, the first having been
   deleted by the reset, and reuses nothing but the name. The user's to

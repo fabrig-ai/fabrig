@@ -188,10 +188,10 @@ smith's are smith's.
 | checkout | a run's workspace on a worker: the repositories' git trees side by side, cached by workstream (worker/checkouts.md) |
 | merge in progress | a checkout that starts with the base merged into the change's branch, its conflicts left for a resolution (worker/checkouts.md) |
 | push | temper's delivery: the tree the run checked, committed and pushed as a fast-forward, never forced (agent/README.md, section 5) |
-| git identity | a forge's token and commit author for git, one per forge, one of temper's application credentials (`../protocol/credentials.md`, section 4) |
+| git identity | a forge's token and commit author for git, one per forge, one of temper's application credentials (`../protocol/credentials-git-identities.md`, section 1) |
 | failed preparation | a repository the worker could not prepare, for good: the forge lacks it, its branch or its commit, or refused the identity (worker/hosted-runs.md, 1.3; root-translation.md, 2.4) |
 | the forge's charters | temper's kind 3: the charters the agent tasks of a change are made under, its producer's by default and its reviews' (`../protocol/configuration/settings.md`, 2; root-translation.md, section 1) |
-| standalone | one engine and one worker in one process on one person's machine (`../protocol/README.md`, section 6) |
+| standalone | one engine and one worker in one process on one person's machine (`../protocol/service-process.md`, section 1) |
 
 ## 5. Decisions this design takes
 
@@ -241,7 +241,7 @@ What temper decides within jig's design, with where each is answered:
   from the forge's records in jig's secrets' store and granted with an
   assignment; the forge's API token or App key, and a Forgejo forge's
   webhook secret, never leave the engine's protocol layer (root-translation.md, 2.1;
-  `../protocol/credentials.md`, sections 4 and 5).
+  `../protocol/credentials-git-identities.md`, section 1, and `../protocol/credentials.md`, section 5).
 - **The checkout is the worker's alone:** cached by workstream, a merge
   in progress as a place to start, a push that commits exactly the tree
   the run checked, and no credentials on disk (worker/checkouts.md).

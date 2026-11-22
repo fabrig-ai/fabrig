@@ -9,7 +9,7 @@
   refusal and ctl deadline diagnostic are absent. Jig has no
   `WatchRefusal::NotReady`, and a shut service gate still sends `Busy`,
   so the client can claim all watches are in use. The sign-in's distinct
-  line does not cover this path (`../../protocol/README.status.md`, 6.2).
+  line does not cover this path (`../../protocol/service-process.status.md`, 1.2).
 
 Section 1's run-ended text and JSON retain the invalid-result cause.
 The renderer tables distinguish each contract kind and unreadable result;

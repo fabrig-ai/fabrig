@@ -71,7 +71,7 @@ What is there:
   adaptive thinking with an effort, cache marks and usage (skein's
   `llm/README.md`, 4.7).
 - **A key's way through:** jig keeps a key in its secrets' store and
-  grants it as a key (`../protocol/credentials.md`, section 3).
+  grants it as a key (`../protocol/credentials-llm-accounts.md`, section 1).
 - **`ctl` adds keys** to any provider that offers them
   (`../client/ctl/areas.md`, area 5).
 

@@ -174,7 +174,7 @@ The fake forge is skein's (skein's `testing/fakes/forge.md`): its domain, with i
 refusals, timing, faults and CI (skein's `testing/fakes/forge.md`, section 2); its git, in the store the
 API reads, so a branch the worker pushes is the head the engine reads
 (skein's `testing/fakes/forge.md`, section 3); its protocol layer, which serves Forgejo's API, signed
-deliveries and the setup's routes (skein's `testing/fakes/forge.md`, section 4); and its forge peer on
+deliveries and the setup's routes (skein's `testing/fakes/forgejo.md`, section 1); and its forge peer on
 loopback (skein's `testing/fakes/forge.md`, section 5). temper's worlds add:
 
 - **What the engine's worlds need of it** (`../domain/root.md`, section 11;
@@ -184,7 +184,7 @@ loopback (skein's `testing/fakes/forge.md`, section 5). temper's worlds add:
   The domain's faults give them, drawn from the world's seed.
 - **Its fixtures.** The scenario gives the protocol layer each
   repository's id and its table of API tokens and the users they stand
-  for (skein's `testing/fakes/forge.md`, section 4), and the repositories their
+  for (skein's `testing/fakes/forgejo.md`, section 1), and the repositories their
   files and checks (`README.md`, 4.1).
 - **Its costs.** The protocol layer counts the requests it serves, by
   route, which the engine's cost checks hold to ceilings
@@ -209,11 +209,94 @@ loopback (skein's `testing/fakes/forge.md`, section 5). temper's worlds add:
   tested in `temper-service`'s tests, against no fake (`README.md`, 2.1).
 - **Its referee** drains the forge's observations (skein's
   `testing/fakes/forge.md`, 2.4; here, `README.md`, 4.2).
+- **Its faults, in the engine's forge world** (`temper/tests/engine/forge`;
+  `../draft/failure-worlds.md`, 4.1 and 4.5):
+  - **A ledger per run** (skein's `testing/sweeps.md`, 3), in a world
+    made from `Streams` (2 there): the fake forge seeded from `Faults`'
+    part `forge`, the workload from `Workload`, latencies and order from
+    `Scheduling`. A world made from a bare seed, as today's tests make
+    it, keeps its draws as they are.
+  - **What the fake injected** is copied in after each step, from
+    `pop_fell` (skein's `testing/fakes/forge.md`, 2.4): each `Fell` as
+    `Kind { family: fault.family(), name: fault.name() }` from `at`,
+    stopped at `until` where it has one, else at `at`, striking `request`
+    with the call's reply in words, `gate_run` with its run's id,
+    `runner` with its runner's number and `candidate` with its commit's
+    hex as the engine names it. A `fell_lost` above zero fails the run.
+  - **What the world injects** it records as it does it: the kinds of
+    `blame.md`, 3 (a wrong tree, a red base, a run cancelled, a missing
+    report), and these, each striking the change's head or the
+    pull request's request as the world names them:
+
+    | Kind | The world |
+    |---|---|
+    | `refusing/closed_by_another`, `refusing/merged_by_another` | closes or merges a pull request as another user between two of the engine's reads |
+    | `stale/reopened_by_another` | reopens a pull request the engine closed |
+    | `stale/squashed_dependency` | lands a change's dependency squashed after the change's branch was made on its head |
+    | `stale/moved_base` | moves a base after the engine read it for an update, a resolution or a save, before its write |
+    | `bounds/pull_files`, `bounds/comparison`, `bounds/job_log` | makes a pull request's files, a comparison or a failed job's log past the forge's answer bounds while a repair needs it |
+
+  - **One sweep per family** (`../draft/failure-worlds.md`, 5), each a
+    fuzzy test of the world's suite (`tests/suite/fuzzy/`) that
+    configures its kinds, keeps the checks of the workload it runs, and
+    asserts each kind fell (skein's `testing/sweeps.md`, 4). Their seeds
+    share the budget plan's (`../../development/failure-worlds-budget.md`,
+    *What the sweeps cost*): eight for 4.1's families, eight for 4.5's.
+
+    | Sweep | Kinds | Workload | Seeds |
+    |---|---|---|---|
+    | `busy_and_slow_forges_keep_the_batches_invariants` | `busy/` `no_room`, `unavailable`, `timed_out`, `landing`, `late` (a merge's among them), `limited` | `fuzzy::landing_batches`' | 2 |
+    | `lagging_views_keep_the_batches_invariants` | `lagging/` `head_behind`, `base_behind`, `merge_late` | `fuzzy::landing_batches`' | 2 |
+    | `refusals_keep_the_batches_invariants` | `refusing/` `close_refused`, `closed_by_another`, `merged_by_another` | `fuzzy::landing_batches`' | 1 |
+    | `answers_past_bounds_leave_repairs_their_evidence` | `bounds/` `pull_files`, `comparison`, `job_log` | `fuzzy::landing_batches`', with repairs | 1 |
+    | `ci_faults_are_blamed_on_their_cause` | `ci/` `set_up`, `lost`, `cancelled`, `silent`, `missing_report`, `runner_wait`, `wrong_tree`, `base_red` | `fuzzy::landing_batches`', and a queue's changes | 2 |
+    | `stale_state_keeps_the_opens_invariants` | `lagging/` `head_behind`, `merge_late`; `stale/` `reopened_by_another`, `squashed_dependency`, `moved_base`; `refusing/` `closed_by_another`, `merged_by_another` | `fuzzy::opened`' | 8 |
+
+    The CI sweep runs `blame.md`'s check every seed. The bounds sweep
+    asserts that each repair asked while a bounds fault strikes its
+    change has, in its brief, what it needs or the words naming what it
+    couldn't read. Each sweep's only exclusions name the scenarios
+    below, as narrowly as their combinations.
+  - **The open scenarios** it holds, each `#[ignore]` with its reason
+    naming the work that fixes it (`../draft/failure-worlds.md`, 6 and
+    7): `blame.md`, 6's, and the check record's two, its reason `check
+    record: one structured record of what a check found`:
+    - `a_gate_repair_names_its_failed_tests` (S5): a landing gate red
+      whose failed job's log is past the forge's answer bounds, and whose
+      report names its failed tests: the repair's brief names those
+      tests, from the report. The bounds sweep leaves out a job log past
+      its bounds where a landing gate's repair reads it.
+    - `a_repair_reads_an_oversized_pull` (S2): a repair whose pull
+      request's file list is past the forge's bound (skein's
+      `Limits::files`) gets the files it needs, or is told which it
+      can't. The bounds sweep leaves out a pull request's files past
+      their bound where a repair reads them; they fall where the repair
+      asked reads no files, a landing gate's, while the engine's other
+      reads of the change meet them.
+
+    And two the sweeps found, which the draft's catalog lacks, their
+    reason `landing train: one owner for a landing's members, and a
+    landing that can always move`. Each asserts the handling that
+    `../client/forge/README.md`, 5.2 wants of a pull request merged by
+    someone else ("not held: it is landed, like any landing"):
+    - `a_late_manual_merge_record_finishes_the_landed_batch`
+      (`tests/suite/lagging.rs`): a squashed batch whose top is already
+      landed, while its manual merge record is read late
+      (`lagging/merge_late`), finishes without a person's release.
+    - `a_member_merged_by_another_lands_like_any_landing`
+      (`tests/suite/refusing.rs`): a change queued for landing whose
+      pull request another user merges at its own commit between two of
+      the engine's reads, before or as its batch is formed, is landed and
+      holds no record. The batch's other member lands, and the landing
+      finishes. The refusing sweep leaves out `refusing/merged_by_another`
+      on a change from its queueing for landing to its record. The kind
+      falls on an open change that is not queued, which is neither held
+      nor recorded as landed.
 - **Its git** is reached through the fake forge's own calls, never git's
   protocol over HTTP: through its typed transport by the fake git
   program in the one-process world (3), as by the fake checkout in the
-  domain worlds; and over its git route (skein's `testing/fakes/forge.md`,
-  section 4) by the fake git program in the real loop (`real-loop.md`), as in the
+  domain worlds; and over its git route (skein's `testing/fakes/forgejo.md`,
+  section 1) by the fake git program in the real loop (`real-loop.md`), as in the
   playground's processes (../protocol/setup/playground.md). Real git meets an owned
   Forgejo in the process and live tiers, and skein's throwaway Forgejo
   in temper's transcripts (`process-tier.md`); a real-git bridge is an open question
@@ -265,7 +348,7 @@ loopback (skein's `testing/fakes/forge.md`, section 5). temper's worlds add:
   name limit. The document's `made_ci`, optional and of the same form,
   is the CI of every repository the forge makes through its setup
   routes, an admin's `CreateRepository` and a copy's destination
-  (skein's `testing/fakes/forge.md`, 4, `Config.made_checks`); absent,
+  (skein's `testing/fakes/forgejo.md`, 1, `Config.made_checks`); absent,
   they report none, as before. So the box's fake forges let a person's
   commit decide a head's checks by what it holds
   (`../protocol/setup/box.md`, 5; `../draft/landed-qa.md`, 6), and how
@@ -288,7 +371,7 @@ loopback (skein's `testing/fakes/forge.md`, section 5). temper's worlds add:
     forge holds them: those the document seeds, and those the forge
     makes later, through its setup routes and an admin's
     `CreateRepository`, as `made_ci` reaches those (skein's
-    `testing/fakes/forge.md`, 4). Each dispatch makes a run at the
+    `testing/fakes/forgejo.md`, 1). Each dispatch makes a run at the
     branch's head, read through its runs and jobs; like Forgejo's
     dispatch-only jobs, it writes no commit status (skein's
     `forge/forgejo.md`, 2; `../domain/landing-proof.md`, 2.1). Absent, no repository holds a workflow, as before,
@@ -375,10 +458,10 @@ that forge in one of two ways (skein's `testing/fakes/forge.md`, section 3):
 through the typed transport of the fake forge's domain, sharing the
 forge with the forge peer (skein's `testing/fakes/forge.md`, section 5) where a
 world hosts both in one ring (`README.md`, 2.5); or over the forge's git route on the
-forge's listener (skein's `testing/fakes/forge.md`, section 4), from the real
+forge's listener (skein's `testing/fakes/forgejo.md`, section 1), from the real
 loop (`real-loop.md`) and from another process.
 
-- **What it takes:** the invocations of ../protocol/git.md, section 4, with
+- **What it takes:** the invocations of ../protocol/git-operations.md, section 1, with
   their settings (../protocol/git.md, section 3) and their environment
   (../protocol/git.md, section 5), and `git version`, answered as git
   2.47 answers it (../protocol/git.md, section 3), and nothing else.
@@ -388,7 +471,7 @@ loop (`real-loop.md`) and from another process.
   keeping its git state in each repository's `.git` as skein's fake
   checkout keeps it, and reaches the fake forge through its typed
   transport. Its commits are the fake forge's counts, written as 40-digit
-  ids (skein's `testing/fakes/forge.md`, section 4).
+  ids (skein's `testing/fakes/forgejo.md`, section 1).
 - **What it prints:** what real git prints for those invocations: the
   porcelain lines, the NUL-separated paths and the ids ../protocol/git.md
   reads, and git's exit statuses; and, for the fake forge's refusals and
@@ -438,7 +521,7 @@ its own:
   the URL its clone wrote in `.git/temper-remote`, which holds no
   secret. The credential is the `Authorization` git's `http.extraHeader`
   carries (../protocol/git.md, section 5), forwarded as it is; the
-  store's calls carry none (skein's `testing/fakes/forge.md`, section 4).
+  store's calls carry none (skein's `testing/fakes/forgejo.md`, section 1).
 - **Its exits:** what real git exits, for what real git does or
   refuses; 128 and a `fatal:` line, as git's on a network failure, when
   the route is out of reach or fails; 125 and `temper-box fake git: broken:
@@ -495,7 +578,7 @@ a store sit) is the one the worker's inspection adapter reads
 - **packs:** each fetch into a store leaves a pack in it, and each check
   out's and merge's fetch of contents one in its repository; a `Pack`
   leaves one pack in each place it names that held more than 50
-  (`../protocol/git.md`, 4.14). A pack is a file
+  (`../protocol/git-operations.md`, 1.14). A pack is a file
   `objects/pack/pack-<n>.pack`, `<n>` the place's next number in
   decimal, in the place's git directory: the store's own directory, or
   the repository's `.git`.

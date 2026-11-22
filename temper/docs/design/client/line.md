@@ -118,7 +118,7 @@ command.
   `ui/text.md`, section 5), and never opens: it starts no browser and
   no program. The person opens the address in a browser on the
   engine's machine, where the provider's redirect reaches the engine
-  (`../protocol/credentials.md`, section 3), or in one elsewhere, and
+  (`../protocol/credentials-llm-accounts.md`, section 1), or in one elsewhere, and
   pastes the address it ends at into the page's field, which the
   terminal draws as the browser does (`pages/accounts.md`, 1, `ConnectModel`, The paste);
   the page shows the sign-in's end when the `accounts` watch tells it. A browser opens the address

@@ -136,7 +136,7 @@ After landing today is a gate for goals: a landing's change lives until every ti
 
 ## 10. Upgrades
 
-- **Stored:** kind 4's two members; the finding's blame, clearing and repair; the landing log's members' goals and pending verdicts; and the tier record's larger failures and waiting filings. Each is read from its previous layout with its defaults: `cleared`, no repairs, no blame, uncleared, no repair, and verifying (`../protocol/store.md`, sections 2 and 4). A red finding filed before reads as it was.
+- **Stored:** kind 4's two members; the finding's blame, clearing and repair; the landing log's members' goals and pending verdicts; and the tier record's larger failures and waiting filings. Each is read from its previous layout with its defaults: `cleared`, no repairs, no blame, uncleared, no repair, and verifying (`../protocol/store.md`, section 2, and `../protocol/store-versions.md`, section 1). A red finding filed before reads as it was.
 - **Wires:** the worker sees a repair goal as any goal. `MilestoneTotals`' `reds`, the `findings` subject's filters and the two acts come in the client's next layout. The finding tool's `act` enumeration grows, which moves the host tools' contract as `findings` moved `decided`'s, each older version's adapter handing its calls on (`../domain/agent/tools.md`).
 - **Switching a project** from `cleared` to `landed`, at a start: its changes verifying or red end landed and uncleared, as a cancel would end them, and their later verdicts count through the landing log (`../domain/after-landing.md`, section 6). Each red landing's `Verification` row first files its finding, blamed on that landing, so that its blame isn't lost.
 

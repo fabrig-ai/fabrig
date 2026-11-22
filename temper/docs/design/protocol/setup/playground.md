@@ -304,7 +304,7 @@ them as it does any Forgejo.
   file for `temper-box serve`. Its seed:
   - *temper's admin,* `temper-admin`, a site admin of the setup's
     routes, its one token the handover's, with every scope (skein's
-    `testing/fakes/forge.md`, section 4);
+    `testing/fakes/forgejo.md`, section 1);
   - *the owner,* its setup's, `playground` (`init.md`), a user of the
     domain, numbered apart from the setup's accounts (skein's
     `testing/fakes/forge.md`, section 5);
@@ -327,9 +327,9 @@ them as it does any Forgejo.
 
   The bot is reconcile's, and its access to a repository the adoption's
   collaborator grant, which reaches the fake's domain (skein's
-  `testing/fakes/forge.md`, section 4): the seed grants nothing, and the
+  `testing/fakes/forgejo.md`, section 1): the seed grants nothing, and the
   engine's setup host grants it, by `Adopt` (below). It serves its
-  git route among its routes (skein's `testing/fakes/forge.md`, section 4), and
+  git route among its routes (skein's `testing/fakes/forgejo.md`, section 1), and
   no git smart HTTP; it keeps no state across its starts.
 - **The fake's start-time adoption,** in `temper-box serve`'s setup host:
   after the records' load, the root's restore, the handover and
@@ -347,8 +347,8 @@ them as it does any Forgejo.
   forge run on. The playground's start adopts the repository into its
   project once the forge is connected (above). `temper-box forge fetch` and `run` refuse a fake, "it is fake,
   not owned".
-- **Its deliveries follow the setup's hooks** (skein's `testing/fakes/forge.md`,
-  section 4): each event goes to each hook a repository's setup holds
+- **Its deliveries follow the setup's hooks** (skein's `testing/fakes/forgejo.md`,
+  section 1): each event goes to each hook a repository's setup holds
   that takes it, signed by that hook's secret. A repository's hook is
   made at adoption when the deployment has a webhooks' listener
   (`README.md`, section 6), at `http://<listener>/hooks/<number>`, so the fake

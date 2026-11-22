@@ -37,7 +37,7 @@ the machine, read the forge's setup file. Each:
   not connected, named, and erase nothing (../credentials.md, 2.1).
 - **Git identities are not configured either:** each kept forge has one,
   its number the forge's, its login and author its record's bot
-  (../credentials.md, section 4). The largest value an identity can take,
+  (../credentials-git-identities.md, section 1). The largest value an identity can take,
   encoded (../channel.md, section 6), must fit the channel's bound on a
   credential's value, or the start is refused, naming the limit: its
   login and author at their bounds, with a Forgejo forge's token at
@@ -358,8 +358,8 @@ webhooks' listener, `webhooks.listener`; the engine's setup host takes
 each kept forge's record, with an owned or fake one's setup entry,
 and GitHub's place for GitHub's plans (../forge/engine.md, 6); the
 identities' table takes each kept forge's identity, its number, login
-and author from its record, its value from its forge (../credentials.md,
-section 4); the engine's routing takes each forge's `git` base and git
+and author from its record, its value from its forge (../credentials-git-identities.md,
+section 1); the engine's routing takes each forge's `git` base and git
 program; the clients' listener takes `clients.listener`, and its forge
 routes each GitHub forge's `web`.
 

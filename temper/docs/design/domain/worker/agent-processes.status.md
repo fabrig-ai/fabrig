@@ -9,7 +9,7 @@
 `agent-processes.md`, section 1's agent program is the worker's named program: the box's
 `temper-box internal agent AGENT.json` or a deployment's `temper-agent
 AGENT.json`, with the same program used for a model list
-(`../../protocol/README.status.md`, 5). Every temper worker names its agent's
+(`../../protocol/service-routing.status.md`, 2). Every temper worker names its agent's
 `host_reply_text` as the hello's reply bound, the in-process worker among
 them (`temper-worker-shell/src/agent.rs`). The service gives the worker's
 `Limits::reply_bytes` the same figure (`temper-service/src/worker_settings.rs`).

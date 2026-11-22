@@ -714,7 +714,7 @@ pub struct Forges {
     pub rows: Box<[Row]>,
     pub full: Box<[FullTable]>,
 }
-/// Tables full past the report bound (protocol/README.md, 6.3).
+/// Tables full past the report bound (protocol/service-process.md, 1.3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum FullKind {
     Outbox,
@@ -1588,7 +1588,75 @@ pub struct LandingRow {
     pub landing: landing::Landing,
     pub asks: Box<[Option<change::Ask>]>,
     pub entries: Box<[LandingEntry]>,
+    /// Independent of the outbox; an absent list has no saved follows or marks.
+    pub follows: Option<Box<[LandingFollow]>>,
     pub flake_reruns: Box<[FlakeRerun]>,
+}
+/// A gate run's durable follow, independent of the lifetime of its writes.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct LandingFollow {
+    /// The latest write's position and observation mark, even after it settles.
+    pub entry: LandingEntry,
+    /// Absent once only the run's observation mark is needed.
+    pub dispatch: Option<LandingDispatch>,
+    pub start: Option<skein_lib::Time>,
+    pub since: Option<skein_lib::Time>,
+    pub wall: Option<skein_lib::Wall>,
+    pub try_number: u16,
+    pub failed: bool,
+    pub reruns: Box<[skein_forge::api::JobAttempt]>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct LandingDispatch {
+    pub workflow: Box<[u8]>,
+    pub branch: Box<[u8]>,
+    pub inputs: Box<[skein_forge::api::Input]>,
+}
+impl LandingRow {
+    #[must_use]
+    pub fn follows(&self) -> &[LandingFollow] {
+        self.follows.as_deref().unwrap_or(&[])
+    }
+
+    pub fn follows_mut(&mut self) -> &mut [LandingFollow] {
+        self.follows.as_deref_mut().unwrap_or(&mut [])
+    }
+
+    pub fn keep_follows(&mut self, follows: Box<[LandingFollow]>) {
+        self.follows = if follows.is_empty() { None } else { Some(follows) };
+    }
+
+    /// Observation metadata for a followed write; old rows may still keep it in `entries`.
+    #[must_use]
+    #[expect(clippy::manual_find, reason = "the strict subset has no closures")]
+    pub fn run_entry(&self, number: u64) -> Option<&LandingEntry> {
+        for follow in self.follows() {
+            if follow.entry.entry == number {
+                return Some(&follow.entry);
+            }
+        }
+        for entry in &self.entries {
+            if entry.entry == number {
+                return Some(entry);
+            }
+        }
+        None
+    }
+
+    #[expect(clippy::manual_find, reason = "the strict subset has no closures")]
+    pub fn run_entry_mut(&mut self, number: u64) -> Option<&mut LandingEntry> {
+        for follow in self.follows.as_deref_mut().unwrap_or(&mut []) {
+            if follow.entry.entry == number {
+                return Some(&mut follow.entry);
+            }
+        }
+        for entry in &mut self.entries {
+            if entry.entry == number {
+                return Some(entry);
+            }
+        }
+        None
+    }
 }
 /// A spent key and its durable job cursor (domain/landing-regate.md, 2, 4, 5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -2817,7 +2885,7 @@ pub fn is_root_read(owner: Token) -> bool {
 /// The connector's output to the root, including child API calls.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Request {
-    /// A table report, words after `serve: ` (protocol/README.md, 6.3).
+    /// A table report, words after `serve: ` (protocol/service-process.md, 1.3).
     FullTableFact {
         words: Box<[u8]>,
     },

@@ -57,7 +57,7 @@ pub(crate) fn tests_input(tests: &[Box<[u8]>]) -> api::Input {
     api::Input { name: Box::from(b"temper_tests".as_slice()), value: value.finish() }
 }
 
-/// One caller-owned dispatch and its current run. The caller persists its outbox entry.
+/// One caller-owned dispatch and its current run. The caller persists its follow window.
 #[derive(Clone, Hash, Debug)]
 #[expect(clippy::partial_pub_fields, reason = "the dispatch wall key is internal to the follower's callers")]
 pub struct Follow {

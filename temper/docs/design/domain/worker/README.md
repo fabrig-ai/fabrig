@@ -162,7 +162,7 @@ agent    smith: LLM work, one run per agent process, reporting to the worker
   `../../draft/redeploys.md`, 6.2).
 - **In one process,** the worker is stopped after the engine has drained
   and settled its claims, so it does not drain: it cancels at once
-  (`../../protocol/README.md`, section 6).
+  (`../../protocol/service-process.md`, section 1).
 - **An engine's restart costs a run nothing.** The grace is the
   engine-away bound, `graces.grace_ms` in the worker's configuration
   (`../../protocol/configuration/README.md`, section 3), sized to outlast an
@@ -338,7 +338,7 @@ dies, so the task's next run starts from the last committed turn.
 ## 8. Below the domain
 
 What the protocol and io layers owe the domain. The worker's protocol
-layer is the worker's service (`../../protocol/README.md`, section 5): jig's
+layer is the worker's service (`../../protocol/service-routing.md`, section 2): jig's
 worker link, smith's host half and agent processes, temper's identities'
 table and the git component.
 
@@ -350,8 +350,8 @@ table and the git component.
   items until the engine has its answer, so the parts going up name each
   repository by its tag, and the engine's protocol layer, which keeps no
   state, needs nothing else to read them. In one process the link joins
-  the engine by an in-process address (`../../protocol/README.md`,
-  section 6).
+  the engine by an in-process address (`../../protocol/service-process.md`,
+  section 1).
 - **Agents:** spawning the agent within a deadline, in a contained
   process tree, with proof that the tree is empty after it stops; where
   skein gives no contained trees (jig's `protocol/README.md`,
@@ -363,7 +363,7 @@ table and the git component.
   where the repositories sit, as the checkout prepared them, and, for a
   merge in progress, which files are in conflict.
 - **Git:** each typed operation is a fixed sequence of git invocations
-  under the operation's one deadline (`../../protocol/git.md`, section 4),
+  under the operation's one deadline (`../../protocol/git-operations.md`, section 1),
   its output parsed into a typed outcome. A commit is named by its full
   object id (a SHA-1 id zero-padded to a SHA-256 id's 32 bytes); a merge
   leaves its conflicts in the working tree and says which files; a

@@ -315,7 +315,7 @@ Under temper's tag (`../protocol/store.md`, 3), by jig's key rule:
 
 - **Bytes 128 and above are demand-loaded families:** the restart's
   interval, `Range::Forge`, is the tag's keys whose family byte is below
-  128 (`../protocol/store.md`, 5), so nothing of them is restored, and
+  128 (`../protocol/store-restart.md`, 1), so nothing of them is restored, and
   `Range::contains` admits them only for the history's own range (4.3).
 - **Byte 127** sits below the demand-loaded bytes and apart from the
   next free byte, so a family another goal adds there meets no history
@@ -347,7 +347,7 @@ Under temper's tag (`../protocol/store.md`, 3), by jig's key rule:
 ### 4.3 Loaded on demand
 
 The forge asks the root for its rows, as jig's notes child asks for its
-own (`root.md`; `../protocol/store.md`, 5), and the root asks the store
+own (`root.md`; `../protocol/store-restart.md`, 1), and the root asks the store
 with its application intervals (jig's `protocol/store/README.md`, 7):
 
 - **The forge's request,** `Request::LoadHistory { load, range, after,
@@ -487,7 +487,7 @@ of the forge's family (`../client/ctl/tools.md`, 2):
   few thousand events a day, so the count holds about the fourteen days.
 - **A record** is bounded by its fields' bounds and a `formed` event's
   members by `forge.landing_members`; the families' largest key and
-  value join the store's sizes (`../protocol/store.md`, 4).
+  value join the store's sizes (`../protocol/store-versions.md`, 1).
 - **The demand-loaded families** take no forge memory: only the
   projects' rows and the changes' `history` members are held, each
   bounded by its row's bounds.
@@ -496,7 +496,7 @@ of the forge's family (`../client/ctl/tools.md`, 2):
 
 - **Registered value types** for the five history families, and
   `ChangeHot.history` defaulting to none in a kept row
-  (`../protocol/store.md`, 4; `../protocol/floor.md`, 6). No patch or
+  (`../protocol/store-versions.md`, 1; `../protocol/floor.md`, 6). No patch or
   version move is needed. The restart's interval excludes the
   demand-loaded families without changing a stored row.
 - **No history before it:** a change live at the upgrade has a partial

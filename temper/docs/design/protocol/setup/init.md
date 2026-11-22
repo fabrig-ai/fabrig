@@ -160,7 +160,7 @@ effective limits must still fit its codecs.
 `workers` and `application`, for the box's owned Forgejo with a runner,
 webhooks, one worker and two LLM providers, with no
 LLM account: a person adds one from the client once the deployment has
-started (../credentials.md, section 3). Beside it are the files it names
+started (../credentials-llm-accounts.md, section 1). Beside it are the files it names
 that hold no secret: the charters, `charters/`, short texts a person
 edits. The worker's secret is a data path and never shipped: the walk
 `box` (`temper help box`) says how it is made in the data directory. A person, a test or
@@ -475,7 +475,7 @@ playground and no Forgejo on this machine.
   the flags init was given. Its stdout is empty; exit 0.
 - **Nothing else:** no forge, no account, no credential, no repository
   and no store. The engine's first start makes its store; accounts,
-  forges and repositories are the client's (../credentials.md, section 3;
+  forges and repositories are the client's (../credentials-llm-accounts.md, section 1;
   `../../client/forge/README.md`), and the playground's forge, account, project
   and repository its start's (`playground.md`).
 - **Its code:** `temper-init`, step code (`README.md`, section 7): given the facts

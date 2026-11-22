@@ -252,7 +252,10 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
   unless it is recorded landed (`landing-turn.md`, section 1), and the train forms again.
   Either way every change that names it, member or not, stops naming
   it as it ends, an ask it still keeps for one going onto that change.
-  Either end wakes its own train's waiting changes, no other's.
+  Either end wakes its own train's waiting changes, no other's, and
+  its writes leave the outbox (`forge/room.md`, 2): its entries not
+  yet sent withdrawn, each in flight as it settles. Cancelled, it
+  follows its runs no further (`landing-proof.md`, 2.1).
 - **No silent wait: held** when a step makes no progress past its bound,
   naming the step and what it waits on, its members' goals hearing it:
   - the prepare job failed past its tries (`landing-prepare.md`, 1.2), `prepare job: WHY`;
@@ -434,8 +437,8 @@ Three kinds join `forge/effects.md`'s section 1, each a row of its own:
   ended is kept on the change (4.2, 4.3). The landing's row keeps the
   times of its last event and its turn's start, and its latest wait
   (`landing-waits.md`, 4).
-- **Registered layouts,** converted at read (`../protocol/store.md`,
-  section 4): new fields declare their defaults, renamed parts their
+- **Registered layouts,** converted at read (`../protocol/store-versions.md`,
+  section 1): new fields declare their defaults, renamed parts their
   former names. A change no plan derives is a written job, not a map
   patch; no version moves (`../protocol/floor.md`, 6). The floor's
   rows already hold each member's branch; opening guesses none.
@@ -446,7 +449,7 @@ Three kinds join `forge/effects.md`'s section 1, each a row of its own:
   `gates`, test gates per repository; `receipts_per_gate`;
   `ignored_paths`, per gate, each within a branch name's bounds; and
   `inputs`, within skein's `INPUTS`. A landing that would pass one is
-  refused at its forming, naming the limit; its changes stay ready and
+  refused at its forming (`landing-forming.md`, 2.3), naming the limit; its changes stay ready and
   wait for room, as a change waits for a hold. Entrance constraints
   and representable counts are checked by the forge's `valid`.
 

@@ -214,7 +214,7 @@ that call, within the run's own deadlines, as when the forge is slow
   has caught up.
 
 - **In the log:** past the report bound, the forge's waiters by kind,
-  count and oldest (`../../protocol/README.md`, 6.3).
+  count and oldest (`../../protocol/service-process.md`, 1.3).
 
 ## 6. Open questions
 

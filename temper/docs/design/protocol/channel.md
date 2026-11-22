@@ -135,7 +135,7 @@ record Writable    { push: bytes  expected: option fixed 32  landing: option byt
 | `git` | made by the routing: the git program of the forge whose number is `provider.forge`, its record's, or for the playground's fake forge the machine's fake `git` (configuration/engine.md), resolved to an absolute path; none for a forge with none | `git`, never interpreted by the domain; the program the git component runs for every operation on the repository, and `workers[].git` for none (git.md, section 3) |
 | `start` | `ForgeStart::Base`, `Branch`, `Saved`, `Merge { branch, base }`, `Merged { branch, heads }`; the engine never asks for a commit | `Start`, all six; `Merged`'s heads in their order, one to 64 (a task's dependencies), each a full object id (`../domain/worker/hosted-runs.md`, 1.1) |
 | `access` | `push: Some(branch)` is `writable { push: branch, expected: none, landing, delivered, pin }`; `landing` is the change's landing branch only for an inherited writable producer starting on its push branch or from a merge in progress; `delivered` is `ForgeRepository.delivered`, the task's own delivery (below); `pin` is `ForgeRepository.pin`, a landing's repair's base (below); `None` push is `read_only` | `Access`; landing is bounded by the branch-name limit; `delivered` is the checkout's `Repository.delivered`; `pin` the checkout's `Repository.pin` |
-| `identity` | `identity`: the number of the forge's git identity, the credential jig grants the attempt (credentials.md, section 4) | `identity`, the grant's number in the application's table |
+| `identity` | `identity`: the number of the forge's git identity, the credential jig grants the attempt (credentials-git-identities.md, section 1) | `identity`, the grant's number in the application's table |
 | `account` | made by the routing, on a GitHub forge: the `account` of the entry in the forge's identity value, as the routing last made it (section 6), whose `account_login` equals `owner`, compared ASCII case-insensitively; none when no entry matches, and none on Forgejo | `account`, by which the worker's routing picks the identity's entry for each git operation on the repository (section 6) |
 | `save` | this repository's `save`, when `run.policy.resume` requests saving | `wire::Repository.save`, its optional saved-work destination, bounded by the same name limit as a branch |
 
@@ -289,15 +289,15 @@ record Entry    { account: u64  account_login: text  token: secret }
   kind, so a worker tells Forgejo's value from GitHub's before it reads
   a token.
 - **Forgejo's** is one token, the forge's `GitToken` record, with the
-  bot's login, the `User` record's (credentials.md, 2.1 and section 4).
+  bot's login, the `User` record's (credentials.md, 2.1, and credentials-git-identities.md, 1).
 - **GitHub's** is a list of entries, one per installation with a
   token, at most `forges.installations` (configuration/limits.md),
   in the order of their installations' ids: the installation's account
   id and login, and its token. The tokens are those the GitHub forge
   mints, held in memory only and never stored; the login is
   `x-access-token`. No entry carries its expiry: the grant's validity,
-  the earliest of them, bounds the value whole (credentials.md, section
-  4).
+  the earliest of them, bounds the value whole (credentials-git-identities.md, section
+  1).
 - **Its other fields** are the login, and the author's name and email:
   on Forgejo the forge's record's bot (forge/engine.md, 1); on GitHub the
   login above and the author the App's bot (forge/engine.md, 5),
@@ -310,11 +310,11 @@ record Entry    { account: u64  account_login: text  token: secret }
   GitHub, each change of its entries, a token minted or renewed, or an
   installation deleted, suspended or no longer accepted (forge/engine.md, 5).
   Generation 1 at each start, on GitHub at the forge's first
-  `Connected` (credentials.md, section 4).
+  `Connected` (credentials-git-identities.md, section 1).
 - **On the engine:** the routing encodes the value at start and at each
   new generation into the identities' table, as one secret held by
-  number and generation, the two newest kept (credentials.md, section
-  4); `jig-protocol-engine-workers` fills it in as a grant's `value`,
+  number and generation, the two newest kept (credentials-git-identities.md, section
+  1); `jig-protocol-engine-workers` fills it in as a grant's `value`,
   through the routing, translating it down to the channel's agreed
   `temper-worker-wire` version at each send by temper's bridge
   (`wires.md`, 6), so the table holds the engine's current version

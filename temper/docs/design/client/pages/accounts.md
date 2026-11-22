@@ -196,7 +196,7 @@
     and the person's first name by default (`claude-alice`), and shows
     the command to run on each host, as *The printed command* (`../forge/records.md`) has it,
     after the words of `program_environment` (`../forge/records.md`) where it has any
-    (`../../protocol/credentials.md`, section 3). The tools' printed act
+    (`../../protocol/credentials-llm-accounts.md`, section 1). The tools' printed act
     includes the box's directory placeholders and the signed-in skip
     rule (`../ctl/areas.md`, area 5).
   - *Ready's place:* an account made lands on `Accounts`, its address

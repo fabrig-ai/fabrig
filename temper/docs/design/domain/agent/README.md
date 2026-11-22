@@ -91,7 +91,7 @@ agent    smith: LLM work, one run per process, reporting to its worker
   driver. A run's grants reach it through its worker and smith's host
   half: for each LLM provider it uses, a credential with its scheme, or
   a program source's name, whose login the host checks and the program
-  reads (`../../protocol/credentials.md`, section 3; jig's
+  reads (`../../protocol/credentials-llm-accounts.md`, section 1; jig's
   `protocol/llm.md`, section 6). The agent runs the loop itself, or
   through the program (smith's `protocol/programs.md`, section 2).
 
@@ -165,7 +165,7 @@ A goal's design delivery to its goal branch (`../forge/branches.md`, 3; ../worke
 
 What it delivers is the tree, not the run's history: a checkout is detached
 (../worker/checkouts.md), and the worker commits on its own record of the head,
-never on HEAD (`../../protocol/git.md`, 4.7). So a run's own commits, resets and
+never on HEAD (`../../protocol/git-operations.md`, 1.7). So a run's own commits, resets and
 rebases keep their files and lose their history, and a saved tree that is
 delivered unchanged lands the save's commit, the delivery's title and body
 unused (../worker/checkouts.md). The head delivered names what is on the branch,

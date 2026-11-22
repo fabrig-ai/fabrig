@@ -64,7 +64,7 @@ section 5.
   on. A browser opens a sign-in's address in a new tab while the page
   waits; the terminal prints the address and opens no browser (`line.md`, 5).
   The accounts are jig's, kept by its engine
-  (`../protocol/credentials.md`, section 3).
+  (`../protocol/credentials-llm-accounts.md`, section 1).
 - **A first run's playground.** When the person chooses it, the
   engine makes the playground, a fake forge, the scripted model's
   account and the playground's project (`../protocol/setup/playground.md`),

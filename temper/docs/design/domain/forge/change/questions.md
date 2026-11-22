@@ -527,7 +527,7 @@ early, by these rules:
   its branch is deleted as its task closes (`../branches.md`), so the
   head the producer's workspace merged is on no branch of the forge any
   more, and a delivery or a save whose second parent it is would be
-  refused for good (`../../../protocol/git.md`, 4.7). Instead the
+  refused for good (`../../../protocol/git-operations.md`, 1.7). Instead the
   producer's checkout asks whether that head's dependency has landed
   and, if it has, merges the landing branch's tip into its work and
   delivers from there (`../../worker/checkouts.md`, *A landed

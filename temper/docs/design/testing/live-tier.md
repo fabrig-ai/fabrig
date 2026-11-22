@@ -2,7 +2,7 @@
 
 Nothing is handed in: no input takes a record, no tool reads another
 program's login, and a ChatGPT account comes only from a sign-in
-(../protocol/credentials.md, section 3), on the owned example's
+(../protocol/credentials-llm-accounts.md, section 1), on the owned example's
 registration (../protocol/setup/init.md, 1). The one exception is a held
 record, a person's signed-in ChatGPT account moved in by `temper ctl
 account import` and back by `account export`, never copied, which the
@@ -29,7 +29,7 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   developer runs `temper-box program-login --config LIVE live`, `LIVE` the
   live configuration's directory, once on each
   machine that runs the tier, and signs in as Claude Code asks
-  (../protocol/credentials.md, section 3). Each run's deployment declares
+  (../protocol/credentials-llm-accounts.md, section 1). Each run's deployment declares
   the program source `live` (`temper ctl DIRECTORY account declare 2
   claude_code live --key live-program`, ../client/ctl/areas.md, area
   5), then waits with `account list --until usable`: the name, not the
@@ -43,7 +43,7 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   prints its address, and runs `account list --until settled`, within the
   sign-in's deadline, while the developer approves it in a browser on
   the same machine, or through the port forwarded to it
-  (../protocol/credentials.md, section 3). The account is the person's
+  (../protocol/credentials-llm-accounts.md, section 1). The account is the person's
   that `temper ctl` signed in, a plan's (jig's `domain/accounts.md`,
   3.2), in the run's deployment, and goes with it; its runs are on
   smith's direct backend.
@@ -144,7 +144,7 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   `a_person_asks_claude_code_to_land_a_change_on_the_owned_forge`, run
   by `scripts/proof-live.sh forge-land-claude`: the same story, every
   role on Claude Code on `claude-haiku-5-5` at `low` effort, on a held login used in place
-  (../protocol/credentials.md, 3). The stock catalogue has no Haiku, so
+  (../protocol/credentials-llm-accounts.md, 1). The stock catalogue has no Haiku, so
   a fresh sitting takes it by name, as a person adds a Claude
   subscription's model on Settings' Models and then chooses it (jig's
   `domain/engine/settings.md`, 11), in two `settings apply`s. The first sets a

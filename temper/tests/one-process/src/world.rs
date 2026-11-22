@@ -62,7 +62,7 @@ pub struct Outcome {
     pub playground: Option<stories::playground::Outcome>,
     pub model_list: Option<crate::model_list::Outcome>,
 }
-/// The signal's run and its next start (temper/docs/design/protocol/README.md, 6).
+/// The signal's run and its next start (temper/docs/design/protocol/service-process.md, 1).
 #[derive(Debug)]
 pub struct Stopped {
     pub task: u64,

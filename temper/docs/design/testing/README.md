@@ -6,8 +6,9 @@ faults, what every fake shares, what every world checks, scenarios and
 the referee, the two suites, and where a failure is fixed. This document
 keeps what is temper's: its tiers (section 2), its neighbours and their
 fakes (`README.md`, section 3 and `fakes.md`), its scenarios, referee and its case library
-(`README.md`, section 4), what its worlds check beyond the strategy (`checks.md`; the
-worker's waits, disk and faults, `worker.md`), its
+(`README.md`, section 4), what its worlds check beyond the strategy (`checks.md`;
+blame and tries for gates, `blame.md`; the worker's waits, disk and faults,
+`worker.md`), its
 layout (`README.md`, section 5), its tools and fixtures as binaries (`tools.md`), what
 macOS tests (`macos.md`), QA after landing beside the deployment (`qa/README.md`), and what
 is still open (`README.md`, section 6).
@@ -63,7 +64,7 @@ is still open (`README.md`, section 6).
 
 | Tier (skein/docs/foundation/testing-strategy.md, section 2) | In temper |
 |---|---|
-| step tests | every domain crate and every fake; every codec (records drift, built-value round trips, bounds, fuzz targets) and each translation both ways; git's argument and environment builders, and git's output parsers against transcripts of real git (../protocol/git.md, section 9); Forgejo's decoders, skein's, against the conformance's transcripts (skein's `forge/README.md`, section 9), and GitHub's, skein's (skein's `forge/github.md`); the forges' records and a git identity's value, built-value round trips and fuzz targets (../protocol/forge/engine.md, 1; ../protocol/credentials.md, section 4); `temper-service`'s routing of the forges: start, connect, stop, installations, generations and pasted values, and GitHub's three routes on the clients' listener (../protocol/forge/README.md, section 9; 2.1); the setup's machines, files and specs, and the box's machine (../protocol/setup/testing.md, 1); lib's are skein's |
+| step tests | every domain crate and every fake; every codec (records drift, built-value round trips, bounds, fuzz targets) and each translation both ways; git's argument and environment builders, and git's output parsers against transcripts of real git (../protocol/git.md, section 9); Forgejo's decoders, skein's, against the conformance's transcripts (skein's `forge/README.md`, section 9), and GitHub's, skein's (skein's `forge/github.md`); the forges' records and a git identity's value, built-value round trips and fuzz targets (../protocol/forge/engine.md, 1; ../protocol/credentials-git-identities.md, section 1); `temper-service`'s routing of the forges: start, connect, stop, installations, generations and pasted values, and GitHub's three routes on the clients' listener (../protocol/forge/README.md, section 9; 2.1); the setup's machines, files and specs, and the box's machine (../protocol/setup/testing.md, 1); lib's are skein's |
 | domain worlds | each child domain with the world as its parent, and each component's root domain with its child domains; most of temper's tests |
 | system worlds | the engine, the worker and smith's agents together; temper's client joined to the engine's root (2.1) |
 | machine worlds | the git component against scripted process ends and outputs; the terminal shell's loop against a scripted stdin and stdout; skein's, for the machines it ships, the forge component among them (skein's `forge/connection.md`, section 10) |
@@ -200,8 +201,8 @@ in temper.
   component's half of git's
   tokens under temper's settings: every accepted installation's token
   before the forge's first `Connected`, and each renewed before it
-  expires on the fake's clock, at GitHub's hour (../protocol/credentials.md,
-  section 4).
+  expires on the fake's clock, at GitHub's hour (../protocol/credentials-git-identities.md,
+  section 1).
 - **Reconcile's,** in skein (skein's `forge/setup/README.md`, section 5):
   reconcile's machine against the fake forge's protocol layer serving the
   setup's routes, through bytes: a forge converged from empty and again,
@@ -273,7 +274,7 @@ terminal client, the captures and the faults.
     GitHub's hour on the simulator's clock while the run holds its
     workspace, git's generation changing under it, and the push
     authenticated by the renewed token, as the layer's record of its git
-    calls shows (../protocol/credentials.md, section 4);
+    calls shows (../protocol/credentials-git-identities.md, section 1);
   - a signal mid-run drains the engine, the worker ends, and the next
     start settles the worker's claims at once, on a chat's run and on a
     coding run;
@@ -393,7 +394,7 @@ which reaches the engine over jig's client protocol, and their fake is
 skein's fake person in front of it (`fakes.md`, 4). A peer can be a client as well as
 a server: the fake forge's protocol layer sends signed deliveries to the
 engine's webhooks' listener (../protocol/forge/README.md, section 4; skein's
-`testing/fakes/forge.md`, section 4); and reconcile meets it as the engine does,
+`testing/fakes/forgejo.md`, section 1); and reconcile meets it as the engine does,
 through the setup's routes (../protocol/setup/testing.md, 2).
 
 ### 3.2 The machine
@@ -559,6 +560,7 @@ testing/temper-github-app           the App on the fake GitHub layer's first fix
 testing/temper-fixtures             the documents, transcripts, memory literals and local browser that temper's client crates and worlds share
 testing/temper-agent-fixtures       the agents' configuration as the worker's writer makes it
 testing/temper-landing-fixtures     a project's landing settings, typed, for the engine's and client's worlds
+testing/temper-blame                the check of blame and tries for gates, over a world's fault ledger (blame.md)
 tests/<component>/<child>           a child domain's world, temper-<component>-<child>-world
 tests/<component>/domain            a component's world: the engine's, the worker's
 tests/engine/forge                  the forge connector's world

@@ -96,7 +96,7 @@ temper-box
   bundle all run the new build, and nothing the old. Its forges, an owned Forgejo or the fake forges with
   their state (5), its repositories, pull requests, checks and tasks come
   back as they were; a store the build cannot read refuses serve's start by
-  name (`../store.md`, 5), a step's failure as 2 has it. The process
+  name (`../store-restart.md`, 1), a step's failure as 2 has it. The process
   tier proves it (`../../testing/process-tier.md`).
 - **A forge's group, removed.** At a forge's removal
   (`../../domain/forge/adoption-connection.md`, 1) serve asks `remove N`, and again at each of
@@ -532,7 +532,7 @@ temper-box
   spawning owner must end descendants outside its group too. serve's
   agent processes and their programs are serve's children, not the box's
   steps: serve's first signal stops them, each agent ending its program,
-  before serve exits (../README.md, section 6). A serve the box closes, or
+  before serve exits (../service-process.md, section 1). A serve the box closes, or
   one a second signal aborts, kills its agents' groups, and a program an
   agent started outlives it until agents run in contained trees
   (`README.md`, section 9).

@@ -3,7 +3,7 @@
 2026-11-11. Where the design lags or departs from [dogfood-hacks.md](dogfood-hacks.md).
 
 - **Design lags:**
-  - 2.1: `../domain/worker/checkouts.md` is as it was; `../domain/worker/checkouts.status.md` (Departs, the whole document) and `../protocol/git.status.md`, 2 and 4, record the departure while the variable is set.
+  - 2.1: `../domain/worker/checkouts.md` is as it was; `../domain/worker/checkouts.status.md` (Departs, the whole document) and `../protocol/git.status.md`, 2, and `../protocol/git-operations.status.md`, 1, record the departure while the variable is set.
   - 2.2 to 2.7, 2.9 to 2.12: by intent, nothing in the design describes them: each is temporary and lives here until a real design replaces it.
   - 2.13: by intent, nothing in the design describes it, and it stays here until a real design replaces it; `../domain/worker/README.md`, section 10 names only the question it leaves. `../domain/worker/README.status.md`, `skein/docs/design/llm/README.status.md`, `skein/docs/design/llm/connection.status.md`, `skein/docs/design/testing/fakes/llm.status.md`, `smith/docs/design/protocol/agent.status.md` and `smith/docs/design/protocol/programs.status.md` record the hooks it adds. On Claude Code it reads what the program is given, not what the program sends.
   - 2.8: `../protocol/setup/owned.md`, 2 and 8, and `../protocol/openid-provider.md`, 4 give auto-registration and `ALLOW_ONLY_EXTERNAL_REGISTRATION` as the only settings and say nothing of `TEMPER_FORGE_NO_REGISTRATION`; `../testing/process-tier.md` and `../protocol/openid-provider.md`, 8 say nothing of the leg it adds to the Forgejo sign-in story. By intent they stay so until a real design replaces it.

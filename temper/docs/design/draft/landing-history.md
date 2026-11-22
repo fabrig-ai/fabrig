@@ -70,7 +70,7 @@ temper keeps what a change and a landing are now, not how they got there. A chan
 - **By change, apart from the rows:** a change's events, and its landing's events naming it, stay after the change and landing rows go.
 - **By age and by count:** once a change's last event is older than the project's `history_days`, its events go together; past `history_events`, the changes whose last event is oldest go first, whole. A history is never cut in its middle, so what remains of a change is all of it, from its first event.
 - **Swept in bounded steps,** on the engine's own tick as well as on writes, so an idle project's events still go.
-- **On demand:** the history is read from the store when asked, as jig reads a task's activity, and is not part of what a restart restores (`../protocol/store.md`, 5).
+- **On demand:** the history is read from the store when asked, as jig reads a task's activity, and is not part of what a restart restores (`../protocol/store-restart.md`, 1).
 - **With the project:** a project's deletion deletes its events.
 - **Bounded records:** each field is a name, a number, a hash or a short reason within the forge's existing bounds; a `formed` event's members within `landing_members`; no event carries a log, a body or words.
 
@@ -104,7 +104,7 @@ temper keeps what a change and a landing are now, not how they got there. A chan
 
 ## 9. Upgrades
 
-- **A new stored family,** demand-loaded, registered with defaults, in the landing that adds it (`../protocol/store.md`, 2 and 4). There is no history before it: a change live at the upgrade has a partial history, and nothing is rebuilt or backdated.
+- **A new stored family,** demand-loaded, registered with defaults, in the landing that adds it (`../protocol/store.md`, 2, and `../protocol/store-versions.md`, 1). There is no history before it: a change live at the upgrade has a partial history, and nothing is rebuilt or backdated.
 - **`ctl`'s wire** moves its version for the new reads (`../protocol/wires.md`, 8).
 
 ## 10. Acceptance

@@ -215,7 +215,7 @@ the engine was down is read once.
 **What steps 1 and 2 wait for** (`../../draft/reconciling-start.md`, 5).
 The forge answers the root, at any time during its restart, what each
 step still owes, by kind, each with its count and its oldest three
-named, in the words and order of `../../protocol/README.md`, 6.3:
+named, in the words and order of `../../protocol/service-process.md`, 1.3:
 
 - **reading afresh** owes each term its end waits on: the client's
   fresh reads still owed, by resource and listing (skein's

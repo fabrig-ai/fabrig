@@ -50,4 +50,4 @@ deployment's lines, which no record shows.
   project command: the worker's hello declares the prepare, merge and
   close kinds (`temper-worker-service/src/worker_settings.rs`,
   `job_kinds`), its prepare temper's own alone, and with neither the
-  `Rewrite` delivery (`../../protocol/git.md`, 4.10).
+  `Rewrite` delivery (`../../protocol/git-operations.md`, 1.10).

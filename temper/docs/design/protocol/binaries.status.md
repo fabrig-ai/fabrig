@@ -10,9 +10,9 @@
 
 - **Not yet:** 4: the closures are held by two tests of two shapes, `tests/boundary/tests/binaries.rs` the engine's row alone, the agent's in a second file; the client's and the worker's have no row, and the client links `jig-protocol-accounts` through `crates/temper-client-shell-cli/Cargo.toml`, which no code of it uses
 
-- **Not yet:** the whole document: the restored-forge link gap remains `../domain/root-restart.status.md`, 1.1.  the deferred setup-close gap remains `README.status.md`, 4.
+- **Not yet:** the whole document: the restored-forge link gap remains `../domain/root-restart.status.md`, 1.1.  the deferred setup-close gap remains `service-routing.status.md`, 1.
 
-- **Departs:** the whole document: the group-file departure remains `forge/engine.status.md`, 2 and 8.  the source-name admission departure remains `README.status.md`, 4 and 5.  the retired cluster-description departure remains `cluster.status.md`, 5 and 6.
+- **Departs:** the whole document: the group-file departure remains `forge/engine.status.md`, 2 and 8.  the source-name admission departure remains `service-routing.status.md`, 1 and 2.  the retired cluster-description departure remains `cluster.status.md`, 5 and 6.
 
 Section 2's `temper-engine` is present, with 1's rules: its
 table of `help`, `serve`, `versions`, the forge's six verbs and

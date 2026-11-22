@@ -14,10 +14,10 @@ process has exited and its tree is empty. temper's choices:
 
 - **Agent processes, always.** Every run is a process of its own, also
   when the engine and the worker share a process
-  (`../../protocol/README.md`, section 6); `smith-inline-agent` is not used
+  (`../../protocol/service-process.md`, section 1); `smith-inline-agent` is not used
   (`../../protocol/llm.md`, section 7).
 - **temper's binary is the agent:** the box's `temper-box internal agent`,
-  or a deployment's `temper-agent` (`../../protocol/binaries.md`, 3, and `../../protocol/README.md`, 5
+  or a deployment's `temper-agent` (`../../protocol/binaries.md`, 3, and `../../protocol/service-routing.md`, 2
   ), smith's agent shell. temper builds no code into it.
 - **Pinned at the worker's start,** so an agent is always its worker's
   build and smith's channel never spans two (`../../draft/redeploys.md`,
@@ -49,12 +49,12 @@ process has exited and its tree is empty. temper's choices:
   `domain/host.md`, section 4). What an agent still running would leave,
   a wedged one or a command outside its groups, a deployment's service
   manager ends with the worker's control group
-  (`../../protocol/README.md`, section 5); a tree contained by io, proved
+  (`../../protocol/service-routing.md`, section 2); a tree contained by io, proved
   empty, is smith's to give (smith's `domain/host.md`, section 4, whose
   status records it).
 - **No credentials in its environment.** The tokens its LLM calls use
-  come as grants on its channel (`../../protocol/credentials.md`,
-  section 3); git's never reach it.
+  come as grants on its channel (`../../protocol/credentials-llm-accounts.md`,
+  section 1); git's never reach it.
 - **The repository's checks are a long operation** the run reports, so
   the watchdog stretches to their span: a two-hour test suite is not a
   hang.

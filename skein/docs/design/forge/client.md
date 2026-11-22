@@ -381,8 +381,8 @@ Before a decision depends on a fact, the owner asks for it afresh with
   nothing, the calls that hold the slab's places, oldest admitted
   first, each with its owner, its repository and what it reads, or that
   it is a write, never the write's content, so that
-  an owner can say who holds a full slab (temper's `protocol/README.md`,
-  6.3). It keeps the order each call was admitted in, a number, not a
+  an owner can say who holds a full slab (temper's `protocol/service-process.md`,
+  1.3). It keeps the order each call was admitted in, a number, not a
   time.
 - **Retries.** `Unavailable` and `Timeout` are tried again, `read_attempts`
   tries in all, after `backoff` doubling to `backoff_max` plus a draw
@@ -753,7 +753,7 @@ like any, in the owner's own order, and holds no read of the step open.
    own reads are in.
 
 **What it still owes,** for an owner that reports a restart that runs
-long (temper's `protocol/README.md`, 6.3), read at any time and changing
+long (temper's `protocol/service-process.md`, 1.3), read at any time and changing
 nothing: during step 4, each watched resource and each repository's
 listing whose fresh read is still owed, in its table's order; during
 step 5, each entry not yet looked for, by number. A `Settle` ends both

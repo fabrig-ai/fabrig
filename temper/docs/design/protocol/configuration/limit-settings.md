@@ -145,7 +145,7 @@ this document says how settings lie over it.
   The store's base is the stock resolved at those live goals
   (`derived.md`, 4 and 5.4), with the stock's `tool_payload` and the
   start's sources, and no setting; the store's records are laid out over
-  it (`../store.md`, 4) as they were over the stock. Its map value bound
+  it (`../store-versions.md`, 1) as they were over the stock. Its map value bound
   is the largest record's encoding there: a person's stored answer to a
   compound request of amendments (jig's `jig-store-people`), which grows
   with `people.operations` and so with `live_goals`, 100,881,496 bytes at

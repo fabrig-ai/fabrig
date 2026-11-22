@@ -287,7 +287,7 @@ top dispatches, reads and writes for it as for the round's top.
   prefix and the green one.
 - **The registered store** keeps these fields through its registry
   layouts, defaults, former names and written jobs where needed, with
-  no patch or version move (`../protocol/store.md`, 4;
+  no patch or version move (`../protocol/store-versions.md`, 1;
   `../protocol/floor.md`, 6). It serves no fallback form from below
   the floor.
 - **By test,** the search keeps how it probes, its selections and its

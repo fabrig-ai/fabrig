@@ -102,7 +102,7 @@ file the site serves beside it (5.1). The site that links them is
 - **Programs:** git 2.41 or later (`protocol/configuration/README.md`, 3 and
   6; `protocol/git.md`, 3); `/usr/bin/rg` and `/bin/sh`, at those paths,
   which the agents' machine tools run; `claude`, Claude Code, only for
-  Claude (`protocol/credentials.md`, 3).
+  Claude (`protocol/credentials-llm-accounts.md`, 1).
 - **CA certificates:** the system's, or the file `SSL_CERT_FILE` names,
   for every HTTPS client of temper's alike, the fetch's and the
   providers' and the forges', since no roots are embedded

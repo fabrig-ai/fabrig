@@ -31,7 +31,7 @@ skein-io socket
   engine's protocol layer, beside jig's components, with its own limits,
   deadlines and kernel submission edges; the routing
   carries what passes between it, io and the root, and decides nothing
-  (../components.md and ../README.md, section 4; jig's `protocol/service.md`, section 2).
+  (../components.md and ../service-routing.md, section 1; jig's `protocol/service.md`, section 2).
   One component serves every kept forge. What it holds is skein's
   (`forge/connection.md`, sections 3 to 7): the calls in flight, the
   forges' connections, each forge's start, the repositories' paths and
@@ -143,14 +143,14 @@ skein-io socket
   row (../store.md, section 2), and never gives a number twice, since the
   number keys every record of the forge: its rows in jig's secrets'
   store, its repositories, its writer and its git identity
-  (../credentials.md, 2.1 and section 4). A removed forge's number stays
+  (../credentials.md, 2.1, and ../credentials-git-identities.md, 1). A removed forge's number stays
   spent; a forge set up again is a new forge.
 - **Its users among jig's parties.** A party adoption knows from a forge
   is keyed by that forge's number and the user's (../store.md, section 2;
   `../../domain/forge/adoption.md`). As a number is never given twice, such
   a key stays that forge's user's, even after the forge is removed.
 - **Restored, then handed over.** The forge's restart step restores
-  each `Forge` row (../store.md, section 5), and the connector hands each
+  each `Forge` row (../store-restart.md, section 1), and the connector hands each
   kept one to the routing, as it hands a new one (2), which adds its
   forge to the component, its identity to the identities' table and an
   owned or fake one to the setup host. An ended one's removal resumes
@@ -342,7 +342,7 @@ skein-io socket
     none, and one the routing meets is answered `NotConnected` (`README.md`, 7.1);
   - **its access dropped:** its endpoint and any access built for it,
     its git identity's values in the identities' table, its grant
-    withdrawn (../credentials.md, section 4), and its place in the setup
+    withdrawn (../credentials-git-identities.md, section 1), and its place in the setup
     host, whose run for it ends;
   - **its secrets erased at once:** each of its family-1 rows,
     `AdminToken` through `Origin` (../credentials.md, 2.1), one `Erase`

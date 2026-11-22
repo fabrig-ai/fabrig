@@ -84,7 +84,7 @@ temper ctl change open --project PROJECT [--repository OWNER/NAME] --branch BRAN
 
 ## 9. Upgrades
 
-- **Stored:** temper's store is a registered family, so its version stays and nothing is patched (`../protocol/store.md`, section 4). The change's retained parameters gain the source, and its state the taking state with its kept head, each with a default: a change with no source is a change as today, so every stored change reads as it did. Nothing needs a written job.
+- **Stored:** temper's store is a registered family, so its version stays and nothing is patched (`../protocol/store-versions.md`, section 1). The change's retained parameters gain the source, and its state the taking state with its kept head, each with a default: a change with no source is a change as today, so every stored change reads as it did. Nothing needs a written job.
 - **The client's wire:** the new request, and the change's served document with its source and its taking state, move the client's wire's version, with no bridge (`redeploys.md`, section 8). A client of the new version meeting an engine of the previous one is refused by name, `version not served`, before any task is made, so an older engine never meets the source parameter.
 - **Engine and workers:** nothing moves. No job runs and no worker is asked.
 

@@ -142,7 +142,7 @@ branch text matches (2026-11-04).
   tier's workflow file as its settings name it, COMMIT the full commit
   dispatched. A rerun refused as missing is `lost`, its forge run gone.
   Its kind is stored as the tier's other faults are, appended to them
-  in place (`../protocol/store.md`, section 4): every row stored before
+  in place (`../protocol/store-versions.md`, section 1): every row stored before
   it still reads, and a restart keeps its words (the requester,
   2026-11-11).
 - **A run whose task ends without its verdict,** cancelled by a person

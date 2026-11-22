@@ -1,4 +1,4 @@
-//! One root input per pass, with completions passing held new work (protocol/README.md, 4).
+//! One root input per pass, with completions passing held new work (protocol/service-routing.md, 1).
 mod diagnostics;
 use crate::{CoreWait, End, route, stop, store::route::Up};
 use alloc::boxed::Box;

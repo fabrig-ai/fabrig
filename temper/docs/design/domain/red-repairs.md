@@ -343,7 +343,7 @@ BODY
   gains `moved`, a `BlameMove`, and `BlameStrength` the variant
   `Moved`. Each is an added field of the registered `temper-store`
   family with its default (none), so no version moves and no patch
-  comes (`../protocol/store.md`, sections 2 and 4); a finding filed
+  comes (`../protocol/store.md`, section 2, and `../protocol/store-versions.md`, section 1); a finding filed
   before reads as unrepaired and unmoved. `ProjectLanding`'s `repairs`
   is an added field, none.
 - **In the code,** the forge's vocabulary

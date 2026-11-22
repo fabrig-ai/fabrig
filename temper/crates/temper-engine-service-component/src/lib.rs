@@ -51,7 +51,7 @@ pub use start_refusal::{refused_row_start, refused_start};
 pub use store::{UnreadableRow, wires};
 pub use temper_engine_domain::loads::{Failure as LoadFailure, Kind as RestoreRangeKind};
 pub use tools::{render_for_task, render_for_task_page, settings_note};
-/// How the service ended (protocol/README.md, 4).
+/// How the service ended (protocol/service-routing.md, 1).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum End {
     Drained,
@@ -72,7 +72,7 @@ pub enum Stop {
         why: JournalStop,
     },
     /// A failed commit's cause, after the root's Uncommitted policy
-    /// (temper/docs/design/protocol/store.md, 4).
+    /// (temper/docs/design/protocol/store-versions.md, 1).
     CommitFailed {
         number: u64,
         why: CommitStop,
@@ -124,7 +124,7 @@ pub enum Stop {
     StoreOpen {
         why: jig_protocol_store::OpenRefusal,
     },
-    /// A temper row refused decoding at restart (protocol/store.md, 5).
+    /// A temper row refused decoding at restart (protocol/store-restart.md, 1).
     StoreRow {
         row: UnreadableRow,
     },
@@ -190,7 +190,7 @@ pub enum Note {
     ForgeTable {
         words: Box<[u8]>,
     },
-    /// One long start-step observation (protocol/README.md, 6.3).
+    /// One long start-step observation (protocol/service-process.md, 1.3).
     StartWaiting {
         line: Box<[u8]>,
     },
@@ -203,7 +203,7 @@ pub enum Note {
     StartupWarning {
         line: Box<[u8]>,
     },
-    /// The gate has kept a party's input for at least 1 s (protocol/README.md, 6.2).
+    /// The gate has kept a party's input for at least 1 s (protocol/service-process.md, 1.2).
     CoreWaiting {
         why: CoreWait,
     },

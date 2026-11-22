@@ -33,56 +33,6 @@ fn seed_flake(d: &mut Domain) {
 fn gate() -> (Domain, ReceiptKey, api::Run) {
     let (mut d, key, run) = reporting_failed_gate(Format::Lines);
     seed_flake(&mut d);
-    let row = d.landing.rows.get_mut(&61).unwrap();
-    row.landing.members[0].gates[0] = policy::GateProof {
-        proof: policy::Proof::Dispatched { key: key.key, try_: 1 },
-        posted: policy::Posted::Pending,
-        faults: 0,
-    };
-    row.entries = Box::new([LandingEntry {
-        preparation: Some(row.landing.preparation),
-        base: Some(fixtures::BASE),
-        entry: 9,
-        member: 0,
-        gate: 0,
-        operation: Operation::Dispatch,
-        run: None,
-    }]);
-    let purpose = purpose::EffectPurpose::Landing {
-        task: 61,
-        member: 0,
-        gate: 0,
-        operation: 1,
-        preparation: row.landing.preparation,
-        attempt: 1,
-    }
-    .identity()
-    .unwrap();
-    let flight = d.landing.flights.get_mut(&key).unwrap();
-    flight.purpose = purpose;
-    flight.inputs = Box::new([
-        api::Input { name: b"temper_commit".as_slice().into(), value: commit_text(&fixtures::HEAD) },
-        api::Input { name: b"temper_key".as_slice().into(), value: commit_text(&key.key) },
-    ]);
-    let entry = skein_forge_client::Entry {
-        number: 9,
-        task: 61,
-        repository: REPO,
-        effect: skein_forge_client::Effect {
-            write: Write::Dispatch {
-                workflow: flight.workflow.clone(),
-                branch: flight.branch.clone(),
-                inputs: flight.inputs.clone(),
-            },
-            condition: skein_forge_client::Condition::None,
-        },
-        start: Some(skein_forge_client::Position { at: Time::from_nanos(10), comment: 0, review: 0, review_page: 1 }),
-        attempt: None,
-        failures: 0,
-        queued: false,
-    };
-    // Retain the dispatch's start window without handing its write to the client again.
-    outputs(&mut d, Event::Restore { record: Stored::Entry { entry, held: true } });
     (d, key, run)
 }
 fn begin(d: &mut Domain, entry: u64) {
@@ -285,7 +235,7 @@ fn incomplete_or_unmatched_reports_publish_the_failure_without_rerunning() {
     }
 }
 
-/// Restore the landing, outbox and findings, then reconstruct only derived flights.
+/// Restore the landing and findings, then reconstruct only derived flights.
 fn restore_gate(d: &Domain, key: &ReceiptKey) -> Domain {
     let mut restored = connected_member_landing();
     outputs(
@@ -298,10 +248,7 @@ fn restore_gate(d: &Domain, key: &ReceiptKey) -> Domain {
     for (_, row) in d.findings(5) {
         outputs(&mut restored, Event::Restore { record: Stored::Finding(row.clone()) });
     }
-    for (_, entry) in &d.entries {
-        // These writes have settled; their retained windows, not another write, are followed.
-        outputs(&mut restored, Event::Restore { record: Stored::Entry { entry: entry.entry.clone(), held: true } });
-    }
+    assert!(d.entries.is_empty(), "the made writes have left; only their follow restarts");
     landing::rebuild(&mut restored);
     restored
 }

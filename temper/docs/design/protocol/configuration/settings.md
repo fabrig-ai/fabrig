@@ -689,8 +689,8 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
   4,270,667 bytes, holding a loaded transcript of at most 4,270,603 bytes
   after the frame's 64. Its effective page ceiling is the larger of
   that base and the profile's key ceiling plus the settings revision
-  bound derived from the deployment's effective capacities (`../store.md`,
-  4). A deployment on `small` keeps T's full frame within that ceiling.
+  bound derived from the deployment's effective capacities (`../store-versions.md`,
+  1). A deployment on `small` keeps T's full frame within that ceiling.
   The page ceiling admits
   the largest shipped ordinary transcript (jig's
   `protocol/limits.md`). A deployment with larger output or

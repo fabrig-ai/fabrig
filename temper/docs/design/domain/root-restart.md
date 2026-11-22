@@ -70,7 +70,7 @@ commits in flight, and in step 5 the forge's reads and finds still owed
 (`forge/effects.md`, section 2). Past the report bound, and again at each
 doubling of the step's age, it reports them by kind, with counts and the
 oldest by name, as a fact the service writes
-(`../protocol/README.md`, 6.3). The report is no deadline: the step
+(`../protocol/service-process.md`, 1.3). The report is no deadline: the step
 goes on as before.
 
 ### 1.2 Stopping
@@ -186,6 +186,6 @@ side happens, and the rest is the worker's, the forge's and the box's.
   links never come up, across a restart. A client rejecting `me` for too
   many memberships explains those links, but not the service refusing
   that public read. Default: no further core repair without evidence of
-  a shut gate; the service's reason line (`../protocol/README.md`, 6.2)
+  a shut gate; the service's reason line (`../protocol/service-process.md`, 1.2)
   must identify what holds it before attributing another occurrence to
   the calendar, startup or the journal.

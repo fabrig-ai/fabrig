@@ -237,7 +237,7 @@
   live at once, never every change made. Each tier row of the store
   holds up to `2 * forge.changes + 1` landings (its pending ones, a run's,
   a finding's blamed ones, a probe's waiting groups and a posting's),
-  within the store schema's ceiling for them, 1,537 (`../store.md`, 4),
+  within the store schema's ceiling for them, 1,537 (`../store-versions.md`, 1),
   so `forge.changes` is at most 768, which the start checks (below), and
   the stock's is 768. The store holds that many because a failing test's
   id is within 1,024 bytes, `forge.tiers.test_id_bytes` at most that
@@ -422,12 +422,12 @@
     id`. Both bounds are the signature's own, which the finding's
     check of a signature reads too. The signature's 512 is within the
     store schema's ceilings on a failing test's id and a flake's
-    (`../store.md`, 4), 1,024, which a focused test pins, so this check
+    (`../store-versions.md`, 1), 1,024, which a focused test pins, so this check
     stands for the store's too, run before the store's sizing, which
     would otherwise refuse a longer id naming a schema field;
   - the store's tier rows': `forge.changes` at most the most they hold,
     `(c - 1) / 2` for `c` the least of the store schema's ceilings on a
-    tier row's five lists of landings (`../store.md`, 4), 768 at their
+    tier row's five lists of landings (`../store-versions.md`, 1), 768 at their
     1,537, checked before the store's
     sizing, which would otherwise refuse it as past its codec's bounds,
     naming no limit:
@@ -441,7 +441,7 @@
     at most the store schema's ceiling on a log's landings, 256, and a
     tier's posted comments, `(forge.landings_kept +
     forge.landings_pending) * forge.landing_members + forge.changes`,
-    at most its ceiling on them, 8,192 (`../store.md`, 4), each checked
+    at most its ceiling on them, 8,192 (`../store-versions.md`, 1), each checked
     before the store's sizing and naming `forge.landings_pending`:
     `application.limits.overrides.forge.landings_pending: 241, past its
     bound of 240, the most the store's landing log holds beside

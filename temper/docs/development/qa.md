@@ -80,7 +80,7 @@ help (`../design/client/ctl/testing.md`, 5). What is still open is
   | fakes | `--fake-backends` (`../design/protocol/setup/box.md`, 5): GitHub and a Forgejo elsewhere faked; Forgejo here real, from the box's cache | the fake model, by the key file the box prints | none |
   | a real model | Forgejo here, set up through ctl, as the walk `box` sets it up | ChatGPT, a login imported and exported back, or a key read from a private file (`../design/client/ctl/areas.md`, area 5) | the model's account |
   | GitHub | GitHub, through an App, on a repository the pass may change | as a real model's rung | the App's key and its installation, and a person's token on that repository |
-  | Claude | Forgejo here, as a real model's rung | Claude Code on a person's own login, its configuration directory used in place (`../design/protocol/credentials.md`, 3) | the model's login |
+  | Claude | Forgejo here, as a real model's rung | Claude Code on a person's own login, its configuration directory used in place (`../design/protocol/credentials-llm-accounts.md`, 1) | the model's login |
 
 - **The model is a setting, not a file key.** The stock gives its
   window, prices, output and efforts, and every stock charter's main

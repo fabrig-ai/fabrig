@@ -626,7 +626,7 @@ says:
   webhooks were last heard.
 - **A full table,** the forge connector's and so every forge's, comes
   first, above the forges' rows: while the forges' document carries one
-  full past its report bound (`../../protocol/README.md`, 6.3), a line
+  full past its report bound (`../../protocol/service-process.md`, 1.3), a line
   for it, "The forge's outbox is full for AGE: WORDS" or "The forge's
   read admission is full for AGE: WORDS", WORDS the document's, the
   service's line's after `AGE: `, and AGE from its `since` by the

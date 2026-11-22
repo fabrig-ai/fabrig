@@ -148,7 +148,7 @@ preparing, held until its claim commits:
   `domain/engine/README.md`, 6.1). Their values come from the forge's records
   in jig's secrets' store, generation 1 at each start and the next at
   each change of value, each announced before the restart
-  (`../protocol/credentials.md`, section 4). The forge's API token or App
+  (`../protocol/credentials-git-identities.md`, section 1). The forge's API token or App
   key, and a Forgejo forge's webhook secret, stay in the protocol layer,
   and are never granted.
 - **The writes it claims:** the branches it pushes, the core's writer

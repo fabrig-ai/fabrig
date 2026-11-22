@@ -215,7 +215,7 @@ fn codec_restore(
     )
 }
 
-/// Bounded causes without record contents (temper/docs/design/protocol/store.md, 4).
+/// Bounded causes without record contents (temper/docs/design/protocol/store-versions.md, 1).
 fn commit_why(number: u64, why: CommitStop) -> String {
     use jig_protocol_store::{CommitCheck, CommitFailure};
     use skein_kv::{Exhausted, Large, Refusal};
@@ -843,7 +843,7 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
         }
     }
 }
-// protocol/README.md, 6.3: names cannot introduce another operator line.
+// protocol/service-process.md, 1.3: names cannot introduce another operator line.
 fn start_wait_line(binary: &str, words: &[u8]) -> String {
     let text = format!("{binary} serve: {}", String::from_utf8_lossy(words));
     let mut line = String::new();

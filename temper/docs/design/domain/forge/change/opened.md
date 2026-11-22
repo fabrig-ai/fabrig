@@ -243,7 +243,7 @@ A change with parameter 19 has no producing task. Its own branch is
   `kept`, the head taking selected, none before; and the state `taking`.
   Each defaults to none, so a stored change reads as before: temper's
   store is a registered family, its version stays and nothing is
-  patched (`../../../protocol/store.md`, section 4).
+  patched (`../../../protocol/store-versions.md`, section 1).
 - **Its panel** (`../../../client/forge/served.md`, 2): its step
   `taking` while it takes, and its source, the branch, the `at` named
   and the kept head, while it takes and after; none for a change with

@@ -438,7 +438,7 @@ may change with them.
   secret. *Busy*, *streams full* (`README.md`, 6.2) and all watches in use keep their
   own lines, ahead of these. A watch refused not ready also takes
   precedence: its line says the engine is not ready and points to
-  `temper-box serve`'s log for why (`../../protocol/README.md`, 6.2), rather
+  `temper-box serve`'s log for why (`../../protocol/service-process.md`, 1.2), rather
   than claiming all watches are in use. A sign-in's or a sign-out's call
   says
   `temper ctl: the engine at ADDRESS did not answer within 30 s`. Any

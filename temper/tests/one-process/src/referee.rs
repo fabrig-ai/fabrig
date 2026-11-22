@@ -643,7 +643,7 @@ impl skein_world::Referee<Proc> for Referee {
             }
         }
         // Serve's stop includes supervised agent cancellation. Only its recorded
-        // end leaves teardown waiting on IO alone (protocol/README.md, 6).
+        // end leaves teardown waiting on IO alone (protocol/service-process.md, 1).
         self.ended = service.service.end().is_some();
         self.observe_drain(now, service)?;
         self.say(now, rules::Observed::Tick)?;
