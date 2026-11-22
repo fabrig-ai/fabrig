@@ -338,16 +338,21 @@ pub enum Strike {
     Unserved { model: Box<[u8]> },          // a model the account doesn't serve
     Window { tokens: u64, length: Duration }, // tokens per window, shared by every call on the account
 }
-Event::Strike { credential: u32, strike: Strike }  // in force from this event
-Event::Clear { credential: u32, strike: Strike }   // stops it: matched by kind, and by model for Unserved
+impl Domain {
+    pub fn strike(&mut self, credential: u32, strike: Strike, now: Time) -> Result<(), Error>; // in force from now
+    pub fn clear(&mut self, credential: u32, strike: &Strike); // stops it: matched by kind, and by model for Unserved
+}
+// the byte peer's Peer and skein-llm-kit's Exchange carry the same two entrances
 
 pub enum Cut { BeforeOutput, MidText, MidCall }
 pub enum Error { /* today's */, Spent, SignedOut, Unserved, Window { reset: Duration, limit: u64, remaining: u64 }, Cut(Cut) }
 ```
 
-- **The owner strikes by event,** at any time, in its own iteration, as
+- **The owner strikes by a call,** at any time, in its own iteration, as
   it releases a hold (2.2): the domain stays pure, with no timer or
-  callback. A clear of what isn't in force changes nothing. A
+  callback. A strike answers at once, so one past the room (below) is
+  refused to its caller. A strike already in force changes nothing, nor
+  does a clear of what isn't. A
   credential is the index the byte peer puts in each query (section 3);
   a domain-face world gives each account its index in the queries it
   makes.
@@ -373,8 +378,9 @@ pub enum Error { /* today's */, Spent, SignedOut, Unserved, Window { reset: Dura
   (2.8), and a failing line of class `Cut` is refused at configuration.
 - **Room:** the accounts' state is kept for at most `Config.accounts`
   credentials, with at most `Config.unserved` models each, reserved at
-  configuration under `script_bytes`. A strike past that room is refused
-  by the entry that takes it, never dropped.
+  configuration under `script_bytes`; configuration's defaults (`accounts:
+  0`, `unserved: 0`, `cut: 0`) keep a fake with no account faults as
+  before. A strike past that room is refused by `strike`, never dropped.
 - **At the peer,** before any stream, each with the route's request id
   and never a `retry-after`:
 
