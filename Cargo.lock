@@ -3910,6 +3910,7 @@ dependencies = [
  "skein-json",
  "skein-lib",
  "skein-llm",
+ "skein-world",
 ]
 
 [[package]]
@@ -4508,6 +4509,7 @@ dependencies = [
  "smith-domain-run",
  "smith-events",
  "smith-fake-claude",
+ "smith-faults",
  "smith-protocol-channel",
  "smith-protocol-events",
  "smith-protocol-llm",
@@ -4639,8 +4641,12 @@ dependencies = [
  "smith-domain-session-fixtures",
  "smith-domain-tools",
  "smith-domain-tools-fixtures",
+ "smith-events",
+ "smith-faults",
  "smith-host-domain",
  "smith-host-world",
+ "smith-protocol-events",
+ "smith-protocol-events-fixtures",
  "smith-protocol-llm",
  "smith-protocol-llm-fixtures",
  "smith-session-world",
@@ -4895,6 +4901,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "smith-faults"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+ "skein-llm-kit",
+ "skein-world",
+ "smith-channel",
+ "smith-charter",
+ "smith-domain-run",
+ "smith-protocol-translate",
+]
+
+[[package]]
 name = "smith-host-domain"
 version = "0.0.0"
 dependencies = [
@@ -4958,6 +4977,7 @@ dependencies = [
  "smith-inline-agent",
  "smith-inline-agent-fixtures",
  "smith-machine-world",
+ "smith-protocol-llm-world",
  "smith-protocol-machine",
  "smith-protocol-machine-fixtures",
 ]
@@ -5365,6 +5385,7 @@ dependencies = [
  "smith-domain-tools",
  "smith-events",
  "smith-events-fixtures",
+ "smith-faults",
  "smith-protocol-events",
  "smith-protocol-events-fixtures",
  "smith-protocol-llm",
@@ -5469,6 +5490,7 @@ dependencies = [
  "smith-domain",
  "smith-domain-run",
  "smith-domain-run-fixtures",
+ "smith-faults",
  "smith-machine-world",
  "smith-protocol-machine",
  "smith-protocol-machine-fixtures",
@@ -8369,14 +8391,18 @@ dependencies = [
  "skein-forge-client",
  "skein-lib",
  "skein-llm",
+ "skein-llm-kit",
+ "skein-world",
  "smith-agent-service",
  "smith-agent-shell",
  "smith-agent-world",
  "smith-channel",
+ "smith-channel-world",
  "smith-charter",
  "smith-domain",
  "smith-domain-run",
  "smith-domain-session",
+ "smith-faults",
  "smith-host-domain",
  "smith-protocol-channel",
  "smith-protocol-llm",

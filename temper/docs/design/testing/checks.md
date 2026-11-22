@@ -577,7 +577,11 @@ landing's or a change's wait and a task's resolve across inspections.
   commits, and the request.
 - **The failure table** of the draft's 3.3, each failure class's
   expected transition on each counter, is held by temper's 3.3 check,
-  beside the gates' and the runs' blame (`blame.md`).
+  beside the gates' (`blame.md`) and the runs' blame. For runs it has two halves:
+  smith's worlds hold the retries and the run's end
+  (`smith/docs/design/faults.md`, 4), since smith names no temper and
+  its worlds run the runs; the system world holds the task tries and
+  the holds, and calls smith's half beside them (6.3).
 - **Streams** (skein's `testing/sweeps.md`, 2): a world that sweeps
   seeds its workload (goals, items, trees and scripts) from `Workload`;
   each injector from its own part of `Faults` (`forge`, `llm`, `worker`,
@@ -588,3 +592,68 @@ landing's or a change's wait and a task's resolve across inspections.
   ignored scenarios of the draft's section 7. A condition an exclusion
   names is read through the adapters of 6.1, or from the world's own
   state, at the moment the fault would be injected.
+
+### 6.3 Blame for runs, and an account's faults, in the system world
+
+Written from `../draft/failure-worlds.md`, 3.3 for runs, 3.4, 5 and
+the catalog's P26, S1 and P126 rows. The faults are skein's fake LLM's account strikes
+(skein's `testing/fakes/llm.md`, 2.7); smith's worlds hold the rest of
+the providers' faults (`smith/docs/design/faults.md`).
+
+- **Two accounts:** the composed system world (`README.md`, 2.1) can
+  give its fake LLM two accounts, each with a key source, each of its own
+  party, so that each party's goal runs on its own account. The queries
+  its agents make carry their account's credential index (skein's
+  `testing/fakes/llm.md`, 2.7), which the agent world's kit fills from
+  the run's account. Its one account with two sources
+  (`World::two_source_chat`) stays for the stories that use it.
+- **The account case,** `an_account_fault_holds_only_its_goals`, a fuzzy
+  test (`tests/suite/fuzzy/accounts.rs`). Each seed draws from `Faults`,
+  part `llm`, one of spent credits, an expired sign-in and a rate window,
+  the account it strikes, the step of the struck goal's run at which it
+  falls, and whether it is cleared at a later step; each party runs a
+  goal; the world records each fault in its ledger, and holds:
+  - **3.3 for runs:** no task try is spent for the fault:
+    `Counter::TaskTries`, counted from jig's failed attempts
+    (`jig/docs/design/domain/tasks/lifecycle.md`, 6) of the struck
+    account's tasks within the fault's interval, stays at zero; spent
+    credits or an expired sign-in that is never cleared holds the struck
+    goal's tasks with words naming the account
+    (`jig/docs/design/domain/accounts.md`, 3.5); and smith's
+    half, by `smith_faults::Runs::judge` over the runs' attempts and ends
+    (`smith/docs/design/faults.md`, 4).
+  - **3.4:** the other account's goal lands as if the fault weren't
+    there, within its bound; the struck goal ends within its bound past
+    the clear, or, spent credits or a sign-in never cleared, is held
+    naming the account. A rate window, cleared or not, lets each window's
+    first prompt through, and it is shorter than the first backoff, so a
+    retry meets a fresh window: the struck goal ends within the same
+    bound, whether or not the window is ever cleared.
+  - **Each fault it configures fell** (`Sweep::check_fell`), over the
+    seeds its budget allows.
+
+  Its exclusions name only the ignored scenarios below, by their narrow
+  conditions, where the case meets their combinations. A rate window is
+  drawn shorter than the session's shortest first backoff: a longer one
+  is P127's combination, whose scenario, `a_rate_window_is_waited_out`,
+  is smith's, and an exclusion names a scenario of its own tree
+  (skein's `testing/sweeps.md`, 5), so smith's sweep excludes it there.
+- **The scenarios,** in `tests/suite/accounts.rs`; the open ones are
+  `#[ignore = "provider failures: ..."]`:
+  - `a_limited_account_frees_its_tasks` (P26): two accounts of one
+    holder; the one its tasks use is limited with no reset; its tasks
+    choose again on the other, and their goal lands;
+  - `spent_credits_stop_placement` (S1): `insufficient_quota` on an
+    account marks it, and no run is placed on it afterwards, while the
+    other account's go on; it passes, and is enabled, an active
+    regression;
+  - `an_unserved_model_moves_the_task` (P126): a model refused for an
+    account narrows that account's models, and the task chooses again
+    and runs.
+
+  The draft's rows name smith's session world for S1 and P126: their
+  assertions are jig's placement and an account's models, which only
+  this world runs with smith's agents, so their scenarios are here. A
+  scenario that passes today shows no open problem: it stays enabled, as
+  an active regression, and the draft's row moves to its held list, as
+  S1's has.

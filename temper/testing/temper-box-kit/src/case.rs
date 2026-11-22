@@ -124,6 +124,13 @@ fn encode(scripts: &[Script], rules: &[Box<[Rule]>]) -> Value {
                             Line::Fail { error, report, credentials } => {
                                 assert_eq!(*report, Report::none(), "case failure report unsupported: {report:?}");
                                 let error = match error {
+                                    Error::Spent
+                                    | Error::SignedOut
+                                    | Error::Unserved
+                                    | Error::Window { .. }
+                                    | Error::Cut(_) => {
+                                        panic!("case failure class unsupported by the document: {error:?}")
+                                    }
                                     Error::Overloaded => json!("overloaded"),
                                     Error::RateLimited { retry_after } => json!({"rate_limited": {
                                         "retry_after_ms": retry_after.as_nanos() / 1_000_000
@@ -140,7 +147,7 @@ fn encode(scripts: &[Script], rules: &[Box<[Rule]>]) -> Value {
                                 };
                                 json!({"fail": {"error": error, "credentials": credentials}})
                             }
-                            other @ Line::Opaque { .. } => {
+                            other @ (Line::Opaque { .. } | Line::Cut { .. }) => {
                                 panic!("case script line unsupported: {other:?}")
                             }
                         })

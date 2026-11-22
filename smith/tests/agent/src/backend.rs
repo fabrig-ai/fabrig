@@ -8,6 +8,12 @@ use smith_domain::{Event, Request, llm, run, tools};
 /// A provider face under the shared agent loop (skein/docs/foundation/testing-strategy.md, section 2).
 /// Implementations own lower progression and return only boundary observations.
 pub trait Backend: core::fmt::Debug {
+    /// Whether this fixture's credential can be renewed by its host.
+    fn renewable(&self) -> bool {
+        true
+    }
+    /// The event stream's logical name for a completion across its attempts.
+    fn name_call(&mut self, _owner: Token, _name: &str) {}
     /// Retain the host's result rules, used only after the root admits its Start.
     fn contract(&mut self, _outcome: run::outcome::OutcomeSpec, _deliver: Option<run::outcome::ChangeSpec>) {}
     /// Admit the root's complete request without reconstructing its contract.
@@ -88,13 +94,14 @@ impl Typed {
 }
 impl Backend for Typed {
     fn start(&mut self, request: Request, now: Time, wall: Wall) -> Vec<provider::api::Query> {
-        let Request::Lower(smith_domain::Lower::Complete { owner, prompt, .. }) = request else {
+        let Request::Lower(smith_domain::Lower::Complete { owner, prompt, grant, .. }) = request else {
             panic!("backend accepts Complete")
         };
         self.stage.tick(now);
         self.stage.env.wall = wall;
         self.calls.open(owner, (prompt.tools, prompt.served.clone(), prompt.asker));
-        let query = translate::query(prompt);
+        let mut query = translate::query(prompt);
+        query.credential = grant.map(|name| name.account);
         self.stage.push(provider::Event::Call { reply_to: ReplyTo::new(owner), call: owner, query: query.clone() });
         vec![query]
     }
@@ -125,8 +132,17 @@ impl Backend for Typed {
                     completion: self.completion(answer, grants, &served, asker),
                 }),
                 Err(error) => {
-                    let (failure, evidence) =
-                        self.failure.unwrap_or((translate::failure(error.error), llm::Evidence::Unknown));
+                    // Domain-face strikes stand for the OpenAI response column
+                    // (skein/docs/design/testing/fakes/llm.md, 2.7).
+                    let status = match &error.error {
+                        provider::api::Error::SignedOut => Some(401),
+                        provider::api::Error::Spent | provider::api::Error::Window { .. } => Some(429),
+                        provider::api::Error::Unserved => Some(404),
+                        _ => None,
+                    };
+                    let evidence = status
+                        .map_or(llm::Evidence::Unknown, |status| llm::Evidence::Response { status: Some(status) });
+                    let (failure, evidence) = self.failure.unwrap_or((translate::failure(error.error), evidence));
                     Event::Below(smith_domain::Below::Failed {
                         owner,
                         failure,

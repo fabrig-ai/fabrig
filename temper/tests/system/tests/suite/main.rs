@@ -8,6 +8,7 @@ mod simulation;
 mod store_check;
 
 mod fuzzy {
+    mod accounts;
     mod composed;
 }
 mod running_revision;
