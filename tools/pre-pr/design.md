@@ -12,7 +12,9 @@ after a landing's gate caught three reds in tests no delivery had run, and,
 for the failures file's place in the tree and a prose-only delivery's check
 with no build, `temper/docs/design/draft/small-fixes-1116.md`, 1 and 3,
 and, for the budgets it holds where its builder keeps main's ledgers,
-`temper/docs/design/draft/test-budgets.md`, 3.
+`temper/docs/design/draft/test-budgets.md`, 3, and for the layers it
+runs, the same draft's 4.
+
 ## 1. In one page
 
 Every worker `deliver` and `finish` runs `.temper/pre-pr` in the checkout.
@@ -68,8 +70,17 @@ A light pass certifies the checks that ran on that delivery.
   the same set, run through `tools/tiers/one-process default` and
   `tools/tiers/one-process fuzzy`: each test binary's selected tests in one
   process, one at a time, binaries in parallel, nextest only selecting and
-  building (section 4). Before linking, the delivery omits an integration
-  target when neither profile can select any of its cases. A filter on a case
+  building (section 4).
+- **The layers that replay, as the gate runs them.** One-process runs by
+  default the binaries of the layers that replay, step tests and domain,
+  system, machine, protocol, io and simulated worlds, with the
+  repository's checks, and leaves out the real loop and end to end, which
+  run after landing (`tools/tiers/layers.md`, 9;
+  `skein/docs/foundation/testing-strategy.md`, 8). The check passes no
+  `--layers`, so it runs what the gate runs, judges only those layers, and
+  builds no real-loop or end-to-end binary. Before linking, the delivery
+  omits an integration target when neither profile can select any of its
+  cases, or its layer is one the run leaves out. A filter on a case
   name keeps the target whenever the name could match. Cargo must resolve
   the same build units and dependency features for every retained target;
   otherwise the delivery keeps the ordinary package build. A starved run
@@ -380,7 +391,9 @@ failure, when observed, in the Git directory’s `temper/repair-trial-result.jso
    `.config/nextest.toml`'s `default` profile and building
    (`tools/tiers/design.md`, 11;
    `skein/docs/foundation/testing-strategy.md`, 8, *A binary is a
-   process*). The check passes no budgets and no configuration of its own:
+   process*). One-process runs the binaries of the layers that replay and
+   the repository's checks, as at the gate, and leaves out the real-loop and
+   end-to-end ones (`tools/tiers/layers.md`, 9.1). The check passes no budgets and no configuration of its own:
    the repository's `.config/nextest.toml` is read as it stands, and the
    profile's `global-timeout` is the run's only bound. one-process compares
    each layer the run measured with `tools/tiers/budgets.toml`. Where the
@@ -437,7 +450,9 @@ failure, when observed, in the Git directory’s `temper/repair-trial-result.jso
    for each binary listed, in order, since nextest builds only the selected
    packages' own. A failed build is a build failure, and no test runs.
    `smith`'s end-to-end tests run `smith-fake-claude`'s `fake-claude`
-   (`smith/docs/design/testing.md`, 2.3).
+   (`smith/docs/design/testing.md`, 2.3); since they run after landing,
+   in `real-smith` (`tools/tiers/layers.md`, 9.2), the build serves none
+   of the check's runs, and is kept while `[test-binaries]` names it.
 
    **A starved run is a warning** (`skein/docs/foundation/testing-strategy.md`,
    8.1). Where the directory's `run.json` has `starved` true, or
