@@ -2,8 +2,6 @@
 
 2026-11-20. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 9: the engine opens only once the forge has read afresh and settled its outbox [in flight: change 11034].
-- **Not yet:** 9: steps 1 and 2 run one after the other, the outbox paused through the first [in flight: change 11036].
 
 
 

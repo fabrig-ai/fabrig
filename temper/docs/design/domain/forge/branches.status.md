@@ -2,7 +2,6 @@
 
 2026-11-20. Where the tree's code lags or departs from [branches.md](branches.md).
 
-- **Not yet:** 1: a restart's making found missing with no entry is asked by the line only once the restored outbox has settled [in flight: change 11036].
 
 
 

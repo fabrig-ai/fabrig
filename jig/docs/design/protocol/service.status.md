@@ -2,7 +2,6 @@
 
 2026-11-20. Where jig's code lags or departs from [service.md](service.md).
 
-- **Not yet:** 3: decisions open only once every connector has read afresh and settled [in flight: change 11034].
 
 
 Sections 5 and 10 have no known gap in settling in-process agent claims

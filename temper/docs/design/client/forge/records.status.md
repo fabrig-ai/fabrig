@@ -2,7 +2,6 @@
 
 2026-11-20. Where the tree's code lags or departs from [records.md](records.md).
 
-- **Not yet:** *The deployment's forges* and *A project's changes*: no `catching_up` on `ForgeRow` or `ChangesPanel` [in flight: change 11026].
 
 
 - **Not yet:** *`OpenChange`* and *A project's changes*: `into` left

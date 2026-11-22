@@ -2,7 +2,6 @@
 
 2026-11-20. Where jig's code lags or departs from [root.md](root.md).
 
-- **Not yet:** 8: the root asks each connector to read afresh and to settle before decisions open [in flight: change 11034].
 
 - **Not yet:** 2, 5, 6: `smith-inline-agent` composed in the engine's
   root.

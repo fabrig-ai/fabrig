@@ -2,7 +2,6 @@
 
 2026-11-20. Where jig's code lags or departs from [connectors.md](connectors.md).
 
-- **Not yet:** 5.1 and 14: a connector reads afresh and settles before the engine opens, its procedures stepping only after; no catching up asked at the opening [in flight: change 11034].
 
 Section 11's procedure beside its requester's own writing run is present
 in temper's forge connector. Its held-branch step tests and engine domain

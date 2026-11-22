@@ -2,8 +2,6 @@
 
 2026-11-20. Where temper's code lags or departs from [root.md](root.md).
 
-- **Not yet:** 8.1, steps 5 to 7: decisions open only after the forge reads afresh and settles; `form_landings` and the limit holds' reconcile wait for the start's phases, not the forge's fresh reads [in flight: change 11034].
-- **Not yet:** 8.1, step 3: a rehearsing root ends before the switch [in flight: change 11039].
 
 
 - **Departs:** 9: the store's fill mark is jig's standard profile's, not small's,

@@ -2,9 +2,6 @@
 
 2026-11-20. Where skein's code lags or departs from [client.md](client.md).
 
-- **Not yet:** 8: the outbox is paused (`PauseOutbox`) until `SettleOutbox`, which its owner gives only after the fresh pass [in flight: change 11036].
-- **Not yet:** 8: no `fresh_owed` or `finds_owed` [in flight: change 11026].
-- **Not yet:** 8: no `fresh_owed_in` [in flight: change 11537].
 
 
 - **Not yet:** 4: a branch never there rests at `slow` like any absent branch (`keep/answer.rs`, `rest_resource`).

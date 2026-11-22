@@ -2,7 +2,6 @@
 
 2026-11-20. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 6.2: the start's words name the forge's reading afresh and settling, steps that hold clients out [in flight: change 11034].
 
 
 

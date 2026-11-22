@@ -2,7 +2,6 @@
 
 2026-11-20. Where jig's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 1: decisions open only after the connectors have read afresh and settled [in flight: change 11034].
 
 `executors.md`, section 5's failed-job cause accompanies its retry class through the hub
 link and terminal proof into the task's notice and exhausted hold. The

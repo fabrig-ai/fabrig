@@ -2,7 +2,6 @@
 
 2026-11-20. Where the tree's code lags or departs from [binaries.md](binaries.md).
 
-- **Not yet:** 2: `upgrade --check` stops before its switch step and prints `what follows the switch is not rehearsed`, with no opening and no forge's catching up [in flight: change 11039].
 
 - **Not yet:** 1 and 2: `upgrade --check` has no per-job timing: each `Event::Ran` job line ends `time unavailable` (`temper-engine-shell/src/upgrade/report.rs`). The whole rehearsal/tool time is printed separately.
 
