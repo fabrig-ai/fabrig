@@ -73,12 +73,10 @@ impl Frame {
     }
 }
 
-/// A slot's mark until its node finishes; no index of `finished` reaches it.
-const UNREACHED: u32 = u32::MAX;
-
-/// What a walk has finished: for each node up to the declaration, the index of
-/// its bounds in `finished`. Four bytes a node and sixteen a reached one, so a
-/// walk holds little more than the nodes it reaches.
+/// What a walk has finished: for each node up to the declaration, one more than
+/// the index of its bounds in `finished`, zero until it finishes. Four bytes a
+/// node, allocated zeroed at once, and sixteen a reached one, so a walk holds
+/// little more than the nodes it reaches.
 #[derive(Debug)]
 struct Memo {
     slots: List<u32>,
@@ -88,23 +86,20 @@ struct Memo {
 impl Memo {
     /// Edges descend, so a walk from `at` reaches no later node: a slot for each
     /// node up to it, never more than the table has.
+    #[expect(clippy::disallowed_macros, reason = "the slots are allocated once, zeroed, at their final length")]
     fn new(nodes: &[Node], at: u32) -> Option<Memo> {
         let count = u32::try_from(nodes.len()).ok()?.min(at.checked_add(1)?);
-        let mut slots = List::allocated(count);
-        for _ in 0..count {
-            slots.push(UNREACHED).ok()?;
-        }
+        let slots = List::from_boxed(alloc::vec![0; usize::try_from(count).ok()?].into_boxed_slice());
         Some(Memo { slots, finished: List::with_capacity(count) })
     }
 
     fn get(&self, at: u32) -> Option<Bounds> {
-        self.finished.get(*self.slots.get(at)?).copied()
+        self.finished.get(self.slots.get(at)?.checked_sub(1)?).copied()
     }
 
     fn insert(&mut self, at: u32, value: Bounds) -> Option<()> {
-        let index = self.finished.len();
         self.finished.push(value).ok()?;
-        *self.slots.get_mut(at)? = index;
+        *self.slots.get_mut(at)? = self.finished.len();
         Some(())
     }
 }
