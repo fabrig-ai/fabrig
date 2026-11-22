@@ -1200,7 +1200,7 @@ class UnknownScope(ValueError):
 
 def public_main_source(env):
     """Read the worker's public repository mapping, if installed."""
-    helper = shutil.which('temper-public-source', path=env.get('PATH'))
+    helper = shutil.which('temper-public-source', path=env.get('PATH', os.defpath))
     if helper is None:
         return None
     try:
