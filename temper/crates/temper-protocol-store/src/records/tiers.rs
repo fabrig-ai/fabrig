@@ -253,9 +253,10 @@ pub(super) fn encode(row: &d::TierRow) -> w::TierRow {
             None => None,
         },
         held: match row.held {
-            Some(fault) => Some(encode_fault(fault)),
-            None => None,
+            Some(d::TierHeld::Faults(fault)) => Some(encode_fault(fault)),
+            Some(d::TierHeld::RunnerWait) | None => None,
         },
+        runner_wait: row.held == Some(d::TierHeld::RunnerWait),
         result: match &row.result {
             Some(receipt) => Some(landing::encode_receipt_value(receipt)),
             None => None,
@@ -292,6 +293,7 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
         flight,
         probe,
         held,
+        runner_wait,
         hold,
         result,
         received,
@@ -344,9 +346,13 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
             }
             None => None,
         },
-        held: match held {
-            Some(fault) => Some(decode_fault(fault)),
-            None => None,
+        held: if runner_wait {
+            Some(d::TierHeld::RunnerWait)
+        } else {
+            match held {
+                Some(fault) => Some(d::TierHeld::Faults(decode_fault(fault))),
+                None => None,
+            }
         },
         result: match result {
             Some(receipt) => Some(landing::decode_receipt_value(receipt)?),
@@ -456,6 +462,7 @@ fn encode_record(record: &p::Record) -> w::TierRecord {
     };
     w::TierRecord {
         sequence: record.sequence,
+        last_run: record.last_run,
         judged,
         failing: verification::encode_failures(&record.failing),
         flakes,
@@ -464,7 +471,7 @@ fn encode_record(record: &p::Record) -> w::TierRecord {
 }
 
 fn decode_record(record: w::TierRecord) -> Result<p::Record, Undecodable> {
-    let w::TierRecord { sequence, judged, failing, flakes, run } = record;
+    let w::TierRecord { sequence, judged, failing, flakes, run, last_run } = record;
     let judged = match judged {
         Some(j) => Some(crate::generated::store::tier_judged_to_domain(j, &super::Context::UNBOUNDED).expect(FITS)),
         None => None,
@@ -491,6 +498,7 @@ fn decode_record(record: w::TierRecord) -> Result<p::Record, Undecodable> {
     }
     Ok(p::Record {
         sequence,
+        last_run,
         judged,
         failing: verification::decode_failures(failing)?,
         flakes: values.into_boxed(),

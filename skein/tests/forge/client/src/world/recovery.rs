@@ -80,8 +80,6 @@ impl World {
         for resource in writers.into_boxed() {
             self.event(Event::Writer { resource, taken: true });
         }
-        self.outbox_paused = true;
-        self.event(Event::PauseOutbox);
         let mut entries = List::with_capacity(self.entries.len());
         for (_, entry) in &self.entries {
             entries.push(entry.clone()).expect("top outbox limit");
@@ -91,6 +89,7 @@ impl World {
             self.event(Event::Make { entry });
         }
         self.event(Event::ReadAfresh);
+        self.event(Event::SettleOutbox);
     }
 
     /// Record a durable branch claim and tell the client; ends on taken=false.

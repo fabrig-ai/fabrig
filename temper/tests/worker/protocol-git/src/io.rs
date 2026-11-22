@@ -57,12 +57,19 @@ pub enum Input {
     Io(records::Event),
     Kernel(kernel::Complete),
 }
+#[derive(Debug, Default)]
+struct OpenFile {
+    path: Vec<u8>,
+    /// The last name returned in the tree's sorted order, even if it is later removed.
+    after: Option<Vec<u8>>,
+}
 /// Owns outputs and answers them from a script, one event or completion at a time.
 #[derive(Debug)]
 pub struct Below {
     pub out: Outputs,
     pub script: Script,
     pub tree: BTreeMap<Vec<u8>, Node>,
+    pub remove_failure: Option<(Vec<u8>, kernel::Error)>,
     pub spawns: u32,
     pub file_calls: u32,
     pub view_steps: u32,
@@ -74,7 +81,7 @@ pub struct Below {
     pub messages: Vec<Vec<u8>>,
     children: BTreeMap<Token, Child>,
     pipes: BTreeMap<Token, Pipe>,
-    files: BTreeMap<kernel::Fd, Vec<u8>>,
+    files: BTreeMap<kernel::Fd, OpenFile>,
     pending: VecDeque<Input>,
     serial: u64,
 }
@@ -89,6 +96,7 @@ impl Below {
             },
             script,
             tree: BTreeMap::from([(Vec::new(), Node::Directory)]),
+            remove_failure: None,
             spawns: 0,
             file_calls: 0,
             view_steps: 0,
@@ -100,7 +108,7 @@ impl Below {
             messages: Vec::new(),
             children: BTreeMap::new(),
             pipes: BTreeMap::new(),
-            files: BTreeMap::from([(kernel::Fd::new(3), Vec::new())]),
+            files: BTreeMap::from([(kernel::Fd::new(3), OpenFile::default())]),
             pending: VecDeque::new(),
             serial: 100,
         }
@@ -121,7 +129,7 @@ impl Below {
     pub fn adopt_root(&mut self, root: kernel::Fd) {
         assert!(self.children.is_empty() && self.pending.is_empty());
         self.files.clear();
-        self.files.insert(root, Vec::new());
+        self.files.insert(root, OpenFile::default());
     }
     fn token(&mut self) -> Token {
         self.serial += 1;
@@ -177,7 +185,7 @@ impl Below {
             Op::Open { root, path, .. } => self.path(*root, path),
             Op::MakeDirectory { dir, name, .. } | Op::Remove { dir, name, .. } => self.path(*dir, name),
             Op::Rename { from_dir, from, .. } if from.as_ref() == b"temper-view.tmp" => self.path(*from_dir, from),
-            Op::Read { fd, .. } | Op::Write { fd, .. } | Op::Close { fd } => self.files[fd].clone(),
+            Op::Read { fd, .. } | Op::Write { fd, .. } | Op::Close { fd } => self.files[fd].path.clone(),
             _ => return false,
         };
         path.starts_with(b"workspaces/") && path.windows(5).any(|part| part == b"/.git")
@@ -380,7 +388,7 @@ impl Below {
         }
     }
     fn path(&self, dir: kernel::Fd, name: &[u8]) -> Vec<u8> {
-        let mut path = self.files.get(&dir).expect("open directory").clone();
+        let mut path = self.files.get(&dir).expect("open directory").path.clone();
         if !path.is_empty() && !name.is_empty() {
             path.push(b'/');
         }
@@ -432,16 +440,20 @@ impl Below {
         }
         Ok(kernel::Done::Nothing)
     }
-    fn listing(&self, fd: kernel::Fd, entries: &mut [kernel::Entry], names: &mut [u8]) -> kernel::Done {
-        let values = self.children_of(&self.files[&fd]);
+    fn listing(&mut self, fd: kernel::Fd, entries: &mut [kernel::Entry], names: &mut [u8]) -> kernel::Done {
+        let open = &self.files[&fd];
+        let values = self.children_of(&open.path);
         let mut count = 0_usize;
         let mut start = 0_usize;
-        for name in values.iter().take(2).take(entries.len()) {
+        let mut last = None;
+        for name in
+            values.into_iter().filter(|name| open.after.as_ref().is_none_or(|after| name > after)).take(entries.len())
+        {
             if start + name.len() > names.len() {
                 break;
             }
-            names[start..start + name.len()].copy_from_slice(name);
-            let kind = match self.tree[&self.path(fd, name)] {
+            names[start..start + name.len()].copy_from_slice(&name);
+            let kind = match self.tree[&self.path(fd, &name)] {
                 Node::Directory => kernel::Kind::Directory,
                 Node::File(_) => kernel::Kind::File,
                 Node::Link => kernel::Kind::Symlink,
@@ -453,8 +465,12 @@ impl Below {
             };
             count += 1;
             start += name.len();
+            last = Some(name);
         }
-        kernel::Done::Count(u32::try_from(count).expect("page of two"))
+        if let Some(last) = last {
+            self.files.get_mut(&fd).expect("open directory").after = Some(last);
+        }
+        kernel::Done::Count(u32::try_from(count).expect("listing size"))
     }
     #[expect(clippy::too_many_lines, reason = "the scripted file table includes creating and writing alternates")]
     fn file(&mut self, op: &mut kernel::Op) -> Result<kernel::Done, kernel::Error> {
@@ -483,11 +499,11 @@ impl Below {
                     return Err(Error::NotADirectory);
                 }
                 let fd = kernel::Fd::new(i32::try_from(self.token().raw()).expect("small descriptor"));
-                self.files.insert(fd, path);
+                self.files.insert(fd, OpenFile { path, after: None });
                 Ok(Done::Fd(fd))
             }
             Op::Write { fd, bytes, from, at } => {
-                let Node::File(content) = self.tree.get_mut(&self.files[fd]).expect("opened file") else {
+                let Node::File(content) = self.tree.get_mut(&self.files[fd].path).expect("opened file") else {
                     return Err(Error::IsADirectory);
                 };
                 let from = usize::try_from(*from).expect("bounded write");
@@ -499,7 +515,7 @@ impl Below {
                 Ok(Done::Count(u32::try_from(bytes.len() - from).expect("small write")))
             }
             Op::Read { fd, buf, at } => {
-                let node = self.tree.get(&self.files[fd]).expect("open file");
+                let node = self.tree.get(&self.files[fd].path).expect("open file");
                 let Node::File(bytes) = node else {
                     return Err(Error::IsADirectory);
                 };
@@ -524,6 +540,11 @@ impl Below {
             }
             Op::Remove { dir, name, directory } => {
                 let path = self.path(*dir, name);
+                if let Some((blocked, error)) = &self.remove_failure
+                    && blocked == &path
+                {
+                    return Err(*error);
+                }
                 let node = self.tree.get(&path).ok_or(Error::NotFound)?;
                 if matches!(node, Node::Directory) {
                     if !*directory {

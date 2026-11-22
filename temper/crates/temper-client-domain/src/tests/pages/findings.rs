@@ -373,18 +373,18 @@ fn finding_acts_send_the_forge_requests_and_keep_the_card_until_refresh() {
     let w::Request::TriageFinding(route) = sent(act(&mut root, Act::Route { id: ID })) else { panic!("triage") };
     let w::Triage::Route(goal) = &route.act else { panic!("route") };
     assert_eq!(goal.task, 41);
-    answer(&mut root, w::Outcome::Triaged);
+    answer(&mut root, w::Outcome::Triaged(w::Triaged { goal: None }));
     assert_eq!(ids(&root).as_ref(), [ID], "the answer never removes the card before the subject");
     let w::Request::TriageFinding(backlog) = sent(act(&mut root, Act::Backlog { id: ID })) else { panic!("triage") };
     assert_eq!(&backlog.act, &w::Triage::Backlog);
-    answer(&mut root, w::Outcome::Triaged);
+    answer(&mut root, w::Outcome::Triaged(w::Triaged { goal: None }));
     act(&mut root, Act::Reason { id: ID, words: Box::new([b'x'; 401]) });
     assert!(act(&mut root, Act::Drop { id: ID }).is_empty(), "a drop reason fits the forge's bound");
     act(&mut root, Act::Reason { id: ID, words: b"Duplicate of the same report".as_slice().into() });
     let w::Request::TriageFinding(drop) = sent(act(&mut root, Act::Drop { id: ID })) else { panic!("triage") };
     let w::Triage::Drop(reason) = &drop.act else { panic!("drop") };
     assert_eq!(reason.reason.as_ref(), b"Duplicate of the same report");
-    answer(&mut root, w::Outcome::Triaged);
+    answer(&mut root, w::Outcome::Triaged(w::Triaged { goal: None }));
     deliver(&mut root, watch, document(ID.project, Box::new([]), false));
     assert!(ids(&root).is_empty());
 }

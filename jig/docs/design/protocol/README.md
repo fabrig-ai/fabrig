@@ -209,22 +209,24 @@ they compile beside the core's crates rather than after them:
 | `jig-protocol-store-tasks` | `tasks` |
 | `jig-protocol-store-core` | `core` |
 | `jig-protocol-store-settings` | `settings` |
-| `jig-protocol-store-families` | `accounts`, `component`, `notes`, `secrets` |
+| `jig-protocol-store-families` | `accounts`, `component`, `notes`, `openings`, `registry`, `secrets` |
 
-- **`people` and `tasks`** pass the 20,000 lines a shared family may
-  hold (`tools/crates/design.md`, 3.1). **`core` and `settings`**, of
-  middling size, take a crate each too, so that a change to one
-  recompiles it alone. The four small ones share one.
+- **`people`, `tasks`, `core` and `settings`** each take their own crate,
+  so that a change to one recompiles it alone. The six small families
+  share one.
 - **Each module has its versioned name,** `people_v17`, at its codec
   crate's root, and `jig-protocol-store` re-exports it at its own as
   `jig_protocol_store::people_v17`. A caller may name either path.
 - **The store keeps the rest:** the current schemas, the registered
   families' declarations (`store/layouts.md`, 2), the families' bounds
   from the domain's limits (`store/README.md`, section 8) and the
-  translations. The drift test, `jig/tests/codec-families.rs`, compares
+  translations in `jig-protocol-store-records` (`src/generated/` and
+  the hand-written `codec` module), with openings in the store itself
+  (`src/generated/openings.rs`). The drift test, `jig/tests/codec-families.rs`, compares
   each family's generated records with the committed module (skein's
   `data/codec/README.md`, section 6). Its inventory names the codec crates'
-  records and the store's layouts' glue, not golden bytes or generated tests.
+  generated records and the maps' generated translations, not golden
+  bytes or generated tests.
 
 Beside them, smith's components, by the agent capability:
 `smith-protocol-llm`, over skein's `skein-llm-connection`, in a process

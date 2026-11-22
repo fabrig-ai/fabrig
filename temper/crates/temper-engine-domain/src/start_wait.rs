@@ -4,7 +4,7 @@ use crate::{Domain, Fact, Limits, Range};
 use alloc::boxed::Box;
 use jig_domain_core::start::Phase;
 use skein_lib::{Decimal, Env, List, bytes};
-use temper_engine_domain_forge::{RestartStage, wait_kind};
+use temper_engine_domain_forge::wait_kind;
 
 pub(crate) fn report(domain: &mut Domain, env: &Env<Limits>) {
     if domain.start_stop().is_some() || domain.journal.stopped() || domain.core.stopping() || domain.settling.active() {
@@ -67,8 +67,6 @@ fn words(domain: &Domain, step: Phase) -> Box<[u8]> {
         Phase::Switch if domain.start_pending && domain.rehearsal.is_none() => {
             append(&mut words, &wait_kind(1, b"store switch", b"store switch", &[]));
         }
-        Phase::ReadAfresh { .. } => append(&mut words, &domain.forge.restart_waits(RestartStage::ReadAfresh)),
-        Phase::SettleOutbox { .. } => append(&mut words, &domain.forge.restart_waits(RestartStage::Settled)),
         Phase::LoadCore
         | Phase::LoadInbox
         | Phase::RestoreConnector { .. }

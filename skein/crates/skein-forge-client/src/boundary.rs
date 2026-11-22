@@ -270,11 +270,9 @@ pub enum Event {
     Restore { record: Stored },
     /// Finish restoring the working set and select a recovery clock.
     Restored { clock: RecoveryClock },
-    /// Hold restored writes while the connector reads its live resources.
-    PauseOutbox,
     /// Read every restored live resource before procedures resume.
     ReadAfresh,
-    /// Reconcile restored outbox entries after the fresh reads.
+    /// Reconcile restored outbox entries alongside the fresh reads.
     SettleOutbox,
     /// A page read for a decision. Always enters the fresh class.
     Read { owner: Token, repository: Repository, read: Read },

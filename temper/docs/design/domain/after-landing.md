@@ -178,15 +178,29 @@ branch text matches (2026-11-04).
 - **Faults** (`landing.md`, 7.4's): rerun, then dispatched again, up to
   the project's `tier_retries`; one past its bound holds the tier's run
   task, whose escalation reaches the project's escalation role (jig's
-  `domain/tasks/proposals.md`). A held procedure says why in its
-  connector's words (jig's `client/domain/objects.md`, section 5): the
-  held task's words name the tier and the run (`Tier NAME run N`), and
-  its hold's words add `held after N runner faults, last: KIND`. Before
-  it is held, the run posts the tier's verdict status on its tip as
-  pending, `held after N runner faults, last: KIND`, linked to the last
-  run (`after-landing.md`, section 9). The tier waits for a person's release, which
-  dispatches the run again with its faults counted from 0, its
-  landings still verifying; its verdict replaces that status.
+  `domain/tasks/proposals.md`), WHY `held after N runner faults, last:
+  KIND`.
+- **A wait for a runner** is bounded as a gate run's is (`landing.md`,
+  7.1): the run's execution clock (`forge/change/stalls.md`, 2.2),
+  counted from its dispatch or re-run and kept on its flight across a
+  restart, counts its time waiting or blocked for a runner; past
+  `forge.change_policy.runner_wait_ms` it holds the task so, WHY `held
+  after M minutes waiting for a runner`, M that bound's whole minutes.
+  A read of the run is due by the instant the clock would reach it. Its
+  running has no bound (section 13).
+- **A held run says why** in its connector's words (jig's
+  `client/domain/objects.md`, section 5): the held task's words name
+  the tier and the run (`Tier NAME run N`), and its hold's words add
+  WHY, then a clause for each job its run's last reading lists not
+  completed, read then by skein's `Read::JobState` and worded as a
+  gate's (`landing.md`, 4.2), `; JOB: waiting for a runner labelled L1,
+  L2`, within the hold's bytes as a stall's (`forge/change/stalls.md`,
+  4). The clauses live in the hold alone: a restart holds with WHY.
+  Before it is held, the run posts the tier's verdict status on its tip
+  as pending, WHY, linked to the last run (section 9). The tier waits
+  for a person's release, which dispatches the run again with its
+  faults counted from 0, its landings still verifying; its verdict
+  replaces that status.
 - **A workflow missing at the run's commit:** a dispatch the forge
   refuses as missing (a 404, skein's `Error::Missing`) is a fault of its
   own kind, the run's workflow absent at the commit it was dispatched
@@ -224,8 +238,9 @@ branch text matches (2026-11-04).
   ever: past it they end landed and uncleared, and a later verdict
   still counts (section 6).
   A run in flight when the hold comes is let finish and judged, its
-  verdict posted (section 9); one held on its faults stays held, and a
-  release of its task dispatches it again (*Faults*, above); cancelled,
+  verdict posted (section 9); one held on its faults or its wait for a
+  runner stays held, and a release of its task dispatches it again
+  (*A held run*, above); cancelled,
   it is dropped (above), and no run starts in its place. The release
   starts the next run as a move would: at once when due, at the
   branch's newest tip, its range every landing since the last judged
@@ -604,8 +619,8 @@ Run: URL
 
 - **A verdict's status** on the run's tip, `temper/verdict/<tier>`:
   success for green, failure for red with the blamed tests counted in
-  its description, its link the run; pending while the tier is held on
-  its faults (section 3), saying so.
+  its description, its link the run; pending while its run is held
+  (section 3), saying why.
 - **A comment on each member's pull request,** once per tier verdict:
   "cleared by run N", or "red: tests X, Y" and, once one lands, "repaired
   by #M". Keyed, as every comment of temper's (`forge/README.md`, section 4).
@@ -625,8 +640,8 @@ Run: URL
     failures, inherited; B `many` where a landing's blame is many, and
     I `many` where the run's failures are many (section 4) and no
     landing's blame is;
-  - pending, before a hold on its faults: section 3's words, posted
-    again at each hold of the run.
+  - pending, before a hold of its run: section 3's WHY, posted again
+    at each hold.
 
   Its link is the judged run's whole part's forge run, never a
   rerun's or a probe's; a receipt's run for a tip judged by its
@@ -663,8 +678,8 @@ Run: URL
   remainder is section 4's, K counting its more too.
 - **Keys:** each write a keyed effect of the run's task (section 10):
   purpose tag 8, operation 6 for the status, its part 0 for the
-  verdict's and, for a pending one, the count of the run's holds on
-  faults so far, 1 for the first (a release resets the faults, not
+  verdict's and, for a pending one, the count of the run's holds so
+  far, 1 for the first (a release resets the faults, not
   this count, which the run's posting keeps until its verdict, so
   each hold posts its own); operation 7 for a comment, its
   part the comment's index in the order above, from 0, so that a
@@ -715,7 +730,8 @@ Run: URL
   and comments, and ends done with the verdict as its result; its
   branches are released as it closes, by the release a change's branch
   takes (`forge/branches.md`), never by an effect of kind 15, so that no
-  grant of it is needed. A fault past `tier_retries` holds it. The
+  grant of it is needed. A fault past `tier_retries`, or a wait for a
+  runner past its bound, holds it (section 3). The
   tier's record names its task while it lives, and no longer once it
   closes, however it ends (section 3); at most one per tier and repository
   lives, so they are bounded by the repositories and `tiers`. A tier's
@@ -780,7 +796,8 @@ Run: URL
 - **In the store:** `Tier`, keyed by repository and tier, its run in
   flight, its last judged tip and failures, its flakes, its red filings
   waiting for room in its project's findings, at most 8, with a count
-  of those not kept (`red-findings.md`, section 7), a held run's last fault (section 3) and a
+  of those not kept (`red-findings.md`, section 7), a held run's cause,
+  its last fault or its wait for a runner, its run's clock (section 3) and a
   person's hold, its party, its time and its reason, at most 1024
   bytes (section 3); a probe's part keeps the group it probes, its
   `low` and `high` landings by their index in the range and its tests,
@@ -950,6 +967,9 @@ with failing tests by id and uploading their artifacts:
 - **a stale head:** a tier first configured while the head the engine
   knows of its branch is behind the forge's runs its baseline at the
   forge's tip;
+- **a runner never comes:** a run whose one job no runner takes is
+  held at the runner wait, its labels named, its status pending;
+  released, it dispatches again and is judged; one waiting less runs on;
 - **a missing workflow:** a dispatch refused 404 is a fault worded
   `workflow WORKFLOW not found at COMMIT`, and past `tier_retries` the
   hold says so;
@@ -1021,6 +1041,12 @@ with failing tests by id and uploading their artifacts:
   in its news, rather than leave the goal to triage (5.4). Triage costs
   a wake and no machinery; blame would need the verdict machinery on a
   goal's branch (`../draft/reference-code-production.md`, section 17).
+
+- **A tier's running,** unbounded: a run that runs and never ends is
+  held by nothing, a bound being a new figure, the user's; and a
+  release after a runner wait leaves the forge's waiting run queued,
+  no write cancelling one, its result never read. Default: so (the
+  request of 2026-11-21).
 
 ## 14. Later
 

@@ -92,12 +92,7 @@ pub fn down(routes: &mut Routes, out: StoreOut) -> Option<Request> {
                 Phase::LoadInbox => {
                     census.as_ref()?;
                 }
-                Phase::Link
-                | Phase::Wires
-                | Phase::AdoptRuns
-                | Phase::ReadAfresh { .. }
-                | Phase::SettleOutbox { .. }
-                | Phase::Open => return None,
+                Phase::Link | Phase::Wires | Phase::AdoptRuns | Phase::Open => return None,
             }
             let owner = routes.keep(Flight::Start { phase, census });
             if phase == Phase::Switch {
@@ -141,13 +136,7 @@ fn restart(routes: &Routes, owner: Token, after: Option<store::Cursor>) -> Optio
         Phase::LoadInbox => Restore::Jig(Box::new([core::RestoreRange::Census(census.clone()?)])),
         Phase::RestoreConnector { connector } => Restore::Application(Box::new([live(connector)])),
         Phase::Sweep => Restore::Jig(Box::new([core::RestoreRange::People])),
-        Phase::Link
-        | Phase::Switch
-        | Phase::Wires
-        | Phase::AdoptRuns
-        | Phase::ReadAfresh { .. }
-        | Phase::SettleOutbox { .. }
-        | Phase::Open => return None,
+        Phase::Link | Phase::Switch | Phase::Wires | Phase::AdoptRuns | Phase::Open => return None,
     };
     Some(Request::Restore {
         owner,

@@ -86,7 +86,7 @@ enum Token<'a> {
     Literal,
 }
 
-/// A byte scan, not a Rust parse. Only path and include strings are decoded.
+/// A byte scan, not a Rust parse. Checks decode only the string tokens they need.
 fn tokens(source: &str) -> Vec<Token<'_>> {
     located_tokens(source).into_iter().map(|(_, token)| token).collect()
 }
@@ -148,6 +148,30 @@ pub fn schema_includes(source: &str) -> Vec<(&str, usize)> {
                 (_, Token::String(input)),
                 (_, Token::Symbol(close)),
             ] if [(b'(', b')'), (b'[', b']'), (b'{', b'}')].contains(&(*open, *close)) => Some((*input, *at)),
+            _ => None,
+        })
+        .collect()
+}
+
+/// Literal scenario arguments to `Exclusion::new` and their source lines,
+/// including in macro bodies, but not in comments or literal contents.
+#[must_use]
+pub fn exclusion_scenarios(source: &str) -> Vec<(String, usize)> {
+    if !source.contains("Exclusion") {
+        return Vec::new();
+    }
+    located_tokens(source)
+        .windows(7)
+        .filter_map(|tokens| match tokens {
+            [
+                (at, Token::Word("Exclusion")),
+                (_, Token::Symbol(b':')),
+                (_, Token::Symbol(b':')),
+                (_, Token::Word("new")),
+                (_, Token::Symbol(b'(')),
+                (_, scenario @ Token::String(_)),
+                (_, Token::Symbol(b',' | b')')),
+            ] => string(scenario).map(|name| (name, source[..*at].bytes().filter(|byte| *byte == b'\n').count() + 1)),
             _ => None,
         })
         .collect()

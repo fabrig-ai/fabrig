@@ -55,6 +55,7 @@ mod last_batch;
 
 mod changed;
 mod control;
+mod fail;
 
 mod address;
 mod instructions;

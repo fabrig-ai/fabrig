@@ -7,6 +7,8 @@ use std::path::Path;
 use std::time::{Duration, SystemTime};
 use temper_deployment_fixtures::deployment;
 
+mod opening;
+
 #[test]
 fn workers_arguments_are_distinct_and_modes_exclude_each_other() {
     let environment = [(Box::from(b"HOME".as_slice()), Box::from(b"/home/test".as_slice()))];

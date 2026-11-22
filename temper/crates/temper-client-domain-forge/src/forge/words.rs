@@ -1301,6 +1301,38 @@ fn join_words(parts: &[&[u8]]) -> Box<[u8]> {
     }
     out.finish()
 }
+/// The words shared by Forges and Changes (domain/forge/catching-up.md, 5).
+#[must_use]
+pub fn catching_up(state: Option<&super::forges::CatchingUp>) -> Option<Box<[u8]>> {
+    let state = state?;
+    let rows: [(u32, &[u8]); 7] = [
+        (state.fresh, b"fresh read"),
+        (state.gathers, b"landing read"),
+        (state.ci, b"CI read"),
+        (state.goal_files, b"goal-file read"),
+        (state.lost_writers, b"lost-writer read"),
+        (state.goal_branches, b"goal-branch read"),
+        (state.uncertain, b"uncertain write"),
+    ];
+    let mut line: Box<[u8]> = Box::from(b"Catching up".as_slice());
+    let mut first = true;
+    for (count, name) in rows {
+        if count == 0 {
+            continue;
+        }
+        line = join_words(&[
+            &line,
+            if first { b": " } else { b", " },
+            skein_lib::Decimal::of(u64::from(count)).as_bytes(),
+            b" ",
+            name,
+            if count == 1 { b"" } else { b"s" },
+        ]);
+        first = false;
+    }
+    Some(line)
+}
+
 /// A connected row's words on the Forges page, "Connected as LOGIN" (client/forge/deployment.md).
 #[must_use]
 pub fn forge_connected_as(login: &[u8]) -> Box<[u8]> {
@@ -1692,7 +1724,7 @@ pub fn sheet_outcome(outcome: &temper_client_protocol_wire::v1::Outcome) -> Box<
         | Outcome::DeviceRefused(_)
         | Outcome::Filed(_)
         | Outcome::Handed
-        | Outcome::Triaged
+        | Outcome::Triaged(_)
         | Outcome::FindingRefused(_)
         | Outcome::Drafted(_)
         | Outcome::DraftRefused(_)
