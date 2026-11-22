@@ -1457,6 +1457,7 @@ dependencies = [
  "jig-fake-parties",
  "jig-fake-store",
  "jig-fake-workers",
+ "jig-inspect",
  "jig-protocol-config",
  "jig-protocol-config-fixtures",
  "jig-protocol-engine-clients",
@@ -1707,6 +1708,17 @@ version = "0.0.0"
 dependencies = [
  "jig-domain-host",
  "jig-domain-link",
+ "skein-lib",
+ "skein-world",
+]
+
+[[package]]
+name = "jig-inspect"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-core",
+ "jig-domain-people",
+ "jig-domain-tasks",
  "skein-lib",
  "skein-world",
 ]

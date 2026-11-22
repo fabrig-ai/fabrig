@@ -282,6 +282,8 @@ fn assert_connector_registry(connectors: &[u16]) {
     }
 }
 
+mod inspect;
+
 impl Core {
     /// The kept project name for a root's read context (domain/model.md, 6.1).
     #[must_use]

@@ -57,6 +57,7 @@ pub(crate) enum Startup {
 #[derive(Hash, Debug)]
 pub struct Domain {
     pub(crate) startup: Startup,
+    pub(crate) subscription_capacity: u32,
     pub(crate) restore_failure: Option<crate::RestoreFailure>,
     pub(crate) waits: crate::waits::Index,
     pub(crate) circle_changes: crate::waits::CircleChanges,
@@ -255,6 +256,7 @@ impl Domain {
         validate_charters(limits, kept, &charters, &efforts);
         Domain {
             startup: Startup::Restoring,
+            subscription_capacity: crate::subscriptions::kept_capacity(limits).expect("validated subscriptions"),
             restore_failure: None,
             waits: crate::waits::Index::new(limits),
             circle_changes: crate::waits::CircleChanges::new(limits),

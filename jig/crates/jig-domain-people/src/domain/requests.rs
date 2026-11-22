@@ -306,7 +306,7 @@ pub(super) fn answer_reservations(domain: &Domain) -> u32 {
     reserved
 }
 
-fn answer_places(ask: &Ask) -> u32 {
+pub(super) fn answer_places(ask: &Ask) -> u32 {
     if let Ask::AccountChange { change: crate::AccountChange::MoveOut { .. }, .. } = ask {
         2
     } else {

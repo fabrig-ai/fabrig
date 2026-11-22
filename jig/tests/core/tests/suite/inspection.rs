@@ -1,0 +1,345 @@
+//! Inspection at the core world's quiet points (jig/docs/design/domain/testing.md, 7.1).
+use jig_core_world::{
+    fixtures::{configure_resources, delegate, member, resource_member},
+    world::World,
+};
+use jig_domain_core as core;
+use jig_domain_tasks as tasks;
+use jig_test_domain as root;
+use skein_lib::{Duration, ReplyTo, Token, Wall};
+use skein_world::inspect::{Inspection, Moment, Release, Wait, Wake, check_tables, check_waits};
+use std::fmt::Write;
+
+fn inspect(world: &World, seed: u64) -> Inspection {
+    let mut inspection = Inspection::new("jig", jig_inspect::KINDS);
+    jig_inspect::core(world.domain.core(), &mut inspection);
+    let moment = Moment { seed, at: world.clocks().0, iteration: 0 };
+    assert_eq!(check_waits(&[&inspection], moment), Ok(()));
+    assert_eq!(check_tables(&[&inspection], moment), Ok(()));
+    inspection
+}
+
+fn waiting<'a>(inspection: &'a Inspection, task: u64, kind: &str) -> &'a Wait {
+    inspection
+        .waits()
+        .iter()
+        .find(|wait| wait.waiter == format!("task {task}") && wait.kind == kind)
+        .unwrap_or_else(|| panic!("task {task} has {kind}: {:?}", inspection.waits()))
+}
+
+fn park(world: &mut World, run: (u64, u64)) {
+    world.send(root::Event::Answer {
+        read: None,
+        refused: Box::new([]),
+        channel: Token::new(7),
+        task: run.0,
+        attempt: run.1,
+        cumulative: 0,
+        end: tasks::End::Parked,
+    });
+}
+
+fn key(run: (u64, u64), completion: u32) -> core::CallKey {
+    core::CallKey { task: run.0, attempt: run.1, completion, position: 0 }
+}
+
+fn subscribe(world: &mut World, task: u64, kind: tasks::SubscriptionKind) {
+    world.send(root::Event::Core(core::Event::Tasks(tasks::Event::Subscribe {
+        reply_to: ReplyTo::new(Token::new(9901)),
+        task,
+        subscription: tasks::Subscription { number: 9901, kind },
+    })));
+}
+
+#[test]
+fn dependencies_name_the_pending_task() {
+    let mut world = super::stories::plan_world(11727);
+    let parent = world.assignments[0];
+    let child = member(&world, tasks::Executor::Agent { charter: 1 }, b"dependency");
+    let dependency = delegate(&mut world, parent, 1, child);
+    let mut child = member(&world, tasks::Executor::Agent { charter: 1 }, b"wait for dependency");
+    child.dependencies = Box::new([core::Dependency::Existing(dependency)]);
+    let task = delegate(&mut world, parent, 2, child);
+    let inspection = inspect(&world, 11727);
+    let wait = waiting(&inspection, task, "on its dependencies");
+    assert!(wait.wakes.contains(&Wake::Waiter(format!("task {dependency}"))));
+}
+
+#[test]
+fn a_pool_queue_has_the_holders_and_its_armed_bound() {
+    let mut world = super::stories::plan_world(11728);
+    configure_resources(&mut world);
+    world.send(root::Event::Connector {
+        number: 1,
+        event: jig_test_connector::Event::System(jig_test_connector::SystemEvent::Pool {
+            path: jig_test_connector_kit::path(1, 2),
+            slots: 1,
+            lost: Box::new([]),
+        }),
+    });
+    let parent = world.assignments[0];
+    let child = resource_member(&world, 2, b"hold the pool");
+    let holder = delegate(&mut world, parent, 1, child);
+    let child = resource_member(&world, 2, b"queue for the pool");
+    let task = delegate(&mut world, parent, 2, child);
+    let inspection = inspect(&world, 11728);
+    let wait = waiting(&inspection, task, "in a resource's queue");
+    let bound = world
+        .domain
+        .core()
+        .tasks
+        .inspection_hold_alarms()
+        .iter()
+        .find_map(|(number, due)| (number == task).then_some(due))
+        .expect("armed hold alarm");
+    assert_eq!(wait.bound, Some(bound));
+    assert!(wait.wakes.contains(&Wake::Waiter(format!("task {holder}"))));
+    assert!(wait.wakes.contains(&Wake::Timer(bound)));
+    let pool = inspection
+        .tables()
+        .iter()
+        .find(|table| table.name == "pools" && !table.refused.is_empty())
+        .expect("pool queue");
+    assert_eq!(pool.capacity, 1);
+    assert_eq!(pool.entries.len(), 1);
+    assert_eq!(pool.entries[0].key, format!("task {holder}"));
+    assert_eq!(pool.entries[0].release, Release::Pending);
+    assert_eq!(pool.refused[0].key, format!("task {task}"));
+    assert_eq!(pool.refused[0].bound, Some(bound));
+    assert_eq!(pool.refused[0].since, skein_lib::Time::ZERO);
+}
+
+#[test]
+fn a_coordinator_waits_on_its_delegate_and_watch() {
+    let mut world = super::stories::plan_world(11729);
+    let parent = world.assignments[0];
+    let child = member(&world, tasks::Executor::Agent { charter: 1 }, b"work");
+    let child = delegate(&mut world, parent, 1, child);
+    subscribe(&mut world, parent.0, tasks::SubscriptionKind::Task { target: child, held: true, result: true });
+    park(&mut world, parent);
+    let inspection = inspect(&world, 11729);
+    for kind in ["on its delegates", "on a watch"] {
+        assert!(waiting(&inspection, parent.0, kind).wakes.contains(&Wake::Waiter(format!("task {child}"))));
+    }
+}
+
+#[test]
+fn an_open_question_waits_on_its_requester() {
+    let mut world = super::stories::plan_world(11730);
+    let parent = world.assignments[0];
+    let child = member(&world, tasks::Executor::Agent { charter: 1 }, b"ask");
+    let task = delegate(&mut world, parent, 1, child);
+    let run = super::stories::running(&world, task);
+    world.send(root::Event::Core(core::Event::NamedAction {
+        to: ReplyTo::new(Token::new(9910)),
+        key: key(run, 2),
+        action: core::NamedAction::Message {
+            target: parent.0,
+            kind: tasks::MessageKind::Question,
+            words: b"proceed?".as_slice().into(),
+        },
+    }));
+    park(&mut world, run);
+    let inspection = inspect(&world, 11730);
+    assert!(waiting(&inspection, task, "on its requester").wakes.contains(&Wake::Waiter(format!("task {}", parent.0))));
+}
+
+#[test]
+fn a_timer_subscription_is_pending_until_its_armed_time() {
+    let mut world = super::stories::plan_world(11731);
+    let task = world.assignments[0];
+    let (now, wall) = world.clocks();
+    let span = Duration::from_secs(20);
+    subscribe(
+        &mut world,
+        task.0,
+        tasks::SubscriptionKind::Timer { at: Wall::from_nanos(wall.as_nanos() + span.as_nanos()), period: None },
+    );
+    park(&mut world, task);
+    let inspection = inspect(&world, 11731);
+    let wait = waiting(&inspection, task.0, "on a timer");
+    let due = now.saturating_add(span);
+    assert_eq!(wait.bound, Some(due));
+    assert!(wait.wakes.contains(&Wake::Timer(due)));
+    for table in inspection.tables().iter().filter(|table| table.name == "subscriptions") {
+        assert_eq!(
+            table.capacity,
+            u64::from(jig_core_world::faults::plan_fixture(11731).1.core.tasks.subscriptions) + 1
+        );
+    }
+    let entry = inspection
+        .tables()
+        .iter()
+        .filter(|table| table.name == "subscriptions")
+        .flat_map(|table| &table.entries)
+        .find(|entry| entry.key == format!("task {} subscription 9901", task.0))
+        .expect("timer entry");
+    assert_eq!(entry.release, Release::Pending);
+    assert_eq!(entry.rule, "the subscriber's end, or unsubscribing");
+}
+
+#[test]
+fn a_held_task_wakes_its_escalation_holder() {
+    let mut world = super::stories::plan_world(11732);
+    let parent = world.assignments[0];
+    let child = member(&world, tasks::Executor::Agent { charter: 1 }, b"held work");
+    let task = delegate(&mut world, parent, 1, child);
+    world.send(root::Event::Core(core::Event::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Budget })));
+    let inspection = inspect(&world, 11732);
+    assert!(waiting(&inspection, task, "held: budget").wakes.contains(&Wake::Waiter(format!("task {}", parent.0))));
+}
+
+#[test]
+fn a_placed_hold_waits_on_its_owner_without_an_escalation_alarm() {
+    let mut world = super::stories::plan_world(11736);
+    let task = world.assignments[0].0;
+    jig_core_world::fixtures::ask(&mut world, 91, jig_domain_people::Ask::Stop { project: 1, task });
+    let inspection = inspect(&world, 11736);
+    let wait = waiting(&inspection, task, "held: placed");
+    assert_eq!(wait.wakes, [Wake::Party("person 1".into())]);
+    assert_eq!(wait.bound, None);
+}
+
+#[test]
+fn closing_names_the_cores_host_and_the_tasks_own_words() {
+    let mut world = super::stories::plan_world(11737);
+    let task = world.assignments[0].0;
+    jig_core_world::fixtures::ask(
+        &mut world,
+        92,
+        jig_domain_people::Ask::Cancel { project: 1, task, reason: Box::new([]), grace: None },
+    );
+    let inspection = inspect(&world, 11737);
+    assert_eq!(waiting(&inspection, task, "closing on its run").wakes, [Wake::Party("host 7".into())]);
+    let mut standalone = Inspection::new("jig", jig_inspect::KINDS);
+    jig_inspect::tasks(&world.domain.core().tasks, &mut standalone);
+    assert_eq!(waiting(&standalone, task, "closing on its run").wakes, [Wake::Party(format!("host of task {task}"))]);
+    let moment = Moment { seed: 11737, at: world.clocks().0, iteration: 0 };
+    assert_eq!(check_waits(&[&standalone], moment), Ok(()));
+    assert_eq!(check_tables(&[&standalone], moment), Ok(()));
+}
+
+#[test]
+fn a_person_task_wakes_its_person() {
+    let mut world = jig_core_world::stories::offers::world_with_policy(11733, None, |limits, rules, policy| {
+        limits.core.tasks.executor_kinds = 3;
+        limits.core.authority.executors = 3;
+        limits.core.documents.executors = 3;
+        let kinds = Box::new([
+            jig_domain_authority::Executor::Charter(1),
+            jig_domain_authority::Executor::Procedure(1),
+            jig_domain_authority::Executor::Role(0),
+        ]);
+        rules.ceiling.delegation.kinds = kinds.clone();
+        policy.ceiling.delegation.kinds = kinds.clone();
+        for role in &mut policy.roles {
+            role.authority.delegation.kinds = kinds.clone();
+        }
+    });
+    let parent = world.assignments[0];
+    let mut child = member(&world, tasks::Executor::Person(tasks::PersonAddress::Person(1)), b"answer");
+    child.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
+    let task = delegate(&mut world, parent, 1, child);
+    let inspection = inspect(&world, 11733);
+    let wait = waiting(&inspection, task, "on a person's answer");
+    assert!(wait.wakes.contains(&Wake::Party("person 1".into())));
+    assert_eq!(wait.bound, None);
+}
+
+#[test]
+fn answers_are_kept_until_the_core_clock_reaches_their_expiry() {
+    let mut world = super::stories::plan_world(11735);
+    let (now, wall) = world.clocks();
+    world.set_clock(now, wall);
+    let inspection = inspect(&world, 11735);
+    let answers = inspection.tables().iter().find(|table| table.name == "kept answers").expect("answers table");
+    assert_ne!(answers.entries.len(), 0);
+    assert!(answers.entries.iter().all(|entry| entry.release == Release::Kept));
+    let (key, expiry) = world.domain.core().people.inspection_answer(0).expect("creation answer");
+    let mut name = format!("person {} request ", key.person);
+    for byte in key.key {
+        write!(name, "{byte:02x}").expect("writing to a string");
+    }
+    let key = name;
+    let env = skein_lib::Env {
+        now: expiry,
+        wall: Wall::from_nanos(wall.as_nanos() + expiry.as_nanos() - now.as_nanos()),
+        limits: jig_core_world::faults::plan_fixture(11735).1.core,
+    };
+    // Step an unrelated owner: people's expiration input has not run yet.
+    let out = core::fire(world.domain.core_mut(), &env, core::Timer::Resources);
+    assert!(out.is_empty());
+    let mut inspection = Inspection::new("jig", jig_inspect::KINDS);
+    jig_inspect::core(world.domain.core(), &mut inspection);
+    let entry = inspection
+        .tables()
+        .iter()
+        .find(|table| table.name == "kept answers")
+        .expect("answers table")
+        .entries
+        .iter()
+        .find(|entry| entry.key == key)
+        .expect("answer retained before its timer");
+    assert_eq!(entry.release, Release::Due);
+    assert_eq!(entry.rule, "their retention's expiry");
+    // Resume the world's driver at that same time for its ordinary cleanup.
+    world.fire_due(env.now, env.wall);
+}
+
+#[test]
+fn a_parked_batch_waits_for_the_missing_connectors_report() {
+    let (configuration, mut limits) = jig_core_world::faults::plan_fixture(11734);
+    limits.core.tasks.resource_reports = 2;
+    let mut world = World::new(jig_core_world::world::Setup {
+        seed: 11734,
+        configuration: Some(configuration),
+        limits,
+        ..Default::default()
+    });
+    configure_resources(&mut world);
+    for number in [10_u8, 11] {
+        world.send(root::Event::Core(core::Event::EffectConnector(core::effects::connector::Event::Resource {
+            project: 1,
+            name: tasks::Name { connector: 1, path: Box::new([Box::new([number])]) },
+            role: core::effects::connector::ResourceRole::Owned,
+            hold: core::effects::connector::HoldKind::Exclusive { wait: true },
+        })));
+    }
+    world.domain.script_holdings();
+    let parent = world.assignments[0];
+    let child = resource_member(&world, 1, b"missing report");
+    world.send(root::Event::Core(core::Event::DelegateValidated {
+        to: ReplyTo::new(Token::new(9940)),
+        key: key(parent, 1),
+        batch: Box::new([child]),
+        stubs: Box::new([]),
+    }));
+    let mut reports = Vec::new();
+    let mut replies = Vec::new();
+    while let Some(event) = world.domain.pop_holdings() {
+        if matches!(event, core::Event::EffectConnector(core::effects::connector::Event::Resource { .. })) {
+            reports.push(event);
+        } else {
+            replies.push(root::Event::Core(event));
+        }
+    }
+    assert_eq!(reports.len(), 1);
+    let (parked, wall) = world.clocks();
+    world.set_clock(parked, wall);
+    world.send_all(replies);
+    assert_eq!(world.domain.core().awaiting_resources_flights(), 1);
+    let inspection = inspect(&world, 11734);
+    let wait = inspection
+        .waits()
+        .iter()
+        .find(|wait| wait.kind == "a batch awaiting its creation reports")
+        .expect("parked batch");
+    assert!(wait.waiter.starts_with("batch "));
+    assert!(wait.wakes.contains(&Wake::Party("connector 1".into())));
+    assert_eq!(wait.bound, Some(parked.saturating_add(limits.core.tasks.hold_wait)));
+    assert!(wait.wakes.contains(&Wake::Timer(wait.bound.expect("batch deadline"))));
+    let reports = inspection.tables().iter().find(|table| table.name == "creation reports").expect("reports");
+    let entry =
+        reports.entries.iter().find(|entry| entry.key == "connector 1 resource \u{1}/\u{1}").expect("pinned name");
+    assert_eq!(entry.release, Release::Pending);
+}

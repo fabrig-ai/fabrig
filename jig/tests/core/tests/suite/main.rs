@@ -40,6 +40,7 @@ mod first_start;
 mod forgetting;
 mod funding;
 mod host_tools;
+mod inspection;
 mod instructions;
 mod jobs;
 mod joint_clock;

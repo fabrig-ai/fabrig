@@ -32,6 +32,10 @@ impl Acted {
         }
         super::deletion::made_project(&self.outcome)
     }
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    pub(super) const fn due(&self) -> Time {
+        self.due
+    }
     pub(super) const fn at(&self) -> Wall {
         self.at
     }
