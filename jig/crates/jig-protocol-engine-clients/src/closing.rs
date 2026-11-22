@@ -2,7 +2,7 @@
 use super::{
     Box, Component, Env, Limits, Queue, ReplyTo, Request, SecretOwner, SecretsRequest, Token, Waiting, core, routes, w,
 };
-use crate::routes::Route;
+use crate::{routes::Route, sign_in::Answer};
 use jig_client_protocol_wire::Record as _;
 use skein_lib::{Map, Reader};
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -27,6 +27,7 @@ impl Component {
         self.phase == Phase::Closed
     }
 
+    #[expect(clippy::too_many_lines, reason = "one exhaustive route answers every exchange of the ended sign-in")]
     pub(super) fn ended(&mut self, env: &Env<Limits>, sign_in: u64, out: &mut Queue<Request>) {
         out.push(Request::Secrets(SecretsRequest::Erase { owner: SecretOwner::SignIn(sign_in) }));
         for _ in 0..self.pending.exchanges.capacity() {
@@ -36,7 +37,13 @@ impl Component {
                     Waiting::LinkAskWhose { sign_in: number, .. }
                     | Waiting::SignOut { sign_in: number, committed: false }
                     | Waiting::Watch { sign_in: number, .. }
-                    | Waiting::Keep { sign_in: number, .. }
+                    | Waiting::Keep {
+                        sign_in: number,
+                        answer:
+                            Answer::Service(Some(_)) | Answer::Approval(_) | Answer::SignedIn(_) | Answer::Minted { .. },
+                        ..
+                    }
+                    | Waiting::Reissue { sign_in: Some(number), .. }
                     | Waiting::Get { owner: super::services::GetOwner::SignIn(number), .. }
                     | Waiting::LinkGet { sign_in: number, .. }
                     | Waiting::Moving { sign_in: number, .. }
@@ -64,6 +71,7 @@ impl Component {
                     | Waiting::Get { .. }
                     | Waiting::Moving { .. }
                     | Waiting::Made { .. }
+                    | Waiting::Reissue { .. }
                     | Waiting::Checked { .. }
                     | Waiting::Read { .. }
                     | Waiting::Authorize { .. }
@@ -78,10 +86,24 @@ impl Component {
             match self.pending.exchanges.remove(&exchange).expect("ended exchange") {
                 Waiting::LinkGet { .. } => self.link_sign_in(exchange, None, out),
                 Waiting::LinkAskWhose { .. } => self.denied(env, exchange, Route::LinkAsk),
-                Waiting::Keep { answer: crate::sign_in::Answer::Approval(_), .. } => {
+                Waiting::Keep { answer: Answer::Approval(_), .. } => {
                     self.respond(exchange, routes::approval_sign_in(w::ApprovalSignInAnswer::Refused));
                 }
-                Waiting::Keep { .. } | Waiting::Made { .. } => {
+                Waiting::Keep { owner, answer: Answer::Service(_), .. } => {
+                    self.pending
+                        .exchanges
+                        .insert(exchange, Waiting::Keep { sign_in, owner, answer: Answer::Service(None) })
+                        .expect("same keep slot");
+                    self.respond(exchange, routes::refused());
+                }
+                Waiting::Reissue { party, phase, .. } => {
+                    self.pending
+                        .exchanges
+                        .insert(exchange, Waiting::Reissue { sign_in: None, party, phase })
+                        .expect("same reissue slot");
+                    self.respond(exchange, routes::signed_out());
+                }
+                Waiting::Keep { answer: Answer::SignedIn(_) | Answer::Minted { .. }, .. } | Waiting::Made { .. } => {
                     if !self.mint_refused(exchange, crate::MintRefusal::Bound, out) {
                         self.respond(exchange, routes::refused());
                     }
@@ -188,6 +210,7 @@ impl Component {
                     | Waiting::Get { .. }
                     | Waiting::Moving { .. }
                     | Waiting::Made { .. }
+                    | Waiting::Reissue { .. }
                     | Waiting::Read { .. }
                     | Waiting::Authorize { .. }
                     | Waiting::ApplicationRead { .. }
@@ -221,8 +244,13 @@ impl Component {
         for (_, kept) in &self.pending.carried {
             carrying |= kept.is_none();
         }
+        let mut issuing = false;
+        for (_, waiting) in &self.pending.exchanges {
+            issuing |= waiting.service_work();
+        }
         !self.closed()
             && !carrying
+            && !issuing
             && self.connections.is_empty()
             && self.streams.is_empty()
             && self.pending.mints.is_empty()

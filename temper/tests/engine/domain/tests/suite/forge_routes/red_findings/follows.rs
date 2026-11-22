@@ -350,7 +350,11 @@ fn a_persons_follow_red_lists_under_mine_with_their_area() {
         .oracle_document(
             session,
             PROJECT,
-            forge_top::findings_subject(PROJECT, Some(forge_top::FindingState::New), true),
+            forge_top::findings_subject(
+                PROJECT,
+                forge_top::FindingsFilter::Triage { state: Some(forge_top::FindingState::New), mine: true },
+            )
+            .unwrap(),
         )
         .expect("mine document");
     let forge_top::Document::Findings(document) = document else { panic!("findings read") };

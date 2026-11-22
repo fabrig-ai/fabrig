@@ -421,6 +421,15 @@ task had made it.
   level shallower; the tasks child checks it within the task's, the
   closer's procedure among its delegation's kinds, and `llm` as any
   making's (`tasks/README.md`, section 4).
+- **Checked before it is sent:** an application whose own writes stand
+  only if the making does checks the `Make` first with
+  `Core::check_make(&self, make: &tasks::Event) -> Result<(),
+  tasks::Refusal>`, which changes nothing and runs the checks the
+  making runs (its places, the funder's accounts, `authority`, the
+  closer, `llm`), in its order, refusing as the making would. In the
+  same decision the making then gives the same answer, so a refusal
+  writes nothing of the application's and is answered in jig's words
+  (temper's `domain/red-repairs.md`, 4.2).
 - **The rest** is a delegate's: its questions and result reach the
   task, its reservation is the task's, a restart restores it.
 

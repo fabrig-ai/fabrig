@@ -86,34 +86,64 @@ fn write(text: &mut Text, reply: &f::FindingReply) -> Result<bool, Problem> {
             return Ok(true);
         }
     };
-    text.add(match done {
-        f::FindingDone::Filed(_) => b"Filed finding ",
-        f::FindingDone::Handed(_) => b"Handed finding ",
-        f::FindingDone::Routed(_) => b"Routed finding ",
-        f::FindingDone::Backlog => b"Finding ",
-        f::FindingDone::Dropped => b"Dropped finding ",
-    })?;
-    identity(text, reply.project, reply.number)?;
     match done {
+        f::FindingDone::Filed(held) => {
+            text.add(b"Filed finding ")?;
+            identity(text, reply.project, reply.number)?;
+            text.add(b"; it is ")?;
+            holder(text, *held)?;
+            text.add(b"'s.")?;
+        }
         f::FindingDone::Handed(held) => {
+            text.add(b"Handed finding ")?;
+            identity(text, reply.project, reply.number)?;
             text.add(b" to area ")?;
             text.literal(reply.area.as_deref().unwrap_or(b"-"))?;
             text.add(b"; it is ")?;
             holder(text, *held)?;
             text.add(b"'s.")?;
         }
-        f::FindingDone::Filed(held) => {
-            text.add(b"; it is ")?;
-            holder(text, *held)?;
-            text.add(b"'s.")?;
-        }
         f::FindingDone::Routed(goal) => {
+            text.add(b"Routed finding ")?;
+            identity(text, reply.project, reply.number)?;
             text.add(b" to task ")?;
             text.number(*goal)?;
             text.add(b".")?;
         }
-        f::FindingDone::Backlog => text.add(b" is in the backlog.")?,
-        f::FindingDone::Dropped => text.add(b".")?,
+        f::FindingDone::Backlog => {
+            text.add(b"Finding ")?;
+            identity(text, reply.project, reply.number)?;
+            text.add(b" is in the backlog.")?;
+        }
+        f::FindingDone::Dropped => {
+            text.add(b"Dropped finding ")?;
+            identity(text, reply.project, reply.number)?;
+            text.add(b".")?;
+        }
+        f::FindingDone::Repaired(goal) => {
+            text.add(b"Repair goal ")?;
+            text.number(*goal)?;
+            text.add(b" made for findings ")?;
+            identity(text, reply.project, reply.number)?;
+            for &number in &reply.more {
+                text.add(b", ")?;
+                identity(text, reply.project, number)?;
+            }
+            text.add(b".")?;
+        }
+        f::FindingDone::Blamed => {
+            text.add(b"Moved finding ")?;
+            identity(text, reply.project, reply.number)?;
+            text.add(b"'s blame to ")?;
+            match reply.landing {
+                Some(commit) => {
+                    text.add(b"landing ")?;
+                    text.add(f::commit_text(&commit).get(..12).expect("commit digits"))?;
+                }
+                None => text.add(b"no landing")?,
+            }
+            text.add(b".")?;
+        }
     }
     Ok(false)
 }
@@ -163,11 +193,11 @@ fn show(text: &mut Text, project: u32, finding: &f::FindingAnswer) -> Result<(),
         text.add(b"\nwhy: ")?;
         text.literal(why)?;
     }
-    if let Some(goal) = finding.goal {
+    if let Some(goal) = finding.row.goal {
         text.add(b"\ngoal: task ")?;
         text.number(goal)?;
     }
-    if let Some(reason) = &finding.reason {
+    if let Some(reason) = &finding.row.reason {
         text.add(b"\nreason: ")?;
         text.literal(reason)?;
     }

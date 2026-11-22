@@ -452,7 +452,7 @@ def run_part(part, destination):
             empty = root / "empty-budgets.toml"
             empty.write_text("")
             status = checked(f"run-{profile}", ["tools/tiers/one-process", "--out", directory,
-                                               "--budgets", empty, profile, *args])
+                                               "--budgets", empty, "--layers", "all", profile, *args])
             check_one_process(directory, status)
             path = directory / "junit.xml"
         paths.append(path)

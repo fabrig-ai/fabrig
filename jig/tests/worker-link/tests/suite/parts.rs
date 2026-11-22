@@ -27,7 +27,7 @@ fn parts_are_requested_and_sent_only_at_twenty_two_and_acknowledged_back() {
         assert_eq!(assignment.tell_parts, version == 22);
         assert!(assignment.parts.is_empty());
         let before = world.worker_records().len();
-        let body = super::translation::golden(
+        let body = super::translation::fixed_value(
             smith_transcript::patches::kept::smith_transcript::TEXTS.last().unwrap(),
             "record_turn_smallest",
         );

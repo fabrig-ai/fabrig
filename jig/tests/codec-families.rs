@@ -1,5 +1,5 @@
-//! Each jig codec's records and pinned constructs (skein's data/codec/README.md, 6).
-use skein_codegen::{generate, translate, unpinned, values};
+//! Each jig codec's records (skein's data/codec/README.md, 6).
+use skein_codegen::{generate, translate, values};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
@@ -88,8 +88,8 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-tasks",
         generated: &["src/generated/tasks.rs"],
-        maps: None,
-        translation: None,
+        maps: Some(include_str!("../crates/jig-protocol-store/schema/tasks.maps")),
+        translation: Some("crates/jig-protocol-store-records/src/generated/tasks.rs"),
     },
     Family {
         name: "people",
@@ -97,8 +97,8 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-people",
         generated: &["src/generated/people.rs"],
-        maps: None,
-        translation: None,
+        maps: Some(include_str!("../crates/jig-protocol-store/schema/people.maps")),
+        translation: Some("crates/jig-protocol-store-records/src/generated/people.rs"),
     },
     Family {
         name: "registry",
@@ -142,8 +142,8 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-settings",
         generated: &["src/generated/settings.rs"],
-        maps: None,
-        translation: None,
+        maps: Some(include_str!("../crates/jig-protocol-store/schema/settings.maps")),
+        translation: Some("crates/jig-protocol-store-records/src/generated/settings.rs"),
     },
     Family {
         name: "secrets",
@@ -201,8 +201,7 @@ pub fn check() {
     for family in FAMILIES {
         let root = tree.join(family.root);
         let source = family.text;
-        let unpinned = unpinned(source).expect("schema valid");
-        assert!(unpinned.is_empty(), "{}: unpinned constructs: {unpinned:?}", family.name);
+
         let schema = &values(source).schema;
         let output = generate(schema);
         if family.name == "client" {

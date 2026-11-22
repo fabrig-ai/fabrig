@@ -114,12 +114,22 @@ impl Configuration {
     }
     pub fn jig_over(&mut self, name: impl AsRef<str>, value: impl TryInto<u64>) {
         let value = value.try_into().unwrap_or_else(|_| panic!("world's jig figure"));
-        let name = name.as_ref();
+        self.give_jig(name.as_ref(), value);
+        self.resolve_jig();
+    }
+    /// Jig figures given in order and resolved once, for a list that reads no
+    /// figure between them: each resolution checks every family's codec bounds.
+    pub fn jig_over_all<'a>(&mut self, figures: impl IntoIterator<Item = (&'a str, u64)>) {
+        for (name, value) in figures {
+            self.give_jig(name, value);
+        }
+        self.resolve_jig();
+    }
+    fn give_jig(&mut self, name: &str, value: u64) {
         jig_protocol_config::overrides::apply(&mut self.jig, name.as_bytes(), value).expect("world's jig limit");
         if !self.jig_given.iter().any(|given| given == name) {
             self.jig_given.push(name.to_owned());
         }
-        self.resolve_jig();
     }
     fn resolve_jig(&mut self) {
         self.jig_given.sort();
@@ -192,67 +202,69 @@ impl core::ops::DerefMut for Configuration {
 pub fn story_a(document: Value) -> Configuration {
     let mut world = Configuration::stock(document);
     world.limits.root.transcript_memory = 1_152_921_504_606_846_976_u64;
-    world.jig_over("authority.executors", 22_u64);
-    world.jig_over("authority.grants", 16_u64);
-    world.jig_over("authority.projects", 2_u64);
-    world.jig_over("authority.segments", 8_u64);
-    world.jig_over("brief.briefs", 1_u64);
-    world.jig_over("brief.sections", 8_u64);
-    world.jig_over("core.call_answer_bytes", 2048_u64);
-    world.jig_over("core.load_bytes", 8192_u64);
-    world.jig_over("core.load_slots", 8_u64);
-    world.jig_over("core.policy_bytes", 8192_u64);
-    world.jig_over("core.resume_bytes", 998_048_u64);
-    world.jig_over("core.run_bytes", 32_768_u64);
-    world.jig_over("core.templates", 7_u64);
-    world.jig_over("documents.chips", 1_u64);
-    world.jig_over("documents.lines", 12_u64);
-    world.jig_over("documents.rows", 2_u64);
-    world.jig_over("documents.text_bytes", 128_u64);
-    world.jig_over("fleet.attempts", 1_u64);
-    world.jig_over("fleet.calls", 1_u64);
-    world.jig_over("fleet.turns", 8_u64);
-    world.jig_over("hub.transcript_bytes", 3_992_192_u64);
-    world.jig_over("hub.turn_bytes", 998_044_u64);
-    world.jig_over("hub.turn_queue_bytes", 7_984_352_u64);
-    world.jig_over("notes.entries_per_scope", 2_u64);
-    world.jig_over("notes.party_entries", 2_u64);
-    world.jig_over("notes.recalled", 2_u64);
-    world.jig_over("notes.scopes", 32_u64);
-    world.jig_over("people.amendment_bytes", 1218_u64);
-    world.jig_over("people.holdings", 2_u64);
-    world.jig_over("people.inbox_tasks", 8_u64);
-    world.jig_over("people.operations", 2_u64);
-    world.jig_over("people.pending", 5_u64);
-    world.jig_over("people.people", 1_u64);
-    world.jig_over("people.projects", 2_u64);
-    world.jig_over("people.sign_ins", 2_u64);
-    world.jig_over("people.waiters", 2_u64);
-    world.jig_over("people.words", 512_u64);
-    world.jig_over("tasks.authority_bytes", 75_u64);
-    world.jig_over("tasks.authority_grants", 15_u64);
-    world.jig_over("tasks.batch", 1_u64);
-    world.jig_over("tasks.charter_documents", 0_u64);
-    world.jig_over("tasks.charters", 16_u64);
-    world.jig_over("tasks.delegates", 1_u64);
-    world.jig_over("tasks.dependencies", 2_u64);
-    world.jig_over("tasks.executor_kinds", 22_u64);
-    world.jig_over("tasks.exemptions", 2_u64);
-    world.jig_over("tasks.funders", 4_u64);
-    world.jig_over("tasks.hold_bytes", 256_u64);
-    world.jig_over("tasks.message_bytes", 512_u64);
-    world.jig_over("tasks.project_goals", 1_u64);
-    world.jig_over("tasks.project_tasks", 4_u64);
-    world.jig_over("tasks.parameters", 5_u64);
-    world.jig_over("tasks.contract_choices", 2_u64);
-    world.jig_over("tasks.result_bytes", 128_u64);
-    world.jig_over("tasks.spec_bytes", 2048_u64);
-    world.jig_over("tasks.tasks", 4_u64);
-    world.jig_over("tasks.tree_tasks", 6_u64);
-    world.jig_over("views.runs", 1_u64);
-    world.jig_over("views.text_bytes", 1024_u64);
-    world.jig_over("tasks.inbox_bytes", 4096_u64);
-    world.jig_over("tasks.run_inbox", 8_u64);
+    world.jig_over_all([
+        ("authority.executors", 22_u64),
+        ("authority.grants", 16_u64),
+        ("authority.projects", 2_u64),
+        ("authority.segments", 8_u64),
+        ("brief.briefs", 1_u64),
+        ("brief.sections", 8_u64),
+        ("core.call_answer_bytes", 2048_u64),
+        ("core.load_bytes", 8192_u64),
+        ("core.load_slots", 8_u64),
+        ("core.policy_bytes", 8192_u64),
+        ("core.resume_bytes", 998_048_u64),
+        ("core.run_bytes", 32_768_u64),
+        ("core.templates", 7_u64),
+        ("documents.chips", 1_u64),
+        ("documents.lines", 12_u64),
+        ("documents.rows", 2_u64),
+        ("documents.text_bytes", 128_u64),
+        ("fleet.attempts", 1_u64),
+        ("fleet.calls", 1_u64),
+        ("fleet.turns", 8_u64),
+        ("hub.transcript_bytes", 3_992_192_u64),
+        ("hub.turn_bytes", 998_044_u64),
+        ("hub.turn_queue_bytes", 7_984_352_u64),
+        ("notes.entries_per_scope", 2_u64),
+        ("notes.party_entries", 2_u64),
+        ("notes.recalled", 2_u64),
+        ("notes.scopes", 32_u64),
+        ("people.amendment_bytes", 1218_u64),
+        ("people.holdings", 2_u64),
+        ("people.inbox_tasks", 8_u64),
+        ("people.operations", 2_u64),
+        ("people.pending", 5_u64),
+        ("people.people", 1_u64),
+        ("people.projects", 2_u64),
+        ("people.sign_ins", 2_u64),
+        ("people.waiters", 2_u64),
+        ("people.words", 512_u64),
+        ("tasks.authority_bytes", 75_u64),
+        ("tasks.authority_grants", 15_u64),
+        ("tasks.batch", 1_u64),
+        ("tasks.charter_documents", 0_u64),
+        ("tasks.charters", 16_u64),
+        ("tasks.delegates", 1_u64),
+        ("tasks.dependencies", 2_u64),
+        ("tasks.executor_kinds", 22_u64),
+        ("tasks.exemptions", 2_u64),
+        ("tasks.funders", 4_u64),
+        ("tasks.hold_bytes", 256_u64),
+        ("tasks.message_bytes", 512_u64),
+        ("tasks.project_goals", 1_u64),
+        ("tasks.project_tasks", 4_u64),
+        ("tasks.parameters", 5_u64),
+        ("tasks.contract_choices", 2_u64),
+        ("tasks.result_bytes", 128_u64),
+        ("tasks.spec_bytes", 2048_u64),
+        ("tasks.tasks", 4_u64),
+        ("tasks.tree_tasks", 6_u64),
+        ("views.runs", 1_u64),
+        ("views.text_bytes", 1024_u64),
+        ("tasks.inbox_bytes", 4096_u64),
+        ("tasks.run_inbox", 8_u64),
+    ]);
     world.temper_over("checkout.message_bytes", 4096_u64);
     world.temper_over("checkout.name_bytes", 256_u64);
     world.temper_over("checkout.repositories", 2_u64);

@@ -87,7 +87,6 @@ pub fn document(
 ) -> Result<w::ReadValue, w::Problem> {
     Ok(match answer {
         reads::Answer::Document(value) => match value.as_ref() {
-            d::Document::Frame(value) => w::ReadValue::Me(owner::frame(value, models, limits)?),
             d::Document::Task(value) => w::ReadValue::Task(task::document(value, models, limits)?),
             d::Document::Proposal(value) => w::ReadValue::Proposal(proposal(models, value, limits)?),
             d::Document::Escalation(value) => w::ReadValue::Escalation(escalation(value, models, limits)?),
@@ -97,7 +96,9 @@ pub fn document(
             d::Document::Project(value) => w::ReadValue::Project(project(models, value, limits)?),
             d::Document::Settings(value) => w::ReadValue::Settings(super::settings::document(value, limits)?),
             d::Document::Deployment(value) => w::ReadValue::Deployment(deployment::document(value, limits)?),
-            d::Document::Chips(_)
+            // The component translates me with the reading sign-in's expiry.
+            d::Document::Frame(_)
+            | d::Document::Chips(_)
             | d::Document::Run(_)
             | d::Document::Tree(_)
             | d::Document::Lines(_)

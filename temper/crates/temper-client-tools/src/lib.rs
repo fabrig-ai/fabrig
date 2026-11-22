@@ -13,6 +13,7 @@ mod finding;
 mod follow;
 mod forge;
 mod forges;
+mod goal;
 pub use temper_client_tools_jig::jig;
 pub mod key;
 pub mod landing;

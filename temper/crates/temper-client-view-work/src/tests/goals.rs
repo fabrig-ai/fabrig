@@ -966,6 +966,7 @@ fn each_filter_groups_only_its_shown_goals_at_the_first_goal() {
         ended: None,
         last_landing: None,
         spent: 0,
+        reds: 0,
     };
     milestone.parts = List::from_boxed(Box::new([fixtures::milestones::part(None, totals, &[], 0)]));
     fixtures::milestones::live(&mut page.root, &page.limits, listed, &[milestone, empty], false);

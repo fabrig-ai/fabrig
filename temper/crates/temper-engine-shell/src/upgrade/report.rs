@@ -55,12 +55,43 @@ pub fn lines(binary: &str, report: &Report, directories: &Directories, deploymen
     if report.end.is_none() && report.restored {
         writeln!(
             text,
-            "{binary} upgrade: registry commit, jobs and restores pass; what follows the switch is not rehearsed"
+            "{binary} upgrade: registry commit, jobs and restores pass; opened in {} ms",
+            report.elapsed.as_millis()
         )
         .expect("string write");
+        for (forge, state) in &report.catching_up {
+            writeln!(text, "{binary} upgrade: forge {forge} would catch up: {}", catching_up(*state))
+                .expect("string write");
+        }
     }
     verdict(&mut text, binary, report, false);
     (text, u8::from(!passed || !report.done))
+}
+
+fn catching_up(state: Option<temper_engine_domain_forge::CatchingUp>) -> String {
+    let mut text = String::new();
+    if let Some(state) = state {
+        for (count, singular, plural) in [
+            (state.fresh, "fresh read", "fresh reads"),
+            (state.gathers, "landing read", "landing reads"),
+            (state.ci, "CI read", "CI reads"),
+            (state.goal_files, "goal-file read", "goal-file reads"),
+            (state.lost_writers, "lost-writer read", "lost-writer reads"),
+            (state.goal_branches, "goal-branch read", "goal-branch reads"),
+            (state.uncertain, "uncertain write", "uncertain writes"),
+        ] {
+            if count != 0 {
+                if !text.is_empty() {
+                    text.push_str(", ");
+                }
+                write!(text, "{count} {}", if count == 1 { singular } else { plural }).expect("string write");
+            }
+        }
+    }
+    if text.is_empty() {
+        text.push_str("nothing");
+    }
+    text
 }
 
 /// Rehearsal file counts and the workers' verdict, or the whole check's opening refusal.
@@ -322,6 +353,7 @@ mod tests {
             elapsed: Duration::from_secs(1),
             end: None,
             restored: false,
+            catching_up: Box::new([]),
             done: true,
             open_failure: None,
         }

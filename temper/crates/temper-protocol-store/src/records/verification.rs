@@ -2,7 +2,7 @@
 use super::{FITS, names, w};
 use crate::Undecodable;
 use skein_lib::List;
-use temper_engine_domain_forge_tiers::{Blame, Failures};
+use temper_engine_domain_forge_tiers::Failures;
 use temper_engine_domain_forge_vocabulary as d;
 
 pub(super) fn encode_failures(value: &Failures) -> w::Failures {
@@ -18,14 +18,6 @@ pub(super) fn encode_failures(value: &Failures) -> w::Failures {
     }
 }
 
-pub(super) fn encode_blame(value: &Blame) -> w::Blame {
-    match value {
-        Blame::Cleared => w::Blame::Cleared,
-        Blame::Owns(failures) => w::Blame::Owns(w::BlamedFailures { failures: encode_failures(failures) }),
-        Blame::Suspect(failures) => w::Blame::Suspect(w::BlamedFailures { failures: encode_failures(failures) }),
-    }
-}
-
 pub(super) fn encode(row: &d::Verification) -> w::Verification {
     let mut changes = List::with_capacity(u32::try_from(row.changes.len()).expect(FITS));
     for task in &row.changes {
@@ -33,19 +25,8 @@ pub(super) fn encode(row: &d::Verification) -> w::Verification {
     }
     let mut tiers = List::with_capacity(u32::try_from(row.tiers.len()).expect(FITS));
     for tier in &row.tiers {
-        let verdict = match &tier.verdict {
-            Some(verdict) => Some(w::TierVerdict { run: verdict.run, blame: encode_blame(&verdict.blame) }),
-            None => None,
-        };
         tiers
-            .push(w::TierVerification {
-                tier: tier.tier.clone(),
-                verdict,
-                repaired: match tier.repaired {
-                    Some(repair) => Some(w::TierRepair { run: repair.run, tip: repair.tip, by: repair.by }),
-                    None => None,
-                },
-            })
+            .push(crate::generated::store::tier_verification_to_record(tier, &super::Context::UNBOUNDED).expect(FITS))
             .expect(FITS);
     }
     w::Verification { repository: names::encode_repository(row.repository), commit: row.commit, changes, tiers }
@@ -70,45 +51,28 @@ pub(super) fn decode_failures(value: w::Failures) -> Result<Failures, Undecodabl
     })
 }
 
-pub(super) fn decode_blame(value: w::Blame) -> Result<Blame, Undecodable> {
-    Ok(match value {
-        w::Blame::Cleared => Blame::Cleared,
-        w::Blame::Owns(value) => Blame::Owns(decode_failures(value.failures)?),
-        w::Blame::Suspect(value) => Blame::Suspect(decode_failures(value.failures)?),
-    })
-}
-
 pub(super) fn decode(row: w::Verification) -> Result<d::Verification, Undecodable> {
     let w::Verification { repository, commit, changes, tiers } = row;
     let mut decoded = List::with_capacity(tiers.len());
     for tier in tiers.into_boxed() {
-        let w::TierVerification { tier, verdict, repaired } = tier;
-        if tier.is_empty() {
+        let tier = crate::generated::store::tier_verification_to_domain(tier, &super::Context::UNBOUNDED)
+            .or(Err(Undecodable::Malformed))?;
+
+        if tier.tier.is_empty() {
             return Err(Undecodable::Malformed);
         }
-        for byte in &tier {
+        for byte in &tier.tier {
             if !byte.is_ascii_alphanumeric() && *byte != b'-' && *byte != b'_' {
                 return Err(Undecodable::Malformed);
             }
         }
         for previous in &decoded {
             let previous: &d::TierVerification = previous;
-            if previous.tier == tier {
+            if previous.tier == tier.tier {
                 return Err(Undecodable::Malformed);
             }
         }
-        let verdict = match verdict {
-            Some(verdict) => {
-                let w::TierVerdict { run, blame } = verdict;
-                Some(d::TierVerdict { run, blame: decode_blame(blame)? })
-            }
-            None => None,
-        };
-        let repaired = match repaired {
-            Some(repair) => Some(d::TierRepair { run: repair.run, tip: repair.tip, by: repair.by }),
-            None => None,
-        };
-        decoded.push(d::TierVerification { tier, verdict, repaired }).expect(FITS);
+        decoded.push(tier).expect(FITS);
     }
     Ok(d::Verification {
         repository: names::decode_repository(repository),

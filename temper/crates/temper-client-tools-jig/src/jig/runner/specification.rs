@@ -27,7 +27,9 @@ pub(super) fn next(reading: &mut Reading, limits: &Limits) -> Option<c::Read> {
     if reading.called.call.tool == crate::jig::rows::TASK_TEXT_AT {
         return next_text(reading, limits);
     }
-    if (reading.called.call.tool != 3 && reading.called.call.tool != crate::jig::rows::ROLE_SHOW_AT)
+    if (reading.called.call.tool != 3
+        && reading.called.call.tool != crate::jig::rows::ROLE_SHOW_AT
+        && reading.called.call.tool != crate::jig::rows::GOAL_SHOW_AT)
         || reading.called.json
     {
         return None;

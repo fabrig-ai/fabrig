@@ -276,6 +276,8 @@ pub enum JigPhrase {
     MadeTask,
     /// Made service party (0).
     MadeService,
+    /// Reissued credential for service party (0).
+    ReissuedService,
     /// Answered person task (0).
     MadeResult,
     /// Made note (0).
@@ -1320,6 +1322,7 @@ impl JigPhrase {
             Self::DecidedFirst => 50,
             Self::MadeTask => 54,
             Self::MadeService => 55,
+            Self::ReissuedService => 825,
             Self::MadeResult => 56,
             Self::MadeNote => 57,
             Self::MovingOut => 7838,
@@ -2333,6 +2336,7 @@ impl JigPhrase {
             | Self::MalformedProject
             | Self::MadeTask
             | Self::MadeService
+            | Self::ReissuedService
             | Self::MadeResult
             | Self::MadeNote
             | Self::LimitWords
@@ -2482,7 +2486,7 @@ impl JigPhrase {
     }
 }
 /// Every jig phrase; loading checks this whole contract.
-pub const ALL: [JigPhrase; 668] = [
+pub const ALL: [JigPhrase; 669] = [
     JigPhrase::TooLinked,
     JigPhrase::SettingsChanged,
     JigPhrase::SettingProjectPolicy,
@@ -2707,6 +2711,7 @@ pub const ALL: [JigPhrase; 668] = [
     JigPhrase::DecidedFirst,
     JigPhrase::MadeTask,
     JigPhrase::MadeService,
+    JigPhrase::ReissuedService,
     JigPhrase::MadeResult,
     JigPhrase::MadeNote,
     JigPhrase::MovingOut,

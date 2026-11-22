@@ -120,6 +120,15 @@ answered `removed`, the forge gone from `forge list`, and refused for
 the playground's forge. After each, no pasted value in
 DIRECTORY's store or in any document the tools print.
 
+Area 3's, a service's credential reissued (`README.md`, section 7): a
+service made and signed in in its own DIRECTORY, with a task it made and
+something in its inbox; its owner's `party reissue`, after which the
+service's next call is answered signed out at once; its link, given to
+`sign-in -`, signing the same DIRECTORY in again as the same party, its
+tasks and inbox as they were; a member's reissue refused `role` and a
+person's `not_offered`, exit 2; and `me` printing its sign-in's expiry.
+No link in either DIRECTORY's store or in any output but the link's own.
+
 One story reads at `temper-box init`'s template's bounds, its documents'
 rows below the tools' 32-row window: a goal with more delegates than
 those rows, one of them ended with an ended dependency, and `task show

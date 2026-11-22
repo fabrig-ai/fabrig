@@ -159,11 +159,11 @@ pub fn world_document_with(edit: impl FnOnce(&mut Configuration)) -> Configurati
     value["workers"][0]["name"] = "local".into();
     value["workers"][0].as_object_mut().expect("worker").remove("agent");
     value["workers"][0].as_object_mut().expect("worker").remove("limits");
-    value.jig_over("hub.accounts", 4);
-    value.jig_over("hub.event_bytes", 1024);
-    value.jig_over("hub.run_calls", 1);
     value["engine"]["hosts"]["listener"] = serde_json::json!([{"in_process":"workers"}]);
-    for (name, count) in [
+    let figures = [
+        ("hub.accounts", 4),
+        ("hub.event_bytes", 1024),
+        ("hub.run_calls", 1),
         ("core.load_slots", 8),
         ("core.run_bytes", 32_768),
         ("core.templates", 7),
@@ -171,9 +171,8 @@ pub fn world_document_with(edit: impl FnOnce(&mut Configuration)) -> Configurati
         ("documents.lines", DOCUMENT_LINES),
         ("documents.text_bytes", 128),
         ("people.sign_ins", 2),
-    ] {
-        value.jig_over(name, u64::from(count));
-    }
+    ];
+    value.jig_over_all(figures.map(|(name, count)| (name, u64::from(count))));
     value["application"] = serde_json::json!({
         "webhooks":{"listener":{"socket":"127.0.0.1:0"}},
 "clients":{"listener":{"socket":CLIENTS.to_string()},"public":null,"bundle":null},
@@ -198,7 +197,7 @@ pub fn world_document_with(edit: impl FnOnce(&mut Configuration)) -> Configurati
         value["engine"].as_object_mut().expect("engine").remove(member);
     }
     edit(&mut value);
-    for (name, count) in [
+    let figures = [
         // Stock owner authority: 1,187 bytes, plus the longest 31-byte story cue.
         ("people.amendment_bytes", 1218_u32),
         ("tasks.hold_bytes", 256),
@@ -212,12 +211,11 @@ pub fn world_document_with(edit: impl FnOnce(&mut Configuration)) -> Configurati
         ("people.holdings", 2),
         ("people.pending", 5),
         ("people.waiters", 2),
-    ] {
-        value.jig_over(name, u64::from(count));
-    }
-    value.jig_over("people.projects", 2);
-    value.jig_over("authority.projects", 2);
-    value.jig_over("tasks.funders", 4);
+        ("people.projects", 2),
+        ("authority.projects", 2),
+        ("tasks.funders", 4),
+    ];
+    value.jig_over_all(figures.map(|(name, count)| (name, u64::from(count))));
     turn_bounds::apply(&mut value, agent().limits.bodies.turn_body);
     settings::strip_models(&mut value);
     value
@@ -231,7 +229,7 @@ pub fn chat_policy(value: &mut Configuration) {
             role["authority"]["delegation"]["depth"] = 4.into();
         }
     }
-    for (name, count) in [
+    let figures = [
         ("core.policy_bytes", 8192_u32),
         ("authority.grants", 16),
         // The standing charters, closer procedure and close job are delegation targets.
@@ -243,9 +241,8 @@ pub fn chat_policy(value: &mut Configuration) {
         ("tasks.executor_kinds", 22),
         ("tasks.result_bytes", 128),
         ("notes.scopes", 32),
-    ] {
-        value.jig_over(name, u64::from(count));
-    }
+    ];
+    value.jig_over_all(figures.map(|(name, count)| (name, u64::from(count))));
 }
 /// The composition's startup file contents.
 #[must_use]
@@ -415,7 +412,6 @@ pub fn agent_for(profile: &smith_agent_service::profile::Profile) -> temper_serv
 /// Apply the repository composition's policies and worker settings.
 pub fn configure(value: &mut Configuration) {
     value["workers"][0]["slots"] = AGENTS.into();
-    value.jig_over("hub.slots", AGENTS);
     let forge = value.forge.to_string();
     let grants: Vec<_> = GRANT_KINDS
         .into_iter()
@@ -434,11 +430,11 @@ pub fn configure(value: &mut Configuration) {
     ceiling["delegation"]["depth"] = AUTHORITY_DEPTH.into();
     value["world_settings"]["policies"][0]["policy"]["ceiling"] = ceiling.clone();
     value["world_settings"]["policies"][0]["policy"]["roles"][0]["authority"] = ceiling;
-    for (name, count) in ENGINE_OVERRIDES {
-        value.jig_over(name, u64::from(count));
-    }
+    value.jig_over_all(
+        [("hub.slots", AGENTS)].into_iter().chain(ENGINE_OVERRIDES).map(|(name, count)| (name, u64::from(count))),
+    );
     let stock = jig_protocol_config::stock();
-    for name in [
+    let names = [
         "tasks.funders",
         "tasks.dependencies",
         "tasks.charters",
@@ -453,11 +449,10 @@ pub fn configure(value: &mut Configuration) {
         "people.waiters",
         "people.goals",
         "people.pending",
-    ] {
-        if let Some(row) = jig_protocol_config::names::NAMES.iter().find(|row| row.name == name) {
-            value.jig_over(name, (row.value)(&stock));
-        }
-    }
+    ];
+    value.jig_over_all(names.into_iter().filter_map(|name| {
+        jig_protocol_config::names::NAMES.iter().find(|row| row.name == name).map(|row| (name, (row.value)(&stock)))
+    }));
 }
 /// The stock charter settings file with the composition's wait.
 #[must_use]

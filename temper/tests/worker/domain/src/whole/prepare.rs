@@ -43,9 +43,8 @@ pub enum Case {
 }
 
 /// One typed assignment, no process, its branch/result, acknowledgement and shutdown.
-#[must_use]
 #[expect(clippy::too_many_lines, reason = "one prepare story checks its full lifecycle")]
-pub fn run(seed: u64, case: Case) -> Report {
+pub fn run(seed: u64, case: Case) -> Result<Report, String> {
     if !matches!(
         case,
         Case::Merge
@@ -117,7 +116,7 @@ pub fn run(seed: u64, case: Case) -> Report {
         id(base),
         if squash { "squash" } else { "merge" }
     );
-    world.event(Event::Ready);
+    world.event(Event::Ready)?;
     assert_eq!(world.report.kinds.as_ref(), [kind.bound]);
     let assignment = || Event::AssignJob {
         job: host::JobAssignment {
@@ -150,12 +149,12 @@ pub fn run(seed: u64, case: Case) -> Report {
         }),
         spec: Ok(wire::JobSpec { command: Box::new([]), request: request.clone().into_bytes().into() }),
     };
-    world.event(assignment());
+    world.event(assignment())?;
     if matches!(case, Case::Replay | Case::ReplaySquash) {
         let prior = world.forge.branch(REMOTE, BRANCH).expect("first prepare delivered");
-        world.event(Event::Link(host::LinkDown::Acknowledge { run: Token::new(81), attempt: Token::new(13) }));
+        world.event(Event::Link(host::LinkDown::Acknowledge { run: Token::new(81), attempt: Token::new(13) }))?;
         world.report.answer = None;
-        world.event(assignment());
+        world.event(assignment())?;
         assert!(
             matches!(world.report.answer, Some(host::JobEnding::Finished { .. })),
             "retry: {:?}",
@@ -212,11 +211,11 @@ pub fn run(seed: u64, case: Case) -> Report {
     }
     assert_eq!(world.domain.workspaces(), 0);
     assert_eq!(world.domain.agent().agents(), 0);
-    world.event(Event::Link(host::LinkDown::Acknowledge { run: Token::new(81), attempt: Token::new(13) }));
+    world.event(Event::Link(host::LinkDown::Acknowledge { run: Token::new(81), attempt: Token::new(13) }))?;
     assert_eq!(world.domain.kept_answers(), 0);
-    world.event(Event::Shutdown { drain: true });
+    world.event(Event::Shutdown { drain: true })?;
     assert_eq!(world.stops, 1);
-    world.report
+    Ok(world.report)
 }
 fn temper_fake_id(commit: u64) -> Vec<u8> {
     let raw = translate::commit(commit).raw();
@@ -227,7 +226,7 @@ fn escaped(bytes: &[u8]) -> String {
 }
 
 #[expect(clippy::too_many_lines, reason = "a stack story checks the request, every prefix and the final lifecycle")]
-fn run_stack(seed: u64, case: Case) -> Report {
+fn run_stack(seed: u64, case: Case) -> Result<Report, String> {
     let kind = tooling::Kind {
         bound: JobBound { kind: JobKind(1), spec: 16_384, result: 4_096, deadline: Duration::from_secs(600) },
         verb: b"prepare".as_slice().into(),
@@ -351,7 +350,7 @@ fn run_stack(seed: u64, case: Case) -> Report {
             wire::Access::Prefixes { branches: granted.clone().into_boxed_slice() }
         }
     };
-    world.event(Event::Ready);
+    world.event(Event::Ready)?;
     assert_eq!(world.report.kinds.as_ref(), [kind.bound]);
     let assignment = || Event::AssignJob {
         job: host::JobAssignment {
@@ -378,12 +377,12 @@ fn run_stack(seed: u64, case: Case) -> Report {
         }),
         spec: Ok(wire::JobSpec { command: Box::new([]), request: request.clone().into_bytes().into() }),
     };
-    world.event(assignment());
+    world.event(assignment())?;
     if matches!(case, Case::ReplayStackMerge | Case::ReplayStackSquash) {
         let prior: Vec<_> = branches.iter().map(|branch| world.forge.branch(REMOTE, branch)).collect();
-        world.event(Event::Link(host::LinkDown::Acknowledge { run: Token::new(81), attempt: Token::new(13) }));
+        world.event(Event::Link(host::LinkDown::Acknowledge { run: Token::new(81), attempt: Token::new(13) }))?;
         world.report.answer = None;
-        world.event(assignment());
+        world.event(assignment())?;
         assert_eq!(
             branches.iter().map(|branch| world.forge.branch(REMOTE, branch)).collect::<Vec<_>>(),
             prior,
@@ -486,9 +485,9 @@ fn run_stack(seed: u64, case: Case) -> Report {
     }
     assert_eq!(world.domain.workspaces(), 0);
     assert_eq!(world.domain.agent().agents(), 0);
-    world.event(Event::Link(host::LinkDown::Acknowledge { run: Token::new(81), attempt: Token::new(13) }));
+    world.event(Event::Link(host::LinkDown::Acknowledge { run: Token::new(81), attempt: Token::new(13) }))?;
     assert_eq!(world.domain.kept_answers(), 0);
-    world.event(Event::Shutdown { drain: true });
+    world.event(Event::Shutdown { drain: true })?;
     assert_eq!(world.stops, 1);
-    world.report
+    Ok(world.report)
 }

@@ -110,6 +110,7 @@ pub(crate) fn erase(d: &mut Domain, forge: u16, out: &mut Queue<Request>) {
     d.identities.remove(&forge);
     d.records.remove(&forge);
     d.configured.remove(&forge);
+    d.catching_up_seen.remove(&forge);
     out.push(Request::Erase { key: Key::Forge(forge) });
 }
 

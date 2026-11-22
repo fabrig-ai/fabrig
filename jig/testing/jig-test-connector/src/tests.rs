@@ -469,6 +469,7 @@ fn restored_records_rebuild_adoptions_names_topics_and_pool_slots() {
                 | Request::ReadAnswered { .. }
                 | Request::Marked { .. }
                 | Request::Changed { .. }
+                | Request::ReadAfreshDone
                 | Request::RestartDone
                 | Request::ApplicationDone { .. }
                 | Request::ApplicationAgain { .. }

@@ -79,7 +79,31 @@ fn row_text(project: u32, row: &w::FindingRow, out: &mut Text) {
     holder(&row.holder, out);
     out.put(b" \xc2\xb7 ");
     out.put(&row.title);
+    if let Some(cleared) = &row.cleared {
+        out.put(b" \xc2\xb7 cleared by ");
+        clearing_text(cleared, out);
+    }
     out.put(b"\n");
+}
+fn clearing_text(cleared: &w::FindingClearing, out: &mut Text) {
+    out.put(&cleared.tier);
+    out.put(b" run ");
+    out.number(cleared.run);
+}
+fn clearing_json(cleared: Option<&w::FindingClearing>, out: &mut Encoder) {
+    match cleared {
+        Some(cleared) => {
+            out.object_start();
+            out.key(b"tier");
+            out.string(&cleared.tier);
+            out.key(b"run");
+            out.unsigned(cleared.run);
+            out.key(b"at");
+            out.unsigned(cleared.at);
+            out.object_end();
+        }
+        None => out.null(),
+    }
 }
 fn list_text(findings: &w::Findings, out: &mut Text) {
     for area in &findings.areas {
@@ -131,14 +155,24 @@ fn show_text(project: u32, detail: &w::FindingDetail, out: &mut Text) {
         out.put(why);
         out.put(b"\n");
     }
-    if let Some(goal) = &detail.goal {
+    if let Some(goal) = &detail.row.goal {
         out.put(b"goal: task ");
         out.number(*goal);
         out.put(b"\n");
     }
-    if let Some(reason) = &detail.reason {
+    if let Some(reason) = &detail.row.reason {
         out.put(b"dropped: ");
         out.put(reason);
+        out.put(b"\n");
+    }
+    if let Some(blame) = &detail.blame {
+        blame_text(blame, out);
+    }
+    if let Some(cleared) = &detail.row.cleared {
+        out.put(b"cleared: ");
+        clearing_text(cleared, out);
+        out.put(b" at ");
+        jig::render::document::clock::minute(skein_lib::Wall::from_nanos(cleared.at), out);
         out.put(b"\n");
     }
     out.put(b"\n");
@@ -146,6 +180,81 @@ fn show_text(project: u32, detail: &w::FindingDetail, out: &mut Text) {
     if !detail.body.ends_with(b"\n") {
         out.put(b"\n");
     }
+}
+fn strength(value: &w::BlameStrength) -> &'static [u8] {
+    match value {
+        w::BlameStrength::Owned => b"owned",
+        w::BlameStrength::Suspected => b"suspected",
+        w::BlameStrength::Unblamed => b"none",
+        w::BlameStrength::Moved => b"moved",
+    }
+}
+fn blame_text(blame: &w::FindingBlame, out: &mut Text) {
+    out.put(b"blame: ");
+    out.put(strength(&blame.strength));
+    out.put(b"\n");
+    for landing in &blame.landings {
+        out.put(b"  landing ");
+        for byte in landing.commit.iter().take(6) {
+            out.put(&[skein_lib::bytes::hex_digit(byte >> 4_u8), skein_lib::bytes::hex_digit(byte & 15)]);
+        }
+        out.put(b": ");
+        if landing.goals.is_empty() {
+            out.put(b"no goal");
+        }
+        for (index, goal) in landing.goals.iter().enumerate() {
+            if index != 0 {
+                out.put(b"; ");
+            }
+            out.put(b"goal ");
+            out.number(goal.goal);
+            if let Some(milestone) = &goal.milestone {
+                out.put(b" in milestone ");
+                out.number(*milestone);
+            }
+            if let Some(person) = &goal.person {
+                out.put(b", person ");
+                out.number(*person);
+            }
+        }
+        out.put(b"\n");
+    }
+}
+fn blame_json(blame: Option<&w::FindingBlame>, out: &mut Encoder) {
+    let Some(blame) = blame else {
+        out.null();
+        return;
+    };
+    out.object_start();
+    out.key(b"strength");
+    out.string(strength(&blame.strength));
+    out.key(b"landings");
+    out.array_start();
+    for landing in &blame.landings {
+        out.object_start();
+        out.key(b"commit");
+        jig::render::document::hex(&landing.commit, out);
+        out.key(b"goals");
+        out.array_start();
+        for goal in &landing.goals {
+            out.object_start();
+            out.key(b"goal");
+            out.unsigned(goal.goal);
+            for (key, value) in [(b"milestone".as_slice(), goal.milestone.as_ref()), (b"person", goal.person.as_ref())]
+            {
+                out.key(key);
+                match value {
+                    Some(value) => out.unsigned(*value),
+                    None => out.null(),
+                }
+            }
+            out.object_end();
+        }
+        out.array_end();
+        out.object_end();
+    }
+    out.array_end();
+    out.object_end();
 }
 fn success(bytes: Box<[u8]>) -> jig::Printed {
     jig::Printed { file: jig::FileEnd::Keep, status: 0, stdout: bytes, stderr: Box::default() }
@@ -190,43 +299,73 @@ pub(super) fn show(project: u32, detail: &w::FindingDetail, json: bool, limits: 
         success(out.finish())
     }
 }
-fn act_word(act: Act) -> &'static [u8] {
+fn act_word(act: &Act) -> &'static [u8] {
     match act {
         Act::File => b"filed",
         Act::Hand => b"handed",
         Act::Route => b"routed",
         Act::Backlog => b"backlog",
         Act::Drop => b"dropped",
+        Act::Repair(_) => b"repaired",
+        Act::Blame(_) => b"blamed",
         Act::List | Act::Show => unreachable!("act result"),
     }
 }
-fn acted_text(pending: &Pending, held: Option<&w::Holder>, out: &mut Text) {
-    out.put(act_word(pending.act));
+fn acted_text(pending: &Pending, held: Option<&w::Holder>, goal: Option<u64>, out: &mut Text) {
+    if let Act::Repair(more) = &pending.act {
+        out.put(b"repair goal ");
+        out.number(goal.expect("repair answer has its goal"));
+        out.put(b" made for ");
+        reference(pending.project, pending.number, out);
+        for number in more {
+            out.put(b", ");
+            reference(pending.project, *number, out);
+        }
+        out.put(b"\n");
+        return;
+    }
+    out.put(act_word(&pending.act));
     out.put(b": ");
     reference(pending.project, pending.number, out);
+    if let Act::Blame(landing) = &pending.act {
+        match landing {
+            Some(landing) => {
+                out.put(b" on landing ");
+                for byte in landing.iter().take(6) {
+                    out.put(&hex_byte(*byte));
+                }
+            }
+            None => out.put(b" on no landing"),
+        }
+    }
     if let Some(held) = held {
         out.put(b", held by ");
         holder(held, out);
     }
     out.put(b"\n");
 }
-pub(super) fn acted(pending: &Pending, held: Option<&w::Holder>, limits: &Limits) -> jig::Printed {
+pub(super) fn acted(pending: &Pending, held: Option<&w::Holder>, goal: Option<u64>, limits: &Limits) -> jig::Printed {
+    if let Act::Repair(_) = &pending.act
+        && goal.is_none()
+    {
+        return jig::render::failure(b"repair answer has no goal", pending.json, 1);
+    }
     if pending.json {
         let bounds = skein_json::writer::Limits {
             depth: 4,
             length: u32::try_from(limits.tools.result_bytes).expect("output bound"),
         };
         let mut measure = Encoder::measure(&bounds);
-        acted_json(pending, held, &mut measure);
+        acted_json(pending, held, goal, &mut measure);
         let Ok(size) = measure.measured() else { return jig::render::failure(b"result limit", true, 1) };
         let mut out = Encoder::write(size, &bounds);
-        acted_json(pending, held, &mut out);
+        acted_json(pending, held, goal, &mut out);
         success(out.finish())
     } else {
         let mut measure = Text::measure();
-        acted_text(pending, held, &mut measure);
+        acted_text(pending, held, goal, &mut measure);
         let mut out = Text::writing_exact(measure);
-        acted_text(pending, held, &mut out);
+        acted_text(pending, held, goal, &mut out);
         success(out.finish())
     }
 }
@@ -267,7 +406,11 @@ fn refusal_text(pending: &Pending, why: &w::FindingRefusal, out: &mut Text) {
         w::FindingRefusal::NoGoal => out.put(b"no live goal of this project"),
         w::FindingRefusal::Ended => out.put(b"finding already routed or dropped"),
         w::FindingRefusal::Words(value) => {
-            out.put(b"finding words past their bounds: ");
+            if [b"title".as_slice(), b"body", b"area", b"why", b"reason", b"signature", b"words", b"more", b"landing"]
+                .contains(&value.field.as_ref())
+            {
+                out.put(b"finding words past their bounds: ");
+            }
             out.put(&value.field);
         }
     }
@@ -312,7 +455,7 @@ fn owner_json(value: &w::AreaOwner, out: &mut Encoder) {
     }
     out.object_end();
 }
-fn row_fields(project: u32, row: &w::FindingRow, out: &mut Encoder) {
+pub(crate) fn row_fields(project: u32, row: &w::FindingRow, out: &mut Encoder) {
     out.key(b"project");
     out.unsigned(u64::from(project));
     out.key(b"number");
@@ -334,6 +477,15 @@ fn row_fields(project: u32, row: &w::FindingRow, out: &mut Encoder) {
     out.unsigned(row.at);
     out.key(b"why");
     optional(row.why.as_deref(), out);
+    out.key(b"goal");
+    match &row.goal {
+        Some(goal) => out.unsigned(*goal),
+        None => out.null(),
+    }
+    out.key(b"reason");
+    optional(row.reason.as_deref(), out);
+    out.key(b"cleared");
+    clearing_json(row.cleared.as_ref(), out);
 }
 fn optional(value: Option<&[u8]>, out: &mut Encoder) {
     match value {
@@ -385,6 +537,8 @@ fn list_json(findings: &w::Findings, out: &mut Encoder) {
 fn show_json(project: u32, detail: &w::FindingDetail, out: &mut Encoder) {
     out.object_start();
     row_fields(project, &detail.row, out);
+    out.key(b"blame");
+    blame_json(detail.blame.as_ref(), out);
     out.key(b"body");
     out.string(&detail.body);
     out.key(b"filer");
@@ -400,23 +554,51 @@ fn show_json(project: u32, detail: &w::FindingDetail, out: &mut Encoder) {
         }
     }
     out.object_end();
-    out.key(b"goal");
-    match &detail.goal {
-        Some(goal) => out.unsigned(*goal),
-        None => out.null(),
-    }
-    out.key(b"reason");
-    optional(detail.reason.as_deref(), out);
     out.object_end();
 }
-fn acted_json(pending: &Pending, held: Option<&w::Holder>, out: &mut Encoder) {
+fn hex_byte(byte: u8) -> [u8; 2] {
+    let digits = b"0123456789abcdef";
+    [
+        *digits.get(usize::from(byte >> 4_u32)).expect("hex nibble"),
+        *digits.get(usize::from(byte & 15)).expect("hex nibble"),
+    ]
+}
+fn acted_json(pending: &Pending, held: Option<&w::Holder>, goal: Option<u64>, out: &mut Encoder) {
     out.object_start();
     out.key(b"act");
-    out.string(act_word(pending.act));
+    out.string(act_word(&pending.act));
     out.key(b"project");
     out.unsigned(u64::from(pending.project));
     out.key(b"number");
     out.unsigned(u64::from(pending.number));
+    match &pending.act {
+        Act::Repair(more) => {
+            out.key(b"goal");
+            out.unsigned(goal.expect("repair answer has its goal"));
+            out.key(b"more");
+            out.array_start();
+            for number in more {
+                out.unsigned(u64::from(*number));
+            }
+            out.array_end();
+        }
+        Act::Blame(landing) => {
+            out.key(b"landing");
+            match landing {
+                Some(landing) => {
+                    let mut hex = skein_lib::List::with_capacity(64);
+                    for byte in landing {
+                        for digit in hex_byte(*byte) {
+                            hex.push(digit).expect("commit fits");
+                        }
+                    }
+                    out.string(hex.as_slice());
+                }
+                None => out.null(),
+            }
+        }
+        Act::List | Act::Show | Act::File | Act::Hand | Act::Route | Act::Backlog | Act::Drop => {}
+    }
     if let Some(held) = held {
         out.key(b"holder");
         held_json(held, out);

@@ -1,6 +1,7 @@
 //! A world's library is its own (skein/docs/design/testing/README.md, 6): no package
 //! depends on a package under skein/tests/, and no #[path] leaves its package.
-//! One tracked-source walk feeds both source rules (tools/crates/design.md, 3).
+//! Exclusions name ignored functions of their tree (skein/docs/design/testing/sweeps.md, 5).
+//! One tracked-source walk feeds every source rule (tools/crates/design.md, 3).
 
 use std::collections::BTreeSet;
 use std::fs;
@@ -131,10 +132,64 @@ impl<'ast> Visit<'ast> for Paths {
 }
 
 #[derive(Default)]
+struct Ignored(BTreeSet<String>);
+
+impl Ignored {
+    fn function(&mut self, attributes: &[syn::Attribute], name: &syn::Ident) {
+        if attributes.iter().any(|attribute| attribute.path().is_ident("ignore")) {
+            self.0.insert(name.to_string().trim_start_matches("r#").to_owned());
+        }
+    }
+}
+
+impl<'ast> Visit<'ast> for Ignored {
+    fn visit_item_fn(&mut self, function: &'ast syn::ItemFn) {
+        self.function(&function.attrs, &function.sig.ident);
+        syn::visit::visit_item_fn(self, function);
+    }
+
+    fn visit_impl_item_fn(&mut self, function: &'ast syn::ImplItemFn) {
+        self.function(&function.attrs, &function.sig.ident);
+        syn::visit::visit_impl_item_fn(self, function);
+    }
+
+    fn visit_trait_item_fn(&mut self, function: &'ast syn::TraitItemFn) {
+        self.function(&function.attrs, &function.sig.ident);
+        syn::visit::visit_trait_item_fn(self, function);
+    }
+}
+
+/// Whether `source` may hold an attribute named `name`: `#`, an optional `!`, `[`
+/// and the name, with any whitespace between, as the parser reads one. A comment
+/// or a string that spells one only costs a parse.
+fn may_hold_attribute(source: &str, name: &str) -> bool {
+    source.match_indices('#').any(|(at, _)| {
+        let rest = source.get(at + 1..).unwrap_or_default().trim_start();
+        let rest = rest.strip_prefix('!').map_or(rest, str::trim_start);
+        rest.strip_prefix('[')
+            .and_then(|inner| inner.trim_start().strip_prefix(name))
+            .is_some_and(|after| !after.starts_with(|next: char| next == '_' || next.is_alphanumeric()))
+    })
+}
+
+fn source_tree(path: &Path) -> Option<&'static str> {
+    ["skein", "smith", "jig", "temper", "hearth"].into_iter().find(|tree| path.starts_with(tree))
+}
+
+struct Scenario {
+    file: PathBuf,
+    line: usize,
+    tree: &'static str,
+    name: String,
+}
+
+#[derive(Default)]
 struct Walk {
     failures: Vec<String>,
     read: usize,
     parsed: usize,
+    ignored: BTreeSet<(&'static str, String)>,
+    scenarios: Vec<Scenario>,
 }
 
 impl Walk {
@@ -142,12 +197,32 @@ impl Walk {
         let seam = !path.starts_with("skein/crates/skein-forge-connection")
             && !path.starts_with("skein/tests/forge/machine")
             && source.contains("skein_forge_connection");
-        let paths = path.starts_with("skein") && source.contains("path");
-        if !seam && !paths {
+        let paths = path.starts_with("skein") && may_hold_attribute(source, "path");
+        let tree = source_tree(path);
+        if let Some(tree) = tree
+            && !path.starts_with("skein/testing/skein-world")
+            && !path.starts_with("skein/tests/world")
+        {
+            self.scenarios.extend(
+                fabrig_boundary::exclusion_scenarios(source).into_iter().map(|(name, line)| Scenario {
+                    file: path.to_owned(),
+                    line,
+                    tree,
+                    name,
+                }),
+            );
+        }
+        let ignored = tree.is_some() && may_hold_attribute(source, "ignore");
+        if !seam && !paths && !ignored {
             return;
         }
         let parsed = syn::parse_file(source).unwrap_or_else(|why| panic!("{}: {why}", path.display()));
         self.parsed += 1;
+        if let Some(tree) = tree.filter(|_| ignored) {
+            let mut ignored = Ignored::default();
+            ignored.visit_file(&parsed);
+            self.ignored.extend(ignored.0.into_iter().map(|name| (tree, name)));
+        }
         if seam {
             let mut seam = SeamPaths::default();
             seam.visit_file(&parsed);
@@ -190,6 +265,17 @@ fn walk(root: &Path, paths: &[&str], mut read: impl FnMut(&str) -> String) -> Wa
         walk.read += 1;
         walk.source(root, path, &source, &manifests);
     }
+    for scenario in &walk.scenarios {
+        if !walk.ignored.contains(&(scenario.tree, scenario.name.clone())) {
+            walk.failures.push(format!(
+                "{}:{}: exclusion names {}, no #[ignore]d function of {}",
+                scenario.file.display(),
+                scenario.line,
+                scenario.name,
+                scenario.tree,
+            ));
+        }
+    }
     walk.failures.sort();
     walk
 }
@@ -213,7 +299,9 @@ fn tracked_walk(root: &Path) -> Walk {
 
 fn fixture(files: &[(&str, &str)]) -> Walk {
     let paths: Vec<_> = files.iter().map(|(path, _)| *path).collect();
+    let mut read = BTreeSet::new();
     walk(Path::new("/workspace"), &paths, |path| {
+        assert!(read.insert(path.to_owned()), "{path}: source read twice");
         files.iter().find(|(name, _)| *name == path).expect("fixture source").1.to_owned()
     })
 }
@@ -289,8 +377,89 @@ fn attributes_stay_within_the_nearest_package() {
 }
 
 #[test]
-fn one_walk_reads_each_source_and_parses_for_both_rules_once() {
-    let source = "use skein_forge_connection::seam::GitHub; #[path = \"../../other/src/lib.rs\"] mod other;";
+fn exclusions_name_ignored_functions_of_their_tree() {
+    let path = "temper/tests/x/tests/suite/fuzzy/a.rs";
+    for (function, expected) in [
+        ("#[test]\n#[ignore = \"landing train\"]\nfn some_scenario() {}", false),
+        ("#[ignore]\nasync fn some_scenario() {}", false),
+        ("#[test]\nfn some_scenario() {}", true),
+        ("fn another_scenario() {}", true),
+        ("#[ignore] mod ignored { fn some_scenario() {} }", true),
+        ("// #[ignore]\nfn some_scenario() {}", true),
+    ] {
+        let walk = fixture(&[
+            (path, "\nfn sweep() { Exclusion::new(\"some_scenario\", \"landing train\"); }"),
+            ("temper/tests/x/tests/suite/b.rs", function),
+        ]);
+        let expected = if expected {
+            vec![format!("{path}:2: exclusion names some_scenario, no #[ignore]d function of temper")]
+        } else {
+            vec![]
+        };
+        assert_eq!(walk.failures, expected, "{function}");
+    }
+}
+
+#[test]
+fn harness_packages_need_no_ignored_scenario() {
+    for path in ["skein/testing/skein-world/src/sweep.rs", "skein/tests/world/tests/sweep.rs"] {
+        let walk = fixture(&[(path, "fn sweep() { Exclusion::new(\"missing\", \"work\"); }")]);
+        assert!(walk.failures.is_empty(), "{path}: {:?}", walk.failures);
+    }
+    let path = "skein/testing/skein-world-nearby/src/sweep.rs";
+    assert_eq!(
+        fixture(&[(path, "fn sweep() { Exclusion::new(\"missing\", \"work\"); }")]).failures,
+        [format!("{path}:1: exclusion names missing, no #[ignore]d function of skein")],
+    );
+}
+
+#[test]
+fn ignored_scenarios_of_another_tree_do_not_count() {
+    let walk = fixture(&[
+        ("temper/tests/x/tests/suite/fuzzy/a.rs", "fn sweep() { Exclusion::new(\"some_scenario\", \"work\"); }"),
+        ("smith/tests/x/tests/suite/b.rs", "#[ignore = \"work\"] fn some_scenario() {}"),
+    ]);
+    assert_eq!(
+        walk.failures,
+        ["temper/tests/x/tests/suite/fuzzy/a.rs:1: exclusion names some_scenario, no #[ignore]d function of temper"],
+    );
+}
+
+#[test]
+fn only_literal_exclusion_arguments_outside_comments_and_literals_count() {
+    let path = "jig/tests/x/tests/suite/a.rs";
+    let walk = fixture(&[(
+        path,
+        r##"
+// Exclusion::new("comment", "work");
+/* /* nested */ Exclusion::new("block_comment", "work"); */
+const TEXT: &str = r#"Exclusion::new("raw_string", "work")"#;
+const QUOTED: &str = "Exclusion::new(\"string\", \"work\")";
+fn sweep() {
+    Exclusion::new(SCENARIO, "work");
+    Exclusion::new("expression".trim(), "work");
+    NotExclusion::new("other_type", "work");
+}
+make_sweep! { Exclusion /* comment */ :: new(r#"missing"#, "work"); }
+fn another() { Exclusion::new("mi\u{73}sing_too", "work"); }
+"##,
+    )]);
+    assert_eq!(
+        walk.failures,
+        [
+            format!("{path}:11: exclusion names missing, no #[ignore]d function of jig"),
+            format!("{path}:12: exclusion names missing_too, no #[ignore]d function of jig"),
+        ]
+    );
+}
+
+#[test]
+fn one_walk_reads_each_source_and_parses_for_all_rules_once() {
+    let source = r#"use skein_forge_connection::seam::GitHub;
+#[path = "../../other/src/lib.rs"] mod other;
+#[ignore = "landing train"] fn some_scenario() {}
+fn sweep() { Exclusion::new("some_scenario", "landing train"); Exclusion::new("missing", "work"); }
+"#;
     let walk = fixture(&[
         ("skein/outer/nested/Cargo.toml", ""),
         ("skein/outer/nested/src/lib.rs", source),
@@ -304,7 +473,9 @@ fn one_walk_reads_each_source_and_parses_for_both_rules_once() {
         [
             "skein/outer/nested/src/lib.rs: #[path = \"../../other/src/lib.rs\"] leaves skein/outer/nested",
             "skein/outer/nested/src/lib.rs: seam is private to skein-forge-machine-world",
+            "skein/outer/nested/src/lib.rs:4: exclusion names missing, no #[ignore]d function of skein",
             "temper/crates/x/src/lib.rs: seam is private to skein-forge-machine-world",
+            "temper/crates/x/src/lib.rs:4: exclusion names missing, no #[ignore]d function of temper",
         ]
     );
 }

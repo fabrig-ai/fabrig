@@ -107,16 +107,15 @@ fn a_paused_restore_answers_an_ask_not_ready_without_a_commit_or_retained_answer
     world.hold_restart_reads = true;
     world.finish_restore_pages();
     assert_eq!(world.store.rows, with_start_mark(&rows), "whole original restored facts and the start's mark");
-    assert!(!world.domain.ready());
+    assert!(world.domain.ready(), "fresh reads do not hold the opening");
+    assert!(!world.domain.core_mut().caught_up(1));
     let applied = world.store.applied;
-    let commits = world.commits.len();
     world.send(ask(&world, sign_in, 7101));
-    assert_eq!(reply(&mut world, 7101).1, people::Reply::Again(people::Again::NotReady));
+    let answered = reply(&mut world, 7101).1;
+    assert!(matches!(answered, people::Reply::Outcome(people::Outcome::Created { .. })));
     world.send(self::sign_in(7102));
-    assert_eq!(reply(&mut world, 7102).1, people::Reply::Again(people::Again::NotReady));
-    assert_eq!(world.store.applied, applied);
-    assert_eq!(world.commits.len(), commits);
-    assert_eq!(world.store.rows, with_start_mark(&rows));
+    assert!(matches!(reply(&mut world, 7102).1, people::Reply::SignedIn { .. }));
+    assert!(world.store.applied > applied, "both decisions commit while the connector catches up");
     world.hold_restart_reads = false;
     world.drain();
     assert!(world.domain.ready());
@@ -158,7 +157,7 @@ fn paused_polls_preserve_multiple_whole_pages_and_repeated_release_is_safe() {
     assert!(!world.trace[trace_start..].iter().any(|line| line.starts_with("store page")));
     world.finish_restore_pages();
     assert!(!world.store.loading());
-    assert_eq!(world.restart_steps.last(), Some(&core::start::Phase::ReadAfresh { connector: 2 }));
+    assert_eq!(world.restart_steps.last(), Some(&core::start::Phase::Switch));
     let rows = with_start_mark(&rows);
     assert_eq!(world.store.rows, rows);
     let pages: Vec<_> =

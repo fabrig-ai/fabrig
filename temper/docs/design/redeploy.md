@@ -261,7 +261,10 @@ exclude each other.
    `BUILDS/COMMIT/temper-engine`, `{checkpoint}` that name. It is the new
    build's full check of the state at the checkpoint's commit (jig's
    `protocol/store/opening.md`, 5): every record decoded, the jobs, the
-   restores and the verdict on the workers. Each of its lines is printed
+   restores, the start run on to its opening with no network, what the
+   forge would catch up, and the verdict on the workers
+   (`protocol/binaries.md`, 2). Its pass is the opening, read from the
+   engine, never its listeners up or its time alive. Each of its lines is printed
    and kept. It never writes its input, so neither the checkpoint nor the
    live store changes (`draft/checkpoints.md`, 5.2).
 9. **What it says** (`protocol/wires.md`, 10.2), by its exit and its last

@@ -402,7 +402,7 @@ fn table(context: &Context<'_>, out: &mut String) -> Vec<usize> {
     }
     line(
         out,
-        "// Table: postordered shapes, with compiler-known heap slot sizes.\nconst TABLE: &[skein_codec::bounds::Node] = &[",
+        "// Table: postordered shapes, with compiler-known heap slot sizes.\nstatic TABLE: &[skein_codec::bounds::Node] = &[",
     );
     for node in table.nodes {
         line(out, &format!("    {node},"));
@@ -411,7 +411,7 @@ fn table(context: &Context<'_>, out: &mut String) -> Vec<usize> {
     for at in &roots {
         line(out, &format!("    {at},"));
     }
-    line(out, "];\n\nconst CEILING_VALUES: &[u32] = &[");
+    line(out, "];\n\nstatic CEILING_VALUES: &[u32] = &[");
     for (_, ceiling, _) in &context.bounds {
         line(out, &format!("    {},", literal(ceiling)));
     }

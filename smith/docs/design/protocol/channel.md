@@ -594,7 +594,7 @@ a trace is kept is the agent's configuration (agent.md).
 ## 10. The world
 
 - **The codecs:**
-  - records-only drift and no unpinned constructs, under skein's
+  - records-only drift, under skein's
     `data/codec/README.md`, section 6; fixed-rule values built from
     embedded current or kept text, with no generated test targets;
   - each decoder fuzzed in the fuzzy suite.

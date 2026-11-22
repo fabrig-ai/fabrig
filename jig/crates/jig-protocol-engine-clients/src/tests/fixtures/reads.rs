@@ -78,7 +78,7 @@ pub fn held_reads() -> [(&'static str, w::Read, reads::Read, reads::Answer, w::R
 }
 impl Exchange {
     pub fn read(&mut self, value: &w::Read) -> (Token, ReplyTo, reads::Read) {
-        self.read_until(value, Wall::from_nanos(86_400_000_000_000))
+        self.read_until(value, SIGN_IN_EXPIRES)
     }
     pub fn read_until(&mut self, value: &w::Read, expires: Wall) -> (Token, ReplyTo, reads::Read) {
         let owner = self.send(crate::Message::Read(owned_read(

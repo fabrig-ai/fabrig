@@ -254,6 +254,7 @@ impl Fixture {
             List::with_capacity(0)
         };
         let panel = w::ChangesPanel {
+            catching_up: None,
             landed_default: landed.clone(),
             landed_default_more: 0,
             project: f::PROJECT,
@@ -471,6 +472,7 @@ impl TurningWork {
             ended: None,
             last_landing: None,
             spent: 0,
+            reds: 0,
         };
         milestone.parts = list(&[f::milestones::part(None, totals, children.as_slice(), 0)]);
         page.live(watch, core::slice::from_ref(&milestone));

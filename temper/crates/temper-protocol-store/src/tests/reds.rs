@@ -225,9 +225,57 @@ fn finding() -> d::Finding {
         signature: None,
         seen: None,
         blame: None,
+        repair: None,
         cleared: None,
     }
 }
+#[test]
+fn returned_red_findings_keep_their_why_without_a_hander() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let why: Box<[u8]> = b"repair goal 41 ended and slow run 3 still fails 1 of its tests".as_slice().into();
+    let id: Box<[u8]> = b"suite.alpha".as_slice().into();
+    let mut row = finding();
+    row.kind = d::FindingKind::Red;
+    row.signature = Some(d::FindingSignature {
+        repository: skein_forge::api::Repository { forge: 1, repository: 2 },
+        source: b"slow".as_slice().into(),
+        ids: Box::new([id.clone()]),
+        first: Box::new([]),
+        many: false,
+    });
+    row.blame = Some(d::FindingBlame { strength: d::BlameStrength::Unblamed, landings: Box::new([]), moved: None });
+    row.why = Some(why);
+    let malformed = d::Stored::Finding(row.clone());
+    assert_eq!(records::decode(&records::encode(&malformed), &bounds), Err(Undecodable::Malformed), "no judging");
+
+    row.repair = Some(d::FindingRepair {
+        goal: 41,
+        made: true,
+        attempts: 1,
+        cancelled: false,
+        failing: Box::new([id]),
+        until: None,
+        judging: None,
+    });
+    let stored = d::Stored::Finding(row.clone());
+    let key = keys::encode(&d::stored_key(&stored), u32::MAX).unwrap();
+    assert_eq!(records::row(&key, &records::encode(&stored), &bounds), Ok(stored), "returned by judging");
+
+    row.state = d::FindingState::Routed;
+    row.goal = Some(42);
+    let repair = row.repair.as_mut().unwrap();
+    repair.goal = 42;
+    repair.attempts = 2;
+    repair.until = Some(skein_lib::Wall::from_nanos(500));
+    let stored = d::Stored::Finding(row.clone());
+    assert_eq!(records::row(&key, &records::encode(&stored), &bounds), Ok(stored), "retry retains the why");
+
+    row.why = None;
+    row.hander = Some(d::Filer::Task(7));
+    let malformed = d::Stored::Finding(row);
+    assert_eq!(records::decode(&records::encode(&malformed), &bounds), Err(Undecodable::Malformed), "no why");
+}
+
 fn finding_prefix() -> Box<[u8]> {
     skein_lib::bytes::concat(&[
         &1_u32.to_be_bytes(),
@@ -261,7 +309,7 @@ fn finding_options_have_golden_bytes_validate_signatures_and_charge_their_owned_
         } else {
             b"\0\0"
         };
-        let golden = skein_lib::bytes::concat(&[b"\0\x19\x25", &finding_prefix(), options, b"\0\0"]);
+        let golden = skein_lib::bytes::concat(&[b"\0\x19\x25", &finding_prefix(), options, b"\0\0\0"]);
         let stored = d::Stored::Finding(row.clone());
         assert_eq!(records::encode(&stored), golden);
         assert_eq!(records::decode(&golden, &bounds), Ok(stored));

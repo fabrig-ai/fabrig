@@ -37,8 +37,8 @@ and people, durably and within the authority each task was given.
   application is built around it, and the promises it keeps.
 - [`docs/design/examples.md`](docs/design/examples.md): `ops`, the
   example application, whose root every application copies.
-- [`docs/design/STATUS.md`](docs/design/STATUS.md): how far the code is
-  from the design.
+- [`docs/design/STATUS.md`](docs/design/STATUS.md): where to find how far
+  the code is from the design and how to roll up the status files.
 - skein's foundation, which jig follows: `programming-model.md`,
   `testing-strategy.md` and `notes.md`.
 

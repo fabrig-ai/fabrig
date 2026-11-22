@@ -99,6 +99,19 @@ impl Hub {
         self.hosted.len()
     }
 
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn hosted_at(&self, index: u32) -> Option<(Token, Token)> {
+        let mut position = 0_u32;
+        for (_, entry) in &self.hosted {
+            if position == index {
+                return Some((entry.run, entry.attempt));
+            }
+            position = position.checked_add(1).expect("hosted slots fit in a u32");
+        }
+        None
+    }
+
     /// Runs that have not answered yet: those hosted, closed ones aside.
     #[must_use]
     pub fn unanswered(&self) -> u32 {

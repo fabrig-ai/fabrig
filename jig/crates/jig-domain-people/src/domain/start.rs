@@ -105,6 +105,7 @@ impl Domain {
                 }
                 OutcomeFamily::Again(_)
                 | OutcomeFamily::SignedOut
+                | OutcomeFamily::ServiceReissued
                 | OutcomeFamily::Compound
                 | OutcomeFamily::Refused
                 | OutcomeFamily::CompoundRefused

@@ -41,6 +41,19 @@ fn basic_utc_writes_the_runs_second_and_calendar_boundaries() {
     assert_eq!(short.written(), 0, "an undersized writer receives no partial timestamp");
 }
 
+#[test]
+fn extended_utc_keeps_seconds_calendar_boundaries_and_walls_end() {
+    for (nanos, expected) in [
+        (0, "1970-01-01T00:00:00Z"),
+        (951_827_696_999_999_999, "2000-02-29T12:34:56Z"),
+        (1_767_225_599_999_999_999, "2025-12-31T23:59:59Z"),
+        (1_767_225_600_000_000_000, "2026-01-01T00:00:00Z"),
+        (u64::MAX, "2554-07-21T23:34:33Z"),
+    ] {
+        assert_eq!(&Wall::from_nanos(nanos).utc_second(), expected.as_bytes(), "{nanos}");
+    }
+}
+
 fn at(nanos: u64) -> Time {
     Time::from_nanos(nanos)
 }

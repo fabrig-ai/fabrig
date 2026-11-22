@@ -1,0 +1,385 @@
+records crate::people_v17
+use p = jig_domain_people
+use s = skein_codec::convert
+by hand crate::codec::people
+context crate::people_v17::Limits
+
+record MovedPlacedHold
+record HoldOwnerParty
+record HoldOwnerTask
+enum HoldOwner = p::HoldOwner
+record AskLift
+record OutcomeLifted
+record LackHoldOwner
+record Segment stands for bytes
+record Number64 stands for value
+record RolePolicy
+enum Role = p::Role
+record Holding = p::Holding
+record IdentityKey = p::IdentityKey
+record Identity = p::Identity
+record RequestKey = p::RequestKey
+record LastExact stands for value
+record LastOpen stands for value
+enum Last = p::Last { exact tuple, open tuple }
+# segments are budgeted pieces.
+record Pattern by hand
+record Grant = p::Grant
+record ResourceScope = p::ResourceScope
+record ExecutorCharter stands for value
+record ExecutorProcedure stands for value
+record ExecutorRole stands for value
+record ExecutorJob stands for kind
+enum Executor = p::Executor { charter tuple, procedure tuple, role tuple, job tuple }
+# executor kinds are budgeted pieces.
+record Delegation by hand
+record ModelSetNamed stands for bits
+enum ModelSet = p::Models { named tuple }
+# grants and note resources are budgeted pieces.
+record Authority by hand
+record Judge = p::Judge
+record GuardObserved { freshness via s::duration }
+enum Guard = p::Guard
+record Requirement = p::Requirement
+record PermissionRole = p::PermissionRole
+record PolicyRole = p::PolicyRole
+record TemplateExecutorCharter stands for value
+enum TemplateExecutor = p::TemplateExecutor { charter tuple }
+record TemplateBudgetAmount stands for value
+record TemplateBudgetAsAllowed
+enum TemplateBudget = p::TemplateBudget { amount tuple }
+record TemplateDeadlineSpan stands for value via s::duration
+enum TemplateDeadline = p::TemplateDeadline { span tuple }
+record TemplateOverride = p::TemplateOverride
+# permissions are budgeted pieces.
+record PolicyValue by hand
+record PolicyChangeProjectSpend
+record PolicyChangeRoleSpend
+record PolicyChangeRole
+# payload contains budgeted pieces.
+record PolicyChangeRequirements by hand
+# payload contains budgeted pieces.
+record PolicyChangeProjections by hand
+# payload contains budgeted pieces.
+record PolicyChangePermissions by hand
+record PolicyChangeTemplates
+# requirements, projections and permissions are budgeted pieces.
+enum PolicyChange by hand
+record SeenResults
+record SeenConversation
+enum Seen = p::Seen
+record NoteScopeTask { task = goal }
+record NoteScopeResources
+record NoteScopeParty
+enum NoteScope = p::NoteScope { task = Goal }
+# payload contains budgeted pieces.
+record NoteChangeCorrect by hand
+record NoteChangeDelete
+# references are budgeted pieces.
+enum NoteChange by hand
+enum ResourceRole = p::ResourceRole
+# path is budgeted pieces.
+record ResourceName by hand
+# options are budgeted pieces.
+record Adoption by hand
+record PersonResultApproved
+record PersonResultReport
+record PersonResultVerdict
+record PersonResultFailure
+enum PersonResult = p::PersonResult
+record ProposerTask stands for value
+record ProposerParty stands for value
+enum Proposer = p::Proposer { task tuple, party tuple }
+record ProposalDecisionReject
+enum ProposalDecision = p::ProposalDecision
+record EscalationDecisionReject
+enum EscalationDecision = p::EscalationDecision
+record PersonAddressPerson stands for value
+record PersonAddressRole stands for value
+enum PersonAddress = p::PersonAddress { person tuple, role tuple }
+record AddressChange = p::AddressChange
+record ParameterNumber
+record ParameterBytes
+record ParameterResource
+enum Parameter = p::Parameter
+# parameters and inputs are budgeted pieces.
+record Spec by hand
+record WakeRuleBatch { age via s::duration }
+record WakeRulePaced { span via s::duration }
+enum WakeRule = p::WakeRule
+enum ResultsWake = p::ResultsWake
+record WakePolicy = p::WakePolicy
+record TrackingTracked
+enum Tracking = p::Tracking
+record ModelEffort = p::ModelEffort
+record LlmLater = p::LlmLater { subagents slice }
+record LlmChoice = p::LlmChoice { subagents slice }
+# dependencies are pieces and the total byte budget is checked.
+record Amendment by hand
+record TaskExecutorAgent
+record TaskExecutorProcedure
+record TaskExecutorPerson stands for address
+enum TaskExecutor = p::TaskExecutor { person tuple }
+record BudgetAsAllowed
+enum Budget = p::Budget
+record DependencyBatch stands for at
+record DependencyExisting stands for task
+enum Dependency = p::Dependency { batch tuple, existing tuple }
+record FieldRule = p::FieldRule
+# fields are budgeted pieces.
+record Verdict by hand
+record ContractReport
+# payload contains budgeted pieces.
+record ContractVerdict by hand
+record ContractChange
+# verdict choices are budgeted pieces.
+enum Contract by hand
+enum Retention = p::Retention
+record Closer = p::Closer
+enum EndedBy = p::EndedBy { closer tuple }
+record Flags = p::Flags
+record DeadlineSpan stands for value
+enum Deadline = p::Deadline { span tuple }
+record Symbol = p::Symbol
+# parameters, inputs, dependencies and named grants are budgeted pieces.
+record Member by hand
+record OperationCancel { grace via s::duration }
+record OperationMove
+record OperationAmend { amendment boxed }
+record OperationRelease
+record OperationMessage
+record OperationStop
+enum Operation = p::Operation { move_task = Move }
+record AskCompound
+record AskCreate { batch slice }
+record AskDelegate { batch slice }
+record AskMarkSeen
+record ScopeProject stands for project
+enum ApplicationScope = p::ApplicationScope { project tuple }
+record AskApplication
+record AskEditNote { scope boxed, change boxed }
+record AskMakeService
+record AskAdopt
+record ActionBatch
+record ActionAmend { amendment boxed }
+record ActionSettings
+# The batch tuple holds a boxed slice; stands-for has no slice mark.
+enum Action by hand
+record AskPropose
+record AskWithdraw
+record AskStop
+record AskCancel { grace via s::duration }
+record AskRelease
+record AskTakePerson
+record AskHandBackPerson
+record AskAnswerPerson
+record AskMove
+enum Running = p::Running
+record AskDecideProposal
+record AskSay
+record AskAnswerQuestion
+record AskAmend
+record AskSetRoles { holdings slice }
+record AskRename { name via s::text }
+record AskRestore
+record AskChangeSettings { projects slice }
+record SettingNumber stands for number
+record ApplicationSetting
+record ProjectPolicySetting
+enum Setting = p::Setting { charter tuple, template tuple, policy tuple, model tuple, worker tuple, provider tuple }
+record OutcomeRestored { left_out slice }
+enum SettingFault = p::SettingFault
+enum SettingMember = p::SettingMember
+enum SettingRule = p::SettingRule
+record SettingDetail = p::SettingDetail
+record MalformedSettings
+record RefusalStale
+record RefusalFull { tasks slice }
+record OutcomeSettingsChanged
+record AskMakeProject { name via s::text }
+record AskChangePolicy
+record AskSetPool
+record AskDecideEscalation
+enum AccountHolder = p::AccountHolder
+record AskAccountSignIn
+record AskAccountSignOut
+record AccountUseParty stands for number
+record AccountUseProject stands for number
+enum AccountUse = p::Use { party tuple, project tuple }
+record AccountChangeDeclareProgram { name via crate::codec::people::program_name }
+record AccountChangeCheckProgram
+record AccountChangeAddKey { digest via crate::codec::people::digest }
+record AccountChangeReplaceKey { digest via crate::codec::people::digest }
+record AccountChangeRemoveKey
+record AccountChangeResume
+record AccountChangeRemove
+record AccountChangeMoveAccount
+record AccountChangeMoveSource
+record AccountChangeSetUses { uses slice }
+record AccountChangeMoveOut
+record AccountChangeWritten
+record AccountChangeMoveIn { digest via crate::codec::people::digest }
+record AccountChangeFinishSignIn { digest via crate::codec::people::digest }
+record AccountChangeReadLists
+record LoginExitExited
+record LoginExitKilled
+enum LoginExit = p::LoginExit
+record AccountChangeLoginProgram
+record AccountChangeCancelLogin
+record AccountChangeLoginEnded
+enum AccountChange = p::AccountChange
+record AskAccountChange
+record AskMoveToNewest
+record AskRemoveProject { grace via s::duration }
+record AskSetVisibility
+record AskConclude
+enum WorkerPauseMode = jig_domain_link::PauseMode
+record AskPauseWorker
+record OutcomeWorkerPauseAsked
+record RefusalUnlinked
+record ServiceParty
+enum Ask = p::Ask { move_task = Move }
+record StoredPerson
+record StoredReadResults
+record StoredReadConversation
+record EndedRead
+record StoredSignIn
+record StoredRoles
+record ModelName stands for name
+# model names are remapped using configured names.
+record StoredPolicy by hand
+# the admission-only Full domain variant is not stored.
+enum Again by hand
+enum FailureClass = p::FailureClass
+record HoldReasonFailures
+record HoldReasonDependency
+record HoldReasonPlaced
+record HoldReasonUncertain
+record HoldReasonPoolLost
+enum Bound = p::Bound
+record Exceeded = p::Exceeded
+enum HoldReason = p::HoldReason { exceeded tuple }
+record MovedHold
+record MovedSpec
+record MovedPerson
+record MovedNote
+enum Moved = p::Moved
+record PartyPerson stands for value
+record PartyTask stands for value
+record PartyDeployment
+enum Party = p::Party { person tuple, task tuple }
+record EndingCancelled { at via s::wall }
+record EndingDecided { at via s::wall }
+enum Ending = p::Ending
+record LackBudget
+record LackGrant
+record LackDepth
+record LackTasks
+record LackAgain
+record LackRequired
+record LackFailed
+record LackUnguarded
+record LackTaskKind
+record CeilingRole stands for role
+enum CeilingHolder = p::CeilingHolder { role tuple }
+enum CeilingDimension = p::CeilingDimension
+record LackCeiling
+enum Lack = p::Lack
+enum LimitKind = p::LimitKind
+record RefusalRole
+record AccepterRole stands for role
+enum Accepter = p::Accepter { role tuple }
+record RefusalAuthority
+record RefusalLimit
+record RefusalMoved
+record RefusalEnded
+record RefusalTaken
+enum NameRule = p::NameRule
+record MalformedName stands for rule
+enum Malformed = p::Malformed { name tuple }
+record RefusalNotWellFormed
+enum LlmWhy = p::LlmWhy
+record RefusalLlm
+enum AccountWhy = p::AccountWhy
+record RefusalAccount
+enum DependencyStatus = p::DependencyStatus
+record RefusalCircle { tasks slice }
+record RefusalLiveTasks { tasks slice }
+record RefusalDependency
+record RefusalKept { pending slice }
+enum SignInRedirectWhy = p::SignInRedirectWhy
+record RefusalSignInRedirect
+enum AccountMoveWhy = p::AccountMoveWhy
+record RefusalAccountMove
+record RefusalJudged
+record RefusalForgotten
+record RefusalConcluded { at via s::wall }
+enum Refusal = p::Refusal
+enum ProposalChoice = p::ProposalChoice
+enum EscalationChoice = p::EscalationChoice
+record OutcomeCompound
+record OutcomeCompoundRefused
+record OutcomeMarkedSeen
+record OutcomeApplied { token via s::token }
+record OutcomeAgain stands for value
+record OutcomeNoteEdited
+record OutcomeServiceMade
+record OutcomeAdopted
+record OutcomeProposed
+record OutcomeWithdrawn
+record OutcomeStopped
+record OutcomeCancelled
+record OutcomeReleased
+record OutcomePersonTaken
+record OutcomePersonHandedBack
+record OutcomePersonAnswered
+record OutcomeMoved
+record OutcomeProposalDecided { at via s::wall }
+record OutcomeSaid
+record OutcomeQuestionAnswered
+record OutcomeAmended
+record OutcomeRolesSet
+record OutcomeRenamed
+record OutcomeProjectMade
+record OutcomePolicyChanged
+record OutcomePoolSet
+record OutcomeEscalationDecided { at via s::wall }
+record OutcomeRefused stands for value
+record OutcomeAccountSignInStarted
+enum AccountHostWhy = p::AccountHostWhy
+record AccountHostFailure = p::AccountHostFailure
+record OutcomeAccountProgramDeclared
+record OutcomeAccountSignedOut { failed_hosts slice }
+record OutcomeAccountKeyKept
+record OutcomeAccountRemoved { failed_hosts slice }
+record Given = p::Given
+record OutcomeCreated
+record OutcomeAccountMovingOut
+record OutcomeAccountMovedIn
+record OutcomeAccountFinishing
+record OutcomeMovedToNewest
+record OutcomeVisibilitySet
+record OutcomeProjectRemoved
+record OutcomeAccountReading
+record OutcomeAccountLoginAsked
+record OutcomeConcluded
+enum Outcome = p::Outcome { again tuple, refused tuple }
+record ActKey = p::ActKey
+record ActClose { grace via s::duration }
+record ActAddKey
+record ActRemoveAccount
+record ActAdopt
+record ActMakeProject { name via s::text }
+record ActRemoveProject { grace via s::duration }
+enum Act = p::Act
+record StoredActed
+# retained model names are checked.
+record StoredAnswer by hand
+enum DeletionStep = p::DeletionStep
+record StoredDeletion
+record StoredPublic
+record StoredDeleted
+# row routing and model context are owned here.
+enum Value by hand
+# root byte framing is owned here.
+record Row by hand

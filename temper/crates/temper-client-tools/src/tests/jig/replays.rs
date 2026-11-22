@@ -5,6 +5,7 @@
     clippy::disallowed_methods,
     reason = "ordinary fixtures and printed-byte assertions; testing-strategy.md, step tests"
 )]
+use super::party::PARTY_REISSUE_KEYED;
 use crate::{
     jig::{call, rows},
     tests::fixtures as f,
@@ -269,6 +270,9 @@ const DIRECT_CALLS: &[&[&str]] = &[
     &["finding", "route", "1/12", "--goal", "41", "--key", "route-finding"],
     &["finding", "backlog", "1/12", "--key", "backlog-finding"],
     &["finding", "drop", "shop/12", "duplicate", "--key", "drop-finding"],
+    f::FINDING_REPAIR_CALL,
+    f::FINDING_BLAME_LANDING_CALL,
+    f::FINDING_BLAME_NONE_CALL,
     &[
         "need",
         "ask",
@@ -315,6 +319,7 @@ const DIRECT_CALLS: &[&[&str]] = &[
     &["project", "fund", "1", "2.00", "--key", "fund"],
     &["project", "amend", "1", "--visibility", "public", "--key", "visibility"],
     &["project", "delete", "1", "--key", "drop-1"],
+    PARTY_REISSUE_KEYED,
     &["forge", "setup", "3", "--key", "setup"],
     &["forge", "connect", "3", "github", "--key", "connect"],
     &["forge", "replace", "3", "file", "--key", "replace"],

@@ -347,7 +347,7 @@ pub static PAGES: [Page; 76] = [
         name: "ctl-sign-in",
         kind: Kind::Reference,
         title: "temper ctl sign-in",
-        summary: "Sign in with a printed link or a service file.",
+        summary: "Sign in with a person's link, a service link or a service file.",
         text: include_str!("../../../docs/help/reference/ctl-sign-in.md"),
     },
     Page {
@@ -417,7 +417,7 @@ pub static PAGES: [Page; 76] = [
         name: "ctl-goal",
         kind: Kind::Reference,
         title: "temper ctl goal",
-        summary: "Goals: start one from a project template.",
+        summary: "Goals: start one from a project template, or read one and its reds after landing.",
         text: include_str!("../../../docs/help/reference/ctl-goal.md"),
     },
     Page {
@@ -536,7 +536,7 @@ pub static PAGES: [Page; 76] = [
         name: "ctl-party",
         kind: Kind::Reference,
         title: "temper ctl party",
-        summary: "Parties: make a service with a project's role.",
+        summary: "Parties: make a service and reissue its credential.",
         text: include_str!("../../../docs/help/reference/ctl-party.md"),
     },
     Page {

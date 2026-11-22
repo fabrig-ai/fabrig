@@ -600,6 +600,9 @@ impl jig::render::Parts for Parts {
             None => crate::milestone::next(reading),
         }
     }
+    fn extra_watch(&self, reading: &runner::reads::Reading) -> Option<(u32, jig_client::Watchable)> {
+        crate::goal::next(reading)
+    }
     fn print_read(
         &self,
         reading: &runner::reads::Reading,
@@ -612,6 +615,8 @@ impl jig::render::Parts for Parts {
             || reading.called.call.tool == jig::rows::MILESTONE_SHOW_AT
         {
             Some(crate::milestone::print(reading, me, client, handle, limits, self))
+        } else if reading.called.call.tool == jig::rows::GOAL_SHOW_AT {
+            Some(crate::goal::print(reading, me, client, handle, limits, self))
         } else {
             None
         }

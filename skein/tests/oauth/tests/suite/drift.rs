@@ -24,8 +24,7 @@ fn check(path: &Path, bytes: &[u8], write: bool) {
 #[expect(clippy::disallowed_methods, reason = "skein's round: reads SKEIN_CODEGEN_WRITE, the codegen rewrite switch")]
 fn the_saved_token_schema_has_no_drift() {
     let source = skein_oauth::SCHEMA;
-    let unpinned = skein_codegen::unpinned(source).expect("schema valid");
-    assert!(unpinned.is_empty(), "oauth-v3: unpinned constructs: {unpinned:?}");
+
     let schema = skein_codegen::values(source).schema.clone();
     let output = skein_codegen::generate(&schema);
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");

@@ -199,6 +199,7 @@ impl Project {
             chats: Vec::new(),
             closed: Vec::new(),
             changes: f::ChangesPanel {
+                catching_up: None,
                 project: PROJECT,
                 landing: b"main".as_slice().into(),
                 queues: List::with_capacity(0),
@@ -242,6 +243,7 @@ impl Project {
                     ended: ended.then_some(RECENT),
                     last_landing: None,
                     spent: 31,
+                    reds: 0,
                 };
                 milestone.parts = List::from_boxed(Box::new([temper_fixtures::milestones::part(
                     ended.then_some(Wall::from_nanos(RECENT)),

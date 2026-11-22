@@ -260,7 +260,7 @@ fn payload(events: &[Event]) -> &[u8] {
 fn the_real_smith_set_patches_kept_version_seven_on_read() {
     const REAL: OwnerSets = OwnerSets { sets: &[crate::owners::SMITH_SET] };
     let text = smith_transcript::patches::kept::smith_transcript::TEXTS[0];
-    let old = skein_codegen::goldens(&skein_codegen::parse(text).expect("kept v7"))
+    let old = skein_codegen::fixed_values(&skein_codegen::parse(text).expect("kept v7"))
         .into_iter()
         .find(|value| value.name == "record_turn_smallest.bin")
         .expect("turn")

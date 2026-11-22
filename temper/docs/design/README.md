@@ -172,6 +172,7 @@ forge, temper adds:
 - `domain/forge/change/repairs-later.md`: repairs, resolutions and releases: open questions.
 - `domain/landing-forge.md`: what the forge shows of landings and their open questions.
 - `protocol/git-later.md`: the checkout’s git: open questions.
+- `protocol/git-sweep.md`: the checkout’s git: the sweep of its trash.
 
 - **`domain/`:** temper's domain layer on jig's: its root, the forge
   connector, landings by turn (`landing.md`), what follows a landing
@@ -183,6 +184,7 @@ forge, temper adds:
   - `domain/worker/README.md`: the worker's root, assignments, runs and world.
   - `domain/worker/checkouts.md`: workspaces, preparing, delivering, saving and open questions.
   - `domain/worker/jobs.md`: job kinds, commands and failure diagnostics.
+  - `testing/worker.md`: the worker's inspection adapter, the faults of its disk and workspaces, and their sweeps.
   - `testing/qa/README.md`: QA after landing, beside the deployment: its
     tool, home and loop; its ledger (`testing/qa/ledger.md`), the
     watcher on main (`testing/qa/landings.md`), kept builds
@@ -220,7 +222,8 @@ forge, temper adds:
   `client/recipe.md` the recipes it walks to the states QA's cases start from,
   `client/ctl/README.md`
   `temper ctl`, temper for agents (reads, jig's operations and waits,
-  from a command line), `client/ctl/tools-crates.md` the agents' tools'
+  from a command line), `client/ctl/findings.md` its reads of findings
+  and of a goal's reds after landing, `client/ctl/tools-crates.md` the agents' tools'
   crates and how they were cut into them, and `client/web/mockups/` the pages' design: their look,
   parts, words and acts, binding for what is not built yet and
   reconciled to what temper draws, with a `STATUS.md` of their own.
@@ -253,7 +256,7 @@ forge, temper adds:
 - **`draft/`:** the drafts, the vision this design is written from
   (the repository's `AGENTS.md`, section 6).
 - **Status files:** beside each document, `<name>.status.md`, where
-  the code lags or departs from it; `STATUS.md` indexes them.
+  the code lags or departs from it; `STATUS.md` tells how to roll them up.
 
 ## 7. Conventions
 

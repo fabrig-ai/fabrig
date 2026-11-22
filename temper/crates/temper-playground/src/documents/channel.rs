@@ -128,7 +128,7 @@ pub(super) fn engine_document() -> super::Configuration {
     let document: serde_json::Value = serde_json::from_slice(&document(ENGINE)).expect("engine JSON");
     let mut world = super::Configuration::stock(document);
     world.limits.root.transcript_memory = 1_152_921_504_606_846_976;
-    for (name, value) in [
+    world.jig_over_all([
         ("tasks.inbox_bytes", 4096_u64),
         ("tasks.run_inbox", 8_u64),
         ("tasks.result_bytes", 32_u64),
@@ -178,9 +178,7 @@ pub(super) fn engine_document() -> super::Configuration {
         ("documents.lines", 1_u64),
         ("documents.chips", 1_u64),
         ("documents.text_bytes", 128_u64),
-    ] {
-        world.jig_over(name, value);
-    }
+    ]);
     world
 }
 fn document(engine: &[u8]) -> Vec<u8> {
