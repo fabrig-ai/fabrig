@@ -6,12 +6,19 @@ use temper_shell::directories::Directories;
 pub fn read_handover(
     read: &temper_engine_service::HandoverRead,
 ) -> Result<Option<skein_lib::Secret>, temper_engine_service::HandoverUnread> {
+    read_handover_with(read, |path, max| skein_shell::read_private_file(path, max, skein_shell::effective_user()))
+}
+
+fn read_handover_with(
+    read: &temper_engine_service::HandoverRead,
+    read_private: impl FnOnce(&std::path::Path, u32) -> Result<skein_lib::Secret, skein_shell::Unread>,
+) -> Result<Option<skein_lib::Secret>, temper_engine_service::HandoverUnread> {
     use temper_engine_service::HandoverUnread;
     if read.forge == 0 {
         make_playground_key(super::path(&read.path))
             .map_err(|why| HandoverUnread::Kernel(why.raw_os_error().expect("key io returns an errno")))?;
     }
-    match skein_shell::read_private_file(super::path(&read.path), read.max, skein_shell::effective_user()) {
+    match read_private(super::path(&read.path), read.max) {
         Ok(value) => {
             let bytes = value.expose();
             let bytes = bytes.strip_suffix(b"\n").unwrap_or(bytes);
@@ -1136,8 +1143,6 @@ fn start_phase(phase: jig_domain_core::start::Phase) -> String {
         Phase::Wires => "wires".into(),
         Phase::Switch => "store switch".into(),
         Phase::AdoptRuns => "run adoption".into(),
-        Phase::ReadAfresh { connector } => format!("connector {connector} refresh"),
-        Phase::SettleOutbox { connector } => format!("connector {connector} outbox settlement"),
         Phase::Open => "opening decisions".into(),
     }
 }

@@ -34,6 +34,7 @@ pub(crate) fn request(
         | people::Ask::PauseWorker { .. }
         | people::Ask::MoveToNewest { .. }
         | people::Ask::MakeProject { .. }
+        | people::Ask::ReissueService { .. }
         | people::Ask::Application { .. }
         | people::Ask::Compound { .. }
         | people::Ask::Withdraw { .. }
@@ -187,6 +188,7 @@ pub(crate) fn request(
         | people::Ask::SetVisibility { .. }
         | people::Ask::Rename { .. }
         | people::Ask::MakeProject { .. }
+        | people::Ask::ReissueService { .. }
         | people::Ask::ChangeSettings { .. }
         | people::Ask::PauseWorker { .. }
         | people::Ask::MoveToNewest { .. }

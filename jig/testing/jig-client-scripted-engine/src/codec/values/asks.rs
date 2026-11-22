@@ -60,6 +60,9 @@ pub(in crate::codec) fn wire_made(value: &c::Made, limits: &w::Limits) -> Result
         c::Made::Service { party } => {
             w::Made::Service(w::MadeService { party: *(party), credential: skein_lib::Secret::new(Box::new([])) })
         }
+        c::Made::Reissued { party } => {
+            w::Made::Reissued(w::MadeService { party: *party, credential: skein_lib::Secret::new(Box::new([])) })
+        }
         c::Made::PersonResult { task } => w::Made::PersonResult(w::MadePersonResult { task: *(task) }),
         c::Made::Note { note, scope } => {
             w::Made::Note(w::MadeNote { note: *(note), scope: wire_note_scope(scope, limits)? })

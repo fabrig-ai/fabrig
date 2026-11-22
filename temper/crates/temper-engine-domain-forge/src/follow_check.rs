@@ -190,6 +190,9 @@ pub(crate) fn advance(
     head: api::Commit,
     out: &mut Queue<Request>,
 ) -> Action {
+    if !crate::domain::entries_looked(d, row.task) {
+        return Action::Wait;
+    }
     let Some((_, setting)) = configured(d, row) else { return Action::Done };
     let follows = row.follows.as_ref().expect("follow provenance");
     let Some(source) = follows.commits.last().copied() else { return Action::Held };

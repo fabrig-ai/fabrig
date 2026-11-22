@@ -1773,7 +1773,7 @@ fn a_pull_opened_with_its_answer_lost_is_found_by_its_branches_after_restart_onc
 }
 
 #[test]
-fn a_restored_write_waits_for_the_fresh_repository_read() {
+fn a_restored_write_runs_while_the_fresh_repository_read_keeps_failing() {
     let mut world = World::new(124);
     world.adopt();
     world.event(top::Event::Names {
@@ -1807,19 +1807,22 @@ fn a_restored_write_waits_for_the_fresh_repository_read() {
     assert!(world.stored().contains_key(&top::Key::Entry(1)));
     world.take_seen();
     world.slow_calls(skein_lib::Duration::from_secs(5));
+    world.script_branch_error(b"main", Some(skein_forge::api::Error::Unavailable));
     world.restart();
     world.run_for(2);
-    assert_eq!(world.writes(), 0, "a restored entry cannot write before the fresh read");
+    assert_eq!(world.writes(), 0, "the restored write still owes its own clock read");
     assert!(world.seen().contains(&top::Request::RestartDone { stage: top::RestartStage::Restored }));
     assert!(!world.seen().contains(&top::Request::RestartDone { stage: top::RestartStage::ReadAfresh }));
     world.run_for(20);
     assert_eq!(world.writes(), 1);
+    assert!(!world.seen().contains(&top::Request::RestartDone { stage: top::RestartStage::ReadAfresh }));
+    assert!(world.seen().contains(&top::Request::RestartDone { stage: top::RestartStage::Settled }));
     let stages: Vec<_> = world
         .seen()
         .iter()
         .filter_map(|request| if let top::Request::RestartDone { stage } = request { Some(*stage) } else { None })
         .collect();
-    assert_eq!(stages, [top::RestartStage::Restored, top::RestartStage::ReadAfresh, top::RestartStage::Settled]);
+    assert_eq!(stages, [top::RestartStage::Restored, top::RestartStage::Settled]);
 }
 
 #[test]

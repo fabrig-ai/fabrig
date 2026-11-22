@@ -19,6 +19,19 @@ fn a_request_is_saved_before_it_is_sent_under_its_key() {
     assert_eq!(c.domain.pending(KEY), Some(Pending { progress: Progress::InFlight, party: PARTY, owner: None }));
 }
 #[test]
+fn a_service_reissue_is_kept() {
+    let mut c = Client::live();
+    let request = Ask::Jig(Box::new(contract::Ask::ReissueService { party: 7 }));
+    c.step(Event::Send { name: None, key: KEY, request: request.clone() });
+    let downs = c.downs();
+    let [Down::Save { record }, Down::Send { key, request: sent, .. }] = downs.as_ref() else {
+        panic!("keep the reissue before sending it");
+    };
+    assert_eq!(record.request.request, request);
+    assert_eq!(*sent, request);
+    assert_eq!(*key, record.key);
+}
+#[test]
 fn a_second_send_of_the_same_request_joins_the_first() {
     let mut c = Client::live();
     c.send();

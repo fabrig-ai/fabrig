@@ -22,8 +22,8 @@ fn producing() -> Domain {
     ]));
     outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     d
 }
 

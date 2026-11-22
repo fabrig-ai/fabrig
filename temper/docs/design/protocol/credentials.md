@@ -714,7 +714,7 @@ sources in its holder's order. temper configures the LLM providers
   every credential a placeholder its fake issued; no test calls
   github.com or uses a real credential. Live calls are skein's opt-in
   conformance's alone.
-- **The codecs,** with records drift, pinned constructs, built-value round
+- **The codecs,** with records drift, built-value round
   trips and fuzzing (skein's `data/codec/README.md`, 6): the
   records' numbers and each item's value, the pasted bundle, and the git
   identity's value of each kind; an unknown version refused, and each

@@ -260,6 +260,7 @@ fn ask_project(ask: &people::Ask) -> Option<u32> {
         | people::Ask::Withdraw { project, .. } => Some(*project),
         people::Ask::Restore { .. }
         | people::Ask::MakeProject { .. }
+        | people::Ask::ReissueService { .. }
         | people::Ask::ChangeSettings { .. }
         | people::Ask::PauseWorker { .. }
         | people::Ask::MoveToNewest { .. } => Some(0),

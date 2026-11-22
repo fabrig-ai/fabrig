@@ -692,14 +692,16 @@ the client's last state, and a start builds a new client.
 
 ## 8. Restart
 
-After a restart the owner gives the client its rows, then has it read
-before it writes. The reads wait on no write: until `SettleOutbox`, no
-entry is sent and none holds a call slot or any of the request budget
-(section 6), so a `Busy` while they run comes from reads alone, and a
-read's retries from its own timers. The owner keeps its own reads of
-step 4 to reads too: a write it finds it needs while it reads (a
-resource found missing that it must make) waits until `OutboxDone`, in
-the owner's own order, and holds no read of the step open.
+After a restart the owner gives the client its rows, then, once its
+engine has opened, has it read afresh and settle together: the owner
+is catching up (temper's `domain/forge/catching-up.md`). Neither half
+waits for the other. The reads wait on no write's outcome: an entry
+holds a call slot only while its call is out, which ends on its own, so
+a `Busy` while they run passes as calls end, and a read's retries
+follow its own timers. A write waits on no read but its own. The owner
+keeps its own reads of step 4 to reads too: a write it finds it needs
+while it reads (a resource found missing that it must make) is a write
+like any, in the owner's own order, and holds no read of the step open.
 
 1. **Restore.** The namespace is given first (section 2).
    `Restore { record }` for each stored row, its writers' among them,
@@ -713,10 +715,14 @@ the owner's own order, and holds no read of the step open.
    survives, else `Wall`, when a find's remaining lifetime is the saved
    `expires` less the wall clock.
 3. **Prepare.** The owner tells `Writer` for the branches its writers
-   hold, sends `PauseOutbox`, and hands every stored entry not held for a
-   person to `Make`, here or at any point before `SettleOutbox`. An entry
-   with an attempt starts at its find. While the outbox is paused nothing
-   is sent for an entry, its find included.
+   hold, and hands every stored entry not held for a person to `Make`,
+   in number order and before any entry made since the restart, as it
+   begins catching up; until then it hands none, so nothing is sent.
+   An entry with an attempt starts at its find. There is no pause: an
+   entry made since the restart is admitted and sent as at any time,
+   behind every earlier entry on its lane (7.2), so a write on a
+   restored entry's lane waits for it, and a write on another lane goes
+   ahead.
 4. **Read afresh.** `ReadAfresh` reads the listing of each repository
    with an issue or pull watch from its stored mark, inclusive (section
    4), and each live resource, all as `Fresh`, so what
@@ -726,10 +732,25 @@ the owner's own order, and holds no read of the step open.
    watching a resource it can never read again, such as a forge gone for
    good, does not hold the pass open). It counts the pass's reads alone,
    never an entry's find, a queued merge's look or an echo.
-5. **Settle.** `SettleOutbox` lets the entries run. Each with an attempt
-   is found, or waits for its saved deadline (section 7.5); a queued one
-   is restored queued and its pull read at once, within the same bounds
-   (7.7). `OutboxDone` comes when each has been looked for once.
+5. **Settle.** `SettleOutbox`, given with `ReadAfresh`, starts the
+   settle beside the pass. Each restored entry with an attempt is found,
+   or waits for its saved deadline (section 7.5); a queued one is
+   restored queued and its pull read at once, within the same bounds
+   (7.7). A restored entry's first find that finds nothing, the entry
+   going on to wait for its deadline or to be made again, emits
+   `Outcome::Uncertain` once more: its owner's word that this entry has
+   had its first look; a find that finds it ends in its outcome, and an
+   entry written by this run never emits it twice. `OutboxDone` comes
+   when each restored entry has been looked for once, whether or not the
+   pass has ended.
+6. **What it still owes,** per forge, for its owner's catching-up state:
+   `fresh_owed(forge)`, the pass's watched resources and listings not
+   yet read, and `finds_owed(forge)`, the restored entries with an
+   attempt not yet looked for once; both zero outside a restart. Per
+   repository, `fresh_owed_in(repository)`: the pass's reads still owed
+   on that repository's listing and live resources, zero outside a
+   restart, so its owner can let a repository's decisions go once its
+   own reads are in.
 
 **What it still owes,** for an owner that reports a restart that runs
 long (temper's `protocol/README.md`, 6.3), read at any time and changing

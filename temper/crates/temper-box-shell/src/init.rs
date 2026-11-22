@@ -15,13 +15,13 @@ use std::{
 use temper_shell::directories::EnvironmentEntry;
 use temper_shell::lookup::find;
 /// A small, synchronous startup shell over the binary's io adapter.
-struct Io {
+pub struct Io {
     kernel: Kernel,
     submissions: Queue<Submit>,
     completions: Queue<Complete>,
 }
 impl Io {
-    fn open() -> Result<Self, String> {
+    pub fn open() -> Result<Self, String> {
         Ok(Self {
             kernel: Kernel::open(Config { operations: 1 }).map_err(|why| why.to_string())?,
             submissions: Queue::with_capacity(1),
@@ -38,10 +38,10 @@ impl Io {
             }
         }
     }
-    fn perform(&mut self, kind: Op) -> Result<Done, Error> {
+    pub fn perform(&mut self, kind: Op) -> Result<Done, Error> {
         self.complete(kind).result
     }
-    fn socket(&mut self) -> Result<Fd, String> {
+    pub fn socket(&mut self) -> Result<Fd, String> {
         let Done::Fd(fd) = self.perform(Op::Socket { family: Family::Ipv4 }).map_err(io_error)? else {
             unreachable!("socket answers a descriptor")
         };
@@ -71,7 +71,7 @@ impl Io {
     /// port, and listening makes a reservation exclusive. Another init that
     /// listened first between this one's bind and listen spends a try; a
     /// replacement asks the kernel for another port, as a taken port does.
-    fn listened(&mut self, mut fd: Fd, mut address: std::net::SocketAddr) -> Result<(Fd, NonZeroU16), String> {
+    pub fn listened(&mut self, mut fd: Fd, mut address: std::net::SocketAddr) -> Result<(Fd, NonZeroU16), String> {
         let backlog = jig_protocol_config::stock().io.backlog;
         for attempt in 1..=crate::fake_backends::PORT_ATTEMPTS {
             match self.perform(Op::Listen { fd, backlog }) {
@@ -118,7 +118,7 @@ impl Io {
         }
         Ok(held)
     }
-    fn close(&mut self, fd: Fd) {
+    pub fn close(&mut self, fd: Fd) {
         let result = self.perform(Op::Close { fd });
         debug_assert!(result.is_ok(), "startup descriptor closes");
     }
@@ -158,7 +158,7 @@ fn io_error(why: Error) -> String {
 }
 
 #[derive(Debug)]
-pub(crate) struct Written {
+pub struct Written {
     pub paths: Vec<PathBuf>,
     pub listeners: Vec<(Fd, NonZeroU16)>,
     pub missing_git: bool,
@@ -168,7 +168,7 @@ pub(crate) struct Written {
 }
 /// Refusals are checked before directories or files are created. The held
 /// listeners stay open for the caller to close or hand to the box.
-pub(crate) fn write(
+pub fn write(
     directories: &Directories,
     environment: &[EnvironmentEntry],
     binary: &Path,
@@ -185,7 +185,7 @@ pub(crate) fn write_with_program(
 ) -> Result<Written, String> {
     write_deployment(directories, environment, binary, &preferred, program, true, ProviderKey::Generated)
 }
-pub(crate) fn write_bare(
+pub fn write_bare(
     directories: &Directories,
     environment: &[EnvironmentEntry],
     binary: &Path,
@@ -197,7 +197,6 @@ pub(crate) fn write_bare(
 #[derive(Clone, Copy)]
 enum ProviderKey {
     Generated,
-    #[cfg(test)]
     Given(&'static [u8]),
 }
 impl ProviderKey {
@@ -210,14 +209,12 @@ impl ProviderKey {
                     crate::forge_sign_in::make_missing(key, true)
                 }
             }
-            #[cfg(test)]
             Self::Given(bytes) => crate::forge_sign_in::make_missing_given(key, bytes),
         }
     }
 }
 
-#[cfg(test)]
-pub(crate) fn write_with_key(
+pub fn write_with_key(
     directories: &Directories,
     environment: &[EnvironmentEntry],
     binary: &Path,

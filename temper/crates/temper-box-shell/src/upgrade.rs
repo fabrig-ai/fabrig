@@ -4,11 +4,11 @@ use temper_service as service;
 use temper_service_shell::jig_directories;
 use temper_shell::directories::Directories;
 
-pub(crate) fn run(directories: &Directories, request: &Request) -> Result<u8, String> {
+pub fn run(directories: &Directories, request: &Request) -> Result<u8, String> {
     let (service, deployment) = prepare(directories).map_err(|why| crate::prefixed("temper-box upgrade", &why))?;
     temper_engine_shell::upgrade::run_prepared("temper-box", directories, request, service, &deployment)
 }
-pub(crate) fn prepare(directories: &Directories) -> Result<(temper_engine_service::Service, Box<[u8]>), String> {
+pub fn prepare(directories: &Directories) -> Result<(temper_engine_service::Service, Box<[u8]>), String> {
     let read = temper_service_shell::configuration::read(directories, temper_config_shell::Shape::Standalone)?;
     let programs = read.programs()?;
     read.prepare(|bytes| {

@@ -478,7 +478,7 @@ def cargo_test_roots(cargo, selection, env):
     return roots
 
 
-def profile_target_groups(selection, metadata, filters, cargo, env):
+def profile_target_groups(selection, metadata, filters, cargo, env, table=None, selected_layers=None, layer_omissions=None):
     """Skip integration targets that neither delivery profile can select."""
     members = {package['name']: package for package in metadata['packages']}
     if selection == ['--workspace']:
@@ -489,6 +489,7 @@ def profile_target_groups(selection, metadata, filters, cargo, env):
     else:
         return [selection]
     broad, narrowed, omitted = [], [], {}
+    excluded = set()
     for name in names:
         package = members[name]
         keep, skip = [], {}
@@ -497,8 +498,12 @@ def profile_target_groups(selection, metadata, filters, cargo, env):
             if binary is None:
                 continue
             fields = dict(package=name, binary=target['name'], binary_id=binary, kind='test')
-            if target['kind'] == ['test'] and not any(matches(fields) for matches in filters):
-                skip[package['id'], 'test', ('test',), target['name']] = binary
+            _, layer = place(binary, package['manifest_path'], metadata['workspace_root'], table)
+            excluded_layer = selected_layers is not None and layer is not None and layer not in selected_layers
+            if excluded_layer:
+                excluded.add(binary)
+            if excluded_layer or (target['kind'] == ['test'] and not any(matches(fields) for matches in filters)):
+                skip[package['id'], 'test', tuple(target['kind']), target['name']] = binary
             else:
                 keep.extend(target_flags(binary))
         # Explicit Cargo selectors can require a feature that a broad build would skip.
@@ -525,17 +530,20 @@ def profile_target_groups(selection, metadata, filters, cargo, env):
     except (OSError, subprocess.CalledProcessError, KeyError, ValueError):
         print('profile targets: keeping full listing (Cargo build roots unavailable)', flush=True)
         return [selection]
+    if layer_omissions is not None:
+        layer_omissions.update(excluded.intersection(omitted.values()))
     print('profile targets: skip linking ' + ', '.join(sorted(omitted.values())), flush=True)
     return groups
 
 
-def profile_targets(selection, metadata, config, cargo, env):
+def profile_targets(selection, metadata, config, cargo, env, table=None, selected_layers=None, layer_omissions=None):
     """Plan a build or listing from the union of the focused and fuzzy filters."""
     try:
         profiles = tomllib.loads(Path(config).read_text()).get('profile', {})
         focused = profiles.get('default', {}).get('default-filter', 'all()')
         fuzzy = profiles.get('fuzzy', {}).get('default-filter', focused)
-        return profile_target_groups(selection, metadata, (filterset(focused), filterset(fuzzy)), cargo, env)
+        return profile_target_groups(selection, metadata, (filterset(focused), filterset(fuzzy)),
+                                     cargo, env, table, selected_layers, layer_omissions)
     except (OSError, KeyError, TypeError, ValueError) as error:
         print(f'profile targets: keeping full listing ({error})', flush=True)
         return [selection]
@@ -1033,22 +1041,41 @@ def merge_listings(listings):
     return listing
 
 
-def listed_plan(command, env, profile, limits, config, walls, layers, picks=None, *,
-                metadata=None, selections=None):
-    """Build and plan a listing; base picks use any filter match (references.md, 5)."""
-    prefix, cargo, selection, no_tests, caller_filter = arguments(command, profile)
-    settings, overrides, default_filter, groups = configuration(
-        config, profile, env, limits, caller_filter or picks is not None)
-    if walls is not None:
-        settings['global-timeout'] = profile_wall(walls, profile)
+def layer_selection(path, profile, selected_layers):
+    """Resolve the run's layers before any command (tools/tiers/layers.md, 9.1)."""
     try:
-        with Path(layers).open('rb') as source:
+        with Path(path).open('rb') as source:
             table = tomllib.load(source)
     except FileNotFoundError:
         table = None
     if table is not None and (not isinstance(table.get('layers'), list)
                               or any(not isinstance(layer, str) for layer in table['layers'])):
         raise ValueError('layers: expected a list of strings')
+    names = [*table['layers'], 'checks'] if table is not None else []
+    if selected_layers is not None:
+        if not selected_layers or any(name not in [*names, 'all'] for name in selected_layers):
+            raise ValueError('layers: expected all or names from the layers list and checks')
+        if table is None and tuple(selected_layers) != ('all',):
+            raise ValueError('layers: without the layers file only all is supported')
+    if table is None:
+        return None, None
+    if selected_layers is None:
+        selected_layers = names if profile not in ('default', 'fuzzy') else [
+            name for name in names if name not in ('real-loop', 'end-to-end')]
+    elif 'all' in selected_layers:
+        selected_layers = names
+    return table, [name for name in names if name in selected_layers]
+
+
+def listed_plan(command, env, profile, limits, config, walls, layers, picks=None, *,
+                metadata=None, selections=None, selected_layers=('all',)):
+    """Build and plan a listing; base picks use any filter match (references.md, 5)."""
+    prefix, cargo, selection, no_tests, caller_filter = arguments(command, profile)
+    settings, overrides, default_filter, groups = configuration(
+        config, profile, env, limits, caller_filter or picks is not None)
+    if walls is not None:
+        settings['global-timeout'] = profile_wall(walls, profile)
+    table, selected_layers = layer_selection(layers, profile, selected_layers)
     output = bytearray()
 
     def forward(text):
@@ -1056,12 +1083,14 @@ def listed_plan(command, env, profile, limits, config, walls, layers, picks=None
         output.extend(text.encode('utf-8', 'backslashreplace'))
 
     env = env.copy()
+    layer_omissions = set()
     pre_pr_targets = env.pop('TIERS_PRE_PR_TARGETS', '') == '1'
     profile_build = env.pop('TIERS_PROFILE_TARGETS', '') == '1'
     if ((pre_pr_targets or profile_build) and profile in ('default', 'fuzzy')
             and picks is None and not caller_filter and selections is None):
         metadata = read_metadata(cargo, env)
-        selections = profile_targets(selection, metadata, config, [*prefix, cargo], env)
+        selections = profile_targets(selection, metadata, config, [*prefix, cargo], env,
+                                     table, selected_layers, layer_omissions)
 
     # Listing and build belong to the caller's prefix; metadata builds nothing.
     listings = []
@@ -1095,6 +1124,16 @@ def listed_plan(command, env, profile, limits, config, walls, layers, picks=None
             for binary, suite in listing['rust-suites'].items() if suite.get('status') == 'listed'}
     plan = make_plan(listing, metadata, env, cargo, profile, overrides, default_filter,
                      caller_filter or picks is not None, groups, settings, table)
+    kept = []
+    for binary in plan['binaries']:
+        if selected_layers is not None and binary['layer'] is not None and binary['layer'] not in selected_layers:
+            layer_omissions.add(binary['binary_id'])
+        else:
+            kept.append(binary)
+    if layer_omissions:
+        left_out = [name for name in [*table['layers'], 'checks'] if name not in selected_layers]
+        forward(f"layers: leaving out {', '.join(left_out)}: {len(layer_omissions)} binaries\n")
+    plan.update(binaries=kept, selected_layers=selected_layers)
     return plan, prefix, no_tests, output, metadata['workspace_root']
 
 
@@ -1109,7 +1148,7 @@ def checkout_commit(root, env):
 
 
 def run(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None,
-        layers=Path('tools/tiers/layers.toml'), ledger=None):
+        layers=Path('tools/tiers/layers.toml'), ledger=None, selected_layers=None):
     """Run one suite into a fresh directory; return no verdict (design.md, 11)."""
     directory = Path(directory).resolve()
     if directory.exists() and (not directory.is_dir() or any(directory.iterdir())):
@@ -1118,7 +1157,8 @@ def run(command, env, directory, profile, limits, config=Path('.config/nextest.t
     directory.chmod(0o700)
     env = env.copy()
     repair = env.pop('TIERS_PRE_PR_REPAIR_CASE', None)
-    plan, prefix, no_tests, output, root = listed_plan(command, env, profile, limits, config, walls, layers)
+    plan, prefix, no_tests, output, root = listed_plan(
+        command, env, profile, limits, config, walls, layers, selected_layers=selected_layers)
     if repair is not None:
         binary, name = json.loads(repair)
         if not any(b['binary_id'] == binary and any(t['name'] == name for t in b['tests'])
@@ -1244,7 +1284,8 @@ def again_plan(run_directory, binary_id, names):
         if name not in selected:
             raise ValueError(f'test not selected in plan: {binary_id} {name}')
     return dict(plan, binaries=[dict(binary, tests=[selected[name] for name in sorted(names)])],
-                lanes=1, single_process=True, alone_diagnostics=False, layers=[], workspace=[], count=False)
+                lanes=1, single_process=True, alone_diagnostics=False, layers=[], workspace=[],
+                selected_layers=None, count=False)
 
 
 def again(plan, prefix, env, directory):
@@ -1281,7 +1322,8 @@ def execute_plan(plan, prefix, env, directory, limits, *, no_tests='fail', outpu
     save(directory / 'plan.json', plan)
     selected = 0 if 'reference_picks' in plan else sum(len(binary['tests']) for binary in plan['binaries'])
     results = dict(profile=profile, selected=selected, no_tests=no_tests, cancelled=None, counting=None, commit=commit,
-                   processes=[], tests=[], unobserved=[], references=[], layers=plan['layers'], workspace=plan['workspace'])
+                   processes=[], tests=[], unobserved=[], references=[], layers=plan['layers'], workspace=plan['workspace'],
+                   selected_layers=plan.get('selected_layers'))
     tests, reference_tests = {}, {}
     picks = plan.get('reference_picks', [])
     reasons = {(binary, name): why for binary, name, why in picks}

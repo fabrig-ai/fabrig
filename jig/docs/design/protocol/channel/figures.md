@@ -202,7 +202,7 @@ Focused, in the link's and the host's tests and jig's channel world:
   changes nothing. On the engine's side, a host given a longer hello by
   `retime` waits that long for the next opening's hello, and one already
   waiting keeps its deadline; a zero figure is false.
-- **The record:** generated records' drift and pinned constructs, as
+- **The record:** generated records' drift, as
   skein's `data/codec/README.md`, section 6 has it; patch `0006`'s
   breaking declaration, held by the wire's patch tests and
   `fabrig-boundary`'s `patches` test.

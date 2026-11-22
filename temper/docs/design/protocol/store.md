@@ -374,16 +374,15 @@ configuration/limits.md).
   `temper-protocol-store-codec`, which depends on skein-lib and
   skein-codec alone (skein's `data/codec/README.md`, section 2), so that
   it compiles beside the forge's domain crates rather than after them.
-  It holds only the current version's code, `src/generated/v<N>.rs`,
-  module `v<N>`, re-exported at `temper-protocol-store`'s root under
-  the same name, currently `v25`. Registered values convert at read
+  It holds only the current version's code, `src/generated/store.rs`,
+  module `v25`, re-exported at `temper-protocol-store`'s root under
+  the same name. Registered values convert at read
   from stored layouts into that codec's layout
   (`floor.md`, 2); no older map codec or patch history is kept.
   `temper-protocol-store` keeps the current schema, owner set and
   translations. `temper-codecs-world`'s drift test compares generated
-  records with the codec crate's code and refuses each unpinned
-  construct. Tests build values, without family goldens or generated
-  tests; skein's `every` pins the bytes
+  records with the codec crate's code. Tests build values, without
+  family goldens or generated tests; skein's `every` pins the bytes
   (`skein/docs/design/data/codec/README.md`, 6).
 - **Collections** are pieces or counted lists by jig's rule (jig's
   `protocol/store/records.md`, 1). The schema's limits are made from the

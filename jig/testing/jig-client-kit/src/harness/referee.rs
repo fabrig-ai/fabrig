@@ -549,6 +549,7 @@ fn decisions(ask: &Ask) -> Vec<(ObjectKey, ActKind)> {
         | Ask::ChangePolicy { .. }
         | Ask::SetRoles { .. }
         | Ask::MakeService { .. }
+        | Ask::ReissueService { .. }
         | Ask::SignIn { .. }
         | Ask::AccountChange { .. }
         | Ask::SignOut { .. }

@@ -89,11 +89,11 @@ pub(crate) struct Scan {
 }
 #[derive(Debug)]
 #[expect(clippy::large_enum_variant, reason = "bounded domain terminal is passed inline")]
-pub(crate) enum Action {
+pub enum Action {
     Run(Op),
     Layout(Result<(), Error>),
     Operation(Next),
-    Swept { changed: bool, set_aside: bool },
+    Swept { changed: bool, set_aside: bool, refused_removal: bool },
     Closed,
 }
 fn open(root: Fd, path: Box<[u8]>, how: OpenHow) -> Op {

@@ -160,6 +160,7 @@ impl Offers {
             | Ask::ChangePolicy { .. }
             | Ask::SetRoles { .. }
             | Ask::MakeService { .. }
+            | Ask::ReissueService { .. }
             | Ask::RemoveProject { .. }
             | Ask::SetVisibility { .. }
             | Ask::Rename { .. }

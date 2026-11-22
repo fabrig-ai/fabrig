@@ -16,6 +16,7 @@ fn check_lines_name_decoded_count_and_undecodable_places() {
             elapsed: Duration::ZERO,
             end: None,
             restored: true,
+            catching_up: Box::new([]),
             done: true,
             open_failure: None,
         };
@@ -35,6 +36,7 @@ fn check_lines_name_decoded_count_and_undecodable_places() {
                 elapsed: Duration::ZERO,
                 end: None,
                 restored: false,
+                catching_up: Box::new([]),
                 done: true,
                 open_failure: None,
             };
@@ -54,6 +56,70 @@ fn check_lines_name_decoded_count_and_undecodable_places() {
             assert!(!text.contains("registry commit, jobs and restores pass"));
         }
     }
+}
+
+#[test]
+fn opening_report_names_elapsed_milliseconds_and_each_forges_remaining_work() {
+    use temper_engine_domain_forge::CatchingUp;
+    let mut report = rehearsal();
+    report.restored = true;
+    report.elapsed = Duration::from_nanos(42_999_999);
+    report.catching_up = Box::new([
+        (
+            1,
+            Some(CatchingUp {
+                fresh: 3,
+                gathers: 2,
+                ci: 1,
+                goal_files: 1,
+                lost_writers: 1,
+                goal_branches: 6,
+                uncertain: 2,
+            }),
+        ),
+        (
+            2,
+            Some(CatchingUp {
+                fresh: 0,
+                gathers: 0,
+                ci: 0,
+                goal_files: 0,
+                lost_writers: 0,
+                goal_branches: 0,
+                uncertain: 1,
+            }),
+        ),
+        (
+            3,
+            Some(CatchingUp {
+                fresh: 0,
+                gathers: 0,
+                ci: 0,
+                goal_files: 0,
+                lost_writers: 0,
+                goal_branches: 0,
+                uncertain: 0,
+            }),
+        ),
+        (4, None),
+    ]);
+    let (text, code) = lines("temper-box", &report, &directories(), b"/checkpoint");
+    assert_eq!(code, 0);
+    assert_eq!(
+        text,
+        format!(
+            "temper-box upgrade: whole rehearsal/tool time: 42999999 ns\n\
+         temper-box upgrade: registry commit, jobs and restores pass; opened in 42 ms\n\
+         temper-box upgrade: forge 1 would catch up: 3 fresh reads, 2 landing reads, 1 CI read, 1 goal-file read, 1 lost-writer read, 6 goal-branch reads, 2 uncertain writes\n\
+         temper-box upgrade: forge 2 would catch up: 1 uncertain write\n\
+         temper-box upgrade: forge 3 would catch up: nothing\n\
+         temper-box upgrade: forge 4 would catch up: nothing\n{COMPATIBLE}"
+        )
+    );
+    report.restored = false;
+    let (text, code) = lines("temper-box", &report, &directories(), b"/checkpoint");
+    assert_eq!(code, 1);
+    assert!(!text.contains("opened in") && !text.contains("would catch up"), "{text}");
 }
 
 #[test]
@@ -164,7 +230,7 @@ fn workers_lines_exclude_whole_rehearsal_progress() {
                 "temper-box upgrade: decoded 17 records\n\
                  temper-box upgrade: ran temper fixture-job: 2 rows in 1 commits; time unavailable\n\
                  temper-box upgrade: whole rehearsal/tool time: 1000000000 ns\n\
-                 temper-box upgrade: registry commit, jobs and restores pass; what follows the switch is not rehearsed\n\
+                 temper-box upgrade: registry commit, jobs and restores pass; opened in 1000 ms\n\
                  {COMPATIBLE}"
             ),
             0,
@@ -310,7 +376,7 @@ fn verdict(wires: Option<Box<[KeptWire]>>, openings: Box<[WorkerOpening]>) -> St
             .0;
     let (text, code) = lines("temper-box", &report, &dirs, b"/state");
     assert_eq!(code, 0, "worker compatibility changes no exit code");
-    text.strip_prefix("temper-box upgrade: whole rehearsal/tool time: 1000000000 ns\ntemper-box upgrade: registry commit, jobs and restores pass; what follows the switch is not rehearsed\n").expect("other rehearsal lines unchanged").into()
+    text.strip_prefix("temper-box upgrade: whole rehearsal/tool time: 1000000000 ns\ntemper-box upgrade: registry commit, jobs and restores pass; opened in 1000 ms\n").expect("other rehearsal lines unchanged").into()
 }
 
 const COUNTS: &str = "temper-box upgrade: rehearsal linked 12 files, copied 3\n";

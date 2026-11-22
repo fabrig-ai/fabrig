@@ -413,8 +413,9 @@ service, over HTTP, rather than joined to the engine's root.
 - **The forge's sign-in through temper, as a box's:** the engine's
   OpenID provider as `temper-box init --box` writes it
   (`../protocol/setup/place.md`, 6, *The box's provider*): its signing
-  key, `provider.key` in the data directory, made from `SEED` on the
-  world's disk, private; no client; `addresses` `[1]`. The owned forge's
+  key, `provider.key` in the data directory, on the world's disk,
+  private: the 3072-bit RSA key `SEED` drew, a fixture, so no walk draws
+  one at its start; no client; `addresses` `[1]`. The owned forge's
   `SetUp` adds the client `forgejo` and the setup file's `sign_in` names
   it, as on a box, and the peer says the group's `source` step (4.4). So
   the engine serves the forge's `temper-forge-sign-in` fact, and a page

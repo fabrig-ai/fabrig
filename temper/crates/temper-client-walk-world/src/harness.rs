@@ -16,9 +16,9 @@ impl Harness for Clients {
     fn prepare(
         disk: &mut skein_fake_machine::Machine,
         document: &temper_playground::documents::Configuration,
-        seed: u64,
+        _seed: u64,
     ) {
-        crate::facts::prepare(disk, document, seed);
+        crate::facts::prepare(disk, document);
     }
     fn files() -> temper_service::settings::Files {
         crate::facts::files()
