@@ -121,7 +121,7 @@
   7's `drafts`, true in the stock (`settings.md`, 2), where the request has it true while `me`
   lists a tracked template with no conversation flag. So a project can turn the offer off.
 
-- **Departs:**  and `../view.md`, 3, from the mock (`greenfield/`):
+- **Departs:**  and `../view-navigation.md`, 1, from the mock (`greenfield/`):
   Ask temper has its own project page, rail entry and phone tab, and
   Settings has no configuring offer. The user's draft, 2026-11-07
   (`../../draft/ask-temper.md`, section 9).
@@ -243,7 +243,7 @@
   by task, plan, tasks, land whole", where its mock, the target, draws them the
   other way round: number order is what a project's settings decide.
 
-- **Design departs:** *Sign out*, and `../view.md`, 3, from the request `ui-owner-menu` of
+- **Design departs:** *Sign out*, and `../view-navigation.md`, 1, from the request `ui-owner-menu` of
   2026-11-06, decided by its plan's cut. A press outside that took the focus to
   another control leaves it there, where the request returns the focus to the row:
   the row would take back what that press landed on. With no project, "Sign out" is
@@ -256,7 +256,7 @@
   press outside too, which the request doesn't name: skein's page part gives it to
   every menu.
 
-- **Design departs:** *Settings and Deployment*, `../view.md`, 3, and `settings.md`, 2, from the request `ui-settings`
+- **Design departs:** *Settings and Deployment*, `../view-navigation.md`, 1, and `settings.md`, 2, from the request `ui-settings`
   of 2026-11-05, decided by its plan's cut. "Sign out did not reach the engine."
   stands on the rail's foot as well as the `Accounts` tab, where the request moves
   it there: a person with a lost sign-out may be on any page (`../line.md`, 6). Kind 7's
@@ -340,7 +340,7 @@ later work; the phone keeps its hidden byline.
   `README.md`, *Goals*: the empty Goals-page gap remains `work.status.md`, 1.
    the Forget request remains `../forge/records.status.md` (Not yet).
   `README.md`, *Ready*: the unhandled Ready endings remain `welcome.status.md`, 1.
-   the plan's first-use card remains `accounts-words.status.md`, 1. `../README.md`, 3.6:
+   the plan's first-use card remains `accounts-words.status.md`, 1. `../root.md`, 1.6:
   `README.md`, The welcome:
   the welcome role-scope gap remains `welcome.status.md`, 1.
   the unfinished-forge name remains `../forge/records.status.md` (Not yet). the restarted GitHub setup continuation remains `../forge/records.status.md` (Not yet).

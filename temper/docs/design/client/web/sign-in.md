@@ -8,7 +8,7 @@ Signing in through the browser is split from [the browser overview](README.md).
   `http://HOST:PORT/sign-in?secret=SECRET`, or the same link at the
   route, `http://HOST:PORT/jig/v1/sign-in/link?secret=SECRET`, as a
   build before printed it, opened in a
-  browser on the engine's machine (`../README.md`, section 4): temper's
+  browser on the engine's machine (`../sign-in.md`, section 1): temper's
   server answers either's `GET` with the page, which spends nothing (`serving.md`, 1); jig's sign-in part,
   given the link's route and its page, takes
   the secret at either and replaces the address with `/welcome`, temper's home for
@@ -71,7 +71,7 @@ Signing in through the browser is split from [the browser overview](README.md).
   link is the way in: the page says to open it first, then the page's
   address again, since the link's sign-in lands on `/welcome`, not back
   on the page (`../pages/README.md`, *The approval page*).
-- **One person, on loopback,** as `../README.md`, section 4 says. A browser
+- **One person, on loopback,** as `../sign-in.md`, section 1 says. A browser
   on another machine is open (`../README.md`, section 5).
 
 ## 2. Open questions
@@ -79,4 +79,4 @@ Signing in through the browser is split from [the browser overview](README.md).
 - **A person's list of sign-ins,** each ended from there
   (`../../draft/tui.md`, section 7).
 
-- A failed link with a live cookie: `../README.md`, section 5.8.
+- A failed link with a live cookie: `../sign-in.md`, section 2.

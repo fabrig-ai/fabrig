@@ -12,7 +12,7 @@ This document holds home on All projects, split from [`home.md`](home.md).
   projects or more or in none, and a project's Home for one in one
   (`../web/addresses.md`, 1). It draws in the open project's frame, as `Inbox`
   does: the rail and the tab bar are the open project's, or with none open
-  `me`'s first project's, "Home" current (`../view.md`, 3). Going to it opens no
+  `me`'s first project's, "Home" current (`../view-navigation.md`, 1). Going to it opens no
   project and moves none. With no project in `me` it draws its intro
   alone. It has no To begin, no Chats, no Goals and no foot: those are a
   project's Home's. One column of prose, in this order, each part drawn

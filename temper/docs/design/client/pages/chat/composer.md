@@ -19,7 +19,7 @@
     is in the composer, on a chat's, a goal's and an agent's task's (`../task.md`, 4) alike:
     "Send" disables as the words clear, and a disabled button holds no focus.
     "Pause", "Resume" and "Write it up from this chat" send too, and ask for nothing.
-  - *While the rename's form is open* it keeps the focus (`../../view.md`, 3), and a composer
+  - *While the rename's form is open* it keeps the focus (`../../view-navigation.md`, 1), and a composer
     that has asked for it takes it back as the form closes.
   - *On a phone* the same acts ask the same, as a phone's messaging app does:
     the keyboard stays up after a send, and a chat opened from a list raises
@@ -88,7 +88,7 @@
     model", matching any part of a shown name or a name, in any case; every model
     of the offer, by account as above; and "Choose what the list shows, in Deployment",
     a link to `Models { project }` for the picker's project, Deployment's tab
-    (`../../view.md`, 3), the rail naming no Settings (`../../../draft/surfaces.md`,
+    (`../../view-navigation.md`, 1), the rail naming no Settings (`../../../draft/surfaces.md`,
     section 2). A model whose `new_until`
     is later than now has `.temper-model-tag`, "new", beside its shown name.
   - *A started chat:* the menu opens with "A change applies from the next turn."

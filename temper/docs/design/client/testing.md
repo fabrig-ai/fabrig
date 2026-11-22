@@ -9,7 +9,7 @@ own tests:
   (`../testing/checks.md`, 4).
 - **Credential-boundary consumption** is checked in the existing
   domain and composed-client fixtures, including the terminal shell's
-  startup `Held` sign-in after its children have asked reads (`README.md`, 3.4).
+  startup `Held` sign-in after its children have asked reads (`root.md`, 1.4).
   Every cancelled read is consumed visibly and its asker must ask again;
   no new retry policy is implied. The preview's existing view tests
   render jig's supplied `resolved_default`, with catalogue and charter
@@ -17,7 +17,7 @@ own tests:
   request intent (`pages/accounts-words.md`, 1).
 - **Step tests:** the domain's pages (what each watches and reads as it
   opens and closes, each act as the operations it sends, the
-  confirmation's rule of `README.md`, 3.6, routing by asker; a chat's delegations,
+  confirmation's rule of `root.md`, 1.6, routing by asker; a chat's delegations,
   `view.md`, 5: a call's tasks by its objects and by its acknowledgement, a
   failed call's and another tool's none, the newest watched up to
   `reads`, each unwatched as it leaves, and a card's facts from a
@@ -78,7 +78,7 @@ own tests:
   goal's in the toast; the
   amendment's editor on a goal and on an agent's task, a cut spec read
   only, "No change", a moved draft with no "Send amendment", and its
-  request's revision named or not as `README.md`, 3.7 says; a procedure's task's
+  request's revision named or not as `root.md`, 1.7 says; a procedure's task's
   page, `pages/task.md`, 3: its goal's link when it serves another task and none
   when it serves itself or none, and "Its tasks" over its plan where a
   person task's says "Plan"; its header with its panel shown and its
@@ -169,7 +169,7 @@ own tests:
   interrupt, `q` drained. And, in a unit test, the terminal made from
   `limits::native()`'s limits, as `temper-box open` makes it, so the gate
   meets a refusal of temper's own limits before the process tier does.
-- **The TUI** (`tui/README.md`, 1 to 3 and `tui/pages/README.md` and `tui/theme.md` and `tui/README.md`, 4): golden frames, `Frame::print`s laid by
+- **The TUI** (`tui/README.md`, 1, and `tui/directory.md`, 1, and `tui/host.md`, 1 and `tui/pages/README.md` and `tui/theme.md` and `tui/README.md`, 4): golden frames, `Frame::print`s laid by
   skein's renderer in the TUI's theme, kept beside `temper-client-tui`'s
   step tests and changed only by hand: signing in and its approval at 80
   by 24; the launchpad at 80 by 24, dark and light, and at 40 by 12, its
@@ -189,7 +189,7 @@ own tests:
   simulated machine (each way out writing the terminal's `LEAVE` last
   and exiting 0), and of the binary's parts as functions (the command's
   parse, the directory's resolution, the scheme and the depth). Nothing
-  opens a terminal or a browser. The engine's link and the note (`tui/README.md`, 2, `tui/pages/README.md`
+  opens a terminal or a browser. The engine's link and the note (`tui/directory.md`, 1, `tui/pages/README.md`
   ): `link_file::path` one function for the engine and the TUI, its
   table of environments and data directories; the file written `0o600`
   at each new link and removed at exit; `Note`'s lines read back and

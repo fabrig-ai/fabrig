@@ -32,7 +32,7 @@
     open of Work, a reload among them, under each of its filters (All and
     Drafts, Goals' four, Changes), is drawn whole in two waves and two
     requests after its page and bundle, whatever the project's size: the
-    stream, whose hello brings `me` (`../README.md`, 3.4), then one batch
+    stream, whose hello brings `me` (`../root.md`, 1.4), then one batch
     (jig's `protocol/client/default-http.md`, 6) carrying every read and
     watch the frame and the page open.
     - *A wave* is every exchange the client has sent that waits for an
@@ -51,7 +51,7 @@
       `Budget { waves: 2, requests: 2 }`, the record a later page's budget
       takes too (`../../draft/page-round-trips.md`, section 10).
     - *What holds it.* Nothing leaves before the hello but the stream
-      (`../README.md`, 3.4); a reload's kept keyed requests leave once
+      (`../root.md`, 1.4); a reload's kept keyed requests leave once
       the hello's `me` confirms their party (jig's
       `client/domain/client/README.md`, 8), beside the batch. Nothing waits for
       another answer: no read per row (`../forge/parts.md`, 5); no ended
@@ -61,7 +61,7 @@
       Chats page alone draws (`chats.md`, 1), and no `deployment` watch,
       which only a page judging a model usable reads
       (`../forge/family.md`, 7). The session's own reads and watches
-      (`../README.md`, 3.4) and the project's settings' reads stay
+      (`../root.md`, 1.4) and the project's settings' reads stay
       open whatever the page and ride in the same batch: the frame draws
       from most of them, and closing the others on Work only to open them
       again on the next page would cost requests that keeping them

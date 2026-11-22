@@ -36,7 +36,7 @@
   `apps`), so a GitHub forge found unfinished after a restart offers
   "Start over" alone.
    the App-not-installed reason remains `family.status.md`, 6.
-- **Departs:** `../pages/README.md`, *The first chat*, and `../view.md`, 3: the rail's "Ask temper", the
+- **Departs:** `../pages/README.md`, *The first chat*, and `../view-navigation.md`, 1: the rail's "Ask temper", the
   tab bar's "Ask" and To begin's "Start" choose among the rows
   `temper-client-domain`'s `Chats::open_asking` is delivered, whose
   live watch holds a window of `limits.client.domain.rows` by latest

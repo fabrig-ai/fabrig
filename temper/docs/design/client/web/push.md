@@ -19,7 +19,7 @@ they are, and two small root files carry the rest.
     data the project; a payload it can't read shows "temper" and
     "Something needs you.", since a browser shows one for every push;
   - *a press on a notification* closes it and opens Needs you filtered
-    by its project, `Inbox { project }`'s path (`../view.md`, 3),
+    by its project, `Inbox { project }`'s path (`../view-navigation.md`, 1),
     `/needs?project=N`, or `/needs` for data that names none: an open
     window of the origin, focused and sent there, or a new one.
 - **The manifest,** `/manifest.webmanifest`: `name` and `short_name`

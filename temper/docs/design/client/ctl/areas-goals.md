@@ -98,7 +98,7 @@ This document holds goals and plans through ctl, split from [`areas.md`](areas.m
    - **`task amend`'s changes,** one or more, each a control of the task,
      the rest kept as the task's document shows them (jig's
      `domain/tasks/changes.md`), drafted by the client domain's
-     amendment editor (`../README.md`, 3.7):
+     amendment editor (`../root.md`, 1.7):
 
      | Change | Sets |
      |---|---|
@@ -169,8 +169,8 @@ This document holds goals and plans through ctl, split from [`areas.md`](areas.m
      - **It is a change,** even naming the address the task has now: jig
        then lets go of a party who took it. An amendment naming an
        address alone is sent, never `amend changes nothing`, and the
-       amendment editor never compares an address away (`../README.md`,
-       3.7).
+       amendment editor never compares an address away (`../root.md`,
+       1.7).
      - **A person revision moved** since the read is jig's refusal,
        `Moved`, printed as any moved refusal is: `task amend: ` and its
        words, then `read again: task show 41`, exit 2 (`results.md`, 3).

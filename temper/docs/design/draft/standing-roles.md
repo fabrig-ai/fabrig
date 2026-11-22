@@ -295,7 +295,7 @@ Each is a design lag, by its status file.
   runs (`../domain/agent/agents.md`).
 - **Its pages and acts** (temper's client): Team and a standing role's card,
   and talking with a standing role, on the web and in the terminal
-  (`../client/view.md`, 3 and `../client/line.md`); in `temper ctl`
+  (`../client/view-navigation.md`, 1 and `../client/line.md`); in `temper ctl`
   (`../client/ctl/tools-acts.md`, 1), `role list`, `role show`, `role talk` (a
   person's words to a standing role, which open or continue its session, its
   answer printed), `finding file` and `need ask`. A rule it proposes is

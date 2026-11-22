@@ -73,7 +73,7 @@ saw it, overwriting what the client sent (Caddy's default, with no
 `trusted_proxies`), which jig reads as a terminal's approval's source
 (jig's `protocol/client/default-http.md`, 3). The proxy denies the printed link's route,
 `/jig/v1/sign-in/link`, and its page, `/sign-in` itself
-(`../client/README.md`, section 4), from outside (2.3); the Google
+(`../client/sign-in.md`, section 1), from outside (2.3); the Google
 routes below `/sign-in/` pass (4.1). jig's stream, `GET
 /jig/v1/stream`, is passed unbuffered, with a read timeout longer than
 its heartbeat (jig's `protocol/client/default-http.md`, 2).

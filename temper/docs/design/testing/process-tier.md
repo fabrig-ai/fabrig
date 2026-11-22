@@ -34,7 +34,7 @@
   with no project, the person makes "Project 1" through the switcher's
   form and takes it as chosen once the native client's applied address
   (`../client/README.md`, 2, `NativeClient::address`) is the creation's
-  own `Home` (`../client/view.md`, 3, *A new project*), never when the
+  own `Home` (`../client/view-navigation.md`, 1, *A new project*), never when the
   project's button appears in the tree, so its script never navigates
   while that opening is armed. On a later start a kept project's button
   is the choice, as before. A support test in the `suite` binary holds the
@@ -321,7 +321,7 @@
 - **The story,** one test:
   1. the person signs in by the link the binary prints, and adds the
      test's key as the deployment's on the accounts page
-     (../client/README.md, 3.6), which shows its account usable (`real-loop.md`);
+     (../client/root.md, 1.6), which shows its account usable (`real-loop.md`);
   2. a chat is answered;
   3. a repository is adopted through temper's client, as above;
   4. a goal is given whose change, its CI passed, lands on the owned

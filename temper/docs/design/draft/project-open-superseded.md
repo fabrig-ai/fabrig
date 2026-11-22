@@ -4,7 +4,7 @@ Draft, 2026-11-17, on the user's word. temper-box's wiring story (`temper/bin/te
 
 ## 1. What happens
 
-- **Making a project opens it:** "+ New project" opens the new project's Home (`temper/docs/design/client/view.md`, 3). The switcher keeps the request pending and, when its answer comes, shows Home (`temper/crates/temper-client-domain-pages/src/pages/switcher.rs`, `told`; `temper/crates/temper-client-domain-pages/src/pages.rs`, `switcher_chosen`).
+- **Making a project opens it:** "+ New project" opens the new project's Home (`temper/docs/design/client/view-navigation.md`, 1). The switcher keeps the request pending and, when its answer comes, shows Home (`temper/crates/temper-client-domain-pages/src/pages/switcher.rs`, `told`; `temper/crates/temper-client-domain-pages/src/pages.rs`, `switcher_chosen`).
 - **A late answer overrides a later navigation:** navigating elsewhere meanwhile only closes the rename form. The creation stays pending with its opening armed, so an answer that arrives after the person has moved on shows Home over the page they went to. A person who makes a project and goes straight to model setup can hit this.
 - **The story's person goes on too early:** the kit takes a project's button in the tree as the choice made, even while the creation is pending (`temper/testing/temper-box-kit/src/person.rs`, `select_project`). Membership can arrive before the creation's answer (`temper/crates/temper-client-domain/src/tests/pages/switcher.rs`), so the script navigates, and the answer's Home lands between two steps.
 - **Nothing records the navigation:** the native client exposes readiness counts and a view revision, but not the address it applied (`temper/crates/temper-client-shell-terminal/src/client.rs`).
@@ -13,7 +13,7 @@ Draft, 2026-11-17, on the user's word. temper-box's wiring story (`temper/bin/te
 
 - **A later navigation supersedes a pending opening:** a navigation or a project choice made after the creation was asked cancels its opening. The creation still finishes, and its project shows in the switcher. Home opens on the answer only if the person is still where they asked it. This holds in both orders of membership and answer.
 - **The kit waits for the applied navigation:** the native client exposes, read-only, the address it last applied. The kit's project choice is made once the creation's own navigation is applied, not when a button appears.
-- Revise `view.md`, 3, with its status file.
+- Revise `../client/view-navigation.md`, 1, with its status file.
 
 ## 3. Out
 

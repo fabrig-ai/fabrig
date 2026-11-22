@@ -5,7 +5,7 @@
 - **The first chat** (`../../draft/ask-temper.md`, section 9;
   `../../draft/configuring.md`, 5.1): Home's first step offers "Tell temper
   how you work", and its "Start" opens Ask temper, as the rail's "Ask
-  temper" and the tab bar's "Ask" do (`../view.md`, 3): the person's newest Ask temper
+  temper" and the tab bar's "Ask" do (`../view-navigation.md`, 1): the person's newest Ask temper
   chat open in the project, as `Chats` reads them, or else `Ask { project
   }` (1). A step says what the person does, and what it opens is
   named "Ask temper". The chat starts with the person's own words, typed,
@@ -149,12 +149,12 @@
     composer's hint, as the configure-chat look request draws it. The tab
     bar stays: this is the phone's Ask tab (`../../draft/surfaces.md`, section
     10), so its tabs close the page under the composer, "Ask" current, the
-    composer and its picker standing wholly over them, as on Home (`../view.md`, 3):
+    composer and its picker standing wholly over them, as on Home (`../view-navigation.md`, 1):
     the four tabs, or while To begin shows its three, "Home", "Ask" and
     "Deployment" (the look request `to-begin-two-steps`, whose rail and tab
     bar hold on Ask temper's page as Start opens it). An Ask temper chat
     keeps them so too; any other chat draws none on a phone. The night
-    switch stands at the bar's right (`../view.md`, 3).
+    switch stands at the bar's right (`../view-navigation.md`, 1).
 
   The conversation and the composer's foot each keep a scrollbar's gutter
   on both edges and hold one column, at most 720 pixels and centred, so
@@ -168,11 +168,11 @@
   show with no scrolling.
 
   "Send" starts the chat, its words the first message: one act, one
-  request (`../README.md`, 3.6), from template 5 (`../../protocol/configuration/stock.md`),
+  request (`../root.md`, 1.6), from template 5 (`../../protocol/configuration/stock.md`),
   with its own models, while `me` lists it among the project's templates.
   With none it falls back to no other template: "Send" stays disabled,
   and under the composer "Ask temper isn't set up in this project."; nor
-  do the rail and the tab bar offer it (`../view.md`, 3). While it is out, "Send" is
+  do the rail and the tab bar offer it (`../view-navigation.md`, 1). While it is out, "Send" is
   disabled and the words stay; made, the chat's page opens: it is a chat
   like any other there; refused, jig's words stay under the composer, the
   words kept. "How does temper work?" is the same act with its fixed
@@ -256,7 +256,7 @@
   own.". Whether its proposals carry them is the agent's, not the page's.
   Owner: temper/ui, in the small chat's trial below. Default: the
   fallback line.
-- **Ask temper after landing** (`README.md`, `../view.md`, 3): try the small chat on ChatGPT and
+- **Ask temper after landing** (`README.md`, `../view-navigation.md`, 1): try the small chat on ChatGPT and
   Claude Code through a proposal and an owner's Accept, then judge its
   instructions. The other views and sketches join at M3b of
   `../../draft/ask-temper.execution.md`. The page of preferences (`remembered.md`) is

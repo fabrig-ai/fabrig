@@ -8,20 +8,20 @@
   it is absent and refuse it unless it is a directory of this user's
   with no group or other bits (skein's `runtime/io/files.md`, 3). It holds the
   bearer credential's file and the small store's, both the native
-  shell's (`README.md`, section 4).
+  shell's (`sign-in.md`, section 1).
 - **LINK_OR_ADDRESS** is one of:
   - the link `temper-box serve` printed, at its page,
     `http://HOST:PORT/sign-in?secret=SECRET`, or the same link at the
     route, `http://HOST:PORT/jig/v1/sign-in/link?secret=SECRET`, as a
-    build before printed it (`README.md`, section 4): the client
+    build before printed it (`sign-in.md`, section 1): the client
     signs in by it first, offering the credential DIRECTORY holds, if
     any, beside it, so that a person still signed in keeps their sign-in
-    (`README.md`, section 4);
+    (`sign-in.md`, section 1);
   - the engine's address, its clients' listener's `http://HOST:PORT`,
     with or without a final `/`: the client signs in with the credential
     DIRECTORY holds. Before its loop, `jig-client-shell-native` reads
     `DIRECTORY/token` once, as it loads the small store, and the host
-    gives it to `jig-client` as held (`README.md`, section 4).
+    gives it to `jig-client` as held (`sign-in.md`, section 1).
 
   HOST is an IP address, and must be on loopback (in `127.0.0.0/8`, or
   `[::1]`).
@@ -56,13 +56,13 @@
   credential's line its credential's base64 and at most 57.
 - **Time and the seed** are skein-shell's: its clock once per
   iteration, and a seed from the kernel at each start (`seed`), from
-  which the client root's children draw their keys' numbers (`README.md`, 3.1).
+  which the client root's children draw their keys' numbers (`root.md`, 1.1).
   The view builds at the iteration's wall time, and the loop's
   deadline is the earlier of the domain's and the instant the view's
   words next change (`view.md`, 6).
 - **Each iteration:** the transport iterates; its loaded records start
-  the client (`README.md`, 3.4); signing in, by the link or with the token DIRECTORY
-  holds (`README.md`, section 4); the token written once signed in by a link; the
+  the client (`root.md`, 1.4); signing in, by the link or with the token DIRECTORY
+  holds (`sign-in.md`, section 1); the token written once signed in by a link; the
   transport's events into the domain; the domain's `fire`; the domain
   settled once (jig's `client/domain/root.md`, section 3); the
   transport's requests carried; the view built; each whole line made
@@ -143,7 +143,7 @@ command.
   `temper ctl account add-key` reads a key from a file instead
   (`ctl/areas.md`, area 5).
 - **A forge's pasted value** prints the same way: each of the forges'
-  page's secret fields (`README.md`, 3.6) prints `(hidden)` once written, and the
+  page's secret fields (`root.md`, 1.6) prints `(hidden)` once written, and the
   terminal echoes it as it is typed. A PEM key spans lines, which one
   command cannot write, so from a terminal an App's key is given with
   `temper ctl`, which reads every pasted value from a private file and
@@ -178,7 +178,7 @@ command.
   date`, and the main says "This temper is out of date: run the temper
   the engine runs."; temper prints no line of its own. What is pending
   stays in DIRECTORY's small store, closed as below.
-- **Kept work dropped** (`README.md`, 3.4): when `jig-client` drops kept requests at
+- **Kept work dropped** (`root.md`, 1.4): when `jig-client` drops kept requests at
   start, temper prints `temper: N requests kept in DIRECTORY were not
   sent: another version of temper made them` once, N the count it told.
 - **A service's credential,** when an answer carries one (jig's
@@ -245,7 +245,7 @@ A command typed while text streams is done as at any time (5).
 
 ## 10. A page's address
 
-The terminal opens at the inbox (`README.md`, 3.4) and reaches each page by its
+The terminal opens at the inbox (`root.md`, 1.4) and reaches each page by its
 numbered link (5), never by a page's address: `temper-box open` takes the
 engine's address or the sign-in link (1). A browser opens a page by
 its address: a reload, or `/tasks/N` typed or opened, is a new client

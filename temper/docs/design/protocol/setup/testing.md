@@ -327,7 +327,7 @@ it checks of this document:
   its stderr, as a terminal is (`box-supervision.md`, 1); a port taken refused with nothing on
   its stdout; the engine's link file holding its local link alone, never
   the printed link's, and that secret on no stdout, stderr or log
-  (`../../client/tui/README.md`, 2); the first link opened at once, before
+  (`../../client/tui/directory.md`, 1); the first link opened at once, before
   serve listens, waiting and then signing in, the link file left as it
   was; a killed serve's fresh link, with the socket held
   across the restart; Forgejo killed and restarted, with the engine still

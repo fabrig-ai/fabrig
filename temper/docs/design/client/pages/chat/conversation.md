@@ -437,7 +437,7 @@ terminal draw the same path.
   model's writing of any text that opened the turn, and at a window's head or for a
   turn's second run is often no time at all. The user reads it on a real chat.
   Default: from the line before, as `../README.md` has it.
-- **Which decision closed a chat** (`../../README.md`, 3.6, *Closed ends on one line*):
+- **Which decision closed a chat** (`../../root.md`, 1.6, *Closed ends on one line*):
   `Activity::Decided` carries a revision alone, so the view can't tell the closing's
   from an earlier decision. Telling them apart takes a new fact of a protocol, the
   user's. Default: a chat its requester closed hides every "Decision made".

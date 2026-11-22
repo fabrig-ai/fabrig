@@ -13,7 +13,7 @@
   - *Its look, kept per browser:* `pages::terminal::Look { terminal, theme, font, night }`
     on `Pages`, the same on every chat the browser opens, so that another chat,
     `/chats`, `/new` and Start over open in it. `theme` is `Dark` or `Light`,
-    `font` `DejaVu` or `Plex`; `night` is the night look of every page (`../../view.md`, 3, the
+    `font` `DejaVu` or `Plex`; `night` is the night look of every page (`../../view-navigation.md`, 1, the
     night switch; `../../web/look.md`, *Night*), outside the terminal's own theme.
     A browser with no record of its own starts
     `{ terminal: false, theme: Dark, font: DejaVu, night: false }`: a first visit
@@ -43,7 +43,7 @@
     screen in the same step (skein's `ui/web/README.md`, 9, *Full screen*), and
     draws the terminal in that step, before the browser answers: every terminal
     act, and a list's closing on any event, moves the pages' shown count, as
-    each change the view draws does (`../../README.md`, section 3). Full screen refused, the
+    each change the view draws does (`../../root.md`, section 1). Full screen refused, the
     terminal stays, not full screen.
   - *Left:* "Exit" and `/exit`, `terminal::Act::Leave`: `terminal` unset, full
     screen left. The browser leaving full screen (its Escape, a long Escape where

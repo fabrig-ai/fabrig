@@ -1,4 +1,4 @@
-//! Adversarial scenarios: client/forge/deployment.md; client/pages/README.md and client/forge/records.md and client/forge/family.md, 7 and client/view.md, 1–3 and client/pages/welcome.md, 2
+//! Adversarial scenarios: client/forge/deployment.md; client/pages/README.md and client/forge/records.md and client/forge/family.md, 7 and client/view.md, 1–2, and client/view-navigation.md, 1 and client/pages/welcome.md, 2
 //! ; client/web/addresses.md 1.
 use super::model::press;
 use jig_client_kit::harness::{ClientId, Fault, Until, World};

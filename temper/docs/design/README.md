@@ -80,7 +80,7 @@ One story:
    ). The forge is connected, managed, or owned on a box
    (`protocol/setup/README.md`).
 2. `temper-box open DIRECTORY LINK` signs the person in by the printed link
-   and shows their inbox (`client/line.md` and `client/README.md`, section 4). With
+   and shows their inbox (`client/line.md` and `client/sign-in.md`, section 1). With
    no LLM account yet, a banner offers the ways to add one: a sign-in
    with an LLM provider, a Claude Code login made with `temper-box
    program-login`, or a key; the person adds one on the accounts page
@@ -288,6 +288,18 @@ forge, temper adds:
   Its documents go by surface (the user, 2026-11-07): what is generic
   to the client in `client/` itself, the browser's in `client/web/`, the
   TUI's in `client/tui/`, and `temper ctl`'s in `client/ctl/`.
+  - `client/README.md`: the client's overview and crates.
+  - `client/root.md`: the client root's state, routing and requests.
+  - `client/sign-in.md`: signing in and the small store.
+  - `client/view.md`: the view's shape, limits, cards and times.
+  - `client/view-navigation.md`: the view's navigation.
+  - `client/tui/README.md`: the TUI's overview and loop.
+  - `client/tui/directory.md`: the TUI's directory and local link.
+  - `client/tui/host.md`: the TUI's host and seam.
+  - `client/tui/box.md`: the TUI in front of a box.
+  - `client/tui/box-startup.md`: the box front's stages and startup screens.
+  - `client/tui/box-lending.md`: lending the box front's terminal.
+  - `client/tui/box-web.md`: opening the browser from the box front.
   - `client/web/README.md`: the browser shell overview.
   - `client/web/shell.md`: the browser shell and host.
   - `client/web/serving.md`: serving the page and bundle.

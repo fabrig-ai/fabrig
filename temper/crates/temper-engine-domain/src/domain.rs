@@ -149,7 +149,7 @@ pub struct Domain {
     /// Loads of durable rows outside the working set: a run's preparation
     /// (transcript, dependencies, inputs) and historical queries.
     pub(crate) archive_reads: Slab<Option<Read>>,
-    /// Ended tasks wait for archive and load room, in the core's read-flight bound (root.md, 7).
+    /// Ended tasks wait for archive and load room, in the core's read-flight bound (domain/root.md, 7).
     pub(crate) ended_waiting: Queue<EndedRead>,
     /// Read loads' answers that waited for journal room (jig's `domain/root.md`, 3).
     pub(crate) store_answers: Queue<Event>,

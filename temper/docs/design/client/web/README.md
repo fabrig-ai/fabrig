@@ -13,7 +13,7 @@ skein's (skein's `ui/web/README.md`), and how a client of jig's does is jig's
 ## 1. In one page
 
 - **A second shell of the same client.** temper's client root, its view
-  and the forge's family (`../README.md`, section 3 and `../forge/family.md` and `../view.md`), compiled to
+  and the forge's family (`../root.md`, section 1 and `../forge/family.md` and `../view.md`), compiled to
   WebAssembly under a browser shell of temper's,
   `temper-client-shell-web`, on skein's browser parts (`skein-ui-web`;
   skein's `ui/web/README.md`) and jig's client adapter and sign-in part
@@ -243,7 +243,7 @@ Moved to [`push.md`](push.md), section 1.
   shared view and domain tables, focused client stories from a chat and
   Goals, and gallery prints; no new browser test for `ui-goal-asks-2`.
 
-- **The fresh project's draft flow** (`../pages/README.md`, `../view.md`, 3, `../pages/settings.md`, 2):
+- **The fresh project's draft flow** (`../pages/README.md`, `../view-navigation.md`, 1, `../pages/settings.md`, 2):
   the real-box check of an Ask temper chat's draft offer and the draft-to-goal
   flow, including Goals in the phone tab bar, is after-landing work
   (`../README.md`, section 5). Default: the view tables and fake-model
@@ -282,7 +282,7 @@ Moved to [`push.md`](push.md), section 1.
   role of its own, as Accounts' Sign out does, page by page; skein's
   diff stays.
 - A phone's width in a test: `testing.md`, section 7.
-- **The rail's foot on a phone** (`look.md`; `../view.md`, 3): the top bar holds the
+- **The rail's foot on a phone** (`look.md`; `../view-navigation.md`, 1): the top bar holds the
   switcher alone, as the mock's does, so a project's page on a phone shows no
   link's state, no "Behind" and, but on the `Accounts` tab, no "Sign out did
   not reach the engine.", and

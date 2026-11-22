@@ -134,7 +134,7 @@ Where the client does otherwise:
   client has no project's `by`, so no project's line names how it
   lands. The switcher shows
   repository names and counts, the first listed standing in for the home; "3 repositories"
-  without that stand-in is unreached (`../../view.md`, 3). Home's
+  without that stand-in is unreached (`../../view-navigation.md`, 1). Home's
   GitHub picker and reached count and the model account's email wait
   as `../../pages/README.status.md` and `../../forge/family.status.md`, 4, records. The gallery draws
   Home's states, including Claude alone, both plans and an API key.
@@ -328,10 +328,10 @@ Where the client's recorded picks stand against the drawing:
   the `ui-model-next-turn` repair owner.
 - **Closed** for every ended chat's bar and list row, with no clock in
   the bar. A requester-closed chat ends its conversation with "Closed
-  at CLOCK" between two hairlines (`../../README.md`, 3.6). The conversation's
+  at CLOCK" between two hairlines (`../../root.md`, 1.6). The conversation's
   Failed and Cancelled words and reasons stay. Chats is one list, newest first;
   a row's spend is its own, with live delegates counted separately.
-- **Confirmation sheets** follow `../../README.md`, 3.6: a sentence title,
+- **Confirmation sheets** follow `../../root.md`, 1.6: a sentence title,
   only what changes, then the keep and named primary act. A close at rest
   has no impact list; a live run, delegates, tasks below or proposals add
   their nonzero lines under a hairline. An uncertain release's two choices
@@ -357,7 +357,7 @@ What is not built here, though the main drawings show it:
 - A proposal's template and charter names (`me` has no charter names,
   and a proposed task names no template); a card's lineage beyond
   its own task (the inbox's `Card` carries no ancestry).
-- **Board** in the navigation: `../../pages/README.md` and `../../view.md`, 3 have the
+- **Board** in the navigation: `../../pages/README.md` and `../../view-navigation.md`, 1 have the
   project's Goals in its place, drawn from the greenfield mock.
 
 Other facts the comparison found absent:

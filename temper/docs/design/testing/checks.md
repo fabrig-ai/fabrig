@@ -177,7 +177,7 @@ world of temper's on a scripted engine (../client/testing.md).
   engine root alone.
 - **The agents' tools** run there too: their root, as a scripted agent
   beside the fake person (../client/ctl/testing.md, 2).
-- **The TUI's host** runs there too (../client/tui/README.md, 3): its
+- **The TUI's host** runs there too (../client/tui/host.md, 1): its
   shipped host with its root linked, as a native shell holds it, whose
   exchanges and stream the world's front carries to the engine's
   clients' component as the transport would, signed in by the printed

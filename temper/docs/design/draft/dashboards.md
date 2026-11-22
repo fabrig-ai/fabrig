@@ -247,7 +247,7 @@ drawn by `temper-client-view`:
 ### 5.3 In the client
 
 - **"Dashboards" in the navigation,** after "How work runs", whatever
-  the project (`../client/view.md`, 3): the deployment's dashboards
+  the project (`../client/view-navigation.md`, 1): the deployment's dashboards
   the person may read, then the chosen project's. Each opens on its own
   page, `Dashboard { scope, number }`.
 - **Live.** A dashboard watches its metrics, and the view builds the

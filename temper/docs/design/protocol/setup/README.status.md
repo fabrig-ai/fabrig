@@ -31,7 +31,7 @@ in a walk remains unobserved (`../configuration/reference.status.md`);
 `box-supervision.md`, section 1's sign-in block names the TUI command at the link's origin,
 on stderr in the first block alone. Serve keeps the engine's private
 link file at each `LocalLink`, never a printed link, and removes it when its loop
-returns (`../../client/tui/README.md`, 2). No known implementation gap
+returns (`../../client/tui/directory.md`, 1). No known implementation gap
 remains in those additions; a forced kill can leave a stale file as
 designed. `testing.md`, section 4's box stories
 (`bin/temper-box/tests/suite/box_listeners.rs`) hold the file's link at stdout's address and apart from every printed

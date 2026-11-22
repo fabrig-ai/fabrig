@@ -8,7 +8,7 @@
   process, holds the tabs How work runs and Repositories, "How work runs"
   current in the rail; *Deployment*, the deployment's own, holds Accounts,
   Forges, Models, Workers, Members and Limits, "Deployment" current at the
-  rail's foot (`../view.md`, 3). Builders is Workers on the page; its address and the
+  rail's foot (`../view-navigation.md`, 1). Builders is Workers on the page; its address and the
   code's names stay.
   - *Its head:* the kicker, "PROJECT · how work runs" on How work runs' tabs
     and "Deployment" on Deployment's, then, by tab, the level-1 heading and
@@ -31,7 +31,7 @@
     "Repositories", to `Repositories { project }`, at
     `/projects/<project>/settings/repositories`. Deployment's is named
     "Deployment": "Accounts", to `Accounts`; "Forges", to `Forges`, these two
-    with the marks `../view.md`, 3 gives them; "Models", to `Models { project }`, at
+    with the marks `../view-navigation.md`, 1 gives them; "Models", to `Models { project }`, at
     `/projects/<project>/settings/models`; "Workers", to `Builders { project
     }`, at `/projects/<project>/settings/builders`; "Members", to `Members`,
     at `/deployment/members`; and "Limits", to `Limits`, at
@@ -40,7 +40,7 @@
   - *`Forges` and `Accounts`* keep their addresses and paths, so that
     To begin's links and their tests hold, and so do
     `Models` and `Builders`. Whenever the
-    page has a project, as the rail does (`../view.md`, 3), they draw inside Deployment's frame,
+    page has a project, as the rail does (`../view-navigation.md`, 1), they draw inside Deployment's frame,
     with no level-1 heading of their own and no page bar; their rows follow
     the tabs. With no project they take the same column, sections and rows
     under their own level-1 heading, "Forges" or "Accounts", and that tab's
@@ -52,7 +52,7 @@
     (`told.md`), and "Sign out"; with "Sign out did not reach
     the engine." beside it as `../line.md`, 6 says. A browser draws this row at 760 px and
     under alone, where the rail has no foot; wider, "Sign out" is the person's
-    menu's (`../view.md`, 3). With no project, the top bar has "Sign out" (`../view.md`, 1).
+    menu's (`../view-navigation.md`, 1). With no project, the top bar has "Sign out" (`../view.md`, 1).
   - *How work runs* is 5.13.
   - *A repository being made,* on the `Repositories` tab, is a row among them,
     by the forge's row's `makings` whose `into` names this project (`../forge/records.md`), the
@@ -234,14 +234,14 @@
 - **Deleting a project** (jig's `domain/people/acts.md`, 2): How work
   runs (`Settings { project }`) ends, after its other parts, with
   "Delete project", a plain button, drawn while `me`'s role on the
-  project is owner, the role Rename reads (`../view.md`, 3), and for no
+  project is owner, the role Rename reads (`../view-navigation.md`, 1), and for no
   one else. Pressed, it opens the sheet that names the project
-  (`../README.md`, 3.6, *The sheet*), and sends nothing; the sheet's
+  (`../root.md`, 1.6, *The sheet*), and sends nothing; the sheet's
   "Delete project" sends jig's `RemoveProject` by
   `shapes::remove_project` (jig's `client/domain/client/helpers.md`;
   `jig/docs/design/client/domain/contract/requests.md`, 2), one keyed request. Answered
   removed, the sheet goes, the project leaves `me`, and with it the
-  navigation and every list (`../view.md`, 3), and the client goes to
+  navigation and every list (`../view-navigation.md`, 1), and the client goes to
   `AllHome`, All projects (`home.md`, 1), where, with no project left,
   the column "No project yet" draws (`welcome.md`, 1). Refused, the sheet
   stays, saying why above its acts in jig's words: a project with live
@@ -285,7 +285,7 @@ Moved to [`settings-proposals.md`](settings-proposals.md), section 1.
   act. Default: Members lists each project's members and the person's own
   deployment role; Limits draws the `deployment` document's capacities,
   read-only for everyone.
-- **The person's login over 760 px** (1, *Sign out*; `../view.md`, 3; the request
+- **The person's login over 760 px** (1, *Sign out*; `../view-navigation.md`, 1; the request
   `ui-owner-menu`): the sheet hides the `Accounts` tab's row whole, so a browser
   that wide reads the person's name on the rail's foot, and their login on no tab
   of `Settings`. Candidate: the sheet hides the row's button alone, its words

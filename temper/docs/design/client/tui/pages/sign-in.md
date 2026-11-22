@@ -23,12 +23,12 @@ Illustrative:
 - **The paste:** one text field, "Link", a secret, drawn masked (skein's
   `ui/screen.md`, 5.4), that submits on Enter, its placeholder the
   link's shape at the TUI's address, in the form temper prints it,
-  `http://HOST:PORT/sign-in?secret=…` (`../../README.md`, section 4),
+  `http://HOST:PORT/sign-in?secret=…` (`../../sign-in.md`, section 1),
   and the focus asked for it as the screen opens. A paste fills it whole (skein's `ui/screen.md`, 6.2). A
   `q` types in it, so the bottom row says "Ctrl+C to quit".
 - **Enter** checks the field with jig's parser of the printed link
   (`jig-client-protocol-http`'s `printed`, under the default mapping's
-  prefix `/jig`; `../../README.md`, section 4), and that its `HOST:PORT` is the TUI's
+  prefix `/jig`; `../../sign-in.md`, section 1), and that its `HOST:PORT` is the TUI's
   address:
   - not a link: "That is not a sign-in link: paste the whole link
     temper printed.";
@@ -36,7 +36,7 @@ Illustrative:
     in there, run temper http://HOST:PORT."; nothing is sent;
   - a link for this address: the host asks the root `SignIn { with:
     Link { secret, held } }`, held the credential the directory holds,
-    as `temper-box open` does (`../../README.md`, section 4), and the field is emptied; the
+    as `temper-box open` does (`../../sign-in.md`, section 1), and the field is emptied; the
     secret stays in the TUI's state only until then.
 - **While it signs in:** "Signing in…". `jig-client` sends the link
   again by itself, after a backoff, when the engine answers not ready
@@ -54,15 +54,15 @@ Illustrative:
 - **Signed out elsewhere:** the link signed out after a sign-in, by any
   means (a sign-out from another client, the sign-in ended or expired,
   a held credential the engine does not know): the token is erased
-  (`../README.md`, 3), and the screen shows again under the view's "Signed out.".
+  (`../host.md`, 1), and the screen shows again under the view's "Signed out.".
 
 ## 2. Signed in from the engine's link
 
-(`../README.md`, 2, *The engine's link, kept at
+(`../directory.md`, 1, *The engine's link, kept at
 rest*), with nothing pasted and no key pressed. At a name the TUI reads
 no link file (`Start.local` false), so none of this section holds
 there: a sign-in that expires opens the screen, which asks again
-(section 3).
+(`sign-in.md`, section 3).
 
 - **When:** the link is signed out, the TUI has not closed, it has an
   engine's link file to read (`Start.local`), and its note for the
@@ -75,15 +75,15 @@ there: a sign-in that expires opens the screen, which asks again
   `printed` doesn't read under the prefix `/jig`, or a link for another
   address than the TUI's, and the TUI falls back. A link for its address:
   the host asks the root `SignIn { with: Link { secret, held: None } }`,
-  as for a paste (`../../README.md`, section 4), and keeps nothing of the secret but its
+  as for a paste (`../../sign-in.md`, section 1), and keeps nothing of the secret but its
   SHA-256, to tell a fresh link from it.
 - **Signed in:** the launchpad, as by a link pasted; the credential
-  kept (`../README.md`, 3), and the note `Until` the sign-in's expiry.
+  kept (`../host.md`, 1), and the note `Until` the sign-in's expiry.
 - **Answered `link_used` or `link_expired`:** the engine draws the next
   local link when a TUI spends one, and a sign-in by a spent or expired
   one draws a fresh one when none is live, which the engine keeps in the
   file and never prints (jig's `protocol/client/sign-in.md`, *The
-  local link*; `../README.md`, 2). So the host reads the file again a second later,
+  local link*; `../directory.md`, 1). So the host reads the file again a second later,
   at most twice for one need, and signs in by a link whose digest
   differs from the one answered; the same link read again waits another
   second, within those two reads. This is the way when the file's link
@@ -94,14 +94,14 @@ there: a sign-in that expires opens the screen, which asks again
   answer; but in front, not ready and busy (`../box.md`) wait for jig's resend),
   the reads spent, or the file read finding none: the TUI falls
   back to the sign-in screen as it is with no file, which asks the
-  browser's approval (`../../README.md`, 4.1) and takes the paste. It says nothing of the
+  browser's approval (`../../sign-in.md`, 1.1) and takes the paste. It says nothing of the
   file: no refusal line is drawn for the file's link, and a fallback
   after an expiry shows the screen under the view's "Signed out.", as
   any sign-in ended. The approval's take replaces a link's sign-in that
-  `jig-client` still sends again by itself (`../../README.md`, 4.1, *A pasted link, sent*).
+  `jig-client` still sends again by itself (`../../sign-in.md`, 1.1, *A pasted link, sent*).
 - **Expired is not signed out.** The engine answers both alike, the
   link signed out, so the note tells them apart, from the expiry the
-  sign-in's answer gave (`../README.md`, 3, *The note*), on the engine's own machine's
+  sign-in's answer gave (`../host.md`, 1, *The note*), on the engine's own machine's
   wall clock. The link signed out after a sign-in, or a held credential
   refused, at or past the note's `Until` less a minute's slack, is an
   expiry: the TUI signs in from the file on its own, as above. Before it,
@@ -174,10 +174,10 @@ and a typed code with no tab:
   place, "Sign in this terminal to PLACE", `place(origin, false)`
   (`chat.md`, 1, *The place*).
 - **It asks** as on loopback, once each time the screen opens signed
-  out (`../../README.md`, 4.1, *The TUI's flow*): at its start with no
+  out (`../../sign-in.md`, 1.1, *The TUI's flow*): at its start with no
   credential kept, after a sign-out or a kept credential the engine
   refused, and after a sign-in expired, since there is no link file to
-  renew from (section 2). The ask is the one click where the TUI can
+  renew from (`sign-in.md`, section 2). The ask is the one click where the TUI can
   open a browser, else a typed code's.
 - **The one click** (`../../../draft/tui-remote.md`, 5.1): the host
   first has its loopback listener opened (section 4), the duty
@@ -186,10 +186,10 @@ and a typed code with no tab:
   `AskApproval { port: Some(PORT) }`, the approval's loopback return,
   and once it is answered opens the tab, once, at the approval page
   with its code, `https://NAME/terminal?code=CODE` (`approval_address`,
-  `../../README.md`, 4.1). That page offers Approve on the read alone,
-  and the browser hands the sign-in back through the listener (section
-  4). The run reports no port where the binary chose no opener (an SSH
-  session, no display: `../../README.md`, 4.1, *The opener*) or the
+  `../../sign-in.md`, 1.1). That page offers Approve on the read alone,
+  and the browser hands the sign-in back through the listener (`sign-in.md`, section 4
+  ). The run reports no port where the binary chose no opener (an SSH
+  session, no display: `../../sign-in.md`, 1.1, *The opener*) or the
   listener couldn't open: the host then asks a typed code's approval.
 - **A typed code** (`../../../draft/tui-remote.md`, 5.2):
   `AskApproval { port: None }`, with no listener, where there is no
@@ -224,7 +224,7 @@ and a typed code with no tab:
   (`may_type_instead`: the link signed out, the root's ask `Asked` with
   a port, and no "Ask again"): a button of its own under the lines,
   labelled "Type a code instead", with the focus while it stands. Enter
-  or Space presses it, making `TypeCode` (`../README.md`, 3, the
+  or Space presses it, making `TypeCode` (`../host.md`, 1, the
   events' table): the listener is closed (`unlisten`) and a typed
   code's approval asked, whose take replaces the one click's. The
   one-click approval is left to expire, signing nobody in, one of its
@@ -233,7 +233,7 @@ and a typed code with no tab:
 - **"Ask again",** with no field: once the approval has ended or was
   not asked (`may_ask_again`), a button of its own stands under the
   lines, labelled "Ask again", with the focus while it stands; Enter or
-  Space presses it, making `SignIn` (`../README.md`, 3, the events'
+  Space presses it, making `SignIn` (`../host.md`, 1, the events'
   table), which asks again, the one click where there is an opener.
 - **No other key:** while an ask is in flight, the listener's opening
   among it, or a typed code's ask waits, there is no button and no key
@@ -247,12 +247,12 @@ and a typed code with no tab:
   Space too (`skein/docs/design/ui/screen.md`, the keys' table;
   `tui-remote.status.md`, *Design departs*).
 - **The outcomes** are loopback's, each in place of the lines after the
-  first (`../../README.md`, 4.1, *Each outcome's line*), but for not
+  first (`../../sign-in.md`, 1.1, *Each outcome's line*), but for not
   asked: refused, which at a name says "PLACE doesn't sign terminals in
   from the browser.", since there is no link to paste instead. A grant
   that isn't the approval's (`not_granted`) is drawn as waiting.
 - **Signed in:** the credential kept in the origin's directory
-  (`../README.md`, 2), the note `Until` the sign-in's expiry, and the
+  (`../directory.md`, 1), the note `Until` the sign-in's expiry, and the
   launchpad drawn, as on loopback.
 - **The bottom row** is section 1's; where the native shell's last
   handshake failed, its state says why (`README.md`, *The link's
@@ -261,7 +261,7 @@ and a typed code with no tab:
   state and view, and the host:
 
   ```rust
-  // temper-client-domain (`../../README.md`, 4.1)
+  // temper-client-domain (`../../sign-in.md`, 1.1)
   Event::AskApproval { port: Option<u16> }
   Event::Granted { grant: skein_lib::Secret }
   asked::State::Asked { code: ApprovalCode, expires: Wall, port: Option<u16> }
@@ -313,7 +313,7 @@ approving browser brings and hands it to the root.
   bytes: the form the approval page sends the browser to
   (`../../pages/shared-behaviour.md`, 1, *The hand-off*). While the root holds
   the one-click ask's `Asked`, the host gives the root the grant,
-  `Event::Granted { grant }` (`../../README.md`, 4.1, *The grant*), and
+  `Event::Granted { grant }` (`../../sign-in.md`, 1.1, *The grant*), and
   answers the browser `303 See Other` to `approval_address(origin,
   Some(code))`, `https://NAME/terminal?code=CODE`, at once, without
   waiting for the take: the page there reads the approval approved
@@ -355,7 +355,7 @@ approving browser brings and hands it to the root.
   only this TUI holds (`../../../draft/tui-remote.md`, 5.1, *Why a press
   is safe*). A process on this machine that reaches the listener first
   could take the grant, but it can read the TUI's token already
-  (`../README.md`, 2, *The risk, accepted*).
+  (`../directory.md`, 1, *The risk, accepted*).
 - **Never shown:** the grant is never drawn, logged or kept: the run
   hands it up in the request's target, and the host gives it to the
   root, which gives it to `jig-client` for the take. A recording keeps

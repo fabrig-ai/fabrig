@@ -36,7 +36,7 @@ Serving the browser's page and bundle is split from [the browser overview](READM
      `Content-Type: text/javascript`, and the web app's manifest,
      `application/manifest+json`;
   7. any other `GET`, the printed link's route and its page,
-     `/sign-in` (`../README.md`, section 4), among them: the page,
+     `/sign-in` (`../sign-in.md`, section 1), among them: the page,
      with its ETag and `no-cache`, and `304` on a matching
      `If-None-Match` (skein's `ui/web/bundle.md`, 4).
 - **The page's metas,** made into the bundle's page at start, before

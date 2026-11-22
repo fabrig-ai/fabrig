@@ -202,7 +202,7 @@ The runner/worker choice in `temper/docs/design/domain/after-landing.md`, 13 say
 
 Kind: stale question. Owner: `temper/docs/design/client/pages/home.md`.
 
-"A project's only goal ending while Home is open" in `temper/docs/design/client/pages/home.md`, 2 says Away's Shown reads has_goals too. `temper/docs/design/client/pages/shared-behaviour.md`, 1 now specifies Shown by the project's classes or an on Away row, and `temper/docs/design/client/view.md`, 3 uses that same predicate. Suggest removing that stale Away premise without assuming that the separate bounded-goal-read concern has gone away.
+"A project's only goal ending while Home is open" in `temper/docs/design/client/pages/home.md`, 2 says Away's Shown reads has_goals too. `temper/docs/design/client/pages/shared-behaviour.md`, 1 now specifies Shown by the project's classes or an on Away row, and `temper/docs/design/client/view-navigation.md`, 1 uses that same predicate. Suggest removing that stale Away premise without assuming that the separate bounded-goal-read concern has gone away.
 
 ### 2.24 D1: Repeated rendered-comparison requests
 
@@ -221,13 +221,13 @@ The following are independent full after-landing comparison checklists for the s
 
 Kind: duplicated question. Owner: `temper/docs/design/client/README.md`.
 
-`temper/docs/design/client/README.md`, 5.8, `temper/docs/design/client/web/README.md`, 3 and `temper/docs/design/protocol/configuration/README.md`, 9 each defer the public-name/Google terminal approval flow; the first two repeat the typed code, request origin/age and remotely ended sign-ins. Suggest keeping that future client-flow question with `temper/docs/design/client/README.md`, 4.1 and citing it from the browser/configuration questions, preserving the distinct init loopback restriction. That restriction and the differing detail make this a merge rather than a blind move.
+`temper/docs/design/client/sign-in.md`, 2, `temper/docs/design/client/web/README.md`, 3 and `temper/docs/design/protocol/configuration/README.md`, 9 each defer the public-name/Google terminal approval flow; the first two repeat the typed code, request origin/age and remotely ended sign-ins. Suggest keeping that future client-flow question with `temper/docs/design/client/sign-in.md`, 1.1 and citing it from the browser/configuration questions, preserving the distinct init loopback restriction. That restriction and the differing detail make this a merge rather than a blind move.
 
 ### 2.26 D3: The forge OAuth flow described as two open questions
 
 Kind: duplicated question. Owner: `temper/docs/design/protocol/credentials.md`.
 
-The forge-as-people's-provider items in `temper/docs/design/client/README.md`, 5.8 and `temper/docs/design/protocol/credentials.md`, 8 both describe temper-owned OAuth routes and the same server-side Mint flow. The client item additionally suggests a terminal device-code flow; credentials additionally owns the OAuth registration's secret storage. Suggest keeping the prospective server/Mint contract in credentials, with the client question limited to its client-specific continuation and a citation. This concerns repeated protocol design inside the client question, not the legitimate distinction between UI behavior and credential storage.
+The forge-as-people's-provider items in `temper/docs/design/client/sign-in.md`, 2 and `temper/docs/design/protocol/credentials.md`, 8 both describe temper-owned OAuth routes and the same server-side Mint flow. The client item additionally suggests a terminal device-code flow; credentials additionally owns the OAuth registration's secret storage. Suggest keeping the prospective server/Mint contract in credentials, with the client question limited to its client-specific continuation and a citation. This concerns repeated protocol design inside the client question, not the legitimate distinction between UI behavior and credential storage.
 
 ## 3. Moves done
 
@@ -827,7 +827,7 @@ Map item 147: `temper/docs/design/protocol/setup/README.md`, 9 → `temper/docs/
 
 ### 3.148 A failed link with a live cookie
 
-Map item 148: `temper/docs/design/client/web/README.md`, 3 → `temper/docs/design/client/README.md`, 5.8. Existing destination item retained; source now cites it.
+Map item 148: `temper/docs/design/client/web/README.md`, 3 → `temper/docs/design/client/sign-in.md`, 2. Existing destination item retained; source now cites it.
 
 ## 4. Owner index for what is left
 

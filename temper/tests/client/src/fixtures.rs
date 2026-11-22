@@ -581,7 +581,7 @@ pub fn read(
 pub fn project() -> temper_client_domain::Address {
     temper_client_domain::Address::Home { project: 1 }
 }
-/// Start a change from the rail's new box (temper/docs/design/client/view.md, 3).
+/// Start a change from the rail's new box (temper/docs/design/client/view-navigation.md, 1).
 #[must_use]
 pub fn start_change(drafts: bool) -> Vec<skein_fake_person::Step<temper_client_domain::Address>> {
     use skein_fake_person::{Find, Step};

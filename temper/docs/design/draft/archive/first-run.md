@@ -87,7 +87,7 @@ line. What the terminal shows, and why, is 2.5.
 1. `temper box` finds `$XDG_CONFIG_HOME/temper` empty, runs `temper
    init` on it (3.3), and starts the document's steps (3.9).
 2. The person opens the link in a browser on the same machine. It signs
-   them in as the deployment's owner (`../../client/README.md`, section 4)
+   them in as the deployment's owner (`../../client/sign-in.md`, section 1)
    and lands on the default project's chat.
 3. The project has the demo repository adopted, on the demo forge, and
    the demo model as its account (3.6). A banner says it is a demo and

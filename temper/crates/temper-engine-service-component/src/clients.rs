@@ -1,6 +1,6 @@
 //! The clients child and secret-free root handoffs (client/README.md, 2 and client/engine.md; jig's
 //! protocol/service.md, 3).
-//! Local links stay apart from printed links (client/tui/README.md, 2).
+//! Local links stay apart from printed links (client/tui/directory.md, 1).
 use crate::settings::Seeds;
 use alloc::boxed::Box;
 use jig_domain_core as core;

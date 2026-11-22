@@ -179,7 +179,7 @@ fn oversized_paste_is_local_and_editing_it_recovers() {
     assert!(!disabled(&root));
 }
 
-// client/pages/README.md and client/README.md, 3.6: the secret is absent from the semantic
+// client/pages/README.md and client/root.md, 1.6: the secret is absent from the semantic
 // tree and address, including before sending. Assertions never format it.
 #[test]
 fn typed_callback_never_appears_in_the_view_or_page_address() {
@@ -218,7 +218,7 @@ fn leaving_the_page_or_way_drops_the_paste() {
     }
 }
 
-// client/pages/README.md and client/README.md, 3.6: repeated submission while out joins
+// client/pages/README.md and client/root.md, 1.6: repeated submission while out joins
 // the pending finish, even when supplied under another name.
 #[test]
 fn duplicate_finish_sends_one_request_and_clears_the_field() {

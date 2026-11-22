@@ -67,7 +67,7 @@ default; the document is `temper.json` in the configuration directory
   - Its stdout carries only sign-in links, one per line: each the
     secret jig's clients' component gives, in jig's default mapping's
     link route under temper's prefix (jig's `protocol/client/sign-in.md`
-    ; `../client/README.md`, section 4); its stderr carries startup
+    ; `../client/sign-in.md`, section 1); its stderr carries startup
     notes, the lines of `cluster.md`, 3 (each TCP listener once bound, and a worker
     alone's link at each opening) and the reason of a failure. A worker
     alone prints no sign-in link.
@@ -150,7 +150,7 @@ default; the document is `temper.json` in the configuration directory
   the TUI. ADDRESS is the engine's clients' listener on loopback; the
   sign-in link is pasted on the TUI's screen, never given. Its
   directory is its own, under the person's state directory
-  (`../client/tui/README.md`, 2). It reads no configuration file.
+  (`../client/tui/directory.md`, 1). It reads no configuration file.
 - **`temper-box open DIRECTORY LINK_OR_ADDRESS`:** a person's terminal client
   (`../client/line.md`, 1). It reads no configuration file.
 - **`temper ctl DIRECTORY ...`:** the agents' tools, one call per

@@ -396,7 +396,7 @@ Moved to [`credentials-git-identities.md`](credentials-git-identities.md), secti
   `temper-box open` signs in by it; its client holds the
   bearer token it is given and sends it with every exchange, and the
   terminal keeps it in its private directory, to sign in with it again
-  (`../client/README.md`, section 4). Every other way of signing in is open
+  (`../client/sign-in.md`, section 1). Every other way of signing in is open
   (`credentials.md`, section 8).
 - **No TLS key** in standalone: nothing temper serves leaves the machine.
 

@@ -40,7 +40,7 @@ and `connect-forge.html`.
   password: temper couldn't connect its sign-in. box.log says why." under the
   row's actions. Nothing else changes, and the set-up is done.
 - **A repository's link:** in the browser, wherever a project's repository
-  is named with its forge known (the switcher's row, `../view.md`, 3; the
+  is named with its forge known (the switcher's row, `../view-navigation.md`, 1; the
   body's "Repositories" row below; the Forge line and Settings' Repositories,
   `../pages/README.md`), OWNER/NAME is the link "OWNER/NAME ↗", in a new tab,
   underlined on hover, in the look of the words it replaces. Its address:
@@ -270,7 +270,7 @@ and "Set up a Forgejo here" are the flow's, at its Details, which a
 row offering one links to, "Connect ›", `ConnectForge` at its forge;
 every other action is a row's, in its opened part.
 
-A pasted value is a field of its own (`../README.md`, 3.6 and `../engine.md`),
+A pasted value is a field of its own (`../root.md`, 1.6 and `../engine.md`),
 emptied as the request leaves and shown nowhere, then or after; the
 page shows that it was given, never what. Two refusals are the page's
 own, before anything is sent, the fields kept for the person to fix: a
@@ -297,4 +297,3 @@ link meanwhile. The terminal prints it and opens nothing (`../line.md`,
   Forgejo's tokens); a managed forge is mended by connecting as its
   admin again, reconcile making the bot's tokens anew for the same
   user; an owned one by its preparation and a restart.
-

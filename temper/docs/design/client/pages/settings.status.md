@@ -70,7 +70,7 @@ check follows landing.
 
 
 `README.md`, *Work*, *Goals*, *Changes* and *Settings and Deployment*,
-and `../view.md`, 3, *The rail*, *The rail's parts*, *Projects in the rail* and *All
+and `../view-navigation.md`, 1, *The rail*, *The rail's parts*, *Projects in the rail* and *All
 projects*, have no known gap but a standing role's, below, by plan `ui-p1-rail`:
 `Address::Work`, `Members` and `Limits` and their paths, Work's five
 addresses holding the goals', changes' and chats' reads open together;
@@ -95,7 +95,7 @@ process's stories walk the new rail. The render check and the walk
 remain `../README.md`, section 5's after-landing work (*The rail, Work and Deployment
 after landing*).
 
-`README.md`, *Team*, and `../view.md`, 3's Team in the rail have no known gap but
+`README.md`, *Team*, and `../view-navigation.md`, 1's Team in the rail have no known gap but
 the project's triager, below, by plan `ui-p4a-team`: `Address::Team {
 project }` at `/projects/<project>/team`, a page of the project's frame;
 `pages::team`'s `gather`, `parts`, `shown` and `people`, the project's
@@ -125,7 +125,7 @@ created proposals, including mixed outcomes. The view's
 and mixed calls and failures after two or eight reads, with failure
 descriptions and rows retained. No known gap remains in that wording.
 
-`../README.md`, section 2 and `../tui/README.md`, sections 1 to 3 and `../tui/pages/README.md` and `../tui/theme.md` and `../tui/README.md`, section 4 and `../README.md`, section 4.1 have no known implementation gap in the
+`../README.md`, section 2 and `../tui/README.md`, section 1, and `../tui/directory.md`, section 1, and `../tui/host.md`, section 1 and `../tui/pages/README.md` and `../tui/theme.md` and `../tui/README.md`, section 4 and `../sign-in.md`, section 1.1 have no known implementation gap in the
 TUI's crates, command, private directory, link file and sign-in note,
 host seam, pasted-link sign-in, launchpad, commands, chats, themes,
 closing, automatic local sign-in, quiet fallback, bounded rereads, expiry
@@ -152,7 +152,7 @@ across fresh state directories and explicit configuration/cache paths.
 and macOS checks, later surfaces and the expiry/revocation ambiguity;
 no real-terminal or macOS runtime result is supplied here.
 
-`../README.md`, section 2, and `../tui/README.md`, sections 1 and 2 have
+`../README.md`, section 2, and `../tui/README.md`, section 1, and `../tui/directory.md`, section 1 have
 shared starts: `temper [ADDRESS]` runs `temper-client-shell-tui`'s `start`,
 given its captured environment and working directory; `temper ctl` and
 `temper-box ctl` run `temper-client-shell-cli`'s. An argument's address or

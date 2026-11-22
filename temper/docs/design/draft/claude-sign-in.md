@@ -200,9 +200,9 @@ Each holds for the first pass and for any change after it.
 - **`../protocol/credentials-llm-accounts.md`, 1:** `temper-box program-login` is
   also started by the TUI in front, in the person's terminal, as the
   person starts it by hand.
-- **The engine and the TUI's seam** (`../client/tui/README.md`, 3): the
+- **The engine and the TUI's seam** (`../client/tui/host.md`, 1): the
   fact that a terminal can be lent, which picks 01 or 05; the ask, its
-  exit status back, and Cancel (section 7, *The ask*).
+  exit status back, and Cancel (`claude-sign-in.md`, section 7, *The ask*).
 - **The gallery** (`../client/web/gallery.md`): states for 01, 02, 04
   and 05, and the TUI's journeys for t2 to t4.
 

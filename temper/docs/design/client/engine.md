@@ -44,7 +44,7 @@ does for the client:
   spends nothing, and the mapping leaves it to the application's page
   (jig's `protocol/browser/README.md`, section 11); so does a `GET` of
   its page, `/sign-in`, a path of temper's outside the mapping's prefix
-  (`README.md`, section 4). With a bundle, temper's
+  (`sign-in.md`, section 1). With a bundle, temper's
   server answers it with the page, which signs the browser in by it
   (`web/sign-in.md`, 1); with none, the page for no bundle, which says
   so and names `temper-box open` (`web/serving.md`, 1), with

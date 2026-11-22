@@ -132,7 +132,7 @@ This document holds the box's supervision, split from [`box.md`](box.md).
   of its logs or records while they are moved waits behind them. The link's
   address is what serve's would be: the configured public origin, or else
   the clients' listener, and the link's page, `/sign-in`
-  (`../../client/README.md`, section 4); a link at the route, as a build
+  (`../../client/sign-in.md`, section 1); a link at the route, as a build
   before printed it, still signs in.
 
   ```
@@ -147,7 +147,7 @@ This document holds the box's supervision, split from [`box.md`](box.md).
 
   The last line names the TUI's command (`../../client/tui/README.md`, 1) at
   the link's own origin, its `http://HOST:PORT`, for a terminal that
-  finds no engine's link file (`../../client/tui/README.md`, 2): the client's
+  finds no engine's link file (`../../client/tui/directory.md`, 1): the client's
   `temper` command, then the origin.
   It is the first block's alone, on stderr with the lines around it; a
   fresh link is printed as below. With `--front`, the box prints no

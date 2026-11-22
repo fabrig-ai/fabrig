@@ -8,7 +8,7 @@
   on every chat: the user's choice in `configure-chat-in-settings`, which
   supersedes the mock's rail-less chat. On a phone, at 760 px or less, rail
   and tab bar go, but for the rail's night switch, at the chat's bar's right
-  (`../../view.md`, 3), and the tab bar of Ask temper's page and of an Ask temper chat, the
+  (`../../view-navigation.md`, 1), and the tab bar of Ask temper's page and of an Ask temper chat, the
   phone's Ask tab (`../ask-temper.md`, 1, *Ask temper's page*). A chat differs from an Ask temper chat only in its path: a
   chat's path is "Chats /", "‹" on a phone a
   link to `Chats`; an Ask temper chat's is "Ask temper /", "‹" on a
@@ -57,7 +57,7 @@
   words, as the bar had them, the star still. It has no colour of its own:
   `.state-needs` is gone with the bar's status. A chat that has ended draws
   no composer and no line: its end's line says it, with its time
-  (`../../README.md`, 3.6, *Closed ends on one line*). `NewChat` and `Ask`,
+  (`../../root.md`, 1.6, *Closed ends on one line*). `NewChat` and `Ask`,
   before a chat exists, draw none. On a phone it keeps the composer's
   width. The terminal shell prints it as a line before the composer; the
   browser's terminal look keeps its own running line (`terminal.md`, 1).
@@ -101,7 +101,7 @@
   keeps its acts.
   - "Pause" is `Ask::Stop`, while Stop is allowed and the chat isn't paused.
     "Resume" takes its place on a paused chat where Release is allowed, and is
-    `Ask::Release` naming the hold's revision. Each is sent at once (`../../README.md`, 3.6). The
+    `Ask::Release` naming the hold's revision. Each is sent at once (`../../root.md`, 1.6). The
     status says it happened: an accepted Pause or Resume draws no status under
     the conversation; a refusal says why there.
   - **Sending resumes.** A message to a paused chat, where Release is allowed,
@@ -183,7 +183,7 @@
     those words are visible as sent. The chat opens in Split.
 - **A suggested request** (`chats.html`) starts a chat with the
   cue's words as its first message, as the composer's send does: one
-  act, one request (`../../README.md`, 3.6), the suggestions and the send disabled while
+  act, one request (`../../root.md`, 1.6), the suggestions and the send disabled while
   it is pending. The engine puts that message in the run's brief, and
   the scripted model finds the cue there (`../../../protocol/setup/playground.md`), so
   the chat plays the cue's script; the composer's text is left as it

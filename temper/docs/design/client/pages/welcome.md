@@ -324,12 +324,12 @@ Moved to [`welcome-model.md`](welcome-model.md), section 1.
     - *Its request:* jig's `MakeProject`, named as written, on policy 1,
       the stock policy (`../../protocol/configuration/stock.md`), in the
       deployment's scope (jig's `domain/people/acts.md`, 1), one keyed
-      request (`../README.md`, 3.6) under a key of the welcome's own, named
+      request (`../root.md`, 1.6) under a key of the welcome's own, named
       `welcome-default` and the attempt's number, one attempt per
       press, never the forge's set up keys. While it is out, the field
       and the act are disabled, the act reading "Creating NAME…".
     - *Made,* `ProjectMade { project }`: the welcome opens that
-      project as a project's button does (`../view.md`, 3), choosing it once `me`
+      project as a project's button does (`../view-navigation.md`, 1), choosing it once `me`
       lists it, and shows its Home, `/projects/<project>`, then adopts
       (below).
     - *The name taken:* jig's refusal of a name another project holds
@@ -384,7 +384,7 @@ Moved to [`welcome-model.md`](welcome-model.md), section 1.
   not about the work and `Welcome`: the level-1 heading "No project yet"
   and "Make your first one, or ask an owner to add you to theirs.",
   then the form "New project", its field named "Project name" above it
-  and "Create", filled, beside it, the switcher's form and acts (`../view.md`, 3,
+  and "Create", filled, beside it, the switcher's form and acts (`../view-navigation.md`, 1,
   *Projects in the rail*), its refusal under them. With the welcome
   (1), the column holds instead "Setting temper up makes
   your first project.", "Set up temper", filled, to the welcome, which
@@ -412,7 +412,7 @@ repository, and the cues the playground's, copied in from its read:
   (`../forge/family.md`, 7); while it is leaving, "Leaving the playground…" in its place,
   with no link (`../view.md`, 1). Beside it, the rail's foot offers "Set up temper",
   the same act, while the playground runs and is not leaving: the way
-  out, prominent (`../view.md`, 1, 3).
+  out, prominent (`../view.md`, 1, `../view-navigation.md`, 1).
 - **The playground's start,** on `NewChat`, at the head of its thread
   (`README.md`; the first run's first step): the status "Ready"; while its start is
   out or its read answers starting (`../forge/family.md`, 7), the status "Starting" and its
@@ -519,15 +519,15 @@ repository, and the cues the playground's, copied in from its read:
   `welcome-set-up` stops at Model, once its forge is set up, and
   `project-landing` starts on Home; the process tier and the client's world
   hold what lies between, apart. Default: so.
-- **A whole welcome's page** (`../README.md`, 3.4): a browser at `/welcome` once the
+- **A whole welcome's page** (`../root.md`, 1.4): a browser at `/welcome` once the
   welcome is whole moves on to the chats page, where Ready's act and "+
-  New project" open a project's Home (`README.md`, `../view.md`, 3). Default: the chats
+  New project" open a project's Home (`README.md`, `../view-navigation.md`, 1). Default: the chats
   page, since the look request `project-home` named Ready's act alone.
 - **A taken name at Ready** (1;
   `../../draft/first-run-projects.md`, 9): a person who made a project of
   the name Ready's field holds, the offered one unless they wrote
   another, before finishing the welcome, from the column's or the rail's
-  new project (`../view.md`, 3) or ctl. The user's to decide: open it, or make "Hello 2".
+  new project (`../view-navigation.md`, 1) or ctl. The user's to decide: open it, or make "Hello 2".
   Default: Ready opens the person's project of that name and makes no
   other
   name, the reading the draft's status records while the user is

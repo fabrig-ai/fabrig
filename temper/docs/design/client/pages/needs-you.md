@@ -57,7 +57,7 @@ Moved to [`needs-you-terminal.md`](needs-you-terminal.md), section 1.
     `../../draft/surfaces.md`, section 10), the browser's alone, at 760 px and
     under, while a card is open: the page's own top bar,
     `temper-needs-bar`, takes the frame's, whose switcher and Away chip are
-    not drawn there, the night switch keeping its place at the right (`../view.md`, 3).
+    not drawn there, the night switch keeping its place at the right (`../view-navigation.md`, 1).
     It holds "‹ Needs you", a link named "Needs you" to Home, where Done's
     "Home" goes (*Done,* below), the "‹" drawn by style; then its place,
     "1 of 2", muted, small. Over 760 px it is not drawn. Under it the open
@@ -120,7 +120,7 @@ Moved to [`needs-you-terminal.md`](needs-you-terminal.md), section 1.
     *Tell it something else* alone. A proposal's question line is its reason's first
     sentence, without a heading's marks, its facts and rows as `.ctx` beneath, then Accept (primary,
     with no "recommended") and Reject (plain, its reason's textarea as on
-    the terminal's card), through the confirmation they have (`../README.md`, 3.6).
+    the terminal's card), through the confirmation they have (`../root.md`, 1.6).
     A party's amendment is drawn as a task's: "Amend task N", its
     specification, and its authority before and after. Its maker's card,
     on this page and in a chat, adds Withdraw (plain), offered to the
@@ -438,7 +438,7 @@ Moved to [`needs-you-terminal.md`](needs-you-terminal.md), section 1.
     not its offers are open, sends the FORGE request `Dismiss { keep_asking(project,
     subject, at) }` (`../forge/records.md`), `subject` the card's reach's (the kind for a reason
     `kind`, the set for a reason `set`), `at` the wall, one act, one request
-    (`../README.md`, 3.6), and closes the offers where they are open. Answered, the toast "It keeps asking.
+    (`../root.md`, 1.6), and closes the offers where they are open. Answered, the toast "It keeps asking.
     Stop asking comes back in 7 days."; refused or lost, "temper couldn't
     keep that. Try Keep asking again."; *unknown,* the subject `dismissed`
     answers it. While it is out, and once kept, the line offers neither
@@ -466,7 +466,7 @@ Moved to [`needs-you-state.md`](needs-you-state.md), section 1.
     `client/domain/contract/documents.md`, 1, and `jig/docs/design/client/domain/contract/README.md`, 5.1), read and never kept. An item
     is the deciding source, the first supplied, of an account the person
     holds (`AccountHolder::Party`, the party `me` names), but the
-    playground provider's (`../forge/family.md`, 7), as the rail's mark reads it (`../view.md`, 3), whose
+    playground provider's (`../forge/family.md`, 7), as the rail's mark reads it (`../view-navigation.md`, 1), whose
     kind is a sign-in or a program's login, and which is signed out
     (`SignInAgain`) or reads `expiring`, signed out where both hold: the
     source whose state holds the account's work (`accounts-words.md`, 1, *The composer's
@@ -532,7 +532,7 @@ Moved to [`needs-you-state.md`](needs-you-state.md), section 1.
   entry. Default: as it is.
 - **Across projects, in one project** (1, *Its intro* and an item's
   "PROJECT ›"; the look request `one-project`, which settles the switcher
-  alone, `../view.md`, 3, *All projects*): on `/needs` with one project, the
+  alone, `../view-navigation.md`, 1, *All projects*): on `/needs` with one project, the
   kicker reads "Needs you · all projects" and each item "PROJECT ›",
   though the switcher names the project. A look question for the user.
   Default: as they are.

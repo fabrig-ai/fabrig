@@ -73,7 +73,7 @@ impl Domain {
     pub const fn approval(&self) -> Option<&crate::approve::Page> {
         self.approval.as_ref()
     }
-    /// A native client's ask (client/README.md, 4.1).
+    /// A native client's ask (client/sign-in.md, 1.1).
     #[must_use]
     pub const fn asked(&self) -> Option<crate::asked::State> {
         self.asked

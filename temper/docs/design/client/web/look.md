@@ -72,7 +72,7 @@
   main (its focus ring, its visually hidden boxes); and a viewport
   length, which a zoom grows like any other. Dialogs are drawn inside
   main, and scale with it. Confirmation sheets stand under `#app` at their
-  own scale (`../README.md`, 3.6).
+  own scale (`../root.md`, 1.6).
 ## 2. Confirmation sheets
 
 - **Confirmation sheets:** `dialog.temper-confirm`, 460 px wide at most,
@@ -160,14 +160,14 @@ Moved to [`look-settings.md`](look-settings.md), section 1.
   temper's page and an Ask temper chat, the Ask tab's, keep the tabs, where
   every other chat layout draws none, its composer and model picker standing
   wholly over them, the page's foot raised by the tabs' 64 px and the safe
-  area (`../pages/README.md` and `../view.md`, 3). Needs you's open card takes the top bar
+  area (`../pages/README.md` and `../view-navigation.md`, 1). Needs you's open card takes the top bar
   with its own, `temper-needs-bar` (`../pages/README.md`, *Needs you*), as a
   chat's bar does, the night switch keeping its place. Over 760 px the
   link's state is one word with its dot at the right of the rail's
   first row, temper's name's, out of the foot's flow: "Live"; "Behind", its
   dot amber, in place of "Live" while a page's watch reopens; or
   "Connecting" or "Offline" alone, so that the foot's height and place
-  never move with it (`../view.md`, 3; the look request `rail-word`). Its
+  never move with it (`../view-navigation.md`, 1; the look request `rail-word`). Its
   rules replace, where it stood, the one that hid the live link's region.
   The word is the foot's 13.5 px on temper's own 24 px line, so that the
   two baselines meet, and every state's dot, Live's too, is 7 px, as tall
@@ -179,9 +179,9 @@ Moved to [`look-settings.md`](look-settings.md), section 1.
   its dots as they are.
   The person's
   menu goes with the foot, so the `Accounts` tab's row with "Sign out", which
-  `temper.css` hides over 760 px, stands at that width alone (`../pages/README.md` and `../view.md`, 3
+  `temper.css` hides over 760 px, stands at that width alone (`../pages/README.md` and `../view-navigation.md`, 1
   ).
-- **The rail as the whole story draws it** (`../view.md`, 3; the mockups'
+- **The rail as the whole story draws it** (`../view-navigation.md`, 1; the mockups'
   `whole-story.css`, `.rail`, `.nav`, `.nav .sep`, `.new` and `.foot`, in the
   greenfield mock's paper and ink): the hairline after "Ask temper",
   `div.temper-rail-sep`, a rule of the rail's line colour 8 px over and
@@ -194,7 +194,7 @@ Moved to [`look-settings.md`](look-settings.md), section 1.
   "Team for PROJECT" where Team shows, "How work runs for PROJECT" and
   "Deployment", in that order. Each of those three links carries
   `temper-projects-phone`, hidden from 761 px under the switcher's acts;
-  the terminal still prints them (`../view.md`, 3; the look request
+  the terminal still prints them (`../view-navigation.md`, 1; the look request
   `switcher-links`). The rules go under `temper.css`'s marker `/* ==== ui:
   rail ==== */`, before the switcher's; the rules they replace go where they
   stand.
@@ -360,7 +360,7 @@ Moved to [`look-ways.md`](look-ways.md), section 1.
     welcome at 420 by 900 among them): at night the root's own ground, the
     placeholder's day paper (`loading.css`), gives way, so that the body's
     ground fills the canvas.
-  - *The switch* (`../view.md`, 3): `temper-night-switch`, 30 px square, no
+  - *The switch* (`../view-navigation.md`, 1): `temper-night-switch`, 30 px square, no
     border, at the rail's right, 16 px in and 24 px over its foot, the rail
     `position: sticky`; its icon a mask of 16 px line art in the muted colour,
     a moon, and a sun while pressed; the hover's ground and ink on hover. On a

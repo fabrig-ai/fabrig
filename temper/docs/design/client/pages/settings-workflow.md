@@ -9,7 +9,7 @@ The settings, their revisions and their proposals are
 `domain/engine/settings.md`; the draft is `../../draft/configuring.md`,
 section 5.
 
-Ask temper is reached from the rail and tab bar (`../view.md`, 3), and from this page's
+Ask temper is reached from the rail and tab bar (`../view-navigation.md`, 1), and from this page's
 "Ask temper to change this".
 
 - **The page,** `Settings { project }` (`settings.md`, 1), is How work runs,
@@ -292,7 +292,7 @@ Ask temper is reached from the rail and tab bar (`../view.md`, 3), and from this
   to at most 30 seconds; a successful answer resets the wait. Kinds 7 and 8
   retry while their project is open or its card shown, kind 6 while the tab is
   open; leaving that scope drops its retry. Until first read, or after a lasting refusal, the optional entries
-  read as hidden, with `../view.md`, 3's exceptions for a current page and a project holding a
+  read as hidden, with `../view-navigation.md`, 1's exceptions for a current page and a project holding a
   goal; `drafts_offered` is false, with an Ask temper chat's exception (`README.md`).
   The tab's live controls draw the stock, disabled; a value of none reads as
   the stock (`../../protocol/configuration/stock.md`).
@@ -352,7 +352,7 @@ Ask temper is reached from the rail and tab bar (`../view.md`, 3), and from this
   words, its lines and its small line; What follows a landing's boxes one
   after another, each its title, its words, its lines and its chips'
   words; it all prints.
-- **What the settings change:** the rail and the tab bar (`../view.md`, 3), `goals` hiding
+- **What the settings change:** the rail and the tab bar (`../view-navigation.md`, 1), `goals` hiding
   the offer of Goals and not a goal the project holds; `drafts`,
   `pages::chats::drafts_offered`, the chats' offer of a draft, an Ask temper
   chat's apart (`README.md`); kind 8, the Away switch, a reason's set names, Stop

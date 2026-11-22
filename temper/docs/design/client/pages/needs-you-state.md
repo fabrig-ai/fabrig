@@ -118,7 +118,7 @@ This document holds what the client keeps, split from [`needs-you.md`](needs-you
     project alone and known (Home, a project's *Needs you*), the rail says
     that page's count, `findings::Session::counted`'s, the number and "+"
     the page's head says, so the rail and the page never disagree.
-    On a page across projects (`../view.md`, 3, *All projects*) it counts
+    On a page across projects (`../view-navigation.md`, 1, *All projects*) it counts
     what *Needs you* across them shows: each of the needs' rows once,
     whatever projects it shows in, less those answered, and every row of
     `approvals`, "N+" where either document is cut; so it is never the sum

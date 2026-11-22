@@ -142,7 +142,7 @@ The browser's addresses and navigation are split from [the browser overview](REA
   `typed` ask, which only a typed code approves. Its printing,
   `address::print_approve(code: Option<ApprovalCode>)`, `/terminal`
   for none, is the shown form, upper case, and the only one: the TUI makes its tab's address from the engine's
-  address and this path alone (`../README.md`, 4.1). The place is no
+  address and this path alone (`../sign-in.md`, 1.1). The place is no
   page's address, as `Authorize` is none: the pages' links never lead
   to it, and the person reaches it by the address alone. The code is
   no secret (jig's `protocol/client/sign-in.md`, *Its risk*), and
@@ -175,7 +175,7 @@ The browser's addresses and navigation are split from [the browser overview](REA
   the page it showed and comes back to it, so what goes when the person
   leaves a page has gone, as Accounts' completion line
   (`../pages/accounts.md`, 1, and `../pages/accounts-words.md`, 1). That a client opens at the inbox
-  (`../README.md`, 3.4) is the terminal's: in a browser the address is the
+  (`../root.md`, 1.4) is the terminal's: in a browser the address is the
   browser's, and the client keeps no record of its own.
 - **A heading drawn after its page** (the answer of 2026-11-06 to the
   `ui-composer-focus` task `composer-focus`): a new entry whose level-1 heading

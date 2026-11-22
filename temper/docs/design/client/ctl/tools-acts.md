@@ -208,7 +208,7 @@ agent must name.
   (`../forge/records.md`). The form's checks are the parser's: a call that
   fails one exits 1 before anything is sent.
 - **No confirmation.** The person's client says what an act will do
-  before sending it (`../README.md`, 3.6); an agent reads it in the
+  before sending it (`../root.md`, 1.6); an agent reads it in the
   document's acts and their effects, and the revision is its promise.
 - **A draft beyond the party's bounds** is compared with the bounds the
   document gives, as the person's client does (jig's

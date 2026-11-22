@@ -133,7 +133,7 @@ temper-client-tools          temper's tools: their table's rows and groups, the 
 ├── jig-client               jig's client and its helpers (shapes, facts, thread, words)
 ├── jig-client-protocol-link the configured settings wire limits
 ├── jig-client-protocol-wire bounded whole settings values
-├── temper-client-domain-forge the forge's client side and its words (../README.md, 3.1 and ../forge/family.md)
+├── temper-client-domain-forge the forge's client side and its words (../root.md, 1.1 and ../forge/family.md)
 ├── temper-client-protocol-wire  the forge family's records (../forge/records.md)
 ├── skein-ui                 phrases: jig's words and the tools' own, rendered as text
 └── skein-json               the JSON writer and tokenizer
@@ -175,7 +175,7 @@ temper                       the binary: `temper ctl` runs the host
   (`client_outputs_dispatched`): a retirement's erase precedes its
   printed result and a follow-on request under the same name. A test
   holds this order at the admitted-call quota (skein/docs/foundation/programming-model.md,
-  7.2). The client has no watermark (`../README.md`, 3.1).
+  7.2). The client has no watermark (`../root.md`, 1.1).
 - **Words:** jig's for jig's enums (`jig-client`'s `words`) and the
   forge's of `../forge/family.md`, 1 and 6, so an agent and a person name
   things alike. The view's overrides for its mockups stay the view's.
@@ -212,7 +212,7 @@ Moved to [`command-line.md`](command-line.md), section 1.
   (jig's `domain/people/acts.md`, 1): the service's sign-ins end at once,
   and the new credential, answered once, is written as a *service link*,
   `http://HOST:PORT/sign-in#service=CREDENTIAL`: DIRECTORY's `address`,
-  the link's page (`../README.md`, section 4) and the 40 bytes in
+  the link's page (`../sign-in.md`, section 1) and the 40 bytes in
   unpadded base64url. In the fragment, no browser sends it to a server,
   and jig's mapping reads it as no link, so `sign-in` alone takes it.
   `temper-client-domain-forge`'s `sign_in` module writes it,

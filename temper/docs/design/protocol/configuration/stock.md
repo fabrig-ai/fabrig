@@ -138,7 +138,7 @@ init`'s document carries none of them (`../setup/init.md`, 3).
 - **Ask temper is a setting** like any other: template 5 starts it, from
   `chat start --template 5` (`../../client/ctl/tools-acts.md`, 1) and from the
   client's Ask temper, in the rail and the tab bar, which To begin's
-  first step opens (`../../client/pages/README.md` and `../../client/view.md`, 3), charter 11 runs it
+  first step opens (`../../client/pages/README.md` and `../../client/view-navigation.md`, 1), charter 11 runs it
   (`../../domain/agent/ask-temper.md`), and an owner may change or remove it as
   any template. Its runs read and propose settings; they never change
   one, since jig's `settings` family proposes and an owner accepts

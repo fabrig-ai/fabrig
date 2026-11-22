@@ -60,10 +60,10 @@ temper ctl help [GROUP [VERB]]
   `--call`'s call is decoded on the loop, from FILE or from stdin
   alike.
 - **`sign-in FILE|-`** signs in by the link `temper-box serve` printed,
-  or an asked one, in either of its forms (`../README.md`, section 4), read
+  or an asked one, in either of its forms (`../sign-in.md`, section 1), read
   from FILE or stdin and never an argument (`README.md`, section 7), on loopback, and
   writes the token and the address the link names, as `temper-box open` does
-  (`../README.md`, section 4), and `party`. A DIRECTORY that holds a
+  (`../sign-in.md`, section 1), and `party`. A DIRECTORY that holds a
   token, a non-empty `token`, is refused before anything is sent
   (*signed in*, below): a link is never sent beside a held token, so
   the link stays unspent, and `sign-out` is the way out. A service link
@@ -130,7 +130,7 @@ temper ctl help [GROUP [VERB]]
   writes it to FILE: one line, the printed link's URL on DIRECTORY's
   `address`, at the link's page, `http://HOST:PORT/sign-in?secret=SECRET`,
   made by jig's mapping given temper's page (jig's
-  `protocol/client/default-http.md`, 1 and 4; `../README.md`, section 4), so that
+  `protocol/client/default-http.md`, 1 and 4; `../sign-in.md`, section 1), so that
   a browser on the machine opens it as it opens the printed link, and
   `sign-in` reads it into another DIRECTORY. FILE is written as `party
   make --out` writes a service's credential (`README.md`, section 7): `0o600`,

@@ -39,7 +39,7 @@ choices under the box):
   11.3).
 - **Opening one:** `/talk` on the launchpad (`README.md`, section 2,
   *`/talk`*): the root goes to the role's `Talk`, followed as a chat
-  chosen from `/chats` is (`../README.md`, 3, *Its pages*). The talk itself
+  chosen from `/chats` is (`../host.md`, 1, *Its pages*). The talk itself
   opens with the person's first words (jig's `domain/tasks/standing.md`,
   5.6); one of theirs still open, from a terminal closed without leaving,
   goes on.

@@ -69,7 +69,7 @@
     Close, on every Ask temper chat that hasn't ended, with or without a
     document: it asks "Start over?", "A new
     Ask temper chat starts. This one stays in Chats." through `crate::confirm`
-    (`../../README.md`, 3.6, *The sheet*), closes the chat with
+    (`../../root.md`, 1.6, *The sheet*), closes the chat with
     the chat's own close, which stays in Chats, Closed, its conversation and
     document kept, and opens `Ask { project }`. The composer's hint gains
     " · Ctrl+\ switches the draft" while the group shows.
@@ -146,8 +146,8 @@
     again; a run that ends with no document leaves the right empty.
   - *"Write it up from this chat"* (the look request `chat-bar`): sends the
     chat the message "Write this up as a draft beside us.", the person's own,
-    shown in the chat as any other: one act, one request (`../../README.md`,
-    3.6). It is the domain's write-up act, `AddDraft`: the chat is writing,
+    shown in the chat as any other: one act, one request (`../../root.md`,
+    1.6). It is the domain's write-up act, `AddDraft`: the chat is writing,
     the pane's right says what its run is doing (*What the run is doing*,
     above) and the button goes, the mode it was pressed in
     kept (from Chat, the terminal look's "+ Draft", it goes to Split,
@@ -191,7 +191,7 @@
   write-up mid-run. Owner: temper/ui. Default: each difference a finding
   filed back under the request's trailer.
 
-- **The fresh project's draft flow after landing** (`../README.md`, `../../view.md`, 3, `../settings.md`, 2):
+- **The fresh project's draft flow after landing** (`../README.md`, `../../view-navigation.md`, 1, `../settings.md`, 2):
   checking an Ask temper chat with drafts off, and a fresh chat's draft,
   goal and navigation on a real box. The view tables and `chat-draft`'s
   fake-model journey cover the offers and flow. Default: browser, walk and

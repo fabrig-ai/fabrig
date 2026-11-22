@@ -46,7 +46,7 @@ proposal of settings an owner accepts (`agents.md`, 1).
   `protocol/programs.md`, 5.1).
 - **Started** from the client's Ask temper, in the rail and the tab bar of every
   page of a project, which To begin's first step opens too
-  (`../../client/pages/README.md` and `../../client/view.md`, 3), and from `chat start --project PROJECT
+  (`../../client/pages/README.md` and `../../client/view-navigation.md`, 1), and from `chat start --project PROJECT
   --template 5 TEXT` (`../../client/ctl/tools-acts.md`, 1).
 - **Its tests:** focused and fuzzy alone; its judgement is the user's, by trying
   it. The first request's bound, on both shapes; its runs' declarations,

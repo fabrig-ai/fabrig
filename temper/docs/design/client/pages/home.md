@@ -19,8 +19,8 @@
   (`../web/journeys.md`, 7); its words and its link are these.
 - **Home** (the user's greenfield mock's `home.html`; `../web/journeys.md`,
   7): `Home { project }`, at `/projects/<project>`, is the page the
-  welcome's Ready and "+ New project" (`../view.md`, 3) open, and the brand's link.
-  Going to it opens that project as a project's button does (`../view.md`, 3); with
+  welcome's Ready and "+ New project" (`../view-navigation.md`, 1) open, and the brand's link.
+  Going to it opens that project as a project's button does (`../view-navigation.md`, 1); with
   no such project in `me`, it says "Project N is not one of yours.", N
   the address's number, and the chats' link. *A deleted project:* with
   no such project in `me`, the page reads the project, jig's
@@ -76,7 +76,7 @@
     naming where the rail keeps the step: the repository on How work
     runs' Repositories tab, the way of working in Ask temper, the rail
     naming no Settings (`../../draft/surfaces.md`, section 2;
-    `../view.md`, 3). Then one
+    `../view-navigation.md`, 1). Then one
     row a step in this order, a done step keeping its place: its mark, drawn
     by style, the step's number or a green tick once done (the terminal
     says them in words); its title, a level-3 heading, over one short
@@ -87,7 +87,7 @@
        `repositories` names the project), done, "ORG/NAME is in PROJECT",
        "temper can change its code now.", with no claim that CI passed, since
        the forge rows supply no check result; ORG/NAME the project's first
-       adopted (`../view.md`, 3), one line on a laptop; with the rows' copies all in,
+       adopted (`../view-navigation.md`, 1), one line on a laptop; with the rows' copies all in,
        done, "acme/widget is in Widget", or "acme/widget, acme/other are in
        Widget", its line "temper can change its code now, on your Forgejo;
        nothing goes back where it was copied from.", or "temper can change
@@ -171,7 +171,7 @@
   - *The rail and the tab bar,* while the card shows: on Home and on Ask
     temper's page, "Home" and "Ask temper", with "Deployment" at the rail's
     foot, and the phone's tab bar "Home", "Ask" and "Deployment", three equal
-    tabs (`../view.md`, 3). So a new project's Home asks for one deliberate choice, Ask
+    tabs (`../view-navigation.md`, 1). So a new project's Home asks for one deliberate choice, Ask
     temper or Skip. Ask temper's page reads To begin's facts as Home does:
     `home::facts` reads no state of Home's page but its skip, and the
     project's chats, the `forges` rows, the `settings` document and the
@@ -179,7 +179,7 @@
     last step or a skip, the rail and the tab bar are whole again; every
     other page keeps every row.
   - *"Skip"* sends the FORGE request `Dismiss { to_begin(project) }`
-    (`../forge/records.md`), one act, one request (`../README.md`, 3.6), and the card goes at once, while
+    (`../forge/records.md`), one act, one request (`../root.md`, 1.6), and the card goes at once, while
     it is out and for as long as the person's dismissals name the
     project, so another device's Home drops it when the skip commits.
     Refused, or lost, the card comes back with "temper couldn't keep
@@ -313,7 +313,7 @@
         else", a link that opens *Needs you* at that card (`needs-you.md`, 1, *At*);
         a proposal's Accept and Reject, a held task's and a funds card's
         Release and Leave held, through the confirmation they have
-        (`../README.md`, 3.6); an approval's "Review on FORGE ↗" (`needs-you.md`, 1, *An
+        (`../root.md`, 1.6); an approval's "Review on FORGE ↗" (`needs-you.md`, 1, *An
         approval*), then "Tell it something else". A question in words
         in no line form has "Tell it something else" alone, primary.
         A choice answers in place, as on *Needs you*, with its held send
@@ -438,7 +438,7 @@
   choices print as buttons.
 
   **In the TUI** (`../tui/pages/launchpad.md`), Home is the root's page under
-  the launchpad, its look the terminal's (`../tui/README.md`, 3, *The look*), and its
+  the launchpad, its look the terminal's (`../tui/host.md`, 1, *The look*), and its
   composer, which no browser draws, asks Ask temper, as `Ask { project }`'s
   does (`ask-temper.md`, 1, *Ask temper's page*): `Act::ChatWords` writes Home's
   composer words; while Home is open the picker's choice is refreshed
@@ -516,12 +516,12 @@ Moved to [`home-decisions.md`](home-decisions.md), section 1.
   time, as on any Home (`../../draft/to-begin.md`, 2), and the step says
   "Chats can change its code now.". Supplying a creation age or a first CI
   result needs its own protocol decision.
-- **A project's only goal ending while Home is open** (`README.md`, `../view.md`, 3):
+- **A project's only goal ending while Home is open** (`README.md`, `../view-navigation.md`, 1):
   Home reads `Domain::has_goals` to choose Goals or Chats once To begin is
   gone, and Away's *Shown* reads it too. The fact reads the ended group
   once, so once the live watch holds no row it says false of a project
   with a goal, and Home shows Chats until the project is opened again.
-  Default: one read, as `../view.md`, 3 has it.
+  Default: one read, as `../view-navigation.md`, 1 has it.
 - **How a project lands, on To begin's repository step**
   (`../../draft/to-begin.md`, 3): its line names how the project lands, by
   temper's merge queue or by its landing turn, and no client is given a

@@ -47,7 +47,7 @@ The browser's shell and its host are split from [the browser overview](README.md
     recorder's keys and save are in `lib`, installed only when the page
     records, by its `internal-record` or its `temper-record` meta (below);
   - `records`: the small store's records, `jig-client`'s and a sign-in's
-    address (`../README.md`, section 4); from the
+    address (`../sign-in.md`, section 1); from the
     adoption form, a pending adoption is among them, a kept
     request whose request `temper-client-protocol-wire` encodes
     (`../forge/records.md`);
@@ -112,14 +112,14 @@ The browser's shell and its host are split from [the browser overview](README.md
   `protocol/browser/README.md`, 5.1).
 - **The small store** is the browser's session storage, under the
   prefix `temper.`, holding `jig-client`'s records alone, as the
-  terminal's file does (`../README.md`, section 4); from the adoption form
+  terminal's file does (`../sign-in.md`, section 1); from the adoption form
   a pending adoption is among them, a kept request
   (`../forge/records.md`). Each load of the page is a client of its own, with
   its own stream (jig's `protocol/browser/README.md`, section 10). The root can
   step the client several times in one turn: each write the client asks
   for (`Save`, `Erase`) is answered once, after the turn's whole storage
   has finished, and every one is refused if any write was refused.
-- **What the terminal says in lines of its own** (`../README.md`, 3.4, and `../line.md`, 6
+- **What the terminal says in lines of its own** (`../root.md`, 1.4, and `../line.md`, 6
   ): another party's kept work and kept work dropped have no place
   in the browser, whose small store lives as long as its tab, of one
   person (`README.md`, section 3). A service's credential is never shown: temper's
@@ -131,7 +131,7 @@ replay says the same clocks (`../view.md`, 6).
 
 ## 2. Open questions
 
-- **Kept work in the browser** (`../README.md`, 3.4, and `../line.md`, 6): another
+- **Kept work in the browser** (`../root.md`, 1.4, and `../line.md`, 6): another
   party's kept work, and kept work dropped at start, which the terminal
   says in lines of its own. Default: not shown; the small store lives
   as long as its tab, of one person.

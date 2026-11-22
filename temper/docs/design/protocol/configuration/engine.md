@@ -220,7 +220,7 @@ member for member:
 
 | Member | Type | Bounds | Feeds |
 |---|---|---|---|
-| `listener` | an address, jig's format | a socket address; on loopback (in `127.0.0.0/8`, or `::1`) in standalone, and wherever `engine.clients` enables the printed link or the approval (jig's `protocol/service.md`, section 3); a fixed port, never 0, for a GitHub forge to be connected | the listener on which jig's clients' component is mounted with jig's default HTTP mapping, under `/jig`; the mapping's Host allow-list; the address of the sign-in links `temper-box serve` prints (`../../client/README.md`, section 4); and temper's forge routes beside it, whose addresses a GitHub App's redirect and setup URLs name (`../../client/README.md`, the routes) |
+| `listener` | an address, jig's format | a socket address; on loopback (in `127.0.0.0/8`, or `::1`) in standalone, and wherever `engine.clients` enables the printed link or the approval (jig's `protocol/service.md`, section 3); a fixed port, never 0, for a GitHub forge to be connected | the listener on which jig's clients' component is mounted with jig's default HTTP mapping, under `/jig`; the mapping's Host allow-list; the address of the sign-in links `temper-box serve` prints (`../../client/sign-in.md`, section 1); and temper's forge routes beside it, whose addresses a GitHub App's redirect and setup URLs name (`../../client/README.md`, the routes) |
 | `bundle` | an absolute directory, or `null` | a bundle of skein's bundler, built apart (`scripts/bundle.sh`): its page and its digest's directory; its files, and the binary's own, within `clients.bundle_files` and `clients.bundle_bytes` (`limits.md`) | the browser's page and bundle, made at start and served on the clients' listener (`../../client/web/serving.md`, 1): `null` serves the bundle the binary holds (2.6), or, from a binary built without one, the page for no bundle; a directory serves its bundle in place of the binary's. A document naming an old `share/temper/bundle` keeps serving that directory, older than the binary once it is rebuilt: set it to `null` |
 | `public` | an origin, or `null` | `https://HOST[:PORT]`: HOST a lower-case DNS name, the port not 443 when written, no user, path, query, fragment or final `/`; `http://` only to a loopback host, for a test; within 253 bytes | the address people's browsers use, behind a TLS proxy (`../sign-in.md`, 2.2): the mapping's Host allow-list holds its host beside the listener's (jig's `Settings.public`, the host with its port where not 443), jig's cookie is `Secure` by it, and every address temper gives out is the origin's: Google's return, a GitHub App's redirect and setup URLs. `null`: the listener's address alone, `public: None` |
 
@@ -229,7 +229,7 @@ member for member:
   `protocol/configuration.md`, section 3, clients): `temper-box init`'s
   documents, so a box's, and the owned example enable both
   (`../setup/init.md`, 3), the approval being how the TUI signs in from the
-  person's browser (`../../client/README.md`, 4.1). Neither runs off
+  person's browser (`../../client/sign-in.md`, 1.1). Neither runs off
   loopback: a start refuses a clients' listener off loopback in
   standalone (`README.md`, section 2), whichever is enabled, naming
   `application.clients.listener`; the approval absent is the approval

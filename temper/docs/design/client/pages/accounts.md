@@ -6,7 +6,7 @@
   temper's own (jig's `client/domain/pages.md`, sections 7 and 11),
   with temper's words (2), in the forges' page's shape (with the
   user, 2026-10-23). It shows no value. Its acts are jig's accounts'
-  requests (jig's `client/domain/contract/requests.md`, 2), each sent as `../README.md`, 3.6
+  requests (jig's `client/domain/contract/requests.md`, 2), each sent as `../root.md`, 1.6
   says. Its parts, in order:
   - *"Your accounts · N",* level 2, with "+ Connect a model", to
     `ConnectModel`, in its head; then each of the person's accounts as a
@@ -46,7 +46,7 @@
     in draws them, its paste among them (`ConnectModel`, The paste). "Use the API key first" moves the account's first
     key after its deciding source to that source's place. "Check
     again" checks the program's login of the source it names. "Sign
-    out", "Remove" and "Remove account" ask to confirm first (`../README.md`, 3.6).
+    out", "Remove" and "Remove account" ask to confirm first (`../root.md`, 1.6).
     The page has one request out at a time, as each page has: while it
     is out, every row's acts are disabled, and its outcome is drawn
     under the row that sent it.
@@ -184,7 +184,7 @@
     as its own and draws the same page, while the `accounts` watch lists
     it under way, then its end. The small store keeps the sign-in's
     address beside its source, and whether its tab was refused, so that
-    the note reads the same and "Open it again" stays (`../README.md`, section 4). Until
+    the note reads the same and "Open it again" stays (`../sign-in.md`, section 1). Until
     the watch has delivered, the note alone; a source the watch shows
     neither under way nor ended (another's, or one whose end a later
     ending has replaced) is no sign-in of the page's: the way's card

@@ -1,4 +1,4 @@
-//! Borrowed account facts and row-bound operations (temper/docs/design/client/pages/README.md and temper/docs/design/client/README.md, 3.6).
+//! Borrowed account facts and row-bound operations (temper/docs/design/client/pages/README.md and temper/docs/design/client/root.md, 1.6).
 use super::Request;
 use crate::owner::Owner;
 use jig_client::{Client, Handle, Latest, State, contract as c};
@@ -11,7 +11,7 @@ pub use paste::{Paste, PasteState};
 mod ways;
 pub use acts::{Act, Broken, Operation, Pending};
 pub use ways::{Way, ways};
-/// The carried-value bound (client/README.md, 3.6); the engine catalogue is staged.
+/// The carried-value bound (client/root.md, 1.6); the engine catalogue is staged.
 pub const KEY_BYTES: usize = 4096;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Row {

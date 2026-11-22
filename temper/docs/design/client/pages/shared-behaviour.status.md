@@ -20,7 +20,7 @@
     `forge::away::next_eight` takes that one offset, so the night the clocks change
     its 08:00 can be an hour off. The terminal stays universal (`../README.md`, section 5).
   - the whole document: the chip is a second button in the rail, the phone's top bar, where the
-    request has it in the banner: a project's page has no banner (`../view.md`, 3). The
+    request has it in the banner: a project's page has no banner (`../view-navigation.md`, 1). The
     terminal's is the rail's button, where the request has its `navigation`, which
     a project's page does not draw.
   - the whole document: "Limits" focuses the section's heading, by a count in `Pages`, and a
@@ -56,7 +56,7 @@
   where the section has it whole, because the smallest deployed composer admits
   that (`../view.md`, 4).
 
-The document, *Away*, *On All projects*, and `../view.md`, 3's Away row have no known
+The document, *Away*, *On All projects*, and `../view-navigation.md`, 1's Away row have no known
 gap, by plan `ui-away-all`: `pages::away_all::across` counts `me`'s
 projects, those on at the wall and the earliest `until` of those on, and
 whether Away shows for any, which `rail::facts` reads on a page across
@@ -73,4 +73,3 @@ view's `the_switch_shows_with_ways_away` and the gallery's
 it. No render of the words is on record and no client-world story
 presses the switch across projects: the render check and the walk remain
 `../README.md`, section 5's after-landing work (*Away on All projects after landing*).
-

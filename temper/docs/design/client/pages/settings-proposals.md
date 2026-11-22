@@ -8,7 +8,7 @@ This document holds proposals of settings, split from [`settings.md`](settings.m
   made it where its turn names it, and otherwise after the turn that was running
   when it was made, as every proposal is (`README.md`; *Where a card stands,* below): the title "How temper will run
   PROJECT", PROJECT its `projects`' names joined by ", " and " and ", or, with
-  none, the deployment's, "How temper will run your projects"; the proposal's reason, in the person's words, its Markdown drawn as the Accept sheet draws it (`../README.md`, 3.6);
+  none, the deployment's, "How temper will run your projects"; the proposal's reason, in the person's words, its Markdown drawn as the Accept sheet draws it (`../root.md`, 1.6);
   then each item, small and faint in the card's type, in the words of `temper ctl` but
   for temper's kinds of a project: kind 7 as "Drafts: on", "Goals: shown",
   "Changes page: shown" and "Way: NAME", kind 6 as
@@ -116,7 +116,7 @@ the document gives them; the client hides nothing of its own.
     are its own page's, not this one's.
   - *Running work,* the revisions held: the newest, "Newest · 14 tasks
     · new work takes it", and each older one, its tasks' count, and
-    "Move them" (jig's `MoveToNewest`), confirmed (`../README.md`, 3.6) as "Move 9
+    "Move them" (jig's `MoveToNewest`), confirmed (`../root.md`, 1.6) as "Move 9
     tasks to revision 8 at their next run? A task whose role revision 8
     removed, or whose model it no longer allows, finishes on revision
     7."; the answer's count of those that could not move is said after
@@ -137,7 +137,7 @@ the document gives them; the client hides nothing of its own.
   starts an Ask temper chat with the row named in its first message.
   "Reset to default…" on a changed default, "Remove…" on an added
   setting and "Restore…" in the history are the person's own proposals
-  (jig's `Propose`), each confirmed (`../README.md`, 3.6) and opening its review page.
+  (jig's `Propose`), each confirmed (`../root.md`, 1.6) and opening its review page.
 - **The card, with the review page:** at most five lines and "and N more",
   then "Review", to its review page; nothing is accepted from it once the
   review page reviews it.

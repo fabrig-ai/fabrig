@@ -391,7 +391,7 @@ This document holds connecting a forge, split from [`deployment.md`](deployment.
   "Forges" and the rail's "Deployment"
   carry a dot, amber while a forge sets up or connects, red
   while one needs the person: set up failed, stopped, or not connected
-  with a reason (`../view.md`, 3). The dot's words, the entry's state
+  with a reason (`../view-navigation.md`, 1). The dot's words, the entry's state
   in words: "a forge is setting up" or "a forge needs you". The
   playground's forge is none of them.
 

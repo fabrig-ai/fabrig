@@ -34,7 +34,7 @@ its journeys. The reasons are `notes.md`, section 9.
   screen or all of it (section 3), and a recorded frame is the whole
   screen (section 5).
 - **Its own view, on the shared client.** It holds the client root the
-  browser holds (`../client/README.md`, section 3) and draws its own
+  browser holds (`../client/root.md`, section 1) and draws its own
   pages as skein-ui's tree, mapped by a full-screen shell of skein's
   (4.4).
 - **Signed in from the browser** (4.2): `temper` opens a tab, the
@@ -136,7 +136,7 @@ their words and look are refined on the recording (section 5).
   whose port fell back to another is named by its address.
 - **The printed link, pasted:** the sign-in screen also takes the link
   the box printed, pasted into its field, and signs in by it as `temper
-  open` does (`../client/README.md`, section 4): the way in when no
+  open` does (`../client/sign-in.md`, section 1): the way in when no
   browser can approve, and the only one until the approval is built.
   The link is never an argument, as `temper ctl`'s isn't
   (`../client/ctl/command-line.md`, 1.1).
@@ -231,7 +231,7 @@ It proves the connection, and nothing more. Illustrative:
 ```
 
 - **What it reads:** `me`, for the party's name and projects, and the
-  link's state (`../client/README.md`, 3.1), live.
+  link's state (`../client/root.md`, 1.1), live.
 - **The engine stopped and started again:** the status line says so,
   then online again, and nothing is lost.
 - **Signed out** elsewhere: the TUI returns to signing in.
@@ -239,7 +239,7 @@ It proves the connection, and nothing more. Illustrative:
 ### 4.4 Its parts
 
 - **The client root, shared:** `temper-client-domain`, holding
-  `jig-client` (`../client/README.md`, sections 2 and 3), as the browser
+  `jig-client` (`../client/README.md`, section 2, and `../client/root.md`, section 1), as the browser
   and the line client hold it.
 - **A view of its own:** the TUI's pages as skein-ui's tree, beside
   `temper-client-view`, with the same words where the same thing is
@@ -311,7 +311,7 @@ TUI's host:
 
 - **A deployment at a name:** Google's sign-in on the web
   (`../protocol/sign-in.md`), then the same approval over HTTPS, with
-  native clients between hosts (`../client/README.md`, section 4). The
+  native clients between hosts (`../client/sign-in.md`, section 1). The
   code is typed on the page there, never carried in its address, and
   the page says where the request came from and how long ago.
 - **The direction's parts** (section 3) that `surfaces.md`, section 11

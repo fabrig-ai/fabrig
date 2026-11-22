@@ -263,7 +263,7 @@ terminal client, the captures and the faults.
   - a person still signed in signs in again by a fresh link, with the
     same directory, and keeps their sign-in: its number, token and
     expiry, and the deployment's sign-ins unchanged
-    (../client/README.md, section 4);
+    (../client/sign-in.md, section 1);
   - a repository is adopted through temper's client, and a goal's change
     is prepared, committed and pushed on the fake forge through the fake
     git program;

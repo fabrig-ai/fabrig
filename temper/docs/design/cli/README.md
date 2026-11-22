@@ -415,7 +415,7 @@ command; temper help pages lists the pages.`
 
 | Reached by | Set | Forms and what |
 |---|---|---|
-| the bare form | public | `[ADDRESS]`: the TUI on the engine at ADDRESS, else at the address its link file or its kept address names (`../client/tui/README.md`, 2) |
+| the bare form | public | `[ADDRESS]`: the TUI on the engine at ADDRESS, else at the address its link file or its kept address names (`../client/tui/directory.md`, 1) |
 | `box` | public | `[ARGUMENT...]`: in a terminal, the TUI in front of a `temper-box --front` child given ARGUMENT...; else `temper-box ARGUMENT...` in its place (`../client/tui/box.md`; `../client/box-binary.md`, 5) |
 | `help` | public | `temper_shell::table::HELP` (5) |
 | `ctl` | internal | `temper_shell::table::CTL`, the row the box's table holds too: the line client's tools |

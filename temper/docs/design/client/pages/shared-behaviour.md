@@ -30,7 +30,7 @@ This document holds across pages, split from [`README.md`](README.md).
     milestone groups (`work.md`, 1); the chats' rows and the chat
     switcher's list; a chat's goal bar, a delegation's card and line
     (`../view.md`, 5) and a proposal's line; the Changes rows; a close's
-    delegate rows (`../README.md`, 3.6); a result's card; How it runs'
+    delegate rows (`../root.md`, 1.6); a result's card; How it runs'
     budget rows; Tell's About line; the public pages' rows, whose
     "title cut" word follows only a title the cut left whole.
   - *A link's name* is the cut title too, as Work's goal row's is. The
@@ -87,7 +87,7 @@ This document holds across pages, split from [`README.md`](README.md).
     white words, the knob at the right. Its words: "Away" off; "Away until
     08:00" on, `until` by `../view.md`, 6's *clock*; "Away" alone on with `until` none.
     On a phone the foot is hidden: a second button, `temper-away-chip`, the
-    mock's `.away-chip`, at the top bar's right (`../view.md`, 3) beside the project switcher,
+    mock's `.away-chip`, at the top bar's right (`../view-navigation.md`, 1) beside the project switcher,
     min-height 36, radius 18: "Away: off", "Away until 08:00", "Away" alone
     on with `until` none; the browser's alone. In the terminal the rail's
     button, numbered as any. While its request is out it is disabled.
@@ -112,7 +112,7 @@ This document holds across pages, split from [`README.md`](README.md).
     the earliest `until` of the rows on by one pure function,
     `pages::away_all::across`, which the rail and the chip read:
     - *Shown* while this section's *Shown* holds for any of them, the
-      rail's fact on All projects (`../view.md`, 3).
+      rail's fact on All projects (`../view-navigation.md`, 1).
     - *Its words:* with N 0, a project's off words, not pressed; with N
       M, a project's on words with that earliest `until`, "Away" alone
       where no row on has one, pressed; between, "Away on 2 of 4", N of
@@ -146,7 +146,7 @@ This document holds across pages, split from [`README.md`](README.md).
   - *A place of its own,* `Place::Approve { code }`, at `/terminal`
     (`../web/addresses.md`, 1), beside `Authorize`: no page's address, so the
     pages and the forge's side are left as at any place that isn't
-    theirs (`../README.md`, 3.3), and the frame is the top bar alone (`../view.md`, 1). `code` is an
+    theirs (`../root.md`, 1.3), and the frame is the top bar alone (`../view.md`, 1). `code` is an
     `ApprovalCode` (jig's wire), or none. Its state is the root's, in a
     module of its own, `approve`, beside `authorize`: made when the place
     is gone to, dropped when it is left, and kept nowhere, the small
@@ -262,7 +262,7 @@ This document holds across pages, split from [`README.md`](README.md).
     code whatever the ask: signed out, the page can't read the ask's
     kind, and a `typed` ask's code is dropped by the read after the
     sign-in, as above. The page's codes, acts and
-    `then` are the TUI's too (`../README.md`, 4.1): only its states' look and words are
+    `then` are the TUI's too (`../sign-in.md`, 1.1): only its states' look and words are
     the browser's.
   - *Busy:* a read or a decision answered busy, not ready or lost.
     "Try again" reads the approval again, from its code, so that a

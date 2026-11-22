@@ -51,7 +51,7 @@ follow landing (`../README.md`, section 5).
   [whole-story.execution.md](../../draft/whole-story.execution.md), landed by
   plan `tui-whole-t1`, drew none, so it stays temper/tui's.
 
-The document and `../view.md`, section 3 have the two-step To begin, repository first,
+The document and `../view-navigation.md`, section 1 have the two-step To begin, repository first,
 the two-count facts and notes, and restricted navigation on Home and
 Ask temper in both shells. Home leaves Needs you and Chats out while
 To begin shows, even with delivered needs and chats; the existing section
@@ -67,7 +67,7 @@ Domain, view and host tables cover these paths. The browser reload row
 is written and compiled, with no supplied runtime result; render checks
 and refinement remain `../README.md`, section 5's after-landing work.
 
-The document and `../view.md`, section 3 have Ask temper at `/projects/<project>/ask`,
+The document and `../view-navigation.md`, section 1 have Ask temper at `/projects/<project>/ask`,
 in the rail after Work and as Ask in the phone tabs, returning to the
 newest open Ask temper chat. Template 5 starts its chat; without it no
 chat starts. `settings.md`, section 2 offers no configuring chat, and How work runs
@@ -103,7 +103,7 @@ and walk follow landing (`../README.md`, section 5, *Home and Needs you across p
 after landing*).
 
 The document, *Needs you*'s *Its head* and *On a phone* and *Ask temper's
-page*'s composer, and `../view.md`, 3, *On a phone*, have no known implementation
+page*'s composer, and `../view-navigation.md`, 1, *On a phone*, have no known implementation
 gap, by plan `ui-p5a-phone`. The domain's `rail::tabs` decides the tab
 bar from the rail's parts, and the browser draws it alone: "Home",
 "Needs" with its count, "N+" where cut, "Work", "Ask" and To begin's
@@ -273,7 +273,7 @@ view tables hold these rules; the gallery's `start-goal` draws the sheet.
   commit, where only the "▍" should go. No reason is recorded for any; seen by reading,
   and no test reads them.
 
-- **Design departs:** *Needs you*, *What the client keeps*, and `../view.md`, 3, from
+- **Design departs:** *Needs you*, *What the client keeps*, and `../view-navigation.md`, 1, from
   the request of 2026-11-05 for them, decided by its plan's cut, the request
   leaving that judgement to it. The rail's watch opens while a project's frame shows, not once signed
   in: the rail alone reads it. No reason for keeping it closed until a
@@ -321,11 +321,11 @@ no rendered comparison; temper/ui's follows landing
 The document and `../view.md`, sections 1 and 6 have the browser's approval page in the
 column, its root state and actions, the asked time, the signed-out
 state with Google's way back to the page and its code where that way
-is given, and the approved read each second. `../README.md`, section 4.1's native half
+is given, and the approved read each second. `../sign-in.md`, section 1.1's native half
 asks and starts the take, keeping only the code and expiry in the root.
 The domain and view tables, twelve gallery states and joint-client
 stories cover the page and an approving browser's party, with a
-non-browser refused. `../tui/README.md`, section 3, and `../README.md`, section 4.1 have
+non-browser refused. `../tui/host.md`, section 1, and `../sign-in.md`, section 1.1 have
 no known implementation gap in the TUI's ask, locally constructed
 address, single-argument opener with null descriptors, `Opened` report,
 fallback lines, pasted-link replacement or Enter to ask again. Golden
@@ -336,7 +336,7 @@ terminal checks remain `../README.md`, section 5's after-landing work.
 
 The document, *Home* (its *Needs you* cards, *More* and *The Ask temper
 line*), *Home on All projects*, *Needs you* and *A page's parts*, and
-`../view.md`, 3, *All projects*, have no known implementation gap, by plan
+`../view-navigation.md`, 1, *All projects*, have no known implementation gap, by plan
 `ui-p2-home`: `Address::AllHome` at `/home`, reading the first 16
 projects' `status` and `decided` (`all_home::ACROSS`) with the inbox and
 `approvals` across projects, and looking once an entry; `all_home::intro`
@@ -370,7 +370,7 @@ you across projects after landing*); what the draft draws beyond them is
   field and wire change; neither the fallback nor `caught_up` proves the
   latest run's model. `../README.md`, Section 5 keeps the remaining work explicit.
 
-The document and `../view.md`, section 3 and `settings.md`, section 2 have no known implementation gap in an
+The document and `../view-navigation.md`, section 1 and `settings.md`, section 2 have no known implementation gap in an
 Ask temper chat's draft offer regardless of kind 7, or drafts on for a
 fresh project. The draft offer follows the first message and retains its
 document and end conditions. The view tables cover the draft offer and
@@ -403,7 +403,7 @@ stories retain account history, scroll/search/adoption and 420 px sheet
 geometry, with no passing runtime result supplied here (`../web/testing.status.md`,
 6).
 
-- **Design departs:** the whole document, `../view.md`, 3, `goal.md`, 2, `settings.md`, 2, from the greenfield target:
+- **Design departs:** the whole document, `../view-navigation.md`, 1, `goal.md`, 2, `settings.md`, 2, from the greenfield target:
   the switcher keeps its inline new-project form; a chat keeps its status,
   Pause or Resume, and Close, and offers the picker only with supplied choices;
   a goal uses supplied budget units, not dollars, and offers neither the

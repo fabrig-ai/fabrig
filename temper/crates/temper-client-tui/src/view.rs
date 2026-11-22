@@ -1,4 +1,4 @@
-//! The TUI's screens from the client and the TUI's state (temper/docs/design/client/tui/pages/README.md, temper/docs/design/client/tui/pages/launchpad.md and temper/docs/design/client/README.md, 4.1).
+//! The TUI's screens from the client and the TUI's state (temper/docs/design/client/tui/pages/README.md, temper/docs/design/client/tui/pages/launchpad.md and temper/docs/design/client/sign-in.md, 1.1).
 use crate::{
     Browser, Event, Local, Own, Refusal, Signing, Tui, approval_address, look,
     words::{Word, Words},

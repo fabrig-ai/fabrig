@@ -80,7 +80,7 @@ redaction and scan, 6 the print, 7 the tests, 8 the box, 9 the journeys,
   Only a recording takes them: a run without one gives Alt+m and
   Alt+s to the host as any other key.
 - **A save** writes the run's file whole, `recording-TIME` in the TUI's
-  directory (`README.md`, 2; *Each run its own file*, below), `0o600`, a
+  directory (`directory.md`, 1; *Each run its own file*, below), `0o600`, a
   synced temporary replacing it, through skein-io's file layer on the
   run's own io. The recorder goes on after a save, so each save is a
   whole recording and a later one holds more. Closing saves once more,
@@ -128,18 +128,18 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 | `seed` | the host's seed | the start's facts, in this order (shared) |
 | `clocks` | now and wall, in nanoseconds, at the host's making | (shared) |
 | `screen` | rows, columns, `dark`, `light` or `none` | the start's size and the scheme the terminal says, `none` where it says none (`theme.md`) |
-| `background` | red, green and blue, each a number | the terminal's answer to OSC 11, when the start has one (`README.md`, 3, `Start.background`) |
-| `plain` | none | when the start's terminal draws no mark (`README.md`, 3, `Start.plain`; `pages/README.md`, 3) |
-| `version` | the build as bytes | the start's `version`, when it is not empty (`README.md`, 3) |
+| `background` | red, green and blue, each a number | the terminal's answer to OSC 11, when the start has one (`host.md`, 1, `Start.background`) |
+| `plain` | none | when the start's terminal draws no mark (`host.md`, 1, `Start.plain`; `pages/README.md`, 3) |
+| `version` | the build as bytes | the start's `version`, when it is not empty (`host.md`, 1) |
 | `address` | the origin as `Origin::print` prints it, as bytes; a bare `HOST:PORT`, as a recording made before it holds, reads as `http://HOST:PORT` | the start's origin (`README.md`, 1) |
-| `local` | none | when the start has an engine's link file to read (`README.md`, 3, `Start.local`) |
-| `box` | none | when the start is on a box (`README.md`, 2, *On a box*; `Start.boxed`) |
+| `local` | none | when the start has an engine's link file to read (`host.md`, 1, `Start.local`) |
+| `box` | none | when the start is on a box (`directory.md`, 1, *On a box*; `Start.boxed`) |
 | `front` | none | when the TUI is in front of a box (`box.md`, `Start.front`) |
 | `set-up` | none | when the TUI in front is on a box set up before (`box.md`, `Start.set_up`) |
 | `box-log` | the path as bytes | in front, the box's log's path, when the start has one (`box.md`, `Start.box_log`) |
 | `stored` | a small-store record's key and bytes | one per record loaded (shared) |
 | `credential` | the credential's bytes | when the start held one |
-| `noted` | `until` and nanoseconds, or `signed-out` | the start's note, when it held one (`README.md`, 2) |
+| `noted` | `until` and nanoseconds, or `signed-out` | the start's note, when it held one (`directory.md`, 1) |
 | `turn` | now and wall | each turn's clocks (shared) |
 | `start`, `due` | none | the `Start` and `Due` reports (shared) |
 | `key` | the key (below), then its event's print in quotes, or `none` | a `Key` report |
@@ -154,7 +154,7 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 | `kept` | `done` or `failed` | a `Kept` report |
 | `opened` | `done` or `failed` | an `Opened` report |
 | `found` | the file's bytes, or `none` | a `Local` report |
-| `handshake` | `untrusted`, `expired`, `not-yet-valid`, `other-name`, `failed` or `none` | a `Handshake` report (`README.md`, 3, *The handshake*) |
+| `handshake` | `untrusted`, `expired`, `not-yet-valid`, `other-name`, `failed` or `none` | a `Handshake` report (`host.md`, 1, *The handshake*) |
 | `listening` | the port, or `none` | a `Listening` report (`pages/sign-in.md`, 4) |
 | `returned` | `get` or `other`, the target as bytes, the `Host` as bytes or `none` | a `Returned` report |
 | `box-line` | a line of the box's, as `BoxLine::print` prints it, in quotes | a `Front` report (`box.md`) |
@@ -222,7 +222,7 @@ is told from a browser's by its first fact after `clocks`, `screen`.
   frame; any other key with an event marks the frame as drawn before it
   (3.4). A key with no event marks nothing.
 - **The events' prints,** `temper_client_tui::Event`'s, with their fields'
-  own `Debug` forms (`README.md`, 3, *The TUI's events*): `Typed {
+  own `Debug` forms (`host.md`, 1, *The TUI's events*): `Typed {
   value: [104, 105] }`, for the link's field and the box alike;
   `SignIn`; `Send`; `Command { command: Help }`; `Act { act: Choice(Model
   { index: 0, account: Some(3) }) }`, the root's act; `Aside { object: Task(9)

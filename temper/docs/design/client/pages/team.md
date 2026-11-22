@@ -254,7 +254,7 @@
     proposals; held tasks, an escalation that reached them; and person
     tasks.
     - *For the person reading:* Needs you's open entries in the project,
-      as the rail counts them (`../view.md`, 3): the standing inbox's rows that show
+      as the rail counts them (`../view-navigation.md`, 1): the standing inbox's rows that show
       in the project, less those answered here, each by its group, and
       the person's approvals' rows of the project, as reviews.
     - *For another:* what the engine says waits on them on their own
@@ -283,7 +283,7 @@
     owner of what has no area, is the areas' last row and Who routes'
     chip; People has no line of it.
   - *Hand an area to a role,* the sheet "+ Hand an area to a role" opens
-    (`../README.md`, 3.6, *The sheet*), headed "Hand an area to a role",
+    (`../root.md`, 1.6, *The sheet*), headed "Hand an area to a role",
     its acts at its foot:
     - *Which area:* a choice of the project's areas, a line each, its
       name in the strong weight, its words, and muted its owner's name,
@@ -333,7 +333,7 @@
       (`../../protocol/configuration/settings.md`, 8): "Prover\n\nOwns the
       area tests on vsr.". A refusal of either says why in the sheet, in
       jig's words, and keeps it open.
-  - *Give the area back* opens the confirmation (`../README.md`, 3.6,
+  - *Give the area back* opens the confirmation (`../root.md`, 1.6,
     *The sheet*): "Give tests back?", or "Give 2 areas back?", then
     "Its owner becomes you.", or "Their owner becomes Sam.", the role's
     person, its requester, as *An owner's name* says them, then "Keep it"
@@ -423,7 +423,7 @@
       decoded as `temper_client_protocol_wire::v1::ProjectAreas`; the
       roles' watch for the sheet's roles; and `me` for whether the person
       reading owns the project.
-  - *In the rail* (`../view.md`, 3): "Team", after "Work", while the project has two
+  - *In the rail* (`../view-navigation.md`, 1): "Team", after "Work", while the project has two
     people or more or a standing role, current on `Team` whatever its
     `role`. Its count of people is the project's document's, and its
     count of roles the roles' watch's, both read on every project page for
@@ -437,7 +437,7 @@
 
 ## 2. Open questions
 
-- **Team after landing** (1; `../view.md`, 3): temper/ui compares main with
+- **Team after landing** (1; `../view-navigation.md`, 1): temper/ui compares main with
   the intro and People of the whole story's `web/whole-story/team/team.html`,
   and the rail's Team in each page's `nav.rail`, through `../web/gallery.md`, 2's
   `team`, `team-alone` and `night-team`, at 1440, 1000 and 390 px, by day

@@ -93,7 +93,7 @@ Moved to [`shared-behaviour.md`](shared-behaviour.md), section 1.
 
 ## 7. Open questions
 
-- **The two-step Home and night look after landing** (`README.md`, `../view.md`, 3): temper/ui
+- **The two-step Home and night look after landing** (`README.md`, `../view-navigation.md`, 1): temper/ui
   compares `ask-temper-start`, `to-begin-two-steps` and `night-mode` with
   main at 1440, 1000 and 420 px, with menus and disclosures open and
   each state their messages name (`../web/look-requests.md`, 4).
@@ -137,7 +137,7 @@ Moved to [`shared-behaviour.md`](shared-behaviour.md), section 1.
   additional Settings act.
 
 - **The rail, Work and Deployment after landing** (`work.md`, 1, *Work*;
-  `settings.md`, 1; `../view.md`, 3): temper/ui compares main with the whole
+  `settings.md`, 1; `../view-navigation.md`, 1): temper/ui compares main with the whole
   story's mockups, `web/whole-story/work.html`, `pair/work.html`,
   `team/work.html` and each page's `nav.rail`, at 1440, 1000 and 420 px, by
   day and by night, with the new box's menu, the switcher's All projects
@@ -158,7 +158,7 @@ Moved to [`shared-behaviour.md`](shared-behaviour.md), section 1.
   need, answered (`../../draft/surfaces.md`, 14). Owner: temper/ui. Default:
   each difference a finding filed back to the plan's repair.
 - **The phone after landing** (`needs-you.md`, 1, *On a phone*; `ask-temper.md`, 1, *Ask
-  temper's page*; `../view.md`, 3, *On a phone*): temper/ui compares main with the
+  temper's page*; `../view-navigation.md`, 1, *On a phone*): temper/ui compares main with the
   whole story's `web/whole-story/phone-home.html` and `phone-need.html`,
   and the Ask tab with `phone-tell.html`'s top bar and tabs, at 390 px, by
   day and by night, through `../web/gallery.md`, 2's `all-home`, `needs-list`

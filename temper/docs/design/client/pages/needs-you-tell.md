@@ -18,7 +18,7 @@ This document holds tell temper, split from [`needs-you.md`](needs-you.md).
     page; Needs you across projects has no project in view and draws none.
     On a phone, Ask temper's page's second act, the link "Tell temper" under
     its composer, to `Tell { project }` at `/projects/<project>/tell`, a
-    page of the phone's Ask tab ("Ask" current, `../view.md`, 3) whose top
+    page of the phone's Ask tab ("Ask" current, `../view-navigation.md`, 1) whose top
     bar holds "‹ Back", a link to Ask temper's page, then "Tell temper",
     muted, small, and the night switch. The terminal's `/tell` is
     `../../draft/surfaces.md`, 11.4's (`../tui/pages/README.md`, 2,
@@ -93,7 +93,7 @@ This document holds tell temper, split from [`needs-you.md`](needs-you.md).
     - `Owners`: "Goes to PROJECT's owners"; with `areas`, then ", who hand
       it to its area's owner".
   - *Its act:* "File it" files the words as a finding of the project's,
-    the one act and one request of `../README.md`, 3.6, through the engine's filing
+    the one act and one request of `../root.md`, 1.6, through the engine's filing
     (`../../domain/findings.md`, section 4), its `about` the page Tell temper
     has, else none; filed, the field empties and the toast says "Filed for
     NAME.", NAME as *Goes to* names the holder of the `Tell`'s `goes`, "you"

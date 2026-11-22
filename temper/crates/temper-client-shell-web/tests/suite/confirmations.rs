@@ -1,4 +1,4 @@
-//! Confirmation placement (temper/docs/design/client/README.md, 3.6).
+//! Confirmation placement (temper/docs/design/client/root.md, 1.6).
 const SHEET: &str = include_str!("../../temper.css");
 
 #[test]

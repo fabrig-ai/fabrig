@@ -255,7 +255,7 @@ fn start_preparation(domain: &mut Domain, env: &Env<Limits>, decision: &mut Deci
     emit(decision, &env.limits, Delivery::Load { waiter, range, after: None });
 }
 
-/// Ended tasks wait for room; the core's other ended reads keep busy (root.md, 7).
+/// Ended tasks wait for room; the core's other ended reads keep busy (domain/root.md, 7).
 pub(crate) fn ended(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, read: EndedRead) {
     if let EndedRead::EndedTask { task, .. } = &read {
         let task = *task;

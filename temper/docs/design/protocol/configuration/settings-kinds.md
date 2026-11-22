@@ -29,7 +29,7 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
   switch shows by a project's classes (kind 8; `../../client/pages/README.md`
   ). An Ask temper chat offers a draft regardless, and Goals
   stays shown for a current Goals or goal page or a project holding a goal
-  (`../../client/pages/README.md` and `../../client/view.md`, 3). The `way` is a template's number,
+  (`../../client/pages/README.md` and `../../client/view-navigation.md`, 1). The `way` is a template's number,
   the way a goal starts by, 0 for the first the project offers with
   `tracked` set. Its bound, the
   kind's, is its encoding; the engine decides nothing by it. A value of
