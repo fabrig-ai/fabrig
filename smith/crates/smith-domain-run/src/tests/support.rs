@@ -151,6 +151,7 @@ impl Harness {
     ) -> Box<[Request]> {
         let reply_to = ReplyTo::new(Token::new(call));
         self.step(Event::Start {
+            tell_parts: false,
             messages: Box::default(),
             window: crate::Window { turns: u32::MAX, bytes: u64::MAX, largest_turn: 1 },
             reply_to,
@@ -781,6 +782,7 @@ pub(crate) fn observed_facts(harness: &mut Harness) -> Box<[crate::facts::Fact]>
 
 pub(crate) fn carried_start(charter: Charter, messages: Box<[crate::Message]>, workspace: Option<Workspace>) -> Event {
     Event::Start {
+        tell_parts: false,
         messages,
         window: crate::Window { turns: u32::MAX, bytes: u64::MAX, largest_turn: 1 },
         reply_to: ReplyTo::new(Token::new(1)),
@@ -804,6 +806,7 @@ pub(crate) fn message_driven_charter() -> Charter {
 
 pub(crate) fn identity_open(harness: &mut Harness, identity: Option<crate::Identity>) -> (Token, Token, Opening) {
     let requests = harness.step(Event::Start {
+        tell_parts: false,
         identity,
         messages: Box::default(),
         window: crate::Window { turns: u32::MAX, bytes: u64::MAX, largest_turn: 1 },

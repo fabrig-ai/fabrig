@@ -177,6 +177,9 @@ pub(crate) struct Session {
 /// What a session holds in every state.
 #[derive(Debug)]
 struct Conversation {
+    tell_parts: bool,
+    cut: bool,
+    answer_told: u32,
     backend: crate::record::Backend,
     gone_window: Option<u32>,
     account: Option<u32>,
@@ -480,6 +483,7 @@ pub(crate) fn open(
     }
     conversation.cursor.sequence = sequence;
     conversation.cursor.told = told;
+    conversation.answer_told = told;
     open_admitted(domain, env, opener, conversation, authority, out, mark);
 }
 
@@ -588,12 +592,11 @@ pub(crate) fn delegate_ended(
         }
         State::Closing { end, waiting, mut tools } => {
             let end = match added {
-                Some(_) => {
-                    keep_closing(conversation, tools.as_mut(), slot, block, credit, result, &env.limits).unwrap_or(end)
-                }
+                Some(_) => keep_closing(conversation, tools.as_mut(), slot, block, credit, result, &env.limits, out)
+                    .unwrap_or(end),
                 None => {
                     let _discarded: Option<End> =
-                        keep_closing(conversation, tools.as_mut(), slot, block, credit, result, &env.limits);
+                        keep_closing(conversation, tools.as_mut(), slot, block, credit, result, &env.limits, out);
                     clear_pending(conversation);
                     End::PriceOverflow
                 }
@@ -695,6 +698,13 @@ pub(crate) fn yield_completion(domain: &Domain, session: Token, out: &mut Queue<
     }
 }
 
+pub(crate) fn cut(domain: &mut Domain, env: &Env<Limits>, session: Token, out: &mut Queue<Request>) {
+    if let Some(id) = addressed(&domain.sessions, session) {
+        domain.sessions.get_mut(id).expect("addressed session").conversation.cut = true;
+    }
+    close(domain, env, session, out);
+}
+
 pub(crate) fn close(domain: &mut Domain, env: &Env<Limits>, session: Token, out: &mut Queue<Request>) {
     let mark = out.len();
     let Some(id) = addressed(&domain.sessions, session) else {
@@ -762,7 +772,7 @@ pub(crate) fn completed(
         State::Completing { attempt: _ } => answered(conversation, id, &mut domain.calls, completion, env, out),
         State::Closing { end, waiting: waiting @ Waiting { completion: true, .. }, tools } => {
             assert!(tools.is_none(), "a completion and a tool batch never run together");
-            answered_late(conversation, id, &mut domain.calls, end, waiting, completion, &env.limits, out)
+            answered_late(conversation, end, waiting, completion, &env.limits, out)
         }
         State::Backoff { .. }
         | State::Tooling { .. }
@@ -1154,8 +1164,8 @@ fn owned_answered(
             tool_ran(conversation, id, &mut domain.calls, tools, slot, block, credit, result, env, out)
         }
         State::Closing { end, waiting, mut tools } => {
-            let end =
-                keep_closing(conversation, tools.as_mut(), slot, block, credit, result, &env.limits).unwrap_or(end);
+            let end = keep_closing(conversation, tools.as_mut(), slot, block, credit, result, &env.limits, out)
+                .unwrap_or(end);
             settled(end, waiting, tools)
         }
         State::Completing { .. }
@@ -1413,7 +1423,11 @@ fn conclude(domain: &mut Domain, env: &Env<Limits>, id: Id<Session>, out: &mut Q
                 | State::Resting { .. }
                 | State::Closed => unreachable!("matched states above"),
             };
-            builtin::finish_closing(&mut session.conversation, tools);
+            if session.conversation.cut {
+                clear_pending(&mut session.conversation);
+            } else {
+                builtin::finish_closing(&mut session.conversation, tools);
+            }
             if session.conversation.compaction.asking() {
                 clear_pending(&mut session.conversation);
             }
@@ -1458,7 +1472,11 @@ fn settle(domain: &mut Domain, env: &Env<Limits>, id: Id<Session>, out: &mut Que
     };
     let kit = match waiting.kit {
         Kit::Open => {
-            let close = tools::Event::Close { kit: session.conversation.kit };
+            let close = if session.conversation.cut {
+                tools::Event::Cut { kit: session.conversation.kit }
+            } else {
+                tools::Event::Close { kit: session.conversation.kit }
+            };
             let heard = tools_step(&mut domain.calls, env, close, out);
             assert!(heard.answer.is_none(), "a kit's close answers its calls later, as their operations end");
             match heard.kit {
@@ -1587,11 +1605,8 @@ fn answered(
 /// Closing, completed: the call won the race with its cancel. The session
 /// ends as it was going to, but the provider counted the tokens, and so does
 /// the session.
-#[expect(clippy::too_many_arguments, reason = "late completion preserves its closing state and call issuer")]
 fn answered_late(
     conversation: &mut Conversation,
-    id: Id<Session>,
-    issuer: &mut ToolCalls,
     end: End,
     waiting: Waiting,
     completion: Completion,
@@ -1620,7 +1635,9 @@ fn answered_late(
         .transcript
         .push(Message { role: Role::Assistant, content: completion.content })
         .expect("reserved assistant slot");
-    let tools = if calls > 0 { Some(builtin::late(conversation, id, issuer, calls, limits)) } else { None };
+    tell::answer(conversation, out);
+    let tools = if calls > 0 { Some(builtin::late(conversation, calls)) } else { None };
+    tell::not_run(conversation, out);
     State::Closing { end, waiting: Waiting { completion: false, ..waiting }, tools }
 }
 
@@ -1645,6 +1662,7 @@ fn use_tools(
         return finish(history::completion_limit(conversation, &content, &env.limits));
     }
     conversation.transcript.push(Message { role: Role::Assistant, content }).expect("checked for room above");
+    tell::answer(conversation, out);
     let mut tools = Tools {
         after: After::Complete,
         slots: List::with_capacity(count),
@@ -1690,6 +1708,7 @@ fn advance(
     for index in tools.next..end {
         let block = current_block(conversation, index);
         if batching::answer_skipped(conversation, block, index, &mut tools) {
+            tell::slot(conversation, &tools, tools.reached.saturating_sub(1), out);
             continue;
         }
         let Some(tool_call) = block.tool_call() else { continue };
@@ -1735,6 +1754,7 @@ fn advance(
                 // more, so it fits, and the batch it is in goes on.
                 receive_result(conversation, credit, &result, &env.limits);
                 let result = Block::ToolResult { id: call_id(conversation, index), result };
+                tell::result(conversation, &result, out);
                 batching::put_next(&mut tools, Slot::Done { result });
             }
             Decoded::Delegated { source, ticket, effect, descriptor: _ } => {
@@ -1760,6 +1780,7 @@ fn advance(
             Decoded::Builtin { .. } => batching::next_slot(&mut tools),
             Decoded::Invalid { problem, .. } => {
                 batching::invalid_slot(&mut tools, block, provider_id, problem);
+                tell::slot(conversation, &tools, tools.reached.saturating_sub(1), out);
             }
             Decoded::Historical => {}
         }
@@ -1889,6 +1910,7 @@ fn pause(
     }
     let text = text_of(&content);
     conversation.transcript.push(Message { role: Role::Assistant, content }).expect("checked for room above");
+    tell::answer(conversation, out);
     if let Some(end) = tell_turn(conversation, out) {
         return finish(end);
     }
@@ -1983,6 +2005,7 @@ fn tool_ran(
     batching::answered(&mut tools, slot, current_block(conversation, block), &result);
     receive_result(conversation, credit, &result, &env.limits);
     let result = Block::ToolResult { id: call_id(conversation, block), result };
+    tell::result(conversation, &result, out);
     *tools.slots.get_mut(slot).expect("a run fills its own slot") = Slot::Done { result };
     if !batching::poll(current_block(conversation, block)) {
         batching::end_waits(conversation, calls, &tools, env, out);
@@ -2181,6 +2204,9 @@ fn admit(
     let mut transcript = List::with_capacity(limits.history_messages);
     transcript.push(Message { role: Role::User, content }).ok()?;
     let conversation = Conversation {
+        tell_parts: spec.tell_parts,
+        cut: false,
+        answer_told: 0,
         backend: spec.backend,
         gone_window: None,
         account: spec.account,
@@ -2452,6 +2478,7 @@ fn clear_pending(conversation: &mut Conversation) {
     conversation.cursor.pending = None;
 }
 
+#[expect(clippy::too_many_arguments, reason = "closing records and tells the settled call before releasing its slot")]
 fn keep_closing(
     conversation: &mut Conversation,
     tools: Option<&mut Tools>,
@@ -2460,10 +2487,12 @@ fn keep_closing(
     credit: u64,
     result: Returned,
     limits: &Limits,
+    out: &mut Queue<Request>,
 ) -> Option<End> {
     let tools = tools?;
     receive_result(conversation, credit, &result, limits);
     let result = Block::ToolResult { id: call_id(conversation, block), result };
+    tell::result(conversation, &result, out);
     *tools.slots.get_mut(slot).expect("the terminal fills its call's slot") = Slot::Done { result };
     None
 }

@@ -1,4 +1,5 @@
 //! Mid-work offers through the real run/session seam and the shared scripted provider.
+mod parts;
 use skein_fake_checkout::Exit;
 use skein_fake_llm_domain::api::{Line, Part, Script, Turn};
 use skein_lib::{Duration, Time, Token};

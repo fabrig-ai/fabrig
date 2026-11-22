@@ -120,6 +120,7 @@ use crate::workspace;
 use crate::{opening, prompt};
 
 #[derive(Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "independent start policy, transcript and host-stop state")]
 pub(crate) struct Run {
     /// The budget phase stays known through an accepted terminal.
     wind_down: Option<crate::wind_down::WindDown>,
@@ -164,6 +165,11 @@ pub(crate) struct Run {
     main_turn_pending: bool,
     /// The host forbids a next main completion, without cutting this turn.
     draining: bool,
+    grace: Option<Grace>,
+    tell_parts: bool,
+    silent: bool,
+    parts: u32,
+    kept_parts: u32,
     /// Opaque restored history binding consumed when main opens.
     transcript: Option<Token>,
     resumed: bool,
@@ -173,6 +179,14 @@ pub(crate) struct Run {
     turns: u32,
     /// Last historical session turn sequence, including a restored prefix.
     sequence: Option<u32>,
+}
+
+/// The host's grace starts only after every sent completion has answered.
+#[derive(Clone, Copy, Debug)]
+enum Grace {
+    Waiting(Duration),
+    Running(Time),
+    Cut,
 }
 
 #[derive(Debug)]
@@ -213,6 +227,7 @@ pub(crate) struct Conversation {
     opened_at: Time,
     /// The sub-agent call it serves, if it is a sub-agent.
     asker: Option<Id<Call>>,
+    position: u32,
     /// Its families of tools.
     families: Families,
     /// What it has spent, by its `Used` so far.
@@ -254,6 +269,8 @@ pub(crate) enum Alarm {
     Call { call: Id<Call> },
     /// Per-relay timeout or retry backoff, independent of caller expiry.
     Host { call: Id<Call> },
+    /// The host's grace after every answer in flight.
+    Grace { run: Id<Run> },
 }
 
 // Entry points, one per event or alarm: look the conversation or run up, take
@@ -284,6 +301,7 @@ pub(crate) struct Start {
     pub(crate) transcript: Option<Token>,
     /// Concrete history selected by the parent, independent of the opaque binding.
     pub(crate) resumed: bool,
+    pub(crate) tell_parts: bool,
 }
 
 /// A refused entrance has no conversation diagnostic or read fence.
@@ -293,8 +311,19 @@ fn refuse_start(reply_to: ReplyTo, refusal: Refusal, out: &mut Queue<Request>) {
 
 #[expect(clippy::too_many_lines, reason = "admission binds the run and its main before publishing either")]
 pub(crate) fn start(domain: &mut Domain, env: &Env<Limits>, start: Start, out: &mut Queue<Request>) {
-    let Start { reply_to, host_run, activation, identity, window, messages, charter, workspace, transcript, resumed } =
-        start;
+    let Start {
+        reply_to,
+        host_run,
+        activation,
+        identity,
+        window,
+        messages,
+        charter,
+        workspace,
+        transcript,
+        resumed,
+        tell_parts,
+    } = start;
     let Domain { rng, runs, conversations, calls: _, alarms, facts, ready: budget_ready } = domain;
     // A charter that can never fit is invalid, room or not: busy invites a
     // retry.
@@ -354,6 +383,11 @@ pub(crate) fn start(domain: &mut Domain, env: &Env<Limits>, start: Start, out: &
         state: State::Closed,
         main_turn_pending: false,
         draining: false,
+        grace: None,
+        tell_parts,
+        silent: false,
+        parts: 0,
+        kept_parts: 0,
         transcript,
         resumed,
         inbox: Inbox::new(&env.limits),
@@ -369,6 +403,7 @@ pub(crate) fn start(domain: &mut Domain, env: &Env<Limits>, start: Start, out: &
         kind: crate::facts::Kind::Main,
         opened_at: env.now,
         asker: None,
+        position: 0,
         families,
         spent: Spend::ZERO,
         subtree_spent: 0,
@@ -540,6 +575,8 @@ pub(crate) fn turn(
     });
     let run_id = conversation.run.token();
     if run.draining {
+        run.grace = None;
+        domain.alarms.cancel(Alarm::Grace { run: conversation.run });
         match run.charter.mode {
             Mode::Finite => cancel(domain, run_id, out),
             // Open main may park at its ensuing yield; an unsent completion
@@ -558,7 +595,7 @@ pub fn close_drained(domain: &mut Domain, conversation: Token, now: Time, out: &
     }
     let id = conversation.run;
     let run = domain.runs.get(id).expect("conversation retains its run");
-    if run.draining && !run.main_turn_pending {
+    if run.draining && !run.main_turn_pending && run.grace.is_none() {
         domain.facts.begin(now);
         cancel(domain, id.token(), out);
     }
@@ -655,9 +692,89 @@ pub(crate) fn probed(domain: &mut Domain, env: &Env<Limits>, owner: Token, execu
     follow(runs, alarms, facts, ready, id);
 }
 
+/// Number a conversation's next part within this activation.
+pub fn part(domain: &mut Domain, conversation: Token) -> Option<(Token, u32, u32, u32, u64)> {
+    let conversation = domain.conversations.get(Id::from_token(conversation))?;
+    let run = domain.runs.get_mut(conversation.run)?;
+    if !run.tell_parts || run.silent {
+        return None;
+    }
+    run.parts = run.parts.checked_add(1).expect("bounded activation parts");
+    Some((
+        run.host_name,
+        run.parts,
+        run.turns.checked_add(1).expect("next turn"),
+        conversation.position,
+        run.spent.units,
+    ))
+}
+
+pub(crate) fn part_kept(domain: &mut Domain, token: Token, number: u32) {
+    if let Some(run) = domain.runs.get_mut(Id::from_token(token))
+        && number > run.kept_parts
+        && number <= run.parts
+    {
+        run.kept_parts = number;
+    }
+}
+
+/// Whether a close leaves its current turn open.
+#[must_use]
+pub fn cutting(domain: &Domain, conversation: Token) -> bool {
+    let Some(conversation) = domain.conversations.get(Id::from_token(conversation)) else { return false };
+    let run = domain.runs.get(conversation.run).expect("conversation retains run");
+    match run.grace {
+        Some(Grace::Cut) => true,
+        Some(Grace::Waiting(_) | Grace::Running(_)) | None => false,
+    }
+}
+
+pub(crate) fn cancel_now(domain: &mut Domain, token: Token, out: &mut Queue<Request>) {
+    if let Some(run) = domain.runs.get_mut(Id::from_token(token))
+        && run.grace.is_some()
+    {
+        run.silent = true;
+        run.grace = Some(Grace::Cut);
+    }
+    domain.alarms.cancel(Alarm::Grace { run: Id::from_token(token) });
+    cancel(domain, token, out);
+}
+
+pub(super) fn arm_grace(domain: &mut Domain, id: Id<Run>, now: Time) {
+    let run = domain.runs.get_mut(id).expect("live draining run");
+    if run.reserved_turns == 0 {
+        match run.grace {
+            Some(Grace::Waiting(grace)) => {
+                let until = now.saturating_add(grace);
+                run.grace = Some(Grace::Running(until));
+                domain.alarms.arm(Alarm::Grace { run: id }, until).expect("one grace per run");
+            }
+            Some(Grace::Running(_) | Grace::Cut) | None => {}
+        }
+    }
+}
+
+pub(crate) fn cut(domain: &mut Domain, id: Id<Run>, out: &mut Queue<Request>) {
+    let Some(run) = domain.runs.get_mut(id) else { return };
+    run.grace = Some(Grace::Cut);
+    cancel(domain, id.token(), out);
+}
+
 /// Keep a sent main turn whole; all idle phases take the ordinary cancel path.
-pub(crate) fn drain(domain: &mut Domain, token: Token, out: &mut Queue<Request>) {
+pub(crate) fn drain(domain: &mut Domain, token: Token, grace: Option<Duration>, now: Time, out: &mut Queue<Request>) {
     let Some(run) = domain.runs.get_mut(Id::from_token(token)) else { return };
+    if run.draining {
+        return;
+    }
+    if let Some(grace) = grace
+        && run.tell_parts
+        && run.main_turn_pending
+    {
+        run.draining = true;
+        run.grace = Some(Grace::Waiting(grace));
+        arm_grace(domain, Id::from_token(token), now);
+        return;
+    }
     match run.state {
         State::Working { .. } if run.main_turn_pending => run.draining = true,
         State::Preparing { .. }
@@ -1342,6 +1459,14 @@ fn follow(
     } else {
         alarms.cancel(alarm);
     }
+    match run.grace {
+        Some(Grace::Running(until)) => {
+            alarms.arm(Alarm::Grace { run: id }, until).expect("one grace per run");
+        }
+        Some(Grace::Waiting(_) | Grace::Cut) | None => {
+            alarms.cancel(Alarm::Grace { run: id });
+        }
+    }
     let park = Alarm::Park { run: id };
     match run.state {
         State::Awaiting { until, .. } | State::Listening { until, .. } | State::Waiting { until, .. } => {
@@ -1356,6 +1481,7 @@ fn follow(
         }
     }
     if closed {
+        alarms.cancel(Alarm::Grace { run: id });
         ready.remove(id);
         runs.retire(id);
     }
@@ -1557,6 +1683,7 @@ fn open(
         &env.limits,
     );
     let offered = run.inbox.offer(&env.limits);
+    opening.tell_parts = run.tell_parts;
     opening.prompt = prompt::opening(&run.charter, run.resumed, offered);
     opening.transcript = run.transcript.take();
     out.push(Request::Open { conversation: main.token(), opening });

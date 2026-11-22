@@ -172,14 +172,8 @@ pub(super) fn prepare(
     }
 }
 
-/// Prepare late built-ins through the same credit and observation path as live calls.
-pub(super) fn late(
-    conversation: &mut Conversation,
-    session: Id<Session>,
-    calls: &mut ToolCalls,
-    count: u32,
-    limits: &Limits,
-) -> Tools {
+/// A late answer schedules no calls; every call has a not-run result.
+pub(super) fn late(conversation: &Conversation, count: u32) -> Tools {
     let mut tools = Tools {
         after: super::After::Complete,
         slots: List::with_capacity(count),
@@ -188,7 +182,19 @@ pub(super) fn late(
         failed: None,
         reached: 0,
     };
-    prepare(conversation, session, calls, &mut tools, limits);
+    for block in &conversation.transcript.last().expect("late assistant answer").content {
+        if let Some(call) = block.tool_call() {
+            tools
+                .slots
+                .push(Slot::Done {
+                    result: Block::ToolResult {
+                        id: call.id.clone(),
+                        result: Returned::NotRun { why: crate::llm::NotRun::Stopped },
+                    },
+                })
+                .expect("one result per call");
+        }
+    }
     tools
 }
 
@@ -323,6 +329,8 @@ pub(crate) fn result(
             unreachable!("owed result place")
         }
     }
+    let recorded = block.clone();
+    super::tell::result(conversation, &recorded, out);
     let mut metadata = claim.metadata;
     metadata.id = id;
     domain.facts.push_call(env.now, FactKind::BuiltinAnswered { opener: conversation.opener, bytes, error }, &metadata);

@@ -324,6 +324,7 @@ impl Host {
                     })
                     .collect();
                 out.push(Event::Start {
+                    tell_parts: false,
                     messages: Box::default(),
                     reply_to: ReplyTo::new(job),
                     host_run: job,

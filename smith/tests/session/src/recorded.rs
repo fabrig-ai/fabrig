@@ -30,6 +30,7 @@ pub fn opening(transcript: Option<record::Transcript>, budget: u64) -> record::O
     record::Opening {
         window_llm: None,
         spec: session::Spec {
+            tell_parts: false,
             backend: smith_domain_session::record::Backend::Direct,
             effort: None,
             final_turn: None,
@@ -217,7 +218,8 @@ impl Scripted {
             | session::Event::Yield { .. }
             | session::Event::Open { .. }
             | session::Event::Continue { .. }
-            | session::Event::Close { .. } => {}
+            | session::Event::Close { .. }
+            | session::Event::Cut { .. } => {}
         }
         self.domain.reclaim();
         session::step(&mut self.domain, &self.env, event, &mut self.out);
@@ -251,6 +253,7 @@ impl Scripted {
     /// Records boundary outputs and checks their single-owner obligations.
     fn observe(&mut self, request: session::Request) {
         match request {
+            session::Request::Part { .. } => panic!("parts not requested"),
             session::Request::JobsCancelled { .. } => self.jobs_cancelled += 1,
             session::Request::Opened { opener, session } => {
                 assert_eq!(opener, Token::new(31));

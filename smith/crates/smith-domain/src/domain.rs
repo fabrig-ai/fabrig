@@ -91,6 +91,9 @@ pub struct Domain {
 /// The main takes history once; the terminal alone consumes the right.
 #[derive(Debug)]
 pub(crate) struct StartContext {
+    pub(crate) host_run: Token,
+    pub(crate) run: Option<Token>,
+    pub(crate) flow: crate::flow::Flow,
     pub(crate) reply_to: Option<ReplyTo>,
     pub(crate) transcript: Option<session::record::Transcript>,
     pub(crate) answered: Box<[u8]>,
@@ -127,6 +130,8 @@ pub(crate) struct Flight {
     pub(crate) peer: Id<Peer>,
     /// The session withdrew it.
     pub(crate) withdrawn: bool,
+    /// Host calls, saves and children have no result when cut.
+    pub(crate) omit_on_cut: bool,
     pub(crate) answer: Due,
 }
 
@@ -231,7 +236,7 @@ impl Domain {
             flights: Map::with_capacity(flights),
             grants: Map::with_capacity(limits.accounts),
             completions: Map::with_capacity(limits.run.conversations),
-            pending: Map::with_capacity(limits.run.runs),
+            pending: Map::with_capacity(limits.run.conversations),
             renewals_held: false,
             grant_waits: Map::with_capacity(limits.run.conversations),
             notices: Queue::uncapped(),

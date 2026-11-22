@@ -1222,6 +1222,53 @@ fn a_listing_directory_failure_or_cancel_never_launches_rg() {
 }
 
 #[test]
+fn cancelled_command_keeps_the_output_read_before_its_cut() {
+    use skein_io::Event;
+    use skein_lib::stream::Up;
+    let mut harness = Harness::new();
+    let owner = Token::new(32);
+    harness.operate(
+        owner,
+        tools::Op::Spawn { cwd: place(b"."), command: b"command".as_slice().into(), head: 2, tail: 2, after: None },
+        Time::from_nanos(100),
+    );
+    harness.below.pop().expect("spawn");
+    harness.event(BelowEvent::Process(Event::Spawned {
+        owner,
+        child: Token::new(42),
+        pipes: Box::new([Token::new(43), Token::new(44)]),
+    }));
+    while harness.below.pop().is_some() {}
+    harness
+        .event(BelowEvent::Pipe(Event::Stream { owner: Token::new(43), up: Up::Bytes(b"abcdef".as_slice().into()) }));
+    harness.below.pop().expect("read again");
+    harness.request(FromDomain::Cancel { owner });
+    harness.below.pop().expect("stop the group");
+    harness.event(BelowEvent::Pipe(Event::Stream {
+        owner: Token::new(43),
+        up: Up::Bytes(b"after cut".as_slice().into()),
+    }));
+    harness.below.pop().expect("drain the pipe");
+    harness.event(BelowEvent::Process(Event::Exited { owner, exit: kernel::Exit::Signal(15) }));
+    for pipe in [Token::new(43), Token::new(44)] {
+        harness.event(BelowEvent::Pipe(Event::Closed { owner: pipe }));
+    }
+    assert_eq!(harness.above.len(), 0, "reaping is still owed");
+    harness.event(BelowEvent::Process(Event::Closed { owner }));
+    assert_eq!(
+        harness.above.pop(),
+        Some(ToDomain::Done {
+            owner,
+            done: tools::Done::CommandCancelled {
+                head: b"ab".as_slice().into(),
+                tail: b"ef".as_slice().into(),
+                dropped: 2
+            },
+        })
+    );
+}
+
+#[test]
 fn a_tools_output_is_the_same_whatever_its_deliveries() {
     use crate::process::{Process, Work, stream};
     use skein_lib::stream::Up;

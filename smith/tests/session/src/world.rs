@@ -222,6 +222,7 @@ pub fn spec(prompt: &[u8]) -> agent::Spec {
     let grants = Grants { inspect: true, modify: true, shell: true };
     let authority = Authority { cwd: io::names(b"/work").into_vec().pop(), repos: Box::new([repo]), grants };
     agent::Spec {
+        tell_parts: false,
         backend: smith_domain_session::record::Backend::Direct,
         account: Some(0),
         effort: None,
@@ -841,6 +842,7 @@ impl World {
     fn agent_request(&mut self, request: agent::Request) {
         self.log(&format!("agent -> {}", describe_agent_request(&request)));
         match request {
+            agent::Request::Part { .. } => panic!("parts not requested"),
             agent::Request::Turn { opener, turn } => self.recorded(opener.raw(), turn),
             agent::Request::Priced { opener, spent, own_spent } => {
                 let session = self.sessions.get_mut(&opener.raw()).expect("a price names its opener");
@@ -1746,6 +1748,7 @@ fn ended_run(event: &agent::Event) -> Option<Token> {
         | agent::Event::CancelJobs { .. }
         | agent::Event::Yield { .. }
         | agent::Event::Close { .. }
+        | agent::Event::Cut { .. }
         | agent::Event::Completed { .. }
         | agent::Event::Overflowed { .. }
         | agent::Event::BudgetDenied { .. }
@@ -1777,6 +1780,7 @@ fn describe_agent_event(event: &agent::Event) -> String {
         agent::Event::Continue { session, content } => {
             format!("continue {} {:?}", session.raw(), String::from_utf8_lossy(content))
         }
+        agent::Event::Cut { session } => format!("cut {}", session.raw()),
         agent::Event::Close { session } => format!("close {}", session.raw()),
         agent::Event::Completed { owner, completion } => {
             format!("completed {} {:?} with {} blocks", owner.raw(), completion.stop, completion.content.len())
@@ -1795,6 +1799,7 @@ fn describe_agent_event(event: &agent::Event) -> String {
 
 fn describe_agent_request(request: &agent::Request) -> String {
     match request {
+        agent::Request::Part { .. } => "part".into(),
         agent::Request::JobsCancelled { opener } => format!("jobs cancelled {}", opener.raw()),
         agent::Request::Turn { opener, turn } => format!("turn {} {turn:?}", opener.raw()),
         agent::Request::Priced { opener, spent, own_spent } => {

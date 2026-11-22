@@ -57,6 +57,7 @@ impl Io {
             }
             run::Event::HostReturned { .. }
             | run::Event::Message { .. }
+            | run::Event::PartKept { .. }
             | run::Event::Acknowledge { .. }
             | run::Event::Turn { .. }
             | run::Event::Start { .. }

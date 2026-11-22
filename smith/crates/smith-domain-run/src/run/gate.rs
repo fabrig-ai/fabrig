@@ -208,8 +208,13 @@ pub fn completion_permit(domain: &mut Domain, conversation: Token, now: Time, mo
         | State::Stopping { .. }
         | State::Closed => return CompletionPermit::Closing,
     }
-    if !child && run.draining {
-        return CompletionPermit::Closing;
+    if run.draining {
+        if run.grace.is_some() {
+            return CompletionPermit::Held;
+        }
+        if !child {
+            return CompletionPermit::Closing;
+        }
     }
     let changed = match gate(run, now, Some(most)) {
         Some(exhausted) => begin_wind_down(run, &mut domain.ready, run_id, Cause::Budget(exhausted)),
@@ -277,7 +282,7 @@ fn working_permit(run: &mut Run, child: bool, now: Time) -> CompletionPermit {
     if let Some(exhausted) = run.charter.budget.exhausted(run.spent) {
         return CompletionPermit::Denied(exhausted);
     }
-    if !child && completion_held(run) {
+    if (!child || run.tell_parts) && completion_held(run) {
         return CompletionPermit::Held;
     }
     if let Some(reason) = final_turn_failure(run) {
@@ -320,7 +325,11 @@ pub(super) fn final_remaining(run: &Run, now: Time) -> Result<(), Exhausted> {
 }
 
 fn completion_held(run: &Run) -> bool {
-    let pending = run.turns.checked_sub(run.acknowledged).expect("acknowledged prefix never exceeds turns");
+    let pending = run
+        .turns
+        .checked_sub(run.acknowledged)
+        .expect("acknowledged prefix never exceeds turns")
+        .saturating_add(run.parts.checked_sub(run.kept_parts).expect("kept prefix never exceeds parts"));
     let next_bytes = match u64::from(pending).checked_add(1) {
         Some(count) => count.checked_mul(run.window.largest_turn),
         None => None,

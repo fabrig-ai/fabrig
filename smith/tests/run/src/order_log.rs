@@ -30,6 +30,7 @@ impl Input {
             Event::HostReturned { .. }
             | Event::Drain { .. }
             | Event::Message { .. }
+            | Event::PartKept { .. }
             | Event::Acknowledge { .. }
             | Event::Turn { .. }
             | Event::JobsCancelled { .. }

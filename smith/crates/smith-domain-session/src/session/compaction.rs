@@ -419,6 +419,7 @@ pub(super) fn follow(conversation: &mut Conversation, facts: &mut crate::facts::
             conversation.compaction = Compaction::Idle;
         }
         Request::Ended { .. }
+        | Request::Part { .. }
         | Request::JobsCancelled { .. }
         | Request::Opened { .. }
         | Request::Yielded { .. }

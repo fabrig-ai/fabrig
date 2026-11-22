@@ -91,6 +91,8 @@ pub enum Event {
     /// End the session, whatever its state: it cancels what is in flight, and
     /// ends once that has settled. A `session` that has ended is dropped.
     Close { session: Token },
+    /// Cut an open turn, keeping interrupted commands but no whole turn.
+    Cut { session: Token },
     /// Cancel the session's jobs; `JobsCancelled` follows their settlement.
     CancelJobs { session: Token },
     /// The run asks this session to yield its outstanding Complete; its terminal remains owed.
@@ -174,6 +176,8 @@ pub enum Request {
         /// Settled concrete transcript turn handed to the opener.
         turn: crate::record::Turn,
     },
+    /// An answer or result copied before the whole turn, only when requested.
+    Part { opener: Token, part: crate::record::Part },
     /// The cumulative deployment-unit spend, including child calls.
     Priced {
         opener: Token,
@@ -270,6 +274,8 @@ pub enum Request {
 /// What a session is opened for.
 #[derive(PartialEq, Eq, Debug)]
 pub struct Spec {
+    /// Tell answers and results as they arrive, beside whole turns.
+    pub tell_parts: bool,
     /// Transport named in this conversation's opening turns (smith/docs/design/domain/session.md 8.2).
     pub backend: crate::record::Backend,
     /// Account named by the charter, absent for uncredentialed calls.

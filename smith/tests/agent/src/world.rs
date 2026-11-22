@@ -226,7 +226,8 @@ enum Delivery {
     Host { relay: run::RelayName, reply: run::HostReply },
     Job { owner: Token },
     Cancel,
-    Drain,
+    Drain { grace: Option<Duration> },
+    PartKept { number: u32 },
     Grant { grant: Grant },
     Input { event: Box<Event> },
 }
@@ -335,6 +336,7 @@ pub struct World<B: Backend = Typed> {
     host_decision: Option<run::HostAnswer>,
     host_decisions: u32,
     host_terminals: Vec<(run::RelayName, Time, run::HostReply)>,
+    host_withdrawals: Vec<(Time, run::RelayName)>,
     snapshots: BTreeMap<Token, Vec<u8>>,
     landed: Vec<u8>,
     prompts: Vec<provider::api::Query>,
@@ -342,6 +344,8 @@ pub struct World<B: Backend = Typed> {
     model_prices: BTreeMap<Box<[u8]>, run::Prices>,
     main_prices: run::Prices,
     turns: Vec<agent::Turn>,
+    parts: Vec<(Time, u32, u32, agent::session::record::Part)>,
+    command_writes: BTreeMap<Vec<u8>, Vec<(Duration, Vec<u8>)>>,
     messages_seen: Vec<(Time, crate::messages_referee::Seen)>,
     turn_metadata: Vec<(u32, Option<Token>, run::Spend)>,
     auto_ack: bool,
@@ -466,6 +470,7 @@ impl<B: Backend> World<B> {
     )]
     /// Start with caller-owned checkout, history and optional complete Start.
     #[must_use]
+    #[expect(clippy::too_many_lines, reason = "one world initializer binds the fake boundary and its observations")]
     pub fn with_selected_backend(
         settings: &Settings,
         transcript: Option<agent::Transcript>,
@@ -554,6 +559,7 @@ impl<B: Backend> World<B> {
             host_decision: None,
             host_decisions: 0,
             host_terminals: Vec::new(),
+            host_withdrawals: Vec::new(),
             snapshots: BTreeMap::new(),
             landed: Vec::new(),
             prompts: Vec::new(),
@@ -561,6 +567,8 @@ impl<B: Backend> World<B> {
             model_prices,
             main_prices,
             turns: Vec::new(),
+            parts: Vec::new(),
+            command_writes: BTreeMap::new(),
             messages_seen,
             turn_metadata: Vec::new(),
             auto_ack: false,
@@ -701,7 +709,36 @@ impl<B: Backend> World<B> {
 
     /// Ask the host to finish the current main turn, without cutting its calls.
     pub fn drain_at(&mut self, at: Time) {
-        self.schedule.send(at, Delivery::Drain);
+        self.drain_with_grace_at(at, None);
+    }
+
+    /// Ask for parts before the pending start is admitted.
+    pub fn tell_parts(&mut self) {
+        let Event::Start(mut start) = self.stage.next_event().expect("pending start") else { panic!("start pending") };
+        start.tell_parts = true;
+        self.stage.push(Event::Start(start));
+    }
+
+    /// Set the pending start's durable record window.
+    pub fn record_window(&mut self, window: agent::Window) {
+        let Event::Start(mut start) = self.stage.next_event().expect("pending start") else { panic!("start pending") };
+        start.window = window;
+        self.stage.push(Event::Start(start));
+    }
+
+    /// Supply the host's grace for an answer-boundary drain.
+    pub fn drain_with_grace_at(&mut self, at: Time, grace: Option<Duration>) {
+        self.schedule.send(at, Delivery::Drain { grace });
+    }
+
+    /// A scripted command's bytes written at each elapsed time.
+    pub fn command_writes(&mut self, command: &[u8], writes: Vec<(Duration, Vec<u8>)>) {
+        self.command_writes.insert(command.to_vec(), writes);
+    }
+
+    /// Durable prefix of parts, independently of whole turns.
+    pub fn part_kept_at(&mut self, at: Time, number: u32) {
+        self.schedule.send(at, Delivery::PartKept { number });
     }
 
     /// Script durable host acknowledgement of this turn and its prefix.
@@ -948,7 +985,16 @@ impl<B: Backend> World<B> {
     )]
     fn request(&mut self, request: Request) {
         match request {
-            Request::Part { .. } => unreachable!("the run tells no parts yet"),
+            Request::Part { host_run, number, turn, part } => {
+                assert_eq!(host_run, self.host_run);
+                assert_eq!(usize::try_from(number).expect("part number"), self.parts.len() + 1);
+                assert_eq!(usize::try_from(turn).expect("turn number"), self.turns.len() + 1);
+                self.parts.push((self.now, number, turn, part));
+                if self.auto_ack {
+                    let run = self.admitted.expect("part follows admission");
+                    self.stage.push(Event::PartKept { run, number });
+                }
+            }
             Request::Turn { host_run, number, position, read, spent, opens_window, turn } => {
                 assert_eq!(host_run, self.host_run);
                 assert_eq!(usize::try_from(number).expect("bounded output number"), self.turns.len() + 1);
@@ -1379,6 +1425,7 @@ impl<B: Backend> World<B> {
                 assert!(self.host_pending.insert((relay.owner.raw(), relay.attempt), Some(key)).is_none());
             }
             Request::WithdrawHost { relay } => {
+                self.host_withdrawals.push((self.now, relay));
                 self.host_history.withdraw(relay).expect("withdraw retains terminal");
                 assert!(self.host_pending.contains_key(&(relay.owner.raw(), relay.attempt)));
             }
@@ -1415,7 +1462,7 @@ impl<B: Backend> World<B> {
         if flight.cancelled {
             return;
         }
-        if flight.key.is_some() && self.rng.chance(self.settings.races) {
+        if (flight.key.is_some() || family == Family::Completion) && self.rng.chance(self.settings.races) {
             return;
         }
         if let Some(key) = flight.key {
@@ -1449,9 +1496,13 @@ impl<B: Backend> World<B> {
                 self.stage.push(Event::HostReturned { relay, reply });
                 self.terminals += 1;
             }
-            Delivery::Drain => {
+            Delivery::PartKept { number } => {
+                let run = self.admitted.expect("part follows admission");
+                self.stage.push(Event::PartKept { run, number });
+            }
+            Delivery::Drain { grace } => {
                 if let Some(run) = self.admitted {
-                    self.stage.push(Event::Drain { run, grace: None });
+                    self.stage.push(Event::Drain { run, grace });
                 }
             }
             Delivery::Cancel => {
@@ -1749,10 +1800,22 @@ impl<B: Backend> World<B> {
         &self.turns
     }
 
+    /// Told parts with their clock, number and owning main turn.
+    #[must_use]
+    pub fn parts(&self) -> &[(Time, u32, u32, agent::session::record::Part)] {
+        &self.parts
+    }
+
     /// Activation numbers/read fences/token usage.
     #[must_use]
     pub fn turn_metadata(&self) -> &[(u32, Option<Token>, run::Spend)] {
         &self.turn_metadata
+    }
+
+    /// Host calls withdrawn, with the withdrawal's clock.
+    #[must_use]
+    pub fn host_withdrawals(&self) -> &[(Time, run::RelayName)] {
+        &self.host_withdrawals
     }
 
     /// Settled Waiting notices.

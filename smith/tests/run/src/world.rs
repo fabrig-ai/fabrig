@@ -1109,7 +1109,8 @@ impl World {
             run::Event::HostReturned { relay, .. } => self.relays.owners.get(&relay.owner).copied(),
             run::Event::Start { .. } => None,
             run::Event::Cancel { run }
-            | run::Event::Drain { run }
+            | run::Event::Drain { run, .. }
+            | run::Event::PartKept { run, .. }
             | run::Event::Acknowledge { run, .. }
             | run::Event::Message { run, .. } => Some(*run),
             run::Event::Read { owner, .. } | run::Event::Probed { owner, .. } => Some(*owner),
@@ -1184,6 +1185,7 @@ impl World {
             | run::Event::HostReturned { .. }
             | run::Event::Start { .. }
             | run::Event::Message { .. }
+            | run::Event::PartKept { .. }
             | run::Event::Acknowledge { .. }
             | run::Event::Turn { .. }
             | run::Event::Yielded { .. }
@@ -1416,6 +1418,7 @@ impl World {
                 }
                 run::Event::HostReturned { .. }
                 | run::Event::Turn { .. }
+                | run::Event::PartKept { .. }
                 | run::Event::Acknowledge { .. }
                 | run::Event::JobsCancelled { .. }
                 | run::Event::Started { .. }
@@ -1540,6 +1543,7 @@ impl World {
         }
         self.starts.get_mut(&host_run).expect("a start is tracked").checks = checks;
         self.run_stage.push(run::Event::Start {
+            tell_parts: false,
             messages: self.carried_messages.clone(),
             reply_to,
             host_run,
@@ -1738,6 +1742,7 @@ impl World {
             run::Event::HostReturned { .. }
             | run::Event::Start { .. }
             | run::Event::Message { .. }
+            | run::Event::PartKept { .. }
             | run::Event::Acknowledge { .. }
             | run::Event::Cancel { .. }
             | run::Event::Drain { .. }

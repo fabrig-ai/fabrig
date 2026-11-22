@@ -847,6 +847,7 @@ fn coding_after_delivery_and_park() -> (Harness, Token) {
     // this domain passes the binding on without decoding the transcript.
     let transcript = conversation;
     let requests = harness.step(Event::Start {
+        tell_parts: false,
         reply_to: ReplyTo::new(Token::new(2)),
         host_run: Token::new(1),
         activation: 2,

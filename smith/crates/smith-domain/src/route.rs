@@ -34,6 +34,7 @@ pub(crate) const fn session_env(env: &Env<Limits>) -> Env<session::Limits> {
 }
 
 /// Hands one of the protocol's events to the child domain it is for.
+#[expect(clippy::too_many_lines, reason = "one exhaustive ingress routing boundary")]
 pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event) {
     let event = match event {
         Event::Start(crate::Start {
@@ -47,7 +48,7 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event) {
             workspace,
             grants,
             transcript,
-            tell_parts: _,
+            tell_parts,
             parts: _,
             answered,
         }) => {
@@ -74,7 +75,7 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event) {
             }
             return start(
                 domain, env, reply_to, host_run, activation, identity, window, messages, charter, workspace,
-                transcript, answered,
+                transcript, answered, tell_parts,
             );
         }
         Event::Acknowledge { run, turn } => return acknowledge(domain, env, run, turn),
@@ -87,8 +88,12 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event) {
             run::Event::Message { finish_requested, run, name, label, text }
         }
         Event::Cancel { run } => run::Event::Cancel { run },
-        Event::Drain { run, grace: _ } => run::Event::Drain { run },
-        Event::PartKept { .. } => return,
+        Event::Drain { run, grace } => run::Event::Drain { run, grace },
+        Event::PartKept { run, number } => {
+            run_step(domain, env, run::Event::PartKept { run, number });
+            kept_output(domain, env, run, number, true);
+            return resume_pending(domain, env, run);
+        }
         Event::HostReturned { relay, reply } => run::Event::HostReturned { relay, reply },
         Event::Delivered { owner, delivery } => run::Event::Delivered { owner, delivery },
         Event::Below(Below::Read { owner, read }) => run::Event::Read { owner, read },
@@ -122,6 +127,7 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event) {
                 run::settle_reservation(&mut domain.run, conversation, owner, 0),
                 "cancelled call held its reservation"
             );
+            run::completion_settled(&mut domain.run, conversation, env.now);
             return session_step(domain, env, session::Event::Cancelled { owner });
         }
         Event::Below(Below::Done { owner, done }) => {
@@ -169,6 +175,7 @@ fn failed(
     let conversation = peer.conversation;
     peer.report = report;
     assert!(run::settle_reservation(&mut domain.run, conversation, owner, 0), "failed call held its reservation");
+    run::completion_settled(&mut domain.run, conversation, env.now);
     match failure {
         crate::llm::Failure::Unauthorized | crate::llm::Failure::SignedOut => {
             if let Some(grant) = grant
@@ -233,6 +240,7 @@ fn completed(domain: &mut Domain, env: &Env<Limits>, owner: Token, completion: c
     };
     let charge = preview.unwrap_or_default();
     let within_reservation = run::settle_reservation(&mut domain.run, conversation, owner, charge);
+    run::completion_settled(&mut domain.run, conversation, env.now);
     if !within_reservation {
         return session_step(domain, env, session::Event::Overflowed { owner, end: session::End::PriceOverflow });
     }
@@ -246,9 +254,64 @@ fn completed(domain: &mut Domain, env: &Env<Limits>, owner: Token, completion: c
     session_step(domain, env, session::Event::Completed { owner, completion });
 }
 
+fn record_bytes(env: &Env<Limits>) -> u64 {
+    limits::max_turn_bytes(&env.limits).expect("admitted record bound")
+}
+
+fn output_context(domain: &Domain, host_run: Token) -> Option<Id<StartContext>> {
+    for (id, context) in &domain.starts {
+        if context.host_run == host_run && !context.flow.done() {
+            return Some(id);
+        }
+    }
+    None
+}
+
+fn tell_output(
+    domain: &mut Domain,
+    host_run: Token,
+    record: crate::flow::Record,
+    request: Request,
+    out: &mut Queue<Request>,
+) {
+    let id = output_context(domain, host_run).expect("a told record retains its start");
+    domain.starts.get_mut(id).expect("live start").flow.push(record, request, out);
+}
+
+fn kept_output(domain: &mut Domain, _env: &Env<Limits>, run: Token, number: u32, part: bool) {
+    let mut found = None;
+    for (id, context) in &domain.starts {
+        if context.run == Some(run) {
+            found = Some(id);
+            break;
+        }
+    }
+    if let Some(id) = found {
+        let context = domain.starts.get_mut(id).expect("live start");
+        context.flow.keep(part, number, &mut domain.notices);
+        if context.flow.done() {
+            domain.starts.retire(id);
+        }
+    }
+}
+
 fn acknowledge(domain: &mut Domain, env: &Env<Limits>, run: Token, turn: u32) {
     run_step(domain, env, run::Event::Acknowledge { run, turn });
-    if let Some(pending) = domain.pending.remove(&run) {
+    kept_output(domain, env, run, turn, false);
+    resume_pending(domain, env, run);
+}
+
+fn resume_pending(domain: &mut Domain, env: &Env<Limits>, run: Token) {
+    let mut owners = List::with_capacity(domain.pending.len());
+    for (owner, _) in &domain.pending {
+        let id = *domain.sessions.get(owner).expect("held session");
+        let conversation = domain.peers.get(id).expect("held peer").conversation;
+        if run::owner(&domain.run, conversation) == Some(run) {
+            owners.push(*owner).expect("bounded held sessions");
+        }
+    }
+    for owner in &owners {
+        let pending = domain.pending.remove(owner).expect("held completion");
         let mut emitted = Queue::uncapped();
         complete(domain, env, pending, &mut emitted);
         // Completion settlement is finite; transferring notices makes no more work.
@@ -285,7 +348,11 @@ pub(crate) fn deliver(domain: &mut Domain, env: &Env<Limits>, handoff: Handoff) 
         Handoff::Close { peer } => {
             let peer = domain.peers.get(peer).expect("a close is forgotten when its peer goes");
             let session = peer.session.expect("the run closes a conversation once it has started");
-            session::Event::Close { session }
+            if run::cutting(&domain.run, peer.conversation) {
+                session::Event::Cut { session }
+            } else {
+                session::Event::Close { session }
+            }
         }
         Handoff::Answer { owner } => {
             let flight = domain.flights.remove(&owner).expect("a call is in flight until it is answered");
@@ -330,6 +397,7 @@ fn start(
     workspace: Option<run::Workspace>,
     transcript: Option<session::record::Transcript>,
     answered: Box<[AnsweredCall]>,
+    tell_parts: bool,
 ) {
     let largest_turn = limits::max_turn_bytes(&env.limits).expect("representable turn cap");
     if window.turns == 0 || window.bytes < largest_turn {
@@ -393,7 +461,16 @@ fn start(
             None => None,
         },
     };
-    let context = StartContext { reply_to: Some(reply_to), transcript, answered, refused };
+    let flow_window = if tell_parts { window } else { crate::Window { turns: u32::MAX, bytes: u64::MAX } };
+    let context = StartContext {
+        host_run,
+        run: None,
+        flow: crate::flow::Flow::new(flow_window),
+        reply_to: Some(reply_to),
+        transcript,
+        answered,
+        refused,
+    };
     let id = domain.starts.insert(context).expect("reserved original parent right before work");
     run_step(
         domain,
@@ -409,6 +486,7 @@ fn start(
             workspace,
             transcript: Some(id.token()),
             resumed,
+            tell_parts,
         },
     );
 }
@@ -551,9 +629,46 @@ fn from_session(domain: &mut Domain, env: &Env<Limits>, request: session::Reques
         session::Request::Priced { opener, spent, own_spent } => {
             run::Event::Priced { conversation: opener, own_spent, subtree_spent: spent }
         }
-        session::Request::Turn { opener, turn } => {
+        session::Request::Part { opener, mut part } => {
+            if let Some((host_run, number, turn, call, spent)) = run::part(&mut domain.run, opener) {
+                part.call = call;
+                part.body.spent = spent;
+                let request = Request::Part { host_run, number, turn, part };
+                tell_output(
+                    domain,
+                    host_run,
+                    crate::flow::Record::Part { number, bytes: record_bytes(env) },
+                    request,
+                    out,
+                );
+            }
+            return;
+        }
+        session::Request::Turn { opener, mut turn } => {
             let id = peer(domain, opener);
             if !domain.peers.get(id).expect("main binding lives through Turn").is_main() {
+                if turn.kind.opens_window()
+                    && turn.sequence != 1
+                    && let Some((host_run, number, main_turn, call, spent)) = run::part(&mut domain.run, opener)
+                {
+                    let thread = match &turn.kind {
+                        session::record::Kind::First(opening) | session::record::Kind::Window(opening) => {
+                            opening.affinity.thread
+                        }
+                        session::record::Kind::Ordinary => 0,
+                    };
+                    turn.spent = spent;
+                    let part =
+                        session::record::Part { thread, call, kind: session::record::PartKind::Window, body: turn };
+                    let request = Request::Part { host_run, number, turn: main_turn, part };
+                    tell_output(
+                        domain,
+                        host_run,
+                        crate::flow::Record::Part { number, bytes: record_bytes(env) },
+                        request,
+                        out,
+                    );
+                }
                 return;
             }
             let sequence = turn.sequence;
@@ -586,18 +701,13 @@ fn from_session(domain: &mut Domain, env: &Env<Limits>, request: session::Reques
         session::Request::Cancel { owner } => {
             let id = *domain.sessions.get(&owner).expect("a call owner retains its session");
             let conversation = domain.peers.get(id).expect("session retains peer").conversation;
-            let run = run::owner(&domain.run, conversation).expect("run outlives its session");
+            let _run = run::owner(&domain.run, conversation).expect("run outlives its session");
             if domain.grant_waits.remove(&owner).is_some() {
                 let host_run = run::host_name(&domain.run, conversation).expect("session retains run");
                 out.push(Request::LongDone { host_run });
                 return session_step(domain, env, session::Event::Cancelled { owner });
             }
-            let held = match domain.pending.get(&run) {
-                Some(pending) => pending.owner == owner,
-                None => false,
-            };
-            if held {
-                domain.pending.remove(&run);
+            if domain.pending.remove(&owner).is_some() {
                 return session_step(domain, env, session::Event::Cancelled { owner });
             }
             return out.push(Request::Lower(Lower::Cancel { owner }));
@@ -666,7 +776,11 @@ fn delegated(
     let activation = domain.peers.get(id).expect("found above").activation;
     let ask = domain.peers.get_mut(id).expect("found above").take(call);
     domain.tickets = domain.tickets.saturating_sub(1);
-    let flight = Flight { peer: id, withdrawn: false, answer: Due::Waiting };
+    let omit_on_cut = match &ask {
+        run::Ask::Save | run::Ask::Wait | run::Ask::Host { .. } | run::Ask::SubAgent { .. } => true,
+        run::Ask::Deliver { .. } | run::Ask::Finish { .. } => false,
+    };
+    let flight = Flight { peer: id, withdrawn: false, omit_on_cut, answer: Due::Waiting };
     let fresh = domain.flights.insert(owner, flight).expect("room for a batch of each session");
     assert!(fresh.is_none(), "a session names its calls in flight apart");
     run::Event::Delegated {
@@ -683,8 +797,9 @@ fn delegated(
 fn from_run(domain: &mut Domain, env: &Env<Limits>, request: run::Request, out: &mut Queue<Request>) {
     let event = match request {
         run::Request::CompletionReady { conversation } => {
-            let run = run::owner(&domain.run, conversation).expect("main retains its run");
-            if let Some(pending) = domain.pending.remove(&run) {
+            let id = peer(domain, conversation);
+            let owner = domain.peers.get(id).expect("retained peer").session.expect("started session");
+            if let Some(pending) = domain.pending.remove(&owner) {
                 complete(domain, env, pending, out);
             }
             return;
@@ -696,15 +811,23 @@ fn from_run(domain: &mut Domain, env: &Env<Limits>, request: run::Request, out: 
         run::Request::MessageRefused { host_run, name, reason } => {
             return out.push(Request::MessageRefused { host_run, name, reason });
         }
-        run::Request::Admitted { host_run, run } => return out.push(Request::Admitted { host_run, run }),
+        run::Request::Admitted { host_run, run } => {
+            let id = output_context(domain, host_run).expect("admission retains its start");
+            domain.starts.get_mut(id).expect("retained start").run = Some(run);
+            return out.push(Request::Admitted { host_run, run });
+        }
         run::Request::Answer { to, answer, read, detail } => {
             let id = Id::<StartContext>::from_token(to.into_token());
             let context = domain.starts.get_mut(id).expect("root issued the start reply binding");
             let to = context.reply_to.take().expect("one terminal consumes the parent right");
             context.transcript = None;
             context.answered = Box::default();
-            domain.starts.retire(id);
-            return out.push(Request::Answer { to, answer, read, detail });
+            let request = Request::Answer { to, answer, read, detail };
+            context.flow.push(crate::flow::Record::Answer, request, out);
+            if context.flow.done() {
+                domain.starts.retire(id);
+            }
+            return;
         }
         run::Request::Waiting { host_run, read } => return out.push(Request::Waiting { host_run, read }),
         run::Request::Turn { host_run, record, number, position, opens_window, read, spent } => {
@@ -713,7 +836,9 @@ fn from_run(domain: &mut Domain, env: &Env<Limits>, request: run::Request, out: 
             let turn = handoff.turn.take().expect("one output takes the concrete body");
             assert_eq!(turn.sequence, position, "run and record name the same conversation turn");
             domain.turns.retire(id);
-            return out.push(Request::Turn { host_run, number, position, opens_window, read, spent, turn });
+            let request = Request::Turn { host_run, number, position, opens_window, read, spent, turn };
+            tell_output(domain, host_run, crate::flow::Record::Turn { number, bytes: record_bytes(env) }, request, out);
+            return;
         }
         run::Request::Checking { host_run, deadline } => {
             return out.push(Request::Long { host_run, operation: Operation::Checks, until: deadline });
@@ -750,7 +875,10 @@ fn from_run(domain: &mut Domain, env: &Env<Limits>, request: run::Request, out: 
         }
         run::Request::Return { call, result, spent } => {
             let flight = domain.flights.get_mut(&call).expect("the run returns a call in flight");
-            if flight.withdrawn && result == run::Returned::Cancelled {
+            let conversation = domain.peers.get(flight.peer).expect("flight retains peer").conversation;
+            if (flight.omit_on_cut && run::cutting(&domain.run, conversation))
+                || (flight.withdrawn && result == run::Returned::Cancelled)
+            {
                 flight.answer = Due::Cancelled { spent };
             } else if result == run::Returned::Withheld {
                 flight.answer = Due::Withheld;
@@ -870,9 +998,8 @@ fn complete(domain: &mut Domain, env: &Env<Limits>, pending: PendingCompletion, 
             return session_step(domain, env, session::Event::Narrowed { owner, note, choice, names });
         }
         run::CompletionPermit::Held => {
-            let run = run::owner(&domain.run, conversation).expect("main remains live while held");
-            let old = domain.pending.insert(run, pending).expect("one held completion per run");
-            assert!(old.is_none(), "only one unsent main completion");
+            let old = domain.pending.insert(owner, pending).expect("one held completion per conversation");
+            assert!(old.is_none(), "only one unsent completion per conversation");
             return;
         }
         run::CompletionPermit::Denied(exhausted) => {

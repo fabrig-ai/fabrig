@@ -141,6 +141,8 @@ pub(crate) struct Process {
     failure: Option<io::Error>,
     stop: Stop,
     output: Capture,
+    #[expect(clippy::type_complexity, reason = "the captured head, last and dropped count remain one snapshot")]
+    cancelled_output: Option<(Box<[u8]>, Box<[u8]>, u64)>,
     response: Response,
 }
 
@@ -157,6 +159,7 @@ impl Process {
             failure: None,
             stop: Stop::Running,
             output: Capture::new(head, tail),
+            cancelled_output: None,
             response: Response::Final,
         }
     }
@@ -291,6 +294,10 @@ impl Process {
                     Work::List { directory, .. } => directory.cancel(below),
                     Work::Shell | Work::Check(_) | Work::Search(_) => {}
                 }
+                if why == Why::Cancel && self.child.is_some() {
+                    self.cancelled_output =
+                        Some(self.output.take(self.output.head.capacity(), self.output.tail.capacity()));
+                }
                 self.stop = Stop::Terminating { next: now.saturating_add(grace), why };
                 if let Some(child) = self.child {
                     below.push(Below::Process(io::Request::Signal {
@@ -372,10 +379,16 @@ impl Process {
         };
         let timed_out = why == Some(Why::Deadline);
         let cancelled = why == Some(Why::Cancel);
-        let (head, tail, dropped) = self.output.finish();
+        let captured_cancel = self.cancelled_output.is_some();
+        let (head, tail, dropped) = match self.cancelled_output {
+            Some(output) => output,
+            None => self.output.finish(),
+        };
         match self.work {
             Work::Shell => {
-                let done = if cancelled {
+                let done = if cancelled && captured_cancel {
+                    tools::Done::CommandCancelled { head, tail, dropped }
+                } else if cancelled {
                     tools::Done::Cancelled
                 } else if self.failure.is_some() {
                     tools::Done::Failed { fault: tools::Fault::Other }
