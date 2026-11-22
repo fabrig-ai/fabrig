@@ -66,7 +66,7 @@ enum UpdateStyle = a::UpdateStyle
 record MergeWrite
 record UpdateWrite
 record DispatchInput = a::Input
-record DispatchWrite { inputs slice }
+record DispatchWrite = d::LandingDispatch { inputs slice }
 record SetStatus { status = check }
 record CreateBranch
 record DeleteBranch
@@ -306,7 +306,9 @@ record LandingFlakeRerun = d::FlakeRerun { findings slice, pending slice }
 record LandingWaitMember
 record LandingWaitGate
 enum LandingAwaited = l::Awaited
-record LandingRow = d::LandingRow { last_event via s::wall, turn_since via s::wall, asks slice, entries slice, flake_reruns slice }
+record LandingFollow = d::LandingFollow { start via s::time, since via s::time, wall via s::wall, reruns slice }
+record LandingFollows by hand
+record LandingRow = d::LandingRow { last_event via s::wall, turn_since via s::wall, asks slice, entries slice, flake_reruns slice, follows }
 record ReceiptRun = d::ReceiptRun
 record FailedTests
 enum Failures by hand

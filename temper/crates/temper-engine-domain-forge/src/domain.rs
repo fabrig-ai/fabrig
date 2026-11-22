@@ -2767,7 +2767,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 settled_facts(d, env, entry, task, outcome, out);
                 crate::follow_check::outcome(d, entry, outcome, out);
                 crate::tiers::outcome(d, entry, outcome, out);
-                let retain = crate::landing::outcome(d, env, entry, outcome, out);
+                crate::landing::outcome(d, env, entry, outcome, out);
                 match outcome {
                     skein_forge_client::Outcome::Uncertain | skein_forge_client::Outcome::Queued => {}
                     skein_forge_client::Outcome::Held if !landing_merge => {
@@ -2791,7 +2791,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     | skein_forge_client::Outcome::Raced { .. }
                     | skein_forge_client::Outcome::Held
                     | skein_forge_client::Outcome::Withdrawn => {
-                        if !retain && !d.waiting_release_outcomes.contains_key(&entry) {
+                        if !d.waiting_release_outcomes.contains_key(&entry) {
                             d.entries.remove(&entry);
                             full::update(d, env, out);
                             emit(out, Request::Erase { key: Key::Entry(entry) });
@@ -7804,7 +7804,7 @@ fn settle_effects(
         d.releases.insert(task, row.clone()).expect("release capacity checked");
         emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Release(row) });
     }
-    if ending == ReleaseEnding::Cancelled {
+    if ending == ReleaseEnding::Cancelled || (ending == ReleaseEnding::Done && d.landing.rows.contains_key(&task)) {
         withdraw_unsent(d, env, task, out);
     }
     settle_prior_effects(d, task, out);
@@ -7827,6 +7827,7 @@ fn withdraw_unsent(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue
                 d.repository(row.entry.repository),
                 skein_forge_client::Outcome::Withdrawn,
             );
+            crate::landing::outcome(d, env, number, skein_forge_client::Outcome::Withdrawn, out);
             d.entries.remove(&number);
             emit(out, Request::Erase { key: Key::Entry(number) });
             d.named_outcome(number, skein_forge_client::Outcome::Withdrawn);
@@ -8855,6 +8856,7 @@ fn erase_flight(d: &mut Domain, task: u64, entry: u64, out: &mut Queue<Request>)
 fn not_made(d: &mut Domain, number: u64, out: &mut Queue<Request>) {
     outage::forget_entry(d, number);
     let row = d.entries.remove(&number).expect("a held entry lives");
+    crate::landing::not_made(d, row.entry.task, number, out);
     emit(out, Request::Erase { key: Key::Entry(number) });
     erase_flight(d, row.entry.task, number, out);
     emit(out, Request::NotMade { entry: number, task: row.entry.task });
@@ -8881,8 +8883,9 @@ fn settle_held(d: &mut Domain, task: u64, out: &mut Queue<Request>) -> bool {
         return !pending;
     }
     for number in &held {
-        // Both possible erases, settlement, and the continuation below.
-        if out.room() < 4 {
+        // Both possible erases, a landing save and mark, settlement, and the continuation below.
+        let needed = if d.landing.rows.contains_key(&task) { 6 } else { 4 };
+        if out.room() < needed {
             break;
         }
         not_made(d, *number, out);

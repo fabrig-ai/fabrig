@@ -57,6 +57,7 @@ pub fn landing_row(change: &top::ChangeRow) -> top::LandingRow {
         last_event: None,
         turn_since: None,
         waiting: None,
+        follows: None,
         flake_reruns: Box::new([]),
         room: None,
         job: None,
