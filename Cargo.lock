@@ -8296,36 +8296,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "temper-redeploy"
-version = "0.0.0"
-dependencies = [
- "serde_json",
- "skein-fail-stop",
- "skein-scratch",
- "skein-shell",
- "temper-redeploy-tool",
- "temper-version",
-]
-
-[[package]]
-name = "temper-redeploy-tool"
-version = "0.0.0"
-dependencies = [
- "jig-protocol-store",
- "jig-protocol-worker-wire",
- "serde",
- "serde_json",
- "skein-lib",
- "skein-scratch",
- "skein-shell",
- "temper-config-shell",
- "temper-engine-service",
- "temper-engine-shell",
- "temper-service-core",
- "temper-test-env",
-]
-
-[[package]]
 name = "temper-service"
 version = "0.0.0"
 dependencies = [
