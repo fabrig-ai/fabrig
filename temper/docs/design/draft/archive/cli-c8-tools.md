@@ -11,7 +11,7 @@ The request: milestone C8 of `temper/docs/design/draft/cli.execution.md`. That's
 ## Out
 
 - The products' binaries (C2, C3, C6), features (C5), the test set's names (C4), and the site (C7).
-- Any new Cargo feature: the workspace has none, as `cli.md` says.
+- Any new Cargo feature: the workspace has none, as `../cli.md` says.
 
 ## Tests
 

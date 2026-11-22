@@ -1,6 +1,6 @@
 # The deployment's binaries
 
-Draft, 2026-11-08, from the user's words that day (`notes.md`, section 11).
+Draft, 2026-11-08, from the user's words that day (`deployment-binaries.notes.md`).
 
 temper has one download today, the whole product in one binary, which a person runs as `temper box` to try it. This draft adds a second set, the binaries of a real deployment, one per process. It covers:
 

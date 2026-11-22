@@ -12,7 +12,7 @@ each on to its goal and relays the answer back down
 (`../branches.md`, 2). It decides
 nothing itself (jig's `domain/tasks/proposals.md`
 ): the requester decides, and the change relays
-(`../../../draft/notes.md`, N1). A change made with questions `none`
+(`../../../draft/reference-code-production.notes.md`, N1). A change made with questions `none`
 relays none. The routes are `none` and `up` alone: `foreman`, which had
 a delegate of the forge's charter 3 settle each question first, is
 retired (`../../../draft/stock-charters.md`, 3), since the implementer

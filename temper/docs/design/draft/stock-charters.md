@@ -114,7 +114,7 @@ overlay:
   setting, with no compatibility before v0.1.0. The reference's foreman
   goes with it: its charter 6, and its charter 5's `foreman` route, now
   `up`. Where `goal-as-designer.md` and `configuring.md` keep a foreman,
-  this draft retires it; `notes.md` (N1) keeps the reasons it had.
+  this draft retires it; `reference-code-production.notes.md` (N1) keeps the reasons it had.
 - **The reviewer stays:** charter 4, and the stock's rule 1 with its
   agent's review at every branch, as they are.
 - **Kind 9's words:** charter 5's become "designs a goal's draft, cuts

@@ -169,7 +169,7 @@ wrongly, and what stops it:
 |---|---|
 | temper's writer, on either forge | refused as a link; skipped before the lookup (4.4); on a box with sign-in, a person so named refuses the start (`../protocol/openid-provider.md`, 9) |
 | **an agent's run or a CI job, on an owned Forgejo** | **nothing, if it tries.** Both run as the box's user, who can read `person_write.header` (`../protocol/setup/README.md`, section 9; `../protocol/credentials.md`, section 8), and a review posted with it is the person's. Deleting that file wouldn't close it: the forge's work path and temper's store are as readable. Closing it needs agents and CI contained |
-| the same, on GitHub | temper holds no token of the person's, and the App can't approve its own pull or push a workflow (`github.md`, P3 and P8). What's left is whatever the person's own tools leave under that user, which isn't looked at here |
+| the same, on GitHub | temper holds no token of the person's, and the App can't approve its own pull or push a workflow (`archive/github.md`, P3 and P8). What's left is whatever the person's own tools leave under that user, which isn't looked at here |
 | the person's own agent, handed that file by them | it approves as them: their delegation, and how a walk approves on an owned Forgejo |
 | a stranger on GitHub | no link and no seed, once section 3 closes the hole |
 | another account on the box's Forgejo | the person made it, as its site admin; unknown unless adopted as a collaborator, as today |

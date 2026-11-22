@@ -12,7 +12,7 @@ this chat's runs (`ask-temper.md`, section 7); it extends skein's `draft/diagram
 from `../domain/agent/tools.md`'s every host tool in every charter, and from
 smith's `protocol/programs.md`, 5.1's Claude Code prompt kept for every run
 (`ask-temper.md`, section 4). It wins where they differ until its plans fold it in. temper/ui
-carries it out (`ask-temper.md`, section 11). Reasons: `notes.md`, section 10.
+carries it out (`ask-temper.md`, section 11). Reasons: `ask-temper.notes.md`.
 
 ## 1. In one page
 

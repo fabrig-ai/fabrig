@@ -1,6 +1,6 @@
 # Deleting a project takes its forge records with it
 
-Draft, 2026-11-15, on the user's word. This is the root fix behind `deleted-repository-rows.md`, the stop-gap, which repairs stores that already carry the leftovers.
+Draft, 2026-11-15, on the user's word. This is the root fix behind `../deleted-repository-rows.md`, the stop-gap, which repairs stores that already carry the leftovers.
 
 On staging, 11-15, `temper ctl project delete` removed a project's repository records but left other records naming the repository. The next start refused them as missing links, and the deployment couldn't start until the leftovers were cleared.
 
@@ -15,11 +15,11 @@ On staging, 11-15, `temper ctl project delete` removed a project's repository re
   - Releasing a repository removes every record that names it, through one shared helper that every path erasing a repository uses: its durable rows and their in-memory state, its watches and topics, and its pending work, with a change's parts removed together. A context another project still adopts stays, as do deployment-wide records and the deletion's own marks.
   - The repository's removal and its bounded child erasures go in one store decision where they fit. Where they don't, the release stays paged as the project's tasks and history already are. A restart part-way leaves no row whose repository is gone: the release resumes, or each page leaves the store consistent.
   - A release repeated after a restart is harmless.
-  - Revise `../domain/forge/adoption-connection.md`, 1, and `temper/docs/design/protocol/store.md`, 2, with their status files, to list what a release removes and what it keeps on purpose.
+  - Revise `../../domain/forge/adoption-connection.md`, 1, and `temper/docs/design/protocol/store.md`, 2, with their status files, to list what a release removes and what it keeps on purpose.
 
 ## 2. Out
 
-- Stores that already carry the leftovers: `deleted-repository-rows.md`.
+- Stores that already carry the leftovers: `../deleted-repository-rows.md`.
 - Deleting anything on the external forge. A release never touches it.
 
 ## 3. Tests

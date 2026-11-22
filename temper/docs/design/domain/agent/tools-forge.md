@@ -142,7 +142,7 @@ This document holds the agent's forge reads, split from [`tools.md`](tools.md).
       and the run hears one answer: the file's, or the branch's refusal,
       never the branch's head alone.
   - **Each `what` is answered exactly as its former tool was:** the same
-    route, renderers, bounds and pages (`../../draft/forge-reads-targeted.md`);
+    route, renderers, bounds and pages (`../../draft/archive/forge-reads-targeted.md`);
     the forms above that the former tools refused are `read_forge`'s
     additions. The former tools' names are decoded too, each as its
     `what`, but declared to no run (`declarations.md`, 4).

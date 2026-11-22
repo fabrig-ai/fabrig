@@ -7,7 +7,7 @@ settled in detail.** Sections 2 and 3 are a direction; section 4 is the
 first pass, the only part to build now, with section 5's recording
 (`tui.execution.md`). The rest is refined by the user once the first
 pass runs, on its recorded frames, as the browser's look is refined on
-its journeys. The reasons are `notes.md`, section 9.
+its journeys. The reasons are `tui.notes.md`.
 
 ## 1. In one page
 
@@ -156,7 +156,7 @@ their words and look are refined on the recording (section 5).
   **a sign-in approved by a signed-in browser, for that browser's own
   party.** It is enabled where the printed link is, by configuration
   and on a loopback listener alone (jig's `protocol/client/sign-in.md`
-  ). Why jig's and not temper's: `notes.md`, section 9.
+  ). Why jig's and not temper's: `tui.notes.md`.
 - **The flow:**
   1. The TUI, signed out, asks the engine for an approval. The answer
      holds a secret, which the TUI keeps and never shows, a short code

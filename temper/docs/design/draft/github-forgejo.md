@@ -1,6 +1,6 @@
 # Forgejo on the same footing
 
-This holds Forgejo's client connection and owned mode, split from the [forge connection draft](github.md).
+This holds Forgejo's client connection and owned mode, split from the [forge connection draft](archive/github.md).
 
 ## 1. Connected and managed, from the client
 
@@ -12,7 +12,7 @@ This holds Forgejo's client connection and owned mode, split from the [forge con
   optionally, hooks to temper's listener.
 - **"Connect Forgejo"** in the client takes the two tokens, and the
   hooks' secret when the person adds hooks, in one request carrying
-  values (`github.md`, section 3).
+  values (`archive/github.md`, section 3).
 - **The engine checks before it keeps:** the API token's user (`GET
   /api/v1/user`), which becomes the forge's identity, shown to the
   person ("connected as temper, id 7"); the git token answering as the
@@ -20,9 +20,9 @@ This holds Forgejo's client connection and owned mode, split from the [forge con
   `forge/setup/forgejo.md`, 1.3, step 3). A mismatch is refused, naming which.
   `forges[].user` goes from configuration: the identity is the one the
   token answered when the person connected it, kept and checked at each
-  start (`github.md`, section 4).
+  start (`archive/github.md`, section 4).
 - **Replaced** from the client: a token that must answer as the same
-  user (`github.md`, section 4).
+  user (`archive/github.md`, section 4).
 
 ### 1.2 Managed
 
@@ -47,7 +47,7 @@ This holds Forgejo's client connection and owned mode, split from the [forge con
   checks and repairs each adopted repository's collaborator and hook.
 - **The picker** lists every repository the admin can see: all of the
   forge's, since temper grants itself access when one is chosen
-  (`github.md`, 2.2).
+  (`archive/github.md`, 2.2).
 - **The admin's token is kept** in the store, since adoption needs it
   at any time, as on an owned forge (section 2). It is read by the
   setup's host alone and never handed to the forge component, which
@@ -59,7 +59,7 @@ This holds Forgejo's client connection and owned mode, split from the [forge con
   tokens stay, and access is the person's to give again.
 - **Connected, then managed:** an admin's token given for a forge
   already connected keeps its user, since a forge's writer never changes
-  (`github.md`, section 4). Reconcile is given the connected user's login, and takes
+  (`archive/github.md`, section 4). Reconcile is given the connected user's login, and takes
   it over when it carries temper's mark, `temper:bot`, in its full name;
   an unmarked user stops it (`Unmarked`, skein's `forge/setup/forgejo.md`, 1.3),
   and the client says to add the mark on Forgejo, so that no login
@@ -92,7 +92,7 @@ This holds Forgejo's client connection and owned mode, split from the [forge con
 - **What reconcile makes goes to the store:** the bot's tokens, its id
   and the hooks' secret. The forge's directory loses `api_token`,
   `git_token`, `user` and `webhook_secret`, and configuration's forge
-  stops naming them (`github.md`, section 14).
+  stops naming them (`archive/github.md`, section 14).
 - **The box drops its reconcile steps** (../protocol/setup/box.md): prepare,
   Forgejo, its runner, `temper serve`. A token revoked under a running
   engine is made again by the engine's next reconcile, at its restart.

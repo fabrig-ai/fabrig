@@ -1,6 +1,6 @@
 # temper's tools and fixtures
 
-Provisional, 2026-11-11, from `../draft/cli-c8-tools.md`, milestone C8
+Provisional, 2026-11-11, from `../draft/archive/cli-c8-tools.md`, milestone C8
 of `../draft/cli.execution.md`, with landed QA's tool from milestone Q1
 of `../draft/landed-qa.execution.md`. The binaries temper's
 development, tests and QA run beside its products: each an internal

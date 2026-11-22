@@ -32,7 +32,7 @@ that proof remains with the after-landing runs (11).
     story is the `temper-box` package's focused `suite::fake`, beside the
     fake's other process stories, and its sign-in beside held sockets and
     turn-away are temper-fake's own, on skein's simulator, placed there by
-    `../draft/focused-pyramid.md`, 4, where the request has one real-loop
+    `../draft/archive/focused-pyramid.md`, 4, where the request has one real-loop
     test reject and log: lifting the command's private host into the
     real loop for one line would test a copy of the process, not the
     process.

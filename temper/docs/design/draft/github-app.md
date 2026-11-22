@@ -1,6 +1,6 @@
 # GitHub's App
 
-This holds GitHub's App integration, split from the [forge connection draft](github.md).
+This holds GitHub's App integration, split from the [forge connection draft](archive/github.md).
 
 ## 1. temper as a GitHub App
 
@@ -39,7 +39,7 @@ This holds GitHub's App integration, split from the [forge connection draft](git
 - **Its permissions,** asked in the manifest and nothing more: contents,
   pull requests and issues to write; checks, statuses, actions,
   administration and metadata to read (administration reads the rules
-  adoption shows); merge queues to write. Never workflows (`github.md`, section 18),
+  adoption shows); merge queues to write. Never workflows (`archive/github.md`, section 18),
   never administration to write. The engine holds the App's key, so the
   App's permissions are temper's least power on GitHub.
 - **Its events:** push, pull request and its reviews and review
@@ -67,7 +67,7 @@ This holds GitHub's App integration, split from the [forge connection draft](git
    /app-manifests/{code}/conversions` within the hour GitHub allows, and
    keeps the App's id, slug, key and webhook secret in the store before
    it answers the browser. The client and secret of the App's OAuth are
-   not kept (`github.md`, section 18).
+   not kept (`archive/github.md`, section 18).
 4. **The install.** The engine sends the browser to
    `https://github.com/apps/<slug>/installations/new?state=<state>`.
    The person picks an account and its repositories, all or selected,
@@ -130,11 +130,11 @@ token makes an App:
   person only clicks (2.1). It is the way the client offers first.
 - **Connected is an App the person made** on GitHub's settings, by hand
   or by their own tooling: its id and private key pasted in the client,
-  a request carrying values (`github.md`, section 3). Reconcile checks it as 2.4
+  a request carrying values (`archive/github.md`, section 3). Reconcile checks it as 2.4
   does, and names each permission or event missing; it sets the hook's
   address itself, the one repair the App's key allows. The person
   installs it through temper's link (2.3), as for managed.
-- **A fine-grained token** as connected is later (`github.md`, section 18): the
+- **A fine-grained token** as connected is later (`archive/github.md`, section 18): the
   person's token would make temper the person (`github-app.md`, section 1), so it would
   have to be a second account's, a machine user.
 - **Owned:** none; github.com is GitHub's.
@@ -213,7 +213,7 @@ token makes an App:
   holds each accepted installation's current git token, `x-access-token`
   as the login, and the bot's author; the git component takes the token
   of the repository's account. Each renewal, and each installation
-  accepted or removed, is a new generation (`github.md`, section 4). The author is
+  accepted or removed, is a new generation (`archive/github.md`, section 4). The author is
   the bot's noreply address, `<id>+<slug>[bot]@users.noreply.github.com`,
   so GitHub shows its commits as the App's.
 - **../protocol/credentials.md's open question** on short-lived git credentials
@@ -230,7 +230,7 @@ token makes an App:
   temper does not use auto-merge: it decides each landing itself.
 - **The pin** is the API version and the conformance's date. GitHub is a
   service, not a release a deployment runs: the conformance runs on a
-  schedule, and a fact that changes is a finding (`github.md`, section 17).
+  schedule, and a fact that changes is a finding (`archive/github.md`, section 17).
 - **The vocabulary's additions** (skein's `forge/README.md`, section 8):
   validators, whose `304` the budget counts at no cost; the rate's
   window from `x-ratelimit-*` on every answer, which the client's budget
@@ -266,7 +266,7 @@ token makes an App:
   bound (section 7, P4).
 - **Credentials' kinds:** the App (key, id), whose renewed kind is the
   installation's token (8). A fine-grained token is a static kind,
-  later (`github.md`, section 18).
+  later (`archive/github.md`, section 18).
 - **Deliveries:** `X-GitHub-Event`, `X-GitHub-Delivery`,
   `X-Hub-Signature-256`; payloads decoded keeping the hint's fields; the
   delivery log's two documents.
@@ -287,7 +287,7 @@ token makes an App:
   landing rules are its own enforcement (`../domain/forge/adoption.md`
   ), so nothing changes.
 - **The merge method** is the first the repository allows of merge,
-  squash and rebase, unless the adoption names one (`github.md`, section 19).
+  squash and rebase, unless the adoption names one (`archive/github.md`, section 19).
 - **Updating from the base:** `PUT .../pulls/{n}/update-branch` with
   `expected_head_sha`; a head that moved is refused, `422`; the right
   one is accepted, `202`, and done later: the head moves once GitHub has
@@ -336,19 +336,19 @@ token makes an App:
   `/branches/{branch}/protection` (`404`, P11), so adoption reads both,
   rulesets and classic protection, and takes neither's absence for the
   other's. Each rule is said in words with what it means for landing
-  (`github.md`, 2.3):
+  (`archive/github.md`, 2.3):
   - a merge queue: temper enters it (6.2);
   - required approvals: a person approves, or the App bypasses;
   - required status checks: CI as the landing rule's;
   - code owners: a person reviews;
   - signed commits: temper's git pushes are refused (P10), so its
-    landings wait (`github.md`, section 18);
+    landings wait (`archive/github.md`, section 18);
   - linear history: a merge method that keeps it;
   - temper's prefix reserved to the App: welcome.
 - **Workflows:** the App never changes `.github/workflows/`, and GitHub
   refuses a push that does (P3). Adoption says so where the repository
   has workflows; a change whose push touches them is refused, and its
-  panel says why (`github.md`, section 18).
+  panel says why (`archive/github.md`, section 18).
 - **Archived** repositories adopt as context only. **Actions off:** the
   adoption names the checks that stand for CI.
 - **Actions on, no workflow:** when adoption finds no workflow and no
@@ -376,10 +376,10 @@ had one Actions workflow, a job `ci` that sleeps 45 seconds and fails
 when the head's message says `FAIL`. Rulesets, pull requests, issues,
 branches and tokens made by the probes were removed after. The scripts
 and their evidence are not kept; the live conformance records the
-facts for good (`github.md`, section 17). The App and the repositories are kept as
+facts for good (`archive/github.md`, section 17). The App and the repositories are kept as
 its fixtures, with a spare repository on the probe account,
 `temper-probe-2`, not granted to the App. The App's key, its hook secret, the person's
-tokens (`github.md`, section 17) and a README are in the person's private
+tokens (`archive/github.md`, section 17) and a README are in the person's private
 fixtures directory, never in a repository. Each fact
 is cited by its probe's number across this document.
 

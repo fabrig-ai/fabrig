@@ -6,7 +6,7 @@ known flakes, rerun before its receipt is published (section 2), and a
 failed receipt a change's repair found to be flakes alone, or caused by
 no test, superseded by a fresh run once a person releases the change
 (section 3). It
-carries `../draft/flake-regate.md` on the landing of `landing.md`,
+carries `../draft/archive/flake-regate.md` on the landing of `landing.md`,
 whose words it uses: keys and receipts (section 6), proof by dispatch
 (7.1), a real failure (7.3) and a fault of the runner (7.4); flake
 findings are `findings.md`'s, and a repair, its result and its release

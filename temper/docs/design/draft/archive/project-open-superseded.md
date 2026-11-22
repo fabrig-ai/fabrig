@@ -13,7 +13,7 @@ Draft, 2026-11-17, on the user's word. temper-box's wiring story (`temper/bin/te
 
 - **A later navigation supersedes a pending opening:** a navigation or a project choice made after the creation was asked cancels its opening. The creation still finishes, and its project shows in the switcher. Home opens on the answer only if the person is still where they asked it. This holds in both orders of membership and answer.
 - **The kit waits for the applied navigation:** the native client exposes, read-only, the address it last applied. The kit's project choice is made once the creation's own navigation is applied, not when a button appears.
-- Revise `../client/view-navigation.md`, 1, with its status file.
+- Revise `../../client/view-navigation.md`, 1, with its status file.
 
 ## 3. Out
 

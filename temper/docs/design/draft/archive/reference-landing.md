@@ -4,8 +4,8 @@ Draft, 2026-11-02. How the reference lands what code production made: a
 goal's branch into main as one change, the few small changes around it,
 and their verification after landing. Code production is
 `../reference-code-production.md`; `../reference-case.md` walks both;
-`../notes.md` holds the reasons, cited by number (N1 to N24), and where
-each item of the landing model it drops goes (`../notes.md`, section 6).
+`../reference-code-production.notes.md` holds the reasons, cited by number (N1 to N24), and where
+each item of the landing model it drops goes (`../reference-code-production.notes.md`, section 6).
 
 Unqualified, `../../domain/forge/README.md`, `../../domain/landing.md`, `../../domain/after-landing.md` and
 `../../domain/findings.md` are temper's `../domain/` documents; jig's are named as

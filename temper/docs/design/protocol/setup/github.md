@@ -72,7 +72,7 @@ listener's (`../../client/forge/README.md`, the browser's steps).
    account. Nothing asks for an organization: the App is public, so
    GitHub's install page offers every account the person may install
    it on (with the user, 2026-10-23; an App an organization owns is
-   for later, `../../draft/github.md`, section 18).
+   for later, `../../draft/archive/github.md`, section 18).
 4. **The redirect back,** `http://<listener>/forges/<n>/github/redirect`:
    `Convert { forge, code, state }` (`reconcile.md`, 2) exchanges the code for the
    App's id, slug and key, finds its bot user, and writes the records,

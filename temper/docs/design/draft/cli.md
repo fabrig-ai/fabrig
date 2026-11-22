@@ -1,6 +1,6 @@
 # temper's command line
 
-Draft, 2026-11-08, from the user's words that day (`notes.md`, section 13). How temper's binaries meet the people and the programs that run them: their environment variables, their arguments, and how they're built. The conventions are the repository's, for every tree (section 3). This round applies them to temper's binaries alone (sections 4 to 8).
+Draft, 2026-11-08, from the user's words that day (`cli.notes.md`). How temper's binaries meet the people and the programs that run them: their environment variables, their arguments, and how they're built. The conventions are the repository's, for every tree (`cli.md`, section 3). This round applies them to temper's binaries alone (`cli.md`, sections 4 to 8).
 
 It builds on `deployment-binaries.md`, which splits a deployment into four binaries, and settles that draft's section 5: `temper` is the client, and the whole product is `temper-box` (section 5).
 

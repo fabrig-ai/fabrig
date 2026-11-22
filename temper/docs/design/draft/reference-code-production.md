@@ -7,7 +7,7 @@ configuration that sets it up. It is the way a
 project develops itself through temper: one repository, a person who
 writes design drafts, designers who turn them into design, coding agents
 who make the code meet it. How the goal lands is `archive/reference-landing.md`;
-`reference-case.md` walks both on one small goal; `notes.md` holds the
+`reference-case.md` walks both on one small goal; `reference-code-production.notes.md` holds the
 reasons for each choice, N1 to N24, cited here by number.
 
 Unqualified, `../domain/forge/README.md`, `landing.md`, `after-landing.md`, `../domain/agent/README.md`

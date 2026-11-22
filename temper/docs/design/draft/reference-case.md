@@ -6,7 +6,7 @@ cleared, showing each mechanism of `reference-code-production.md` and
 `archive/playground-reset.md` draft in this directory. It keeps that run's names
 and kinds of event and drops its repetition: 64 changes become nine,
 five designers two, 54 questions five, and nine checks along the way
-one. `notes.md`'s N numbers are the choices each step rests on.
+one. `reference-code-production.notes.md`'s N numbers are the choices each step rests on.
 
 ## 1. In one page
 

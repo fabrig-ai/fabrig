@@ -9,7 +9,7 @@ This document holds tier definitions, scheduling and run reports, split from [`a
   workflow's file, its ignored paths, its report: the
   name of the artifact its run uploads and its format, a JUnit file or
   one test id per line; and the branch it follows.
-- **The branch a tier follows** (`../draft/notes.md`, N5) is named by
+- **The branch a tier follows** (`../draft/reference-code-production.notes.md`, N5) is named by
   the tier, `branch`, a branch of its repository; absent, it is the
   landing branch the repository's adoption names (`forge/adoption.md`), its
   main. A tier follows that branch alone: a move of any other branch of
@@ -22,7 +22,7 @@ This document holds tier definitions, scheduling and run reports, split from [`a
   (`forge/branches.md`, 1), each from its goal's first landing into it to the
   goal's close, and judges no landing (`after-landing-runs.md`, section 2, and `after-landing.md`, section 5.4). It suits
   the gate without its slowest suites, checking a goal's work along the
-  way while merges into it go on (`../draft/notes.md`, N5); the
+  way while merges into it go on (`../draft/reference-code-production.notes.md`, N5); the
   repository's other tiers follow main.
 - **A tier's span,** `span`, the least time between the starts of two
   of its runs on one branch; none when absent. A move within the span

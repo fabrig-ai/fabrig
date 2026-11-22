@@ -113,10 +113,10 @@ python3 -I -B tools/citations/test_status.py
   - temper/docs/design/domain/landing.md: 65,526 bytes
 
   Drafts done, outside draft/archive/:
-  - temper/docs/design/draft/flake-regate.md
+  - temper/docs/design/draft/archive/flake-regate.md
 
   Unread status files:
-  - temper/docs/design/draft/cli-c8-tools.status.md
+  - temper/docs/design/draft/archive/cli-c8-tools.status.md
   ```
 
   - **Open entries:** the tree's entries by label, every label shown, zeros too, with the

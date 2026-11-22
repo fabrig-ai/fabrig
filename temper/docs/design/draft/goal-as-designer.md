@@ -12,7 +12,7 @@ the top-level goal task) to use jig-provided tools to create the task tree
 himself, and when the tree is created it should mostly run itself". And what
 matching means: "the same assignment/request to temper (a goal) results in a
 similar execution, i.e. mostly same roles in shape/number/sequence/timing with
-matching prompts and model/effort". Reasons: `notes.md`, section 7.
+matching prompts and model/effort". Reasons: `goal-as-designer.notes.md`.
 
 ## 1. In one page
 

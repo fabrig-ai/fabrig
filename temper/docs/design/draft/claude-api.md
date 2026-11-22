@@ -10,7 +10,7 @@ Claude through Claude Code alone, on a person's subscription
 way to the same provider, run by smith's own loop, in two steps: the
 first in v0.1.0, the second weighed once the first has landed (the
 user, 2026-11-11). temper/migration carries it out. The reasons are
-`notes.md`, section 14.
+`claude-api.notes.md`.
 
 ## 1. In one page
 

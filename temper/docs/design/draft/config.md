@@ -1,6 +1,6 @@
 # temper's configuration
 
-Draft, 2026-11-16, from the user's words that day (`notes.md`, section 21). This draft covers what a person writes to run temper, and where everything else lives. It does for the configuration what `cli.md` did for the command line: the files a person writes become simple and mostly human-readable, and the complexity moves into temper, where a person changes what's needed by asking temper (`ask-temper.md`). It builds on `configuring.md`, which moved how work runs into the store's settings, and finishes that move. The limits, the LLM providers, the agents' figures, the machine's places and the list of workers leave the file too, and what's left is a few lines of TOML. The workers' lifecycle comes with them, since it shapes the files: each worker becomes a setting an owner adds, changes or removes without a restart (6.7). Its facts come from a read-only survey of main at `5a3717cde3`, and from dev.fabrig.ai's documents, read that day without their secrets (section 2).
+Draft, 2026-11-16, from the user's words that day (`config.notes.md`). This draft covers what a person writes to run temper, and where everything else lives. It does for the configuration what `cli.md` did for the command line: the files a person writes become simple and mostly human-readable, and the complexity moves into temper, where a person changes what's needed by asking temper (`ask-temper.md`). It builds on `configuring.md`, which moved how work runs into the store's settings, and finishes that move. The limits, the LLM providers, the agents' figures, the machine's places and the list of workers leave the file too, and what's left is a few lines of TOML. The workers' lifecycle comes with them, since it shapes the files: each worker becomes a setting an owner adds, changes or removes without a restart (6.7). Its facts come from a read-only survey of main at `5a3717cde3`, and from dev.fabrig.ai's documents, read that day without their secrets (`config.md`, section 2).
 
 ## 1. In one page
 
@@ -272,7 +272,7 @@ The public keys, which help lists:
 
 ## 8. Upgrades
 
-By the user's word of 2026-11-20, the configuration crosses a build as `upgrades.md`, section 10, has it. Until then this draft departed from it, an upgrade being cheap rather than smooth until v0.1.0 has users (`notes.md`, section 21), and its milestones landed with their operators' steps.
+By the user's word of 2026-11-20, the configuration crosses a build as `upgrades.md`, section 10, has it. Until then this draft departed from it, an upgrade being cheap rather than smooth until v0.1.0 has users (`config.notes.md`), and its milestones landed with their operators' steps.
 
 - **Each build reads its own members and the previous release's.** A member that moves or is renamed is read from its old place too, with one warning naming the new one. Once dev.fabrig.ai runs a build that reads the new form, the old place is refused as unknown, naming it, and the `configuration` page says where each went (6.5): as for the store, no code is kept for a configuration older than dev.fabrig.ai's (`store-floor.md`).
 - **The same holds for a worker's configuration and the small files a build reads at its start:** a secret's file renamed, an environment entry moved, the forge's setup file.

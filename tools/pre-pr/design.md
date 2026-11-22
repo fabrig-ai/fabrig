@@ -5,7 +5,7 @@ delivers: the project's checks (smith's `smith/docs/design/domain/run.md`,
 8.1; temper's `temper/docs/design/protocol/configuration/reference.md`), written
 from `temper/docs/design/draft/delivery-checks.md`, for the goal's reds,
 its flakes and its results, `temper/docs/design/draft/branch-reds.md`,
-for where its tests sit, `temper/docs/design/draft/focused-pyramid.md`,
+for where its tests sit, `temper/docs/design/draft/archive/focused-pyramid.md`,
 for the failures file, `temper/docs/design/draft/pre-pr-failure-list.md`,
 for the boundary packages and the fuzzy tests, the user's word of 2026-11-15,
 after a landing's gate caught three reds in tests no delivery had run, and,

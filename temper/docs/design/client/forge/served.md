@@ -145,7 +145,7 @@ manifest from it (`../../protocol/forge/README.md`, the setup's host).
     close this tab.". An owner's approval
     later makes an installation with no state of temper's, a stray
     (`../../protocol/setup/github.md`, 4); waiting for it is for later
-    (`../../draft/github.md`, section 18).
+    (`../../draft/archive/github.md`, section 18).
 - **A busy forge holds the visit.** GitHub's setup visit with an
   installation and a state, for a forge whose one run is live, as the
   reconcile after the App's `Connected` (`../../protocol/setup/github.md`, 5),

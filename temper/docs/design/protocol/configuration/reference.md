@@ -114,7 +114,7 @@ place (jig's `domain/engine/overlays.md`).
   `tier_retries` and `verification_bound_ms` are left to their
   defaults.
 - **The profile, whole** (`../../draft/reference-code-production.md`,
-  section 14; `../../draft/notes.md`, N21): a box is set up for the
+  section 14; `../../draft/reference-code-production.notes.md`, N21): a box is set up for the
   reference from `docs/examples/reference/` and the repository's own
   files:
   - the reference's figures as `limits` and `temper-limits` settings over

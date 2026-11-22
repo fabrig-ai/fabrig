@@ -270,7 +270,7 @@ The acts of both, each one act and one request (`root.md`, 1.6):
   Answered made, the field empties and the client opens the project
   once `me` lists it, on its `Home`, with no repository (`pages/README.md`),
   while the person is still where they asked it
-  (`../draft/project-open-superseded.md`, 2). A later move supersedes
+  (`../draft/archive/project-open-superseded.md`, 2). A later move supersedes
   that opening: once "Create" has sent, a navigation to an address other
   than the one shown, asked (the pages' `Act::Go`) or applied (a `Went`,
   or any return), or a project chosen (the pages' `Act::Project` and

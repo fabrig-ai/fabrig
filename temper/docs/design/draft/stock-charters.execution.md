@@ -19,5 +19,5 @@
 ## 3. Notes
 
 - **The texts move verbatim.** A milestone that finds a line wrong for the code it builds fixes it and says so in its report.
-- **Drafts it supersedes:** once S1 lands, the foreman lines of `goal-as-designer.md` (its roles table) and `configuring.md` (its question bound and its room) are rewritten by hand, as documentation, with their status files; `notes.md` keeps N1's reasons.
+- **Drafts it supersedes:** once S1 lands, the foreman lines of `goal-as-designer.md` (its roles table) and `configuring.md` (its question bound and its room) are rewritten by hand, as documentation, with their status files; `reference-code-production.notes.md` keeps N1's reasons.
 - **The citation checker** reads `temper/docs/charters/` as it reads any documentation.

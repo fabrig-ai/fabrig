@@ -324,7 +324,7 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
     stops the runner with TERM and reaps it first, as
     `scripts/proof-live.sh` does), deletes the
     branches and closes the pulls with the cleanup token it mints from
-    the App's key and revokes afterwards (`../draft/github.md`, 17),
+    the App's key and revokes afterwards (`../draft/archive/github.md`, 17),
     within what is left of the 400. The installation tokens the relay
     minted, which only they revoke and which are never written, lapse
     at GitHub's hour.

@@ -6,7 +6,7 @@ the user on 2026-10-20, which started from the assessment of where the
 first run stands once the accounts and GitHub work land. It crosses skein
 (the arguments' rule, the fakes as product crates) and temper (its
 directories, `temper init`, the box, the client) on purpose; an owner
-splits it. It builds on `../github.md` as it lands: forges connected
+splits it. It builds on `github.md` as it lands: forges connected
 from the client, credentials taken at runtime and the forges' records
 in jig's secrets' store. Amended with the user on 2026-10-23: the
 welcome, and the demo's end (2.3); the box's terminal (2.1, 2.5).
@@ -108,7 +108,7 @@ below that keep it are superseded.*
   Continue with ChatGPT, use a Claude subscription, or an API key. The
   new account becomes the deployment's default; the demo model stays an
   account and stays the demo project's.
-- **A forge.** The Forges page, as `../github.md` leaves it: Connect
+- **A forge.** The Forges page, as `github.md` leaves it: Connect
   GitHub (managed, by the manifest flow, or connected, an App pasted),
   Set up a Forgejo here (owned, 3.8), or a Forgejo elsewhere (managed
   or connected, section 4). A forge connected, the person adopts a
@@ -316,7 +316,7 @@ experience; good defaults for a person's real work are open (section 8).
   plaintext, as the real loop's fake LLM peer is reached.
 - **Forges,** each by its stable number: 1 the demo forge, 2 GitHub, 3
   an owned Forgejo, dormant (3.8). GitHub's addresses are its defaults;
-  it starts not connected (`../github.md`, section 4).
+  it starts not connected (`github.md`, section 4).
 - **No project** (2.4): one policy, which each project made starts
   from, and the deployment's landing rule, which lands on green CI with
   no human approval in every project; and one chat charter.
@@ -398,7 +398,7 @@ experience; good defaults for a person's real work are open (section 8).
 | Change | Restart? |
 |---|---|
 | An LLM account added, any provider in the document | no: jig's accounts at runtime |
-| GitHub connected, managed or connected | no: in the document, connected at runtime (`../github.md`, section 4) |
+| GitHub connected, managed or connected | no: in the document, connected at runtime (`github.md`, section 4) |
 | An owned Forgejo set up | no: dormant in the document (3.8) |
 | A Forgejo elsewhere, managed or connected | yes: its address is the document's. The client says what to add and that temper restarts |
 | Anything else in the document | yes, until a hot restart (section 7) |

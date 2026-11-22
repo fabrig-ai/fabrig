@@ -6,7 +6,7 @@ arguments, and how they're built. It is the repository's convention
 beside the programming model, for every tree. Where a tree doesn't
 follow it yet, a check's exception says so, and its exceptions only
 shrink (section 9). The reasons are the user's, of 2026-11-08
-(`temper/docs/design/draft/notes.md`, 13). skein's mechanism for it is
+(`temper/docs/design/draft/cli.notes.md`). skein's mechanism for it is
 `skein-shell`'s table (`../design/runtime/shell.md`, 14).
 
 ## 1. In one page

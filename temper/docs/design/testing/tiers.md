@@ -468,5 +468,5 @@ hands it its macOS tiers' runs. Linux's own tests are listed by name.
   account (`../protocol/setup/github.md`, 2), while the repository and the
   installation stay `fabrig-ai`'s. That login is an owner of `fabrig-ai`:
   a member's request waits on an owner's approval
-  (`../draft/github.md`, section 18).
+  (`../draft/archive/github.md`, section 18).
 - **macOS's later work** is `macos.md`, 10's.

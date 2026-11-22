@@ -5,7 +5,7 @@ milestones that carry `reference-code-production.md` and
 `archive/reference-landing.md` into the design and the code, until the case
 walks whole as `v0.1.0.md`'s rung C. It designs nothing: each milestone
 executes a part of the drafts and writes its own design as it goes.
-`notes.md` holds the reasons for the choices cited here, N1 to N23;
+`reference-code-production.notes.md` holds the reasons for the choices cited here, N1 to N23;
 where the design lags each is the drafts' statuses.
 
 Unqualified, `../domain/forge/README.md`, `landing.md`, `after-landing.md`, `../domain/agent/README.md`
@@ -369,11 +369,11 @@ section 14 it adds.
 
 - **The drafts' Later and open questions** (`reference-code-production.md`,
   sections 16 and 17; `archive/reference-landing.md`, sections 11 and 12): the
-  numbers reopen them (`notes.md`, section 5).
+  numbers reopen them (`reference-code-production.notes.md`, section 5).
 - **A red of no live goal filed as a finding** (`archive/reference-landing.md`,
   section 6): findings are not built, and the case has none.
 - **`after-landing.md`, sections 8 and 9,** trailers and what the forge
-  shows: the reference needs neither (`notes.md`, section 6).
+  shows: the reference needs neither (`reference-code-production.notes.md`, section 6).
 - **The web client's pages** for any of this: the walks are `ctl`'s;
   pages are rung W's.
 - **After the case:** fabrig's own drafts carried out by temper, on
