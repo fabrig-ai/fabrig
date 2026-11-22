@@ -41,6 +41,7 @@ fn a_workspace_start_carries_one_path_per_directory() {
     for (token, name, writable) in [(73, b"second".as_slice(), true), (41, b"first".as_slice(), false)] {
         directories
             .push(smith::Directory {
+                results: None,
                 root: Token::new(token),
                 name: name.into(),
                 host: Box::new([]),
@@ -70,6 +71,7 @@ fn a_start_fits_against_the_prepared_workspaces_conflicts_and_schema_costs() {
     charter.brief.sections = Box::new([run::Section { title: b"CI".as_slice().into(), text: repeated(b'x', 2400) }]);
     let workspace = run::Workspace {
         directories: Box::new([run::Directory {
+            results: None,
             root: Token::new(73),
             name: b"work".as_slice().into(),
             host: Box::default(),
@@ -83,6 +85,7 @@ fn a_start_fits_against_the_prepared_workspaces_conflicts_and_schema_costs() {
         base.host_part.checked_sub(u64::from(run::brief_room(&charter, Some(&workspace), &base).unwrap())).unwrap();
     agent.run_limits.host_part = non_brief.checked_add(256).unwrap();
     start.directories = Box::new([smith_host_domain::Directory {
+        results: None,
         root: Token::new(73),
         name: b"work".as_slice().into(),
         host: Box::default(),

@@ -71,7 +71,7 @@ pub(crate) fn to_agent(domain: &mut Domain, env: &Env<Limits>, request: host::To
         host::ToAgent::Renewals { agent: _, held } => smith::parent::Event::Renewals { held },
         host::ToAgent::Acknowledge { agent, turn } => smith::parent::Event::Acknowledge { agent, turn },
         host::ToAgent::AcknowledgePart { .. } => return,
-        host::ToAgent::Drain { agent, grace: _ } => smith::parent::Event::Drain { agent },
+        host::ToAgent::Drain { agent, grace } => smith::parent::Event::Drain { agent, grace },
         host::ToAgent::Cancel { agent } => {
             let mut cut = false;
             for (owner, bound) in &domain.agents {
@@ -145,6 +145,15 @@ pub(crate) fn up(domain: &mut Domain, env: &Env<Limits>, request: smith::parent:
             let bound = domain.agents.get_mut(&client).expect("started before admitted");
             bound.admitted = true;
             host::Event::Agent(host::FromAgent::Started { owner: client, agent: bound.agent })
+        }
+        smith::parent::Request::Part { client, part } => {
+            let agent = domain.agents.get(&client).expect("a part belongs to a started agent").agent;
+            route::agent_step(
+                domain,
+                env,
+                smith::Input::Parent(smith::parent::Event::AcknowledgePart { agent, number: part.number }),
+            );
+            return;
         }
         smith::parent::Request::Turn { client, turn } => {
             domain.pending.push(Pending::Turn { owner: client });

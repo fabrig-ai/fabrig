@@ -337,6 +337,8 @@ pub(crate) fn start_workspace_message(
         messages.push(message.clone()).expect("one selected host message");
     }
     let record = smith_channel::Start {
+        parts: Box::default(),
+        tell_parts: false,
         live,
         messages,
         identity: None,
@@ -349,6 +351,7 @@ pub(crate) fn start_workspace_message(
             {
                 directories
                     .push(smith_channel::Directory {
+                        results: None,
                         name: name.into(),
                         path: path.into(),
                         writable: false,

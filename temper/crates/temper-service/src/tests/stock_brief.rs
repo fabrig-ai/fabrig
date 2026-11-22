@@ -103,6 +103,7 @@ fn assignment(number: u32, open: bool, body: usize) -> temper_engine_domain::Ass
 fn workspace(writable: bool) -> run::Workspace {
     run::Workspace {
         directories: Box::new([run::Directory {
+            results: None,
             name: b"work".as_slice().into(),
             host: b"/work".as_slice().into(),
             root: Token::new(1),
@@ -209,7 +210,7 @@ fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
         if number == 5 {
             assert_eq!(original.owned_bytes().unwrap(), 59_435);
 
-            assert_eq!(receiving, 127_407);
+            assert_eq!(receiving, 127_391);
             assert!(original.owned_bytes().unwrap() <= receiving, "the goal's smaller offer keeps its maximal brief");
         }
         if original.owned_bytes().unwrap() > receiving {
@@ -543,6 +544,8 @@ fn measure_turn(number: u32) {
     let mut events = Queue::uncapped();
     let mut out = Queue::uncapped();
     events.push(smith_domain::Event::Start(smith_domain::Start {
+        tell_parts: false,
+        parts: Box::default(),
         reply_to: ReplyTo::new(Token::new(1)),
         host_run: Token::new(1),
         activation: 1,

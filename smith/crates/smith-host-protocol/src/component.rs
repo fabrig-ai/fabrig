@@ -86,6 +86,7 @@ enum Stopping {
 
 /// The initiator's framed channel and checked sending terms.
 #[derive(Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "independent channel demand, closure and part-order state")]
 pub struct Component {
     machine: Machine,
     schema: Schema,
@@ -105,6 +106,11 @@ pub struct Component {
     transcript: smith_transcript::v8::Limits,
     sequence: u32,
     long_open: u32,
+    tell_parts: bool,
+    turn_number: u32,
+    part_number: u32,
+    kept_part: u32,
+    answered_turn: bool,
     live: crate::live::Streams,
 }
 
@@ -145,6 +151,11 @@ impl Component {
             transcript: limits.transcript,
             sequence: 0,
             long_open: 0,
+            tell_parts: false,
+            turn_number: 0,
+            part_number: 0,
+            kept_part: 0,
+            answered_turn: false,
             live: crate::live::Streams::new(None, 0),
         })
     }
@@ -194,6 +205,7 @@ impl Component {
             None => 0,
         };
         let live = start.live;
+        let tell_parts = start.tell_parts;
         let frame =
             encode_start(start, window, values, &self.bodies, &self.charter, &self.transcript, &self.endpoints)?;
         if self.state != State::Opened {
@@ -201,6 +213,7 @@ impl Component {
         }
         self.live = crate::live::Streams::new(live, 0);
         self.sequence = sequence;
+        self.tell_parts = tell_parts;
         self.state = State::Started;
         self.send_frame(token, frame, to_service, below);
         Ok(())
@@ -257,6 +270,28 @@ impl Component {
         let record = smith_channel::Acknowledge { number: turn };
         record.measure(&self.bodies)?;
         let frame = smith_channel::frame(smith_channel::Body::Acknowledge(record))?;
+        self.send_frame(token, frame, to_service, below);
+        Ok(())
+    }
+
+    /// Tell the agent which prefix of parts the parent kept durably.
+    pub fn send_part_kept(
+        &mut self,
+        number: u32,
+        token: Token,
+        to_service: &mut Queue<Received>,
+        below: &mut Queue<Lower>,
+    ) -> Result<(), Error> {
+        if (self.state != State::Admitted && self.state != State::Answered)
+            || number == 0
+            || number > self.part_number
+            || number < self.kept_part
+        {
+            return Err(Error::Order);
+        }
+        let record = smith_channel::PartKept { number };
+        let frame = smith_channel::frame(smith_channel::Body::PartKept(record))?;
+        self.kept_part = number;
         self.send_frame(token, frame, to_service, below);
         Ok(())
     }
@@ -325,6 +360,7 @@ impl Component {
     /// Stop the current turn whole, once and never after a cancel.
     pub fn send_drain(
         &mut self,
+        grace: Option<skein_lib::Duration>,
         token: Token,
         to_service: &mut Queue<Received>,
         below: &mut Queue<Lower>,
@@ -332,7 +368,10 @@ impl Component {
         if self.state != State::Started && self.state != State::Admitted || self.stopping != Stopping::Waiting {
             return Err(Error::Order);
         }
-        let record = smith_channel::Drain {};
+        if grace.is_some() && !self.tell_parts {
+            return Err(Error::Order);
+        }
+        let record = smith_channel::Drain { grace };
         record.measure(&self.bodies)?;
         let frame = smith_channel::frame(smith_channel::Body::Drain(record))?;
         self.stopping = Stopping::Draining;

@@ -41,6 +41,10 @@ pub struct Start {
     pub charter: Charter,
     /// Concrete saved history with aggregate `Limits::transcript_bytes`.
     pub transcript: Option<Transcript>,
+    /// Whether the host keeps turn parts.
+    pub tell_parts: bool,
+    /// Parts kept since the last whole turn, in the order told.
+    pub parts: Box<[KeptPart]>,
     /// Calls answered after the last saved turn, bounded in aggregate.
     pub answered: Box<[AnsweredCall]>,
     /// At most `Limits::directories` unique named mounts.
@@ -97,6 +101,8 @@ pub struct Directory {
     /// Read-only git conflicts are informative and grant no writes. The host
     /// attests text encoding.
     pub conflicts: Box<[Box<[u8]>]>,
+    /// Check results retained by the host beside the workspace tree.
+    pub results: Option<Box<[u8]>>,
 }
 
 /// Credential name and value form forwarded to the protocol; never credential bytes
@@ -145,6 +151,28 @@ pub struct Turn {
     /// Last named message sent and read; never a queued or unknown name.
     pub read: Option<Token>,
     /// Concrete transcript turn owning at most `Limits::turn_bytes`.
+    pub body: TurnValue,
+}
+
+/// A part told before the whole turn; its body crosses as a turn's does.
+#[derive(PartialEq, Eq, Debug)]
+pub struct ToldPart {
+    pub number: u32,
+    pub turn: u32,
+    pub thread: u32,
+    pub call: u32,
+    pub kind: smith_domain::session::record::PartKind,
+    pub body: TurnValue,
+}
+
+/// A kept part handed back at a start.
+#[derive(PartialEq, Eq, Debug)]
+pub struct KeptPart {
+    pub activation: u64,
+    pub turn: u32,
+    pub thread: u32,
+    pub call: u32,
+    pub kind: smith_domain::session::record::PartKind,
     pub body: TurnValue,
 }
 
@@ -300,6 +328,8 @@ pub struct Answer {
 /// Decoded agent records; one record terminates each Read.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Up {
+    /// A turn part, held for the parent until its acknowledgement.
+    Part { part: ToldPart },
     /// A live agent leaves its termination signal to the parent, once.
     Signalled { signal: crate::parent::Signal, from: Option<u32> },
     /// Independent run admission after process Started, exactly once.
@@ -404,5 +434,7 @@ pub enum Down {
     /// First polite stop, once; operations retain terminal rights.
     Cancel,
     /// Stop at the current turn boundary, once and never after Cancel.
-    Drain,
+    Drain { grace: Option<Duration> },
+    /// The parent durably kept one forwarded part.
+    PartKept { number: u32 },
 }

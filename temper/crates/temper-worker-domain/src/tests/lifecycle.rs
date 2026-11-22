@@ -184,6 +184,7 @@ fn notices_keep_the_source_and_reset_and_do_not_replace_the_terminal() {
             | agent::Up::MessageRefused { .. }
             | agent::Up::Call { .. }
             | agent::Up::Withdraw { .. }
+            | agent::Up::Part { .. }
             | agent::Up::Turn { .. }
             | agent::Up::Fact { .. }
             | agent::Up::Long { .. }
@@ -210,6 +211,7 @@ fn notices_keep_the_source_and_reset_and_do_not_replace_the_terminal() {
             | agent::Up::MessageRefused { .. }
             | agent::Up::Call { .. }
             | agent::Up::Withdraw { .. }
+            | agent::Up::Part { .. }
             | agent::Up::Turn { .. }
             | agent::Up::Fact { .. }
             | agent::Up::Long { .. }

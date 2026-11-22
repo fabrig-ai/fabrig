@@ -204,6 +204,8 @@ pub fn decode(
         }
     }
     Ok(Box::new(smith::Start {
+        tell_parts: false,
+        parts: Box::default(),
         identity: Some(smith_domain_run::Identity::new(source.identity)),
         live: if source.live == hub::LiveAsk::NONE {
             None

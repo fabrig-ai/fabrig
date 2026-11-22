@@ -123,6 +123,7 @@ fn a_start_attaches_its_mounts_in_order_then_enters_the_domain() {
     fn start() -> Box<smith_protocol_translate::DecodedStart> {
         decoded_start(Box::new([
             smith_protocol_translate::Mount {
+                results: None,
                 name: Box::from(b"first".as_slice()),
                 path: Box::from(b"/first".as_slice()),
                 writable: true,
@@ -130,6 +131,7 @@ fn a_start_attaches_its_mounts_in_order_then_enters_the_domain() {
                 conflicts: Box::default(),
             },
             smith_protocol_translate::Mount {
+                results: None,
                 name: Box::from(b"second".as_slice()),
                 path: Box::from(b"/second".as_slice()),
                 writable: false,
@@ -183,8 +185,8 @@ fn a_drain_before_admission_is_delivered_once_and_cancel_can_override_it() {
     for cancel in [false, true] {
         let mut service = service();
         let run = Token::new(19);
-        channel_event(&mut service.stages, &mut service.frame, channel::Heard::Drain);
-        assert_eq!(service.stages.admission, Admission::Draining);
+        channel_event(&mut service.stages, &mut service.frame, channel::Heard::Drain { grace: None });
+        assert_eq!(service.stages.admission, Admission::Draining { grace: None });
         assert!(service.stages.domain_events.is_empty());
         if cancel {
             channel_event(&mut service.stages, &mut service.frame, channel::Heard::Cancel);
@@ -197,7 +199,7 @@ fn a_drain_before_admission_is_delivered_once_and_cancel_can_override_it() {
                 assert!(cancel);
                 assert_eq!(owner, run);
             }
-            domain::Event::Drain { run: owner } => {
+            domain::Event::Drain { run: owner, grace: None } => {
                 assert!(!cancel);
                 assert_eq!(owner, run);
             }

@@ -122,6 +122,8 @@ fn a_parent_drop_after_the_answer_preserves_that_answer() {
 
 fn start() -> Start {
     Start {
+        parts: Box::default(),
+        tell_parts: false,
         live: None,
         messages: Box::default(),
         logical_run: Token::new(1),
@@ -179,6 +181,7 @@ fn mount(name: &[u8], writable: bool, git: bool, conflicts: &[&[u8]]) -> crate::
         paths.push(Box::from(*path)).expect("fixture conflict count");
     }
     crate::Directory {
+        results: None,
         host: Box::from(b"/host".as_slice()),
         root: Token::new(1),
         name: Box::from(name),

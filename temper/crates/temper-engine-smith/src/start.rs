@@ -97,6 +97,8 @@ pub fn start(
         }
     }
     smith::Event::Start(smith::Start {
+        tell_parts: false,
+        parts: Box::default(),
         reply_to,
         host_run,
         activation: assignment.attempt,

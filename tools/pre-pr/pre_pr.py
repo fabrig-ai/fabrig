@@ -595,7 +595,91 @@ def repair_case(git_dir, root, base_id, tree_id, packages, reds):
     return None
 
 
-def one_process(packages, root, env, reds=(), rerun=0, outcomes=None, profile='default', ledger=None, repair=None):
+class PassedTests:
+    """Keep completed sets' passes for this check key (section 7).
+
+    one-process publishes results.json when the set ends, not as tests finish.
+    Only those suite passes are kept, never the failure replays' outcomes.
+    """
+
+    def __init__(self, directory, key):
+        self.path = None
+        self.previous = set()
+        self.recorded = set()
+        if not directory:
+            self.unavailable('SMITH_CHECK_RESULTS is unset or empty')
+            return
+        path = Path(directory) / 'passed'
+        try:
+            try:
+                text = path.read_text(encoding='utf-8')
+            except FileNotFoundError:
+                text = ''
+            except UnicodeError:
+                text = ''
+            rows = text.split('\n')
+            previous = set()
+            valid = rows[0] == key and rows[-1] == ''
+            for row in rows[1:-1]:
+                binary, separator, name = row.partition(' ')
+                if (not separator or not binary or not name or
+                        any(char.isspace() for char in binary) or
+                        any(char in row for char in '\r\x00')):
+                    valid = False
+                    break
+                previous.add((binary, name))
+            if valid:
+                # A matching read is reusable only if the file is writable too.
+                with path.open('a', encoding='utf-8'):
+                    pass
+            else:
+                path.write_text(key + '\n', encoding='utf-8')
+                previous = set()
+            self.path = path
+            self.previous = previous
+            self.recorded = set(previous)
+        except (OSError, ValueError) as error:
+            self.unavailable(error_line(error))
+        if self.previous:
+            print(f'pre-pr: {len(self.previous)} tests passed before (key {key}), not run again', flush=True)
+
+    def unavailable(self, reason):
+        self.path = None
+        print(f'pre-pr: passed tests not kept ({reason})', flush=True)
+
+    def arguments(self, root, profile):
+        if not self.previous:
+            return []
+        # A caller filter replaces nextest's default filter: retain the profile's
+        # selection explicitly, so exclusions cannot select the slow tiers.
+        profiles = tomllib.loads((root / '.config/nextest.toml').read_text())['profile']
+        default = profiles.get('default', {}).get('default-filter', 'all()')
+        selected = profiles.get(profile, {}).get('default-filter', default)
+
+        def exact(value):
+            # Anchored regexes also quote names containing nextest's delimiters.
+            return '/^' + re.sub(r'([\\/.+*?()|\[\]{}^$])', r'\\\1', value) + '$/'
+
+        exclusions = ' | '.join(f'(binary_id({exact(binary)}) & test({exact(name)}))'
+                                for binary, name in sorted(self.previous))
+        return ['-E', f'({selected}) & not ({exclusions})']
+
+    def append(self, observed):
+        if self.path is None:
+            return
+        passed = {key for key, test in observed.items() if test['outcome'] == 'passed'} - self.recorded
+        try:
+            with self.path.open('a', encoding='utf-8') as output:
+                for binary, name in sorted(passed):
+                    output.write(f'{binary} {name}\n')
+                output.flush()
+                os.fsync(output.fileno())
+            self.recorded.update(passed)
+        except (OSError, ValueError) as error:
+            self.unavailable(error_line(error))
+
+
+def one_process(packages, root, env, reds=(), rerun=0, outcomes=None, profile='default', ledger=None, repair=None, passed=None):
     """Read one-process's exit and run directory, keeping starvation a warning (section 4)."""
     check_name = 'tests' if profile == 'default' else 'fuzzy tests'
     suffix = '' if profile == 'default' else ' fuzzy'
@@ -605,6 +689,11 @@ def one_process(packages, root, env, reds=(), rerun=0, outcomes=None, profile='d
         if ledger is not None:
             arguments += ['--ledger', str(ledger), '--gate']
         arguments += [profile] + package_args(packages) + ['--no-tests=warn']
+        if passed is not None:
+            try:
+                arguments += passed.arguments(root, profile)
+            except (OSError, ValueError, KeyError, TypeError) as error:
+                return 1, [failure('check one-process' + suffix, str(error))], None
         test_env = dict(env, TIERS_PRE_PR_TARGETS='1')
         if repair:
             test_env['TIERS_PRE_PR_REPAIR_CASE'] = json.dumps(repair)
@@ -647,6 +736,8 @@ def one_process(packages, root, env, reds=(), rerun=0, outcomes=None, profile='d
                 print(starved, flush=True)
             if outcomes is not None:
                 outcomes.update(observed)
+            if passed is not None:
+                passed.append(observed)
             if code == 0:
                 return code, [], starved
             if gated:
@@ -897,7 +988,7 @@ def failure_counts(errors):
     return dict(zip(('new', 'flake', 'inherited'), map(len, failure_groups(errors))))
 
 
-def failure_file(tree_id, base_id, verdict, cached, errors, root, env):
+def failure_file(tree_id, base_id, verdict, cached, errors, root, env, skipped=0):
     """Keep every structured failure atomically, before the summary (sections 6–7)."""
     relative = 'target/temper/pre-pr-failures.json'
     path = root / relative
@@ -916,7 +1007,7 @@ def failure_file(tree_id, base_id, verdict, cached, errors, root, env):
                 entries.append({'class': kind, 'name': error['name'], 'key': structured})
         header = {'form': 'pre-pr-failures 1', 'tree': tree_id, 'base': base_id,
                   'cached': cached, 'verdict': 'refused' if verdict else 'passed',
-                  'counts': failure_counts(errors)}
+                  'counts': failure_counts(errors), 'skipped': skipped}
         text = json.dumps(header, ensure_ascii=False)[:-1] + ', "failures": [\n'
         text += ',\n'.join(json.dumps(entry, ensure_ascii=False) for entry in entries) + '\n]}\n'
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -999,6 +1090,7 @@ def main():
     lints, tests = [], []
     starved = []
     outcomes = {}
+    skipped = 0
 
     def journeys_check():
         try:
@@ -1012,7 +1104,7 @@ def main():
         _, found = timed('journeys', journeys_check)
         errors.extend(found)
         refused = any(not settled(e) for e in errors)
-        failures_tail = failure_file(tree_id, base_id, refused, False, errors, root, env)
+        failures_tail = failure_file(tree_id, base_id, refused, False, errors, root, env, skipped)
         verdict = summary(base_id, lints, tests, errors, why if base_id else None, failures_tail, starved)
         if marker:
             check_results(tree_id, base_id, verdict, reds, lints, outcomes, errors, root, env)
@@ -1040,6 +1132,9 @@ def main():
                 failures_tail = failures_tail.removeprefix('every key ')
             print('failures: a cached pass, none observed; ' + failures_tail, flush=True)
             return 0
+        passed = PassedTests(env.get('SMITH_CHECK_RESULTS'), record)
+        skipped = len(passed.previous)
+        outcomes.update({key: {'outcome': 'passed'} for key in passed.previous})
         paths, raw_paths, selected = [], [], []
         if base_id:
             diff = git(['diff-tree', '-r', '--no-renames', '--name-only', '-z', base_id, tree_id], root, env)
@@ -1128,7 +1223,7 @@ def main():
             if repair and code_checks and rerun and not errors and not binaries:
                 print(f'pre-pr: repair trial: focused process for {repair[0]} {repair[1]} first', flush=True)
                 start = time.monotonic()
-                early = one_process(tests, root, env, reds, rerun, outcomes, 'default', ledgers.get('default'), repair)
+                early = one_process(tests, root, env, reds, rerun, outcomes, 'default', ledgers.get('default'), repair, passed)
                 seconds = time.monotonic() - start
                 confirmed = next((e['confirmed_at'] for e in early[1] if e['key'] == repair
                                   and 'confirmed_at' in e and not settled(e)), None)
@@ -1179,7 +1274,7 @@ def main():
                             break
                         continue
                     _, found, warning = timed(name, lambda: one_process(
-                        tests, root, env, reds, rerun, outcomes, profile, ledgers.get(profile)), pending)
+                        tests, root, env, reds, rerun, outcomes, profile, ledgers.get(profile), passed=passed), pending)
                     errors += found
                     if warning:
                         starved.append(warning)

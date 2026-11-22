@@ -44,6 +44,8 @@ pub struct Directory {
     /// paths are preserved unchanged. Plain directories require none;
     /// read-only git conflict evidence remains informative and grants no writes.
     pub conflicts: Box<[Box<[u8]>]>,
+    /// Checks keep their results here; smith never reads them.
+    pub results: Option<Box<[u8]>>,
 }
 
 pub(crate) fn directories(workspace: Option<&Workspace>) -> &[Directory] {
@@ -79,6 +81,11 @@ pub(crate) fn admit(workspace: Option<&Workspace>, limits: &Limits) -> Result<()
         {
             return Err(Invalid::Workspace);
         }
+        if let Some(results) = &directory.results
+            && exceeds(results.len(), 4096)
+        {
+            return Err(Invalid::Workspace);
+        }
         for path in &directory.conflicts {
             if exceeds(path.len(), limits.conflict_path_bytes) {
                 return Err(Invalid::Workspace);
@@ -93,6 +100,10 @@ pub(crate) fn check(workspace: Option<&Workspace>, limits: &Limits) -> Result<()
     let mounted = directories(workspace);
     for (position, directory) in mounted.iter().enumerate() {
         if !absolute_path(&directory.host)
+            || match &directory.results {
+                Some(path) => !absolute_path(path),
+                None => false,
+            }
             || !safe_name(&directory.name)
             || (!directory.git && !directory.conflicts.is_empty())
         {
@@ -143,6 +154,9 @@ pub(crate) fn cost(workspace: Option<&Workspace>) -> Option<u64> {
     let path_cell = u64::try_from(size_of::<Box<[u8]>>()).ok()?;
     for directory in directories(workspace) {
         cost = cost.checked_add(cell)?.checked_add(len(&directory.name)?)?.checked_add(len(&directory.host)?)?;
+        if let Some(results) = &directory.results {
+            cost = cost.checked_add(len(results)?)?;
+        }
         for path in &directory.conflicts {
             cost = cost.checked_add(path_cell)?.checked_add(len(path)?)?;
         }

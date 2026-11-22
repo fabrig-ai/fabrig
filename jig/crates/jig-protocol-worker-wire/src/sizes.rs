@@ -243,7 +243,10 @@ pub fn engine_cap(sizes: &Sizes, room: u32) -> Option<Cap> {
             .checked_add(frame(&limits, Kind::ReadList)?)?
             .checked_add(frame(&limits, Kind::ReadUsage)?)?
             .checked_add(frame(&limits, Kind::Wires)?)?
-            .checked_add(frame(&limits, Kind::Figures)?)?,
+            .checked_add(frame(&limits, Kind::Figures)?)?
+            // The channel admits its declared largest frame even when the
+            // stream's smaller room makes the component fit it before sending.
+            .max(frame(&limits, Kind::Assignment)?),
         frames: frames.checked_add(5)?.checked_add(sizes.program_sources.checked_mul(2)?)?,
     })
 }

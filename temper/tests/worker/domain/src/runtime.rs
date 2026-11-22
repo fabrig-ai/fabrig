@@ -416,9 +416,10 @@ impl World {
                 }
             }
             agent::Down::Renewals { .. }
+            | agent::Down::PartKept { .. }
             | agent::Down::Acknowledge { .. }
             | agent::Down::Cancel
-            | agent::Down::Drain => {}
+            | agent::Down::Drain { .. } => {}
             agent::Down::Message { .. } | agent::Down::Grant { .. } => panic!("unscripted down record"),
         }
     }

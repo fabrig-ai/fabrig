@@ -181,6 +181,34 @@ pub struct Turn {
     pub messages: Box<[Message]>,
 }
 
+/// A turn's answer, one call result, or a sub-agent's window (domain/turn-parts.md, section 2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum PartKind {
+    /// The conversation's completion answered.
+    Answer,
+    /// One call ended.
+    Result,
+    /// A sub-agent compacted its conversation.
+    Window,
+}
+
+/// A conversation's part, told before the whole turn.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Part {
+    pub thread: u32,
+    pub call: u32,
+    pub kind: PartKind,
+    pub body: Turn,
+}
+
+/// A part as a start hands it back: the activation and turn it was told in.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Resumed {
+    pub activation: u64,
+    pub turn: u32,
+    pub part: Part,
+}
+
 impl Turn {
     /// Checked ownership of this turn's opener, message envelopes and their payloads.
     #[must_use]

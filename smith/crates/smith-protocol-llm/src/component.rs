@@ -664,6 +664,7 @@ impl Component {
             DomainEvent::HostReturned { .. }
             | DomainEvent::Start(_)
             | DomainEvent::Message { .. }
+            | DomainEvent::PartKept { .. }
             | DomainEvent::Acknowledge { .. }
             | DomainEvent::Grant { .. }
             | DomainEvent::Renewals { .. }

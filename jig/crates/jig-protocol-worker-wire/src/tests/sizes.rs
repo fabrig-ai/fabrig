@@ -180,4 +180,7 @@ fn the_engine_cap_prices_fitted_assignments_and_part_notices_without_shrinking_t
     assert_eq!(engine_cap(&SIZES_ONE_SLOT, 300), Some(Cap { bytes: 10_064_564, frames: 20 }));
     assert_eq!(engine_cap(&SIZES_ONE_SLOT, 400), Some(Cap { bytes: 10_064_634, frames: 20 }));
     assert_eq!(largest_body(&SIZES_ONE_SLOT, Kind::Assignment), Some(362));
+    let large_window = Sizes { transcript: 64 * 1024 * 1024, ..SIZES_ONE_SLOT };
+    let declared = largest_body(&large_window, Kind::Assignment).unwrap() + 8;
+    assert_eq!(engine_cap(&large_window, 300).unwrap().bytes, declared, "the channel admits its declared frame");
 }

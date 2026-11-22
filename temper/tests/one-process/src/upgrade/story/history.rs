@@ -56,11 +56,9 @@ pub(super) fn history(before: &Maps, after: &Maps) {
                             wire.version = current;
                         }
                         seen = true;
-                    } else if wire.name.as_ref() == b"smith-transcript" {
-                        if wire.version != 8 {
-                            assert_eq!(wire.version, 7, "the kept image's transcript");
-                            wire.version = 8;
-                        }
+                    } else if wire.name.as_ref() == b"smith-transcript" && wire.version != 8 {
+                        assert_eq!(wire.version, 7, "the kept image's transcript");
+                        wire.version = 8;
                     }
                 }
                 assert!(seen, "the worker wire is kept");

@@ -95,6 +95,7 @@ fn start_cells(limits: &smith_channel::Limits) -> Option<u64> {
     let cells = smith_channel::Limits {
         directory_name: 0,
         directory_path: 0,
+        directory_results_some: 0,
         directory_conflicts_item: 0,
         credential_value_bytes: 0,
         program_value_name: 0,
@@ -116,6 +117,7 @@ fn start_cells(limits: &smith_channel::Limits) -> Option<u64> {
         message_text: 0,
         start_charter: 0,
         start_transcript: 0,
+        start_parts: 0,
         host_ask_tool: 0,
         host_ask_input: 0,
         field_name: 0,

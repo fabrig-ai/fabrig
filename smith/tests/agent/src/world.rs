@@ -448,6 +448,7 @@ impl<B: Backend> World<B> {
         let root = fixture::seed(&mut disk);
         let workspace = Some(run::Workspace {
             directories: Box::new([run::Directory {
+                results: None,
                 host: Box::from(b"/host".as_slice()),
                 name: b"work".as_slice().into(),
                 root: Token::new(root),
@@ -947,6 +948,7 @@ impl<B: Backend> World<B> {
     )]
     fn request(&mut self, request: Request) {
         match request {
+            Request::Part { .. } => unreachable!("the run tells no parts yet"),
             Request::Turn { host_run, number, position, read, spent, opens_window, turn } => {
                 assert_eq!(host_run, self.host_run);
                 assert_eq!(usize::try_from(number).expect("bounded output number"), self.turns.len() + 1);
@@ -1192,7 +1194,7 @@ impl<B: Backend> World<B> {
                     Flight { key: Some(key), cancelled: false, completion_message: None, completion_index: None },
                 );
             }
-            Request::Lower(smith_domain::Lower::Check { owner, program, bound, cap, tail }) => {
+            Request::Lower(smith_domain::Lower::Check { owner, program, results: _, bound, cap, tail }) => {
                 let deadline = self.now.saturating_add(bound).min(cap);
                 self.boundaries.push((self.now, Boundary::Check { program: program.clone() }));
                 self.observe(Seen::Checking { owner, tree: self.code() });
@@ -1449,7 +1451,7 @@ impl<B: Backend> World<B> {
             }
             Delivery::Drain => {
                 if let Some(run) = self.admitted {
-                    self.stage.push(Event::Drain { run });
+                    self.stage.push(Event::Drain { run, grace: None });
                 }
             }
             Delivery::Cancel => {
@@ -1536,6 +1538,7 @@ impl<B: Backend> World<B> {
             Event::HostReturned { .. }
             | Event::Start(_)
             | Event::Message { .. }
+            | Event::PartKept { .. }
             | Event::Acknowledge { .. }
             | Event::Renewals { .. }
             | Event::Grant { .. }
@@ -1607,6 +1610,7 @@ impl<B: Backend> World<B> {
             }
             Event::HostReturned { .. }
             | Event::Message { .. }
+            | Event::PartKept { .. }
             | Event::Acknowledge { .. }
             | Event::Start(_)
             | Event::Renewals { .. }
@@ -1636,6 +1640,7 @@ impl<B: Backend> World<B> {
             | Event::Drain { .. }
             | Event::Start(_)
             | Event::Message { .. }
+            | Event::PartKept { .. }
             | Event::Acknowledge { .. }
             | Event::Renewals { .. }
             | Event::Grant { .. }

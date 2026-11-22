@@ -328,6 +328,7 @@ fn command(agent: &mut Domain, env: &Env<Limits>, event: parent::Event, out: &mu
             }
             stop::settle(agent, env.now, id, out);
         }
+        parent::Event::AcknowledgePart { .. } => {}
         parent::Event::Acknowledge { agent: handle, turn } => {
             let id = Id::<Slot>::from_token(handle);
             let Some(slot) = agent.slots.get_mut(id) else {
@@ -359,13 +360,13 @@ fn command(agent: &mut Domain, env: &Env<Limits>, event: parent::Event, out: &mu
                 State::Settling(_) | State::Gone => {}
             }
         }
-        parent::Event::Drain { agent: handle } => {
+        parent::Event::Drain { agent: handle, grace } => {
             let id = Id::<Slot>::from_token(handle);
             if let Some(slot) = agent.slots.get(id) {
                 match slot.state {
                     State::Live => {
                         if let Some(run) = slot.run {
-                            root_step(agent, env, id, smith::Event::Drain { run }, out);
+                            root_step(agent, env, id, smith::Event::Drain { run, grace }, out);
                         }
                     }
                     State::Cancelling { .. } | State::Settling(_) | State::Gone => {}

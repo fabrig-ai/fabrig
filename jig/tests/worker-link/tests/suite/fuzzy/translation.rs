@@ -56,6 +56,7 @@ fn upward(seed: u64) -> Vec<(host::LinkUp, Box<[wire::Part]>)> {
     ]);
     records
 }
+#[expect(clippy::too_many_lines, reason = "one conversation exercises every kind at the agreed version")]
 fn exercise(world: &mut Joined, seed: u64, version: u16) {
     for (record, parts) in upward(seed) {
         world.worker_up(record, parts);

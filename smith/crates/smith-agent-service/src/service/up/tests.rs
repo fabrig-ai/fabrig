@@ -22,6 +22,8 @@ fn one_content_drain_empties_the_root_beyond_the_service_fact_allowance() {
         root,
         &service.stages.domain_env,
         domain::Event::Start(domain::Start {
+            parts: Box::default(),
+            tell_parts: false,
             reply_to: ReplyTo::new(Token::new(1)),
             host_run: Token::new(1),
             activation: 1,
