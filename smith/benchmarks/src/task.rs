@@ -474,7 +474,6 @@ pub fn read_task(file: &Path) -> Result<Task, Refusal> {
     crate::formats::read_document(file)
 }
 
-#[cfg(test)]
-pub(crate) fn parse_task(file: &Path, text: &str) -> Result<Task, Refusal> {
+pub fn parse_task(file: &Path, text: &str) -> Result<Task, Refusal> {
     crate::formats::parse_document(file, text)
 }
