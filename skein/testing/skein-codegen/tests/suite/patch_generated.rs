@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod tests {
     use skein_codec::schema::{self, DeclIx, FieldIx, Shape, VariantIx};
-    use skein_codegen::patch::{self as module, Error};
+    use skein_codegen::patch::{self as module, Error, Tree};
     use std::{
         fs,
         path::{Path, PathBuf},
@@ -205,7 +205,7 @@ mod tests {
     #[test]
     fn module_pins_kept_names_refusals_and_written_dispatch() {
         let root = fixture("module");
-        assert_eq!(skein_codegen::patch::module(&root).expect("module"), EXPECTED);
+        assert_eq!(skein_codegen::patch::module(&Tree::disk(&root)).expect("module"), EXPECTED);
         fs::remove_dir_all(root).expect("remove fixture");
     }
 
@@ -259,14 +259,14 @@ mod tests {
     fn baseline_dispatch_only_reports_the_missing_site() {
         let root = scratch("baseline");
         put(&root, "schema/kept/type-v1.schema", OTHER);
-        assert_eq!(module::module(&root).expect("baseline module"), NO_PATCH);
+        assert_eq!(module::module(&Tree::disk(&root)).expect("baseline module"), NO_PATCH);
         fs::remove_dir_all(root).expect("remove fixture");
     }
 
     #[test]
     fn constants_index_their_declarations_parts_in_each_version() {
         let root = fixture("constants");
-        let generated = module::module(&root).expect("module");
+        let generated = module::module(&Tree::disk(&root)).expect("module");
         for text in [OLD, NEW, OTHER] {
             let schema = schema::parse(text.as_bytes()).expect("kept schema");
             for index in 0..schema.declarations() {
@@ -331,7 +331,7 @@ mod tests {
             // only the embedded source text is stale.
             put(&root, path, &format!("{text}\n"));
             assert_eq!(module::current(&root), Err(Error::Stale), "{label}");
-            put(&root, "patches/mod.rs", &module::module(&root).expect("fresh module"));
+            put(&root, "patches/mod.rs", &module::module(&Tree::disk(&root)).expect("fresh module"));
             assert_eq!(module::current(&root), Ok(()), "{label}");
             fs::remove_dir_all(root).expect("remove fixture");
         }
@@ -365,7 +365,7 @@ mod tests {
         }
         for (wire, floor, count) in [("w 2\n", 2, 2), ("w build\n", 3, 1)] {
             put(&root, "schema/wires", wire);
-            let generated = module::module(&root).expect("wire module");
+            let generated = module::module(&Tree::disk(&root)).expect("wire module");
             let table = generated
                 .split_once("pub const LAYOUTS: &[[u8; 32]] = &[")
                 .expect("layout table")
@@ -413,7 +413,7 @@ mod tests {
         put(&root, "schema/kept/w-v1.schema", "family w 1\nrecord R {}\n");
         put(&root, "schema/kept/w-v2.schema", "family w 2\nrecord R {}\n");
         put(&root, "schema/wires", "w 1\n");
-        let generated = module::module(&root).expect("wire module");
+        let generated = module::module(&Tree::disk(&root)).expect("wire module");
         assert!(generated.contains("pub const FLOOR: u16 = 1;"));
         assert!(generated.contains("pub fn bridge(capacity: Capacity) -> Result<Bridge, BridgeError>"));
         assert!(generated.contains("Bridge::new(capacity, TEXTS, super::super::PATCHES, FLOOR, super::super::sites)"));
@@ -423,7 +423,7 @@ mod tests {
         assert_eq!(module::current(&root), Ok(()));
         put(&root, "schema/wires", "w build\n");
         assert_eq!(module::current(&root), Err(Error::Stale));
-        let build = module::module(&root).expect("per-build module");
+        let build = module::module(&Tree::disk(&root)).expect("per-build module");
         assert!(build.contains("pub const FLOOR: u16 = 2;"));
         put(&root, "patches/mod.rs", &build);
         assert_eq!(module::current(&root), Ok(()));

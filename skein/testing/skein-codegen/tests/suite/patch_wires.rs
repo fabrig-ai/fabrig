@@ -5,7 +5,7 @@ mod tests {
     use skein_codec::patch::{Build, Halt, Old, Site};
     use skein_codec::value::Node;
     use skein_codegen::diff::{Rename, Version};
-    use skein_codegen::patch::{Error, Finding, Landed, Mode, Options, Outcome, check, current, golden, run};
+    use skein_codegen::patch::{Error, Finding, Landed, Mode, Options, Outcome, Tree, check, current, golden, run};
     use skein_scratch::Scratch;
     use std::fs;
     use std::path::{Path, PathBuf};
@@ -32,7 +32,7 @@ mod tests {
     fn fixture(name: &str, kept: &str, now: &str, wires: &str) -> (Scratch, Landed) {
         let root = Scratch::new(&format!("patch-wires-{name}"));
         put(root.path(), "schema/kept/w-v1.schema", kept);
-        let base = Landed::read(root.path()).expect("landed kept text, no patch");
+        let base = Tree::disk(root.path()).landed().expect("landed kept text, no patch");
         put(root.path(), "schema/w-v1.schema", now);
         put(root.path(), "schema/wires", wires);
         (root, base)
@@ -56,10 +56,10 @@ mod tests {
                 Finding::Unpatched { family: "w".into(), version: 1 },
                 Finding::Version { family: "w".into(), verdict: Version::Unmoved, kept: 1, current: 1 },
             ];
-            assert_eq!(check(root, &base), Ok(findings.clone()), "{name}");
+            assert_eq!(check(&Tree::disk(root), &base), Ok(findings.clone()), "{name}");
             text(root, "schema/w-v1.schema", &now);
             text(root, "schema/kept/w-v1.schema", KEPT);
-            let report = run(root, &base, &options()).expect("refused family");
+            let report = run(&mut Tree::disk(root), &base, &options()).expect("refused family");
             assert_eq!(report.outcomes, [Outcome::Refused { family: "w".into(), verdict: Version::Unmoved }]);
             assert_eq!(report.findings, findings);
             assert_eq!(report.patch, None);
@@ -70,7 +70,7 @@ mod tests {
             let moved = format!("family w 2\n{body}");
             fs::remove_file(root.join("schema/w-v1.schema")).expect("move current filename");
             put(root, "schema/w-v2.schema", &moved);
-            let report = run(root, &base, &options()).expect("wire patch");
+            let report = run(&mut Tree::disk(root), &base, &options()).expect("wire patch");
             assert_eq!(report.outcomes, [Outcome::Patched { family: "w".into(), from: 1, to: 2 }]);
             assert_eq!(report.patch, Some(1));
             assert_eq!(report.asked, Vec::<String>::new());
@@ -80,7 +80,7 @@ mod tests {
             text(root, "schema/kept/w-v2.schema", &moved);
             text(root, "schema/w-v2.schema", &moved);
             assert!(!root.join("patches/p0001.rs").exists());
-            assert_eq!(golden(root, 1, unwritten, Mode::Check), Ok(()));
+            assert_eq!(golden(&mut Tree::disk(root), 1, unwritten, Mode::Check), Ok(()));
             for (file, bytes) in [
                 ("enum_e_a_full.bin", &[0_u8][..]),
                 ("enum_e_a_smallest.bin", &[0_u8][..]),
@@ -90,9 +90,9 @@ mod tests {
                 assert_eq!(fs::read(root.join("patches/golden/0001/w").join(file)).expect(file), bytes);
             }
             current(root).expect("generated module");
-            let written = Landed::read(root).expect("branch files");
-            run(root, &base, &options()).expect("derive again");
-            assert_eq!(Landed::read(root).expect("unchanged files"), written);
+            let written = Tree::disk(root).landed().expect("branch files");
+            run(&mut Tree::disk(root), &base, &options()).expect("derive again");
+            assert_eq!(Tree::disk(root).landed().expect("unchanged files"), written);
         }
     }
 
@@ -113,8 +113,8 @@ mod tests {
                     findings.push(Finding::Unkept { family: "other".into() });
                 }
                 findings.push(Finding::Lagging { family: "w".into(), version: 1 });
-                assert_eq!(check(root, &base), Ok(findings));
-                let report = run(root, &base, &options()).expect("nonwire refresh");
+                assert_eq!(check(&Tree::disk(root), &base), Ok(findings));
+                let report = run(&mut Tree::disk(root), &base, &options()).expect("nonwire refresh");
                 assert!(report.outcomes.contains(&Outcome::Refreshed { family: "w".into(), version: 1 }));
                 assert_eq!(report.patch, None);
                 assert_eq!(report.findings, []);
@@ -135,7 +135,7 @@ mod tests {
             Rename::Part { decl: "R".into(), old: "id".into(), new: "key".into() },
         ];
         let report = run(
-            root,
+            &mut Tree::disk(root),
             &base,
             &Options { renames: renames.iter().cloned().map(|rename| ("w".into(), rename)).collect(), ..options() },
         )
@@ -146,10 +146,10 @@ mod tests {
         text(root, "schema/kept/w-v1.schema", KEPT);
         text(root, "schema/w-v1.schema", RENAMED);
         text(root, "schema/kept/w.renames", "rename E State\nrename R.id key\n");
-        assert_eq!(check(root, &base), Ok(Vec::new()));
-        let written = Landed::read(root).expect("waiting files");
-        run(root, &base, &options()).expect("waiting renames read again");
-        assert_eq!(Landed::read(root).expect("unchanged files"), written);
+        assert_eq!(check(&Tree::disk(root), &base), Ok(Vec::new()));
+        let written = Tree::disk(root).landed().expect("waiting files");
+        run(&mut Tree::disk(root), &base, &options()).expect("waiting renames read again");
+        assert_eq!(Tree::disk(root).landed().expect("unchanged files"), written);
     }
 
     #[test]
@@ -158,8 +158,8 @@ mod tests {
         const NOW: &str = "# comment\nfamily\nw # header\n1\nrecord R was Before {\nid was key: u8 = 3\nt: text 8 = \"hi #é\"\n}\nenum E { r was record: boxed R, empty } # boxed is not layout\n";
         let (scratch, base) = fixture("nonlayout", OLD, NOW, WIRES);
         let root = scratch.path();
-        assert_eq!(check(root, &base), Ok(Vec::new()));
-        let report = run(root, &base, &options()).expect("no layout change");
+        assert_eq!(check(&Tree::disk(root), &base), Ok(Vec::new()));
+        let report = run(&mut Tree::disk(root), &base, &options()).expect("no layout change");
         assert_eq!(report.outcomes, [Outcome::Current { family: "w".into() }]);
         assert_eq!(report.findings, []);
         assert_eq!(report.patch, None);
@@ -179,20 +179,20 @@ mod tests {
         fs::remove_file(root.join("schema/w-v1.schema")).expect("move current filename");
         put(root, "schema/w-v2.schema", SAME);
         assert_eq!(
-            check(root, &base),
+            check(&Tree::disk(root), &base),
             Ok(vec![Finding::Version { family: "w".into(), verdict: Version::Needless, kept: 1, current: 2 }])
         );
-        let report = run(root, &base, &options()).expect("version alone is needless");
+        let report = run(&mut Tree::disk(root), &base, &options()).expect("version alone is needless");
         assert_eq!(report.outcomes, [Outcome::Refused { family: "w".into(), verdict: Version::Needless }]);
         text(root, "schema/kept/w-v1.schema", OLD);
         text(root, "schema/w-v2.schema", SAME);
         put(root, "schema/w-v2.schema", NEXT);
-        let report = run(root, &base, &options()).expect("layout changed");
+        let report = run(&mut Tree::disk(root), &base, &options()).expect("layout changed");
         assert_eq!(report.outcomes, [Outcome::Patched { family: "w".into(), from: 1, to: 2 }]);
         assert_eq!(report.findings, []);
         text(root, "patches/0001.patch", "patch 1\nowner sample 1\n\nfamily w 1 to 2\nadd E.c\n");
         text(root, "schema/kept/w-v2.schema", NEXT);
-        assert_eq!(golden(root, 1, unwritten, Mode::Check), Ok(()));
+        assert_eq!(golden(&mut Tree::disk(root), 1, unwritten, Mode::Check), Ok(()));
     }
 
     #[test]
@@ -201,14 +201,15 @@ mod tests {
         let root = scratch.path();
         put(root, "schema/wires", WIRES);
         put(root, "schema/w-v1.schema", KEPT);
-        let report = run(root, &Landed::none(), &Options { baseline: true, ..options() }).expect("baseline");
+        let report =
+            run(&mut Tree::disk(root), &Landed::none(), &Options { baseline: true, ..options() }).expect("baseline");
         assert_eq!(report.outcomes, [Outcome::Kept { family: "w".into(), version: 1 }]);
         text(root, "schema/kept/w-v1.schema", KEPT);
         for version in [1, 2] {
             let now = format!("family w {version}\nenum E {{ a, b, c }}\n");
             put(root, &format!("schema/w-v{version}.schema"), &now);
             put(root, "schema/wires", &format!("w {version}\n"));
-            let report = run(root, &Landed::none(), &options()).expect("not landed: keep afresh");
+            let report = run(&mut Tree::disk(root), &Landed::none(), &options()).expect("not landed: keep afresh");
             assert_eq!(report.outcomes, [Outcome::Kept { family: "w".into(), version }]);
             assert_eq!(report.findings, []);
             assert_eq!(report.patch, None);
@@ -222,15 +223,15 @@ mod tests {
     fn wire_unknown_family_is_an_error_without_writes() {
         let (scratch, base) = fixture("unknown", KEPT, KEPT, "w 1\nunknown 1\n");
         let root = scratch.path();
-        let before = Landed::read(root).expect("snapshot includes schema/wires");
+        let before = Tree::disk(root).landed().expect("snapshot includes schema/wires");
         let expected = Error::Wire { family: "unknown".into() };
         assert_eq!(expected.to_string(), "schema/wires: unknown: no family of the crate");
-        assert_eq!(check(root, &base), Err(expected.clone()));
-        assert_eq!(run(root, &base, &options()), Err(expected));
+        assert_eq!(check(&Tree::disk(root), &base), Err(expected.clone()));
+        assert_eq!(run(&mut Tree::disk(root), &base, &options()), Err(expected));
         text(root, "schema/wires", "w 1\nunknown 1\n");
         text(root, "schema/kept/w-v1.schema", KEPT);
         text(root, "schema/w-v1.schema", KEPT);
-        assert_eq!(Landed::read(root).expect("no command files written"), before);
+        assert_eq!(Tree::disk(root).landed().expect("no command files written"), before);
     }
 
     #[test]
@@ -240,9 +241,12 @@ mod tests {
         let commented = format!("# comment\n{KEPT}");
         put(root, "schema/kept/w-v1.schema", &commented);
         put(root, "schema/w-v1.schema", &commented);
-        assert_eq!(check(root, &base), Ok(vec![Finding::Changed { path: PathBuf::from("schema/kept/w-v1.schema") }]));
+        assert_eq!(
+            check(&Tree::disk(root), &base),
+            Ok(vec![Finding::Changed { path: PathBuf::from("schema/kept/w-v1.schema") }])
+        );
         text(root, "schema/kept/w-v1.schema", &commented);
-        let report = run(root, &base, &options()).expect("restore wire baseline");
+        let report = run(&mut Tree::disk(root), &base, &options()).expect("restore wire baseline");
         assert_eq!(report.restored, [PathBuf::from("schema/kept/w-v1.schema")]);
         assert_eq!(report.outcomes, [Outcome::Current { family: "w".into() }]);
         assert_eq!(report.findings, []);
@@ -253,12 +257,12 @@ mod tests {
     fn wire_lines_require_a_numeric_floor_or_build() {
         for (index, line) in ["w", "w nope", "w 65536", "w -1", "w +1", "w 1 extra", "missing 1"].iter().enumerate() {
             let (scratch, _) = fixture(&format!("invalid-floor-{index}"), KEPT, KEPT, line);
-            let error = skein_codegen::patch::module(scratch.path()).expect_err("invalid wire line");
+            let error = skein_codegen::patch::module(&Tree::disk(scratch.path())).expect_err("invalid wire line");
             assert_eq!(error, Error::Wire { family: if line.starts_with("missing") { "missing" } else { "w" }.into() });
         }
         for (index, line) in ["w 1", "w build", " # comment\n w 1 # floor\n"].iter().enumerate() {
             let (scratch, _) = fixture(&format!("valid-floor-{index}"), KEPT, KEPT, line);
-            skein_codegen::patch::module(scratch.path()).expect("floor or build reads");
+            skein_codegen::patch::module(&Tree::disk(scratch.path())).expect("floor or build reads");
         }
     }
 }

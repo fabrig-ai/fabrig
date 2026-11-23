@@ -1,3 +1,5 @@
+extern crate alloc;
+
 #[path = "../suite/diff.rs"]
 mod diff;
 #[path = "../suite/largest.rs"]
@@ -8,3 +10,4 @@ mod parse;
 mod values;
 
 mod patch_run;
+mod patch_tree;

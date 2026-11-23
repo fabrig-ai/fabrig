@@ -4,7 +4,7 @@
 mod tests {
 
     use skein_codegen::diff::Version;
-    use skein_codegen::patch::{Error, Finding, Landed, check};
+    use skein_codegen::patch::{Error, Finding, Landed, Tree, check};
     use skein_scratch::Scratch;
     use std::fs;
     use std::path::{Path, PathBuf};
@@ -32,7 +32,7 @@ mod tests {
 
     fn checked(name: &str, files: &[(&str, &str)], landed: &Landed) -> Result<Vec<Finding>, Error> {
         let root = crate_files(name, files);
-        let result = check(root.path(), landed);
+        let result = check(&Tree::disk(root.path()), landed);
         assert_files(root.path(), files);
         result
     }
@@ -69,7 +69,7 @@ mod tests {
             ("patches/0001.patch", PATCH),
         ];
         let root = crate_files("clean", &files);
-        assert_eq!(check(root.path(), &base(&files)), Ok(Vec::new()));
+        assert_eq!(check(&Tree::disk(root.path()), &base(&files)), Ok(Vec::new()));
         assert_files(root.path(), &files);
     }
 
@@ -188,7 +188,7 @@ mod tests {
         const RENAMED: &str = "family shelf 1\nrecord Book { key: u8 }\nenum State { ready }\n";
         let files = [("schema/shelf-v1.schema", RENAMED), ("schema/kept/shelf-v1.schema", RENAMED)];
         let root = crate_files("refresh-exempt", &files);
-        assert_eq!(check(root.path(), &base(&[("schema/kept/shelf-v1.schema", V1)])), Ok(Vec::new()));
+        assert_eq!(check(&Tree::disk(root.path()), &base(&[("schema/kept/shelf-v1.schema", V1)])), Ok(Vec::new()));
         assert_files(root.path(), &files);
     }
 
@@ -219,7 +219,7 @@ mod tests {
             "asked",
             &[("schema/kept/shelf-v1.schema", V1), ("schema/kept/shelf-v2.schema", V2), ("patches/0001.patch", ASKED)],
         );
-        let result = check(root.path(), &Landed::none()).expect("the crate reads");
+        let result = check(&Tree::disk(root.path()), &Landed::none()).expect("the crate reads");
         assert_eq!(
             result,
             [Finding::Unplanned { patch: 1, family: "shelf".into(), error: "line 5 at 61..62: Asked".into() }]
@@ -239,7 +239,7 @@ mod tests {
     #[test]
     fn a_crate_the_check_cannot_read_is_its_error_not_a_finding() {
         let root = crate_files("read-error", &[("schema/shelf-v1.schema", "invalid")]);
-        let error = check(root.path(), &Landed::none()).expect_err("schema read failed");
+        let error = check(&Tree::disk(root.path()), &Landed::none()).expect_err("schema read failed");
         let Error::Schema { path, .. } = error else { unreachable!("a schema that does not parse") };
         assert_eq!(path, Path::new("schema/shelf-v1.schema"));
     }
@@ -342,7 +342,7 @@ mod tests {
             .expect("binary patch");
         assert_eq!(output.status.code(), Some(1_i32));
         assert!(String::from_utf8(output.stdout).expect("utf8").contains("Asked"), "planner refusal printed");
-        let before = Landed::read(&owner).expect("tree snapshot");
+        let before = Tree::disk(&owner).landed().expect("tree snapshot");
         let output = Command::new(skein_scratch::paths::binary("skein-codegen"))
             .arg("patch")
             .arg(&owner)
@@ -350,7 +350,7 @@ mod tests {
             .output()
             .expect("binary check");
         assert_eq!(output.status.code(), Some(1_i32));
-        assert_eq!(Landed::read(&owner).expect("tree snapshot"), before);
+        assert_eq!(Tree::disk(&owner).landed().expect("tree snapshot"), before);
         let output =
             Command::new(skein_scratch::paths::binary("skein-codegen")).arg("patch").output().expect("binary error");
         assert_eq!(output.status.code(), Some(2_i32));

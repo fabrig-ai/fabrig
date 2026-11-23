@@ -7,7 +7,7 @@ mod tests {
     use skein_codec::patch::{Build, Halt, Old, Site};
     use skein_codec::value::Node;
     use skein_codegen::diff::{Rename, Version};
-    use skein_codegen::patch::{Error, Landed, Mode, Options, Outcome, current, golden, run};
+    use skein_codegen::patch::{Error, Landed, Mode, Options, Outcome, Tree, current, golden, run};
     use std::fs;
     use std::path::{Path, PathBuf};
 
@@ -68,7 +68,7 @@ mod tests {
     fn before_baseline_requires_flag_and_writes_nothing() {
         let files = [("schema/shelf-v1.schema", V1)];
         let root = crate_files("before", &files);
-        assert_eq!(run(&root, &Landed::none(), &options()), Err(Error::Baseline));
+        assert_eq!(run(&mut Tree::disk(&root), &Landed::none(), &options()), Err(Error::Baseline));
         assert_files(&root, &files);
         assert!(!root.join("schema/kept").exists(), "no baseline written");
         end(&root);
@@ -77,7 +77,8 @@ mod tests {
     #[test]
     fn baseline_keeps_two_families_in_name_order() {
         let root = crate_files("baseline", &[("schema/shelf-v1.schema", V1), ("schema/label-v4.schema", LABEL)]);
-        let report = run(&root, &Landed::none(), &Options { baseline: true, ..options() }).expect("baseline");
+        let report =
+            run(&mut Tree::disk(&root), &Landed::none(), &Options { baseline: true, ..options() }).expect("baseline");
         assert_eq!(
             report.outcomes,
             [
@@ -88,7 +89,7 @@ mod tests {
         assert_files(&root, &[("schema/kept/shelf-v1.schema", V1), ("schema/kept/label-v4.schema", LABEL)]);
         assert_eq!(report.findings, []);
         write_files(&root, &[("unrelated.txt", "not landed")]);
-        let kept = Landed::read(&root).expect("landed tree");
+        let kept = Tree::disk(&root).landed().expect("landed tree");
         assert!(kept.get(Path::new("schema/shelf-v1.schema")).is_none());
         assert!(kept.get(Path::new("unrelated.txt")).is_none());
         let files =
@@ -104,7 +105,8 @@ mod tests {
             "new-family",
             &[("schema/shelf-v1.schema", V1), ("schema/kept/shelf-v1.schema", V1), ("schema/label-v4.schema", LABEL)],
         );
-        let report = run(&root, &landed(&[("schema/kept/shelf-v1.schema", V1)]), &options()).expect("new family");
+        let report = run(&mut Tree::disk(&root), &landed(&[("schema/kept/shelf-v1.schema", V1)]), &options())
+            .expect("new family");
         assert_eq!(
             report.outcomes,
             [Outcome::Kept { family: "label".into(), version: 4 }, Outcome::Current { family: "shelf".into() }]
@@ -116,7 +118,7 @@ mod tests {
     #[test]
     fn branch_only_kept_texts_are_kept_afresh() {
         let root = crate_files("afresh", &[("schema/shelf-v2.schema", V2), ("schema/kept/shelf-v1.schema", V1)]);
-        let report = run(&root, &Landed::none(), &options()).expect("new baseline version");
+        let report = run(&mut Tree::disk(&root), &Landed::none(), &options()).expect("new baseline version");
         assert_eq!(report.outcomes, [Outcome::Kept { family: "shelf".into(), version: 2 }]);
         assert_files(&root, &[("schema/kept/shelf-v2.schema", V2)]);
         assert!(!root.join("schema/kept/shelf-v1.schema").exists(), "branch's other text removed");
@@ -127,7 +129,7 @@ mod tests {
     fn unfrozen_kept_text_refreshes_bytes_and_confirmed_names() {
         let root = crate_files("refresh", &[("schema/shelf-v1.schema", RENAMED), ("schema/kept/shelf-v1.schema", V1)]);
         let report = run(
-            &root,
+            &mut Tree::disk(&root),
             &landed(&[("schema/kept/shelf-v1.schema", V1)]),
             &Options {
                 renames: vec![(
@@ -147,7 +149,8 @@ mod tests {
     #[test]
     fn unchanged_kept_text_is_current() {
         let root = crate_files("current", &[("schema/shelf-v1.schema", V1), ("schema/kept/shelf-v1.schema", V1)]);
-        let report = run(&root, &landed(&[("schema/kept/shelf-v1.schema", V1)]), &options()).expect("current");
+        let report =
+            run(&mut Tree::disk(&root), &landed(&[("schema/kept/shelf-v1.schema", V1)]), &options()).expect("current");
         assert_eq!(report.outcomes, [Outcome::Current { family: "shelf".into() }]);
         assert_files(&root, &[("schema/kept/shelf-v1.schema", V1)]);
         end(&root);
@@ -162,7 +165,7 @@ mod tests {
             "patch 1\nowner shop 2\n\nfamily shelf 2 to 3\nrename Book.id key\nadd Book.score option u8 none\n";
         let (root, base) = frozen_crate("waiting", WAITING);
         let report = run(
-            &root,
+            &mut Tree::disk(&root),
             &base,
             &Options {
                 renames: vec![(
@@ -185,7 +188,7 @@ mod tests {
             &[("schema/kept/shelf.renames", "rename Book.id key\n"), ("schema/kept/shelf-v2.schema", OPTIONAL)],
         );
         write_files(&root, &[("schema/shelf-v3.schema", NEXT)]);
-        let report = run(&root, &base, &options()).expect("next patch takes renames");
+        let report = run(&mut Tree::disk(&root), &base, &options()).expect("next patch takes renames");
         assert_files(&root, &[("patches/0002.patch", NEXT_PATCH), ("schema/kept/shelf-v3.schema", NEXT)]);
         assert!(!root.join("schema/kept/shelf.renames").exists(), "waiting file consumed");
         assert_eq!(report.findings, []);
@@ -195,7 +198,8 @@ mod tests {
     #[test]
     fn derived_patch_asks_for_added_fields_and_keeps_current() {
         let root = crate_files("derived", &[("schema/shelf-v2.schema", V2), ("schema/kept/shelf-v1.schema", V1)]);
-        let report = run(&root, &landed(&[("schema/kept/shelf-v1.schema", V1)]), &options()).expect("derived patch");
+        let report = run(&mut Tree::disk(&root), &landed(&[("schema/kept/shelf-v1.schema", V1)]), &options())
+            .expect("derived patch");
         assert_files(&root, &[("patches/0001.patch", PATCH), ("schema/kept/shelf-v2.schema", V2)]);
         assert_eq!(report.outcomes, [Outcome::Patched { family: "shelf".into(), from: 1, to: 2 }]);
         assert_eq!(report.asked, ["patch 0001, shelf: add Book.score u32 ?"]);
@@ -210,11 +214,11 @@ mod tests {
         let root =
             crate_files("defaults", &[("schema/shelf-v2.schema", DEFAULTS), ("schema/kept/shelf-v1.schema", V1)]);
         let base = landed(&[("schema/kept/shelf-v1.schema", V1)]);
-        let report = run(&root, &base, &options()).expect("default patch");
+        let report = run(&mut Tree::disk(&root), &base, &options()).expect("default patch");
         assert_files(&root, &[("patches/0001.patch", TEXT)]);
         assert_eq!(report.asked, Vec::<String>::new());
         assert_eq!(report.findings, []);
-        run(&root, &base, &options()).expect("default patch rerun");
+        run(&mut Tree::disk(&root), &base, &options()).expect("default patch rerun");
         assert_files(&root, &[("patches/0001.patch", TEXT)]);
         end(&root);
     }
@@ -224,7 +228,8 @@ mod tests {
         const WRITTEN: &str = "family shelf 2\nrecord Book { id: bool }\nenum State { ready }\n";
         const TEXT: &str = "patch 1\nowner shop 1\n\nfamily shelf 1 to 2\nretype Book.id u8 bool\nwritten Book\n";
         let root = crate_files("written", &[("schema/shelf-v2.schema", WRITTEN), ("schema/kept/shelf-v1.schema", V1)]);
-        let report = run(&root, &landed(&[("schema/kept/shelf-v1.schema", V1)]), &options()).expect("written patch");
+        let report = run(&mut Tree::disk(&root), &landed(&[("schema/kept/shelf-v1.schema", V1)]), &options())
+            .expect("written patch");
         assert_files(&root, &[("patches/0001.patch", TEXT)]);
         assert_eq!(report.asked, ["patch 0001, shelf: written Book"]);
         assert_eq!(report.findings, []);
@@ -240,7 +245,7 @@ mod tests {
         let root =
             crate_files("valueless", &[("schema/shelf-v2.schema", GROWN), ("schema/kept/shelf-v1.schema", KEPT)]);
         let base = landed(&[("schema/kept/shelf-v1.schema", KEPT)]);
-        let report = run(&root, &base, &options()).expect("written sites");
+        let report = run(&mut Tree::disk(&root), &base, &options()).expect("written sites");
         assert_files(&root, &[("patches/0001.patch", TEXT)]);
         assert_eq!(
             report.asked,
@@ -254,7 +259,7 @@ mod tests {
             ]
         );
         write_files(&root, &[("patches/0001.patch", &filled)]);
-        let report = run(&root, &base, &options()).expect("filled values");
+        let report = run(&mut Tree::disk(&root), &base, &options()).expect("filled values");
         assert_files(&root, &[("patches/0001.patch", &filled)]);
         assert_eq!(report.findings, [], "the sites and the two values plan");
         end(&root);
@@ -266,7 +271,8 @@ mod tests {
         const TEXT: &str = "patch 1\nowner shop 1\n\nfamily shelf 1 to 2\nretype Book.id u8 bool\nadd Book.key secret 16 written\nwritten Book\n";
         let root =
             crate_files("declaration-site", &[("schema/shelf-v2.schema", GROWN), ("schema/kept/shelf-v1.schema", V1)]);
-        let report = run(&root, &landed(&[("schema/kept/shelf-v1.schema", V1)]), &options()).expect("one site");
+        let report =
+            run(&mut Tree::disk(&root), &landed(&[("schema/kept/shelf-v1.schema", V1)]), &options()).expect("one site");
         assert_files(&root, &[("patches/0001.patch", TEXT)]);
         assert_eq!(report.asked, ["patch 0001, shelf: written Book"]);
         assert_eq!(report.findings, [], "a declaration that is a site has no field site (11.3)");
@@ -293,7 +299,7 @@ pub fn book(_old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Resul
         let root =
             crate_files("generated", &[("schema/shelf-v2.schema", WRITTEN), ("schema/kept/shelf-v1.schema", V1)]);
         let base = landed(&[("schema/kept/shelf-v1.schema", V1)]);
-        run(&root, &base, &options()).expect("written patch");
+        run(&mut Tree::disk(&root), &base, &options()).expect("written patch");
         assert_files(&root, &[("patches/p0001.rs", SKELETON), ("patches/context.rs", CONTEXT)]);
         assert_eq!(current(&root), Ok(()), "mod.rs as generated");
         assert!(!root.join("patches/golden").exists(), "a patch with sites waits for its functions");
@@ -302,7 +308,7 @@ pub fn book(_old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Resul
             &root,
             &[("patches/p0001.rs", authored), ("patches/context.rs", "pub struct Context { pub n: u8 }\n")],
         );
-        run(&root, &base, &options()).expect("run again");
+        run(&mut Tree::disk(&root), &base, &options()).expect("run again");
         assert_files(
             &root,
             &[("patches/p0001.rs", authored), ("patches/context.rs", "pub struct Context { pub n: u8 }\n")],
@@ -314,10 +320,10 @@ pub fn book(_old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Resul
     fn a_patch_with_no_site_has_its_goldens_written_once_it_plans() {
         let root = crate_files("goldens", &[("schema/shelf-v2.schema", V2), ("schema/kept/shelf-v1.schema", V1)]);
         let base = landed(&[("schema/kept/shelf-v1.schema", V1)]);
-        run(&root, &base, &options()).expect("asked patch");
+        run(&mut Tree::disk(&root), &base, &options()).expect("asked patch");
         assert!(!root.join("patches/golden").exists(), "a `?` left: nothing planned, nothing written");
         write_files(&root, &[("patches/0001.patch", FILLED)]);
-        let report = run(&root, &base, &options()).expect("filled patch");
+        let report = run(&mut Tree::disk(&root), &base, &options()).expect("filled patch");
         assert_eq!(report.findings, []);
         let mut names: Vec<_> = fs::read_dir(root.join("patches/golden/0001/shelf"))
             .expect("goldens written")
@@ -334,7 +340,7 @@ pub fn book(_old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Resul
             ]
         );
         assert_eq!(
-            golden(&root, 1, unwritten, Mode::Check),
+            golden(&mut Tree::disk(&root), 1, unwritten, Mode::Check),
             Ok(()),
             "the golden test passes on what the command wrote"
         );
@@ -346,19 +352,19 @@ pub fn book(_old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Resul
         const GOLDEN: &str = "patches/golden/0001/shelf/record_book_full.bin";
         let root = crate_files("golden-modes", &[("schema/shelf-v2.schema", V2), ("schema/kept/shelf-v1.schema", V1)]);
         let base = landed(&[("schema/kept/shelf-v1.schema", V1)]);
-        run(&root, &base, &options()).expect("asked patch");
+        run(&mut Tree::disk(&root), &base, &options()).expect("asked patch");
         write_files(&root, &[("patches/0001.patch", FILLED)]);
-        run(&root, &base, &options()).expect("goldens written");
+        run(&mut Tree::disk(&root), &base, &options()).expect("goldens written");
         let bytes = fs::read(root.join(GOLDEN)).expect("written golden");
         fs::remove_file(root.join(GOLDEN)).expect("remove golden");
-        let Err(Error::Golden(failures)) = golden(&root, 1, unwritten, Mode::Check) else {
+        let Err(Error::Golden(failures)) = golden(&mut Tree::disk(&root), 1, unwritten, Mode::Check) else {
             unreachable!("a missing golden fails the check")
         };
         assert!(matches!(failures.as_slice(), [failure] if failure.contains(GOLDEN)), "{failures:?}");
         assert!(!root.join(GOLDEN).exists(), "Check writes nothing, whatever SKEIN_PATCH_WRITE says");
-        assert_eq!(golden(&root, 1, unwritten, Mode::Write), Ok(()));
+        assert_eq!(golden(&mut Tree::disk(&root), 1, unwritten, Mode::Write), Ok(()));
         assert_eq!(fs::read(root.join(GOLDEN)).expect("rewritten golden"), bytes);
-        assert_eq!(golden(&root, 1, unwritten, Mode::Check), Ok(()));
+        assert_eq!(golden(&mut Tree::disk(&root), 1, unwritten, Mode::Check), Ok(()));
         end(&root);
     }
 
@@ -381,8 +387,8 @@ pub fn book(_old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Resul
                 ("patches/0001.patch", AUTHOR),
             ],
         );
-        let report =
-            run(&root, &landed(&[("schema/kept/shelf-v1.schema", V1)]), &Options::default()).expect("derive again");
+        let report = run(&mut Tree::disk(&root), &landed(&[("schema/kept/shelf-v1.schema", V1)]), &Options::default())
+            .expect("derive again");
         assert_files(&root, &[("patches/0001.patch", EXPECTED)]);
         assert_eq!(report.findings, []);
         end(&root);
@@ -401,7 +407,8 @@ pub fn book(_old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Resul
                 ("patches/0001.patch", COMMENTED),
             ],
         );
-        let report = run(&root, &landed(&[("schema/kept/shelf-v1.schema", V1)]), &options()).expect("same statements");
+        let report = run(&mut Tree::disk(&root), &landed(&[("schema/kept/shelf-v1.schema", V1)]), &options())
+            .expect("same statements");
         assert_files(&root, &[("patches/0001.patch", COMMENTED)]);
         assert_eq!(report.findings, []);
         end(&root);
@@ -420,7 +427,8 @@ pub fn book(_old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Resul
                 ("patches/golden/0001/shelf/book", "golden"),
             ],
         );
-        let report = run(&root, &landed(&[("schema/kept/shelf-v1.schema", V1)]), &options()).expect("block gone");
+        let report = run(&mut Tree::disk(&root), &landed(&[("schema/kept/shelf-v1.schema", V1)]), &options())
+            .expect("block gone");
         assert_eq!(report.patch, None);
         assert_eq!(report.asked, ["remove patches/p0001.rs: patch has no block"]);
         for path in ["patches/0001.patch", "schema/kept/shelf-v2.schema", "patches/golden/0001"] {
@@ -457,8 +465,8 @@ pub fn book(_old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Resul
         ] {
             let files = [("schema/shelf-v9.schema", case.current), ("schema/kept/shelf-v1.schema", V1)];
             let root = crate_files(case.name, &files);
-            let report =
-                run(&root, &landed(&[("schema/kept/shelf-v1.schema", V1)]), &options()).expect("family refused");
+            let report = run(&mut Tree::disk(&root), &landed(&[("schema/kept/shelf-v1.schema", V1)]), &options())
+                .expect("family refused");
             assert_eq!(report.outcomes, [Outcome::Refused { family: "shelf".into(), verdict: case.verdict }]);
             assert_files(&root, &files);
             end(&root);
@@ -469,7 +477,7 @@ pub fn book(_old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Resul
     fn frozen_variant_growth_requires_the_next_version() {
         const GROWN: &str = "family shelf 2\nrecord Book { id: u8, note: option text 8 }\nenum State { ready, done }\n";
         let (root, base) = frozen_crate("frozen-growth", GROWN);
-        let report = run(&root, &base, &options()).expect("unmoved");
+        let report = run(&mut Tree::disk(&root), &base, &options()).expect("unmoved");
         assert_eq!(report.outcomes, [Outcome::Refused { family: "shelf".into(), verdict: Version::Unmoved }]);
         assert_files(&root, &[("schema/kept/shelf-v2.schema", OPTIONAL)]);
         end(&root);
@@ -481,7 +489,7 @@ pub fn book(_old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Resul
         const TEXT: &str = "patch 1\nowner shop 2\n\nfamily shelf 2 to 3\nadd State.done\n";
         let (root, base) = frozen_crate("frozen-next", OPTIONAL);
         write_files(&root, &[("schema/shelf-v3.schema", GROWN)]);
-        let report = run(&root, &base, &options()).expect("moved");
+        let report = run(&mut Tree::disk(&root), &base, &options()).expect("moved");
         assert_eq!(report.outcomes, [Outcome::Patched { family: "shelf".into(), from: 2, to: 3 }]);
         assert_files(&root, &[("patches/0002.patch", TEXT), ("schema/kept/shelf-v3.schema", GROWN)]);
         assert_eq!(report.findings, []);
@@ -491,7 +499,10 @@ pub fn book(_old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Resul
     #[test]
     fn first_patch_requires_owner_without_writing_files() {
         let root = crate_files("owner", &[("schema/shelf-v2.schema", V2), ("schema/kept/shelf-v1.schema", V1)]);
-        assert_eq!(run(&root, &landed(&[("schema/kept/shelf-v1.schema", V1)]), &Options::default()), Err(Error::Owner));
+        assert_eq!(
+            run(&mut Tree::disk(&root), &landed(&[("schema/kept/shelf-v1.schema", V1)]), &Options::default()),
+            Err(Error::Owner)
+        );
         assert!(!root.join("patches").exists(), "no partial writes");
         end(&root);
     }
@@ -506,7 +517,7 @@ pub fn book(_old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Resul
         ];
         let root = crate_files("two", &files);
         assert_eq!(
-            run(&root, &landed(&[("schema/kept/shelf-v1.schema", V1)]), &options()),
+            run(&mut Tree::disk(&root), &landed(&[("schema/kept/shelf-v1.schema", V1)]), &options()),
             Err(Error::Unlanded { patches: vec![1, 2] })
         );
         assert_files(&root, &files);
@@ -522,7 +533,7 @@ pub fn book(_old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Resul
         ];
         let root = crate_files("conflict", &files);
         assert_eq!(
-            run(&root, &landed(&[("schema/kept/shelf-v1.schema", V1)]), &options()),
+            run(&mut Tree::disk(&root), &landed(&[("schema/kept/shelf-v1.schema", V1)]), &options()),
             Err(Error::Conflict { path: "patches/p0001.rs".into() })
         );
         assert_files(&root, &files);
@@ -538,7 +549,7 @@ pub fn book(_old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Resul
         files.insert("patches/golden/0001/shelf/book".into(), b"landed".to_vec());
         fs::remove_file(root.join("schema/kept/shelf-v1.schema")).expect("remove old kept");
         write_files(&root, &[("patches/golden/0001/shelf/book", "edited")]);
-        let report = run(&root, &Landed::new(files), &options()).expect("restored history");
+        let report = run(&mut Tree::disk(&root), &Landed::new(files), &options()).expect("restored history");
         assert_eq!(
             report.restored,
             [PathBuf::from("patches/golden/0001/shelf/book"), PathBuf::from("schema/kept/shelf-v1.schema")]
@@ -553,8 +564,8 @@ pub fn book(_old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Resul
         const OLD: &str = "family shelf 1\nrecord A { id: u8 }\nrecord B { a: A }\n";
         const NEW: &str = "family shelf 1\nrecord X { id: u8 }\nrecord Y { a: X }\n";
         let root = crate_files("rounds", &[("schema/shelf-v1.schema", NEW), ("schema/kept/shelf-v1.schema", OLD)]);
-        let report =
-            run(&root, &landed(&[("schema/kept/shelf-v1.schema", OLD)]), &options()).expect("proposals in rounds");
+        let report = run(&mut Tree::disk(&root), &landed(&[("schema/kept/shelf-v1.schema", OLD)]), &options())
+            .expect("proposals in rounds");
         assert_eq!(
             report.proposed,
             [
@@ -601,7 +612,7 @@ pub fn book(_old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Resul
                 ("patches/golden/0002/shelf/book", "branch golden"),
             ],
         );
-        let report = run(&root, &base, &Options::default()).expect("renumbered");
+        let report = run(&mut Tree::disk(&root), &base, &Options::default()).expect("renumbered");
         assert_files(
             &root,
             &[
@@ -669,7 +680,7 @@ pub fn book(_old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Resul
         let moved =
             "use super::kept::shelf::p0003::{new, old};\npub fn book_score() { old::book::ID; new::book::SCORE; }\n";
         let (root, base) = moved_family_crate("aliases", author);
-        run(&root, &base, &Options::default()).expect("aliases follow the moved family");
+        run(&mut Tree::disk(&root), &base, &Options::default()).expect("aliases follow the moved family");
         assert_files(&root, &[("patches/p0003.rs", moved), ("patches/0003.patch", EXPECTED)]);
         let module = fs::read_to_string(root.join("patches/mod.rs")).expect("generated module");
         assert!(module.contains(concat!(
@@ -706,7 +717,7 @@ pub fn book(_old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Resul
             ),
         ] {
             let (root, base) = moved_family_crate(name, author);
-            let report = run(&root, &base, &Options::default()).expect("family moved meanwhile");
+            let report = run(&mut Tree::disk(&root), &base, &Options::default()).expect("family moved meanwhile");
             assert_files(
                 &root,
                 &[
@@ -742,7 +753,7 @@ pub fn book(_old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Resul
                 "patch 1\nowner shop 1\nmark stray\n\nfamily shelf 1 to 2\nadd Book.note option text 8 none\n",
             )],
         );
-        let report = run(&root, &base, &options()).expect("stray edit undone");
+        let report = run(&mut Tree::disk(&root), &base, &options()).expect("stray edit undone");
         assert_files(&root, &[("patches/0001.patch", FROZEN)]);
         assert!(!root.join("patches/0002.patch").exists(), "no diff needs a block");
         assert_eq!(report.restored, [PathBuf::from("patches/0001.patch")]);
@@ -763,8 +774,8 @@ pub fn book(_old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Resul
                 ("patches/0001.patch", FILLED),
             ],
         );
-        let report =
-            run(&root, &landed(&[("schema/kept/shelf-v1.schema", V1)]), &options()).expect("different added type");
+        let report = run(&mut Tree::disk(&root), &landed(&[("schema/kept/shelf-v1.schema", V1)]), &options())
+            .expect("different added type");
         assert_files(&root, &[("patches/0001.patch", EXPECTED)]);
         assert_eq!(report.asked, ["patch 0001, shelf: add Book.score u16 ?"]);
         end(&root);
@@ -783,8 +794,8 @@ pub fn book(_old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Resul
                 ("patches/0001.patch", AUTHOR),
             ],
         );
-        let report =
-            run(&root, &landed(&[("schema/kept/shelf-v1.schema", V1)]), &options()).expect("field site preserved");
+        let report = run(&mut Tree::disk(&root), &landed(&[("schema/kept/shelf-v1.schema", V1)]), &options())
+            .expect("field site preserved");
         assert_files(&root, &[("patches/0001.patch", AUTHOR)]);
         assert_eq!(report.asked, ["patch 0001, shelf: written Book.id"]);
         assert_eq!(report.findings, []);
@@ -803,7 +814,8 @@ pub fn book(_old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Resul
                 ("patches/0001.patch", AUTHOR),
             ],
         );
-        let report = run(&root, &landed(&[("schema/kept/shelf-v1.schema", V1)]), &options()).expect("site gone");
+        let report = run(&mut Tree::disk(&root), &landed(&[("schema/kept/shelf-v1.schema", V1)]), &options())
+            .expect("site gone");
         assert_files(&root, &[("patches/0001.patch", FROZEN)]);
         assert_eq!(report.asked, Vec::<String>::new());
         assert_eq!(report.findings, []);
@@ -816,7 +828,8 @@ pub fn book(_old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Resul
         const NEW: &str = "family shelf 9\nrecord Book { id: u8 }\nenum State { ready }\n";
         let files = [("schema/shelf-v9.schema", NEW), ("schema/kept/shelf-v7.schema", OLD)];
         let root = crate_files("wrong-nine", &files);
-        let report = run(&root, &landed(&[("schema/kept/shelf-v7.schema", OLD)]), &options()).expect("wrong version");
+        let report = run(&mut Tree::disk(&root), &landed(&[("schema/kept/shelf-v7.schema", OLD)]), &options())
+            .expect("wrong version");
         assert_eq!(report.outcomes, [Outcome::Refused { family: "shelf".into(), verdict: Version::Wrong }]);
         assert_files(&root, &files);
         assert!(!root.join("schema/kept/shelf-v8.schema").exists(), "no invented kept version");
@@ -833,11 +846,11 @@ pub fn book(_old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Resul
             &[("schema/shelf-v1.schema", RENAMED), ("schema/kept/shelf-v1.schema", RENAMED)],
         );
         let base = landed(&[("schema/kept/shelf-v1.schema", V1)]);
-        let report = run(&root, &base, &options()).expect("already refreshed");
+        let report = run(&mut Tree::disk(&root), &base, &options()).expect("already refreshed");
         assert_eq!(report.outcomes, [Outcome::Current { family: "shelf".into() }]);
         assert_eq!(report.proposed, []);
         write_files(&root, &[("schema/shelf-v2.schema", NEXT)]);
-        let report = run(&root, &base, &options()).expect("patch retains confirmed pairing");
+        let report = run(&mut Tree::disk(&root), &base, &options()).expect("patch retains confirmed pairing");
         assert_files(
             &root,
             &[

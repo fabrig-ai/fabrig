@@ -4,7 +4,7 @@
 mod tests {
     use skein_codec::patch::{Build, Halt, Old, RefusalIx, Site};
     use skein_codec::value::Node;
-    use skein_codegen::patch::{self, Error, Finding, FloorWrong, Landed, Mode, Options};
+    use skein_codegen::patch::{self, Error, Finding, FloorWrong, Landed, Mode, Options, Tree};
     use skein_scratch::Scratch;
     use std::{fs, path::Path};
 
@@ -41,7 +41,7 @@ mod tests {
         let wires = format!("w {floor}\n");
         let scratch = fixture(name, &wires, source);
         let root = scratch.path();
-        let mut base = Landed::read(root).expect("landed");
+        let mut base = Tree::disk(root).landed().expect("landed");
         let mut files = base
             .paths()
             .map(|path| (path.to_path_buf(), base.get(path).expect("bytes").to_vec()))
@@ -57,7 +57,7 @@ mod tests {
         }
         base = Landed::new(files);
         let expected = wrongs.iter().map(|wrong| Finding::Floor { family: "w".into(), floor, wrong: *wrong }).collect();
-        assert_eq!(patch::check(root, &base), Ok(expected));
+        assert_eq!(patch::check(&Tree::disk(root), &base), Ok(expected));
         text(root, "schema/wires", &wires);
         text(root, "schema/w.schema", NEW);
         text(root, "schema/kept/w-v3.schema", OLD);
@@ -82,10 +82,10 @@ mod tests {
         files.insert("patches/0001.patch".into(), DOWN.as_bytes().to_vec());
         files.insert("schema/wires".into(), b"w\n".to_vec());
         let base = Landed::new(files);
-        assert_eq!(patch::check(scratch.path(), &base), Ok(vec![]));
+        assert_eq!(patch::check(&Tree::disk(scratch.path()), &base), Ok(vec![]));
         put(scratch.path(), "schema/wires", "w 3\n");
         assert_eq!(
-            patch::check(scratch.path(), &base),
+            patch::check(&Tree::disk(scratch.path()), &base),
             Ok(vec![Finding::Floor { family: "w".into(), floor: 3, wrong: FloorWrong::Lowered }])
         );
     }
@@ -108,7 +108,7 @@ mod tests {
         let source = format!("{DROP}breaking \"title is no longer meaningful\"\n");
         let scratch = fixture("breaking", "w 3\n", &source);
         let base = Landed::new([(Path::new("schema/kept/w-v3.schema").to_path_buf(), OLD.as_bytes().to_vec())].into());
-        let findings = patch::check(scratch.path(), &base).expect("check");
+        let findings = patch::check(&Tree::disk(scratch.path()), &base).expect("check");
         assert_eq!(
             findings.first(),
             Some(&Finding::Floor { family: "w".into(), floor: 3, wrong: FloorWrong::Breaking })
@@ -130,7 +130,7 @@ mod tests {
         files.insert("schema/kept/w-v3.schema".into(), OLD.as_bytes().to_vec());
         let base = Landed::new(files);
         assert_eq!(
-            patch::check(root, &base),
+            patch::check(&Tree::disk(root), &base),
             Ok(vec![Finding::Unbridged {
                 family: "w".into(),
                 version: 4,
@@ -139,15 +139,15 @@ mod tests {
         );
         text(root, "patches/0001.patch", DROP);
         put(root, "patches/0001.patch", DOWN);
-        assert_eq!(patch::check(root, &base), Ok(vec![]));
+        assert_eq!(patch::check(&Tree::disk(root), &base), Ok(vec![]));
         text(root, "patches/0001.patch", DOWN);
         put(root, "patches/0001.patch", DROP);
         put(root, "schema/wires", "w build\n");
-        assert_eq!(patch::check(root, &base), Ok(vec![]));
+        assert_eq!(patch::check(&Tree::disk(root), &base), Ok(vec![]));
         text(root, "schema/wires", "w build\n");
-        let landed = Landed::read(root).expect("patch landed");
+        let landed = Tree::disk(root).landed().expect("patch landed");
         put(root, "schema/wires", "w 4\n");
-        assert_eq!(patch::check(root, &landed), Ok(vec![]));
+        assert_eq!(patch::check(&Tree::disk(root), &landed), Ok(vec![]));
         text(root, "schema/wires", "w 4\n");
         text(root, "patches/0001.patch", DROP);
         let latest = "family w 5\nrecord Task {}\n";
@@ -155,8 +155,8 @@ mod tests {
         put(root, "schema/kept/w-v5.schema", latest);
         put(root, "patches/0002.patch", "patch 1\nowner sample 2\n\nfamily w 4 to 5\n");
         put(root, "schema/wires", "w 5\n");
-        let landed = Landed::read(root).expect("later floor and patch landed");
-        assert_eq!(patch::check(root, &landed), Ok(vec![]));
+        let landed = Tree::disk(root).landed().expect("later floor and patch landed");
+        assert_eq!(patch::check(&Tree::disk(root), &landed), Ok(vec![]));
         text(root, "patches/0001.patch", DROP);
         text(root, "schema/wires", "w 5\n");
     }
@@ -171,7 +171,7 @@ mod tests {
         let root = scratch.path();
         let base = Landed::new([("schema/kept/w-v3.schema".into(), OLD.as_bytes().to_vec())].into());
         let options = Options { owner: Some("sample".into()), ..Options::default() };
-        let report = patch::run(root, &base, &options).expect("asks reverse");
+        let report = patch::run(&mut Tree::disk(root), &base, &options).expect("asks reverse");
         assert_eq!(
             report.asked,
             [
@@ -182,7 +182,7 @@ mod tests {
         assert!(!root.join("patches/p0001.rs").exists());
         for source in [DOWN.to_owned(), format!("{DROP}breaking \"no title\"\n")] {
             put(root, "patches/0001.patch", &source);
-            patch::run(root, &base, &options).expect("derived again");
+            patch::run(&mut Tree::disk(root), &base, &options).expect("derived again");
             text(root, "patches/0001.patch", &source);
         }
     }
@@ -216,7 +216,7 @@ mod tests {
             if root.join("patches/p0001.rs").exists() {
                 fs::remove_file(root.join("patches/p0001.rs")).expect("fresh skeleton");
             }
-            let report = patch::run(root, &base, &Options::default()).expect("down skeleton");
+            let report = patch::run(&mut Tree::disk(root), &base, &Options::default()).expect("down skeleton");
             assert_eq!(
                 report.asked,
                 ["patch 0001, w: written Task".to_owned(), format!("patch 0001, w: down written {target}")]
@@ -229,16 +229,16 @@ mod tests {
                     "//! Patch 0001: the command wrote the skeleton; its functions are the author's (data/codec/patches.md, 5).\n\nuse super::Context;\nuse skein_codec::patch::{{Build, Halt, Old, Site}};\nuse skein_codec::value::Node;\n\n/// Site 0, `written Task`, w 3 to 4.\n///\n/// - `retype Task.title u8 text 1`\npub fn task(_old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Result<(), Halt> {{\n    Err(Halt::NoSite(Site::new(1, 0)))\n}}\n\n/// Down site 1, `down written {target}`, w 3 to 4.\n///\n/// - `retype Task.title u8 text 1`\n/// - `refuses no_title \"no title\"`\npub fn {name}(_old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Result<(), Halt> {{\n    Err(Halt::NoSite(Site::new(1, 1)))\n}}\n"
                 ),
             );
-            let module = patch::module(root).expect("module");
+            let module = patch::module(&Tree::disk(root)).expect("module");
             module_fixture(root, &name);
-            patch::run(root, &base, &Options::default()).expect("derive again");
+            patch::run(&mut Tree::disk(root), &base, &Options::default()).expect("derive again");
             text(root, "patches/0001.patch", &source);
             text(root, "patches/mod.rs", &module);
         }
     }
 
     fn fails_naming(root: &Path, path: &str) {
-        let Err(Error::Golden(failures)) = patch::golden(root, 1, no_site, Mode::Check) else {
+        let Err(Error::Golden(failures)) = patch::golden(&mut Tree::disk(root), 1, no_site, Mode::Check) else {
             unreachable!("goldens must fail")
         };
         assert!(failures.iter().any(|failure| failure.contains(path)), "{failures:?}");
@@ -249,23 +249,23 @@ mod tests {
         let scratch = fixture("goldens", "w 3\n", DOWN);
         let root = scratch.path();
         fails_naming(root, "down/record_task_full.bin");
-        patch::golden(root, 1, no_site, Mode::Write).expect("write both directions");
+        patch::golden(&mut Tree::disk(root), 1, no_site, Mode::Write).expect("write both directions");
         let path = "patches/golden/0001/w/down/record_task_full.bin";
         assert_eq!(fs::read(root.join(path)).expect("down bytes"), [7]);
-        assert_eq!(patch::golden(root, 1, no_site, Mode::Check), Ok(()));
+        assert_eq!(patch::golden(&mut Tree::disk(root), 1, no_site, Mode::Check), Ok(()));
         fs::write(root.join(path), [8]).expect("stale bytes");
         fails_naming(root, path);
-        patch::golden(root, 1, no_site, Mode::Write).expect("rewrite");
+        patch::golden(&mut Tree::disk(root), 1, no_site, Mode::Write).expect("rewrite");
         put(root, "patches/golden/0001/w/down/stale.bin", "stale");
         fails_naming(root, "down/stale.bin: stale");
-        patch::golden(root, 1, no_site, Mode::Write).expect("remove stale");
+        patch::golden(&mut Tree::disk(root), 1, no_site, Mode::Write).expect("remove stale");
         assert!(!root.join("patches/golden/0001/w/down/stale.bin").exists());
         fs::remove_file(root.join(path)).expect("remove");
         fails_naming(root, path);
-        patch::golden(root, 1, no_site, Mode::Write).expect("restore");
+        patch::golden(&mut Tree::disk(root), 1, no_site, Mode::Write).expect("restore");
         let before = fs::read(root.join(path)).expect("held down golden");
         put(root, "schema/wires", "w 4\n");
-        patch::golden(root, 1, no_site, Mode::Write).expect("raised floor leaves down alone");
+        patch::golden(&mut Tree::disk(root), 1, no_site, Mode::Write).expect("raised floor leaves down alone");
         assert_eq!(fs::read(root.join(path)).expect("still held"), before);
     }
 
@@ -285,23 +285,23 @@ mod tests {
         put(root, "schema/w.schema", now);
         put(root, "schema/kept/w-v4.schema", now);
         put(root, "patches/0001.patch", "patch 1\nowner sample 1\n\nfamily w 3 to 4\nadd Task.score u8 0\n");
-        patch::golden(root, 1, no_site, Mode::Write).expect("unheld written");
+        patch::golden(&mut Tree::disk(root), 1, no_site, Mode::Write).expect("unheld written");
         text(
             root,
             "patches/golden/0001/w/down/record_task_full.bin.refused",
             "unheld Path { decl: DeclIx(0), part: Field(FieldIx(1)) }\n",
         );
         assert_eq!(fs::read(root.join("patches/golden/0001/w/down/record_task_smallest.bin")).expect("held"), [0]);
-        assert_eq!(patch::golden(root, 1, no_site, Mode::Check), Ok(()));
+        assert_eq!(patch::golden(&mut Tree::disk(root), 1, no_site, Mode::Check), Ok(()));
         put(
             root,
             "patches/0001.patch",
             "patch 1\nowner sample 1\n\nfamily w 3 to 4\nadd Task.score u8 0\ndown written Task.title\nrefuses no_title \"no title\"\n",
         );
-        patch::golden(root, 1, refuse, Mode::Write).expect("declared refusal written");
+        patch::golden(&mut Tree::disk(root), 1, refuse, Mode::Write).expect("declared refusal written");
         text(root, "patches/golden/0001/w/down/record_task_smallest.bin.refused", "refuses no_title\n");
-        assert_eq!(patch::golden(root, 1, refuse, Mode::Check), Ok(()));
-        let Err(Error::Golden(failures)) = patch::golden(root, 1, lose, Mode::Write) else {
+        assert_eq!(patch::golden(&mut Tree::disk(root), 1, refuse, Mode::Check), Ok(()));
+        let Err(Error::Golden(failures)) = patch::golden(&mut Tree::disk(root), 1, lose, Mode::Write) else {
             unreachable!("round trip must fail")
         };
         assert!(

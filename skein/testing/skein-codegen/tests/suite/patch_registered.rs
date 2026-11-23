@@ -4,7 +4,7 @@
 mod tests {
     use alloc::collections::BTreeMap;
     use skein_codegen::diff::Rename;
-    use skein_codegen::patch::{self, Error, Finding, Landed, Options, Outcome};
+    use skein_codegen::patch::{self, Error, Finding, Landed, Options, Outcome, Tree};
     use skein_scratch::Scratch;
     use std::fs;
     use std::path::{Path, PathBuf};
@@ -35,10 +35,10 @@ mod tests {
         ] {
             put(root, path, source);
         }
-        let landed = Landed::read(root).expect("landed history");
-        patch::run(root, &landed, &options()).expect("generate module and context");
+        let landed = Tree::disk(root).landed().expect("landed history");
+        patch::run(&mut Tree::disk(root), &landed, &options()).expect("generate module and context");
         put(root, "schema/registered", REGISTERED);
-        let landed = Landed::read(root).expect("landed generated files");
+        let landed = Tree::disk(root).landed().expect("landed generated files");
         (scratch, landed)
     }
 
@@ -61,7 +61,7 @@ mod tests {
 
     fn registered_finding(root: &Path, landed: &Landed) {
         let before = snapshot(root);
-        assert_eq!(patch::check(root, landed), Ok(vec![Finding::Registered { family: "shelf".into() }]));
+        assert_eq!(patch::check(&Tree::disk(root), landed), Ok(vec![Finding::Registered { family: "shelf".into() }]));
         assert_eq!(snapshot(root), before, "the check writes nothing");
     }
 
@@ -77,7 +77,7 @@ mod tests {
             put(root, "schema/shelf-v2.schema", &format!("family shelf 2\n{body}"));
             let before = snapshot(root);
             let report = patch::run(
-                root,
+                &mut Tree::disk(root),
                 &landed,
                 &Options {
                     renames: if name == "rename" {
@@ -95,7 +95,7 @@ mod tests {
             assert_eq!(report.asked, Vec::<String>::new());
             assert_eq!(report.restored, Vec::<PathBuf>::new());
             assert_eq!(report.findings, []);
-            assert_eq!(patch::check(root, &landed), Ok(vec![]));
+            assert_eq!(patch::check(&Tree::disk(root), &landed), Ok(vec![]));
             assert_eq!(snapshot(root), before, "{name}: no file written or removed");
         }
     }
@@ -115,7 +115,7 @@ mod tests {
         let root = scratch.path();
         put(root, "patches/0002.patch", "patch 1\nowner shop 2\n\nfamily shelf 2 to 3\n");
         registered_finding(root, &landed);
-        let report = patch::run(root, &landed, &options()).expect("pass over registered block");
+        let report = patch::run(&mut Tree::disk(root), &landed, &options()).expect("pass over registered block");
         assert_eq!(report.outcomes, [Outcome::Registered { family: "shelf".into() }]);
         assert_eq!(report.patch, None);
         assert!(!root.join("patches/0002.patch").exists());
@@ -135,10 +135,10 @@ mod tests {
         let root = scratch.path();
         put(root, "schema/kept/shelf.renames", "rename Book Volume\n");
         registered_finding(root, &landed);
-        let landed = Landed::read(root).expect("landed waiting renames");
+        let landed = Tree::disk(root).landed().expect("landed waiting renames");
         let before = snapshot(root);
-        assert_eq!(patch::check(root, &landed), Ok(vec![]));
-        let report = patch::run(root, &landed, &options()).expect("leave landed renames alone");
+        assert_eq!(patch::check(&Tree::disk(root), &landed), Ok(vec![]));
+        let report = patch::run(&mut Tree::disk(root), &landed, &options()).expect("leave landed renames alone");
         assert_eq!(report.findings, []);
         assert_eq!(snapshot(root), before);
         put(root, "schema/kept/shelf.renames", "rename Book Tome\n");
@@ -152,8 +152,8 @@ mod tests {
         put(root, "schema/registered", "# map families\n\nshelf\nunknown # not here\n");
         let before = snapshot(root);
         let expected = Error::Registered { family: "unknown".into() };
-        assert_eq!(patch::run(root, &landed, &options()), Err(expected.clone()));
-        assert_eq!(patch::check(root, &landed), Err(expected.clone()));
+        assert_eq!(patch::run(&mut Tree::disk(root), &landed, &options()), Err(expected.clone()));
+        assert_eq!(patch::check(&Tree::disk(root), &landed), Err(expected.clone()));
         assert_eq!(expected.to_string(), "schema/registered: unknown: no family of the crate");
         assert_eq!(snapshot(root), before);
     }
@@ -173,7 +173,7 @@ mod tests {
         let landed = Landed::new(files);
         put(root, "schema/label-v2.schema", new);
         put(root, "schema/shelf-v2.schema", &V2.replace("ready", "pending, ready"));
-        let report = patch::run(root, &landed, &options()).expect("patch unregistered family only");
+        let report = patch::run(&mut Tree::disk(root), &landed, &options()).expect("patch unregistered family only");
         assert_eq!(
             report.outcomes,
             [
@@ -193,6 +193,6 @@ mod tests {
     #[test]
     fn registered_fixture_checks_cleanly() {
         let (scratch, landed) = fixture("clean");
-        assert_eq!(patch::check(scratch.path(), &landed), Ok(vec![]));
+        assert_eq!(patch::check(&Tree::disk(scratch.path()), &landed), Ok(vec![]));
     }
 }
