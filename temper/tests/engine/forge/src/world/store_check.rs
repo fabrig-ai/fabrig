@@ -35,7 +35,7 @@ impl World {
             let stored = self.stored.clone();
             let (mut restored, _) = self.restored(&stored);
             let mut output = Queue::uncapped();
-            restored.start_links(&self.tasks, &self.env, &mut output).map_err(|refusal| {
+            StoreChecks::rehearse(|| restored.start_links(&self.tasks, &self.env, &mut output)).map_err(|refusal| {
                 jig_conformance::store_check::finding(self.commits, "Link", &format!("{refusal:?}"))
             })?;
         }

@@ -171,16 +171,16 @@ fn entry_points_stay_within_storage_and_growth_bounds_at_their_limits() {
 
 #[test]
 fn generated_documents_stay_within_tiny_storage_and_growth_bounds() {
+    let mut mutations = generate::MutationBatch::default();
     for seed in 0..200 {
         let mut rng = Rng::new(0x4E_A900 + seed);
         let tokens = generate::tokens(&mut rng, Shape { depth: 4, width: 4, string: 8 });
-        let mut document = generate::render(&mut rng, &tokens);
-        if rng.chance(500) {
-            document = generate::mutate(&mut rng, &document);
-        }
+        let document = generate::render(&mut rng, &tokens);
+        let document = if rng.chance(500) { generate::mutate(&mut rng, &document) } else { document.into() };
         let limits = skein_json_world::world::limits(&mut rng);
-        let _ = read(&document, limits, Interrupt::Nothing);
+        let _ = mutations.judge(document, |document| read(&document, limits, Interrupt::Nothing));
     }
+    mutations.finish();
 }
 
 /// Writes `tokens` through both passes under `limits`, each call a step of

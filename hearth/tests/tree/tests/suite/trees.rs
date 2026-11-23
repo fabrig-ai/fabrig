@@ -257,16 +257,20 @@ fn items_changed_in_order_or_in_value_read_as_the_oracle_says() {
 #[test]
 fn a_mutated_tree_file_is_refused_or_is_what_the_oracle_takes_in_its_one_encoding() {
     let limits = fixtures::limits();
+    let mut mutations = mutate::MutationBatch::default();
     for seed in 0..SEEDS {
         let mut rng = Rng::new(0x7EE0_7000 + seed);
         let (_, file) = file_of(seed);
         for changed in mutate::frames(&mut rng, &file) {
-            if let Ok(items) = check::read_tree(&changed, &limits) {
-                assert!(oracle::items_ok(&items), "seed {seed}");
-                assert_eq!(check::write_tree(&items, &limits).as_ref(), changed.as_slice(), "seed {seed}");
-            }
+            mutations.judge(changed, |changed| {
+                if let Ok(items) = check::read_tree(&changed, &limits) {
+                    assert!(oracle::items_ok(&items), "seed {seed}");
+                    assert_eq!(check::write_tree(&items, &limits).as_ref(), changed.as_slice(), "seed {seed}");
+                }
+            });
         }
     }
+    mutations.finish();
 }
 
 fn path_from(rng: &mut Rng) -> Vec<u8> {

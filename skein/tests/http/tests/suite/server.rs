@@ -51,18 +51,22 @@ fn requests_cut_and_delivered_at_random_are_served_whole() {
 
 #[test]
 fn neighbours_that_end_early_fail_or_close_at_any_moment_leave_a_consistent_run() {
+    let mut mutations = skein_http_world::generate::MutationBatch::default();
     for seed in 0..60 {
-        let (mut client, plans) = scenario(seed, 2);
+        let (client, plans) = scenario(seed, 2);
         let mut rng = Rng::new(seed);
-        if rng.chance(300) {
-            client = skein_http_world::generate::mutate(&mut rng, &client);
+        let client = if rng.chance(300) {
+            skein_http_world::generate::mutate(&mut rng, &client)
         } else if rng.chance(400) {
-            client = requests::corrupt(&mut rng, &client);
-        }
+            requests::corrupt(&mut rng, &client)
+        } else {
+            client.into()
+        };
         let limits = server_world::limits(&mut rng);
-        let settings = Settings::chaotic(&mut rng, limits, client.len());
-        let _ = server_world::check(&client, &plans, &settings, seed);
+        let settings = Settings::chaotic(&mut rng, limits, client.input().len());
+        let _ = mutations.judge(client, |client| server_world::check(&client, &plans, &settings, seed));
     }
+    mutations.finish();
 }
 
 #[test]
@@ -144,16 +148,18 @@ fn a_response_given_before_the_body_is_read_gives_it_up_unless_it_is_discarded()
 #[test]
 fn hostile_requests_are_rejected_with_the_server_s_own_answer() {
     let mut rejected = BTreeSet::new();
+    let mut mutations = skein_http_world::generate::MutationBatch::default();
     for seed in 0..400 {
         let (client, plans) = scenario(seed, 1);
         let mut rng = Rng::new(seed);
         let client = requests::corrupt(&mut rng, &client);
         let settings = Settings::calm(&mut rng, LIMITS);
-        let run = server_world::check(&client, &plans, &settings, seed);
+        let run = mutations.judge(client, |client| server_world::check(&client, &plans, &settings, seed));
         if let Some(Outcome::Failed(Error::Rejected(rejection))) = run.seen[0].outcome {
             rejected.insert(format!("{rejection:?}"));
         }
     }
+    mutations.finish();
     let expected: BTreeSet<String> = [
         "RequestLine",
         "Version",
@@ -218,18 +224,22 @@ fn the_side_above_closes_in_every_state() {
 
 #[test]
 fn a_seed_replays_to_the_same_run() {
+    let mut mutations = skein_http_world::generate::MutationBatch::default();
     for seed in 0..20 {
         let (client, plans) = scenario(seed, 2);
         let mut rng = Rng::new(seed);
         let client = skein_http_world::generate::mutate(&mut rng, &client);
         let limits = server_world::limits(&mut rng);
-        let settings = Settings::chaotic(&mut rng, limits, client.len());
-        assert_eq!(
-            server_world::run(&client, &plans, &settings, seed),
-            server_world::run(&client, &plans, &settings, seed),
-            "seed {seed}"
-        );
+        let settings = Settings::chaotic(&mut rng, limits, client.input().len());
+        mutations.judge(client, |client| {
+            assert_eq!(
+                server_world::run(&client, &plans, &settings, seed),
+                server_world::run(&client, &plans, &settings, seed),
+                "seed {seed}"
+            );
+        });
     }
+    mutations.finish();
 }
 
 #[test]
