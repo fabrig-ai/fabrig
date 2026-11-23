@@ -58,6 +58,15 @@ class Packages(unittest.TestCase):
                          [['tools/tiers/one-process', '--out', str(directory / '0'), '--fail-fast', 'default',
                            '--offline', '--locked', '--no-tests=warn', '-p', 'leaf', '--test', 'suite']])
 
+    def test_boundary_filter_keeps_candidate_checks_and_the_profile(self):
+        flag, expression = PLAN.workspace_filter(['fabrig-boundary', 'leaf'])
+        self.assertEqual(flag, '-E')
+        self.assertIn('default() & not (package(=fabrig-boundary)', expression)
+        self.assertIn('test(=client_layout_changes_move_their_versions)', expression)
+        self.assertNotIn('current_client_wire_layouts_match_the_schema', expression)
+        self.assertNotIn('generated_patch_modules_are_current', expression)
+        self.assertEqual(PLAN.workspace_filter(['leaf']), [])
+
     def test_nested_test_helper_stays_with_its_owner(self):
         self.assertEqual(list(self.plan('skein/leaf/tests/shared/input.rs').values()), [['leaf']])
 
@@ -379,6 +388,21 @@ class CloseBudgets(unittest.TestCase):
                          "budgets: no main's counts in this repository (refs/temper/counts); "
                          'no verdict at close, an infrastructure fault to repair; the gate still judges\n')
 
+    def test_selected_baseline_can_be_used_without_git(self):
+        self.publish()
+        counts = module(HERE.parent / 'tiers/counts.py')
+        packet = PRE.budget_input(self.repository, self.env, counts.read(self.repository, self.env))
+        with mock.patch.object(subprocess, 'Popen', side_effect=AssertionError('sandbox accessed Git history')):
+            error, = PRE.close_budgets(self.root, self.repository, self.env,
+                                      [self.result(self.process(30 * self.G))], selected=packet)
+            self.assertIn('instruction growth over allowance', error['log'])
+
+    def test_tree_without_head_has_no_budget_baseline(self):
+        self.publish()
+        self.git('symbolic-ref', 'HEAD', 'refs/heads/unborn')
+        self.assertEqual(self.verdict(self.result(self.process(30 * self.G))), [])
+        self.assertIn('source checkout has no commit', self.log.getvalue())
+
     def test_stale_base_refuses_close(self):
         self.publish([self.main])
         error, = self.verdict(self.result(self.process(25 * self.G)))
@@ -476,7 +500,7 @@ class CloseBudgets(unittest.TestCase):
         if completed_goal:
             run.assert_called_once()
             command = run.call_args.args[0]
-            self.assertEqual(command[:2], ['tools/tiers/one-process', '--out'])
+            self.assertEqual(command[:2], [str(PRE.TIERS / 'one-process'), '--out'])
             self.assertEqual(Path(command[2]).parent.parent, target)
             self.assertFalse(Path(command[2]).parent.exists())
             self.assertEqual(command[3:], ['--fail-fast', 'default', '--offline', '--locked', '--no-tests=warn',
