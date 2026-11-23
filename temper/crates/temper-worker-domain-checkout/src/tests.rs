@@ -143,6 +143,7 @@ impl Harness {
                 | Op::Reset { .. }
                 | Op::Pack { .. }
                 | Op::Point { .. }
+                | Op::Counts { .. }
                 | Op::Make { .. }
                 | Op::Clone { .. }
                 | Op::Create { .. }
@@ -359,6 +360,7 @@ fn workspace_of(op: &Op) -> Token {
         | Op::Pack { at, .. }
         | Op::Point { at, .. }
         | Op::Fetch { at, .. }
+        | Op::Counts { at, .. }
         | Op::Create { at, .. }
         | Op::CheckOut { at, .. }
         | Op::Look { at, .. }
@@ -1206,6 +1208,7 @@ fn pin_ready(h: &mut Harness, client: u64, repo: Repository, tip: Commit) -> (To
             | Op::Reset { .. }
             | Op::Pack { .. }
             | Op::Point { .. }
+            | Op::Counts { .. }
             | Op::Store { .. }
             | Op::Make { .. }
             | Op::Look { .. }
@@ -1343,6 +1346,7 @@ fn a_named_pin_reuses_a_fetched_start_or_push_commit() {
                 | Op::Look { .. }
                 | Op::Clone { .. }
                 | Op::Point { .. }
+                | Op::Counts { .. }
                 | Op::Create { .. }
                 | Op::CheckOut { .. }
                 | Op::IsAncestor { .. }
@@ -1385,6 +1389,7 @@ fn saved_and_resolution_starts_fetch_the_named_pin_before_checkout() {
                 | Op::Clone { .. }
                 | Op::Fetch { .. }
                 | Op::Point { .. }
+                | Op::Counts { .. }
                 | Op::Create { .. }
                 | Op::IsAncestor { .. }
                 | Op::Brings { .. }
@@ -1539,6 +1544,7 @@ fn pin_count(ops: &List<Op>) -> usize {
             | Op::Reset { .. }
             | Op::Pack { .. }
             | Op::Point { .. }
+            | Op::Counts { .. }
             | Op::Create { .. }
             | Op::CheckOut { .. }
             | Op::Brings { .. }
@@ -1647,7 +1653,7 @@ fn landing_fetch_failures_fail_preparation_and_never_fall_back() {
                 }
                 let done = match op {
                     Op::Fetch { want: Want::Commit { commit }, .. } => Done::Fetched { commit },
-                    Op::CheckOut { .. } => Done::Succeeded,
+                    Op::CheckOut { .. } | Op::Counts { .. } => Done::Succeeded,
                     Op::DiffPaths { .. } => panic!("this prepare lists no delivery paths"),
                     Op::Brings { .. } => Done::Brings { brings: false },
                     Op::IsAncestor { .. } => Done::IsAncestor { contains: false },
@@ -2379,7 +2385,10 @@ fn each_git_op_carries_its_repositorys_account() {
 fn assert_account(op: Op, expected: Option<u64>, kind: Kind) {
     assert_eq!(op.kind(), kind);
     match op {
-        Op::Fetch { account, .. } | Op::Create { account, .. } | Op::Push { account, .. } => {
+        Op::Fetch { account, .. }
+        | Op::Counts { account, .. }
+        | Op::Create { account, .. }
+        | Op::Push { account, .. } => {
             assert_eq!(account, expected);
         }
         Op::Reds { .. }
@@ -3292,6 +3301,7 @@ fn opposite_repository_orders_finish_with_one_store_per_remote() {
                 | Op::Reset { .. }
                 | Op::Pack { .. }
                 | Op::Point { .. }
+                | Op::Counts { .. }
                 | Op::Clone { .. }
                 | Op::CheckOut { .. } => Done::Succeeded,
                 Op::Look { .. }

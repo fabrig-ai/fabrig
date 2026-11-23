@@ -9,7 +9,7 @@ use std::{cell::RefCell, rc::Rc};
 /// The program's synchronous remote and store, including replay's missing call.
 /// A transport preserves the kit's object graph and write promises; a run with
 /// a missing call is discarded before any of its files or output are kept.
-pub trait Transport: Remote {
+pub trait Transport: crate::counts::Remote {
     /// Start a fresh replay cursor before running the scanned checkout again.
     fn begin(&mut self) {}
     /// Encoding bounds for a missing route call; typed transports miss none.
@@ -56,6 +56,7 @@ pub trait Transport: Remote {
 pub struct Typed {
     formats: std::collections::BTreeMap<Vec<u8>, skein_fake_checkout::git::ObjectFormat>,
     pub forge: Rc<RefCell<Forge>>,
+    pub counts: crate::counts::Published,
     tokens: Rc<Vec<(Secret, u64)>>,
     users: Rc<Vec<(u64, Box<[u8]>)>>,
     user: Option<u64>,
@@ -71,6 +72,7 @@ impl Typed {
         Self {
             formats: std::collections::BTreeMap::new(),
             forge,
+            counts: crate::counts::Published::default(),
             tokens: Rc::new(table.tokens.iter().cloned().collect()),
             users: Rc::new(table.users.iter().cloned().collect()),
             user: None,
@@ -286,6 +288,13 @@ pub(crate) fn fault(error: api::Error) -> Fault {
         | api::Error::Stale
         | api::Error::AlreadyQueued(_)
         | api::Error::Conflict => panic!("unexpected git fault: {error:?}"),
+    }
+}
+
+impl crate::counts::Remote for Typed {
+    fn fetch_counts(&mut self, remote: &[u8]) -> Result<Option<u64>, Fault> {
+        self.clone_default(remote)?;
+        Ok(self.counts.tip(repository(remote)))
     }
 }
 

@@ -2,6 +2,7 @@
 #![forbid(unsafe_code)]
 mod answer;
 mod check;
+pub mod counts;
 pub use answer::{Answer, answer};
 pub mod id;
 mod program;

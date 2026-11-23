@@ -81,6 +81,7 @@ pub(crate) fn identity(op: &git::Op) -> Option<u32> {
         | git::Op::CheckOut { identity, .. }
         | git::Op::Merge { identity, .. }
         | git::Op::Fetch { identity, .. }
+        | git::Op::Counts { identity, .. }
         | git::Op::Create { identity, .. }
         | git::Op::Commit { identity, .. }
         | git::Op::Push { identity, .. } => Some(*identity),
@@ -113,6 +114,7 @@ pub(crate) fn pick(
         git::Op::CheckOut { at, account, .. }
         | git::Op::Merge { at, account, .. }
         | git::Op::Fetch { at, account, .. }
+        | git::Op::Counts { at, account, .. }
         | git::Op::Create { at, account, .. }
         | git::Op::Push { at, account, .. } => (at.repository.as_ref(), account),
         git::Op::Commit { at, snapshot: Some(snapshot), .. } => (at.repository.as_ref(), &snapshot.account),

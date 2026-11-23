@@ -68,7 +68,7 @@ fn prepare_and_release(h: &mut Harness, fetches: &mut u32, pin: bool, pack_end: 
                 };
                 Done::Fetched { commit }
             }
-            Op::Point { .. } => Done::Succeeded,
+            Op::Point { .. } | Op::Counts { .. } => Done::Succeeded,
             Op::CheckOut { at, .. } => {
                 checkout = Some(at);
                 break;

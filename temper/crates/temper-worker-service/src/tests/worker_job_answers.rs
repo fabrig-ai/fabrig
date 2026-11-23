@@ -68,6 +68,7 @@ fn merge_git(op: root::checkout::git::Op) -> root::checkout::git::Done {
         | Op::Reset { .. }
         | Op::Pack { .. }
         | Op::Point { .. }
+        | Op::Counts { .. }
         | Op::Store { .. }
         | Op::Make { .. }
         | Op::Clone { .. }

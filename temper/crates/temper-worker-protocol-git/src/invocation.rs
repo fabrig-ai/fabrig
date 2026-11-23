@@ -82,6 +82,14 @@ pub enum Command {
         into: git::Into,
         workspace: Token,
     },
+    FetchCounts {
+        remote: Box<[u8]>,
+        workspace: Token,
+    },
+    UpdateCounts {
+        commit: git::Commit,
+    },
+    DeleteCounts,
     Create {
         remote: Box<[u8]>,
         branch: Box<[u8]>,
@@ -143,6 +151,7 @@ pub(crate) fn item_program(op: &git::Op) -> Option<&[u8]> {
         | git::Op::Pack { at, .. }
         | git::Op::Point { at, .. }
         | git::Op::Fetch { at, .. }
+        | git::Op::Counts { at, .. }
         | git::Op::Create { at, .. }
         | git::Op::CheckOut { at, .. }
         | git::Op::Look { at, .. }
@@ -162,6 +171,7 @@ pub(crate) fn no_program(op: &git::Op, command: &Command) -> Box<[u8]> {
         | Command::Remote { remote, .. }
         | Command::Store { remote, .. }
         | Command::Fetch { remote, .. }
+        | Command::FetchCounts { remote, .. }
         | Command::Create { remote, .. }
         | Command::Push { remote, .. } => Some(remote.as_ref()),
         Command::IsAncestor { .. } => match op {
@@ -177,6 +187,7 @@ pub(crate) fn no_program(op: &git::Op, command: &Command) -> Box<[u8]> {
             | git::Op::Pack { .. }
             | git::Op::Point { .. }
             | git::Op::Fetch { .. }
+            | git::Op::Counts { .. }
             | git::Op::Create { .. }
             | git::Op::CheckOut { .. }
             | git::Op::Merge { .. }
@@ -193,6 +204,8 @@ pub(crate) fn no_program(op: &git::Op, command: &Command) -> Box<[u8]> {
         | Command::Format
         | Command::Clone { .. }
         | Command::UpdateRef { .. }
+        | Command::UpdateCounts { .. }
+        | Command::DeleteCounts
         | Command::Version
         | Command::CheckOut { .. }
         | Command::Clean
@@ -244,6 +257,25 @@ pub(crate) fn joined(parts: &[&[u8]]) -> Box<[u8]> {
     }
     out.finish()
 }
+fn fetch(out: &mut List<Box<[u8]>>, remote: &[u8], filter: &[u8], source: &[u8], target: &[u8]) {
+    let spec = joined(&[b"+", source, b":", target]);
+    words(
+        out,
+        &[
+            b"fetch",
+            b"--porcelain",
+            b"--verbose",
+            filter,
+            b"--no-tags",
+            b"--no-write-fetch-head",
+            b"--no-recurse-submodules",
+            b"--",
+            remote,
+            &spec,
+        ],
+    );
+}
+
 fn push(out: &mut List<Box<[u8]>>, bytes: &[u8]) {
     out.push(Box::from(bytes)).expect("fixed vector fits its capacity");
 }
@@ -262,7 +294,7 @@ pub(crate) const fn word(command: &Command) -> &'static [u8] {
         },
         Command::SnapshotHead => b"log",
         Command::SnapshotMerge { .. } | Command::Format => b"rev-parse",
-        Command::SnapshotFetch { .. } | Command::Fetch { .. } => b"fetch",
+        Command::SnapshotFetch { .. } | Command::Fetch { .. } | Command::FetchCounts { .. } => b"fetch",
         Command::SnapshotReachable { .. } => b"for-each-ref",
         Command::SnapshotReset { .. } => b"reset",
         Command::CountObjects { .. } => b"count-objects",
@@ -272,7 +304,7 @@ pub(crate) const fn word(command: &Command) -> &'static [u8] {
         Command::Clone { .. } => b"init",
         Command::Remote { .. } => b"remote",
         Command::Store { .. } => b"clone",
-        Command::UpdateRef { .. } => b"update-ref",
+        Command::UpdateRef { .. } | Command::UpdateCounts { .. } | Command::DeleteCounts => b"update-ref",
         Command::Create { .. } | Command::Push { .. } => b"push",
         Command::CheckOut { .. } => b"checkout",
         Command::Clean => b"clean",
@@ -313,8 +345,8 @@ pub fn arguments_for(op: &git::Op, command: &Command) -> Box<[Box<[u8]>]> {
             }
             at
         }
-        git::Op::Fetch { at, store, .. } => {
-            if let Command::Fetch { .. } = command {
+        git::Op::Fetch { at, store, .. } | git::Op::Counts { at, store, .. } => {
+            if let Command::Fetch { .. } | Command::FetchCounts { .. } = command {
                 let store = joined(&[b"stores/", Decimal::of(store.raw()).as_bytes()]);
                 return arguments_at(command, Some(&store), None);
             }
@@ -357,7 +389,10 @@ pub fn arguments_at(command: &Command, git_dir: Option<&[u8]>, work_tree: Option
         | Command::Remote { .. }
         | Command::Store { .. }
         | Command::UpdateRef { .. }
+        | Command::UpdateCounts { .. }
+        | Command::DeleteCounts
         | Command::Fetch { .. }
+        | Command::FetchCounts { .. }
         | Command::Create { .. }
         | Command::CheckOut { .. }
         | Command::Clean
@@ -458,23 +493,13 @@ pub fn arguments_at(command: &Command, git_dir: Option<&[u8]>, work_tree: Option
                 Source::Commit(commit) => hex(*commit),
                 Source::Default => Box::from(&b"HEAD"[..]),
             };
-            let spec = joined(&[b"+", &from, b":", &store_reference(*workspace, *into)]);
-            words(
-                &mut out,
-                &[
-                    b"fetch",
-                    b"--porcelain",
-                    b"--verbose",
-                    b"--filter=blob:none",
-                    b"--no-tags",
-                    b"--no-write-fetch-head",
-                    b"--no-recurse-submodules",
-                    b"--",
-                    remote,
-                    &spec,
-                ],
-            );
+            fetch(&mut out, remote, b"--filter=blob:none", &from, &store_reference(*workspace, *into));
         }
+        Command::FetchCounts { remote, workspace } => {
+            fetch(&mut out, remote, b"--no-filter", COUNTS_REF, &counts_store_reference(*workspace));
+        }
+        Command::UpdateCounts { commit } => words(&mut out, &[b"update-ref", COUNTS_REF, &hex(*commit)]),
+        Command::DeleteCounts => words(&mut out, &[b"update-ref", b"-d", COUNTS_REF]),
         Command::Create { remote, branch, commit } => {
             let lease = joined(&[b"--force-with-lease=refs/heads/", branch, b":"]);
             let spec = joined(&[&hex(*commit), b":refs/heads/", branch]);
@@ -553,6 +578,7 @@ pub(crate) fn environment_for(
         Some(
             git::Kind::Store
             | git::Kind::Fetch
+            | git::Kind::Counts
             | git::Kind::Create
             | git::Kind::Commit
             | git::Kind::Push
@@ -607,6 +633,7 @@ pub(crate) fn environment_for(
         Some(
             git::Kind::Store
             | git::Kind::Fetch
+            | git::Kind::Counts
             | git::Kind::Create
             | git::Kind::Push
             | git::Kind::CheckOut
@@ -714,10 +741,20 @@ pub(crate) const fn reference(into: git::Into) -> &'static [u8] {
     }
 }
 
+pub(crate) const COUNTS_REF: &[u8] = b"refs/temper/counts";
+
+pub(crate) fn counts_store_reference(workspace: Token) -> Box<[u8]> {
+    workspace_reference(workspace, COUNTS_REF)
+}
+
 /// Workspace references in a shared store (protocol/git-operations.md, 1.3).
 #[must_use]
 pub fn store_reference(workspace: Token, into: git::Into) -> Box<[u8]> {
-    let name = reference(into).strip_prefix(b"refs/temper/").expect("fixed reference prefix");
+    workspace_reference(workspace, reference(into))
+}
+
+fn workspace_reference(workspace: Token, reference: &[u8]) -> Box<[u8]> {
+    let name = reference.strip_prefix(b"refs/temper/").expect("fixed reference prefix");
     joined(&[b"refs/temper/", Decimal::of(workspace.raw()).as_bytes(), b"/", name])
 }
 

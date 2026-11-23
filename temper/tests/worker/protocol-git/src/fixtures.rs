@@ -17,6 +17,8 @@ pub const ONE: git::Commit =
     git::Commit::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
 pub const TWO: git::Commit =
     git::Commit::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+const FIVE: git::Commit =
+    git::Commit::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
 pub const SIX: git::Commit =
     git::Commit::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
 pub const SEVEN: git::Commit =
@@ -95,6 +97,7 @@ fn scenario(op: git::Op, cases: &[&str], expected: Expected) -> Scenario {
     let at = match &op {
         git::Op::Clone { at, .. }
         | git::Op::Fetch { at, .. }
+        | git::Op::Counts { at, .. }
         | git::Op::Point { at, .. }
         | git::Op::CheckOut { at, .. }
         | git::Op::Merge { at, .. }
@@ -148,6 +151,8 @@ pub fn operations() -> Vec<(&'static str, Scenario)> {
             ),
         ),
         ("fetch", fetch()),
+        ("counts-present", counts(true)),
+        ("counts-absent", counts(false)),
         ("point", point()),
         (
             "store",
@@ -251,10 +256,32 @@ pub fn view() -> Scenario {
         (b"MERGE_MODE", b""),
         (b"refs/temper/fetched", b"fetched\n"),
         (b"refs/temper/landing", b"landing\n"),
+        (b"refs/temper/counts", b"counts\n"),
     ] {
         scenario.files.insert([b"gitdirs/7/specimen/".as_slice(), name].concat(), Node::File(bytes.into()));
     }
     scenario
+}
+#[must_use]
+pub fn counts(present: bool) -> Scenario {
+    let op = git::Op::Counts {
+        at: git::Place { workspace: Token::new(1), ..at() },
+        store: Token::new(9),
+        remote: remote(),
+        identity: 1,
+        account: None,
+    };
+    if present {
+        let mut scenario =
+            scenario(op, &["counts-present", "counts-update"], Expected::done(git::Done::Fetched { commit: FIVE }));
+        scenario.files.insert(
+            b"gitdirs/1/specimen/refs/temper/counts".to_vec(),
+            Node::File(Box::from(b"0000000000000000000000000000000000000005\n".as_slice())),
+        );
+        scenario
+    } else {
+        scenario(op, &["counts-absent", "counts-delete"], Expected::done(git::Done::Succeeded))
+    }
 }
 #[must_use]
 pub fn point() -> Scenario {
