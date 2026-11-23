@@ -110,21 +110,31 @@ fn the_version_transcript_parses_as_at_least_two_forty_one() {
 }
 #[test]
 fn mutated_outputs_parse_to_none_never_to_another_value() {
+    let mut mutations = transcripts::MutationBatch::default();
     for (case, expected) in FETCHES {
         for mutation in transcripts::mutations(&transcripts::read(case).stdout) {
-            assert!(
-                output::fetched(&mutation, b"refs/temper/1/fetched").is_none_or(|actual| actual == *expected),
-                "{case}: {mutation:?}"
-            );
+            mutations.judge(mutation, |mutation| {
+                assert!(
+                    output::fetched(&mutation, b"refs/temper/1/fetched").is_none_or(|actual| actual == *expected),
+                    "{case}: {mutation:?}"
+                );
+            });
         }
     }
     for (case, branch, expected) in PUSHES {
         for mutation in transcripts::mutations(&transcripts::read(case).stdout) {
-            assert!(output::status(&mutation, branch).is_none_or(|actual| actual == *expected), "{case}: {mutation:?}");
+            mutations.judge(mutation, |mutation| {
+                assert!(
+                    output::status(&mutation, branch).is_none_or(|actual| actual == *expected),
+                    "{case}: {mutation:?}"
+                );
+            });
         }
     }
     for mutation in transcripts::mutations(&transcripts::read("version").stdout) {
-        assert_eq!(output::version(&mutation), None, "{mutation:?}");
+        mutations.judge(mutation, |mutation| {
+            assert_eq!(output::version(&mutation), None, "{mutation:?}");
+        });
     }
     for case in ["merge-conflict-2", "commit-unmerged"] {
         let bytes = transcripts::read(case).stdout;
@@ -148,9 +158,12 @@ fn mutated_outputs_parse_to_none_never_to_another_value() {
             "{case}"
         );
         for mutation in transcripts::mutations(&bytes) {
-            assert!(output::paths(&mutation, &limits).is_none_or(|paths| paths.is_empty()), "{case}: {mutation:?}");
+            mutations.judge(mutation, |mutation| {
+                assert!(output::paths(&mutation, &limits).is_none_or(|paths| paths.is_empty()), "{case}: {mutation:?}");
+            });
         }
     }
+    mutations.finish();
 }
 
 #[test]

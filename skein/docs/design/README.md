@@ -50,6 +50,7 @@ code is from this design and how to roll up the status files.
 | the fake push service | `skein-fake-push` | for tests: a push service that checks a Web Push request's form, token and seal, records it and answers by a script; its peer in `skein-fake-peers` | [testing/fakes/push.md](testing/fakes/push.md) |
 | the fake checkout | `skein-fake-checkout` | for tests: deterministic files, scripted commands and local git mechanics; worlds own policy and delivery | [testing/fakes/checkout.md](testing/fakes/checkout.md) |
 | the counting allocator | `skein-heap` | for tests: the heap counted, and each scenario's peak checked under its ceiling | [testing/README.md](testing/README.md) |
+| test check counts | `skein-checks` | for test kits: the checks they perform | [testing/checks.md](testing/checks.md) |
 | the simulated world | `skein-sim-world`, `skein-fake-machine` | a service's processes hosted over the simulator and run a step at a time, as the harness and a playground run them; the minimal fake machine | [testing/world.md](testing/world.md) |
 | the world harness | `skein-world` | for tests: the simulated world's run with a referee and every world's checks, and the same processes over the ring; the inspection of a component's frozen state, and a sweep's streams, fault ledger and exclusions | [examples.md](examples.md), [testing/inspection.md](testing/inspection.md), [testing/sweeps.md](testing/sweeps.md) |
 | HTTP | `skein-http` | HTTP/1.1 client and server, server-sent events | [net/http/README.md](net/http/README.md) |

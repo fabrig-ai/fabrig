@@ -250,6 +250,20 @@ class Figures(unittest.TestCase):
                   .replace('250000000000', '249999999999'))
         self.check()
 
+    def test_accepted_level_added_or_raised_but_not_lowered(self):
+        accepted = INSTRUCTION_BASE.replace('ideal_instructions = 250000000000\n',
+                                            'ideal_instructions = 250000000000\naccepted_instructions = 300000000000\n')
+        self.set_base(INSTRUCTION_BASE)
+        self.head(accepted)
+        self.check(['figure added: default temper domain instruction accepted level: 300000000000'])
+        self.set_base(accepted)
+        self.head(accepted.replace('300000000000', '300000000001'))
+        self.check(['figure raised: default temper domain instruction accepted level: 300000000000 to 300000000001'])
+        self.head(accepted.replace('300000000000', '299999999999'))
+        self.check()
+        self.head(INSTRUCTION_BASE)
+        self.check()
+
     def test_move_instructions_added_or_raised(self):
         self.set_base(INSTRUCTION_BASE)
         self.head(INSTRUCTION_BASE + INSTRUCTION_MOVE)
