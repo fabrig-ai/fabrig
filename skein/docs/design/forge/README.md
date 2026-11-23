@@ -446,7 +446,7 @@ the setup's world and the conformance are in connection.md,
 client.md, setup/README.md and ../testing/fakes/forge.md. The worlds are under
 `tests/forge/`, one crate each (`machine`, `protocol`, `client`,
 `setup`); the conformance, `tests/forge/conformance`, is a tool outside
-the suites (../testing/README.md, section 6).
+the suites (../testing/layout.md, section 1).
 
 ## 10. Open questions
 

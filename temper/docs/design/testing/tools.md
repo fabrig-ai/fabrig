@@ -220,7 +220,7 @@ it byte for byte in its crate's tests.
   its library stays in its crate.
 - **A test of another package** finds the binary in its target's
   profile directory, through `skein_scratch::paths::built`
-  (`skein/docs/design/testing/README.md`, 6), as the browser world finds
+  (`skein/docs/design/testing/layout.md`, 1), as the browser world finds
   `temper-box` (`temper/tests/client-browser/src/lib.rs`, `temper`), and its tier
   builds it first: the browser tier's playground story runs
   `temper-playground-serve`, which `tools/tiers/packages.toml` lists

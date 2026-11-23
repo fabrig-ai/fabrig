@@ -1,4 +1,4 @@
-//! Shared native codec vocabulary (llm/README.md, sections 2 and 4).
+//! Shared native codec vocabulary (llm/vocabulary.md, section 1, and llm/wire.md, section 1).
 mod detail;
 mod failure;
 pub(crate) mod json;

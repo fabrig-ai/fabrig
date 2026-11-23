@@ -1,8 +1,8 @@
 # Admission refusals
 
 Provisional, 2026-11-19. Why `Client::prepare` refuses a request before
-anything is sent, and how each refusal names its cause (`README.md`,
-section 2). A refusal starts no call, emits no terminal and supplies no
+anything is sent, and how each refusal names its cause (`vocabulary.md`,
+section 1). A refusal starts no call, emits no terminal and supplies no
 retry policy, as before; what changes is that it says which rule the
 request broke, so its owner can say so too, rather than one line for
 every cause.
@@ -36,9 +36,9 @@ every cause.
   are. Sites that check one rule in several places give the same cause.
 - **Documents too.** `document_error` keeps receiving overflow as
   `Error::Limit`, and gives malformed grammar, a missing field or a
-  wrong type `Invalid { cause: Document }` (`README.md`, section 2).
+  wrong type `Invalid { cause: Document }` (`vocabulary.md`, section 1).
 - **Limits are unchanged:** `Limit { which, bound }` names its cap
-  already (`README.md`, 2.5).
+  already (`vocabulary.md`, 1.5).
 
 ## 2. The causes
 
@@ -53,8 +53,8 @@ every cause.
 | `ToolSchema` | `tool-schema` | a tool's schema is not a JSON object |
 | `Identifier` | `identifier` | a tool's name or a call's id is empty, too long for its dialect, or holds a byte its dialect refuses |
 | `Role` | `role` | a block is in a role that cannot hold it: a call, a refusal or a provider's replay in a user message, a tool's result in an assistant's |
-| `Outcome` | `outcome` | an oversize or cut call is replayed as a call (`README.md`, 2.4) |
-| `Choice` | `choice` | `Only` names no tool, one not offered, or one twice (`README.md`, 2.2) |
+| `Outcome` | `outcome` | an oversize or cut call is replayed as a call (`vocabulary.md`, 1.4) |
+| `Choice` | `choice` | `Only` names no tool, one not offered, or one twice (`vocabulary.md`, 1.2) |
 | `Text` | `text` | text or a number JSON cannot spell, invalid UTF-8 among them |
 | `Arguments` | `arguments` | a call's arguments are not a JSON object |
 | `Replay` | `replay` | a provider's replay is malformed: not an object, a field or a value it cannot hold, cut short, or with bytes after it |
@@ -63,7 +63,7 @@ every cause.
 | `Endpoint` | `endpoint` | the endpoint's authority or target is malformed |
 | `Header` | `header` | an extra header is reserved, malformed or repeated |
 | `Head` | `head` | the request's head is past what its length arithmetic counts |
-| `Limits` | `limits` | the client's limits are inconsistent (`README.md`, 4.3) |
+| `Limits` | `limits` | the client's limits are inconsistent (`wire.md`, 1.3) |
 | `Document` | `document` | a document is malformed, misses a field, or holds one of the wrong type |
 
 `Unsupported`, what a dialect cannot carry:

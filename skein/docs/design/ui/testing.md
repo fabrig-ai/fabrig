@@ -2,7 +2,7 @@
 
 ## 1. Testing
 
-- **Step tests** stay in each crate's `src/` (../testing/README.md, section 6): the
+- **Step tests** stay in each crate's `src/` (../testing/layout.md, section 1): the
   builder's calls on the roles each belongs to, `Tree::used`, matching and ids, each patch and the diff's
   bound, the view's states, `README.md`, section 6's refusals, the outline's rules, the
   phrasebook's refusals and capacities, the Markdown reader, scenes'
@@ -35,9 +35,9 @@
   each.
 - **Memory** is checked under scenario ceilings with the counting allocator at the
   limits, in `tests/ui`, with skein-ui's comparisons with naive
-  functions, if any (../testing/README.md, section 6).
+  functions, if any (../testing/layout.md, section 1).
 - **The wasm32 build** of `skein-ui` and of `skein-ui-web`'s platform
-  half is in skein's gate, running nothing (../testing/README.md, section 6).
+  half is in skein's gate, running nothing (../testing/layout.md, section 1).
 - **The browser tier** runs the UI example in Chromium (web/testing.md, 1).
 
 ### 1.1 The fake person

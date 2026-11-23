@@ -262,7 +262,7 @@ impl Encoder {
 
     /// Grammar was checked without retention. Replay its spelling through
     /// the same string decoder and escapes as the compact document writer
-    /// (llm/README.md, section 4.2); no value or decoded string is constructed.
+    /// (llm/wire.md, section 1.2); no value or decoded string is constructed.
     fn put_json_spelling(&mut self, text: &[u8]) {
         let mut state = Spelling::Outside;
         for &byte in text {

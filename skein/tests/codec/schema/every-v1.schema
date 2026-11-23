@@ -1,7 +1,7 @@
 family every 1
 
 # Every type of the language, with list and option nesting, for the
-# generic decoder's tests against the generated code (data/codec/README.md, 8.3).
+# generic decoder's tests against the generated code (data/codec/run-time.md, 2.3).
 
 record Blank {}
 

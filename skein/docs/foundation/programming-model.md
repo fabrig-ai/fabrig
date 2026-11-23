@@ -68,7 +68,7 @@ is testing-strategy.md.
   user-defined traits or generics (except lib's and the codecs' written-once
   code, 10.2), `Rc` or `RefCell`, `Drop` impls, or
   `unsafe` outside one module (in tests, also the counting allocator and
-  the fork kit's process boundary: skein's ../design/testing/README.md, section 6). Panics
+  the fork kit's process boundary: skein's ../design/testing/layout.md, section 1). Panics
   abort.
 
 ## 2. The loop
@@ -176,7 +176,7 @@ to a file.
   `ring` draws from the kernel; `zeroize`, `subtle` and `once_cell`,
   beneath rustls, a few lines each. In tests, `unsafe` is confined to the
   counting allocator's `unsafe impl GlobalAlloc` and the fork kit's one
-  documented process-boundary module (skein's ../design/testing/README.md, section 6).
+  documented process-boundary module (skein's ../design/testing/layout.md, section 1).
 - **In a client compiled to WebAssembly, the glue crates are the only
   `unsafe` code,** since they make every platform call: `wasm-bindgen`,
   `js-sys` and `web-sys`, pinned to exact versions, their dependencies,
@@ -1085,7 +1085,7 @@ them, and a `const` would be copied into the binary at each mention.
 The shell, the simulator and tests are ordinary Rust, with `unsafe`
 confined to the ring adapter in code a service runs, and in tests to the
 counting allocator's `unsafe impl GlobalAlloc` and the fork kit's one
-documented process-boundary module (skein's ../design/testing/README.md, section 6).
+documented process-boundary module (skein's ../design/testing/layout.md, section 1).
 
 ### 10.3 What is out
 

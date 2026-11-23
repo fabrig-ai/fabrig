@@ -26,7 +26,7 @@ use core::hint;
 use skein_heap::{Grown, Span};
 
 /// Whether a world checks memory: only a test binary that declares the
-/// counting allocator its global allocator can (testing/README.md, 6).
+/// counting allocator its global allocator can (testing/layout.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Memory {
     /// Checked at every iteration: what each process holds, its release on

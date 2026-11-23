@@ -9,7 +9,7 @@ startup reads, trust roots among it, and a terminal's modes. It is
 ordinary Rust, and the only `unsafe` in skein that a service runs lives
 here, in each system's module, `linux` (the ring adapter among it) or
 `darwin`, and in `posix`, what the two write alike (`readiness.md`, 5). (The counting allocator, test-only, has the other:
-../testing/README.md, 6.)
+../testing/layout.md, 1.)
 
 ## 1. In one page
 
@@ -120,7 +120,7 @@ target is a compile error naming the three (`readiness.md`, 5, 6).
 - **A parent-side spawn,** `spawn_dying_with_parent(command: &mut
   std::process::Command, signal) -> std::io::Result<std::process::Child>`,
   for a test kit with no binary of its own to exec through
-  (`skein/docs/design/testing/README.md`, 5's "No fixture outlives its
+  (`skein/docs/design/testing/service-tiers.md`, 1's "No fixture outlives its
   test"): the same parent-death signal and parent re-check, installed in
   the forked child before its exec, the parent being the spawning
   process. A re-check that fails refuses the spawn as the child-side
@@ -370,14 +370,14 @@ every service's `main`.
     gives it something to do;
   - `state_digest()`, a digest of what it holds, for replay (lib-containers.md,
     1.1): `None` unless the service gives one. Only a world reads it
-    (../testing/README.md, 5); `drive` never calls it.
+    (../testing/service-tiers.md, 1); `drive` never calls it.
   `Host` is portable: it builds for `wasm32-unknown-unknown`, where a
   world hosts a service with everything handed to it (`shell.md`, section 13).
 - **A host declares no heap ceiling or worst case.** The simulated
   and real worlds meter each host independently of this interface.
   A scenario may check its measured peak under a named ceiling with
   headroom; the outcomes report the measured peak alone
-  (../../foundation/testing-strategy.md, 6; ../testing/README.md, 5).
+  (../../foundation/testing-strategy.md, 6; ../testing/service-tiers.md, 1).
 - **`drive(kernel, clock, host)`** is the loop: reap, read the clock,
   iterate, drain; then return the host's exit once it holds nothing
   (section 12), or else ask the clock's `until` for the earliest deadline
@@ -394,7 +394,7 @@ every service's `main`.
   no thread. Output that is large, or must be complete, such as a trace,
   is an io stream instead (io/files.md, 1). The world harness calls the hook
   at the same point, so the drains a world runs are the ones that ship
-  (../testing/README.md, 5).
+  (../testing/service-tiers.md, 1).
 
 ## 12. The end
 

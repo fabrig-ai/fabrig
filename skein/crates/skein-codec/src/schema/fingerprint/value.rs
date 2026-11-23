@@ -1,4 +1,4 @@
-//! Value-type layouts, encoding 2 (data/codec/README.md, 9.4).
+//! Value-type layouts, encoding 2 (data/codec/fingerprints.md, 1.4).
 
 use super::{Fingerprint, hash_name};
 use crate::schema::{DeclIx, FieldIx, Held, MAX_DECLARATIONS, Schema, Shape, Type, TypeIx, VariantIx, add};
@@ -26,7 +26,7 @@ pub enum LayoutError {
 }
 
 impl Schema {
-    /// Finds a root by this text's own declaration and variant names (README.md, 9.4).
+    /// Finds a root by this text's own declaration and variant names (data/codec/fingerprints.md, 1.4).
     #[must_use]
     pub fn root(&self, decl: &[u8], variant: Option<&[u8]>) -> Option<Root> {
         let decl = self.find(decl)?;
@@ -48,7 +48,7 @@ impl Schema {
         Some(Root { decl, variant })
     }
 
-    /// Hashes this value type, resolving holds among the supplied texts (README.md, 9.4).
+    /// Hashes this value type, resolving holds among the supplied texts (data/codec/fingerprints.md, 1.4).
     pub fn layout(&self, root: Root, held: &[&Schema]) -> Result<Fingerprint, LayoutError> {
         validate(self, root)?;
         let mut tables = List::uncapped();

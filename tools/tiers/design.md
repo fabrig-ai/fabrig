@@ -1316,7 +1316,7 @@ What nextest gives a test today, resolved per binary from the listing and
 - `TIERS_ONE_PROCESS=1`, the mode's own: under it a starved pass passes as
   under `NEXTEST`, ending its process with exit 0 after its line, so that
   nothing follows it and nothing unwinds
-  (`skein/docs/design/testing/README.md`, 5), and the lanes start a fresh
+  (`skein/docs/design/testing/service-tiers.md`, 1), and the lanes start a fresh
   process for the names it had left (11.6);
 - `TIERS_CHECKS_FILE`, the process's own file for check counts (11.8).
 
@@ -1335,7 +1335,7 @@ Its outcome is one of:
 - **starved:** the process ended with exit status 0 and no result for the
   test it had announced, and the last line of that test's output begins with
   `skein-world: starved:`: a starved pass ended its process after its line
-  (`skein/docs/design/testing/README.md`, 5). A warning, never failed and
+  (`skein/docs/design/testing/service-tiers.md`, 1). A warning, never failed and
   never passed. A test with a result keeps libtest's word, whatever its output
   ends with, so that a failure stays red: a panic after the line is the
   failure libtest reports;

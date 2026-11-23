@@ -683,7 +683,7 @@ peers host theirs. The real loop hosts the same one.
   time, and one whose deletion the writer forgot.
 - **Memory:** a forge filled to its limits, and a long merge history walked
   through both parents, stay under named scenario ceilings with headroom
-  under the counting allocator (../README.md, section 6).
+  under the counting allocator (../layout.md, section 1).
 - **Replay and the peer:** a seed replays the names, replies, observations
   and deliveries. The peer's tests run a client over loopback against the
   protocol layer, with deliveries written, late, lost and refused, a

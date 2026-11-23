@@ -360,7 +360,7 @@ pub struct Rlimit { pub resource: Resource, pub soft: u64, pub hard: u64 }
 ## 5. A signal's reason
 
 A signal says why its owner sends it, so that a world hosting the child
-can name a kill's cause when no one expected it (../../testing/README.md, 5).
+can name a kill's cause when no one expected it (../../testing/service-tiers.md, 1).
 Nothing else reads it.
 
 - **It travels with the signal.** io's request and the kernel's record
@@ -409,7 +409,7 @@ Nothing else reads it.
   outcome reads it: the real kernel never sees it, the simulator keeps it
   in the record it rebuilds and leaves it out of its trace, and a signal
   does the same whatever its reason. The real world records it with each
-  kill (../../testing/README.md, 5).
+  kill (../../testing/service-tiers.md, 1).
 
 ## 6. A spawn's reach
 

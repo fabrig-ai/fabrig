@@ -933,7 +933,7 @@ otherwise (skein's `ui/web/README.md`, section 10).
     );
   - the wasm32 builds: lib, `skein-codec`, `skein-http`, `skein-ui` and
     `skein-ui-web` built for wasm32 and checked by its gate (skein's
-    `runtime/lib.md`, section 2; skein's `testing/README.md`, section 6); a client
+    `runtime/lib.md`, section 2; skein's `testing/layout.md`, section 1); a client
     compiled to WebAssembly in its model, with no kernel and no ring,
     the glue crates its only `unsafe`, a panic a trap the restart part
     reloads from (`skein/docs/foundation/programming-model.md`, 2.1).

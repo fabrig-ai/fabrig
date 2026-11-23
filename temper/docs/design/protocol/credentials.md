@@ -415,7 +415,7 @@ Moved to [`credentials-git-identities.md`](credentials-git-identities.md), secti
   github.com or uses a real credential. Live calls are skein's opt-in
   conformance's alone.
 - **The codecs,** with records drift, built-value round
-  trips and fuzzing (skein's `data/codec/README.md`, 6): the
+  trips and fuzzing (skein's `data/codec/golden.md`, 1): the
   records' numbers and each item's value, the pasted bundle, and the git
   identity's value of each kind; an unknown version refused, and each
   item's bytes that skein's decoder refuses (an id of 0, `Accepted` out

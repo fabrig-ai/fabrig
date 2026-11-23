@@ -185,8 +185,8 @@ Each lands in skein, with its design, before its smith consumer
 - **The LLM client's routes:** OpenAI's public Responses route and
   Anthropic's Messages with a key, a credential as a value and its
   scheme, and the failure classes for an account's limit, its refusal
-  and a field a provider does not take (skein's `llm/README.md`, 2.5, 2.6, 4.7
-  and 4.8).
+  and a field a provider does not take (skein's `llm/vocabulary.md`, 1.5 and 1.6, and `llm/wire.md`, 1.7 and 1.8
+  ).
 - **Trust roots:** the machine's roots, or one DER file, loaded at
   startup (skein's `net/tls.md`).
 - **Terminal modes:** the window's size, as a shell effect, for the

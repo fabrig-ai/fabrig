@@ -23,7 +23,7 @@
 //!
 //! This is ordinary Rust (programming-model.md, 10.2). System calls live
 //! in `linux`, including its ring adapter, `darwin` and `posix`. The crate's
-//! lints confine the audited boundary to these modules (testing/README.md, 6).
+//! lints confine the audited boundary to these modules (testing/layout.md, 1).
 
 #[cfg(unix)]
 mod calls;

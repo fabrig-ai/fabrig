@@ -3,7 +3,7 @@
 Each within skein's suites' budgets (../../../foundation/testing-strategy.md, section 8).
 
 - **On the host,** in skein's default suites, each part's pure half: its
-  step tests in its crate's `src/` (../../testing/README.md, section 6), and what
+  step tests in its crate's `src/` (../../testing/layout.md, section 1), and what
   needs more than one crate in `tests/ui-web`:
   - the mapping and its overrides, a golden row per role, state and
     property (`elements.md`), a primary shortcut's under each primary
@@ -33,7 +33,7 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
 - **The wasm32 builds in skein's gate:** `skein-ui`, `skein-ui-web`, the
   example's view and its browser shell, built for
   `wasm32-unknown-unknown` with clippy's lints as errors, since the
-  parts' platform halves are compiled only there (../../testing/README.md, section 6;
+  parts' platform halves are compiled only there (../../testing/layout.md, section 1;
   ../../runtime/lib.md, section 2).
 
 ## 1. The browser tier

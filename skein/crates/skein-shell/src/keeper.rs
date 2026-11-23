@@ -22,7 +22,7 @@ pub use crate::process::{
 };
 
 /// CPU consumed by the calling thread, or `None` when its clock is unavailable
-/// (skein/docs/design/testing/README.md, 5).
+/// (skein/docs/design/testing/service-tiers.md, 1).
 #[must_use]
 pub fn thread_cpu() -> Option<skein_lib::Duration> {
     crate::system::clock_nanos(libc::CLOCK_THREAD_CPUTIME_ID).map(skein_lib::Duration::from_nanos)

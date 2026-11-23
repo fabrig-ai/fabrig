@@ -9,4 +9,4 @@
   additions; the builder's domain tests use scripted layer operations.
 - **Departs:** 4: a world's memory tests are modules of its suite, not a
   binary of their own, because a suite has one counting allocator
-  (`skein/docs/design/testing/README.md`, 6).
+  (`skein/docs/design/testing/layout.md`, 1).

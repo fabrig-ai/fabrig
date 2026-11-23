@@ -135,7 +135,7 @@ pub struct Limits {
   holds.** A data line's bytes pass through the data intake a piece at a
   time, so an event of any size within `event` costs the reader no more
   than one of a few bytes. The LLM client sets both from its skip cap
-  (../../llm/README.md, section 4.2).
+  (../../llm/wire.md, section 1.2).
 - **Edges bound retained data:** `field` bounds the event type and ID
   buffers, and `chunk` the data intake and current delivery. A dispatch's
   boxes and each piece of data pass to their owner when emitted. A chunk

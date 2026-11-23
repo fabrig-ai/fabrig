@@ -37,7 +37,7 @@ randomness and no hash map with a random seed, so a seed replays. It
 needs no kernel layouts and no `unsafe`. skein's own io worlds and
 simulated worlds use it, and so do a service's simulated worlds. Its own
 tests are a crate of their own, `tests/sim`, and the conformance suite
-runs against it in `tests/conformance/sim` (README.md, 6).
+runs against it in `tests/conformance/sim` (layout.md, 1).
 
 ## 3. The world
 
@@ -66,7 +66,7 @@ runs against it in `tests/conformance/sim` (README.md, 6).
   (world.md, 4).
 - **The trace** holds each submission, each completion reaped and each
   fault drawn, under its process's pid, and the state digests the world
-  harness writes beside them (../runtime/lib-containers.md, 1.1; README.md, section 5): an entry
+  harness writes beside them (../runtime/lib-containers.md, 1.1; service-tiers.md, section 1): an entry
   `Event::Digest([u8; 32])`, under the process's pid, or under
   `Pid::MACHINE`, `Pid(u32::MAX)`, printed `machine`, for the machine's.
   `spawn_process` never gives that pid. A `None` digest writes no entry.
@@ -333,7 +333,7 @@ small buffers so that sends are cut and stall.
 
 Memory is not the simulator's to check, though a simulated world checks it
 at every iteration (../../foundation/testing-strategy.md, 6), with the counting allocator,
-`skein-heap` (README.md, 5). The harness checks each hosted process's
+`skein-heap` (service-tiers.md, 1). The harness checks each hosted process's
 measured peak against the ceiling its scenario names, with headroom
 (../runtime/shell.md, 11). One thread, one heap: a process's part is what grew within
 the calls that run its code, including construction, each `iterate`,

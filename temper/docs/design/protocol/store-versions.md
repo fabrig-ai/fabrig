@@ -25,7 +25,7 @@ This document holds the store's records and version changes, split from [`store.
   translations. `temper-codecs-world`'s drift test compares generated
   records with the codec crate's code. Tests build values, without
   family goldens or generated tests; skein's `every` pins the bytes
-  (`skein/docs/design/data/codec/README.md`, 6).
+  (`skein/docs/design/data/codec/golden.md`, 1).
 - **Collections** are pieces or counted lists by jig's rule (jig's
   `protocol/store/records.md`, 1). The schema's limits are made from the
   forge's limits, and checked against the schema's ceilings at start.

@@ -819,7 +819,7 @@ ones in the fuzzy suite.
 
 - **Records' drift** in `jig-worker-wire-world`: the generated records
   match the committed module,
-  as skein's `data/codec/README.md`, section 6 has it. No generated tests
+  as skein's `data/codec/golden.md`, section 1 has it. No generated tests
   or records' golden bytes are kept. Step tests in `jig-protocol-worker-wire`
   check the sizes against bodies measured by hand; patch goldens stay.
 - **A machine world per component:** the component between the hub's

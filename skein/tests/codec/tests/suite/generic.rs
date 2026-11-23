@@ -1,4 +1,4 @@
-//! Every schema's fixed-rule values agree with the generic decoder (data/codec/README.md, 8.3).
+//! Every schema's fixed-rule values agree with the generic decoder (data/codec/run-time.md, 2.3).
 
 extern crate alloc;
 

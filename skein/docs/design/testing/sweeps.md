@@ -1,6 +1,6 @@
 # Sweeps: the seed's streams, the fault ledger and exclusions
 
-Provisional, 2026-11-20. What a world's sweep is made of: the independent streams it draws from its seed, the ledger of the faults it injected, the faults it configures and the assertion that each fell, and its named exclusions. Written from `temper/docs/design/draft/failure-worlds.md`, 3.3, 3.5, section 4's opening, 5 and 6. Its modules are `skein_world::streams`, `skein_world::faults` and `skein_world::sweep`, in the world harness (README.md, 5), so that every tree's worlds share one form. A sweep stays a test of the fuzzy suite looping over its seeds, as the strategy has it (../../foundation/testing-strategy.md, 3 and 8): these are what the loop holds, not a runner.
+Provisional, 2026-11-20. What a world's sweep is made of: the independent streams it draws from its seed, the ledger of the faults it injected, the faults it configures and the assertion that each fell, and its named exclusions. Written from `temper/docs/design/draft/failure-worlds.md`, 3.3, 3.5, section 4's opening, 5 and 6. Its modules are `skein_world::streams`, `skein_world::faults` and `skein_world::sweep`, in the world harness (service-tiers.md, 1), so that every tree's worlds share one form. A sweep stays a test of the fuzzy suite looping over its seeds, as the strategy has it (../../foundation/testing-strategy.md, 3 and 8): these are what the loop holds, not a runner.
 
 ## 1. In one page
 

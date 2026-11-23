@@ -1,7 +1,7 @@
 family every 2
 
 # Every type of the language, with list and option nesting, for the
-# generic decoder's tests against the generated code (data/codec/README.md, 8.3);
+# generic decoder's tests against the generated code (data/codec/run-time.md, 2.3);
 # version 1 through patch 0001 gives it (data/codec/patches.md, 8).
 
 versioned record Blank {}

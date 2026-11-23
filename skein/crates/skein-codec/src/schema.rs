@@ -1,4 +1,4 @@
-//! Bounded schema tables and layout checks (data/codec/README.md, section 7).
+//! Bounded schema tables and layout checks (data/codec/run-time.md, section 1).
 
 use alloc::boxed::Box;
 use skein_lib::{List, Map, bytes, usize_of};
@@ -158,7 +158,7 @@ pub struct Variant {
     pub boxed: bool,
 }
 
-/// A part whose former names are kept separately (data/codec/README.md, 7.3).
+/// A part whose former names are kept separately (data/codec/run-time.md, 1.3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Named {
     /// A declaration in the schema.
@@ -308,7 +308,7 @@ pub enum Expected {
     Declaration,
 }
 
-/// A schema's owned text and bounded tables (data/codec/README.md, section 7.3).
+/// A schema's owned text and bounded tables (data/codec/run-time.md, section 1.3).
 #[derive(Debug)]
 pub struct Schema {
     text: Box<[u8]>,
@@ -454,7 +454,7 @@ impl Schema {
         self.names.get(name).copied()
     }
 
-    /// The fewest encoded bytes of a type (data/codec/README.md, section 7.3).
+    /// The fewest encoded bytes of a type (data/codec/run-time.md, section 1.3).
     #[must_use]
     pub fn fewest_bytes(&self, at: TypeIx) -> u32 {
         match self.ty(at) {

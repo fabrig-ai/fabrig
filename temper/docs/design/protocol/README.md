@@ -281,8 +281,8 @@ section 8 give them. temper's sit beside them:
     as they were; the preparation's `state` and an owned Forgejo's data
     are the forge's, and going back past a preparation that migrated it
     needs its dump (`../draft/upgrades.md`, 3.2 and 11).
-  - **The bytes' pin is skein's `every`** (`skein/docs/design/data/codec/README.md`,
-    6). Each schema's drift compares its records with the committed code;
+  - **The bytes' pin is skein's `every`** (`skein/docs/design/data/codec/golden.md`,
+    1). Each schema's drift compares its records with the committed code;
     round trips, fuzzing and memory tests build their values,
     without family golden files or generated tests. Fixed forms and the
     key's frame and marker keep their own byte tests.

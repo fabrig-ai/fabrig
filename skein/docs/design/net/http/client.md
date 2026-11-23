@@ -74,7 +74,7 @@ pub struct Header { name: Box<[u8]>, value: Box<[u8]> }   // names compared with
 
 - **A gzip encoder** (added 2026-10-20) is beside the client, for a
   caller whose server takes a compressed request body (RFC 9110, 8.4.1;
-  ../../llm/README.md, section 4.8): a pure function of the whole body to its gzip
+  ../../llm/wire.md, section 1.8): a pure function of the whole body to its gzip
   member (RFC 1952), DEFLATE inside (RFC 1951) by `skein-deflate`'s
   encoder (../../data/deflate.md), and a worst case from
   the body's length that its output never passes, so the caller sets
@@ -225,7 +225,7 @@ pub struct Limits {
   `headers` the response's field list, `head` the head and parsing lines,
   and `read` the body intake and current delivery. Calls and request-body
   pieces belong to the side above; emitted values pass to their owner
-  (../../testing/README.md, 5). `valid(&limits)` requires a head of at least two bytes,
+  (../../testing/service-tiers.md, 1). `valid(&limits)` requires a head of at least two bytes,
   a positive read cap and positive request-body room (`send`). There is
   no client heap sum; worlds check measured peaks under scenario ceilings.
 - **`largest_read`** is the larger of `head` and `read`, and at least 2;

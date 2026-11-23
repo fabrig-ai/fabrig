@@ -551,6 +551,6 @@ accounts component nor its listener requires a sum of heap prices.
   issuer runs in its process, on loopback, with no added latency, for the
   stories that sign a person in: the test drives the redirect, following
   each `visit` to the listener as the scripted browser does. Stories that
-  need an account but no sign-in give it a key instead (../llm/README.md, 2.6), and
+  need an account but no sign-in give it a key instead (../llm/vocabulary.md, 1.6), and
   stories of a program that signs in by itself use a fake program; neither
   needs the issuer.

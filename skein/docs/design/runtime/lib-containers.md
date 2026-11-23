@@ -114,8 +114,8 @@ where it holds it.
   reads. A state that keeps a `Held` past its step hashes, by hand, what
   of it is left to read.
 - **A digest reads the whole state,** so a world asks for one at the end
-  of a run, and after each iteration only when it chooses to (../testing/README.md,
-  section 5). No step code calls it.
+  of a run, and after each iteration only when it chooses to (../testing/service-tiers.md,
+  section 1). No step code calls it.
 
 ### 1.2 Joining two maps
 

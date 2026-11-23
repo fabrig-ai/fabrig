@@ -1,4 +1,4 @@
-//! Former-name scopes and defaults after layout resolution (data/codec/README.md, 7.2–7.3).
+//! Former-name scopes and defaults after layout resolution (data/codec/run-time.md, 1.2–1.3).
 
 use super::{DeclIx, FieldIx, Named, Schema, SchemaError, Shape, Span, VariantIx, Wrong, add, constant};
 use alloc::boxed::Box;

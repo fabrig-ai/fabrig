@@ -168,9 +168,9 @@ product's own settings are `../shell/README.md`'s.
   declaration. Each endpoint has:
   - its name, which charters and transcripts use;
   - **its dialect,** by name and number, each fixed for good: `openai`,
-    3, OpenAI's public Responses dialect (skein's `llm/README.md`, 4.8);
-    `anthropic`, 2, Anthropic's Messages dialect (skein's `llm/README.md`,
-    4.7). A transcript's turns and opaque blocks carry the number
+    3, OpenAI's public Responses dialect (skein's `llm/wire.md`, 1.8);
+    `anthropic`, 2, Anthropic's Messages dialect (skein's `llm/wire.md`,
+    1.7). A transcript's turns and opaque blocks carry the number
     (transcript.md, section 2), so a number is never given to another
     dialect, and 1 is given to none;
     a name and number that do not match are refused, naming the field;

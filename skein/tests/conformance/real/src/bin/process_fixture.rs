@@ -34,7 +34,7 @@ fn main() -> ExitCode {
     owned_fixture(mode, &mut args)
 }
 
-// No fixture outlives its test (skein/docs/design/testing/README.md, 5).
+// No fixture outlives its test (skein/docs/design/testing/service-tiers.md, 1).
 // The marker carries the original owner across exec without changing the
 // public invocation or the parent-death control modes.
 fn owned_fixture(mut mode: Option<String>, args: &mut std::env::Args) -> ExitCode {

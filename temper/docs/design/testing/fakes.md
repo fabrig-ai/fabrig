@@ -586,7 +586,7 @@ its own:
   binary ships it: the checks, the answers, the step core, the replay
   and both transports; over `skein-fake-checkout`, the fake forge's
   domain, protocol layer and peer, and `skein-http`, each in skein's
-  `crates/` (skein's `testing/README.md`, section 6). Its hosted half,
+  `crates/` (skein's `testing/layout.md`, section 1). Its hosted half,
   `crates/temper-fake-git-hosted`: the program as skein's simulated
   world hosts it, from the world's `Inherited`, which the playground
   ships; the fixtures and scenarios the worlds share stay with the

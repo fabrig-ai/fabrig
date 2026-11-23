@@ -7,7 +7,7 @@ The design carries this draft. Section 1's reason is skein-io's
 `Op::Signal`, io's own close naming its kill `Closed`
 (`../../../../skein/docs/design/runtime/io/processes.md`, 5). The real
 world's record of a kill, with its time, target, requester and reason, is
-`../../../../skein/docs/design/testing/README.md`, 5. Smith's kill after a
+`skein/docs/design/testing/service-tiers.md`, 1. Smith's kill after a
 terminate's grace is named `Grace` (`../../../../smith/docs/design/domain/host.md`, 4);
 a git operation's and a job's kills name their deadline, cancel or abort
 (`../protocol/git.md`, 7; `../domain/worker/jobs.md`). The check's finding,

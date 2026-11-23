@@ -605,7 +605,7 @@ completions to it, as the text shell's terminal (text.md, section 3).
   past 64 bytes dropped whole, its next key kept; `ESC ]` as `Alt` before
   `answers`; no answer ever a key.
 - **The terminal** on skein's simulated machine, in `tests/ui-screen`
-  (../testing/README.md, section 6): `ENTER` first; keys split across reads; frames
+  (../testing/layout.md, section 1): `ENTER` first; keys split across reads; frames
   paced, one at a time, the newest drawn; a frame larger than the output's
   room in pieces; a resize asking the window and drawing whole; `LEAVE`
   last on each way out, closing, the input's end and a close while a

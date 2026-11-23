@@ -355,7 +355,7 @@ other module is safe Rust, the same on both systems.
   `close_keeper_fd`); a signal raised by hand (`open_signal_pipe`,
   `write_service_signal`, `signal_current_thread`); a blocking wait for a
   readable descriptor (`wait_readable`); the calling thread's CPU
-  (`thread_cpu`, `../testing/README.md`, 5); the path an open
+  (`thread_cpu`, `../testing/service-tiers.md`, 1); the path an open
   descriptor names now, `descriptor_path(fd: Fd) -> Result<Box<[u8]>,
   Error>`, by `readlink` of `/proc/self/fd/N` on Linux and
   `fcntl(F_GETPATH)` on Darwin, which has no `/proc`, for a harness that
@@ -531,7 +531,7 @@ other module is safe Rust, the same on both systems.
   step: Darwin's `std` mutex boxes its `pthread_mutex_t` at its first
   lock, and an empty map keeps the node its first insertion made, each
   held for the process's life, so a step that was first to make them
-  would hold heap its own calls never free (`../testing/README.md`, 5,
+  would hold heap its own calls never free (`../testing/service-tiers.md`, 1,
   the heap's checks). Linux has neither table. A `Wait` that reaps marks
   the handle only once `waitid` has answered an exit; a stop or a
   continue leaves it unreaped and the `Wait` pending. A `Wait` is `waitid` on

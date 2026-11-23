@@ -9,7 +9,7 @@ layout. The patch machine (`patches.md`) stays for wires and the
 transcripts' frames; a registered family's written changes use its
 owner's jobs.
 
-- **A value type's layout** (`README.md`, 9.4): a root declaration, at
+- **A value type's layout** (`fingerprints.md`, 1.4): a root declaration, at
   one variant where the root is broad and its keys tell its variants
   apart, its fingerprint without the
   family's version and with what it holds resolved.
@@ -30,18 +30,18 @@ owner's jobs.
 ## 1. Two layouts of one value type
 
 A plan converts from an old root, `Root { decl, variant }` of the old
-text, to a new root of the new text (`README.md`, 9.4). Its caller says
+text, to a new root of the new text (`fingerprints.md`, 1.4). Its caller says
 which: the root it stores beside each layout and the root its binary's
 text names, both by its own table of value types. The two roots match
 as the diff matches declarations (2): by name or a former name, the new
 variant's former names among them; roots that do not match have no
-plan (`Underived::Root`). A broad root without a variant (`README.md`,
-9.4) matches only another without one, and is planned as the
+plan (`Underived::Root`). A broad root without a variant (`fingerprints.md`,
+1.4) matches only another without one, and is planned as the
 declaration whole, every variant of its reach judged; one at a variant
 and one without never match.
 
-Each text comes with the texts of the families it holds (`README.md`,
-9.4: `held`), the old with those its layout was made with, the new with
+Each text comes with the texts of the families it holds (`fingerprints.md`,
+1.4: `held`), the old with those its layout was made with, the new with
 the binary's. A held record or enumeration (2: Held records) whose family is given on both sides is
 converted by its own plan (2); one given on neither is copied as it is;
 one given on one side alone has no plan (`Underived::Held`).
@@ -55,8 +55,8 @@ one given on one side alone has no plan (`Underived::Held`).
   root, and the declarations no value of the root can hold, are not, so
   a variant dropped beside the value type's own is no change of it.
 - **Derived, and planned:** each change `diff.md`, 3 calls none needed or
-  derived: a field added (its bytes the new text's default, `README.md`,
-  7.3: `default`), dropped, or moved; a variant added after every kept
+  derived: a field added (its bytes the new text's default, `run-time.md`,
+  1.3: `default`), dropped, or moved; a variant added after every kept
   one, or before one (its tags move); a bound widened; an integer widened
   (its bytes move); an `option` wrapped around a type (its presence put
   before it); a record made `versioned` (its head put before it) or no
@@ -232,7 +232,7 @@ impl Workspace {
   the plan; a pair with no drop gives `derive`'s plan.
 - **The machine as oracle,** in the fuzzy suite: for each pair of
   `tests/codec-patches`' fixture texts whose patch is derived, values
-  drawn from the old text by the seeded generator of `README.md`, 8.3,
+  drawn from the old text by the seeded generator of `run-time.md`, 2.3,
   converted by the plan and by the patch machine, give the same bytes;
   arbitrary bytes and goldens with a byte changed, cut or grown are
   refused by the pass, or converted to bytes the new text's generic

@@ -1,4 +1,4 @@
-//! One table test's rows (skein/docs/design/testing/README.md, 6): cases of one
+//! One table test's rows (skein/docs/design/testing/layout.md, 1): cases of one
 //! behaviour share a process (skein/docs/foundation/testing-strategy.md,
 //! 8). Each row is named before it runs; the first failure ends the table.
 //!
@@ -10,7 +10,7 @@ use std::collections::BTreeSet;
 /// The first failure ends the table. Fewer than two rows, or two rows of
 /// one name, panic before any row runs.
 #[track_caller]
-#[expect(clippy::print_stderr, reason = "the row's name is the table's report (testing/README.md, 6)")]
+#[expect(clippy::print_stderr, reason = "the row's name is the table's report (testing/layout.md, 1)")]
 pub fn check<R>(rows: impl IntoIterator<Item = (&'static str, R)>, body: impl Fn(R)) {
     check_with_report(rows, body, |line| eprintln!("{line}"));
 }

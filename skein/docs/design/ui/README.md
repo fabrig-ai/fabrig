@@ -64,7 +64,7 @@ fake person. What waits is in section 15, and what is open in section
 | `skein-fake-person`, `testing/skein-fake-person` | ordinary Rust, shaped as a step machine | the person, the tree face, the random person (`testing.md`, 1.1) | `skein-ui`, `skein-lib` |
 | `skein-fake-person-browser`, `testing/skein-fake-person-browser` | ordinary Rust | the person's face over `skein-browser`; the harness; skein's stories for a browser shell (web/testing.md, 2) | `skein-fake-person`, `skein-browser`, `skein-ui-web`'s host half, `skein-io` |
 | the UI example, `examples/ui/{view,shell-web,server}`: `skein-ui-example-view`, `-shell-web`, `-server` | example crates | a small notes application: its state and view; its browser shell, the **reference shell** applications copy; its server (../examples.md, section 9) | skein's crates |
-| `tests/ui`, `tests/ui-text`, `tests/ui-web` | test crates | skein-ui's peaks under scenario ceilings with the counting allocator; the terminal on the simulated machine; the parts' host tests beyond a crate's step tests, and the example's browser tier (../testing/README.md, section 6) | |
+| `tests/ui`, `tests/ui-text`, `tests/ui-web` | test crates | skein-ui's peaks under scenario ceilings with the counting allocator; the terminal on the simulated machine; the parts' host tests beyond a crate's step tests, and the example's browser tier (../testing/layout.md, section 1) | |
 
 - **Step code and ordinary Rust.** `skein-ui`, the text shell's renderer
   and command reader, and an application's views and drawing code are
@@ -76,8 +76,8 @@ fake person. What waits is in section 15, and what is open in section
   no 64-bit `usize`, so it builds for `wasm32-unknown-unknown` as lib,
   `skein-codec` and `skein-http` do (../runtime/lib.md, section 2), and a view runs
   unchanged in a browser. skein's gate builds it, and `skein-ui-web`'s
-  platform half, for that target, running nothing (../testing/README.md, section
-  6).
+  platform half, for that target, running nothing (../testing/layout.md, section
+  1).
 - **`unsafe`.** In a client compiled to WebAssembly the glue crates and
   the code their macros generate are the only `unsafe` code
   (../../foundation/programming-model.md, 2.1): `skein-ui` and `skein-ui-web` forbid it,

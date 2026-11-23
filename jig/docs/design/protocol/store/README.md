@@ -781,7 +781,7 @@ Each within jig's suites' budgets.
 - **Step tests:** each key encoder against the derived order; each
   range's intervals against its predicate; each codec both ways, with
   fixed-rule values built from schema text or generated records built by
-  their public fields, not stored codec bytes (skein's `data/codec/README.md`, 6);
+  their public fields, not stored codec bytes (skein's `data/codec/golden.md`, 1);
   each root's largest value decoded within its heap bound and released,
   at the ceilings if it fits the memory test's cap, otherwise at lower
   limits with its encoded and decoded bounds at the ceilings pinned

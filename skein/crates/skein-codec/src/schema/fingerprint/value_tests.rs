@@ -1,4 +1,4 @@
-//! Value roots, encoding-2 bytes, held reach and reviewed layout digests (README.md, 9.4).
+//! Value roots, encoding-2 bytes, held reach and reviewed layout digests (data/codec/fingerprints.md, 1.4).
 #![expect(clippy::disallowed_macros, reason = "layout fixtures format schema texts")]
 #![expect(clippy::disallowed_types, reason = "canonical byte tables use ordinary Rust test containers")]
 

@@ -317,7 +317,7 @@ no type with the echo. Each connection follows a plan:
 It holds no copy of what it sent: a line's bytes are drawn from the
 seed, and drawn again, from the same seed, to check its answer. It checks
 its peer as it goes, failing the world on the first breach, which its
-check returns as its finding and its caller panics on (testing/README.md, 5): each answer
+check returns as its finding and its caller panics on (testing/service-tiers.md, 1): each answer
 is the oldest line unanswered, byte for byte; `busy\n` comes only first;
 `too long\n` only to the line past the limit; nothing comes after either
 but the end. What it saw (answers, refusals, the server's end, failures,
@@ -481,7 +481,7 @@ processes, each a host of an `iterate` (a service, or a fake client):
     teardown policy failure, the real-loop harness drops its hosts and
     ends their trees, cancels and drains the shared kernel, then reaps
     retained leaders and closes their deferred descriptors
-    (testing/README.md, 5). A panic that aborts therefore reports after
+    (testing/service-tiers.md, 1). A panic that aborts therefore reports after
     cleanup. An unwinding test also drops its binary unsettled as a
     fallback, and the kit ends what is left the same way: every
     process the walk has found, below the binary's group as well as
@@ -496,7 +496,7 @@ processes, each a host of an `iterate` (a service, or a fake client):
     exercises it (../foundation/programming-model.md, 10.4). A test
     process killed outright, by its runner's timeout or a signal, or one
     that aborts, runs none of this: a fixture's own tie to its owner
-    ends its tree then (testing/README.md, 5).
+    ends its tree then (testing/service-tiers.md, 1).
   - **A crash on purpose.** A test that crashes its binary, to prove
     what a restart finds, is its supervisor (runtime/shell.md, 12). It supervises
     the tree (`Expectation::Supervise`), kills all of it at once
@@ -718,7 +718,7 @@ a service copies that.
   the bundle's headers and the policy on every answer, the page at any
   other path, a digest not the bundle's not found, a limit refused.
 - **The wasm32 builds** of the view and the browser shell, with clippy's
-  lints as errors, in skein's gate (testing/README.md, section 6).
+  lints as errors, in skein's gate (testing/layout.md, section 1).
 - **The browser tier** (ui/web/testing.md, 1 and 3), in `tests/ui-web`:
   the server's binary and Chromium through `skein-fake-person-browser`'s
   harness and face, failing on any trouble a story did not expect, a

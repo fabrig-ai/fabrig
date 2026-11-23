@@ -281,7 +281,7 @@ schema's name, for:
   `translate(&Schema, &str)` returns that module's text from the parsed
   schema and the maps file's text, or the refusal of 6.
 - **Drift:** each family with a maps file has its drift test
-  ([README.md](README.md), section 6) compare the translation module
+  ([golden.md](golden.md), section 1) compare the translation module
   with the generator's output, `SKEIN_CODEGEN_WRITE=1` writing it.
 - **Merges:** `tools/merge/codecs.txt` gives a translation module a row
   of its own: its path, the schema texts in command order, the maps file

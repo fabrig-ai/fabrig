@@ -391,7 +391,7 @@ this shell's text (testing.md, 1.1).
   too long to print`, with no number acting. The terminal's operations
   are skein-io's for its two pipes; settings it refuses give no count.
 - **The terminal** on skein's simulated machine, in `tests/ui-text`
-  (../testing/README.md, section 6): lines split and joined across reads, a line
+  (../testing/layout.md, section 1): lines split and joined across reads, a line
   too long refused through its newline, prints paced and one at a time,
   the application's lines before the next print, the application's
   lines within their room while the output is held, a read's refusals

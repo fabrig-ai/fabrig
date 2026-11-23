@@ -1,4 +1,4 @@
-//! A schema parser and generator for bounded codecs (data/codec/README.md, sections 3-6).
+//! A schema parser and generator for bounded codecs (data/codec/README.md, sections 3-5, and data/codec/golden.md, section 1).
 //! The schema and declaration tree are author-owned; this crate has no peer
 //! input or running machine state. [`parse`] validates a schema before code
 //! generation.
@@ -109,7 +109,7 @@ pub struct FixedValue {
     pub bytes: Vec<u8>,
 }
 
-/// Fixed-rule encodings in declaration order (data/codec/README.md, section 6).
+/// Fixed-rule encodings in declaration order (data/codec/golden.md, section 1).
 #[must_use]
 pub fn fixed_values(schema: &Schema) -> Vec<FixedValue> {
     fixed_values::fixed_values(schema).into_iter().map(|(_, fixed_value)| fixed_value).collect()

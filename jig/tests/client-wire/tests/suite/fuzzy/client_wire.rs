@@ -1,4 +1,4 @@
-//! Arbitrary and mutated client bytes (skein's data/codec/README.md, section 6).
+//! Arbitrary and mutated client bytes (skein's data/codec/golden.md, section 1).
 //! Job arms follow jig/docs/design/client/domain/contract/documents.md, 7.
 use jig_client_protocol_wire::*;
 use skein_lib::{Reader, Rng, Writer, length::len_u64};

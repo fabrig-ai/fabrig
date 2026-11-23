@@ -620,7 +620,7 @@ named scenario ceiling with headroom.
   never a skip.
 
 The kit's tests are a crate of their own, `tests/browser`
-(`skein-browser-world`) (README.md, 6).
+(`skein-browser-world`) (layout.md, 1).
 
 ## 10. What it asks of others
 
