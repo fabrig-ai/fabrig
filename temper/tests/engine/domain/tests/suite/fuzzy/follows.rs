@@ -305,9 +305,7 @@ pub(super) fn run_with_restarts(seeds: &[u64]) -> Vec<skein_world::faults::Fault
 }
 
 fn shard(seeds: Range<u64>) {
-    for seed in seeds {
-        run_replayed(seed);
-    }
+    skein_world::sweep::each_seed(seeds, run_replayed);
 }
 #[test]
 fn fuzzy_follows_shard_0() {

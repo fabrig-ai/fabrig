@@ -292,13 +292,9 @@ fn run_replayed(seed: u64) {
 }
 #[test]
 fn fuzzy_opening_shard_0() {
-    for seed in 0..SEEDS / 2 {
-        run_replayed(seed);
-    }
+    skein_world::sweep::each_seed(0..SEEDS / 2, run_replayed);
 }
 #[test]
 fn fuzzy_opening_shard_1() {
-    for seed in SEEDS / 2..SEEDS {
-        run_replayed(seed);
-    }
+    skein_world::sweep::each_seed(SEEDS / 2..SEEDS, run_replayed);
 }

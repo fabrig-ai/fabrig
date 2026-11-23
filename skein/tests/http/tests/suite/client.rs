@@ -41,16 +41,16 @@ fn exchanges_cut_and_delivered_at_random_decode_whole() {
 
 #[test]
 fn neighbours_that_end_early_fail_or_close_at_any_moment_leave_a_consistent_run() {
+    let mut mutations = generate::MutationBatch::default();
     for seed in 0..60 {
-        let (exchanges, mut server) = scenario(seed, 2);
+        let (exchanges, server) = scenario(seed, 2);
         let mut rng = Rng::new(seed);
-        if rng.chance(400) {
-            server = generate::mutate(&mut rng, &server);
-        }
+        let server = if rng.chance(400) { generate::mutate(&mut rng, &server) } else { server.into() };
         let limits = client_world::limits(&mut rng);
-        let settings = Settings::chaotic(&mut rng, limits, server.len());
-        let _ = client_world::check(&exchanges, &server, &settings, seed);
+        let settings = Settings::chaotic(&mut rng, limits, server.input().len());
+        let _ = mutations.judge(server, |server| client_world::check(&exchanges, &server, &settings, seed));
     }
+    mutations.finish();
 }
 
 #[test]
@@ -177,18 +177,22 @@ fn the_side_above_closes_in_every_state() {
 
 #[test]
 fn a_seed_replays_to_the_same_run() {
+    let mut mutations = generate::MutationBatch::default();
     for seed in 0..20 {
         let (exchanges, server) = scenario(seed, 2);
         let mut rng = Rng::new(seed);
         let server = generate::mutate(&mut rng, &server);
         let limits = client_world::limits(&mut rng);
-        let settings = Settings::chaotic(&mut rng, limits, server.len());
-        assert_eq!(
-            client_world::run(&exchanges, &server, &settings, seed),
-            client_world::run(&exchanges, &server, &settings, seed),
-            "seed {seed}"
-        );
+        let settings = Settings::chaotic(&mut rng, limits, server.input().len());
+        mutations.judge(server, |server| {
+            assert_eq!(
+                client_world::run(&exchanges, &server, &settings, seed),
+                client_world::run(&exchanges, &server, &settings, seed),
+                "seed {seed}"
+            );
+        });
     }
+    mutations.finish();
 }
 
 #[test]
