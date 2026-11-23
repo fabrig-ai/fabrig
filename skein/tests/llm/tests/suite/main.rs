@@ -18,6 +18,7 @@ mod fake_credentials;
 mod fake_failures;
 mod fake_faults;
 mod fake_memory;
+mod live_login;
 mod meaning;
 mod measure;
 mod memory;
