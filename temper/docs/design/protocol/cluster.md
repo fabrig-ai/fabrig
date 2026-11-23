@@ -182,7 +182,7 @@ w1, w2       temper-box serve DIRS     after the engine: each a worker alone
   server keeps its own, as the sign-in link reads it; the workers'
   routing keeps the one io's `Listening` event gives; and the webhooks'
   comes up from skein-forge-connection as its `listening` event (skein's
-  `forge/connection.md`, 6.4).
+  `forge/connection-webhooks.md`, 1.4).
 - **Ready**: the engine at its `listening` lines
   and its sign-in link; a worker at its `linked` line. A task created
   before a worker's hello has reached the fleet waits for a free slot,

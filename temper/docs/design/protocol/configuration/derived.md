@@ -207,7 +207,7 @@ one another, and a unit takes its timeouts from the engine's.
 - **The stop bound** is the settled stop's (`../../domain/root-restart.md`,
   1.2): twice the sum of the forge client's write lifetime and clock
   margin, `forge.client.lifetime_ms` and `forge.client.clock_margin_ms`
-  (skein's `forge/client.md`, 7.8), from the limits in force at the
+  (skein's `forge/client-effects.md`, 1.8), from the limits in force at the
   start (`limit-settings.md`). At the stock's 300 s and 1 s it is 602 s.
   One function computes it, `skein_forge_client::stop_bound(&Limits)`,
   which the client's settle reads too. The drain after the settle, its

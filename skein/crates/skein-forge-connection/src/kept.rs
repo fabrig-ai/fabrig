@@ -1,4 +1,4 @@
-//! Conditional answers, bounded oldest out (skein/docs/design/forge/connection.md, 4.6).
+//! Conditional answers, bounded oldest out (skein/docs/design/forge/connection-calls.md, 1.6).
 use alloc::boxed::Box;
 use core::mem::size_of;
 use skein_forge::api::Validator;

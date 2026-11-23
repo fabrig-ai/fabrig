@@ -777,7 +777,7 @@ pub enum QueueRemoval {
 }
 
 impl QueueRemoval {
-    /// GitHub's spelling (forge/github.md, 4.1).
+    /// GitHub's spelling (forge/github-operations.md, 1.1).
     #[must_use]
     pub fn github(self) -> &'static [u8] {
         match self {

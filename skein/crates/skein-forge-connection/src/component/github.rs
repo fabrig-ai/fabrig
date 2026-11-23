@@ -21,7 +21,7 @@ use skein_forge::{
 };
 use skein_lib::{Duration, Env, Lifecycle, Queue, usize_of};
 
-/// What a GitHub forge's own connection is working on (skein/docs/design/forge/connection.md, 3.4 and 8.3).
+/// What a GitHub forge's own connection is working on (skein/docs/design/forge/connection.md, 3.4, and skein/docs/design/forge/connection-machines.md, 2.3).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Active {
     Listing { next: Duration },

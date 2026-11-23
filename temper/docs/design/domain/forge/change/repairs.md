@@ -34,10 +34,10 @@
   at this head, failed again`). A failure the runner caused within
   `reruns` is run again, never repaired. The log is read at the job attempt that failed on this
   head, within the brief's byte budget, and its truncation is said; a
-  read that fails is said in its place (skein's `forge/forgejo.md`, 1.2).
+  read that fails is said in its place (skein's `forge/forgejo-operations.md`, 1).
   On GitHub the pin comes from the failed check's resolved Actions job,
-  whose id may differ from the check-run id (skein's `forge/github.md`,
-  4.4). A log cut keeps its end, including a gate's complete timestamp
+  whose id may differ from the check-run id (skein's `forge/github-operations.md`,
+  1.4). A log cut keeps its end, including a gate's complete timestamp
   line when it fits, and marks the missing prefix. A pin for another
   head is never read. On GitHub, streaming retention ends at the runner's
   failed-process line before post-job cleanup (skein's `forge/github.md`,

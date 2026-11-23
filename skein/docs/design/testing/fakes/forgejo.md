@@ -23,7 +23,7 @@ and what the two layers share (`github.md`, section 3), and holds no clock of it
   `id`, full name and protected branch; `max_response_items`,
   `default_paging_num` and `faults`.
 - **Routes.** Outside the setup's, each route is one domain call: decoded by
-  the server side of `skein-forge` (../../forge/forgejo.md, section 1.2), translated to a
+  the server side of `skein-forge` (../../forge/forgejo-operations.md, section 1), translated to a
   `Read` or `Write`, and its answer encoded as Forgejo encodes it. A write
   Forgejo answers with what it made or changed (an issue, a pull request,
   a comment, a review, an edited issue, a status, a branch) makes one call
@@ -69,8 +69,8 @@ and what the two layers share (`github.md`, section 3), and holds no clock of it
   `failure`; a push to a pull request's head or base starts a mergeability
   check. `../../forge/forgejo.md`, section 2 names the fact that records each, or lists
   those not yet.
-- **Conditional reads, as Forgejo 17.0.1 answers them** (`../../forge/connection.md`,
-  4.6): a raw file's read (`GET R/raw/<path>?ref=<ref>`) answers an `ETag`
+- **Conditional reads, as Forgejo 17.0.1 answers them** (`../../forge/connection-calls.md`,
+  1.6): a raw file's read (`GET R/raw/<path>?ref=<ref>`) answers an `ETag`
   derived from the bytes it serves, the same for the same bytes, and a
   read of it whose `If-None-Match` names that `ETag` answers `304` with
   no body, after the read's own authorization and resource checks, a
@@ -84,7 +84,7 @@ and what the two layers share (`github.md`, section 3), and holds no clock of it
   keeps only runs of the workflow file `workflow_id` names, when given,
   before it pages, and still ignores `workflow`. Each is a filter of the
   domain's read, as `head_sha` is, so the tally shows what a client's
-  filter saved (`../../forge/forgejo.md`, 1.2; `forge.md`, section 7 lists them as not yet
+  filter saved (`../../forge/forgejo-operations.md`, 1; `forge.md`, section 7 lists them as not yet
   recorded). A reviewer's request answers with no body, where Forgejo
   sends the pull's reviews, which no client reads.
 - **Actions' states, in Forgejo's words** (`../../forge/job-state.md`,

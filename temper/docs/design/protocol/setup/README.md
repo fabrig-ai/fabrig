@@ -493,7 +493,7 @@ Each is intended; what it needs is named with it.
   so would read the link's OSC 8 from a real box, at the process tier's budget.
 - A copy of a bottle of temper's own: `owned.md`, section 10.
 - **One percentage for both binaries** (`owned.md`, 6): from sizes pinned beside
-  their digests (skein's `forge/README.md`, 4.3), known before the first byte,
+  their digests (skein's `forge/dialects.md`, 1.3), known before the first byte,
   so that the bar does not start again for the runner
   (`../../client/forge/deployment.md`).
 - **The other steps' progress** (`box.md`, 1): preparing and starting take

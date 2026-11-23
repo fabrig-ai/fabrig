@@ -39,9 +39,9 @@ move: sockets' section also owns its state machine and io-specific rules.
 
 `skein/docs/design/forge/github.md`, 15 still defers validators beyond the
 log, with the default "the log alone". But
-`skein/docs/design/forge/connection.md`, 4.6 specifies a bounded validator
+`skein/docs/design/forge/connection-calls.md`, 1.6 specifies a bounded validator
 cache keyed by request and identity and says every read in both dialects
-uses it. **Owner:** `skein/docs/design/forge/connection.md`, 4.6.
+uses it. **Owner:** `skein/docs/design/forge/connection-calls.md`, 1.6.
 **Suggest:** the GitHub designer retire or narrow the question against that
 contract; do not leave the two scopes as competing defaults. This item is
 left unchanged; the separate DNS-question consolidation below changes no

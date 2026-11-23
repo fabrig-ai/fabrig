@@ -3364,7 +3364,7 @@ impl World {
                                 )
                             {
                                 // The provider-neutral fake reports divergence; Forgejo's
-                                // dialect keeps its 500 as Timeout (forge/forgejo.md, 1.2).
+                                // dialect keeps its 500 as Timeout (skein/docs/design/forge/forgejo-operations.md, 1).
                                 Err(skein_forge::api::Error::Timeout)
                             } else {
                                 Err(translate::error(error, fake::time(&self.fake_env.limits, self.fake_env.now)))

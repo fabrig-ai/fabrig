@@ -117,7 +117,7 @@ adoption says so, `adoption.md`, 4) lands through that queue. Forgejo keeps none
   for the entry: the pull request is in the forge's queue at that head,
   neither landed nor refused. temper names no other call for it: the
   forge's rules, not temper, send the merge into its queue (skein's
-  `forge/README.md`, 3.3).
+  `forge/vocabulary.md`, 1.3).
 - **temper's queue decides only what enters and when.** A change in
   the forge's queue leaves temper's turn, and the next ready change
   becomes first, and enters behind it when its own turn comes; the
@@ -128,8 +128,8 @@ adoption says so, `adoption.md`, 4) lands through that queue. Forgejo keeps none
   delivery or the delivery log (`../../protocol/forge/README.md`, section 4 and
   4.1), and found by the client's read of the pull request: the merge's
   entry stays open in the client until that read finds the pull request
-  merged or out of the queue (skein's `forge/README.md`, 3.3;
-  `skein/docs/design/forge/client.md`, 7.7).
+  merged or out of the queue (skein's `forge/vocabulary.md`, 1.3;
+  `skein/docs/design/forge/client-effects.md`, 1.7).
 - **Landed:** the change is landed (`change/README.md`, 2), and its landing's commit is
   the queue's group's (`Pull.merged`), not the head temper saw: the
   forge merged that head onto the queue's base with the changes ahead

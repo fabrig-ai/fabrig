@@ -266,7 +266,7 @@ priority, and its reds are filed and repaired as Linux's are
     again from nothing, as 6.6 has it. A binary already at its name with
     another digest is refused, never overwritten.
 - **Two digests per binary on macOS,** in `skein-forge` beside Linux's
-  (skein's `forge/README.md`, 4.3): the archive's, which is its address, and
+  (skein's `forge/dialects.md`, 1.3): the archive's, which is its address, and
   the binary's, which a file already in the cache is held to. A pin is
   selected by platform, architecture and kind of file: `arm64` alone no
   longer says which.

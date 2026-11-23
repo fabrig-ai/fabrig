@@ -30,7 +30,7 @@ pub struct Installation {
     pub suspended: bool,
     pub created: Wall,
 }
-/// Everything its installation may do, or contents alone (forge/github.md, 8.2).
+/// Everything its installation may do, or contents alone (forge/github-app.md, 1.2).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Scope {
     Full,

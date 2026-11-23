@@ -696,7 +696,7 @@ cannot manufacture independent room.
   offset. `Civil::wall` is its midnight, or `None` outside `Wall`.
   `Civil::month_name` is a month's English three-byte name. The texts of
   a date are their readers': RFC 3339 and the HTTP date's reading in
-  skein-forge (../forge/README.md, 4.4), IMF-fixdate's writing in skein-http
+  skein-forge (../forge/dialects.md, 1.4), IMF-fixdate's writing in skein-http
   (http.md, 5.4), and `YYYY-MM-DD` in skein-ui (../ui/README.md, 9).
 - **`earliest(left: Option<Time>, right: Option<Time>) -> Option<Time>`**
   is a `const fn` returning the earlier of two optional deadlines, `None`

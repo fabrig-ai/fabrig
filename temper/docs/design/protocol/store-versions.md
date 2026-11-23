@@ -311,7 +311,7 @@ schema ceiling of 65,536 bytes. Their runtime bounds, `open_words` and
 `held_answer`, both come from `forge.client.op_bytes`; the start refuses a
 bound above the ceiling by the ordinary schema-bound check (2026-11-04).
 
-A named call's `TooLarge` keeps its excess (skein's `forge/README.md`, 3.4):
+A named call's `TooLarge` keeps its excess (skein's `forge/vocabulary.md`, 1.4):
 `Error`'s `too_large` carries an `Excess` record, its `bound` an enum of
 the five bounds and `limit`, `size` and `exact` beside it.
 
@@ -369,7 +369,7 @@ a record written before it, and the decoder takes that record's
 `ApplicationAdopted`, carries the same `landing`, empty in an outcome
 kept before it (`../domain/forge/adoption.md`, 8).
 
-A named call's comparison answer is names and counts (skein's `forge/README.md`, 3.3): `CompareAnswer` holds `before`, `after`, `ahead`, `behind`, `files`, a list of at most `forge.client.rows` paths, and `changed`.
+A named call's comparison answer is names and counts (skein's `forge/vocabulary.md`, 1.3): `CompareAnswer` holds `before`, `after`, `ahead`, `behind`, `files`, a list of at most `forge.client.rows` paths, and `changed`.
 
 A listing's page of items says whether it was cut at the answer's bytes (skein's `forge/forgejo.md`, 1.3): `ItemsAnswer` holds `items`, `more`, `now` and `cut`, so a stored answer read after a restart pages on from its last kept row as an answered one does (skein's `forge/client.md`, 4, "Paging") (2026-11-11).
 

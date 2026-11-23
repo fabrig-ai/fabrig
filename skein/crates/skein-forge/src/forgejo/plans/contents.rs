@@ -1,5 +1,5 @@
 //! Contents plans: list changed paths, then read each side within the answer bound.
-//! See skein/docs/design/forge/forgejo.md, sections 1.2 and 1.4.
+//! See skein/docs/design/forge/forgejo-operations.md, section 1, and skein/docs/design/forge/forgejo.md, section 1.4.
 use crate::api;
 use crate::forgejo::plans::{
     Body, Heard,
@@ -353,7 +353,7 @@ impl Plan {
     #[expect(
         clippy::wildcard_enum_match_arm,
         clippy::manual_let_else,
-        reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2"
+        reason = "the exchange's decoder picks the kind: forge/dialects.status.md, 1.2"
     )]
     #[expect(
         clippy::too_many_lines,
@@ -550,7 +550,7 @@ impl Plan {
 }
 #[expect(
     clippy::wildcard_enum_match_arm,
-    reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2"
+    reason = "the exchange's decoder picks the kind: forge/dialects.status.md, 1.2"
 )]
 fn listed(body: Option<Body>) -> Result<(), api::Error> {
     match document(body)? {
@@ -560,7 +560,7 @@ fn listed(body: Option<Body>) -> Result<(), api::Error> {
 }
 #[expect(
     clippy::wildcard_enum_match_arm,
-    reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2"
+    reason = "the exchange's decoder picks the kind: forge/dialects.status.md, 1.2"
 )]
 fn comparison(body: Option<Body>) -> Result<d::Compare, api::Error> {
     match document(body)? {

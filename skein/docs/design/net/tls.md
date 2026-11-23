@@ -398,7 +398,7 @@ independence.
   depend on it.
 - **An App's signature:** `sign_rs256(key, message) -> Option<[u8;
   256]>` signs a GitHub App's JSON Web Token (../forge/connection.md,
-  section 5.2; ../forge/github.md, section 8.1) with ring's RSA PKCS#1 v1.5
+  section 5.2; ../forge/github-app.md, section 1.1) with ring's RSA PKCS#1 v1.5
   over SHA-256, inside skein-tls, so ring stays behind one crate. The
   key is PKCS#1 `RSAPrivateKey` DER of 2048 bits alone, at most
   `RS256_KEY_BYTES`, the largest such key's DER; another, or one ring

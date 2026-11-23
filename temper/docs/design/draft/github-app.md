@@ -170,7 +170,7 @@ token makes an App:
 - **A delivery's id** is a 19-digit number, decoded exactly as a `u64`
   (a JSON decoder going through a float would lose it).
 - **The component's puller** sits beside its listener (skein's
-  `forge/connection.md`, section 6): it keeps the newest `guid` seen,
+  `forge/connection-webhooks.md`, section 1): it keeps the newest `guid` seen,
   reads back to it at each poll (paging by cursor when more arrived),
   and at start reads back within `log_catch_up`, so deliveries made
   while temper was down still hint. Its reads run on the App's JWT,
@@ -222,11 +222,11 @@ token makes an App:
 ## 5. The dialect
 
 - **In skein,** GitHub's documents and call plans beside Forgejo's
-  (skein's `forge/README.md`, sections 4 and 8): REST, pinned to API version
+  (`skein/docs/design/forge/dialects.md`, section 1, and `skein/docs/design/forge/README.md`, section 8): REST, pinned to API version
   `2026-03-10` (the `X-GitHub-Api-Version` header; requests without it
   get 2022-11-28, and a version stays supported 24 months after the next
   one), with GraphQL for what REST lacks: entering the merge queue
-  (6.2), the commit a queue landed, and the bot's identity (section 1).
+  (6.2), the commit a queue landed, and the bot's identity (`github-app.md`, section 1).
   temper does not use auto-merge: it decides each landing itself.
 - **The pin** is the API version and the conformance's date. GitHub is a
   service, not a release a deployment runs: the conformance runs on a

@@ -14,8 +14,16 @@ is:
 
 This document is the kit as a whole and its first crate, `skein-forge`:
 the vocabulary, the dialects, keys' markers, deliveries and credentials.
-The others are connection.md (the component), client.md (the
-client), setup/README.md (the setup), job-state.md (a job's state, read
+Its [vocabulary](vocabulary.md) and [dialects](dialects.md) have their
+own pages. The dialects have [Forgejo's API](forgejo.md) and
+[operations](forgejo-operations.md), and [GitHub's dialect](github.md),
+[operations and merge rules](github-operations.md), and
+[App and setup documents](github-app.md).
+The others are [connection.md](connection.md) (the component), with
+[calls](connection-calls.md), [webhooks](connection-webhooks.md), and
+[entities, limits and machines](connection-machines.md);
+[client.md](client.md) (the client), with its [write effects](client-effects.md);
+setup/README.md (the setup), job-state.md (a job's state, read
 when a wait on CI passes its bound) and ../testing/fakes/forge.md (the
 fakes, the throwaway Forgejo and the conformance).
 
@@ -50,7 +58,7 @@ fakes, the throwaway Forgejo and the conformance).
 - **Dialects hold the documents and the plans.** Forgejo's dialect holds
   both sides of each document, its deliveries, the setup's documents and
   its pin. Each call is run by a call plan of the dialect: a small pure
-  machine that does no io (section 4).
+  machine that does no io (`dialects.md`, section 1).
 - **Credentials have a kind, set by the dialect.** A token lasts until
   revoked (Forgejo's, or a GitHub fine-grained token). A GitHub App
   installation's token is minted from the App's key and lasts an hour.
@@ -126,10 +134,17 @@ tests/forge/github                 GitHub's conformance: on the fake, and opt-in
   stand on the vocabulary. The owner carries calls to the component, and
   answers and hints back to the client (client.md, section 2;
   connection.md, section 2).
-- **Each crate has its document:** connection.md for the
-  component, client.md for the client, setup/README.md for the
-  setup, and ../testing/fakes/forge.md for the fakes, the forge peer, the throwaway
-  and the conformance.
+- **Each crate has its documents:** this page, [vocabulary.md](vocabulary.md)
+  and [dialects.md](dialects.md) for `skein-forge`, with
+  [forgejo.md](forgejo.md) and [forgejo-operations.md](forgejo-operations.md),
+  and [github.md](github.md), [github-operations.md](github-operations.md)
+  and [github-app.md](github-app.md) for the two dialects;
+  [connection.md](connection.md), [connection-calls.md](connection-calls.md),
+  [connection-webhooks.md](connection-webhooks.md) and
+  [connection-machines.md](connection-machines.md) for the component;
+  [client.md](client.md) and [client-effects.md](client-effects.md) for the
+  client; setup/README.md for the setup; and ../testing/fakes/forge.md for
+  the fakes, the forge peer, the throwaway and the conformance.
 
 ### 2.2 What the owner gives
 
@@ -142,7 +157,7 @@ setup shell hosts reconcile. The kit reads no file and no configuration
 - **The user agent,** on every request (`forgejo.md`, section 1.1).
 - **The namespace and the identity.** The namespace is the owner's keys'
   namespace. The identity is the owner's bytes for an effect, opaque to
-  the kit (client.md, section 7).
+  the kit (client-effects.md, section 1).
 - **For each forge:** its number, its dialect, its API's address and
   transport, the value of its credential, the forge user that credential
   must stand for, and its webhook secret when it has one.
@@ -174,645 +189,11 @@ setup shell hosts reconcile. The kit reads no file and no configuration
 
 ## 3. The vocabulary
 
-### 3.1 What it is
-
-`skein-forge`'s `api` and `locate` modules are the forge's neutral
-vocabulary. It describes bounded requests and answers between the
-client and a dialect, and retains no state. It names no task, no grant
-and no policy. Every type is a plain value.
-
-- **Calls:** `Op`, which is a `Read` or a `Write`.
-- **Their result:** `Answer`, `Error`, and the enums they use (`Kind`,
-  `State`, `Ci`, `Check`, `Verdict`, `Permission`, `BranchCreation`,
-  `Provenance`, `Bypass`).
-- **What an answer says of the forge** (3.3): `Rate`, the rate's window,
-  and `Validator`, a read's validator.
-- **A hint:** `Hint`, with its `Change`.
-- **The items** that answers carry (3.6).
-- **Addressing:** `Repository { forge, repository }`, `forge` being the
-  owner's number for a forge (16 bits) and `repository` the forge's own
-  id (32 bits). A commit is 32 bytes (a SHA-1 id zero-padded). Times
-  are `skein_lib::Time` and `Duration`.
-
-### 3.2 The calls
-
-26 reads and 18 writes, in families. Each call has one answer.
-
-| Family | Calls | Answer |
-|---|---|---|
-| Find a repository | `Locate` | `Located` |
-| The change feed | `Items` | `Items` |
-| One item | `Item`, `Pull`, `PullFor` | `Item`; `Pull`; `Pull` |
-| Review | `Reviews`, `Remarks` | `Reviews`; `Remarks` |
-| CI | `Statuses`, `Checks`, `Job`, `JobState` (job-state.md) | `Statuses`; `Checks`; `Job`; `JobState` |
-| Actions | `Runs`, `Run`, `Artifact`; `Dispatch`, `Rerun` | `Runs`; `Run`; `File`; `Done`; `Done` |
-| Branches | `Branch`, `Branches`, `Commits` | `Commit`; `Branches`; `Commits` |
-| Contents | `PullFiles`, `Compare`, `Range`, `File`, `Tree` | `PullFiles`; `Compare`; `Range`; `File`; `Tree` |
-| The repository | `Protection`, `Settings`, `Collaborators`, `Permission` | the same names |
-| Creations | `CreateIssue` (keyed), `OpenPull` | `Created` |
-| Labels | `Labels`, `CreateLabel` | `Done`; `Done` or `Exists` |
-| Comments, keyed | `Post`, `Review` | `Commented`; `Reviewed` |
-| Edits | `Edit`, `SetReviewers`, `Close`, `Reopen` | `Done` |
-| Merging | `Merge`, `Update`, `UpdateRef` | `Merged` or `Queued`; `Done`; `Done` |
-| Marks and branches | `Status`, `CreateBranch`, `DeleteBranch` | `Done`; `Branch`; `Done` |
-
-- **The change feed** is one listing of items since a time, least
-  recently updated first, in pages from 1. It is the only listing of
-  items (`forgejo.md`, 1.2).
-- **A keyed write** takes the key the owner made. The dialect writes it
-  into the marker (section 5). A pull request's key is its branches, so
-  `OpenPull` takes none.
-- **`PullFor { head, base }`** asks for the open pull request of a head
-  and a base, else the oldest. It reads no CI.
-- **`Pull { number, ci }`** asks for a pull request and, when `ci`, its
-  head's CI, folded as `Checks` folds its rows. Without `ci` the forge is
-  asked for no status, and the answer's `ci` is `Ci::None`, as `PullFor`'s
-  is: a reader that uses CI asks `ci`, or reads `Checks`.
-- **`Reviews`, `Remarks` and `PullFiles` take `skip`,** the rows of their
-  page already read: a page the answer's bytes cut (3.3) is read on at
-  the same page past them, so a cut loses no row and repeats none.
-- **`PullFiles { number, head, page, skip, sides }`** reads a page of a
-  pull request's changed files at `head`. With `sides`, each `File`
-  carries its contents at the merge base and at the head, `None` for a
-  side the file lacks; without, its path alone, both `None`, and the
-  dialect reads neither a merge base nor a side: the files' listing is
-  the read. A reader that needs paths alone, as goal overlap does
-  (temper's `domain/forge/topics.md`, 1.3), asks without `sides`.
-- **`Item { number, after, since }`** asks for an item and its comments
-  with ids above `after`. `since` is a time at or before the update of
-  every comment above `after`, which the dialect sends as its forge's own
-  filter so that the forge sends fewer; 0 sends none. `after` stays the
-  answer's check (3.7): a comment at or below it that the forge still
-  sends is skipped. An owner that knows no such time sends 0.
-- **`Range { before, after }`** counts the commits after `before` up to
-  `after`, those `after` holds and `before` lacks, and lists none: no
-  commit, no file, no side. It is the read of containment and of
-  emptiness: `before` contains `after` exactly when it counts 0, so an
-  owner asking whether a head holds a base's tip asks
-  `Range { before: head, after: tip }`, and one asking whether a range
-  is empty asks `Range` over it. Its answer holds no list, so no range is
-  too long for it.
-- **`Job { attempt, max_bytes, part }`** asks for one part of one job
-  attempt's log: `End`, the end of its failed step's log, or of its
-  whole log when no step failed; or `Start`, the first bytes of its
-  whole log, where a CI's opening lines are, such as the selection line
-  a goal's report quotes (temper's `domain/forge/branches.md`, 2). `File {
-  head, path, max_bytes }` asks for the start of one file at a commit.
-  Both are cut to `max_bytes`, or to what the answer has left (`forgejo.md`, 1.3), and
-  say when they cut: a `Start` that cut kept the log's first bytes and
-  dropped the rest.
-- **`Merge { number, head }`** is conditional on the head. A merge's
-  base is the client's precondition, checked by reading the pull
-  request afresh (client.md, section 7). Where a merge queue
-  guards the base, it answers `Queued`: the pull request was put in the
-  queue at that head, and the landing comes later, as a hint
-  (github.md, section 5.1).
-- **`Protection`** needs an admin to read an absent rule. A writer who
-  is not an admin gets `Forbidden` (`forgejo.md`, 1.2).
-- **`Merge { number, head, how }`** merges in the repository's own style
-  (`Style`), or `FastForwardOnly`: the base moved to exactly the head,
-  refused (`Conflict`) when the head does not contain the base's tip;
-  or `Recorded { commit }`, last: nothing moves, and the pull request is
-  recorded merged at `commit`, which its base must already contain,
-  for an owner that landed the pull request's change by a commit of its
-  own (temper's squash, temper's `domain/landing-turn.md`, section 1). It
-  answers `Merged` at `commit`; a commit the base does not contain, or
-  a repository that allows no such record, is `Refused`, and a dialect
-  whose forge records none answers `Refused` too.
-  **`Update { number, style }`** brings a pull request's branch up to
-  its base by a merge of the base into it (`Merge`), or by a rebase of
-  its commits onto the base (`Rebase`), which rewrites the branch.
-- **`UpdateRef { branch, to }`** moves a branch to a commit as a
-  fast-forward only, refused (`Stale`) when the commit does not
-  descend from the branch's tip, for an owner that
-  fast-forwards a branch where the forge merges no pull request so. A
-  dialect whose forge has no such route answers `Refused`: Forgejo's
-  owner fast-forwards by a merge instead.
-- **`Status { commit, context, check, description, link }`** writes a
-  context's state with its words, at most `DESCRIPTION_BYTES` (140), and
-  its link, an absolute URL, either empty for none.
-- **Actions** (connection.md has no part in them beyond any
-  call's): `Dispatch { workflow, branch, inputs }` runs a workflow,
-  named by its file, at a branch's head, with at most `INPUTS` (10)
-  inputs, each a name and a value; the forge keeps no key for it, and
-  answers no run, so its owner finds the run with `Runs { workflow,
-  commit, page }`, the runs of one workflow at one commit, newest
-  first. `Run { run }` reads one run: its number, workflow, commit,
-  status, conclusion and jobs, each job with its id, name, attempt,
-  status, conclusion and failed step. `Rerun { attempt }` runs one job
-  again, named by its `JobAttempt`, with the jobs that need it, once its
-  run has completed; its find reads the run for the job's next
-  attempt.
-- **`Artifact { run, name, max_bytes }`** reads one file of a run's
-  artifact by the artifact's name: the archive's single file, stored or
-  deflated, cut to `max_bytes`, answered as a `File` at the run's
-  commit with the file's path. An archive of several files, or one
-  compressed otherwise, is `Refused`.
-- **`Commits { before, after, page }`** lists the commits after
-  `before` up to `after`, oldest first, each its id, its parents and its
-  message, in pages from 1.
-- **`Compare { before, after }`** compares two commits by names and
-  counts alone: the paths changed from their merge base to `after`, and
-  the commits each has that the other lacks, so whether `after` contains
-  `before`. It carries no file's contents and lists no commit. A reader
-  that asks only whether one commit contains another reads the ancestry
-  range instead, `Commits { before: container, after: contained, page: 1
-  }`, complete and empty; one that needs a file's contents reads it by
-  path at each commit (`File`).
-- **`Tree { object, page }`** reads one tree, not recursively: a
-  commit's root tree, or a tree by its id, as its parent's entry names
-  it. Each entry is a name, a mode, a kind and an object id, in name
-  order, in pages from 1.
-
-### 3.3 The answers
-
-31 answers: `Located`, `Items`, `Item`, `Pull`, `Reviews`, `Statuses`,
-`Remarks`, `Commit`, `Branches`, `Commits`, `PullFiles`, `Compare`, `Range`,
-`Checks`, `Job`, `JobState`, `File`, `Tree`, `Runs`, `Run`, `Protection`, `Settings`,
-`Collaborators`, `Permission`, `Created`, `Commented`, `Reviewed`,
-`Merged`, `Queued`, `Branch`, `Done`.
-
-- **`Range { before, after, commits }`** carries its call's `before` and
-  `after` and the count, `commits`, a `u64`.
-
-- **A paged answer says whether more follows** (`more`): `Items`,
-  `Item` (its comments), `Reviews`, `Statuses`, `Remarks`, `PullFiles`
-  and `Collaborators`. `Items`, `Reviews`, `Remarks` and `PullFiles` say
-  too whether the answer's bytes cut their page (`cut`), with `more`
-  set: a cut page is never the last. `Branches` and `Checks` carry none. The answer to
-  `Items` also carries `now`, the forge's clock when it answered.
-- **`Created`, `Commented` and `Reviewed`** carry the new object's
-  number or id. `Merged` carries the merge's commit. `Branch` carries
-  `BranchCreation`: `Created`, or `Exists`.
-- **`Done`** answers `Update`, `Edit`, `SetReviewers`, `Close`,
-  `Reopen`, `Status`, `DeleteBranch`, `Dispatch` and `Rerun`.
-- **`Runs`, `Tree` and `Commits` are paged,** and say whether more
-  follows.
-- **`Pull` answers both `Pull` and `PullFor`;** the `Commit` answer is a
-  branch's tip.
-- **`Compare`** carries `ahead`, the commits `after` has that `before`
-  lacks; `behind`, those `before` has that `after` lacks, 0 when `after`
-  contains `before`; `files`, the changed paths in the forge's order, as
-  many as the answer holds, at most `rows` within `answer_bytes`; and
-  `changed`, how many files changed in all, so that `changed` past
-  `files`' length says how many it left out. A comparison is refused for
-  neither the paths it leaves out nor its commits, so two branches
-  however far apart compare, unless the forge cuts its own listing
-  (github.md, 4.1).
-- **`Queued` is final for its call.** It answers `Merge` alone, and
-  says the merge is the queue's now: neither a merge nor a refusal. The
-  client keeps the write open until a read finds the pull request merged
-  or out of the queue (client.md, section 7). Forgejo's dialect
-  never answers it.
-- **What an answer says of the forge,** beside its cost, travels with
-  it in the component's envelope (connection.md, section 4), and
-  each dialect fills what its forge sends:
-  - **`Rate { limit, remaining, reset_at }`,** the rate's window: the
-    requests the window allows, those left, and when it resets, in
-    seconds since the epoch. The client's budget takes it in place of
-    its configured window (client.md, section 6). Forgejo's
-    answers carry none.
-  - **`Validator`,** a read's validator (an `ETag`, or a
-    `Last-Modified`), at most 128 printable bytes (`VALIDATOR_BYTES`).
-    A read sent with one that the forge answers `304` is answered from
-    the answer the component kept, counted in `free`
-    (connection.md, 4.6). Both dialects send them on every read;
-    Forgejo sends an `ETag` on a file's raw read and none on a branch's
-    JSON, and a read with none kept is sent as before.
-
-### 3.4 The errors
-
-21 errors. A call's `Error` is the first failure of its requests, and
-`forgejo.md`, 1.4 says which failure gives which.
-
-| Error | Means |
-|---|---|
-| `Unavailable` | the forge could not be reached, or the request provably was not read |
-| `Timeout` | the request may have reached the forge: a write's outcome is unknown |
-| `RateLimited { after }` | the forge refuses calls for `after` |
-| `Forbidden` | the writer lacks the permission (a bad or lacking credential included) |
-| `Missing` | the object is absent |
-| `MissingJob` | the job attempt is absent, or is no longer the attempt asked for |
-| `TooLarge(Excess)` | a request or an answer passes a bound, which it names with the size met |
-| `Empty` | the write has no content |
-| `Full` | the forge has no room for the write (a quota) |
-| `Exists` | the object already exists |
-| `NothingToMerge` | the pull request would add nothing to its base |
-| `Closed` | the target is closed or merged |
-| `Stale` | the head the call required has moved |
-| `BaseMoved { base }` | an update's pull request is at the head it required, on another base commit than the one it was decided on: `base` the one the forge reported, none where it reported none |
-| `Conflict` | the change conflicts with its base |
-| `Protected` | a protection rule refused the write |
-| `Refused` | the repository's settings, or the forge's policy, refuse the write |
-| `InvalidAnswer` | a decoded answer does not match its call |
-| `Busy` | the client's own admission refused the call; no API call was made |
-| `NotConnected` | the forge is not connected, or stopped; no API call was made |
-| `NotInstalled` | no installation of the App reaches the repository's owner; no API call was made |
-
-- **`Busy` is never a dialect's.** It is the client's own refusal
-  (client.md, section 2.3). The component never produces it
-  (connection.md, section 7).
-- **Nor is `BaseMoved`:** the client's check of an update's condition
-  gives it (client.md, 7.4), so its owner can tell a base gone on from a
-  head moved.
-- **`NotConnected` and `NotInstalled` are the component's,** never a
-  dialect's, and cost nothing (connection.md, section 7).
-  `NotInstalled` is GitHub's alone: the component chooses an
-  installation by the repository's owner (section 7).
-- **A pause is `RateLimited { after }`:** `Retry-After` when the forge
-  gives it; else, when the window has none left, its reset less the
-  forge's clock; else, for GitHub's secondary limits, 60 seconds
-  (github.md, section 7).
-- **`Timeout` is the error that leaves a write's outcome unknown.** The
-  client finds the outcome by the write's key, or by reading
-  (client.md, section 7).
-- **`TooLarge` names its bound and its size,** as `Excess { bound,
-  limit, size, exact }`, a plain value:
-  - `bound`, a `Bound`: `OpBytes`, `AnswerBytes` or `Rows`, the client's
-    own configured bounds (client.md, 2.2 and 2.3), passed by a
-    call's bytes, an answer's bytes by the measure (3.7), or an answer's
-    longest list; `Forge`, a bound of the dialect's, the component's or
-    the forge's own: a body past `body_bytes_in`, a string past
-    `string_bytes`, a listing the forge cuts, a count past the
-    vocabulary's width; `Unnamed`, where the check kept no figure.
-  - `limit`, the bound's figure, and `size`, what was met, both in the
-    bound's unit, bytes or rows. Both are 0 for `Unnamed`, and for a
-    `Forge` bound whose figure the check does not hold.
-  - `exact`: `size` is the whole's, measured; otherwise it is a lower
-    bound, what had been read when the bound stopped the read.
-
-  So `size` less `limit` says by how much, at least. A call's
-  `max_bytes` past `answer_bytes` is `AnswerBytes`, its `size` the
-  `max_bytes` asked. A dialect names the client's bound where its own
-  check is the client's figure (the answer's bytes left for a file's
-  side, a page's rows), and `Forge` or `Unnamed` otherwise.
-
-### 3.5 The hint
-
-`Hint { repository, change, key }` says that something may have changed.
-It is not a fact.
-
-- **`Change`:**
-  - `Item(number)`: an issue or a pull request;
-  - `Branch(branch)`: a branch was made or deleted;
-  - `BranchMoved { branch, head, actor }`: a branch moved to a commit,
-    pushed by the user `actor`;
-  - `Commit(commit)`: CI moved at a commit.
-- **`key`** is the key of the body that caused the hint, when the
-  delivery carried one. The owner drops its own echoes by `key` and by
-  `actor` (the pusher); the client reads on every hint it holds a
-  resource for, and uses `actor` for drift alone (client.md,
-  section 4).
-- **A hint decides nothing.** It brings a read sooner, never a decision
-  (client.md, section 4).
-- **No request causes a hint.** It comes from a verified delivery
-  (section 6).
-
-### 3.6 The items
-
-By name; the code holds the fields.
-
-- **`Summary`:** one row of the change feed: number, kind, state,
-  author, labels (for display), key, title, body and updated time.
-- **`Comment`:** a comment, with its id, author, created time, its key,
-  its `Provenance`, its `revision` and its body.
-- **`Pull`:** a pull request's head and base branches and commits, its
-  merge commit, whether it is mergeable, its reviewers, its `Ci`, and
-  `queued`, its position in a merge queue when it is in one, and
-  `dequeued`, the forge's words for why a queue last ejected it, at most
-  `DEQUEUED_BYTES` (256) bytes, and `size`, its `Size` at the head the
-  same answer gives, none where the forge's answer gives none.
-- **`Size`:** a pull request's size as the forge counts it at its head:
-  `files`, the files it changes, and `additions` and `deletions`, the
-  lines it adds and removes, each a `u64`. They are the forge's own
-  counts, read from its answer about the pull request, never counted
-  from the files or a listing. An answer that lacks one of the three,
-  or gives one that is no whole number within 64 bits, gives no `Size`,
-  and the pull request reads as it does without one: a size never fails
-  a read. They are kept as given: no fact on record caps them, as the
-  files' listings are capped (`github.md`, 4.1), so a reader that keeps
-  them narrower says where it cut one.
-- **`Review`:** a review, with its `Verdict`, its commit, its key, its
-  `Provenance`, its `revision`, its time and whether it is official.
-- **`Remark`:** a comment attached to a review at a path and a line.
-- **`Status`:** a CI context: its time, context, `Check`, description,
-  link and, for an Actions job, its `JobAttempt`.
-- **`JobAttempt`:** a job's head, run, job and attempt.
-- **`Run`:** an Actions run: its id, number, workflow file, commit,
-  its event (`dispatch` or another), the user who triggered it, by the
-  forge's id, `RunState` (`Waiting`, `Running`, `Completed`), `Conclusion`
-  (`Success`, `Failure`, `Cancelled`, `Skipped`, none while it runs),
-  its link, when it was made, and its jobs, each a `RunJob`: id, name,
-  attempt, state, conclusion and its failed `Step`, none when no step
-  failed.
-- **`Entry`:** one entry of a tree: its name, its mode, its `EntryKind`
-  (`Blob`, `Tree`, `Commit` for a submodule) and its object id.
-- **`Step`:** a job's failed step, by number and name.
-- **`File`:** a changed file: its path and its bytes before and after,
-  either absent when the file was added or deleted.
-- **`Protection`:** a rule's branch, required contexts, required
-  approvals and whether it dismisses stale approvals; whether a merge
-  queue guards it, and whether it requires signatures, linear history
-  or code owners' reviews; and `Bypass`, whether the credential may pass
-  it: `Never`, `PullsOnly` or `Always`; `pulls_required`,
-  whether a rule requires a pull request, and `pulls_bypass`, the
-  credential's bypass of the rules that do (github.md, 4.5). Forgejo's dialect reads signatures
-  from `require_signed_commits`, and answers no queue, no linear history,
-  no code owners and `Never`.
-- **`Settings`:** a repository's default branch and the merge styles it
-  allows.
-- **`Collaborator`:** a user's id and `Permission`.
-- **`UserPermission`,** `Permission`'s answer: the user's id, the login
-  the forge names them by and their `Permission`. The login is empty
-  where the permission is read without one, as a GitHub bot's from its
-  installation.
-
-`Provenance` is `Original`, `Revised` or `Unknown`. A dialect that
-cannot tell whether a historical creation was edited answers `Unknown`,
-never `Original` from a missing field. A `revision` changes whenever the
-body the forge keeps changes (`forgejo.md`, 1.3).
-
-### 3.7 The rules on them
-
-- **One answer per call,** and its cost: the number of requests the call
-  wrote, the fills of the component's tables included, and 0 when it
-  wrote none. The component reports the cost with the answer
-  (connection.md, section 4), and the budget charges it
-  (client.md, section 6).
-- **Repositories by the forge's id.** A call names `Repository`; the
-  dialect addresses the forge by the repository's path, which the
-  component keeps for the id (connection.md, section 4).
-- **Locate by owner and name.** `Locate { owner, name }` names a
-  repository's account and name, and is addressed with the forge's number
-  and repository 0. It answers `Located` with the forge's id, which is
-  never 0. The call's bytes are the lengths of its `owner` and `name`.
-- **Every dialect answers every call.** A call that a dialect cannot
-  answer as Forgejo does is named when that dialect is designed (section
-  8). GitHub's one is `Status`, which answers `Forbidden` where the
-  App lacks `statuses` write (github.md, section 4.2). The
-  Actions calls, `Tree`, `Artifact`, `Commits`, a fast-forward-only
-  merge and an update by rebase take GitHub's routes of
-  github.md, 4.5.
-- **An answer fits its call.** The client checks each answer against
-  its call before it takes it (client.md, section 2.3):
-
-  | Call | An answer fits when |
-  |---|---|
-  | any | it has the shape in 3.2's table; a read's answer past `answer_bytes`, or with a list past `rows` but `Branches`' names, is `TooLarge`, naming the bound with the answer's exact measure (3.4), a write's `InvalidAnswer`, a lost answer (client.md, 7.4); any other mismatch is `InvalidAnswer` |
-  | `Items` | `updated` never decreases; rows of one time rise strictly by number; numbers are nonzero and unique; each row's kind is the call's, when it names one |
-  | `Item` | the number is the call's; comment ids rise strictly and are above `after` |
-  | `Reviews` | ids rise strictly |
-  | `Pull`, `PullFor` | the number is the call's; for `PullFor`, the head and base are the call's |
-  | `PullFiles` | the head is the call's |
-  | `Compare` | `before` and `after` are the call's, and `files` holds at most `changed` paths |
-  | `Range` | `before` and `after` are the call's |
-  | `Checks` | each job's head is the call's commit |
-  | `Job` | the attempt is the call's, and the log is within `max_bytes` |
-  | `Runs` | each run's workflow and commit are the call's; ids are unique |
-  | `Run` | the id is the call's |
-  | `Tree` | names rise strictly |
-  | `Commits` | the ids are unique |
-  | `Artifact` | the bytes are within `max_bytes` |
-  | `File` | the head and path are the call's, and the bytes are within `max_bytes` |
-  | `Locate` | the id is nonzero |
-
-- **The measure.** A call's or an answer's bytes are the lengths of the
-  byte strings it holds, plus a fixed width for each element of each
-  list in it; a value outside a list adds no width. `skein-forge`'s
-  `measure::op(&Op)` and `measure::answer(&Answer)` give them, none when
-  the sum passes a `u64`. The widths:
-
-  | Element | Width |
-  |---|---|
-  | a `Summary`, a `Review` | 128 |
-  | a `Status` | 160 |
-  | a `Comment` | 96 |
-  | a `Remark`, a `File` | 64 |
-  | a `Commit` | 32 |
-  | a `Run` | 128 |
-  | a `RunJob`, an `Entry` | 64 |
-  | an input | 32 |
-  | a `Collaborator`; a string in a list (a label, a branch, a context, a compared path) | 16 |
-  | an id in a list (a reviewer) | 8 |
-
-  Each width is at least its type's size on the target, asserted when
-  the crate is built, so the measure bounds memory and is one on every
-  target. A row count is no part of it: `rows` is checked beside it, on
-  every list but `Branches`' names, which are small and bounded by their
-  bytes alone, each its width and its length (`forgejo.md`, 1.2). `Range` holds no
-  list, and measures 0.
-  The page size (`forgejo.md`, 1.1), the client's checks (client.md, section 2.3)
-  and the component's limits (connection.md, section 7) all use
-  it.
-- **A call is admitted within bounds.** The client admits an op only
-  when its bytes are at most `op_bytes`, a `Job` or `File`'s `max_bytes`
-  is between 1 and `answer_bytes`, a page is at least 1 and a file's
-  path is not empty. The component and the plans never see one that is
-  not (client.md, section 2.3).
-- **The vocabulary retains no state.** A row is a value, and the owner
-  stores it as it likes.
+Moved to [`vocabulary.md`](vocabulary.md), section 1.
 
 ## 4. Dialects and their call plans
 
-### 4.1 What a dialect holds
-
-A dialect renders the vocabulary on one forge's API. Forgejo's, at its
-pin (4.3), holds:
-
-- **Each request,** as a sized encoder: its bytes are counted before any
-  is written, so a request's head and body are within the bounds the
-  component gives.
-- **Each answer,** as a decoder: a state machine over skein-json's
-  tokens with a bounded stack, which keeps the few fields its answer
-  needs and skips the rest as they pass (`forgejo.md`, 1.3).
-- **The server's side of each document,** for the fake forge: the
-  decoder of each request, and the encoder of each answer
-  (../testing/fakes/forgejo.md, section 1).
-- **The failures:** error bodies, the refusals whose message tells two
-  failures of one status apart, and the map from a status to an `Error`
-  (`forgejo.md`, 1.4).
-- **The deliveries:** the headers, the events subscribed, each payload's
-  decoder and encoder, the table to hints and the listener's path for a
-  forge (section 6).
-- **The setup's documents:** the admin's reads, the bot, its tokens,
-  orgs, a repository's read by id, collaborator and hooks, and the
-  repositories the admin can see (setup/forgejo.md, section 1).
-- **Names, times and ids:** percent-encoding of a path's segments, RFC
-  3339 times in both directions, and object ids in 40 or 64 hexadecimal
-  digits.
-- **How a credential renders on a request** (section 7).
-- **The start's reads,** two call plans that the component runs when a
-  forge starts and decides from, counted in no call's cost
-  (connection.md, section 3):
-  - **the identity read,** which says who the credential stands for:
-    Forgejo's is `GET /api/v1/user`, for the user's `id`;
-  - **the page cap read,** which gives the forge's page cap: Forgejo's
-    is `GET /api/v1/settings/api`, for `max_response_items`, which must
-    be above 0 (`forgejo.md`, 1.1).
-- **The renewal,** for a renewed kind of credential: the plan that
-  renews it, and how long before expiry it is due (section 7).
-- **The pin** (4.3).
-- **The call plans** (4.2).
-- **Its limits,** `Limits`, which the component's owner gives:
-  - `json` and `writer`: skein-json's tokenizer and sized writer;
-  - `string_bytes`: the largest name, title, context, description, link
-    or path kept;
-  - `body_bytes`: the largest body kept whole;
-  - `inner`: the most elements kept of a list inside one document;
-  - `target_bytes`: the longest request target, its path and query.
-
-  `check` refuses a zero, a `json.string` below `string_bytes` or
-  `body_bytes`, and a depth below 8 (Forgejo's documents need about 8).
-  The component's own limits (the connections, the bytes of a head or of
-  a body read, the deadline) are connection.md's, section 7.
-
-A dialect holds no io, no clock and no connection.
-
-GitHub's dialect, `skein_forge::github`, holds the same at its own pin,
-with the App's documents (the JSON Web Token's bytes, the mint and the
-installations' reads) where Forgejo's has the setup's admin reads
-(github.md, section 2).
-
-What holds for both dialects alike sits at the crate's root (4.4).
-
-### 4.2 Call plans
-
-A call plan is a dialect's small pure machine for one call. The
-component runs any dialect's plans on its connections, and the only
-dialect knowledge it keeps is in the plans it is handed.
-
-- **Its steps.** `begin` takes the call and returns a step. `heard`
-  takes what the plan heard and returns the next. A step is one of:
-  - `Send`: an exchange, to be made on the call's connection. It holds
-    the request and a range: the head or the tail bytes of a raw answer
-    to keep (a job's log is kept from its end, a file from its start);
-  - `Done`: the call's `Answer` or `Error`.
-- **What a plan hears is the dialect's type.** Forgejo's plans hear,
-  for an exchange:
-  - `Head`, with the status and the few header fields they read
-    (`Date`, `Retry-After`, `X-HasMore`, `Content-Range` and
-    `Connection: close`);
-  - `Row`, for each element of a listing that the exchange's decoder
-    keeps;
-  - `Done`, with the body: a document the decoder read, raw bytes (and
-    whether more follow), an empty body, or a malformed one;
-  - or `Failed`: the exchange failed with the server never having seen
-    the request (`Unseen`), or possibly having seen it (`Seen`).
-- **It is handed its bounds as plain values,** not the client's
-  `Limits`: the page size (`forgejo.md`, 1.1), `rows`, `answer_bytes` and `body_bytes`.
-  The component takes them from the client's limits and its own, and
-  checks them at start (connection.md, section 7).
-- **It does no io and keeps no connection.** The component makes each
-  exchange, and tells the plan what it heard.
-- **It resolves a repository's path and a user's login** in two tables
-  that the component keeps and hands it: it reads a row, and fills one
-  from the answers it hears (connection.md, section 4). A row of
-  a repository holds its `owner` and `name` (its path), the object
-  format, the merge style and the `html_url`. The tables are lib's `Lru`
-  (../runtime/lib.md, 5): bounded, and they evict the row used longest ago.
-- **It ends with the call's result,** its `Done`, and counts nothing:
-  the call's cost is the component's, one for each request whose first
-  byte it wrote (connection.md, section 4.1). A plan ends on the
-  first failure, except where `forgejo.md`, 1.2 says otherwise.
-- **It maps a failure to an `Error`.** `classify` maps a status, a
-  refusal's message and `Retry-After` to an `Error`, and says whether
-  the path or the row is dropped (`forgejo.md`, 1.4).
-- **It knows its dialect and its call,** and nothing of the budget or of
-  the other calls in flight.
-
-### 4.3 The pin
-
-The dialect is pinned to one release of the forge, the one whose
-behaviour the conformance checked.
-
-- **Constants:** `VERSION`, Forgejo's release (17.0.1), and
-  `RUNNER_VERSION`, forgejo-runner's (13.2.1).
-- **Checks:** `names_forgejo` is true for the first line of
-  `forgejo --version` when it names `VERSION`, ended by nothing, a `+`
-  or a space; `names_runner` is true for the first line of
-  `forgejo-runner --version` when it is `forgejo-runner version v`
-  and `RUNNER_VERSION`, and nothing more.
-- **Readers:** the throwaway Forgejo, the conformance, and a service's
-  owned Forgejo check their binaries against the pin (../testing/fakes/throwaway.md,
-  section 1).
-- **Digests on Linux:** the SHA-256 of each release's Linux binary, per
-  architecture, as lowercase hex:
-
-  | Constant | Of | Bytes | SHA-256 |
-  |---|---|---|---|
-  | `FORGEJO_SHA256_LINUX_AMD64` | `forgejo-17.0.1-linux-amd64` | 122,057,320 | `51a8cdf4a1252e79f4b3855d7a7891af6c6635105420768c460e2f0690385d6f` |
-  | `FORGEJO_SHA256_LINUX_ARM64` | `forgejo-17.0.1-linux-arm64` | 113,764,224 | `1e99403746406e8199efc903ddd1940d5728a60e50241f7aa6c9f2b907bd8ec9` |
-  | `RUNNER_SHA256_LINUX_AMD64` | `forgejo-runner-13.2.1-linux-amd64` | 22,306,978 | `bb369fe1ecb50fdc983c0b1d993f19b0920df6e5864511892b3cdbf16d858b34` |
-  | `RUNNER_SHA256_LINUX_ARM64` | `forgejo-runner-13.2.1-linux-arm64` | 20,840,610 | `eeddb7902f79abe488972f4189fbe3ea02762ee827d1b406b469420bf0d62dd9` |
-
-  The sizes are not constants: they are what the digests were taken
-  over, and what a fetch's bound must admit.
-- **Digests on macOS:** neither project publishes a darwin build, so
-  the pins are Homebrew's bottles for macOS 15 (`arm64_sequoia`), on
-  arm64 alone, two digests for each binary: the archive's, which is its
-  address, and the binary's inside it, which a file already in place is
-  held to. A bottle is the same version as Linux's release and another
-  build:
-
-  | Constant | Of | Bytes | SHA-256 |
-  |---|---|---|---|
-  | `FORGEJO_BOTTLE_SHA256_MACOS_ARM64` | the bottle of `forgejo` 17.0.1 | 43,841,143 | `19db7c548064dfd4097264a7b4c4cf3b228bfd6190bc33a3c6e8a9b26c3d0e06` |
-  | `FORGEJO_SHA256_MACOS_ARM64` | its `forgejo/17.0.1/bin/forgejo` | 111,660,034 | `4b6ed0e7e6ef034d298872125f69332e2aad49367435f66c58ee5eb2c5680cf6` |
-  | `RUNNER_BOTTLE_SHA256_MACOS_ARM64` | the bottle of `forgejo-runner` 13.2.1 | 7,960,512 | `0a8cb32f024121e50ebca1840ed2f5650d65d3eb3e183679c0f8f0bc14d6fb48` |
-  | `RUNNER_SHA256_MACOS_ARM64` | its `forgejo-runner/13.2.1/bin/forgejo-runner` | 21,661,778 | `2829f0125068f0ad92f908cb08c4d3c2f458cc22eec15fd675c332823cbece4b` |
-
-  Each binary's load commands name macOS's own libraries alone
-  (`libSystem`, `libresolv`, `CoreFoundation`, `Security`).
-- **Sources:** each binary's release file, named by the constants and
-  the architecture:
-  - Forgejo's on codeberg.org,
-    `https://codeberg.org/forgejo/forgejo/releases/download/v17.0.1/forgejo-17.0.1-linux-{amd64,arm64}`;
-  - forgejo-runner's on code.forgejo.org,
-    `https://code.forgejo.org/forgejo/runner/releases/download/v13.2.1/forgejo-runner-13.2.1-linux-{amd64,arm64}`.
-    Codeberg serves no runner release (404).
-
-  Each answers a single `200` with the file, and no redirect. A Linux
-  fetcher follows none, and takes any other status as the source
-  failing.
-- **The bottles' sources,** fixed by the archive's digest, never looked
-  up: `https://ghcr.io/v2/homebrew/core/forgejo/blobs/sha256:DIGEST` and
-  `https://ghcr.io/v2/homebrew/core/forgejo-runner/blobs/sha256:DIGEST`.
-  Asked with `Authorization: Bearer QQ==`, the anonymous value Homebrew
-  sends, each answers a `307` to its storage's `https` address, which
-  answers `200` with the archive and is sent no token.
-- **TLS:** with the machine's roots. The digest, not the certificate, is
-  what makes the file the pinned one.
-- **An architecture without a digest** is refused: a fetcher names the
-  architecture and fetches nothing. The pins are Linux on amd64 and
-  arm64, and macOS on arm64.
-- **Readers of the digests:** a service that fetches the pinned binaries
-  (temper's `forge fetch`) checks each file it streams, and each file it
-  finds already in place, against the digest of its own platform and
-  architecture. skein-forge does no io for this: it holds the constants
-  and a `digest(binary, platform, arch, form)` that answers the pinned
-  digest, or none where there is no such pin: `Platform` is `Linux` or
-  `Macos`, `Form` is `Binary` or `Archive`, and Linux has no `Archive`.
-- **Moving the pin** moves the digests with it: a new `VERSION` or
-  `RUNNER_VERSION` comes with the new files' digests, all of them, taken
-  as above, in the same change, and only to versions with bottles.
-
-### 4.4 What the dialects share
-
-What does not depend on a forge's documents sits at `skein_forge`'s
-root, and both dialects stand on it:
-
-- `time`: RFC 3339 and the HTTP date, on lib's `Civil` (../runtime/lib.md, 8);
-- `path`: percent-encoding and a target's reading;
-- `text`: `Body`, a text kept whole or only counted;
-- `decode`: `Malformed`;
-- `limits`: `Limits`, `Problem` and `check`, which takes the depth a
-  dialect needs (8 for Forgejo, 10 for GitHub);
-- `plan`: an exchange's `Failure` and the `Error` each reads as (`forgejo.md`, 1.4);
-- `users`: the logins' table (4.2).
-
-A dialect keeps its public name for each by re-export, and names no item
-of the other dialect. Its documents, ids, plans, `Bounds` and repository
-rows stay its own. The dialects stay modules of one crate (section 10).
+Moved to [`dialects.md`](dialects.md), section 1.
 
 ## 5. Keys' markers
 
@@ -835,7 +216,7 @@ the owner's.
   bot and their own keys' namespace. A body whose marker carries
   another word has no key.
 - **The key is the owner's bytes.** The client builds it with
-  `effect_key(namespace, identity, max)` (client.md, section 7):
+  `effect_key(namespace, identity, max)` (client-effects.md, section 1):
   - version 1, one byte;
   - the namespace's length, as two bytes big-endian;
   - the namespace, which is the owner's;
@@ -850,7 +231,7 @@ the owner's.
 - **The marker code only encodes and decodes,** and never reads the key.
   Whether to believe a key is the client's call: its version, its
   namespace, and whether its author is a configured writer
-  (client.md, section 7). A person who copies a marker into their
+  (client-effects.md, section 1). A person who copies a marker into their
   own comment gives it no provenance.
 - **Bounded.** The key is within the client's `op_bytes`. The marker is
   twice the key's length plus the word's length plus 15 bytes: with a
@@ -865,7 +246,7 @@ Forgejo's deliveries, made hints: they cut polling's latency, and
 decide nothing. Polling stands with no webhook (client.md,
 section 4), and finds whatever a delivery lost, refused or never sent
 told of. The listener, its connections and its caps are
-connection.md, section 6. This section is what the dialect holds.
+connection-webhooks.md, section 1. This section is what the dialect holds.
 
 - **The listener's path.** A forge's deliveries arrive at
   `/hooks/<number>`, the forge's number in decimal with no sign and no
@@ -890,7 +271,7 @@ connection.md, section 6. This section is what the dialect holds.
   | verified, and mapped | `204`, queued first | one |
 
   An unknown path, a forge with no secret and a method other than `POST`
-  are the listener's (connection.md, section 6).
+  are the listener's (connection-webhooks.md, section 1).
 - **Answered first.** Once the body is read and verified, the response
   (`204`) is queued, and only then does the hint go up. The component
   never makes Forgejo wait on its owner's work. skein's HTTP server lets
@@ -944,7 +325,7 @@ connection.md, section 6. This section is what the dialect holds.
   hints at once.
 - **Bounded.** Push payloads list commits, which the decoder skips. The
   listener's connections, head, body and deadline are capped
-  (connection.md, sections 6 and 7).
+  (connection-webhooks.md, section 1, and connection-machines.md, section 1).
 - **Not sent again.** Forgejo does not resend a failed delivery: one
   lost while the owner is down, refused for its size or its signature,
   or never sent is found by polling. A hint that arrives before the
@@ -966,14 +347,14 @@ connection.md, section 6. This section is what the dialect holds.
     `skein_tls::sign_rs256` has it), mints from that each installation's
     token, which expires within the hour, and chooses the installation
     by a repository's owner (connection.md, section 5). The
-    dialect gives the token's bytes and the mint (github.md,
-    section 8); GitHub's tokens render as `Authorization: Bearer <t>`.
+    dialect gives the token's bytes and the mint (github-app.md,
+    section 1); GitHub's tokens render as `Authorization: Bearer <t>`.
 - **The owner gives the value** at start, for each forge (section 2.2).
   The component reads no file.
 - **The dialect says how a credential renders on a request.** Forgejo's
   is `Authorization: token <t>` (`forgejo.md`, 1.1). The request's head, that field
   among them, fits skein-http's `request` limit: the component bounds
-  the credential's size at start (connection.md, section 7).
+  the credential's size at start (connection-machines.md, section 1).
 - **For a renewed kind,** the dialect also gives the plan that renews
   the credential, and how long before expiry it is due. The component
   runs it (connection.md, section 5).
@@ -996,18 +377,18 @@ kit.
   Forgejo dialect and its plans assumes Forgejo. GitHub's calls are REST
   at the pin and three GraphQL documents (the viewer, the queue's
   enqueue, a pull's merge commit), each call's cost counted by the
-  component as Forgejo's is (4.2).
+  component as Forgejo's is (`dialects.md`, 1.2).
 - **The vocabulary gains:**
   - validators on reads and their not-modified answer, free of the rate
-    (3.3);
+    (`vocabulary.md`, 1.3);
   - the rate's window, `Rate`, which the budget takes in place of its
-    configured one (3.3);
-  - pauses, as `RateLimited { after }` (3.4);
-  - `Queued`, a merge put in a merge queue (3.2, 3.3), and `Pull`'s
+    configured one (`vocabulary.md`, 1.3);
+  - pauses, as `RateLimited { after }` (`vocabulary.md`, 1.4);
+  - `Queued`, a merge put in a merge queue (`vocabulary.md`, 1.2, 1.3), and `Pull`'s
     `queued`;
   - the protection's queue, signatures, linear history, code owners and
-    `Bypass` (3.6);
-  - `NotConnected` and `NotInstalled`, the component's (3.4);
+    `Bypass` (`vocabulary.md`, 1.6);
+  - `NotConnected` and `NotInstalled`, the component's (`vocabulary.md`, 1.4);
   - the App's credential, `Credential::App` (section 7).
 
   Each addition is optional for a dialect: Forgejo's carries no rate and
@@ -1040,7 +421,7 @@ The dialect's step tests, in `skein-forge`, with no io:
   one past (`string_bytes`, `body_bytes`, `inner`, the stack's depth); a
   string cut at every byte; the server's encoders met by the client's
   decoders, and the client's encoders by the server's decoders.
-- **Plans.** Each plan against canned answers, for every call of `forgejo.md`, 1.2:
+- **Plans.** Each plan against canned answers, for every call of `forgejo-operations.md`, 1:
   - the page size, the smallest of three (`forgejo.md`, 1.1);
   - names percent-encoded, a slash in a branch's name `%2F`;
   - times read and written, 2554 included;
@@ -1069,7 +450,7 @@ the suites (../testing/README.md, section 6).
 
 ## 10. Open questions
 
-- **A real Forgejo's refused reads, unexplained** (`README.md`, 3.4, `forgejo.md`, 1.3): on a deployment,
+- **A real Forgejo's refused reads, unexplained** (`vocabulary.md`, 1.4, `forgejo.md`, 1.3): on a deployment,
   an agent's `PullFor` was refused `InvalidAnswer`. The answers captured there
   show a comparison's `removed` (`forgejo.md`, 1.3), and no cause for that: none is a by-branch
   answer, and none was read with CI red. What would settle it is that answer,
@@ -1082,9 +463,9 @@ the suites (../testing/README.md, section 6).
   comment it was. Default: the comment it was.
 - **Contents on demand.** A pull request's files with `sides` cost two
   reads per file, since `File` carries contents. Default: a reader that
-  needs paths alone, as an overlap, asks without `sides` (3.2); one that
+  needs paths alone, as an overlap, asks without `sides` (`vocabulary.md`, 1.2); one that
   needs contents asks them for the whole page, or reads one path by
-  `File` at each commit; a comparison reads names alone (3.2).
+  `File` at each commit; a comparison reads names alone (`vocabulary.md`, 1.2).
 - **A file too large for the answer** fails its call as `TooLarge`.
   Default: so; a side cut with a mark would need `File` to carry one.
 - **Bodies past `body_bytes`** are carried empty. Default: so, the
@@ -1105,13 +486,13 @@ the suites (../testing/README.md, section 6).
   sections 3 and 5). Default: so; the owner could tell it apart, so a
   person is told once.
 - **What the dialects still write apart.** Their field walkers, over
-  different masks and `Want`s: 4.4 takes what depends on no forge's
+  different masks and `Want`s: `dialects.md`, 1.4 takes what depends on no forge's
   documents, and joining the walkers is a redesign. And
   `skein-forge-setup`'s `host/limits.rs` builds the one `Limits` in two
   functions, `documents` and `github`. Default: the walkers stay apart;
   the setup's two functions can become one, which nothing asks for yet.
 - **The conformance on macOS.** A bottle is the pin's version and another
-  build (4.3), so what the conformance checks is Linux's binaries, and a
+  build (`dialects.md`, 1.3), so what the conformance checks is Linux's binaries, and a
   bottle answers only to temper's one story
   (`temper/docs/design/testing/tiers.md`, 1.8). Default: so, until the
   conformance joins the macOS workflow with skein's suites
@@ -1119,12 +500,12 @@ the suites (../testing/README.md, section 6).
 - **GitHub's further gaps.** Settled: its dialect is a module of
   `skein-forge`, and section 8 lists what it adds. Open:
   github.md, section 15.
-- **What the call plans' states leave** (4.2): a plan's cells are arms of one
+- **What the call plans' states leave** (`dialects.md`, 1.2): a plan's cells are arms of one
   `match`, where ../../foundation/programming-model.md, section 5.4 has one handler each.
   Default: as they stand, until a debt item names them. The `if let`s
   `forgejo/client` and `forgejo/server` keep on their own enums go with `D015`
   of `skein/docs/development/debt/`.
-- **A document kind no plan names** (4.2): the exchange's decoder picks the kind,
+- **A document kind no plan names** (`dialects.md`, 1.2): the exchange's decoder picks the kind,
   so a plan's match over a decoded document ends in `_` under a named `#[expect]`,
   where ../../foundation/programming-model.md, section 10.3 has no `_` on an own enum, and a new
   `d::Document` kind goes silent there. Decided under the user's standing word,

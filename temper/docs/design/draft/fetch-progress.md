@@ -100,7 +100,7 @@ far.
 ## 8. Later
 
 - **One percentage for both binaries,** from sizes pinned beside their
-  digests (`skein/docs/design/forge/README.md`, 4.3), known before the first
+  digests (`skein/docs/design/forge/dialects.md`, 1.3), known before the first
   byte, so that the bar does not start again for the runner.
 - **The other steps' progress:** preparing and starting take seconds,
   and keep the moving bar.

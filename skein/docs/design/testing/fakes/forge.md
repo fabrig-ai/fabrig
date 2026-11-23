@@ -47,7 +47,7 @@ The dialect is ../../forge/README.md's; the parts under test are the kit's other
 ## 2. The domain
 
 It knows no HTTP, no JSON and no dialect. Its `Read`, `Write` and `Git` are
-its own types, close to ../../forge/README.md, section 3; the layers above translate.
+its own types, close to ../../forge/vocabulary.md, section 1; the layers above translate.
 
 ### 2.1 The boundary
 
@@ -92,7 +92,7 @@ its own types, close to ../../forge/README.md, section 3; the layers above trans
   the statuses and approvals asked; pushes, creation and deletion are
   refused. Deleting a branch closes the pull requests it headed or based.
 - **A pull request's size** is the fake's own count, as a forge's is
-  (`../../forge/README.md`, 3.6): at its head, `files` the paths whose
+  (`../../forge/vocabulary.md`, 1.6): at its head, `files` the paths whose
   contents differ from the merge base's, those its `PullFiles` lists;
   for each, its head side's lines that its base side's don't match,
   counted as additions, and its base side's that its head side's don't

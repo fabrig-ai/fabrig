@@ -10,7 +10,7 @@
 - **The binaries are checked** by every command that runs them: the
   first line of each one's version equal to temper's pin, Forgejo's and
   the runner's (`skein-forge`'s `VERSION` and `RUNNER_VERSION`, skein's
-  `forge/README.md`, section 4.3), the versions skein's conformance checks
+  `forge/dialects.md`, section 1.3), the versions skein's conformance checks
   (`skein/docs/design/testing/fakes/throwaway.md`, section 2). Another binary refuses the command,
   naming its path and what it printed. A fetched binary is checked so
   too, after its digest at its fetch; temper downloads nothing but by
@@ -410,7 +410,7 @@ its own for any other host.
   command.
 - **The digests are pinned,** one SHA-256 per binary and architecture,
   in `skein-forge` beside `VERSION` and `RUNNER_VERSION` (skein's
-  `forge/README.md`, 4.3), and required: on Linux a fetched binary is the build
+  `forge/dialects.md`, 1.3), and required: on Linux a fetched binary is the build
   the conformance checked, byte for byte.
 - **Streamed, never held:** the body's chunks are asked for one at a
   time, as the file takes them; each is hashed into the digest, which

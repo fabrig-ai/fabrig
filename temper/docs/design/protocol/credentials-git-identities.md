@@ -38,7 +38,7 @@ This document holds git identity credentials, split from [`credentials.md`](cred
   no longer accepted, takes its entry out, when it has one. A forge that
   stops (its access refused, whatever the `why`: `credentials.md`, section 5) takes all
   its entries out at once, in one change, as skein's stopped component
-  holds no access (`skein/docs/design/forge/connection.md`, 8.3): temper routes no git
+  holds no access (`skein/docs/design/forge/connection-machines.md`, 2.3): temper routes no git
   request with a token it can no longer vouch for. Its accepted
   installations stay as they are; a forge connected again puts its
   entries back as its new tokens come.

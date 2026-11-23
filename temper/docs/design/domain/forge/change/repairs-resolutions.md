@@ -132,7 +132,7 @@ This document holds merge jobs and conflict resolutions, split from [`repairs.md
   would hold its task for good; the assignment's own check for text,
   behind this one, is `../../agent/room.md`, 2.
   Its pinned comparison, of the head and the base it conflicts with, is by
-  names (skein's `forge/README.md`, 3.2 and 3.3), so a conflict however far its
+  names (skein's `forge/vocabulary.md`, 1.2 and 1.3), so a conflict however far its
   branches have gone apart is compared: `What landed in the base: N
   commits`, N its `ahead`; then each path it names, `Base file: PATH`,
   followed by `Conflicting file: PATH` where the pull's own files name it
@@ -151,13 +151,13 @@ This document holds merge jobs and conflict resolutions, split from [`repairs.md
   to the pull sections for reviews and repairs.
   Likewise, if a page of the pull's files exceeds the forge client's answer
   byte or row limit (a page carries each of its files whole on both sides,
-  skein's `forge/forgejo.md`, 1.2, so one large document can pass it however small
+  skein's `forge/forgejo-operations.md`, 1, so one large document can pass it however small
   its change), the section keeps its pull identity, its gathered content and
   the pages before it, and appends a files-omitted notice within its byte
   budget, naming that page, its bound and the tools that read its files:
   `[files omitted from page P: past BOUND; the pull changes F files; read_issues what=pull_files from page P+1 lists the rest, and read_forge what=file reads a path at the head or the base]`,
   F the forge's count of the pull's changed files from the section's pull
-  read (skein's `forge/README.md`, 3.6, `Pull`'s `size`), its clause
+  read (skein's `forge/vocabulary.md`, 1.6, `Pull`'s `size`), its clause
   `the pull changes F files; ` left out where the forge gave no count. The section then goes on as after its last page, to its
   comparison where it has one; it reads no later page of files and raises no
   limit. This holds for every pull section, a review's included, so a
