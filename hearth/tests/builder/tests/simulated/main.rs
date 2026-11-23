@@ -15,6 +15,8 @@ mod protocol;
 mod simulation;
 
 mod diff {
+    mod exports;
+    mod files;
     mod hunks;
     mod outcomes;
     mod packages;
