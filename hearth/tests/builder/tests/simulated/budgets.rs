@@ -24,7 +24,7 @@ fn a_diff_reads_a_blob_the_two_revisions_share_once() {
     assert_eq!(
         budgets::distinct(&reads.blobs),
         reads.blobs.len(),
-        "hearth/docs/design/domain/render/README.md, 5.4: shared oids reused"
+        "hearth/docs/design/domain/render/crates.md, 1.4: shared oids reused"
     );
 }
 

@@ -53,7 +53,7 @@ out   bytes on stdout and stderr, in chunks over the world's time: progress;
 | systemd-tmpfiles and nscd, at run time | `hearth-protocol-activator` | a live trial's `--create` of `hearth.conf` in the running `/var`; nscd's `--invalidate` | a line that fails; nscd absent | M3 |
 | systemd-run | `hearth-protocol-systemd` | the hold's timer [M4]; a check's transient unit (hearth/docs/design/domain/operating.md, 2.4), and with `--machine=` in a container [M5] | the unit refused; a timeout; an out-of-memory kill | M4 |
 | ssh-keygen | `hearth-protocol-keygen` | hearth/docs/design/domain/activator/operations.md 7's host key: a private and a `.pub` file, their bytes from the seed | a full disk | M3 |
-| the activator's others: mount, umount, cp, and bootstrap's disk tools | `hearth-protocol-activator` | their effects on the fake machine's mounts, files and disks (hearth/docs/design/domain/activator/README.md, section 7) | a failure with a tail | M3 |
+| the activator's others: mount, umount, cp, and bootstrap's disk tools | `hearth-protocol-activator` | their effects on the fake machine's mounts, files and disks (hearth/docs/design/domain/activator/tools.md, section 1) | a failure with a tail | M3 |
 | wg | `hearth-protocol-activator` | a WireGuard key as identity | a failure with a tail | later: M3's identity is SSH host keys only |
 | grub-editenv, grub-install | `hearth-protocol-grub` | `set` and `unset` on one environment file, truncated and rewritten in place; GRUB installed on the FAT partition | a full partition; a block that is not GRUB's | M3b |
 

@@ -58,14 +58,14 @@ recipe rootfs                                                this document
   inputs   the spec's output parts: packages, software, config (../render/spec.md, section 1)
            the resolution the packages part names (../store/records.md, 4)
   layers   packages on the empty layer; software on packages; config on software
-  output   the config layer, named by its key (../store/README.md, 3.3)
+  output   the config layer, named by its key (../store/digests.md, 1.3)
 
 recipe artifact [M6]                                         domain/artifacts.md
   inputs   an environment's output, sources, declared inputs, a command
   layers   one, collected from the command's outputs
 ```
 
-- **One machinery for both:** keys (hearth/docs/design/domain/store/README.md, section 3), the fetch
+- **One machinery for both:** keys (hearth/docs/design/domain/store/digests.md, section 1), the fetch
   (`packages.md`, 1), sandboxes (`sandboxes.md`), the tree helper, records, pins.
 - **Recipes are a closed set in `hearth-domain-build`,** each layer's
   steps fixed by its recipe; the parts give the data.
@@ -84,7 +84,7 @@ recipe artifact [M6]                                         domain/artifacts.md
 
 ## 3. The layers
 
-| Layer | Parent | Key (hearth/docs/design/domain/store/README.md, 3.3) | Holds | Steps |
+| Layer | Parent | Key (hearth/docs/design/domain/store/digests.md, 1.3) | Holds | Steps |
 |---|---|---|---|---|
 | packages | empty | `H("packages", resolution digest, packages part)` | the bootstrapped system: every package's files and what its maintainer scripts made, dpkg's database, the kernel and initramfs in `/boot`, `/var` as installed | fetch; mmdebstrap; verify (`packages.md`) |
 | software | packages | `H("software", packages key, software part)` | downloads placed; what each `software.sh` made (`/usr/local`, `/opt`) | fetch; place; `software.sh` (section 5) |
@@ -105,7 +105,7 @@ recipe artifact [M6]                                         domain/artifacts.md
 plan(spec)
   resolution  ← the record named by the packages part's resolution key,
                 or a resolution (../render/spec.md, section 2)
-  keys        ← packages, software, config (../store/README.md, 3.3)
+  keys        ← packages, software, config (../store/digests.md, 1.3)
   start       ← the highest of config, software, packages that is published
   build       ← each layer above start, bottom-up; from the empty layer if none is
 ```
@@ -137,8 +137,8 @@ plan(spec)
   holds, never `autoremove`, then `dpkg --configure -a`. The installed
   set is then checked against the closure, and the cleanups and the
   scan run, exactly as after a scratch build (`packages.md`, 6, 7, `README.md`, 7.3).
-- **The same key either way.** The key names the inputs (hearth/docs/design/domain/store/README.md,
-  3.3); the record says how the layer was made: `how` scratch or
+- **The same key either way.** The key names the inputs (hearth/docs/design/domain/store/digests.md,
+  1.3); the record says how the layer was made: `how` scratch or
   reconcile, its `base`, and its `depth`, the reconciles since the last
   scratch build in its line (hearth/docs/design/domain/store/records.md, 2).
 - **From scratch instead, never in addition,** when there is no base;
@@ -390,7 +390,7 @@ be shared between machines and peers.
 | anything in `/proc`, `/sys`, `/run`, `/tmp`, `/var/tmp` | noise | a step | emptied by mmdebstrap; tmpfs later (`sandboxes.md`, 2); refused |
 | a socket | noise | a daemon a script started | refused |
 | an initramfs with the builder's microcode or modules | the builder | `MICROCODE=yes`, `AUTO_MODULES=yes` | never written: render writes the configuration (`packages.md`, 5) |
-| an owner outside the range | the builder | a file the builder wrote | refused by the walk (hearth/docs/design/domain/store/README.md, 3.4) |
+| an owner outside the range | the builder | a file the builder wrote | refused by the walk (hearth/docs/design/domain/store/digests.md, 1.4) |
 
 ### 7.3 The scan
 
@@ -552,8 +552,8 @@ with its tail.
 
 - **hearth's own memory is a cost fact too:** the steward's, idle,
   since it always runs, and a steward that grows is a finding; the
-  builder's at its peak, and its start, the store's scan (hearth/docs/design/domain/store/README.md,
-  6.2), which every pass pays. The heavy work runs in child processes
+  builder's at its peak, and its start, the store's scan (hearth/docs/design/domain/store/state.md,
+  1.2), which every pass pays. The heavy work runs in child processes
   that exit, and an idle machine runs no builder at all
   (hearth/docs/design/domain/steward.md, 4.1).
 - **A regression is a finding:** the lab benchmarks hearth as it does
@@ -578,7 +578,7 @@ with its tail.
   - every step's processes saw only their view, and no network;
   - a failed step publishes nothing, and the layers beneath stay;
   - a packages layer's installed set is its closure;
-  - keys follow hearth/docs/design/domain/store/README.md, 3.3: a second build of a spec builds nothing,
+  - keys follow hearth/docs/design/domain/store/digests.md, 1.3: a second build of a spec builds nothing,
     a config change builds only config;
   - every step reports its costs.
 - **Real builds** run as a regular user against the local mirror

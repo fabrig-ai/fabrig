@@ -483,7 +483,7 @@ person reads them through the engine.
   (`/proc/meminfo`), pressure (`/proc/pressure/*`), load
   (`/proc/loadavg`), and disk use per mount (`df`), every 10 s.
   - They are kept in a ring of fixed size in the steward's records, in
-    the store's `state/` (hearth/docs/design/domain/store/README.md, 6.3; hearth/docs/design/domain/steward.md, 2.2), at three
+    the store's `state/` (hearth/docs/design/domain/store/state.md, 1.3; hearth/docs/design/domain/steward.md, 2.2), at three
     resolutions: 10 s for 6 hours, 1 minute for 3 days, 15 minutes for
     60 days. The sizes are computed at startup and bounded.
   - The ring is on disk, so a reboot keeps what led up to it.

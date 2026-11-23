@@ -1,4 +1,4 @@
-//! Typed packages differences (hearth/docs/design/domain/render/README.md, 4.1).
+//! Typed packages differences (hearth/docs/design/domain/render/diff.md, 1.1).
 use super::{Box, List, Packages};
 pub use hearth_domain_render_vocabulary::parts::packages::{
     AptPair, Change, InitramfsPair, Names, PreseedsPair, SeedGroupKeyed, SeedIds, SeedUserKeyed, SeedsChange,

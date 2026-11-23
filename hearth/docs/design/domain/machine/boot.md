@@ -59,7 +59,7 @@ firmware uses these, and kept in the machine record. Made with
 - **`initrd=` is written with a backslash.** efibootmgr converts `/` in
   `--loader`, not in the command line.
 - **The disk is found afresh** at each start, from
-  `/sys/fs/btrfs/<fs uuid>/devices/` (hearth/docs/design/domain/activator/README.md, 6.4).
+  `/sys/fs/btrfs/<fs uuid>/devices/` (hearth/docs/design/domain/activator/state.md, 1.4).
 - **Other calls,** each an argument vector of `hearth-protocol-efi`:
 
   ```
@@ -385,7 +385,7 @@ INCLUDE_MODULES=btrfs,virtio_pci,virtio_scsi,sd_mod
   metal. `yes` means the build host's processor.
 - **`INCLUDE_MODULES`** is the packages part's `initramfs` set, which the
   `boot` task keys by hardware profile (4.2; hearth/docs/design/protocol/format/tasks.md, 4), in the
-  set's order, bytewise (hearth/docs/design/domain/store/README.md, 3.1), comma-joined: the file follows
+  set's order, bytewise (hearth/docs/design/domain/store/digests.md, 1.1), comma-joined: the file follows
   the part's digest, whatever order a list in 4.2 or a task gives.
   `mktirfs` resolves their dependencies when it makes the image, and
   nothing is resolved at boot.

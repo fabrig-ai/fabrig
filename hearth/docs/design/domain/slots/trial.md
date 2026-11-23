@@ -18,7 +18,7 @@ and the booted kernel (`README.md`, section 3) agree on all four of:
 | Digest | Of | From |
 |---|---|---|
 | image | the content of `boot/vmlinuz-<version>` | the output's tree file (hearth/docs/design/domain/store/records.md, 3); the shift's walk finds it again |
-| modules | the subtree `usr/lib/modules/<version>` (hearth/docs/design/domain/store/README.md, 3.4) | the tree file; the walk finds it again |
+| modules | the subtree `usr/lib/modules/<version>` (hearth/docs/design/domain/store/digests.md, 1.4) | the tree file; the walk finds it again |
 | initramfs inputs | `H("initramfs", …)` over the versions of `tiny-initramfs-core` and of the kernel's package, its configuration (which lists the modules), the kernel version, and with `MICROCODE=generic` the microcode packages' versions | the resolution's closure (hearth/docs/design/domain/render/spec.md, 2.4), which hearth/docs/design/domain/build/packages.md, 7 checks is what was installed, and the `packages` part's initramfs configuration (hearth/docs/design/domain/render/spec.md, 1.2); the builder computes it with the output (hearth/docs/design/domain/build/packages.md, 8; hearth/docs/design/domain/store/records.md, 3) and the place request carries it (hearth/docs/design/domain/activator/operations.md, 1) |
 | command line | the line without the slot's own tokens, `initrd=` and `rootflags=` | the slot record (hearth/docs/design/domain/machine/boot.md, section 3) |
 
@@ -251,7 +251,7 @@ why (hearth/docs/design/protocol/wire.md, section 5).
   plan answered them.
 - **What the activator recomputes:** the change between the two slots'
   manifests, leaving out each slot's own files (`prepare.md`, 4, 5), whose digest
-  (in hearth/docs/design/domain/store/README.md, 3.5's form) must equal the plan's; then rules 1 to 5,
+  (in hearth/docs/design/domain/store/digests.md, 1.5's form) must equal the plan's; then rules 1 to 5,
   8 for the plan's units, 10, 11 and 12. The delta is built from its own
   diff, never from paths the steward sent. A difference refuses the
   trial, naming the rule.
@@ -261,7 +261,7 @@ why (hearth/docs/design/protocol/wire.md, section 5).
 ## 8. The steps
 
 Every step that leaves the state starts by writing the journal
-(hearth/docs/design/domain/activator/README.md, 6.3); the marker carries the phase from L3.
+(hearth/docs/design/domain/activator/state.md, 1.3); the marker carries the phase from L3.
 
 | Step | What the activator does | Phase after |
 |---|---|---|
@@ -309,7 +309,7 @@ attributes and link targets for every entry, and contents for the
 delta's files; not inode numbers or change times, which an overlay
 reports from its layers or itself. Any difference fails the trial, and
 the delta is deleted. The expected manifest becomes the live record's
-(`README.md`, 2.4). It is hearth/docs/design/domain/store/README.md, 3.5's rule for a change set, kept for a delta:
+(`README.md`, 2.4). It is hearth/docs/design/domain/store/digests.md, 1.5's rule for a change set, kept for a delta:
 applied and walked, it must give the child's tree. Then the delta is
 sealed: nothing writes a layer once it is merged, which overlayfs calls
 undefined.

@@ -11,6 +11,10 @@ The slots it carries are hearth/docs/design/domain/slots/README.md's, the layout
 hearth/docs/design/domain/machine/README.md's. What is
 open is in section 9.
 
+The companion pages are [`operations.md`](operations.md) for the closed list of
+operations, [`state.md`](state.md) for the layout, records and journal, and
+[`tools.md`](tools.md) for protocol machines and system tools.
+
 ## 1. In one page
 
 - **The activator is root, small and closed.** It owns the machine's
@@ -62,7 +66,7 @@ open is in section 9.
 - **The activator,** hearth's own code, from the running slot: a sealed
   root that an activator prepared and that was blessed.
 - **The running system's tools,** spawned with fixed argument vectors
-  (section 7). At bootstrap the running system is the live system.
+  (`tools.md`, section 1). At bootstrap the running system is the live system.
 - **No task's check:** systemd runs a check [M5] as its declared user,
   never `root`, under fixed sandbox properties, from the running slot's
   own files (`operations.md`, 14).
@@ -109,7 +113,7 @@ changes nothing.
 - **Through the snapshot's descriptor only.** Every path in a slot is
   resolved from the snapshot's root descriptor with
   `openat2(RESOLVE_BENEATH | RESOLVE_NO_SYMLINKS | RESOLVE_NO_XDEV)` (an
-  ask of skein, README, 7.1), never by name in the activator's own
+  ask of skein, README, `tools.md`, 1.1), never by name in the activator's own
   namespace, so a link the output plants at `/var`, `/etc` or a
   kernel's path leads nowhere. What must be a directory or a regular
   file is checked as such (hearth/docs/design/domain/slots/prepare.md).
@@ -117,7 +121,7 @@ changes nothing.
   (hearth/docs/design/domain/slots/prepare.md, 2): bytes as data, never interpreted.
 - **The kernel and the initramfs,** copied byte for byte to the ESP.
 - **`/etc/passwd`, `/etc/group` and `/etc/shadow`,** through the bounded
-  line parsers of `hearth-protocol-accounts` (7.1; fixed field counts,
+  line parsers of `hearth-protocol-accounts` (`tools.md`, 1.1; fixed field counts,
   at most 1 MiB and 4096 lines each), to resolve owners by name, replace
   password hashes and confirm the package users (hearth/docs/design/domain/slots/prepare.md, 4 and
   7). They are files of an output built from IaC, so they are
@@ -211,7 +215,7 @@ WantedBy=multi-user.target
 
 - **One process, one loop,** on skein. It panics to abort, and systemd
   restarts it.
-- **At start** it recovers (6.4), then spawns the steward.
+- **At start** it recovers (`state.md`, 1.4), then spawns the steward.
 - **Its cgroups are delegated** (`Delegate=yes`). At start the activator
   moves itself into a leaf, `activator/`, makes `steward/` owned by
   `hearth` for the steward, its builder, the builder's tools, its tree
@@ -231,12 +235,12 @@ WantedBy=multi-user.target
 | | |
 |---|---|
 | program | `/proc/self/exe`, argument `steward`: the activator's own binary, wherever it lives (on a live system, not in `/usr/local/bin`) |
-| cgroup | `steward/` (3.1), through skein's contained process trees (README, 7.1) |
-| user | `hearth`'s fixed uid and gid (hearth/docs/design/protocol/format/tasks-hearth.md, 1; hearth/docs/design/domain/store/README.md, 7.2), and its supplementary groups as the running slot's `/etc/group` lists them, in practice `systemd-journal`, so the steward reads the journal for telemetry (hearth/docs/design/protocol/wire.md, section 6); no capabilities. An ask of skein: spawning as another user (README, 7.1) |
+| cgroup | `steward/` (3.1), through skein's contained process trees (README, `tools.md`, 1.1) |
+| user | `hearth`'s fixed uid and gid (hearth/docs/design/protocol/format/tasks-hearth.md, 1; hearth/docs/design/domain/store/README.md, 7.2), and its supplementary groups as the running slot's `/etc/group` lists them, in practice `systemd-journal`, so the steward reads the journal for telemetry (hearth/docs/design/protocol/wire.md, section 6); no capabilities. An ask of skein: spawning as another user (README, `tools.md`, 1.1) |
 | environment | given whole: `LANG=C.UTF-8`, and the store's path |
 | descriptors | the link: fd 3 reads what the activator writes, fd 4 writes what it reads; stdin `/dev/null` |
 | working directory | `/var/lib/hearth/store` |
-| process group | its own, so the activator can signal it and its children: an ask of skein (README, 7.1) |
+| process group | its own, so the activator can signal it and its children: an ask of skein (README, `tools.md`, 1.1) |
 
 Before the spawn, the activator makes `/run/hearth/`, owner `hearth`,
 mode 0755, where the steward binds the client's socket (hearth/docs/design/client/README.md, 3.4);
@@ -263,7 +267,7 @@ builder.
   job and goes on (hearth/docs/design/domain/steward.md, section 5).
 - **The activator exits:** systemd restarts it after 1 second, its
   cgroup's steward and builder having been stopped; the new activator
-  recovers (6.4), then spawns a new steward.
+  recovers (`state.md`, 1.4), then spawns a new steward.
 - **During a trial,** the slot's steward must come up to bless, once a
   builder it spawned has rendered the slot's own revision
   (hearth/docs/design/domain/steward.md, section 6). One that keeps crashing never blesses, and
@@ -433,7 +437,7 @@ What the activator checks before a place request becomes a slot.
 - **The shift's walk computes the digest of the shifted tree**
   (hearth/docs/design/domain/slots/prepare.md, 2), as the builder's tree helper computed the output's
   inside its namespace: the same entries, in the same order, in the same
-  encoding (hearth/docs/design/domain/store/README.md, 3.4), because the shift puts every id where the
+  encoding (hearth/docs/design/domain/store/digests.md, 1.4), because the shift puts every id where the
   namespace saw it.
 - **Equal to the record's:** the slot holds exactly the output.
   **Different:** the place fails as a digest mismatch, the slot is
@@ -496,213 +500,47 @@ and L2):
   must equal the expected manifest field by field (hearth/docs/design/domain/slots/trial.md, 8, L2).
   A difference fails the trial with the first paths, never a content.
 - **The mount table is read back** after every swap and at every start,
-  by `hearth-protocol-proc` (7.1): what runs is what the kernel says,
+  by `hearth-protocol-proc` (`tools.md`, 1.1): what runs is what the kernel says,
   not what the activator meant.
 
 ## 6. Its state
 
+Moved to [`state.md`](state.md), section 1.
+
 ### 6.1 Layout
 
-```
-/var/lib/hearth/state                       @hearth.state: root, 0700
-├── machine                                 target, firmware, fs uuid, boot partition's volume id,
-│                                           the ESP's GPT GUID, entry numbers, layout version; mutable:
-│                                           accept or refuse; [M3b] a retired target (../development.md, 3.2)
-├── boot                                    the booted kernel: boot id, its digests (../slots/trial.md, 1)
-├── journal                                 the operation in flight, and its step (7.3)
-├── facts                                   quirks seen, drift's last results, last costs
-├── snapshots/ [M5]
-│   └── x1-prod.data                        the class's snapshots: each sequence, its time, the buckets that keep it,
-│                                           and [M6] sent, confirmed by the peer; the next deadline
-├── slots/
-│   ├── x1-prod.a                           slot record (../slots/README.md, 2.2)
-│   ├── x1-prod.a.manifest                  one entry per path of the sealed root
-│   ├── x1-prod.b
-│   └── x1-prod.b.manifest
-├── trial/
-│   └── x1-prod.b                           the trial marker, only while a trial runs (../slots/trial.md, 4);
-│                                           the dead-man is armed from /run and the command line instead
-├── live/
-│   ├── x1-prod                             the live record, while a live state exists (../slots/README.md, 2.4)
-│   └── x1-prod.manifest                    the merged view's expected entries
-├── identity/
-│   └── x1-prod/                            generation, machine-id, SSH host keys, the backup key [M6], public halves
-├── secrets/
-│   └── x1-prod/
-│       ├── index                           the store's generation; each name's value file, digest, size
-│       └── <name>@<generation>             one value per file, 0600
-└── containers/ [M5]
-    └── chat-prod                           on east-prod: the container's default slot, its id base,
-                                            and a live-blessed slot's "next start is its trial" (../slots/containers.md, 8)
-```
-
-- **A host keeps its containers' records beside its own [M5],** each by
-  the container's target: `slots/chat-prod.a`, `trial/chat-prod.b`,
-  `live/chat-prod`, `identity/chat-prod/`, `secrets/chat-prod/`. The
-  default has a record of its own, since no firmware holds it
-  (hearth/docs/design/domain/slots/containers.md, 6).
+Moved to [`state.md`](state.md), section 1.1.
 
 ### 6.2 Records
 
-- **The filesystem is the only state** (README, section 6): subvolumes,
-  and these records beside them, read back at every start. No kv store.
-- **Each record is sized,** a header with its kind and format version
-  then its fields, encoded by `hearth-protocol-state` (7.1). The domain
-  never sees their bytes.
-- **Each is written with skein's `Store`:** a temporary file, synced,
-  renamed over the old one, the directory synced; conditional on the old
-  one's digest where two writers can meet (the secret index).
-- **Formats are read back across releases.** An activator reads every
-  format version it ever wrote and refuses a newer one, reporting it. A
-  newer activator writes no record in a format the older one cannot read
-  while the older one's slot is still blessed, so a roll back always
-  finds its state readable.
-- **Bootstrap writes as the release it places.** It refuses to run when
-  its own binary's digest differs from the one the output pins in its
-  `hearth` task (hearth/docs/design/domain/machine/bootstrap.md, 1), since the records it writes are read
-  next by that release.
+Moved to [`state.md`](state.md), section 1.2.
 
 ### 6.3 The journal
 
-One record: the operation in flight, its key or attempt, its slot, its
-step and when it started. It is written before each step whose effects
-leave the state (a subvolume, the boot partition, NVRAM, a mount, a
-reboot), and cleared when the operation ends.
-
-| Operation in the journal at start | Recovery |
-|---|---|
-| place | the slot is `preparing`: delete it, nested subvolumes first (hearth/docs/design/domain/slots/crashes.md) |
-| trial, roll back | by the marker's phase and the facts (hearth/docs/design/domain/slots/README.md, section 4) |
-| bless | the record says `blessed`: remove the marker, move the default (re-bless), stop the dead-man; otherwise the slot stays on trial |
-| fall back | by the marker and the facts |
-| try live | at L1 or L2: the delta deleted, the slot `prepared`; from L3, by the marker's phase: `arming` disarmed, later `reboot -ff` (hearth/docs/design/domain/slots/crashes.md) |
-| bless live | the record says `live-blessed`: set the one-shot, set the marker's phase, stop the base's dead-man; otherwise the slot stays on live trial |
-| the live fall back | `reboot -ff`, unless its last step was done |
-| generate identity | remove `.new` |
-| hold a bless [M4] | the marker `held` and its transient timer: nothing to redo |
-| run a check [M5] | the transient unit, collected by systemd: run it again |
-| restart a unit [M5] | read the invocation id: changed means done |
-| a container's trial, bless or fall back [M5] | by the marker and the facts, with the link and settings in `/run` (hearth/docs/design/domain/slots/containers.md, 3) |
-| partition and format [M6] | look for the identifiers: found means done |
-| snapshot, prune [M5] | look for the snapshot by its sequence: found means done; prune again |
-| send, receive [M6] | look for the received snapshot: found means done; a send not confirmed is sent again |
-| restore [M5] | before the swap is recorded, delete the copy or the writable snapshot (`.restoring`); after, the recorded swap: finish it, or undo it, then reboot |
-| a fault [M6] | look for it by the experiment's key; its end still holds |
+Moved to [`state.md`](state.md), section 1.3.
 
 ### 6.4 Start
 
-At every start, after a boot, a soft reboot or a crash:
-
-1. **mount the top level** at `/run/hearth-activator/top`, unless it is mounted;
-   find the disk and the boot partition from
-   `/sys/fs/btrfs/<fs uuid>/devices/`; then the live layers' source,
-   `/run/hearth-activator/layers`: a clone of the top level, private,
-   read-only, without `noexec` and `nosuid` (hearth/docs/design/domain/slots/trial.md, 8);
-2. **read** the machine record, the slot records, the marker, the
-   journal and the boot record;
-3. **read the facts:** running, default, the one-shot, `BootCurrent`,
-   the boot id, soft reboots, `SecureBoot`, and the live fact from the
-   mount table against the live record (hearth/docs/design/domain/slots/README.md, section 3);
-4. **on a new boot id,** record the booted kernel: the running slot's
-   kernel digests (hearth/docs/design/domain/slots/trial.md, 1);
-5. **recover the journal's operation** (6.3);
-6. **apply the start events** to both slots (hearth/docs/design/domain/slots/README.md, section 4): a
-   live trial past arming in this boot, or a live record whose base
-   still runs but whose overlays disagree with it (a person's soft
-   reboot), ends here in `reboot -ff`, before anything else; a live
-   record whose base no longer runs, or whose overlays a reboot
-   dropped, is removed;
-7. **repair what a firmware or a cut left:** an environment pair that
-   disagrees (hearth/docs/design/domain/machine/boot.md, 2.5); hearth's entries out of order in
-   `BootOrder`; a normal entry of a blessed slot that the firmware
-   pruned, made again; the dead-man of a running slot that is blessed,
-   stopped; on BIOS, `tries` reset when the running default meets the
-   criterion (hearth/docs/design/domain/slots/bless.md, 2.4); each delta subvolume that neither the live
-   record nor the marker names, deleted; after an adoption [M3b], the
-   retired target's slots, entries, ESP files and records, deleted
-   (hearth/docs/design/domain/development.md, 3.2);
-8. **start the containers** [M5]: each container's settings and link
-   that `/run` lacks, from its recorded default, then `systemctl start`
-   on its unit (hearth/docs/design/domain/slots/containers.md, 2); and set each class's snapshot deadline
-   from its record and the running slot's policies, a snapshot missed
-   while the machine was down taken at once (hearth/docs/design/domain/operating.md, 7.1) [M5];
-9. **spawn the steward;** its `Welcome` carries the facts.
-
-Every step is idempotent, so a crash during the start repeats it.
+Moved to [`state.md`](state.md), section 1.4.
 
 ## 7. The tools it drives
 
+Moved to [`tools.md`](tools.md), section 1.
+
 ### 7.1 Formats, each its own machine
 
-Every format the activator reads or writes is a lib-only protocol
-machine crate, fuzzed alone (`skein/docs/foundation/programming-model.md`, section 4); the
-domain sees only typed values.
-
-| Crate | Format | Way |
-|---|---|---|
-| `hearth-protocol-link` | the link's records (4.1), `TryLive`'s plan included (`operations.md`, 17) | both |
-| `hearth-protocol-state` | the records of `@hearth.state` (6.1), the trial marker, the live record and its manifest (hearth/docs/design/domain/slots/README.md, 2.4), the classes' snapshot records [M5], the slot record inside the root (hearth/docs/design/domain/slots/README.md, 2.2) | both |
-| `hearth-protocol-accounts` | `/etc/passwd`, `/etc/group`, `/etc/shadow` lines | read; `/etc/shadow` written |
-| `hearth-protocol-units` | fstab (hearth/docs/design/domain/machine/README.md, 3.3), the trial's units and the watchdog's drop-in (hearth/docs/design/domain/slots/prepare.md, 5); a container's nspawn settings [M5] (hearth/docs/design/domain/slots/containers.md, 1) | written |
-| `hearth-protocol-xattr` | `security.capability` v2 and v3, POSIX ACL values (hearth/docs/design/domain/slots/prepare.md, 2) | both |
-| `hearth-protocol-tree` | the store's layer records and tree files, read; the slot manifest, a tree file (hearth/docs/design/domain/store/records.md, 2 and 3) | both |
-| `hearth-protocol-efi` | efivarfs variables and `EFI_LOAD_OPTION` (hearth/docs/design/domain/machine/boot.md, 1.5); efibootmgr's argument vectors | both |
-| `hearth-protocol-grub` [M3b] | `grub.cfg`, a slot's fragment, the environment block (hearth/docs/design/domain/machine/boot.md, section 2); grub-editenv's and grub-install's argument vectors | both |
-| `hearth-protocol-systemd` | systemctl's and systemd-run's lines: states, counts, ids, failed units, `Result`; a job's outcome, and `ActiveState`, `InvocationID`, `NRestarts` and `MainPID` per unit (hearth/docs/design/domain/slots/trial.md, 8) | read |
-| `hearth-protocol-proc` | `/proc/<pid>/mountinfo` lines: mount ids, parents, mount points, propagation, fstype, source and options, an overlay's layers included; `/proc/<pid>/cgroup`, a process's unit | read |
-| `hearth-protocol-keygen` | ssh-keygen's argument vector and public line | both |
-| `hearth-protocol-dpkg` | dpkg's status, for capturing a mutable machine's packages (hearth/docs/design/domain/development.md, section 5) | read |
-
-`hearth-protocol-activator` is the protocol layer: it routes these
-machines, and holds only the argument vectors of tools whose answer is
-an exit status (mount, parted, the mkfs tools and the rest of 7.2).
+Moved to [`tools.md`](tools.md), section 1.1.
 
 ### 7.2 Tools
 
-| Tool | For | Protocol | What the domain gets |
-|---|---|---|---|
-| btrfs ioctls: `SNAP_CREATE_V2`, `SUBVOL_CREATE`, `SNAP_DESTROY_V2`, `SUBVOL_SETFLAGS`, `GET_SUBVOL_INFO`, `GET_SUBVOL_ROOTREF`; `FICLONE` | snapshots, slots, sealing, the running slot; cloning `/var`, seeding entries and restoring one; classes, their snapshots and pruning [M5] | skein's ring adapter: a closed list of synchronous ioctls (an ask of skein, README, 7.1) | typed results |
-| files: `openat2` with `RESOLVE_BENEATH`, `RESOLVE_NO_SYMLINKS` and `RESOLVE_NO_XDEV`; stat without following, readlink, extended attributes, chown, chmod, mkdir, symlink, link, unlink, rmdir, `Store` | the shift, `/var`, the slot's files, the state | skein's io, with the records hearth asks for (README, 7.1) | typed results |
-| mounts: `fsopen`, `fsconfig`, `fsmount`, `move_mount` with `MOVE_MOUNT_BENEATH`, `open_tree`, `mount_setattr`, `umount2` with `MNT_DETACH`; `mknodat` of a 0/0 character device; `setns` into a container's mount namespace [M5], in a child | live overlays: the layers' source, the swap and the swap back, the whiteouts (hearth/docs/design/domain/slots/trial.md, 8, and hearth/docs/design/domain/slots/containers.md, 8) | skein's io, asks of skein (README, 7.1) | typed results; the mount table through `hearth-protocol-proc` |
-| efivarfs reads | entries, `BootOrder`, `BootNext`, `BootCurrent`, `SecureBoot` | `hearth-protocol-efi` | typed variables |
-| `/usr/bin/efibootmgr` | create, delete, `--bootnext`, `--delete-bootnext`, `--bootorder` | `hearth-protocol-efi` | success, or exit and tail |
-| `/usr/bin/grub-editenv` [M3b] | `set` and `unset` in `env.0`, then `env.1` | `hearth-protocol-grub` | success, or exit and tail |
-| `/usr/sbin/grub-install` [M3b] | bootstrap, once | `hearth-protocol-grub` | success, or exit and tail |
-| `/usr/bin/mount`, `/usr/bin/umount` | the top level, the boot partition, `/run/nextroot` | `hearth-protocol-activator` | success, or exit and tail |
-| `/usr/bin/systemctl` | `soft-reboot`, `reboot`, `is-system-running`, `list-units --state=failed`, `show`, `stop`; for a live trial, `start` and `stop` of the base's dead-man, `daemon-reload`, `reload`, `restart`, `reload-or-restart`, `start` and `stop` of the plan's units (hearth/docs/design/domain/slots/trial.md, 8); `restart` [M5]; for a container [M5], `start`, `restart` and `is-active` of `systemd-nspawn@<container>.service`, and `is-system-running` and `list-units` with `--machine=<container>`; `--machine=<container> kill` [M6] | `hearth-protocol-systemd` | a state, a count, an id, a list of units |
-| `/usr/bin/systemd-run` | the hold's timer [M4]; checks as transient units, `--machine=<container>` for a container's [M5] | `hearth-protocol-systemd` | the unit's exit status and `Result`, nothing of its output |
-| `/usr/bin/systemd-tmpfiles` | `--create /etc/tmpfiles.d/hearth.conf` in a live trial (hearth/docs/design/domain/slots/trial.md, 8) | `hearth-protocol-activator` | success, or exit and tail |
-| `/usr/sbin/nscd` | `--invalidate passwd` and `group`, in a live trial, when nscd runs | `hearth-protocol-activator` | success, or exit and tail |
-| `/usr/bin/ssh-keygen` | identity's host keys | `hearth-protocol-keygen` | success; the keys as files |
-| `/usr/sbin/wipefs`, `/usr/sbin/parted`, `/usr/sbin/partprobe`, `/usr/bin/udevadm`, `/usr/sbin/mkfs.vfat`, `/usr/sbin/mkfs.btrfs`, `/usr/sbin/useradd`, `/usr/sbin/usermod` | bootstrap; disks as an effect [M6] | `hearth-protocol-activator` | success, or exit and tail |
-| `/usr/bin/btrfs` `send`, `receive`, `qgroup limit` [M6] | backups, and a restore from the peer; a full-disk fault | `hearth-protocol-activator` | a stream, and success |
-| `/usr/bin/age`, `/usr/bin/age-keygen` [M6] | encrypting a backup stream, decrypting one received; the backup key | `hearth-protocol-activator`; the recipient line, `hearth-protocol-keygen` | a stream, and success; the `age1…` recipient |
-| `/usr/sbin/nft`, `/usr/sbin/tc` [M6] | partition, latency and loss faults on a pool host | `hearth-protocol-activator` | success, or exit and tail |
-
-- **Spawned with an absolute path,** an argument vector and an
-  environment given whole (skein spawns with no `PATH` search):
-  `LANG=C.UTF-8`, `PATH=/usr/bin:/usr/sbin` for tools that run helpers,
-  and `SYSTEMCTL_SKIP_AUTO_SOFT_REBOOT=1` for every reboot it asks for
-  (hearth/docs/design/domain/slots/bless.md, 2.1). stdin is `/dev/null`; stdout and stderr are kept to
-  their last 4 KiB, which never carry a slot's file.
-- **Each with a deadline,** after which it is killed: 30 seconds for
-  efibootmgr, grub-editenv, mount and systemctl; minutes for mkfs and
-  grub-install.
-- **No tool walks a slot.** `cp` and `rm` would resolve paths in the
-  activator's own namespace; the activator copies and empties through
-  descriptors itself (hearth/docs/design/domain/slots/prepare.md, 3).
-- **Not the `btrfs` tool** for subvolumes: its `list` and `show` need a
-  tree search, and its text would be one more protocol for what the
-  ioctls give typed.
-- **Each tool has a fake** on the fake machine with the same face
-  (hearth/docs/design/testing/tool-fakes.md).
+Moved to [`tools.md`](tools.md), section 1.2.
 
 ## 8. Its world
 
 - **The root's world:** `hearth-domain-activator` with its children
   (`hearth-domain-slots`, `hearth-domain-boot`, `hearth-domain-disk`;
   `hearth-domain-backups` from M5) on the fake machine and the fakes of
-  section 7, with a scripted steward on the link side: requests at every
+  `tools.md`, section 1, with a scripted steward on the link side: requests at every
   moment, stale conditions, repeated attempts, a steward that crashes,
   hangs or never blesses (hearth/docs/design/testing/fake-machine.md and hearth/docs/design/testing/worlds.md).
 - **Faults from the seed:** the activator's crash at any step, power
@@ -716,11 +554,11 @@ an exit status (mount, parted, the mkfs tools and the rest of 7.2).
     tree digest included;
   - an output that plants a link at `/var`, `/etc`, a kernel's path or
     an account file never leads a prepare outside its snapshot;
-  - every spawned program is in section 7's list, with an absolute path,
+  - every spawned program is in `tools.md`, section 1's list, with an absolute path,
     and none comes from a slot or the store;
   - no path from a request reaches io without passing 2.2's rules;
   - a crash at any step recovers to a state the table allows.
-- **The formats:** each crate of 7.1 has machine worlds and a fuzz
+- **The formats:** each crate of `tools.md`, 1.1 has machine worlds and a fuzz
   target: cuts at every byte, oversized lengths, unknown kinds,
   truncated bodies; the account parsers also take hostile lines from an
   output.
@@ -785,4 +623,4 @@ an exit status (mount, parted, the mkfs tools and the rest of 7.2).
 - **The child that enters a container's mount namespace [M5]:** the
   activator's own binary spawned with a fixed argument, as the steward
   is, or skein spawning straight into a namespace; depends on what
-  skein's contained process trees offer (README, 7.1).
+  skein's contained process trees offer (README, `tools.md`, 1.1).

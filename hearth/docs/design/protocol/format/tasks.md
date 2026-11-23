@@ -396,7 +396,7 @@ nothing.
   user may own nothing that needs a fixed id (above).
 - **Ids and strings are bounded:** a `uid` or `gid` is 1 to 65533: 0 is
   root's, 65534 nobody's and 65535 no id, and the builder's namespace
-  maps no more (hearth/docs/design/domain/store/README.md, 3.4). A `subordinate` range has a count of 1
+  maps no more (hearth/docs/design/domain/store/digests.md, 1.4). A `subordinate` range has a count of 1
   at least and a base of 65,536 at least, so that no id a target's
   files own is subordinate, and base plus count is at most
   4,294,967,295. `gecos`, `home` and `shell` hold no `:`, which splits a

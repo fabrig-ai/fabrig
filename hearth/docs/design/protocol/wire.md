@@ -253,7 +253,7 @@ and an attempt (4.5). Each kind declares its recovery class (
 **prepare.**
 
 - **Keyed by target and revision.** The steward keeps each prepare's
-  target, revision and outcome (`standalone.md`, 1; hearth/docs/design/domain/store/README.md, 6.3), and has a builder
+  target, revision and outcome (`standalone.md`, 1; hearth/docs/design/domain/store/state.md, 1.3), and has a builder
   render the revision to an output and slot parts (hearth/docs/design/domain/steward.md, 3.3).
   The activator keys the place by its prepare key (hearth/docs/design/domain/slots/README.md, 2.2;
   hearth/docs/design/domain/activator/README.md, 4.4): a prepare whose output, parts and generations a

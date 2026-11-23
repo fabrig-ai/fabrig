@@ -2,13 +2,16 @@
 
 Provisional, 2026-10-09, revised 2026-11-14. How hearth turns a revision of an IaC repository and a target into a spec, and two revisions into a rendered diff: what render reads, its pipeline, the diff, its crates and its tests. The format it reads is hearth/docs/design/protocol/format/README.md; the spec and package resolution are `spec.md`, the errors `errors.md`. Milestone M1 builds it, with the client's `render` and `diff` (hearth/docs/design/client/README.md, section 3).
 
+See [`diff.md`](diff.md) for how the rendered diff is made and printed, and
+[`crates.md`](crates.md) for the layers and their crates.
+
 ## 1. In one page
 
 - **Render is a pure function of a revision and a target,** exports included. It reads nothing but the revision: no secrets, no machine, no clock, no network. Any hearth renders any target, in full, in milliseconds, so nothing about a spec is remembered but its digests.
 - **The revision is read through git,** a tool behind a protocol machine: one listing, then the blobs render needs, every size bounded before a byte is read (2.2).
 - **Eight steps make four results:** the revision's inputs, a target's settings, its admitted entries and its spec (section 3). The protocol layer decodes JSON and templates into typed values and instruction sequences; the domain never parses.
 - **A spec is parts with digests** (`spec.md`, section 1). Resolution, the one slow step, is remembered as a record of the store (`spec.md`, section 2).
-- **The rendered diff is what a change's reviewers read:** per target and per part, typed, then printed, with the layers each target must rebuild (section 4).
+- **The rendered diff is what a change's reviewers read:** per target and per part, typed, then printed, with the layers each target must rebuild (`diff.md`, section 1).
 - **Errors are values,** each with its kind, its place in the revision, its target and task; render collects every independent error (`errors.md`).
 - **Tested from day 0:** golden repositories, the merge laws and determinism as properties, every decoder fuzzed, the template engine held to MiniJinja, and fakes of git and mmdebstrap kept honest by conformance (section 6).
 
@@ -35,7 +38,7 @@ git --git-dir=/dev/null diff --no-index --no-color --no-ext-diff --no-textconv -
 - **The environment is given whole:** `LC_ALL=C`, `GIT_CONFIG_NOSYSTEM=1`, `GIT_CONFIG_GLOBAL=/dev/null`, `GIT_NO_REPLACE_OBJECTS=1`, `GIT_TERMINAL_PROMPT=0` and `HOME=/dev/null`. No user's or system's configuration changes what git prints, a replace ref can't change a blob behind a commit id, and every file git looks for under `HOME` lies beneath a file that is not a directory, so git finds none.
 - **The revision is guarded before it reaches git,** not parsed: 1 to 255 bytes of `[A-Za-z0-9._/-]`, never starting with `-`. git resolves what passes as it always does; `rev-parse` exiting 1 means the revision names no commit, whatever it printed.
 - **`ls-tree` gives the listing:** one record per entry, `<mode> <type> <oid> <size>\t<path>\0`, the size right-aligned in at least seven columns and `-` for a submodule, whose type is `commit`. Modes `100644` and `100755` are files (the second executable), `120000` a symbolic link whose blob is its target, `160000` a submodule, an error under a path render reads.
-- **`cat-file --batch` gives blobs,** one process per `Read` (5.2): render writes `<oid>\n` for each blob, closing git's input after the last, and reads for each `<oid> <type> <size>\n`, the bytes and `\n`. The header's size must equal the listing's and fit the blob's kind (2.3) before render demands the body. `<oid> missing\n` is a `tool` error of what needs that blob, and the batch reads on.
+- **`cat-file --batch` gives blobs,** one process per `Read` (`crates.md`, 1.2): render writes `<oid>\n` for each blob, closing git's input after the last, and reads for each `<oid> <type> <size>\n`, the bytes and `\n`. The header's size must equal the listing's and fit the blob's kind (2.3) before render demands the body. `<oid> missing\n` is a `tool` error of what needs that blob, and the batch reads on.
 - **`git diff --no-index` gives hunks,** for the diff alone, outside any repository: `--git-dir=/dev/null` names none, so no work tree's configuration or attributes change what it prints. It exits 1 when the files differ; its output is headers, skipped, then hunks, or one `Binary files … differ` line and no hunk. Anything else fails that file's hunks (an exit of 0, an exit of 1 with neither a hunk nor that line, an exit past 1, a signal): the change stands without them, and its target has a `tool` error, so the diff exits 75 (hearth/docs/design/client/README.md, 3.3).
 - **A failed git command is a `tool` error** with its exit and the tail of its standard error: the last 20 lines, each cut at 160 bytes with no marker, the oldest line leaving first, a line keeping its first bytes, and a last line with no line feed counting as the newest. Output git should not give is one too. git runs with no deadline: it reads a local repository, the person may interrupt the client, and a daemon's render is bounded by its job's deadline (hearth/docs/design/domain/steward.md, 5.2).
 - **`hearth-protocol-git` builds the vectors and parses the outputs:** the domain sees a listing, decoded documents and templates, static files' digests and a diff's hunks as lines, never git's text.
@@ -64,7 +67,7 @@ Render's limits are configured (`skein/docs/foundation/programming-model.md`, se
 
 - **A level of nesting** is, in an expression, each place hearth/docs/design/protocol/format/templates.md, 4's grammar nests: a `(`, a list's or an index's `[`, a filter's `(`, a `not`, an `if` or `else` still open; in a template, an open `if` or `for`. The level past the limit is refused where it opens.
 - **One evaluation** is one expression's, or one template's run for one target. Its values count a string's bytes and 32 bytes for each element of a list or entry of a map; a list it makes nests at most 64 deep. Composed and validated settings, expanded entries, exports, specs and closures count alike, a record as a map of its fields.
-- **What is decoded counts as it is held:** a document's or declaration's values as values, a key as a string, and a template the bytes of its text and names, 32 bytes for each instruction and operation, and 4 for each of its lines (5.3), a comment's among them. The document, declaration or template whose count passes the 16 MiB fails the render at its path.
+- **What is decoded counts as it is held:** a document's or declaration's values as values, a key as a string, and a template the bytes of its text and names, 32 bytes for each instruction and operation, and 4 for each of its lines (`crates.md`, 1.3), a comment's among them. The document, declaration or template whose count passes the 16 MiB fails the render at its path.
 - **A limit fails what holds the excess.** The listing's limits, the decoded 16 MiB and the 1,025th target or task fail the render, as the revision's error at the path at fault. A document, template, expression or static file past its limit, or a task past its settings, fails what needs that file (3.1). A limit met while composing, validating, expanding, evaluating or rendering a target, or holding its spec, fails that target, on its side in a diff. One met reading the revision is `decode`, any other `evaluation` (`errors.md`, 2).
 
 ### 2.4 The builder's clone and its fetch
@@ -92,14 +95,14 @@ revision ──git──▶ 1 decode ──▶ 2 compose ──▶ 3 validate �
                   spec ◀── 8 assemble ◀── 7 collisions ◀── 6 files ◀──────────┘
 ```
 
-Step 1 and discovery run once per revision; the rest once per target, and step 4 reads other targets of the same environment. A target's settings are composed when it renders, another target's task or placement when step 4 reads it, and none is kept past its use (5.4).
+Step 1 and discovery run once per revision; the rest once per target, and step 4 reads other targets of the same environment. A target's settings are composed when it renders, another target's task or placement when step 4 reads it, and none is kept past its use (`crates.md`, 1.4).
 
-**Four results,** each made from the one before: the revision's inputs, decoded (3.1); a target's settings, composed, validated and given what it reads of its environment (3.2 to 3.4); its admitted entries, the concrete declarations once checked and free of collisions, with the files they make (3.5 to 3.7); and its spec (3.8). A diff compares two revisions' specs (section 4). The records between them are the code's: a stage that adds no rule of its own adds no record.
+**Four results,** each made from the one before: the revision's inputs, decoded (3.1); a target's settings, composed, validated and given what it reads of its environment (3.2 to 3.4); its admitted entries, the concrete declarations once checked and free of collisions, with the files they make (3.5 to 3.7); and its spec (3.8). A diff compares two revisions' specs (`diff.md`, section 1). The records between them are the code's: a stage that adds no rule of its own adds no record.
 
 ### 3.1 Decode
 
 - **The listing classifies every path** (hearth/docs/design/protocol/format/README.md, section 2) as a configuration document, a declaration, a template, a static file under `tasks/*/tree/`, or a file outside the four roots, read only if a `file` setting names it. A path under the four roots that the format does not allow is a `repository` error: in `envs/`, anything but an `<env>.json`; directly in `hosts/<base>/`, a `.json` that is neither of its documents; a file directly in `hosts/` or `tasks/`; a link where a document or declaration must be; any submodule. An absent `fleet.json` or `<base>.json` is an empty layer.
-- **The domain asks for blobs by kind, and the protocol layer decodes each:** JSON through skein's tokenizer into `hearth-protocol-config`, which refuses duplicate keys, non-integer numbers and U+0000, drops `_note`, and gives typed values with their line and column; a declaration into its fixed shape (hearth/docs/design/protocol/format/tasks.md, 1), its expressions and interpolated strings through `hearth-protocol-template`; a template into a flat sequence of instructions (5.3). A static file, or a file a `file` setting names, is never decoded or held: the protocol layer streams it from `cat-file` into the store's cache by SHA-256, hashing as the bytes pass, and the domain receives its object id, size and digest.
+- **The domain asks for blobs by kind, and the protocol layer decodes each:** JSON through skein's tokenizer into `hearth-protocol-config`, which refuses duplicate keys, non-integer numbers and U+0000, drops `_note`, and gives typed values with their line and column; a declaration into its fixed shape (hearth/docs/design/protocol/format/tasks.md, 1), its expressions and interpolated strings through `hearth-protocol-template`; a template into a flat sequence of instructions (`crates.md`, 1.3). A static file, or a file a `file` setting names, is never decoded or held: the protocol layer streams it from `cat-file` into the store's cache by SHA-256, hashing as the bytes pass, and the domain receives its object id, size and digest.
 - **A decode error fails what depends on the file,** not the revision: the targets that have a broken task or compose a broken document; only the whole revision's limits fail it all (2.3). A repository error fails the targets of its task or base; one of neither (a stray file in `envs/`, or directly in `hosts/` or `tasks/`) fails no target and is the revision's error all the same.
 - **Errors of the revision print whatever targets are asked:** step 1 and discovery read every document and declaration. A target's error prints only when that target is asked, and a task's templates are read only when an asked target has the task (3.3). While a `hosts/` document is refused, a named target discovery cannot find is left out under that error, which exits 2, not 64's unknown target (hearth/docs/design/client/README.md, 3.3).
 
@@ -170,158 +173,52 @@ Render compares the concrete declarations of all the target's tasks:
 
 ### 3.10 Costs
 
-- **A revision is decoded once** and shared by all its targets. Decoded documents, templates and static files' digests are kept by git object id, so the next revision, a diff's second side among them (5.4), decodes only the blobs that changed; object ids name contents, so this memory changes no result.
+- **A revision is decoded once** and shared by all its targets. Decoded documents, templates and static files' digests are kept by git object id, so the next revision, a diff's second side among them (`crates.md`, 1.4), decodes only the blobs that changed; object ids name contents, so this memory changes no result.
 - **A target's render** composes, validates, evaluates and hashes its files in milliseconds, so rendering every target of two revisions, as a diff does, is cheap enough for every change.
 
 ## 4. The rendered diff
 
+Moved to [`diff.md`](diff.md), section 1.
+
 ### 4.1 Typed
 
-```
-diff
-  from, to             commit ids
-  targets              map target → change
-change
-  added { spec digest } | removed | same
-  | changed { parts: list of part change, rebuild }
-  | failed { side: from | to | both, errors }
-part change
-  packages             request: added, removed; sources, variant, preseeds, initramfs, apt: before, after;
-                       seeds: users and groups added, removed, changed, by name;
-                       resolution: same | new key | new key, resolved: added, removed, versions changed
-  software             downloads and artifacts added, removed, changed, by path; scripts changed
-  config               tree entries added, removed, changed { path, before, after };
-                       groups, users, members, presets, tmpfiles: added, removed, changed, by key;
-                       scripts changed
-  data                 entries added, removed, changed, by name
-  secrets              names added, removed, changed; never a value
-  boot                 before, after
-  live                 paths added, removed, changed
-  exports              task.name: before, after
-  checks [M5]
-  meta                 base, member, environment, placement: each before, after, when it changed
-rebuild
-  from packages { resolution: known | needed } | from software | from config | slot only | nothing
-```
-
-- **A changed file carries its two digests and sizes, and its hunks.** The domain asks for them (5.2) when both sides are under 1 MiB: git computes them from the two contents in the store's cache (2.2) with three lines of context, and `hearth-protocol-git` hands up at most 200 lines a file, with the count of those left out, or that the file is binary. The lines count from the first `@@`, each `@@` line among them, and each is a hunk's header, context, removed, added, or `\ No newline at end of file`. The domain holds one target's hunks at a time, and step code computes no text diff. The hunks are part of the typed diff, so its JSON carries them (hearth/docs/design/client/README.md, 3.2).
-- **Secrets show names and places,** never values: render has none.
-- **`failed` is a target whose spec did not render** on a side that has it, or on `both`. Its errors are those sides' (`errors.md`, 1) and print after the changes; it counts among the diff's targets, neither changed nor unchanged. A resolution that fails leaves the spec rendered, so its change stands (`spec.md`, 2.7).
-- **Every part's change says what moved its digest:** a live-only change rebuilds `nothing` (`spec.md`, 1.4), as does a change to meta, and no changed target shows an empty list of part changes.
+Moved to [`diff.md`](diff.md), section 1.1.
 
 ### 4.2 Targets touched and costs
 
-- **A change touches the targets whose spec digest differs,** and those it adds or removes: a change to a task, every target that has it; to an export, every reader in that environment; to `envs/lab.json`, no production target.
-- **Rebuild** is the lowest layer whose key changed: from packages (and whether the new resolution is known), from software, from config. A change to data, secrets or boot alone is a new slot of the same output; a change to exports alone builds nothing on the exporting target.
-- **Time,** when the builder has built the target before, is its last recorded cost for each layer to rebuild. Whether activation needs a reboot is known only after the build, from the kernel's and the initramfs's digests, and whether it can be live from the two outputs' tree files and live parts (hearth/docs/design/domain/slots/trial.md, 7).
+Moved to [`diff.md`](diff.md), section 1.2.
 
 ### 4.3 Printed
 
-A commit changes west-prod's public endpoint, in `hosts/west/west-prod.json`:
-
-```
-$ hearth diff main HEAD
-carbon-prod                                         rebuild from config
-  config   ~ /etc/systemd/network/wg0.netdev        0644 root:root
-               @@ -9,5 +9,5 @@ ListenPort=51820
-                [WireGuardPeer]
-                PublicKey=AAAA…=
-                AllowedIPs=10.0.0.1/32
-               -Endpoint=203.0.113.157:51820
-               +Endpoint=203.0.113.158:51820
-                PersistentKeepalive=25
-west-prod                                           nothing to build
-  exports  ~ vpn.endpoint   "203.0.113.157" → "203.0.113.158"
-
-2 of 11 targets change; 9 are unchanged.
-```
-
-- The client prints it as text, or as JSON for agents (hearth/docs/design/client/README.md, section 3); the typed diff is the same either way.
-- The coupling shows: carbon-prod changes because it reads west-prod's exports, and carbon-lab doesn't, because exports stay in their environment.
-- **Hunks print as git gives them,** three lines of context and each `@@` line with git's own context after it (hearth/docs/design/protocol/format/exports.md, 1.6's template rendered for carbon-prod). A failed target prints `failed (from)`, `failed (to)` or `failed (both)` where the rebuild goes, and its errors after the changes.
+Moved to [`diff.md`](diff.md), section 1.3.
 
 ### 4.4 Who posts it
 
-- **Open:** the lab, CI or temper's gate could post it at a change's head, as a status is; and whether a change that touches many targets is folded by identical part changes follows from who reads it.
+Moved to [`diff.md`](diff.md), section 1.4.
 
 ## 5. Layers and crates
 
+Moved to [`crates.md`](crates.md), section 1.
+
 ### 5.1 The crates
 
-```
-hearth-domain-builder            the builder's root: routes between its children
-├── hearth-domain-render         configuration to spec; resolution's decisions; the diff        M1
-└── hearth-domain-store          M1: resolutions and cache files' records; M2: the rest         M1, M2
-hearth-domain-render-vocabulary  render's values: the spec's parts and keys, the diff's changes, the errors  M1
-
-hearth-protocol-builder          the builder's protocol layer: routes its machines, compiles configuration into render's types
-├── hearth-protocol-git          git's argument vectors; ls-tree, cat-file and diff records       M1
-├── hearth-protocol-tree         M1: the frame, 3.1's decoder, records of kinds 1, 4 and 5        M1, M2
-├── hearth-protocol-config       strict JSON to typed documents and declarations, with positions  M1
-├── hearth-protocol-template     template and expression text to instruction sequences            M1
-└── hearth-protocol-mmdebstrap   simulate's argument vector; Inst lines; Packages stanzas; tails  M1
-```
-
-- **`hearth-domain-render`** holds the pipeline, resolution's decisions and the diff, and depends on lib and its vocabulary alone. Outside it are read what crosses (5.2), the spec's records (`spec.md`, section 1), the diff's (4.1), the errors (`errors.md`), the limits (2.3), and what the world's laws and oracle drive (6.3, 6.5): evaluation, merging, validation and expansion. The rest is its own.
-- **`hearth-domain-render-vocabulary`** holds render's values that other crates name (`skein/docs/foundation/programming-model.md`, 4.6): the spec's parts and keys, the diff's changes and the errors, with the values their definitions reach, such as positions, declaration names, filters, export values, the error's class and the outcome. The two crates share one module tree: an item keeps its module path, so `hearth_domain_render_vocabulary::parts::packages::Component` is `hearth_domain_render::parts::packages::Component`, since each of render's modules re-exports its namesake in the vocabulary. A method that reads render's limits or decides, such as whether a changed file's hunks are asked for (4.1), stays in render as a free function. Render's limits stay in render: no other crate names them.
-- **Who names the vocabulary:** render, the builder's root and protocol layer, the client's printer, and the machines that decode its values: `hearth-protocol-config` a declaration's names, script fragments, placement kinds and firmware, and the fields and faults it refuses with; `hearth-protocol-git` a diff's hunks and a listing's modes; `hearth-protocol-mmdebstrap` the archive's components. None holds a copy of them. The protocol layer translates only where a layer adds something: configuration's documents and declarations, which keep the byte offsets their decoder orders refusals by and are compiled, with their expressions, into render's; the template machine's instructions; the tools' and the store's own vocabularies.
-- **The machines depend on lib only** (`skein/docs/foundation/programming-model.md`, 4), and on render's vocabulary where they decode its values, but `hearth-protocol-config`, which composes skein's JSON tokenizer and depends on `skein-json` too, as `skein-llm` does (`skein/docs/design/llm/README.md`). It can't call the template machine, so it hands up a declaration's expressions as text with their positions, and `hearth-protocol-builder` passes each through `hearth-protocol-template` before translating the declaration into render's types.
-- **The client runs the same domain in-process** when no daemon answers, or for a local repository (hearth/docs/design/client/README.md, 3.5); in the daemon, the builder's root takes the steward's jobs (hearth/docs/design/domain/steward.md, section 3).
-- **The client prints with `hearth-client-protocol-records`'s printer** (hearth/docs/design/client/README.md, 3.2), which writes the spec, the diff and the errors, render's values from its vocabulary, as text and as JSON lines.
+Moved to [`crates.md`](crates.md), section 1.1.
 
 ### 5.2 What crosses
 
-```
-render → protocol                                      protocol → render
-List { repository, revision }                          Listed { commit, entries: path, mode, oid, size }
-Read { commit, blobs: (oid, as) }                      Read { oid, a document | a declaration | a template | a link's target }
-  as: document | declaration | template | link | cached  Cached { oid, size, sha256 }: streamed into the cache
-Keep { sha256, bytes }: a rendered file                Kept { sha256 }
-Resolve { key, sources, request, variant, apt }        Resolved { key, closure, indices, versions, cost }
-Hunks { before: sha256, after: sha256 }                Hunks { lines: (kind, text), left out, binary }: kind is header, context, removed, added or no newline (4.1)
-every request                                          Failed { request, class, at, tail }
-```
-
-- **Resolution records** go through the builder's root to the store and back (hearth/docs/design/domain/store/records.md): render asks for a key and records a new closure, and never touches a file. In M1 the store's domain is `hearth-domain-store`'s first part, resolutions and cache files' records alone (hearth/docs/design/domain/store/README.md, 2.4; hearth/docs/design/domain/store/records.md, 1).
-- **Every request gets one terminal event** (`skein/docs/foundation/programming-model.md`, 5.2); a resolution's deadline is render's to set, and git's commands have none (2.2).
+Moved to [`crates.md`](crates.md), section 1.2.
 
 ### 5.3 Evaluation without recursion
 
-Step code has no recursion and no unbounded loop (`skein/docs/foundation/programming-model.md`, section 3), so nothing is evaluated as a tree:
-
-- **An expression** is a flat sequence of operations in postfix order, with forward jumps for `and`, `or` and `… if … else …`, evaluated on a value stack the expression limit bounds.
-- **A template** is a flat sequence of instructions (emit text, emit an expression, branch, enter and advance a loop, assign), run by a `for` bounded by the iteration limit, with a stack of loop frames bounded by the nesting limit. It keeps the offset of each line's first byte, which places a fault at its line and column (`errors.md`, 1) without reading the blob again (3.10), and which its count includes (2.3).
-- **Merging** walks two values with an explicit stack bounded by JSON's depth.
+Moved to [`crates.md`](crates.md), section 1.3.
 
 ### 5.4 Limits and what a render holds
 
-- **A render holds at most one of each amount 2.3 bounds:** the revision's listing and its static files' digests, its decoded blobs, the exports of one environment, one target's settings and entries, one evaluation's values, one rendered file, the command's specs and closures, and its errors. It holds no other target's settings (section 3). Of a resolution record it holds the closure's digest, which its layer keys take (`spec.md`, 1.5), and a diff the closures it compares (`spec.md`, 2.7; 4.1).
-- **A diff renders its sides in turn,** keeping of the first only its specs, closures and errors, and, until the second's listing, its decoded blobs. **The second side decodes only the blobs that changed** (3.10): of the first side's decoded blobs and static files' digests it keeps those the new listing names, by object id and as what they were read, and reads only the others, a blob the first refused among them. It gives what a render of its revision alone gives, within the same 16 MiB: each blob counts in that render's order, kept or read, and when what it holds would pass the limit, the kept blobs not yet counted go first, and one it then needs is read again. So a diff's peak holds one revision's decoded data, as a render's does.
-- **The heap is measured, under ceilings** (`skein/docs/foundation/programming-model.md`, 6.3): each fixed scenario's peak stays under a ceiling named beside its test (`skein/docs/foundation/testing-strategy.md`, section 6), and no formula sums a layer. A formula sizes an edge alone (a decoder's retained bound, a decoded record, one template run's workspace), named for what it bounds, `None` on overflow, with a test of its value; the builder's `valid(limits)`, computed from them, is startup's check.
-- **The defaults fit a modest machine, by measurement:** the large render, a revision of 4,096 entries, 512 of them documents, declarations and templates, with 64 targets, runs through the builder at the shipped limits under a ceiling of its own (hearth/docs/design/testing/worlds.md, 4).
-- **The protocol's machines take 2.3's limits** and the store's bounds (hearth/docs/design/domain/store/records.md, 1); the client's printer (hearth/docs/design/client/README.md, 3.2) prints a record of at most 16 MiB, line endings included, and refuses a longer one, which fails the command. Static and rendered files live in the store's cache, never in the domain, so a small VM's builder renders what a large one does.
-- **Between the builder's layers nothing is capped:** the queues between its children grow as they fill, and only the edges refuse (`skein/docs/foundation/programming-model.md`, 6.3). `Limits::queue` sizes the two queues the builder shares with the kernel, `completions` and `submissions`, and nothing else.
-- **A watermark holds render behind a client that has stopped reading** (`skein/docs/foundation/programming-model.md`, 7.1). `Limits::watermark`, 30 as shipped, bounds the backlog that `told`, `file_told`, `answers` and `asked` hold: at the watermark the domain's next resume waits, so render makes no more records, and about a watermark of a call's targets wait behind a stuck client. What finishes admitted work is always taken: an event enters the protocol layer, an answer goes down once the printer takes it, and a request reaches io, at any backlog. `calls` stays outside the backlog, since its events wait behind the domain's own next resume. The watermark paces and bounds no memory: a backlog may pass it by what one admitted event makes.
-- **A pass is paced:** it takes from each queue what the queue held when the pass reached it and resumes a layer at most `Limits::watermark` times, leaving the rest ready for the next pass. Io's stage paces itself (`skein/crates/skein-io/src/stage.rs`).
+Moved to [`crates.md`](crates.md), section 1.4.
 
 ### 5.5 What keeps its order
 
-No order here rests on a queue's room (`skein/docs/foundation/programming-model.md`, 7.2): a machine's state or a named predicate keeps each one, and a test holds it.
-
-- **One read at a time.** A git machine, mmdebstrap's pipe reader and list reader, and the JSON decoder have at most one demand out, and make the next once the last is answered.
-- **A blob's piece is taken before the next is read.** `cat-file`'s machine stops after each piece until it is told `Next`, so a body waits in git's pipe, never in the builder, and a 64 MiB static file is held a chunk at a time.
-- **An outcome answers a request.** A stream's end or fault that comes before a request, or while a piece is being taken, overtakes nothing: the machine holds it for the next request.
-- **A pipe's reader gives one thing a delivery:** an `Inst`, a `Fetched` or the pipe's end, and the next demand. Resolution takes one of each from a delivery, and one demand from a list reader's; the pipe's end comes last, and once.
-- **A list's end follows its last stanza.** A scan gives at most one stanza; a list with no blank line after its last stanza gives that stanza and then its end, once.
-- **A decoder gives one thing a delivery:** the JSON decoder gives the next demand or a document's outcome; a read takes one of each and drops the decoder at its outcome. The outcome comes once, with no read out; `Closed` comes last, and once.
-- **Resumed work goes before the next event.** While the protocol layer has work to resume, no io or file event enters it (`work_pending`).
-- **One write at a time.** The client's printer has at most one demand out; a `Room` gives one piece within the room it answers, then the next demand or nothing.
-- **A record is answered once:** `Printed` once its last piece has gone down, `Refused` with no bytes, or `Failed`; `Client` takes it before the next record.
-- **One record at a time.** The printer takes the next record once the last has gone out, on standard output and standard error alike (`takes`), so answers print in the order render gave them.
-- **An answer follows its resources' close.** Render hears from a git child once the process and its pipes are closed, so its next request finds none open.
-- **A build's report comes whole:** its layers, then the step it failed on, then its reply; the builder's root holds render's reply until the report is out (`holds`, `reporting`).
-- **The domain takes a store step's answer before the store's next step,** so nothing waits in the queue above it: a step has answered once it added to what the protocol layer gave above (`store_answered`), and only then does the next index open.
-- **Render waits at the watermark, and what it asked for does not.** The domain's next resume waits while the backlog is at the watermark (`admits`, 5.4); nothing else waits on that number.
+Moved to [`crates.md`](crates.md), section 1.5.
 
 ## 6. Its world
 

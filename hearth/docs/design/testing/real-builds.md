@@ -63,7 +63,7 @@ real costs of each step.
 - **The real tier's store is a hearth store** that lives across runs in
   the test directory.
 - **The base layer is keyed** by the resolution's digest
-  (hearth/docs/design/domain/store/README.md, 3.3), so it is built once per mirror digest: the first run
+  (hearth/docs/design/domain/store/digests.md, 1.3), so it is built once per mirror digest: the first run
   builds it, later ones find it. An essential bootstrap from a local
   mirror takes about ten seconds; mmdebstrap's README quotes 9.5 on a
   tmpfs.

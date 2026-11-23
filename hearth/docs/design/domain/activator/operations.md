@@ -245,7 +245,7 @@ Send { target, class, seq, parent }      Receive { from, class, seq }      [M6]
   the running slot's record's (hearth/docs/design/domain/slots/README.md, 2.2), never a request's; a
   container's class follows its host's (hearth/docs/design/domain/slots/containers.md, 1). Keyed by
   `<seq>`, which only grows: a snapshot of that sequence means done.
-  Then the class's record (`README.md`, 6.1) gains it, and the next deadline is set.
+  Then the class's record (`state.md`, 1.1) gains it, and the next deadline is set.
 - **Prune,** after every snapshot: each snapshot that no bucket keeps
   and the backup does not need (hearth/docs/design/domain/operating.md, 7.3) is deleted with
   `SNAP_DESTROY_V2`, then dropped from the record. Idempotent: a
@@ -287,7 +287,7 @@ Restore { target, class, entry?, seq, expect { uuid } }
   <its backup key>` into `btrfs receive`, into its own
   `@hearth.snapshots`, so plaintext exists only between two activators.
 - **A cut between the renames** is finished or undone at the next start
-  from the recorded swap (`README.md`, 6.3).
+  from the recorded swap (`state.md`, 1.3).
 
 ## 13. Hold, and release, a bless [M4]
 
@@ -363,7 +363,7 @@ hearth/docs/design/domain/slots/containers.md's; none touches the boot partition
 |---|---|---|
 | place | `operations.md`'s steps with a container's differences (hearth/docs/design/domain/slots/containers.md, 1) | keyed: the prepare key |
 | trial | the marker; the slot's nspawn settings and link, each by rename; `systemctl restart systemd-nspawn@<container>.service`; the poll (hearth/docs/design/domain/slots/containers.md, 2 and 3) | conditional on the container's running slot, default and the slot's prepare key; a repeat by attempt gets the first answer |
-| bless | the criterion, read from the host; the record `blessed`; the marker removed; the default recorded (`README.md`, 6.1) | conditional |
+| bless | the criterion, read from the host; the record `blessed`; the marker removed; the default recorded (`state.md`, 1.1) | conditional |
 | hold, and release | the marker `held`, with the hold's end as the activator's deadline in place of the window's; a `Bless` releases it (hearth/docs/design/domain/slots/bless.md, 1.4) | conditional |
 | fall back | the default's settings and link back, a restart, the record `fell back` | conditional |
 | roll back | a trial of the other blessed slot; while live, the live fall back | conditional |
@@ -387,7 +387,7 @@ hearth/docs/design/domain/slots/containers.md's; none touches the boot partition
 ```
 TryLive {
   slot, attempt
-  change      Digest                         the change from the base's output to the new slot's (../slots/trial.md, 7), in ../store/README.md, 3.5's form
+  change      Digest                         the change from the base's output to the new slot's (../slots/trial.md, 7), in ../store/digests.md, 1.5's form
   plan        stop                [ unit ]   before the swap
               reload              [ unit ]
               restart             [ unit ]

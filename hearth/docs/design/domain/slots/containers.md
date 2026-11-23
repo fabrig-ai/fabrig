@@ -174,7 +174,7 @@ A container's facts are its host's activator's, read from outside:
 | Fact | Read from |
 |---|---|
 | **running** | the subvolume of the container's root, by uuid, while its unit is active (through its leader's root, to verify how); `none` otherwise |
-| **default** | the slot the host's state records as the container's default (hearth/docs/design/domain/activator/README.md, 6.1), which its link names at every host start |
+| **default** | the slot the host's state records as the container's default (hearth/docs/design/domain/activator/state.md, 1.1), which its link names at every host start |
 | **trial** | the trial marker, `trial/<container>.<label>` (`trial.md`, 4) |
 | **live** | the container's leader's mount table, `/proc/<leader>/mountinfo`, against the container's live record, `live/<container>` (8) |
 
@@ -255,7 +255,7 @@ by its host's activator from outside, since no hearth runs inside:
   drops the overlays, which live only in the container's mount
   namespace.
 - **The live bless records "the next start of this container is `b`'s
-  trial"** in the host's state (hearth/docs/design/domain/activator/README.md, 6.1): the container's
+  trial"** in the host's state (hearth/docs/design/domain/activator/state.md, 1.1): the container's
   one-shot. The next start the host's activator makes, at a host boot or
   a restart it asks for, links `b` and tries it as 3 does; that
   bless records `b` as the default and deletes the delta.

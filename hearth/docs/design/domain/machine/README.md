@@ -190,7 +190,7 @@ btrfs filesystem, UUID 0f3c9a6e-…, label hearth     top level: subvolid 5, mou
 ├── @x1-prod.core           the core class          one directory per entry: journal, iwd
 ├── @x1-prod.data           the data class          one directory per entry: home-alice
 ├── @hearth.store           the builder's store     owned by hearth, 0700; its layers nested in it (../store/README.md, section 2)
-├── @hearth.state           the activator's state   root, 0700 (../activator/README.md, section 6)
+├── @hearth.state           the activator's state   root, 0700 (../activator/state.md, section 1)
 ├── @hearth.snapshots [M5]  class snapshots         root, 0700: <target>.<class>/<seq>, read-only (../operating.md, 7.1)
 └── @hearth.backups [M6]    received backups        root, 0700, on a backup peer: <from>.<class>/<seq> (../operating.md, 7.3)
 ```
@@ -212,7 +212,7 @@ btrfs filesystem, UUID 0f3c9a6e-…, label hearth     top level: subvolid 5, mou
   holds this machine's own snapshots of its classes, whatever took
   them, and each snapshot's record says whether the local policy keeps
   it, whether it was sent, and whether the peer confirmed it
-  (hearth/docs/design/domain/activator/README.md, 6.1). When the local and the backup period meet, one
+  (hearth/docs/design/domain/activator/state.md, 1.1). When the local and the backup period meet, one
   snapshot serves both; an incremental send's parent is a local
   snapshot the backup keeps; and one walk prunes them all. What a
   backup peer receives from others goes to `@hearth.backups` instead:

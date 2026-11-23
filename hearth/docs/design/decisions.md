@@ -99,10 +99,10 @@ that last:
 **Others:**
 
 - **SHA-256 for every digest:** skein has it, and Debian's archive and
-  snapshot.debian.org speak it (hearth/docs/design/domain/store/README.md, section 3).
+  snapshot.debian.org speak it (hearth/docs/design/domain/store/digests.md, section 1).
 - **The filesystem is hearth's only state:** subvolumes and the records
-  beside them, read back at startup; no kv store (hearth/docs/design/domain/store/README.md, section 6;
-  hearth/docs/design/domain/activator/README.md, section 6).
+  beside them, read back at startup; no kv store (hearth/docs/design/domain/store/state.md, section 1;
+  hearth/docs/design/domain/activator/state.md, section 1).
 - **The layers are packages, software and config.** The brainstorm's
   etc layer also writes users, `/usr/local`, unit links and more, so it
   is named for what it holds (hearth/docs/design/domain/build/README.md, section 3).

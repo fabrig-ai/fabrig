@@ -1,5 +1,5 @@
 //! Relative forward jumps stay valid when a conditional rotates its branches
-//! (hearth/docs/design/domain/render/README.md, 5.3).
+//! (hearth/docs/design/domain/render/crates.md, 1.3).
 use crate::{Op, Operation};
 use skein_lib::List;
 pub(super) fn patch(out: &mut List<Operation>, jump: u32) {

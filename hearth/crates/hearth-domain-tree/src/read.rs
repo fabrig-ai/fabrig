@@ -1,5 +1,5 @@
 //! One entry, read whole: its stat, its covered attributes, then a link's target or a file's
-//! hash (hearth/docs/design/domain/store/README.md, 3.4, and hearth/docs/design/domain/store/tree-helper.md, 4).
+//! hash (hearth/docs/design/domain/store/digests.md, 1.4, and hearth/docs/design/domain/store/tree-helper.md, 4).
 use crate::{
     After, Tree, Wait, batch,
     limits::Limits,

@@ -228,7 +228,7 @@ enum Frame {
         out: List<Composed>,
     },
 }
-/// RFC 7386 on a stack bounded by JSON nesting (hearth/docs/design/domain/render/README.md, 5.3).
+/// RFC 7386 on a stack bounded by JSON nesting (hearth/docs/design/domain/render/crates.md, 1.3).
 #[derive(Debug, Hash)]
 pub struct Merge {
     stack: skein_lib::Stack<Frame>,

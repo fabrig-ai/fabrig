@@ -93,7 +93,7 @@ is hearth/docs/design/domain/activator/README.md's. What is open is in section 7
 ### 2.2 The slot record
 
 The activator keeps one record per slot in `@hearth.state`
-(hearth/docs/design/domain/activator/README.md, section 6), written atomically:
+(hearth/docs/design/domain/activator/state.md, section 1), written atomically:
 
 ```
 slot record    slots/<target>.<label>

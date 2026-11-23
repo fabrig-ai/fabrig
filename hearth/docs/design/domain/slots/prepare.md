@@ -23,7 +23,7 @@ part [M5] (`containers.md`, 1).
   or `/etc/shadow` are not regular files, is refused; no error carries
   a file's content.
 - **Each step starts by writing the activator's journal**
-  (hearth/docs/design/domain/activator/README.md, 6.3), so a crash finds the slot `preparing` and deletes
+  (hearth/docs/design/domain/activator/state.md, 1.3), so a crash finds the slot `preparing` and deletes
   it (`crashes.md`).
 
 ## 1. The snapshot
@@ -142,7 +142,7 @@ A copy, rather than a second snapshot of the output trimmed down to its
 
 ## 4. Identity and secrets
 
-Written from the secret store in `@hearth.state` (hearth/docs/design/domain/activator/README.md, 6.1)
+Written from the secret store in `@hearth.state` (hearth/docs/design/domain/activator/state.md, 1.1)
 into the slot, through descriptors (`prepare.md`): every parent must
 already be a directory in the slot; the file is created anew, replacing
 a file at its path and refusing a link there. A path beneath `/var` is
@@ -185,7 +185,7 @@ entry joins the `/var` manifest.
 ## 5. The slot's files
 
 Written from typed data into the root before it is sealed, each into the
-manifest, by the format crates of hearth/docs/design/domain/activator/README.md, 7.1:
+manifest, by the format crates of hearth/docs/design/domain/activator/tools.md, 1.1:
 
 | Path | Owner, mode | Content |
 |---|---|---|
@@ -310,7 +310,7 @@ RebootWatchdogSec=10min
 3. **Walk the sealed root's metadata** against the manifest, without
    contents, and record each entry's inode and change time as the seal
    left them. Anything else that differs (nothing should) fails the
-   prepare. `H("tree", …)` over the manifest's entries (hearth/docs/design/domain/store/README.md, 3.4)
+   prepare. `H("tree", …)` over the manifest's entries (hearth/docs/design/domain/store/digests.md, 1.4)
    is the slot's own tree digest; it stays in the state.
 4. **Compute the reported tree digest,** the same formula with each
    secret and identity file's content digest replaced by

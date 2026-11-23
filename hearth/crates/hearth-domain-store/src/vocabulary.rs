@@ -1,4 +1,4 @@
-//! Typed store requests and terminals (hearth/docs/design/domain/store/records.md, 6, hearth/docs/design/domain/store/README.md, 6.2).
+//! Typed store requests and terminals (hearth/docs/design/domain/store/records.md, 6, hearth/docs/design/domain/store/state.md, 1.2).
 use alloc::boxed::Box;
 use hearth_lib::encode::{Digest, Item};
 use skein_lib::{Duration, Token, Wall};

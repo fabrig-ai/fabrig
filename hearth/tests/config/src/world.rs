@@ -208,7 +208,7 @@ pub fn run(document: &[u8], settings: &Settings, seed: u64) -> Run {
 }
 
 /// What one entry point left in a decoder's queues, before the driver took them.
-/// Orders follow hearth/docs/design/domain/render/README.md, 5.5.
+/// Orders follow hearth/docs/design/domain/render/crates.md, 1.5.
 #[derive(Debug)]
 pub struct Step {
     pub above: Vec<Event>,

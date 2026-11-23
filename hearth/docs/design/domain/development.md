@@ -124,9 +124,9 @@ place it into `@east-dev.a`, the target's identity made anew; give it the
 first bless (hearth/docs/design/domain/slots/README.md, section 4); write the target, the desired
 revision and [M5] the container selection (3.4); reboot. It writes as
 the release it places, checked as bootstrap checks its own
-(hearth/docs/design/domain/activator/README.md, 6.2). The new slot's first start deletes the retired
-seed's slots, entries, ESP files, records and identity (hearth/docs/design/domain/activator/README.md,
-6.4). A failed first boot is a VM to throw away, as after a bootstrap.
+(hearth/docs/design/domain/activator/state.md, 1.2). The new slot's first start deletes the retired
+seed's slots, entries, ESP files, records and identity (hearth/docs/design/domain/activator/state.md,
+1.4). A failed first boot is a VM to throw away, as after a bootstrap.
 
 ### 3.3 Several machines, and down
 
@@ -386,7 +386,7 @@ the kernel and its command line are the host's.
 - **`hearth dev apply <machine>… [--repo <path>] [--how auto|live|full]`**
   makes the commit and its bundle, prints the rendered diff of the
   machine's target and each container it runs against the revision the
-  machine runs (hearth/docs/design/domain/render/README.md, section 4), pushes, sets the revision, and
+  machine runs (hearth/docs/design/domain/render/diff.md, section 1), pushes, sets the revision, and
   follows `hearth status` until the pass converges, is refused or falls
   back, with a line per target (3.4); its exit code is `status
   --check`'s, and `--how` is `hearth trial`'s (hearth/docs/design/client/README.md, 3.1). A trial that falls back refuses its prepare key, as
@@ -417,7 +417,7 @@ the kernel and its command line are the host's.
   layer (hearth/docs/design/domain/build/README.md, 4.2; `hearth/docs/design/draft/archive/factory.md`, 6.4).
 - **What lands is the agent's own commit** of the same tree;
   `refs/hearth/dev/` never leaves the development host. Reviewers read
-  the rendered diff (hearth/docs/design/domain/render/README.md, section 4) and the lab's verdicts gate
+  the rendered diff (hearth/docs/design/domain/render/diff.md, section 1) and the lab's verdicts gate
   it.
 
 ## 8. The Incus driver [M3b]

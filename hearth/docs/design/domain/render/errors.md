@@ -42,7 +42,7 @@ error
 | collision | one path from two tasks, two users that differ, a key a declaration makes twice |
 | resolution | configuration: a package apt does not know, dependencies apt cannot satisfy, a suite the archive does not have (`spec.md`, 2.5), a requested package apt does not install (`spec.md`, 2.3); a closure past 8,192 packages, or a record past its bounds (hearth/docs/design/domain/store/records.md, 1). Operational: an `Inst` triple with no stanza, stanzas that disagree (`spec.md`, 2.3) |
 | tool | git or mmdebstrap failed, timed out, could not start or gave output it should not (`README.md`, 2.2, `spec.md`, 2.3), or a resource failed, as `spec.md`, 2.5 says: operational; mmdebstrap's failure of no cause `spec.md`, 2.5 knows: configuration |
-| store | a store full at a limit, or whose upkeep failed (hearth/docs/design/domain/store/README.md, 6.1): operational, the call's, naming the store and the limit and count or the step. A store that cannot be opened, or is another uid's or another range's (hearth/docs/design/domain/store/records.md, 6), is no error of the answer: nothing renders, and the client says so at startup (hearth/docs/design/client/README.md, 3.2) |
+| store | a store full at a limit, or whose upkeep failed (hearth/docs/design/domain/store/state.md, 1.1): operational, the call's, naming the store and the limit and count or the step. A store that cannot be opened, or is another uid's or another range's (hearth/docs/design/domain/store/records.md, 6), is no error of the answer: nothing renders, and the client says so at startup (hearth/docs/design/client/README.md, 3.2) |
 
 ## 3. Printed
 
