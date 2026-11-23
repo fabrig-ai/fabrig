@@ -1,4 +1,4 @@
-//! Read pages and the owner-keyed store transport (`client/domain/contract/README.md`, section 4).
+//! Read pages and the owner-keyed store transport (`client/domain/contract/reads.md`, section 1).
 //! Cursors name a query and an owner key. The client only echoes them.
 
 use crate::{Core, Record};
@@ -57,7 +57,7 @@ pub(super) fn read_row_visible(core: &Core, party: u64, row: &Row, run_project: 
     row_visible(core, party, row)
 }
 
-// A run reads settings proposals in its project without a party's visibility (domain/engine/executors.md, 3).
+// A run reads settings proposals in its project without a party's visibility (domain/engine/executors-tools.md, 1).
 pub(super) fn proposal_row_visible(project: u32, row: &Row) -> bool {
     match &row.value {
         Record::Tasks(tasks::Stored::History(history)) => {

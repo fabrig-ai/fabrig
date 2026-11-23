@@ -1,10 +1,10 @@
-//! Secret-free party account facts (client/domain/contract/documents.md, 1; domain/accounts.md, 3–5).
+//! Secret-free party account facts (client/domain/contract/documents.md, 1; domain/accounts.md, 3, and domain/accounts-uses.md, 1, and domain/accounts.md, 5).
 use super::{AccountPlace, AccountState, AccountUnread, DocumentText};
 use alloc::boxed::Box;
 use skein_lib::{Duration, List, Wall};
 /// An account's payers at most: `jig_domain_accounts::USES` (domain/accounts.md, 3).
 pub const ACCOUNT_USES: u32 = 16;
-/// Whole public manage-usage addresses, matching configuration.md, section 3.
+/// Whole public manage-usage addresses, matching protocol/configuration-engine.md, section 1.
 pub const ACCOUNT_MANAGE_USAGE: u32 = 2_048;
 /// A whole ASCII HTTPS manage target safe for client rendering (client/domain/contract/documents.md, 1).
 /// Configuration additionally checks host labels and ports; it accepts a subset.
@@ -189,7 +189,7 @@ pub enum LoginExit {
     NotStarted,
 }
 
-/// Registry numbers the client reads (domain/accounts.md, 3.7).
+/// Registry numbers the client reads (domain/accounts-lists.md, 1).
 pub const FACT_EMAIL: u16 = 1;
 pub const FACT_NAME: u16 = 2;
 pub const FACT_USAGE: u16 = 7;

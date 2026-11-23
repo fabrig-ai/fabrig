@@ -1,4 +1,4 @@
-//! Sparse entrance facts without invented names, words or bounds (client/domain/contract/README.md, 3).
+//! Sparse entrance facts without invented names, words or bounds (client/domain/contract/answers.md, 1).
 use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::Record as _;
 use jig_domain_people as p;

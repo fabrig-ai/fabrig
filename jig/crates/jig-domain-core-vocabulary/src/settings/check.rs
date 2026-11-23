@@ -125,7 +125,7 @@ fn check_ranges(current: &Current, defaults: bool, items: &[Item]) -> Result<(),
     Ok(())
 }
 
-/// Stored values kept at stock numbers without a default, in setting order (domain/engine/settings.md, 7).
+/// Stored values kept at stock numbers without a default, in setting order (domain/engine/settings-store.md, 1).
 #[must_use]
 pub fn kept(current: &Current) -> Box<[Setting]> {
     let mut result = skein_lib::List::with_capacity(current.changes.len());
@@ -152,7 +152,7 @@ pub fn kept(current: &Current) -> Box<[Setting]> {
     result.into_boxed()
 }
 
-/// All defaults and offered changes outside their numbers, in setting order (domain/engine/settings.md, 7).
+/// All defaults and offered changes outside their numbers, in setting order (domain/engine/settings-store.md, 1).
 #[must_use]
 pub fn numbers(current: &Current) -> Box<[crate::start::Numbered]> {
     let capacity = current.defaults.len().checked_add(current.changes.len()).expect("held settings count");

@@ -146,7 +146,7 @@
       checks it, 1 to 128 bytes of letters, digits, `-`, `.`, `_` and `:`, and "Add"
       is off until it holds; a name of that provider's in the offer says
       "PROVIDER already has that model." A press asks `ChangeModel`. The engine
-      makes the model (jig's `domain/engine/settings.md`, 11), and the field empties;
+      makes the model (jig's `domain/engine/settings-catalogue.md`, 1), and the field empties;
       its row then reads "added by you". A refusal shows under the form.
     - *The last line,* in `.facts`: "To change a default or a role’s models, ask
       temper.", its last two words a link to `Ask { project }`.

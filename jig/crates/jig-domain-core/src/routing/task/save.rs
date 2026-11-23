@@ -1,5 +1,5 @@
 //! Task records, their projections, and the people entries they update
-//! (jig/docs/design/domain/engine/README.md, 4.4).
+//! (jig/docs/design/domain/engine/vocabulary.md, 1.4).
 
 use crate::{
     Ask, Core, CoreRecord, Limits, Record, Request, Write,

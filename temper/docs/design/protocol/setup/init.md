@@ -250,7 +250,7 @@ QA's host starts from a copy and `temper box --config COPY` runs it
     `text`, 512, and a hold's account, 512 (jig's
     `client/domain/contract/documents.md`, 3), and refuses a longer one. It is
     also the piece a client reads a task's text in (jig's
-    `client/domain/contract/README.md`, 4), so it is as large as they take. A
+    `client/domain/contract/reads.md`, 1), so it is as large as they take. A
     run's `read_task` has its own room, the agent's `tool_payload`, 10,662
     (`../../domain/routing.md`, 2);
   - `tasks.message_bytes` and `tasks.result_bytes`, the agent's
@@ -300,7 +300,7 @@ QA's host starts from a copy and `temper box --config COPY` runs it
     (the worker's check, above);
   - the worker's `limits`: `io.output` a turn of T's frame on its link,
     header included, past the profile's 1,048,576, so that the worker's
-    link is made (jig's `protocol/channel/README.md`, 8 and 10);
+    link is made (jig's `protocol/channel/liveness.md`, 1, and `protocol/channel/README.md`, 10);
   - `engine.limits`: `core.resume_bytes` T + 4, one largest turn with
     its length, so that a chat's window resumes whole up to that size;
   - `application.limits`: `root.journal.transcript_bytes` T + 4, the
@@ -587,7 +587,7 @@ holds is a default, a constant or a derivation of the file's reader
 - **A task's text past what the clients receive** (`init.md`, 1). A client reads a
   spec in pieces of `documents.text_bytes`, 512, where the request
   `first-goal-fixes` of 2026-11-05 has 8,192. Going past 512 needs the web and
-  terminal clients' `text` raised (jig's `client/domain/contract/README.md`, 4).
+  terminal clients' `text` raised (jig's `client/domain/contract/reads.md`, 1).
   Default: 512. The user's to choose, with no answer yet. A run's `read_task`
   is outside it where its worker or its process's local agent names a reply
   bound, reading in that room (`../../domain/routing.md`, 2).

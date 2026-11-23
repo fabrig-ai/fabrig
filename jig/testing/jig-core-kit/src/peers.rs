@@ -1,6 +1,6 @@
 //! Translations between the test root and independent scripted peers. The
 //! workers and parties retain their own observations; this world reads only
-//! released root outputs and durable store rows (`domain/testing.md`, 4, 7).
+//! released root outputs and durable store rows (`domain/testing.md`, 4, `domain/testing-fakes.md`, 1).
 use crate::Store;
 mod delegation;
 mod worker;

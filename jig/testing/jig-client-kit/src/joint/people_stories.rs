@@ -1,5 +1,5 @@
 //! People act on the view; the engine and workers decide the outcomes
-//! (domain/people/README.md, 10; domain/engine/README.md, 9).
+//! (domain/people/README.md, 10; domain/engine/world.md, 1).
 use super::*;
 
 #[test]

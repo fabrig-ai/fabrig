@@ -1,5 +1,5 @@
 //! Core-owned held-recipient selection and restore validation
-//! (domain/engine/README.md, sections 3 and 4.4).
+//! (domain/engine/README.md, section 3, and domain/engine/vocabulary.md, section 1.4).
 
 use jig_domain_authority as authority;
 use jig_domain_people as people;

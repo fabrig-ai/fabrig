@@ -295,7 +295,7 @@ mod tests {
     }
 
     // client/pages/goal.md 2: "reads an ended goal's document once more when its watch ends";
-    // jig's client/domain/contract/README.md 5.2: an ended subject is read for its end.
+    // jig's client/domain/contract/watches.md 1.2: an ended subject is read for its end.
     #[test]
     fn goal_watch_end_reads_and_keeps_the_final_document() {
         let (mut root, watch, _, mut opening) = opened(goal());

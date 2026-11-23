@@ -159,8 +159,8 @@ Documents:
 }
 ```
 
-- **`engine`** is jig's engine part (jig's `protocol/configuration.md`,
-  section 3), in jig's formats (its section 10). Its `clients` member is
+- **`engine`** is jig's engine part (jig's `protocol/configuration-engine.md`,
+  section 1), in jig's formats (its section 10). Its `clients` member is
   what jig's clients' component takes; the clients' listener is temper's
   (`engine.md`).
 - **The LLM providers are settings,** jig's kind `provider`, each with
@@ -169,7 +169,7 @@ Documents:
   refused (`moved.md`, 3). A start runs the providers its engine last
   kept, and every check below of a provider runs on them. A provider
   holds no model, account, key or record: models are settings
-  (`stock.md`; jig's `domain/engine/settings.md`, 11), and accounts are
+  (`stock.md`; jig's `domain/engine/settings-catalogue.md`, 1), and accounts are
   made from the client (../credentials-llm-accounts.md, section 1). The
   registration's name hint is `temper` in every deployment (jig's
   `domain/providers.md`, 2.2); a provider temper does not ship is
@@ -177,7 +177,7 @@ Documents:
   source to hold.
 - **A sign-in's redirect** binds a loopback listener on an ephemeral
   port for each sign-in, unless the LLM provider's registration fixes a
-  port (jig's `protocol/configuration.md`, section 3; skein's
+  port (jig's `protocol/configuration-engine.md`, section 1; skein's
   `oauth/accounts.md`, 5). A fixed port is checked at start against the
   deployment's own listeners: the clients' and the webhooks', the
   machine's owned and fake `listen` (`engine.md`) and `demo`'s fake LLM's
@@ -247,12 +247,12 @@ Documents:
   The root has no hub child, so the fleet must place every run on a
   worker (`../../domain/root.md`, section 2).
 - **Templates are jig's two defaults,** chat (template 1, label 1) and
-  goal (template 2, label 2), as jig's `protocol/configuration.md`,
-  3.1 gives them, the chat's executor the charter chats run under;
+  goal (template 2, label 2), as jig's `protocol/configuration-templates.md`,
+  1 gives them, the chat's executor the charter chats run under;
   temper's own, templates 4 to 8, are the stock's (`stock.md`), template
   8 a milestone's (`../../domain/milestones.md`, section 2). One flag departs from jig's
   defaults: the chat is ended by its requester, `"ended_by":
-  "requester"` (jig's `protocol/configuration.md`, 3.2), so that a chat
+  "requester"` (jig's `protocol/configuration-templates.md`, 2), so that a chat
   stays open past its run's turn until its person closes it
   (`../../domain/agent/charter.md`, 5); the goal is ended by its result, as
   every delegation is. Its client's lists filter on
@@ -313,7 +313,7 @@ Moved to [`worker.md`](worker.md), section 2.
 | an owned or fake forge's handover: its admin's token | `admin_token` in the forge's directory under data, named by its number, `forge-N` for an owned forge (../setup/README.md, section 3); named by no member | the token's bytes | the engine's setup host, once, at start or the box's `started` (../setup/owned.md, 5); a fake forge, before binding (../setup/playground.md) |
 | a worker's secret | jig's worker part, a data path: `worker.secret` in the data directory as `temper-box init` writes it (../setup/init.md, 2); its digest is the worker's setting's, no file (jig's `domain/engine/workers.md`, 1) | jig's formats (jig's `protocol/configuration.md`, sections 6 and 9) | jig's components |
 | Google's client secret | `application.sign_in.google.secret`, a data path | the secret's bytes | `temper-box serve`, once, at start, within `sign_in.secret_bytes` |
-| the OpenID provider's signing key, and each of its confidential clients' secrets | jig's `engine.clients.provider` (jig's `protocol/configuration.md`, section 3) | jig's formats: the key PKCS#8 PEM, made by `temper-box forge sign-in` (../setup/owned-sign-in.md, 1) or a box's first run (`../openid-provider.md`, 9) | `temper-box serve`, once, at start, for jig's helper that builds the issuer (`../openid-provider.md`, 2) |
+| the OpenID provider's signing key, and each of its confidential clients' secrets | jig's `engine.clients.provider` (jig's `protocol/configuration-engine.md`, section 1) | jig's formats: the key PKCS#8 PEM, made by `temper-box forge sign-in` (../setup/owned-sign-in.md, 1) or a box's first run (`../openid-provider.md`, 9) | `temper-box serve`, once, at start, for jig's helper that builds the issuer (`../openid-provider.md`, 2) |
 | the scripted model's key | `application.demo.llm.key`, a data path: `demo/llm.key` as `temper-box init` writes it (../setup/init.md, 2) | the key's bytes | the fake LLM, at its start; `temper-box serve`, at the playground's start, which makes the scripted account with it (../setup/playground.md) |
 
 - **A secret file holds its bytes and nothing else** but a final

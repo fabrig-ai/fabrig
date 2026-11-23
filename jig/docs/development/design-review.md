@@ -22,13 +22,13 @@ consolidations by hand. No numbered section or document moves.
 
 ### J1. Overlap: application's settings hand-off
 
-`jig/docs/design/domain/engine/settings.md`, 5 and
+`jig/docs/design/domain/engine/settings-application.md`, 1 and
 `jig/docs/design/domain/connectors.md`, 17 both specify default reporting
 at startup, judging within the decision, keeping proposal/current values,
 restoration history, and reading the newest unpinned value. These are two
 full accounts of the same cross-child contract in the domain layer, not
 just a connector summary citing the owner.
-**Owner:** `jig/docs/design/domain/engine/settings.md`, 5.
+**Owner:** `jig/docs/design/domain/engine/settings-application.md`, 1.
 **Suggest:** keep the common hand-off contract there and make connectors
 state only its own obligations by reference, retaining its world cases.
 The sections mix shared rules and each child's responsibilities; one
@@ -66,7 +66,7 @@ from an offline store-copy design.
 `jig/docs/design/protocol/browser/README.md`, 15 still lists the bundle
 served compressed as Later. `skein/docs/design/ui/web/bundle.md`, 2
 already specifies default-on deterministic gzip forms, and
-`jig/docs/design/protocol/service.md`, 11.4 already supplies the bundle
+`jig/docs/design/protocol/service-parts.md`, 1.4 already supplies the bundle
 helper's compressed File and `compressed_of` alongside the server.
 **Owner:** `jig/docs/design/protocol/browser/README.md`, 15.
 **Suggest:** its designer remove the broad deferral or narrow it to a

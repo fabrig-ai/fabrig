@@ -1,4 +1,4 @@
-//! An ordered domain fake of the store boundary (`domain/testing.md`, 4, 7).
+//! An ordered domain fake of the store boundary (`domain/testing.md`, 4, `domain/testing-fakes.md`, 1).
 //! The caller translates its writes into opaque keys and rows. Whole commits
 //! apply in number order; completions also leave in order, once durable.
 //! Held completions, delayed writes and captured pages model separate waits.

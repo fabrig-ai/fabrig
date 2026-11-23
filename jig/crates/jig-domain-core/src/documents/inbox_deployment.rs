@@ -1,6 +1,6 @@
 //! Party pages (`client/domain/pages.md`, sections 3 and 4;
 //! Closed at once (jig/docs/design/domain/people/acts.md, 2).
-//! `client/domain/contract/documents.md` and `client/domain/contract/README.md`, 5.1). Needs page over all live
+//! `client/domain/contract/documents.md` and `client/domain/contract/watches.md`, 1.1). Needs page over all live
 //! task projections across the party's projects; updates use a bounded cache. Reply
 //! read positions and stored inbox rows are supplied by their owners.
 

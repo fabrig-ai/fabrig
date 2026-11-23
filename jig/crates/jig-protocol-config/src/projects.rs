@@ -1,4 +1,4 @@
-//! Deployment rules and seeded project policies (configuration.md, 3; authority.md, 6).
+//! Deployment rules and seeded project policies (protocol/configuration-engine.md, 1; authority.md, 6).
 use crate::{Path, Problems, What, check, domain, read};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
@@ -16,7 +16,7 @@ pub struct Project {
     pub policy: authority::Policy,
 }
 
-/// A numbered policy copied into projects made after the first start (configuration.md, 3).
+/// A numbered policy copied into projects made after the first start (protocol/configuration-engine.md, 1).
 #[derive(Clone, Debug)]
 pub struct Policy {
     pub number: u32,

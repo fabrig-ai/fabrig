@@ -32,7 +32,7 @@ reads answer again, in any order and with any of them ending without its
 value, while nothing changes in the store, draws the same text every
 time. The `inbox` watch delivers again on any task's activity in a
 project the person sees, not only on a change of its needs (jig's
-`client/domain/contract/README.md`, 5.2), and a list's watch on any of its
+`client/domain/contract/watches.md`, 1.2), and a list's watch on any of its
 rows' activity, so on a running project a page's reads answer again every
 few seconds; what they find unchanged moves nothing.
 

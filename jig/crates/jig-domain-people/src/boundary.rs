@@ -344,7 +344,7 @@ pub enum Ask {
         revision: u64,
         again: Option<bool>,
     },
-    /// End a placed hold, optionally releasing its tasks (domain/tasks/lifecycle.md, 10).
+    /// End a placed hold, optionally releasing its tasks (domain/tasks/lifecycle-holds.md, 2).
     Lift {
         hold: u64,
         revision: u64,
@@ -455,7 +455,7 @@ pub enum Ask {
         decision: EscalationDecision,
     },
     /// Sign an LLM provider's account in for this holder; admitted from the holder alone, never by
-    /// a role (domain/authority.md, 8.4), and decided by the accounts child (domain/accounts.md, 3.3).
+    /// a role (domain/authority-checks.md, 1.4), and decided by the accounts child (domain/accounts.md, 3.3).
     AccountSignIn {
         holder: AccountHolder,
         provider: u32,
@@ -1396,10 +1396,10 @@ pub struct ProjectRole {
     pub role: Role,
 }
 
-/// Maximum explicit account uses (domain/accounts.md, 4.2).
+/// Maximum explicit account uses (domain/accounts-uses.md, 1.2).
 pub const USES: u32 = 16;
 
-/// A payer an LLM account may serve (domain/accounts.md, 4.2).
+/// A payer an LLM account may serve (domain/accounts-uses.md, 1.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Use {
     Party(u64),

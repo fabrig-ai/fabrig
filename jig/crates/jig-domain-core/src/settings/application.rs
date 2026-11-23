@@ -1,4 +1,4 @@
-//! Application-owned settings (jig/docs/design/domain/engine/settings.md, 5).
+//! Application-owned settings (jig/docs/design/domain/engine/settings-application.md, 1).
 
 pub use jig_domain_core_vocabulary::settings::application::*;
 
@@ -679,7 +679,7 @@ pub(crate) struct StartDefaults {
     dropped: Box<[connector::DroppedDefault]>,
 }
 
-/// Replies may precede settings restore; preparation waits for every owner (domain/engine/settings.md, 5–7).
+/// Replies may precede settings restore; preparation waits for every owner (domain/engine/settings-application.md, 1, and domain/engine/settings-proposals.md, 1, and domain/engine/settings-store.md, 1).
 #[derive(Hash, Debug)]
 pub(crate) enum Starting {
     Waiting { replies: Map<u16, StartDefaults> },

@@ -1,4 +1,4 @@
-//! Workers' authenticated openings (protocol/store/records.md 3 and protocol/store/opening.md 5).
+//! Workers' authenticated openings (protocol/store/records.md 3 and protocol/store/opening-rehearsal.md 1).
 use crate::{WorkerOpening, generated::openings as maps, openings_v1 as wire};
 use alloc::boxed::Box;
 use skein_codec::Record as _;

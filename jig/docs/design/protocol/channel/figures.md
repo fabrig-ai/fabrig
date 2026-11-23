@@ -86,7 +86,7 @@ them picks each one, and the schema then fixes it.
   `policy.NAME`, as smith's agent configuration's `profile` member
   names them (smith's `protocol/agent.md`, section 4).
 - **`agents.endpoints`** is the engine's endpoints, in the engine's
-  order (`../configuration.md`, section 3, `llm`). Each holds what jig's
+  order (`../configuration-engine.md`, section 1, `llm`). Each holds what jig's
   `Endpoint` holds, and the limits the worker's agents take on it,
   smith's endpoint `limits`. `host` and `port` are the endpoint's
   address. `connect`, `handshake`, `head` and `idle` are durations.

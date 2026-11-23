@@ -6,7 +6,7 @@ use jig_domain_views as views;
 use skein_lib::{Duration, List, ReplyTo, Secret, Time, Token, Wall};
 #[derive(Debug)]
 pub enum Event {
-    /// Replace the catalogue before its commit (domain/engine/settings.md, 11).
+    /// Replace the catalogue before its commit (domain/engine/settings-catalogue.md, 1).
     Catalogue {
         models: Box<[Model]>,
     },
@@ -270,7 +270,7 @@ pub struct Settings {
     pub public: List<crate::public::PublicKind>,
     pub public_bounds: jig_client_protocol_wire::PublicIndexBounds,
 }
-/// A configured model as the client protocol names and shows it (configuration.md, 3).
+/// A configured model as the client protocol names and shows it (protocol/configuration-engine.md, 1).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Model {
     pub new_until: Option<Wall>,
@@ -293,7 +293,7 @@ pub struct Model {
     pub picker: bool,
 }
 /// Configured amounts per `unit` tokens in the deployment's spend unit; absent cache writes
-/// are priced at input (configuration.md, 3; domain/authority.md, 1).
+/// are priced at input (protocol/configuration-engine.md, 1; domain/authority.md, 1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Prices {
     pub input: u64,

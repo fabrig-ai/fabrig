@@ -1,10 +1,10 @@
-//! Kit independence (jig/docs/design/README.md, 6.6).
+//! Kit independence (jig/docs/design/rails.md, 1.6).
 
 use super::kit_root;
 use crate::manifest::workspace::{Package, jig_packages};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
-// Kits by design, whatever their names say (jig/docs/design/domain/testing.md, 7).
+// Kits by design, whatever their names say (jig/docs/design/domain/testing-fakes.md, 1).
 const WORLD_KITS: [&str; 2] = ["skein-world", "smith-agent-process-world"];
 
 fn packages() -> Vec<Package> {

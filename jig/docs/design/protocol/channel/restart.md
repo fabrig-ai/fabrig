@@ -23,7 +23,7 @@ restart said holds its runs*.
   grace, in place of the grace.
 - **The rest is as before:** the redial, the clock stopped once the
   engine admits a hello, the runs cancelled for contact at the clock's
-  end, and the stop bound's tail after it (`README.md`, 9.1;
+  end, and the stop bound's tail after it (`worker-link.md`, 1.1;
   `../../domain/hosts/hub.md`, 6).
 
 ## 2. The record
@@ -55,7 +55,7 @@ record Restarting { wait_ms: u64 }
   the word is durable and before it closes the workers' part
   (`../../domain/engine/restart.md`, 1, *Saying it restarts*), so the
   record is queued before the close's finish and drains with the rest
-  (`README.md`, 9.2).
+  (`worker-link.md`, 1.2).
 - **Each channel open with its hello heard,** and not closing: where its
   version's kinds hold `restarting`, the component sends `Restarting {
   wait_ms }` and tells its owner the worker was told; otherwise it sends
@@ -77,7 +77,7 @@ record Restarting { wait_ms: u64 }
 - **Asked again,** it sends again on each such channel; a worker keeps
   the last.
 - **Its frame fits every room:** a fixed record, checked with the other
-  kinds when the component is made (`README.md`, section 8).
+  kinds when the component is made (`liveness.md`, section 1).
 
 ## 4. The worker's side
 
@@ -87,11 +87,11 @@ record Restarting { wait_ms: u64 }
   for its log (temper's `protocol/wires.md`, section 4).
 - **At that channel's loss,** whatever its cause, the grace's clock is
   armed for the longer of the wait and the grace, from when the
-  component notices the loss, in place of the grace (`README.md`, 9.1).
+  component notices the loss, in place of the grace (`worker-link.md`, 1.1).
   A wait shorter than the grace never shortens what the worker keeps.
 - **The word is its channel's:** it goes with the channel, so the next
   channel starts with none. A channel back that the engine admits stops
-  the clock as before (`README.md`, 9.1), and its own loss, with no
+  the clock as before (`worker-link.md`, 1.1), and its own loss, with no
   word on it, arms the grace. A channel refused, or lost before it is
   admitted, leaves the clock running from the first loss, as before, so
   a wait heard on the channel admitted before it still bounds it.

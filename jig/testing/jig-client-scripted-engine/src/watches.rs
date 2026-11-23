@@ -1,4 +1,4 @@
-//! One in-flight document and a dirty mark per watch; client/domain/contract/README.md, 5.
+//! One in-flight document and a dirty mark per watch; client/domain/contract/watches.md, 1.
 use crate::{Engine, Invalid, Rows, Up, reads::list};
 use jig_client_domain::contract::{
     Call, Delivery, Inbox, InboxCursor, LiveCall, ObjectKey, Phase, PhaseClass, PhaseCounts, ProvisionalTurnName, Read,

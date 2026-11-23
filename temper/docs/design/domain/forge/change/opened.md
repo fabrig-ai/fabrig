@@ -103,7 +103,7 @@ while the forge keeps it (`../adoption.md`, 9).
   offer allows, which the core resolves at admission as for a goal the
   person starts, the builder checking the amount it reads from the
   offer. Either is reserved from the person's role's pool at admission
-  (jig's `domain/authority.md`, section 7). Its reviews, resolutions and
+  (jig's `domain/authority-budgets.md`, section 1). Its reviews, resolutions and
   repairs spend it; the change itself spends nothing.
 - **Its parameters:** 1, the repository; 2, the landing branch as
   resolved; 10, the title; 19, the source (3.1); and 14 only where the

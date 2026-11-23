@@ -1,5 +1,5 @@
 //! The notes referee checks only callers' intents and durable store records.
-//! It never inspects the child domain (domain/testing.md, section 7).
+//! It never inspects the child domain (domain/testing-fakes.md, section 1).
 
 use std::collections::BTreeMap;
 

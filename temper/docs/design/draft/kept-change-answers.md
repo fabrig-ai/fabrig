@@ -12,7 +12,7 @@ Draft, 2026-11-15, on the user's word. A change waiting on a dependency is "kept
   - An answer to a kept change's producer is delivered at once, as for a change that isn't kept.
   - An answer is held only while the producer has no message room. Keep that condition apart from keptness: `apply` also treats zero room as kept today, so removing the guards alone could lose an answer.
   - Answers already held are delivered when room exists, a restart included, with no new stored schema (`Stands::Held` already keeps them).
-  - The landing gate stays: nothing merges before its dependencies land (change `README.md`, 2, step 7; jig `docs/design/domain/connectors.md`, 4.1).
+  - The landing gate stays: nothing merges before its dependencies land (change `README.md`, 2, step 7; jig `jig/docs/design/domain/connectors-effects.md`, 1.1).
   - Revise `questions.md`, 1, to say so, and change the test that pins the old contract (`temper/tests/engine/domain/tests/suite/forge_routes/questions.rs`, near the "add a dependency with the answer" case) on purpose, saying why.
 
 ## 2. A task waiting on its own question says so

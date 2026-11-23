@@ -127,7 +127,7 @@ with the worker's (`../protocol/service-process.md`, section 1).
     store's fill; a commit failed; a page loaded, or not; a core read's
     page; the store's census, at most once a minute, which the root
     hands the core as its `Event::Census`, keeping the last while it
-    starts as it keeps the fill (jig's `protocol/store/README.md`, 6.3);
+    starts as it keeps the fill (jig's `protocol/store/growth.md`, 1.3);
   - a worker's channel (`WorkerInput::Link`): a hello, a record up with
     temper's `Parts` beside an answer, a loss; and the protocol layer's
     hand-backs: a host call decoded into the root's `Tool`, a decided
@@ -223,8 +223,8 @@ release(root):   (the service's iterate)
   pressure release nothing before their commit.
 - **Handed back, not answered.** An input the journal cannot take returns
   to its owner unchanged, who offers it again; the root answers nobody
-  busy itself. Busy answers are the core's (jig's `domain/engine/README.md`,
-  5.1).
+  busy itself. Busy answers are the core's (jig's `domain/engine/decisions.md`,
+  1.1).
 - **The deployment's record rides every commit:** the core's numbers,
   with the commit's own, so a restart reads the last durable commit from
   it.
@@ -375,7 +375,7 @@ Moved to [`root-translation.md`](root-translation.md), section 2.
 
 - **`Key`, `Record`, `Write`** wrap the core's and the forge's, one
   variant each, the core's first; a write saves a record under its own
-  key or erases a key (jig's `domain/engine/README.md`, 5.6).
+  key or erases a key (jig's `domain/engine/decisions.md`, 1.6).
 - **No records of its own.** The deployment's record is the core's; a
   call's record is the core's part and the forge's (`root-translation.md`, 2.3).
 - **`Range`:** the core's ranges the root loads; the census of ended
@@ -403,7 +403,7 @@ Moved to [`root-translation.md`](root-translation.md), section 2.
   retired slot awaiting its reclaim among them, is not answered busy:
   the root keeps it, in the order asked, and issues it once a slot
   frees, before any read asked after it, still held behind the commits
-  made before the core asked (jig's `domain/engine/README.md`, 5.3).
+  made before the core asked (jig's `domain/engine/decisions.md`, 1.3).
   Busy is left for a load that failed: a page refused or cut, or an
   answer the archive cannot read. The core's other loads (an ended
   conversation and its read position, a decided escalation or proposal,
@@ -411,7 +411,7 @@ Moved to [`root-translation.md`](root-translation.md), section 2.
 - **An issued transcript load that fails** answers the core's
   `TranscriptLoad::Unread`, retiring its read once; an answer to a stale
   preparation is ignored. The core owns the window policy (jig's
-  `domain/engine/executors.md`, 2): a closed window starts fresh with an empty
+  `domain/engine/executors-transcripts.md`, 1): a closed window starts fresh with an empty
   tail and no added failure or refusal, while an open window keeps its
   transient failure policy. A transcript load is issued only with read
   room: without it the root answers the activation `busy` and the task

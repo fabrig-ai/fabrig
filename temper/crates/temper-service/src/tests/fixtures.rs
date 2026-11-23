@@ -381,7 +381,7 @@ fn open_seeded(store: &mut crate::store::Store) {
     let Some(jig_protocol_store::Event::Opened { .. }) = store.events().pop() else {
         panic!("seeded fixture reopened")
     };
-    // This fixture handoff does not consume the census (jig protocol/store/README.md, 6.3).
+    // This fixture handoff does not consume the census (jig jig/docs/design/protocol/store/growth.md, 1.3).
     let Some(jig_protocol_store::Event::Census { .. }) = store.events().pop() else { panic!("opened census") };
 }
 
@@ -682,7 +682,7 @@ pub fn memory_store_for(
     let Some(jig_protocol_store::Event::Opened { installation, pending, .. }) = host.above.pop() else {
         panic!("store opened")
     };
-    // This fixture handoff does not consume the census (jig protocol/store/README.md, 6.3).
+    // This fixture handoff does not consume the census (jig jig/docs/design/protocol/store/growth.md, 1.3).
     let Some(jig_protocol_store::Event::Census { .. }) = host.above.pop() else { panic!("opened census") };
     crate::store::Store::new(root, &checked, models, &seeds()).on_opened(host.component, installation, pending)
 }

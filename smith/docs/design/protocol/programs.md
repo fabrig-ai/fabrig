@@ -494,7 +494,7 @@ open is section 9.
     dropped; none where it is absent, in another form or past 1.
 
   It reports each event, equal to the last or not: the core keeps what
-  changes (jig's `domain/accounts.md`, 3.7). A rejected event's window goes
+  changes (jig's `domain/accounts-lists.md`, 1). A rejected event's window goes
   before its limit, which stays as below.
 - **A usage limit** shows as a `rate_limit_event` whose
   `rate_limit_info.status` is `rejected`, with its
@@ -826,7 +826,7 @@ backend.
   unreadable where the answer does not read or names no window; and
   *spent* where the result's `usage` names a token or `total_cost_usd`
   is above zero, a model call the read must never make (jig's
-  `domain/accounts.md`, 3.7 asks no more of that account).
+  `domain/accounts-lists.md`, 1 asks no more of that account).
 - **The form is Claude Code's,** recorded nowhere: 9, *The usage
   command*.
 

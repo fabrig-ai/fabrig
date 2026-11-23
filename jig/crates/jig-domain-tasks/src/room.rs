@@ -1,11 +1,11 @@
-//! Durable live-room conditions and refusal order (jig/docs/design/domain/connectors.md, 6.2 and 6.4).
+//! Durable live-room conditions and refusal order (jig/docs/design/domain/connectors-procedures.md, 1.2 and 1.4).
 use crate::domain::{publish, record, task_mut, wake_procedure};
 use crate::{
     Active, CapacityAction, CapacityCause, Domain, Executor, Limits, Phase, Problem, Refusal, Request, TaskRecord,
 };
 use skein_lib::{Env, Queue};
 
-/// The live-task count a procedure batch waits for (connectors.md, 6.2).
+/// The live-task count a procedure batch waits for (domain/connectors-procedures.md, 1.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum LiveRoom {
     Deployment,

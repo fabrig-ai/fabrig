@@ -1,4 +1,4 @@
-//! The protocol client (jig/docs/design/domain/testing.md, 7).
+//! The protocol client (jig/docs/design/domain/testing-fakes.md, 1).
 #![forbid(unsafe_code)]
 pub mod client;
 mod engine;

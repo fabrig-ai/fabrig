@@ -1,4 +1,4 @@
-//! Durability before exchanges, and owner-versioned restoration (protocol/client/README.md, 7).
+//! Durability before exchanges, and owner-versioned restoration (protocol/client/small-store.md, 1).
 use crate::component::Gathered;
 use crate::{Fact, Limits, Link, Message, Record, Request, Saved, translate};
 use alloc::boxed::Box;

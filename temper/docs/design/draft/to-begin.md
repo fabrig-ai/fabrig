@@ -50,7 +50,7 @@ draws it, and landed apart from this draft.
 - **More accounts, never more room:** the link offers other providers
   and models, and its words promise no capacity, since a limited task
   waits for its own account and never moves to another of its
-  holder's (jig's `domain/accounts.md`, 4.3), as OpenAI's terms ask
+  holder's (jig's `domain/accounts-uses.md`, 1.3), as OpenAI's terms ask
   (jig's `domain/providers.md`, 2.5), and Anthropic's limits assume
   one person's ordinary use (jig's `domain/providers.md`, 3.4).
 - **"To begin," optional and plainly so:** a card of its own, headed

@@ -1,4 +1,4 @@
-//! The scratch's maps decoded before planning (protocol/store/opening.md, 5).
+//! The scratch's maps decoded before planning (protocol/store/opening-rehearsal.md, 1).
 use crate::registry::rehearsal::Decoder;
 use crate::{Event, KeptFamily, OpenRefusal, OwnerSet, Phase, Store, Undecoded, open, pages, restore};
 use alloc::boxed::Box;

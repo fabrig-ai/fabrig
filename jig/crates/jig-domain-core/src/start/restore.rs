@@ -38,7 +38,7 @@ impl Core {
                     self.restore_policy(&env.limits, project, name, value)
                 }
                 Record::People(people::Stored::Public { project }) => {
-                    // Public keys follow policy keys in the people restore walk (protocol/store/README.md, 4.4).
+                    // Public keys follow policy keys in the people restore walk (protocol/store/keys.md, 1.4).
                     if project == 0
                         || self.authority.policy(project).is_none()
                         || self.visibility.public.insert(project, ()).is_err()

@@ -1,4 +1,4 @@
-//! Application settings are judged and kept by their connectors (jig/docs/design/domain/engine/settings.md, 5).
+//! Application settings are judged and kept by their connectors (jig/docs/design/domain/engine/settings-application.md, 1).
 use crate::settings::{Kind, KindScope};
 use crate::tests::*;
 

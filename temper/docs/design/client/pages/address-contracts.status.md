@@ -15,7 +15,7 @@
   shares `settings.md`, section 2's controls; the departure from `ui-chat-accept` is
   recorded under `settings.md`, 2 below. Temper/ui owns their reconciliation.
 
-- **Not yet:** *The `Models` tab*: the omitted-count delivery gap remains `jig/docs/design/domain/engine/settings.status.md`, 12. The view draws what it receives.
+- **Not yet:** *The `Models` tab*: the omitted-count delivery gap remains `jig/docs/design/domain/engine/settings-catalogue.status.md`, 2. The view draws what it receives.
 
 - **Design departs:** *The `Models` tab*, from the look request `model-picker`'s 07, for
   now and on purpose: an address under the project, `/projects/<project>/settings/models`, as

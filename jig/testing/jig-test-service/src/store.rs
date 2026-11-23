@@ -18,7 +18,7 @@ pub(super) struct Store {
     pub(super) opened: bool,
     pub(super) pending: bool,
     /// The installation's identifier: the drawn one until the store opens,
-    /// then the one it keeps (protocol/store/README.md 4.4).
+    /// then the one it keeps (protocol/store/keys.md 1.4).
     pub(super) installation: [u8; 16],
     /// The configured models the component names a role's models by, for a test's memory store.
     #[cfg(test)]
@@ -196,7 +196,7 @@ pub(super) fn answer(engine: &mut crate::Engine) {
             | protocol::Event::Back { .. }
             | protocol::Event::BackRefused { .. }
             | protocol::Event::Closed { .. } => unreachable!("an engine store never rehearses or goes back"),
-            // This test service does not consume the census (protocol/store/README.md, 6.3).
+            // This test service does not consume the census (protocol/store/growth.md, 1.3).
             protocol::Event::Census { .. } => {}
             protocol::Event::OpenRefused { why, .. } => {
                 let failure = engine

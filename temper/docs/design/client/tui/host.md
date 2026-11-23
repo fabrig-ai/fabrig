@@ -93,7 +93,7 @@ The TUI's host and seam are split from [the TUI](README.md).
   `Start` is the host's defect.
 - **The handshake** (`../../draft/tui-remote.md`, 4): at an `https://`
   origin, the run reads the native shell's `Shell::refused` after each
-  iteration (jig's `protocol/client/README.md`, section 9) and, when it
+  iteration (jig's `protocol/client/shells.md`, section 1) and, when it
   changed, reports it as the TUI words it, `temper-client-tui`'s
   `Handshake`: skein-tls's `Certificate::Issuer` or `Invalid`,
   `Untrusted`; `Expired`; `NotYetValid`; `Name`, `OtherName`; any other

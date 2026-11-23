@@ -232,7 +232,7 @@ this document says how settings lie over it.
   goes on.
 - **What the store holds past a lowered figure** refuses the restore,
   naming the setting, its figure and what is held, as a lowered
-  document limit did (jig's `domain/engine/settings.md`, 7): a lowering
+  document limit did (jig's `domain/engine/settings-store.md`, 1): a lowering
   is the owner's to make when the work has drained. What is held is
   given in the setting's own units, so the owner can compare it with
   the figure: the least figure of that limit that admits the record.
@@ -292,7 +292,7 @@ this document says how settings lie over it.
   the same way, naming it.
 - **So the next start takes what an owner accepted.** A proposal is
   checked when it is made, against its revision; any newer revision
-  withdraws it (jig's `domain/engine/settings.md`, 6), so its acceptance
+  withdraws it (jig's `domain/engine/settings-proposals.md`, 1), so its acceptance
   needs no second check. A proposal a run sends in parts is checked part
   by part; the next start checks the whole, and `limits-held` covers a
   start it refuses.

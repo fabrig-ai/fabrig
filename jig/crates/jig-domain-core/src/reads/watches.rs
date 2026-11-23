@@ -1,4 +1,4 @@
-//! Finished task and tree watches reuse the bounded durable task load (client/domain/contract/README.md, 5.2).
+//! Finished task and tree watches reuse the bounded durable task load (client/domain/contract/watches.md, 1.2).
 use crate::{
     Core, Held, Limits, Request,
     documents::{self, Document, Missing, Subject},
@@ -138,7 +138,7 @@ fn tree(core: &Core, limits: &Limits, range: &Range, raw: &[Row], more: bool) ->
 }
 
 /// A watch's authenticated owner and concrete construction inputs.
-/// `client/domain/contract/README.md`, sections 5.1 and 5.2.
+/// `client/domain/contract/watches.md`, sections 1.1 and 1.2.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub(crate) struct WatchBinding {
     /// The party whose document is constructed.

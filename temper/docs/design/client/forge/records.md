@@ -25,10 +25,10 @@
   its schema and generated records, and moves its
   version by one, its layouts' list taking the new version's line;
   `PUBLIC_VERSION` does the same for the visitors' records (jig's
-  `protocol/client/README.md`, section 6).
-  The engine serves exactly one version (jig's `protocol/client/README.md`, section 6): a client of another
+  `protocol/client/versions.md`, section 1).
+  The engine serves exactly one version (jig's `protocol/client/versions.md`, section 1): a client of another
   is out of date for the forge (`family.md`, 4), and its kept adoption is dropped
-  as kept work at start (`../line.md`, 6; jig's `protocol/client/README.md`, section 7).
+  as kept work at start (`../line.md`, 6; jig's `protocol/client/small-store.md`, section 1).
 ## 2. Requests
 
 Moved to [`records-requests.md`](records-requests.md), section 1.
@@ -191,7 +191,7 @@ Moved to [`records-deployment.md`](records-deployment.md), section 2.
   (`../../draft/redeploys.md`, section 8).
 ## 8. Dismissed facts
 - **A person's facts, the subject `dismissed`:** of the party's own
-  scope (jig's `client/domain/contract/README.md`, 5.5), with no fields, its
+  scope (jig's `client/domain/contract/watches.md`, 1.5), with no fields, its
   window unused; on the wire `Watching`'s `dismissed`. One subject for
   the deployment: the core names each watcher's party, and each
   watcher gets its own party's document (`../../domain/forge/attention.md`, 1). Its
@@ -215,7 +215,7 @@ Moved to [`records-deployment.md`](records-deployment.md), section 2.
   the forge side's facts, which Home reads to compute To begin (`../pages/README.md`).
 ## 9. Changes
 - **A project's changes, the subject `changes`:** of the project's scope
-  (jig's `client/domain/contract/README.md`, 5.5), for a party with a role
+  (jig's `client/domain/contract/watches.md`, 1.5), for a party with a role
   there, its window unused; on the wire `Watching`'s `changes`,
   `ChangesSubject`: `project`. `Changes`' page watches it while open. Its
   document, `ChangesPanel`:

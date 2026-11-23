@@ -9,7 +9,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use temper_engine_domain::{Key, Record, Write};
 
 /// One independently expected successful roster replacement, including the
-/// exact task rows permitted to change (jig's domain/engine/README.md, section 5.1).
+/// exact task rows permitted to change (jig's domain/engine/decisions.md, section 1.1).
 #[derive(Clone, Hash, Debug)]
 pub struct Replacement {
     /// Complete project roster supplied by the outside owner (jig's
@@ -72,7 +72,7 @@ impl Referee {
     /// # Errors
     /// Names missing cohort members, unauthorized changes, duplicate writes,
     /// altered funding, or a task field differing from the scripted expectation
-    /// (jig's domain/engine/README.md, section 5.1).
+    /// (jig's domain/engine/decisions.md, section 1.1).
     #[expect(
         clippy::too_many_lines,
         reason = "one independent atomic-cohort check names each specific violated contract"
@@ -416,7 +416,7 @@ impl Referee {
     /// # Errors
     /// Rejects unsolicited/duplicate replies, wrong wrappers/outcomes, replies
     /// before durability, or admission refusals that replaced an existing key
-    /// (jig's domain/people/acts.md, section 1; jig's domain/engine/README.md, section 5.2).
+    /// (jig's domain/people/acts.md, section 1; jig's domain/engine/decisions.md, section 1.2).
     pub fn replied(
         &mut self,
         rows: &BTreeMap<Key, Record>,

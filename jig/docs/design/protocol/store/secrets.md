@@ -76,7 +76,7 @@
   are its own family's, by its own schema (temper's
   `protocol/credentials.md`, 2.1). jig's set names the family, `map:
   Secrets`, and its keys' ranges, the application's left out
-  (`opening.md`, 3), for the rehearsal's decoding and the manifest's
+  (`opening-owners.md`, 1), for the rehearsal's decoding and the manifest's
   counts. The secrets' formats are outside the registry, fixed at their
   current versions; a change designs how the deployment's store reaches
   it in that landing (temper's `draft/store-floor.md`, section 5).
@@ -167,7 +167,7 @@
   erases nothing. A value orphaned by a crash
   before the core says used or unused remains there, including an LLM
   key not yet adopted; collecting those values is later work.
-- **A failure stops the engine,** as the store's does (`README.md`, section 5): what a
+- **A failure stops the engine,** as the store's does (`commits.md`, section 1): what a
   failed commit of the secrets' store was keeping is never handed out.
 - **Read at start,** within its own limits and worst case: named sources
   by number, the sources' sweep in bounded pages.
@@ -183,5 +183,5 @@
   (`[1, 4, 0]`), so that the start's sweep erases nothing it should keep
   and no number is drawn twice. Its last commit is named in the manifest
   (`README.md`, section 2). A kept family names its map
-  (`KeptFamily::map`, `opening.md`, 3) for counting and the rehearsal's
+  (`KeptFamily::map`, `opening-owners.md`, 1) for counting and the rehearsal's
   decoding by its current text, not for a map patch.

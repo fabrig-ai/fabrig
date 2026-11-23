@@ -1,4 +1,4 @@
-//! Independent QA from domain/engine/executors.md 2, over planted crossed proofs and closed windows.
+//! Independent QA from domain/engine/executors-transcripts.md 1, over planted crossed proofs and closed windows.
 
 use super::closed_proofs as windows;
 

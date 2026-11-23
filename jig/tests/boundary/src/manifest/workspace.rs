@@ -1,4 +1,4 @@
-//! The workspace graph fixture for kit independence (jig/docs/design/domain/testing.md, 7).
+//! The workspace graph fixture for kit independence (jig/docs/design/domain/testing-fakes.md, 1).
 
 use std::{fs, path::Path};
 use toml::{Table, Value};

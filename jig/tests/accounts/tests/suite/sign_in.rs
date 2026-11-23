@@ -338,7 +338,7 @@ fn a_close_cancels_each_account_sign_in_and_answers_it_closing_before_its_visit(
     }
 }
 
-/// Reports and source removal keep one bounded facts record (accounts.md, 3.7).
+/// Reports and source removal keep one bounded facts record (domain/accounts-lists.md, 1).
 #[test]
 #[expect(clippy::too_many_lines, reason = "one report table checks the bounded record and its writes together")]
 fn reports_keep_only_what_the_provider_says() {

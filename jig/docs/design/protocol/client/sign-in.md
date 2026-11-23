@@ -23,7 +23,7 @@
   platform's identity) runs that flow on its own routes, redirects
   included, in its own server, verifies the identity, and gives the
   component `Mint { exchange, identity }`: a provider's number, as its
-  configuration numbers it (`../configuration.md`, section 3, providers),
+  configuration numbers it (`../configuration-engine.md`, section 1, providers),
   the subject there, and a login and a name for display. The component
   makes a sign-in for it, as above, and answers `Minted` with its
   credential and the sign-in's expiry; or `MintRefused`, saying why: a
@@ -172,7 +172,7 @@
   - *Reuse extends nothing:* the kept sign-in's expiry, the cookie's
     `Max-Age` and the bearer's file stay as they were.
 
-  It is enabled by configuration (`../configuration.md`, section 3,
+  It is enabled by configuration (`../configuration-engine.md`, section 1,
   clients), and only where the application's clients' listener is on
   loopback, which its startup checks (`../service.md`, section 3).
 - **The asked link,** for the browser of a person signed in already:
@@ -409,7 +409,7 @@
     ```
 
   It is enabled by configuration apart from the printed link
-  (`../configuration.md`, section 3, clients, `approval`), and only where
+  (`../configuration-engine.md`, section 1, clients, `approval`), and only where
   the application's clients' listener is on loopback, which its startup
   checks as for the link (`../service.md`, section 3). An application at
   a public name has that listener behind its TLS proxy, so the same
@@ -462,7 +462,7 @@
       the reissue is the core's before it, since the component's events
       reach the core in the order sent, and the reissue ends it.
     - *Its records,* in `jig-client-protocol-wire`'s schema, from jig's
-      client wire 43, unbridged (`README.md`, section 6), each appended
+      client wire 43, unbridged (`versions.md`, section 1), each appended
       last: `record ReissueService { party: u64 }`, `Ask`'s
       `reissue_service: ReissueService`, and `Made`'s `reissued:
       MadeService`, the record a made service is answered with, since
@@ -472,7 +472,7 @@
 - **Where a sign-in's credential is held:** by the client, as a secret,
   when its transport needs it in hand; the application keeps it across a
   restart, where its platform keeps secrets, and gives it back as held
-  (`../../client/domain/client/README.md`, section 9). A transport may keep it
+  (`../../client/domain/client/sign-in.md`, section 1). A transport may keep it
   itself, as a browser's cookie the client never sees: a sign-in's
   answer then carries none, and every exchange leaves with none, the
   transport adding it (`default-http.md`, 3). A link's answer that carries none to a
@@ -481,7 +481,7 @@
 - **Signed out:** a credential the engine does not know, or a sign-in
   ended or expired, is answered signed out on every exchange and ends
   the stream, and the client reports signed out to the application
-  (`../../client/domain/client/README.md`, section 9). Signing out is a message
+  (`../../client/domain/client/sign-in.md`, section 1). Signing out is a message
   that ends the sign-in whose credential it carries, its digest erased;
   a transport that keeps the credential clears it then. Sent with a
   credential whose sign-in has ended, it is answered signed out like
@@ -489,7 +489,7 @@
   lost one clears nothing on the client's side. Its answer, signed out
   or lost, is the sign-in's whose credential it carried: a client that
   has since authenticated a newer sign-in drops it, and keeps the newer
-  credential (`../../client/domain/client/README.md`, section 9).
+  credential (`../../client/domain/client/sign-in.md`, section 1).
 - **Installing a credential** ends every pending read visibly in the
   client domain (`README.md`, section 4), including `Held` or `Transport` before
   the first `me`. A `Link` or `Service` exchange that fails, is refused,
@@ -502,7 +502,7 @@
   spent. Not ready is *again* (`README.md`, section 3): a service's client signs in
   again after its backoff, reaching the next engine; a person's sign-out
   shows as one that did not reach the engine
-  (`../../client/domain/client/README.md`, section 9). A refusal would tell the
+  (`../../client/domain/client/sign-in.md`, section 1). A refusal would tell the
   person their sign-in failed, and an answer with no record would be
   *lost*, which cannot tell a sign-in not taken from one taken whose
   answer was lost.

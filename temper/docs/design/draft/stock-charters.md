@@ -160,7 +160,7 @@ overlay:
   default; new work reads the new one.
 - **Every path a change takes:** an overlay is proposed, decided,
   withdrawn when stale, kept in the history and restored as any change
-  of settings is (jig's `domain/engine/settings.md`, 6 and 10).
+  of settings is (jig's `domain/engine/settings-proposals.md`, 1, and `domain/engine/settings.md`, 10).
 - **Read:** `settings show charter N` prints the charter as its runs read
   it and marks what the overlay replaced and added; with `--json`, the
   overlay whole, its fields and its added text as literal text, naming
@@ -236,7 +236,7 @@ reference runs the stock's words; charters 6, 7 and 8 go. Its template
   files, charter 6 gone, kinds 3, 6 and 9.
 - `../protocol/configuration/settings-kinds.md`, 1 and
   `../domain/forge/change/questions.md`, 1: no foreman.
-- jig's `domain/engine/settings.md`, 1, 2 and 7: an overlay as a change
+- jig's `domain/engine/settings.md`, 1 and 2, and `domain/engine/settings-store.md`, 1: an overlay as a change
   kept over its default.
 - `../client/ctl/tools-acts.md`, 1: an overlay item, its directories, and
   files stacked in one call; `settings show`'s marks.

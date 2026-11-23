@@ -123,9 +123,9 @@ temper ──"run this experiment at this head" (active)────────
   has a connector to the lab: resources are experiments; an effect is a
   request, keyed and priced, for an experiment at a head with a level of
   evidence; its result is a verdict with its evidence. The lab's price
-  is spent from the requesting task's budget (jig's `domain/authority.md`,
-  section 7). temper is then a client of the lab that is not a person
-  (jig's `README.md`, section 10).
+  is spent from the requesting task's budget (jig's `domain/authority-budgets.md`,
+  section 1). temper is then a client of the lab that is not a person
+  (jig's `client-stack.md`, section 1).
 - **Done means proven in production.** A goal that changes a service can
   wait on the run side's health status at the commit it landed, and end
   only then.
@@ -153,8 +153,8 @@ The concepts are generic; the right column is os, their first backend.
 An infrastructure connector, shared by the lab and the run side:
 
 - **Resources:** pools, machines, targets on machines, slots.
-- **Effects,** each with its recovery class (jig's `domain/connectors.md`,
-  4.3):
+- **Effects,** each with its recovery class (jig's `domain/connectors-effects.md`,
+  1.3):
   - *prepare* a target at a revision into a machine's inactive slot:
     keyed by target and revision, and repeating it finds what the first
     made;

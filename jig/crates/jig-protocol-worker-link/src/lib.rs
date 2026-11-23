@@ -1,4 +1,4 @@
-//! The worker's channel owner (protocol/channel/README.md, 4 and 9.1).
+//! The worker's channel owner (protocol/channel/README.md, 4, and protocol/channel/worker-link.md, 1.1).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;

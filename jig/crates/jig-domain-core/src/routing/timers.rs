@@ -1,4 +1,4 @@
-//! Child timers and deployment headers (jig/docs/design/domain/engine/README.md, 4.1 and jig/docs/design/domain/engine/restart.md).
+//! Child timers and deployment headers (jig/docs/design/domain/engine/vocabulary.md, 1.1 and jig/docs/design/domain/engine/restart.md).
 use crate::{Core, Record, Timer};
 use skein_lib::{Duration, Time, Wall};
 
@@ -74,7 +74,7 @@ impl Core {
         !self.inspection_timer_withheld(timer) && (!timer.new_work() || (self.start_opened() && new_work))
     }
 
-    /// The deployment row this decision writes, if any (domain/engine/README.md, 5.4).
+    /// The deployment row this decision writes, if any (domain/engine/decisions.md, 1.4).
     #[must_use]
     pub fn decision_header(&mut self, wrote: bool) -> Option<Record> {
         let marked = core::mem::replace(&mut self.ended_groups.changed, false);

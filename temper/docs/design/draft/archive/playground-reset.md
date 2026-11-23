@@ -125,7 +125,7 @@ reference drafts execute.
   `domain/tasks/README.md`, the compound request); once each has ended, it is
   erased whole at once, as its retention would erase it at the horizon
   (jig's `domain/tasks/README.md`, its retention class; jig's
-  `protocol/store/README.md`, 6.1), its transcript's file with it.
+  `protocol/store/growth.md`, 1.1), its transcript's file with it.
 - **Then its own rows:** its policy's copy, its roles and parties, its
   pools in the current period, the settings of its scope (the connector
   owning each kind told, temper erasing its kinds 2, 4 and 5:
@@ -155,7 +155,7 @@ reference drafts execute.
   what it makes; the fake forge's record, its setup entry the
   playground's; the box asked for its group (`playground-reset.md`, section 3); the scripted
   account, the deployment's, its uses naming the playground's project
-  alone (jig's `domain/accounts.md`, 4.2); and, once the fake forge
+  alone (jig's `domain/accounts-uses.md`, 1.2); and, once the fake forge
   connects, `playground/widget` adopted into the playground's project.
 - **The scripted model, the playground's alone:** the playground's
   project allows only the scripted model, and no other project allows

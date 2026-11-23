@@ -180,7 +180,7 @@ impl StoreHost {
     }
     fn answer(&mut self, event: Event) {
         match event {
-            // This fixture writer does not consume the census (jig protocol/store/README.md, 6.3).
+            // This fixture writer does not consume the census (jig jig/docs/design/protocol/store/growth.md, 1.3).
             Event::Census { .. } => {}
             Event::Opened { last, pending, .. } => {
                 self.last = last;

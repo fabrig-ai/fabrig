@@ -44,7 +44,7 @@ A stall's gaps are `stalls.status.md`'s.
   -  participating objects and external merges remain `../README.status.md`, 7.
   -  upstream contributions remain `../README.status.md`, 8.
   -  the rule-change gate stories remain `gates.status.md`, 3.
-- **Design departs:** `repairs.md`, `questions.md`, 1 and jig's `domain/tasks/lifecycle.md`, 8, from the request
+- **Design departs:** `repairs.md`, `questions.md`, 1 and jig's `domain/tasks/lifecycle-endings.md`, 1, from the request
   `producer-failure` of 2026-11-05, each decided by its plan's cut, for the user
   to see:
   - `questions.md`, 1, and jig's `../attention.md`, 3: the finish-parking departure remains `questions.status.md`, 1.

@@ -385,8 +385,8 @@ before the steward's first `Welcome` has told it these.
 - **Conditional:** each mutating request carries what it was decided
   from (running, default, the slot's state and prepare key or record,
   the trial's attempt) and is refused as stale, with the facts, if any
-  of it changed. This is jig's conditional class (`jig/docs/design/domain/connectors.md`,
-  4.3), with the activator as the system.
+  of it changed. This is jig's conditional class (`jig/docs/design/domain/connectors-effects.md`,
+  1.3), with the activator as the system.
 - **Keyed:** a place is keyed by its prepare key, which the activator
   computes (hearth/docs/design/domain/slots/README.md, 2.2); asking again finds what the first made. A
   trial, a bless, a fall back and a roll back carry the steward's attempt

@@ -1,4 +1,4 @@
-//! Ordered intervals for domain loads (protocol/store/README.md, 4.3, and protocol/store/loads.md, 1 and 2).
+//! Ordered intervals for domain loads (protocol/store/keys.md, 1.3, and protocol/store/loads.md, 1 and 2).
 use crate::keys;
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::{self as core, RestoreRange};

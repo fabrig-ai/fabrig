@@ -1,10 +1,10 @@
-//! The task's own procedure where nothing remains to await (jig/docs/design/domain/tasks/lifecycle.md, 11).
+//! The task's own procedure where nothing remains to await (jig/docs/design/domain/tasks/lifecycle-endings.md, 3).
 use crate::domain::{Domain, publish, record, task_mut};
 use crate::{Active, Class, EndedBy, Hold, Limits, Party, Phase, Request, Was};
 use alloc::boxed::Box;
 use skein_lib::{Env, Queue};
 
-/// Fixed words for the task's own closer (jig/docs/design/domain/tasks/lifecycle.md, 11).
+/// Fixed words for the task's own closer (jig/docs/design/domain/tasks/lifecycle-endings.md, 3).
 pub const CLOSER_WORDS: &[u8] = b"Close your requester: nothing more will come.";
 
 pub(crate) fn claim_numbers(domain: &Domain, task: u64) -> Option<crate::Numbers> {
@@ -32,7 +32,7 @@ pub(crate) fn yield_for_run(domain: &mut Domain, env: &Env<Limits>, task: u64, o
 }
 
 /// Funds returned to an idle closer make it due, even when none remain
-/// (jig/docs/design/domain/tasks/lifecycle.md, 11, Its funds follow its task's runs).
+/// (jig/docs/design/domain/tasks/lifecycle-endings.md, 3, Its funds follow its task's runs).
 pub(crate) fn take_available(domain: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
     let Some(row) = record(domain, task) else { return };
     if row.phase != Phase::Active(Active::Idle) && row.phase != Phase::Waiting {

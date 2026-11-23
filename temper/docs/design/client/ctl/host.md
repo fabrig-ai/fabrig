@@ -25,7 +25,7 @@ acts are `tools.md`'s.
 - **A record these tools cannot read,** of a store version, or of a
   family's owner or version, that they do not declare, is counted, never
   listed: jig's client reads nothing of such a record, drops it at start
-  and says how many (jig's `protocol/client/README.md`, section 7), and
+  and says how many (jig's `protocol/client/small-store.md`, section 1), and
   `pending` says what a call's client will. Its line, `N kept records
   these tools cannot read; a call that sends drops them`, follows the
   rows, and the call exits 0. A file that is not a small store's at all

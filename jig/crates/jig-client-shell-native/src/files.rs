@@ -1,4 +1,4 @@
-//! Private token and whole small-store files (protocol/client/sign-in.md and protocol/client/README.md, 7).
+//! Private token and whole small-store files (protocol/client/sign-in.md and protocol/client/small-store.md, 1).
 //! Each batch is answered in order (client/domain/client/README.md, 13).
 use skein_io::{
     file::{self, Expect},
@@ -321,7 +321,7 @@ impl Files {
 }
 
 /// Read one record from the native shell's whole small-store file, without opening a transport.
-/// An invalid file or an absent key reads as none (protocol/client/README.md, 7).
+/// An invalid file or an absent key reads as none (protocol/client/small-store.md, 1).
 #[must_use]
 pub fn store_record(bytes: &[u8], key: &[u8]) -> Option<jig_client::Record> {
     let mut records = decode_store(bytes)?;

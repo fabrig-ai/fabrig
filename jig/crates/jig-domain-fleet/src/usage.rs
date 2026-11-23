@@ -1,4 +1,4 @@
-//! Usage reads need a login, not an endpoint or a slot (domain/accounts.md, 3.7).
+//! Usage reads need a login, not an endpoint or a slot (domain/accounts-lists.md, 1).
 use crate::{Domain, HostKind, LoginState, Request, SourceName};
 use jig_domain_link::UsageOutcome;
 use skein_lib::{List, Queue, Token};

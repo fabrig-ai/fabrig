@@ -1,4 +1,4 @@
-//! Payload-free opening steps and driver counts (protocol/store/opening.md, 1 and 5).
+//! Payload-free opening steps and driver counts (protocol/store/opening.md, 1, and protocol/store/opening-rehearsal.md, 1).
 use super::Hosted;
 use crate::{directory::Opening, upgrade::phase::Patching};
 

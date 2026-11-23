@@ -453,7 +453,7 @@ pub fn models() -> Box<[engine::Model]> {
 }
 
 /// The deployment's one charter: the chats' and the forge's agent work's.
-/// Its default spend holds its reserve floor (jig's `domain/authority.md`, 7).
+/// Its default spend holds its reserve floor (jig's `domain/authority-budgets.md`, 1).
 #[must_use]
 pub fn charter() -> engine::Charter {
     engine::Charter {
@@ -515,7 +515,7 @@ pub struct Settings {
     /// before its completion or ACK/result release; mutually exclusive with
     /// `restart`. The retained worker answer recovers through the real root
     /// routes; reading the result after the cut is the core's (jig's
-    /// `client/domain/contract/README.md`, 4).
+    /// `client/domain/contract/reads.md`, 1).
     pub terminal_restart: bool,
     /// Drain observational child facts or leave their tiny queues saturated.
     pub facts: bool,

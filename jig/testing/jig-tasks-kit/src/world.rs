@@ -1185,7 +1185,7 @@ impl World {
         self.records.keys().filter(|key| matches!(key, Key::Live(_))).count()
     }
 
-    /// Current holder eligibility as the core reads it (domain/tasks/lifecycle.md, 8 and domain/tasks/proposals.md).
+    /// Current holder eligibility as the core reads it (domain/tasks/lifecycle-endings.md, 1 and domain/tasks/proposals.md).
     #[must_use]
     pub fn delegation(&self, number: u64) -> tasks::DelegationContext {
         self.domain.delegation(number).expect("live task's delegation context")

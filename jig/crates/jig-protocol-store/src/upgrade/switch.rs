@@ -1,4 +1,4 @@
-//! The checked copy serves restores before its explicit switch (protocol/store/opening.md, 2 and protocol/store/records.md and protocol/store/README.md, 5 and protocol/store/loads.md and protocol/store/transcripts.md).
+//! The checked copy serves restores before its explicit switch (protocol/store/opening.md, 2 and protocol/store/records.md and protocol/store/commits.md, 1 and protocol/store/loads.md and protocol/store/transcripts.md).
 use super::admission::{self, Levels};
 use crate::codec::component::Count;
 use crate::directory::Opening;

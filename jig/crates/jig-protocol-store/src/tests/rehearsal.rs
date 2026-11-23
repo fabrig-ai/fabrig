@@ -1,4 +1,4 @@
-//! Openings reads the recovered verdict rows, never the task logs (opening.md, 5).
+//! Openings reads the recovered verdict rows, never the task logs (protocol/store/opening-rehearsal.md, 1).
 #![expect(
     clippy::disallowed_methods,
     clippy::disallowed_types,

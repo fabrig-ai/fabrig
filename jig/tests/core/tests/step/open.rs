@@ -1,4 +1,4 @@
-//! Open exclusions are accepted only for their combination (jig/docs/design/domain/testing.md, 7.3).
+//! Open exclusions are accepted only for their combination (jig/docs/design/domain/testing-fakes.md, 1.3).
 
 use skein_world::sweep::{Exclusion, Sweep};
 

@@ -49,7 +49,7 @@ pub enum What {
     Unknown,
     /// This member's setting lives in the store when the application passes defaults.
     Stored,
-    /// The application fixes this member (configuration.md, 3.4).
+    /// The application fixes this member (protocol/configuration-templates.md, 4).
     Fixed,
     Missing,
     Duplicate,

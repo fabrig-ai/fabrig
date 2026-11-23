@@ -1,4 +1,4 @@
-//! The test connector's paths and kinds (jig/docs/design/domain/testing.md, 7).
+//! The test connector's paths and kinds (jig/docs/design/domain/testing-fakes.md, 1).
 
 use jig_test_connector::{
     Config, Form, Hold, HoldMode, KindSpec, Limits, Path, PoolSpec, ProcedureAction, ProcedureResult, ProcedureSpec,

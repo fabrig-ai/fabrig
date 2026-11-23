@@ -1,4 +1,4 @@
-//! Keyed request admission and version envelopes (protocol/client/README.md, 3 and 6).
+//! Keyed request admission and version envelopes (protocol/client/README.md, 3, and protocol/client/versions.md, 1).
 use super::{Box, Component, Env, Limits, Queue, ReplyTo, Request, Token, Waiting, core, people, routes, sign_in, w};
 use crate::sign_in::CarriedRequest;
 use jig_client_protocol_wire::Record as _;
@@ -292,7 +292,7 @@ impl Component {
         out.push(request);
     }
     /// Answer unsupported model choices before translating names to core indices
-    /// (client/domain/contract/README.md, 3). Malformed records remain the caller's to reject.
+    /// (client/domain/contract/answers.md, 1). Malformed records remain the caller's to reject.
     fn refuse_llm(&mut self, env: &Env<Limits>, exchange: Token, ask: &w::Ask) -> bool {
         if let Ok(Some(answer)) = crate::translate::llm::refused(ask, &self.settings.models, &env.limits.wire) {
             self.respond(exchange, routes::encoded(&answer));

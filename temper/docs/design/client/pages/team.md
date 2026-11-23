@@ -167,7 +167,7 @@
       handoff fix", "producing as change 812"; at most eight, then, small
       and muted, "and K more."; a follow caught up has its line alone.
   - *What wakes it,* from the role's task document's `subscriptions` and
-    `wake` (jig's `client/domain/contract/README.md`, section 4; jig's
+    `wake` (jig's `client/domain/contract/reads.md`, section 1; jig's
     `domain/tasks/messages.md`, 3 and 4), a row each, in the document's
     order:
     - *a timer with a period:* "A timer", and in its class's place its
@@ -259,7 +259,7 @@
       the person's approvals' rows of the project, as reviews.
     - *For another:* what the engine says waits on them on their own
       work: a `tasks{query}` watch of the project's live tasks they
-      requested (jig's `client/domain/contract/README.md`, 4.1), each line whose
+      requested (jig's `client/domain/contract/reads.md`, 1.1), each line whose
       `waits_on` is `Party` and names them counted once, by the kind of
       its oldest entry. A task with two entries waiting on them counts
       once, and what waits on them on another's task, or on a role they
@@ -376,7 +376,7 @@
   - *Its reads:* `me`, for the party and the project's name; jig's
     `Read::Project { project }` on opening, and again on each `me`
     delivery while none is pending, since a change of members moves `me`
-    (jig's `client/domain/contract/README.md`, 5.1); the standing inbox watch
+    (jig's `client/domain/contract/watches.md`, 1.1); the standing inbox watch
     and the person's approvals, as Needs you's; one `tasks{query}` watch
     for each other person read, and the subject `changes`, as Work
     watches it (`work.md`, 1, *Its reads*), and the project's `follows`

@@ -38,7 +38,7 @@ pub struct Store {
     pub(crate) opened: bool,
     pub(crate) pending_generation: bool,
     /// The installation's identifier: the drawn one until the store opens,
-    /// then the one it keeps (jig's protocol/store/README.md 4.4).
+    /// then the one it keeps (jig's protocol/store/keys.md 1.4).
     pub(crate) installation: [u8; 16],
 }
 
@@ -128,7 +128,7 @@ impl Store {
     pub fn adopt(&mut self, fd: Fd, user: u32) -> Result<(), Fd> {
         self.host.adopt(fd, user, self.installation)
     }
-    /// Rehearse over a whole copy of `source` in `scratch` (jig's protocol/store/opening.md, 5),
+    /// Rehearse over a whole copy of `source` in `scratch` (jig's protocol/store/opening-rehearsal.md, 1),
     /// opened before an engine is sized, as a start opens its store.
     pub fn adopt_rehearsal(&mut self, source: Fd, scratch: Fd, user: u32) -> Result<(), Fd> {
         self.host.adopt_mode(

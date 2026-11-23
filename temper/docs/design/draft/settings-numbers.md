@@ -13,9 +13,9 @@ Draft, 2026-11-18, from the user's words that day: "start the template numbers d
 ## 2. What happened
 
 - On 11-15, dev.fabrig.ai set its own template 8, "goal for a lean design", when the stock had no 8. A later build added the stock's milestone template as 8. A stored change at a number replaces the stock's item there, so dev had no milestone template, and the client, which finds it by number 8, listed ordinary goals as milestones. ops moved dev's own template to 16 by hand on 11-17.
-- Nothing warned. A start saves a new stock item under a stored change at its number and keeps the change in force (jig's `../../../../jig/docs/design/domain/engine/settings.md`, section 7). Nothing records whether a change was made over a stock item or added at a free number, except the bounded history.
+- Nothing warned. A start saves a new stock item under a stored change at its number and keeps the change in force (jig's `domain/engine/settings-store.md`, section 1). Nothing records whether a change was made over a stock item or added at a free number, except the bounded history.
 - **Still exposed:** dev's own templates 9, "land a docs branch", on the number the stock most likely takes next, and 16; and its charters 17 and 19 (`temper ctl settings show`, revision 56).
-- **Models already work this way.** The binary's models take low numbers, and one a person or a provider's list adds takes the highest free number, "so a release's new default never meets one" (jig's `domain/engine/settings.md`, section 11). This draft makes that a rule for the other numbered kinds, and a refusal rather than a habit.
+- **Models already work this way.** The binary's models take low numbers, and one a person or a provider's list adds takes the highest free number, "so a release's new default never meets one" (jig's `domain/engine/settings-catalogue.md`, section 1). This draft makes that a rule for the other numbered kinds, and a refusal rather than a habit.
 
 ## 3. The kinds and their ranges
 

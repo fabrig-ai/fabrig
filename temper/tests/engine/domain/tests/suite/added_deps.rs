@@ -170,7 +170,7 @@ fn finish_task(driver: &mut Driver, task: u64) {
 
 #[test]
 fn ordinary_words_cannot_wake_a_kept_delegate() {
-    // jig's domain/tasks/lifecycle.md 8: messages wait while kept, without a new run.
+    // jig's domain/tasks/lifecycle-endings.md 1: messages wait while kept, without a new run.
     let (mut driver, _, report, _) = kept_story();
     let run = assignment(&driver, report);
     finish(&mut driver, &run);
@@ -238,7 +238,7 @@ fn stale_revision_cannot_remove_pending_dependencies() {
 
 #[test]
 fn dependencies_at_the_bound_wait_for_the_last() {
-    // jig's domain/tasks/lifecycle.md, 8 and domain/tasks/changes.md: each pending prerequisite keeps the task.
+    // jig's domain/tasks/lifecycle-endings.md, 1 and domain/tasks/changes.md: each pending prerequisite keeps the task.
     let (mut driver, parent) = story();
     let children = siblings(&mut driver, &parent, &[b"report", b"first", b"last"]);
     let [report, first, last] = children.as_slice() else { panic!("report and two prerequisites") };
@@ -346,7 +346,7 @@ fn a_dependency_outside_the_amenders_reach_is_refused() {
 
 #[test]
 fn restarting_a_parked_kept_task_does_not_start_it() {
-    // jig's domain/tasks/lifecycle.md, 8, and domain/tasks/holds.md, 7: restoration preserves the pending keep.
+    // jig's domain/tasks/lifecycle-endings.md, 1, and domain/tasks/holds.md, 7: restoration preserves the pending keep.
     let (mut driver, parent, report, prerequisite) = kept_story();
     finish_task(&mut driver, report);
     let prerequisite_run = assignment(&driver, prerequisite);
@@ -403,7 +403,7 @@ fn a_cancelled_dependency_is_refused_by_name() {
 
 #[test]
 fn a_declared_failure_ends_a_kept_task() {
-    // jig's domain/tasks/lifecycle.md 8: a failure ends it as ever, rather than parking.
+    // jig's domain/tasks/lifecycle-endings.md 1: a failure ends it as ever, rather than parking.
     let (mut driver, _, report, _) = kept_story();
     let run = assignment(&driver, report);
     driver.answer(
@@ -429,7 +429,7 @@ fn a_declared_failure_ends_a_kept_task() {
 
 #[test]
 fn a_cancel_ends_a_parked_kept_task_immediately() {
-    // jig's domain/tasks/lifecycle.md, 8 and domain/tasks/changes.md: a kept task with no run can be cancelled.
+    // jig's domain/tasks/lifecycle-endings.md, 1 and domain/tasks/changes.md: a kept task with no run can be cancelled.
     let (mut driver, parent, report, _) = kept_story();
     finish_task(&mut driver, report);
     cancel(&mut driver, &parent, FOLLOWUP_CALL, report);
@@ -487,7 +487,7 @@ fn an_already_done_retained_dependency_does_not_keep() {
 
 #[test]
 fn a_live_run_hears_the_amendment_that_keeps_it() {
-    // jig's domain/tasks/lifecycle.md, 8 and domain/tasks/changes.md: a run already live hears the amendment as it arrives.
+    // jig's domain/tasks/lifecycle-endings.md, 1 and domain/tasks/changes.md: a run already live hears the amendment as it arrives.
     let (driver, _, report, _) = kept_story();
     let run = assignment(&driver, report);
     let messages: Vec<_> = driver
@@ -528,7 +528,7 @@ fn met_notices(run: &engine::Assignment) -> Vec<(u64, bool)> {
 
 #[test]
 fn final_dependency_met_is_in_the_resumed_runs_start() {
-    // jig's domain/tasks/lifecycle.md, 8, domain/tasks/messages.md, 1: completion wakes once, carrying the Met notice.
+    // jig's domain/tasks/lifecycle-endings.md, 1, domain/tasks/messages.md, 1: completion wakes once, carrying the Met notice.
     let (mut driver, _, report, prerequisite) = kept_story();
     finish_task(&mut driver, report);
     finish_task(&mut driver, prerequisite);
@@ -566,7 +566,7 @@ fn removing_a_dependency_detaches_its_later_cancellation() {
 
 #[test]
 fn parking_a_kept_done_run_spends_no_failure_try() {
-    // jig's domain/tasks/lifecycle.md 8; jig/docs/design/domain/engine/executors.md 4: a done run parked while kept spends no try.
+    // jig's domain/tasks/lifecycle-endings.md 1; jig/docs/design/domain/engine/executors.md 4: a done run parked while kept spends no try.
     let (mut driver, _, report, _) = kept_story();
     let before = driver.task(report).expect("live report").tries;
     finish_task(&mut driver, report);
@@ -579,7 +579,7 @@ fn parking_a_kept_done_run_spends_no_failure_try() {
 
 #[test]
 fn a_turn_committed_while_kept_resumes_in_the_transcript() {
-    // jig's domain/tasks/lifecycle.md 8; jig/docs/design/domain/engine/executors.md 2, 4: the current turn and saved state survive parking.
+    // jig's domain/tasks/lifecycle-endings.md 1; jig/docs/design/domain/engine/executors-transcripts.md, 1, jig/docs/design/domain/engine/executors.md, 4: the current turn and saved state survive parking.
     const TURN: &[u8] = b"work finished while kept";
     const FIRST_TURN: u32 = 1;
     let (mut driver, _, report, prerequisite) = kept_story();

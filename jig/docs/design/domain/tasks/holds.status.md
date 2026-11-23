@@ -2,5 +2,4 @@
 
 2026-11-22. Where the tree's code lags or departs from [holds.md](holds.md).
 
-No gap but those below.
-
+No gap.

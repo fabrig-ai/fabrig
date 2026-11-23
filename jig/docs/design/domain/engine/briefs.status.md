@@ -7,11 +7,11 @@
 - **Not yet:** 1.2: the waiting section's open questions, with their askers, numbers, words and answer form; nothing plans `Core::Waiting` yet [in flight: change 838].
 - **Not yet:** 1.1, *A dependency's result*: every failed result read, busy, no row, another's row or one not ended, counts as transient with the one reason `results: a dependency's result could not be read`, naming neither the task nor what was read (`jig-domain-core/src/routing/run/results.rs`, `loaded`; `runs/retained.rs`, `dependency_result`).
 
-- **Not yet:**  engine slots, hello and placement remain `fleet.status.md` (Not yet, the whole document).  the point-load fences remain `README.status.md`, 4.2 and 5.3.
-  1: the brief's lineage and calls sections, and the waiting section's proposals and escalations, which reach a run as inbox entries instead.  turn-call objects remain `executors.status.md`, 2.  the missing tools remain `executors.status.md`, 3.
+- **Not yet:**  engine slots, hello and placement remain `fleet.status.md` (Not yet, the whole document).  the point-load fences remain `vocabulary.status.md`, 1.2, and `decisions.status.md`, 1.3.
+  1: the brief's lineage and calls sections, and the waiting section's proposals and escalations, which reach a run as inbox entries instead.  turn-call objects remain `executors-transcripts.status.md`, 1.  the missing tools remain `executors-tools.status.md`, 1.
    the restart-oracle gaps remain `../testing.status.md`, 9.
-   the pending-reasons continuation gap remains `settings.status.md`, 6.
-   the settings-holder gap remains `settings.status.md`, 6.
+   the pending-reasons continuation gap remains `settings-proposals.status.md`, 1.
+   the settings-holder gap remains `settings-proposals.status.md`, 1.
    the ignored restore stories remain `settings.status.md`, 10.
 
 - **Not yet:** 2.1, *Its runs' parts are its party's*: a brief's

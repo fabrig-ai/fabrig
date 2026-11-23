@@ -35,7 +35,7 @@ place (jig's `domain/engine/overlays.md`).
     which says what a run does with a shell (`stock.md`);
   - *template 4, the goal template for drafts:* charter 5; ended by
     temper's goal closer, `ended_by` `{"closer": {"connector": 1,
-    "code": 6}}` (jig's `protocol/configuration.md`, 3.2;
+    "code": 6}}` (jig's `protocol/configuration-templates.md`, 2;
     `../../domain/forge/branches.md`, 2);
     `../../draft/reference-code-production.md`, section 4's LLM choice,
     Opus 5.5 at xhigh with sub-agents at Opus 5.5 and high, and a later
@@ -44,8 +44,8 @@ place (jig's `domain/engine/overlays.md`).
     activation takes, so that nobody amends the goal after its cut
     (`../../draft/goal-as-designer.md`, section 8);
     tracked at priority 1; a report; the creator's budget; *its own
-    goal branch* among its resources (jig's `protocol/configuration.md`,
-    3.3; `../../client/ctl/tools-acts.md`, 1).
+    goal branch* among its resources (jig's `protocol/configuration-templates.md`,
+    3; `../../client/ctl/tools-acts.md`, 1).
 
   It sets no template 4's work, kind 11: the stock's, no design and no
   close-out (`stock.md`), holds, since the stock's charter 5 delivers

@@ -1,4 +1,4 @@
-//! Committed people request results (client/domain/contract/README.md, 3).
+//! Committed people request results (client/domain/contract/answers.md, 1).
 //! Keeps only the owner's supplied numbers, choices and clocks. Retry,
 //! signed-out, refusal and connector answers are separate boundary routes.
 use super::{ProposalKey, Revision, SeenThrough};

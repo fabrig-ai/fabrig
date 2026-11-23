@@ -1,5 +1,5 @@
 //! Volatile party inbox projections from the task child's durable rows.
-//! The core routes these sibling facts on save and restore (domain/engine/README.md, 4.4).
+//! The core routes these sibling facts on save and restore (domain/engine/vocabulary.md, 1.4).
 
 pub use jig_domain_core_vocabulary::inbox::*;
 
@@ -464,7 +464,7 @@ fn matches_ended(phase: &tasks::Phase) -> bool {
 }
 
 impl Core {
-    /// Projects on a reader's settings row (jig/docs/design/domain/engine/settings.md, 6).
+    /// Projects on a reader's settings row (jig/docs/design/domain/engine/settings-proposals.md, 1).
     pub(crate) fn settings_row_projects(&self, party: u64, key: (people::Proposer, u32)) -> List<u32> {
         let Some(proposal) = self.settings_proposals.get(&key) else { return List::with_capacity(0) };
         let mut projects = proposal.projects();

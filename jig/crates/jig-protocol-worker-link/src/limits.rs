@@ -12,7 +12,7 @@ pub struct Limits {
     pub sizes: Sizes,
     pub chunk: u32,
     /// The most bytes the stream below grants at once: io's
-    /// `largest_room` (protocol/channel/README.md, 8 and 10).
+    /// `largest_room` (protocol/channel/liveness.md, 1, and protocol/channel/README.md, 10).
     pub room: u32,
     pub handshake: Duration,
     pub ping: Duration,

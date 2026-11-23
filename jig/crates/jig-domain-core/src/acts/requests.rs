@@ -26,7 +26,7 @@ pub(crate) fn request(
         crate::settings::revisions::release_run(row, *again)?;
     }
     let (act, subject) = match ask {
-        // An account request's check is its holder's, which people made (domain/authority.md, 8.4).
+        // An account request's check is its holder's, which people made (domain/authority-checks.md, 1.4).
         people::Ask::Restore { .. }
         | people::Ask::Lift { .. }
         | people::Ask::Propose { action: people::Action::Settings { .. }, .. }

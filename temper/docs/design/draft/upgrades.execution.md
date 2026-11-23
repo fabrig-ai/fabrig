@@ -81,7 +81,7 @@ design is the documents it names, written before its changes.
 
 ### M6. Current texts and owner sets
 
-- **Design:** jig's `protocol/store/opening.md`, 3, and
+- **Design:** jig's `protocol/store/opening-owners.md`, 1, and
   `protocol/store/layouts.md`, 1 to 5; `store-floor.md`, 4.1 and 4.2.
 - **Current scope:** current families and value types, held-family
   links, frame roots and jobs handed by the shell; levels held
@@ -101,7 +101,7 @@ design is the documents it names, written before its changes.
 
 ### M8. Rehearsing and going back
 
-- **Design:** jig's `protocol/store/opening.md`, 5.
+- **Design:** jig's `protocol/store/opening-rehearsal.md`, 1.
 - **Builds:** `Request::Rehearse`, `Request::Back`, `Request::Close`
   and their events in jig's store, with its store world's stories.
 
@@ -128,7 +128,7 @@ catch-up work remains. Changes use the registry and jobs (M6).
 
 ### M12. Every record decoded
 
-- **Design:** jig's `protocol/store/opening.md`, 5 ("Every record
+- **Design:** jig's `protocol/store/opening-rehearsal.md`, 1 ("Every record
   decoded"); `../protocol/binaries.md` (`upgrade --check`).
 - **Current scope:** the rehearsal decodes every registered value
   from its layout's text in the store's registry, other records from

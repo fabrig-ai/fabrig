@@ -1,4 +1,4 @@
-//! Configured defaults for client shapes of work (jig/docs/design/protocol/configuration.md, 3.1 and 3.3).
+//! Configured defaults for client shapes of work (jig/docs/design/protocol/configuration-templates.md, 1 and 3).
 use crate::{Limits, Path, Problems, What, check, read};
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::{Charter, Model, Template};
@@ -365,7 +365,7 @@ fn priority(document: &Document, at: u32, path: &Path, problems: &mut Problems) 
 }
 
 /// A template's LLM choice: `null` for its charter's default, or a main model and the models its
-/// run's sub-agents may use, each named once (configuration.md, 3.1; domain/tasks/README.md, 3).
+/// run's sub-agents may use, each named once (protocol/configuration-templates.md, 1; domain/tasks/README.md, 3).
 fn choice(
     document: &Document,
     at: u32,
@@ -397,7 +397,7 @@ fn choice(
     Ok(Some(tasks::LlmChoice { account: None, main: first.main, subagents: first.subagents, later }))
 }
 
-/// Both choices name and resolve their models alike (configuration.md, 3.1).
+/// Both choices name and resolve their models alike (protocol/configuration-templates.md, 1).
 fn choice_models(
     object: &mut read::Object,
     document: &Document,
@@ -436,7 +436,7 @@ fn choice_models(
     }
 }
 /// One model a template's choice names, with an effort it takes: `null` only for a model that
-/// declares none (configuration.md, 3.1 and 7).
+/// declares none (protocol/configuration-templates.md, 1, and protocol/configuration.md, 7).
 fn model_effort(
     document: &Document,
     at: u32,
@@ -496,7 +496,7 @@ fn model_effort(
     Some(tasks::ModelEffort { model: u8::try_from(index).expect("models bounded by `MODELS`"), effort })
 }
 /// Refuse each model a template's choice names that its charter does not: its main model or one
-/// of its alternatives (configuration.md, 3 and 3.1).
+/// of its alternatives (protocol/configuration-engine.md, 1, and protocol/configuration-templates.md, 1).
 fn charters_models(
     charter: &Charter,
     choice: &tasks::LlmChoice,

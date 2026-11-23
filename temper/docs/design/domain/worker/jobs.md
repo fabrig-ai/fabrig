@@ -206,7 +206,7 @@ too (2026-11-09):
   cut to its last 4,096 bytes, as `hosted-runs.md`, 1.3's is. The lines are operator output:
   no fact or turn holds them. A failed job's answer carries its cause;
   jig keeps the last `REASON_BYTES` (128 bytes) as UTF-8 on the retry notice
-  and, past its allowance, the hold (jig's `domain/tasks/lifecycle.md`, 6).
+  and, past its allowance, the hold (jig's `domain/tasks/lifecycle-holds.md`, 1).
   The change's held merge delegate therefore says why it failed, alongside
   its failure class and the way out.
 

@@ -1,4 +1,4 @@
-//! The clients' side of a service (jig/docs/design/protocol/service.md, 11.6).
+//! The clients' side of a service (jig/docs/design/protocol/service-parts.md, 1.6).
 use crate as kit;
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary as domain;
@@ -12,7 +12,7 @@ enum Asked {
     Owner(kit::SecretOwner),
     Carry(Token),
 }
-/// The bridge between the component's secrets and the store's (protocol/service.md, 11.6).
+/// The bridge between the component's secrets and the store's (protocol/service-parts.md, 1.6).
 #[derive(Debug)]
 pub struct Bridge {
     owners: Map<Token, kit::SecretOwner>,
@@ -49,7 +49,7 @@ impl Bridge {
     pub fn answer(&mut self, answer: store::Event) -> kit::SecretsAnswer {
         use store::Event;
         match answer {
-            // The census goes to the root, never a secret asker (protocol/store/README.md, 6.3).
+            // The census goes to the root, never a secret asker (protocol/store/growth.md, 1.3).
             Event::Census { .. } => unreachable!("census is not a secret terminal"),
             Event::Page { .. } | Event::PageRefused { .. } => unreachable!("a start's pages need a start-mode store"),
             Event::Kept { owner } => kit::SecretsAnswer::Kept { owner: self.owner(owner) },

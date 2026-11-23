@@ -1,5 +1,5 @@
-//! Top-level forge routing and commit fence (jig's domain/connectors.md,
-//! sections 2–5). Durable rows are held here and mirrored by root store
+//! Top-level forge routing and commit fence (jig's domain/connectors.md, sections 2–3, and domain/connectors-effects.md, section 1, and domain/connectors-facts.md, section 1
+//! ). Durable rows are held here and mirrored by root store
 //! writes.
 //! A requester's confirmed branch moves become its change's new head
 use crate::Repository;

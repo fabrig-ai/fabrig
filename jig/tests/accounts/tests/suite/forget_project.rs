@@ -1,5 +1,5 @@
-//! Deleted project uses (jig/docs/design/domain/accounts.md, 4.2;
-//! jig/docs/design/domain/accounts.md, 4.2 and 4.3).
+//! Deleted project uses (jig/docs/design/domain/accounts-uses.md, 1.2;
+//! jig/docs/design/domain/accounts-uses.md, 1.2 and 1.3).
 use jig_accounts_world::{PROVIDER, World, account, provider, providers, source};
 use jig_domain_accounts::{Coverage, Event, Holder, Kind, Request, Selection, Stored, Use};
 

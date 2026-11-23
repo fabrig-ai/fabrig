@@ -1,4 +1,4 @@
-//! Four file drivers over the simulated crashing machine (protocol/store/README.md, 9).
+//! Four file drivers over the simulated crashing machine (protocol/store/testing.md, 1).
 use crate::{model::Model, root};
 mod checkpoint;
 mod restoring;
@@ -69,7 +69,7 @@ pub struct World {
     pub model: Model,
     /// The identifier the shell draws for the next start (configuration.md 7).
     pub drawn: [u8; 16],
-    /// The installation's identifier the last open answered (protocol/store/README.md 4.4).
+    /// The installation's identifier the last open answered (protocol/store/keys.md 1.4).
     pub installation: [u8; 16],
     pub pending: bool,
 }
@@ -765,7 +765,7 @@ impl World {
             let mut answer = None;
             for event in events {
                 match event {
-                    // This store world has no census consumer (protocol/store/README.md, 6.3).
+                    // This store world has no census consumer (protocol/store/growth.md, 1.3).
                     Event::Census { .. } => {}
                     Event::Ran { of, job, rows, commits, .. } => self.ran.push((of, job, rows, commits)),
                     Event::Page { .. } | Event::PageRefused { .. } => {
@@ -1057,7 +1057,7 @@ impl World {
     }
 
     /// The deployment's sorted paths, kinds and permission modes for its
-    /// layout golden (protocol/store/README.md 2 and 9), excluding the deployment root.
+    /// layout golden (protocol/store/README.md, 2, and protocol/store/testing.md, 1), excluding the deployment root.
     #[must_use]
     pub fn layout_entries(&mut self) -> Vec<(Vec<u8>, bool, u32)> {
         use skein_fake_machine::{How, Is};
@@ -1358,7 +1358,7 @@ impl World {
     }
 }
 
-// The model observes durable rows, not telemetry (protocol/store/README.md, 6.3).
+// The model observes durable rows, not telemetry (protocol/store/growth.md, 1.3).
 fn answers(above: &mut Queue<Event>) -> Vec<Event> {
     let mut events = Vec::new();
     while let Some(event) = above.pop() {
@@ -1390,7 +1390,7 @@ fn tree(machine: &mut Machine, root: skein_fake_machine::Opened, path: &[u8], pa
     machine.close(directory);
 }
 
-// Patching retains each owner's context for the open (protocol/store/opening.md 3).
+// Patching retains each owner's context for the open (protocol/store/opening-owners.md 1).
 // Serving makes a new set of defaults at each site (protocol/store/transcripts.md 6).
 #[derive(Default)]
 struct Contexts {

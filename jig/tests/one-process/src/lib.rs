@@ -1,4 +1,4 @@
-//! The actual one-process service, clients and hosted agents (service.md, 8 and 10).
+//! The actual one-process service, clients and hosted agents (protocol/service-testing.md, 1, and protocol/service.md, 10).
 pub mod accounts;
 pub mod fixtures;
 pub mod referee;

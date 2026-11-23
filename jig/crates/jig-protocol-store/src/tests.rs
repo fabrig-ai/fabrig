@@ -1,4 +1,4 @@
-//! Store key, interval and codec properties (protocol/store/README.md, section 9).
+//! Store key, interval and codec properties (protocol/store/testing.md, section 1).
 const COMPONENT_SCHEMA: &str = crate::STORE_FAMILIES[0].current;
 
 mod admission;

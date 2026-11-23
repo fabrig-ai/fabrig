@@ -1,4 +1,4 @@
-//! One-terminal reads, bounded pages and opaque cursors; client/domain/contract/README.md, 4.
+//! One-terminal reads, bounded pages and opaque cursors; client/domain/contract/reads.md, 1.
 //! A cursor is never decoded by the client. Live watches may overlap retained read pages.
 use super::{
     Bytes, DecodedActivityLine, HistoryRow, InboxGroup, Me, Note, NoteScope, ProposalKey, Question, Result, Task, Text,
@@ -39,7 +39,7 @@ impl InboxReadGroup {
     }
 }
 
-/// Which side of an activity line to read (client/domain/contract/README.md, section 4).
+/// Which side of an activity line to read (client/domain/contract/reads.md, section 1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Side {
     Earlier,
@@ -114,7 +114,7 @@ pub enum Read {
         task: u64,
         before: Option<Cursor>,
     },
-    /// The page next to a line of a task's activity, that line left out (client/domain/contract/README.md, section 4).
+    /// The page next to a line of a task's activity, that line left out (client/domain/contract/reads.md, section 1).
     ActivityBeside {
         task: u64,
         position: u64,

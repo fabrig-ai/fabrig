@@ -1,5 +1,5 @@
 //! Issued names precede live account rows in jig's restart walk
-//! (jig's protocol/store/README.md, 4.4, and protocol/store/loads.md, 2; domain/root-restart.md, 1.1).
+//! (jig's protocol/store/keys.md, 1.4, and protocol/store/loads.md, 2; domain/root-restart.md, 1.1).
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_people as people;

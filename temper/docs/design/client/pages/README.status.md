@@ -12,7 +12,7 @@
 - **Design departs:** `README.md` and `settings.md`, section 2 and `../testing.md`, from the request `ui-walk-large` of 2026-11-06:
   - the whole document: a proposal of settings shows in the Needs you of a project's owner who also
     owns the deployment, those who can decide it, by that plan's cut: a project's owner
-    alone has no row of it (jig's `domain/engine/settings.md`, 6, and its status).
+    alone has no row of it (jig's `domain/engine/settings-proposals.md`, 1, and its status).
   -  that request's browser walk was made by hand, at 1440 and 420 on fresh fake
     boxes, its driver thrown away as that plan's cut has it, so no test keeps it. The
     client's world holds the card, count and Accept (its story of Ask temper's

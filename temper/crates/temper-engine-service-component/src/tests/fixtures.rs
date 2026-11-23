@@ -502,7 +502,7 @@ pub(crate) fn records_store_from(mut maps: jig_protocol_store::Stores) -> crate:
     let Some(jig_protocol_store::Event::Opened { .. }) = store.host.above.pop() else {
         panic!("record store reopened")
     };
-    // These fixture handoffs do not consume census reports (jig protocol/store/README.md, 6.3).
+    // These fixture handoffs do not consume census reports (jig jig/docs/design/protocol/store/growth.md, 1.3).
     let Some(jig_protocol_store::Event::Census { .. }) = store.host.above.pop() else { panic!("opened census") };
     mark_store(&mut store);
     commit(
@@ -525,7 +525,7 @@ pub(super) fn memory_store_for(
 
 fn memory_opened(mut store: crate::store::Store) -> crate::store::Store {
     let Some(jig_protocol_store::Event::Opened { .. }) = store.host.above.pop() else { panic!("store opened") };
-    // These fixture handoffs do not consume census reports (jig protocol/store/README.md, 6.3).
+    // These fixture handoffs do not consume census reports (jig jig/docs/design/protocol/store/growth.md, 1.3).
     let Some(jig_protocol_store::Event::Census { .. }) = store.host.above.pop() else { panic!("opened census") };
     store.opened = true;
     store
@@ -1418,7 +1418,7 @@ pub fn reopened_store(mut store: crate::store::Store, root: &temper_engine_domai
     let Some(jig_protocol_store::Event::Opened { pending: false, .. }) = store.host.above.pop() else {
         panic!("reopened fixture")
     };
-    // These fixture handoffs do not consume census reports (jig protocol/store/README.md, 6.3).
+    // These fixture handoffs do not consume census reports (jig jig/docs/design/protocol/store/growth.md, 1.3).
     let Some(jig_protocol_store::Event::Census { .. }) = store.host.above.pop() else { panic!("opened census") };
     store.secret_requests = 0;
     store.forge_loads = skein_lib::List::with_capacity(128);
@@ -1840,7 +1840,7 @@ fn open_seeded(store: &mut crate::store::Store) {
     let Some(jig_protocol_store::Event::Opened { .. }) = store.host.above.pop() else {
         panic!("seeded fixture reopened")
     };
-    // These fixture handoffs do not consume census reports (jig protocol/store/README.md, 6.3).
+    // These fixture handoffs do not consume census reports (jig jig/docs/design/protocol/store/growth.md, 1.3).
     let Some(jig_protocol_store::Event::Census { .. }) = store.host.above.pop() else { panic!("opened census") };
 }
 
