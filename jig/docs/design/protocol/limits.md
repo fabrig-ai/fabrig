@@ -184,10 +184,10 @@
   (`../domain/authority.md`, section 6).
 - **Charters' budgets:** each charter's turns and time are above its
   reserve's, and its default budget holds its reserve and one of its
-  default model's most costly completions (`../domain/authority.md`,
-  section 7), or the engine's start is refused, naming the charter. A
+  default model's most costly completions (`../domain/authority-budgets.md`,
+  section 1), or the engine's start is refused, naming the charter. A
   task's chosen model is checked with its run's check
-  (`../domain/authority.md`, 8.3).
+  (`../domain/authority-checks.md`, 1.3).
 - **A charter's documents:** at most `tasks.charter_documents` per
   charter (`../domain/engine/settings.md`, 9; 2 in Small), with the brief's
   sections 8 in both profiles, the core's own six kinds and two
@@ -280,7 +280,7 @@
   2 as temper's `draft/checkpoints.md`, 3.4 has it. An override is a
   number from 1 to 64; any other refuses the start, naming it.
 - **A template's grace** is within the tasks child's limit on a grace's
-  span, or the start is refused, naming the template (`configuration.md`, 3.1).
+  span, or the start is refused, naming the template (`configuration-templates.md`, 1).
 - **The deployment's message bound** holds every kind of message a
   task's inbox admits, as a run renders it with its sender's label: a
   party's words and questions by the people child's bound, which is at
@@ -306,7 +306,7 @@
   needs pass it refuse the start as `NeedsPastLimit`
   (`../domain/engine/restart.md`).
 - **An application's kinds of settings** declare a value's largest
-  bytes and the values per scope (`../domain/engine/settings.md`, 5), which
+  bytes and the values per scope (`../domain/engine/settings-application.md`, 1), which
   enter the core's worst case for what it keeps of each setting, and
   the connector's for the values it keeps; a default past either
   refuses the start, naming the kind.

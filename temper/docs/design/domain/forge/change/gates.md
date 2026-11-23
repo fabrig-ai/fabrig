@@ -54,8 +54,8 @@
   review's run that ended for its model's provider being unreachable (an
   outage, jig's `domain/hosts/hub.md`, 3) did not fail the review: its
   task tries again as any infrastructure failure does, and is held past
-  that bound with the call's words (jig's `domain/tasks/lifecycle.md`,
-  6). Any other failure of its model fails the review. A failed
+  that bound with the call's words (jig's `domain/tasks/lifecycle-holds.md`,
+  1). Any other failure of its model fails the review. A failed
   review is no verdict: the change asks for the gate again once, a
   fresh review at the same head, whose brief says it is asked again
   and gives the first review's failure in its words, so the reviewer

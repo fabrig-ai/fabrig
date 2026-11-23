@@ -357,7 +357,7 @@ Moved to [`credentials-git-identities.md`](credentials-git-identities.md), secti
   until a replacement answers as the forge's user: never a degraded mode.
   A failure of jig's secrets' store itself stops the engine, as the main
   store's does (jig's `protocol/store/secrets.md`). A restored secret
-  of the wrong kind stops it too (jig's `protocol/service.md`, 11.1): the
+  of the wrong kind stops it too (jig's `protocol/service-parts.md`, 1.1): the
   store holds what the account's row says it should not.
 - **The same user is the forge writer** in the domain (`Writer { forge,
   author: user }`), by which the forge connector tells temper's own

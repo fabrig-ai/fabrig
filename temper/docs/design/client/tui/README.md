@@ -90,7 +90,7 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   takes it, as skein's shells resolve their configured peers (skein's
   `runtime/io/README.md`, section 3), and gives every address found, in
   the resolver's order, to the native shell, which tries them in order
-  at each connection (jig's `protocol/client/README.md`, section 9). It
+  at each connection (jig's `protocol/client/shells.md`, section 1). It
   reads the machine's roots then, skein-shell's `read_trust_roots` with
   `Trust::Machine`, `SSL_CERT_FILE` from the environment it captured,
   else the distribution's bundle, and gives them as the native shell's
@@ -169,8 +169,8 @@ Moved to [`host.md`](host.md), section 1.
   20 ms; the terminal's background, asked at every start, waited for at
   most 200 ms, `limits::BACKGROUND` (`theme.md`).
 - **Its run's settings** (`run::Settings`), the binary's: beside the
-  engine, the native shell's `Engine` (jig's `protocol/client/README.md`,
-  section 9: `Plain` at an `http://` origin, `Tls` at a name, with the
+  engine, the native shell's `Engine` (jig's `protocol/client/shells.md`,
+  section 1: `Plain` at an `http://` origin, `Tls` at a name, with the
   addresses resolved and the machine's roots, 1), the origin's
   directory (2), the origin, the depth, the size, the limits
   and the opener, the scheme where `COLORFGBG` decided it, or none for

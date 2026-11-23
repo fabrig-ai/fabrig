@@ -1,17 +1,17 @@
-//! Typed map walks (jig/docs/design/protocol/store/loads.md, 1, and jig/docs/design/protocol/store/README.md, 9).
+//! Typed map walks (jig/docs/design/protocol/store/loads.md, 1, and jig/docs/design/protocol/store/testing.md, 1).
 use crate::{Cursor, KeptMap, Store, pages, restore};
 use alloc::boxed::Box;
 use restore::{Arithmetic, Cause, Failure, RangeFailure, WalkFailure};
 use skein_kv::Range;
 use skein_lib::{List, Queue, Token, length::len_u64};
 
-fn cursor(store: &Store, map: KeptMap, intervals: &[Range], after: Option<&Cursor>) -> Result<(), Failure> {
+fn cursor(intervals: &[Range], after: Option<&Cursor>, key_limit: u32) -> Result<(), Failure> {
     if let Some(after) = after {
         let index = usize::try_from(after.interval).ok().ok_or(Failure::rowless(Cause::Range(RangeFailure::Cursor)))?;
         let Some(range) = intervals.get(index) else {
             return Err(Failure::rowless(Cause::Range(RangeFailure::Cursor)));
         };
-        let limit = skein_lib::length::usize_of(pages::map_limits(store, map).key);
+        let limit = skein_lib::length::usize_of(key_limit);
         if after.after.len() > limit
             || (after.after < range.start
                 || match &range.end {
@@ -32,8 +32,10 @@ pub(crate) fn past(key: &[u8]) -> Result<Box<[u8]>, Failure> {
 pub(crate) fn row_bytes(store: &Store, row: &skein_kv::Row) -> Result<u64, Failure> {
     let key = len_u64(row.key.len());
     let value = len_u64(row.value.len());
-    let size = key.checked_add(value);
-    size.ok_or(Failure::at(Cause::Arithmetic(Arithmetic::RowBytes), restore::site(store, &row.key)))
+    let Some(size) = key.checked_add(value) else {
+        return Err(Failure::at(Cause::Arithmetic(Arithmetic::RowBytes), restore::site(store, &row.key)));
+    };
+    Ok(size)
 }
 
 pub(crate) fn walk(
@@ -84,17 +86,22 @@ fn walk_values(
     rows: u32,
     mapped: bool,
 ) -> Result<pages::Walked, Failure> {
-    cursor(store, map, intervals, after)?;
-    let capacity = rows.min(pages::map_limits(store, map).page.bytes);
-    let mut found = List::with_capacity(capacity);
+    let limits = pages::map_limits(store, map);
+    cursor(intervals, after, limits.key)?;
+    let capacity = rows.min(limits.page.bytes);
+    let mut found: List<pages::WalkRow> = List::with_capacity(capacity);
     let mut encoded = 0_u64;
-    let mut last = after.cloned().unwrap_or(Cursor { interval: 0, after: Box::new([]) });
-    let first = skein_lib::length::usize_of(last.interval);
+    let first = match after {
+        Some(after) => skein_lib::length::usize_of(after.interval),
+        None => 0,
+    };
     for (index, interval) in intervals.iter().enumerate().skip(first) {
         let index = u32::try_from(index).ok().ok_or(Failure::rowless(Cause::Arithmetic(Arithmetic::RangeCount)))?;
         let mut range = interval.clone();
-        if index == last.interval && after.is_some() {
-            range.start = range.start.max(past(&last.after)?);
+        if let Some(after) = after
+            && index == after.interval
+        {
+            range.start = range.start.max(past(&after.after)?);
         }
         for _ in 0..=capacity {
             if let Some(end) = &range.end
@@ -102,24 +109,27 @@ fn walk_values(
             {
                 break;
             }
-            let limits = pages::map_limits(store, map);
             let rows = capacity.saturating_sub(found.len()).saturating_add(1).min(limits.page.rows);
-            let page = load_rows(store, map, range.clone(), rows, mapped)?;
+            let page = load_rows(store, map, limits, range.clone(), rows, mapped)?;
             for row in page.rows {
                 let size = row_bytes(store, &row)?;
-                let total = encoded
-                    .checked_add(size)
-                    .ok_or(Failure::at(Cause::Arithmetic(Arithmetic::PageBytes), restore::site(store, &row.key)))?;
-                if found.len() == capacity || total > u64::from(pages::map_limits(store, map).page.bytes) {
-                    return Ok(pages::Walked { rows: found.into_boxed(), next: Some(last) });
+                let Some(total) = encoded.checked_add(size) else {
+                    return Err(Failure::at(Cause::Arithmetic(Arithmetic::PageBytes), restore::site(store, &row.key)));
+                };
+                if found.len() == capacity || total > u64::from(limits.page.bytes) {
+                    let next = match found.last() {
+                        Some(last) => last.cursor.clone(),
+                        None => pages::resume(None, after),
+                    };
+                    return Ok(pages::Walked { rows: found.into_boxed(), next: Some(next) });
                 }
                 encoded = total;
-                last = Cursor { interval: index, after: row.key.clone() };
                 range.start = match past(&row.key) {
                     Ok(next) => next,
                     Err(failure) => return Err(Failure::at(failure.cause, restore::site(store, &row.key))),
                 };
-                found.push(pages::WalkRow { row, cursor: last.clone() }).expect("encoded and row bounds checked");
+                let cursor = Cursor { interval: index, after: row.key.clone() };
+                found.push(pages::WalkRow { row, cursor }).expect("encoded and row bounds checked");
             }
             if page.next.is_none() {
                 break;
@@ -130,11 +140,17 @@ fn walk_values(
 }
 
 pub(crate) fn load_map(store: &mut Store, map: KeptMap, range: Range) -> Result<pages::Page, Failure> {
-    load_rows(store, map, range, 1, true)
+    load_rows(store, map, pages::map_limits(store, map), range, 1, true)
 }
 
-fn load_rows(store: &mut Store, map: KeptMap, range: Range, rows: u32, mapped: bool) -> Result<pages::Page, Failure> {
-    let mut limits = pages::map_limits(store, map);
+fn load_rows(
+    store: &mut Store,
+    map: KeptMap,
+    mut limits: skein_kv::Limits,
+    range: Range,
+    rows: u32,
+    mapped: bool,
+) -> Result<pages::Page, Failure> {
     limits.key = limits.key.checked_add(1).ok_or(Failure::rowless(Cause::Arithmetic(Arithmetic::CursorLength)))?;
     let mut above = Queue::uncapped();
     let mut below = Queue::uncapped();

@@ -1,4 +1,4 @@
-//! Independent acceptance checks for protocol/store/transcripts.md, 6, and protocol/store/opening.md, 3, and protocol/store/README.md, 8.
+//! Independent acceptance checks for protocol/store/transcripts.md, 6, and protocol/store/opening-owners.md, 1, and protocol/store/README.md, 8.
 use crate::frame_reads;
 
 use jig_protocol_store::{

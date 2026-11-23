@@ -225,8 +225,8 @@ rule); an application names its own wires (temper's
   `protocol/wires.md`, section 5). Bytes of the worker's version that do
   not decode stay invalid.
 - **Its cost on the engine:** no failure. The run ends refused, as a
-  refusal before anything ran (`../../domain/tasks/lifecycle.md`,
-  section 6): the task claims again after a pause, with no bound and no
+  refusal before anything ran (`../../domain/tasks/lifecycle-holds.md`,
+  section 1): the task claims again after a pause, with no bound and no
   try spent, its retry notice's reason `version mismatch: WIRE N, the
   worker reads L..H`. The window stays open.
 - **The fleet places nothing more on that channel:** a channel that

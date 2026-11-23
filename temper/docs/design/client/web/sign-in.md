@@ -15,7 +15,7 @@ Signing in through the browser is split from [the browser overview](README.md).
   a sign-in, before anything is sent; the client signs in with it
   (`SignIn { with: Link { secret, held: None } }`), and the mapping's
   answer sets its cookie, which the client never sees (jig's
-  `protocol/browser/README.md`, section 11). The browser sends its cookie with
+  `protocol/browser/sign-in.md`, section 1). The browser sends its cookie with
   the link's sign-in, as with any exchange: with a live link, a person
   still signed in keeps their sign-in, its number and expiry, and the answer sets no
   cookie, so the browser's stays as it was (jig's `domain/people/README.md`,
@@ -25,7 +25,7 @@ Signing in through the browser is split from [the browser overview](README.md).
   the inbox, drawing nothing of itself, on a deployment with no welcome
   (`../pages/README.md`, The welcome).
 - **A reload, or another tab,** signs in with `Transport`, by the cookie
-  (jig's `client/domain/client/README.md`, section 9).
+  (jig's `client/domain/client/sign-in.md`, section 1).
 - **Signed out,** by "Sign out" (`../line.md`, 6; jig's sign-out clears
   the cookie) or with no link: the main is the view's
   signed-out column (`../view.md`, 1), its heading "Signed out" and,
@@ -60,7 +60,7 @@ Signing in through the browser is split from [the browser overview](README.md).
   page's own exchanges, same-origin and started by temper's page,
   carry it, whatever opened the tab, as the `Authorize` place's do
   (`../../protocol/openid-provider.md`, 3). Its read and its decision go under
-  jig's browser guards (jig's `protocol/browser/README.md`, 12.2), and the
+  jig's browser guards (jig's `protocol/browser/serving.md`, 1.2), and the
   mapping tells the engine they carried the cookie, so the engine
   takes them as a browser's (jig's `protocol/client/default-http.md`, 3); `temper
   ctl`'s bearer is refused (`../ctl/README.md`, section 7). Signed out,

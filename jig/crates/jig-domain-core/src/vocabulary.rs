@@ -1,4 +1,4 @@
-//! The core's vocabulary toward its root (`domain/engine/README.md`, section 4).
+//! The core's vocabulary toward its root (`domain/engine/vocabulary.md`, section 1).
 
 pub use jig_domain_core_vocabulary::vocabulary::*;
 
@@ -6,7 +6,7 @@ use jig_domain_brief as brief;
 use jig_domain_notes as notes;
 use skein_lib::List;
 
-/// Core-owned continuations drained within one decision (jig/docs/design/domain/engine/README.md, 4.3).
+/// Core-owned continuations drained within one decision (jig/docs/design/domain/engine/vocabulary.md, 1.3).
 #[derive(Debug)]
 #[expect(
     clippy::large_enum_variant,

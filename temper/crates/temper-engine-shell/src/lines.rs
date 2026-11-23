@@ -1,5 +1,5 @@
 //! The engine's lines and handover io (temper/docs/design/protocol/services.md, 7;
-//! jig/docs/design/domain/engine/settings.md, 7).
+//! jig/docs/design/domain/engine/settings-store.md, 1).
 use temper_engine_service::{CommitStop, End, RouteStop, Stop};
 use temper_shell::directories::Directories;
 

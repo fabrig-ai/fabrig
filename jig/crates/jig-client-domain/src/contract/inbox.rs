@@ -1,5 +1,5 @@
 //! Exact Inbox owner facts, separate from application supplied context.
-//! See client/domain/contract/documents.md and client/domain/contract/README.md, 4–5 and pages.md, 3. Raw row identity is
+//! See client/domain/contract/documents.md and client/domain/contract/reads.md, 1, and client/domain/contract/watches.md, 1 and pages.md, 3. Raw row identity is
 //! independent of a coarser card address and both continuation cursors.
 use super::{Count, Cursor, InboxGroup, ObjectKey, ProposalKey, Proposer, TaskLine, TaskLink};
 use alloc::boxed::Box;

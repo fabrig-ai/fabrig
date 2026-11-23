@@ -1,4 +1,4 @@
-//! Scratch starts and their cancellable close (protocol/store/opening.md 5).
+//! Scratch starts and their cancellable close (protocol/store/opening-rehearsal.md 1).
 use crate::{
     Arrived, Below, Event, Io, KeptWire, OpenRefusal, Phase, Reach, Root, Store, directory, generations, open,
 };

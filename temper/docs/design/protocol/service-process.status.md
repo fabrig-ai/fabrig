@@ -68,6 +68,6 @@ the channel's reason (`workers.rs`, `route`, `Note::WorkerUnsent`;
 `each_unsent_record_reaches_the_operator_once` hold. The request `worker-relinks` of 2026-11-08 also asked that the
 engine stop on SIGTERM within its stop grace, where a service manager
 killed one after 90 seconds: the workers' part closes within the
-stall deadline of the close (jig's `protocol/channel/README.md`, 9.2), but no
+stall deadline of the close (jig's `protocol/channel/worker-link.md`, 1.2), but no
 stop test of temper's shows the whole stop within a bound, and the
 engine has no stop deadline of its own (`README.md`, section 11).

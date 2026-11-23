@@ -1,4 +1,4 @@
-//! Application metadata and settings addresses (jig/docs/design/protocol/store/README.md, 4.4, and jig/docs/design/protocol/store/records.md, 1).
+//! Application metadata and settings addresses (jig/docs/design/protocol/store/keys.md, 1.4, and jig/docs/design/protocol/store/records.md, 1).
 use super::{codec, core, fixtures, people, s};
 use crate::{Event, Request, keys};
 use s::application::{Follows, Recorded, SizedEdit, State};

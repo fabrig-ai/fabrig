@@ -84,7 +84,8 @@ fn grant_sizes_take_credentials_source_names_and_generated_identities() {
         assert_eq!(left.sizes.grant, credential.max(name).max(identity));
         let root = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
         let effective = temper_engine_domain::core_limits(&root);
-        let store = crate::store::limits(&root, &root.forge, &engine.jig.limits.store).unwrap();
+        let checked = crate::store::limits(&root, &root.forge, &engine.jig.limits.store).unwrap();
+        let store = checked.limits();
         assert_eq!(left.sizes.answer, effective.call_answer_bytes);
         assert_eq!(left.sizes.call_input, effective.call_answer_bytes);
         assert_eq!(store.core.call_answer_bytes, left.sizes.answer);

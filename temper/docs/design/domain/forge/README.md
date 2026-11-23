@@ -158,7 +158,7 @@ Documents:
   and collaborators, and a user's permission. Each answer is cut to its
   limit. The host tools that serve them, and those for effects and
   topics, are `../agent/tools.md`.
-- **Effects offered to agents** (jig's `domain/connectors.md`, 4.5):
+- **Effects offered to agents** (jig's `domain/connectors-effects.md`, 1.5):
   creating an issue, posting a comment on an issue or a pull request,
   posting a commit status. What the change procedure owns (opening,
   updating, merging, reviewing as a gate) is not offered: a run that
@@ -176,7 +176,7 @@ Documents:
   whether it may be written and the branch it pushes, and the git
   identity it is fetched and pushed with (`../worker/hosted-runs.md`, 1.1;
   `../../protocol/credentials-git-identities.md`, section 1).
-- **Documents and parts** (jig's `domain/connectors.md`, 5.5): what
+- **Documents and parts** (jig's `domain/connectors-facts.md`, 1.5): what
   temper's client shows of the forge, made from the connector's records
   and working set: a change's way to landing, its result and its hold,
   the queues, the repositories and their landing rules, goals' issues,

@@ -1,4 +1,4 @@
-//! temper's program sources (jig/docs/design/protocol/service.md, 11.2): how its settings name a program.
+//! temper's program sources (jig/docs/design/protocol/service-parts.md, 1.2): how its settings name a program.
 use alloc::boxed::Box;
 pub use jig_protocol_worker_agents::sources::{Component, FileStage, Resources};
 use smith_protocol_program::Programs;

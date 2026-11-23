@@ -9,7 +9,7 @@ use jig_test_domain as root;
 use skein_lib::{ReplyTo, Time, Token, Wall};
 
 /// Adoption and advancement drain due work without spending simulated time
-/// (jig/docs/design/domain/testing.md, 7.2).
+/// (jig/docs/design/domain/testing-fakes.md, 1.2).
 #[test]
 fn restart_and_advance_keep_the_implicit_clock_at_their_boundary() {
     use jig_domain_fleet::AttemptState;

@@ -1,4 +1,4 @@
-//! The reference worker's program sources (jig/docs/design/protocol/service.md, 11.2):
+//! The reference worker's program sources (jig/docs/design/protocol/service-parts.md, 1.2):
 //! its bound on a path, and its startup's paths.
 use alloc::boxed::Box;
 pub use jig_protocol_worker_agents::sources::{Component, FileStage, Resources};

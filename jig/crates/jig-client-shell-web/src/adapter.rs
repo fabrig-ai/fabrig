@@ -159,7 +159,7 @@ fn headers(headers: skein_lib::List<skein_http::Header>) -> Vec<transport::Heade
 fn text(bytes: Box<[u8]>) -> String {
     String::from_utf8(bytes.into_vec()).expect("the HTTP mapping gives UTF-8")
 }
-/// The next exchange read is asked after its opening or piece has been stepped (protocol/browser/README.md, 5.2).
+/// The next exchange read is asked after its opening or piece has been stepped (protocol/browser/loop.md, 1.2).
 #[must_use]
 pub fn read_on_exchange(report: &fetch::Report) -> Option<u32> {
     match report {

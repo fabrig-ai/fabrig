@@ -1,4 +1,4 @@
-//! Public cold-restore page scheduling (`domain/testing.md`, sections 4 and 7).
+//! Public cold-restore page scheduling (`domain/testing.md`, section 4, and `domain/testing-fakes.md`, section 1).
 
 use jig_core_world::client_peer::ClientPeer;
 use jig_core_world::fixtures::sign_in as signin;

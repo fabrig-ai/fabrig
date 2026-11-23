@@ -54,7 +54,7 @@ these mixed translations for the application to write.
 
 ## Why it matters
 
-`jig/docs/design/README.md`, 6.6 ships the conformance world for applications.
+`jig/docs/design/rails.md`, 1.6 ships the conformance world for applications.
 Repeated core arms in application adapters can drift. The departure from the
 shared-peer promise is recorded in `jig/docs/design/domain/testing.status.md`, 5.
 

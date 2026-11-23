@@ -144,7 +144,7 @@ temper-client-shell-cli      the host: argv to a call, the one-shot host over ji
 temper                       the binary: `temper ctl` runs the host
 ```
 
-- **Named by the client naming rule** (jig's `README.md`, section 15):
+- **Named by the client naming rule** (jig's `crate-names.md`, section 1):
   the tools are to agents what `temper-client-view` is to people.
 - **jig's part apart from temper's.** `temper-client-tools-jig`, the
   module `jig`, holds what is generic: jig's part of the table, the call,
@@ -256,7 +256,7 @@ Moved to [`command-line.md`](command-line.md), section 1.
   runs are paid by jig's LLM accounts, added from the client
   (`../../protocol/credentials-llm-accounts.md`, section 1): on a box, by the deployment's
   key the harness adds (`README.md`, section 8), which pays for every party's runs
-  (jig's `domain/accounts.md`, 4.2). An agent acting for a person
+  (jig's `domain/accounts-uses.md`, 1.2). An agent acting for a person
   connects that person's own accounts with area 5's tools, as the
   person would on the accounts page.
 
@@ -332,7 +332,7 @@ contract's reads, watches and requests, they take:
   given keys (skein's `runtime/lib.md`, section 12); everything else of keyed
   requests is the contract's (jig's `client/domain/contract/requests.md`, 1).
 - **A read of one turn,** `turn{n, attempt, turn}` (jig's
-  `client/domain/contract/README.md`, section 4), answered from the store's
+  `client/domain/contract/reads.md`, section 1), answered from the store's
   `Scope::Turn` (jig's `protocol/store/loads.md`, 3); on a page, a turn past
   the page's bound keeps its size (jig's `client/domain/contract/documents.md`,
   1).
@@ -345,13 +345,13 @@ contract's reads, watches and requests, they take:
   their requests (jig's `client/domain/contract/requests.md`, 2), each under a
   key as the others, a key's bytes held to the tools' own bound
   (`bounds.md`, section 1) and the engine's refusal past its own exit 2; the
-  `accounts` watch (jig's `client/domain/contract/README.md`, 5.1); the models
+  `accounts` watch (jig's `client/domain/contract/watches.md`, 1.1); the models
   a party may use, in `me` (jig's `client/domain/contract/documents.md`, 1),
   and the LLM choice in a task's request (jig's `domain/tasks/README.md`,
   section 3); and a request carrying a value, and one whose answer
   carries one (the moved record, `jig-client`'s `move_out`),
   sent once and never kept nor resent (jig's `client/domain/client/requests.md`
-  ; jig's `protocol/client/README.md`, section 7).
+  ; jig's `protocol/client/small-store.md`, section 1).
 - **For area 6,** temper's FORGE requests (`../engine.md`), each
   under a key as the others, through `jig-client` as the forge family's
   bytes; jig's request carrying a value (jig's `protocol/client/README.md`,

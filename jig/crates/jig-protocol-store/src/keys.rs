@@ -1,4 +1,4 @@
-//! Ordered keys and owner tags (protocol/store/README.md, sections 4.1 and 4.2).
+//! Ordered keys and owner tags (protocol/store/keys.md, sections 1.1 and 1.2).
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary as domain;
 use skein_kv::{KeyReader, KeyWriter};
@@ -14,7 +14,7 @@ pub use own::Own;
 pub const COMPONENT: u8 = 0;
 pub const JIG: u8 = 1;
 pub const APPLICATION: u8 = 2;
-/// Owner tags and their census prefix lengths (protocol/store/README.md, 4.2 and 6.3).
+/// Owner tags and their census prefix lengths (protocol/store/keys.md, 1.2, and protocol/store/growth.md, 1.3).
 pub(crate) const TAGS: &[(u8, u8)] = &[(COMPONENT, 2), (JIG, 3), (APPLICATION, 2)];
 
 /// Names beside the key writers, one per family prefix (6.3).

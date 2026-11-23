@@ -1526,7 +1526,7 @@ fn retained_people_answers_keep_dependency_refusal_facts() {
 fn a_stored_project_name_is_bounded_and_utf8() {
     use crate::people_v17 as wire;
     use skein_lib::{Reader, Writer};
-    // protocol/store/README.md, 4.4: the name is UTF-8 text, at most 64 bytes.
+    // protocol/store/keys.md, 1.4: the name is UTF-8 text, at most 64 bytes.
     const NAME_BOUND: usize = 64;
     let limits = people_limits();
     let at = "a".repeat(NAME_BOUND);

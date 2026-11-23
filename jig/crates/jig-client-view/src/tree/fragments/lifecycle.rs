@@ -1,4 +1,4 @@
-//! Attempts and held phases (client/domain/contract/README.md, 4; pages.md, 5.2).
+//! Attempts and held phases (client/domain/contract/reads.md, 1; pages.md, 5.2).
 use crate::words::{Words, lifecycle_words::LifecyclePhrase as P};
 use crate::{Borrowed, Config, JigBindings};
 use jig_client::contract::{AttemptLine, HoldLine};

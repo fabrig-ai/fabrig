@@ -1,4 +1,4 @@
-//! Family admission, independent of patch scheduling (protocol/store/opening.md, 3).
+//! Family admission, independent of patch scheduling (protocol/store/opening-owners.md, 1).
 use super::{frame_patches, owners::SETS};
 use crate::upgrade::admission;
 use crate::{JIG_STORE_SET, KeptFamily, KeptMap, Owner, OwnerSet, OwnerSets, SKEIN_SET, SMITH_SET};

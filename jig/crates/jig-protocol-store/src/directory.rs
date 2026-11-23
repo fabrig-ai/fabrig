@@ -88,7 +88,7 @@ pub(crate) struct Swept {
 }
 #[derive(Debug)]
 pub(crate) struct Directory {
-    /// The open's verdict survives the copy and its reopen (protocol/store/opening.md, 3).
+    /// The open's verdict survives the copy and its reopen (protocol/store/opening-owners.md, 1).
     pub checked: Option<Result<(), crate::Owner>>,
     pub disk: bool,
     pub purpose: crate::Purpose,

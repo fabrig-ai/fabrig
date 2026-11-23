@@ -181,7 +181,7 @@ fn removing(
     levels.push(Level { parent, name, root: None, entries: Box::new([]), next: 0 }).expect("first level fits");
     Removing { levels, step: Step::Opening, keep_root: false, owner }
 }
-/// Empty a caller-owned scratch root, without removing the root itself (opening.md 5).
+/// Empty a caller-owned scratch root, without removing the root itself (protocol/store/opening-rehearsal.md 1).
 pub(crate) fn empty(root: Root, queue: &mut Queue<file::Request>) -> Removing {
     let name: Box<[u8]> = Box::from(b".".as_slice());
     let mut levels = List::with_capacity(DEPTH.checked_add(2).expect("scratch and generations levels"));

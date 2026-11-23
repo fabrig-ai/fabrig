@@ -1,8 +1,8 @@
-//! Ordered memory pages and exclusive cursors (protocol/store/README.md, 4.3, and protocol/store/loads.md, 1).
+//! Ordered memory pages and exclusive cursors (protocol/store/keys.md, 1.3, and protocol/store/loads.md, 1).
 pub(crate) mod reader;
 use crate::{Cursor, KeptMap, Row, Store, keys};
 use alloc::boxed::Box;
-use skein_kv::{KeyWriter, Range};
+use skein_kv::Range;
 use skein_lib::List;
 
 #[derive(Debug)]
@@ -22,12 +22,19 @@ pub(crate) struct Decoded {
 }
 
 pub(crate) fn past(key: &[u8]) -> Option<Box<[u8]>> {
-    let mut writer = KeyWriter::new(u32::MAX);
-    for &byte in key {
-        writer.tag(byte);
+    let len = key.len().checked_add(1)?;
+    u32::try_from(len).ok()?;
+    let mut past = skein_lib::Writer::new(len);
+    past.put(key).expect("the cursor holds the key");
+    past.put(&[0]).expect("the cursor has one more byte");
+    Some(past.finish())
+}
+
+pub(crate) fn resume(last: Option<Cursor>, after: Option<&Cursor>) -> Cursor {
+    match last {
+        Some(last) => last,
+        None => after.cloned().unwrap_or(Cursor { interval: 0, after: Box::new([]) }),
     }
-    writer.tag(0);
-    writer.finish()
 }
 
 pub(crate) struct Page {
@@ -53,11 +60,10 @@ pub(crate) fn application(intervals: &[Range], limit: u32) -> Option<Box<[Range]
 }
 
 pub(crate) fn decode(store: &mut Store, row: skein_kv::Row) -> Option<(Row, u64)> {
-    let source = crate::restore::site(store, &row.key);
-    match crate::restore::reader::decode_row(store, row, &source) {
+    match crate::restore::reader::decode_row(store, &row.key, row.value) {
         Ok(row) => Some(row),
-        Err(failure) => {
-            store.read_failure = Some(failure);
+        Err(cause) => {
+            store.read_failure = Some(crate::restore::Failure::at(cause, crate::restore::site(store, &row.key)));
             None
         }
     }
@@ -70,7 +76,7 @@ pub(crate) fn map_limits(store: &Store, map: KeptMap) -> skein_kv::Limits {
     }
 }
 
-/// Kept keys share the walk's map and application prefix (protocol/store/opening.md 3).
+/// Kept keys share the walk's map and application prefix (protocol/store/opening-owners.md 1).
 pub(crate) fn kept_interval(store: &Store, owner: crate::Owner, map: KeptMap, keys: &crate::Keys) -> Option<Range> {
     if owner != crate::Owner::Application {
         return Some(Range { start: Box::from(keys.from), end: Some(Box::from(keys.to)) });

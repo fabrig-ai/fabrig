@@ -112,7 +112,7 @@ pub(crate) struct Layouts {
     retired: Map<Box<[u8]>, Box<[u8]>>,
     written: Map<RowKey, &'static str>,
     texts: Map<Digest, Text>,
-    prepared: &'static [Schema],
+    prepared_schemas: &'static [Schema],
     pending: Queue<skein_kv::Op>,
 }
 impl Layouts {
@@ -125,7 +125,7 @@ impl Layouts {
             retired: Map::uncapped(),
             written: Map::uncapped(),
             texts: Map::uncapped(),
-            prepared: &[],
+            prepared_schemas: &[],
             pending: Queue::uncapped(),
         }
     }
@@ -333,6 +333,7 @@ pub(crate) fn open(store: &mut Store, empty: bool) -> Result<bool, OpenRefusal> 
     #[cfg(test)]
     counting::reset();
     let mut layouts = Layouts::new();
+    layouts.prepared_schemas = store.prepared_schemas;
     let registered = rows::open(store, &mut layouts, empty)?;
     let seeded = !layouts.rows.is_empty();
     if !seeded && !registered {
@@ -344,7 +345,6 @@ pub(crate) fn open(store: &mut Store, empty: bool) -> Result<bool, OpenRefusal> 
         return Err(OpenRefusal::Set { owner: why });
     }
     check::retired(store, &mut layouts)?;
-    layouts.prepared = store.prepared_schemas;
     let mut binary = texts::Binary::new(&store.owner_sets, &mut layouts)?;
     let changed = rows::register(store, &mut layouts, &mut binary)?;
     let mut work = Workspace::new();

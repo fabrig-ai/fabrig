@@ -76,8 +76,8 @@ pub struct Domain {
     /// The deployment's first owners, who decide its LLM accounts (accounts.md, 3.2) for as long
     /// as it runs; their first sign-ins seed their roles only while `seeding`.
     owners: Box<[InitialOwner]>,
-    /// The deployment's first start, until the core begins a restore (protocol/configuration.md,
-    /// 3: owners seed the first start only).
+    /// The deployment's first start, until the core begins a restore (protocol/configuration-engine.md,
+    /// 1: owners seed the first start only).
     seeding: bool,
     answers: Map<RequestKey, Answered>,
     acted: Map<crate::ActKey, acts::Acted>,
@@ -470,8 +470,8 @@ impl Domain {
         }
     }
 
-    /// End the first owners' seeding when the core begins restore (protocol/configuration.md,
-    /// 3: owners seed the first start only); they stay the deployment's first owners.
+    /// End the first owners' seeding when the core begins restore (protocol/configuration-engine.md,
+    /// 1: owners seed the first start only); they stay the deployment's first owners.
     pub fn end_seeding(&mut self) {
         self.input();
         self.seeding = false;

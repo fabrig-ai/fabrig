@@ -1,4 +1,4 @@
-//! Connections on sockets, with private durable storage (protocol/client/README.md, 9).
+//! Connections on sockets, with private durable storage (protocol/client/shells.md, 1).
 //! Paths and printed links use the application's mapping (protocol/client/default-http.md, 4).
 use crate::socket::Socket;
 use crate::{Conn, Connections, Limits, files::Files};
@@ -15,7 +15,7 @@ use skein_lib::{
 use skein_tls::client as tls;
 use std::collections::{BTreeMap, VecDeque};
 
-/// The engine supplied by the host (protocol/client/README.md, 9).
+/// The engine supplied by the host (protocol/client/shells.md, 1).
 #[derive(Clone, Debug)]
 pub enum Engine {
     Plain(io::Addr),
@@ -52,7 +52,7 @@ pub struct Settings {
     pub io: io::Limits,
     pub mapping: Mapping,
 }
-/// The shared socket loop for native clients (protocol/client/README.md, 9).
+/// The shared socket loop for native clients (protocol/client/shells.md, 1).
 /// `owner` reserves the high 32 bits of socket tokens; zero uses bare connection names.
 pub struct Transport {
     pub(super) connections: Connections,

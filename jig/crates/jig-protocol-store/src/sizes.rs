@@ -1,4 +1,4 @@
-//! Checked store admission bounds (protocol/store/records.md, 4, and protocol/store/README.md, 5 and 8).
+//! Checked store admission bounds (protocol/store/records.md, 4, and protocol/store/commits.md, 1, and protocol/store/README.md, 8).
 use crate::tasks_v13::Record as _;
 use crate::{accounts_v2, codec, component_v3, core_v6, notes_v1, openings_v1, people_v17, tasks_v13};
 use jig_domain_core_vocabulary as core;
@@ -42,7 +42,7 @@ pub fn settings_value(domain: &core::Limits) -> Option<u32> {
 }
 
 /// Largest whole manifest: 88 fixed bytes, plus a length and two counts
-/// beside each family's name (protocol/store/README.md, 2, and protocol/store/opening.md, 3, and protocol/store/README.md, 8).
+/// beside each family's name (protocol/store/README.md, 2, and protocol/store/opening-owners.md, 1, and protocol/store/README.md, 8).
 pub const MANIFEST_BYTES: u32 = {
     let family = 20_u32.checked_add(component_v3::CEILINGS.count_family).expect("manifest family fits u32");
     let counts = component_v3::CEILINGS.manifest_counts.checked_mul(family).expect("manifest counts fit u32");
@@ -124,7 +124,20 @@ pub fn check_commits(
     store: &skein_kv::Limits,
     orphan_erases: u32,
 ) -> Result<Sizes, SizeRefusal> {
-    let sizes = largest(domain, application, *commits, orphan_erases, store.budget).ok_or(SizeRefusal::Ceiling)?;
+    let limits = codec::limits(domain).ok_or(SizeRefusal::Ceiling)?;
+    check_commits_with_codec(domain, &limits, application, *commits, store, orphan_erases)
+}
+
+pub(crate) fn check_commits_with_codec(
+    domain: &core::Limits,
+    limits: &codec::View,
+    application: &Application,
+    commits: Commits,
+    store: &skein_kv::Limits,
+    orphan_erases: u32,
+) -> Result<Sizes, SizeRefusal> {
+    let sizes =
+        largest(domain, limits, application, commits, orphan_erases, store.budget).ok_or(SizeRefusal::Ceiling)?;
     if sizes.key > store.key {
         return Err(SizeRefusal::Key { needs: sizes.key, has: store.key });
     }
@@ -154,12 +167,12 @@ pub fn check_commits(
 
 fn largest(
     domain: &core::Limits,
+    limits: &codec::View,
     application: &Application,
     commits: Commits,
     orphan_erases: u32,
     budget: u64,
 ) -> Option<Sizes> {
-    let limits = codec::limits(domain)?;
     // A resources line has 32 fixed bytes, three per empty segment, and at
     // most two per payload byte (escaped zero). Notes bounds both count and sum.
     // The largest fixed key is a tasks update: tags plus five widened numbers.

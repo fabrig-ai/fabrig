@@ -25,7 +25,7 @@ goals.
   same repository, whose base has moved. Concurrent plans meeting this
   way is the ordinary case, not an exception for outside activity.
 - **A goal hears of landings** through the forge's topic for goals
-  (jig's `domain/connectors.md`, 5.4): the landings on the branches its
+  (jig's `domain/connectors-facts.md`, 1.4): the landings on the branches its
   subtree's changes target, which the core subscribes it to as the first
   change into each is made, until the goal ends. A goal ended by its
   closer (`branches.md`, 2) takes no subscription to the repository's default
@@ -49,7 +49,7 @@ goals.
 ### 1.3 Which landings wake
 
 Not every piece of news wakes. The connector classifies each landing for
-each subscribed goal (jig's `domain/connectors.md`, 5.3), without an
+each subscribed goal (jig's `domain/connectors-facts.md`, 1.3), without an
 LLM:
 
 - **its own change landed:** kept; what comes after it is due
@@ -61,7 +61,7 @@ LLM:
 - **no overlap:** kept, for its next run to read;
 - **overlap unknown** (a landing too large to list, a read that failed):
   wakes, since a wasted turn is cheaper than a missed conflict.
-- **A hold parked until a landing** (jig's `domain/tasks/lifecycle.md`, 10):
+- **A hold parked until a landing** (jig's `domain/tasks/lifecycle-holds.md`, 2):
   subscribed to the landings on a branch, with path prefixes or none; a
   landing wakes it, and so lifts it, when one of its files lies under a
   prefix, or with none named, or when the overlap is unknown.

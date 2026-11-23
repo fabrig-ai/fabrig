@@ -234,7 +234,7 @@ tools.
 
 ### 5.2 `propose_settings`
 
-As today (jig's `domain/engine/settings.md`, 6), with what charter 3's instructions
+As today (jig's `domain/engine/settings-proposals.md`, 1), with what charter 3's instructions
 teach a model done by the tool instead:
 
 - **A repository** is named as the inventory names it, `OWNER/NAME`; the tool

@@ -483,7 +483,7 @@ fn appended(disk: &[u8], pending: &[u8]) -> Box<[u8]> {
     extended.finish()
 }
 fn reopen(store: Store) -> Store {
-    let mut store = fixtures::over(store.into_stores());
+    let mut store = fixtures::reopen(store);
     fixtures::run(
         &mut store,
         crate::Request::Open {

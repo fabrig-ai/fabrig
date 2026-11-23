@@ -1,4 +1,4 @@
-//! Four file drivers over the simulated crashing machine (protocol/store/README.md, 9).
+//! Four file drivers over the simulated crashing machine (protocol/store/testing.md, 1).
 use crate::{model::Model, root};
 mod checkpoint;
 mod restoring;
@@ -69,7 +69,7 @@ pub struct World {
     pub model: Model,
     /// The identifier the shell draws for the next start (configuration.md 7).
     pub drawn: [u8; 16],
-    /// The installation's identifier the last open answered (protocol/store/README.md 4.4).
+    /// The installation's identifier the last open answered (protocol/store/keys.md 1.4).
     pub installation: [u8; 16],
     pub pending: bool,
 }
@@ -200,6 +200,11 @@ impl World {
 
     #[must_use]
     pub fn unopened_observed(seed: u64, limits: jig_protocol_store::Limits, observer: Option<fn(Step)>) -> World {
+        Self::unopened_checked(seed, &jig_protocol_store::check(&limits).expect("world store limits"), observer)
+    }
+
+    fn unopened_checked(seed: u64, checked: &jig_protocol_store::Checked, observer: Option<fn(Step)>) -> World {
+        let limits = *checked.limits();
         let mut machine = Machine::for_user(0);
         let handle = machine.lay(&[]);
         let mut sim = Sim::new(seed, Config::calm());
@@ -211,7 +216,7 @@ impl World {
         if let Some(observe) = observer {
             observe(Step::Construct);
         }
-        let component = Store::on_directory(&limits, root::APPLICATION, &[], seeded);
+        let component = Store::on_directory(checked, root::APPLICATION, &[], seeded);
         if let Some(observe) = observer {
             observe(Step::End { patching: jig_protocol_store::sizes::is_patching(&component) });
         }
@@ -388,11 +393,16 @@ impl World {
 
     /// A deployment's changed limits take effect when its next process starts.
     pub fn restart_with_limits(&mut self, seed: u64, limits: jig_protocol_store::Limits) {
-        self.env.limits = limits;
-        self.crash(seed);
+        let checked = jig_protocol_store::check(&limits).expect("changed world store limits");
+        self.crash_checked(seed, &checked);
     }
 
     pub fn crash(&mut self, seed: u64) {
+        self.crash_checked(seed, &self.store.checked());
+    }
+
+    fn crash_checked(&mut self, seed: u64, checked: &jig_protocol_store::Checked) {
+        self.env.limits = *checked.limits();
         self.operation_hook = None;
         self.machine.crash(seed);
         let handle = self.machine.reopen_root(0);
@@ -408,7 +418,7 @@ impl World {
             [store, secrets, transcripts, checkpoints],
             seed ^ 0xd1b5_4a32_d192_ed03_u64.wrapping_mul(self.starts),
         );
-        self.store = Store::on_directory(&self.env.limits, root::APPLICATION, &[], seeded);
+        self.store = Store::on_directory(checked, root::APPLICATION, &[], seeded);
         self.store.owner_sets(self.sets);
         self.ran.clear();
         self.refusal = None;
@@ -547,7 +557,7 @@ impl World {
     #[must_use]
     pub fn checkpoint_copy(&mut self, name: jig_protocol_store::CheckpointName) -> Self {
         let prefix = [b"checkpoints/".as_slice(), &name.bytes(), b"/"].concat();
-        let mut copy = Self::unopened_observed(71, self.env.limits, None);
+        let mut copy = Self::unopened_checked(71, &self.store.checked(), None);
         copy.owner_sets(self.sets);
         copy.model = Model {
             acknowledged: name.store,
@@ -755,7 +765,7 @@ impl World {
             let mut answer = None;
             for event in events {
                 match event {
-                    // This store world has no census consumer (protocol/store/README.md, 6.3).
+                    // This store world has no census consumer (protocol/store/growth.md, 1.3).
                     Event::Census { .. } => {}
                     Event::Ran { of, job, rows, commits, .. } => self.ran.push((of, job, rows, commits)),
                     Event::Page { .. } | Event::PageRefused { .. } => {
@@ -909,7 +919,7 @@ impl World {
         let (mut io, limits) = drivers(fd, &self.env.limits);
         let [public, private, transcripts, checkpoints] = &mut io;
         let seeded = jig_protocol_store::seed([public, private, transcripts, checkpoints], 5);
-        let component = Store::on_directory(&self.env.limits, root::APPLICATION, &[], seeded);
+        let component = Store::on_directory(&self.store.checked(), root::APPLICATION, &[], seeded);
         let old_store = std::mem::replace(&mut self.store, component);
         let old_io = std::mem::replace(&mut self.io, io);
         let old_limits = std::mem::replace(&mut self.file_limits, limits);
@@ -1047,7 +1057,7 @@ impl World {
     }
 
     /// The deployment's sorted paths, kinds and permission modes for its
-    /// layout golden (protocol/store/README.md 2 and 9), excluding the deployment root.
+    /// layout golden (protocol/store/README.md, 2, and protocol/store/testing.md, 1), excluding the deployment root.
     #[must_use]
     pub fn layout_entries(&mut self) -> Vec<(Vec<u8>, bool, u32)> {
         use skein_fake_machine::{How, Is};
@@ -1348,7 +1358,7 @@ impl World {
     }
 }
 
-// The model observes durable rows, not telemetry (protocol/store/README.md, 6.3).
+// The model observes durable rows, not telemetry (protocol/store/growth.md, 1.3).
 fn answers(above: &mut Queue<Event>) -> Vec<Event> {
     let mut events = Vec::new();
     while let Some(event) = above.pop() {
@@ -1380,7 +1390,7 @@ fn tree(machine: &mut Machine, root: skein_fake_machine::Opened, path: &[u8], pa
     machine.close(directory);
 }
 
-// Patching retains each owner's context for the open (protocol/store/opening.md 3).
+// Patching retains each owner's context for the open (protocol/store/opening-owners.md 1).
 // Serving makes a new set of defaults at each site (protocol/store/transcripts.md 6).
 #[derive(Default)]
 struct Contexts {

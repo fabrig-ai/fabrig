@@ -55,7 +55,7 @@ impl Binary {
                 if let Some(held) = layouts.texts.get_mut(&digest) {
                     held.current = true;
                 } else {
-                    let Some(schema) = Cached::read(layouts.prepared, text.as_bytes(), digest) else {
+                    let Some(schema) = Cached::read(layouts.prepared_schemas, text.as_bytes(), digest) else {
                         return Err(refusal);
                     };
                     layouts
@@ -183,7 +183,7 @@ pub(super) fn parse(layouts: &mut Layouts, digest: Digest) -> Option<()> {
         if self::digest(&text.bytes) != digest {
             return None;
         }
-        text.schema = Some(Cached::read(layouts.prepared, &text.bytes, digest)?);
+        text.schema = Some(Cached::read(layouts.prepared_schemas, &text.bytes, digest)?);
     }
     Some(())
 }
@@ -205,7 +205,7 @@ pub(super) fn clear(layouts: &mut Layouts) {
 
 pub(super) fn clear_all(layouts: &mut Layouts) {
     clear_schemas(layouts, true);
-    layouts.prepared = &[];
+    layouts.prepared_schemas = &[];
 }
 
 fn clear_schemas(layouts: &mut Layouts, all: bool) {

@@ -1,5 +1,5 @@
 //! Decode stored heads by their own texts before the open plans any change
-//! (protocol/store/opening.md, 5, and protocol/store/layouts.md, 4).
+//! (protocol/store/opening-rehearsal.md, 1, and protocol/store/layouts.md, 4).
 use super::{Layouts, head, rehead, rows, texts};
 use crate::{OpenRefusal, Store};
 use alloc::boxed::Box;
@@ -11,8 +11,8 @@ pub(crate) struct Decoder {
 impl Decoder {
     pub(crate) fn load(store: &mut Store) -> Result<Self, OpenRefusal> {
         let mut layouts = Box::new(Layouts::new());
+        layouts.prepared_schemas = store.prepared_schemas;
         rows::open(store, &mut layouts, false)?;
-        layouts.prepared = store.prepared_schemas;
         Ok(Self { layouts })
     }
 

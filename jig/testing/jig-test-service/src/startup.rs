@@ -451,7 +451,7 @@ pub(super) fn engine_startup(
         }
     }
     let store_limits = configured_store_limits(&parsed)?;
-    parsed.limits.store = store_limits;
+    parsed.limits.store = *store_limits.limits();
     parsed.first.deployment = seeds.deployment;
     parsed.second.deployment = seeds.deployment;
     let accounts = if parsed.accounts {
@@ -461,7 +461,7 @@ pub(super) fn engine_startup(
             &seeds.crypto,
             &seeds.installation,
             runtime,
-            &store_limits.secrets,
+            &store_limits.limits().secrets,
         )?)
     } else {
         None
@@ -832,7 +832,7 @@ pub(super) fn fixture_connectors(document: &[u8]) -> (config::Engine, [connector
 }
 
 /// The store reserves the same number of held values as the clients' carried table.
-fn configured_store_limits(parsed: &Parsed) -> Result<jig_protocol_store::Limits, Problems> {
+fn configured_store_limits(parsed: &Parsed) -> Result<jig_protocol_store::Checked, Problems> {
     let mut limits = parsed.limits.store;
     limits.held = parsed
         .limits

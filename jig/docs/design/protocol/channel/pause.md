@@ -52,7 +52,7 @@ record Paused { state: PauseState }
 - **Notices, best effort in order:** no running attempt waits on either
   (`bridges.md`, 6.2), and neither is among the kinds that must go down
   whole. Each is a fixed record, checked with the other kinds when its
-  component is made (`README.md`, section 8).
+  component is made (`liveness.md`, section 1).
 - **The domain's values** are `jig_domain_link::PauseMode { Resume,
   Pause, Drain }` and `jig_domain_link::PauseState { Taking, Paused,
   Draining, Drained }`, the link vocabulary the hub and the fleet both

@@ -122,7 +122,7 @@ gives a rule, and an owner that gives none pays nothing.
   `CENSUS_PREFIX` (8); a key shorter than that, to the keyspace of its
   whole bytes. An owner's rule follows its key writer's tags: jig's
   component counts its own rows by two bytes, jig's by three, and the
-  application's by two (jig's `protocol/store/README.md`, 6.3).
+  application's by two (jig's `protocol/store/growth.md`, 1.3).
 - **What each keyspace counts:**
   - `rows`, `keys` and `values`: the rows the map holds, and their keys'
     and values' bytes;

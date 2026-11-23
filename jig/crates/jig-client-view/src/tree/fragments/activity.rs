@@ -1,5 +1,5 @@
 //! Standalone immutable activity facts (client/domain/objects.md, 10;
-//! client/domain/contract/documents.md and client/domain/contract/README.md, 5). Archive references stay references; no decoded turn,
+//! client/domain/contract/documents.md and client/domain/contract/watches.md, 1). Archive references stay references; no decoded turn,
 //! sender name, fresh tail or run failure explanation is synthesized.
 use crate::words::Words;
 use crate::words::activity_words::ActivityPhrase as P;

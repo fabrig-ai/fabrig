@@ -45,7 +45,7 @@ provider unreachable is that kind of failure.
    backends follow the same rule where they differ.
 2. **Such a failure is an infrastructure failure.** A run ended because
    its model was unavailable or overloaded, with evidence `unsent`,
-   counts as *infrastructure* in jig's `domain/tasks/lifecycle.md`, 6: its own tries, its
+   counts as *infrastructure* in jig's `domain/tasks/lifecycle-holds.md`, 1: its own tries, its
    longer backoff, none of the run's own tries spent. An outage of a few
    minutes then holds no task; one of half an hour still does.
    That section names it in the class's list.

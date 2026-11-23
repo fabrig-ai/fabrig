@@ -308,7 +308,7 @@ It has no exceptions. An exception, were one needed, is a package, excuses every
 package, names what removes it, and fails the check once it matches no finding, as an allowance
 does. Every package of `temper/docs/design/draft/crate-graph.md`, 4.2 keeps its generated record
 code in codec crates below it, named and placed as skein's `data/codec/README.md`, section 2 says.
-The two stores' are G2's (jig's `protocol/README.md`, section 5; temper's `protocol/store-versions.md`,
+The two stores' are G2's (jig's `protocol/components.md`, section 1; temper's `protocol/store-versions.md`,
 section 1). The other eight are G3's, one codec crate each, its owner's `-codec`:
 
 | Owner | Its codec crate | Directory | Module |

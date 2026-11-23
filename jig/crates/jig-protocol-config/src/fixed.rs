@@ -1,4 +1,4 @@
-//! Members an application fixes (protocol/configuration.md, 3.4).
+//! Members an application fixes (protocol/configuration-templates.md, 4).
 use crate::{Clients, Deployment, IdentityProvider, Limits, Path, Problems, Project, What, read};
 use alloc::boxed::Box;
 use skein_json::Document;

@@ -64,12 +64,12 @@ is converted as it is read, and written at the binary's layout.
 
 ## 2. Value types
 
-Each registered family's `KeptFamily` (`opening.md`, 3) names the text
+Each registered family's `KeptFamily` (`opening-owners.md`, 1) names the text
 its binary's generated code was made from and its value types:
 
 ```rust
 pub struct KeptFamily {
-    // ... as `opening.md`, 3
+    // ... as `opening-owners.md`, 1
     pub current: &'static str,          // the binary's text of the family
     pub types: &'static [ValueType],    // its value types; empty for a family outside the registry
     pub retired: &'static [Retired],    // its value types no binary writes again
@@ -109,7 +109,7 @@ pub struct KeyRange {
   `CharterVersion`, whose `overlay: option Overlay` holds what an
   overlaid version adds (`../../domain/engine/overlays.md`, 7).
 - **Checked where the set is admitted,** at every open, beside
-  `opening.md`, 3's checks, a failure refused `Set { owner }`: each
+  `opening-owners.md`, 1's checks, a failure refused `Set { owner }`: each
   number given once in its family; each root a declaration of `current`
   and each variant given only where that root is broad, naming one of
   its leading enumeration's variants (`Schema::root`); each range
@@ -123,7 +123,7 @@ pub struct KeyRange {
 - **Resolved by key:** the store keeps the value types' ranges in one
   table ordered by `from`, the application's under its tag, and finds a
   key's by a binary search, as it finds a key's family for the census
-  (`README.md`, 6.3).
+  (`growth.md`, 1.3).
 - **Retired** (temper's `draft/store-floor.md`, section 2): a value
   type whose variant or root the family's text no longer declares may
   be declared retired with the ranges that held it, until every store
@@ -213,7 +213,7 @@ versioned record Job { ended: u64 }
 - **The deployment's header** is read through its registry plan before
   the registry's writes, then decoded by the binary's codec
   (`open::decode_header`), so the open can check its commit number.
-- **What the census counts** is the stored head (`README.md`, 6.3): per
+- **What the census counts** is the stored head (`growth.md`, 1.3): per
   keyspace, values per layout id.
 - **Until the registry is active** (its rows committed, 5.2), neither
   edge maps anything. An empty store's first commit registers its
@@ -221,7 +221,7 @@ versioned record Job { ended: u64 }
 - **The rehearsal** decodes every record of a registered family as a
   generic value of its layout's text, from its range's value type's root
   at that layout, where its head names a layout of the registry
-  (`opening.md`, 5). A store holding values without a registry is
+  (`opening-rehearsal.md`, 1). A store holding values without a registry is
   refused before decoding (5.1).
 
 ## 5. At open
@@ -249,7 +249,7 @@ For each value type, its layout in `current`, with the binary's texts of
 the families it holds (each family's `current`): its row is the registry's of that
 fingerprint, whose id is the binary's id; with none, a new row at the
 next id (3) and its texts' rows, committed in the registry's commit (5.5). An
-empty store's first commit (`README.md`, section 5) writes the binary's
+empty store's first commit (`commits.md`, section 1) writes the binary's
 layouts at their families' versions as ids, so its heads are its
 families' versions and the edges map nothing until a later binary moves
 a layout.
@@ -268,7 +268,7 @@ memory for the read edge. A layout with no plan is refused, unless:
   (`Unplanned`), pending; or
 - no value holds it: the census counts none at its id in each keyspace
   its value type's ranges reach, with no count past the census's heads
-  there (`README.md`, 6.3), where it is retired (5.4). A value type a
+  there (`growth.md`, 1.3), where it is retired (5.4). A value type a
   task log holds (`logs.md`, 2) has every layout held, since the census
   counts the map alone (`logs.md`, 8).
 
@@ -337,7 +337,7 @@ values at a written job's layouts to the job, never to a plan
   same one, whichever family or row needs it:
   - **A text parsed** where the planning first reads it, or taken from
     the shell's prepared schemas where one's whole text equals it
-    (`opening.md`, 3): the binary's
+    (`opening-owners.md`, 1): the binary's
     `current` of each family where the open checks it, kept as that
     check parsed or took it; a text the registry already
     holds where a row or a family holding it first needs it,
@@ -387,7 +387,7 @@ values at a written job's layouts to the job, never to a plan
 ## 8. Tests
 
 - **Step tests,** in `jig-protocol-store`, over the test owners' sets
-  (`opening.md`, 3), with registry texts and changed binary texts from
+  (`opening-owners.md`, 1), with registry texts and changed binary texts from
   `jig-test-layouts`: a non-empty store with no
   registry refused as 5.1 says, before anything is written; a field added
   with a default, read at the old layout and converted, written at the
@@ -417,7 +417,7 @@ values at a written job's layouts to the job, never to a plan
   declaration, a held depth past a plan's, each refused as before.
   Given prepared schemas, the planning parses no text they hold and
   each other text once.
-- **Prepared and fresh opens** (`opening.md`, 3), step tests: over
+- **Prepared and fresh opens** (`opening-owners.md`, 1), step tests: over
   copies of one store, an open given prepared schemas and one given none
   answer the same, the same `Opened` or refusal and the same registry
   writes, and read the same values back: over a store at the binary's

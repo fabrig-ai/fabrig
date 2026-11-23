@@ -83,7 +83,7 @@ pub struct Creating {
     pub within: CreateBounds,
     pub beyond: Beyond,
 }
-/// A configured template merged with its project's overrides (protocol/configuration.md, 3.1).
+/// A configured template merged with its project's overrides (protocol/configuration-templates.md, 1).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Template {
     pub resources: List<super::Symbol>,

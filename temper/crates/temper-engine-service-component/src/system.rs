@@ -155,7 +155,7 @@ impl Service {
     pub fn owner_sets(&mut self, sets: jig_protocol_store::OwnerSets) {
         self.engine.as_mut().expect("engine patch sets").owner_sets(sets);
     }
-    /// Supply parsed binary texts before adopting the deployment store.
+    /// Supply optional parsed binary texts before open; admission still checks the sets.
     pub fn prepared_schemas(&mut self, schemas: &'static [skein_codec::schema::Schema]) {
         self.engine.as_mut().expect("engine store schemas").prepared_schemas(schemas);
     }

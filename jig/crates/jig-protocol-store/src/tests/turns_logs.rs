@@ -320,7 +320,7 @@ fn dropping_a_turns_log_erases_its_place_and_sweeps_orphans_after_reopen() {
         transcript(TranscriptRead::Window { task: LIVE, attempt: 2, turn: 1, after: None }, 1, 4096),
     );
     let [Event::Unread { .. }] = events.as_ref() else { panic!("dropped log is unread") };
-    let mut store = fixtures::over(store.into_stores());
+    let mut store = fixtures::reopen(store);
     fixtures::run(
         &mut store,
         Request::Open {

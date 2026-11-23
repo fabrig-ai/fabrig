@@ -11,8 +11,8 @@ owned-forge landing story and the ladder's rungs take when given one
 the key landing story hands to `temper ctl account add-key`, never read,
 printed or copied by the story (below).
 
-`bin/temper-box/tests/live.rs`, after jig's (jig's `protocol/service.md`,
-section 8; skein/docs/foundation/testing-strategy.md, 2.9).
+`bin/temper-box/tests/live.rs`, after jig's (jig's `protocol/service-testing.md`,
+section 1; skein/docs/foundation/testing-strategy.md, 2.9).
 
 - **What runs:** the process tier's binary, owned Forgejo, real git and
   person, with a real model: the live configuration, a configuration
@@ -68,7 +68,7 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   waits out the run's 30 minutes after its task has ended. An account
   limited, refused or needing sign-in fails the test the same way,
   naming the account's state and its reset, since its task would wait
-  for it (jig's `domain/authority.md`, 8.3).
+  for it (jig's `domain/authority-checks.md`, 1.3).
 - **The owned-forge landing story,**
   `a_person_asks_chatgpt_to_land_a_change_on_the_owned_forge`, run by
   `scripts/proof-live.sh forge-land`: a fresh ChatGPT sign-in, init's
@@ -147,7 +147,7 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   (../protocol/credentials-llm-accounts.md, 1). The stock catalogue has no Haiku, so
   a fresh sitting takes it by name, as a person adds a Claude
   subscription's model on Settings' Models and then chooses it (jig's
-  `domain/engine/settings.md`, 11), in two `settings apply`s. The first sets a
+  `domain/engine/settings-catalogue.md`, 1), in two `settings apply`s. The first sets a
   model at the highest number its catalogue leaves free, with the figures
   of the provider's dearest stock model, `claude-fable-5-1`, marked
   estimated and the person's, its efforts with `low` its default; the
@@ -193,7 +193,7 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   - **Its configuration:** init's owned example as init writes it, both
     Anthropic endpoints and Claude Code's program included, but the
     `anthropic` provider without `keep` and `drop`, so that its accounts
-    read no list (jig's `domain/accounts.md`, 3.7). A key's first read
+    read no list (jig's `domain/accounts-lists.md`, 1). A key's first read
     would add Anthropic's models at the catalogue's highest free numbers
     while the sitting adds Haiku there by name, and the two racing would
     stale the apply's revision or double the name. Its catalogue is the

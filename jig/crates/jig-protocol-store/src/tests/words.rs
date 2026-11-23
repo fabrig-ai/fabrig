@@ -23,7 +23,7 @@ fn checkpoint_only_open_refusals_say_what_to_do_without_changing_the_deployment(
 
 pub(super) const FORMAT: &str = "putting the family's lower-case name in place of <family>:\n\n  > ";
 pub(super) const DEPLOYMENT: &str = "deployment than its header (`records.md`, 3):\n\n  > ";
-pub(super) const NUMBERS: &str = "the one the header records (section 5):\n\n  > ";
+pub(super) const NUMBERS: &str = "the one the header records (`commits.md`, section 1):\n\n  > ";
 pub(super) const FAILED: &str = "cannot recover (`opening.md`):\n\n  > ";
 
 fn unwrapped(start: &str, end: &str) -> String {

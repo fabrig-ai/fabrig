@@ -1,4 +1,4 @@
-//! Deployment facts, store fill and census (client/domain/pages.md, 7; protocol/store/README.md, 6.2–6.3).
+//! Deployment facts, store fill and census (client/domain/pages.md, 7; protocol/store/growth.md, 1.2–1.3).
 //! Closed at once (jig/docs/design/domain/people/acts.md, 2).
 
 use super::{Chip, TaskLink};
@@ -15,7 +15,7 @@ pub const CENSUS_PREFIX: usize = 8;
 pub const CENSUS_NAME: usize = 48;
 pub const CENSUS_HEADS: usize = 8;
 
-/// Last store report (protocol/store/README.md, 6.3; client/domain/contract/documents.md, 1).
+/// Last store report (protocol/store/growth.md, 1.3; client/domain/contract/documents.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct StoreCensus {
     pub commit: u64,
@@ -40,7 +40,7 @@ pub struct CensusHead {
     pub rows: u64,
 }
 
-/// Store map bytes at the last commit answer and its admission mark (protocol/store/README.md, 6.2).
+/// Store map bytes at the last commit answer and its admission mark (protocol/store/growth.md, 1.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct StoreFill {
     pub bytes: u64,

@@ -167,7 +167,7 @@ Hello
 - **Facts, read afresh.** The steward asks its activator for the slots
   and the four facts when it composes the hello, never from a cache.
   The hello is a fresh read the engine's connector can decide on (
-  `jig/docs/design/domain/connectors.md`, 5.1).
+  `jig/docs/design/domain/connectors-facts.md`, 1.1).
 - **No time crosses the wire; only durations do** (as on jig's
   channel: `jig/docs/design/protocol/channel/README.md`, section 7). Ages are durations,
   and each side turns them into its own clock's times.
@@ -236,9 +236,9 @@ store, is open (hearth/docs/design/README.md, section 8). What is fixed:
 ### 4.4 Orders
 
 An order is the engine's request to change the machine. Each carries the
-engine's key, derived from what it is for (`jig/docs/design/domain/connectors.md`, 4.4),
+engine's key, derived from what it is for (`jig/docs/design/domain/connectors-effects.md`, 1.4),
 and an attempt (4.5). Each kind declares its recovery class (
-`jig/docs/design/domain/connectors.md`, 4.3).
+`jig/docs/design/domain/connectors-effects.md`, 1.3).
 
 | Order | Fields | Form | Class |
 |---|---|---|---|

@@ -5,10 +5,15 @@ use temper_engine_domain_world::{
     direct::Driver,
     replay,
     store::{Fault, Store},
+    walking::{config, limits},
 };
 
 fn starting() -> Driver {
-    let mut driver = Driver::new(Store::new());
+    starting_with_seed(91)
+}
+
+fn starting_with_seed(seed: u64) -> Driver {
+    let mut driver = Driver::configured(Store::new(), [config(seed), config(seed)], &limits());
     for _ in 0..200 {
         driver.advance(false);
         if !driver.store.pending.is_empty() {
@@ -111,4 +116,58 @@ fn rehearsals_leave_the_live_replay_digest_untouched() {
     assert!(first.root.ready());
     assert_eq!(first.switches, second.switches);
     assert_eq!(first.host_requests, second.host_requests);
+}
+
+fn default_report(seed: u64) -> String {
+    let mut driver = starting_with_seed(seed);
+    let before = driver.store.applied;
+    driver.pump();
+    assert_eq!(driver.store_check_counts().checked(), 0, "even a settled live story hasn't checked yet");
+    driver.close_erasing(None).expect("the kept store starts");
+    let commits = driver.store.applied - before;
+    assert!(commits > 1, "the story exercises the reservoir after bootstrap");
+    let checks = driver.store_check_counts();
+    assert_eq!(checks.checked(), 1);
+    assert_eq!(checks.commits(), commits, "include the closing oracle's commits, not bootstrap's");
+    let report = checks.report();
+    driver.close_erasing(None).expect("the kept image is opened once");
+    assert_eq!(driver.store_check_counts().report(), report);
+    report
+}
+
+#[test]
+fn the_default_keeps_one_commit_and_its_seed_replays_it() {
+    let first = default_report(4);
+    assert!(first.ends_with("(one per run, seed 4, commit 4)"), "{first}");
+    assert_eq!(default_report(4), first);
+    let second = default_report(26);
+    assert!(second.ends_with("(one per run, seed 26, commit 5)"), "{second}");
+}
+
+#[test]
+fn a_kept_half_change_fails_only_as_the_story_ends() {
+    // Seed 4 keeps the first counted commit. The live world is repaired later.
+    let mut driver = starting_with_seed(4);
+    let commit = malformed(&mut driver);
+    driver.pump();
+    assert_eq!(driver.check_store(), Ok(()));
+    driver.store.seed(
+        Box::new([]),
+        Box::new([temper_engine_domain::Key::Forge(temper_engine_domain_forge::Key::ChangeCold(51))]),
+    );
+    driver.broken("the fixture repaired the store directly, outside the live root's commit sequence");
+    let error = driver.close_erasing(None).expect_err("the kept store saved only the cold part");
+    assert_eq!(error, format!("store check: commit {commit}: start refused at Link: ForgeRow(ChangeCold(51))"));
+    assert_eq!(driver.store_check_counts().checked(), 1);
+    driver.close_erasing(None).expect("the finding is not emitted again at Drop");
+}
+
+#[test]
+fn transferring_a_store_does_not_check_the_departing_run() {
+    let mut driver = starting_with_seed(4);
+    let commit = malformed(&mut driver);
+    driver.advance(true);
+    let store = driver.take_store();
+    drop(driver);
+    assert_eq!(store.applied, commit);
 }

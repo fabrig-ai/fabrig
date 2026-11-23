@@ -31,7 +31,7 @@ use skein_lib::{List, Map, Wall};
 pub use workers::WorkerSetting;
 
 pub use people::{NUMBERS, Running, STOCK_NUMBERS, Setting, SettingFault as Fault};
-/// A party's setting value (jig/docs/design/domain/engine/settings.md, 1, 5).
+/// A party's setting value (jig/docs/design/domain/engine/settings.md, 1, jig/docs/design/domain/engine/settings-application.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Value {
     Charter(Box<Charter>),
@@ -232,7 +232,7 @@ pub struct Item {
     pub setting: Setting,
     pub edit: Edit,
 }
-/// Projects named by a proposal's items (jig/docs/design/domain/engine/settings.md, 6).
+/// Projects named by a proposal's items (jig/docs/design/domain/engine/settings-proposals.md, 1).
 pub const PROPOSAL_PROJECTS: u32 = 32;
 #[must_use]
 pub fn touched_projects(items: &[Item]) -> List<u32> {
@@ -778,7 +778,7 @@ pub fn revision_bound(limits: &crate::Limits) -> Option<u64> {
 }
 
 /// The first start or a revision's largest write set, including its deployment
-/// header, one steady-state history erase and a list's account record (domain/engine/settings.md, 7, 12).
+/// header, one steady-state history erase and a list's account record (domain/engine/settings-store.md, 1, domain/engine/settings-catalogue.md, 2).
 #[must_use]
 pub fn writes_bound(limits: &crate::Limits) -> Option<u32> {
     let count = capacity(limits)?;

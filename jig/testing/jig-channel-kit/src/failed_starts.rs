@@ -1,5 +1,5 @@
 //! Two engine lives that end without admitting the worker, after a restart cut
-//! (jig/docs/design/protocol/channel/README.md, 9.1 and 11).
+//! (jig/docs/design/protocol/channel/worker-link.md, 1.1, and jig/docs/design/protocol/channel/testing.md, 1).
 use crate::{fixtures, processes::ServiceHost};
 use jig_protocol_worker_wire as wire;
 use jig_protocol_worker_wire::Record;

@@ -301,7 +301,7 @@ Ask temper is reached from the rail and tab bar (`../view-navigation.md`, 1), an
   `forge::follows::watch`), watched as the `ways` read is and dropped on
   leaving; and a watch of the project's live standing roles, jig's task
   query of the project's tasks labelled 3 in number order within the
-  client's window of rows (jig's `client/domain/contract/README.md`, 4.1),
+  client's window of rows (jig's `client/domain/contract/reads.md`, 1.1),
   as Chats and Goals watch theirs, dropped on leaving. Its members and
   open period are the project's document that every project page reads
   (`team.md`, 1; jig's `Read::Project`), read again on each `me`

@@ -1,5 +1,5 @@
 //! The store's four single-flight file drivers, adoption and close
-//! (jig/docs/design/protocol/store/README.md, 8; jig/docs/design/protocol/service.md, 11.5).
+//! (jig/docs/design/protocol/store/README.md, 8; jig/docs/design/protocol/service-parts.md, 1.5).
 use crate::Below;
 use alloc::boxed::Box;
 use skein_codec::Record as _;
@@ -12,7 +12,7 @@ use skein_lib::{Duration, Env, Map, Queue, Time, Token, Wall};
 mod wait;
 pub use wait::{Wait, WaitLane};
 
-/// Whether a get the store can't answer yet is answered in the pass (protocol/service.md, 11.5).
+/// Whether a get the store can't answer yet is answered in the pass (protocol/service-parts.md, 1.5).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NotReady {
     /// `Hosted::secrets` returns it, as any answer to a get.
@@ -31,6 +31,7 @@ pub struct Hosted {
     /// The answers to the accounts' records' loads and writes (protocol/store/secrets.md).
     pub sources: Queue<crate::Event>,
     env: Env<crate::Limits>,
+    opening_limits: crate::Checked,
     drivers: Drivers,
     not_ready: NotReady,
     closing: bool,
@@ -46,7 +47,7 @@ impl core::fmt::Debug for Hosted {
             .finish_non_exhaustive()
     }
 }
-/// Operation issued once its roots are adopted (protocol/store/opening.md, 5; checkpoints.md, 5–6).
+/// Operation issued once its roots are adopted (protocol/store/opening-rehearsal.md, 1; checkpoints.md, 5–6).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Adoption {
     Open,
@@ -59,25 +60,33 @@ pub enum Adoption {
 }
 
 impl Hosted {
+    /// Construct the directory store and drivers with an already checked opening envelope.
     #[must_use]
     pub fn new(
-        limits: &crate::Limits,
+        checked: &crate::Checked,
         application: crate::sizes::Application,
         models: &[jig_domain_core_vocabulary::Model],
         seed: u64,
         not_ready: NotReady,
     ) -> Self {
+        let limits = checked.limits();
         let drivers = Drivers::new(limits, seed);
         Self {
-            component: crate::Store::on_directory(limits, application, models, drivers.seeded()),
+            component: crate::Store::on_directory(checked, application, models, drivers.seeded()),
             above: Queue::uncapped(),
             secrets: Queue::uncapped(),
             sources: Queue::uncapped(),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
+            opening_limits: *checked,
             drivers,
             not_ready,
             closing: false,
         }
+    }
+    /// The bounds passed at construction, before any runtime settings are installed.
+    #[must_use]
+    pub fn opening_limits(&self) -> &crate::Checked {
+        &self.opening_limits
     }
     #[must_use]
     pub fn limits(&self) -> &crate::Limits {
@@ -356,11 +365,12 @@ impl Drivers {
     #[must_use]
     pub fn new(limits: &crate::Limits, value: u64) -> Self {
         let serving = serving_read(limits);
+        let whole = max_whole(limits);
         let mut drivers = [
-            driver(limits, serving),
-            driver(limits, serving),
-            driver(limits, serving),
-            driver(limits, serving.max(max_read(limits))),
+            driver(limits, serving, whole),
+            driver(limits, serving, whole),
+            driver(limits, serving, whole),
+            driver(limits, serving.max(max_read(limits)), whole),
         ];
         let seeded = seed(&mut drivers, value);
         Self {
@@ -849,9 +859,8 @@ fn serving_read(limits: &crate::Limits) -> u32 {
         .max(limits.store.record.saturating_add(17))
         .max(limits.secrets.record.saturating_add(17))
 }
-fn driver(limits: &crate::Limits, read: u32) -> Driver {
+fn driver(limits: &crate::Limits, read: u32, whole: u32) -> Driver {
     let files = handles(limits).expect("store and payload file handles fit");
-    let whole = max_whole(limits);
     // Each open adds a log segment, and a store that seldom snapshots keeps them all: 32 entries stopped a store
     // with few writes after its 32nd start.
     let file_limits = FileLimits { files, read, entries: 1024, whole, timeout: limits.store.deadline };

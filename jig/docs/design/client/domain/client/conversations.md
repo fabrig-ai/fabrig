@@ -18,12 +18,12 @@ for any presentation of a chat or of any agent task's activity.
 - **Committed, read in pages from the end.** A task's activity is a list
   the engine keeps in the order it committed: the words parties wrote to
   it, each run's beginning and end, its turns, the results and news it
-  heard, the decisions made about it (../contract/README.md, section 4). The
+  heard, the decisions made about it (../contract/reads.md, section 1). The
   application reads it a page at a time, newest first, as it needs
   older lines.
 - **Turns, decoded below the client's surface.** A turn is bytes of
   smith's vocabulary, which the engine never reads
-  (`../../../domain/engine/executors.md`, 2). `jig-client-protocol-link` decodes it
+  (`../../../domain/engine/executors-transcripts.md`, 1). `jig-client-protocol-link` decodes it
   with `jig-protocol-transcript` into the client's own turn: its
   messages; their blocks of text, calls and results, each call named by
   its tool with its input as written and its outcome summarised; what
@@ -32,7 +32,7 @@ for any presentation of a chat or of any agent task's activity.
   `protocol/transcript.md`, section 2), none where it names no model. A
   call to the engine carries, as its objects and
   parts, what the core wrote beside the turn under its name
-  (`../../../domain/engine/executors.md`, 2), never what its answer's words say.
+  (`../../../domain/engine/executors-transcripts.md`, 1), never what its answer's words say.
   A call's outcome is its result's first line with words, within a
   field's `text`; its result block keeps the summary whole. The committed
   turn shares one `turn_text` budget, priced in `README.md`, section 11's order, so its
@@ -113,7 +113,7 @@ for any presentation of a chat or of any agent task's activity.
   when reading earlier, the earliest when reading later; never the page just
   read. Nothing says how many left. A line let go comes back, whole, when
   read again beside the line next to it (`Thread::older`, `Thread::newer`;
-  ../contract/README.md, section 4). So each end of a window is one of three: it
+  ../contract/reads.md, section 1). So each end of a window is one of three: it
   reaches its list's end, a page's cursor says more lies there, or the window
   let lines go there (`Edge::Dropped`). A window that let its newest go reads
   no new tail, and shows no provisional line and no pending words until it

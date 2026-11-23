@@ -1,4 +1,4 @@
-//! Floor writes and explicit owner levels (protocol/store/records.md, 3; opening.md, 3).
+//! Floor writes and explicit owner levels (protocol/store/records.md, 3; protocol/store/opening-owners.md, 1).
 use super::*;
 use crate::tests::owners::SETS;
 use crate::{Owner, OwnerSet, OwnerSets, component_v3};

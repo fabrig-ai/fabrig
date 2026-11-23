@@ -1,4 +1,4 @@
-//! Secret-free per-host login observations, joined at read time (accounts.md, 3.4).
+//! Secret-free per-host login observations, joined at read time (domain/accounts-sources.md, 1).
 
 use crate::{Core, documents::DocumentLimits};
 use alloc::boxed::Box;

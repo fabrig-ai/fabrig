@@ -1,11 +1,11 @@
-//! Retained protocol-rendered transcript text (domain/engine/executors.md, 2, and domain/engine/briefs.md, 1).
+//! Retained protocol-rendered transcript text (domain/engine/executors-transcripts.md, 1, and domain/engine/briefs.md, 1).
 pub use jig_domain_core_vocabulary::runs::transcript_text::*;
 
 use crate::Transcript;
 use alloc::boxed::Box;
 use skein_lib::length::len_u64;
 
-/// The text a cut turn keeps in a fresh brief's tail (domain/engine/executors.md, 2).
+/// The text a cut turn keeps in a fresh brief's tail (domain/engine/executors-transcripts.md, 1).
 pub const CUT_TURN_TEXT: &[u8] = b"[a turn too large to load]\n";
 
 /// Rendered bytes and the original text bytes they still show (excluding a cut marker).

@@ -284,7 +284,7 @@ hearth-client-dev-world       the development loop's world, under tests/dev (dom
   prints the answers of `render` and `diff` (hearth/docs/design/domain/render/README.md,
   5.1; hearth/docs/design/client/README.md, 3.2).
 - **Client crates live under one prefix,** as jig's do (
-  `jig/docs/design/README.md`, section 15). A crate that exists for the client is
+  `jig/docs/design/crate-names.md`, section 1). A crate that exists for the client is
   `hearth-client-{domain,protocol,<kind>}-<name>`: after the prefix
   comes its layer, as for the daemon's crates, or its kind (a test kit's
   `-fake-`, a world's name ending in `-world`), so that everything the

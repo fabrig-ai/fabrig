@@ -123,7 +123,7 @@ where today differs, the difference is section 6's scenario.
 
 A cut drawn with more `times` than the session's retries is no longer a
 cut but an outage: its run ends as one, and the host's outage retries are
-jig's (`jig/docs/design/domain/tasks/lifecycle.md`, 6). A check waiting
+jig's (`jig/docs/design/domain/tasks/lifecycle-holds.md`, 1). A check waiting
 for a place is judged by the run world's own check of the held bound
 (domain/run.md, 8.1): its wait is not the check's time, and spends no
 retry of the check.

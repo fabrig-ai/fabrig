@@ -249,7 +249,7 @@ This document holds across pages, split from [`README.md`](README.md).
     "Type a code" returns to the field, empty, its code dropped.
   - *Signed out:* the link signed out, before a read or after, or a read
     or a decision answered signed out (which signs the client out,
-    jig's `client/domain/client/README.md`, section 9), draws "Sign in first"
+    jig's `client/domain/client/sign-in.md`, section 1), draws "Sign in first"
     in place of the pages' signed-out paragraph and sign-in page (`../view.md`, 1).
     An answer of not a browser draws it too: the page's exchanges carry
     the cookie (`../web/sign-in.md`, 1), so the answer says they reached the

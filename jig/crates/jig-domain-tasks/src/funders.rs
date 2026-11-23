@@ -1,5 +1,5 @@
 //! Authentic finite periods/pools and task-allotment accounting
-//! (domain/tasks/README.md, section 2; domain/authority.md, section 7).
+//! (domain/tasks/README.md, section 2; domain/authority-budgets.md, section 1).
 //! Root authorizes new allocations; tasks reserves, charges and closes their
 //! financial links once, emitting rows for one root decision. No move
 //! and retires superseded sources after their last reservations settle.
@@ -21,7 +21,7 @@ pub(crate) fn available(numbers: Numbers) -> Option<u64> {
 }
 
 /// Debit a root-authorized effect at its described maximum, exactly once in
-/// the decision that creates its outbox entry (domain/authority.md, 7).
+/// the decision that creates its outbox entry (domain/authority-budgets.md, 1).
 pub(crate) fn charge_effect(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -360,7 +360,7 @@ pub(crate) fn restore_fits(domain: &Domain) -> Result<(), crate::RestoreFailure>
 
 /// Owned finite external period or person-pool accounting; tasks mutates the authentic counters and
 /// emits ledger saves for the root's atomic commit. (domain/tasks/README.md, sections 2–3).
-/// (domain/authority.md, section 7).
+/// (domain/authority-budgets.md, section 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct FundingRecord {
     /// Actual opening wall and supplied next boundary, only for project periods.

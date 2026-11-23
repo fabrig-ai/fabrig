@@ -1,4 +1,4 @@
-//! One Claude model reached by a program login or a key (domain/accounts.md, 3.4 and 4.3).
+//! One Claude model reached by a program login or a key (domain/accounts-sources.md, 1, and domain/accounts-uses.md, 1.3).
 use crate::{
     account_setup, fixtures,
     processes::{self, Proc},

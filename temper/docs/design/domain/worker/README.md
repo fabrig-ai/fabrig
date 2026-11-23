@@ -63,8 +63,8 @@ agent    smith: LLM work, one run per agent process, reporting to the worker
 
 - **The contract is jig's** (jig's `domain/hosts/README.md`, section 2). The
   worker dials the engine and keeps one channel open, through jig's
-  worker link in its protocol layer (jig's `protocol/channel/README.md`,
-  section 9); it says its hello first; the engine holds the claim and
+  worker link in its protocol layer (jig's `protocol/channel/worker-link.md`,
+  section 1); it says its hello first; the engine holds the claim and
   fences attempts; the worker keeps turns and answers until the engine
   acknowledges them, once committed (jig's `domain/hosts/hub.md`, 1 and
   4). temper adds its parts beside jig's records: the workspace items
@@ -158,7 +158,7 @@ agent    smith: LLM work, one run per agent process, reporting to the worker
 - **A run loses at most a turn's tail** that the drain's bound cut, and
   what its saved work leaves out, ignored files and build outputs: its
   conversation, its committed calls and its saved work go on in its next
-  attempt, on any worker (jig's `domain/engine/executors.md`, 2;
+  attempt, on any worker (jig's `domain/engine/executors-transcripts.md`, 1;
   `../../draft/redeploys.md`, 6.2).
 - **In one process,** the worker is stopped after the engine has drained
   and settled its claims, so it does not drain: it cancels at once
@@ -169,7 +169,7 @@ agent    smith: LLM work, one run per agent process, reporting to the worker
   engine's restart. While it runs, the worker keeps hosting every run,
   keeps what they send, and redials no further apart than a quarter of
   the grace; it stops only once the engine admits a hello (jig's
-  `protocol/channel/README.md`, 9.1). The restarted engine holds that hello
+  `protocol/channel/worker-link.md`, 1.1). The restarted engine holds that hello
   until its stored settings are restored, so its check is the store's
   (jig's `domain/engine/fleet.md`), then adopts each attempt the
   worker lists that its store holds as claimed: the run goes on in the
@@ -194,18 +194,18 @@ agent    smith: LLM work, one run per agent process, reporting to the worker
   failing as it starts, and is restarted, is one absence to the worker:
   every failed dial, refused opening and channel lost before the
   engine's first record leaves the grace's clock running from the first
-  loss (jig's `protocol/channel/README.md`, 9.1), and the start that
+  loss (jig's `protocol/channel/worker-link.md`, 1.1), and the start that
   admits the hello within the grace adopts every run, as above, however
   many starts failed before it. One of the worker's dials is due at the
   grace's end less the link's handshake deadline (jig's
-  `protocol/channel/README.md`, 9.1), so an engine back by then, however
+  `protocol/channel/worker-link.md`, 1.1), so an engine back by then, however
   late in the grace, finds the worker's hello before the runs are
   cancelled.
 - **Past the bound, an interruption.** A run cancelled for lost contact
   saves its work first and answers `Cancelled(Contact)`; the engine ends
   the attempt interrupted, with no try spent, and the next attempt, on
-  any worker, resumes from its transcript (jig's `domain/engine/executors.md`,
-  2) and starts its checkout from the work it saved (`checkouts.md`).
+  any worker, resumes from its transcript (jig's `domain/engine/executors-transcripts.md`,
+  1) and starts its checkout from the work it saved (`checkouts.md`).
 - **A worker's restart loses no work.** Stopped, it cancels each run for
   shutdown, saving its work first, and answers `Cancelled(Shutdown)`, an
   interruption as above, before it gives up its link (jig's
@@ -253,7 +253,7 @@ uncapped and no route reserves room. The held entrance is the link's
 capped edge; a host's channel and the kernel's queues stay capped.
 
 - **The link is read and fired on every pass,** whatever the entrance
-  holds (jig's `protocol/channel/README.md`, 8, *Reading never waits for the
+  holds (jig's `protocol/channel/liveness.md`, 1, *Reading never waits for the
   root*): its pings come and go under any load, and the engine's records
   wait in the entrance, never unread in the socket. A socket left unread
   starves the pings both ways, and the engine loses a healthy link at
@@ -354,8 +354,8 @@ table and the git component.
   section 1).
 - **Agents:** spawning the agent within a deadline, in a contained
   process tree, with proof that the tree is empty after it stops; where
-  skein gives no contained trees (jig's `protocol/README.md`,
-  section 10), each agent in a process group of its own, which a stop
+  skein gives no contained trees (jig's `protocol/needs.md`,
+  section 1), each agent in a process group of its own, which a stop
   signals whole. smith's channel over its pipes (smith's host half); an
   environment without forge credentials. smith's payloads (the charter,
   the transcript, turns, facts) are decoded and encoded by hand-out (jig's

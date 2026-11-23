@@ -5,7 +5,7 @@ This document holds temper's settings kinds, split from [`settings.md`](settings
 ## 1. temper's kinds
 
 temper declares ten kinds of its own beside jig's, each owned by the
-forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
+forge's connector, which judges them (jig's `domain/engine/settings-application.md`, 1):
 
 | Kind | Scope | Numbers | Value | Decided by |
 |---|---|---|---|---|
@@ -148,13 +148,13 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
   person linked on a forge is known there (`../../domain/forge/adoption-person.md`, 1).
   Later membership changes can leave an accepted rule waiting for
   eligible approvers. Kind 3 declares
-  that its value names one charter (jig's `domain/engine/settings.md`, 5): the
+  that its value names one charter (jig's `domain/engine/settings-application.md`, 1): the
   forge says which when it judges or reports it, and jig's check of
   references refuses a change that would leave the forge's charter
   unoffered, naming kind 3, as it refuses one that would leave a
   template's.
 - **Kept by the forge,** in its family `Setting` (`../store.md`, section
-  2), written in jig's decisions (jig's `domain/engine/settings.md`, 5): the
+  2), written in jig's decisions (jig's `domain/engine/settings-application.md`, 1): the
   stock defaults of its kinds the binary gave it at the last start, each
   setting's current change, the items of pending proposals of settings
   that name its kinds, and, beside each change it saves, the value the
@@ -242,7 +242,7 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
   (`../../draft/what-reaches-you.md`, section 2), and kinds 9 and 10, a
   setting's words (`../../draft/whole-story.execution.md`, P3e):
   - *its scope and numbers:* the deployment's, as templates are (jig's
-    `protocol/configuration.md`, 3.1); its number a template's, 1 to
+    `protocol/configuration-templates.md`, 1); its number a template's, 1 to
     64, the stock's 1 to 32 and a deployment's own 33 to 64 (jig's
     `domain/engine/settings.md`, 1); decided by the deployment's owners.
     Read at a number 1 to 64 where none is held, it answers "none kept",
@@ -275,7 +275,7 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
     `reference.md`'s: template 4's, design alone, since its goals close by temper's
     closer (`../../domain/forge/branches.md`, 2), whose close step settles what a
     close-out wrote. A template's closer is no part of this kind: it is
-    the template's `ended_by` (jig's `protocol/configuration.md`, 3.2),
+    the template's `ended_by` (jig's `protocol/configuration-templates.md`, 2),
     which every way of making a goal from the template carries, while
     this kind is read by no way that makes a task.
 - **A project's follows, kind 12** (`../../domain/forge/follows.md`,

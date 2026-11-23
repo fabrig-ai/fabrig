@@ -194,8 +194,8 @@ before it runs.
 
 ## 7. The configuration
 
-jig's `engine.clients.provider` (jig's `protocol/configuration.md`,
-section 3), and temper's `application.sign_in.forges`:
+jig's `engine.clients.provider` (jig's `protocol/configuration-engine.md`,
+section 1), and temper's `application.sign_in.forges`:
 
 ```
 "engine": {"clients": {"provider": {

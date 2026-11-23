@@ -12,7 +12,7 @@ Four bounds decide how much of a document a call prints:
 | Bound | Whose | It decides | Past it |
 |---|---|---|---|
 | a page's bytes | the engine's (jig's `client/domain/contract/documents.md`, 1) | whether a turn comes in a page by its bytes or by its size | the turn's line, its size and the call that reads it (`tools-reads.md`, 1) |
-| one read's bytes | the engine's (the read of one turn, jig's `client/domain/contract/README.md`, section 4) | whether `task turn` is answered whole | its size, and that it is past the limit |
+| one read's bytes | the engine's (the read of one turn, jig's `client/domain/contract/reads.md`, section 1) | whether `task turn` is answered whole | its size, and that it is past the limit |
 | one document's bytes | the client's, `document_bytes` | whether the client takes a document whole | a turn: its size, and that it is past the limit; any other document: the client's `Limit`, exit 1 |
 | the tools' window | the tools' | how much of a result prints | the rest by its cursor, or `--part` and `--from` (`results.md`, 4) |
 

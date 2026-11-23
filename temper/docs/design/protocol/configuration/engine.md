@@ -226,7 +226,7 @@ member for member:
 
 - **The printed link and a terminal's approval** are jig's members,
   `engine.clients.link` and `engine.clients.approval` (jig's
-  `protocol/configuration.md`, section 3, clients): `temper-box init`'s
+  `protocol/configuration-engine.md`, section 1, clients): `temper-box init`'s
   documents, so a box's, and the owned example enable both
   (`../setup/init.md`, 3), the approval being how the TUI signs in from the
   person's browser (`../../client/sign-in.md`, 1.1). Neither runs off

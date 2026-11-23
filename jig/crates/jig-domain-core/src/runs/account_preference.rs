@@ -1,5 +1,5 @@
 //! Explicit account admission uses the prospective financial payer, never the requester
-//! (accounts.md, 4.1–4.3; authority.md, 8.1; domain/tasks/changes.md).
+//! (domain/accounts-uses.md, 1.1–1.3; domain/authority-checks.md, 1.1; domain/tasks/changes.md).
 use crate::Core;
 use jig_domain_accounts as accounts;
 use jig_domain_tasks as tasks;

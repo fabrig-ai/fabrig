@@ -1,4 +1,4 @@
-//! Static owner data handed in by the shell (protocol/store/records.md, 3, and protocol/store/opening.md, 3).
+//! Static owner data handed in by the shell (protocol/store/records.md, 3, and protocol/store/opening-owners.md, 1).
 use alloc::boxed::Box;
 use skein_codec::schema::{self, Schema};
 use skein_lib::{List, Set};
@@ -21,7 +21,7 @@ pub struct OwnerSet {
     pub level: Option<u32>,
     pub jobs: &'static [crate::jobs::Job],
 }
-/// Which of the deployment's two maps a kept family's records live in (protocol/store/secrets.md, protocol/store/opening.md, 3).
+/// Which of the deployment's two maps a kept family's records live in (protocol/store/secrets.md, protocol/store/opening-owners.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum KeptMap {
     Store,
@@ -84,7 +84,7 @@ impl OwnerSets {
     pub const NONE: OwnerSets = OwnerSets { sets: &[] };
 
     /// Parses each distinct text in first-seen order, leaving malformed texts for open to refuse.
-    /// The shell can retain the result for `Store::prepared_schemas` (protocol/store/opening.md, 3).
+    /// The shell can retain the result for `Store::prepared_schemas` (protocol/store/opening-owners.md, 1).
     #[must_use]
     pub fn prepare(&self) -> Box<[Schema]> {
         let mut seen = Set::with_capacity(u32::MAX);
@@ -112,7 +112,7 @@ fn prepare_text(text: &'static str, seen: &mut Set<&'static str>, prepared: &mut
     }
 }
 
-/// jig's secrets rows, excluding the application's own rows (protocol/store/secrets.md, protocol/store/opening.md, 3).
+/// jig's secrets rows, excluding the application's own rows (protocol/store/secrets.md, protocol/store/opening-owners.md, 1).
 pub const JIG: OwnerSet = OwnerSet {
     jobs: &[],
     owner: Owner::Jig,

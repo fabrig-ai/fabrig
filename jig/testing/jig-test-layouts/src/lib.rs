@@ -1,4 +1,4 @@
-//! Registry and record fixtures (jig/docs/design/protocol/store/opening.md, 3).
+//! Registry and record fixtures (jig/docs/design/protocol/store/opening-owners.md, 1).
 #![no_std]
 #![forbid(unsafe_code)]
 
@@ -6,9 +6,9 @@ pub const NAME: &str = "fixture";
 pub mod layouts;
 pub mod records;
 
-/// Application key bytes; the store adds tag 2 (protocol/store/README.md, 4.2).
+/// Application key bytes; the store adds tag 2 (protocol/store/keys.md, 1.2).
 pub mod keys {
-    // Relative to the application's secrets prefix (protocol/store/secrets.md, protocol/store/opening.md, 3).
+    // Relative to the application's secrets prefix (protocol/store/secrets.md, protocol/store/opening-owners.md, 1).
     pub const TOKENS_FROM: &[u8] = &[];
     pub const TOKENS_TO: &[u8] = &[0x80];
     pub const TOKENS_ROOT: &str = "Token";

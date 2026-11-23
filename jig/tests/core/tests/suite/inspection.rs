@@ -1,4 +1,4 @@
-//! Inspection at the core world's quiet points (jig/docs/design/domain/testing.md, 7.1).
+//! Inspection at the core world's quiet points (jig/docs/design/domain/testing-fakes.md, 1.1).
 use jig_core_world::{
     fixtures::{configure_resources, delegate, member, resource_member},
     world::World,

@@ -21,7 +21,7 @@ Draft, 2026-11-17, on the user's word. On 11-17 a project's owner amended a task
 ## 3. Out
 
 - Who may decide a proposal, and its routing to policy roles.
-- How a widening is funded (`jig/docs/design/domain/authority.md`, 7).
+- How a widening is funded (`jig/docs/design/domain/authority-budgets.md`, 1).
 - Pending proposals' expiry.
 
 ## 4. Tests

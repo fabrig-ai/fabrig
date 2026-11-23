@@ -70,6 +70,38 @@ fn stored_current_waits_for_first_parse_then_survives_family_clear() {
     assert!(layouts.texts.get(&digest).expect("stored current").schema.is_some());
 }
 
+#[test]
+fn planning_borrows_prepared_texts_only_after_matching_the_whole_text_and_digest() {
+    static PREPARED: std::sync::OnceLock<[skein_codec::schema::Schema; 1]> = std::sync::OnceLock::new();
+    let prepared = PREPARED.get_or_init(|| [skein_codec::schema::parse(CURRENT.as_bytes()).expect("current schema")]);
+    let schema = prepared.first().expect("prepared schema");
+    let mut layouts = Layouts::new();
+    layouts.prepared_schemas = prepared;
+
+    let current = texts::digest(CURRENT.as_bytes());
+    texts::Binary::new(&SETS, &mut layouts).expect("new binary text");
+    assert!(core::ptr::eq(
+        layouts.texts.get(&current).expect("registry text").schema().expect("binary schema"),
+        schema
+    ));
+
+    let old = texts::digest(KEPT.as_bytes());
+    for (digest, bytes) in [(current, CURRENT), (old, KEPT), ([0; 32], CURRENT)] {
+        layouts
+            .texts
+            .insert(digest, Text { bytes: Box::from(bytes.as_bytes()), schema: None, stored: true, current: false })
+            .expect("uncapped texts");
+    }
+    assert!(texts::parse(&mut layouts, [0; 32]).is_none(), "prepared bytes cannot excuse a mismatched digest");
+    texts::parse(&mut layouts, current).expect("matching stored text");
+    assert!(core::ptr::eq(
+        layouts.texts.get(&current).expect("registry text").schema().expect("stored schema"),
+        schema
+    ));
+    texts::parse(&mut layouts, old).expect("unmatched stored text is parsed");
+    assert_eq!(layouts.texts.get(&old).expect("registry text").schema().expect("older schema").text(), KEPT.as_bytes());
+}
+
 fn opened(disk: &mut Disk) -> Store {
     let mut store = disk.store_with_chunk(4096);
     store.application.version = 0;

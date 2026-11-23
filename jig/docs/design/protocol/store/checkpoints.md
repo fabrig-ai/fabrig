@@ -74,7 +74,7 @@ it. A checkpoint inside it, laid out as a stopped deployment's directory
   up to its length at C, never linked (4.3). An open writes the
   directory it opens (recovery's next segment, the transcripts' cut), so
   a checkpoint is opened only through a copy of it: `upgrade --check`
-  copies its input (`opening.md`, 5), and a restore stages one
+  copies its input (`opening-rehearsal.md`, 1), and a restore stages one
   (`restoring.md`, 4.4 and 4.5).
 
 ### 2.3 Its record
@@ -384,7 +384,7 @@ one always among them:
 - **A reader holds its lock:** io's `Lock` on the checkpoint's
   directory, as a deployment's is held (`opening.md`, 1.1), for as long
   as it reads. `upgrade --check` over a checkpoint takes it as it takes
-  its source's (`opening.md`, 5).
+  its source's (`opening-rehearsal.md`, 1).
 - **`Request::HoldCheckpoint { owner, root, name }`,** with the
   deployment's directory as `root`, needing no open: the checkpoint's
   directory opened and locked; answered `CheckpointHeld { owner }`, the

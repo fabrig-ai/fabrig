@@ -1,7 +1,7 @@
 //! The engine core composes the task hub, policy, parties, fleet, accounts,
 //! briefs, notes and views. It keeps work in jig's vocabulary and asks its
 //! application's root to route the store, hosts, parties and connectors.
-//! See `domain/engine/README.md`, sections 3 to 5.
+//! See `domain/engine/README.md`, section 3, and `domain/engine/vocabulary.md`, section 1, and `domain/engine/decisions.md`, section 1.
 //!
 //! The core never holds a connector's value or a store encoding.
 
@@ -147,7 +147,7 @@ pub struct Core {
     proposal_bounds: (u32, u32),
     pub(crate) run_now: skein_lib::Time,
     pub(crate) run_wall: Wall,
-    /// Last reported store map bytes (protocol/store/README.md, 6.2).
+    /// Last reported store map bytes (protocol/store/growth.md, 1.2).
     pub fill: u64,
     pub census: Option<Box<documents::StoreCensus>>,
     pub(crate) workers_in_process: bool,

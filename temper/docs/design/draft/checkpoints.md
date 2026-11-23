@@ -119,7 +119,7 @@ Each held removal goes ahead in order once the holds are released, on success, r
 ## 4. Asking for one
 
 - **While serving:** `temper ctl DIR deployment checkpoint` (`../client/ctl/tools-acts.md`, 1). It is an act of a person holding an owner's role over the deployment, the people the deployment's settings are proposed to.
-- **Over a stopped deployment:** `temper-engine checkpoint --data DIR`. It takes the deployment's lock, as a rehearsal does (jig's `protocol/store/opening.md`, 5). Every segment can then be linked, since the next recovery starts a new one; the secrets and the live tasks' transcripts and logs are still copied.
+- **Over a stopped deployment:** `temper-engine checkpoint --data DIR`. It takes the deployment's lock, as a rehearsal does (jig's `protocol/store/opening-rehearsal.md`, 1). Every segment can then be linked, since the next recovery starts a new one; the secrets and the live tasks' transcripts and logs are still copied.
 - **The answer,** once the checkpoint is in place, gives:
   - its name, C and the secrets' position;
   - the files linked, the bytes copied and the time taken, as measured;
@@ -133,7 +133,7 @@ Whatever reads a checkpoint holds its lock (io's `Lock`, as a deployment's is he
 
 ### 5.2 The upgrade's check, while the old build serves
 
-`temper-engine upgrade --check` runs over a checkpoint, holding its lock. The rehearsal copies its input into its scratch file by file and never writes it (jig's `protocol/store/opening.md`, 5), so neither the checkpoint nor the live store changes.
+`temper-engine upgrade --check` runs over a checkpoint, holding its lock. The rehearsal copies its input into its scratch file by file and never writes it (jig's `protocol/store/opening-rehearsal.md`, 1), so neither the checkpoint nor the live store changes.
 
 - **It proves C:** every record decoded, the jobs and the restores, and the worker verdict (`../redeploy.md`, 4.2).
 - **What the start then does:** it repeats the real path over the stopped state: jobs, the open and the restore. It refuses before its switch for any failure that path detects, and leaves the active generation's state as it was (jig's `protocol/store/opening.md`, 2).
@@ -147,7 +147,7 @@ Whatever reads a checkpoint holds its lock (io's `Lock`, as a deployment's is he
 2. **Staged:** the next generation, made from the checkpoint's as an upgrade makes `A + 1` from `A` (jig's `protocol/store/opening.md`, 2, step 2).
    - **Linked:** the snapshot, every segment, and each log whose file ends at its extent.
    - **Copied:** a log that a later state extended past C, and the secrets' store. A linked payload log is never cut to make it end at its extent.
-   - **Its manifest:** written afresh, with no predecessor, so that `temper upgrade --back` refuses after a restore. The transcripts have changed, which going back assumes they haven't (jig's `protocol/store/opening.md`, 5).
+   - **Its manifest:** written afresh, with no predecessor, so that `temper upgrade --back` refuses after a restore. The transcripts have changed, which going back assumes they haven't (jig's `protocol/store/opening-rehearsal.md`, 1).
 3. **A staged `transcripts/`** beside the live one, as the checkpoint's: ended tasks' files linked, live tasks' copied. Staged and synced.
 4. **A durable restore intent** at the deployment's top, written only once both are staged. It names:
    - the staged generation and transcript tree;

@@ -144,11 +144,10 @@ pub fn started(document: &[u8]) -> Service {
     Service::new(Some(engine), List::with_capacity(0), io, crate::kernel_queue(&io))
 }
 pub fn memory_store(engine: &mut crate::Engine) {
-    let limits =
-        crate::store::limits(&engine.env.limits, &crate::limits::small(&jig_protocol_config_fixtures::small()).store)
-            .expect("final admitted fixture store");
+    let checked = engine.store.host.component.checked();
+    let limits = checked.limits();
     engine.store.host.component = jig_protocol_store::Store::over(
-        &limits,
+        &checked,
         jig_test_store::application(&engine.env.limits.connector),
         &engine.store.models,
         jig_protocol_store::Stores {

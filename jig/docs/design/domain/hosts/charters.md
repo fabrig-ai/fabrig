@@ -3,7 +3,7 @@
 The core decides a run's charter in its own terms (../engine/executors.md, 1). Its
 translation into smith's charter (smith's `domain/run.md`, 3.1; smith's
 `protocol/charter.md`, section 2; the version,
-`../../protocol/README.md`, section 11), is in one place,
+`../../protocol/needs.md`, section 2), is in one place,
 `jig-protocol-charter`, a function of jig's that links smith, which the
 engine's protocol layer calls for every run, on workers and in the
 engine alike, and which reads every run's result back by the path of
@@ -31,7 +31,7 @@ Its `hosted` puts a run's whole hand-over together from what the hub link kept (
   |---|---|
   | inspecting, modifying, the shell | smith's inspect, modify and shell, when the run has a workspace, and modify only with `deliver`; on a program backend, the program's built-in tools of these families, each call asked of smith's policy through the program's permission prompt (smith's `protocol/programs.md`, 5.3 and 5.4) |
   | sub-agents | smith's sub-agents; on a program backend, inspect only, each a program session of its own (smith's `protocol/programs.md`, 5.10) |
-  | the engine's tools (../engine/executors.md, 3) | host tools, each declared with its schema, its description and whether it writes |
+  | the engine's tools (../engine/executors-tools.md, 1) | host tools, each declared with its schema, its description and whether it writes |
   | each connector's reads, and the effects and topics it offers to agents | host tools, declared by the application; its effects through the engine's `effect`, its topics through `subscribe` |
   | waiting, by its wake policy | smith's `wait` |
   | a delivery, by its result contract or by its policy and workspace, as above | smith's `deliver`, when the run has a workspace that delivers; and smith's `save`, with a change among its outcomes |
@@ -42,9 +42,9 @@ Its `hosted` puts a run's whole hand-over together from what the hub link kept (
   request, or answered as an error naming what is wrong. The engine's
   protocol layer decodes every call the fleet has admitted, from workers
   and from the engine's own hub alike, so no domain parses a call's input
-  (`../../protocol/channel/README.md`, 5.3).
+  (`../../protocol/channel/owners.md`, 1.3).
 - **The engine's tools that act on tasks, `introduce` aside, speak a
-  party's operations** (../engine/executors.md, 3; ../people/acts.md, 1). Each host
+  party's operations** (../engine/executors-tools.md, 1; ../people/acts.md, 1). Each host
   tool's input names what its operation names, as the run was shown it:
   - `delegate`: a batch, each task with what a party's `Create` names
     (../tasks/README.md, section 4);
@@ -61,7 +61,7 @@ Its `hosted` puts a run's whole hand-over together from what the hub link kept (
   - `withdraw`: the proposal;
   - `subscribe`, `unsubscribe`, a task's own: a topic a connector offers
     to agents, a referenced task's state, or a timer.
-- **A revision is shown before it is named** (../engine/executors.md, 3): this
+- **A revision is shown before it is named** (../engine/executors-tools.md, 1): this
   translation renders each revision where the run sees it, and a call
   answered moved with what the task is now.
 - **A connector's topics offered to agents** are declared by the
@@ -70,7 +70,7 @@ Its `hosted` puts a run's whole hand-over together from what the hub link kept (
   is decoded by the engine's protocol layer into the connector's typed
   topic, and checked as a read is: the task's tools hold `subscribe`, and
   a read grant covers the resources the connector says the topic
-  concerns (../authority.md, 8.5; ../connectors.md, 5.3).
+  concerns (../authority-checks.md, 1.5; ../connectors-facts.md, 1.3).
 - **Result contracts** (../tasks/README.md, section 3) become smith's (smith's
   `domain/run.md`, 7.1): a report; a verdict, with its labels, fields and
   follow-ups; a connector's result, as a delivery the run must make
@@ -89,7 +89,7 @@ Its `hosted` puts a run's whole hand-over together from what the hub link kept (
   configuration names it, with its window, its output and its prices
   (../engine/executors.md, 1); for each model's LLM provider, the account its check
   chose, whose grant says the source, and so the backend, since an
-  endpoint names no account (../accounts.md, 3.4; smith's
+  endpoint names no account (../accounts-sources.md, 1; smith's
   `protocol/programs.md`, section 3); the charter's waiting time, and
   whether a run resumes its transcript or starts fresh.
 - **What jig asks of smith's budget** (smith's `domain/budget.md`
@@ -100,17 +100,17 @@ Its `hosted` puts a run's whole hand-over together from what the hub link kept (
   budget is spent, the run winds down on its reserve and finishes; a
   completion that does not fit what is left at all ends the run for its
   budget. All of it is inside the run, with no call to its host, so a
-  run never spends past its budget (../authority.md, section 7). On a
+  run never spends past its budget (../authority-budgets.md, section 1). On a
   program backend, which makes its own completions, smith cannot reserve
   one first: the program may pass the ordinary part by one completion of
   its main model, which the reserve takes, and the run stops at its next
   turn (smith's `protocol/programs.md`, 5.7 and section 7). Such a run's
-  reserve holds one more of those completions (../authority.md, section 7),
+  reserve holds one more of those completions (../authority-budgets.md, section 1),
   so it never spends past its budget either.
 - **The core places no run smith would refuse.** A task whose budget
   cannot hold its run's reserve and one of its main model's most costly
   completions, and on a program backend one more again, is held for its
-  budget (../authority.md, 7 and 8.3); the fleet admits no host whose agent
+  budget (../authority-budgets.md, 1, and ../authority-checks.md, 1.3); the fleet admits no host whose agent
   cannot run the engine's charters, and places a run only on a host that
   declares its endpoints and where its sources are usable (../engine/fleet.md
   ). When a change of settings changes the charters (../engine/settings.md,
@@ -126,7 +126,7 @@ Its `hosted` puts a run's whole hand-over together from what the hub link kept (
 
 ## 1. Open compatibility
 
-A task's ending (../tasks/lifecycle.md, 9) is smith's mode for its run: a task its
+A task's ending (../tasks/lifecycle-endings.md, 2) is smith's mode for its run: a task its
 result ends runs `Finite`, and one its requester ends runs `Open`. An
 Open run is granted the wait and never delivery.
 
@@ -148,7 +148,7 @@ channel without counting an agent short.
 A refused agent start carries its typed cause, `StartCause::{Other,
 Grants}`, apart from the operator's bytes. Either is an invalid start:
 it spends a try of the permanent class, an assignment its host found
-invalid (../tasks/lifecycle.md, 6), as any invalid start but a refused transcript
+invalid (../tasks/lifecycle-holds.md, 1), as any invalid start but a refused transcript
 does, so that a host that refuses the same start every time ends its
 task's tries rather than spawning an agent for ever. No model gave
 anything, so none is ever the invalid class, which is a result's. An

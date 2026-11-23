@@ -1,4 +1,4 @@
-//! Whole scoped notes (jig/docs/design/client/domain/contract/README.md, 4).
+//! Whole scoped notes (jig/docs/design/client/domain/contract/reads.md, 1).
 use super::{Limits, Printed, Text};
 use crate::jig::call::{Call, Project, Value, number, value};
 use alloc::boxed::Box;

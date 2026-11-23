@@ -189,7 +189,7 @@ fn answer_frame(disk: &mut Disk, store: &mut Store, events: Box<[Event]>, refuse
     let mut result = Vec::new();
     for event in events {
         match event {
-            // Transcript reads do not use the map census (protocol/store/README.md, 6.3).
+            // Transcript reads do not use the map census (protocol/store/growth.md, 1.3).
             Event::Census { .. } => {}
             Event::Page { .. } | Event::PageRefused { .. } => unreachable!("a start's pages need a start-mode store"),
             Event::Site { owner, of, key, site, at, mut patcher } => {

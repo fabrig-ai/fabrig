@@ -1,4 +1,4 @@
-//! Read-only restore and inventory on the simulated disk (protocol/store/loads.md and protocol/store/README.md, 9).
+//! Read-only restore and inventory on the simulated disk (protocol/store/loads.md and protocol/store/testing.md, 1).
 use jig_domain_core as core;
 use jig_protocol_store::core_v6::Record as _;
 use jig_protocol_store::{

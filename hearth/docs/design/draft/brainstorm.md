@@ -244,7 +244,7 @@ same wire. Inside, hearth is Debian on btrfs, and says so.
   engine, or the lab's, asks hearth to prepare a target at a revision,
   then to activate it; hearth fetches the revision, renders, builds and
   reports.
-- **Effects are keyed or conditional** (`jig/docs/design/domain/connectors.md`, 4.3):
+- **Effects are keyed or conditional** (`jig/docs/design/domain/connectors-effects.md`, 1.3):
   - *prepare* is keyed by target and revision, and repeating it finds
     what the first made;
   - *activate* and *roll back* are conditional on the active slot being

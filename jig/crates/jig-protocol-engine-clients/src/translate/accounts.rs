@@ -1,4 +1,4 @@
-//! Whole secret-free accounts documents (client/domain/contract/documents.md, 1; domain/accounts.md, 3–5).
+//! Whole secret-free accounts documents (client/domain/contract/documents.md, 1; domain/accounts.md, 3, and domain/accounts-uses.md, 1, and domain/accounts.md, 5).
 use super::{deployment, owner, pieces, w};
 use alloc::boxed::Box;
 use jig_client_protocol_wire::Record as _;

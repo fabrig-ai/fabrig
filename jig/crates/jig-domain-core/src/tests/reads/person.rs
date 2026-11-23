@@ -1,4 +1,4 @@
-//! Person reads admit one project and recheck retained ownership (domain/engine/executors.md, 3).
+//! Person reads admit one project and recheck retained ownership (domain/engine/executors-tools.md, 1).
 use crate::reads::{
     self,
     person::{Admission, admitted},

@@ -1,5 +1,5 @@
-//! Top-level forge routing and commit fence (jig's domain/connectors.md,
-//! sections 2–5). Durable rows are held here and mirrored by root store
+//! Top-level forge routing and commit fence (jig's domain/connectors.md, sections 2–3, and domain/connectors-effects.md, section 1, and domain/connectors-facts.md, section 1
+//! ). Durable rows are held here and mirrored by root store
 //! writes.
 //! A requester's confirmed branch moves become its change's new head
 //! (temper/docs/design/domain/forge/change/drift.md, 1).
@@ -194,7 +194,7 @@ struct StepInput {
 
 /// One committed outbox entry. A held one is out of the client's outbox and
 /// keeps its room until a person makes it again or it is settled not made
-/// (domain/forge/effects.md, 1; jig's `domain/connectors.md`, 4.3).
+/// (domain/forge/effects.md, 1; jig's `domain/connectors-effects.md`, 1.3).
 #[derive(Hash, Debug)]
 pub(crate) struct Outboxed {
     pub(crate) entry: skein_forge_client::Entry,

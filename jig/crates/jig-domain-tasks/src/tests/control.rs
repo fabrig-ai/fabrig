@@ -1,5 +1,5 @@
 //! Deployment control cancels its project's tasks and releases connector-owned holds
-//! (jig/docs/design/domain/tasks/lifecycle.md, section 6 and jig/docs/design/domain/tasks/changes.md).
+//! (jig/docs/design/domain/tasks/lifecycle-holds.md, section 1 and jig/docs/design/domain/tasks/changes.md).
 use super::revisions::{Harness, task, to};
 use crate::{
     Active, Cancel, Change, Ending, Event, Executor, Hold, HoldSource, Key, Operation, Party, Phase, Refusal, Release,

@@ -201,7 +201,7 @@ fn a_model_takes_the_efforts_it_names_in_order() {
 }
 #[test]
 fn a_model_names_its_default_apart_from_effort_order() {
-    // EFFORT_BYTES (configuration.md, 3): the second name reaches the byte bound.
+    // EFFORT_BYTES (protocol/configuration-engine.md, 1): the second name reaches the byte bound.
     for (members, expected) in [
         (br#""output": 1024, "efforts": ["low", "medium", "high"], "effort": "medium","#.as_slice(), b"medium".as_slice()),
         (br#""output": 1024, "efforts": ["12345678901234567890123456789012"], "effort": "12345678901234567890123456789012","#, b"12345678901234567890123456789012"),

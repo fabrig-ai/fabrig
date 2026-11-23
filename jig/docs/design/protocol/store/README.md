@@ -6,10 +6,17 @@ engine's process, holds every record jig's core and the application
 keep, transcripts are files beside it, and secrets are in a second
 store. jig ships the component that does this, `jig-protocol-store`; the
 application hands it its own records as bytes it encodes. The domain's
-half (commits, loads, what is kept) is `../../domain/engine/README.md`, section 5,
+half (commits, loads, what is kept) is `../../domain/engine/decisions.md`, section 1,
 and what the rest of the protocol layer relies on is `../README.md`,
 section 9. Read it with skein's `data/kv.md`. What is still open is listed in
-section 11.
+`README.md`, section 11.
+
+- [`keys.md`](keys.md): key order, owner tags and ranges.
+- [`commits.md`](commits.md): commit ordering, durability and failure.
+- [`growth.md`](growth.md): retention, admission and the map census.
+- [`testing.md`](testing.md): the store's tests and worlds.
+- [`opening-owners.md`](opening-owners.md): owner sets and frames' sites at open.
+- [`opening-rehearsal.md`](opening-rehearsal.md): rehearsing an upgrade and going back.
 
 ## 1. In one page
 
@@ -28,7 +35,7 @@ section 11.
   into one commit (section 3).
 - **Keys sort as the domain's keys do,** written with skein-kv's key
   writer, with a tag per owner, then per family. Every range the domain
-  asks for maps to a short, fixed list of intervals (section 4).
+  asks for maps to a short, fixed list of intervals (`keys.md`, section 1).
 - **Records from schemas,** with skein's generator: a codec per family,
   versioned, with fixed-rule values built from schema text and fuzzing.
   A format row names the versions, each owner's level and the deployment;
@@ -45,7 +52,7 @@ section 11.
   pending) is upgraded at open in a new generation made
   by links, checked, and switched to by one durable rename; a crash
   anywhere leaves one whole generation active (`README.md`, section 2,
-  and `opening.md`, section 2 to 4). Jobs at open walk the map for their
+  and `opening.md`, section 2, and `opening-owners.md`, section 1, and `opening.md`, section 4). Jobs at open walk the map for their
   owners when a binary needs it in another shape (`jobs.md`).
 - **Hot records apart from cold.** Live tasks and goals' projections
   keep what an act changes rarely in rows of their own, so a write puts
@@ -53,7 +60,7 @@ section 11.
 - **One decision, one commit, the same number.** Each of the root's
   commits is one skein-kv commit with the same number. Group commit folds
   bursts into one sync. A failed or refused commit stops the engine
-  (section 5).
+  (`commits.md`, section 1).
 - **Loads are answered in the step that asks,** from memory, in bounded
   pages: the restart's live ranges, parties' reads with their joins, a
   child's pages, single records (`loads.md`). Only a turn's bytes, read
@@ -77,11 +84,11 @@ section 11.
   ended task once read, or drops its turns, shrinks it to its summary
   and then erases it, each past a horizon, on its timer, by the task's
   retention class (`retention.md`), and refuses new work above a
-  high-water mark of the map (section 6).
+  high-water mark of the map (`growth.md`, section 1).
 - **The real store in every world:** the domain worlds run the component
   over skein-kv's in-memory mode, with an in-memory stand-in for
   transcripts' files, and the store's own world crashes it on skein's
-  simulated disk (section 9).
+  simulated disk (`testing.md`, section 1).
 - **Two crates:** the component above its records' translation,
   `jig-protocol-store-records`, which it re-exports as `codec` (`crates.md`).
 
@@ -106,8 +113,8 @@ skein-io                        files: the ring, or the simulator's disk
   its records' translation, and the core's vocabulary (its keys, records, ranges and reads). It
   depends on no application's crate, and links no smith crate: turns are
   bytes to it.
-- **On disk,** in the deployment's directory (`../configuration.md`,
-  section 3), which nothing else writes. The two maps live in numbered
+- **On disk,** in the deployment's directory (`../configuration-engine.md`,
+  section 1), which nothing else writes. The two maps live in numbered
   generations; `active` names the one a start opens, and an upgrade
   makes the next from the active one's files, linking the snapshot and
   the log segments skein-kv writes no more and copying the rest,
@@ -171,14 +178,14 @@ skein-io                        files: the ring, or the simulator's disk
     These are reported, not judged by the check: a job may add or erase
     rows (`opening.md`, 2, step 5);
   - `store` and `secrets`, the last commit of each map when the upgrade
-    ended: the store's, which the deployment's header names (section 5),
+    ended: the store's, which the deployment's header names (`commits.md`, section 1),
     and the secrets' store's; for a first start, 0 and none respectively;
   - `written`, the wall-clock time it was written, `env.wall` in its own
     unit.
 
   An ordinary open reads no manifest; resolving a restore may read its
   staged generation's (`restoring.md`, 5), and going back reads its active
-  one's (`opening.md`, 5). It is also the operator's record of what an
+  one's (`opening-rehearsal.md`, 1). It is also the operator's record of what an
   upgrade did, printed by temper's `upgrade --check` and `versions`
   (temper's `draft/upgrades.md`, 3.1).
 - **A directory in the layout before generations** (`store/`, `secrets/` or
@@ -228,7 +235,7 @@ skein-io                        files: the ring, or the simulator's disk
   > nothing is deleted, and the next start makes a new, empty store.
 
 - **`OpenRefusal::Numbers`** refuses a recovered last commit other than
-  the one the header records (section 5):
+  the one the header records (`commits.md`, section 1):
 
   > The store in `<deployment>` does not end at the commit its header
   > records, so a file was lost, cut or restored apart from the others,
@@ -275,338 +282,51 @@ skein-io                        files: the ring, or the simulator's disk
 ## 3. The boundary
 
 What the component takes and answers, as the engine's protocol layer
-routes it. The core's side is `../../domain/engine/README.md`, section 5 and `../../domain/engine/restart.md`;
+routes it. The core's side is `../../domain/engine/decisions.md`, section 1 and `../../domain/engine/restart.md`;
 the root wraps it, and the protocol layer's routing unwraps it, encoding
 the application's part with the application's codecs.
 
 | Down, to the component | Up, from it |
 |---|---|
-| **commit** n: jig's writes, typed (the core's saves and erases of its records and its children's, a copy of the bytes under one of its keys to another, and a task's transcript or history log dropped whole); the application's writes, each a key's bytes and a value's bytes, or an erase | **committed** n, with the store's fill (6.2); **failed** n, with why (section 5); or **FrameTooLarge** n, with task, full encoded bytes and page limit (section 5) |
+| **commit** n: jig's writes, typed (the core's saves and erases of its records and its children's, a copy of the bytes under one of its keys to another, and a task's transcript or history log dropped whole); the application's writes, each a key's bytes and a value's bytes, or an erase | **committed** n, with the store's fill (`growth.md`, 1.2); **failed** n, with why (`commits.md`, section 1); or **FrameTooLarge** n, with task, full encoded bytes and page limit (`commits.md`, section 1) |
 | **restore** a restart step's range: jig's (the core's live families, `loads.md`, 2), or the application's, as byte intervals under its tag | jig's records, typed, then done; the application's rows as bytes, then done |
 | **load** a page of a child's range: jig's, or the application's intervals | the page's rows, typed or as bytes, and a cursor if more remain |
-| **read** a party's read: its scope, position, direction, rows and bytes (`../../domain/engine/README.md`, 5.3) | the page, each row with its joins, and its cursor; or busy, or gone |
+| **read** a party's read: its scope, position, direction, rows and bytes (`../../domain/engine/decisions.md`, 1.3) | the page, each row with its joins, and its cursor; or busy, or gone |
 | **get** a record by key: jig's or the application's | the record, or none |
 | **transcript**: a task's current window, from the turn the core names as its start; a turn by its task, attempt and number; a page of a task's turns from either end | the turns, with their fields and bytes, and a cursor; or unread |
 | **secrets**: keep, replace, erase, get and load, by owner and number; carry a value under a drawn number; adopt a carried value into its source's row (`secrets.md`) | kept, stale, erased, the value or none, a page, or the carried number and digest |
 
-- **Turns are records of the core's** (`../../domain/engine/README.md`, 5.4): the
+- **Turns are records of the core's** (`../../domain/engine/decisions.md`, 1.4): the
   core saves each accepted turn, keyed by its task, attempt and number,
   with its spend, the last message it read, its time, whether it opens a
   window, and its bytes. The component keeps the bytes and those fields
   in the task's transcript file, and the transcript's places in the map
   (`transcripts.md`). The core never erases a single turn: a task's transcript
-  goes whole, by retention (6.1).
+  goes whole, by retention (`growth.md`, 1.1).
 - **Reads see what is durable.** A load, a read, a get or a transcript
   sees every commit answered before it was asked, and nothing that is
   not durable (skein's `data/kv.md`, section 2). Each load of the core's is
   held until every commit made before it is answered
-  (`../../domain/engine/README.md`, 4.2 and 5.3), so it sees what the decisions
+  (`../../domain/engine/vocabulary.md`, 1.2, and `../../domain/engine/decisions.md`, 1.3), so it sees what the decisions
   before it wrote.
 - **One terminal per request,** tagged with the asker's token
   (skein/docs/foundation/programming-model.md, 4.4).
 
 ## 4. Keys
 
-### 4.1 The encoding
-
-- **Bytes sort as the domain's keys do.** Every key is written with
-  skein-kv's key writer (skein's `data/kv.md`, 2.1) so that byte order equals
-  the order Rust derives for it: a variant's index as a tag, then its
-  fields in order; numbers big-endian at fixed width, narrower ones
-  widened; an absent option before a present one; a byte string escaped
-  and terminated, so a shorter one sorts before its extensions; a list of
-  byte strings as each string marked, then an end mark.
-- **Keys never hold payload:** numbers, small fixed identities, and
-  names within their limits.
-- **Written out, not generated.** skein's generator writes values, whose
-  length-prefixed bytes do not sort (skein's `data/codec/README.md`, section 3), so
-  each family's key has a small encoder and decoder of its own, beside
-  its codec. A property test holds each encoder to the derived order on
-  generated keys, and each decoder to the encoder.
-
-### 4.2 Tags
-
-The first byte of every key names its owner:
-
-| Tag | Owner | Then |
-|---|---|---|
-| 0 | the component's own rows | its family: the format row (`records.md`, 3), transcripts' places (`transcripts.md`, 1), task logs' extents and places (`logs.md`, 1) |
-| 1 | jig | the child's tag, in the order of the core's key: the core's own, then each child's; then the family's key; and one row of the component's, the installation's identifier, at its reserved key (4.4) |
-| 2 | the application | its own key bytes, which it encodes by the same rule, so that bytes sort as its keys do |
-
-- **The application's bytes stay under its tag.** The component prefixes
-  them, and refuses an application's key or interval it would have to
-  write outside it, which is a bug, as a contract break.
-- **A child's keys are one interval,** and each family one interval
-  within it, since the encoding follows the keys' nesting.
-
-### 4.3 Ranges to intervals
-
-The domain asks for ranges as predicates over its keys; the store reads
-intervals. So:
-
-- **each range maps to a short, fixed, ordered list of intervals,** in the
-  component, and a page that exhausts one interval with room left goes on
-  into the next in the same step, since skein-kv answers loads at once;
-- **families loaded together are adjacent:** within each child, the
-  families a restart loads come first, and history after them
-  (`../../domain/engine/README.md`, 5.5), so each child's live part is one interval;
-- **a test checks each mapping** against the range's predicate over
-  generated keys: every key the predicate admits lies in an interval, and
-  every key in an interval is admitted; and a restart's key's place
-  (`loads.md`, 2), the domain's over its typed key and the component's over its
-  bytes, names the interval that holds it, over a request of several
-  ranges as over one.
-
-### 4.4 jig's families
-
-What the store keeps of jig, by owner. "At start" families are read by
-the restart (`opening.md`), the others by a load, a read or a get when
-wanted. The families' keys are the children's; the order within each
-child puts live first.
-
-| Owner | Family | Key | Loaded |
-|---|---|---|---|
-| component | the format row | none: one row | at open |
-| component | the installation's identifier, at its reserved key in the accounts' family (01 04 03): drawn by the shell at each start (`../configuration.md`, section 7) and kept by the store's first commit, beside the format row (`records.md`, 3), so that each later start's draw is ignored | none: one row | at open, handed up as the store opens, never by the restart's ranges (`loads.md`, 2) |
-| component | transcripts' places: each task's committed length and its current window's start; each attempt's first turn | task; task, attempt | at open, the run proofs' tasks' lengths (`transcripts.md`, 4); the rest when read |
-| component | the registry: each layout of the registered families' value types, the schema texts they name, and the jobs done (`layouts.md`, 3; `jobs.md`, 2) | family, value type, id; a text's digest; owner, job | at open, whole |
-| component | the floor: the oldest store the build's code serves and the build that wrote the row (`records.md`, 3), `00 0d`, named `component.floor` in the census (6.3) | none: one row | at open |
-| core | the deployment: its id, its numbers (the next project's among them, past every project seeded or made), the last commit | none: one row | at start |
-| core | settings (`../../domain/engine/settings.md`, 7): the defaults the newest revision was made with, a record per setting; the changes over them, a record per setting changed (its value whole, or its removal, with the revision that made it); the held revisions' records; the charter versions held revisions read and the newest does not; pending proposals' sets; of an application's kinds, each setting's state and size and each item's edit and size, never the value, which its connector's family keeps (`../../domain/engine/settings.md`, 5) | under the core's family tag 8: kind, then scope (0 for the deployment, a project's number), then number, for defaults and changes; revision; charter, then the revision that made it; proposal | at start, after the deployment's row, before every other family of the core's |
-| core | settings' history: the records of revisions no longer held, each with its number, the revision it was made against, when, who decided it, the proposal it came from, whether it moved running work, and its items with the values they set and what each replaced (`../../domain/engine/settings.md`, 10), an application's with their sizes alone (`../../domain/engine/settings.md`, 5); within the history limit, the oldest erased by the decision that makes a newer one | under the core's family tag 9: revision | on demand |
-| core | goals' projections (feed, plan rows, pending milestones, their words apart: `parts.md`, 3), run proofs, calls committed since a live task's last turn, live agent tasks' conversations (their first attempt, their current window's start) | a goal's, then its own; task; task, attempt, completion, position; task | at start |
-| core | turns (in turns logs or transcripts' files), terminals, decisions on proposals and escalations, each a task's in its history log but a party's proposals' (`logs.md`, 2) | task, attempt, turn; task, attempt; proposer, proposal; task, revision | on demand |
-| tasks | live tasks, each with its revision and its claim's (`../../domain/engine/settings.md`, 3), each in a hot and a cold part (`parts.md`, 2), stubs naming ended results, the funders' live periods, writer slots, pools' slots, pending proposals | task; task; funder; slot; proposal | at start |
-| tasks | placed holds (`../../domain/tasks/lifecycle.md`, 10): each one's owner, mode, scope, reason, what lifts it and its subscription, its revision and the tasks it exempts; a lifted one kept while a task it held is still held by it, erased with the last one's release | hold | at start, with the live tasks |
-| tasks | ended tasks, past periods, decided proposals, history, attempts, holds and activity (`../../domain/tasks/lifecycle.md`, 12), each in its task's history log but past periods and decided proposals (`logs.md`, 2) | task, then a position, an attempt or a revision; funder, period; proposal | on demand |
-| tasks | ended tasks' summaries, and retention's rows, one per ended task or decided person proposal naming its next stage (`retention.md`, 3 and 4) | task; stage, since, number | on demand, by retention's passes |
-| people | parties, sign-ins (no secret), roles, projects' names, whether each is public (`../../domain/people/public-reading.md`, 2), and whole policies (their ceilings, escalation roles and overrides of templates among them), seeded and made alike, read positions over results and over live conversations, answered keys within the retention, a party's or, for the deployment's acts, a connector's (`../../domain/people/acts.md`, 3), including typed policy-ceiling refusals (holder, dimension and optional scalar bound and requested values), program declarations and checks, their declared names, and sign-out/removal answers naming unconfirmed configured workers with their original failure reasons; each project being deleted, with the step its deletion has reached and the grace it gives its conversations (`../../domain/people/acts.md`, 2), at most one per project the deployment has room for, erased with the deletion's last step; each deleted project's mark, its number alone, kept past its deletion, at most as many as the projects the deployment has room for, the lowest number's erased to make room (`../../domain/people/acts.md`, 2, *Marked deleted*) | as the people child keys them; a live conversation's position by party, then task; a deletion by its project; a mark by its project | at start |
-| people | ended conversations' read positions (`loads.md`, 4) | task, then party | at start, by the census, every row (`loads.md`, 2); otherwise on demand |
-| accounts | issued program names, including retired ones, with their source number and original holder and desired sign-out (key tag 4, after the installation's reserved tag); the next number the accounts child gives, below which it gives none again; LLM accounts: each one's holder, LLM provider, subject and display name, its uses, and what its last list reads gave, where it has any: the catalogue's numbers as a bit each, when its last good read was, when its last attempt ended, why that failed, and how many names took no number (`../../domain/accounts.md`, 3.7); their sources, each at its place in its holder's order, with its kind, its name for a program's, and its hold: limited, with its reset as a wall time where it has one, refused, or moving (a signed-in source whose record is out with a move, or back and not yet refreshed: `../../domain/accounts.md`, section 6). The rest of a source's state is heard again at each start, and none is kept per host (`../../domain/accounts.md`, 3.5); what each account's LLM provider says of it, a record per account of at most 24 facts (key tag 5, after the issued names; `../../domain/accounts.md`, 3.7) | source for an issued name; none: one row; account; account, source; account for its facts | at start, issued names before live account/source records, an account's facts after them |
-| notes | entries, and an index line per entry, under its scope | name; scope, name | when a scope is in use; entries on demand |
-| tasks | the results' index, the inbox's census's (`loads.md`, 2): a row per result of a task a party requested, at its position among that party's results, past the tasks child's live families | party, position | at start, by the census, past each party's read position over results |
-| tasks, people | indexes for parties' reads (`loads.md`, 4): each party's inbox by time; ended tasks by requester party and by project; ended delegates; a subtree's delegates | the index's own, newest first where it reads so: an ended index's by party or project, then label, ended at reversed and task | on demand |
-
-Children that keep nothing durable (the views, the fleet, authority,
-briefs) have no family. What a run reports as it goes (its text, its
-activity) is not stored: each committed turn holds what the run said
-and did. Nor is a program's login on a host, which its host reports
-(`../llm.md`, 5.5), or a sign-in under way, which a restart ends
-(`../../domain/accounts.md`, section 5). An account's values are in the
-secrets' store (`secrets.md`).
+Moved to [`keys.md`](keys.md), section 1.
 
 ## 5. Commits
 
-- **Numbers are shared.** The journal numbers the root's commits, and
-  skein-kv numbers its own from one, across restarts. Every root commit
-  is one skein-kv commit, and nothing else writes the store but
-  the upgrade, before the root starts, whose last commit writes the header
-  with its own number (`opening.md`, 2), so the numbers are equal whenever the
-  root runs. The component checks this as it submits, and stops on a
-  mismatch. At start, skein-kv's recovered last commit must equal
-  the commit the deployment's header names, which every writing decision
-  saves; a store that disagrees refuses the start.
-- **Writes become operations** in order: a save a put of its encoded key
-  and record, an erase an erase, a copy a put under its second key of the
-  bytes the map holds under its first, the application's bytes under its
-  tag. The store's writes name no domain's operation: which key a copy
-  reads and which it writes are the domain's (the core's for a settings
-  revision that enters history). A copy reads the map as its commit found
-  it, so a save of its first key earlier in that commit is not what it
-  copies; a first key the map doesn't hold fails the commit.
-  A key written more than once in one commit becomes one operation, its
-  last write, which leaves the map as the writes in order would:
-  skein-kv applies a commit whole (skein's `data/kv.md`, section 7), so
-  nothing sees the writes between.
-  A turn's save becomes a frame in its task's file, written first
-  (`transcripts.md`, 2), and puts of its place in the map.
-- **In order, whatever waits.** A commit with turns goes to skein-kv once
-  their files are synced, and the commits after it queue behind it, so
-  numbers reach skein-kv in order. The wait is one sync, and only for the
-  commits behind a turn.
-- **Group commit.** While a sync is in flight, commits queue, and the next
-  write carries them all (skein's `data/kv.md`, section 4). The root's bound
-  on commits in flight is checked at start against skein-kv's queue and
-  queued bytes, and the component's queue behind transcripts' syncs, so
-  the store never answers a commit busy.
-- **Committed n** goes up when skein-kv answers that commit, which makes
-  every earlier one durable too, with the store's fill (6.2).
-- **A failure stops the engine.** skein-kv answers failed for every commit
-  in flight when a write or a sync fails or stalls, and a failed write or
-  sync of a transcript fails its commit the same way. The component
-  answers failed, the root stops (`../../domain/engine/README.md`, 5.1), and the
-  process ends; the next opens the store, which recovers. The engine
-  never carries on over a store that recovered beneath it.
-- **A refusal is a failure.** Past the checks at start, a commit skein-kv
-  refuses (too large, the map full) would be a decision already made and
-  not kept, so it stops the engine as a failure does. Section 6 keeps
-  the map from filling.
-- **A failure says why.** `Event::Failed { number, why }` carries
-  `why: CommitFailure`: which of the store's failures it was, as data,
-  bounded, with no record's contents and no text the store builds. The
-  application words it (temper's `protocol/store-versions.md`, 1). It is
-  in-process: no journal record, stored family or wire message carries
-  it.
-
-  | `CommitFailure` | The commit |
-  |---|---|
-  | `Refused(skein_kv::Refusal)` | skein-kv refused it at its entrance, its refusal as skein's `data/kv.md`, 2 gives it: the map full with its bytes, its budget and the bytes this commit would leave; a key, a value, the ops or the frame past its limit; busy; unavailable |
-  | `Failed` | skein-kv answered it failed: a write or a sync of its log failed or stalled, and its outcome is uncertain |
-  | `Owner { owner }` | skein-kv answered `Committed` for `number` under `owner`, the root's commit it was submitted for, which isn't `number` |
-  | `Transcript` | a file step of its transcripts failed: a frame's file opened, made, written or synced, its directory's sync or close, a dropped transcript's removal, or the writer's own bookkeeping (its table of open files, its counter) |
-  | `Check(CommitCheck)` | the store's own checks refused it before skein-kv saw it, naming the check |
-  | `Stopped` | it was queued, or waiting on its frames, when another commit's failure stopped the store |
-
-  `CommitCheck` names the check: `Number` (its number isn't the store's next,
-  or is at or before the last durable one), `Closed` (the store isn't
-  open), `Queue` (the queue behind transcripts' syncs is full), `Writes`
-  (more writes than the root's bound, `Commits::writes`), `Switching`
-  (wires, a dropped transcript or a turn while an upgrade switch is
-  pending), `Encoding` (a key, a record, a turn's frame or the first
-  commit's own rows past its codec's limits), `Copy` (a copy's first
-  key the map doesn't hold, or its read failing), `Reads` (a read of the
-  map the commit needs, for a turn's place, a dropped transcript's
-  attempts or the openings it erases, failing or not decoding),
-  `Capacity` (more operations, places or keys than the commit's bounds
-  hold), `Bytes` (its operations past the store's commit bytes,
-  `Limits::commit` of its skein-kv limits). `CommitFailure` and `CommitCheck`
-  are `Copy`.
-
-  The commit whose failure it is carries its cause, and each commit
-  skein-kv answers failed carries `Failed`; every other commit the stop
-  fails, queued behind it or waiting on its frames, carries `Stopped`,
-  as do the earlier pending commits a `FrameTooLarge` fails (below). A
-  failed commit of the secrets' store answers as before.
-- **An oversized transcript frame refuses the whole commit before data
-  IO.** Each actual encoded current frame, including all metadata, payload
-  and its wrapper, must fit the store's page byte bound `P`; equality is
-  admitted. All frames and map operations are prepared before any of that
-  commit's data is written, so a later oversized turn leaves none of the
-  refused batch on disk. Its one terminal is
-  `FrameTooLarge { number, task, bytes, limit }`, where `bytes` is the full
-  encoded frame length and `limit` is `P`. There is no additional `Failed`
-  for that number. This terminal comes first, followed by the
-  failures of earlier pending commits, and the component stops as for an
-  ordinary commit failure. Previously durable data remains recoverable.
-  The event is strictly in-process: no journal record, stored family or
-  wire message carries it. An application feeds the rejected number to its
-  uncommitted-commit policy and may report the named cause.
-- **A commit's operations are bounded,** as skein-kv applies each commit
-  in one step (skein's `data/kv.md`, section 7). Where removing a record would
-  erase an unbounded number of rows (a transcript's attempts' places,
-  `transcripts.md`, 5), its commit erases the row that names the rest, so nothing reads
-  them from then on, and the rest, orphans, go in the commits that
-  follow: the component adds a bounded number of their erases to each
-  commit it makes for the root, within that commit's operations, until
-  none is left. At open it finds any a restart left by the rows they
-  name being gone. Every commit stays one decision's, numbered as the
-  root numbers it.
+Moved to [`commits.md`](commits.md), section 1.
 
 ## 6. Growth
 
-### 6.1 Retention
-
-Retention is the domain's: passes on the core's timer, tested in its
-worlds, with horizons the deployment's limits give, each keyspace's
-declared by its owner (`retention.md`). What becomes of an ended task
-is its retention class, set from its template when it was made
-(`../../domain/tasks/README.md`, section 3):
-
-- **A task kept** loses its turns, then its full record, then its
-  summary, each past its horizon (`retention.md`, 2 and 6). Its summary
-  is written when it ends, so what parties read of old work comes from
-  summaries once its record has gone: its rows in the ended indexes
-  stay with the summary, and a task query joins it (`loads.md`, 3;
-  `retention.md`, 7). A live task keeps its transcript, whatever its
-  age.
-- **Answered keys expire** past the people child's retention.
-- **A task forgotten once read** (`../../domain/people/README.md`, section 5) goes
-  in one decision: its record, its rows in the ended indexes, its
-  result's update and its ended read position (`loads.md`, 4).
-- **A forgotten task's remains go** at retention's next pass, whatever
-  their age: its activity, history, terminals, transcript and summary,
-  and its replies' rows in its requester's updates (`loads.md`, 4;
-  `retention.md`, 6.4). Nothing reads them, and the requester's pages
-  of updates skip those rows until then.
-- **A deleted project's tasks go whole** (`../../domain/people/acts.md`, 2),
-  whatever their retention class and age, once every task of the
-  project has ended: each task in decisions of its own, one task at a
-  time, its rows first, a page at a time (its history, activity and
-  terminals, with its replies' rows in its requester's updates), then
-  its transcript dropped (`transcripts.md`, 5) with its rows in the ended indexes and
-  its ended read position, and its record, its history log and its summary last
-  (`logs.md`, 9: each task found by its summary), so that
-  a deletion a restart cut finds the task's record and erases what is
-  left of it. A task of the project that retention already shrank is
-  found by its summary, and its summary goes with its rows in the ended
-  indexes. Its retention row is left, and erased alone when it comes due
-  (`retention.md`, 4).
-
-### 6.2 Fill
-
-- **The store reports its fill** with each commit's answer: the map's
-  bytes against its budget (skein's `data/kv.md`, section 7).
-- **Above a high-water mark** of that budget (both are limits,
-  `../limits.md`), the domain refuses new work at its
-  entrances: new tasks, new sign-ins. Work under way goes on,
-  and a refusal is never a failed commit. The deployment's document
-  shows the fill.
-- **Transcripts' disk** is the deployment's: retention bounds it, and its
-  directory's free space is the operator's.
-
-### 6.3 The census
-
-What the store holds and what its log writes, per keyspace, so that a
-deployment's owner sees where the store grows and what an upgrade would
-walk (temper's `draft/store-shape.md`, 8). skein-kv counts (skein's
-`data/kv.md`, 2.2); the component names the keyspaces and reports the
-count up, and nothing of it is stored.
-
-- **The rule:** the component gives every skein-kv store it opens for
-  the map (the active generation's and an upgraded copy's, never the
-  secrets' store) the census rule of its tags (4.2): a key under tag 0
-  counts by its first two bytes, the component's family; under tag 1 by
-  three, jig's child and family (`01 01 16`, the tasks child's
-  attempts); under tag 2 by two, the application's first key tag
-  (`02 0c`); any other first byte by one.
-- **Names,** `OWNER.FAMILY`, ASCII lower-case letters, digits, `.` and
-  `-`, at most 48 bytes: `component.format`, `tasks.attempts`,
-  `core.terminals`, `temper.changes`. The component's and jig's come
-  from a table beside the component's key encoders (`keys`), one name per
-  tag they write; the application's from a table it hands the component
-  with its owner sets, its own name and a name per first key tag it
-  writes (`Store::keyspaces`). A prefix no table names has an empty name,
-  and readers show its bytes. A test holds each table to its key
-  writers: every tag written has one name, and no two names repeat.
-- **The report,** `StoreCensus` (the core's vocabulary, beside
-  `StoreFill`): the last commit counted (`commit`), the commit the log's
-  period began at (`since`, skein's `data/kv.md`, 2.2), and a row per
-  keyspace in prefix order, each its prefix, its name, its rows, keys'
-  and values' bytes, its heads with their rows, and its puts, erases and
-  bytes written since `since`. The component sends it up as
-  `Event::Census`:
-  - once the store has opened, after `Opened`: what recovery counted, a
-    new generation's after registration and the jobs;
-  - then after a commit's answer, once `CENSUS_EVERY` (60 s of the
-    component's clock) has passed since the last report, so never while
-    no commit is answered.
-  The fill goes on with every commit's answer (6.2).
-- **Up to the core:** the root hands each report to the core as the
-  core's `Event::Census`, keeping the last one while it starts as it
-  keeps the fill; the core keeps the last report and marks the
-  deployment's document, which carries it
-  (`../../client/domain/contract/documents.md`, 1). So a deployment
-  document's watchers hear of the census at most once a minute, and a
-  reader sees it as of its `commit`.
-- **Its cost** is skein-kv's: a search of at most 128 keyspaces per
-  operation applied, and a census of at most 129 rows, the empty
-  prefix's included, of at most 8 heads each; the component's report
-  copies it once a minute.
+Moved to [`growth.md`](growth.md), section 1.
 
 ## 7. The application's part
 
-- **Its families,** under its tag (4.2), keyed by its own encoder by the
+- **Its families,** under its tag (`keys.md`, 1.2), keyed by its own encoder by the
   same rule, encoded by its own codecs, with its store version (`records.md`, 2).
 - **Its restart ranges** as byte intervals under its tag, each live
   interval of each connector, served in the restart's step for that
@@ -657,147 +377,21 @@ count up, and nothing of it is stored.
   raises its page raises its drivers' read with it.
 - **Checked whole at startup** with the root's and every component's
   (`../limits.md`).
+- **Checked once:** `check` gives the check's result, `Checked`: the
+  limits with the codec view derived from them; `runtime_limits` gives
+  the runtime one, its turn's transcript bound narrowed. The component
+  is made over one (`Store::over`, `Store::on_directory`,
+  `host::Hosted::new`) and derives no bound again, and an install takes
+  the runtime check's view as it is. A reopen over the same maps at the
+  same limits takes the `Checked` the first component was made over; one
+  at other limits is checked afresh. `Store::checked` gives the one in
+  force.
 
 `jig_protocol_store::host` hosts the three file drivers around the store for any engine: the drivers, their kernel hand-offs and their adoption and close. An application's service routes its own keys and records to it and writes no driver of its own.
 
 ## 9. Testing
 
-Each within jig's suites' budgets.
-
-- **The real store in the domain worlds.** The worlds run the component
-  over skein-kv's in-memory mode, in place of a fake of the map, so every
-  story runs the real keys, codecs, intervals, paging and joins. No
-  world fakes the store's component: the real one runs in each
-  (skein/docs/foundation/testing-strategy.md, section 4).
-- **The restart oracle** (`../../domain/engine/README.md`, section 9): every
-  world story ends with a cold restart over its store that restores
-  with every link made and reads back what it wrote. The cross-record
-  rules a restore once checked are proved there, writer by writer,
-  never re-judged at a start.
-- **Faults come from the world.** The world holds commits between the
-  root and the component, in order: it delays them to make the store
-  slow, and fails one to stop the engine. A crash keeps what reached the
-  store and loses what the world held.
-- **Transcripts' files have a stand-in** in the domain worlds: an
-  in-memory file system answering the component's file requests, with
-  the same rule after a crash. A crash keeps both in-memory stores and
-  the stand-in, and the next engine's component is made over them and
-  opens as `opening.md` says.
-- **The store's world,** `tests/store`: the component over skein-kv and
-  files on skein's simulated, crashing disk, a scripted root committing,
-  loading, reading and appending turns, crashed at every file operation
-  and sync. Its referee: after recovery, the last acknowledged commit, or
-  that and one whole uncertain one, never part of one; no turn readable
-  past its commit and none missing before it; numbers that match the
-  header; pages equal to a model's.
-- **The core's world on the simulated disk,** for a decision's
-  durability across families (`../../domain/engine/README.md`, 5.1 and `../../domain/engine/restart.md`): the
-  core world's directory-backed store (`jig-test-store-files`), killed
-  at a chosen file operation of a chosen commit, and the engine started
-  again through its link pass. Its rows: a kill at each operation of a
-  decision's commit (after each record's bytes, mid-frame, between
-  families), for a decision that makes a task and the person task
-  linking a person, and one that makes a person and a task linking
-  it; a second kill at each operation of the restart that follows the
-  first, and of the commits after it; a kill at each step of a
-  snapshot with commits racing it; a kill with several commits in
-  flight. Its referee: the start opens, never refused and never a
-  panic, with the last acknowledged decision, or that and one whole
-  uncertain one, never part of one.
-- **Generations and jobs,** in the store's world: fixture owner sets
-  registering new layouts and running declared jobs at the same levels,
-  checked, opened `pending`, switched only when the root asks, never
-  before, and a root that ends before asking leaving the old generation
-  active; stores below the floor, behind the binary's levels or without
-  a registry refused before any upgrade; a second start refused `Busy`
-  while one holds the lock; the
-  copy's secrets private; the copy's snapshot and sealed segments
-  linked to the previous generation's, each file with two links, its
-  newest segment and its secrets copied with one, and a link the file
-  system refuses copied in its place; going back before the copy's
-  first commit of its own, after job commits past skein-kv's snapshot
-  bound replaced the copy's linked snapshot, opening the previous
-  generation at its last commit with its records as they were; a cut
-  at every write, sync, link and rename of the
-  first start, the copy, the registry's and jobs' commits, the manifest, the switch
-  and the drop, each
-  run from its own start, the referee finding one whole generation
-  active, the other strays removed, and its records the upgraded or the
-  old, never a mix.
-- **The transcripts' framing's golden bytes,** as skein-kv keeps its
-  own (skein's `data/kv.md`, section 9): a task's file of frames made from
-  fixed turns (a window turn, a turn at the frame's bound, two
-  attempts), kept beside the component's tests and never regenerated
-  by the test that reads it; the writer's file compared with it byte
-  for byte, and the reader walking it from both ends to the same turns.
-  A change to the framing (`transcripts.md`, 1: the frame's length at both ends and its
-  checksum, around the body) fails it, naming the format. The framing,
-  the core's `TurnRecord` and smith's turn stay at their current versions:
-  a change designs how the store reaches it in that landing (temper's
-  `draft/store-floor.md`, section 5). The frame patcher and its fixtures
-  stay (`transcripts.md`, 6).
-- **Rehearsing and going back** (`opening.md`, 5), in the store's world over
-  fixture sets: a rehearsal reporting each job and its counts and the restores whole,
-  `A` still active and its maps unchanged, and the next start removing
-  the scratch; one meeting a refusal, reporting it in a start's words;
-  going back after an upgraded start that failed before its first commit
-  of its own, the next start opening `A` as it was; refused once the
-  upgraded generation has committed, with no previous generation, and
-  while another process holds the lock, each changing nothing.
-- **The deployment's layout's golden listing:** a first start's directory,
-  each name and each file's kind and mode, never regenerated by the test
-  that reads it. A change to a name or to where a generation keeps its
-  maps fails it, naming the layout: from the first release a later build
-  reads this layout as it finds it (temper's `draft/v0.1.0.md`, section 5).
-  The manifest and `active` bytes are checked separately, with fixed-rule
-  values built from the schema's text for the manifest, and a generation's
-  number in decimal, no leading zero, and a newline for `active`. The
-  manifest's fields are the component's family's, at its fixed version.
-- **Transcripts patched as read,** most of it at the lowest layer. Step
-  tests in `jig-protocol-store` over `jig-test-patches-smith` (and a
-  fixture body family in `jig-test-patches-jig`): frames written at each
-  fixture version, read by every kind of `transcripts.md`, 3, each handing on the bytes
-  its patches' goldens give (skein's `data/codec/command.md`, 3) and the file's
-  bytes unchanged; bounds judged on patched sizes; each halt, a
-  `NoSite` and a turn past its kept texts among them, an unread frame; a
-  version before a machine's first or past its last unread; a site up
-  and back on a read, a commit waiting behind it, and a stray `Site`
-  refused in each phase; the frames' checks refusing at a serving open;
-  no machine with sets that keep no text; each
-  machine's worst case against its measured peak; over skein-io's fault
-  points, a cut at each step of a read changes no file. Fuzzed: a frame's
-  decode with machines, over random fixture frames. The core's closed
-  window starts fresh with its tail, counted as a transition
-  (`../../domain/engine/executors.md`, 2); no map patch closes it at open.
-  Generation, upgrade, check and frame scenarios run in the focused
-  `jig-store-world::suite` binary, with short cases as data rows and a few
-  cuts chosen for what a cut there can lose (`../../domain/testing.md`, 9). Their
-  whole sweeps are under `fuzzy::` in that binary. The copy's
-  mutation cuts belong to `fuzzy::upgrades::drop_copy_and_switch_recover_after_every_mutation`;
-  `fuzzy::upgrades::cuts_across_check_and_switch_recover_whole_maps` starts
-  at the seal's sync and cuts every operation through the check and switch.
-  Frame scenarios kept above step tests prove durable files across
-  restart; decoder-only duplicates stay in the step tests.
-- **Step tests:** each key encoder against the derived order; each
-  range's intervals against its predicate; each codec both ways, with
-  fixed-rule values built from schema text or generated records built by
-  their public fields, not stored codec bytes (skein's `data/codec/golden.md`, 1);
-  each root's largest value decoded within its heap bound and released,
-  at the ceilings if it fits the memory test's cap, otherwise at lower
-  limits with its encoded and decoded bounds at the ceilings pinned
-  (`jig/tests/store-codecs/tests/suite/largest_memory.rs`); refusals at open
-  (format, deployment, sizes, numbers).
-  Direct transcript pages either advance through a nonempty prefix or
-  terminate `Unread` when no turn fits. The copy's check refuses a row
-  the restart cannot load (`Check::Load`), naming its key: the active
-  generation and source stay unchanged, and the next start sweeps the
-  abandoned copy.
-- **Fuzz targets** for each family's decoder and a frame's. Family seeds
-  are full fixed-rule values built from their schema texts, not files.
-- **On the real ring,** the reference binary (`../service.md`, section 7)
-  killed around each phase of a turn's commit and started again. A killed
-  process keeps the page cache, so this checks integration, not power
-  loss (skein's `data/kv.md`, section 9).
+Moved to [`testing.md`](testing.md), section 1.
 
 ## 10. What it owes and is owed
 
@@ -808,7 +402,7 @@ The domain owes 10.1 to 10.9; skein owes 10.10, and the application
 
 In each child's keys: the tasks child's history and ended tasks after
 its live families (stubs among these), decided proposals apart from
-pending ones, and past funding periods apart from live ones (4.3). A
+pending ones, and past funding periods apart from live ones (`keys.md`, 1.3). A
 pool's, a recurring task's or a period's ledger closes into the past
 periods once nothing is reserved on it and its project has a newer
 period, so a live task whose budget is 0, which reserves nothing, may
@@ -817,8 +411,8 @@ for it: it links such a task by its budget of 0 and its funder's period
 being older than its project's newest live one, and refuses a task
 whose ledger is not live on any other ground, as before. The task's end
 posts nothing to the closed ledger, and what it spent, if anything,
-goes to its project's current period (`../../domain/authority.md`,
-section 7). No ledger is kept open for such a task, and no task is
+goes to its project's current period (`../../domain/authority-budgets.md`,
+section 1). No ledger is kept open for such a task, and no task is
 moved off its funder. An escalation's decider is stored with its kind,
 a task's or a person's, and linked by it (`../../domain/tasks/proposals.md`,
 *An escalation's decider has its kind*; `jobs.md`, 1, for the stores
@@ -845,20 +439,20 @@ task's ended delegates; a subtree's delegates for its history (`loads.md`, 3, 4
 
 Saved with whether each opens a window, never erased one by one, a
 task's transcript dropped whole; a resume reads the current window, from
-the turn the core keeps as its start (`transcripts.md`, 3; `../../domain/engine/README.md`, 5.4, and `../../domain/engine/executors.md`, 2
+the turn the core keeps as its start (`transcripts.md`, 3; `../../domain/engine/decisions.md`, 1.4, and `../../domain/engine/executors-transcripts.md`, 1
 );
 
 ### 10.5 Fill
 
 With each commit's answer, and new work refused above the high-water
-mark (6.2);
+mark (`growth.md`, 1.2);
 
 ### 10.6 Retention
 
 By each task's retention class, summaries of ended tasks kept,
 transcripts dropped, answered keys expired, and the remains of tasks
-forgotten once read collected, each on the domain's timer (6.1;
-`retention.md`); a task forgotten once read erased in one decision (6.1; `../../domain/people/README.md`,
+forgotten once read collected, each on the domain's timer (`growth.md`, 1.1;
+`retention.md`); a task forgotten once read erased in one decision (`growth.md`, 1.1; `../../domain/people/README.md`,
 section 5);
 
 ### 10.7 Keys for single reads
@@ -872,13 +466,13 @@ logical addressed party and question activity position
 (`QuestionCredit`, `records.md`, 1), so a person's answer is credited to its asker,
 a move carries the question to the asker's new requester under the same
 number, and an answering task's end lifts its asker's keep with a notice
-(`../../domain/tasks/lifecycle.md`, 8; `../../domain/people/README.md`, section 5);
+(`../../domain/tasks/lifecycle-endings.md`, 1; `../../domain/people/README.md`, section 5);
 
 ### 10.8 Read positions over conversations
 
 A live conversation's in the people child's family, loaded at start;
 moved, by the decision that ends its task, to the family of ended read
-positions, read on demand; erased with the task (`loads.md`, 4, `README.md`, 6.1).
+positions, read on demand; erased with the task (`loads.md`, 4, `growth.md`, 1.1).
 
 ### 10.9 The accounts' family
 
@@ -886,13 +480,13 @@ The next number; each account with its holder, LLM provider, subject,
 display name and uses; each source with its place in its holder's order,
 kind, name for a program's, and its hold, limited with its reset,
 refused or moving; each account's facts, at most 24, a record apart that goes
-with its account (`../../domain/accounts.md`, 3.7); restored at start by fit and
+with its account (`../../domain/accounts-lists.md`, 1); restored at start by fit and
 link, a set past its limit refusing the start and a link the start cannot make
 refusing it too (`../../domain/accounts.md`, 3.6), and facts whose account is gone dropped
 as they are read; a source's record or key named by the
-source's number, and erased when the source goes (4.4, `secrets.md`;
-`../../domain/accounts.md`, 3.5). The installation's identifier is the
-component's (`README.md`, 4.4, `records.md`, 3).
+source's number, and erased when the source goes (`keys.md`, 1.4, `secrets.md`;
+`../../domain/accounts-sources.md`, 2). The installation's identifier is the
+component's (`keys.md`, 1.4, `records.md`, 3).
 
 ### 10.10 What skein owes
 
@@ -908,7 +502,7 @@ intervals, and its indexes, by the rules of section 7.
 ## 11. Open questions
 
 - **Upgrades** register layouts and run jobs in a copy, then switch to it
-  (`opening.md`, sections 1 to 4). Still open:
+  (`opening.md`, sections 1 to 2, and `opening-owners.md`, section 1, and `opening.md`, section 4). Still open:
   - the free space checked before the copy (`opening.md`, 2), which
     links its maps' sealed files and so needs room for its newest
     segment, its secrets and its registry and job commits;

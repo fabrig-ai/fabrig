@@ -1,4 +1,4 @@
-//! Loaded transcript rows (jig/docs/design/domain/engine/executors.md, 2).
+//! Loaded transcript rows (jig/docs/design/domain/engine/executors-transcripts.md, 1).
 
 use crate::TurnRecord;
 use alloc::boxed::Box;

@@ -136,8 +136,8 @@
   agent's task's page shows them in its composer's line, as a chat's (`../task.md`, 2);
   a task waiting
   for its account
-  says so, with the account's acts (`../accounts-words.md`, 1; jig's `domain/authority.md`,
-  8.3).
+  says so, with the account's acts (`../accounts-words.md`, 1; jig's `domain/authority-checks.md`,
+  1.3).
 
 ## 2. Open questions
 

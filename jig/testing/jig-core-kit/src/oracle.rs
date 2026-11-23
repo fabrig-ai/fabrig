@@ -1,4 +1,4 @@
-//! The cold restart oracle (`jig/docs/design/domain/engine/restart.md` and `jig/docs/design/domain/engine/README.md`, section 9).
+//! The cold restart oracle (`jig/docs/design/domain/engine/restart.md` and `jig/docs/design/domain/engine/world.md`, section 1).
 use crate::{reads, world::World};
 use jig_domain_accounts as accounts;
 use jig_domain_core::{self as core, documents::Document};
@@ -11,10 +11,6 @@ use std::collections::{BTreeMap, BTreeSet};
 pub(crate) fn configuration(source: &root::Config) -> root::Config {
     let core = &source.core;
     let settings = &core.settings;
-    let mut policies = skein_lib::Map::with_capacity(core.defaults.policies.capacity());
-    for (key, value) in &core.defaults.policies {
-        policies.insert(*key, value.clone()).expect("configuration policies fit");
-    }
     root::Config {
         first: source.first.clone(),
         second: source.second.clone(),
@@ -38,7 +34,7 @@ pub(crate) fn configuration(source: &root::Config) -> root::Config {
                 models: core.defaults.models.clone(),
                 charters: core.defaults.charters.clone(),
                 templates: core.defaults.templates.clone(),
-                policies,
+                policies: core.defaults.policies.clone(),
                 rules: core.defaults.rules.clone(),
             },
             connectors: core.connectors.clone(),
@@ -82,7 +78,7 @@ impl World {
         self.broken = true;
     }
 
-    /// The restart oracle (domain/engine/README.md 9): settle, snapshot what the parties were last
+    /// The restart oracle (domain/engine/world.md 1): settle, snapshot what the parties were last
     /// answered and the store's retained rows, restart cold, read back, and compare
     /// through `durable`. Panics naming the first difference (document, field, key).
     pub fn close(&mut self) {
@@ -91,11 +87,12 @@ impl World {
         }
     }
 
-    /// Run the closing cold restart and readback once, returning its first finding.
+    /// Close the restart oracle, then rehearse the kept commit. Return the first finding.
     pub fn finish(&mut self) -> Result<(), String> {
-        let result = self.close_oracle();
+        let oracle = self.close_oracle();
+        let check = self.finish_store_check();
         self.report_store_checks();
-        result
+        oracle.and(check)
     }
 
     fn report_store_checks(&mut self) {

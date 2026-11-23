@@ -1,4 +1,4 @@
-//! The deployment's layout's golden bytes (protocol/store/README.md 2 and 9).
+//! The deployment's layout's golden bytes (protocol/store/README.md, 2, and protocol/store/testing.md, 1).
 //! These tests only read the kept files. A deliberate layout change copies
 //! the output named by a failure over the kept file in its own commit.
 
@@ -45,7 +45,7 @@ fn assert_kept(start: &str, parts: &[(&str, &[u8], &[u8])]) {
     }
     assert!(
         differences.is_empty(),
-        "the deployment's layout changed (protocol/store/README.md 2 and 9): from the first release a later build reads this layout as it finds it; {}",
+        "the deployment's layout changed (protocol/store/README.md, 2, and protocol/store/testing.md, 1): from the first release a later build reads this layout as it finds it; {}",
         differences.join("; ")
     );
 }

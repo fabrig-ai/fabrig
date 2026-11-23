@@ -152,7 +152,7 @@ lies on disk within the tree's reach (2.3), the program's login first.
   (`skein/crates/skein-io/src/kernel.rs`), and the helper that would set
   a tree up (`skein/docs/design/runtime/kernel-cgroups.md`, 1) does not exist.
 - **What waits on them:** jig's agent processes (jig's
-  `jig/docs/design/protocol/README.md`, section 10), smith's commands
+  `jig/docs/design/protocol/needs.md`, section 1), smith's commands
   (`smith/docs/design/domain/tools.md`, 5), hearth's build sandboxes
   (`hearth/docs/design/domain/build/sandboxes.md`), and temper, which
   leaves containment for shared hosts until after standalone

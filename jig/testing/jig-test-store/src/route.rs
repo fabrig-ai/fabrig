@@ -42,6 +42,11 @@ impl Routes {
         self.restore_bytes = Some(store::sizes::restore_bytes(limits)?);
         Some(())
     }
+    /// The same decode and page bounds, with no requests or continuations.
+    #[must_use]
+    pub fn fresh(&self) -> Routes {
+        Routes { limits: self.limits, restore_bytes: self.restore_bytes, ..Self::new(0) }
+    }
     /// Whether every routed store request has terminated.
     #[must_use]
     pub fn idle(&self) -> bool {
@@ -271,7 +276,7 @@ pub fn up(routes: &mut Routes, event: Event, into: &mut Queue<Up>) {
         Event::OpenRefused { .. } => stop(routes, into),
         Event::Switched { owner } => switched(routes, owner, into),
         // The shell driving open owns progress; this root route prints no lines.
-        // This reference route does not consume the census (protocol/store/README.md, 6.3).
+        // This reference route does not consume the census (protocol/store/growth.md, 1.3).
         Event::Census { .. }
         | Event::Checkpointed { .. }
         | Event::CheckpointRefused { .. }

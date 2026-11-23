@@ -1,4 +1,4 @@
-//! Prepared constants and per-reader copies (protocol/channel/README.md, 11).
+//! Prepared constants and per-reader copies (protocol/channel/testing.md, 1).
 use jig_domain_link::{Form, Grant, Scheme};
 use jig_protocol_engine_workers::{Limits, Worker};
 use jig_protocol_worker_wire::Record;

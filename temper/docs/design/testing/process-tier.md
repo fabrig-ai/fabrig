@@ -1,7 +1,7 @@
 # The process tier
 
 `bin/temper-box/tests/process.rs`, after jig's reference binary's (jig's
-`protocol/service.md`, section 8): temper as it ships, as processes.
+`protocol/service-testing.md`, section 1): temper as it ships, as processes.
 
 - **Only what processes show** (skein/docs/foundation/testing-strategy.md, 2.9; the user,
   10-23, for every story): a path through `main` (its arguments,

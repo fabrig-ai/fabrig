@@ -421,7 +421,7 @@ fn a_closed_tail_keeps_newest_text_within_its_budget() {
     assert!(resumed(&mut core).is_empty());
 }
 
-// domain/engine/executors.md 2: the cut marker takes 19 bytes; this budget cannot carry it.
+// domain/engine/executors-transcripts.md 1: the cut marker takes 19 bytes; this budget cannot carry it.
 const TINY_TAIL: u32 = 8;
 
 #[test]
@@ -434,7 +434,7 @@ fn a_short_whole_closed_tail_fits_below_the_marker_size() {
     assert_closed_prepares(TINY_TAIL, b"fits all", b"fits all");
 }
 
-// domain/engine/executors.md, 2: a mark crosses even a claim that committed no window.
+// domain/engine/executors-transcripts.md, 1: a mark crosses even a claim that committed no window.
 #[test]
 fn beginning_a_crossed_claims_transcript_without_a_window_keeps_it_fresh() {
     let (mut core, _) = core();
