@@ -1,6 +1,6 @@
 //! Temper's worlds over jig's real store and the service's store routing.
 use jig_protocol_store::core_v6::Record as _;
-use jig_protocol_store::{self as protocol, Below, CheckedLimits, Event, Io, Limits, Request, Stores};
+use jig_protocol_store::{self as protocol, Below, Event, Io, Limits, Request, Stores};
 use jig_test_store_files::Files;
 use skein_lib::{Env, Queue, Time, Token, Wall};
 use std::collections::{BTreeMap, VecDeque};
@@ -49,8 +49,7 @@ struct Delayed {
 #[derive(Clone)]
 struct Shape {
     limits: engine::Limits,
-    component_limits: Limits,
-    checked_limits: CheckedLimits,
+    checked: protocol::Checked,
     application: protocol::sizes::Application,
     route_bounds: temper_protocol_store::Bounds,
 }
@@ -194,18 +193,16 @@ impl Store {
     }
     #[must_use]
     pub fn with_limits(limits: &engine::Limits) -> Store {
-        let component_limits = component_limits(limits);
         let shape = Shape {
             limits: *limits,
-            component_limits,
-            checked_limits: CheckedLimits::new(&component_limits).expect("the store's limits are valid"),
+            checked: component_limits(limits),
             application: temper_protocol_store::application(&limits.forge, limits.tasks.spec_bytes)
                 .expect("checked family sizes"),
             route_bounds: temper_protocol_store::bounds(&limits.forge, limits.tasks.spec_bytes).expect("family bounds"),
         };
         let stores = Stores {
-            store: skein_kv::Store::memory(&shape.component_limits.store),
-            secrets: skein_kv::Store::memory(&shape.component_limits.secrets),
+            store: skein_kv::Store::memory(&shape.checked.limits().store),
+            secrets: skein_kv::Store::memory(&shape.checked.limits().secrets),
         };
         // The worlds' configured models, in their order (jig's store over a configuration's).
         let mut store = Self::empty(shape, crate::walking::models());
@@ -481,12 +478,12 @@ impl Store {
     /// The actual component allowance used by party reads in this world.
     #[must_use]
     pub const fn read_joins(&self) -> u32 {
-        self.shape.component_limits.joins
+        self.shape.checked.limits().joins
     }
     /// The real transcript driver's page room, derived from the world's limits.
     #[must_use]
     pub const fn transcript_page_bytes(&self) -> u32 {
-        self.shape.component_limits.store.page.bytes
+        self.shape.checked.limits().store.page.bytes
     }
     /// Read a historical page through the real store and the service's routing.
     #[must_use]
@@ -521,7 +518,7 @@ impl Store {
         let mut below = Queue::uncapped();
         skein_kv::down(
             &mut stores.store,
-            &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.shape.component_limits.store },
+            &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.shape.checked.limits().store },
             skein_kv::Request::Get {
                 owner: Token::new(1),
                 key: protocol::keys::encode_own(&protocol::keys::Own::Wires, u32::MAX).expect("component key fits"),
@@ -558,8 +555,7 @@ impl Store {
         self.drive(VecDeque::from([request]), Queue::uncapped());
     }
     fn reopen(&mut self, stores: Stores) {
-        let mut component =
-            protocol::Store::over_checked(&self.shape.checked_limits, self.shape.application, &self.models, stores);
+        let mut component = protocol::Store::over(&self.shape.checked, self.shape.application, &self.models, stores);
         assert!(component.wires(&temper_engine_service_vocabulary::store::WIRES));
         if let Some(names) = &self.catalogue {
             component.catalogue(names.clone());
@@ -582,7 +578,7 @@ impl Store {
         assert!(!self.failed, "durable stores reopen");
     }
     fn env(&self) -> Env<Limits> {
-        Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.shape.component_limits }
+        Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *self.shape.checked.limits() }
     }
     fn drive(&mut self, mut requests: VecDeque<Request>, mut above: Queue<Event>) {
         let mut below = Below {
@@ -839,7 +835,7 @@ pub fn widest() -> engine::Limits {
     limits.watermark = engine::default_watermark(&limits.journal);
     limits
 }
-fn component_limits(limits: &engine::Limits) -> Limits {
+fn component_limits(limits: &engine::Limits) -> protocol::Checked {
     // These worlds keep the stock's store joins, including the box-allowance
     // stories. Derive that immutable profile once, not its client wire sizes
     // for every new store as well.

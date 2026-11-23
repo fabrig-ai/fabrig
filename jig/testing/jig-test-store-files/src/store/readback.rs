@@ -65,8 +65,8 @@ impl Store {
                 .expect("component")
                 .retained_page(
                     after.as_deref(),
-                    self.component_limits.store.page.rows,
-                    u64::from(self.component_limits.store.page.bytes),
+                    self.checked.limits().store.page.rows,
+                    u64::from(self.checked.limits().store.page.bytes),
                 )
                 .map_err(|failure| ReadbackFinding::Inventory {
                     key: after.clone(),
@@ -169,7 +169,7 @@ impl Store {
         let mut attempts = Vec::new();
         let mut log_transcripts = BTreeMap::new();
         let mut windows = Vec::new();
-        let installation = keys::installation(self.component_limits.store.key).expect("installation key");
+        let installation = keys::installation(self.checked.limits().store.key).expect("installation key");
         for (key, value) in rows {
             if let Some(decoded) = keys::decode(key) {
                 let event = self.readback_query(Request::Get { owner: READER, key: Get::Jig(decoded.clone()) })?;
@@ -328,7 +328,7 @@ impl Store {
             let forwards = self.transcript(*task, false)?;
             let mut backwards = self.transcript(*task, true)?;
             backwards.reverse();
-            let key = keys::encode_own(&keys::Own::Transcript { task: *task }, self.component_limits.store.key)
+            let key = keys::encode_own(&keys::Own::Transcript { task: *task }, self.checked.limits().store.key)
                 .expect("transcript key");
             if forwards != backwards {
                 return Err(inventory(&key, "complete transcript frame orders agree"));
@@ -355,8 +355,8 @@ impl Store {
                     scope: core::reads::Scope::TaskOwnRows { task },
                     after,
                     backwards: false,
-                    rows: self.component_limits.store.page.rows,
-                    bytes: u64::from(self.component_limits.store.page.bytes),
+                    rows: self.checked.limits().store.page.rows,
+                    bytes: u64::from(self.checked.limits().store.page.bytes),
                 },
             })?;
             let Event::Read { result: core::reads::Loaded::Page { rows, next, .. }, .. } = event else {
@@ -366,7 +366,7 @@ impl Store {
                 });
             };
             for row in rows {
-                let key = keys::encode(&row.value.key(), self.component_limits.store.key).expect("history key");
+                let key = keys::encode(&row.value.key(), self.checked.limits().store.key).expect("history key");
                 if keys::logged(&key) == Some(task) {
                     found.push(row.value);
                 }
@@ -401,8 +401,8 @@ impl Store {
             let event = self.readback_query(Request::Transcript {
                 owner: READER,
                 read: protocol::TranscriptRead::Page { task, backwards, after },
-                rows: self.component_limits.store.page.rows,
-                bytes: u64::from(self.component_limits.store.page.bytes),
+                rows: self.checked.limits().store.page.rows,
+                bytes: u64::from(self.checked.limits().store.page.bytes),
             })?;
             let reason = match &event {
                 Event::Turns { owner: READER, turns, next, cut: None } => {

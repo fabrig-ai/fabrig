@@ -32,7 +32,7 @@ struct State {
     document: Rc<Configuration>,
     given: Option<temper_service::stock::Given>,
     inputs: Option<rehearsal::Inputs>,
-    opening_limits: Option<jig_protocol_store::CheckedLimits>,
+    opening_limits: Option<jig_protocol_store::Checked>,
 }
 
 thread_local! {
@@ -159,7 +159,7 @@ pub(crate) fn given(build: impl FnOnce() -> temper_service::stock::Given) -> tem
     })
 }
 
-pub(crate) fn opening_limits(limits: &jig_protocol_store::CheckedLimits) {
+pub(crate) fn opening_limits(limits: &jig_protocol_store::Checked) {
     STATE.with(|at| {
         if let Some(state) = at.borrow_mut().as_mut() {
             state.opening_limits = Some(*limits);

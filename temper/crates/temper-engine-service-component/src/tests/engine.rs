@@ -1119,8 +1119,9 @@ fn an_undecodable_startup_row_keeps_the_store_family_and_key() {
     let models = previous.domain.models();
     let names = store::codec::names(models);
     let (_, _, profile) = fixtures::store_limits();
-    let limits = crate::store::limits(&application, &application.forge, &profile).unwrap();
-    let codec = store::codec::limits(&root::core_limits(&application)).unwrap();
+    let checked = crate::store::limits(&application, &application.forge, &profile).unwrap();
+    let limits = checked.limits();
+    let codec = checked.codec();
     let families = temper_protocol_store::application(&application.forge, application.tasks.spec_bytes).unwrap();
     let mut maps = previous.store.host.component.into_stores();
     header.commits = maps.store.last().checked_add(1).unwrap();
@@ -1137,7 +1138,7 @@ fn an_undecodable_startup_row_keeps_the_store_family_and_key() {
             ops: Box::new([
                 skein_kv::Op::Put {
                     key: store::keys::encode(&header.key(), limits.store.key).unwrap(),
-                    value: store::codec::encode(&header, &codec, &names).unwrap(),
+                    value: store::codec::encode(&header, codec, &names).unwrap(),
                 },
                 skein_kv::Op::Put { key: key.clone(), value: Box::new([255]) },
             ]),
@@ -1148,7 +1149,8 @@ fn an_undecodable_startup_row_keeps_the_store_family_and_key() {
     let Some(skein_kv::Event::Committed { .. }) = above.pop() else { panic!("fixture commit") };
     assert!(below.is_empty());
     let mut reopened = fixtures::memory_store();
-    reopened.host.component = store::Store::over(&limits, families, models, maps);
+    reopened.host.component = store::Store::over(&checked, families, models, maps);
+    reopened.fixture_admission = Some(Box::new(fixtures::StoreAdmission { root: application, profile, checked }));
     let reopened = fixtures::reopened_store(reopened, &application);
     let mut service = fixtures::start_with_store(&[(1, 100)], Some(reopened));
     for _ in 0_u32..256 {

@@ -31,7 +31,7 @@ pub struct Hosted {
     /// The answers to the accounts' records' loads and writes (protocol/store/secrets.md).
     pub sources: Queue<crate::Event>,
     env: Env<crate::Limits>,
-    opening_limits: crate::CheckedLimits,
+    opening_limits: crate::Checked,
     drivers: Drivers,
     not_ready: NotReady,
     closing: bool,
@@ -60,26 +60,10 @@ pub enum Adoption {
 }
 
 impl Hosted {
-    #[must_use]
-    pub fn new(
-        limits: &crate::Limits,
-        application: crate::sizes::Application,
-        models: &[jig_domain_core_vocabulary::Model],
-        seed: u64,
-        not_ready: NotReady,
-    ) -> Self {
-        Self::new_checked(
-            &crate::CheckedLimits::new(limits).expect("the store's limits are valid"),
-            application,
-            models,
-            seed,
-            not_ready,
-        )
-    }
     /// Construct the directory store and drivers with an already checked opening envelope.
     #[must_use]
-    pub fn new_checked(
-        checked: &crate::CheckedLimits,
+    pub fn new(
+        checked: &crate::Checked,
         application: crate::sizes::Application,
         models: &[jig_domain_core_vocabulary::Model],
         seed: u64,
@@ -88,7 +72,7 @@ impl Hosted {
         let limits = checked.limits();
         let drivers = Drivers::new(limits, seed);
         Self {
-            component: crate::Store::on_directory_checked(checked, application, models, drivers.seeded()),
+            component: crate::Store::on_directory(checked, application, models, drivers.seeded()),
             above: Queue::uncapped(),
             secrets: Queue::uncapped(),
             sources: Queue::uncapped(),
@@ -101,7 +85,7 @@ impl Hosted {
     }
     /// The bounds passed at construction, before any runtime settings are installed.
     #[must_use]
-    pub fn opening_limits(&self) -> &crate::CheckedLimits {
+    pub fn opening_limits(&self) -> &crate::Checked {
         &self.opening_limits
     }
     #[must_use]
@@ -381,11 +365,12 @@ impl Drivers {
     #[must_use]
     pub fn new(limits: &crate::Limits, value: u64) -> Self {
         let serving = serving_read(limits);
+        let whole = max_whole(limits);
         let mut drivers = [
-            driver(limits, serving),
-            driver(limits, serving),
-            driver(limits, serving),
-            driver(limits, serving.max(max_read(limits))),
+            driver(limits, serving, whole),
+            driver(limits, serving, whole),
+            driver(limits, serving, whole),
+            driver(limits, serving.max(max_read(limits)), whole),
         ];
         let seeded = seed(&mut drivers, value);
         Self {
@@ -874,9 +859,8 @@ fn serving_read(limits: &crate::Limits) -> u32 {
         .max(limits.store.record.saturating_add(17))
         .max(limits.secrets.record.saturating_add(17))
 }
-fn driver(limits: &crate::Limits, read: u32) -> Driver {
+fn driver(limits: &crate::Limits, read: u32, whole: u32) -> Driver {
     let files = handles(limits).expect("store and payload file handles fit");
-    let whole = max_whole(limits);
     // Each open adds a log segment, and a store that seldom snapshots keeps them all: 32 entries stopped a store
     // with few writes after its 32nd start.
     let file_limits = FileLimits { files, read, entries: 1024, whole, timeout: limits.store.deadline };
