@@ -83,7 +83,7 @@ fn a_post_under_jig_reaches_the_component_as_its_message() {
     let mut service = fixtures::started();
     fixtures::listening(&mut service);
     let link = service.engine.as_mut().expect("engine").clients.links.pop().expect("printed link");
-    let body = fixtures::http::link_body(service.engine.as_ref().expect("engine"), &link);
+    let body = fixtures::http::link_body(&link);
     let mut peer = fixtures::http::Peer::new(
         service.engine.as_mut().expect("engine"),
         b"POST",
@@ -320,7 +320,7 @@ fn a_call_past_the_mounts_room_waits_until_its_peer_closes() {
     assert_eq!(waiting.closed(), 1);
     peers.get_mut(0).unwrap().close(service.engine.as_mut().expect("engine"));
     let link = service.engine.as_mut().expect("engine").clients.links.pop().expect("printed link");
-    let body = fixtures::http::link_body(service.engine.as_ref().expect("engine"), &link);
+    let body = fixtures::http::link_body(&link);
     let mut admitted = fixtures::http::Peer::new(
         service.engine.as_mut().expect("engine"),
         b"POST",
