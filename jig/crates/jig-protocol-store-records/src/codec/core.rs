@@ -13,16 +13,6 @@ use skein_lib::{List, Reader};
 pub(crate) mod projections;
 use super::View;
 
-// The public scalar helpers have no context argument. Their maps cannot reach
-// a packed child, so these ceilings are never read by those translations.
-const SCALAR_CONTEXT: View = View {
-    core: wire::CEILINGS,
-    tasks: crate::tasks_v13::CEILINGS,
-    people: crate::people_v17::CEILINGS,
-    notes: crate::notes_v1::CEILINGS,
-    settings: crate::settings_v3::CEILINGS,
-};
-
 pub(super) fn limits(
     domain: &domain::Limits,
     tasks: &crate::tasks_v13::Limits,
@@ -77,36 +67,36 @@ pub(crate) fn value_to_record(value: &domain::CoreRecord, limits: &View) -> Resu
     Ok(match value {
         domain::CoreRecord::Call(value) => wire::Value::Call(maps::call_record_to_record(value, limits)?),
         domain::CoreRecord::Settings(_) => return Err(wire::paths::VALUE_TAG.problem(skein_codec::Reason::Bound)),
-        domain::CoreRecord::Deployment(value) => wire::Value::Deployment(maps::deployment_to_record(value, limits)?),
+        domain::CoreRecord::Deployment(value) => wire::Value::Deployment(maps::deployment_to_record(value)),
         domain::CoreRecord::Projection(value) => {
             wire::Value::Projection(wire::ProjectionValue { value: projection_record_to_record(value, limits)? })
         }
         domain::CoreRecord::RunProof(value) => wire::Value::RunProof(maps::run_proof_to_record(value, limits)?),
-        domain::CoreRecord::Turn(value) => wire::Value::Turn(maps::turn_record_to_record(value, limits)?),
+        domain::CoreRecord::Turn(value) => wire::Value::Turn(maps::turn_record_to_record(value)),
         domain::CoreRecord::Terminal(value) => wire::Value::Terminal(maps::terminal_record_to_record(value, limits)?),
         domain::CoreRecord::ProposalDecision(value) => {
-            wire::Value::ProposalDecision(maps::proposal_decision_record_to_record(value, limits)?)
+            wire::Value::ProposalDecision(maps::proposal_decision_record_to_record(value))
         }
         domain::CoreRecord::EscalationDecision(value) => {
-            wire::Value::EscalationDecision(maps::escalation_decision_record_to_record(value, limits)?)
+            wire::Value::EscalationDecision(maps::escalation_decision_record_to_record(value))
         }
     })
 }
 pub(crate) fn value_to_domain(value: wire::Value, limits: &View) -> Result<domain::CoreRecord, wire::Problem> {
     Ok(match value {
         wire::Value::Call(value) => domain::CoreRecord::Call(maps::call_record_to_domain(value, limits)?),
-        wire::Value::Deployment(value) => domain::CoreRecord::Deployment(maps::deployment_to_domain(value, limits)?),
+        wire::Value::Deployment(value) => domain::CoreRecord::Deployment(maps::deployment_to_domain(value)),
         wire::Value::Projection(value) => {
             domain::CoreRecord::Projection(projection_record_to_domain(value.value, limits)?)
         }
         wire::Value::RunProof(value) => domain::CoreRecord::RunProof(maps::run_proof_to_domain(value, limits)?),
-        wire::Value::Turn(value) => domain::CoreRecord::Turn(maps::turn_record_to_domain(value, limits)?),
+        wire::Value::Turn(value) => domain::CoreRecord::Turn(maps::turn_record_to_domain(value)),
         wire::Value::Terminal(value) => domain::CoreRecord::Terminal(maps::terminal_record_to_domain(value, limits)?),
         wire::Value::ProposalDecision(value) => {
-            domain::CoreRecord::ProposalDecision(maps::proposal_decision_record_to_domain(value, limits)?)
+            domain::CoreRecord::ProposalDecision(maps::proposal_decision_record_to_domain(value))
         }
         wire::Value::EscalationDecision(value) => {
-            domain::CoreRecord::EscalationDecision(maps::escalation_decision_record_to_domain(value, limits)?)
+            domain::CoreRecord::EscalationDecision(maps::escalation_decision_record_to_domain(value))
         }
     })
 }
@@ -131,153 +121,151 @@ pub(crate) use projections::{
 
 /// The versioned body stored in a transcript frame (protocol/store/transcripts.md, 3).
 pub fn turn(value: &domain::TurnRecord, limits: &View) -> Result<Box<[u8]>, wire::Problem> {
-    maps::turn_record_to_record(value, limits)?.encode(&limits.core)
+    maps::turn_record_to_record(value).encode(&limits.core)
 }
 /// Decode a transcript frame's versioned core turn.
 pub fn read_turn(bytes: &[u8], limits: &View) -> Result<domain::TurnRecord, wire::Problem> {
-    maps::turn_record_to_domain(wire::TurnRecord::decode(&limits.core, &mut Reader::new(bytes))?, limits)
+    Ok(maps::turn_record_to_domain(wire::TurnRecord::decode(&limits.core, &mut Reader::new(bytes))?))
 }
 
-pub fn encode_proposer(value: &people::Proposer, limits: &View) -> Result<wire::Proposer, wire::Problem> {
-    maps::proposer_to_record(value, limits)
+#[must_use]
+pub fn encode_proposer(value: &people::Proposer) -> wire::Proposer {
+    maps::proposer_to_record(value)
 }
 
 #[must_use]
 pub fn decode_proposer(value: wire::Proposer) -> people::Proposer {
-    maps::proposer_to_domain(value, &SCALAR_CONTEXT).expect("context-free core translation cannot refuse")
+    maps::proposer_to_domain(value)
 }
 
 #[must_use]
 pub fn encode_proposal_choice(value: &people::ProposalChoice) -> wire::ProposalChoice {
-    maps::proposal_choice_to_record(value, &SCALAR_CONTEXT).expect("context-free core translation cannot refuse")
+    maps::proposal_choice_to_record(value)
 }
 
 #[must_use]
 pub fn decode_proposal_choice(value: wire::ProposalChoice) -> people::ProposalChoice {
-    maps::proposal_choice_to_domain(value, &SCALAR_CONTEXT).expect("context-free core translation cannot refuse")
+    maps::proposal_choice_to_domain(value)
 }
 
-pub fn encode_escalation_decision(
-    value: &people::EscalationDecision,
-    limits: &View,
-) -> Result<wire::EscalationDecision, wire::Problem> {
-    maps::escalation_decision_to_record(value, limits)
+#[must_use]
+pub fn encode_escalation_decision(value: &people::EscalationDecision) -> wire::EscalationDecision {
+    maps::escalation_decision_to_record(value)
 }
 
 #[must_use]
 pub fn decode_escalation_decision(value: wire::EscalationDecision) -> people::EscalationDecision {
-    maps::escalation_decision_to_domain(value, &SCALAR_CONTEXT).expect("context-free core translation cannot refuse")
+    maps::escalation_decision_to_domain(value)
 }
 
 #[must_use]
 pub fn encode_proposal_kind(value: &tasks::ProposalKind) -> wire::ProposalKind {
-    maps::proposal_kind_to_record(value, &SCALAR_CONTEXT).expect("context-free core translation cannot refuse")
+    maps::proposal_kind_to_record(value)
 }
 
 #[must_use]
 pub fn decode_proposal_kind(value: wire::ProposalKind) -> tasks::ProposalKind {
-    maps::proposal_kind_to_domain(value, &SCALAR_CONTEXT).expect("context-free core translation cannot refuse")
+    maps::proposal_kind_to_domain(value)
 }
 
-pub fn encode_escalation_outcome(
-    value: &tasks::EscalationOutcome,
-    limits: &View,
-) -> Result<wire::EscalationOutcome, wire::Problem> {
-    maps::escalation_outcome_to_record(value, limits)
+#[must_use]
+pub fn encode_escalation_outcome(value: &tasks::EscalationOutcome) -> wire::EscalationOutcome {
+    maps::escalation_outcome_to_record(value)
 }
 
 #[must_use]
 pub fn decode_escalation_outcome(value: wire::EscalationOutcome) -> tasks::EscalationOutcome {
-    maps::escalation_outcome_to_domain(value, &SCALAR_CONTEXT).expect("context-free core translation cannot refuse")
+    maps::escalation_outcome_to_domain(value)
 }
 
 #[must_use]
 pub fn encode_proposal_outcome(value: &tasks::ProposalOutcome) -> wire::ProposalOutcome {
-    maps::proposal_outcome_to_record(value, &SCALAR_CONTEXT).expect("context-free core translation cannot refuse")
+    maps::proposal_outcome_to_record(value)
 }
 
 #[must_use]
 pub fn decode_proposal_outcome(value: wire::ProposalOutcome) -> tasks::ProposalOutcome {
-    maps::proposal_outcome_to_domain(value, &SCALAR_CONTEXT).expect("context-free core translation cannot refuse")
+    maps::proposal_outcome_to_domain(value)
 }
 
 #[must_use]
 pub fn encode_source(value: &authority::Source) -> wire::Source {
-    maps::source_to_record(value, &SCALAR_CONTEXT).expect("context-free core translation cannot refuse")
+    maps::source_to_record(value)
 }
 
 #[must_use]
 pub fn decode_source(value: wire::Source) -> authority::Source {
-    maps::source_to_domain(value, &SCALAR_CONTEXT).expect("context-free core translation cannot refuse")
+    maps::source_to_domain(value)
 }
 
-pub fn encode_lacks(value: &authority::Lacks, limits: &View) -> Result<wire::Lacks, wire::Problem> {
-    maps::lacks_to_record(value, limits)
+#[must_use]
+pub fn encode_lacks(value: &authority::Lacks) -> wire::Lacks {
+    maps::lacks_to_record(value)
 }
 
 #[must_use]
 pub fn decode_lacks(value: wire::Lacks) -> authority::Lacks {
-    maps::lacks_to_domain(value, &SCALAR_CONTEXT).expect("context-free core translation cannot refuse")
+    maps::lacks_to_domain(value)
 }
 
-pub fn encode_judge(value: &authority::Judge, limits: &View) -> Result<wire::Judge, wire::Problem> {
-    maps::judge_to_record(value, limits)
+#[must_use]
+pub fn encode_judge(value: &authority::Judge) -> wire::Judge {
+    maps::judge_to_record(value)
 }
 
 #[must_use]
 pub fn decode_judge(value: wire::Judge) -> authority::Judge {
-    maps::judge_to_domain(value, &SCALAR_CONTEXT).expect("context-free core translation cannot refuse")
+    maps::judge_to_domain(value)
 }
 
 #[must_use]
 pub fn encode_answer(value: &authority::Answer) -> wire::Answer {
-    maps::answer_to_record(value, &SCALAR_CONTEXT).expect("context-free core translation cannot refuse")
+    maps::answer_to_record(value)
 }
 
 #[must_use]
 pub fn decode_answer(value: wire::Answer) -> authority::Answer {
-    maps::answer_to_domain(value, &SCALAR_CONTEXT).expect("context-free core translation cannot refuse")
+    maps::answer_to_domain(value)
 }
 
-pub fn encode_finding(value: &authority::Finding, limits: &View) -> Result<wire::Finding, wire::Problem> {
-    maps::finding_to_record(value, limits)
+#[must_use]
+pub fn encode_finding(value: &authority::Finding) -> wire::Finding {
+    maps::finding_to_record(value)
 }
 
 #[must_use]
 pub fn decode_finding(value: wire::Finding) -> authority::Finding {
-    maps::finding_to_domain(value, &SCALAR_CONTEXT).expect("context-free core translation cannot refuse")
+    maps::finding_to_domain(value)
 }
 
 #[must_use]
 pub fn encode_host_kind(value: &fleet::HostKind) -> wire::HostKind {
-    maps::host_kind_to_record(value, &SCALAR_CONTEXT).expect("context-free core translation cannot refuse")
+    maps::host_kind_to_record(value)
 }
 
 #[must_use]
 pub fn decode_host_kind(value: wire::HostKind) -> fleet::HostKind {
-    maps::host_kind_to_domain(value, &SCALAR_CONTEXT).expect("context-free core translation cannot refuse")
+    maps::host_kind_to_domain(value)
 }
 
-pub fn encode_outbox_outcome(
-    value: &domain::effects::connector::OutboxOutcome,
-    limits: &View,
-) -> Result<wire::OutboxOutcome, wire::Problem> {
-    maps::outbox_outcome_to_record(value, limits)
+#[must_use]
+pub fn encode_outbox_outcome(value: &domain::effects::connector::OutboxOutcome) -> wire::OutboxOutcome {
+    maps::outbox_outcome_to_record(value)
 }
 
 #[must_use]
 pub fn decode_outbox_outcome(value: wire::OutboxOutcome) -> domain::effects::connector::OutboxOutcome {
-    maps::outbox_outcome_to_domain(value, &SCALAR_CONTEXT).expect("context-free core translation cannot refuse")
+    maps::outbox_outcome_to_domain(value)
 }
 
 #[must_use]
 pub fn encode_delivery_outcome(value: &domain::DeliveryOutcome) -> wire::DeliveryOutcome {
-    maps::delivery_outcome_to_record(value, &SCALAR_CONTEXT).expect("context-free core translation cannot refuse")
+    maps::delivery_outcome_to_record(value)
 }
 
 #[must_use]
 pub fn decode_delivery_outcome(value: wire::DeliveryOutcome) -> domain::DeliveryOutcome {
-    maps::delivery_outcome_to_domain(value, &SCALAR_CONTEXT).expect("context-free core translation cannot refuse")
+    maps::delivery_outcome_to_domain(value)
 }
 
 pub(crate) fn task_bytes_to_record(value: &tasks::Problem, limits: &View) -> Result<wire::TaskBytes, wire::Problem> {
@@ -293,20 +281,14 @@ pub(crate) fn task_bytes_to_domain(value: wire::TaskBytes, limits: &View) -> Res
         Err(error) => Err(task_problem(error)),
     }
 }
-pub(crate) fn settings_refusal_to_record(
-    value: &people::Refusal,
-    _limits: &View,
-) -> Result<wire::SettingsRefusal, wire::Problem> {
+pub(crate) fn settings_refusal_to_record(value: &people::Refusal) -> Result<wire::SettingsRefusal, wire::Problem> {
     let value = match crate::codec::people::refusal_bytes(value) {
         Ok(value) => value,
         Err(error) => return Err(people_problem(error)),
     };
     Ok(wire::SettingsRefusal { value })
 }
-pub(crate) fn settings_refusal_to_domain(
-    value: wire::SettingsRefusal,
-    _limits: &View,
-) -> Result<people::Refusal, wire::Problem> {
+pub(crate) fn settings_refusal_to_domain(value: wire::SettingsRefusal) -> Result<people::Refusal, wire::Problem> {
     match crate::codec::people::read_refusal(&value.value) {
         Ok(value) => Ok(value),
         Err(error) => Err(people_problem(error)),
@@ -369,37 +351,29 @@ pub(crate) fn end_bytes_to_domain(value: wire::EndBytes, limits: &View) -> Resul
         Err(error) => Err(task_problem(error)),
     }
 }
-#[expect(clippy::unnecessary_wraps, reason = "maps by-hand pairs share the generated fallible signature")]
-pub(crate) fn created_to_record(value: &(u64, u64), _limits: &View) -> Result<wire::Created, wire::Problem> {
+pub(crate) fn created_to_record(value: &(u64, u64)) -> wire::Created {
     let (first, last) = *value;
-    Ok(wire::Created { first, last })
+    wire::Created { first, last }
 }
-#[expect(clippy::unnecessary_wraps, reason = "maps by-hand pairs share the generated fallible signature")]
-pub(crate) fn created_to_domain(value: wire::Created, _limits: &View) -> Result<(u64, u64), wire::Problem> {
+pub(crate) fn created_to_domain(value: wire::Created) -> (u64, u64) {
     let wire::Created { first, last } = value;
-    Ok((first, last))
+    (first, last)
 }
-pub(crate) fn call_part_delegated_to_record(
-    values: &[domain::Made],
-    limits: &View,
-) -> Result<wire::CallPartDelegated, wire::Problem> {
+pub(crate) fn call_part_delegated_to_record(values: &[domain::Made]) -> Result<wire::CallPartDelegated, wire::Problem> {
     let count = match u32::try_from(values.len()) {
         Ok(value) => value,
         Err(error) => return Err(too_large(error)),
     };
     let mut result = List::with_capacity(count);
     for value in values {
-        result.push(maps::made_to_record(value, limits)?).expect("same number of members");
+        result.push(maps::made_to_record(value)).expect("same number of members");
     }
     Ok(wire::CallPartDelegated { value: result })
 }
-pub(crate) fn call_part_delegated_to_domain(
-    value: wire::CallPartDelegated,
-    limits: &View,
-) -> Result<Box<[domain::Made]>, wire::Problem> {
+pub(crate) fn call_part_delegated_to_domain(value: wire::CallPartDelegated) -> Box<[domain::Made]> {
     let mut result = List::with_capacity(value.value.len());
     for value in value.value.into_boxed() {
-        result.push(maps::made_to_domain(value, limits)?).expect("same number of members");
+        result.push(maps::made_to_domain(value)).expect("same number of members");
     }
-    Ok(result.into_boxed())
+    result.into_boxed()
 }

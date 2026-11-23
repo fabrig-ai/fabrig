@@ -78,7 +78,7 @@ pub fn read_action(
         wire::ProposalAction::Settings(value) => {
             let mut items = List::with_capacity(value.items.len());
             for item in value.items.into_boxed() {
-                items.push(mapped::setting_head_to_domain(item, context)?).expect("decoded settings heads");
+                items.push(mapped::setting_head_to_domain(item)).expect("decoded settings heads");
             }
             domain::ProposalAction::Settings {
                 against: value.against,
@@ -172,7 +172,7 @@ fn setting_heads(
     }
     let mut heads = List::with_capacity(domain::SETTINGS_ITEMS);
     for item in items {
-        heads.push(mapped::setting_head_to_record(item, &Context::new(limits, None))?).expect("bounded heads");
+        heads.push(mapped::setting_head_to_record(item)).expect("bounded heads");
     }
     if projects.len()
         > skein_lib::length::usize_of(limits.proposed_settings_projects.min(wire::CEILINGS.proposed_settings_projects))
@@ -220,9 +220,7 @@ pub fn person_action_to_domain(
         wire::PersonAction::Settings(row) => {
             let mut items = List::with_capacity(domain::SETTINGS_ITEMS);
             for item in row.items.into_boxed() {
-                items
-                    .push(mapped::setting_head_to_domain(item, &Context::new(&super::EMPTY, None))?)
-                    .expect("decoded heads");
+                items.push(mapped::setting_head_to_domain(item)).expect("decoded heads");
             }
             domain::PersonAction::Settings { against: row.against, items: items.into_boxed() }
         }

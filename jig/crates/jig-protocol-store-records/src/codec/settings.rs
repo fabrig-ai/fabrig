@@ -106,49 +106,38 @@ pub(in crate::codec) const EMPTY: wire::Limits = wire::Limits {
     proposal_applications: 0,
 };
 // Scalar pairs for this family's maps (skein/docs/design/data/codec/maps.md, 5).
-#[expect(clippy::unnecessary_wraps, reason = "maps pairs share a fallible signature in both directions")]
-pub(crate) fn run_tools_to_record(value: &tasks::Tools) -> Result<u64, skein_codec::Reason> {
-    Ok(value.0)
+pub(crate) fn run_tools_to_record(value: &tasks::Tools) -> u64 {
+    value.0
 }
-#[expect(clippy::unnecessary_wraps, reason = "maps pairs share a fallible signature in both directions")]
-pub(crate) fn run_tools_to_domain(value: u64) -> Result<tasks::Tools, skein_codec::Reason> {
-    Ok(tasks::Tools(value))
+pub(crate) fn run_tools_to_domain(value: u64) -> tasks::Tools {
+    tasks::Tools(value)
 }
-#[expect(clippy::unnecessary_wraps, reason = "maps pairs share a fallible signature in both directions")]
-pub(crate) fn authority_tools_to_record(value: &authority::Tools) -> Result<u64, skein_codec::Reason> {
-    Ok(value.0)
+pub(crate) fn authority_tools_to_record(value: &authority::Tools) -> u64 {
+    value.0
 }
-#[expect(clippy::unnecessary_wraps, reason = "maps pairs share a fallible signature in both directions")]
-pub(crate) fn authority_tools_to_domain(value: u64) -> Result<authority::Tools, skein_codec::Reason> {
-    Ok(authority::Tools(value))
+pub(crate) fn authority_tools_to_domain(value: u64) -> authority::Tools {
+    authority::Tools(value)
 }
-#[expect(clippy::unnecessary_wraps, reason = "maps pairs share a fallible signature in both directions")]
-pub(crate) fn note_scopes_to_record(value: &authority::Scopes) -> Result<u8, skein_codec::Reason> {
-    Ok(value.0)
+pub(crate) fn note_scopes_to_record(value: &authority::Scopes) -> u8 {
+    value.0
 }
-#[expect(clippy::unnecessary_wraps, reason = "maps pairs share a fallible signature in both directions")]
-pub(crate) fn note_scopes_to_domain(value: u8) -> Result<authority::Scopes, skein_codec::Reason> {
-    Ok(authority::Scopes(value))
+pub(crate) fn note_scopes_to_domain(value: u8) -> authority::Scopes {
+    authority::Scopes(value)
 }
-#[expect(clippy::unnecessary_wraps, reason = "maps pairs share a fallible signature in both directions")]
-pub(crate) fn role_requests_to_record(value: &authority::Requests) -> Result<u16, skein_codec::Reason> {
-    Ok(value.0)
+pub(crate) fn role_requests_to_record(value: &authority::Requests) -> u16 {
+    value.0
 }
-#[expect(clippy::unnecessary_wraps, reason = "maps pairs share a fallible signature in both directions")]
-pub(crate) fn role_requests_to_domain(value: u16) -> Result<authority::Requests, skein_codec::Reason> {
-    Ok(authority::Requests(value))
+pub(crate) fn role_requests_to_domain(value: u16) -> authority::Requests {
+    authority::Requests(value)
 }
-#[expect(clippy::unnecessary_wraps, reason = "maps pairs share a fallible signature in both directions")]
-pub(crate) fn role_proposals_to_record(value: &authority::Proposals) -> Result<u8, skein_codec::Reason> {
-    Ok(value.0)
+pub(crate) fn role_proposals_to_record(value: &authority::Proposals) -> u8 {
+    value.0
 }
-#[expect(clippy::unnecessary_wraps, reason = "maps pairs share a fallible signature in both directions")]
-pub(crate) fn role_proposals_to_domain(value: u8) -> Result<authority::Proposals, skein_codec::Reason> {
-    Ok(authority::Proposals(value))
+pub(crate) fn role_proposals_to_domain(value: u8) -> authority::Proposals {
+    authority::Proposals(value)
 }
-#[expect(clippy::unnecessary_wraps, reason = "maps pairs share a fallible signature in both directions")]
-pub(crate) fn charter_reasons_to_record(value: &tasks::Reasons) -> Result<u32, skein_codec::Reason> {
-    Ok(value.0)
+pub(crate) fn charter_reasons_to_record(value: &tasks::Reasons) -> u32 {
+    value.0
 }
 pub(crate) fn charter_reasons_to_domain(value: u32) -> Result<tasks::Reasons, skein_codec::Reason> {
     let reasons = tasks::Reasons(value);
@@ -190,25 +179,19 @@ pub(crate) fn document_to_domain(
     Ok(core::Document { connector, name: authority::Name { segments: segments.into_boxed() }, path, heading })
 }
 
-fn limits_value_to_record(
-    values: &[settings::Override],
-    limits: &wire::Limits,
-) -> Result<wire::LimitsValue, wire::Problem> {
+fn limits_value_to_record(values: &[settings::Override]) -> wire::LimitsValue {
     let mut overrides = List::with_capacity(u32::try_from(values.len()).expect("bounded overrides"));
     for value in values {
-        overrides.push(maps::override_to_record(value, limits)?).expect("override count");
+        overrides.push(maps::override_to_record(value)).expect("override count");
     }
-    Ok(wire::LimitsValue { overrides })
+    wire::LimitsValue { overrides }
 }
-fn limits_value_to_domain(
-    value: wire::LimitsValue,
-    limits: &wire::Limits,
-) -> Result<Box<[settings::Override]>, wire::Problem> {
+fn limits_value_to_domain(value: wire::LimitsValue) -> Box<[settings::Override]> {
     let mut overrides = List::with_capacity(value.overrides.len());
     for item in value.overrides.into_boxed() {
-        overrides.push(maps::override_to_domain(item, limits)?).expect("override count");
+        overrides.push(maps::override_to_domain(item)).expect("override count");
     }
-    Ok(overrides.into_boxed())
+    overrides.into_boxed()
 }
 
 fn bound() -> wire::Problem {
@@ -220,10 +203,9 @@ pub(crate) fn contract_to_record(
 ) -> Result<wire::Contract, wire::Problem> {
     Ok(match value {
         tasks::Contract::Job { .. } => return Err(bound()),
-        tasks::Contract::Approval { state, part } => wire::Contract::Approval(wire::Approval {
-            state: (*(state)).clone(),
-            part: maps::part_to_record(part, limits)?,
-        }),
+        tasks::Contract::Approval { state, part } => {
+            wire::Contract::Approval(wire::Approval { state: (*(state)).clone(), part: maps::part_to_record(part) })
+        }
         tasks::Contract::Report { words } => wire::Contract::Report(wire::Report { words: *words }),
         tasks::Contract::Verdict { choices } => {
             let mut list_3 = List::with_capacity(limits.verdict_choices_choices);
@@ -247,7 +229,7 @@ pub(crate) fn contract_to_domain(
     Ok(match value {
         wire::Contract::Approval(entry) => {
             let wire::Approval { state, part } = entry;
-            tasks::Contract::Approval { state, part: maps::part_to_domain(part, limits)? }
+            tasks::Contract::Approval { state, part: maps::part_to_domain(part) }
         }
         wire::Contract::Report(entry) => {
             let wire::Report { words } = entry;
@@ -272,16 +254,12 @@ pub(crate) fn value_to_record(value: &settings::Value, limits: &wire::Limits) ->
     Ok(match value {
         settings::Value::Charter(entry) => wire::Value::Charter(Box::new(maps::charter_to_record(entry, limits)?)),
         settings::Value::Template(entry) => wire::Value::Template(Box::new(maps::template_to_record(entry, limits)?)),
-        settings::Value::Policy(entry) => {
-            wire::Value::Policy(Box::new(maps::configured_policy_to_record(entry, limits)?))
-        }
+        settings::Value::Policy(entry) => wire::Value::Policy(Box::new(maps::configured_policy_to_record(entry)?)),
         settings::Value::Rules(entry) => wire::Value::Rules(Box::new(rules_to_record(entry, limits)?)),
-        settings::Value::Limits(entry) => wire::Value::Limits(limits_value_to_record(entry, limits)?),
-        settings::Value::Worker(value) => wire::Value::Worker(Box::new(maps::worker_setting_to_record(value, limits)?)),
-        settings::Value::Provider(value) => {
-            wire::Value::Provider(Box::new(maps::provider_setting_to_record(value, limits)?))
-        }
-        settings::Value::Model(value) => wire::Value::Model(Box::new(maps::catalogue_model_to_record(value, limits)?)),
+        settings::Value::Limits(entry) => wire::Value::Limits(limits_value_to_record(entry)),
+        settings::Value::Worker(value) => wire::Value::Worker(Box::new(maps::worker_setting_to_record(value))),
+        settings::Value::Provider(value) => wire::Value::Provider(Box::new(maps::provider_setting_to_record(value)?)),
+        settings::Value::Model(value) => wire::Value::Model(Box::new(maps::catalogue_model_to_record(value)?)),
         settings::Value::Overlay(item) => wire::Value::Overlay(Box::new(maps::overlay_to_record(item, limits)?)),
         settings::Value::Application(_) => return Err(bound()),
     })
@@ -291,47 +269,33 @@ pub(crate) fn value_to_domain(value: wire::Value, limits: &wire::Limits) -> Resu
         wire::Value::Overlay(item) => settings::Value::Overlay(Box::new(maps::overlay_to_domain(*item, limits)?)),
         wire::Value::Charter(entry) => settings::Value::Charter(Box::new(maps::charter_to_domain(*entry, limits)?)),
         wire::Value::Template(entry) => settings::Value::Template(Box::new(maps::template_to_domain(*entry, limits)?)),
-        wire::Value::Policy(entry) => {
-            settings::Value::Policy(Box::new(maps::configured_policy_to_domain(*entry, limits)?))
-        }
+        wire::Value::Policy(entry) => settings::Value::Policy(Box::new(maps::configured_policy_to_domain(*entry))),
         wire::Value::Rules(entry) => settings::Value::Rules(Box::new(rules_to_domain(*entry, limits)?)),
-        wire::Value::Limits(entry) => settings::Value::Limits(limits_value_to_domain(entry, limits)?),
-        wire::Value::Worker(value) => {
-            settings::Value::Worker(Box::new(maps::worker_setting_to_domain(*value, limits)?))
-        }
-        wire::Value::Provider(value) => {
-            settings::Value::Provider(Box::new(maps::provider_setting_to_domain(*value, limits)?))
-        }
-        wire::Value::Model(value) => settings::Value::Model(Box::new(maps::catalogue_model_to_domain(*value, limits)?)),
+        wire::Value::Limits(entry) => settings::Value::Limits(limits_value_to_domain(entry)),
+        wire::Value::Worker(value) => settings::Value::Worker(Box::new(maps::worker_setting_to_domain(*value))),
+        wire::Value::Provider(value) => settings::Value::Provider(Box::new(maps::provider_setting_to_domain(*value))),
+        wire::Value::Model(value) => settings::Value::Model(Box::new(maps::catalogue_model_to_domain(*value))),
     })
 }
-#[expect(clippy::unnecessary_wraps, reason = "maps pairs share a fallible signature in both directions")]
-pub(crate) fn models_to_record(
-    value: &authority::Models,
-    _limits: &wire::Limits,
-) -> Result<wire::Models, wire::Problem> {
+pub(crate) fn models_to_record(value: &authority::Models) -> wire::Models {
     let field_bits = value.bits();
     let field_all = value.is_all();
-    Ok(wire::Models { bits: field_bits, all: field_all })
+    wire::Models { bits: field_bits, all: field_all }
 }
-#[expect(clippy::unnecessary_wraps, reason = "maps pairs share a fallible signature in both directions")]
-pub(crate) fn models_to_domain(
-    value: wire::Models,
-    _limits: &wire::Limits,
-) -> Result<authority::Models, wire::Problem> {
+pub(crate) fn models_to_domain(value: wire::Models) -> authority::Models {
     let wire::Models { bits, all } = value;
     let field_bits = bits;
     let field_all = all;
-    Ok(authority::Models::from_parts(field_bits, field_all))
+    authority::Models::from_parts(field_bits, field_all)
 }
 pub(crate) fn rules_to_record(value: &authority::Rules, limits: &wire::Limits) -> Result<wire::Rules, wire::Problem> {
-    let field_ceiling = maps::authority_to_record(&value.ceiling, limits)?;
+    let field_ceiling = maps::authority_to_record(&value.ceiling)?;
     let field_period_spend = value.period_spend;
     let field_minimum_run_spend = value.minimum_run_spend;
     let field_maximum_run_spend = value.maximum_run_spend;
     let mut list_17 = List::with_capacity(limits.rules_implies);
     for entry in value.implies.entries() {
-        let element = maps::implication_to_record(entry, limits)?;
+        let element = maps::implication_to_record(entry);
         if list_17.push(element).is_err() {
             return Err(bound());
         }
@@ -339,7 +303,7 @@ pub(crate) fn rules_to_record(value: &authority::Rules, limits: &wire::Limits) -
     let field_implies = list_17;
     let mut list_18 = List::with_capacity(limits.rules_requirements);
     for entry in &value.requirements {
-        let element = maps::requirement_to_record(entry, limits)?;
+        let element = maps::requirement_to_record(entry)?;
         if list_18.push(element).is_err() {
             return Err(bound());
         }
@@ -356,19 +320,19 @@ pub(crate) fn rules_to_record(value: &authority::Rules, limits: &wire::Limits) -
 }
 pub(crate) fn rules_to_domain(value: wire::Rules, limits: &wire::Limits) -> Result<authority::Rules, wire::Problem> {
     let wire::Rules { ceiling, period_spend, minimum_run_spend, maximum_run_spend, implies, requirements } = value;
-    let field_ceiling = maps::authority_to_domain(ceiling, limits)?;
+    let field_ceiling = maps::authority_to_domain(ceiling);
     let field_period_spend = period_spend;
     let field_minimum_run_spend = minimum_run_spend;
     let field_maximum_run_spend = maximum_run_spend;
     let mut list_19 = List::with_capacity((implies).len());
     for entry in (implies).into_boxed() {
-        let element = maps::implication_to_domain(entry, limits)?;
+        let element = maps::implication_to_domain(entry);
         list_19.push(element).expect("decoded list bound");
     }
     let field_implies = authority::Implies::new(list_19.into_boxed(), limits.rules_implies).ok_or(bound())?;
     let mut list_20 = List::with_capacity((requirements).len());
     for entry in (requirements).into_boxed() {
-        let element = maps::requirement_to_domain(entry, limits)?;
+        let element = maps::requirement_to_domain(entry);
         list_20.push(element).expect("decoded list bound");
     }
     let field_requirements = list_20.into_boxed();
@@ -403,7 +367,7 @@ pub(crate) fn verdict_to_record(value: &tasks::Verdict, limits: &wire::Limits) -
     for field in &value.fields {
         let tasks::FieldRule { name, max } = field;
         admit_rule(&mut used, name, *max, limits)?;
-        let field = maps::field_rule_to_record(field, limits)?;
+        let field = maps::field_rule_to_record(field);
         let item = field.encode(limits)?;
         items.push(item).expect("same field count");
     }
@@ -425,7 +389,7 @@ pub(crate) fn verdict_to_domain(value: wire::Verdict, limits: &wire::Limits) -> 
             Err(reason) => return Err(wire::Problem { path: wire::paths::VERDICT_FIELDS, reason }),
         };
         let field = wire::FieldRule::decode(limits, &mut Reader::new(&bytes))?;
-        let field = maps::field_rule_to_domain(field, limits)?;
+        let field = maps::field_rule_to_domain(field);
         let tasks::FieldRule { name, max } = &field;
         admit_rule(&mut used, name, *max, limits)?;
         if values.push(field).is_err() {
@@ -434,22 +398,16 @@ pub(crate) fn verdict_to_domain(value: wire::Verdict, limits: &wire::Limits) -> 
     }
     Err(verdict_problem())
 }
-pub(crate) fn proposal_id_to_record(
-    value: &(people::Proposer, u32),
-    limits: &wire::Limits,
-) -> Result<wire::ProposalId, wire::Problem> {
-    let field_proposer = maps::proposer_to_record(&value.0, limits)?;
+pub(crate) fn proposal_id_to_record(value: &(people::Proposer, u32)) -> wire::ProposalId {
+    let field_proposer = maps::proposer_to_record(&value.0);
     let field_number = value.1;
-    Ok(wire::ProposalId { proposer: field_proposer, number: field_number })
+    wire::ProposalId { proposer: field_proposer, number: field_number }
 }
-pub(crate) fn proposal_id_to_domain(
-    value: wire::ProposalId,
-    limits: &wire::Limits,
-) -> Result<(people::Proposer, u32), wire::Problem> {
+pub(crate) fn proposal_id_to_domain(value: wire::ProposalId) -> (people::Proposer, u32) {
     let wire::ProposalId { proposer, number } = value;
-    let field_proposer = maps::proposer_to_domain(proposer, limits)?;
+    let field_proposer = maps::proposer_to_domain(proposer);
     let field_number = number;
-    Ok((field_proposer, field_number))
+    (field_proposer, field_number)
 }
 fn encode_default(
     value: &settings::Default,
@@ -458,7 +416,7 @@ fn encode_default(
 ) -> Result<wire::Default, wire::Problem> {
     let field_value = value_to_record(&value.value, limits)?;
     let field_revision = value.revision;
-    Ok(wire::Default { models: encode_names(names, limits)?, value: field_value, revision: field_revision })
+    Ok(wire::Default { models: encode_names(names)?, value: field_value, revision: field_revision })
 }
 fn decode_default(
     value: wire::Default,
@@ -469,7 +427,7 @@ fn decode_default(
     let field_value = value_to_domain(value, limits)?;
     let field_revision = revision;
     let mut field_value = field_value;
-    let kept = decode_names(models, limits)?;
+    let kept = decode_names(models);
     settings::remap(&mut field_value, &settings::moves(&kept, names), &kept, names);
     Ok(settings::Default { value: field_value, revision: field_revision })
 }
@@ -483,7 +441,7 @@ fn encode_changed(
         None => None,
     };
     let field_revision = value.revision;
-    Ok(wire::Changed { models: encode_names(names, limits)?, value: field_value, revision: field_revision })
+    Ok(wire::Changed { models: encode_names(names)?, value: field_value, revision: field_revision })
 }
 fn decode_changed(
     value: wire::Changed,
@@ -497,7 +455,7 @@ fn decode_changed(
     };
     let field_revision = revision;
     let mut field_value = field_value;
-    let kept = decode_names(models, limits)?;
+    let kept = decode_names(models);
     if let Some(value) = &mut field_value {
         settings::remap(value, &settings::moves(&kept, names), &kept, names);
     }
@@ -522,17 +480,12 @@ fn encode_revision(
     };
     let mut applications = List::with_capacity(limits.revision_applications);
     for item in &value.applications {
-        let item = maps::revision_recorded_to_record(item, limits)?;
+        let item = maps::revision_recorded_to_record(item);
         if applications.push(item).is_err() {
             return Err(bound());
         }
     }
-    Ok(wire::Revision {
-        models: encode_names(names, limits)?,
-        head: maps::head_to_record(&value.head, limits)?,
-        items,
-        applications,
-    })
+    Ok(wire::Revision { models: encode_names(names)?, head: maps::head_to_record(&value.head), items, applications })
 }
 fn decode_revision(
     value: wire::Revision,
@@ -562,7 +515,7 @@ fn decode_revision(
         return Err(bound());
     }
     let mut items = items.into_boxed();
-    let kept = decode_names(models, limits)?;
+    let kept = decode_names(models);
     let moved = settings::moves(&kept, names);
     for item in &mut items {
         match &mut item.edit {
@@ -576,9 +529,9 @@ fn decode_revision(
     }
     let mut recorded = List::with_capacity(applications.len());
     for item in applications.into_boxed() {
-        recorded.push(maps::revision_recorded_to_domain(item, limits)?).expect("decoded application item count");
+        recorded.push(maps::revision_recorded_to_domain(item)).expect("decoded application item count");
     }
-    Ok(settings::Revision { head: maps::head_to_domain(head, limits)?, items, applications: recorded.into_boxed() })
+    Ok(settings::Revision { head: maps::head_to_domain(head), items, applications: recorded.into_boxed() })
 }
 fn encode_proposal(
     value: &settings::Proposal,
@@ -596,10 +549,10 @@ fn encode_proposal(
     let field_items = list_37;
     Ok(wire::Proposal {
         key: value.key,
-        models: encode_names(names, limits)?,
+        models: encode_names(names)?,
         against: field_against,
         items: field_items,
-        applications: encode_recorded(&value.applications, limits, limits.proposal_applications)?,
+        applications: encode_recorded(&value.applications, limits.proposal_applications)?,
     })
 }
 fn decode_proposal(
@@ -616,7 +569,7 @@ fn decode_proposal(
     }
     let field_items = list_38.into_boxed();
     let mut field_items = field_items;
-    let kept = decode_names(models, limits)?;
+    let kept = decode_names(models);
     let moved = settings::moves(&kept, names);
     for item in &mut field_items {
         match &mut item.edit {
@@ -626,35 +579,28 @@ fn decode_proposal(
     }
     Ok(settings::Proposal {
         key,
-        applications: decode_recorded(applications, limits)?,
+        applications: decode_recorded(applications),
         against: field_against,
         items: field_items,
     })
 }
 
-fn encode_recorded(
-    values: &[application::Recorded],
-    limits: &wire::Limits,
-    capacity: u32,
-) -> Result<List<wire::Recorded>, wire::Problem> {
+fn encode_recorded(values: &[application::Recorded], capacity: u32) -> Result<List<wire::Recorded>, wire::Problem> {
     let mut result = List::with_capacity(capacity);
     for value in values {
-        let value = maps::recorded_to_record(value, limits)?;
+        let value = maps::recorded_to_record(value);
         if result.push(value).is_err() {
             return Err(bound());
         }
     }
     Ok(result)
 }
-fn decode_recorded(
-    values: List<wire::Recorded>,
-    limits: &wire::Limits,
-) -> Result<Box<[application::Recorded]>, wire::Problem> {
+fn decode_recorded(values: List<wire::Recorded>) -> Box<[application::Recorded]> {
     let mut result = List::with_capacity(values.len());
     for value in values.into_boxed() {
-        result.push(maps::recorded_to_domain(value, limits)?).expect("decoded application item count");
+        result.push(maps::recorded_to_domain(value)).expect("decoded application item count");
     }
-    Ok(result.into_boxed())
+    result.into_boxed()
 }
 
 #[must_use]
@@ -741,7 +687,7 @@ pub fn encode(
                 | settings::Setting::Limits
                 | settings::Setting::ProjectPolicy { .. } => return Err(bound()),
             }
-            let value = maps::application_state_to_record(state, limits)?;
+            let value = maps::application_state_to_record(state)?;
             value.encode(limits)
         }
         settings::Record::Default { default, .. } => {
@@ -782,7 +728,7 @@ pub fn decode(
         settings::Key::Changed(setting) => match setting {
             settings::Setting::Application { .. } => settings::Record::Application {
                 setting: *setting,
-                state: maps::application_state_to_domain(wire::ApplicationState::decode(limits, &mut reader)?, limits)?,
+                state: maps::application_state_to_domain(wire::ApplicationState::decode(limits, &mut reader)?),
             },
             settings::Setting::Charter(_)
             | settings::Setting::Template(_)
@@ -829,24 +775,21 @@ pub fn decode(
 
 // Like the people family's live policy rows, settings remember the catalogue's
 // order. Frozen masks and template choices follow names when that order moves.
-fn encode_names(names: &[settings::ModelName], limits: &wire::Limits) -> Result<List<wire::ModelName>, wire::Problem> {
+fn encode_names(names: &[settings::ModelName]) -> Result<List<wire::ModelName>, wire::Problem> {
     let mut result = List::with_capacity(jig_domain_tasks::MODELS);
     for name in names {
-        if result.push(maps::model_name_to_record(name, limits)?).is_err() {
+        if result.push(maps::model_name_to_record(name)?).is_err() {
             return Err(bound());
         }
     }
     Ok(result)
 }
-fn decode_names(
-    names: List<wire::ModelName>,
-    limits: &wire::Limits,
-) -> Result<Box<[settings::ModelName]>, wire::Problem> {
+fn decode_names(names: List<wire::ModelName>) -> Box<[settings::ModelName]> {
     let mut kept = List::with_capacity(names.len());
     for name in names.into_boxed() {
-        kept.push(maps::model_name_to_domain(name, limits)?).expect("decoded model count");
+        kept.push(maps::model_name_to_domain(name)).expect("decoded model count");
     }
-    Ok(kept.into_boxed())
+    kept.into_boxed()
 }
 
 // One root per charter-version range (protocol/store/layouts.md, 2).

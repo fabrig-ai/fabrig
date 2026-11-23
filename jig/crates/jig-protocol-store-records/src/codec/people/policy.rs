@@ -13,14 +13,14 @@ pub(crate) fn encode_pattern(value: &domain::Pattern, limits: &wire::Limits) -> 
     let domain::Pattern { segments, last } = value;
     Ok(wire::Pattern {
         segments: encode_segments(segments, limits, shared_sum(limits), limits.pattern_segments)?,
-        last: mapped::last_to_record(last, limits)?,
+        last: mapped::last_to_record(last),
     })
 }
 pub(crate) fn decode_pattern(value: wire::Pattern, limits: &wire::Limits) -> Result<domain::Pattern, wire::Problem> {
     let wire::Pattern { segments, last } = value;
     Ok(domain::Pattern {
         segments: decode_segments(segments, limits, shared_sum(limits))?,
-        last: mapped::last_to_domain(last, limits)?,
+        last: mapped::last_to_domain(last),
     })
 }
 
@@ -51,7 +51,7 @@ pub(crate) fn authority_to_record(
     Ok(wire::Authority {
         tools: *tools,
         models: match models {
-            Some(value) => Some(mapped::model_set_to_record(value, limits)?),
+            Some(value) => Some(mapped::model_set_to_record(value)),
             None => None,
         },
         grants: encode_grant_piece(grants, limits, shared_sum(limits), limits.authority_grants)?,
@@ -78,7 +78,7 @@ pub(crate) fn authority_to_domain(
     Ok(domain::Authority {
         tools,
         models: match models {
-            Some(value) => Some(mapped::model_set_to_domain(value, limits)?),
+            Some(value) => Some(mapped::model_set_to_domain(value)),
             None => None,
         },
         grants: decode_grant_piece(grants, limits, shared_sum(limits))?,
@@ -111,7 +111,7 @@ pub(crate) fn policy_value_to_record(
         ceiling: authority_to_record(ceiling, limits)?,
         escalation_role: *escalation_role,
         period_spend: *period_spend,
-        templates: encode_templates(templates, limits, limits.policy_value_templates)?,
+        templates: encode_templates(templates, limits.policy_value_templates)?,
         projections: encode_grants(projections, limits)?,
         roles: encode_policy_value_roles(roles, limits)?,
         requirements: encode_requirements(requirements, limits)?,
@@ -135,7 +135,7 @@ pub(crate) fn policy_value_to_domain(
     Ok(domain::PolicyValue {
         ceiling: authority_to_domain(ceiling, limits)?,
         escalation_role,
-        templates: decode_templates(templates, limits)?,
+        templates: decode_templates(templates),
         period_spend,
         projections: decode_grants(projections, limits)?,
         roles: decode_policy_value_roles(roles, limits)?,
@@ -150,7 +150,7 @@ pub(crate) fn policy_change_to_record(
 ) -> Result<wire::PolicyChange, wire::Problem> {
     Ok(match value {
         domain::PolicyChange::Templates { overrides } => wire::PolicyChange::Templates(wire::PolicyChangeTemplates {
-            overrides: encode_templates(overrides, limits, limits.policy_change_templates_overrides)?,
+            overrides: encode_templates(overrides, limits.policy_change_templates_overrides)?,
         }),
         domain::PolicyChange::RoleSpend { role, period_spend } => {
             wire::PolicyChange::RoleSpend(wire::PolicyChangeRoleSpend { role: *role, period_spend: *period_spend })
@@ -199,7 +199,7 @@ pub(crate) fn policy_change_to_domain(
 ) -> Result<domain::PolicyChange, wire::Problem> {
     Ok(match value {
         wire::PolicyChange::Templates(value) => {
-            domain::PolicyChange::Templates { overrides: decode_templates(value.overrides, limits)? }
+            domain::PolicyChange::Templates { overrides: decode_templates(value.overrides) }
         }
         wire::PolicyChange::RoleSpend(value) => {
             let wire::PolicyChangeRoleSpend { role, period_spend } = value;
@@ -262,15 +262,15 @@ pub(crate) fn encode_amendment(
         value;
     Ok(wire::Amendment {
         llm: match llm {
-            Some(value) => Some(mapped::llm_choice_to_record(value, limits)?),
+            Some(value) => Some(mapped::llm_choice_to_record(value)?),
             None => None,
         },
         tracked: match tracked {
-            Some(value) => Some(mapped::tracking_to_record(value, limits)?),
+            Some(value) => Some(mapped::tracking_to_record(value)),
             None => None,
         },
         addressed: match addressed {
-            Some(value) => Some(mapped::address_change_to_record(value, limits)?),
+            Some(value) => Some(mapped::address_change_to_record(value)),
             None => None,
         },
         instructions: instructions.clone(),
@@ -279,7 +279,7 @@ pub(crate) fn encode_amendment(
             None => None,
         },
         wake: match wake {
-            Some(value) => Some(mapped::wake_policy_to_record(value, limits)?),
+            Some(value) => Some(mapped::wake_policy_to_record(value)),
             None => None,
         },
         dependencies: match dependencies {
@@ -302,15 +302,15 @@ pub(crate) fn decode_amendment(
     let wire::Amendment { tracked, addressed, instructions, spec, wake, dependencies, authority, llm, reason } = value;
     let value = domain::Amendment {
         llm: match llm {
-            Some(value) => Some(mapped::llm_choice_to_domain(value, limits)?),
+            Some(value) => Some(mapped::llm_choice_to_domain(value)),
             None => None,
         },
         tracked: match tracked {
-            Some(value) => Some(mapped::tracking_to_domain(value, limits)?),
+            Some(value) => Some(mapped::tracking_to_domain(value)),
             None => None,
         },
         addressed: match addressed {
-            Some(value) => Some(mapped::address_change_to_domain(value, limits)?),
+            Some(value) => Some(mapped::address_change_to_domain(value)),
             None => None,
         },
         instructions,
@@ -319,7 +319,7 @@ pub(crate) fn decode_amendment(
             None => None,
         },
         wake: match wake {
-            Some(value) => Some(mapped::wake_policy_to_domain(value, limits)?),
+            Some(value) => Some(mapped::wake_policy_to_domain(value)),
             None => None,
         },
         dependencies: match dependencies {
@@ -345,24 +345,20 @@ fn check_amendment(value: &domain::Amendment, limits: &wire::Limits) -> Result<(
 
 fn encode_templates(
     entries: &[domain::TemplateOverride],
-    limits: &wire::Limits,
     bound: u32,
 ) -> Result<skein_lib::List<wire::TemplateOverride>, wire::Problem> {
     let mut values = skein_lib::List::with_capacity(bound);
     for entry in entries {
-        if values.push(mapped::template_override_to_record(entry, limits)?).is_err() {
+        if values.push(mapped::template_override_to_record(entry)).is_err() {
             return Err(super::problem());
         }
     }
     Ok(values)
 }
-fn decode_templates(
-    entries: skein_lib::List<wire::TemplateOverride>,
-    limits: &wire::Limits,
-) -> Result<Box<[domain::TemplateOverride]>, wire::Problem> {
+fn decode_templates(entries: skein_lib::List<wire::TemplateOverride>) -> Box<[domain::TemplateOverride]> {
     let mut values = skein_lib::List::with_capacity(entries.len());
     for entry in entries.into_boxed() {
-        values.push(mapped::template_override_to_domain(entry, limits)?).expect("decoded overrides bounded");
+        values.push(mapped::template_override_to_domain(entry)).expect("decoded overrides bounded");
     }
-    Ok(values.into_boxed())
+    values.into_boxed()
 }

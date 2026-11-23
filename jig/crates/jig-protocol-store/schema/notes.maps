@@ -1,8 +1,13 @@
 records crate::notes_v1
 use n = jig_domain_notes
 use s = skein_codec::convert
-by hand crate::codec::notes
+use h = crate::codec::notes
+by hand h
 context crate::notes_v1::Limits
+refuses h::pattern_to_domain
+refuses h::pattern_to_record
+with context h::pattern_to_domain
+with context h::pattern_to_record
 
 record Segment stands for bytes
 enum Last = n::Last { exact tuple, open tuple }

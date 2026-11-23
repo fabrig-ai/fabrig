@@ -5,6 +5,47 @@ use s = skein_codec::convert
 use h = crate::codec::tasks
 by hand crate::codec::tasks
 context crate::codec::tasks::Context
+refuses h::authority_to_domain
+refuses h::authority_to_record
+refuses h::name_to_domain
+refuses h::name_to_record
+refuses h::part_path_to_domain
+refuses h::part_path_to_record
+refuses h::person_action_to_domain
+refuses h::person_action_to_record
+refuses h::proposal_action_to_domain
+refuses h::proposal_action_to_record
+refuses h::reasons_to_domain
+refuses h::recurring_template_to_domain
+refuses h::recurring_template_to_record
+refuses h::result_followups_delegates_to_domain
+refuses h::result_followups_delegates_to_record
+refuses h::result_kind_to_domain
+refuses h::result_kind_to_record
+refuses h::spec_to_domain
+refuses h::spec_to_record
+refuses h::task_result_to_domain
+refuses h::task_result_to_record
+with context h::authority_to_domain
+with context h::authority_to_record
+with context h::name_to_domain
+with context h::name_to_record
+with context h::part_path_to_domain
+with context h::part_path_to_record
+with context h::person_action_to_domain
+with context h::person_action_to_record
+with context h::proposal_action_to_domain
+with context h::proposal_action_to_record
+with context h::recurring_template_to_domain
+with context h::recurring_template_to_record
+with context h::result_followups_delegates_to_domain
+with context h::result_followups_delegates_to_record
+with context h::result_kind_to_domain
+with context h::result_kind_to_record
+with context h::spec_to_domain
+with context h::spec_to_record
+with context h::task_result_to_domain
+with context h::task_result_to_record
 
 record Number stands for value
 record Person stands for person

@@ -44,54 +44,51 @@ pub(super) fn read_name(value: wire::Name, limits: &wire::Limits) -> Result<doma
 }
 
 /// Translate a tasks party.
-pub fn party(value: &domain::Party, _limits: &wire::Limits) -> Result<wire::Party, wire::Problem> {
-    mapped::party_to_record(value, &Context::new(&super::EMPTY, None))
+#[must_use]
+pub fn party(value: &domain::Party) -> wire::Party {
+    mapped::party_to_record(value)
 }
 /// Read a tasks party.
 #[must_use]
 pub fn read_party(value: wire::Party) -> domain::Party {
-    mapped::party_to_domain(value, &Context::new(&super::EMPTY, None)).expect("translation has no fallible fields")
+    mapped::party_to_domain(value)
 }
 
 /// Translate a permitted executor.
-pub fn authority_executor(
-    value: &domain::AuthorityExecutor,
-    _limits: &wire::Limits,
-) -> Result<wire::AuthorityExecutor, wire::Problem> {
-    mapped::authority_executor_to_record(value, &Context::new(&super::EMPTY, None))
+#[must_use]
+pub fn authority_executor(value: &domain::AuthorityExecutor) -> wire::AuthorityExecutor {
+    mapped::authority_executor_to_record(value)
 }
 /// Read a permitted executor.
 #[must_use]
 pub fn read_authority_executor(value: wire::AuthorityExecutor) -> domain::AuthorityExecutor {
-    mapped::authority_executor_to_domain(value, &Context::new(&super::EMPTY, None))
-        .expect("translation has no fallible fields")
+    mapped::authority_executor_to_domain(value)
 }
 
 /// Translate a tasks class.
 #[must_use]
 pub fn class(value: domain::Class) -> wire::Class {
-    mapped::class_to_record(&value, &Context::new(&super::EMPTY, None)).expect("translation has no fallible fields")
+    mapped::class_to_record(&value)
 }
 
 /// Translate a tasks class.
 #[must_use]
 pub fn read_class(value: wire::Class) -> domain::Class {
-    mapped::class_to_domain(value, &Context::new(&super::EMPTY, None)).expect("translation has no fallible fields")
+    mapped::class_to_domain(value)
 }
 
 /// Translate the cause of a task activation.
-pub fn why(value: domain::Why, limits: &wire::Limits) -> Result<wire::Why, wire::Problem> {
-    Ok(match value {
+#[must_use]
+pub fn why(value: domain::Why) -> wire::Why {
+    match value {
         domain::Why::Made => wire::Why::Made,
         domain::Why::Ready => wire::Why::Ready,
         domain::Why::Message { message } => wire::Why::Message(wire::Number { value: message }),
         domain::Why::Released => wire::Why::Released,
-        domain::Why::Retry { tries: value } => {
-            wire::Why::Retry(mapped::tries_to_record(&value, &Context::new(limits, None))?)
-        }
+        domain::Why::Retry { tries: value } => wire::Why::Retry(mapped::tries_to_record(&value)),
         domain::Why::Narrowed => wire::Why::Narrowed,
         domain::Why::Changed => wire::Why::Changed,
-    })
+    }
 }
 /// Read the cause of a task activation.
 #[must_use]
@@ -101,29 +98,27 @@ pub fn read_why(value: wire::Why) -> domain::Why {
         wire::Why::Ready => domain::Why::Ready,
         wire::Why::Message(value) => domain::Why::Message { message: value.value },
         wire::Why::Released => domain::Why::Released,
-        wire::Why::Retry(value) => domain::Why::Retry {
-            tries: mapped::tries_to_domain(value, &Context::new(&super::EMPTY, None))
-                .expect("tries only copies integer fields"),
-        },
+        wire::Why::Retry(value) => domain::Why::Retry { tries: mapped::tries_to_domain(value) },
         wire::Why::Narrowed => domain::Why::Narrowed,
         wire::Why::Changed => domain::Why::Changed,
     }
 }
 /// Translate the selected executor.
-pub fn executor(value: domain::Executor, limits: &wire::Limits) -> Result<wire::Executor, wire::Problem> {
-    mapped::executor_to_record(&value, &Context::new(limits, None))
+#[must_use]
+pub fn executor(value: domain::Executor) -> wire::Executor {
+    mapped::executor_to_record(&value)
 }
 /// Read the selected executor.
 #[must_use]
 pub fn read_executor(value: wire::Executor) -> domain::Executor {
-    mapped::executor_to_domain(value, &Context::new(&super::EMPTY, None)).expect("translation has no fallible fields")
+    mapped::executor_to_domain(value)
 }
 
 /// Translate a specification, checking its aggregate byte bound.
 pub fn spec(value: &domain::Spec, limits: &wire::Limits) -> Result<wire::Spec, wire::Problem> {
     let domain::Spec { asks, words, parameters, inputs, job } = value;
     let job = match job {
-        Some(job) => Some(mapped::job_spec_to_record(job, &Context::new(limits, None))?),
+        Some(job) => Some(mapped::job_spec_to_record(job)),
         None => None,
     };
     let members = super::pieces::parameters(parameters, limits, limits.spec_parameters, wire::paths::SPEC_PARAMETERS)?;
@@ -155,7 +150,7 @@ pub fn read_spec(value: wire::Spec, limits: &wire::Limits) -> Result<domain::Spe
             if bytes.len() > skein_lib::length::usize_of(limits.job_spec_bytes) {
                 return Err(problem(wire::paths::JOB_SPEC_BYTES));
             }
-            Some(Box::new(mapped::job_spec_to_domain(wire::JobSpec { bytes, deadline }, &Context::new(limits, None))?))
+            Some(Box::new(mapped::job_spec_to_domain(wire::JobSpec { bytes, deadline })))
         }
         None => None,
     };
@@ -271,7 +266,6 @@ pub fn authority(
     limits: &wire::Limits,
     moved: Option<&[u64; 64]>,
 ) -> Result<wire::Authority, wire::Problem> {
-    let context = &Context::new(limits, None);
     check_authority(value, limits)?;
     let domain::Authority { tools, models, grants, delegation, budget, notes, note_resources } = value;
     let models = super::models::selector(*models, moved);
@@ -284,65 +278,45 @@ pub fn authority(
         wire::paths::AUTHORITY_NOTE_RESOURCES,
     )?;
     Ok(wire::Authority {
-        tools: wire::Tools {
-            bits: match super::tools_to_record(tools) {
-                Ok(bits) => bits,
-                Err(reason) => return Err(wire::paths::TOOLS_BITS.problem(reason)),
-            },
-        },
-        models: super::models_to_record(&models, context)?,
+        tools: wire::Tools { bits: super::tools_to_record(tools) },
+        models: super::models_to_record(&models),
         grants: translated_grants,
-        delegation: mapped::delegation_to_record(delegation, context)?,
-        budget: mapped::budget_to_record(budget, context)?,
-        notes: wire::Scopes {
-            bits: match super::scopes_to_record(notes) {
-                Ok(bits) => bits,
-                Err(reason) => return Err(wire::paths::SCOPES_BITS.problem(reason)),
-            },
-        },
+        delegation: mapped::delegation_to_record(delegation)?,
+        budget: mapped::budget_to_record(budget),
+        notes: wire::Scopes { bits: super::scopes_to_record(notes) },
         note_resources: resources,
     })
 }
 /// Read authority, checking bytes shared by grants and note resources.
 pub fn read_authority(value: wire::Authority, limits: &wire::Limits) -> Result<domain::Authority, wire::Problem> {
-    let context = &Context::new(limits, None);
     let wire::Authority { tools, models, grants, delegation, budget, notes, note_resources } = value;
     let translated_grants = super::pieces::read_grants(grants, limits, wire::paths::AUTHORITY_GRANTS)?;
     let resources = super::pieces::read_scopes(note_resources, limits, wire::paths::AUTHORITY_NOTE_RESOURCES)?;
     let value = domain::Authority {
-        tools: match super::tools_to_domain(tools.bits) {
-            Ok(value) => value,
-            Err(reason) => return Err(wire::paths::TOOLS_BITS.problem(reason)),
-        },
-        models: super::models_to_domain(models, context)?,
+        tools: super::tools_to_domain(tools.bits),
+        models: super::models_to_domain(models),
         grants: translated_grants,
-        delegation: mapped::delegation_to_domain(delegation, context)?,
-        budget: mapped::budget_to_domain(budget, context)?,
-        notes: match super::scopes_to_domain(notes.bits) {
-            Ok(value) => value,
-            Err(reason) => return Err(wire::paths::SCOPES_BITS.problem(reason)),
-        },
+        delegation: mapped::delegation_to_domain(delegation),
+        budget: mapped::budget_to_domain(budget),
+        notes: super::scopes_to_domain(notes.bits),
         note_resources: resources,
     };
     check_authority(&value, limits)?;
     Ok(value)
 }
 /// Translate an agent task's LLM choice, if any (domain/tasks/README.md, section 3).
-pub(super) fn llm(
-    source: Option<&domain::LlmChoice>,
-    limits: &wire::Limits,
-) -> Result<Option<wire::LlmChoice>, wire::Problem> {
+pub(super) fn llm(source: Option<&domain::LlmChoice>) -> Result<Option<wire::LlmChoice>, wire::Problem> {
     match source {
-        Some(value) => Ok(Some(mapped::llm_choice_to_record(value, &Context::new(limits, None))?)),
+        Some(value) => Ok(Some(mapped::llm_choice_to_record(value)?)),
         None => Ok(None),
     }
 }
 
 /// Read an agent task's LLM choice, if any; its decode bounds its sub-agents.
-pub(super) fn read_llm(source: Option<wire::LlmChoice>) -> Result<Option<domain::LlmChoice>, wire::Problem> {
+pub(super) fn read_llm(source: Option<wire::LlmChoice>) -> Option<domain::LlmChoice> {
     match source {
-        Some(value) => Ok(Some(mapped::llm_choice_to_domain(value, &Context::new(&super::EMPTY, None))?)),
-        None => Ok(None),
+        Some(value) => Some(mapped::llm_choice_to_domain(value)),
+        None => None,
     }
 }
 

@@ -8,12 +8,12 @@ use skein_lib::Reader;
 type Limits = wire::Limits;
 
 pub fn problem(value: &tasks::Problem, limits: &Limits) -> Result<Box<[u8]>, wire::Problem> {
-    let value = mapped::task_problem_to_record(value, &Context::new(limits, None))?;
+    let value = mapped::task_problem_to_record(value)?;
     value.encode(limits)
 }
 pub fn read_problem(bytes: &[u8], limits: &Limits) -> Result<tasks::Problem, wire::Problem> {
     let value = wire::TaskProblem::decode(limits, &mut Reader::new(bytes))?;
-    mapped::task_problem_to_domain(value, &Context::new(limits, None))
+    Ok(mapped::task_problem_to_domain(value))
 }
 pub fn end(value: &tasks::End, limits: &Limits) -> Result<Box<[u8]>, wire::Problem> {
     let value = wire::EndRecord { value: mapped::end_to_record(value, &Context::new(limits, None))? };
@@ -32,10 +32,10 @@ pub fn read_phase(bytes: &[u8], limits: &Limits) -> Result<tasks::Phase, wire::P
     mapped::phase_to_domain(value.value, &Context::new(limits, None))
 }
 pub fn change(value: &tasks::Change, limits: &Limits) -> Result<Box<[u8]>, wire::Problem> {
-    let value = wire::ChangeRecord { value: mapped::change_to_record(value, &Context::new(limits, None))? };
+    let value = wire::ChangeRecord { value: mapped::change_to_record(value) };
     value.encode(limits)
 }
 pub fn read_change(bytes: &[u8], limits: &Limits) -> Result<tasks::Change, wire::Problem> {
     let value = wire::ChangeRecord::decode(limits, &mut Reader::new(bytes))?;
-    mapped::change_to_domain(value.value, &Context::new(limits, None))
+    Ok(mapped::change_to_domain(value.value))
 }
