@@ -91,7 +91,7 @@ change's due step.
 | `landing: release` | `Party("person")`: a person's release |
 | `landing: ready`, `landing: judgement` | `Waiter(task C)`, the member's change |
 | `landing: turn` | `Waiter(task L)`, the landing holding the turn; none where the turn is free |
-| `landing: prepare` | `Waiter(task J)`, the round's live prepare job, from `inspect`; `Party("prepare job")` from `forge` alone; `Ended("prepare job")` where the root has no live prepare child |
+| `landing: prepare` | `Waiter(task J)`, the round's live prepare job, from `inspect`; the current round's outstanding write, `Party("forge: entry N")`, while the answered prepare opens its pull or retires its stale prefix; `Party("prepare job")` from `forge` alone while no terminal job result is recorded; `Ended("prepare job")` where neither a live prepare child nor its round's write remains |
 | `landing: open`, `close`, `delete`, `post`, `merge`, `record` | `Party("forge: entry N")`, the landing's write in the outbox for it; `Ended("<wait> write")` where none is outstanding |
 | `landing: prefixes`, `run`, `receipt`, `ancestry`, `read` | its deadline; and its read in flight, `Party("forge: call N")` |
 | `landing: room`, `change: room`, `making: room` | for each entry holding the outbox's room: `Waiter(task T)`, its owner, while its owner lives; `Ended("entry N of task T")` once its owner has ended; for a making, `Party("forge: room")`, its ask while it stands unanswered |
@@ -179,7 +179,9 @@ change's due step.
   deployment's stall, where the change's row keeps the moment the stall
   counts from and no exemption stands; none otherwise. A follow change at
   gating whose check workflow has ended counts its stall from that end,
-  as a delegate's end does. A landing's
+  as a delegate's end does. A turn change whose gates have settled and whose
+  task still waits on a dependency has no gate-stall bound; its readiness poll
+  does not make that dependency a forge wait. A landing's
   deadlines are polls, not bounds (`landing-waits.md`, 3), and a wait for
   room has no bound in its design (`../domain/forge/room.md`, 4), so
   neither has one. A wait past its bound at a quiet point is a finding

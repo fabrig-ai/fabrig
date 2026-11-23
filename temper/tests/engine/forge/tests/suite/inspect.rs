@@ -319,6 +319,83 @@ fn an_emitted_landing_wait_is_owed_to_the_scripted_root() {
     assert_eq!(world.check(), Ok(()));
 }
 
+fn answered_prepare_write(stale: bool) -> (World, u64) {
+    let mut world = landings::turn_world();
+    world.produce(b"temper/51");
+    landings::ready_change(&mut world, 51, b"temper/51");
+    let row = landings::landing_row(world.change(51));
+    landings::register(&mut world, row);
+    assert_eq!(landings::step_landing_raw(&mut world, OWNER, 100), landing::Decision::None);
+    assert!(matches!(landings::step_landing_raw(&mut world, OWNER, 101), landing::Decision::Prepare { .. }));
+    let mut job =
+        top::history::JobStep { task: 701, attempt: 1, job: top::history::Job::Prepare, outcome: None, head: None };
+    world.event(top::Event::JobHistory { task: OWNER, job });
+    world.prepare_landing(OWNER, false);
+    if stale {
+        world.push_file(b"main", b"outside", b"new base");
+    }
+    let report = br#"{"combined":[{"member":1,"by":"merge"}]}"#;
+    let mut heard = super::landing_batches::heard(landing::Preparation::Idle, report);
+    heard.outcomes = top::preparation::outcomes(report, 1).expect("successful report");
+    job.outcome = Some(top::history::JobOutcome::Done);
+    heard.job = Some(job);
+    let mut step = landings::read_landing_step(&mut world, OWNER, 102, heard);
+    if stale {
+        for entry in 103..110 {
+            if matches!(step.decision, landing::Decision::Delete { .. }) {
+                break;
+            }
+            step = landings::read_landing_step(
+                &mut world,
+                OWNER,
+                entry,
+                super::landing_batches::heard(landing::Preparation::Idle, b""),
+            );
+        }
+        assert!(matches!(step.decision, landing::Decision::Delete { .. }), "{:?}", step.decision);
+    } else {
+        assert_eq!(step.decision, landing::Decision::Open);
+    }
+    assert_eq!(world.landing(OWNER).landing.phase, landing::Phase::Preparing);
+    assert_eq!(world.landing(OWNER).waiting, None);
+    assert_eq!(world.landing(OWNER).job.as_ref().expect("kept job").step.outcome, job.outcome);
+    (world, step.entry.expect("round write"))
+}
+
+#[test]
+fn an_answered_prepare_waits_on_its_rounds_write() {
+    for stale in [false, true] {
+        let (world, entry) = answered_prepare_write(stale);
+        let inspection = world.inspection();
+        let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {OWNER}")).expect("prepare wait");
+        assert_eq!(wait.kind, "landing: prepare");
+        assert_eq!(wait.wakes, [Wake::Party(format!("forge: entry {entry}"))]);
+        assert_eq!(check_waits(&[&inspection], moment(&world)), Ok(()));
+    }
+}
+
+#[test]
+fn an_answered_prepare_without_its_rounds_write_is_found() {
+    for stale in [false, true] {
+        let (mut world, entry) = answered_prepare_write(stale);
+        let inspection = world.inspection();
+        let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {OWNER}")).expect("prepare wait");
+        assert_eq!(wait.wakes, [Wake::Party(format!("forge: entry {entry}"))]);
+        // Resolve the write without giving the scripted root another step.
+        // The ended job must not become an external prepare-job fallback.
+        let top::Stored::Entry { entry: write, .. } = world.stored().get(&top::Key::Entry(entry)).expect("write")
+        else {
+            panic!("entry row")
+        };
+        world.event(top::Event::Restore { record: top::Stored::Entry { entry: write.clone(), held: true } });
+        world.event(top::Event::Resolve { entry, again: false });
+        assert!(!world.stored().contains_key(&top::Key::Entry(entry)));
+        let inspection = world.inspection();
+        let finding = check_waits(&[&inspection], moment(&world)).expect_err("answered prepare lost its write");
+        assert!(finding.contains("landing: prepare with no live wake: [ended prepare job]"), "{finding}");
+    }
+}
+
 #[test]
 fn a_landing_round_releases_its_write_entries() {
     let world = landings::first_landing();

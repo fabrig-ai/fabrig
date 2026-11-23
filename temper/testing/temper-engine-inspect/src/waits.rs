@@ -288,6 +288,14 @@ fn bound(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) -> Option
     {
         return None;
     }
+    // A settled turn change kept by dependencies has finished gating: its
+    // poll waits for readiness, not for a forge gate to answer.
+    if view.forge.inspection_gates_settled(row.task)
+        && (!view.forge.inspection_step_dependencies(row.task).is_empty()
+            || view.root.and_then(|root| root.tasks().task(row.task)).is_some_and(|task| !task.waiting_on.is_empty()))
+    {
+        return None;
+    }
     let limits = &view.forge.inspection_limits().change_policy;
     let nanos = match row.change.state {
         State::Held { .. }
@@ -374,7 +382,7 @@ fn landing(view: &View<'_>, row: &LandingRow, awaited: Awaited) -> (String, Vec<
             "turn"
         }
         Awaited::Prepare => {
-            wakes.push(view.prepare(row.landing.task));
+            wakes.extend(view.prepare(row));
             "prepare"
         }
         Awaited::Open => {

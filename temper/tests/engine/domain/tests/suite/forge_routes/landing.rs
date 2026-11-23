@@ -1181,6 +1181,7 @@ mod news;
 
 #[path = "landing_trains.rs"]
 mod trains;
+pub(crate) use trains::dependency_across_trains;
 
 #[path = "landing_merge_drill.rs"]
 mod merge_drill;

@@ -707,6 +707,67 @@ fn a_completed_follow_gate_still_waiting_past_its_bound_is_found() {
     );
 }
 
+fn gated_dependency() -> (World, u64, Time) {
+    let (world, upstream, change, _) = super::forge_routes::landing::dependency_across_trains();
+    let row = world.root.forge().change(change).expect("dependent change");
+    assert!(matches!(row.change.state, temper_engine_domain_forge_change::State::Gating { .. }));
+    assert_eq!(world.root.tasks().task(change).expect("dependent task").waiting_on.as_ref(), [upstream]);
+    assert!(world.root.forge().inspection_gates_settled(change));
+    assert!(world.root.forge().inspection_change_due(change).is_some(), "the readiness poll remains armed");
+    let old_bound = Time::from_nanos(row.change.since.as_nanos())
+        .saturating_add(world.root.forge().inspection_limits().change_policy.stall);
+    let inspection = inspect(&world);
+    let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {change}")).expect("gate wait");
+    assert_eq!(wait.bound, None, "a settled gate waits only for its dependency");
+    assert!(wait.wakes.contains(&Wake::Waiter(format!("task {upstream}"))));
+    (world, change, old_bound)
+}
+
+#[test]
+fn a_settled_gate_waiting_for_a_dependency_has_no_stall_bound() {
+    let (world, _, old_bound) = gated_dependency();
+    let mut checks = Checks::new(71);
+    assert_eq!(checks.quiet(&world.root, world.env.now, 1), Ok(()));
+    assert_eq!(checks.step(old_bound.saturating_add(Duration::from_nanos(1)), 2), Ok(()));
+    assert_eq!(checks.quiet(&world.root, old_bound.saturating_add(Duration::from_nanos(1)), 3), Ok(()));
+}
+
+#[test]
+fn an_unfinished_gate_past_its_bound_is_found_despite_a_dependency() {
+    let (mut world, change, bound) = gated_dependency();
+    let mut row = world.root.forge().change(change).expect("dependent change").clone();
+    row.change.gates = Box::new([temper_engine_domain_forge_change::Gate {
+        number: 9,
+        kind: temper_engine_domain_forge_change::GateKind::Person,
+        blocking: true,
+        freshness: temper_engine_domain_forge_change::Freshness::Exact,
+        eager: false,
+    }]);
+    // Freeze a still-unanswered gate, with the dependency unchanged.
+    engine::step(
+        &mut world.root,
+        &world.env,
+        engine::Event::Forge(Box::new(forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) })),
+    );
+    assert!(!world.root.forge().inspection_gates_settled(change));
+    let inspection = inspect(&world);
+    let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {change}")).expect("gate wait");
+    assert_eq!(wait.bound, Some(bound));
+    let mut checks = Checks::new(71);
+    assert_eq!(checks.quiet(&world.root, world.env.now, 1), Ok(()));
+    assert_eq!(checks.quiet(&world.root, bound, 2), Ok(()));
+    let at = bound.saturating_add(Duration::from_nanos(1));
+    let finding = checks.step(at, 3).expect_err("dependencies do not excuse an unfinished gate");
+    assert_eq!(
+        finding,
+        format!(
+            "seed 71: at {} ns, iteration 3: engine task {change}: waits on change: gating past bound {} ns with no quiet point since",
+            at.as_nanos(),
+            bound.as_nanos(),
+        )
+    );
+}
+
 fn checking() -> (World, u64, Time) {
     let (mut world, _, producer, _) = temper_engine_domain_world::forge_routes::change_world(true, 1000, None);
     let task = world.root.tasks().task(producer.task).expect("producer");

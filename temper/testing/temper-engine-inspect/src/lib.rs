@@ -81,19 +81,36 @@ impl View<'_> {
         if self.ended(task) { Wake::Ended(task_name(task)) } else { Wake::Waiter(task_name(task)) }
     }
 
-    fn prepare(&self, task: u64) -> Wake {
-        let Some(root) = self.root else { return Wake::Party("prepare job".into()) };
-        if let Some(row) = root.tasks().task(task) {
-            for child in row.delegates.iter().rev() {
+    fn prepare(&self, row: &forge::LandingRow) -> Vec<Wake> {
+        if let Some(root) = self.root
+            && let Some(task) = root.tasks().task(row.landing.task)
+        {
+            for child in task.delegates.iter().rev() {
                 if let Some(child) = root.tasks().task(*child)
                     && child.executor == (tasks::Executor::Job { kind: forge::PREPARE_KIND })
                     && !matches!(child.phase, tasks::Phase::Ended(_))
                 {
-                    return Wake::Waiter(task_name(child.number));
+                    return vec![Wake::Waiter(task_name(child.number))];
                 }
             }
         }
-        Wake::Ended("prepare job".into())
+        // Preparing persists while the answered round opens its pull or retires
+        // a stale prefix. The outstanding write, not the ended job, wakes it.
+        let writes: Vec<_> = row
+            .entries
+            .iter()
+            .filter(|entry| {
+                entry.preparation == Some(row.landing.preparation) && self.forge.inspection_entry(entry.entry).is_some()
+            })
+            .map(|entry| Wake::Party(format!("forge: entry {}", entry.entry)))
+            .collect();
+        if !writes.is_empty() {
+            return writes;
+        }
+        if self.root.is_none() && row.job.as_ref().is_none_or(|job| job.step.outcome.is_none()) {
+            return vec![Wake::Party("prepare job".into())];
+        }
+        vec![Wake::Ended("prepare job".into())]
     }
 
     fn read_task(&self, call: u64) -> Option<u64> {

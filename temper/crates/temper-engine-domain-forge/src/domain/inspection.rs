@@ -70,6 +70,14 @@ impl Domain {
     }
 
     /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    /// A turn change has settled its gates, without a delegate terminal guessed by the reader.
+    #[must_use]
+    pub fn inspection_gates_settled(&self, task: u64) -> bool {
+        let Some(row) = self.changes.get(&task) else { return false };
+        crate::settling::gates_settled(row, None, self.landing.limits.change_policy.gates)
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
     #[must_use]
     pub fn inspection_change_due(&self, task: u64) -> Option<Wall> {
         self.change_due.get(&task).copied()
