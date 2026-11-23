@@ -37,6 +37,15 @@ fn schema_after_changed_terms() -> skein_channel::Schema {
 }
 
 #[test]
+fn a_prepared_schema_keeps_changed_part_bounds() {
+    let mut sizes = fixtures::SIZES;
+    sizes.turn += 1;
+    let codec = wire::sizes::limits(&sizes).expect("changed part bound");
+    assert_eq!(fixtures::schema_for_sizes(&sizes), wire::schema(&codec).expect("changed schema"));
+    assert_eq!(fixtures::schema_for_sizes(&fixtures::SIZES), fresh_schema());
+}
+
+#[test]
 fn prepared_values_equal_fresh_builds() {
     for (row, equal) in [
         ("schema", fixtures::schema() == fresh_schema()),

@@ -254,15 +254,23 @@ impl Joined {
             digest: Some(skein_lib::sha256::digest(fixtures::SECRET_A)),
         }]);
         let (engine_wires, worker_wires) = wires.unwrap_or_else(|| (fixtures::spoken(), fixtures::spoken()));
+        let worker_schema = fixtures::schema_for_sizes(&limits.sizes);
+        let engine_schema = if engine_limits.sizes == limits.sizes {
+            worker_schema.clone()
+        } else {
+            fixtures::schema_for_sizes(&engine_limits.sizes)
+        };
         Self {
-            engine: engine::Component::new(
+            engine: engine::Component::with_schema(
                 &engine_limits,
                 workers,
                 engine_wires,
                 application.unwrap_or_else(|| jig_protocol_worker_wire::Application::opaque(fixtures::application())),
+                engine_schema,
             )
             .expect("engine limits"),
-            worker: Component::new(limits, worker_wires, credential, seed).expect("worker limits"),
+            worker: Component::with_schema(limits, worker_wires, credential, seed, worker_schema)
+                .expect("worker limits"),
             pipe: None,
             engine_root: Vec::new(),
             engine_ended: Vec::new(),

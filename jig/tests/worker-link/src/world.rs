@@ -57,7 +57,14 @@ impl World {
     #[must_use]
     pub fn with_wires(limits: &Limits, seed: u64, wires: skein_lib::List<jig_protocol_worker_wire::Spoken>) -> Self {
         Self {
-            component: Component::new(limits, wires, fixtures::credential(), seed).expect("world limits"),
+            component: Component::with_schema(
+                limits,
+                wires,
+                fixtures::credential(),
+                seed,
+                fixtures::schema_for_sizes(&limits.sizes),
+            )
+            .expect("world limits"),
             limits: *limits,
             now: Time::ZERO,
             out: Queue::uncapped(),
