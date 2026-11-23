@@ -28,8 +28,6 @@ each delivery fast-forwards r and leaves g unchanged. They use fake git
 and disk, and do not settle the deployment replay gaps below. A goal's
 saved start overtaken by a repair remains deferred (`../forge/README.md`, section 11).
 
-- **Not yet:** *Main's counts*, and 1.1's stage `fetch counts`: no prepare asks
-  `Counts`, so no run's `.git` holds `refs/temper/counts` [in flight: change 13130].
 - **Not yet:** *A landed dependency's catch-up*, *It asks*: the worker
   asks the engine nothing and answers its checkout not landed [in
   flight: change 6018].
