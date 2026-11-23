@@ -202,7 +202,7 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "temper-engine-service-component::real" = "real-loop" # Engine store directory and file modes on the real kernel.
 "temper-engine-service-vocabulary::figures" = "step" # Named application limits round trips.
 "temper-engine-shell::suite" = "real-loop" # Stopped checkpoint, restore and upgrade commands over real files and locks.
-"temper-engine::suite" = "end-to-end" # Shipped engine's command-line boundary.
+"temper-engine::suite" = "end-to-end" # Shipped engine's help, identity, no command, versions, serve and fetch dispatch, checkpoint usage and upgrade check.
 "temper-fake-git-hosted::suite" = "simulated" # step and simulated: argument checks and hosted git iterate on fake io.
 "temper-fetch-shell::real" = "real-loop" # Child execution, cache locks and file modes.
 "temper-fixtures::real" = "real-loop" # TCP bind contention and the kernel's ephemeral port range.
@@ -237,7 +237,7 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "temper-worker-protocol-git::real" = "real-loop" # Git subprocesses and scratch file operations.
 "temper-worker-service::real" = "real-loop" # The real clock, a child's environment and process groups.
 "temper-worker-shell::real" = "real-loop" # Pinned agent files, directory and file modes.
-"temper-worker::suite" = "end-to-end" # Shipped worker's command-line boundary.
+"temper-worker::suite" = "end-to-end" # Shipped worker's help, identity, unknown command, serve past the shape check and program-login dispatch.
 "temper::process" = "end-to-end"
 "temper::suite" = "end-to-end" # Shipped client's command-line boundary.
 

@@ -3,8 +3,9 @@ use crate::{INTERNAL_WORKSPACE_REUSE, PROGRAM_LOGIN};
 use skein_io::kernel::Exit;
 use skein_shell::{Argument, Command, Reach, Reached, Set, Table};
 use std::{ffi::OsStr, os::unix::ffi::OsStrExt, path::PathBuf, process::ExitCode};
+use temper_config_shell::Shape;
 use temper_shell::{
-    directories::{self, EnvironmentEntry},
+    directories::{self, Directories, EnvironmentEntry},
     environment, table,
 };
 
@@ -64,7 +65,11 @@ fn capture() -> Capture {
 pub fn main(version: &'static str, commit: &'static str) -> ExitCode {
     let captured = capture();
     match run(&captured, version, commit) {
-        Ok(code) => ExitCode::from(code),
+        Ok(Reply::Print(text)) => {
+            print!("{text}");
+            ExitCode::SUCCESS
+        }
+        Ok(Reply::Exit(code)) => ExitCode::from(code),
         Err((code, why)) => {
             eprint!("{why}");
             ExitCode::from(code)
@@ -72,158 +77,90 @@ pub fn main(version: &'static str, commit: &'static str) -> ExitCode {
     }
 }
 
-fn run(captured: &Capture, version: &'static str, commit: &'static str) -> Result<u8, (u8, String)> {
-    match WORKER.reach(&captured.run_as, &captured.arguments) {
-        Reached::Help => {
-            print!("{}", WORKER.help());
-            Ok(0)
-        }
-        Reached::Version => {
-            print!("{}", Table { version, commit, ..WORKER }.version_line());
-            Ok(0)
-        }
-        Reached::CommandHelp(command) => {
-            print!("{}", WORKER.command_help(command));
-            Ok(0)
-        }
-        Reached::Unknown(why) => Err((2, why)),
-        Reached::Command(command, arguments) => dispatch(command, arguments, captured),
+#[derive(Debug, PartialEq, Eq)]
+enum Reply {
+    Print(String),
+    Exit(u8),
+}
+
+fn run(captured: &Capture, version: &'static str, commit: &'static str) -> Result<Reply, (u8, String)> {
+    let text = match WORKER.reach(&captured.run_as, &captured.arguments) {
+        Reached::Help => WORKER.help(),
+        Reached::Version => Table { version, commit, ..WORKER }.version_line(),
+        Reached::CommandHelp(command) => WORKER.command_help(command),
+        Reached::Unknown(why) => return Err((2, why)),
+        Reached::Command(command, arguments) if command.reach == Reach::Words(&["help"]) => help(arguments)?,
+        Reached::Command(command, arguments) => return dispatch(command, arguments, captured).map(Reply::Exit),
+    };
+    Ok(Reply::Print(text))
+}
+
+fn help(arguments: &[Box<[u8]>]) -> Result<String, (u8, String)> {
+    if let [page] = arguments
+        && page.as_ref() == b"config"
+    {
+        Ok(String::from_utf8(temper_config_shell::help(Shape::WorkerAlone).into_vec()).expect("help UTF-8"))
+    } else {
+        table::help(&WORKER, arguments)
     }
 }
 
 fn dispatch(command: &Command, arguments: &[Box<[u8]>], captured: &Capture) -> Result<u8, (u8, String)> {
-    let refused = |why: &str| (2, table::refused(&WORKER, command, why));
     match command.reach {
-        Reach::Words(["help"]) => {
-            if let [page] = arguments
-                && page.as_ref() == b"config"
-            {
-                print!(
-                    "{}",
-                    std::str::from_utf8(&temper_config_shell::help(temper_config_shell::Shape::WorkerAlone))
-                        .expect("help UTF-8")
-                );
-            } else {
-                print!("{}", table::help(&WORKER, arguments)?);
-            }
-            Ok(0)
-        }
-        Reach::Words(["serve"]) => {
-            let working = captured.working.as_ref().map_err(|why| (1, format!("temper-worker serve: {why}\n")))?;
-            let (directories, rest) =
-                directories::resolve(arguments, &captured.environment, working.as_os_str().as_bytes())
-                    .map_err(|why| refused(&why.to_string()))?;
-            if !rest.is_empty() {
-                return Err(refused("invalid arguments"));
-            }
-            Ok(
-                match temper_service_shell::run(
-                    WORKER.binary,
-                    &directories,
-                    temper_config_shell::Shape::WorkerAlone,
-                    &captured.environment,
-                    crate::served::SERVED,
-                    &skein_shell::Clock::new(),
-                    |_| Ok(()),
-                    |bytes, programs, owned, ()| {
-                        crate::worker::alone_with_programs(&directories, bytes, owned, &captured.environment, programs)
-                            .map(|service| temper_service_shell::Prepared {
-                                service,
-                                store: Box::new([]),
-                                adoption: (),
-                            })
-                    },
-                    |_, _, ()| Ok(()),
-                )
-                .map_err(|why| (1, why))?
-                {
-                    Exit::Code(code) => code,
-                    Exit::Signal(_) => 1,
+        Reach::Words(["serve"]) => serve_command(arguments, captured, |directories, shape| {
+            temper_service_shell::run(
+                WORKER.binary,
+                directories,
+                shape,
+                &captured.environment,
+                crate::served::SERVED,
+                &skein_shell::Clock::new(),
+                |_| Ok(()),
+                |bytes, programs, owned, ()| {
+                    crate::worker::alone_with_programs(directories, bytes, owned, &captured.environment, programs)
+                        .map(|service| temper_service_shell::Prepared { service, store: Box::new([]), adoption: () })
                 },
+                |_, _, ()| Ok(()),
             )
-        }
-        Reach::Words(["program-login"]) => {
-            let working =
-                captured.working.as_ref().map_err(|why| (1, format!("temper-worker program-login: {why}\n")))?;
-            let (directories, rest) =
-                directories::resolve(arguments, &captured.environment, working.as_os_str().as_bytes())
-                    .map_err(|why| refused(&why.to_string()))?;
-            let [name] = rest.as_ref() else { return Err(refused("invalid arguments")) };
-            crate::program_login::run(&directories, OsStr::from_bytes(name), &captured.environment).map_err(|why| {
-                (1, temper_service_shell::configuration::login_problems("temper-worker program-login", &why))
-            })
-        }
-        Reach::Words(_) | Reach::RunAs(_) => Err(refused("invalid arguments")),
+        }),
+        Reach::Words(["program-login"]) => login_command(arguments, captured, |directories, name| {
+            crate::program_login::run(directories, name, &captured.environment)
+        }),
+        Reach::Words(_) | Reach::RunAs(_) => Err((2, table::refused(&WORKER, command, "invalid arguments"))),
     }
+}
+
+fn serve_command(
+    arguments: &[Box<[u8]>],
+    captured: &Capture,
+    serve: impl FnOnce(&Directories, Shape) -> Result<Exit, String>,
+) -> Result<u8, (u8, String)> {
+    let refused = |why: &str| (2, table::refused(&WORKER, &SERVE, why));
+    let working = captured.working.as_ref().map_err(|why| (1, format!("temper-worker serve: {why}\n")))?;
+    let (directories, rest) = directories::resolve(arguments, &captured.environment, working.as_os_str().as_bytes())
+        .map_err(|why| refused(&why.to_string()))?;
+    if !rest.is_empty() {
+        return Err(refused("invalid arguments"));
+    }
+    Ok(match serve(&directories, Shape::WorkerAlone).map_err(|why| (1, why))? {
+        Exit::Code(code) => code,
+        Exit::Signal(_) => 1,
+    })
+}
+
+fn login_command(
+    arguments: &[Box<[u8]>],
+    captured: &Capture,
+    login: impl FnOnce(&Directories, &OsStr) -> Result<u8, String>,
+) -> Result<u8, (u8, String)> {
+    let refused = |why: &str| (2, table::refused(&WORKER, &PROGRAM_LOGIN, why));
+    let working = captured.working.as_ref().map_err(|why| (1, format!("temper-worker program-login: {why}\n")))?;
+    let (directories, rest) = directories::resolve(arguments, &captured.environment, working.as_os_str().as_bytes())
+        .map_err(|why| refused(&why.to_string()))?;
+    let [name] = rest.as_ref() else { return Err(refused("invalid arguments")) };
+    login(&directories, OsStr::from_bytes(name))
+        .map_err(|why| (1, temper_service_shell::configuration::login_problems("temper-worker program-login", &why)))
 }
 
 #[cfg(test)]
-mod configuration_tests {
-    #[test]
-    fn toml_worker_login_prints_each_refusal_on_its_own_line() {
-        let scratch = skein_scratch::Scratch::new("worker-login-refusal-lines");
-        let directories = crate::tests::configuration::directories(scratch.path());
-        std::fs::write(
-            scratch.path().join(temper_config_shell::FILE),
-            "engine = \"127.0.0.1:7200\"\nalpha = 1\nbeta = 2\n",
-        )
-        .expect("worker file");
-        let mut arguments = vec![Box::from(b"program-login".as_slice())];
-        arguments.extend(directories.flags());
-        arguments.push(b"source".as_slice().into());
-        let capture = super::Capture {
-            run_as: b"temper-worker".as_slice().into(),
-            arguments: arguments.into(),
-            environment: Box::new([]),
-            working: Ok(scratch.path().into()),
-        };
-        let (code, why) = super::run(&capture, "test", "test").expect_err("file refused");
-        assert_eq!(code, 1);
-        assert_eq!(
-            why.lines().collect::<Vec<_>>(),
-            [
-                format!(
-                    "temper-worker program-login: {}:2: alpha: unknown; temper-worker help config lists the keys",
-                    temper_config_shell::FILE
-                ),
-                format!(
-                    "temper-worker program-login: {}:3: beta: unknown; temper-worker help config lists the keys",
-                    temper_config_shell::FILE
-                ),
-            ]
-        );
-    }
-
-    #[test]
-    fn worker_commands_refuse_the_former_file_by_name() {
-        use temper_config_shell::{FILE, FORMER};
-        let scratch = skein_scratch::Scratch::new("worker-former-file");
-        let directories = crate::tests::configuration::directories(scratch.path());
-        std::fs::create_dir(scratch.path().join(FORMER)).expect("former directory");
-        for present in [false, true] {
-            if present {
-                std::fs::write(scratch.path().join(FILE), b"invalid TOML").expect("current file");
-            }
-            for words in [&["serve"][..], &["program-login", "source"][..]] {
-                let mut arguments: Vec<_> = words.iter().map(|word| Box::from(word.as_bytes())).collect();
-                arguments.extend(directories.flags());
-                let capture = super::Capture {
-                    run_as: b"temper-worker".as_slice().into(),
-                    arguments: arguments.into(),
-                    environment: Box::new([]),
-                    working: Ok(scratch.path().into()),
-                };
-                assert_eq!(
-                    super::run(&capture, "test", "test"),
-                    Err((
-                        1,
-                        format!(
-                            "temper-worker {}: {FORMER}: moved: the configuration is {FILE}; write it from temper-worker help config, then remove {FORMER}\n",
-                            words.first().expect("command")
-                        )
-                    ))
-                );
-            }
-        }
-    }
-}
+mod tests;

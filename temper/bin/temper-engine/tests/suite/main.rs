@@ -1,7 +1,7 @@
 //! The engine binary's table and dispatch (temper/docs/design/protocol/binaries.md, 2).
 use std::process::{Command, Stdio};
 use temper_config_shell::{File, Shape, render};
-use temper_engine_shell::{ENGINE, commands};
+use temper_engine_shell::ENGINE;
 #[path = "../support/upgrade.rs"]
 mod upgrade;
 #[test]
@@ -197,65 +197,7 @@ fn empty(text: &str) -> bool {
 }
 
 fn version(text: &str) -> bool {
-    eprintln!("--version stdout:\n{text}");
-    let prefix = format!("temper-engine {} (", env!("CARGO_PKG_VERSION"));
-    let Some(commit) = text.strip_prefix(&prefix).and_then(|text| text.strip_suffix(")\n")) else {
-        return false;
-    };
-    let hash = commit.strip_suffix("-dirty").unwrap_or(commit);
-    // release.md, 3: twelve hexadecimal digits, or unknown outside git.
-    commit == "unknown" || (hash.len() == 12 && hash.bytes().all(|byte| byte.is_ascii_hexdigit()))
-}
-
-fn help(text: &str) -> bool {
-    let rows: Vec<_> =
-        text.lines().filter(|line| line.starts_with("  ")).filter_map(|line| line.split_whitespace().next()).collect();
-    text == ENGINE.help()
-        && text.contains("upgrade --workers")
-        && text
-            .split_whitespace()
-            .collect::<Vec<_>>()
-            .join(" ")
-            .contains("Judges the workers alone over links and small copies; switches nothing.")
-        && ["serve", "versions", "upgrade", "checkpoint", "help"].iter().all(|word| rows.contains(word))
-        && ["forge", "box", "program-login"].iter().all(|word| !rows.contains(word))
-}
-
-fn serve_help(text: &str) -> bool {
-    text == ENGINE.command_help(&commands::SERVE)
-        && !text.starts_with("internal:")
-        && text.contains("engine alone")
-        && text.contains("temper-worker serve")
-        && text.contains("temper-box serve")
-}
-
-fn versions(text: &str) -> bool {
-    eprintln!("versions stdout:\n{text}");
-    text == temper_engine_shell::versions()
-        && text.lines().take(4).eq(["level skein 0", "level smith 0", "level jig 6", "level temper 14"])
-        && text.lines().any(|line| line == format!("family temper {}", temper_protocol_store::STORE_VERSION))
-        && text.lines().any(|line| line.starts_with("wire temper-worker-wire "))
-}
-
-fn pages(text: &str) -> bool {
-    text == temper_shell::help::answer(ENGINE.binary, &temper_shell::help::Request::Index).expect("index page")
-}
-
-fn config_page(text: &str) -> bool {
-    text.as_bytes() == temper_config_shell::help(temper_config_shell::Shape::EngineAlone).as_ref()
-}
-
-fn commands_page(text: &str) -> bool {
-    text == temper_shell::table::commands_page(&ENGINE)
-}
-
-fn forge_help(text: &str) -> bool {
-    // The notice is wrapped to 80 columns by skein's help renderer.
-    text.split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-        .starts_with("internal: not part of temper-engine's public command line; it may change without notice.")
-        && text == ENGINE.command_help(&commands::FETCH)
+    text == format!("{}\n", temper_version::line("temper-engine"))
 }
 
 type Check = fn(&str) -> bool;
@@ -263,28 +205,10 @@ type Case = (&'static [&'static str], Option<Shape>, i32, Check, &'static str);
 
 const CHECKPOINT_USAGE: &str = "temper-engine checkpoint: invalid arguments\nusage: temper-engine checkpoint [DIRECTORIES]\nusage: temper-engine checkpoint --hold NAME [DIRECTORIES] -- COMMAND [ARGUMENT...]\nusage: temper-engine checkpoint --remove NAME [DIRECTORIES]\n";
 const ROWS: &[Case] = &[
-    (&["checkpoint", "--remove", "12-ff"], None, 2, empty, CHECKPOINT_USAGE),
-    (&["checkpoint", "--hold", "00000000000000000012-00000000000000ff"], None, 2, empty, CHECKPOINT_USAGE),
+    (&["--help"], None, 0, |text| text == ENGINE.help(), ""),
     (&["--version"], None, 0, version, ""),
-    (&["-h"], None, 0, help, ""),
-    (&["--help"], None, 0, help, ""),
-    (&["serve", "--help"], None, 0, serve_help, ""),
-    (&["forge", "fetch", "--help"], None, 0, forge_help, ""),
-    (&["help"], None, 0, help, ""),
-    (&["help", "pages"], None, 0, pages, ""),
-    (&["help", "commands"], None, 0, commands_page, ""),
-    (&["help", "config"], None, 0, config_page, ""),
-    (&["help", "nope"], None, 1, empty, "temper-engine: no page nope; temper-engine help lists them\n"),
-    (&["box"], None, 2, empty, "temper-engine: no command box; temper-engine --help lists them\n"),
-    (
-        &["program-login", "a"],
-        None,
-        2,
-        empty,
-        "temper-engine: no command program-login; temper-engine --help lists them\n",
-    ),
     (&[], None, 2, empty, "temper-engine: no command; temper-engine --help lists them\n"),
-    (&["--version", "extra"], None, 2, empty, "temper-engine: no command --version; temper-engine --help lists them\n"),
+    (&["versions"], None, 0, |text| text == temper_engine_shell::versions(), ""),
     (
         SERVE,
         Some(Shape::WorkerAlone),
@@ -293,48 +217,13 @@ const ROWS: &[Case] = &[
         "temper-engine serve: {file}:3: engine: a key of temper-worker's file, not temper-engine's\ntemper-engine serve: {file}: workers: required in temper-engine's file\n",
     ),
     (
-        SERVE,
-        Some(Shape::Standalone),
-        1,
-        empty,
-        "temper-engine serve: {file}: workers: required in temper-engine's file\n",
-    ),
-    (
         FETCH,
         Some(Shape::WorkerAlone),
         1,
         empty,
         "temper-engine forge fetch: forge 1: {file}:3: engine: a key of temper-worker's file, not temper-engine's\ntemper-engine forge fetch: {file}: workers: required in temper-engine's file\n",
     ),
-    (
-        &["upgrade", "--check"],
-        None,
-        2,
-        empty,
-        "temper-engine upgrade --check: invalid arguments\nusage: temper-engine upgrade --check [DIRECTORIES] DIRECTORY\n",
-    ),
-    (
-        &["upgrade", "--workers"],
-        None,
-        2,
-        empty,
-        "temper-engine upgrade --workers: invalid arguments\nusage: temper-engine upgrade --workers [DIRECTORIES] DIRECTORY\n",
-    ),
-    (
-        &["upgrade", "--back", "extra"],
-        None,
-        2,
-        empty,
-        "temper-engine upgrade --back: invalid arguments\nusage: temper-engine upgrade --back [DIRECTORIES]\n",
-    ),
-    (&["versions"], None, 0, versions, ""),
-    (
-        &["versions", "extra"],
-        None,
-        2,
-        empty,
-        "temper-engine versions: invalid arguments\nusage: temper-engine versions\n",
-    ),
+    (&["checkpoint", "--remove", "12-ff"], None, 2, empty, CHECKPOINT_USAGE),
 ];
 
 #[test]

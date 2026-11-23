@@ -6745,7 +6745,6 @@ dependencies = [
  "skein-fail-stop",
  "skein-lib",
  "skein-scratch",
- "skein-shell",
  "temper-agent-fixtures",
  "temper-config-shell",
  "temper-deployment-fixtures",
@@ -6755,7 +6754,6 @@ dependencies = [
  "temper-forge-setup",
  "temper-forge-setup-shell",
  "temper-github-app",
- "temper-protocol-store",
  "temper-service-core",
  "temper-service-shell",
  "temper-shell",
@@ -8540,7 +8538,6 @@ dependencies = [
  "skein-fail-stop",
  "skein-scratch",
  "temper-config-shell",
- "temper-shell",
  "temper-version",
  "temper-worker-shell",
 ]
