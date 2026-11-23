@@ -1,6 +1,6 @@
 //! The component behind the domain worlds' durable store face.
 use crate::Files;
-use jig_protocol_store::{self as protocol, Below, CheckedLimits, Event, Io, Limits, Request, Stores};
+use jig_protocol_store::{self as protocol, Below, Event, Io, Limits, Request, Stores};
 use jig_test_domain as root;
 use jig_test_store::{StoreOut, Up, route};
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
@@ -74,8 +74,7 @@ pub struct Store {
     disk: Option<crate::disk::Disk>,
     routes: route::Routes,
     limits: root::Limits,
-    component_limits: Limits,
-    checked_limits: CheckedLimits,
+    checked: protocol::Checked,
     application: protocol::sizes::Application,
     /// The configured models the component names a role's models by.
     models: Rc<[jig_domain_core::Model]>,
@@ -161,7 +160,7 @@ impl Store {
             keep_reads,
         )
     }
-    // Forks keep these checked sizes: the source's configuration is immutable.
+    // A fresh store checks its bounds; forks keep the checked result.
     fn prepared(
         limits: &root::Limits,
         models: &[jig_domain_core::Model],
@@ -171,16 +170,16 @@ impl Store {
         application: protocol::sizes::Application,
         keep_reads: bool,
     ) -> Store {
-        let checked_limits = CheckedLimits::new(component_limits).expect("the store's limits are valid");
+        let checked = protocol::check(component_limits).expect("world store limits");
         let disk = if sets.sets.is_empty() && !on_disk { None } else { Some(crate::disk::Disk::new(component_limits)) };
         let component = if let Some(disk) = &disk {
-            protocol::Store::on_directory_checked(&checked_limits, application, models, disk.seeded())
+            protocol::Store::on_directory(&checked, application, models, disk.seeded())
         } else {
             let stores = Stores {
                 store: Self::memory_store(&component_limits.store, keep_reads),
                 secrets: Self::memory_store(&component_limits.secrets, keep_reads),
             };
-            protocol::Store::over_checked(&checked_limits, application, models, stores)
+            protocol::Store::over(&checked, application, models, stores)
         };
         let mut routes = route::Routes::new(limits.routes);
         routes.configure(limits);
@@ -192,7 +191,6 @@ impl Store {
             component,
             Files::new(),
             disk,
-            &checked_limits,
             application,
             routes,
             keep_reads,
@@ -214,11 +212,11 @@ impl Store {
         mut component: protocol::Store,
         files: Files,
         disk: Option<crate::disk::Disk>,
-        checked_limits: &CheckedLimits,
         application: protocol::sizes::Application,
         routes: route::Routes,
         keep_reads: bool,
     ) -> Store {
+        let checked = component.checked();
         component.owner_sets(component_sets(sets));
         Store {
             applied: 0,
@@ -233,6 +231,7 @@ impl Store {
             rows: BTreeMap::new(),
             pending: VecDeque::new(),
             held: VecDeque::new(),
+            checked,
             component: Some(component),
             keep_reads,
             sets,
@@ -241,8 +240,6 @@ impl Store {
             disk,
             routes,
             limits: *limits,
-            component_limits: *checked_limits.limits(),
-            checked_limits: *checked_limits,
             application,
             models,
             mirror_writes: true,
@@ -273,7 +270,7 @@ impl Store {
     #[must_use]
     pub fn into_wires(mut self) -> Box<[u8]> {
         let mut stores = self.component.take().expect("component").into_stores();
-        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.component_limits.store };
+        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.checked.limits().store };
         let mut above = Queue::uncapped();
         let mut below = Queue::uncapped();
         let key = protocol::keys::encode_own(&protocol::keys::Own::Wires, env.limits.key).expect("wires key");
@@ -416,12 +413,12 @@ impl Store {
         let application = self.application;
         self.component = Some(if let Some(disk) = &mut self.disk {
             drop(component);
-            disk.crash(&self.component_limits, seed);
-            protocol::Store::on_directory_checked(&self.checked_limits, application, &self.models, disk.seeded())
+            disk.crash(self.checked.limits(), seed);
+            protocol::Store::on_directory(&self.checked, application, &self.models, disk.seeded())
         } else {
             let stores = component.into_stores();
             self.files.crash(seed);
-            protocol::Store::over_checked(&self.checked_limits, application, &self.models, stores)
+            protocol::Store::over(&self.checked, application, &self.models, stores)
         });
         self.component.as_mut().expect("rebuilt component").owner_sets(component_sets(self.sets));
         assert!(self.component.as_mut().expect("rebuilt component").wires(self.wires));
@@ -632,7 +629,7 @@ impl Store {
         assert!(!self.failed, "patched mirror rows read back through the component");
     }
     fn env(&self) -> Env<Limits> {
-        Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.component_limits }
+        Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *self.checked.limits() }
     }
     fn drive(&mut self, mut requests: VecDeque<Request>, mut above: Queue<Event>) {
         let mut below = Below {

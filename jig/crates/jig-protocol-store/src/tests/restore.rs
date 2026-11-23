@@ -91,10 +91,9 @@ fn the_core_restore_hands_up_header_people_then_live_tasks() {
 #[test]
 fn checked_limits_open_and_restore_the_same_rows() {
     let source = live_store();
-    let limits = fixtures::store_limits();
-    let checked = crate::CheckedLimits::new(&limits).expect("fixture limits");
+    let checked = source.checked();
     let mut plain = fixtures::over(source.fork_memory().expect("memory stores"));
-    let mut reused = Store::over_checked(
+    let mut reused = Store::over(
         &checked,
         fixtures::APPLICATION,
         &[],
@@ -160,7 +159,7 @@ fn a_store_without_public_rows_reads_every_project_private() {
             expected.insert(row.key(), row).expect("project rows");
         }
     }
-    let mut store = fixtures::over(store.into_stores());
+    let mut store = fixtures::reopen(store);
     let events = fixtures::run(
         &mut store,
         Request::Open {

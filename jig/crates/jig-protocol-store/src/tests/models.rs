@@ -85,8 +85,8 @@ fn policy_record() -> core::Record {
     changed(s::Setting::Policy(1), s::Value::Policy(Box::new(policy)))
 }
 
-fn open(stores: crate::Stores) -> Store {
-    let mut store = Store::over(&fixtures::store_limits(), fixtures::APPLICATION, &defaults(), stores);
+fn open(checked: &crate::Checked, stores: crate::Stores) -> Store {
+    let mut store = Store::over(checked, fixtures::APPLICATION, &defaults(), stores);
     let events = fixtures::run(
         &mut store,
         Request::Open {
@@ -128,7 +128,7 @@ fn restored(store: &mut Store) -> Box<[core::Record]> {
 }
 
 fn saved(withdrawn: bool) -> Store {
-    let mut store = open(fixtures::stores());
+    let mut store = open(&crate::check(&fixtures::store_limits()).expect("fixture store limits"), fixtures::stores());
     store.catalogue(names());
     fixtures::committed(
         &mut store,
@@ -144,7 +144,8 @@ fn saved(withdrawn: bool) -> Store {
 
 #[test]
 fn a_persons_model_isnt_read_as_gone_after_a_restart() {
-    let mut store = open(saved(false).into_stores());
+    let saved = saved(false);
+    let mut store = open(&saved.checked(), saved.into_stores());
     let rows = restored(&mut store);
     assert!(rows.contains(&personal_model(false)), "model first read stays whole");
     assert!(rows.contains(&template_record()), "template choice keeps position 63 and its effort");
@@ -153,7 +154,8 @@ fn a_persons_model_isnt_read_as_gone_after_a_restart() {
 
 #[test]
 fn a_withdrawn_model_keeps_its_name_and_position() {
-    let mut store = open(saved(true).into_stores());
+    let saved = saved(true);
+    let mut store = open(&saved.checked(), saved.into_stores());
     let rows = restored(&mut store);
     assert!(rows.contains(&personal_model(true)), "withdrawn setting stays whole");
     assert!(rows.contains(&template_record()), "withdrawn model's held choice keeps its position");
@@ -161,7 +163,7 @@ fn a_withdrawn_model_keeps_its_name_and_position() {
 }
 
 fn saved_template() -> Store {
-    let mut store = open(fixtures::stores());
+    let mut store = open(&crate::check(&fixtures::store_limits()).expect("fixture store limits"), fixtures::stores());
     store.catalogue(names());
     fixtures::committed(&mut store, Box::new([fixtures::header(1), Write::Save(template_record())]));
     store
@@ -178,7 +180,8 @@ fn a_later_catalogue_is_the_vocabulary_of_the_next_commit() {
 
 #[test]
 fn a_name_that_left_stays_gone() {
-    let mut store = open(saved_template().into_stores());
+    let saved = saved_template();
+    let mut store = open(&saved.checked(), saved.into_stores());
     assert_eq!(restored(&mut store).as_ref(), [template_choice(ModelEffort::GONE)]);
 }
 

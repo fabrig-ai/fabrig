@@ -102,7 +102,11 @@ pub fn installation_put(id: [u8; 16]) -> skein_kv::Op {
 }
 
 pub fn over(stores: Stores) -> Store {
-    Store::over(&limits(), APPLICATION, &[], stores)
+    Store::over(&crate::check(&limits()).expect("fixture store limits"), APPLICATION, &[], stores)
+}
+
+pub fn reopen(store: Store) -> Store {
+    Store::over(&store.checked(), APPLICATION, &[], store.into_stores())
 }
 
 pub fn run(store: &mut Store, request: Request) -> Box<[Event]> {
@@ -125,7 +129,8 @@ pub fn opened() -> Store {
 pub fn opened_with_budget(budget: u64) -> Store {
     let mut limits = limits();
     limits.store.budget = budget;
-    let mut store = Store::over(&limits, APPLICATION, &[], stores_with(&limits));
+    let mut store =
+        Store::over(&crate::check(&limits).expect("fixture store limits"), APPLICATION, &[], stores_with(&limits));
     let events = run(
         &mut store,
         Request::Open { purpose: crate::Purpose::Serve, owner: Token::new(1), root: ROOT, installation: INSTALLATION },
@@ -218,7 +223,8 @@ pub fn directory() -> (Store, Below) {
         [store, secrets, transcripts, checkpoints],
         u64::from_le_bytes(INSTALLATION.get(..8).expect("installation seed").try_into().expect("eight bytes")),
     );
-    let mut store = Store::on_directory(&limits(), APPLICATION, &[], seeded);
+    let mut store =
+        Store::on_directory(&crate::check(&limits()).expect("fixture store limits"), APPLICATION, &[], seeded);
     let mut below = below();
     let mut above = Queue::uncapped();
     crate::down(

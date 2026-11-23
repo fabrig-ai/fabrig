@@ -22,7 +22,13 @@ impl World {
         let mut sim = Sim::new(44, Config::calm());
         let pid = sim.spawn_process();
         let fd = sim.root(pid, Handle::new(root.raw()));
-        let mut host = Hosted::new(&root::limits(), root::APPLICATION, &[], 44, NotReady::Above);
+        let mut host = Hosted::new(
+            &jig_protocol_store::check(&root::limits()).expect("fixture store limits"),
+            root::APPLICATION,
+            &[],
+            44,
+            NotReady::Above,
+        );
         host.adopt(fd, 0, [1; 16]).expect("adopt");
         let mut world = Self { host, machine, sim, pid, pending: Queue::uncapped() };
         world.settle();

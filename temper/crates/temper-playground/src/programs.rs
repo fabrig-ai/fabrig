@@ -51,7 +51,7 @@ pub trait Harness: 'static {
         None
     }
     /// Let a world keep the live store's checked opening bounds for its copies.
-    fn checked_opening_limits(_limits: &jig_protocol_store::CheckedLimits) {}
+    fn checked_opening_limits(_limits: &jig_protocol_store::Checked) {}
     /// A world's worker may speak chosen versions; the playground keeps the build's ranges.
     #[must_use]
     fn worker_wires() -> Option<temper_service::worker_settings::Wires> {

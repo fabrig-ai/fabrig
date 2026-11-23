@@ -124,7 +124,20 @@ pub fn check_commits(
     store: &skein_kv::Limits,
     orphan_erases: u32,
 ) -> Result<Sizes, SizeRefusal> {
-    let sizes = largest(domain, application, *commits, orphan_erases, store.budget).ok_or(SizeRefusal::Ceiling)?;
+    let limits = codec::limits(domain).ok_or(SizeRefusal::Ceiling)?;
+    check_commits_with_codec(domain, &limits, application, *commits, store, orphan_erases)
+}
+
+pub(crate) fn check_commits_with_codec(
+    domain: &core::Limits,
+    limits: &codec::View,
+    application: &Application,
+    commits: Commits,
+    store: &skein_kv::Limits,
+    orphan_erases: u32,
+) -> Result<Sizes, SizeRefusal> {
+    let sizes =
+        largest(domain, limits, application, commits, orphan_erases, store.budget).ok_or(SizeRefusal::Ceiling)?;
     if sizes.key > store.key {
         return Err(SizeRefusal::Key { needs: sizes.key, has: store.key });
     }
@@ -154,12 +167,12 @@ pub fn check_commits(
 
 fn largest(
     domain: &core::Limits,
+    limits: &codec::View,
     application: &Application,
     commits: Commits,
     orphan_erases: u32,
     budget: u64,
 ) -> Option<Sizes> {
-    let limits = codec::limits(domain)?;
     // A resources line has 32 fixed bytes, three per empty segment, and at
     // most two per payload byte (escaped zero). Notes bounds both count and sum.
     // The largest fixed key is a tasks update: tags plus five widened numbers.

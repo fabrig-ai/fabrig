@@ -70,7 +70,7 @@ pub fn levels(sets: &OwnerSets) -> codec::component::Levels {
 }
 
 mod startup_limits;
-pub use startup_limits::{InstallRefusal, runtime_limits};
+pub use startup_limits::{InstallRefusal, runtime_limits, runtime_limits_reusing};
 
 /// The store component's bounds (protocol/store/README.md, section 8).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -100,23 +100,22 @@ impl Limits {
     }
 }
 
-/// Limits whose derived codec bounds were checked once (protocol/store/README.md, 8).
-#[derive(Clone, Copy, Debug)]
-pub struct CheckedLimits {
+/// An admitted store's limits and their generated family bounds (protocol/store/README.md, 8).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Checked {
     limits: Limits,
     codec: codec::View,
 }
 
-impl CheckedLimits {
+impl Checked {
     #[must_use]
-    pub fn new(limits: &Limits) -> Option<Self> {
-        let codec = limits.codec_view()?;
-        if valid_with_codec(limits, &codec) { Some(Self { limits: *limits, codec }) } else { None }
+    pub const fn limits(&self) -> &Limits {
+        &self.limits
     }
 
     #[must_use]
-    pub fn limits(&self) -> &Limits {
-        &self.limits
+    pub const fn codec(&self) -> &codec::View {
+        &self.codec
     }
 }
 
@@ -277,25 +276,10 @@ impl Store {
         Ok(PatchPage { rows: found.into_boxed(), next: page.next })
     }
     /// A component over open stores; `models` are the configuration's, in its order.
+    /// Its codec bounds come from the checked limits without deriving them again.
     #[must_use]
     pub fn over(
-        limits: &Limits,
-        application: sizes::Application,
-        models: &[jig_domain_core_vocabulary::Model],
-        stores: Stores,
-    ) -> Store {
-        Self::over_checked(
-            &CheckedLimits::new(limits).expect("the store's limits are valid"),
-            application,
-            models,
-            stores,
-        )
-    }
-
-    /// A component over open stores, reusing the checked bounds without deriving them again.
-    #[must_use]
-    pub fn over_checked(
-        checked: &CheckedLimits,
+        checked: &Checked,
         application: sizes::Application,
         models: &[jig_domain_core_vocabulary::Model],
         mut stores: Stores,
@@ -316,7 +300,7 @@ impl Store {
             runtime_started: false,
             startup_setting: None,
             application,
-            codec_limits: checked.codec,
+            codec_limits: *checked.codec(),
             stock_core: None,
             read_failure: None,
             registry: Box::new(registry::Layouts::new()),
@@ -343,25 +327,10 @@ impl Store {
         }
     }
 
-    #[must_use]
-    pub fn on_directory(
-        limits: &Limits,
-        application: sizes::Application,
-        models: &[jig_domain_core_vocabulary::Model],
-        seeded: Seeded,
-    ) -> Store {
-        Self::on_directory_checked(
-            &CheckedLimits::new(limits).expect("the store's limits are valid"),
-            application,
-            models,
-            seeded,
-        )
-    }
-
     /// A directory component with its bounds already checked. Open and admission still run normally.
     #[must_use]
-    pub fn on_directory_checked(
-        checked: &CheckedLimits,
+    pub fn on_directory(
+        checked: &Checked,
         application: sizes::Application,
         models: &[jig_domain_core_vocabulary::Model],
         _seeded: Seeded,
@@ -369,9 +338,15 @@ impl Store {
         let limits = checked.limits();
         let stores =
             Stores { store: skein_kv::Store::new(&limits.store), secrets: skein_kv::Store::new(&limits.secrets) };
-        let mut store = Self::over_checked(checked, application, models, stores);
+        let mut store = Store::over(checked, application, models, stores);
         store.directory.disk = true;
         store
+    }
+
+    /// The admitted bounds in force, including any pre-restore installation.
+    #[must_use]
+    pub fn checked(&self) -> Checked {
+        Checked { limits: self.limits, codec: self.codec_limits }
     }
 
     /// Today's models, before a commit that holds them (domain/engine/settings.md, 11).
@@ -504,11 +479,24 @@ pub struct PatchPage {
     pub next: Option<Cursor>,
 }
 
-/// Whether these limits are representable: every edge bound they size
-/// is finite and every capacity they derive fits (programming-model.md, 6.3).
+/// Keep the limits and codec view when every edge bound is finite and
+/// every derived capacity fits (programming-model.md, 6.3).
 #[must_use]
-pub fn valid(limits: &Limits) -> bool {
-    CheckedLimits::new(limits).is_some()
+pub fn check(limits: &Limits) -> Option<Checked> {
+    check_reusing(limits, None)
+}
+
+/// Reuse a matching check only if it retained the full stock transcript bound.
+#[must_use]
+pub fn check_reusing(limits: &Limits, opening: Option<&Checked>) -> Option<Checked> {
+    if let Some(checked) = opening
+        && checked.limits() == limits
+        && checked.codec().core.turn_record_transcript == core_v6::CEILINGS.turn_record_transcript
+    {
+        return Some(*checked);
+    }
+    let codec = limits.codec_view()?;
+    if valid_with_codec(limits, &codec) { Some(Checked { limits: *limits, codec }) } else { None }
 }
 
 fn valid_with_codec(limits: &Limits, codec: &codec::View) -> bool {

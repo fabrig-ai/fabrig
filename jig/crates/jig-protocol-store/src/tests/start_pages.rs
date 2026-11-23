@@ -140,8 +140,7 @@ fn a_stock_written_record_refuses_a_lowered_start_page_without_losing_its_cause(
     let record = Record::People(jig_domain_people::Stored::Person { number: ALICE, identity });
     let mut store = open();
     fixtures::committed(&mut store, Box::new([fixtures::header(1), fixtures::save(record.clone())]));
-    let stores = store.into_stores();
-    let mut store = fixtures::over(stores);
+    let mut store = fixtures::reopen(store);
     fixtures::run(
         &mut store,
         Request::Open {

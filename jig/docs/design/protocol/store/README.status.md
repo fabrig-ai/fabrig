@@ -5,6 +5,7 @@
 
 
 
+
 - **Not yet:** 8: the worst case (`sizes.rs`) does not count the registry's rows held at open, their parsed schema texts, the derived plans' tables or the one `Workspace` fitted to them (`layouts.md`, 7); change 2846 left it, its memory bounded by the registered families' texts.
 - **Departs:** 9: the focused stray-cleanup story chooses its first cut
   at `Change::Make`, not the required first removal. The gap and the
