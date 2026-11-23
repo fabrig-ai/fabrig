@@ -636,6 +636,10 @@ def split_jobs(plan, lanes):
     for binary in plan['binaries']:
         estimate = sum(test['estimate'] for test in binary['tests'])
         count = min(len(binary['tests']), lanes, math.ceil(estimate / share)) if share and estimate > share else 1
+        if len(binary['tests']) > 1 and all(test['kept_s'] is None for test in binary['tests']):
+            # No kept times for any of its tests, as in a workspace's first run: its cost is unknown,
+            # so it spreads over every lane rather than risk one long process (design.md, 11.4).
+            count = min(len(binary['tests']), lanes)
         # Contiguous partitions near equal cumulative estimates, leaving a test per part.
         remaining = list(binary['tests'])
         chunks = []
@@ -760,12 +764,13 @@ class BinaryProcess:
         self.open_fds.remove(fd)
         os.close(fd)
 
-    def read(self, fd, kind, selector):
+    def read(self, fd, kind, selector, *, fail_fast=False):
         data = os.read(fd, 65536)
         if not data:
             self.close(fd, selector)
             return
         now = time.monotonic()
+        failed = False
         if kind == 'output':
             self.output.extend(data)
             found = list(self.announcement.finditer(self.output))
@@ -783,7 +788,10 @@ class BinaryProcess:
                 result, _, name = line.partition(b' ')
                 if self.cancelled_at is None and result in (b'ok', b'failed', b'ignored'):
                     self.logs[name.decode('utf-8', 'backslashreplace')] = (result, now)
+                    if fail_fast and result == b'failed':
+                        failed = True
         self.completed()
+        return failed
 
     def close_log_writer(self):
         if self.log_writer is not None:
@@ -902,7 +910,15 @@ def lanes(plan):
     jobs = split_jobs(plan, count)
     active, processes = [], plan.get('process_offset', 0)
     cancelled, first, kill_at = None, plan.get('first_start'), None
+    fail_fast = plan.get('fail_fast', False) and 'reference_picks' not in plan
+    stopped = False
     terminated = False
+
+    def stop_after_failure():
+        nonlocal fail_fast, stopped
+        fail_fast, stopped = False, True
+        jobs.clear()
+        emit('fail-fast')
 
     def terminate(sig, frame):
         nonlocal terminated
@@ -951,17 +967,23 @@ def lanes(plan):
                     active.append(child)
                 for key, _ in selector.select(0.01):
                     child, kind = key.data
-                    child.read(key.fd, kind, selector)
+                    if child.read(key.fd, kind, selector, fail_fast=fail_fast and not cancelled):
+                        stop_after_failure()
                 for child in list(active):
                     child.reap()
                     if child.reaped_at is None:
                         continue
+                    if fail_fast and not cancelled and child.status != 0:
+                        stop_after_failure()
                     expired = time.monotonic() - child.reaped_at >= plan['leak_s']
                     if child.open_fds and not expired:
                         continue
                     fresh = child.settle(selector, bool(child.open_fds))
                     active.remove(child)
-                    if cancelled or child.job['kind'] in ('reference', 'empty'):
+                    if fail_fast and not cancelled and any(
+                            t['outcome'] in ('failed', 'crashed') for t in child.done.values()):
+                        stop_after_failure()
+                    if cancelled or stopped or child.job['kind'] in ('reference', 'empty'):
                         continue
                     if child.job['kind'] == 'alone':
                         failed = any(t['outcome'] != 'passed' for t in child.done.values())
@@ -1093,7 +1115,11 @@ def listed_plan(command, env, profile, limits, config, walls, layers, picks=None
         selections = profile_targets(selection, metadata, config, [*prefix, cargo], env,
                                      table, selected_layers, layer_omissions)
 
-    # Listing and build belong to the caller's prefix; metadata builds nothing.
+    # Listing and build belong to the caller's prefix; metadata builds nothing, so it runs beside the listing.
+    metadata_process = None
+    if metadata is None:
+        metadata_process = subprocess.Popen([cargo, 'metadata', '--format-version', '1', '--no-deps'], env=env,
+                                            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, text=True)
     listings = []
     for selected in [selection] if selections is None else selections:
         listed = subprocess.Popen([*prefix, cargo, 'nextest', 'list', '--message-format', 'json',
@@ -1110,10 +1136,16 @@ def listed_plan(command, env, profile, limits, config, walls, layers, picks=None
         except BaseException:
             signal_group(listed, signal.SIGTERM)
             stop(listed, time.monotonic() + WALL_GRACE_S)
+            if metadata_process is not None:
+                metadata_process.kill()
+                metadata_process.wait()
             raise
         listings.append(json_listing(listing_output.decode('utf-8', 'backslashreplace')))
-    if metadata is None:
-        metadata = read_metadata(cargo, env)
+    if metadata_process is not None:
+        text, _ = metadata_process.communicate()
+        if metadata_process.returncode:
+            raise subprocess.CalledProcessError(metadata_process.returncode, metadata_process.args)
+        metadata = json.loads(text)
     listing = merge_listings(listings) if listings else {
         'rust-build-meta': {'target-directory': metadata['target_directory']}, 'rust-suites': {}}
     if picks is not None:
@@ -1149,7 +1181,7 @@ def checkout_commit(root, env):
 
 
 def run(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None,
-        layers=Path('tools/tiers/layers.toml'), ledger=None, selected_layers=None):
+        layers=Path('tools/tiers/layers.toml'), ledger=None, selected_layers=None, *, fail_fast=False):
     """Run one suite into a fresh directory; return no verdict (design.md, 11)."""
     directory = Path(directory).resolve()
     if directory.exists() and (not directory.is_dir() or any(directory.iterdir())):
@@ -1168,6 +1200,8 @@ def run(command, env, directory, profile, limits, config=Path('.config/nextest.t
             raise ValueError('repair case absent from focused listing')
         plan['repair_case'] = [binary, name]
     plan['count'] = True
+    if fail_fast:
+        plan['fail_fast'] = True
     execute_plan(plan, prefix, env, directory, limits, no_tests=no_tests, output=output, ledger=ledger,
                  commit=checkout_commit(root, env))
 
@@ -1273,6 +1307,7 @@ def reference_plan(plan, picks, first_start=None):
 def again_plan(run_directory, binary_id, names):
     """Select one finished run's process without listing or building (design.md, 11.9)."""
     plan = json.loads((Path(run_directory) / 'plan.json').read_text())
+    plan.pop('fail_fast', None)
     binary = next((b for b in plan['binaries'] if b['binary_id'] == binary_id), None)
     if binary is None:
         raise ValueError(f'no binary in plan: {binary_id}')
@@ -1427,6 +1462,8 @@ def execute_plan(plan, prefix, env, directory, limits, *, no_tests='fail', outpu
             cancelled_at = item['at_s']
             results['cancelled'] = item['reason']
             forward(f"tiers: starved: {profile}: {item['reason']}\n")
+        elif kind == 'fail-fast':
+            results['fail_fast'] = True
 
     if selected == 0 and no_tests == 'warn':
         forward('warning: no tests to run\n')
@@ -1486,7 +1523,7 @@ def execute_plan(plan, prefix, env, directory, limits, *, no_tests='fail', outpu
 
     if selected or plan.get('reference_picks'):
         run_lanes(directory / 'plan.json')
-    if ledger is not None and results['cancelled'] is None and 'reference_picks' not in plan:
+    if ledger is not None and results['cancelled'] is None and not results.get('fail_fast') and 'reference_picks' not in plan:
         picks = pick_references(tests.values(), ledger)
         reasons = {(binary, name): why for binary, name, why in picks}
         if picks:
