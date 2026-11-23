@@ -133,11 +133,18 @@ fn holds(view: &View<'_>) -> Table {
             What::Pull(number) => format!("{prefix}/pull/{number}"),
             What::Issue(number) => format!("{prefix}/issue/{number}"),
         };
+        let ended_forge = forge.forge_ended(name.forge);
         holds.entries.push(Entry {
             key: format!("{resource} (task {})", hold.task),
-            rule: "the closing settlement of the landing or change that holds it",
-            // Only the root has the task's terminal, as distinct from its landed phase.
-            release: if view.root.is_some()
+            rule: if ended_forge {
+                "the forge's return or a person's act"
+            } else {
+                "the closing settlement of the landing or change that holds it"
+            },
+            // An ended forge cannot settle the holder's closing. Only the root
+            // has the task's terminal, as distinct from its landed phase.
+            release: if !ended_forge
+                && view.root.is_some()
                 && view.ended(hold.task)
                 && forge.inspection_releases().get(&hold.task).is_none_or(|release| release.failed)
             {

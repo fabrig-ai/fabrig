@@ -318,6 +318,92 @@ fn a_ready_change_has_no_wake_from_another_train_with_landing_room_free() {
     );
 }
 
+fn held_branch(ended: bool) -> (World, forge::Name) {
+    let mut world = World::new();
+    world.adopt();
+    let name = forge::Name {
+        forge: 1,
+        repository: 2,
+        what: forge::What::Branch(vec![b"temper610030".as_slice().into(), b"l10030".as_slice().into()].into()),
+    };
+    let mut records = vec![forge::Stored::Hold(forge::Hold {
+        name: name.clone(),
+        task: super::reconcile::UNMADE,
+        writer: None,
+        design_writers: Box::new([]),
+        beside: None,
+        drift: None,
+    })];
+    if ended {
+        // The taskless, recordless holder retained by reconcile's ended-forge story.
+        records.push(forge::Stored::Forge(forge::ForgeRecord {
+            number: 1,
+            person: None,
+            git_program: None,
+            kind: forge::Kind::Forgejo,
+            mode: forge::Mode::Owned,
+            state: forge::ForgeState::Ended { secrets_erased: true, box_removed: true },
+            place: forge::Place {
+                api: forge::Address { host: b"forge.example".as_slice().into(), port: 3000, tls: None },
+                git: b"http://forge.example:3000".as_slice().into(),
+                web: None,
+            },
+            read_only: false,
+            bot: forge::Bot {
+                login: b"temper".as_slice().into(),
+                name: b"Temper".as_slice().into(),
+                email: Box::new([]),
+            },
+            asked: true,
+            first: None,
+        }));
+    } else {
+        let mut row = temper_engine_forge_world::changes::change_row();
+        row.task = super::reconcile::UNMADE;
+        row.change.task = row.task;
+        row.branch = b"temper610030/l10030".as_slice().into();
+        row.change.state = temper_engine_domain_forge_change::State::Ended;
+        records.push(forge::Stored::Change(Box::new(row)));
+    }
+    // Freeze a leaked hold after closing, or a hold retained on an ended forge,
+    // without asking the healthy engine to produce the leaked snapshot.
+    for record in records {
+        engine::step(&mut world.root, &world.env, engine::Event::Forge(Box::new(forge::Event::Restore { record })));
+    }
+    assert!(world.root.tasks().task(super::reconcile::UNMADE).is_none());
+    assert_eq!(world.root.forge().forge_ended(1), ended);
+    (world, name)
+}
+
+#[test]
+fn a_closed_changes_hold_on_a_live_forge_is_found() {
+    let (world, _) = held_branch(false);
+    let finding =
+        Checks::new(71).quiet(&world.root, world.env.now, 1).expect_err("closed change still holds its branch");
+    assert_eq!(
+        finding,
+        format!(
+            "seed 71: at {} ns, iteration 1: engine branch holds forge/forge.example/org/repo/branch/temper610030/l10030 (task 10030): still held after release rule: the closing settlement of the landing or change that holds it",
+            world.env.now.as_nanos(),
+        )
+    );
+}
+
+#[test]
+fn a_taskless_hold_on_an_ended_forge_waits_for_its_own_release_rule() {
+    let (world, name) = held_branch(true);
+    assert!(world.root.forge().landing(super::reconcile::UNMADE).is_none());
+    assert!(world.root.forge().change(super::reconcile::UNMADE).is_none());
+    let inspection = inspect(&world);
+    let table = inspection.tables().iter().find(|table| table.name == "branch holds").expect("hold table");
+    assert_eq!(table.entries.len(), 1, "the hold is inspected, not excluded");
+    assert_eq!(Checks::new(71).quiet(&world.root, world.env.now, 1), Ok(()));
+    let entry = table.entries.first().expect("held branch");
+    assert_eq!(entry.rule, "the forge's return or a person's act");
+    assert_eq!(entry.release, skein_world::inspect::Release::Pending);
+    assert!(world.root.forge().inspection_holds().contains_key(&name));
+}
+
 fn refused_train() -> (World, u64) {
     use super::forge_routes::landing::{LIVE_ROOM, fill_live_room, produced_with_hold};
     use temper_engine_domain_world::forge_routes::StoryLimits;

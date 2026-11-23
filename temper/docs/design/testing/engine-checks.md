@@ -199,7 +199,7 @@ change's due step.
 |---|---|---|---|---|
 | `forge write entries` | `forge.entries` | each outbox entry, `entry N (task T)`, and each reservation of its room, `reserved for task T` | the write's settlement, or its owner's end with the entry withdrawn | its owner has ended and no write or withdrawal of it is outstanding with the forge client |
 | `forge read admissions` | `forge.client.pending` | each call the forge client admitted, `call N`, with its task where its reader names one | the read's answer | its answer has come and its place isn't reclaimed at the quiet point |
-| `branch holds` | `forge.holds` | each hold, `NAME (task T)` | the closing settlement of the landing or change that holds it | its holder's task has ended and no release of it is under way |
+| `branch holds` | `forge.holds` | each hold, `NAME (task T)` | the closing settlement of the landing or change that holds it; on an ended forge, the forge's return or a person's act | its forge is live, its holder's task has ended and no release of it is under way |
 | `landing rows` | `forge.landings` | each landing's row with its asks, `landing L` | the closing settlement of the landing | the landing has ended, landed or cancelled, and its row still names write entries or holds an ask not handed over |
 
 - **An owner's end, as each function reads it:** `inspect` reads it
@@ -212,6 +212,10 @@ change's due step.
   in `forge`: the forge world can't tell a living holder from one
   whose root has not yet asked its ending, and the kit's worlds,
   through `inspect`, find a leaked hold.
+- **An ended forge's hold** remains pending, including a taskless hold:
+  no closing settlement can come while its forge is ended. Its release
+  rule is the forge's return or a person's act, not the absent holder's
+  end (`../domain/landing-forming.md`, 4).
 - **Kept:** an ended landing's row naming nothing, kept until a new
   landing needs its place, as the forge retires ended rows. A hold its
   holder's failed ending hands to the root is the root's, and pending
