@@ -1,6 +1,7 @@
 use super::*;
 use crate::credentials::tests::Files;
-use std::os::unix::fs::PermissionsExt;
+use smith_host_domain::{FailureReason, ProgramCheck, ProgramFailure, ProgramMethod};
+use std::{os::unix::fs::PermissionsExt, path::Path};
 
 fn check_settings(files: &Files, model: &str, source: &str, extra: &str) -> Settings {
     let (endpoint, _) = model.split_once('/').expect("fixture model");
@@ -198,23 +199,16 @@ fn a_file_cache_warns_and_keeps_its_bytes() {
     assert_eq!(std::fs::read(cache).expect("retained cache file"), b"kept", "check preserves file bytes");
 }
 
-#[test]
-fn an_unused_program_account_warns_without_refusing_check() {
+const SPARE_ACCOUNT: &str = "[accounts.spare]\nprovider='anthropic'\nsource='program'\n";
+
+fn assert_spare_warns(json: &serde_json::Value, directory: &Path) {
     // SHA-256 of spare starts cf2d9706; the first four bytes name the account.
     const SPARE: u32 = 0xcf2d_9706;
-    let files = Files::new("smith-credentials");
-    let report = checked(&check_settings(
-        &files,
-        "openai/gpt-6-luna",
-        "none",
-        "[accounts.spare]\nprovider='anthropic'\nsource='program'\n",
-    ));
-    let json: serde_json::Value = serde_json::from_str(&render_json(&report)).expect("check JSON");
     assert_eq!(
         json["credentials"]["spare"],
         serde_json::json!({
             "required":false,"provider":"anthropic","source":"program","number":SPARE,
-            "kept":{"kind":"directory","at":files.path().join("unopened/programs/spare")},
+            "kept":{"kind":"directory","at":directory},
             "state":"program_not_signed_in","program":"claude_code"
         }),
         "unused account retains its metadata and checked state"
@@ -225,6 +219,14 @@ fn an_unused_program_account_warns_without_refusing_check() {
         })),
         "unused account warning"
     );
+}
+
+#[test]
+fn an_unused_program_account_warns_without_refusing_check() {
+    let files = Files::new("smith-credentials");
+    let report = checked(&check_settings(&files, "openai/gpt-6-luna", "none", SPARE_ACCOUNT));
+    let json: serde_json::Value = serde_json::from_str(&render_json(&report)).expect("check JSON");
+    assert_spare_warns(&json, &files.path().join("unopened/programs/spare"));
     assert!(report.credentials_ready(), "only needed credentials decide readiness");
     assert!(
         render_text(&report).contains("warning: account spare: Claude Code is not signed in"),
@@ -232,12 +234,121 @@ fn an_unused_program_account_warns_without_refusing_check() {
     );
 }
 
-fn linked_directory(path: &std::path::Path, target: &std::path::Path) {
+fn check_given_program_answers(
+    arguments: &[&str],
+    directory: &Path,
+    extra: &str,
+    mut replies: accounts::ProgramAnswers,
+    expected_accounts: &[&str],
+) -> Output {
+    let Command::Check { shared, json, execution } =
+        command::parse(arguments.iter().map(OsString::from).collect()).expect("check arguments")
+    else {
+        panic!("check command");
+    };
+    let commands_path = crate::fixture::commands_path();
+    let certificate = crate::fixture::trust();
+    let text = format!(
+        "model='anthropic/claude-haiku-5-5'\ncredentials='{}'\n[programs]\nclaude_code='/bin/true'\n\
+         [accounts.work]\nprovider='anthropic'\nsource='program'\n[accounts.anthropic]\nsource='none'\n\
+         [endpoints.anthropic]\naccount='work'\naddress='127.0.0.1:443'\nprogram='claude_code'\ntrust.system=false\ntrust.der=['{}']\n\
+         [environment]\ninherit=[]\n[environment.set]\nPATH='{commands_path}'\n{extra}",
+        directory.display(),
+        certificate.display(),
+    );
+    let mut settings = crate::fixture::ready(settings::from_sources(
+        &shared,
+        "/workspace".into(),
+        &[crate::fixture::source("check.toml".into(), text)],
+    ));
+    settings.paths.path = Some(commands_path.into());
+    let wall = skein_lib::Wall::EPOCH;
+    let prepared = crate::fixture::ready(prepare_report(&settings, wall, execution.as_ref()));
+    let mut asked = Vec::new();
+    let mut answers = accounts::ProgramAnswers::new();
+    for account in accounts::program_accounts(&prepared.resolved) {
+        asked.push(account.clone());
+        let reply = replies.remove(&account).unwrap_or_else(|| panic!("unexpected inspection of {account}"));
+        answers.insert(account, reply);
+    }
+    assert_eq!(asked, expected_accounts, "each listed program account is inspected once");
+    assert!(replies.is_empty(), "all supplied answers were requested");
+    render_verdict(prepared.finish(wall, answers), json)
+}
+
+#[test]
+fn check_exits_3_for_a_program_account_not_signed_in() {
+    let output = check_given_program_answers(
+        &["check"],
+        Path::new("/credentials"),
+        "",
+        accounts::ProgramAnswers::from([("work".into(), Ok(ProgramCheck::NotSignedIn))]),
+        &["work"],
+    );
+    assert_eq!(output.code, 3);
+    assert_eq!(output.stderr, "");
+    assert!(
+        output.stdout.lines().any(|line| line == "account work: Claude Code is not signed in: run `smith login work`")
+    );
+}
+
+#[test]
+fn check_says_a_program_signed_in_otherwise() {
+    let method = ProgramMethod::new(b"api").expect("method");
+    let output = check_given_program_answers(
+        &["check", "--json", "exec"],
+        Path::new("/credentials"),
+        "",
+        accounts::ProgramAnswers::from([("work".into(), Ok(ProgramCheck::SignedInOtherwise(method)))]),
+        &["work"],
+    );
+    assert_eq!(output.code, 3);
+    let json: serde_json::Value = serde_json::from_str(&output.stdout).expect("check JSON");
+    assert_eq!(json["credentials"]["work"]["state"], "program_signed_in_otherwise");
+    assert_eq!(json["credentials"]["work"]["method"], "api");
+}
+
+#[test]
+fn a_failed_program_check_is_exit_3() {
+    let unreadable = ProgramCheck::Failed(ProgramFailure { reason: FailureReason::Unreadable, detail: Box::new([]) });
+    let output = check_given_program_answers(
+        &["check", "--json"],
+        Path::new("/credentials"),
+        "",
+        accounts::ProgramAnswers::from([("work".into(), Ok(unreadable))]),
+        &["work"],
+    );
+    assert_eq!(output.code, 3);
+    let json: serde_json::Value = serde_json::from_str(&output.stdout).expect("check JSON");
+    assert_eq!(json["credentials"]["work"]["state"], "program_failed");
+}
+
+#[test]
+fn check_inspects_an_unused_program_account_without_refusing_startup() {
+    let directory = Path::new("/credentials");
+    let output = check_given_program_answers(
+        &["check", "--json"],
+        directory,
+        SPARE_ACCOUNT,
+        accounts::ProgramAnswers::from([
+            ("work".into(), Ok(ProgramCheck::Usable { email: None })),
+            ("spare".into(), Ok(ProgramCheck::NotSignedIn)),
+        ]),
+        &["spare", "work"],
+    );
+    assert_eq!(output.code, 0, "only needed credentials decide the exit");
+    let json: serde_json::Value = serde_json::from_str(&output.stdout).expect("check JSON");
+    assert_eq!(json["credentials"]["work"]["required"], true);
+    assert_eq!(json["credentials"]["work"]["state"], "usable");
+    assert_spare_warns(&json, &directory.join("programs/spare"));
+}
+
+fn linked_directory(path: &Path, target: &Path) {
     std::fs::rename(path, target).expect("move source directory");
     std::os::unix::fs::symlink(target, path).expect("linked source directory");
 }
 
-fn public_directory(path: &std::path::Path, _target: &std::path::Path) {
+fn public_directory(path: &Path, _target: &Path) {
     std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).expect("public source directory");
 }
 
@@ -252,7 +363,7 @@ fn unsafe_program_directories_map_to_failed_account_reports() {
     }
 
     // Path components and faults are row data; every row follows the same inspection.
-    type Fault = fn(&std::path::Path, &std::path::Path);
+    type Fault = fn(&Path, &Path);
     let rows: &[(&str, Fault, &str)] = &[
         ("programs/openai", linked_directory, "symbolic link"),
         ("programs/openai", public_directory, "nonprivate mode bits 0o55"),

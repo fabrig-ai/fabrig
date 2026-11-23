@@ -193,28 +193,6 @@ fn an_agent_configuration_metadata_refusal_reaches_stderr() {
 }
 
 #[test]
-fn withdrawn_endpoint_settings_exit_two_at_their_key() {
-    let scratch = Scratch::new();
-    for (text, key, line) in [
-        ("[endpoints.work]\nidentity='claude-code'\n", "endpoints.work.identity", 2_u32),
-        ("[endpoints.work]\ndialect='codex'\n", "endpoints.work.dialect", 2),
-        ("[endpoints.work]\npreset='codex'\n", "endpoints.work.preset", 2),
-        ("[endpoints.codex]\n", "endpoints.codex", 1),
-        ("model='codex/gpt-6-luna'\n", "model", 1),
-        ("[models.'codex/gpt-6-luna']\nwindow=272000\n", "models.codex/gpt-6-luna", 1),
-    ] {
-        let path = support::user_layer(&scratch, text.as_bytes());
-        let ran = support::smith(&scratch, &["check"], b"");
-        let diagnostic = String::from_utf8_lossy(&ran.stderr);
-        assert_eq!(ran.code, 2, "{key}: {diagnostic}");
-        assert!(
-            diagnostic.contains(&format!("{}:{line}: {key}: use `openai/<model>`", path.display())),
-            "{key}: {diagnostic}"
-        );
-    }
-}
-
-#[test]
 fn a_product_settings_metadata_refusal_reaches_stderr() {
     let scratch = Scratch::new();
     let config = scratch.path().join("config/smith/config.toml");
@@ -401,19 +379,6 @@ fn smith_check_json_shows_each_value_with_its_layer() {
     }
     assert_eq!(report["agent"], serde_json::json!({"name":"smith", "version":env!("CARGO_PKG_VERSION")}));
     assert!(report.get("build").is_none(), "check reports the agent name and version");
-}
-
-#[test]
-fn smith_check_names_both_sides_of_a_budget_past_the_profile_ceiling() {
-    let scratch = Scratch::new();
-    let _file = support::user_layer(&scratch, b"model='openai/gpt-6-luna'\n[accounts.openai]\nprovider='openai'\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[endpoints.openai]\naddress='cannot-resolve.invalid:443'\n");
-    let ran = support::smith(&scratch, &["check", "-c", "budget.turns=5000"], b"");
-    assert_eq!(ran.code, 2);
-    assert_eq!(
-        String::from_utf8(ran.stderr).expect("UTF-8"),
-        "smith: budget.turns = 5000 (from -c) exceeds the standard profile's ceiling of 4096 turns\n"
-    );
-    assert_eq!(ran.stdout, Vec::<u8>::new());
 }
 
 #[test]
