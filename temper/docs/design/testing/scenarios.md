@@ -143,7 +143,8 @@ exclusions name ignored scenarios (skein's `testing/sweeps.md`;
   `temper/docs/development/limits-worlds.md`. Decide the named survivors'
   placement by their unique coverage, with lower holders first where a
   behaviour belongs below; the closest candidates are case 5.5's depth
-  refusal and note recall, and `checks.md`, 5's inbox, effort and advisor checks.
+  refusal and note recall, and the inbox, effort and advisor checks in
+  step 6.5 of `reference-case-milestones.md`.
   Recorded-model twins retain their independent transcript histories.
   Cost grants no exception, and moving a story to escape a budget raises
   it. Whole-suite focused CPU measurement and the gate's fuzzy accounting
@@ -161,7 +162,7 @@ exclusions name ignored scenarios (skein's `testing/sweeps.md`;
   none. Budgets, the real-loop ceiling and any hot-leaf build override
   remain the user's decisions.
 
-- **Reference obligations for a goal that designs** (`checks.md`, 5.1): fold
+- **Reference obligations for a goal that designs** (`checks-stage-one.md`, 1.1): fold
   `../draft/goal-as-designer.md`'s workflow into the reference, its charters
   and stage one's judge together. Goal-delivery stories use test charters;
   they do not establish the reference's roles, models, efforts or wakes.

@@ -17,7 +17,7 @@ charter 11 from template 5: `see` reads, section-based `document`
 writes and the asking `propose_settings`, through ctl in the joined
 world. The settings family's own tools run the domain world's charter
 12, keeping their pagination, note-source and acceptance checks.
-`checks.md`, section 5's golden, stock fixture and judge brief name a real model
+`checks-stage-one.md`, section 1's golden, stock fixture and judge brief name a real model
 for Ask temper as the box's prerequisite. These scripted stories and
 acceptance assets establish no real-model outcome; `README.md`, section 7 retains
 the after-landing acceptance.

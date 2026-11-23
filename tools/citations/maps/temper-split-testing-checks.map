@@ -1,0 +1,4 @@
+# A split pass (temper/docs/design/draft/design-upkeep.md, 4.3): testing/checks.md, 50,165 bytes at ea29d3cbd0.
+# Stage 1's golden, its check and its judge get their own page; the suites, the joined worlds, settings in the store and the checks every world holds stay.
+title temper/docs/design/testing/checks-stage-one.md: What the tiers check: stage 1's golden, its check and its judge
+temper/docs/design/testing/checks.md 5 -> temper/docs/design/testing/checks-stage-one.md 1

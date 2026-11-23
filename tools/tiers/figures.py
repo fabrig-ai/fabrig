@@ -21,7 +21,7 @@ GROUPS = CPU['GROUPS']
 REPAIR_LINE = CPU['REPAIR_LINE']
 BUDGETS = 'tools/tiers/budgets.toml'
 LIMITS = ('cpu_suite_s', 'cpu_test_s', 'wall_hard_s')
-BUDGET_REASON = 'budget coverage reason added: '
+BUDGET_REASON = 'budget check reason added: '
 
 
 def git(*args):
@@ -126,10 +126,11 @@ def compare(base, head, layers, base_name, head_name):
 
     before, after = base.get('gate', {}), head.get('gate', {})
     for profile in sorted(before.keys() | after.keys()):
-        old_reasons = before.get(profile, {}).get('coverage_reasons', [])
-        for reason in after.get(profile, {}).get('coverage_reasons', []):
+        previous = before.get(profile, {})
+        old_reasons = previous.get('check_reasons', previous.get('coverage_reasons', []))
+        for reason in after.get(profile, {}).get('check_reasons', []):
             if reason['kind'] == 'budget' and reason not in old_reasons:
-                place = f"{profile} budget coverage reason {reason['binary']}"
+                place = f"{profile} budget check reason {reason['binary']}"
                 detail = json.dumps(reason, sort_keys=True)
                 findings.append((f'{place} {detail}', f'{BUDGET_REASON}{place}: {detail}'))
         old = profile_figures(before.get(profile, {}), base_name, profile)
