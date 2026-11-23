@@ -93,7 +93,7 @@ fn draining_keeps_turns_calls_and_due_timers_at_the_same_instant() {
 
     let due = drained.root.next_deadline(&drained.env).expect("the live run has an alarm");
     for driver in [&mut drained, &mut stepped] {
-        driver.env.now = due;
+        driver.advance_to(due);
         driver.env.wall = Wall::from_nanos(due.as_nanos());
     }
     drained.pump();

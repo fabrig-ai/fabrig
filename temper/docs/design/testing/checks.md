@@ -301,22 +301,29 @@ private table gaining a `pub` read documented as its adapter's. Every
 adapter names a waiter `task N`, by its task's number, so that a
 landing's or a change's wait and a task's resolve across inspections.
 
-- **The engine's,** `temper/testing/temper-engine-inspect`:
+- **The engine's,** `temper/testing/temper-engine-inspect`, in full in
+  `engine-checks.md`, 2:
   `temper_engine_inspect::inspect(root: &temper_engine_domain::Domain,
-  into: &mut Inspection)`, component `engine`.
+  into: &mut Inspection)`, component `engine`, and
+  `temper_engine_inspect::forge(forge: &temper_engine_domain_forge::Domain,
+  into: &mut Inspection)` for the forge world, which drives the forge
+  component alone.
   - **Waits:** each live landing in its named wait
     (`../domain/landing-waits.md`, 2), and each change in its
     procedure's wait, each kind in its design's words, with the bound
     its design gives.
   - **Tables,** as the draft's 3.2 names them: forge write entries;
     forge read admissions; branch holds and landing rows with their asks.
+    Build places are the worker's.
   - **The tasks the root holds** are jig's adapter's
     (`jig/docs/design/domain/testing.md`, 7), over `Domain::tasks()`:
-    an engine world runs both, and checks the two inspections together.
-  - **Called** at the direct driver's fence once it has drained its
-    immediate work (`temper/tests/engine/domain/src/direct.rs`), at the
-    forge world's and the walking world's quiet points, and at the
-    system world's.
+    an engine world runs both, and checks the two inspections together,
+    once jig's is built (`engine-checks.md`, 7).
+  - **Called** through the engine's world kit (`engine-checks.md`, 3):
+    at the direct driver's fence once it has drained its immediate work
+    (`temper/tests/engine/domain/src/direct.rs`), at the quiet points of
+    the walking, escalation, roles and forge-route worlds, of the forge
+    world and of the composed system world.
 - **The worker's,** `temper/testing/temper-worker-inspect`:
   `temper_worker_inspect::inspect(domain: &temper_worker_domain::Domain,
   limits: &temper_worker_domain::Limits, disk:

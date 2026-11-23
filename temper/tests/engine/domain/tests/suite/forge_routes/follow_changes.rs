@@ -319,7 +319,7 @@ pub(crate) fn start_change_setting(world: &mut World, value: Option<s::Follow>, 
         kinds,
     }));
 }
-fn world(start: s::FollowStart) -> World {
+pub(crate) fn world(start: s::FollowStart) -> World {
     world_passing(start, 1000)
 }
 fn world_passing(start: s::FollowStart, passes: u32) -> World {
@@ -410,7 +410,7 @@ fn unaccepted_follow_with_tables(passes: u32, gate: Gate, cued: bool, context: b
     world.send(protocol::hello_slots(Token::new(7), 4, Box::new([])));
     world
 }
-fn push(world: &mut World, message: &[u8]) -> skein_forge::api::Commit {
+pub(crate) fn push(world: &mut World, message: &[u8]) -> skein_forge::api::Commit {
     let raw::Answer::Commit(parent) =
         world.external_at(b"org/vsr", 1, raw::Op::Read(raw::Read::Branch { branch: b"main".as_slice().into() }))
     else {
@@ -465,10 +465,10 @@ fn start(world: &mut World, after: skein_forge::api::Commit) {
     world.send(engine::Event::Resume);
     settle(world);
 }
-fn change(world: &World, after: skein_forge::api::Commit) -> u64 {
+pub(crate) fn change(world: &World, after: skein_forge::api::Commit) -> u64 {
     row(world).queue.iter().find(|entry| entry.after == after).expect("queued commit").change.expect("made change")
 }
-fn cancel(world: &mut World, task: u64, key: u8) {
+pub(crate) fn cancel(world: &mut World, task: u64, key: u8) {
     world.send(engine::Event::Party(engine::PartyInput::Ask {
         reply_to: ReplyTo::new(Token::new(u64::from(key))),
         sign_in: world.signed_in.expect("owner signed in"),
@@ -486,7 +486,7 @@ fn advance_follow_timer(world: &mut World) {
         && world.store.pending.is_empty()
         && let Some(due) = world.root.next_deadline(&world.env)
     {
-        world.env.now = world.env.now.max(due);
+        world.advance_to(world.env.now.max(due));
     }
 }
 fn hint_target(world: &mut World) {
@@ -533,7 +533,7 @@ fn push_target(world: &mut World, change: u64) {
         },
     })));
 }
-fn produce(world: &mut World, change: u64, producer: &engine::Assignment) {
+pub(crate) fn produce(world: &mut World, change: u64, producer: &engine::Assignment) {
     push_target(world, change);
     let event = world.protocol.answer(
         Token::new(7),
@@ -562,7 +562,7 @@ fn ended_task(world: &World, task: u64) -> &tasks::TaskRecord {
     };
     row
 }
-fn next_delegate(world: &mut World, change: u64, previous: u64) -> engine::Assignment {
+pub(crate) fn next_delegate(world: &mut World, change: u64, previous: u64) -> engine::Assignment {
     for _ in 0..temper_engine_domain_world::tier_runs::RUN_TICKS {
         world.tick();
         if let Some((child, _)) = questions::row(world, change).delegate

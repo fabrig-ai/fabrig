@@ -74,6 +74,46 @@ struct Budget {
     spent: bool,
     reset: Option<Time>,
 }
+impl Domain {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_call_capacity(&self) -> u32 {
+        self.calls.slab.capacity()
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_calls(&self) -> Box<[u64]> {
+        let mut keys = List::with_capacity(self.calls.slab.len());
+        for (_, call) in &self.calls.slab {
+            keys.push(call.admitted).expect("counted calls");
+        }
+        keys.into_boxed()
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_call_owner(&self, number: u64) -> Option<&Owner> {
+        for (_, call) in &self.calls.slab {
+            if call.admitted == number {
+                return Some(&call.owner);
+            }
+        }
+        None
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_answered_call(&self, number: u64) -> bool {
+        for (_, call) in &self.calls.slab {
+            if call.admitted == number {
+                return call.state == State::Closed;
+            }
+        }
+        false
+    }
+}
+
 impl Calls {
     pub(crate) fn new(l: &Limits) -> Calls {
         Calls {

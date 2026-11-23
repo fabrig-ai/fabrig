@@ -1652,18 +1652,9 @@ fn retry_change_names(domain: &mut Domain, env: &Env<Limits>, task: u64) {
 fn change_delegate_live(domain: &Domain, task: u64) -> bool {
     let Some(owner) = domain.core.tasks.task(task) else { return false };
     for child in &owner.delegates {
-        let Some(child) = domain.core.tasks.task(*child) else { continue };
-        let pushing = match child.contract {
-            tasks::Contract::Change { connector, kind, .. } => connector == domain.config.forge_connector && kind == 2,
-            tasks::Contract::Job { .. } => {
-                child.executor == (tasks::Executor::Job { kind: forge::MERGE_KIND })
-                    || child.executor == (tasks::Executor::Job { kind: forge::CLOSE_KIND })
-            }
-            tasks::Contract::Report { .. } | tasks::Contract::Approval { .. } | tasks::Contract::Verdict { .. } => {
-                false
-            }
-        };
-        if pushing {
+        if change_pushing_child(domain, *child)
+            && let Some(child) = domain.core.tasks.task(*child)
+        {
             match child.phase {
                 tasks::Phase::Ended(_) => {}
                 tasks::Phase::Active(_)
@@ -1674,6 +1665,18 @@ fn change_delegate_live(domain: &Domain, task: u64) -> bool {
         }
     }
     false
+}
+
+pub(crate) fn change_pushing_child(domain: &Domain, child: u64) -> bool {
+    let Some(child) = domain.core.tasks.task(child) else { return false };
+    match child.contract {
+        tasks::Contract::Change { connector, kind, .. } => connector == domain.config.forge_connector && kind == 2,
+        tasks::Contract::Job { .. } => {
+            child.executor == (tasks::Executor::Job { kind: forge::MERGE_KIND })
+                || child.executor == (tasks::Executor::Job { kind: forge::CLOSE_KIND })
+        }
+        tasks::Contract::Report { .. } | tasks::Contract::Approval { .. } | tasks::Contract::Verdict { .. } => false,
+    }
 }
 
 // A task between attempts is not a run in progress (temper/docs/design/domain/forge/change/repairs.md).
