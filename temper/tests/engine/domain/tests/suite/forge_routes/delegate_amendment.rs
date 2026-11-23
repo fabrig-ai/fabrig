@@ -111,7 +111,7 @@ pub(super) fn next_attempt(world: &mut World, repair: &engine::Assignment) -> en
             && world.store.pending.is_empty()
             && let Some(due) = world.root.next_deadline(&world.env)
         {
-            world.env.now = world.env.now.max(due);
+            world.advance_to(world.env.now.max(due));
         }
         world.tick();
         if let Some(run) = world.assigned.iter().find(|run| run.task == repair.task && run.attempt > repair.attempt) {

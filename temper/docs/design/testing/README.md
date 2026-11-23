@@ -6,9 +6,9 @@ faults, what every fake shares, what every world checks, scenarios and
 the referee, the two suites, and where a failure is fixed. This document
 keeps what is temper's: its tiers (`tiers.md`, section 1), its neighbours and their
 fakes (`README.md`, section 3 and `fakes.md`), its scenarios, referee and its case library
-(`scenarios.md`, section 1), what its worlds check beyond the strategy (`checks.md`;
-blame and tries for gates, `blame.md`; the worker's waits, disk and faults,
-`worker.md`), the
+(`scenarios.md`, section 1), what its worlds check beyond the strategy (`checks.md`; the
+engine's, `engine-checks.md`; blame and tries for gates, `blame.md`; the worker's
+waits, disk and faults, `worker.md`), the
 restarts and stops they inject (`restarts.md`), the
 shipped settings checked against themselves (`settings-tests.md`), every commit's store
 checked against a start (`store-check.md`), its
@@ -139,6 +139,7 @@ testing/temper-github-app           the App on the fake GitHub layer's first fix
 testing/temper-fixtures             the documents, transcripts, memory literals and local browser that temper's client crates and worlds share
 testing/temper-agent-fixtures       the agents' configuration as the worker's writer makes it
 testing/temper-landing-fixtures     a project's landing settings, typed, for the engine's and client's worlds
+testing/temper-engine-inspect       the engine's inspection adapter, read by its worlds alone (engine-checks.md, 2)
 testing/temper-blame                the check of blame and tries for gates, over a world's fault ledger (blame.md)
 tests/<component>/<child>           a child domain's world, temper-<component>-<child>-world
 tests/<component>/domain            a component's world: the engine's, the worker's

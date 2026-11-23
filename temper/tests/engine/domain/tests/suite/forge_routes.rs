@@ -57,7 +57,7 @@ mod context_projects;
 mod kind_charters;
 mod opened_panel;
 #[path = "forge_routes/resource_admission.rs"]
-mod resource_admission;
+pub(crate) mod resource_admission;
 
 #[path = "forge_routes/asks_no_one.rs"]
 mod asks_no_one;
@@ -68,7 +68,7 @@ mod kept_delegate;
 mod producer_amendment;
 mod producer_words;
 #[path = "forge_routes/questions.rs"]
-mod questions;
+pub(crate) mod questions;
 mod rulings;
 
 #[path = "forge_routes/goal_closer.rs"]
@@ -76,7 +76,7 @@ pub(crate) mod goal_closer;
 #[path = "forge_routes/goal_closes.rs"]
 mod goal_closes;
 #[path = "forge_routes/status.rs"]
-mod status;
+pub(crate) mod status;
 
 #[path = "forge_routes/flights.rs"]
 mod flights;
@@ -93,7 +93,7 @@ pub(super) mod change_tool;
 mod read_contracts;
 
 #[path = "forge_routes/light_rules.rs"]
-mod light_rules;
+pub(crate) mod light_rules;
 
 #[path = "forge_routes/catch_up.rs"]
 mod catch_up;
@@ -103,7 +103,7 @@ mod opened;
 mod squash_in;
 
 #[path = "forge_routes/merge_job.rs"]
-mod merge_job;
+pub(crate) mod merge_job;
 
 #[path = "forge_routes/plain_change.rs"]
 mod plain_change;
@@ -147,7 +147,7 @@ mod goal_tier;
 
 mod amended_review;
 #[path = "forge_routes/reviews.rs"]
-mod reviews;
+pub(crate) mod reviews;
 
 #[path = "forge_routes/b2_tree.rs"]
 mod b2_tree;
@@ -186,7 +186,7 @@ mod goal_questions;
 
 mod goal_delivery;
 #[path = "forge_routes/goal_landing.rs"]
-mod goal_landing;
+pub(super) mod goal_landing;
 
 #[path = "forge_routes/goal_landing_held.rs"]
 mod goal_landing_held;
@@ -565,7 +565,7 @@ fn a_change_whose_ci_takes_minutes_lands_without_being_held() {
     );
     // Main resumes the wait at its stall alarm; the fresh read then sees green.
     // Jump the virtual clock instead of spending ticks on that quiet interval.
-    world.env.now = world.env.now.saturating_add(stall);
+    world.jump(stall);
     for _ in 0..300 {
         world.tick();
         if world.store.rows.values().any(|stored| {
@@ -2302,7 +2302,7 @@ fn park_chat(world: &mut World, assignment: &engine::Assignment) {
     world.until(Until::Ready);
 }
 
-fn park_after_turn(world: &mut World, assignment: &engine::Assignment, read: Option<u64>, turns: u32) {
+pub(crate) fn park_after_turn(world: &mut World, assignment: &engine::Assignment, read: Option<u64>, turns: u32) {
     let mut event = world.protocol.answer(
         Token::new(7),
         assignment.task,
@@ -4416,8 +4416,7 @@ fn settling_places_no_run_and_answers_a_call_busy() {
     }
     assert!(world.root.ready());
     assert!(!world.assigned.iter().any(|run| run.task == queued), "the restored claim waits for its hold");
-    world.env.now =
-        world.env.now.saturating_add(world.env.limits.fleet.restart_wait).saturating_add(world.env.limits.fleet.grace);
+    world.jump(world.env.limits.fleet.restart_wait.saturating_add(world.env.limits.fleet.grace));
     for _ in 0..200 {
         world.tick();
         if world.assigned.iter().any(|run| run.task == queued) {

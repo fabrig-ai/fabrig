@@ -23,6 +23,10 @@ PLANNER = runpy.run_path(str(Path(__file__).with_name('workspace.py')))
 TIERS = Path(__file__).resolve().parents[1] / 'tiers'
 # Read-only mount supplied by the worker, outside the candidate workspace.
 WORKER_COUNTS = Path('/policy-counts.json')
+# Close and the gate count some binaries differently (cargo-spawning boundary tests about 7% lower,
+# client worlds up to 22% higher, 11-23), so a layer's sum can swing about 2% between them: close
+# refuses only growth past the allowance by more than this share of the layer's base (section 4.1).
+CLOSE_MARGIN = 0.03
 # Main's published counts, fetched at close when the checkout lacks refs/temper/counts.
 PUBLIC_SOURCE = 'https://git.fabrig.ai/fabrig-ai/fabrig.git'
 PUBLIC_PROTOCOLS = 'https'
@@ -614,7 +618,7 @@ def close_budgets(root, repository, env, runs):
         if count > before:
             grew[key].append((count - before, binary))
 
-    findings = []
+    findings, warnings = [], []
     for key in sorted({key for key, _ in measured.values()}):
         before, after = base_layers[key], head[key]
         accepted = profile.get(key[0], {}).get(key[1], {}).get('accepted_instructions')
@@ -625,17 +629,23 @@ def close_budgets(root, repository, env, runs):
         increase = after - before
         if not over and increase <= allowance:
             continue
+        margin = int(before * CLOSE_MARGIN)
+        sure = after > limit + margin if over else increase > allowance + margin
+        found = findings if sure else warnings
         growth = f'{100 * increase / before:.2f}%' if before else 'n/a (zero at base)'
         reason = 'instruction growth over allowance'
         if over:
             bound = 'accepted instruction level' if limit != ceiling else 'instruction ceiling'
             reason = f'over {bound} {limit}'
-        findings.append(f'{key[0]} default {key[1]}: {reason}, {before} at base, {after} at head, '
-                        f'growth {growth}, allowance {allowance} instructions')
+        found.append(f'{key[0]} default {key[1]}: {reason}, {before} at base, {after} at head, '
+                     f'growth {growth}, allowance {allowance} instructions')
         causes = sorted(grew[key], key=lambda cause: (-cause[0], cause[1]))
-        findings.extend(f'  {binary}: +{increase} instructions' for increase, binary in causes[:10])
+        found.extend(f'  {binary}: +{increase} instructions' for increase, binary in causes[:10])
         if len(causes) > 10:
-            findings.append(f'  {len(causes) - 10} more binaries')
+            found.append(f'  {len(causes) - 10} more binaries')
+    if warnings:
+        print(f'budgets: past the allowance at close by less than its {CLOSE_MARGIN:.0%} margin, a warning; '
+              'the landing gate judges:\n' + '\n'.join(warnings), flush=True)
     if not findings:
         print(f'budgets: within instruction budgets at close (base {base[:10]})', flush=True)
         return []
@@ -1139,8 +1149,10 @@ def summary(base_id, lints, tests, errors, reason, failures_tail, starved=(), sc
     if refused and scope == 'close' and new:
         # The close job's hold keeps only the last 128 bytes of the check's stderr: name the first failure there.
         first = new[0]
-        line = diagnostic.strip() or first['name'] + ': ' + next(
-            (text.strip() for text in first['log'].splitlines() if text.strip()), '')
+        # A failed case, a compiler error or a panic says most; else the log's last line, not its cut marker.
+        texts = [text.strip() for text in first['log'].splitlines() if text.strip() and not text.startswith('[… ')]
+        telling = [text for text in texts if text.startswith(('FAIL', 'error', 'thread ')) or 'panicked' in text]
+        line = diagnostic.strip() or first['name'] + ': ' + (telling or texts or [''])[0 if telling else -1]
         print(line.encode()[:127].decode(errors='ignore'), file=sys.stderr, flush=True)
     return int(refused)
 
@@ -1278,11 +1290,7 @@ def workspace_checks(root, paths, tree_id, env, errors, outcomes, reds=(), *, co
             else:
                 if runs:
                     repository, git_env = counts_source if counts_source is not None else (root, env)
-                    # A worker's counts differ from the gate's by more than the allowance (2.2% in a layer a
-                    # docs-only goal never touched, 11-23), so growth at close is a warning; the gate refuses it.
-                    for finding in close_budgets(root, repository, git_env, runs):
-                        print('pre-pr: budgets at close, a warning: the landing gate judges them\n'
-                              + finding['log'], end='', flush=True)
+                    errors += close_budgets(root, repository, git_env, runs)
     return suites
 
 

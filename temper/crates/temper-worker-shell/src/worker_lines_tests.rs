@@ -481,3 +481,15 @@ fn an_agents_signal_line_leaves_its_stop_to_the_worker() {
         );
     }
 }
+
+#[test]
+fn git_counts_words_name_the_repository() {
+    let note = worker::Note::Git {
+        run: 81,
+        attempt: 2,
+        job: None,
+        repository: b"app\n".as_slice().into(),
+        what: temper_worker_domain::Git::Counts,
+    };
+    assert_eq!(worker_note_words("temper", note), "temper worker: run 81 attempt 2 counts app\\n\n");
+}

@@ -78,6 +78,7 @@ fn spawn(command: &Command) -> k::Spawn {
         }
         Command::Store { .. } => Some(temper_worker_domain_checkout::git::Kind::Store),
         Command::SnapshotFetch { .. } | Command::Fetch { .. } => Some(temper_worker_domain_checkout::git::Kind::Fetch),
+        Command::FetchCounts { .. } => Some(temper_worker_domain_checkout::git::Kind::Counts),
         Command::Create { .. } => Some(temper_worker_domain_checkout::git::Kind::Create),
         Command::Push { .. } | Command::IsAncestor { .. } => Some(temper_worker_domain_checkout::git::Kind::Push),
         Command::Reds(_)
@@ -94,7 +95,7 @@ fn spawn(command: &Command) -> k::Spawn {
         | Command::CommitTree { .. } => Some(temper_worker_domain_checkout::git::Kind::Commit),
         Command::CheckOut { .. } => Some(temper_worker_domain_checkout::git::Kind::CheckOut),
         Command::Merge { .. } => Some(temper_worker_domain_checkout::git::Kind::Merge),
-        Command::Version | Command::Clean => None,
+        Command::Version | Command::Clean | Command::UpdateCounts { .. } | Command::DeleteCounts => None,
         Command::Origin { .. } => Some(temper_worker_domain_checkout::git::Kind::Look),
     };
     let identity = Identity {
@@ -754,7 +755,7 @@ fn brings_commands_read_the_shared_graph_and_list_only_commits_outside_the_base(
 }
 
 type Vector = &'static [&'static [u8]];
-fn partial_vectors() -> [(Vector, Vector); 4] {
+fn partial_vectors() -> [(Vector, Vector); 5] {
     const ID: &[u8] = b"0000000000000000000000000000000000000001";
     [
         (
@@ -794,6 +795,32 @@ fn partial_vectors() -> [(Vector, Vector); 4] {
                 b"--",
                 REMOTE,
                 b"+HEAD:refs/temper/7/fetched",
+            ],
+        ),
+        (
+            &[
+                b"fetch",
+                b"--porcelain",
+                b"--verbose",
+                b"--no-filter",
+                b"--no-tags",
+                b"--no-write-fetch-head",
+                b"--no-recurse-submodules",
+                b"--",
+                REMOTE,
+                b"+refs/temper/counts:refs/temper/7/counts",
+            ],
+            &[
+                b"fetch",
+                b"--porcelain",
+                b"--verbose",
+                b"--filter=blob:none",
+                b"--no-tags",
+                b"--no-write-fetch-head",
+                b"--no-recurse-submodules",
+                b"--",
+                REMOTE,
+                b"+refs/temper/counts:refs/temper/7/counts",
             ],
         ),
         (

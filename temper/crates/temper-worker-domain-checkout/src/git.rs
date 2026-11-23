@@ -83,6 +83,10 @@ pub enum Op {
     /// in `Fetched`, or fails `Missing` if the forge has no such branch or
     /// commit, or no default branch.
     Fetch { at: Place, store: Token, remote: Box<[u8]>, want: Want, into: Into, identity: u32, account: Option<u64> },
+    /// Fetch the forge's `refs/temper/counts` with its blob into the store and point the repository's
+    /// `refs/temper/counts` at it (protocol/git-operations.md, 1.3). Ends in `Fetched`, or in
+    /// `Succeeded` where the forge has none, the repository's reference removed.
+    Counts { at: Place, store: Token, remote: Box<[u8]>, identity: u32, account: Option<u64> },
     /// Point a repository reference at a commit already present. Ends in `Succeeded`.
     Point { at: Place, into: Into, commit: Commit },
     /// Count and repack the store, then the repository (protocol/git-operations.md, 1.14).
@@ -209,7 +213,7 @@ pub enum Done {
     Conflicted { files: Box<[Box<[u8]>]>, cut: bool },
     /// `Make`, `Store`, `Clone`, `Create`, `CheckOut`, `Push`: done as asked.
     Succeeded,
-    /// `Fetch`: what was asked for is at `commit`, now in the repository.
+    /// `Fetch`, `Counts`: what was asked for is at `commit`, now in the repository.
     Fetched { commit: Commit },
     /// `Commit`: the tree is committed as `commit`.
     Committed { commit: Commit },
@@ -229,13 +233,13 @@ pub enum Done {
 /// Why an operation failed.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Fault {
-    /// `Store`, `Fetch`, `Create`, `Push`, `CheckOut`, `Merge`: the forge has no such repository;
+    /// `Store`, `Fetch`, `Counts`, `Create`, `Push`, `CheckOut`, `Merge`: the forge has no such repository;
     /// Fetch may also name a branch or commit the forge lacks.
     Missing { missing: Missing },
-    /// `Store`, `Fetch`, `Create`, `Push`, `CheckOut`, `Merge`: the forge refused: the identity's
+    /// `Store`, `Fetch`, `Counts`, `Create`, `Push`, `CheckOut`, `Merge`: the forge refused: the identity's
     /// credentials or permissions, a protected branch, a hook.
     Refused,
-    /// `Store`, `Fetch`, `Create`, `Push`, `CheckOut`, `Merge`: the forge could not be reached or failed.
+    /// `Store`, `Fetch`, `Counts`, `Create`, `Push`, `CheckOut`, `Merge`: the forge could not be reached or failed.
     Unreachable,
     /// Something failed on the worker's side: the disk, or git itself.
     Broken,
@@ -280,6 +284,7 @@ pub enum Kind {
     Make,
     Clone,
     Fetch,
+    Counts,
     Point,
     Pack,
     Create,
@@ -303,6 +308,7 @@ impl Op {
             Op::Look { .. } => Kind::Look,
             Op::Clone { .. } => Kind::Clone,
             Op::Fetch { .. } => Kind::Fetch,
+            Op::Counts { .. } => Kind::Counts,
             Op::Point { .. } => Kind::Point,
             Op::Pack { .. } => Kind::Pack,
             Op::Create { .. } => Kind::Create,
@@ -322,6 +328,7 @@ impl Op {
         match self {
             Op::Store { .. }
             | Op::Fetch { .. }
+            | Op::Counts { .. }
             | Op::Create { .. }
             | Op::Push { .. }
             | Op::CheckOut { .. }

@@ -141,7 +141,7 @@ impl Operation {
         };
         let kind = self.environment_kind(kind);
         let mut credentials = true;
-        if let Command::UpdateRef { .. } = self.command {
+        if let Command::UpdateRef { .. } | Command::UpdateCounts { .. } | Command::DeleteCounts = self.command {
             credentials = false;
         }
         let mut pipes = skein_lib::List::with_capacity(3);
@@ -236,7 +236,10 @@ impl Operation {
             | Command::Store { .. }
             | Command::Remote { .. }
             | Command::UpdateRef { .. }
+            | Command::UpdateCounts { .. }
+            | Command::DeleteCounts
             | Command::Fetch { .. }
+            | Command::FetchCounts { .. }
             | Command::Create { .. }
             | Command::CheckOut { .. }
             | Command::Merge { .. }
@@ -271,7 +274,10 @@ impl Operation {
             | Command::Store { .. }
             | Command::Remote { .. }
             | Command::UpdateRef { .. }
+            | Command::UpdateCounts { .. }
+            | Command::DeleteCounts
             | Command::Fetch { .. }
+            | Command::FetchCounts { .. }
             | Command::Create { .. }
             | Command::CheckOut { .. }
             | Command::Clean
@@ -305,7 +311,10 @@ impl Operation {
             | Command::Store { .. }
             | Command::Remote { .. }
             | Command::UpdateRef { .. }
+            | Command::UpdateCounts { .. }
+            | Command::DeleteCounts
             | Command::Fetch { .. }
+            | Command::FetchCounts { .. }
             | Command::Create { .. }
             | Command::CheckOut { .. }
             | Command::Clean
@@ -330,6 +339,7 @@ impl Operation {
                     | git::Op::Pack { .. }
                     | git::Op::Point { .. }
                     | git::Op::Fetch { .. }
+                    | git::Op::Counts { .. }
                     | git::Op::Create { .. }
                     | git::Op::CheckOut { .. }
                     | git::Op::Look { .. }
@@ -426,6 +436,7 @@ impl Operation {
                     | git::Op::Pack { .. }
                     | git::Op::Point { .. }
                     | git::Op::Fetch { .. }
+                    | git::Op::Counts { .. }
                     | git::Op::Create { .. }
                     | git::Op::CheckOut { .. }
                     | git::Op::DiffPaths { .. }
@@ -452,7 +463,10 @@ impl Operation {
             | Command::Store { .. }
             | Command::Remote { .. }
             | Command::UpdateRef { .. }
+            | Command::UpdateCounts { .. }
+            | Command::DeleteCounts
             | Command::Fetch { .. }
+            | Command::FetchCounts { .. }
             | Command::Create { .. }
             | Command::CheckOut { .. }
             | Command::Clean
@@ -514,7 +528,10 @@ impl Operation {
             | Command::Store { .. }
             | Command::Remote { .. }
             | Command::UpdateRef { .. }
+            | Command::UpdateCounts { .. }
+            | Command::DeleteCounts
             | Command::Fetch { .. }
+            | Command::FetchCounts { .. }
             | Command::Create { .. }
             | Command::CheckOut { .. }
             | Command::Clean

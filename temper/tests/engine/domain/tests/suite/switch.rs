@@ -17,6 +17,8 @@ fn every_start_takes_the_switch_step_and_commits_its_wires() {
         store.crash(9761);
         let pending = store.pending_generation;
         let mut driver = Driver::cold(store, walking::config(91), &walking::limits());
+        // The start's mark stays withheld while the story probes the fence.
+        driver.ends.no_opening(driver.env.now);
         for _ in 0..STEPS {
             if driver.store.pending.front().is_some_and(|(_, writes)| writes.contains(&Write::Wires)) {
                 break;

@@ -22,7 +22,9 @@ fn prepare_marks_only_writable_repositories_after_their_pins_and_ignores_file_fa
                 Done::Succeeded
             }
             Op::Fetch { at, .. } => Done::Fetched { commit: start_of(at) },
-            Op::Store { .. } | Op::Make { .. } | Op::Clone { .. } | Op::CheckOut { .. } => Done::Succeeded,
+            Op::Store { .. } | Op::Make { .. } | Op::Clone { .. } | Op::CheckOut { .. } | Op::Counts { .. } => {
+                Done::Succeeded
+            }
             other @ (Op::Reds { .. }
             | Op::Look { .. }
             | Op::Reset { .. }

@@ -221,12 +221,7 @@ fn a_conflict_waits_for_the_producers_last_push_and_terminal() {
     world.close();
 }
 
-#[test]
-#[expect(
-    clippy::too_many_lines,
-    reason = "one story follows the producer terminal, prepare conflict and later landing"
-)]
-fn a_turn_preparation_waits_for_its_producers_final_head() {
+pub(crate) fn turn_producer() -> (World, u64, engine::Assignment, u64, u64) {
     let configured = World::configured_limits(
         true,
         true,
@@ -236,8 +231,14 @@ fn a_turn_preparation_waits_for_its_producers_final_head() {
         None,
         StoryLimits { turn: true, ..StoryLimits::default() },
     );
-    let (mut world, task, producer, _, base) = live_producer(configured);
+    let (mut world, task, producer, head, base) = live_producer(configured);
     world.manual_prepare_jobs();
+    (world, task, producer, head, base)
+}
+
+#[test]
+fn a_turn_preparation_waits_for_its_producers_final_head() {
+    let (mut world, task, producer, _, base) = turn_producer();
     wait_for_conflict(&mut world, task, base, 2);
     assert_eq!(change_row(&world, task).change.way, change::Way::Turn);
     let producer = resume(&mut world, &producer);
@@ -372,8 +373,7 @@ fn a_producer_that_cleans_the_conflict_needs_no_resolution() {
     world.close();
 }
 
-#[test]
-fn a_producer_displaced_by_a_gate_still_keeps_the_conflict_waiting() {
+pub(crate) fn displaced_producer() -> (World, u64, engine::Assignment, u64, u64, usize) {
     let configured = World::configured_limits(
         true,
         true,
@@ -401,6 +401,12 @@ fn a_producer_displaced_by_a_gate_still_keeps_the_conflict_waiting() {
         &gate,
         tasks::TaskResult::Verdict { code: 1, fields: Box::new([]), words: b"approved".as_slice().into() },
     );
+    (world, task, producer, head, base, assignments)
+}
+
+#[test]
+fn a_producer_displaced_by_a_gate_still_keeps_the_conflict_waiting() {
+    let (mut world, task, producer, head, base, assignments) = displaced_producer();
     wait_for_conflict(&mut world, task, base, assignments);
     assert_eq!(change_row(&world, task).delegate, None, "the producer is no longer the current delegate");
     world.sign_in();

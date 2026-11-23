@@ -1,20 +1,19 @@
 //! A restart makes a missing goal branch from the beginning of catching up
 //! (temper/docs/design/domain/forge/branches.md, 1).
 use skein_forge::api::{Op, Write};
-use skein_forge_client::Entry;
+use skein_forge_client::{Condition, Effect, Entry};
 use temper_engine_domain_forge as top;
+use temper_engine_domain_forge_landing as landing;
 use temper_engine_forge_world::{
     REPO, World,
-    restarts::{
-        BRANCH, ENDED, GOAL, goal_name as name, synthetic_cancelled_landing, synthetic_held_dispatch as held_dispatch,
-        synthetic_missing_branch,
-    },
+    restarts::{BRANCH, GOAL, goal_name as name, synthetic_missing_branch},
 };
 
+const OWNER: u64 = 63;
 const FRESH: u64 = 3;
 const SLOW: &[u8] = b"slow-read";
 
-fn before_restart() -> World {
+pub(super) fn before_restart() -> World {
     let mut world = World::with_entries(377, 2);
     world.adopt();
     synthetic_missing_branch(&mut world);
@@ -32,6 +31,66 @@ fn before_restart() -> World {
     world.observe_entry_saves();
     assert!(!world.has_branch(BRANCH));
     world
+}
+
+pub(super) fn held_landing() -> top::LandingRow {
+    top::LandingRow {
+        last_event: None,
+        turn_since: None,
+        waiting: Some(landing::Awaited::Release),
+        room: None,
+        job: None,
+        landing: landing::Landing {
+            last_left: None,
+            searched: None,
+            task: OWNER,
+            project: 5,
+            phase: landing::Phase::Held { was: Box::new(landing::Phase::Waiting), why: landing::Hold::Prepare },
+            members: Box::new([]),
+            preparation: 0,
+            stale_proofs: 0,
+            branch: b"main".as_slice().into(),
+            round: landing::Round::new(b"temper/63/l63".as_slice().into()),
+            last_prepare: None,
+        },
+        asks: Box::new([]),
+        entries: [1, 2]
+            .map(|entry| top::LandingEntry {
+                preparation: None,
+                base: None,
+                entry,
+                member: 0,
+                gate: 0,
+                operation: top::Operation::Dispatch,
+                run: None,
+            })
+            .into(),
+        follows: None,
+        flake_reruns: Box::new([]),
+    }
+}
+
+pub(super) fn held_dispatch(number: u64) -> top::Stored {
+    top::Stored::Entry {
+        entry: Entry {
+            number,
+            task: OWNER,
+            repository: REPO,
+            effect: Effect {
+                write: Write::Dispatch {
+                    workflow: b"gate.yml".as_slice().into(),
+                    branch: b"main".as_slice().into(),
+                    inputs: Box::new([]),
+                },
+                condition: Condition::None,
+            },
+            start: None,
+            attempt: None,
+            failures: 0,
+            queued: false,
+        },
+        held: true,
+    }
 }
 
 fn restart_with_other_fresh_reads_out(world: &mut World) {
@@ -93,9 +152,9 @@ fn finish_making(world: &mut World) {
 #[test]
 fn a_full_outbox_lines_up_a_restarted_goal_making_until_a_holder_is_released() {
     let mut world = before_restart();
-    // Closing tasks stay held until their outbox entries have settled.
-    world.hold_task(ENDED);
-    world.store_before_restart(top::Stored::Landing(synthetic_cancelled_landing(&[1, 2])));
+    // Waiting tasks stay held until their outbox entries have settled.
+    world.hold_task(OWNER);
+    world.store_before_restart(top::Stored::Landing(held_landing()));
     for number in [1, 2] {
         world.store_before_restart(held_dispatch(number));
     }

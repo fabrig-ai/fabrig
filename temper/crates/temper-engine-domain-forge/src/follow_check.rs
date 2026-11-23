@@ -105,7 +105,7 @@ pub(crate) fn select(d: &Domain, row: &mut ChangeRow, limits: &Limits) -> Result
     }
     Ok(())
 }
-fn receipt_key(d: &Domain, row: &ChangeRow) -> ReceiptKey {
+pub(crate) fn receipt_key(d: &Domain, row: &ChangeRow) -> ReceiptKey {
     let check = row.follow_check.as_ref().expect("active follow check");
     ReceiptKey {
         project: d.repository(row.repository).expect("adopted target").project,

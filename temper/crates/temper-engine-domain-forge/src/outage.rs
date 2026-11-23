@@ -98,6 +98,25 @@ impl State {
     }
 }
 
+impl Domain {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_retry_readers(&self) -> Box<[Token]> {
+        let Some(state) = &self.outage else { return Box::new([]) };
+        let mut readers = skein_lib::List::with_capacity(state.reads.len());
+        for (owner, _) in &state.reads {
+            readers.push(*owner).expect("counted read retries");
+        }
+        readers.into_boxed()
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_read_retry(&self, owner: Token) -> Option<Time> {
+        self.outage.as_ref()?.reads.get(&owner)?.wait.at
+    }
+}
+
 // No outage bookkeeping is allocated for a passive restored owner. Keeping
 // this subtree boxed also leaves the connector's inline restore frame small.
 fn activate(d: &mut Domain, limits: &Limits) {
