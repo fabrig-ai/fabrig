@@ -22,7 +22,7 @@ One milestone, *slow tests at the gate*, of eighteen goals. Each lands into main
 | D12, `smith-bench::suite`, smith's store and native setup | 5.2, 5.3 | smith | none | not started |
 | D13, smith's shipped CLI, with a file-operation seam around its finalizer | 5.3 | smith | none | not started |
 | D14, temper's shells: forge setup, box, common, TUI, service, fetch and engine shells | 5.3 | temper | D8 | not started |
-| D15, temper's journey tools and its end-to-end binaries' tables | 5.3 | temper | none | not started |
+| D15, temper's journey tools and its end-to-end binaries' tables | 5.3 | temper | none | landed |
 | D16, skein's shell and world harness, and skein's remaining small groups | 5.3, 5.4 | skein | none | not started |
 | D17, the real-loop world's remaining stories and every single-row move left | 5.4 | temper | none | not started |
 | D18, the cluster, restore, checkpoint and start-over stories' policy, once failure-worlds' restart faults have landed | 6 | temper | D2, failure-worlds' F8 | not started |
