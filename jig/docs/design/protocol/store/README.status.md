@@ -2,7 +2,6 @@
 
 2026-11-23. Where jig's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 8, *Checked once*: there is no `Checked`; `Store::over`, `Store::on_directory` and `host::Hosted::new` take the bare limits and derive the codec view and check them again, a reopen over the same maps does so once more, and an install derives the runtime view twice [in flight: change 13696].
 
 
 

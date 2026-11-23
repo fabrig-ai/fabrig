@@ -2,7 +2,6 @@
 
 2026-11-23. Where the tree's code lags or departs from [limit-settings.md](limit-settings.md).
 
-- **Not yet:** 3, *The store is admitted once*: the store's admission gives jig's bare limits, the store made over them checks them again, a limit jig's check refuses stops the start at the store's making, and a world's reopen at the figures it admitted its maps at admits them afresh [in flight: change 13696].
 
 - **Not yet:** 3: `temper-box`'s stopped tools, `upgrade`, `checkpoint` and `restore`, size their engine from the stock alone: they take neither `limits-held` nor, for `upgrade --check`, the copy's two kinds (`temper-box-shell/src/upgrade.rs`).
 
