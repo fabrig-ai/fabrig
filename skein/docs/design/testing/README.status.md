@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-21. Where skein's code lags or departs from [README.md](README.md).
+2026-11-23. Where skein's code lags or departs from [README.md](README.md).
 
 `layout.md`, section 1's test-only fork kit and
 its documented process boundary are present, as is the row runner's
@@ -25,6 +25,8 @@ counted around each reused pass, never by an address.
   [in flight: change 9030]
 - **Not yet:** 4: the fake machine's metadata beyond mode `0o777`, times
   and attributes, its subvolume and filesystem answers, and tree programs.
+- **Not yet:** 4: a test's read-back of a link's target and of the node a
+  handle names. [in flight: change 13930]
 - **Not yet:** 7: the focused cost-saving and suite CPU-margin proofs;
   selected instruction ratios establish neither a whole-suite saving nor its margin.
 

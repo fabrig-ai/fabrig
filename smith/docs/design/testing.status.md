@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-20. Where smith's code lags or departs from [testing.md](testing.md).
+2026-11-23. Where smith's code lags or departs from [testing.md](testing.md).
 
 - **Not yet:**
   - 6: smith's inspection adapter, `smith-inspect`, and its worlds'
@@ -22,6 +22,15 @@
   - 6: job ends paired across the event stream (they are paired on the
     domain's facts only), state-digest replay (skein has none), and,
     with contained trees, containment (2.2).
+  - 2.5, 7: the chat store's layout cases run over a real directory in
+    `smith-local-protocol::suite`, not on the fake disk. [in flight:
+    change 13947]
+  - 2.5: program directories, the first `rg` on `PATH`, a program's
+    refusal and the fake program's turn and sign-in are checked in slow
+    binaries, not over facts. [in flight: change 13972]
+  - 2.5, 6.1, 7: the host ID's reuse, a piped key, the live suite's setup
+    words and refresh report, two probes' state and a provider dump's
+    bytes are checked in slow binaries. [in flight: change 13973]
 - **Departs:**
   - 2: domain worlds use domains and fakes only, never protocol crates,
     but `tests/agent/src/backend.rs` uses `smith-protocol-llm`,
