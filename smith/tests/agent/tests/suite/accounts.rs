@@ -69,6 +69,18 @@ pub(super) fn grant(generation: u64, renewable: bool, valid: Duration) -> Grant 
 }
 
 pub(super) fn account_world(account: Option<u32>, held: Option<Grant>, failures: u32, failure: llm::Failure) -> World {
+    let mut world = provider_world(account, held);
+    world.fail_calls(failures, failure, RESPONSE_401);
+    world.failure_report(llm::Report {
+        status: None,
+        code: b"invalid-credential".as_slice().into(),
+        request: b"request-401".as_slice().into(),
+        field: Box::default(),
+    });
+    world
+}
+
+fn provider_world(account: Option<u32>, held: Option<Grant>) -> World {
     let mut settings = Settings { job: Job::Reporting, ..Settings::calm(1510) };
     settings.limits.session.retries = RETRIES;
     settings.provider.latency_min = RESPONSE_LATENCY;
@@ -91,15 +103,7 @@ pub(super) fn account_world(account: Option<u32>, held: Option<Grant>, failures:
             8,
         )]),
     }]);
-    let mut world = World::with_workspace_scripts_start(settings, Checkout::new(), scripts, start);
-    world.fail_calls(failures, failure, RESPONSE_401);
-    world.failure_report(llm::Report {
-        status: None,
-        code: b"invalid-credential".as_slice().into(),
-        request: b"request-401".as_slice().into(),
-        field: Box::default(),
-    });
-    world
+    World::with_workspace_scripts_start(settings, Checkout::new(), scripts, start)
 }
 
 pub(super) fn counts(world: &World) -> (usize, usize, usize, usize) {
@@ -307,6 +311,42 @@ fn resumed_stale_grants_and_keys_fail_unsent_with_their_recovery_retries() {
             expected_wait
         );
         assert!(matches!(world.answer(), run::Answer::Failed { failure: run::RunFailure::Model(_), .. }));
+    }
+}
+
+#[test]
+fn a_run_finishes_after_outwaiting_repeated_provider_rate_limits() {
+    const ACCOUNT: u32 = 0;
+    const RATE_LIMITS: u32 = RETRIES + 2;
+    const WAIT: Duration = Duration::from_millis(6500); // Above the ordinary backoff cap.
+    const CALLS: usize = (RATE_LIMITS + 1) as usize;
+    const LONG_NOTICES: usize = 2 * CALLS + 2 * RATE_LIMITS as usize;
+    let mut world = provider_world(Some(ACCOUNT), Some(grant(1, true, GRANT_LIFETIME)));
+    world.fail_calls(
+        RATE_LIMITS,
+        llm::Failure::RateLimited { retry_after: WAIT },
+        llm::Evidence::Response { status: Some(200) },
+    );
+    world.run(2000);
+
+    let run::Answer::Accepted { outcome: run::outcome::Declared::Report(report), .. } = world.answer() else {
+        panic!("expected the ordinary report after waiting, got {:?}", world.answer());
+    };
+    assert_eq!(&*report.text, b"Account answered.");
+    let calls = world.completions();
+    assert_eq!(calls.len(), CALLS);
+    assert_eq!(world.long_notices().len(), LONG_NOTICES);
+    let (attempt_notices, _final_call) = world.long_notices().as_chunks::<4>();
+    let call_pairs = calls.iter().zip(calls.iter().skip(1));
+    for ((failed, next), [_, done, wait, waited]) in call_pairs.zip(attempt_notices) {
+        let Some((failed_at, smith_agent_world::CompletionTerminal::Failed)) = failed.terminal else {
+            panic!("the provider refused this call");
+        };
+        let retry_at = failed_at.saturating_add(WAIT);
+        assert_eq!(*done, (failed_at, None, None));
+        assert_eq!(*wait, (failed_at, Some(smith_domain::Operation::Completion), Some(retry_at)));
+        assert_eq!(*waited, (retry_at, None, None));
+        assert_eq!(next.started, retry_at);
     }
 }
 
