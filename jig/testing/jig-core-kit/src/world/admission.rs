@@ -34,6 +34,17 @@ impl World {
         self.send_retaining(event);
     }
 
+    /// Apply the oldest store commit without delivering its completion.
+    ///
+    /// # Errors
+    /// Returns the number of a failed store commit.
+    pub fn withhold_store_completion(&mut self) -> Result<Option<u64>, u64> {
+        let before = self.store.applied;
+        let result = self.store.tick(true);
+        self.observe_durable(before).unwrap_or_else(|finding| self.fail(&finding));
+        result
+    }
+
     /// Write sign-ins without answering commits until admission returns a probe.
     /// The refused setup probe is dropped and does not join the story's inputs.
     pub fn fill_to_watermark(&mut self) {
@@ -72,6 +83,9 @@ impl World {
             Ok(None) => {}
             Err(number) => self.events.push_front(root::Event::Failed { number }),
         }
+        self.observe_durable(before)
+    }
+    fn observe_durable(&mut self, before: u64) -> Result<(), String> {
         self.observer.durable(self.wall, &self.store)?;
         if self.store.applied != before {
             self.check_durable()?;

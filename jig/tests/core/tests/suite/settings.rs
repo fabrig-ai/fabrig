@@ -4,8 +4,7 @@ use jig_client_protocol_wire::Record as _;
 use jig_core_world::client_peer::ClientPeer;
 use jig_core_world::fixtures;
 use jig_core_world::peers;
-use jig_core_world::world::Setup;
-use jig_core_world::world::World;
+use jig_core_world::world::{Setup, StoreChecks, World};
 use jig_domain_core::{self as core, documents, reads, settings};
 use jig_domain_fleet as fleet;
 use jig_domain_link::{Hello, Hosting, Phase};
@@ -149,6 +148,7 @@ fn a_stored_charter_with_an_unconfigured_model_refuses_the_start_naming_the_chan
     let mut world = start(64);
     let mut charter = configuration().0.core.defaults.charters[0].clone();
     charter.policy.model.name = Box::from(b"no-longer-configured".as_slice());
+    world.store_checks(StoreChecks::none("Charter(1) fixture names an unconfigured model"));
     world.seed(Box::new([record(settings::Record::Changed {
         setting: settings::Setting::Charter(1),
         changed: settings::Changed { revision: 1, value: Some(settings::Value::Charter(Box::new(charter))) },
@@ -219,6 +219,7 @@ fn changes_past_their_kinds_bound_refuse_before_the_overflow_value_is_retained()
         }))
         .expect("bounded fixture rows");
     }
+    world.store_checks(StoreChecks::none("changed charter fixture exceeds the restore count limit"));
     world.seed(rows.into_boxed());
     world.restart_with(config);
     assert!(!world.domain.ready());

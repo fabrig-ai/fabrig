@@ -32,6 +32,9 @@ impl Harness for Upgrade {
     fn owner_sets() -> Option<jig_protocol_store::OwnerSets> {
         Some(STATE.with(|s| if s.borrow().upgrade { CURRENT_SETS } else { first_sets() }))
     }
+    fn prepared_schemas() -> Option<&'static [skein_codec::schema::Schema]> {
+        Some(crate::schemas::binary_schemas())
+    }
     fn seeds(_: u64) -> temper_service::settings::Seeds {
         fixtures::seeds()
     }

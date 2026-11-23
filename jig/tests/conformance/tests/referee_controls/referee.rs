@@ -15,7 +15,7 @@ fn application_referee_catches_early_answers_and_redecided_replays() {
     let request =
         || r::Observed::ApplicationRequested { reply: 600, key: answer.key, connector: 2, digest: answer.digest };
     let reply = || r::Observed::ApplicationAnswered { reply: 600, connector: 2, outcome: answer.outcome.clone() };
-    let mut early = world(Fault::None).referee;
+    let early = &mut world(Fault::None).referee;
     early.observe(1, request()).expect("offered application");
     early
         .observe(2, r::Observed::ApplicationSubmitted { commit: 1, answer: answer.clone() })
@@ -23,7 +23,7 @@ fn application_referee_catches_early_answers_and_redecided_replays() {
     assert_eq!(early.observe(3, reply()).expect_err("the root answered before durability").promise, Promise::Commit);
 
     for token in [5, 6] {
-        let mut repeated = world(Fault::None).referee;
+        let repeated = &mut world(Fault::None).referee;
         repeated.observe(1, request()).expect("offered application");
         repeated
             .observe(2, r::Observed::ApplicationSubmitted { commit: 1, answer: answer.clone() })
@@ -67,7 +67,7 @@ fn application_referee_accepts_failed_commit_retry_expiry_and_identical_replay()
     let request =
         || r::Observed::ApplicationRequested { reply: 600, key: answer.key, connector: 2, digest: answer.digest };
     let reply = || r::Observed::ApplicationAnswered { reply: 600, connector: 2, outcome: answer.outcome.clone() };
-    let mut referee = world(Fault::None).referee;
+    let referee = &mut world(Fault::None).referee;
     referee.observe(1, request()).expect("offered application");
     referee
         .observe(2, r::Observed::ApplicationSubmitted { commit: 1, answer: answer.clone() })

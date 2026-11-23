@@ -1,7 +1,13 @@
 # testing: status
 
-2026-11-21. Where jig's code lags or departs from [testing.md](testing.md).
+2026-11-23. Where jig's code lags or departs from [testing.md](testing.md).
 
+- **Not yet:**
+  7: the core kit's `World` keeps one commit per run, rehearsed in
+  `World::finish`, and its rehearsal pays for its store and start alone.
+  [in flight: change 13093]
+  7: the conformance harness keeps one commit per story, rehearsed in
+  `Harness::finish`. [in flight: change 13095]
 - **Not yet:**
   7.1: jig's inspection adapter, `jig-inspect`'s `tasks` and `core`, with
   the reads they take. [in flight: change 11665]

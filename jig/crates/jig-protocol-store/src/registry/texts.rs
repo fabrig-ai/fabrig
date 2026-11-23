@@ -1,6 +1,7 @@
 //! Each text parsed, layout computed and text's held texts found once in planning,
 //! then dropped when the plans are made (jig/docs/design/protocol/store/layouts.md, 7).
-use super::{Digest, Layouts, Text};
+use super::{Digest, Layouts, ReadSchema, Text};
+use crate::upgrade::schemas;
 use crate::{OpenRefusal, OwnerSets};
 use alloc::boxed::Box;
 use skein_codec::schema::{self, DeclIx, FieldIx, Held, Schema, Shape, Type, TypeIx};
@@ -37,9 +38,7 @@ impl Binary {
                 if let Some(held) = layouts.texts.get_mut(&digest) {
                     held.current = true;
                 } else {
-                    #[cfg(test)]
-                    super::counting::parsed(digest);
-                    let Ok(parsed) = schema::parse(text.as_bytes()) else { return Err(refusal) };
+                    let parsed = read(layouts.prepared_schemas, text.as_bytes(), digest).ok_or(refusal)?;
                     layouts
                         .texts
                         .insert(
@@ -74,7 +73,7 @@ impl Binary {
         for index in 0..=self.names.len() {
             let Some(digest) = pending.get(index) else { break };
             parse(layouts, *digest)?;
-            let schema = layouts.texts.get(digest)?.schema.as_ref()?;
+            let schema = layouts.texts.get(digest)?.schema()?;
             for decl in 0..schema.declarations() {
                 let Shape::Record { first, count, .. } = schema.declaration(DeclIx::new(decl)).shape else { continue };
                 for offset in 0..count {
@@ -96,7 +95,7 @@ impl Binary {
         let key = (text, Box::from(held.as_slice()));
         if !self.depths.contains_key(&key) {
             let Some(text) = layouts.texts.get(&text) else { return false };
-            let Some(schema) = text.schema.as_ref() else { return false };
+            let Some(schema) = text.schema() else { return false };
             let Some(held) = schemas(layouts, held, false) else { return false };
             let depths = super::depth::heights(schema, held.as_slice());
             self.depths.insert(key.clone(), depths).expect("uncapped depth proofs");
@@ -125,7 +124,7 @@ impl Binary {
         if let Some(digest) = self.layouts.get(&key) {
             return Some(*digest);
         }
-        let schema = layouts.texts.get(&text)?.schema.as_ref()?;
+        let schema = layouts.texts.get(&text)?.schema()?;
         let root = schema.root(root, variant)?;
         let held = schemas(layouts, held, false)?;
         #[cfg(test)]
@@ -165,11 +164,19 @@ pub(super) fn parse(layouts: &mut Layouts, digest: Digest) -> Option<()> {
         if self::digest(&text.bytes) != digest {
             return None;
         }
-        #[cfg(test)]
-        super::counting::parsed(digest);
-        text.schema = Some(schema::parse(&text.bytes).ok()?);
+        text.schema = Some(read(layouts.prepared_schemas, &text.bytes, digest)?);
     }
     Some(())
+}
+
+fn read(prepared: &'static [Schema], bytes: &[u8], digest: Digest) -> Option<ReadSchema> {
+    if let Some(schema) = schemas::matching(prepared, bytes) {
+        return Some(ReadSchema::Borrowed(schema));
+    }
+    #[cfg(test)]
+    super::counting::parsed(digest);
+    let _: Digest = digest;
+    Some(ReadSchema::Owned(schema::parse(bytes).ok()?))
 }
 
 pub(super) fn row(layouts: &mut Layouts, key: &super::RowKey) -> Option<()> {
@@ -189,6 +196,7 @@ pub(super) fn clear(layouts: &mut Layouts) {
 
 pub(super) fn clear_all(layouts: &mut Layouts) {
     clear_schemas(layouts, true);
+    layouts.prepared_schemas = &[];
 }
 
 fn clear_schemas(layouts: &mut Layouts, all: bool) {
@@ -210,7 +218,7 @@ pub(super) fn schemas<'a>(layouts: &'a Layouts, digests: &List<Digest>, stored: 
         if stored && !text.stored {
             return None;
         }
-        schemas.push(text.schema.as_ref()?).ok()?;
+        schemas.push(text.schema()?).ok()?;
     }
     Some(schemas)
 }
