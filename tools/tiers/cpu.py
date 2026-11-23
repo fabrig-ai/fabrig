@@ -162,8 +162,9 @@ def budgets(path, pairs=None, layers=Path('tools/tiers/layers.toml')):
                             continue
                         # A layer whose CPU ceiling is its moves' alone may still hold its instruction ceiling.
                         if (not isinstance(row, dict) or not row.keys() & {'cpu_s', 'instructions'}
-                                or row.keys() - {'cpu_s', 'ideal_s', 'reference_s',
-                                                 'instructions', 'ideal_instructions'}):
+                                or row.keys() - {'cpu_s', 'ideal_s', 'reference_s', 'instructions',
+                                                 'ideal_instructions', 'accepted_instructions'}
+                                or 'accepted_instructions' in row and 'instructions' not in row):
                             raise ValueError(f'invalid budget keys for {name}.{group}.{layer}')
                         for key, value in row.items():
                             validate_figure = positive_instructions if key.endswith('instructions') else seconds
@@ -920,7 +921,8 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
         line, grew = None, []
         if use_instructions:
             line = instruction_verdict(label, count, main_count, growth, count_state, warnings,
-                                       move_credit=move_credits.get(key, 0))
+                                       move_credit=move_credits.get(key, 0),
+                                       accepted=budget.get('accepted_instructions'))
             if line is not None and ledger is not None:
                 grew = growing_binaries(key, instruction_binaries, tests, ledger, instructions=True)
         else:
@@ -1457,7 +1459,7 @@ def instruction_budget(ceiling, lowest):
     return min(ceiling, lowest + max((lowest + 9) // 10, INSTRUCTION_ALLOWANCE))
 
 
-def instruction_verdict(label, count, main, growth, state, warnings, *, move_credit=0):
+def instruction_verdict(label, count, main, growth, state, warnings, *, move_credit=0, accepted=None):
     """The change's instruction verdict and main's warnings (budgets.md, 8 and 9)."""
     budget = state['instructions_budget']
     ceiling = state['instructions_ceiling']
@@ -1470,13 +1472,18 @@ def instruction_verdict(label, count, main, growth, state, warnings, *, move_cre
     increase = count - main if main is not None else 0
     percentage = main // 50 if main is not None else 0
     allowance = max(percentage, INSTRUCTION_GROWTH_FLOOR) + move_credit
+    level = accepted is not None and main is not None and accepted - main > allowance
+    if level:
+        allowance = accepted - main
     grew = increase > allowance
     detail = ''
     if increase > percentage:
         adjustments = []
-        if percentage < INSTRUCTION_GROWTH_FLOOR:
+        if level:
+            adjustments.append(f'the user\'s accepted level of {accepted} instructions')
+        elif percentage < INSTRUCTION_GROWTH_FLOOR:
             adjustments.append(f'{INSTRUCTION_GROWTH_FLOOR} instruction growth floor')
-        if move_credit:
+        if move_credit and not level:
             adjustments.append(f'{move_credit} instructions of credit from new moves into the layer')
         if adjustments:
             detail = f', growth allowance {allowance} instructions ({", ".join(adjustments)})'

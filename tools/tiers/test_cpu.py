@@ -1474,6 +1474,26 @@ class OneProcessTests(unittest.TestCase):
         self.assertIn('growth allowance 6000000000 instructions', line)
         self.assertTrue(line.endswith('\n' + REPAIR_LINE))
 
+    def test_accepted_level_passes_growth_up_to_it(self):
+        self.instruction_case(106, 100)
+        self.limits['gate']['default']['temper']['domain']['accepted_instructions'] = 106 * 10**9
+        result = self.summary(self.limits, gate=True, ledger=self.main)
+        self.assertEqual(result['over_budget'], [])
+        self.assertIn("growth allowance 6000000000 instructions (the user's accepted level of 106000000000 "
+                      'instructions)', result['warnings'][0])
+
+        self.results['processes'][0]['instructions'] += 1
+        line, = self.summary(self.limits, gate=True, ledger=self.main)['over_budget']
+        self.assertTrue(line.startswith('layer instruction growth: temper default domain:'))
+        self.assertIn("the user's accepted level of 106000000000 instructions", line)
+        self.assertTrue(line.endswith('\n' + REPAIR_LINE))
+
+        # The held budget still judges.
+        self.instruction_case(111, 100)
+        self.limits['gate']['default']['temper']['domain']['accepted_instructions'] = 120 * 10**9
+        line, = self.summary(self.limits, gate=True, ledger=self.main)['over_budget']
+        self.assertTrue(line.startswith('layer over budget: temper default domain:'))
+
     def test_move_out_does_not_credit_growth(self):
         self.instruction_case(103, 100)
         for fields in ({}, {'instructions': 5 * 10**9}):
@@ -2730,6 +2750,14 @@ class CollectorTests(unittest.TestCase):
         self.assertEqual(CPU['gate_ceilings'](profile)[('hearth', 'simulated')], 3.9)
         self.assertEqual(CPU['gate_ceilings'](profile, 'instructions'), {('hearth', 'simulated'): 25300000000})
         path.write_text(example.replace('simulated = { instructions = 25300000000 }', 'simulated = { ideal_s = 1 }'))
+        with self.assertRaisesRegex(ValueError, 'invalid budget keys'):
+            CPU['budgets'](path, layers=layers)
+        path.write_text(example.replace('instructions = 25300000000 }',
+                                        'instructions = 25300000000, accepted_instructions = 26000000000 }'))
+        profile = CPU['budgets'](path, layers=layers)['gate']['default']
+        self.assertEqual(profile['hearth']['simulated']['accepted_instructions'], 26000000000)
+        # An accepted level needs the layer's instruction ceiling.
+        path.write_text(example.replace('instructions = 25300000000', 'cpu_s = 1, accepted_instructions = 26000000000'))
         with self.assertRaisesRegex(ValueError, 'invalid budget keys'):
             CPU['budgets'](path, layers=layers)
 
