@@ -1477,11 +1477,42 @@ class OneProcessTests(unittest.TestCase):
         self.assertIn("the user's accepted level of 106000000000 instructions", line)
         self.assertTrue(line.endswith('\n' + REPAIR_LINE))
 
-        # The held budget still judges.
-        self.instruction_case(111, 100)
+    def test_accepted_level_floors_the_held_instruction_budget_above_the_ceiling(self):
+        self.instruction_case(120, 100, lowest=70, ceiling=115)
         self.limits['gate']['default']['temper']['domain']['accepted_instructions'] = 120 * 10**9
+        result = self.summary(self.limits, gate=True, ledger=self.main)
+        row = result['layers'][0]
+        self.assertEqual((row['main_instructions_budget'], row['instructions_budget']), (120 * 10**9,) * 2)
+        self.assertEqual(row['instructions_ceiling'], 115 * 10**9)
+        self.assertEqual(result['over_budget'], [])
+        folded = self.folded(self.main)['budgets']['temper']['domain']
+        self.assertEqual(folded['instructions_ceiling'], 115 * 10**9)
+        self.assertEqual(folded['instructions_lowest'], 70 * 10**9)
+
+        self.results['processes'][0]['instructions'] += 1
         line, = self.summary(self.limits, gate=True, ledger=self.main)['over_budget']
         self.assertTrue(line.startswith('layer over budget: temper default domain:'))
+        self.assertIn('budget 120000000000 instructions, ceiling 115000000000 instructions', line)
+
+    def test_instruction_budget_holds_its_calculated_value_without_an_accepted_level(self):
+        self.instruction_case(110, 110)
+        result = self.summary(self.limits, gate=True, ledger=self.main)
+        row = result['layers'][0]
+        self.assertEqual((row['main_instructions_budget'], row['instructions_budget']), (110 * 10**9,) * 2)
+        self.assertEqual(result['over_budget'], [])
+
+        self.results['processes'][0]['instructions'] += 1
+        line, = self.summary(self.limits, gate=True, ledger=self.main)['over_budget']
+        self.assertIn('budget 110000000000 instructions', line)
+
+    def test_accepted_level_below_the_held_instruction_budget_leaves_it_intact(self):
+        self.instruction_case(110, 110)
+        without_level = self.summary(self.limits, gate=True, ledger=self.main)
+        self.limits['gate']['default']['temper']['domain']['accepted_instructions'] = 105 * 10**9
+        result = self.summary(self.limits, gate=True, ledger=self.main)
+        row = result['layers'][0]
+        self.assertEqual((row['main_instructions_budget'], row['instructions_budget']), (110 * 10**9,) * 2)
+        self.assertEqual(result, without_level)
 
     def test_move_out_does_not_credit_growth(self):
         self.instruction_case(103, 100)

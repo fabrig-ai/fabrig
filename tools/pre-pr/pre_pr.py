@@ -582,12 +582,16 @@ def close_budgets(root, repository, env, runs):
         accepted = profile.get(key[0], {}).get(key[1], {}).get('accepted_instructions')
         allowance = counts['allowance'](before, credits.get(key, 0), accepted)
         ceiling = ceilings.get(key)
-        over = ceiling is not None and before <= ceiling < after
+        limit = max(ceiling, accepted) if ceiling is not None and accepted is not None else ceiling
+        over = limit is not None and before <= limit < after
         increase = after - before
         if not over and increase <= allowance:
             continue
         growth = f'{100 * increase / before:.2f}%' if before else 'n/a (zero at base)'
-        reason = f'over instruction ceiling {ceiling}' if over else 'instruction growth over allowance'
+        reason = 'instruction growth over allowance'
+        if over:
+            bound = 'accepted instruction level' if limit != ceiling else 'instruction ceiling'
+            reason = f'over {bound} {limit}'
         findings.append(f'{key[0]} default {key[1]}: {reason}, {before} at base, {after} at head, '
                         f'growth {growth}, allowance {allowance} instructions')
         causes = sorted(grew[key], key=lambda cause: (-cause[0], cause[1]))
