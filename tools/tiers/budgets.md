@@ -369,10 +369,11 @@ repair: read skein/docs/foundation/testing-strategy.md in full first, then ask 8
   The summary lists both ends in `coverage_moves` and prints up to ten
   pairs per source binary, with the number beyond them.
 - **Check counts.** Compare each kind's total at the head with main, with
-  an absent kind counting zero. Sum over each connected group of binaries
-  joined by moves, including pairs supplied by a `renamed` reason. A
-  group with a cut-short member has no whole count to compare. Fixed
-  seeds make the totals comparable without a tolerance.
+  an absent kind counting zero. Sum over each connected group of whole
+  binaries joined by automatic moves. A `renamed` reason covers test
+  names only. If a group has a cut-short member, compare each whole
+  member's counts against its own at main. Fixed seeds make the totals
+  comparable without a tolerance.
 - **A reason** is a table of the profile's `coverage_reasons` array in
   `tools/tiers/budgets.toml`.
 

@@ -1189,6 +1189,43 @@ class OneProcessTests(unittest.TestCase):
         self.assertIn('checks across: lower, pkg::suite', line)
         self.assertIn('store-check: 8 at main, 7 at the head', line)
 
+    def test_coverage_rename_into_existing_binary_cannot_cover_fewer_checks(self):
+        for outcome in ('starved', 'passed'):
+            with self.subTest(outcome=outcome):
+                self.coverage_case(tests={'old_name': [1]}, checks={'store-check': 100})
+                self.main['binaries']['other'] = self.ledger_entry(
+                    [1], layer='step', tests={'stable': [1]}, checks={'store-check': 10})
+                self.results.update(processes=[self.process(['z', 'a'], checks={'store-check': 10})],
+                                    tests=[self.entry('z'), self.entry('a')], selected=2)
+                self.run_coverage_tests('other', ['new_name', 'stable'], checks={'store-check': 100})
+                self.results['tests'][-1]['outcome'] = outcome
+                self.limits['gate']['default']['coverage_reasons'] = [
+                    dict(binary='pkg::suite', tests=['old_name'], kind='renamed', to=['new_name'],
+                         why='The test moved under a different name.', by='Maintainer')]
+                result = self.summary(self.limits, gate=True, ledger=self.main)
+                self.assertIn('matched old_name', result['coverage_reasons'][0])
+                self.assertEqual(result['verdict'], 'over budget')
+                line, = result['over_budget']
+                self.assertIn('temper default simulated: pkg::suite', line)
+                self.assertIn('store-check: 100 at main, 10 at the head', line)
+                self.assertNotIn('checks across:', line)
+
+    def test_coverage_partial_split_checks_each_whole_binary(self):
+        self.coverage_case(tests={'split::one': [1]}, checks={'store-check': 100})
+        self.main['binaries']['other'] = self.ledger_entry(
+            [1], layer='step', tests={'split::two': [1]}, checks={'store-check': 20})
+        self.results['processes'][0]['checks'] = {'store-check': 10}
+        self.run_coverage_tests('other', ['stable'], checks={'store-check': 19})
+        self.run_coverage_tests('lower', ['new::one', 'new::two', 'wait'], checks={'store-check': 91})
+        self.results['tests'][-1]['outcome'] = 'starved'
+        result = self.summary(self.limits, gate=True, ledger=self.main)
+        self.assertEqual(len(result['coverage_moves']), 2)
+        source, other = result['over_budget']
+        self.assertIn('temper default simulated: pkg::suite', source)
+        self.assertIn('store-check: 100 at main, 10 at the head', source)
+        self.assertIn('temper default step: other', other)
+        self.assertIn('store-check: 20 at main, 19 at the head', other)
+
     def test_coverage_prints_ten_move_pairs_but_keeps_all_in_json(self):
         self.coverage_case(tests={f'before::test_{index:02}': [1] for index in range(12)})
         self.run_coverage_tests('lower', [f'after::test_{index:02}' for index in range(12)])
