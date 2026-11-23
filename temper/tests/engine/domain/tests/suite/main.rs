@@ -69,12 +69,6 @@ mod fuzzy {
     mod loads;
     mod opening;
     mod reds_owed;
-    #[expect(clippy::duplicate_mod, reason = "the same crash cases run in both profiles")]
-    #[path = "../removal.rs"]
-    mod removal;
-    #[expect(clippy::duplicate_mod, reason = "the same crash cases run in both profiles")]
-    #[path = "../reset.rs"]
-    mod reset;
     mod roles;
     mod see;
     mod walking;

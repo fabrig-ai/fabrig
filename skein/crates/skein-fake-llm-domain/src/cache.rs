@@ -104,15 +104,36 @@ fn ordered(previous: Mark, next: Mark) -> bool {
 }
 
 pub(crate) fn tokens(query: &Query) -> u64 {
-    let mut prefix = Prefix::system(query);
-    prefix.choice(query);
+    // Usage needs content lengths, not the prefix digest used for cache identity.
+    let mut bytes = 0;
+    count(&mut bytes, &query.system);
+    for tool in &query.tools {
+        count(&mut bytes, &tool.name);
+        count(&mut bytes, &tool.description);
+        count(&mut bytes, &tool.parameters);
+    }
     for message in &query.messages {
-        prefix.role(message.role);
         for part in &message.parts {
-            prefix.part(part);
+            match part {
+                Part::Text { text } => count(&mut bytes, text),
+                Part::Opaque { bytes: opaque } => count(&mut bytes, opaque),
+                Part::ToolCall { id, name, arguments } => {
+                    count(&mut bytes, id);
+                    count(&mut bytes, name);
+                    count(&mut bytes, arguments);
+                }
+                Part::ToolOutput { id, output, is_error: _ } => {
+                    count(&mut bytes, id);
+                    count(&mut bytes, output);
+                }
+            }
         }
     }
-    prefix.tokens()
+    bytes / 4
+}
+
+fn count(total: &mut u64, bytes: &[u8]) {
+    *total = total.checked_add(skein_lib::len_u64(bytes.len())).expect("query bytes admitted before caching");
 }
 
 pub(crate) fn read(cache: &Cache, query: &Query, now: Time) -> u64 {
@@ -233,8 +254,7 @@ impl Prefix {
 
     fn text(&mut self, bytes: &[u8]) {
         self.field(bytes);
-        self.bytes =
-            self.bytes.checked_add(skein_lib::len_u64(bytes.len())).expect("query bytes admitted before caching");
+        count(&mut self.bytes, bytes);
     }
 
     fn choice(&mut self, query: &Query) {
@@ -290,7 +310,7 @@ impl Prefix {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::Message;
+    use crate::api::{Message, ToolSpec};
     use alloc::boxed::Box;
 
     fn query(scope: Option<[u8; 16]>) -> Query {
@@ -311,6 +331,50 @@ mod tests {
 
     fn message(text: &[u8]) -> Message {
         Message { role: Role::User, parts: Box::new([Part::Text { text: text.into() }]) }
+    }
+
+    #[test]
+    fn token_usage_counts_content_without_protocol_metadata() {
+        // 3 system + 13 tool + 9 user + 16 assistant bytes, rounded once.
+        const TOKENS: u64 = 10;
+        let mut query = query(None);
+        query.system = b"abc".as_slice().into();
+        query.tools = Box::new([ToolSpec {
+            name: b"read".as_slice().into(),
+            description: b"inspect".as_slice().into(),
+            parameters: b"{}".as_slice().into(),
+        }]);
+        query.messages = Box::new([
+            Message {
+                role: Role::User,
+                parts: Box::new([
+                    Part::Text { text: b"hello!".as_slice().into() },
+                    Part::Opaque { bytes: Box::new([0, 1, 2]) },
+                ]),
+            },
+            Message {
+                role: Role::Assistant,
+                parts: Box::new([
+                    Part::ToolCall {
+                        id: b"c1".as_slice().into(),
+                        name: b"read".as_slice().into(),
+                        arguments: b"{}".as_slice().into(),
+                    },
+                    Part::ToolOutput {
+                        id: b"c1".as_slice().into(),
+                        output: b"answer".as_slice().into(),
+                        is_error: true,
+                    },
+                ]),
+            },
+        ]);
+        assert_eq!(tokens(&query), TOKENS);
+        let mut cache = Cache::new(1, Duration::from_secs(300));
+        assert_eq!(write(&mut cache, &query, Time::ZERO, 0), TOKENS);
+        query.model = b"another model".as_slice().into();
+        query.choice = ToolChoice::Only(Box::new([b"read".as_slice().into()]));
+        query.caching = Caching::Marks(Box::new([]));
+        assert_eq!(tokens(&query), TOKENS, "model, tool choice and cache markers are not content");
     }
 
     #[test]
