@@ -263,6 +263,22 @@ class Delivery(unittest.TestCase):
                                                   {}, self.errors, {}, completed_goal=True, whole=False), [])
         run.assert_not_called()
 
+    def test_a_path_without_cargo_gains_the_users_cargo_tools(self):
+        home = self.root / 'home'
+        (home / '.cargo/bin').mkdir(parents=True)
+        (home / '.cargo/bin/cargo').touch()
+        user = mock.Mock(pw_dir=str(home))
+        with mock.patch.object(PRE.pwd, 'getpwuid', return_value=user), \
+             mock.patch.object(PRE.shutil, 'which', return_value=None):
+            env = {'PATH': '/usr/bin:/bin', 'HOME': '/nonexistent'}
+            PRE.with_rust_tools(env)
+        self.assertEqual(env, {'PATH': f'{home}/.cargo/bin:/usr/bin:/bin', 'HOME': '/nonexistent',
+                               'CARGO_HOME': f'{home}/.cargo', 'RUSTUP_HOME': f'{home}/.rustup'})
+        with mock.patch.object(PRE.shutil, 'which', return_value='/usr/bin/cargo'):
+            env = {'PATH': '/usr/bin'}
+            PRE.with_rust_tools(env)
+        self.assertEqual(env, {'PATH': '/usr/bin'})
+
     def test_close_receipt_records_only_the_checked_tree(self):
         self.assertEqual(PRE.finish('staged', None, [], self.root, {}, 'close', ['dest'], ['head']), 0)
         receipt = json.loads((self.root / 'target/temper/goal-close-pre-pr.json').read_text())

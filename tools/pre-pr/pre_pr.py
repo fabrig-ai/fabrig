@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import pwd
 import re
 import runpy
 import shlex
@@ -1230,6 +1231,19 @@ def workspace_checks(root, paths, tree_id, env, errors, outcomes, reds=(), *, co
 HOOKS = {'.temper/pre-pr', '.temper/goal-child-pre-pr', '.temper/goal-pre-pr', '.temper/checked-close'}
 
 
+def with_rust_tools(env):
+    """Find the worker's Rust tools where the caller's PATH lacks them, as a close job's does."""
+    if shutil.which('cargo', path=env.get('PATH', os.defpath)):
+        return
+    home = Path(pwd.getpwuid(os.getuid()).pw_dir)
+    tools = home / '.cargo' / 'bin'
+    if (tools / 'cargo').exists():
+        env['PATH'] = str(tools) + os.pathsep + env.get('PATH', os.defpath)
+        # rustup and Cargo's configuration, registry and build cache live in that home too.
+        env.setdefault('CARGO_HOME', str(home / '.cargo'))
+        env.setdefault('RUSTUP_HOME', str(home / '.rustup'))
+
+
 def check(scope, commits):
     root = Path.cwd()
     if any(not re.fullmatch(r'(?:[0-9a-f]{40}|[0-9a-f]{64})', commit) for commit in commits):
@@ -1240,6 +1254,7 @@ def check(scope, commits):
     env.setdefault('TEMPER_INTERNAL_BUNDLE', 'none')
     env.setdefault('CARGO_TARGET_DIR', str(root / 'target'))
     env.pop('TIERS_LEDGER', None)
+    with_rust_tools(env)
     has_git = (root / '.git').exists()
 
     def current_head():
