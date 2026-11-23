@@ -1,5 +1,6 @@
 //! Binary, native person and independent provider on Skein's real ring.
 //! Shared story support (tools/crates/design.md, 3.2).
+pub mod diagnostics;
 pub mod live_sign_in;
 pub mod ports;
 pub mod trace;

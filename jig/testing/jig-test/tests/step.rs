@@ -1,4 +1,41 @@
-//! Offline checks of sign-in plan diagnostics.
+//! Offline checks of sign-in and shutdown diagnostics.
+use jig_test_kit::diagnostics::{STDERR_TAIL, premature_exit};
+use skein_io::kernel::Exit;
+
+#[test]
+fn a_premature_exit_names_its_status_milestone_and_safe_stderr_tail() {
+    assert_eq!(
+        premature_exit(
+            Exit::Code(1),
+            "sign-in asked",
+            b"jig-test: stopped: Listener: an io event no component owns\n\xff"
+        ),
+        "binary exited before SIGTERM: status=Code(1); last milestone=sign-in asked; stderr tail (up to 4096 bytes):\njig-test: stopped: Listener: an io event no component owns\n\u{fffd}"
+    );
+    assert_eq!(
+        premature_exit(
+            Exit::Signal(9),
+            "client live",
+            b"link=\"https://issuer.example/authorize?secret=private\"\nlast error"
+        ),
+        "binary exited before SIGTERM: status=Signal(9); last milestone=client live; stderr tail (up to 4096 bytes):\nlink=\"[address omitted]\"\nlast error"
+    );
+    let mut stderr = vec![b'x'; STDERR_TAIL];
+    stderr.extend_from_slice(b"last error");
+    let finding = premature_exit(Exit::Code(2), "binary started", &stderr);
+    assert_eq!(
+        finding.split_once('\n').expect("stderr follows heading").1,
+        format!("{}last error", "x".repeat(STDERR_TAIL - 10))
+    );
+    let mut stderr = b"https://issuer.example/authorize?state=".to_vec();
+    stderr.extend(vec![b's'; STDERR_TAIL]);
+    stderr.extend_from_slice(b"\nlast error");
+    assert_eq!(
+        premature_exit(Exit::Code(1), "AccountSignInStarted seen", &stderr),
+        "binary exited before SIGTERM: status=Code(1); last milestone=AccountSignInStarted seen; stderr tail (up to 4096 bytes):\n[address omitted]\nlast error"
+    );
+}
+
 mod live_sign_in {
     use jig_client::contract as c;
     use jig_test_kit::live_sign_in::{failed, run_line};

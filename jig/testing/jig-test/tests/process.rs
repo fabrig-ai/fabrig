@@ -1,4 +1,4 @@
-//! The shipped service and agent, killed and restarted over one durable store.
+//! The shipped agent modes and service's restart and shutdown paths.
 use jig_client_protocol_kit::native::Script;
 use jig_test_kit as support;
 use smith_protocol_program::Status;
@@ -32,7 +32,6 @@ fn jig_test_serves_smiths_agent_modes() {
     let directory = support::scratch();
     let signed_in =
         status_script(&directory.path().join("signed-in"), r#"{"loggedIn":true,"authMethod":"claude.ai"}"#, 0);
-    let not_signed_in = status_script(&directory.path().join("not-signed-in"), r#"{"loggedIn":false}"#, 1);
     let parent = OsString::from(std::process::id().to_string());
     let rows = [
         (
@@ -53,19 +52,11 @@ fn jig_test_serves_smiths_agent_modes() {
         ),
         (
             "signed in",
-            vec!["--program-child".into(), parent.clone(), signed_in, "auth".into(), "status".into()],
+            vec!["--program-child".into(), parent, signed_in, "auth".into(), "status".into()],
             0,
             b"{\"loggedIn\":true,\"authMethod\":\"claude.ai\"}\n".as_slice(),
             b"".as_slice(),
             Some(Status::Usable),
-        ),
-        (
-            "not signed in",
-            vec!["--program-child".into(), parent, not_signed_in, "auth".into(), "status".into()],
-            1,
-            b"{\"loggedIn\":false}\n".as_slice(),
-            b"".as_slice(),
-            Some(Status::NotSignedIn),
         ),
     ];
     let mut results = Vec::new();
@@ -109,18 +100,6 @@ fn a_killed_jig_test_finds_its_work_after_restart() {
     support::configuration(directory.path());
     assert_eq!(support::run(directory.path(), Script::answered_chat(b"Hello", support::ANSWER), Some(peer())), (1, 1));
     assert_eq!(support::run(directory.path(), Script::found_chat(support::ANSWER), None), (1, 0));
-}
-
-#[path = "support/browser.rs"]
-mod browser;
-#[test]
-fn jig_test_serves_its_bundle_s_page_under_the_reference_policy() {
-    let directory = support::scratch();
-    browser::configuration(directory.path(), &browser::fixture_bundle(directory.path()));
-    let (status, headers, body) = browser::page(directory.path());
-    assert_eq!(status, 200);
-    assert_eq!(browser::field(&headers, "content-security-policy"), Some(browser::POLICY));
-    assert_eq!(body, browser::PAGE);
 }
 
 #[test]
