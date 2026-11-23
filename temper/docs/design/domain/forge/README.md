@@ -193,7 +193,7 @@ Documents:
 temper-engine-domain-forge              the connector's top: resources and holds, adoption, topics, judges, briefs, routing; the effects and their identities
 ├── temper-engine-domain-forge-vocabulary  what crosses the top's edge: its events, requests and documents, records and keys, limits, settings, and the values its views show
 ├── skein-forge-client                  the working set, keeping up, fresh reads, the request budget, effects' keys, write lanes and recovery (skein's forge-client.md)
-├── skein-forge                         the vocabulary the top and the client share: calls, answers, errors, hints (skein's forge/README.md, section 3)
+├── skein-forge                         the vocabulary the top and the client share: calls, answers, errors, hints (skein's forge/vocabulary.md, section 1)
 ├── temper-engine-domain-forge-change   the change procedure and the landing queues: decisions over facts
 ├── temper-engine-domain-forge-landing  the landing by turn: decisions over a landing's state (landing.md)
 ├── temper-engine-domain-forge-issues   the goals' issues: what each projects, when to write it

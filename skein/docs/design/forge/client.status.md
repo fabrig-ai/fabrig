@@ -12,8 +12,6 @@
 
 - **Not yet:** 2.3: `Branches`' names are checked against `rows`
   (`skein-forge/src/measure.rs`, `answer_rows`).
-- **Not yet:** 4: drift's `Fresh` read is a `Compare`. 7.4: an update is
-  proved by a `Compare`'s empty commits (`outbox.rs`, `outbox/answer.rs`),
-  not a `Range`.
+- **Not yet:** 4: drift's `Fresh` read is a `Compare`.
 
-- **Not yet:** 7.3, 10: the update conformance gap remains `forgejo.status.md`, 2.
+- **Not yet:** 10: the update conformance gap remains `forgejo.status.md`, 2.

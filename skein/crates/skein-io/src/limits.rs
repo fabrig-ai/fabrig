@@ -29,7 +29,7 @@ pub struct Limits {
     /// The most `Send`s queued on a stream at once, beside the one in flight.
     /// Independent output reserves a free queued/direct-flight slot within
     /// this same envelope; it does not subtract the flight from this count
-    /// (runtime/lib.md, 7.1; runtime/io/sockets.md, 3).
+    /// (runtime/lib-streams.md, 1.1; runtime/io/sockets.md, 3).
     pub sends: u32,
     /// The most accepts armed in one iteration, over every listener.
     pub accepts: u32,
@@ -62,7 +62,7 @@ impl Limits {
     /// The largest read demand io can meet: a fill or a scan of at most this
     /// many bytes, the intake's cap. Whoever stacks a machine on a stream
     /// checks at startup that the machine's largest demand is no larger (runtime/io/README.md,
-    /// 2); io asserts it, as a larger one could never be met (runtime/lib.md, 7).
+    /// 2); io asserts it, as a larger one could never be met (runtime/lib-streams.md, 1).
     #[must_use]
     pub const fn largest_read(&self) -> u32 {
         self.intake

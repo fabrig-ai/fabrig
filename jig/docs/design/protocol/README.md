@@ -224,7 +224,7 @@ they compile beside the core's crates rather than after them:
   the hand-written `codec` module), with openings in the store itself
   (`src/generated/openings.rs`). The drift test, `jig/tests/codec-families.rs`, compares
   each family's generated records with the committed module (skein's
-  `data/codec/README.md`, section 6). Its inventory names the codec crates'
+  `data/codec/golden.md`, section 1). Its inventory names the codec crates'
   generated records and the maps' generated translations, not golden
   bytes or generated tests.
 
@@ -427,7 +427,7 @@ Each is generic, and says nothing about jig.
 - **Private files read at startup:** the startup kit's
   `read_private_file`, refusing a file that is not private to the
   process's user, or reached through a link, for configuration's secrets
-  (skein's `runtime/shell.md`, 6.1; skein's `runtime/io/files.md`, 3).
+  (skein's `runtime/shell-startup.md`, 1.1; skein's `runtime/io/files.md`, 3).
 - **A cryptographic generator:** skein-lib's `CryptoRng`, keyed by the
   seed the shell draws at start (skein's `runtime/lib.md`, section 8; skein's
   `runtime/shell.md`, section 5), for minted credentials, the printed link's
@@ -440,7 +440,7 @@ Each is generic, and says nothing about jig.
   skein-codec built for `wasm32-unknown-unknown`, with skein-http's
   machines for the default mapping's client end, and `skein-ui` for the
   reference UI, checked by skein's gate (skein's `runtime/lib.md`, section 2;
-  skein's `testing/README.md`, section 6); skein-lib's bounded `base64`, for
+  skein's `testing/layout.md`, section 1); skein-lib's bounded `base64`, for
   records in the default mapping's server-sent events (`client/default-http.md`,
   2);
   and skein-lib's `Secret`, the generator's `secret` type, whose `Debug`
@@ -451,7 +451,7 @@ Each is generic, and says nothing about jig.
   presentation may use or leave:
   - `skein-ui`: the tree and its vocabulary, owners as opaque numbers,
     to which jig maps its own (`../client/domain/view.md`, section 3;
-    skein's `ui/README.md`, 3.3), the builder with slots and splicing, bindings
+    skein's `ui/tree.md`, 1.3), the builder with slots and splicing, bindings
     and acts, the diff and the view, style tokens and the look's names,
     the phrasebook's machinery with its reference hole, Markdown,
     scenes, the outline's rules, and limits with their worst case;
@@ -481,7 +481,7 @@ Each is generic, and says nothing about jig.
   registration is issued kept with its record, signed in with the
   subject and scopes granted, and records kept through its owner's
   store (skein's `oauth/accounts.md`, 2 to 4); a credential with its scheme,
-  and the failures' classes (skein's `llm/README.md`, sections 2 and 2.5).
+  and the failures' classes (skein's `llm/vocabulary.md`, sections 1 and 1.5).
 - **What it has, as it is:** the framed channel, codecs and their
   generator, the JSON reader and writer, the key-value store, the LLM
   client and connection component and their fake peer, OAuth's client and

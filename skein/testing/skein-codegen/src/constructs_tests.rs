@@ -1,4 +1,4 @@
-//! Construct classification regressions (data/codec/README.md, section 6).
+//! Construct classification regressions (data/codec/golden.md, section 1).
 
 use super::{CONSTRUCTS, Construct, Kind, constructs, missing, without};
 

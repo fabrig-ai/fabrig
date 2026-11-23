@@ -735,7 +735,7 @@ impl<O: Copy, R> RequestTake<'_, O, R> {
     }
 }
 
-// runtime/lib.md, 5.1: hash held state, never capacity or storage layout.
+// runtime/lib-containers.md, 1.1: hash held state, never capacity or storage layout.
 impl<O: Hash, R: Hash> Hash for RequestTable<O, R> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.entries.hash(state);

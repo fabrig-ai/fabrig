@@ -7,11 +7,11 @@ extern crate alloc;
 /// The printed link's page (temper/docs/design/client/sign-in.md, section 1).
 pub const LINK_PAGE: &[u8] = b"/sign-in";
 
-/// The current family schema text (skein/docs/design/data/codec/README.md, section 6).
+/// The current family schema text (skein/docs/design/data/codec/golden.md, section 1).
 #[expect(clippy::disallowed_macros, reason = "the owner embeds its current schema text once")]
 pub const CLIENT_SCHEMA: &str = include_str!("../schema/client-wire-v1.schema");
 
-/// The current family schema text (skein/docs/design/data/codec/README.md, section 6).
+/// The current family schema text (skein/docs/design/data/codec/golden.md, section 1).
 #[expect(clippy::disallowed_macros, reason = "the owner embeds its current schema text once")]
 pub const PUBLIC_SCHEMA: &str = include_str!("../schema/public-v1.schema");
 

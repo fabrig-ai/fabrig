@@ -1,4 +1,4 @@
-//! Canonical layout fingerprints (data/codec/README.md, section 9).
+//! Canonical layout fingerprints (data/codec/fingerprints.md, section 1).
 
 use super::{DeclIx, FieldIx, Held, Schema, Shape, Type, TypeIx, VariantIx, add};
 use skein_lib::{List, sha256::Sha256};
@@ -6,7 +6,7 @@ use skein_lib::{List, sha256::Sha256};
 mod value;
 pub use value::{LayoutError, MAX_HELD, Root};
 
-/// A layout's SHA-256 (data/codec/README.md, section 9).
+/// A layout's SHA-256 (data/codec/fingerprints.md, section 1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Fingerprint([u8; 32]);
 
@@ -40,7 +40,7 @@ impl Fingerprints {
 }
 
 impl Schema {
-    /// Hashes the canonical encoding of each layout and the family (data/codec/README.md, 9.1).
+    /// Hashes the canonical encoding of each layout and the family (data/codec/fingerprints.md, 1.1).
     #[must_use]
     pub fn fingerprints(&self) -> Fingerprints {
         let mut declarations = List::with_capacity(self.declarations());

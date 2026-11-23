@@ -1,4 +1,4 @@
-//! JSON read states and their running answer bound (skein/docs/design/forge/README.md, 3.7, skein/docs/design/forge/forgejo.md, 1.2, 1.4).
+//! JSON read states and their running answer bound (skein/docs/design/forge/vocabulary.md, 1.7, skein/docs/design/forge/forgejo-operations.md, 1, skein/docs/design/forge/forgejo.md, 1.4).
 use crate::forgejo::plans::{
     Body, Heard,
     plan::{Bounds, Exchange, Step},
@@ -405,7 +405,7 @@ impl Plan {
     )]
     #[expect(
         clippy::wildcard_enum_match_arm,
-        reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2"
+        reason = "the exchange's decoder picks the kind: forge/dialects.status.md, 1.2"
     )]
     fn row(
         &mut self,

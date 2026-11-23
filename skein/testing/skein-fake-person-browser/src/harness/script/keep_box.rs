@@ -1,4 +1,4 @@
-//! Keep a semantic node's viewport box (ui/web/README.md, section 5).
+//! Keep a semantic node's viewport box (ui/web/patches.md, section 1).
 use crate::BrowserFace;
 use skein_fake_person::{Find, Found};
 

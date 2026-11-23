@@ -50,7 +50,7 @@ pub mod kept {
             r"family every 1
 
 # Every type of the language, with list and option nesting, for the
-# generic decoder's tests against the generated code (data/codec/README.md, 8.3).
+# generic decoder's tests against the generated code (data/codec/run-time.md, 2.3).
 
 record Blank {}
 
@@ -114,7 +114,7 @@ versioned record Every {
             r"family every 2
 
 # Every type of the language, with list and option nesting, for the
-# generic decoder's tests against the generated code (data/codec/README.md, 8.3);
+# generic decoder's tests against the generated code (data/codec/run-time.md, 2.3);
 # version 1 through patch 0001 gives it (data/codec/patches.md, 8).
 
 versioned record Blank {}
@@ -180,7 +180,7 @@ versioned record Every {
 ",
             r"family every 3
 
-# The byte pin holds every construct (data/codec/README.md, 6).
+# The byte pin holds every construct (data/codec/golden.md, 1).
 # Older versions exercise patches (data/codec/patches.md, 8).
 
 versioned record Blank {}

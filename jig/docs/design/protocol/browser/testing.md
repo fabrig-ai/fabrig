@@ -48,7 +48,7 @@ tested in skein, and in a browser on skein's UI example (skein's
   `JIG_TEST_BUNDLE`.
 - **The harness and the face** are skein's, in
   `skein-fake-person-browser` (skein's `ui/web/testing.md`, 2; skein's
-  `ui/README.md`, 14.1). jig's tier gives the harness the prefix of the line
+  `ui/testing.md`, 1.1). jig's tier gives the harness the prefix of the line
   `jig-test` prints its link on, so the address it opens first is the
   printed link, which signs the person in (`README.md`, section 11); the face opens
   the paths the application's codec prints.

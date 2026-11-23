@@ -586,7 +586,7 @@ its own:
   binary ships it: the checks, the answers, the step core, the replay
   and both transports; over `skein-fake-checkout`, the fake forge's
   domain, protocol layer and peer, and `skein-http`, each in skein's
-  `crates/` (skein's `testing/README.md`, section 6). Its hosted half,
+  `crates/` (skein's `testing/layout.md`, section 1). Its hosted half,
   `crates/temper-fake-git-hosted`: the program as skein's simulated
   world hosts it, from the world's `Inherited`, which the playground
   ships; the fixtures and scenarios the worlds share stay with the
@@ -654,7 +654,7 @@ drawn from the seed.
 
 - **On the fake forge** it acts as a forge user.
 - **Through temper's client** it is skein's: skein's fake person
-  (skein's `ui/README.md`, 14.1), reading the tree temper's view makes and
+  (skein's `ui/testing.md`, 1.1), reading the tree temper's view makes and
   acting on it, with jig's client test kit's faults and check (jig's
   `client/domain/testing.md`), in `tests/client`; and the same person in
   front of temper's terminal client (../client/README.md, section 2), in the

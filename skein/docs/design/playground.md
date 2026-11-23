@@ -108,7 +108,7 @@ on the timer, or after a message:
   io's sockets, which an application's composition hosts as one of its
   processes. Its inputs come from the loop between steps (testing/world.md, 5);
   its outputs go back to the loop after each slice.
-- **Its inputs** are fetch's (ui/web/README.md, section 8): an exchange (its
+- **Its inputs** are fetch's (ui/web/effects.md, section 1): an exchange (its
   id, a path, the method, headers and body, a bound on its answer's
   body); an abandon of one; the stream opened (a path, its headers, a
   bound on a piece), read on, or closed.
@@ -135,7 +135,7 @@ on the timer, or after a message:
   (programming-model.md, 6).
 - **Fetch's reports by construction:** the visitor keeps its exchanges
   and its stream in `skein-ui-web`'s fetch bookkeeping, the pure half
-  the browser's fetch keeps (ui/web/README.md, 8), so a refusal past the
+  the browser's fetch keeps (ui/web/effects.md, 1), so a refusal past the
   bound in flight, a body past its bound, an abandon and the stream's
   pieces are reported as a browser's are: the first piece as it comes,
   each further one after a read-on.
@@ -248,7 +248,7 @@ session log's versioned text (decided 2026-11-03).
   version, the bundle's digest, the seed and the start; then a line per
   input, its stamp, the input, and the digest of what the world said
   since the one before, each input in a text form of its own (its
-  fields; bodies in base64, runtime/lib.md, 6.1), never the bridge's unversioned
+  fields; bodies in base64, runtime/lib-bytes.md, 1.1), never the bridge's unversioned
   encoding, so the stored format stands alone. A log of another format
   version is refused, naming it. The build it names is the bundle's,
   which a native replay has not: a replay of another build goes on, the
@@ -286,7 +286,7 @@ what was said through that clock, give its end (decided 2026-11-03).
 
 Lines of printable ASCII, each ending in a newline; fields apart by one
 space, in the order given, `name=value`; numbers in decimal with no
-leading zero; bytes in base64 (runtime/lib.md, 6.1), the standard alphabet with
+leading zero; bytes in base64 (runtime/lib-bytes.md, 1.1), the standard alphabet with
 padding, the empty bytes as nothing; a digest as 64 lowercase hex
 digits. Anything else refuses the log, naming its line.
 

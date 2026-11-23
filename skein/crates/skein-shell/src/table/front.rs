@@ -1,4 +1,4 @@
-//! The table's own words before a binary runs its commands (runtime/shell.md, 14.5).
+//! The table's own words before a binary runs its commands (runtime/shell-table.md, 1.5).
 
 use super::{Command, Reach, Table, help::usage_section};
 
@@ -6,7 +6,7 @@ use super::{Command, Reach, Table, help::usage_section};
 mod tests;
 
 /// What a binary's arguments ask of its table before its own commands
-/// (runtime/shell.md, 14.5).
+/// (runtime/shell-table.md, 1.5).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Front<'a> {
     /// Written to stdout; the binary exits 0.

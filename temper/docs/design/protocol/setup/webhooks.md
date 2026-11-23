@@ -4,7 +4,7 @@ This document holds webhooks on a box, split from [`README.md`](README.md).
 
 ## 1. Webhooks on a box
 
-The listener is skein's (`forge/connection.md`, section 6), and so are
+The listener is skein's (`forge/connection-webhooks.md`, section 1), and so are
 the signature, the events and the hints they become (`../forge/README.md`, section
 6). This section says what makes them reach the engine on a box, and
 that they cover what its work waits on.
@@ -74,7 +74,7 @@ that they cover what its work waits on.
 ## 2. Open questions
 
 - **Webhooks from another host,** over TLS (skein's
-  `forge/connection.md`, section 6), once skein has TLS's server side.
+  `forge/connection-webhooks.md`, section 1), once skein has TLS's server side.
   Until then a managed Forgejo on another host polls (`reconcile.md`, 5).
 - **A hook left at an old listener's address,** after the listener
   moves, is skein's question (skein's `forge/setup/README.md`, section 6).

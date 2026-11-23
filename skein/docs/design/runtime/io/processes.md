@@ -26,7 +26,7 @@
   - An inherited descriptor is an entry whose way is `Inherit`: the
     child's descriptor 0, 1 or 2 is the service's own descriptor of that
     number, as the service has it, so that a front end lends the
-    person's terminal to a program of its own (`../shell.md`, 6.3, *The
+    person's terminal to a program of its own (`../shell-startup.md`, 1.3, *The
     terminal lent to a child*). The spawn's file actions leave it open
     across the exec where they would open `/dev/null`. io holds nothing
     for it and `Spawned` names no token for it. An `Inherit` entry at
@@ -139,7 +139,7 @@ pub enum Event {
 ```
 
 - **The service's own cgroup** is opened by the shell at startup
-  (../shell.md, 6.4), and io adopts it as it adopts a root. io never kills
+  (../shell-startup.md, 1.4), and io adopts it as it adopts a root. io never kills
   or removes an adopted cgroup: closing it closes its descriptors.
 - **`Make`** makes a cgroup by name beneath another io holds, and opens
   it. It sets its limits (`memory.max`, `pids.max`), whose controllers
@@ -175,7 +175,7 @@ pub enum Event {
   cgroup is its close.
 - **Bounds.** A cgroup takes one entity slot and holds two descriptors,
   its directory and its `cgroup.events`, and the name it was made with.
-  The operations on it are synchronous but `Empty` (../kernel.md, 6.6); one
+  The operations on it are synchronous but `Empty` (../kernel-cgroups.md, 1); one
   `Empty` may be in flight on a cgroup, and a second is the layer above's
   bug, asserted.
 
@@ -261,12 +261,12 @@ pub struct Rlimit { pub resource: Resource, pub soft: u64, pub hard: u64 }
     reaches the service's files only as any other user would. A map that
     names only the service's own group leaves the command the service's
     supplementary groups, which the namespace cannot change then
-    (../kernel.md, 6.6). A tree with a view must map the namespace's 0.
+    (../kernel-cgroups.md, 1). A tree with a view must map the namespace's 0.
   - **No fallback.** A machine without user namespaces, or without
     `newuidmap` where the maps need it, fails a contained spawn at its
     namespaces, and so does a service that runs with `no_new_privs`
     where the maps need `newuidmap`, which the shell checks at startup
-    (../shell.md, 6.4). A service whose own `/proc` or `/sys` has parts
+    (../shell-startup.md, 1.4). A service whose own `/proc` or `/sys` has parts
     mounted over, as a unit hardened by its supervisor may, fails a view
     for its new ones: the kernel lets a user namespace mount them only
     where the host's are whole. A service checks at startup, by spawning
@@ -301,14 +301,14 @@ pub struct Rlimit { pub resource: Resource, pub soft: u64, pub hard: u64 }
   reports nothing: io answers `Spawned`, and the child's exit then says
   the signal.
 - **The child io holds** is the tree's first process. When the spawn
-  asks for ids or containment, it is a helper (../kernel.md, 6.6) that
+  asks for ids or containment, it is a helper (../kernel-cgroups.md, 1) that
   relays the command: what it is signalled it passes on, and it exits
   as the command did, with its status, or by its signal. In a pid
   namespace of its own, the command's end ends the tree: the kernel kills
   what the command left in the namespace.
 - **Bounds.** A spawn's maps, binds, read-only paths, scratches, rlimits
   and the bytes of their paths are bounded (`Limits::contain`), so that
-  the whole of it fits the helper's 64 KiB (../kernel.md, 6.6); past them, the
+  the whole of it fits the helper's 64 KiB (../kernel-cgroups.md, 1); past them, the
   spawn is refused at io's entrance. A given root takes no slot of its
   own. The helper's memory is its own process's, outside the service's
   measured heap.
@@ -344,7 +344,7 @@ pub struct Rlimit { pub resource: Resource, pub soft: u64, pub hard: u64 }
   user namespace, can move into the service's other cgroups on purpose.
   A tree run as another user cannot, and nor can a contained one: it has
   a cgroup namespace of its own, and the shell checks that cgroup2 is
-  mounted with `nsdelegate` (../shell.md, 6.4), which forbids a move out of
+  mounted with `nsdelegate` (../shell-startup.md, 1.4), which forbids a move out of
   it. A service that runs a command it does not trust contains it.
 - **Nesting.** A tree may make cgroups beneath its own where its ids may
   write there: when the service runs it as its own user, or when the
@@ -360,7 +360,7 @@ pub struct Rlimit { pub resource: Resource, pub soft: u64, pub hard: u64 }
 ## 5. A signal's reason
 
 A signal says why its owner sends it, so that a world hosting the child
-can name a kill's cause when no one expected it (../../testing/README.md, 5).
+can name a kill's cause when no one expected it (../../testing/service-tiers.md, 1).
 Nothing else reads it.
 
 - **It travels with the signal.** io's request and the kernel's record
@@ -409,7 +409,7 @@ Nothing else reads it.
   outcome reads it: the real kernel never sees it, the simulator keeps it
   in the record it rebuilds and leaves it out of its trace, and a signal
   does the same whatever its reason. The real world records it with each
-  kill (../../testing/README.md, 5).
+  kill (../../testing/service-tiers.md, 1).
 
 ## 6. A spawn's reach
 
@@ -508,7 +508,7 @@ pub enum Unenforced {
   - **Descriptors:** the child holds 0, 1 and 2 and the descriptors its
     table names, and no other. A descriptor opened before the
     restriction keeps its access whatever the reach says, so the helper
-    closes every one the spawn does not name (../kernel.md, 6.6), not
+    closes every one the spawn does not name (../kernel-cgroups.md, 1), not
     only those the service marked close-on-exec.
   - **The network** is not a reach's yet (`temper/docs/design/draft/confinement.md`, 5.4): the tree
     reaches what the service does.
@@ -559,11 +559,11 @@ pub enum Unenforced {
   The command's bytes are its program, each argument and each
   environment entry, each counted as its length and four more, and four
   for each descriptor its table names: so the helper's spec fits a
-  pipe's 64 KiB whole (../kernel.md, 6.6). A spawn without a reach keeps
+  pipe's 64 KiB whole (../kernel-cgroups.md, 1). A spawn without a reach keeps
   no such bound.
 - **Who enforces it.** Each backend enforces a reach whole or refuses
   the spawn, never running it with less: Linux's ring and its readiness
-  backend through the helper (../kernel.md, 6.6); macOS refuses every
+  backend through the helper (../kernel-cgroups.md, 1); macOS refuses every
   spawn with a reach, `Unsupported`; the simulator hands it to the
   machine, which refuses it as the kernel would or plays it
   (../../testing/simulator.md, 3.4; ../../testing/README.md, 4). io maps
@@ -571,7 +571,7 @@ pub enum Unenforced {
   unchanged, then answers `Closed`. A spawn alone (`SpawnAlone`) carries
   a reach as any spawn does.
 - **Whether a machine can restrict a tree** is the startup check's
-  (../shell.md, 6.4): it spawns a restricted child, and answers the
+  (../shell-startup.md, 1.4): it spawns a restricted child, and answers the
   `Unenforced` a reach would meet, or that it can.
 - **Its words.** `Unenforced`'s `Display` says what is missing and what
   an operator can do about it: run Linux 6.12 or later, built with

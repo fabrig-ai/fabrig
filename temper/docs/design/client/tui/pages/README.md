@@ -466,8 +466,8 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
   itself.
 - **The list:** the box's words beginning with "/" and holding no white
   space open the commands under the box in the quiet line's place, the
-  region `tui-list`: an options menu after the box (skein's `ui/README.md`,
-  3.2, *options*), named "Commands", with no head, each command offered
+  region `tui-list`: an options menu after the box (skein's `ui/tree.md`,
+  1.2, *options*), named "Commands", with no head, each command offered
   whose name begins with the words, in the order *Offered* and *The
   TUI's own commands* give, its name and, as its description, its words (`tui-command`), the
   first active. While it stands the box keeps the focus: Up and Down

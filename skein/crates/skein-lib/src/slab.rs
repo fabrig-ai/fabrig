@@ -72,7 +72,7 @@ impl<T> Slab<T> {
         self.capacity
     }
 
-    /// Raises the capacity in place, allocating nothing (runtime/lib.md, 5).
+    /// Raises the capacity in place, allocating nothing (runtime/lib-containers.md, 1).
     pub fn raise(&mut self, capacity: u32) {
         assert!(capacity >= self.capacity(), "a capacity never falls");
         self.capacity = capacity;
@@ -251,7 +251,7 @@ fn growth(len: usize, capacity: u32) -> usize {
     grown(len, needed, usize_of(capacity)).checked_sub(len).expect("room for another item")
 }
 
-// runtime/lib.md, 5.1: slot identity and reuse order are state; capacity and len are not.
+// runtime/lib-containers.md, 1.1: slot identity and reuse order are state; capacity and len are not.
 impl<T: Hash> Hash for Slab<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         for slot in &self.slots {

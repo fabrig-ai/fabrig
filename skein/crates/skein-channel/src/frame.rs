@@ -34,7 +34,7 @@ pub struct Frame {
     bytes: Box<[u8]>,
 }
 
-// skein/docs/design/runtime/lib.md, 6 and skein/docs/design/net/channel.md, 3: a frame prints its lengths.
+// skein/docs/design/runtime/lib-bytes.md, 1 and skein/docs/design/net/channel.md, 3: a frame prints its lengths.
 #[expect(clippy::missing_fields_in_debug, reason = "frame bytes may carry credentials")]
 impl core::fmt::Debug for Frame {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
@@ -145,7 +145,7 @@ pub enum Control {
     Unsupported { kind: u16 },
 }
 
-// skein/docs/design/runtime/lib.md, 6 and skein/docs/design/net/channel.md, 5: a credential prints as its length.
+// skein/docs/design/runtime/lib-bytes.md, 1 and skein/docs/design/net/channel.md, 5: a credential prints as its length.
 impl core::fmt::Debug for Control {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {

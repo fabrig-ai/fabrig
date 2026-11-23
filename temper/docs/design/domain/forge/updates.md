@@ -22,7 +22,7 @@ instead (`../landing-prepare.md`, section 1).
   heads before the update stay the change's own.
 - **Made when the forge says, read afresh.** Forgejo has made the
   update when it answers; GitHub accepts it and makes it after (skein's
-  `forge/github.md`, 5.2). Either way the update is done once the head,
+  `forge/github-operations.md`, 2.2). Either way the update is done once the head,
   read afresh, contains the base's tip it asked for, which is also how
   its recovery finds it (`effects.md`, section 1), and the new head is heard as any
   push. That head is the change's own, recorded as its branch's head in
@@ -30,10 +30,10 @@ instead (`../landing-prepare.md`, section 1).
   1, *Its own writes are its own*).
 - **Lost, and made again.** An update whose answer is lost is looked for
   by that read and, not found after its lifetime, checked and made again,
-  up to `write_attempts` (skein's `forge/client.md`, 7.5). It holds no one.
+  up to `write_attempts` (skein's `forge/client-effects.md`, 1.5). It holds no one.
 - **Let go: a lost write.** An update settled `Failed` with `Timeout` or
   `Unavailable`, or with `Stale` or `BaseMoved` from the check after a
-  send of its own (skein's `forge/client.md`, 7.5), says nothing of the
+  send of its own (skein's `forge/client-effects.md`, 1.5), says nothing of the
   change: the forge did not answer, or what it was decided on has gone,
   perhaps to a copy of its own. The top keeps its account and reports no
   result, and a change updating or preparing (`../landing-prepare.md`, 1.2, and `../landing.md`, 12
@@ -56,8 +56,8 @@ instead (`../landing-prepare.md`, section 1).
 - **Refused stale: a replan** (2026-11-16, `../../draft/landing-update-loop.md`).
   An update or a preparation the client's check refuses before any send
   of its own was never made: `Stale`, its pull request at another head,
-  or `BaseMoved`, at another base commit (skein's `forge/client.md`,
-  7.4). The top reports it as its own result, `EffectResult::Stale`, and
+  or `BaseMoved`, at another base commit (skein's `forge/client-effects.md`,
+  1.4). The top reports it as its own result, `EffectResult::Stale`, and
   the change decides again on a fresh read of its head, its base's tip,
   and its pull request's head and base commit:
 
@@ -103,7 +103,7 @@ instead (`../landing-prepare.md`, section 1).
   checks it, so a person and a CI run; gates ask again. A merge names its
   exact head (`effects.md`, section 1), so a copy lands nothing unchecked. A rebase's
   copy can also drop a push made since it read the head (skein's
-  `forge/client.md`, 7.3): the same hold, and a repair so dropped finds
+  `forge/client-effects.md`, 1.3): the same hold, and a repair so dropped finds
   its failure again when the head is checked. A push by another hand so
   dropped is that hand's to make again, the hold saying the branch moved.
 - **A conflict** makes the forge refuse the update, a merge's or a

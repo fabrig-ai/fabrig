@@ -1,4 +1,4 @@
-//! Largest-value bytes written independently of the generator (data/codec/README.md, 6).
+//! Largest-value bytes written independently of the generator (data/codec/golden.md, 1).
 
 #[cfg(test)]
 mod tests {

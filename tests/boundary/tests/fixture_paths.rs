@@ -1,7 +1,7 @@
 //! Fixture writers find the checkout when they run (skein's testing-strategy.md, 8).
 //! The text check includes comments and strings, and ignores whitespace around
 //! the manifest macro. Its own matcher examples are excluded, as in outward.rs.
-//! Codec golden bytes stay with every and patches (skein's data/codec/README.md, 5 and 6).
+//! Codec golden bytes stay with every and patches (skein's data/codec/README.md, 5, and data/codec/golden.md, 1).
 
 use std::{fs, path::Path, process::Command};
 

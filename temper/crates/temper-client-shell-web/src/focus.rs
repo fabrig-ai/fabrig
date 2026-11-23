@@ -1,5 +1,5 @@
 //! Navigation's heading, including a main drawn after its page
-//! (temper/docs/design/client/web/addresses.md, 1; skein/docs/design/ui/web/README.md, 5).
+//! (temper/docs/design/client/web/addresses.md, 1; skein/docs/design/ui/web/patches.md, 1).
 use std::{cell::RefCell, rc::Rc};
 use wasm_bindgen::{JsCast, closure::Closure};
 

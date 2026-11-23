@@ -1,6 +1,6 @@
-//! Streaming SHA-256 over bounded pieces (runtime/lib.md, 6.2).
+//! Streaming SHA-256 over bounded pieces (runtime/lib-bytes.md, 1.2).
 
-/// SHA-256 (FIPS 180-4) over pieces cut anywhere (runtime/lib.md, 6.2).
+/// SHA-256 (FIPS 180-4) over pieces cut anywhere (runtime/lib-bytes.md, 1.2).
 #[derive(Clone)]
 pub struct Sha256 {
     state: [u32; 8],
@@ -65,7 +65,10 @@ impl Sha256 {
     }
 }
 
-#[expect(clippy::missing_fields_in_debug, reason = "runtime/lib.md, 6.2: the count of bytes hashed, not the state")]
+#[expect(
+    clippy::missing_fields_in_debug,
+    reason = "runtime/lib-bytes.md, 1.2: the count of bytes hashed, not the state"
+)]
 impl core::fmt::Debug for Sha256 {
     /// `Sha256 { hashed: N }`.
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
@@ -81,7 +84,7 @@ pub fn digest(message: &[u8]) -> [u8; 32] {
     state.finish()
 }
 
-/// HMAC-SHA256 (RFC 2104) over pieces cut anywhere (runtime/lib.md, 6.2).
+/// HMAC-SHA256 (RFC 2104) over pieces cut anywhere (runtime/lib-bytes.md, 1.2).
 #[derive(Clone)]
 pub struct Hmac {
     /// Seeded with the key's block XOR 0x36; takes the message.
@@ -129,7 +132,7 @@ impl Hmac {
 
 #[expect(
     clippy::missing_fields_in_debug,
-    reason = "runtime/lib.md, 6.2: the count of bytes hashed, never the key or its pads"
+    reason = "runtime/lib-bytes.md, 1.2: the count of bytes hashed, never the key or its pads"
 )]
 impl core::fmt::Debug for Hmac {
     /// `Hmac { hashed: N }`, counting the message's bytes alone.

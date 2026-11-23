@@ -1,4 +1,4 @@
-//! The row runner's order and report (skein/docs/design/testing/README.md, 6).
+//! The row runner's order and report (skein/docs/design/testing/layout.md, 1).
 
 use std::cell::RefCell;
 

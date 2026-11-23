@@ -1,4 +1,4 @@
-//! An address's text without formatting (runtime/lib.md, 6).
+//! An address's text without formatting (runtime/lib-bytes.md, 1).
 use crate::{Decimal, Writer};
 use alloc::boxed::Box;
 use core::net::{IpAddr, Ipv4Addr, Ipv6Addr};

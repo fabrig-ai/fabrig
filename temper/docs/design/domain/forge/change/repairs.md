@@ -34,10 +34,10 @@
   at this head, failed again`). A failure the runner caused within
   `reruns` is run again, never repaired. The log is read at the job attempt that failed on this
   head, within the brief's byte budget, and its truncation is said; a
-  read that fails is said in its place (skein's `forge/forgejo.md`, 1.2).
+  read that fails is said in its place (skein's `forge/forgejo-operations.md`, 1).
   On GitHub the pin comes from the failed check's resolved Actions job,
-  whose id may differ from the check-run id (skein's `forge/github.md`,
-  4.4). A log cut keeps its end, including a gate's complete timestamp
+  whose id may differ from the check-run id (skein's `forge/github-operations.md`,
+  1.4). A log cut keeps its end, including a gate's complete timestamp
   line when it fits, and marks the missing prefix. A pin for another
   head is never read. On GitHub, streaming retention ends at the runner's
   failed-process line before post-job cleanup (skein's `forge/github.md`,
@@ -112,7 +112,7 @@
   failed job the receipt keeps (`../../landing-proof.md`, 1.2). KEY is `test
   CLASS NAME` for a JUnit case, or a `lines` report's line as written,
   and a KEY or a job's NAME is made text as it is written (each byte
-  outside UTF-8 a `?`, skein's `runtime/lib.md`, 6), so a report's bytes
+  outside UTF-8 a `?`, skein's `runtime/lib-bytes.md`, 1), so a report's bytes
   never make the repair's words refused;
   PROFILE `fuzzy` where the name (the case's, or the line's last word)
   starts with the report's `fuzzy` prefix, else `focused`. A gate that

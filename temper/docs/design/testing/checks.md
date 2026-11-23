@@ -18,7 +18,7 @@ Every world checks what the strategy lists (skein/docs/foundation/testing-strate
   worlds in lockstep under the same stimuli. After each iteration it
   compares their complete traces exactly, and hashes the frozen root,
   children, store and pending scripts through their `Hash` implementations
-  (skein's `runtime/lib.md`, 5.1). The world's test store hashes the four fields
+  (skein's `runtime/lib-containers.md`, 1.1). The world's test store hashes the four fields
   its `Debug` prints: `applied`, `rows`, `pending` and `held`.
   The comparison uses a test-only 64-bit word hasher: its
   digests are compared within one process and never kept, with no

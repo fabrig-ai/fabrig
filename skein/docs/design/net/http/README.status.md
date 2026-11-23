@@ -8,5 +8,5 @@
   (`jig-protocol-engine-clients-http/src/call.rs`, `respond_with_cookie`).
   The request of 2026-11-05 named a server's `Call` and a client's written
   head, not this one, and no test formats a server holding it. Each machine's
-  `Intake` also holds a head's bytes until their line is whole (../../runtime/lib.md, 6).
+  `Intake` also holds a head's bytes until their line is whole (../../runtime/lib-bytes.md, 1).
    the collector, memory and fuzz checks remain `testing.status.md` (Not yet, the whole document).

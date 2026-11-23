@@ -1,4 +1,4 @@
-//! Startup's bounded file and trust-root reads (runtime/shell.md, 6.1 and 6.2).
+//! Startup's bounded file and trust-root reads (runtime/shell-startup.md, 1.1 and 1.2).
 //! It keeps no environment or service state: main supplies `SSL_CERT_FILE`,
 //! bounds and the trust choice. The result owns DER certificates and their
 //! source path; TLS decides which parsed roots it supports.
@@ -35,7 +35,7 @@ pub enum OutputKind {
 }
 
 /// The kernel's startup answer on whether the effective user may write and
-/// search a directory (runtime/shell.md, section 6.1).
+/// search a directory (runtime/shell-startup.md, section 1.1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[must_use]
 pub enum DirectoryAccess {
@@ -65,13 +65,13 @@ pub enum Unread {
 }
 
 /// Reads a regular file whole within `max` bytes, without blocking on an
-/// entry such as a FIFO or taking a controlling terminal (runtime/shell.md, 6.1).
+/// entry such as a FIFO or taking a controlling terminal (runtime/shell-startup.md, 1.1).
 pub fn read_file(path: &Path, max: u32) -> Result<Box<[u8]>, Unread> {
     crate::system::read_file(path, max)
 }
 
 /// Reads a secret within `max` bytes after io's private-file checks,
-/// using the expected owner supplied by startup (runtime/shell.md, 6.1).
+/// using the expected owner supplied by startup (runtime/shell-startup.md, 1.1).
 pub fn read_private_file(path: &Path, max: u32, user: u32) -> Result<Secret, Unread> {
     crate::system::read_private_file(path, max, user)
 }
@@ -85,7 +85,7 @@ pub enum Trust {
     Der(PathBuf),
 }
 
-/// Configuration's bounds for reading trust roots at startup (runtime/shell.md, 6.2).
+/// Configuration's bounds for reading trust roots at startup (runtime/shell-startup.md, 1.2).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct RootBounds {
     pub bundle_bytes: u32,
@@ -117,7 +117,7 @@ pub enum RootsRefusal {
 }
 
 /// Reads DER roots within `bounds`, decoding certificate PEM blocks and
-/// counting malformed and other blocks (runtime/shell.md, 6.2). Empty results are
+/// counting malformed and other blocks (runtime/shell-startup.md, 1.2). Empty results are
 /// handed to TLS, whose `Config::from_der` refuses roots of none.
 pub fn read_trust_roots(trust: &Trust, bounds: &RootBounds) -> Result<Roots, RootsRefusal> {
     match trust {

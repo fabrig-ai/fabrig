@@ -1,4 +1,4 @@
-//! Owned LLM vocabulary and typed refusals (llm/README.md, sections 2 and 2.5).
+//! Owned LLM vocabulary and typed refusals (llm/vocabulary.md, sections 1 and 1.5).
 //! Prompts and completions keep caller-owned bytes; replay remains opaque.
 //! These values know no transport, timer or retry policy; Client admission
 //! and terminals carry the cap and bound unchanged.
@@ -77,7 +77,7 @@ pub struct Tool {
     /// A JSON Schema object describing the tool's argument object.
     pub schema: Json,
 }
-/// The caller's tool policy for one call (llm/README.md, section 2.2).
+/// The caller's tool policy for one call (llm/vocabulary.md, section 1.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ToolChoice {
     /// The provider may select any offered tool.
@@ -88,7 +88,7 @@ pub enum ToolChoice {
     Only(Box<[Box<[u8]>]>),
 }
 
-/// Caller-owned cache routing identity, repeated unchanged through a conversation (llm/README.md, section 2.1).
+/// Caller-owned cache routing identity, repeated unchanged through a conversation (llm/vocabulary.md, section 1.1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Affinity {
     pub key: [u8; 16],
@@ -189,7 +189,7 @@ pub enum Delta {
         text: Box<[u8]>,
     },
 }
-/// A local admission or receiving cap named in a failure (llm/README.md, section 2.5).
+/// A local admission or receiving cap named in a failure (llm/vocabulary.md, section 1.5).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Cap {
     /// The configured bound on encoded request body.
@@ -386,7 +386,7 @@ pub enum Error {
     },
 }
 
-/// The owner's deadline that passed (llm/README.md, section 2.5; llm/connection.md, section 6).
+/// The owner's deadline that passed (llm/vocabulary.md, section 1.5; llm/connection.md, section 6).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Phase {
     /// The socket did not connect in time.
@@ -491,7 +491,7 @@ impl Endpoint {
         }
     }
 }
-/// The scheme a route uses to present a credential (llm/README.md, section 2.6).
+/// The scheme a route uses to present a credential (llm/vocabulary.md, section 1.6).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Scheme {
     /// A bearer token, sent in the authorization field.

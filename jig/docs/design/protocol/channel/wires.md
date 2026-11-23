@@ -42,7 +42,7 @@ rule); an application names its own wires (temper's
 
   A `Wire` speaks the versions `lowest` to `lowest` plus its layouts'
   count less one, `layouts` each one's family fingerprint (skein's
-  `data/codec/README.md`, section 9), lowest first.
+  `data/codec/fingerprints.md`, section 1), lowest first.
 - **What a side speaks,** as the components take it:
 
   ```rust

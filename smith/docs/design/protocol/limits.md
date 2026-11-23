@@ -176,7 +176,7 @@ in every deployment:
   declaration (`../shell/settings.md`, 2.1), never the vocabulary's;
 - **an account's refusal:** the refused notice's code, text of at most
   128 bytes, skein's report bound, left empty past it, never clipped
-  (skein's `llm/README.md`, 2.5 and 7); and its reason, text of at most 512
+  (skein's `llm/vocabulary.md`, 1.5, and `llm/README.md`, 7); and its reason, text of at most 512
   bytes, the failure's detail cut at a character's boundary. Both are
   the channel schema's, and a failed run's refused account carries the
   code within the same bound (channel.md, section 4);
@@ -246,8 +246,8 @@ scenarios measure heap peaks separately (section 5).
 
 ### 3.1 The LLM path: skein
 
-`skein_llm::Limits::derive(&Declared)` (skein's `llm/README.md`, sections 4.1
-and 4.2) runs once per endpoint. Its `Declared` takes the endpoint's
+`skein_llm::Limits::derive(&Declared)` (skein's `llm/wire.md`, sections 1.1
+and 1.2) runs once per endpoint. Its `Declared` takes the endpoint's
 maxima, the largest `window`, `output` and `reasoning_item` of the models
 the configuration declares for it, and the deployment's `tool_payload`,
 `calls_per_response` and `conversations`. Its two factors, an escape's
@@ -270,7 +270,7 @@ skein's LLM connection component is given, from the same declarations
   waiting;
 - **`connections`:** `conversations` across the pool, and as many per
   endpoint. skein checks connections ≥ calls when the component is made
-  (skein's `llm/README.md`, section 4.3), so the service refuses to start
+  (skein's `llm/wire.md`, section 1.3), so the service refuses to start
   otherwise;
 - **`memory`:** `llm_pool`, the bytes calls may reserve at once;
 - **`idle keep`:** each endpoint's `connection_keep`;
@@ -298,7 +298,7 @@ declarations:
   within what is left (domain/session.md, 8.1), never in more history. So `window-first`
   holds by construction. Its messages and blocks are
   those bytes over a block's cell in memory, by rule 3, and they are
-  also skein's declared history items (skein's `llm/README.md`, 4.2). A prompt
+  also skein's declared history items (skein's `llm/wire.md`, 1.2). A prompt
   the session sends is within skein's request, because the line bounds
   it in tokens and the request is derived from the same window. A
   request-size `Limit` cannot follow a passed admission: should one
@@ -319,7 +319,7 @@ declarations:
     it, unescaped and at most the answer's bytes in all;
   - its reasoning at skein's share for it, output items × the reasoning
     bound, each item within that bound. A run of consecutive reasoning
-    items is one block (skein's `llm/README.md`, section 2), so one block may
+    items is one block (skein's `llm/vocabulary.md`, section 1), so one block may
     hold the whole share;
   - a cell per block.
 
@@ -338,7 +338,7 @@ declarations:
   (rule 1), rendered ×4 only where bytes may be invalid UTF-8 (rule 2);
 - **a failure's detail,** the last failure's, kept for the operator: the
   provider's text within the largest failure detail skein's dialects
-  keep (skein's `llm/README.md`, 4.2), or a limit's name and bound. The session
+  keep (skein's `llm/wire.md`, 1.2), or a limit's name and bound. The session
   keeps one, each later failure replacing it (domain/session.md, section
   4); the event stream carries it whole under content capture, and the
   operator's line clips it (2.4).
@@ -712,7 +712,7 @@ the limits on each side and their values (agent.md, section 6;
 `smith check` in `../shell/README.md`).
 
 skein checks its own as it derives and composes, each refused by its
-name (skein's `llm/README.md`, section 4.3): one call's input within the
+name (skein's `llm/wire.md`, section 1.3): one call's input within the
 answer; the output items and strings its rules give; one largest call's
 request and receiving reservation within `llm_pool`; at least as many
 connections as `conversations`; each demand within its cap; and
@@ -785,9 +785,9 @@ reserve against the budget.
   `llm_pool`, which skein's connection component keeps (skein's
   `llm/connection.md`, section 7). At admission a call reserves its
   request, measured exactly before encoding, and its derived receiving
-  bound (skein's `llm/README.md`, 4.2), releasing both at its terminal. A call
+  bound (skein's `llm/wire.md`, 1.2), releasing both at its terminal. A call
   that fits alone waits for room, in arrival order and within its
-  deadline (section 6).
+  deadline (`limits.md`, section 6).
 - **One process owns each part once.** The product in one process
   (`../shell/README.md`, section 5) has one loop, one ring and no host
   channel. Its local domain owns the inline agent; their effects, io,
@@ -909,7 +909,7 @@ losslessly by count.
   domain meets another layer's limit in the middle of a run.
 - **skein owes:**
   - `Limits::derive` for the LLM path, with its documented factors and
-    its own relationships checked (skein's `llm/README.md`, section 4);
+    its own relationships checked (skein's `llm/wire.md`, section 1);
   - selective, streamed decoding of provider events (skein's `data/json.md`
     and `http.md`);
   - an oversized call as a block of its own, typed `Limit` kinds and

@@ -42,7 +42,7 @@ pub struct Plan {
     pub abort: bool,
 }
 
-/// How a connection demands what it reads (runtime/lib.md, 7).
+/// How a connection demands what it reads (runtime/lib-streams.md, 1).
 #[derive(Clone, Copy, Debug)]
 pub enum Reads {
     /// Fills of 1 to this many bytes, drawn from the seed.
@@ -163,7 +163,7 @@ pub struct Conn {
     pub error: Option<Error>,
     pub finished: bool,
     /// Its demand outstanding: a read, and room; nothing once answered. It
-    /// states the next only then (runtime/lib.md, 7), and keeps it across `End`,
+    /// states the next only then (runtime/lib-streams.md, 1), and keeps it across `End`,
     /// which `Room` may still answer.
     pub asked: (Read, u32),
     pub closed_at: Option<Time>,
@@ -468,7 +468,7 @@ impl Owner {
         let conn = self.conns.get_mut(&owner).expect("a connection of this owner");
         let socket = conn.socket.expect("a stream told is bound or connected");
         // An answer on its way when it closed, which withdrew its demand:
-        // dropped, as the side above drops it (runtime/lib.md, 7).
+        // dropped, as the side above drops it (runtime/lib-streams.md, 1).
         let answering = match up {
             Up::Bytes(_) | Up::Room => true,
             Up::End | Up::Failed(_) => false,
@@ -540,7 +540,7 @@ impl Owner {
             }
         }
         // The next demand only once the last is answered, never in place of
-        // it (runtime/lib.md, 7).
+        // it (runtime/lib-streams.md, 1).
         if conn.waits() {
             return;
         }

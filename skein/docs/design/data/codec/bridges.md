@@ -254,7 +254,7 @@ pub enum Halt { /* patches.md, 6's, and: */
   `to` is total for `root` (5.3); none when `root` or `to` is not one
   the bridge speaks.
 - **`layout`** is the kept text's `fingerprints().family().digest()`
-  (`README.md`, section 9), as a wire's `layout()` is its current text's.
+  (`fingerprints.md`, section 1), as a wire's `layout()` is its current text's.
 
 ### 5.2 Bounds
 
@@ -289,7 +289,7 @@ pub enum Halt { /* patches.md, 6's, and: */
   - `kept::<family>::FLOOR: u16`, its floor, its current for a
     per-build wire;
   - `kept::<family>::LAYOUTS: &[[u8; 32]]`, each version's family
-    fingerprint (`README.md`, section 9) from `FLOOR` to the current,
+    fingerprint (`fingerprints.md`, section 1) from `FLOOR` to the current,
     oldest first, so its count is the current less the floor plus one;
     a per-build wire's holds its current's alone. It is what
     `layouts(TEXTS, FLOOR)` (5.1) returns, computed when the module is
@@ -369,7 +369,7 @@ Step tests in skein-codec and skein-codegen, the story in
   per-build wire; `current` refusing a module whose table no longer
   matches its texts.
 - **A property,** in the fuzzy suite: values drawn from the `every`
-  fixture's newest text (`README.md`, 8.3's seeded generator) through a
+  fixture's newest text (`run-time.md`, 2.3's seeded generator) through a
   derived reverse: each one either comes back up as itself or is refused
   with `Unheld`, never altered; values drawn from an older text taken up
   decode by the current text.

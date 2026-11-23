@@ -1,4 +1,4 @@
-//! At and one beyond each sample field ceiling (data/codec/README.md, section 6).
+//! At and one beyond each sample field ceiling (data/codec/golden.md, section 1).
 
 #[cfg(test)]
 mod tests {

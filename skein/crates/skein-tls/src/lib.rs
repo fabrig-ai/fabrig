@@ -2,11 +2,11 @@
 //! over rustls's unbuffered connection.
 //!
 //! - [`client`] is a step machine (programming-model.md, 4) between two
-//!   streams (runtime/lib.md, 7): the ciphertext below, a socket's or a pipe's, and
+//!   streams (runtime/lib-streams.md, 1): the ciphertext below, a socket's or a pipe's, and
 //!   the plaintext above, which the machine stacked on it cannot tell from a
 //!   socket.
 //! - [`client::native`]: the client with independent output on both sides
-//!   (net/tls.md, 3.6; runtime/lib.md, 7.1).
+//!   (net/tls.md, 3.6; runtime/lib-streams.md, 1.1).
 //! - [`Config`] is what every connection shares, made at startup from the
 //!   roots a service trusts and the protocols it offers by ALPN; [`Name`]
 //!   is each connection's server.

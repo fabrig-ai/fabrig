@@ -86,9 +86,9 @@ An endpoint is configuration, given when the component is made. It has:
 - **skein's LLM endpoint:** the route, the path, and the headers the
   route needs, such as an API version (README.md). Its headers may not name
   a field the client writes itself, the credential's and the route's
-  per-call headers included (README.md, sections 2.6 and 4.8);
+  per-call headers included (vocabulary.md, section 1.6, and wire.md, section 1.8);
 - **its limits,** derived for its dialect from the owner's declaration
-  for the models the endpoint serves (README.md, section 4.2). The request
+  for the models the endpoint serves (wire.md, section 1.2). The request
   head's limit is measured from the endpoint's headers and the owner's
   bounds on a credential's value when the component is
   made.
@@ -111,7 +111,7 @@ The owner names an endpoint by its index in that configuration.
 | delta | a piece of the answer as it comes |
 | block | a completed block |
 | completed | the call's completion: its blocks, stop reason and usage |
-| failed | the class, the evidence, the provider's report (its error code, request id and the field it names) and its details, each within bounds (README.md, section 2.5) |
+| failed | the class, the evidence, the provider's report (its error code, request id and the field it names) and its details, each within bounds (vocabulary.md, section 1.5) |
 | cancelled | the call ended at the owner's request |
 | closed | after a close or an abort: no call is left and every socket has settled |
 
@@ -122,7 +122,7 @@ The owner names an endpoint by its index in that configuration.
     (../../foundation/programming-model.md, section 5.2);
   - the endpoint is unknown;
   - skein's client refuses the request, naming the limit it passes
-    (README.md, section 2.5);
+    (vocabulary.md, section 1.5);
   - the call's memory reservation is larger than the whole pool, so no
     wait could admit it;
   - more calls are outstanding, running or waiting, than the owner
@@ -131,7 +131,7 @@ The owner names an endpoint by its index in that configuration.
   A pool at capacity is not among them: the call waits (4.1).
 - **Each terminal carries the call's measures,** whatever the terminal:
   - the encoded request's bytes as sent, its head and its body as
-    encoded, compressed on a gzip route (README.md, section 4.8), or none
+    encoded, compressed on a gzip route (wire.md, section 1.8), or none
     when the call ended before its request was measured;
   - the time from the request sent to the response's first byte, or none
     before one arrived;
@@ -175,15 +175,15 @@ Once it runs, a call that waited is a call like any other.
 ### 4.2 Credentials
 
 - **A credential goes with its call.** A start carries at most one
-  credential: its value and its scheme, a bearer or a key (README.md,
-  section 2.6).
+  credential: its value and its scheme, a bearer or a key (vocabulary.md,
+  section 1.6).
   skein's client writes it where the endpoint's route takes it. The
   component holds it in the call's request only, and drops it at the
   call's terminal: it is never kept on a connection, nor used for
   another call.
 - **Or none.** A start for an endpoint that takes no credential, such as
   a local model's server (section 3), carries none, and its request no
-  credential field (README.md, section 2.6).
+  credential field (vocabulary.md, section 1.6).
 - **Connections are not an account's.** A request authenticates itself,
   and a connection holds no session, so the calls of several accounts
   share an endpoint's pool. A connection reused for the next call carries
@@ -193,12 +193,12 @@ Once it runs, a call that waited is a call like any other.
   skein's client, naming why; no terminal follows.
 - **Which account a failure concerns** is the owner's to know: it chose
   the credential. The failure carries the class and the provider's
-  report (README.md, section 2.5), never the credential.
+  report (vocabulary.md, section 1.5), never the credential.
 
 ### 4.3 Reading a list
 
 `skein_llm_connection::list::Exchange` makes the one request of a provider's
-list (README.md, 4.9) on an endpoint's address and transport. It is no call: it
+list (wire.md, 1.9) on an endpoint's address and transport. It is no call: it
 takes no pool's room, no conversation and no prompt, and a process that reads a
 list holds one exchange and nothing else of this component.
 
@@ -275,7 +275,7 @@ list holds one exchange and nothing else of this component.
 
 Each is the owner's, per call, and none is required. One that passes ends
 the call through skein's client's abort as timed out, naming the
-deadline's phase (README.md, section 2.5), and the failure carries the
+deadline's phase (vocabulary.md, section 1.5), and the failure carries the
 client's evidence: unsent, possibly sent, or a response received.
 
 - **Armed by phase.** Which deadlines run is an exhaustive function of the
@@ -308,7 +308,7 @@ client's evidence: unsent, possibly sent, or a response received.
   that will never finish, so they re-arm neither idle nor the largest
   gap. The events that do are the dialect's items, deltas and terminal.
 - **Retry by phase is the owner's.** Head and idle say the peer stalled;
-  whole says the owner's own time ran out (README.md, section 2.5).
+  whole says the owner's own time ran out (vocabulary.md, section 1.5).
 
 ## 7. Limits and admission
 
@@ -322,11 +322,11 @@ client's evidence: unsent, possibly sent, or a response received.
 | idle keep | how long an idle connection stays in a live service |
 
 - **Derived, not configured.** `calls` is the owner's declared
-  conversations (README.md, section 4.1). `connections` is at least `calls`,
+  conversations (wire.md, section 1.1). `connections` is at least `calls`,
   as a connection carries one call at a time; `per endpoint` may be lower,
   and calls to that endpoint then wait. These relationships are checked
   when the component is made, and a violation refuses the configuration
-  and names the relationship (README.md, section 4.3).
+  and names the relationship (wire.md, section 1.3).
 - **Pieces follow the transport.** The client's upload piece (HTTP's
   `send`) is TLS's plaintext record, and its reads (HTTP's `read`, the SSE
   reader's chunk) are what TLS delivers at once (../net/tls.md, section 3.5); on
@@ -336,10 +336,10 @@ client's evidence: unsent, possibly sent, or a response received.
   (../net/tls.md, section 6). Tests lower them to cut streams small
   (../../foundation/testing-strategy.md, section 3); configurations do not.
 - **Each call reserves** at admission its measured request and the
-  receiving bound its endpoint's limits derive (README.md, section 4.2), and
+  receiving bound its endpoint's limits derive (wire.md, section 1.2), and
   releases them at its terminal. On a gzip route the measured request
   counts the compressed copy's room beside the rendered body, and the
-  two stay within the request bound (README.md, section 4.8). A call whose reservation does not fit
+  two stay within the request bound (wire.md, section 1.8). A call whose reservation does not fit
   what is left waits (4.1); one larger than the whole pool is refused.
   The prompt it was started with is the owner's until the client prepares
   the request from it.
@@ -386,7 +386,7 @@ client's evidence: unsent, possibly sent, or a response received.
     component has no work and no deadline past due. The world's judge of
     these returns each breach as its finding, and the world panics on it
     at its top; the judge's own tests read the finding
-    (../testing/README.md, 5);
+    (../testing/service-tiers.md, 1);
   - an abort after a close, and a close after an abort.
 - **A simulated world** (../../foundation/testing-strategy.md, 2.7), with io over the
   simulator and the fake peer as a simulated server. The peer stays live

@@ -96,7 +96,7 @@ impl core::fmt::Debug for CryptoRng {
     }
 }
 
-// runtime/lib.md, 5.1: hash held state, never capacity or storage layout.
+// runtime/lib-containers.md, 1.1: hash held state, never capacity or storage layout.
 impl Hash for CryptoRng {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.stream.hash(state);

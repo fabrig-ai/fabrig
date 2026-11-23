@@ -164,7 +164,7 @@ pub(super) fn named_payload(l: &Limits, answer: &CallPayload) -> Result<(), Rest
     Ok(())
 }
 // The largest row-bounded list, including nested lists. Branch names are
-// bounded by bytes alone (skein/docs/design/forge/README.md, 3.7).
+// bounded by bytes alone (skein/docs/design/forge/vocabulary.md, 1.7).
 fn answer_rows(answer: &skein_forge::api::Answer) -> u64 {
     use skein_forge::api::Answer;
     match answer {

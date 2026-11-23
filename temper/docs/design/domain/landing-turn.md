@@ -58,11 +58,11 @@ This document holds the landing turn and its trains, split from [`landing.md`](l
   settles its own merge, and no outcome of it holds the task for its
   effect (`landing.md`, 4.2). An uncertain merge is the client's, looked for and made
   again within `forge.client.write_attempts`, each try waiting out its
-  lifetime (skein's `forge/client.md`, 7.4, 7.5), the turn waiting with
+  lifetime (skein's `forge/client-effects.md`, 1.4, 1.5), the turn waiting with
   it and reading its freshness meanwhile. A fast-forward-only merge
   raced by a push to the branch, a goal's design delivery among them
   (`forge/branches.md`, 1), is one: Forgejo answers it `500`, which the
-  client keeps as a lost answer (skein's `forge/forgejo.md`, 1.2). An
+  client keeps as a lost answer (skein's `forge/forgejo-operations.md`, 1). An
   outcome but made reads afresh the train's tip, whether it holds the
   candidate, and the round's pull request; one not known refused (lost
   past those tries, withdrawn before completion, held uncertain) is

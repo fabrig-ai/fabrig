@@ -41,7 +41,7 @@ which reads the agent's host limits from its profile at start, as jig's
 reference binary does.
 
 **skein's:** `skein-lib` and `skein-io` everywhere, lib's HMAC-SHA256
-checking the deliveries' signatures (skein's `runtime/lib.md`, 6.2), io's
+checking the deliveries' signatures (skein's `runtime/lib-bytes.md`, 1.2), io's
 processes under the box; `skein-shell`, the binary's startup kit
 (`read_file`, `read_private_file`, seeds, `Host`, `drive`);
 `skein-json`, configuration and the forges' documents; `skein-http`, the

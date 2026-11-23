@@ -33,7 +33,7 @@ pub enum Error { LineTooLong, EventTooLong, FieldTooLong, Stream(Fault) }
   time, none while an event is open, and none after the outcome or the
   close: the side above's bug otherwise, asserted.
 - **The open event's data is a stream** (`Data`), a `lib::stream` face of
-  which the reader is the side below (../../runtime/lib.md, 7), as the HTTP client is a
+  which the reader is the side below (../../runtime/lib-streams.md, 1), as the HTTP client is a
   body's (`client.md`, 3). Its bytes are the values of the event's `data` lines,
   joined by LF as the standard joins them, delivered as they are read.
   The side above demands fills and scans; the reader meets each from the
@@ -54,7 +54,7 @@ pub enum Error { LineTooLong, EventTooLong, FieldTooLong, Stream(Fault) }
   open fails its data stream with `Invalid`, and the error answers the
   next `Next`.
 - **A withdrawal** of the data's demand means the side above reads no
-  more of this event (../../runtime/lib.md, 7): the reader reads the rest of it to its
+  more of this event (../../runtime/lib-streams.md, 1): the reader reads the rest of it to its
   blank line, counted and dropped, then goes on as at its end,
   `Dispatched` included.
 - **`Close` ends the reader in any state,** as the JSON tokenizer's does
@@ -78,7 +78,7 @@ pub enum Error { LineTooLong, EventTooLong, FieldTooLong, Stream(Fault) }
 - **A line ends at LF, at CRLF, or at CR alone.** A CR ends its line at
   once; an LF right after it is its pair, and ends nothing.
 - **The reader reads a line at a time,** by line scans of at most
-  `Limits::chunk` (`Read::Line`, ../../runtime/lib.md, 7): each delivery ends at the
+  `Limits::chunk` (`Read::Line`, ../../runtime/lib-streams.md, 1): each delivery ends at the
   first CR or LF, or is a chunk of a line longer than one. Every line is
   read as soon as its end arrives, whatever the stream's convention, and
   a stream shorter than a scan as it comes. An LF-only or a CR-only
@@ -92,7 +92,7 @@ pub enum Error { LineTooLong, EventTooLong, FieldTooLong, Stream(Fault) }
   only that the stream can no longer send, and what was read stands.
 - **At the end of the stream, only an incomplete last line goes unread,**
   as the standard drops it: a line scan larger than what is left is never
-  met (../../runtime/lib.md, 7). Of a last line longer than a chunk, the whole chunks
+  met (../../runtime/lib-streams.md, 1). Of a last line longer than a chunk, the whole chunks
   are read, so one that passes a limit fails if a whole chunk past the
   limit came, and otherwise ends the stream.
 - **Fields** (WHATWG HTML, 9.2.6), each value going where it belongs as
@@ -135,7 +135,7 @@ pub struct Limits {
   holds.** A data line's bytes pass through the data intake a piece at a
   time, so an event of any size within `event` costs the reader no more
   than one of a few bytes. The LLM client sets both from its skip cap
-  (../../llm/README.md, section 4.2).
+  (../../llm/wire.md, section 1.2).
 - **Edges bound retained data:** `field` bounds the event type and ID
   buffers, and `chunk` the data intake and current delivery. A dispatch's
   boxes and each piece of data pass to their owner when emitted. A chunk

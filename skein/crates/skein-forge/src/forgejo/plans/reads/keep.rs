@@ -11,7 +11,7 @@ pub(super) fn keep_pull(pull: &d::PullRequest, forge: u16, tables: &mut Tables) 
 }
 #[expect(
     clippy::wildcard_enum_match_arm,
-    reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2"
+    reason = "the exchange's decoder picks the kind: forge/dialects.status.md, 1.2"
 )]
 pub(super) fn keep_row(row: &d::Row, forge: u16, tables: &mut Tables) {
     match row {
@@ -31,7 +31,7 @@ pub(super) fn keep_row(row: &d::Row, forge: u16, tables: &mut Tables) {
 }
 #[expect(
     clippy::wildcard_enum_match_arm,
-    reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2"
+    reason = "the exchange's decoder picks the kind: forge/dialects.status.md, 1.2"
 )]
 pub(crate) fn keep_document(document: &d::Document, forge: u16, tables: &mut Tables) {
     match document {
@@ -134,7 +134,7 @@ pub(super) fn page_bound(request: &Request) -> Option<u32> {
 #[must_use]
 #[expect(
     clippy::wildcard_enum_match_arm,
-    reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2"
+    reason = "the exchange's decoder picks the kind: forge/dialects.status.md, 1.2"
 )]
 pub fn long(heard: &Heard) -> bool {
     match heard {

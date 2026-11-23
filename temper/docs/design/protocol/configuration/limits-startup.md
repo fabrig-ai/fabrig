@@ -9,7 +9,7 @@ This document holds the limits checked at startup, split from [`limits.md`](limi
   - the forge component's: its connections equal the forge client's
     calls in flight; its `kept_bytes` is the forge client's `calls`
     times its `answer_bytes`, set by temper, not configured (skein's
-    `forge/connection.md`, 4.6); its deadline is at most the forge client's
+    `forge/connection-calls.md`, 1.6); its deadline is at most the forge client's
     lifetime and, with a GitHub forge, at most 270,000, as the bullet on
     the forge client's lifetime says; its body bound holds the forge client's largest write and
     a key's marker; every listing's page size is at least 1 (../forge/README.md,

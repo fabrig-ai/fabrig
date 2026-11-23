@@ -1,4 +1,4 @@
-//! The process boundary (`skein/docs/design/testing/README.md`, 6).
+//! The process boundary (`skein/docs/design/testing/layout.md`, 1).
 //!
 //! # The `unsafe`, and why it is sound
 //!
@@ -11,7 +11,7 @@
 //! live parent; neither operation retains any pointer.
 #![expect(
     unsafe_code,
-    reason = "fork, waitpid and _exit form the test boundary; fcntl and kill observe reach inheritance (testing/README.md, 4 and 6)"
+    reason = "fork, waitpid and _exit form the test boundary; fcntl and kill observe reach inheritance (testing/README.md, 4, and testing/layout.md, 1)"
 )]
 
 use crate::{Exit, Split};

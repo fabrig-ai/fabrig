@@ -197,7 +197,7 @@ pub enum Error { Rejected(Rejection), Truncated, Stream(Fault), ChunkSize, Chunk
   framed into a box of its own, its size line, the bytes and a line
   ending, below room asked for the chunk; an empty `Send` is no chunk,
   and goes down empty, giving up the room granted below, which grants one
-  `Send` (../../runtime/lib.md, 7); `Finish` writes the last chunk, `0` and a blank
+  `Send` (../../runtime/lib-streams.md, 1); `Finish` writes the last chunk, `0` and a blank
   line, with no trailer section, within room asked for it, or within the
   room granted for a chunk if it comes in place of that grant's `Send`,
   as the contract lets it. To an HTTP/1.0 client, which knows

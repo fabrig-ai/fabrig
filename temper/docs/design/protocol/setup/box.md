@@ -125,7 +125,7 @@ temper-box
   the port and the document, as any start is refused. A box started with
   listeners of its own (`LISTEN_FDS`, systemd's convention, as `temper-box
   internal serve`, `temper-box fake` and `temper-box forge run` read it: skein's
-  `runtime/shell.md`, 6.6) takes each one given for a step's address, matched by
+  `runtime/shell-startup.md`, 1.6) takes each one given for a step's address, matched by
   its address, and opens only the rest, so a person's socket activation
   and a test's held port reach the box's steps as they reach serve; one
   given for no step's address refuses its start, naming it. It holds each
@@ -133,7 +133,7 @@ temper-box
   restart's among them, as the descriptors 3, 4, … in the step's order,
   with `LISTEN_FDS` set to their count in the step's environment and
   dropped from its own: systemd's convention, which skein's shell reads
-  (skein's `runtime/shell.md`, 6.6) and Forgejo reads as well (`owned.md`, 4). The step's
+  (skein's `runtime/shell-startup.md`, 1.6) and Forgejo reads as well (`owned.md`, 4). The step's
   own `Listen` for that address then takes the socket it was given
   (skein's `runtime/io/sockets.md`, 2), so nothing above io knows it was given one. A
   step with no listener is given none, and no `LISTEN_FDS`. On Linux,

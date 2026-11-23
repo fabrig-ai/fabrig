@@ -1,4 +1,4 @@
-//! Credential routing and byte comparisons (testing/fakes/llm.md, 3; llm/README.md, 2.6).
+//! Credential routing and byte comparisons (testing/fakes/llm.md, 3; llm/vocabulary.md, 1.6).
 use super::{Config, Error};
 use crate::documents;
 use alloc::boxed::Box;

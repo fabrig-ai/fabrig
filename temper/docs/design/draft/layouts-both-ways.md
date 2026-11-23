@@ -63,7 +63,7 @@ Where they differ, this draft wins over skein's codec versions, patches and brid
 ## 3. Layouts by fingerprint
 
 - **Every family's version freezes** at its current number, as the store's registered families' did (`jig/docs/design/protocol/store/layouts.md`, 1). A versioned record's head keeps that constant, so no byte moves.
-- **A layout is its fingerprint:** a value type's layout (`skein/docs/design/data/codec/README.md`, 9.4).
+- **A layout is its fingerprint:** a value type's layout (`skein/docs/design/data/codec/fingerprints.md`, 1.4).
 - **The store is unchanged:** layout ids into the registry, and the registry's texts.
 - **A wire's family names its value types,** the records its messages carry, as a store family does (`jig/docs/design/protocol/store/layouts.md`, 2).
 - **At a worker's opening,** each side states each wire family's fingerprint and its value types' layouts.
@@ -129,7 +129,7 @@ A plan converts bytes at a source layout into bytes at a target layout. It is de
 - **Nothing old in the repository:** no `schema/kept/`, and no text of a build that isn't running. A layout's text exists where a value or a peer at that layout exists, and nowhere else.
 - **Bounded and checked:**
   - the worker's channel is authenticated;
-  - a text is bounded in size and parsed by `skein-codec`'s step parser (`skein/docs/design/data/codec/README.md`, 7);
+  - a text is bounded in size and parsed by `skein-codec`'s step parser (`skein/docs/design/data/codec/run-time.md`, 1);
   - a plan is bounded by its texts (`skein/docs/design/data/codec/layouts.md`, 5).
 
   A text that doesn't parse, or a value type the wire carries that has no plan (6.4), refuses the opening by name.

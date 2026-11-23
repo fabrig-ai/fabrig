@@ -1,4 +1,4 @@
-//! Start reads, without scheduling or identity decisions (forge/README.md, section 4.1).
+//! Start reads, without scheduling or identity decisions (forge/dialects.md, section 1.1).
 use super::{Body, Heard as ExchangeHeard, plan::Exchange};
 use crate::forgejo::{document::Document, request::Request};
 use skein_lib::Duration;
@@ -85,7 +85,7 @@ impl Plan {
 
 #[expect(
     clippy::wildcard_enum_match_arm,
-    reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2"
+    reason = "the exchange's decoder picks the kind: forge/dialects.status.md, 1.2"
 )]
 fn document_answer(read: Read, document: Document) -> Heard {
     match read {

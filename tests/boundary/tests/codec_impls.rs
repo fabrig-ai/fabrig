@@ -1,4 +1,4 @@
-//! Only generated code implements codec traits (skein/docs/design/data/codec/README.md, 4 and 6).
+//! Only generated code implements codec traits (skein/docs/design/data/codec/README.md, 4, and skein/docs/design/data/codec/golden.md, 1).
 
 use std::{fs, path::Path, process::Command};
 

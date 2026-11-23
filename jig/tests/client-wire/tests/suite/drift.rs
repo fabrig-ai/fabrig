@@ -1,4 +1,4 @@
-//! The client records' drift (skein's data/codec/README.md, 6).
+//! The client records' drift (skein's data/codec/golden.md, 1).
 use jig_client_protocol_wire::Record as _;
 #[path = "../../../codec-families.rs"]
 mod families;

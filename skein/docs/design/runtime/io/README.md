@@ -11,7 +11,7 @@ descriptor or a kernel error. Below it is the kernel boundary
 
 - **Entities, and streams.** io's vocabulary has two parts: entities
   (listen, accept, connect, spawn, a root, close) and bytes, which are the
-  stream vocabulary of lib (../lib.md, 7), the same for a socket and a pipe.
+  stream vocabulary of lib (../lib-streams.md, 1), the same for a socket and a pipe.
 - **Every completion goes through io first.** io turns the kernel's
   completions into events about its entities, and requests about its
   entities into kernel operations, and absorbs the mechanics in between:
@@ -176,8 +176,8 @@ room there. New external work waits at the root's watermark
   the machine's largest exact read (a fill or a scan) is no more than
   `Limits::largest_read` (the intake cap), and its largest room no more
   than `Limits::largest_room` (the output cap). A demand past either
-  could never be met, and io asserts it, as lib's intake does (../lib.md,
-  7). A read of what has arrived is met whatever its maximum.
+  could never be met, and io asserts it, as lib's intake does (../lib-streams.md,
+  1). A read of what has arrived is met whatever its maximum.
 
 ## 3. Addresses and names
 
@@ -185,8 +185,8 @@ room there. New external work waits at the root's watermark
   or IPv6 with a port, or an in-process name. The kernel's records carry
   only socket addresses (../kernel.md, 3).
 - **To start:** the shell resolves the configured peer host names at
-  startup and hands in the socket addresses as configuration (../shell.md,
-  6).
+  startup and hands in the socket addresses as configuration (../shell-startup.md,
+  1).
 - **An in-process name** is at most `Name::MAX` bytes, compared as bytes
   and held inline, so an `Addr` stays a plain value that allocates
   nothing. It lives in io's own namespace: the names its listeners hold,
@@ -201,10 +201,10 @@ room there. New external work waits at the root's watermark
 
 ## 4. Signals to the service
 
-Termination signals are blocked at startup (../shell.md, 6), read from a
+Termination signals are blocked at startup (../shell-startup.md, 1), read from a
 signalfd through the ring, and arrive as `Shutdown` events. The domain
 decides what shutting down means. A service that asks also reads `SIGHUP`
-so, as `ServiceSignal::Hangup` (../shell.md, 6.3): a terminal's closing, which
+so, as `ServiceSignal::Hangup` (../shell-startup.md, 1.3): a terminal's closing, which
 may arrive more than once, and which the domain tells from a second
 termination by its name.
 
@@ -219,8 +219,8 @@ unrelated process, or a child whose exit io has reported, even before its
 reap. Linux reads the identity from signalfd's `ssi_pid`. macOS's kqueue
 signal source has no sender identity, so `from` is always `None` there.
 
-A service at a terminal also blocks `SIGWINCH` at startup (../shell.md,
-6.3). It is read from the same signalfd and arrives as `Resized`, after
+A service at a terminal also blocks `SIGWINCH` at startup (../shell-startup.md,
+1.3). It is read from the same signalfd and arrives as `Resized`, after
 which the owner asks for the size: `Window { owner, stream }`, naming the
 stream that reads the terminal, answered `Window { owner, size }`, or
 `Gone` if the terminal has hung up, with rows

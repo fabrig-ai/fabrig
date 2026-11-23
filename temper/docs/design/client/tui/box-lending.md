@@ -49,7 +49,7 @@ of the sign-in (jig's `domain/terminal-login.md`, 6).
 - **Stepping aside,** the run carrying `lend`, in this order:
   1. the terminal lent (skein's `ui/screen.md`, section 8, *Lent to a
      child*), and once `lent`, the kept modes set back (`Kept::set_kept`,
-     skein's `runtime/shell.md`, 6.3);
+     skein's `runtime/shell-startup.md`, 1.3);
   2. the screen cleared and the cursor homed, `\x1b[H\x1b[2J`
      (`lending::CLEAR`), so that nothing of the shell's screen, which
      `LEAVE`'s `\x1b[?1049l` gives back, shows around the line or

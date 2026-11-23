@@ -41,7 +41,7 @@ without agents has none of this. What is still open is listed in section
   between the two and holds the values lent.
 - **Four sources, two kinds of grant.** A signed-in source's access
   token and a key are values, lent as credentials with their scheme,
-  `bearer` or `key` (skein's `llm/README.md`, 2.6). A program source is
+  `bearer` or `key` (skein's `llm/vocabulary.md`, 1.6). A program source is
   lent by its name: its login is the program's own, in a configuration
   directory on each host, which jig never reads (5.5). A *none* source
   lends nothing.
@@ -56,10 +56,10 @@ without agents has none of this. What is still open is listed in section
   `jig-protocol-accounts` links no smith crate.
 - **Failures by class.** skein classes what a provider's API answers
   (exhausted, refused, unsupported, unauthorized, with the provider's
-  error code and request id: skein's `llm/README.md`, 2.5), and smith what a
+  error code and request id: skein's `llm/vocabulary.md`, 1.5), and smith what a
   program reports (smith's `protocol/programs.md`, section 5). A run's
   notices reach the accounts child as limited, refused or unauthorized
-  (section 6); unsupported is the request's error.
+  (`llm.md`, section 6); unsupported is the request's error.
 - **LLM providers are configuration,** one list from which the charter's
   endpoint names, smith's component's endpoints and skein's connections
   are all made, so the three never disagree. Configuration names no
@@ -288,7 +288,7 @@ engine's protocol layer
 - **A grant's value is a credential:** a signed-in source's access token
   or a key, with its scheme, `bearer` or `key`, which skein's LLM client
   takes and its dialect puts where its provider wants it (skein's
-  `llm/README.md`, 2.6). It carries no account id. The table holds it secret,
+  `llm/vocabulary.md`, 1.6). It carries no account id. The table holds it secret,
   and so does jig's channel (`channel/README.md`, section 7).
 - **Put in its taker's form where it is handed over.** The protocol
   layer that hands a value to an agent capability puts it in the form
@@ -588,8 +588,8 @@ Each within jig's suites' budgets.
   its sign-out with revocation, the issued client id kept with the
   record, the scopes granted and the subject on signing in, and the
   owner's store as keeper (skein's `oauth/accounts.md`); the
-  credential's scheme and the failure classes (skein's `llm/README.md`,
-  sections 2 and 2.5).
+  credential's scheme and the failure classes (skein's `llm/vocabulary.md`,
+  sections 1 and 1.5).
 - **The store owes** the secrets' records and keys (`store/secrets.md`
   ), and the accounts' family (`store/README.md`, 4.4).
 

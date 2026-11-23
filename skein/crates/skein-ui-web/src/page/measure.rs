@@ -1,4 +1,4 @@
-//! Whole CSS pixels for drawing sizes and points (skein/docs/design/ui/web/README.md, 6).
+//! Whole CSS pixels for drawing sizes and points (skein/docs/design/ui/web/svg.md, 1).
 
 pub(crate) fn pixels(value: f64) -> u16 {
     if value.is_nan() || value < 1.0 {

@@ -1,4 +1,4 @@
-//! Named limits agree with generated field order and encoded bounds (data/codec/README.md, 4 and 7.3).
+//! Named limits agree with generated field order and encoded bounds (data/codec/README.md, 4, and data/codec/run-time.md, 1.3).
 
 #[cfg(test)]
 mod tests {

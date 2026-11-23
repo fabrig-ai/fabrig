@@ -19,7 +19,7 @@ fn ask(rig: &mut Rig, socket: Token, read: Read, room: u32) -> Out {
 }
 
 /// Sends `bytes` as an owner must: within room asked for and granted
-/// (runtime/lib.md, 7), unless there are none.
+/// (runtime/lib-streams.md, 1), unless there are none.
 fn give(rig: &mut Rig, socket: Token, bytes: &[u8]) -> Out {
     if !bytes.is_empty() {
         let room = u32::try_from(bytes.len()).unwrap();

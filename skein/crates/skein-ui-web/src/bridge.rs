@@ -19,7 +19,7 @@ pub struct Start {
     pub start: Wall,
 }
 
-/// An input for the visitor: fetch's duties (ui/web/README.md, 8).
+/// An input for the visitor: fetch's duties (ui/web/effects.md, 1).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Input {
     Exchange(Exchange),

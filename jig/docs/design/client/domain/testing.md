@@ -19,9 +19,9 @@ the engine; the tiers below the client are the client's protocol's
   the client is written in those terms, and needs no tree and no person.
 - **Trees and the fake person are skein's and the applications'.** A
   presentation on skein's UI kit is tested as skein says, by skein's
-  fake person acting on its tree (skein's `ui/README.md`, section 14). The
+  fake person acting on its tree (skein's `ui/testing.md`, section 1). The
   reference UI is one: its stories run in jig's worlds, with jig's test
-  application in front of the client (section 4). An application's
+  application in front of the client (`testing.md`, section 4). An application's
   presentation runs in its own worlds, on jig's.
 - **The client's world comes first.** The real client, a scripted engine
   that keeps the contract (contract/README.md), the transport played by the
@@ -69,20 +69,20 @@ harness's one loop (section 3).
 What every application on skein-ui shares is tested in skein, by its
 crates' step tests: the tree, the diff, the Markdown reader, words'
 machinery, the outline's rules, scenes by golden scenes, and the text
-shell's renderer and command reader by golden text (skein's `ui/README.md`,
-section 14; skein's `ui/text.md`, section 8). jig's tests test what is
+shell's renderer and command reader by golden text (skein's `ui/testing.md`,
+section 1; skein's `ui/text.md`, section 8). jig's tests test what is
 jig's on them.
 
 ## 3. The person
 
-The person is skein's, `skein-fake-person` (skein's `ui/README.md`, 14.1):
+The person is skein's, `skein-fake-person` (skein's `ui/testing.md`, 1.1):
 ordinary Rust, shaped as a step machine so that the browser tier's loop
 runs it too. It acts on a tree, and the client has none: it plays the
 reference UI's stories in jig's worlds, and an application's stories in
 its own, wherever a presentation builds on skein's UI kit.
 
 - **Its queries, acts, reports, tree face, random person and browser
-  face are skein's** (skein's `ui/README.md`, 14.1; skein's `ui/web/testing.md`, 2),
+  face are skein's** (skein's `ui/testing.md`, 1.1; skein's `ui/web/testing.md`, 2),
   and so is the browser tier's harness, in `skein-fake-person-browser`.
 - **jig's stories find a target as a person would:** by role, name and
   text, within regions named outermost first ("the button named Accept,

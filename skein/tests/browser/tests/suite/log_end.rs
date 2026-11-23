@@ -1,4 +1,4 @@
-//! A log resumes following through the page part in Chromium (skein/docs/design/ui/web/README.md, 5).
+//! A log resumes following through the page part in Chromium (skein/docs/design/ui/web/patches.md, 1).
 use skein_fake_person_browser::{
     Outcome, Script, harness,
     person::{Find, Step},

@@ -24,7 +24,7 @@
   stands `unchecked` in `skein/tests/forge/conformance/facts.txt`: the
   recording ran `--migrate` without `--runner`, so no run shows Actions
   reading `.forgejo/workflows` alone, which a copy's starter workflow
-  stands on. 8, and `skein/docs/design/forge/README.md`, 4.3: the facts
+  stands on. 8, and `skein/docs/design/forge/dialects.md`, 1.3: the facts
   `--migrate` writes (`setup-migrate-*`, `setup-repository-delete-*`, the
   `setup-scope-*` of `Migrate` and `DeleteRepository` and
   `setup-org-of-a-users-name-reads-404-and-making-it-is-refused`) and
