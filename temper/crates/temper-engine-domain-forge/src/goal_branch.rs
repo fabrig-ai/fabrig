@@ -577,12 +577,15 @@ fn wake(d: &mut Domain, name: &Name, out: &mut Queue<Request>) {
             d.procedure_wakes.insert(*task, true).expect("one pending wake per change");
         }
     }
-    if let Some(hold) = d.holds.get(name) {
-        for (_, closer) in &d.closing.rows {
-            if closer.goal == hold.task && !closer.done {
-                super::wake_once(out, closer.task);
-            }
+    let mut closers = List::with_capacity(d.closing.branch_waits.len());
+    for (task, branch) in &d.closing.branch_waits {
+        if branch == name {
+            closers.push(*task).expect("bounded closer waits");
         }
+    }
+    for task in &closers {
+        d.closing.branch_waits.remove(task);
+        super::wake_once(out, *task);
     }
 }
 fn failed(task: u64, resource: Name, reason: &[u8], out: &mut Queue<Request>) {

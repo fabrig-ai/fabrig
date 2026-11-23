@@ -59,7 +59,7 @@ pub(crate) fn start_closer_step(domain: &mut Domain, env: &Env<Limits>, context:
     let Some((_, _, procedure_step)) = domain.core.tasks.procedure_due(task) else { return };
     let branch = match goal_branch(domain, env, goal, &repository) {
         Some((branch, name)) => {
-            if domain.forge.goal_branch_waiting(&name) {
+            if domain.forge.park_closer_for_goal_branch(task, &name) {
                 submit(domain, env, row, ProcedureStep::new(StepEnd::Wait));
                 return;
             }

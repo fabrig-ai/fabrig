@@ -1071,7 +1071,11 @@ fn a_change_waits_for_making_after_read_afresh() {
     finish_restarted_making(&mut d, &env);
     let mut woke = Queue::uncapped();
     resume(&mut d, &env, &mut woke);
-    assert!(woke.iter().any(|r| *r == Request::WakeProcedure { task: fixtures::CHANGE }));
+    let mut change_woke = false;
+    for request in &woke {
+        change_woke |= *request == Request::WakeProcedure { task: fixtures::CHANGE };
+    }
+    assert!(change_woke);
 }
 
 const DESIGN_ATTEMPT: u64 = 1;
@@ -1189,6 +1193,7 @@ fn completing_a_making_wakes_the_goals_closer() {
     let (mut d, env) = missing_after_read_room_frees();
     let row = closer::closer(CLOSER, GOAL, false);
     at_step(&mut d, &env, Event::Closer { row });
+    assert!(d.park_closer_for_goal_branch(CLOSER, &name(GOAL_BRANCH)));
     let made = finish_restarted_making(&mut d, &env);
     assert!(made.contains(&Request::WakeProcedure { task: CLOSER }), "{made:?}");
 }

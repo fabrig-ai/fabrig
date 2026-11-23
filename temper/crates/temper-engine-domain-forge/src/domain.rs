@@ -2212,6 +2212,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
             }
         }
         Event::Unnamed { task } => {
+            d.closing.branch_waits.remove(&task);
             if d.kept.remove(&task).is_some() {
                 emit(out, Request::Erase { key: Key::Names(task) });
                 release::first_write(d);
