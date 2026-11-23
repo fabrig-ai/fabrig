@@ -10,7 +10,7 @@ use support::configuration_fixture::DOCUMENT;
 
 fn process_engine(case: &str) -> jig_protocol_config::Engine {
     let scratch = support::Scratch::startup(case);
-    let mut value = support::configuration(scratch.path(), &support::Forge::Unreached);
+    let mut value = support::lay_configuration(scratch.path(), &support::Forge::Unreached);
     // Forge::Unreached omits Forgejo's overrides; include its whole-authority bounds here.
     value.jig_over("authority.grants", 15);
     value.jig_over("tasks.authority_grants", 15);
@@ -43,7 +43,7 @@ fn the_process_document_holds_the_agent_after_the_store_restores_stock() {
     };
 
     let scratch = support::Scratch::startup("process-stock-turn");
-    support::configuration(scratch.path(), &support::Forge::Unreached);
+    support::lay_configuration(scratch.path(), &support::Forge::Unreached);
     let bytes =
         support::read_start(&scratch.path().join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone)
             .document;
@@ -86,7 +86,7 @@ fn the_process_workers_figures_follow_the_agents_setting() {
         ("unreached", support::Forge::Unreached),
     ] {
         let scratch = support::Scratch::startup(&format!("process-worker-figures-{case}"));
-        support::configuration(scratch.path(), &forge);
+        support::lay_configuration(scratch.path(), &forge);
         let path = scratch.path().join(temper_config_shell::FILE);
         let mut document = support::start_document(&path, temper_config_shell::Shape::Standalone);
         let mut agent = temper_agent_fixtures::read(scratch.path());
@@ -151,7 +151,7 @@ fn the_process_workers_figures_follow_the_agents_setting() {
 #[test]
 fn the_native_forge_fixture_fits_its_store() {
     let scratch = support::Scratch::startup("native-forge-store");
-    let value = support::configuration(
+    let value = support::lay_configuration(
         scratch.path(),
         &support::Forge::Throwaway {
             forgejo: std::path::Path::new("/fixture/forgejo"),
@@ -247,7 +247,7 @@ fn the_clusters_description_is_the_labs_canonical_form() {
 }
 
 fn cluster_documents(scratch: &std::path::Path) -> support::cluster::Cluster {
-    support::cluster::Cluster::documents(
+    support::cluster::Cluster::lay_documents(
         scratch,
         &[("forge", "address", "127.0.0.1:3"), ("llm", "address", "127.0.0.1:1"), ("engine", "workers", "127.0.0.1:2")],
     )
@@ -377,7 +377,7 @@ fn the_clusters_workers_admit_the_initial_stock() {
 #[test]
 fn the_turn_story_profile_declares_prepare_and_fits_its_store() {
     let scratch = support::Scratch::startup("turn-story-store");
-    let mut value = support::configuration(scratch.path(), &support::Forge::Unreached);
+    let mut value = support::lay_configuration(scratch.path(), &support::Forge::Unreached);
     support::batch_landing::message_room(scratch.path(), &mut value);
     let document = serde_json::to_vec(&value).expect("deployment JSON");
     let agent = temper_agent_fixtures::prepared(scratch.path()).agent;

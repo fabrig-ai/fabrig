@@ -391,27 +391,17 @@ pub fn bootstrap(config: &Path, data: &Path, cache: &Path) {
     );
 }
 
-pub fn configuration(directory: &Path, forge: &Forge<'_>, value: &mut temper_playground::documents::Configuration) {
-    let Forge::Throwaway { api, forgejo, .. } = forge else { return };
-    let mut owned = owned::Owned::beside(*api);
-    owned.forgejo_binary = forgejo.into();
-    owned::producer_landing_settings(directory, 2);
-    let path = directory.join(temper_config_shell::FILE);
-    if path.exists() {
-        let previous = super::read_file(&path, temper_config_shell::Shape::Standalone);
-        if let Some(address) = previous.listen {
-            owned.clients = address;
-        }
-        if let Some(address) = previous.webhooks {
-            owned.webhooks = address;
-        }
-    }
-    value["application"] = owned::application(&owned);
+/// Apply the throwaway forge's policy and limits to the recipe, returning its prospective agent.
+#[must_use]
+pub(crate) fn configuration(
+    owned: &owned::Owned,
+    value: &mut temper_playground::documents::Configuration,
+    mut agent: Value,
+) -> Value {
+    value["application"] = owned::application(owned);
     value.temper_over("root.brief.gather_ms", BRIEF_GATHER_MS);
-    let mut agent =
-        serde_json::from_slice(&super::configuration::documents(directory, "/fixture/temper").0).expect("agent JSON");
     temper_real_loop_world::settings::stage_policies(value);
-    landing::configure(value, &mut agent, *api);
+    landing::configure(value, &mut agent, owned.forgejo);
     value.as_object_mut().expect("deployment").remove("world_settings");
     super::configuration::use_stock(value);
     // Nine slots hold the stock charters.
@@ -422,7 +412,7 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>, value: &mut temper_pla
     // The creation offer carries nine stock charters and four procedures.
     value.jig_over("documents.lines", 12);
     super::configuration::turn_bounds::apply(value, super::configuration::turn_bounds::turn_body(&agent));
-    temper_agent_fixtures::apply(value, directory, &agent);
+    agent
 }
 
 #[must_use]
@@ -474,7 +464,7 @@ pub mod tests {
         let scratch = Scratch::new("native_forgejo_producer");
         let api = "127.0.0.1:3000".parse().expect("fixture forge");
         let forge = Forge::Throwaway { forgejo: Path::new("/fixture/forgejo"), api, git: format!("http://{api}/") };
-        super::super::configuration(scratch.path(), &forge);
+        super::super::lay_configuration(scratch.path(), &forge);
         let settings: Value = serde_json::from_slice(
             &fs::read(scratch.path().join("native-landing-settings.json")).expect("landing settings"),
         )

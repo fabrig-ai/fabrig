@@ -106,15 +106,27 @@ pub fn without_scripted(providers: &[config::ProviderSetting]) -> Box<[config::P
         .cloned()
         .collect()
 }
+/// Take the preparation-only provider input, leaving only deployment members.
+#[must_use]
+pub fn take(document: &mut Value) -> Option<Box<[config::ProviderSetting]>> {
+    document.as_object_mut().expect("world document").remove("world_providers").map(|value| values(&value))
+}
+
 pub fn given(
     document: &mut Value,
     directory: &Path,
     scripted: Option<std::net::SocketAddr>,
 ) -> temper_engine_service_stock::stock::Given {
-    let providers = match document.as_object_mut().expect("world document").remove("world_providers") {
-        Some(value) => values(&value),
-        None => values(&read(directory)),
-    };
+    let providers = take(document).unwrap_or_else(|| values(&read(directory)));
+    given_with(providers, scripted)
+}
+
+/// Attach the explicit providers and optional scripted destination to the stock settings.
+#[must_use]
+pub fn given_with(
+    providers: Box<[config::ProviderSetting]>,
+    scripted: Option<std::net::SocketAddr>,
+) -> temper_engine_service_stock::stock::Given {
     let (providers, fixed): (_, Box<[_]>) = match scripted {
         Some(address) => {
             (without_scripted(&providers), Box::new([temper_engine_service_stock::stock::scripted(address)]))

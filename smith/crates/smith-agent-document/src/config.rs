@@ -22,6 +22,7 @@ mod document;
 mod endpoints;
 use endpoints::{PreparedEndpoints, build_endpoints, build_limits};
 mod native;
+pub use document::TrustDocument;
 #[cfg(test)]
 use document::Variable;
 use document::{DeclaredOverrides, Document, Endpoint, PolicyOverrides, ProfileDocument, TraceDocument};
@@ -268,6 +269,16 @@ impl Decoded {
         errors: &mut dyn std::io::Write,
         lookup: impl FnOnce(Option<&[u8]>) -> Option<std::path::PathBuf>,
     ) -> Result<Configuration, ConfigurationRefusal> {
+        self.resolve_with(native::resolve, |der, trust| native::endpoint_trust(der, trust, errors), lookup)
+    }
+
+    /// Resolve using supplied addresses, endpoint trust and command lookup, without native lookups.
+    pub fn resolve_with(
+        self,
+        address: impl Fn(&str) -> Result<std::net::SocketAddr, ConfigurationRefusal>,
+        trust: impl FnMut(Option<&str>, Option<&TrustDocument>) -> Result<skein_tls::Config, ConfigurationRefusal>,
+        lookup: impl FnOnce(Option<&[u8]>) -> Option<std::path::PathBuf>,
+    ) -> Result<Configuration, ConfigurationRefusal> {
         let Self {
             program,
             program_endpoints,
@@ -284,9 +295,11 @@ impl Decoded {
             || Box::from(b"/usr/bin/rg".as_slice()),
             |path| path.into_os_string().into_encoded_bytes().into(),
         );
-        let llm_endpoints =
-            llm::Endpoints::new(native::endpoints(endpoints.llm, &limits.llm.connection, errors)?, ENDPOINTS)
-                .map_err(|error| format!("LLM endpoints: {error:?}"))?;
+        let llm_endpoints = llm::Endpoints::new(
+            native::endpoints_with(endpoints.llm, &limits.llm.connection, address, trust)?,
+            ENDPOINTS,
+        )
+        .map_err(|error| format!("LLM endpoints: {error:?}"))?;
         if let Some(trace) = &trace {
             // First admit the sink, then include its own limits in the receiving header.
             for _ in 0..2 {

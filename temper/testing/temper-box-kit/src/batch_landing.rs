@@ -297,7 +297,7 @@ pub mod tests {
             api,
             git: format!("http://{api}/"),
         };
-        super::super::configuration(scratch.path(), &forge);
+        super::super::lay_configuration(scratch.path(), &forge);
         super::configure(scratch.path(), 1);
         let value = super::super::limit_settings::configuration(scratch.path());
         let engine = temper_real_loop_world::settings::configuration(&value);

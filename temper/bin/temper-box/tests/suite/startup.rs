@@ -272,7 +272,7 @@ fn a_configuration_file_past_its_bound_is_refused() {
 fn a_worker_root_reached_through_a_link_is_refused() {
     let scratch = support::Scratch::startup("linked-root");
     let directory = scratch.path();
-    support::configuration(directory, &support::Forge::Unreached);
+    support::lay_configuration(directory, &support::Forge::Unreached);
     fs::create_dir(directory.join("real-root")).expect("root directory");
     symlink(directory.join("real-root"), directory.join("workspaces")).expect("linked root");
     assert_eq!(
@@ -298,7 +298,7 @@ fn problems_reach_stderr_one_line_each() {
 #[test]
 fn a_document_charter_is_refused_naming_temper_ctl_settings() {
     let scratch = support::Scratch::startup("stored-charters");
-    support::configuration(scratch.path(), &support::Forge::Unreached);
+    support::lay_configuration(scratch.path(), &support::Forge::Unreached);
     let path = scratch.path().join(temper_config_shell::FILE);
     let mut document: serde_json::Value = support::start_document(&path, temper_config_shell::Shape::Standalone);
     document["engine"]["charters"] = serde_json::json!([]);
@@ -319,7 +319,7 @@ fn a_document_charter_is_refused_naming_temper_ctl_settings() {
 #[test]
 fn an_inline_seed_policy_is_refused_naming_its_path() {
     let scratch = support::Scratch::startup("inline-seed-policy");
-    support::configuration(scratch.path(), &support::Forge::Unreached);
+    support::lay_configuration(scratch.path(), &support::Forge::Unreached);
     let path = scratch.path().join(temper_config_shell::FILE);
     let mut document: serde_json::Value = support::start_document(&path, temper_config_shell::Shape::Standalone);
     let original: serde_json::Value =
@@ -342,7 +342,7 @@ fn an_inline_seed_policy_is_refused_naming_its_path() {
 #[test]
 fn a_setup_limit_past_its_check_refuses_temper_serve_naming_both_limits() {
     let scratch = support::Scratch::startup("setup-limits");
-    let mut value = support::configuration(scratch.path(), &support::Forge::Unreached);
+    let mut value = support::lay_configuration(scratch.path(), &support::Forge::Unreached);
     value.temper_over("setup.backoff_ms", 6000);
     assert_eq!(
         typed_prepare(scratch.path(), &value).err().expect("configuration refused"),
@@ -369,7 +369,7 @@ fn typed_prepare(
     Ok(service)
 }
 fn box_document(scratch: &support::Scratch) -> serde_json::Value {
-    support::configuration(scratch.path(), &support::Forge::Unreached);
+    support::lay_configuration(scratch.path(), &support::Forge::Unreached);
     serde_json::from_slice(
         &support::read_start(&scratch.path().join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone)
             .document,
@@ -448,7 +448,7 @@ fn a_box_adopts_an_inherited_clients_listener_without_binding_again() {
 #[test]
 fn a_box_refuses_an_unmatched_inherited_listener_naming_its_address() {
     let scratch = support::Scratch::startup("box-unmatched-listener");
-    support::configuration(scratch.path(), &support::Forge::Unreached);
+    support::lay_configuration(scratch.path(), &support::Forge::Unreached);
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("held listener");
     let address = listener.local_addr().expect("unmatched address");
     let mut command = listeners::command(listener, "exec \"$@\" 3<&0 0</dev/null");
@@ -861,7 +861,7 @@ fn file_problem(directory: &Path, member: &str, words: &str) -> String {
 }
 
 fn bundle_configuration(directory: &std::path::Path) -> temper_playground::documents::Configuration {
-    let figures = support::configuration(directory, &support::Forge::Unreached);
+    let figures = support::lay_configuration(directory, &support::Forge::Unreached);
     let document = directory.join(temper_config_shell::FILE);
     let mut file = support::read_file(&document, temper_config_shell::Shape::Standalone);
     file.internal.bundle = Some(directory.join("bundle"));
@@ -1084,7 +1084,7 @@ fn programs_directories_are_checked_at_the_name_before_startup_effects() {
     for row in ["missing", "private", "link", "mode", "file"] {
         let scratch = support::Scratch::startup(&format!("programs-{row}"));
         let directory = scratch.path();
-        support::configuration(directory, &support::Forge::Unreached);
+        support::lay_configuration(directory, &support::Forge::Unreached);
         let target = directory.join("programs");
         if row != "missing" {
             if row == "file" {
@@ -1384,7 +1384,7 @@ fn serve_box_refuses_closed_or_non_pipe_descriptors_before_starting() {
 fn serve_claims_its_clients_listener_and_box_pipes_follow_it() {
     for boxed in [false, true] {
         let scratch = support::Scratch::startup(if boxed { "inherited-boxed" } else { "inherited-serve" });
-        support::configuration(scratch.path(), &support::Forge::Unreached);
+        support::lay_configuration(scratch.path(), &support::Forge::Unreached);
         support::stock_agent(scratch.path());
         let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("held listener");
         let address = listener.local_addr().expect("address");
@@ -1452,68 +1452,6 @@ fn machine_startup_leaves_unconnected_forge_handover_files_unread() {
     }
 }
 #[test]
-fn the_store_page_holds_the_templates_largest_turn_frame() {
-    let scratch = support::Scratch::startup("turn-store-page");
-    let bounded = support::owned::bounded_template(scratch.path());
-    let store = temper_service::startup::store_limits(
-        &bounded.document,
-        &jig_protocol_config::Directories::working(),
-        Some(&bounded.agent.declaration()),
-    )
-    .expect("template store limits");
-    let turn = u64::from(bounded.agent.limits.bodies.turn_body);
-    eprintln!("template T={turn}, kv.page.bytes={}, T+64={}", store.store.store.page.bytes, turn + 64);
-    assert!(u64::from(store.store.store.page.bytes) >= turn + 64);
-    scratch.remove();
-}
-
-/// Documents carry no turn maps; workers receive them from the engine.
-fn turn_bound_document(path: &std::path::Path, turn: u32, escaped: bool) {
-    let text = fs::read_to_string(path).expect("turn-bound document");
-    let plain = if escaped { text.replace("{{", "{").replace("}}", "}") } else { text };
-    let document = template_start(path, &plain);
-    turn_bound_members(&document, &path.display().to_string(), turn);
-}
-fn template_start(path: &std::path::Path, text: &str) -> serde_json::Value {
-    if path.extension().is_some_and(|extension| extension == "toml") {
-        let mut text = text.to_owned();
-        for name in [
-            "story.clients",
-            "story.workers",
-            "story.webhooks",
-            "proc.forge.ready.address",
-            "proc.engine.ready.workers",
-            "place.clients",
-            "place.workers",
-            "place.webhooks",
-        ] {
-            text = text.replace(&format!("{{{name}}}"), "127.0.0.1:9");
-        }
-        let text = text.replace("{place.bundle}", "/fixture/bundle");
-        serde_json::from_slice(
-            &support::configuration::parse(text.as_bytes(), temper_config_shell::Shape::EngineAlone).document,
-        )
-        .expect("template start")
-    } else {
-        serde_json::from_str(text).expect("document JSON")
-    }
-}
-
-fn turn_bound_members(document: &serde_json::Value, source: &str, turn: u32) {
-    assert!(turn > 0, "the generated agent has a bounded turn");
-    for name in ["engine", "application"] {
-        if let Some(part) = document.get(name) {
-            assert!(part.get("limits").is_none(), "{source}: {name}.limits moved to settings");
-        }
-    }
-    if let Some(workers) = document["workers"].as_array() {
-        for worker in workers {
-            assert!(worker.get("limits").is_none(), "{source}: workers take engine figures");
-        }
-    }
-}
-
-#[test]
 fn the_live_github_configuration_passes_startup_admission() {
     use std::os::unix::ffi::OsStrExt;
     use support::live_github::configure_engine;
@@ -1524,7 +1462,7 @@ fn the_live_github_configuration_passes_startup_admission() {
     let workers = "127.0.0.1:31003".parse().expect("synthetic worker socket");
     let owner = "fabrig-ai";
     let scratch = support::Scratch::startup(&format!("live-github-admission-{owner}"));
-    let mut cluster = support::cluster::Cluster::description_from(scratch.path(), &templates);
+    let mut cluster = support::cluster::Cluster::lay_description_from(scratch.path(), &templates);
     for (name, value) in [
         ("proc.forge.ready.address", "127.0.0.1:31002"),
         ("proc.llm.ready.address", "127.0.0.1:31004"),
@@ -1609,132 +1547,6 @@ fn the_live_github_configuration_passes_startup_admission() {
         eprintln!("{owner}/{member}: startup admission passed; operations={operations}");
     }
     scratch.remove();
-}
-
-#[test]
-fn the_reference_profile_passes_startup_admission() {
-    let scratch = support::Scratch::startup("reference-profile-admission");
-    let profile = support::owned::bounded_reference(scratch.path());
-    let admission = profile.admission();
-    scratch.remove();
-    if let Err(why) = admission {
-        panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&why)));
-    }
-}
-
-#[test]
-fn checked_in_deployment_profiles_pass_startup_admission() {
-    let profiles = [
-        "docs/examples/owned.json".to_owned(),
-        "init --box".to_owned(),
-        format!("bin/temper-box/tests/fixtures/cluster/engine/{}", temper_config_shell::FILE),
-        format!("bin/temper-box/tests/fixtures/cluster/w1/{}", temper_config_shell::FILE),
-        format!("bin/temper-box/tests/fixtures/cluster/w2/{}", temper_config_shell::FILE),
-    ];
-    let mut failures = String::new();
-    for (index, relative) in profiles.iter().enumerate() {
-        let scratch = support::Scratch::startup(&format!("deployment-profile-{index}"));
-        let profile = match relative.as_str() {
-            "docs/examples/owned.json" => support::owned::bounded(scratch.path()),
-            "init --box" => support::owned::bounded_template(scratch.path()),
-            _ => support::owned::deployment_profile(scratch.path(), relative),
-        };
-        let turn = profile.agent.limits.bodies.turn_body;
-        let record = size_of::<temper_engine_domain::Record>();
-        match profile.admission() {
-            Ok(()) => eprintln!("{relative}: startup admission passed; T={turn}, Record={record}"),
-            Err(why) => {
-                writeln!(
-                    failures,
-                    "{relative}: T={turn}, Record={record}\n{}",
-                    String::from_utf8_lossy(&temper_service::startup::lines(&why))
-                )
-                .expect("diagnostic");
-            }
-        }
-        scratch.remove();
-    }
-    assert!(failures.is_empty(), "{failures}");
-}
-
-#[test]
-fn turn_bounds() {
-    let root = skein_scratch::paths::tree();
-    for boxed in [false, true] {
-        let agent = temper_agent_fixtures::stock(boxed);
-        let turn = support::configuration::turn_bounds::turn_body(&agent);
-        let document = serde_json::from_slice(&temper_config_shell::init_document(boxed)).expect("init start");
-        turn_bound_members(&document, "init", turn);
-    }
-    let deployment = "docs/examples/owned.json";
-    let agent = temper_agent_fixtures::configuration(
-        &serde_json::from_slice(&fs::read(root.join(deployment)).expect("owned document")).expect("JSON"),
-    );
-    let turn = support::configuration::turn_bounds::turn_body(&agent);
-    turn_bound_document(&root.join(deployment), turn, false);
-    let directory = root.join("bin/temper-box/tests/fixtures/cluster");
-    let scratch = support::Scratch::startup("cluster-turn-bounds");
-    let cluster = support::cluster::Cluster::documents(
-        scratch.path(),
-        &[("forge", "address", "127.0.0.1:3"), ("llm", "address", "127.0.0.1:1"), ("engine", "workers", "127.0.0.1:2")],
-    );
-    let engine: serde_json::Value = serde_json::from_slice(
-        &support::read_start(
-            &cluster.dir("engine").join("config").join(temper_config_shell::FILE),
-            temper_config_shell::Shape::EngineAlone,
-        )
-        .document,
-    )
-    .expect("JSON");
-    let agent = support::cluster::agent_configuration(&engine, scratch.path());
-    let turn = support::configuration::turn_bounds::turn_body(&agent);
-    turn_bound_document(&directory.join("engine").join(temper_config_shell::FILE), turn, true);
-    scratch.remove();
-    eprintln!("cluster fixture: T={turn}");
-    let turn = temper_playground::documents::agent().limits.bodies.turn_body;
-    turn_bound_document(&root.join("crates/temper-playground/stories/a/deployment.json"), turn, false);
-    eprintln!("story A: T={turn}");
-    for (relative, escaped) in [
-        (format!("bin/temper-box/tests/fixtures/cluster-turn/engine/{}", temper_config_shell::FILE), true),
-        ("docs/development/qa/setups/turn-landing/config/engine.toml".to_owned(), false),
-        ("docs/development/qa/setups/stock-landing/config/engine.toml".to_owned(), false),
-    ] {
-        let path = root.join(relative);
-        let text = fs::read_to_string(&path).expect("engine-figures fixture");
-        let text = if escaped { text.replace("{{", "{").replace("}}", "}") } else { text };
-        let mut text = text;
-        for name in [
-            "story.workers",
-            "story.clients",
-            "story.webhooks",
-            "proc.llm.ready.address",
-            "place.model",
-            "place.workers",
-        ] {
-            text = text.replace(&format!("{{{name}}}"), "127.0.0.1:9");
-        }
-        let mut engine = template_start(&path, &text);
-        // The turn needs only the LLM profile, so the unrendered worker address is inert.
-        engine["engine"]["hosts"]["listener"] = serde_json::json!([{"socket":"127.0.0.1:9"}]);
-        let agent = support::cluster::agent_configuration(&engine, std::path::Path::new("/fixture"));
-        let turn = support::configuration::turn_bounds::turn_body(&agent);
-        turn_bound_document(&path, turn, escaped);
-    }
-    let github = root.join("bin/temper-box/tests/fixtures/github");
-    let source = fs::read_to_string(github.join("engine").join(temper_config_shell::FILE)).expect("GitHub engine");
-    let mut source = source.replace("{{", "{").replace("}}", "}");
-    for (name, value) in [
-        ("{proc.llm.ready.address}", "127.0.0.1:1"),
-        ("{proc.forge.ready.address}", "127.0.0.1:2"),
-        ("{story.clients}", "127.0.0.1:3"),
-        ("{proc.llm.dir}", "/fixture"),
-    ] {
-        source = source.replace(name, value);
-    }
-    let engine = template_start(&github.join("engine").join(temper_config_shell::FILE), &source);
-    let agent = support::cluster::agent_configuration(&engine, std::path::Path::new("/fixture"));
-    let turn = support::configuration::turn_bounds::turn_body(&agent);
-    turn_bound_document(&github.join("engine").join(temper_config_shell::FILE), turn, true);
 }
 
 #[test]

@@ -77,7 +77,7 @@ fn the_elsewhere_deployment_keeps_the_whole_fixture_provider_in_its_data_directo
     let data = scratch.path().join("data");
     std::fs::create_dir(&config).expect("config directory");
     std::fs::create_dir(&data).expect("data directory");
-    support::configuration(&config, &support::Forge::Unreached);
+    support::lay_configuration(&config, &support::Forge::Unreached);
     support::owned::producer_landing_settings(&config, 2);
     let before = temper_agent_fixtures::providers::read(&config);
     let peer = support::fake_llm(Box::new([]));
@@ -110,7 +110,7 @@ fn cluster_turn_setup_declares_the_paced_gate_and_prepare_job() {
     use serde_json::json;
     use temper_service::startup;
     let scratch = support::Scratch::startup("cluster-turn-documents");
-    let mut cluster = support::cluster::Cluster::description_from(scratch.path(), &cluster_turn_setup::fixture());
+    let mut cluster = support::cluster::Cluster::lay_description_from(scratch.path(), &cluster_turn_setup::fixture());
     let figures = cluster_turn_setup::prepare(&mut cluster, scratch.path(), &support::free_addresses(&[]));
     let forge = cluster_turn_setup::read(&cluster.dir("forge").join("forge.json"));
     assert_eq!(forge["workflows"], json!([{"file":"gate.yml","jobs":["gate"],"cue":{"declared":".fake-forge/gate"}}]));
@@ -312,7 +312,7 @@ fn landing_configuration_admission(
         api,
         git: format!("http://{api}/"),
     };
-    support::configuration(root, &forge);
+    support::lay_configuration(root, &forge);
     let figures = configure(root, 1);
     let document =
         support::read_start(&root.join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone).document;
@@ -412,7 +412,7 @@ fn cluster_a_member_wait_can_defer_only_to_a_longer_world() {
 #[test]
 fn fixture_limits_are_applied_before_the_subprocess_restart() {
     let scratch = support::Scratch::startup("small-limits-settings");
-    let mut configuration = support::configuration(scratch.path(), &support::Forge::Unreached);
+    let mut configuration = support::lay_configuration(scratch.path(), &support::Forge::Unreached);
     configuration.jig_over("tasks.project_goals", 2);
     configuration.temper_over("checkout.remote_timeout_ms", 7_000);
     support::limit_settings::remember(scratch.path(), &configuration);

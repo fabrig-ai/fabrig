@@ -177,7 +177,7 @@ fn child(root: &Path, restarted: bool, token: &[u8]) {
 
 fn configure(root: &Path, forge: &Forge<'_>) {
     let config = root.join("config");
-    super::configuration(&config, forge);
+    super::lay_configuration(&config, forge);
     let Forge::Throwaway { api, git, .. } = forge else { panic!("elsewhere fixture") };
     let mut value = super::limit_settings::configuration(&config);
     assert!(

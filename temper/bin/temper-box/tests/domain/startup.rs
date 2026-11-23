@@ -1,5 +1,6 @@
 //! Harness parsers, configuration naming and embedded bundle values.
 use crate::support;
+use std::{fmt::Write, path::Path};
 use support::bundle_fixture::{BUNDLE_BYTES, BUNDLE_COUNT, BUNDLE_FILES, BUNDLE_LIMITS, PAGE, PATH_STEM_BOUND};
 
 #[test]
@@ -178,4 +179,160 @@ fn embedded_files_at_each_bound_are_admitted() {
 #[test]
 fn a_story_purse_is_priced_from_the_init_template() {
     assert!(support::first_repository::run_spend(5).is_power_of_two());
+}
+
+#[test]
+fn the_store_page_holds_the_templates_largest_turn_frame() {
+    let bounded = support::owned::bounded_template(Path::new("/fixture"));
+    let store = temper_service::startup::store_limits(
+        &bounded.document,
+        &jig_protocol_config::Directories::working(),
+        Some(&bounded.agent.declaration()),
+    )
+    .expect("template store limits");
+    let turn = u64::from(bounded.agent.limits.bodies.turn_body);
+    eprintln!("template T={turn}, kv.page.bytes={}, T+64={}", store.store.store.page.bytes, turn + 64);
+    assert!(u64::from(store.store.store.page.bytes) >= turn + 64);
+}
+
+#[test]
+fn the_reference_profile_passes_startup_admission() {
+    let profile = support::owned::bounded_reference(Path::new("/fixture"));
+    let admission = profile.admission();
+    if let Err(why) = admission {
+        panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&why)));
+    }
+}
+
+#[test]
+fn checked_in_deployment_profiles_pass_startup_admission() {
+    let profiles = [
+        "docs/examples/owned.json".to_owned(),
+        "init --box".to_owned(),
+        format!("bin/temper-box/tests/fixtures/cluster/engine/{}", temper_config_shell::FILE),
+        format!("bin/temper-box/tests/fixtures/cluster/w1/{}", temper_config_shell::FILE),
+        format!("bin/temper-box/tests/fixtures/cluster/w2/{}", temper_config_shell::FILE),
+    ];
+    let mut failures = String::new();
+    for relative in &profiles {
+        let profile = match relative.as_str() {
+            "docs/examples/owned.json" => support::owned::bounded(Path::new("/fixture")),
+            "init --box" => support::owned::bounded_template(Path::new("/fixture")),
+            _ => support::owned::deployment_profile(Path::new("/fixture"), relative),
+        };
+        let turn = profile.agent.limits.bodies.turn_body;
+        let record = size_of::<temper_engine_domain::Record>();
+        match profile.admission() {
+            Ok(()) => eprintln!("{relative}: startup admission passed; T={turn}, Record={record}"),
+            Err(why) => {
+                writeln!(
+                    failures,
+                    "{relative}: T={turn}, Record={record}\n{}",
+                    String::from_utf8_lossy(&temper_service::startup::lines(&why))
+                )
+                .expect("diagnostic");
+            }
+        }
+    }
+    assert!(failures.is_empty(), "{failures}");
+}
+
+fn turn_bound_members(document: &serde_json::Value, source: &str, turn: u32) {
+    assert!(turn > 0, "the generated agent has a bounded turn");
+    for name in ["engine", "application"] {
+        if let Some(part) = document.get(name) {
+            assert!(part.get("limits").is_none(), "{source}: {name}.limits moved to settings");
+        }
+    }
+    if let Some(workers) = document["workers"].as_array() {
+        for worker in workers {
+            assert!(worker.get("limits").is_none(), "{source}: workers take engine figures");
+        }
+    }
+}
+
+#[test]
+fn turn_bounds() {
+    use configuration::turn_bounds::turn_body;
+    use support::{cluster, configuration, live_github, turn_landing_fixture};
+
+    let tree = skein_scratch::paths::tree();
+    let root = Path::new("/fixture");
+    for provider_key in [false, true] {
+        let agent = temper_agent_fixtures::stock(provider_key);
+        let document = serde_json::from_slice(&temper_config_shell::init_document(provider_key)).expect("init start");
+        turn_bound_members(&document, "init", turn_body(&agent));
+    }
+    let owned = serde_json::from_slice(support::owned::EXAMPLE).expect("owned JSON");
+    let agent = temper_agent_fixtures::configuration(&owned);
+    turn_bound_members(&owned, "docs/examples/owned.json", turn_body(&agent));
+
+    let cluster = cluster::Cluster::documents(
+        root,
+        &[("forge", "address", "127.0.0.1:3"), ("llm", "address", "127.0.0.1:1"), ("engine", "workers", "127.0.0.1:2")],
+    );
+    let rendered = cluster.render_files("engine");
+    let engine = serde_json::from_slice(&rendered.start.expect("cluster engine").document).expect("cluster JSON");
+    let turn = turn_body(&cluster::agent_configuration(&engine, root));
+    let path = tree.join("bin/temper-box/tests/fixtures/cluster/engine").join(temper_config_shell::FILE);
+    let document = configuration::engine_template(&path, true, &[]);
+    turn_bound_members(&document, &path.display().to_string(), turn);
+    eprintln!("cluster fixture: T={turn}");
+
+    let turn = temper_playground::documents::agent().limits.bodies.turn_body;
+    let document = support::playground::story_a_document();
+    turn_bound_members(&document, "crates/temper-playground/stories/a/deployment.json", turn);
+    eprintln!("story A: T={turn}");
+
+    let inert = "127.0.0.1:9";
+    let cluster_turn = support::cluster_turn::engine_document(&[
+        ("story.clients", inert),
+        ("story.workers", inert),
+        ("story.webhooks", inert),
+        ("proc.llm.ready.address", inert),
+        ("proc.forge.ready.address", inert),
+        ("proc.engine.ready.workers", inert),
+    ]);
+    let qa = tree.join("docs/development/qa/setups");
+    for (source, document) in [
+        ("cluster-turn/engine/temper.toml", cluster_turn),
+        (
+            "turn-landing/config/engine.toml",
+            turn_landing_fixture::engine_template(&qa.join("turn-landing"), root, inert),
+        ),
+        (
+            "stock-landing/config/engine.toml",
+            turn_landing_fixture::engine_template(&qa.join("stock-landing"), root, inert),
+        ),
+    ] {
+        let mut engine = document.clone();
+        // Only the LLM profile affects the turn; the worker listener is inert.
+        engine["engine"]["hosts"]["listener"] = serde_json::json!([{"socket":inert}]);
+        let turn = turn_body(&cluster::agent_configuration(&engine, root));
+        turn_bound_members(&document, source, turn);
+    }
+    let engine = live_github::engine_document(
+        root,
+        &[
+            ("proc.llm.ready.address", "127.0.0.1:1"),
+            ("proc.forge.ready.address", "127.0.0.1:2"),
+            ("story.clients", "127.0.0.1:3"),
+        ],
+    );
+    let turn = turn_body(&cluster::agent_configuration(&engine, root));
+    let document = live_github::engine_document(root, &[("proc.forge.ready.address", inert), ("story.clients", inert)]);
+    turn_bound_members(&document, "github/engine/temper.toml", turn);
+}
+
+#[test]
+fn the_base_recipe_passes_startup_admission() {
+    let profile = support::recipe(Path::new("/fixture"), &support::Forge::Unreached);
+    support::admission_over(
+        &profile.read_start().document,
+        &profile.configuration,
+        &profile.files,
+        &profile.agent.agent,
+        &profile.given,
+    )
+    .expect("base recipe admission");
 }

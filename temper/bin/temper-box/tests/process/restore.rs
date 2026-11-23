@@ -33,7 +33,7 @@ fn projects(root: &Path, sign_in: bool, make: Option<&str>) -> serde_json::Value
 fn a_checkpoint_restores_earlier_state_and_its_safety_restores_the_later_state() {
     let scratch = support::Scratch::new("stopped-restore");
     let root = scratch.path();
-    support::configuration(root, &support::Forge::Unreached);
+    support::lay_configuration(root, &support::Forge::Unreached);
     // Keep the signed-in directory's address usable across each restart.
     let [clients] = support::free_addresses::<1>(&[]);
     let path = root.join(temper_config_shell::FILE);

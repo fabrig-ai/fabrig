@@ -15,6 +15,12 @@ pub fn fixture() -> std::path::PathBuf {
     skein_scratch::paths::tree().join("bin/temper-box/tests/fixtures/cluster-turn")
 }
 
+/// The checked-in engine template with the story's listener and ready facts supplied directly.
+#[must_use]
+pub fn engine_document(bindings: &[(&str, &str)]) -> Value {
+    support::configuration::engine_template(&fixture().join("engine").join(temper_config_shell::FILE), true, bindings)
+}
+
 #[must_use]
 pub fn read(path: &Path) -> Value {
     serde_json::from_slice(&fs::read(path).expect("story document")).expect("story JSON")

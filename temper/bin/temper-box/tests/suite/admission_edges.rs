@@ -37,7 +37,7 @@ fn set(document: &mut temper_playground::documents::Configuration, part: Part, n
 // required figure against admission on both sides, rather than inventing a row size.
 fn edge(part: Part, name: &str) {
     let scratch = support::Scratch::startup(&format!("plan-chat-{name}"));
-    let mut document = support::configuration(scratch.path(), &support::Forge::Unreached);
+    let mut document = support::lay_configuration(scratch.path(), &support::Forge::Unreached);
     let admit = |document: &temper_playground::documents::Configuration| support::admission(scratch.path(), document);
     admit(&document).expect("unmodified fixture must start");
     let turn = number(&document, Part::Engine, "hub.turn_bytes");
@@ -84,7 +84,7 @@ fn transcript_padding_covers_all_resume_window_remainders() {
     let box_bytes = u64::try_from(size_of::<Box<[u8]>>()).expect("box size");
     for remainder in 0..LENGTH_BYTES {
         let scratch = support::Scratch::startup(&format!("plan-chat-window-{remainder}"));
-        let mut document = support::configuration(scratch.path(), &support::Forge::Unreached);
+        let mut document = support::lay_configuration(scratch.path(), &support::Forge::Unreached);
         let base = number(&document, Part::Engine, "core.resume_bytes");
         let window = (base / LENGTH_BYTES + 1) * LENGTH_BYTES + remainder;
         let transcript = window + (box_bytes - LENGTH_BYTES) * (window / LENGTH_BYTES);

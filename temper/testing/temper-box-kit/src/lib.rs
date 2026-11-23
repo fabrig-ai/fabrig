@@ -2,7 +2,7 @@
 //!
 //! Compiled once for the binaries (tools/crates/design.md, 3.2).
 mod admission;
-pub use admission::admission;
+pub use admission::{admission, admission_over};
 pub mod account_move;
 pub mod account_transfer;
 pub mod batch_landing;
@@ -14,6 +14,8 @@ pub mod case;
 pub mod cluster;
 pub mod cluster_turn;
 pub mod configuration;
+mod recipe;
+pub use recipe::{Recipe, configuration, lay_configuration, recipe};
 pub mod configuration_fixture;
 pub mod csv_repair;
 pub mod ctl;
@@ -139,12 +141,11 @@ pub fn read_file(path: &Path, shape: temper_config_shell::Shape) -> temper_confi
 #[must_use]
 pub fn read_start(path: &Path, shape: temper_config_shell::Shape) -> temper_config_shell::Read {
     let root = path.parent().expect("configuration directory");
-    let facts = temper_config_shell::Facts {
-        login: "ada".into(),
-        hostname: "fixture".into(),
-        provider_key: temper_agent_fixtures::data(root).join("provider.key").is_file(),
-    };
-    temper_config_shell::parse(&fs::read(path).expect("configuration file"), shape, &facts).expect("configuration")
+    configuration::parse_with_key(
+        &fs::read(path).expect("configuration file"),
+        shape,
+        temper_agent_fixtures::data(root).join("provider.key").is_file(),
+    )
 }
 
 /// A mixed-shape harness selects the table that accepts its explicit file keys.
@@ -179,42 +180,6 @@ pub fn write_private(path: &Path, bytes: &[u8]) {
     fs::write(path, bytes).expect("fixture file");
     fs::set_permissions(path, fs::Permissions::from_mode(0o600)).expect("private fixture");
 }
-#[expect(clippy::must_use_candidate, reason = "fixture writers are also called just for their file effects")]
-pub fn configuration(directory: &Path, forge: &Forge<'_>) -> temper_playground::documents::Configuration {
-    assert!(Path::new("/usr/bin/git").is_file(), "/usr/bin/git is required");
-    for name in ["accounts", "secrets", "state"] {
-        fs::create_dir_all(directory.join(name)).expect("deployment directory");
-    }
-    for (name, bytes) in jig_channel_kit::fixtures::files(false).entries.into_boxed() {
-        if name.starts_with(b"charters/") || name.as_ref() == b"agent.json" {
-            continue;
-        }
-        write_private(&directory.join(std::str::from_utf8(&name).expect("fixture path")), bytes.expose());
-    }
-    write_private(&directory.join("worker.secret"), b"worker-secret");
-    write_private(&directory.join("secrets/forge-1.user"), b"42\n");
-    write_private(&directory.join("secrets/forge-1.api-token"), b"forge-1-api-token-value");
-    write_private(&directory.join("secrets/forge-1.git-token"), b"forge-1-git-token-value");
-    write_private(&directory.join("root.der"), skein_tls_kit::pki::ROOT);
-    let (agent, mut value) = configuration::typed_documents(
-        directory,
-        skein_scratch::paths::binary("temper-box").to_str().expect("a UTF-8 path"),
-    );
-    forgejo::configuration(directory, forge, &mut value);
-    temper_agent_fixtures::apply(&mut value, directory, &serde_json::from_slice(&agent).expect("agent JSON"));
-    let composed = temper_agent_fixtures::at(&value, directory);
-    configuration::turn_bounds::apply(&mut value, configuration::turn_bounds::turn_body(&composed));
-    temper_agent_fixtures::providers::keep(&mut value, &temper_agent_fixtures::data(directory));
-    let mut file = configuration::file();
-    file.listen = value["application"]["clients"]["listener"]["socket"].as_str().map(|v| v.parse().expect("clients"));
-    file.webhooks =
-        value["application"]["webhooks"]["listener"]["socket"].as_str().map(|v| v.parse().expect("webhooks"));
-    write_file(&directory.join(temper_config_shell::FILE), &file, temper_config_shell::Shape::Standalone);
-    value.agent_bounds(&temper_agent_fixtures::prepared(directory).agent);
-    limit_settings::remember(directory, &value);
-    value
-}
-
 /// A subprocess story without a limit boundary uses the shipped agent's figures.
 pub fn stock_agent(directory: &Path) {
     let pending = directory.join("fixture-limits.json");

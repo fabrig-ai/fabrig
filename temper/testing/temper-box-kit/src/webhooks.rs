@@ -23,7 +23,7 @@ pub const PING: &[u8] = b"ping";
 
 #[must_use]
 pub fn configuration(directory: &Path) -> SocketAddr {
-    super::configuration(directory, &super::Forge::Unreached);
+    super::lay_configuration(directory, &super::Forge::Unreached);
     let [address] = super::free_addresses(&[]);
     let path = directory.join(temper_config_shell::FILE);
     let mut file = super::read_file(&path, temper_config_shell::Shape::Standalone);

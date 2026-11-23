@@ -24,7 +24,7 @@ fn checkpoint(root: &Path, arguments: &[&str]) -> Output {
 fn a_stopped_checkpoint_is_listed_under_its_hold_then_removed() {
     let scratch = support::Scratch::new("stopped-checkpoint");
     let root = scratch.path();
-    support::configuration(root, &support::Forge::Unreached);
+    support::lay_configuration(root, &support::Forge::Unreached);
     let served =
         support::ctl::run(Story::new(root, vec![Step::Run(Call::sign_in()), Step::Run(Call::new(&["me", "--json"]))]));
     assert_eq!(served.serve.exit, Some(skein_io::kernel::Exit::Code(0)));

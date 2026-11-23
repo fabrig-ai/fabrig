@@ -102,13 +102,28 @@ pub fn prepare_bytes(bytes: Box<[u8]>) -> Result<Prepared, String> {
     })
 }
 
-pub(crate) fn prepare_bytes_with(
+/// Prepare an agent over bytes and a supplied programs-directory check.
+pub fn prepare_bytes_with(
     bytes: Box<[u8]>,
     log: &mut impl std::io::Write,
     private_directory: impl FnOnce(&Path) -> Result<(), String>,
 ) -> Result<Prepared, String> {
+    prepare_bytes_resolving(bytes, private_directory, |decoded| decoded.resolve(log))
+}
+
+/// Prepare from bytes with both directory and endpoint lookups supplied by the caller.
+pub fn prepare_bytes_resolving(
+    bytes: Box<[u8]>,
+    private_directory: impl FnOnce(&Path) -> Result<(), String>,
+    resolve: impl FnOnce(
+        smith_agent_document::config::Decoded,
+    ) -> Result<
+        smith_agent_document::config::Configuration,
+        smith_agent_document::config::ConfigurationRefusal,
+    >,
+) -> Result<Prepared, String> {
     let configuration =
-        decoded_bytes(&bytes)?.resolve(log).map_err(smith_agent_document::config::ConfigurationRefusal::detail)?;
+        resolve(decoded_bytes(&bytes)?).map_err(smith_agent_document::config::ConfigurationRefusal::detail)?;
     if let Some(program) = &configuration.program {
         private_directory(&program.directory)?;
     }

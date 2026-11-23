@@ -145,7 +145,7 @@ fn the_forgejo_fixture_offers_every_stock_charter_but_the_trial() {
         api: "127.0.0.1:3000".parse().expect("fixture address"),
         git: "http://127.0.0.1:3000/".into(),
     };
-    support::configuration(scratch.path(), &forge);
+    support::lay_configuration(scratch.path(), &forge);
     let bytes =
         support::read_start(&scratch.path().join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone)
             .document;

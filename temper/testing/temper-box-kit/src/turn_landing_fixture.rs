@@ -1,7 +1,7 @@
 //! Turn-landing documents shared by value and real-directory admission tests.
 use crate::configuration_fixture::DOCUMENT;
 use serde_json::Value;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use temper_client_journeys_tool::drive::deployment::{self, Place};
 use temper_service::startup::{self, Shape};
 
@@ -30,6 +30,23 @@ pub fn rendered(name: &str) -> Box<[u8]> {
         None => rendered,
     }
 }
+/// Render either landing setup's engine with fixed listener and bundle values for its turn check.
+#[must_use]
+pub fn engine_template(setup: &Path, root: &Path, listener: &str) -> Value {
+    let bundle = root.join("bundle");
+    crate::configuration::engine_template(
+        &setup.join("config/engine.toml"),
+        false,
+        &[
+            ("place.clients", listener),
+            ("place.workers", listener),
+            ("place.webhooks", listener),
+            ("place.model", listener),
+            ("place.bundle", bundle.to_str().expect("bundle path")),
+        ],
+    )
+}
+
 pub fn json(bytes: &[u8]) -> Value {
     serde_json::from_slice(bytes).expect("rendered JSON")
 }

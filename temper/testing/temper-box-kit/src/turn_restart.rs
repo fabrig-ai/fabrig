@@ -189,7 +189,7 @@ pub mod tests {
             api,
             git: format!("http://{api}/"),
         };
-        super::super::configuration(scratch.path(), &forge);
+        super::super::lay_configuration(scratch.path(), &forge);
         super::configure_batch(scratch.path(), 1, 3);
         let config = super::super::limit_settings::configuration(scratch.path());
         let engine = temper_real_loop_world::settings::configuration(&config);
