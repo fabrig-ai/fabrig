@@ -1,10 +1,10 @@
 //! Snapshot and temporary-width screenshot reads (ui/web/testing.md, 2).
-use super::{BrowserFace, Event, Request, Token};
+use super::{BrowserFace, Event, FaceFailure, Request, Token, answer_bound};
 pub(super) enum Capture {
     Snapshot { op: Token },
     Resize { op: Token, restore: (u32, u32) },
     Image { op: Token, restore: Option<(u32, u32)> },
-    Restore { op: Token, result: Result<Box<[u8]>, String> },
+    Restore { op: Token, result: Result<Box<[u8]>, FaceFailure> },
 }
 impl Capture {
     fn op(&self) -> Token {
@@ -65,7 +65,7 @@ impl BrowserFace<'_> {
         if let Some(capture) = self.capture.take() {
             match capture {
                 Capture::Resize { restore, .. } | Capture::Image { restore: Some(restore), .. } => {
-                    self.restore_image(restore, Err("screenshot cancelled".into()));
+                    self.restore_image(restore, Err(FaceFailure { why: "screenshot cancelled".into(), bound: None }));
                 }
                 Capture::Restore { op, result } => {
                     self.acting = Some(op);
@@ -81,17 +81,17 @@ impl BrowserFace<'_> {
         self.capture = Some(Capture::Image { op, restore });
         self.requests.push(Request::Screenshot { page: self.page, op });
     }
-    fn restore_image(&mut self, size: (u32, u32), result: Result<Box<[u8]>, String>) {
+    fn restore_image(&mut self, size: (u32, u32), result: Result<Box<[u8]>, FaceFailure>) {
         let op = self.token();
         self.acting = Some(op);
         self.capture = Some(Capture::Restore { op, result });
         self.requests.push(Request::Viewport { page: self.page, op, width: size.0, height: size.1 });
     }
-    fn image_done(&mut self, result: Result<Box<[u8]>, String>) {
+    fn image_done(&mut self, result: Result<Box<[u8]>, FaceFailure>) {
         self.acting = None;
         match result {
             Ok(png) => self.screenshot = Some(png),
-            Err(why) => self.fail(why),
+            Err(failure) => self.record_failure(failure),
         }
     }
     pub(super) fn look_event(&mut self, event: &Event) -> bool {
@@ -107,7 +107,10 @@ impl BrowserFace<'_> {
         }
         let capture = self.capture.take().expect("matching capture");
         let failure = if let Event::Refused { why, detail, .. } = event {
-            Some(format!("browser refused look: {why:?}: {}", String::from_utf8_lossy(detail)))
+            Some(FaceFailure {
+                why: format!("browser refused look: {why:?}: {}", String::from_utf8_lossy(detail)),
+                bound: answer_bound(*why),
+            })
         } else {
             None
         };
@@ -115,7 +118,7 @@ impl BrowserFace<'_> {
             Capture::Snapshot { .. } => {
                 self.acting = None;
                 if let Some(why) = failure {
-                    self.fail(why);
+                    self.record_failure(why);
                 } else if let Event::Snapshot { text, .. } = event {
                     self.snapshot = Some(text.clone());
                 }
@@ -133,7 +136,7 @@ impl BrowserFace<'_> {
                 } else if let Event::Screenshot { png, .. } = event {
                     Ok(png.clone())
                 } else {
-                    Err("screenshot answered without PNG".into())
+                    Err(FaceFailure { why: "screenshot answered without PNG".into(), bound: None })
                 };
                 if let Some(restore) = restore {
                     self.restore_image(restore, result);
@@ -141,11 +144,16 @@ impl BrowserFace<'_> {
                     self.image_done(result);
                 }
             }
-            Capture::Restore { result, .. } => self.image_done(if let Some(why) = failure {
-                Err(format!("restoring viewport: {why}"))
-            } else {
-                result
-            }),
+            Capture::Restore { result, .. } => {
+                let result = match (result, failure) {
+                    (Err(failure), _) if failure.bound.is_none() => Err(failure),
+                    (_, Some(failure)) => {
+                        Err(FaceFailure { why: format!("restoring viewport: {}", failure.why), bound: failure.bound })
+                    }
+                    (result, None) => result,
+                };
+                self.image_done(result);
+            }
         }
         true
     }
