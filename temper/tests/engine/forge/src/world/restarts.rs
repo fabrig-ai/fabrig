@@ -23,6 +23,7 @@ pub(super) struct Scripts {
     lose_made: bool,
     made_without_answer: u32,
     answers: Vec<(Wall, Op, Error)>,
+    synthetic_entries: Vec<u64>,
 }
 
 /// One scheduled restart, with one additional kind, drawn before the run.
@@ -232,6 +233,7 @@ pub fn synthetic_ended_entries(world: &mut World) {
     world.store_before_restart(top::Stored::Landing(synthetic_cancelled_landing(&entries)));
     for number in entries {
         world.store_before_restart(synthetic_held_dispatch(number));
+        world.restart_scripts.get_or_insert_with(Scripts::default).synthetic_entries.push(number);
     }
 }
 
@@ -304,6 +306,38 @@ pub fn synthetic_held_dispatch(number: u64) -> top::Stored {
 }
 
 impl World {
+    pub(super) fn forget_synthetic_entry(&mut self, number: u64) {
+        if let Some(scripts) = &mut self.restart_scripts {
+            scripts.synthetic_entries.retain(|laid| *laid != number);
+        }
+    }
+
+    pub(super) fn changing_synthetic_entry(&mut self, record: &top::Stored) {
+        if self.restart_scripts.is_some()
+            && let top::Stored::Entry { entry, .. } = record
+            && self.stored.get(&top::Key::Entry(entry.number)) != Some(record)
+        {
+            self.forget_synthetic_entry(entry.number);
+        }
+    }
+
+    /// Only the still-held rows laid by the impossible ended-owner fixture
+    /// are exempt from their release rule (testing/restarts.md, 3).
+    pub(super) fn synthetic_held_entries(&self) -> Vec<u64> {
+        let Some(scripts) = &self.restart_scripts else { return Vec::new() };
+        scripts
+            .synthetic_entries
+            .iter()
+            .copied()
+            .filter(|number| {
+                let Some(top::Stored::Entry { entry, held: true }) = self.stored.get(&top::Key::Entry(*number)) else {
+                    return false;
+                };
+                entry.number == *number && entry.task == ENDED && self.top.inspection_entry(*number) == Some(entry)
+            })
+            .collect()
+    }
+
     fn last_restart_iteration(&self, end: Time) -> bool {
         self.to_top.is_empty()
             && self.to_forge.is_empty()

@@ -127,7 +127,9 @@ pub const SIMULATED: [Kind; 2];  // section 8
   functions named `synthetic_...`, each documenting the state it stands
   for and that no legitimate sequence of events makes it. Each is laid
   into the store before the start that reads it and is recorded as an
-  instant at that restart.
+  instant at that restart. A world's quiet-point checks leave out the
+  fixture's own laid rows for the rule they break, by exact identity,
+  and nothing else.
 - **Exclusions** are skein's `testing/sweeps.md`, 5: an exclusion leaves
   out a fault only where its condition holds as the world reads it, at
   the moment the fault would fall, and is recorded with `leave_out`.

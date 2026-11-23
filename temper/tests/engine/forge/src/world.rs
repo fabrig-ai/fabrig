@@ -1249,6 +1249,7 @@ impl World {
                 self.owed.insert(row.landing.task);
             }
             top::Event::Restore { record } => {
+                self.changing_synthetic_entry(record);
                 let task = Self::restored_task(record);
                 if let Some(task) = task {
                     self.owed.insert(task);
@@ -1860,16 +1861,44 @@ impl World {
             return Err(finding.clone());
         }
         let frozen = self.inspection();
+        let synthetic = self.synthetic_held_entries();
         let mut inspection = skein_world::inspect::Inspection::new("engine", temper_engine_inspect::KINDS);
         for wait in frozen.waits() {
             let mut wait = wait.clone();
             if self.owed.iter().any(|task| wait.waiter == format!("task {task}")) {
                 wait.wakes.push(skein_world::inspect::Wake::Party("root".into()));
             }
+            // A room waiting only on the impossible fixture's held rows cannot
+            // progress; keep its kind and bound checked, but not that injected deadlock.
+            if matches!(wait.kind.as_str(), "change: room" | "landing: room" | "making: room")
+                && !wait.wakes.is_empty()
+                && wait.wakes.iter().all(|wake| {
+                    synthetic.iter().any(|number| {
+                        *wake
+                            == skein_world::inspect::Wake::Ended(format!("entry {number} of task {}", restarts::ENDED))
+                    })
+                })
+            {
+                wait.wakes.push(skein_world::inspect::Wake::Party("synthetic ended entries".into()));
+            }
             inspection.wait(wait);
         }
         for table in frozen.tables() {
-            inspection.table(table.clone());
+            let mut table = table.clone();
+            if table.name == "forge write entries" {
+                for entry in &mut table.entries {
+                    if entry.release == skein_world::inspect::Release::Due
+                        && synthetic
+                            .iter()
+                            .any(|number| entry.key == format!("entry {number} (task {})", restarts::ENDED))
+                    {
+                        // Retain the row for capacity/refusal checks; only its
+                        // deliberately broken release rule is left out.
+                        entry.release = skein_world::inspect::Release::Kept;
+                    }
+                }
+            }
+            inspection.table(table);
         }
         let moment = skein_world::inspect::Moment { seed: self.seed, at: self.env.now, iteration: self.iteration };
         let waits = skein_world::inspect::check_waits(&[&inspection], moment);

@@ -161,6 +161,43 @@ fn ended_owners_fill_the_restored_outbox_and_a_new_making_waits() {
 }
 
 #[test]
+fn ended_entries_outside_the_fixture_still_fail_the_release_check() {
+    // Neither a new number, another owner, nor a replacement with the old
+    // identity inherits the laid entry's exemption after its removal.
+    for (number, owner, remove) in [
+        (3, restarts::ENDED, true),
+        (1, restarts::ENDED + 1, true),
+        (1, restarts::ENDED, true),
+        (1, restarts::ENDED, false),
+    ] {
+        let mut world = watching();
+        Injector::new(377).inject(&mut world, &[kinds::ENTRIES_HELD_BY_ENDED], None);
+        world.run_for(2);
+        assert_eq!(world.check(), Ok(()), "only the laid entries are held");
+        if remove {
+            world.event(top::Event::Resolve { entry: 1, again: false });
+        } else {
+            let top::Stored::Entry { entry, .. } = restarts::synthetic_held_dispatch(1) else {
+                panic!("dispatch fixture")
+            };
+            world.event(top::Event::Restore { record: top::Stored::Entry { entry, held: false } });
+        }
+        let mut landing = restarts::synthetic_cancelled_landing(&[number]);
+        landing.landing.task = owner;
+        world.store_before_restart(top::Stored::Landing(landing));
+        let top::Stored::Entry { mut entry, held } = restarts::synthetic_held_dispatch(number) else {
+            panic!("dispatch fixture")
+        };
+        entry.task = owner;
+        world.store_before_restart(top::Stored::Entry { entry, held });
+        world.restart();
+        let finding = world.check().expect_err("a non-fixture ended holder is still checked");
+        assert!(finding.contains(&format!("forge write entries entry {number} (task {owner})")), "{finding}");
+        assert!(finding.contains("still held after release rule"), "{finding}");
+    }
+}
+
+#[test]
 fn missing_held_branch_is_read_before_it_is_made() {
     let mut world = watching();
     world.observe_entry_saves();
