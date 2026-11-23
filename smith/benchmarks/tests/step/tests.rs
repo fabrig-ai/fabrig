@@ -98,14 +98,26 @@ fn recorded_seed(root: &Path) -> SeedTree<'_> {
     SeedTree::new(root, &[Item::file(b"README.md", include_bytes!("../recorded/tasks/valid/seed/README.md"))])
 }
 
+pub(super) fn check_probe(file: &Path, document: &str, seed: &[Item]) -> Result<smith_bench::Task, Refusal> {
+    let task = parse_task(file, document)?;
+    check_task_with(file, task, read_guard, |root| seed_digest_with(root, &SeedTree::new(root, seed)))
+}
+
 fn read_guard(path: &Path) -> io::Result<String> {
-    if path == Path::new("benchmarks/README.md") {
-        Ok(include_str!("../../../docs/design/benchmarks/README.md").into())
-    } else if path == Path::new("benchmarks/agents.md") {
-        Ok(include_str!("../../../docs/design/benchmarks/agents.md").into())
-    } else {
-        Err(io::ErrorKind::NotFound.into())
-    }
+    let text = match path.to_str() {
+        Some("benchmarks/README.md") => include_str!("../../../docs/design/benchmarks/README.md"),
+        Some("benchmarks/agents.md") => include_str!("../../../docs/design/benchmarks/agents.md"),
+        Some("domain/budget.md") => include_str!("../../../docs/design/domain/budget.md"),
+        Some("domain/run.md") => include_str!("../../../docs/design/domain/run.md"),
+        Some("domain/run-messages.md") => include_str!("../../../docs/design/domain/run-messages.md"),
+        Some("domain/run-start.md") => include_str!("../../../docs/design/domain/run-start.md"),
+        Some("domain/tools.md") => include_str!("../../../docs/design/domain/tools.md"),
+        Some("protocol/events.md") => include_str!("../../../docs/design/protocol/events.md"),
+        Some("protocol/limits.md") => include_str!("../../../docs/design/protocol/limits.md"),
+        Some("shell/commands.md") => include_str!("../../../docs/design/shell/commands.md"),
+        _ => return Err(io::ErrorKind::NotFound.into()),
+    };
+    Ok(text.into())
 }
 
 fn read_pin(path: &Path) -> Result<PinnedConfiguration, Refusal> {
