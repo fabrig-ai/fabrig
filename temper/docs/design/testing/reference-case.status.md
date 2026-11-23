@@ -21,7 +21,7 @@
 `real-loop.md`'s real-loop goal-delivery story is present, alongside the six
 engine domain stories and the checkout world's later-run cases. It uses
 real smith and a worker with scripted model replies, fake git and the
-fake forge; no real model or real forge is proved by it. `checks.md`, section 5.1's
+fake forge; no real model or real forge is proved by it. `checks-stage-one.md`, section 1.1's
 reference obligations retain their current charter words; folding in the
 goal-as-designer workflow remains in `README.md`, section 7.
 

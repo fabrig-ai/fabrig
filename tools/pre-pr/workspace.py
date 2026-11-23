@@ -81,16 +81,40 @@ def package_plan(root, paths, packages, layers, also=()):
     return groups
 
 
+def target_filter(targets):
+    """A filterset for one group's target flags, as nextest names its binaries."""
+    parts = []
+    for flags in targets:
+        if flags == ('--lib',):
+            parts.append('kind(lib) | kind(proc-macro)')
+        else:
+            parts.append(f"kind({flags[0].lstrip('-')}) & binary(={flags[1]})")
+    return ' | '.join(f'({part})' for part in parts)
+
+
 def rust_commands(groups, prerequisites, directory, runner='tools/tiers/one-process'):
+    """Helper builds, a check of crates without tests, then every group's tests in one run.
+
+    One run builds the selection in parallel and runs its binaries side by side, where a run per
+    group of identical target flags paid a build, a listing and a serial pass each (11-23: 47 groups).
+    """
     tested = {name for targets, names in groups.items() if targets for name in names}
     helpers = {(entry['package'], entry['bin']) for name in tested for entry in prerequisites.get(name, [])}
     for package, binary in sorted(helpers):
         yield ['cargo', 'build', '--offline', '--locked', '-p', package, '--bin', binary]
-    for step, (targets, names) in enumerate(sorted(groups.items())):
-        packages = [arg for name in names for arg in ('-p', name)]
-        if not targets:
-            yield ['cargo', 'check', '--offline', '--locked', *packages]
-            continue
-        flags = [arg for target in targets for arg in target]
-        yield [runner, '--out', str(directory / str(step)), '--fail-fast',
-               'default', '--offline', '--locked', '--no-tests=warn', *packages, *flags, *workspace_filter(names)]
+    checked = sorted(name for targets, names in groups.items() if not targets for name in names)
+    if checked:
+        yield ['cargo', 'check', '--offline', '--locked', *[arg for name in checked for arg in ('-p', name)]]
+    runs = sorted((targets, names) for targets, names in groups.items() if targets)
+    if not runs:
+        return
+    names = sorted({name for _, members in runs for name in members})
+    selected = ' | '.join(
+        '((' + ' | '.join(f'package(={name})' for name in members) + ') & (' + target_filter(targets) + '))'
+        for targets, members in runs)
+    expression = f'default() & ({selected})'
+    boundary = workspace_filter(names)
+    if boundary:
+        expression += ' & ' + boundary[1].removeprefix('default() & ')
+    yield [runner, '--out', str(directory / '0'), '--fail-fast', 'default', '--offline', '--locked',
+           '--no-tests=warn', *[arg for name in names for arg in ('-p', name)], '-E', expression]
