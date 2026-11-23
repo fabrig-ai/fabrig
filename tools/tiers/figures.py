@@ -8,6 +8,7 @@ Reads committed trees from the current repository; exits 0 passing, 1 refusing,
 
 import argparse
 from collections import Counter
+import json
 import math
 from pathlib import Path
 import runpy
@@ -20,6 +21,7 @@ GROUPS = CPU['GROUPS']
 REPAIR_LINE = CPU['REPAIR_LINE']
 BUDGETS = 'tools/tiers/budgets.toml'
 LIMITS = ('cpu_suite_s', 'cpu_test_s', 'wall_hard_s')
+BUDGET_REASON = 'budget coverage reason added: '
 
 
 def git(*args):
@@ -124,6 +126,12 @@ def compare(base, head, layers, base_name, head_name):
 
     before, after = base.get('gate', {}), head.get('gate', {})
     for profile in sorted(before.keys() | after.keys()):
+        old_reasons = before.get(profile, {}).get('coverage_reasons', [])
+        for reason in after.get(profile, {}).get('coverage_reasons', []):
+            if reason['kind'] == 'budget' and reason not in old_reasons:
+                place = f"{profile} budget coverage reason {reason['binary']}"
+                detail = json.dumps(reason, sort_keys=True)
+                findings.append((f'{place} {detail}', f'{BUDGET_REASON}{place}: {detail}'))
         old = profile_figures(before.get(profile, {}), base_name, profile)
         new = profile_figures(after.get(profile, {}), head_name, profile)
         excused = {}
@@ -211,7 +219,7 @@ def main(argv):
         findings = findings or []
         for revision in args.merged or []:
             places = {place for place, _ in compare_revision(revision, args.head) or []}
-            findings = [(place, line) for place, line in findings if place in places]
+            findings = [(place, line) for place, line in findings if place in places or line.startswith(BUDGET_REASON)]
     except (subprocess.CalledProcessError, OSError, ValueError, KeyError, TypeError, AttributeError) as error:
         print(f'figures: {getattr(error, "stderr", None) or error}', file=sys.stderr)
         return 2

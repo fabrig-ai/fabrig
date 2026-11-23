@@ -925,7 +925,8 @@ Relative paths are the caller's working directory's, the checkout root.
 | `warnings` | one line for each `auto_reap` declaration and each unobserved attempt; in a one-process run, each unplaced binary, each advisory layer comparison, missing-count and drift warnings, and tests over their references; with a ledger, each test that swings alone at main (`tools/tiers/references.md`, 6) and each stale coverage reason |
 | `checks` | a one-process run's totals by binary and check kind across suite processes (`tools/tiers/budgets.md`, 13) |
 | `coverage_reasons` | a one-process run's applied coverage reasons, each with the loss it covers (`tools/tiers/budgets.md`, 13) |
-| `coverage_moves` | a one-process run's coverage moves across module paths, each with `from` and `to` objects holding `binary_id` and `test_name` (`tools/tiers/budgets.md`, 13) |
+| `coverage_moves` | a one-process run's paired tests, each with `from` and `to` objects holding `binary_id` and `test_name` (`tools/tiers/budgets.md`, 13) |
+| `used_budget_coverage_reasons` | the budget coverage reasons the one-process ledger fold marks spent (`tools/tiers/budgets.md`, 13) |
 | `unobserved` | `{binary_id, test_name, attempt}` for each attempt cancellation stopped before its record (7.3); always empty for tools |
 | `tests` | for each test: `binary_id`, `test_name`, `attempts`, `cpu_s`, `user_s`, `system_s`, `wall_s`, `starved`, `leaked`, `incomplete` |
 | `suite` | the totals: `tests`, `attempts`, `cpu_s`, `user_s`, `system_s`, `wall_s`, `test_wall_s`, `starved`, `starved_run`, `unobserved`, `leaked`, `incomplete`, `cpu_by` |
@@ -1469,7 +1470,9 @@ In the directory `run` made, once it has returned:
   digits), null where git names none, by which the ledger keeps each count
   (`tools/tiers/budgets.md`, 7), the layers file's `layers` list, the
   workspace's test binaries, each placed and marked listed or not
-  (`workspace`, `tools/tiers/budgets.md`, 3), and each test (outcome, wall, its
+  (`workspace`, `tools/tiers/budgets.md`, 3), the original package scope
+  as package names (`selected_packages`), and `test_filtered`, whether the
+  caller supplied a test filter, and each test (outcome, wall, its
   process, none where a forced kill left that process without a record (11.7),
   the tests before it and its alone result where it failed, its output where it
   did not pass), the unobserved tests, the selection's count and the

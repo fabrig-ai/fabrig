@@ -195,7 +195,8 @@ Each tree's pair `real-TREE` runs its real-loop and end-to-end tests after landi
   - `binaries`, by binary id: `tree`, one of section 2's six groups; `layer`, a name of the `layers` list, `checks`, or null, as section 3 placed it in the run that wrote the ledger; `cpu`, a list of one to three CPU figures, each the CPU of its processes, of the suite's kinds (section 4), in one of the last runs that measured it whole (below), oldest first, whose median is its figure at main (section 8); `tests`, by test name, a list of one to three walls, that test's in the last runs that measured it, oldest first; `alone`, by test name, a list of one to three CPU figures, that test's alone (`tools/tiers/references.md`, 4) in the last runs that ran it alone, oldest first, for tests some landed gate ran alone: every name in `alone` is in `tests`; `counts`, a list of none to 100 entries, oldest first, one for each of the last runs that measured it whole and counted it (below): `instructions`, its count there (`tools/tiers/design.md`, 11.4), the sum of its processes' of the suite's kinds, and `commit`, that run's `commit` from its `results.json` (`tools/tiers/design.md`, 11.8), or null. Its last entry's count is its count at main (section 8): a count is no sample, so no median is taken (draft, 5). Two entries in a row say what the landings between them added to the binary, and since a gate runs only the packages a change reaches, a landing that didn't run the binary added nothing to it;
   - `budgets`, by group and layer, holds `ceiling_s` and `lowest_s` for each layer with a CPU ceiling. An instruction ceiling adds `instructions_ceiling` and `instructions_lowest`, both nonnegative integers, with null allowed for the lowest until a complete count is available (section 9).
   - `moves`, the moves of main's budgets file for the profile, each as section 10's form has it;
-  - `coverage_reasons`, the reasons in main's budgets file for the profile, each as section 13's form has it.
+  - `coverage_reasons`, the reasons in main's budgets file for the profile, each as section 13's form has it;
+  - `spent_coverage_reasons`, the budget coverage reasons that have covered a loss on a landed run. The fold keeps them even when their lines leave the budgets file (section 13).
 
   A binary's `checks` holds its totals by kind from the last run that measured it whole (section 13).
 
@@ -205,13 +206,13 @@ Each tree's pair `real-TREE` runs its real-loop and end-to-end tests after landi
   - **Versions 1 to 3.** An older ledger reads as one without counts. Version 3, B7's, is version 4 without `counts`: each binary has exactly the keys `tree`, `layer`, `cpu`, `tests` and `alone`, and `ledger()` returns it with `counts` empty. Version 2, B4's, is version 3 with `cpu_s`, one figure, in place of `cpu`: each binary has exactly the keys `tree`, `layer`, `cpu_s`, `tests` and `alone`, and `ledger()` returns it with `cpu` the list of that one figure, no `cpu_s` and `counts` empty. Version 1, B3's, is version 2 without `alone`: each binary has exactly the four other keys, and `ledger()` returns it with `alone` and `counts` empty too. A binary of any is checked against its own version's keys, so a version 2 binary with `cpu`, a version 3 one with `cpu_s` or `counts`, or a version 4 one without `counts`, is refused. The reader preserves the version in `ledger`.
   - **Versions 1 to 4** have CPU-only `budgets` entries and moves. When a layer gains an instruction ceiling, the fold seeds its lowest from the layer's count at main when available (section 9). Every run writes version 6.
   - **Versions 1 to 5** read with an empty `checks` object on each binary.
-  - **Only version 6** takes `coverage_reasons`. Ledgers without the field have no coverage reasons.
+  - **Only version 6** takes `coverage_reasons` and `spent_coverage_reasons`. An absent list is empty.
   - **A reader before version 6** refuses a version 6 ledger. Its delivery check runs without main's ledger and says why until the branch takes main (`tools/pre-pr/design.md`, 4).
 - **Who passes it:** the gate, as `--ledger PATH` (section 5): main's ledger for the suite, at the candidate's base; and the delivery check, a copy the gate's runner left on its builder, a landing or two old at most. Every other run passes none, and its selection is judged as it stands (section 4).
 - **Every run writes its own.** A one-process run that reaches its summary writes `ledger.json` in its directory (`tools/tiers/design.md`, 11.8): main's ledger as it will stand once the run's candidate lands. It is the given ledger, or an empty one, with the run's figures folded in:
   - **a binary the run measured whole,** every one of its selected tests `passed`, `failed` or `crashed` and none `starved`, `cancelled` or unobserved: its `tree` and `layer` as the run placed it, its `cpu` the ledger's last two figures for it, then the CPU the run measured for it (`[64.0, 61.2, 63.0]` from `[60.0, 64.0, 61.2]` and 63.0; a binary new to the ledger has the run's figure only, and one the run places elsewhere keeps its figures, as a test's walls are kept), and its `tests` as the run ran them, each with the ledger's last two walls for it, then the run's own. Its `alone`, for each test the run ran: the ledger's last two figures for it, then the run's own, where the run's `references` (`tools/tiers/references.md`, 4) give it a `cpu_s` that isn't null, the lowest of the test's runs alone there; otherwise the ledger's figures as they were, where it has any. A test the ledger had and the run didn't run leaves, from both. Its `counts`, where the run counted it (its count at the head isn't null, section 4): the ledger's last 99 entries for it, then `{"commit": COMMIT, "instructions": COUNT}`, COMMIT the run's `commit` and COUNT its count at the head; where the run didn't count it, the ledger's entries as they were, none for a binary new to the ledger. A binary the run places elsewhere keeps its counts, as its walls are kept;
-  - **a binary the run cut short:** its ledger entry as it was, `alone` and `counts` included, with the run's `tree` and `layer`, or none where the ledger lacks it, since its CPU is partial;
-  - **a ledger binary the run didn't run:** kept, with its `workspace` entry's `tree` and `layer` (section 3), where `workspace` has it unlisted. It leaves where `workspace` lacks it (its target is gone), where the listing named it and the run selected none of its tests, and where it is placed in a layer the run left out, listed or not (section 4.1);
+  - **a binary the run cut short:** its ledger figures and histories, with the run's `tree` and `layer`, or none where the ledger lacks it, since its CPU is partial. When the selector took whole packages, retain only its selected names in `tests` and `alone` (section 13);
+  - **a ledger binary the run didn't run:** kept, with its `workspace` entry's `tree` and `layer` (section 3), where `workspace` has it unlisted. An unlisted binary in a selected package has empty `tests`, `alone` and `checks` when the selector took whole packages. It leaves where `workspace` lacks it (its target is gone), where the listing named it and the run selected none of its tests, and where it is placed in a layer the run left out, listed or not (section 4.1);
   - **`budgets`** as section 9 folds them. **`moves`** and **`coverage_reasons`** are the run's budgets file's lists for the profile, each empty where the file gives none.
 - **The runner keeps** the `ledger.json` of the gate run whose candidate landed as main's ledger for that suite, and passes it to the next gate on top of that landing. Its first ledger is the `ledger.json` of a whole run of its own on main, with no `-p` and no `--ledger`: until then no selection is judged whole and no budget is held below its ceiling (draft, 5). The gate selects by package alone; a run that also filters tests writes a ledger that isn't main's.
 
@@ -289,6 +290,7 @@ why = "the store's own mechanics placed below the one-process world"
 
 - **The gate alone refuses a raise** (`temper/docs/design/draft/test-budgets.md`, 8; the user, 11-18 and 11-22). It compares the candidate merged onto main with main's tip and names each raise or addition listed below. Lowering a figure, dropping a reason's line and a CPU move down pass.
 - **A change of that file alone passes the gate's figures check,** whatever it does there (the user, 11-18 12:4xZ): it is how the user's own figures land, by a drafter's mechanical change on their word. The refusal is for a change that touches any other path too, as every goal's landing does: a raise a goal's change makes alone still meets it at the goal's landing.
+- **A budget coverage reason** (section 13) added against BASE in a change that also touches another file gives `budget coverage reason added: PROFILE budget coverage reason BINARY: REASON`. REASON is the whole line as JSON. A merged tip does not excuse this finding against BASE.
 - **The check:** `python3 -I -B tools/tiers/figures.py --base BASE [--head HEAD] [--merged REV]…`, from the checkout root, BASE, HEAD and each REV any commit or tree git names, HEAD `HEAD` by default. It reads committed trees through git, never the working tree, as `tools/citations/citations.py` does. It exits 0 where it passes, 1 where it refuses, and 2 for a usage error, a git failure, a file that isn't TOML, a CPU or wall figure that isn't a finite number, or an instruction figure that isn't a positive integer.
   - **What changed:** `git diff --no-renames --name-only BASE HEAD`. Without `tools/tiers/budgets.toml` among the paths it passes, printing `figures: tools/tiers/budgets.toml unchanged since BASE`; with that path alone it passes, printing `figures: tools/tiers/budgets.toml alone changed since BASE: the user's figures`. Otherwise it compares the file's figures.
   - **What it reads:** `tools/tiers/budgets.toml` at BASE and at HEAD (`git show REV:tools/tiers/budgets.toml`), each as TOML, a side without the file read as an empty table; and HEAD's `tools/tiers/layers.toml`, its `layers` list alone, for the moves' direction. It reads the figures at the places below and leaves the file's form to `budgets()` (section 2), which every suite's run applies: a key it doesn't name is no figure of its.
@@ -346,22 +348,31 @@ repair: read skein/docs/foundation/testing-strategy.md in full first, then ask 8
   an unlisted or cut-short binary. A results file without process `checks`
   reads those records as empty. A check kind matches
   `[a-z][a-z0-9-]{0,31}` and its recorded total is a positive integer.
-- **The comparison.** With main's ledger, the gate and the full goal check
-  compare binaries measured whole in the run's selected layers (section
-  4.1). An unlisted or cut-short binary is skipped. A listed binary
-  that ran no tests, or a binary absent from `workspace`, is judged
-  with zero tests and checks. A name in main's `tests` stays
-  covered when the suite runs it in any binary. A test newly ignored can
-  lose its name from the run. Each check kind's total at the head must at
-  least equal its total at main, for that binary. An absent kind counts
-  zero. Fixed seeds make the totals comparable without a tolerance.
+- **The comparison.** With main's ledger, compare its binaries in the
+  run's selected layers (section 4.1). A caller's test filter skips the
+  coverage comparison with one warning. An unlisted binary is skipped
+  where its package was left out or the record predates package scope.
+  A listed binary with no tests, an unlisted binary in a selected package,
+  or an absent binary is judged with zero tests and checks. A binary moved
+  into an unselected layer is judged with zero tests and checks in its
+  layer at main, even if it is unlisted. Only a `moved` reason covers
+  that loss. Compare each binary's names with the names it ran. For a
+  cut-short binary, compare against all its selected names, including
+  `unobserved`, and skip its check counts. A newly ignored test can lose
+  its name from the run.
 - **A move across modules.** When a name at main is absent from the run,
   it can pair with a new test in the run that has the same final `::`
-  segment. A test is new where main's ledger lacks its name in the binary
-  that ran it. For each segment, the summary pairs lost and new tests
-  one to one, sorting each side by test name and then binary ID. Remaining
-  losses need a reason. The summary lists both ends in `coverage_moves`
-  and prints one line per source binary with the number of moves.
+  segment within its binary or in a binary new to main's ledger. A test is
+  new where main's ledger lacks its name in the binary that ran it. Pair
+  one to one within each binary first, then into new binaries, sorting by
+  test name and then binary ID. Remaining losses need a reason.
+  The summary lists both ends in `coverage_moves` and prints up to ten
+  pairs per source binary, with the number beyond them.
+- **Check counts.** Compare each kind's total at the head with main, with
+  an absent kind counting zero. Sum over each connected group of binaries
+  joined by moves, including pairs supplied by a `renamed` reason. A
+  group with a cut-short member has no whole count to compare. Fixed
+  seeds make the totals comparable without a tolerance.
 - **A reason** is a table of the profile's `coverage_reasons` array in
   `tools/tiers/budgets.toml`.
 
@@ -376,21 +387,28 @@ by = "The change's reviewer"
 ```
 
   `binary`, `why` and `by` are nonempty strings. Give exactly one of
-  `tests`, a nonempty list of names where `*` matches any part of a name,
+  `tests`, a nonempty list of names where `*` matches any part of a name
+  and each pattern has at least one literal `::` segment,
   and `checks`, a nonempty table from kind to the exact number of checks
-  lost. A new reason applies to each matching loss. `kind` is `removed` for
+  lost. `kind` is `removed` for
   code that went away, `duplicate` for coverage another test supplies,
-  `renamed` with `to` a nonempty list of new names, `moved` for a move to
+  `renamed` with `tests` and `to`, a nonempty list of distinct names of
+  new tests the run ran. Each available destination covers at most one
+  loss, in name order. `moved` is for a move to
   a layer the run leaves out, or `budget`. A `budget` reason's `by` must
   start with `the user`. `budgets()` refuses other keys and values outside
   the form.
-- **A reason is new** when main's ledger lacks that whole line. Once the
-  line is in main's ledger, the verdict ignores it and anyone can prune
-  it from the budgets file.
+- **When a reason applies.** A budget reason must already be in main's
+  ledger and still be in the budgets file. It lands in a budgets-only
+  change (10.1). The run that uses it folds it into
+  `spent_coverage_reasons`; the ledger of a landing makes that use final.
+  An unused approval can wait for its change without warning. Every
+  other kind applies only while main's ledger lacks the whole line.
+  Anyone can prune a spent budget reason or a landed reason of another kind.
 - **The verdict.** Each binary with an unexplained loss has a red for its
   layer in `over_budget`, with or without `--gate`. The entry names the
   binary, up to ten lost tests and the number beyond them, and the main and
   head totals for each kind that lost checks. The repair line (10.1) and
   the line naming the reason table follow. Every applied reason is named in
   the summary and its printed verdict, including a red-free verdict. A
-  new reason applying to no loss gives a `stale coverage reason: …` warning.
+  new non-budget reason applying to no loss gives a `stale coverage reason: …` warning.

@@ -946,7 +946,8 @@ class OneProcessTests(unittest.TestCase):
         self.results['cancelled'] = 'wall-hard'
         self.results['tests'][0]['outcome'] = 'starved'
         self.run['starved'] = True
-        self.assertEqual(self.folded(self.main)['binaries']['pkg::suite']['alone'], old['alone'])
+        self.assertEqual(self.folded(self.main)['binaries']['pkg::suite']['alone'],
+                         {name: old['alone'][name] for name in ('a', 'z')})
         self.assertEqual(self.folded(self.main)['binaries']['pkg::suite']['cpu'], old['cpu'])
         path = self.root / 'folded.json'
         CPU['save'](path, self.folded(self.main))
@@ -996,6 +997,12 @@ class OneProcessTests(unittest.TestCase):
         self.results['selected_layers'] = ['simulated', 'step']
         self.limits = {'gate': {'default': {'references': {}}}}
 
+    def run_coverage_tests(self, binary, names, **fields):
+        index = len(self.results['processes'])
+        self.results['processes'].append(self.process(names, binary_id=binary, layer='step', **fields))
+        self.results['tests'].extend(self.entry(name, binary_id=binary, process=index) for name in names)
+        self.results['selected'] += len(names)
+
     def test_coverage_lost_tests_are_red_and_lists_are_bounded(self):
         self.coverage_case(tests={f'lost_{index:02d}': [1] for index in range(12)})
         for gate in (False, True):
@@ -1025,12 +1032,10 @@ class OneProcessTests(unittest.TestCase):
 
     def test_coverage_moves_follow_new_module_paths_and_report_both_names(self):
         self.coverage_case(tests={'before::moved': [1], 'before::already_there': [1]})
-        self.main['binaries']['lower'] = self.ledger_entry(
+        self.main['binaries']['older'] = self.ledger_entry(
             [1], layer='step', tests={'after::already_there': [1]})
-        names = ['after::moved', 'after::already_there']
-        self.results['processes'].append(self.process(names, binary_id='lower', layer='step'))
-        self.results['tests'].extend(self.entry(name, binary_id='lower', process=1) for name in names)
-        self.results['selected'] += len(names)
+        self.run_coverage_tests('lower', ['after::moved'])
+        self.run_coverage_tests('older', ['after::already_there'])
         result = self.summary(self.limits, gate=True, ledger=self.main)
         self.assertEqual(result['coverage_moves'], [{
             'from': dict(binary_id='pkg::suite', test_name='before::moved'),
@@ -1048,6 +1053,7 @@ class OneProcessTests(unittest.TestCase):
             CPU['print_summary'](result)
         self.assertEqual([line for line in output.getvalue().splitlines() if line.startswith('coverage moves:')],
                          ['coverage moves: pkg::suite: 1'])
+        self.assertIn('  moved test: before::moved to lower after::moved', output.getvalue())
 
     def test_coverage_move_pairs_each_new_test_once_in_name_order(self):
         self.coverage_case(tests={'z_old::round_trip': [1]})
@@ -1091,6 +1097,115 @@ class OneProcessTests(unittest.TestCase):
         with contextlib.redirect_stdout(output):
             CPU['print_summary'](result)
         self.assertIn('coverage reason applied: ' + reason, output.getvalue())
+
+    def test_coverage_rename_needs_new_observed_targets_and_covers_one_loss_per_target(self):
+        self.coverage_case(tests={'old::a': [1], 'old::b': [1], 'a': [1]})
+        reason = dict(binary='pkg::suite', tests=['old::*'], kind='renamed', to=['a'],
+                      why='The cases changed names.', by='Maintainer')
+        self.limits['gate']['default']['coverage_reasons'] = [reason]
+        for target in ('a', 'missing'):
+            reason['to'] = [target]
+            result = self.summary(self.limits, gate=True, ledger=self.main)
+            self.assertEqual(result['coverage_reasons'], [])
+            self.assertEqual(result['over_budget'][0].count('lost test: '), 2)
+        self.run_coverage_tests('lower', ['replacement'])
+        reason['to'] = ['replacement']
+        result = self.summary(self.limits, gate=True, ledger=self.main)
+        self.assertIn('matched old::a', result['coverage_reasons'][0])
+        self.assertIn('lost test: old::b', result['over_budget'][0])
+        self.assertEqual(result['over_budget'][0].count('lost test: '), 1)
+
+        self.main['binaries']['pkg::suite']['tests']['old::round_trip'] = [1]
+        self.run_coverage_tests('lower', ['new::round_trip'])
+        reason['to'].append('new::round_trip')
+        result = self.summary(self.limits, gate=True, ledger=self.main)
+        self.assertEqual(len(result['coverage_moves']), 2)
+        self.assertIn('matched old::a', result['coverage_reasons'][0])
+        self.assertIn('lost test: old::b', result['over_budget'][0])
+
+    def test_coverage_binary_moved_out_needs_a_moved_reason(self):
+        self.coverage_case(tests={'a': [1]}, checks={'seed': 2})
+        self.results.update(selected=0, tests=[], processes=[])
+        self.results['workspace'][0].update(layer='real-loop', listed=False)
+        line, = self.summary(self.limits, gate=True, ledger=self.main)['over_budget']
+        self.assertIn('temper default simulated: pkg::suite', line)
+        self.assertIn('moved to unselected layer: real-loop', line)
+        self.assertIn('lost test: a', line)
+        self.assertIn('seed: 2 at main, 0 at the head', line)
+        profile = self.limits['gate']['default']
+        reason = dict(binary='pkg::suite', tests=['a'], kind='removed', why='No longer in the run.', by='Maintainer')
+        profile['coverage_reasons'] = [reason]
+        self.assertIn('lost test: a', self.summary(self.limits, ledger=self.main)['over_budget'][0])
+        reason['kind'] = 'moved'
+        profile['coverage_reasons'].append(dict(binary='pkg::suite', checks={'seed': 2}, kind='moved',
+                                                why=reason['why'], by=reason['by']))
+        self.assertEqual(self.summary(self.limits, ledger=self.main)['over_budget'], [])
+
+    def test_coverage_existing_binary_does_not_mask_loss_or_take_an_automatic_move(self):
+        self.coverage_case(tests={'shared': [1], 'old::round_trip': [1]})
+        self.main['binaries']['other'] = self.ledger_entry([1], layer='step', tests={'shared': [1]})
+        self.run_coverage_tests('other', ['shared', 'new::round_trip'])
+        result = self.summary(self.limits, gate=True, ledger=self.main)
+        self.assertEqual(result['coverage_moves'], [])
+        line, = result['over_budget']
+        self.assertIn('lost test: shared', line)
+        self.assertIn('lost test: old::round_trip', line)
+
+    def test_coverage_unlisted_binary_in_selected_package_has_zero_coverage(self):
+        self.coverage_case(tests={'kept_at_main': [1]}, checks={'seed': 2})
+        self.results.update(selected=0, tests=[], processes=[], selected_packages=['other'])
+        self.results['workspace'][0]['listed'] = False
+        self.assertEqual(self.summary(self.limits, gate=True, ledger=self.main)['over_budget'], [])
+        self.results['selected_packages'].append('pkg')
+        line, = self.summary(self.limits, gate=True, ledger=self.main)['over_budget']
+        self.assertIn('lost test: kept_at_main', line)
+        self.assertIn('seed: 2 at main, 0 at the head', line)
+        entry = self.folded(self.main)['binaries']['pkg::suite']
+        self.assertEqual((entry['tests'], entry['checks']), ({}, {}))
+
+    def test_coverage_partial_binary_compares_selected_names_and_skips_counts(self):
+        self.coverage_case(tests={'z': [1], 'a': [1], 'unobserved': [1], 'deleted': [1]}, checks={'seed': 2})
+        self.results.update(selected=3, cancelled='wall-hard',
+                            unobserved=[dict(binary_id='pkg::suite', test_name='unobserved')])
+        self.results['processes'][0]['tests'] = ['z']
+        self.results['tests'][1]['outcome'] = 'cancelled'
+        result = self.summary(self.limits, gate=True, ledger=self.main)
+        line, = result['over_budget']
+        self.assertEqual([row for row in line.splitlines() if row.startswith('  ')], ['  lost test: deleted'])
+        entry = self.folded(self.main)['binaries']['pkg::suite']
+        self.assertEqual(set(entry['tests']), {'z', 'a', 'unobserved'})
+        self.assertEqual(entry['checks'], {'seed': 2})
+
+    def test_coverage_checks_follow_a_split_and_detect_less_work_across_it(self):
+        self.coverage_case(tests={'z': [1], 'a': [1], 'split::move': [1]}, checks={'store-check': 8})
+        self.results['processes'][0]['checks'] = {'store-check': 3}
+        self.run_coverage_tests('lower', ['split::move'], checks={'store-check': 5})
+        result = self.summary(self.limits, gate=True, ledger=self.main)
+        move, = result['coverage_moves']
+        self.assertEqual(move['to']['binary_id'], 'lower')
+        self.assertEqual(result['over_budget'], [])
+        self.results['processes'][-1]['checks'] = {'store-check': 4}
+        line, = self.summary(self.limits, gate=True, ledger=self.main)['over_budget']
+        self.assertIn('checks across: lower, pkg::suite', line)
+        self.assertIn('store-check: 8 at main, 7 at the head', line)
+
+    def test_coverage_prints_ten_move_pairs_but_keeps_all_in_json(self):
+        self.coverage_case(tests={f'before::test_{index:02}': [1] for index in range(12)})
+        self.run_coverage_tests('lower', [f'after::test_{index:02}' for index in range(12)])
+        result = self.summary(self.limits, gate=True, ledger=self.main)
+        self.assertEqual(len(result['coverage_moves']), 12)
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            CPU['print_summary'](result)
+        self.assertEqual(output.getvalue().count('  moved test: '), 10)
+        self.assertIn('  2 more moved tests', output.getvalue())
+
+    def test_coverage_skips_caller_test_filter_with_one_warning(self):
+        self.coverage_case(tests={'omitted': [1]}, checks={'seed': 2})
+        self.results['test_filtered'] = True
+        result = self.summary(self.limits, gate=True, ledger=self.main)
+        self.assertEqual(result['over_budget'], [])
+        self.assertEqual(result['warnings'], ['coverage comparison skipped: the run used a caller test filter'])
 
     def test_coverage_gone_binaries_only_in_selected_layers(self):
         self.coverage_case()
@@ -1136,9 +1251,20 @@ class OneProcessTests(unittest.TestCase):
         self.limits['gate']['default']['coverage_reasons'] = [
             dict(binary='pkg::suite', checks={'store-check': 1}, kind='budget',
                  why='The user approved sampling one fewer commit.', by='the user')]
+        self.assertIn('store-check: 10 at main, 9 at the head',
+                      self.summary(self.limits, gate=True, ledger=self.main)['over_budget'][0])
+        self.main['coverage_reasons'] = self.limits['gate']['default']['coverage_reasons']
         result = self.summary(self.limits, gate=True, ledger=self.main)
         self.assertEqual(result['over_budget'], [])
         self.assertIn('matched store-check', result['coverage_reasons'][0])
+        folded = self.folded(self.main)
+        self.assertEqual(folded['spent_coverage_reasons'], self.main['coverage_reasons'])
+        path = self.root / 'approved.json'
+        CPU['save'](path, folded)
+        self.results['processes'][1]['checks']['store-check'] = 4
+        result = self.summary(self.limits, gate=True, ledger=CPU['ledger'](path))
+        self.assertIn('store-check: 9 at main, 8 at the head', result['over_budget'][0])
+        self.assertEqual(result['coverage_reasons'], [])
 
     def test_coverage_stale_reason_warns(self):
         self.coverage_case(tests={'a': [1]})
@@ -2451,7 +2577,11 @@ class CollectorTests(unittest.TestCase):
                 ('kind = "duplicate"\nby = "Maintainer"\nchecks = {store-check = true}', 'positive integer'),
                 ('kind = "removed"\nby = "Maintainer"\nchecks = {Bad = 1}', 'invalid check kind'),
                 ('kind = "removed"\nby = "Maintainer"\ntests = []', 'nonempty list'),
+                ('kind = "removed"\nby = "Maintainer"\ntests = ["*"]', 'literal'),
+                ('kind = "removed"\nby = "Maintainer"\ntests = ["*::*"]', 'literal'),
+                ('kind = "removed"\nby = "Maintainer"\ntests = ["group*::*"]', 'literal'),
                 ('kind = "renamed"\nby = "Maintainer"\ntests = ["before"]', 'reason keys'),
+                ('kind = "renamed"\nby = "Maintainer"\ntests = ["a"]\nto = ["b", "b"]', 'distinct tests'),
                 ('kind = "moved"\nby = "Maintainer"\ntests = ["a"]\nchecks = {seed = 1}', 'reason keys')]:
             with self.subTest(fields=fields):
                 path.write_text(header + common + fields)
@@ -2460,6 +2590,42 @@ class CollectorTests(unittest.TestCase):
         path.write_text(header + common + 'kind = "budget"\nby = "the user, 11-23"\nchecks = {store-check = 1}')
         reason, = CPU['budgets'](path)['gate']['default']['coverage_reasons']
         self.assertEqual(reason['checks'], {'store-check': 1})
+
+    def test_figures_require_budget_coverage_reasons_to_land_alone(self):
+        def git(*args):
+            return subprocess.check_output(
+                ['git', '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', *args],
+                cwd=self.root, text=True).strip()
+
+        def commit(message):
+            git('add', '--', 'tools', 'other')
+            git('commit', '-qm', message)
+            return git('rev-parse', 'HEAD')
+
+        def verdict(*args):
+            return subprocess.run([sys.executable, '-I', '-B', str(HERE / 'figures.py'), *args],
+                                  cwd=self.root, capture_output=True, text=True)
+
+        git('init', '-q')
+        budgets = self.root / 'tools/tiers/budgets.toml'
+        budgets.parent.mkdir(parents=True)
+        budgets.write_text('[gate.default]\nreferences = {}\n')
+        (budgets.parent / 'layers.toml').write_text('layers = ["step"]\n')
+        other = self.root / 'other'
+        other.write_text('base\n')
+        base = commit('base')
+        with budgets.open('a') as output:
+            output.write('[[gate.default.coverage_reasons]]\nbinary = "pkg::suite"\n'
+                         'kind = "budget"\ntests = ["a"]\nby = "the user"\nwhy = "Approved."\n')
+        approval = commit('approval')
+        self.assertEqual(verdict('--base', base, '--head', approval).returncode, 0)
+        other.write_text('head\n')
+        commit('other change')
+        for flags in ([], ['--merged', approval]):
+            mixed = verdict('--base', base, *flags)
+            self.assertEqual(mixed.returncode, 1, mixed.stdout + mixed.stderr)
+            self.assertIn('budget coverage reason added: default budget coverage reason pkg::suite', mixed.stdout)
+        self.assertEqual(verdict('--base', approval).returncode, 0)
 
     def test_gate_moves_preserved_and_ceilings_composed(self):
         path = self.root / 'budgets.toml'

@@ -756,6 +756,25 @@ class PlacementTests(RunnerFixture):
 
 
 class WorkspaceTests(RunnerFixture):
+    def test_package_scope_survives_a_binary_skipped_by_the_default_filter(self):
+        package = self.metadata['packages'][0]
+        self.metadata['packages'].append(dict(package, id='other-id', name='other'))
+        self.metadata['workspace_members'].append('other-id')
+        self.metadata['workspace_default_members'] = ['fixture-id']
+        self.listing['rust-suites']['fixture::suite'] = dict(status='skipped')
+        self.config.write_text('[profile.default]\ndefault-filter = "none()"\n')
+        cases = [([], ['fixture']), (['--workspace'], ['fixture', 'other']),
+                 (['--workspace', '--exclude', 'fixture'], ['other']), (['--package=fixture'], ['fixture'])]
+        command = self.command[:4]
+        for index, (selection, packages) in enumerate(cases):
+            with self.subTest(selection=selection):
+                self.command = [*command, *selection, '--no-tests=pass']
+                self.directory = self.root / f'run-{index}'
+                result = self.invoke()
+                self.assertEqual(result['selected_packages'], packages)
+                self.assertFalse(result['test_filtered'])
+                self.assertTrue(all(not binary['listed'] for binary in result['workspace']))
+
     def test_workspace_includes_unlisted_packages_and_excludes_non_test_targets(self):
         package = self.metadata['packages'][0]
         package.update(name='temper-fixture', manifest_path=str(self.root / 'temper/crates/fixture/Cargo.toml'),
@@ -781,6 +800,8 @@ class WorkspaceTests(RunnerFixture):
                     dict(binary_id='temper-fixture', tree='temper', layer='step', listed=True),
                     dict(binary_id='temper-fixture::suite', tree='temper', layer=layer, listed=True)])
                 self.assertEqual(result['selected'], 2)
+                self.assertEqual(result['selected_packages'], ['temper-fixture'])
+                self.assertFalse(result['test_filtered'])
 
     def test_workspace_ids_follow_target_kinds(self):
         rows = [
@@ -816,6 +837,8 @@ class WorkspaceTests(RunnerFixture):
             dict(binary_id='fixture::suite', tree='repository', layer='checks', listed=True)])
         self.assertEqual(result['selected'], 0)
         self.assertEqual(result['processes'], [])
+        self.assertEqual(result['selected_packages'], ['fixture'])
+        self.assertTrue(result['test_filtered'])
 
 
 class ReferenceTests(RunnerFixture):

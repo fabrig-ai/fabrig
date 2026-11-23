@@ -322,22 +322,52 @@ def arguments(command, profile):
     selection_flags = {'-p', '--package', '--exclude', '--bin', '--test', '--example', '--bench',
                        '--features', '-F', '--target', '--target-dir', '--manifest-path', '--jobs',
                        '--run-ignored', '--cargo-profile'}
-    caller_filter = False
-    skip = False
-    for argument in selected:
-        if skip:
-            skip = False
-            continue
-        key = argument.partition('=')[0]
+    caller_filter = whole_workspace = False
+    packages, excluded = [], []
+    words = iter(selected)
+    for argument in words:
+        key, equal, value = argument.partition('=')
+        if argument.startswith('-p') and not argument.startswith('--') and len(argument) > 2:
+            key, equal, value = '-p', '=', argument[2:].removeprefix('=')
+        if key == '--':
+            caller_filter = caller_filter or any(words)
+            break
+        if key in ('--workspace', '--all'):
+            whole_workspace = True
         if key in selection_flags:
-            skip = '=' not in argument
+            value = value if equal else next(words, '')
+            if key in ('-p', '--package'):
+                packages.append(value)
+            elif key == '--exclude':
+                excluded.append(value)
+            elif key == '--run-ignored':
+                caller_filter = True
         elif key in ('-E', '--filterset', '--filter-expr'):
             caller_filter = True
-            skip = '=' not in argument
+            if not equal:
+                next(words, None)
         elif (argument.startswith('-E') and len(argument) > 2) or key in (
                 '--ignore-default-filter', '--partition', '--skip', '--exact') or not argument.startswith('-'):
             caller_filter = True
-    return prefix, cargo, selected, no_tests, caller_filter
+    return prefix, cargo, selected, no_tests, caller_filter, (whole_workspace, packages, excluded)
+
+
+def selected_packages(metadata, scope):
+    """Package scope before test filtering or target pruning (tools/tiers/design.md, 11.8)."""
+    whole_workspace, packages, excluded = scope
+    members = metadata.get('workspace_members', [package['id'] for package in metadata['packages']])
+    ids = set(members if whole_workspace or packages else metadata.get('workspace_default_members', members))
+
+    def matches(package, spec):
+        name = package['name']
+        version = package.get('version', '')
+        return (spec in (package['id'], f'{name}@{version}', f'{name}:{version}')
+                or fnmatch.fnmatchcase(name, spec))
+
+    return sorted(package['name'] for package in metadata['packages']
+                  if package['id'] in ids
+                  and (whole_workspace or not packages or any(matches(package, spec) for spec in packages))
+                  and not any(matches(package, spec) for spec in excluded))
 
 
 def json_listing(output):
@@ -1097,7 +1127,7 @@ def layer_selection(path, profile, selected_layers):
 def listed_plan(command, env, profile, limits, config, walls, layers, picks=None, *,
                 metadata=None, selections=None, selected_layers=('all',)):
     """Build and plan a listing; base picks use any filter match (references.md, 5)."""
-    prefix, cargo, selection, no_tests, caller_filter = arguments(command, profile)
+    prefix, cargo, selection, no_tests, caller_filter, scope = arguments(command, profile)
     settings, overrides, default_filter, groups = configuration(
         config, profile, env, limits, caller_filter or picks is not None)
     if walls is not None:
@@ -1160,7 +1190,8 @@ def listed_plan(command, env, profile, limits, config, walls, layers, picks=None
     if layer_omissions:
         left_out = [name for name in [*table['layers'], 'checks'] if name not in selected_layers]
         forward(f"layers: leaving out {', '.join(left_out)}: {len(layer_omissions)} binaries\n")
-    plan.update(binaries=kept, selected_layers=selected_layers)
+    plan.update(binaries=kept, selected_layers=selected_layers, selected_packages=selected_packages(metadata, scope),
+                test_filtered=caller_filter or picks is not None)
     return plan, prefix, no_tests, output, metadata['workspace_root']
 
 
@@ -1216,7 +1247,7 @@ def alone_at_base(head_directory, command, env, directory, config=Path('.config/
                 wall_grace_s=WALL_GRACE_S, leak_s=LEAK_S)
     present = set()
     if picks:
-        prefix, cargo, selection, _, _ = arguments(command, profile)
+        prefix, cargo, selection, _, _, _ = arguments(command, profile)
         metadata = json.loads(subprocess.check_output([cargo, 'metadata', '--format-version', '1', '--no-deps'],
                                                     env=env, stdin=subprocess.DEVNULL, text=True))
         wanted = {binary for binary, _, _ in picks}
@@ -1312,7 +1343,7 @@ def again_plan(run_directory, binary_id, names):
             raise ValueError(f'test not selected in plan: {binary_id} {name}')
     return dict(plan, binaries=[dict(binary, tests=[selected[name] for name in sorted(names)])],
                 lanes=1, single_process=True, alone_diagnostics=False, layers=[], workspace=[],
-                selected_layers=None, count=False)
+                selected_layers=None, test_filtered=True, count=False)
 
 
 def again(plan, prefix, env, directory):
@@ -1350,7 +1381,9 @@ def execute_plan(plan, prefix, env, directory, limits, *, no_tests='fail', outpu
     selected = 0 if 'reference_picks' in plan else sum(len(binary['tests']) for binary in plan['binaries'])
     results = dict(profile=profile, selected=selected, no_tests=no_tests, cancelled=None, counting=None, commit=commit,
                    processes=[], tests=[], unobserved=[], references=[], layers=plan['layers'], workspace=plan['workspace'],
-                   selected_layers=plan.get('selected_layers'))
+                   selected_layers=plan.get('selected_layers'), test_filtered=plan.get('test_filtered', False))
+    if 'selected_packages' in plan:
+        results['selected_packages'] = plan['selected_packages']
     tests, reference_tests = {}, {}
     picks = plan.get('reference_picks', [])
     reasons = {(binary, name): why for binary, name, why in picks}
