@@ -64,7 +64,10 @@ and helpers of the changed packages and their direct dependents using the
 current package map, with the gate's always-run packages
 (`.config/gate/always.txt`) whenever a code input changed, and every package
 when an input every package builds with changed (`Cargo.lock`, the root
-manifest, the toolchain, `.cargo/`, `.config/nextest.toml`). Prose reaches
+manifest, the toolchain, `.cargo/`, `.config/nextest.toml`). A lock that
+moved no package from outside the workspace, or a root manifest that only
+added or removed the workspace's own crates, reaches no more than the
+manifests of the crates that use them. Prose reaches
 tests only where `.config/gate/read-by-tests.txt` or the fixture readers
 declare it. It runs the Python suites of changed Python files alone, runs the
 tests through one-process and judges instruction growth at the goal's base

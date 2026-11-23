@@ -516,6 +516,32 @@ class Changes(unittest.TestCase):
         self.assertIsNone(base)
         self.assertIn('is HEAD itself', why)
 
+    def test_a_lock_moving_only_workspace_edges_reaches_no_more_packages(self):
+        lock = ('version = 4\n\n[[package]]\nname = "leaf"\nversion = "0.1.0"\ndependencies = [%s]\n\n'
+                '[[package]]\nname = "serde"\nversion = "%s"\nsource = "registry+https://github.com/rust-lang/crates.io-index"\n')
+        (self.root / 'Cargo.lock').write_text(lock % ('', '1.0.0'))
+        self.git('add', 'Cargo.lock')
+        self.git('commit', '-qm', 'lock')
+        base = self.git('rev-parse', 'HEAD')
+        (self.root / 'Cargo.lock').write_text(lock % ('"serde"', '1.0.0'))
+        self.assertFalse(PRE.lock_moves_externals(self.root, self.env, base, self.root))
+        (self.root / 'Cargo.lock').write_text(lock % ('"serde"', '1.0.1'))
+        self.assertTrue(PRE.lock_moves_externals(self.root, self.env, base, self.root))
+        (self.root / 'Cargo.lock').write_text('not toml [')
+        self.assertTrue(PRE.lock_moves_externals(self.root, self.env, base, self.root))
+
+    def test_a_root_manifest_adding_a_crate_reaches_no_more_packages(self):
+        manifest = ('[workspace]\nmembers = [%s]\n\n[workspace.dependencies]\nserde = "%s"\n%s\n'
+                    '[profile.dev]\ndebug = false\n')
+        (self.root / 'Cargo.toml').write_text(manifest % ('"a"', '1', ''))
+        self.git('add', 'Cargo.toml')
+        self.git('commit', '-qm', 'manifest')
+        base = self.git('rev-parse', 'HEAD')
+        (self.root / 'Cargo.toml').write_text(manifest % ('"a", "b"', '1', 'b = { path = "b" }'))
+        self.assertFalse(PRE.root_manifest_moves_more(self.root, self.env, base, self.root))
+        (self.root / 'Cargo.toml').write_text(manifest % ('"a", "b"', '2', 'b = { path = "b" }'))
+        self.assertTrue(PRE.root_manifest_moves_more(self.root, self.env, base, self.root))
+
     def test_skipped_entries_are_not_seeded(self):
         work = self.root.parent / 'work'
         subprocess.run(['git', 'init', '-q', str(work)], env=self.env, check=True, capture_output=True)
