@@ -378,6 +378,8 @@ pub const OPENING: Bound;
   the direct driver's restarts and its oracle's, the walking, escalation,
   roles and forge-route worlds', and the composed system world's
   `reopen_engine`, each with `OPENING`.
+  A store-check rehearsal whose start is refused and a fixture declared
+  broken carry no opening expectation.
 - **Goals' expectations** where a scenario names them: the forge-route
   world, which runs goals with changes, landings and a closer, and the
   composed system world. A scenario that names none is held only to its

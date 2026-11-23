@@ -4,7 +4,50 @@ use skein_lib::{Duration, Time};
 use skein_world::inspect::{Inspection, Wake};
 use temper_engine_domain as engine;
 use temper_engine_domain_forge as forge;
-use temper_engine_domain_world::{checks::Checks, forge_routes::World};
+use temper_engine_domain_world::{checks::Checks, direct::Driver, forge_routes::World, store::Store};
+
+#[test]
+fn an_unopened_world_without_a_refusal_is_found_at_close() {
+    use temper_engine_domain_world::ends::{Ends, OPENING};
+
+    let mut driver = Driver::new(Store::new());
+    driver.close();
+    let closed = std::mem::replace(&mut driver.ends, Ends::new(91, OPENING));
+    // The checked fixture skips a second readback, but a new root still owes an opening.
+    driver.replace_root(temper_engine_domain_world::walking::config(91));
+    let finding = driver.close_erasing(None).expect_err("an unexcused opening is still checked");
+    // The finding is sticky; restore the closed referee after reading this deliberately frozen start.
+    driver.ends = closed;
+    assert!(finding.contains("engine opening: still unopened at close"), "{finding}");
+}
+
+#[test]
+fn a_refused_store_rehearsal_reports_its_finding_without_an_opening() {
+    let mut driver = Driver::new(Store::new());
+    driver.close();
+    let mut image = driver.store.fork();
+    let (cold, _) = temper_engine_forge_world::changes::change_row().split();
+    image.seed(
+        Box::new([engine::Record::Forge { row: Box::new(forge::Stored::ChangeCold(Box::new(cold))) }]),
+        Box::new([]),
+    );
+    let finding = temper_engine_domain_world::check::store(
+        &image,
+        &temper_engine_domain_world::walking::config(91),
+        &driver.env.limits,
+        driver.env.wall,
+        image.applied,
+    )
+    .expect_err("the rehearsal refuses the half change");
+    assert!(finding.contains("start refused at Link: ForgeRow(ChangeCold(51))"), "{finding}");
+}
+
+#[test]
+fn a_broken_world_owes_no_opening_at_close() {
+    let mut driver = Driver::new(Store::new());
+    driver.broken("the story deliberately stops before startup");
+    assert_eq!(driver.close_erasing(None), Ok(()));
+}
 
 #[test]
 fn a_parked_producing_change_without_its_delegate_is_found() {

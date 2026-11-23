@@ -419,6 +419,9 @@ impl Driver {
         crate::poll(&mut self.root, &self.env, &mut self.out);
         self.collect();
         self.root.reclaim();
+        if self.rehearsal && self.root.start_stop().is_some() {
+            self.ends.no_opening(self.env.now);
+        }
         if self.ends.awaiting_open() && self.root.ready() {
             self.ends.opened(self.env.now);
         }
